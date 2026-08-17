@@ -18,7 +18,7 @@
  * same thing for the times a hand is already there.
  */
 
-import { For, onCleanup, onMount } from "solid-js"
+import { createEffect, For, on, onCleanup, onMount } from "solid-js"
 
 import { listKey } from "../keys.ts"
 import { WITHIN } from "../layer.ts"
@@ -26,14 +26,28 @@ import { createCursor } from "../search/cursor.ts"
 import { TESTID } from "../testids.ts"
 import { topmostWhileOpen } from "../topmost.ts"
 
-/** One row. `value` is what taking it is ABOUT — a command's name, a file's
- *  path — and it is what a scenario names the row by; `label` and `hint` are
- *  what a person reads. What taking it DOES is the composer's, which is why
- *  nothing here is a closure. */
+/**
+ * One row. `value` is what taking it is ABOUT — a command's name, a file's
+ * path — and it is what a scenario names the row by; `label` and `hint` are
+ * what a person reads.
+ *
+ * `take` is what CHOOSING it does, carried on the row rather than reported
+ * back as an index — the arrangement `../complete/completing.tsx`'s `Choice`
+ * uses, and for a reason the index shape got wrong. A pointer takes THE ROW IT
+ * PRESSED: an index handed back to the composer is resolved against whatever
+ * the list holds by then, and this list is re-derived while it is on screen —
+ * a directory frame, an agent's commands arriving — so a press could land on
+ * the row that moved into that position. The keyboard is the other way round
+ * and stays an index by nature: the cursor IS a position, and Enter takes the
+ * row the arrows are on.
+ *
+ * The menu still knows nothing about commands or files: a closure is opaque.
+ */
 export interface MenuRow {
   readonly value: string
   readonly label: string
   readonly hint?: string
+  readonly take: () => void
 }
 
 export function CompletionMenu(props: {
@@ -42,6 +56,16 @@ export function CompletionMenu(props: {
    *  its own three widgets, kept here for the two. */
   readonly kind: "command" | "path"
   readonly rows: ReadonlyArray<MenuRow>
+  /** WHAT IS BEING ASKED — the armed kind and its query, as one string. The
+   *  cursor goes back to the top when it changes, because a keystroke means a
+   *  different question and the answer to the last one is not where somebody's
+   *  eye is. It matters more here than it reads: the file rows are three
+   *  buckets deep (`./files.ts`), so a query that gains a character can
+   *  REORDER them under a walked index, and Enter would take a row the arrows
+   *  never landed on. Keyed on the question rather than on the rows, so
+   *  walking the list does not reset it and a directory frame arriving does
+   *  not either — `../complete/completing.tsx`'s rule, kept. */
+  readonly asking: string
   /**
    * The BOX this list is completing, which is what makes it caret-scoped.
    *
@@ -58,8 +82,6 @@ export function CompletionMenu(props: {
    * by its LIST layer.
    */
   readonly within: () => HTMLElement | undefined
-  /** Take the row at this index — the composer decides what that means. */
-  readonly onAccept: (at: number) => void
   readonly onDismiss: () => void
 }) {
   // WHICH row Enter takes — the one cursor every shortlist in this client
@@ -68,6 +90,9 @@ export function CompletionMenu(props: {
   // It also keeps the cursor on a row that EXISTS when the list changes
   // underneath, which this menu had no answer for at all.
   const cursor = createCursor(() => props.rows.length)
+
+  // A NEW QUESTION STARTS AT THE TOP — see `asking`.
+  createEffect(on(() => props.asking, cursor.top))
 
   /**
    * This list on the client's one dismissal stack (`../topmost.ts`).
@@ -101,9 +126,10 @@ export function CompletionMenu(props: {
   }
 
   const accept = (event: KeyboardEvent) => {
-    if (props.rows[cursor.at()] === undefined) return
+    const chosen = props.rows[cursor.at()]
+    if (chosen === undefined) return
     take(event)
-    props.onAccept(cursor.at())
+    chosen.take()
   }
 
   // WHICH key it is, is the registry's (`../keys.ts`'s list layer); what each
@@ -163,7 +189,8 @@ export function CompletionMenu(props: {
               data-testid={TESTID.chatCompletionRow}
               data-value={row.value}
               data-active={index() === cursor.at()}
-              onClick={() => props.onAccept(index())}
+              // THE ROW, not its position: see {@link MenuRow.take}.
+              onClick={() => row.take()}
             >
               {/* The space between them is a real character as well as a
                   margin: what the eye reads as two words has to be two words

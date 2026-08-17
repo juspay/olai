@@ -79,26 +79,18 @@ import { nodeNamed } from "@olai/format"
 import { ATTACHMENT_EXTENSIONS } from "@olai/surface"
 import { createEffect, createMemo, createSignal, on, Show } from "solid-js"
 
-import { type Written, written } from "../complete/trigger.ts"
+import type { Written } from "../complete/trigger.ts"
 import { useDerived } from "../derived.tsx"
 import { useServed } from "../served.tsx"
 import { TESTID } from "../testids.ts"
 import { armedNodes, disarmNode, releaseArmed, restoreArmed } from "./armed.ts"
 import { Attachments } from "./Attachments.tsx"
-import { type Completing, completingIn, inserted, tokenOf } from "./completion.ts"
+import { type Completing, completed, completingIn, tokenOf } from "./completion.ts"
 import { CompletionMenu, type MenuRow } from "./CompletionMenu.tsx"
 import { type Chip, ContextChips } from "./ContextChips.tsx"
 import { dirOf, folded, matchFiles, nameOf } from "./files.ts"
 import type { Holding } from "./holding.ts"
 import type { Chat } from "./state.ts"
-
-/** One row of the completion, and what taking it does — the arrangement the
- *  row editor's widgets use (`../complete/completing.tsx`'s `Choice`): the box
- *  draws rows and reports an index, and every kind of row carries its own
- *  answer to being chosen, so the menu knows nothing about commands or files. */
-interface Row extends MenuRow {
-  readonly take: () => void
-}
 
 /** Every control on the toolbar, the same height and the same corners. Written
  *  once because "these line up" is the property, and three copies of a class
@@ -208,7 +200,7 @@ export function Composer(props: {
   /** A SWITCH rather than a chain of `if`s whose last arm is a fall-through:
    *  the two kinds and the two lists are one table the compiler checks, so a
    *  third trigger could not quietly render commands. */
-  const rows = createMemo<ReadonlyArray<Row>>(() => {
+  const rows = createMemo<ReadonlyArray<MenuRow>>(() => {
     const completing = found()
     if (completing === null) return []
     switch (completing.kind) {
@@ -230,7 +222,11 @@ export function Composer(props: {
           // prefixes otherwise. What is written is the whole path either way.
           label: nameOf(path),
           hint: dirOf(path),
-          take: () => rewrite(written(draft(), completing, inserted(path), caret())),
+          // The draft and the caret are read when the row is TAKEN, not when
+          // it was drawn — and what replaces the span is `./completion.ts`'s,
+          // including the rule about not writing a second space into somebody
+          // else's sentence.
+          take: () => rewrite(completed(draft(), completing, path, caret())),
         }))
     }
   })
@@ -313,11 +309,20 @@ export function Composer(props: {
    * Put `next` in the box, caret and all — the DOM half of taking a row.
    *
    * The ELEMENT first and the signal last, which is `../edit/RowEditor.tsx`'s
-   * order and load-bearing for the same reason: setting a field's `value` to a
-   * string it does not already hold moves the caret to the end, so the
-   * selection has to be set after the value is there — and Solid's own binding
-   * then assigns the identical string, which the platform treats as no change
-   * and leaves the caret where this put it.
+   * order and load-bearing for the same reason: setting a field's `value`
+   * moves the caret to the end of it, so the selection has to be set after the
+   * value is there rather than before.
+   *
+   * WHAT THAT LEAVES is one thing this file cannot prove on its own: Solid's
+   * `value` binding runs after these lines, and it holds its own copy of what
+   * it last wrote — so it skips the assignment when the string has not changed
+   * from ITS point of view, which after `setDraft` it has not. That is a
+   * framework behaviour, not a platform guarantee: the HTML spec says setting
+   * `value` to the same string leaves the selection alone, and engines have
+   * not always agreed. Neither claim is one to rest a caret on by reading, so
+   * the caret is asserted where it can be — in a browser, after a completion
+   * taken mid-sentence (`features/chat_at_completion.feature`, which reads
+   * `selectionStart` back rather than believing this paragraph).
    *
    * IT TAKES THE CARET BACK, which matters for the row that was CLICKED: the
    * press moved focus to the button, and the button is gone a moment later
@@ -388,8 +393,11 @@ export function Composer(props: {
         <CompletionMenu
           kind={found()?.kind ?? "command"}
           rows={rows()}
+          // What is being asked, so the list starts at the top when it changes
+          // — the kind as well as the query, since `/` and `@` can both be
+          // armed with nothing typed after them and those are two questions.
+          asking={`${found()?.kind ?? ""}:${found()?.query ?? ""}`}
           within={() => input}
-          onAccept={(at) => rows()[at]?.take()}
           onDismiss={dismiss}
         />
       </Show>

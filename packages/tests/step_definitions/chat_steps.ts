@@ -1318,6 +1318,30 @@ When(
   },
 );
 
+/**
+ * WHERE IN THE TEXT the caret sits, read off the element rather than reasoned
+ * about.
+ *
+ * The completion sets the field's value and then its selection, and what keeps
+ * the second from being undone by the framework's own binding is a claim about
+ * Solid and about the platform that no comment can settle
+ * (`client/chat/Composer.tsx`'s `rewrite`). A real browser can, so it does:
+ * completing mid-sentence has to leave the caret after the path it wrote, not
+ * at the end of the line.
+ */
+Then(
+  "the caret in the chat box is at {int}",
+  async function (this: OlaiWorld, at: number) {
+    await this.waitUntil(
+      async () =>
+        (await this.page
+          .locator(CHAT_INPUT)
+          .evaluate((box) => (box as HTMLTextAreaElement).selectionStart)) === at,
+      `the caret to sit at ${at}`,
+    );
+  },
+);
+
 /** WHERE THE CARET IS after a row was taken with the pointer: the press moved
  *  focus to a button that is gone a moment later, so a completion that did not
  *  hand it back would cost a click instead of saving one. */
@@ -1330,6 +1354,34 @@ Then("the caret is in the chat box", async function (this: OlaiWorld) {
     "the caret to be back in the message box",
   );
 });
+
+/**
+ * The caret moved INTO the sentence, the way a click into the middle of one
+ * moves it — `editing_steps.ts`'s gesture, one box over.
+ *
+ * `setSelectionRange` fires the element's own `select` event, which is what
+ * the composer listens for: the caret is the element's answer there, never a
+ * signal this suite could set (`client/chat/Composer.tsx`).
+ */
+When(
+  "I put the caret after {string} in the chat",
+  async function (this: OlaiWorld, prefix: string) {
+    const box = this.page.locator(CHAT_INPUT);
+    await box.focus();
+    await box.evaluate((element, wanted) => {
+      const field = element as HTMLTextAreaElement;
+      const at = field.value.indexOf(wanted);
+      if (at === -1) {
+        throw new Error(
+          `the box holds ${JSON.stringify(field.value)}, which does not contain ${
+            JSON.stringify(wanted)
+          }`,
+        );
+      }
+      field.setSelectionRange(at + wanted.length, at + wanted.length);
+    }, prefix);
+  },
+);
 
 /** A key aimed at the BOX rather than at the page — which is the whole of what
  *  the list asks before answering one (`within`, in CompletionMenu.tsx). */

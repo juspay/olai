@@ -23,13 +23,19 @@
  *
  * `toLowerCase` on every path on every character typed is a throwaway string
  * per file per keystroke, which on a thousand-file vault is exactly the shape
- * that makes a completion feel slow. So the fold happens ONCE PER VERSION of
- * the directory and is kept in a `WeakMap` keyed on the path list itself —
- * `../complete/tags.ts`'s arrangement, for its reason: asking here, only while
- * an `@` is being typed, costs nothing at all on a session that never types
- * one, and the answer for a list nothing holds any more is collectable with
- * the list. A memo in the composer would instead re-fold the whole vault every
- * time a file changed, whether or not anybody ever completes a path.
+ * that makes a completion feel slow. So the fold is kept in a `WeakMap` keyed
+ * on the path list itself — `../complete/tags.ts`'s arrangement, for its
+ * reason: asking here, only while an `@` is being typed, costs nothing at all
+ * on a session that never types one, and the answer for a list nothing holds
+ * any more is collectable with the list. A memo in the composer would instead
+ * re-fold the whole vault every time a file changed, whether or not anybody
+ * ever completes a path.
+ *
+ * Keyed on the list means once per LIST, which is once per version of the
+ * directory only because the list is made to work that way: `../served.tsx`
+ * compares membership before publishing a new array, so a key frame that
+ * re-sent the same paths does not mint one. Without that this would be once
+ * per frame, which is a cache that misses exactly when it is asked.
  *
  * ## A prefix first and a substring second, which is not a score
  *

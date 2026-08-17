@@ -18,6 +18,7 @@ Feature: Typing @ in the chat completes a file of the directory
 
   Background:
     Given I open the app
+    And I mark the page
     And the agent panel is open
 
   @scratch:chat
@@ -62,6 +63,22 @@ Feature: Typing @ in the chat completes a file of the directory
     And the completion does not offer "finishes.md"
 
   @scratch:chat
+  Scenario: Completing INSIDE a sentence writes one space, and keeps the caret
+    # Two claims a unit test cannot make together. The space that separates the
+    # path from the next word is already in the line, so the completion must
+    # not add a second one — and the caret has to end up after the path rather
+    # than at the end of the message, which depends on a field's `value` being
+    # set before its selection and on the framework not undoing it. Both are
+    # read back off the box here, in a browser, because that is the only place
+    # either is true or false.
+    When I type "read @fin later" into the chat
+    And I put the caret after "read @fin" in the chat
+    Then the completion offers "finishes.md"
+    When I accept the completion
+    Then the chat input reads "read @finishes.md later"
+    And the caret in the chat box is at 18
+
+  @scratch:chat
   Scenario: The arrows walk it, and Enter takes the row they are on
     # The keys are the list's while it is up — the same cursor the ⌘K palette
     # and the row editor's widgets walk (`client/search/cursor.ts`), which is
@@ -73,6 +90,23 @@ Feature: Typing @ in the chat completes a file of the directory
     And I accept the completion
     # Directory order, so the second row is the outline beside the document.
     Then the chat input reads "read @house.olai "
+
+  @scratch:chat
+  Scenario: A keystroke is a new question, so the arrows start again at the top
+    # The rows are three buckets deep (`client/chat/files.ts`), so one more
+    # character can REORDER them — and a cursor left where it was would mean
+    # Enter taking a file the arrows never landed on, which is the one failure
+    # a completion must not have. Both queries below answer with the same three
+    # files in the same order, so what this can only be about is the cursor:
+    # walked to the third row, then asked something else, Enter takes the FIRST.
+    When I type "read @" into the chat
+    Then the completion offers "notes/cabinets.md"
+    When I press "ArrowDown" in the chat
+    And I press "ArrowDown" in the chat
+    And I type "read @s" into the chat
+    Then the completion offers "notes/cabinets.md"
+    When I accept the completion
+    Then the chat input reads "read @finishes.md "
 
   @scratch:chat
   Scenario: A pointer takes the same row, and hands the caret back
@@ -141,3 +175,7 @@ Feature: Typing @ in the chat completes a file of the directory
       """
     And I type "read @splash" into the chat
     Then the completion offers "notes/splashback.md"
+    # ...on the page that was already open. Without this line a full reload
+    # would pass the scenario, which is the one thing "no reload" features are
+    # for: the paths came down the subscription this tab is holding.
+    And the page has not reloaded

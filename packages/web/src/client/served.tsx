@@ -32,6 +32,14 @@ import { sortByPath } from "./paths.ts"
 
 const ServedContext = createContext<Accessor<ReadonlyArray<string>>>()
 
+/** The same paths in the same order — what "the directory has not changed"
+ *  means for a list that is rebuilt whenever either half of it speaks. Both
+ *  lists are already sorted, so this is a walk rather than a set comparison. */
+const same = (
+  a: ReadonlyArray<string>,
+  b: ReadonlyArray<string>,
+): boolean => a.length === b.length && a.every((path, at) => path === b[at])
+
 export function ServedProvider(props: {
   /** The outlines' keys — every `.olai` the directory holds. */
   readonly outlines: ReadonlyArray<string>
@@ -44,7 +52,19 @@ export function ServedProvider(props: {
   // (`./paths.ts`): the outlines arrive in the collection's arrival order and
   // the documents in theirs, so a file created while the tab was open would
   // otherwise sit at the bottom of every list that shows it.
-  const files = createMemo(() => sortByPath([...props.outlines, ...props.documents]))
+  //
+  // `equals` COMPARES THE MEMBERSHIP, and that is what makes this list's
+  // IDENTITY mean "the directory changed" rather than "a frame arrived". Both
+  // sources mint a fresh array whenever their own stream speaks — a key set
+  // re-sent unchanged is still a new array — and downstream there is a fold
+  // kept against this very array (`./chat/files.ts`, a `WeakMap`), so without
+  // this the vault would be re-folded for frames that said nothing. A memo
+  // with no `equals` compares by reference and would never notice.
+  const files = createMemo(
+    () => sortByPath([...props.outlines, ...props.documents]),
+    undefined,
+    { equals: same },
+  )
   return (
     <ServedContext.Provider value={files}>
       {props.children}

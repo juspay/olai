@@ -10,7 +10,7 @@
 
 import { expect, test } from "bun:test"
 
-import { completingIn, inserted, tokenOf } from "./completion.ts"
+import { completed, completingIn, inserted, tokenOf } from "./completion.ts"
 
 /** The caret at the end of what has been typed — the ordinary case, and the
  *  one every test below is about unless it says otherwise. */
@@ -104,4 +104,52 @@ test("a dismissal is about a token: the kind and where it starts", () => {
 
 test("a chosen file keeps its `@` and gains a space", () => {
   expect(inserted("notes/cabinets.md")).toBe("@notes/cabinets.md ")
+})
+
+/** Taking a row, over the whole line: what the message reads afterwards and
+ *  where the caret is. `at(...)` is the trigger the caret is inside, which is
+ *  what the composer hands this. */
+const taking = (text: string, caret: number, path: string) => {
+  const armed = completingIn(text, caret)
+  expect(armed).not.toBeNull()
+  return completed(text, armed!, path, caret)
+}
+
+test("taking a row at the end of the message writes the path and a space", () => {
+  expect(taking("read @fin", 9, "finishes.md")).toEqual({
+    text: "read @finishes.md ",
+    caret: 18,
+  })
+})
+
+test("...and MID-SENTENCE writes one space, not two", () => {
+  // The space that separates the path from the next word is already there, and
+  // a completion that added a second one would be editing somebody's spacing.
+  expect(taking("read @fin later", 9, "finishes.md")).toEqual({
+    text: "read @finishes.md later",
+    caret: 18,
+  })
+})
+
+test("a caret before a NEWLINE keeps the newline and the space", () => {
+  // Swallowing it would join two lines a person wrote apart; a trailing space
+  // at the end of a line is nothing anybody sees.
+  expect(taking("read @fin\nthen this", 9, "finishes.md")).toEqual({
+    text: "read @finishes.md \nthen this",
+    caret: 18,
+  })
+})
+
+test("only ONE space is given up, however many are there", () => {
+  expect(taking("read @fin  later", 9, "finishes.md")).toEqual({
+    text: "read @finishes.md  later",
+    caret: 18,
+  })
+})
+
+test("the whole span goes, `@` and all, wherever it starts", () => {
+  expect(taking("@fin", 4, "notes/cabinets.md")).toEqual({
+    text: "@notes/cabinets.md ",
+    caret: 19,
+  })
 })

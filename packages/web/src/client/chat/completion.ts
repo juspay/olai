@@ -57,6 +57,8 @@
 
 import { tagOpensAt } from "@olai/format"
 
+import { type Written, written } from "../complete/trigger.ts"
+
 /** What the box has armed, if anything. `from` is the index of the opener's
  *  FIRST character, so `[from, caret)` is the span a chosen row replaces —
  *  which is what `../complete/trigger.ts`'s `written` takes. */
@@ -152,3 +154,32 @@ export const tokenOf = (found: Completing): string =>
  * be worse than a sentence a reader can see the shape of.
  */
 export const inserted = (path: string): string => `@${path} `
+
+/**
+ * The message with the armed span replaced by the chosen path, and the caret
+ * after it — the whole of what taking a row writes.
+ *
+ * ONE SPACE, NOT TWO, which is the reason this is a function rather than a
+ * call to {@link written} with {@link inserted} in it. Completing at the end of
+ * a message is the case that shaped the trailing space, and completing in the
+ * MIDDLE of one is the case it got wrong: `read @fin later` already has the
+ * space that separates the path from the next word, so adding another wrote
+ * `read @finishes.md  later` — two spaces, in somebody's sentence, put there
+ * by a completion. So a caret sitting on a space gives that space up, and what
+ * follows the path is the whitespace that was already there.
+ *
+ * A SPACE and not any whitespace: a newline after the caret stays a newline,
+ * because swallowing one would join two lines a person wrote apart, and a
+ * trailing space at the end of a line is nothing anybody sees. The space is
+ * still written when the caret is at the end of the message, where there is
+ * nothing to give it up — and where it does the second job the trailing space
+ * has, which is to end the trigger so the list does not come straight back
+ * over the path it just wrote.
+ */
+export const completed = (
+  text: string,
+  at: Completing,
+  path: string,
+  caret: number,
+): Written =>
+  written(text, at, inserted(path), text[caret] === " " ? caret + 1 : caret)
