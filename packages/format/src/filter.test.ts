@@ -10,7 +10,7 @@ import {
   parseFilter,
   type Refusal,
   relativeSpan,
-  shortlisted,
+  ranked,
   shownRecord,
 } from "./filter.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
@@ -1133,16 +1133,17 @@ test("`is:archived` and `date:` compose over a day the page itself draws empty",
   expect(selects("date:2026-06-01")).toEqual([])
 })
 
-// ── the shortlist ──────────────────────────────────────────────────────
+// ── the order ──────────────────────────────────────────────────────────
 //
-// The rule for showing a stranger a LIST rather than an answer, which two
-// doors need — `search_nodes` and the chat composer's `@` — and neither may
-// respell (`shortlisted`'s own header). Asked here, in the package that owns
-// it, over the corpus every other query in this file is asked of.
+// The rest of the score {@link matchOf} starts — a finished node loses about a
+// field — which two doors need (`search_nodes` and the chat composer's `@`) and
+// neither may respell (`ranked`'s own header). The CAP is each door's own, so
+// these ask for the order and take what they want off the top.
 
 /** The ids a query's best few name, best first. */
 const bestOf = (text: string, limit: number): ReadonlyArray<string> =>
-  shortlisted(derived, matching(derived, parseFilter(text, TODAY)), limit)
+  ranked(derived, matching(derived, parseFilter(text, TODAY)))
+    .slice(0, limit)
     .map(({ at }) => at.node.id)
 
 test("the shortlist is ranked, where the answer it is cut from is not", () => {

@@ -288,7 +288,7 @@ export function Composer(props: {
           value: offer.value,
           label: offer.label,
           hint: offer.hint,
-          section: offer.kind === "file" ? "files" : "nodes",
+          section: offer.section,
           // The draft and the caret are read when the row is TAKEN, not when
           // it was drawn — and what replaces the span is `./completion.ts`'s,
           // including the rule about not writing a second space into somebody
@@ -347,7 +347,11 @@ export function Composer(props: {
     if (
       text.trim() === "" &&
       props.holding.pending().length === 0 &&
-      armedNodes().length === 0
+      // What the message is ABOUT, which is what rides the send — not the app
+      // strip alone, now that half of it is read off the words. Equivalent
+      // today, since an empty draft names nothing; the point is that it says
+      // the thing the guard means.
+      subjects().length === 0
     ) return
     const attachments = props.holding.release()
     // WHAT THE MESSAGE IS ABOUT, read once — before the box is cleared, since
@@ -376,14 +380,18 @@ export function Composer(props: {
       context,
     )
     if (sent) return
-    setDraft((typing) => (typing === "" ? text : typing))
+    // THE WORDS AND THE PERMISSION FOR THEM MOVE TOGETHER, on one test rather
+    // than two: the restored `@hinges` has to be a word the panel remembers
+    // writing, or the message goes the second time without the subject it was
+    // refused with. Two separately-evaluated "is it still empty?" guards could
+    // answer differently — somebody typing while the refusal is in flight keeps
+    // their words and would have got the old permissions back underneath them.
+    if (draft() === "") {
+      setDraft(text)
+      setTaken(chosen)
+    }
     props.holding.restore(attachments)
     restoreArmed(held)
-    // ...and the record of which rows were taken, which is what makes the words
-    // that came back mean what they meant: without it the restored `@hinges`
-    // would be a word the panel had forgotten writing, and the message would go
-    // the second time without the subject it was refused with.
-    setTaken((now) => (now.size === 0 ? chosen : now))
   }
 
   /** A command taken: `/name ` and nothing else — sending is what invokes it,
@@ -444,14 +452,16 @@ export function Composer(props: {
    * it would name a node it had just been told it was not about. The `×` is the
    * only thing in the panel that edits somebody's draft, and it edits it to
    * agree with what they pressed.
+   *
+   * ...and it is the ONLY edit: what was taken stays taken. A second lever here
+   * — dropping the id out of {@link taken} as well — would make this press mean
+   * something a keyboard delete does not, and the difference would show up at
+   * the undo: ⌘Z over a deletion brings the word and the chip back together,
+   * where ⌘Z over an `×` that had also revoked the take would bring back a word
+   * naming nothing. One rule, one lever, and the word decides.
    */
   const unname = (id: string) => {
     disarmNode(id)
-    setTaken((already) => {
-      const left = new Set(already)
-      left.delete(id)
-      return left
-    })
     const next = unnamed(draft(), id, caret())
     if (next.text !== draft()) rewrite(next)
   }

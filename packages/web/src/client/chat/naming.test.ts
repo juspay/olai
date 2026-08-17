@@ -67,15 +67,20 @@ test("the node rows say what they write, then where they are", () => {
   const node = offers(FILES, SET, "about 3", TODAY)[0]
   expect(node).toEqual({
     kind: "node",
+    section: "nodes",
     value: "note-3",
     label: "note about 3",
-    hint: "@note-3 · notes",
+    // The `·` is the PLACE's and nothing else's: the id and the place are two
+    // facts, and one glyph doing both jobs on one line leaves a reader working
+    // out which dots are boundaries and which are ancestry.
+    hint: "@note-3 — notes",
   })
 })
 
 test("the file rows are what they always were: the name, then its folder", () => {
   expect(offers(FILES, SET, "note-7.md", TODAY)[0]).toEqual({
     kind: "file",
+    section: "files",
     value: "notes/note-7.md",
     label: "note-7.md",
     hint: "notes",

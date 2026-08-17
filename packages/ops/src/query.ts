@@ -46,7 +46,7 @@ import {
   type SearchAnswer,
   type SearchHit,
   type SearchRequest,
-  shortlisted,
+  ranked,
   type Stamps,
   type Subtree,
   tagText,
@@ -179,14 +179,16 @@ const carriedOf = (
  * differently for having to do it itself. One matcher, five callers; that
  * file's header names them and docs/brainstorming/filter-in-place.md argues it.
  *
- * NEITHER IS THE RANKING, as of the chat composer's `@` list: the done penalty,
- * the sort and the cap went down to the matcher with the same argument one door
- * later ({@link shortlisted}) — a completion in a browser cannot call this and
- * must not hold a second opinion about whether a finished node outranks an open
- * one. What is left here is the SITUATING, which is this layer's alone
- * ({@link foundOf}), the uncapped total, so "twelve of ninety" is sayable, and
- * CARRYING THE REFUSAL, because this is the only layer that has both the
- * parser's answer and a caller to hand it to.
+ * NEITHER IS THE ORDER, as of the chat composer's `@` list: the done penalty
+ * and the sort went down to the matcher with the same argument one door later
+ * ({@link ranked}) — a completion in a browser cannot call this and must not
+ * hold a second opinion about whether a finished node outranks an open one.
+ * The CAP stayed, because a row count is a fact about a door rather than about
+ * a query: twelve here, eight in that completion, and a floor holding either
+ * would be holding somebody else's layout. What is left with it is the
+ * SITUATING, which is this layer's alone ({@link foundOf}), the uncapped total,
+ * so "twelve of ninety" is sayable, and CARRYING THE REFUSAL, because this is
+ * the only layer that has both the parser's answer and a caller to hand it to.
  *
  * SHORTENED BEFORE IT IS SITUATED, which is a change of order rather than a
  * change of answer: a hit carries the ancestor titles `ancestorsOf` walks to
@@ -219,7 +221,8 @@ export const search = (
 
   const matched = matching(derived, filter, { file: query.file, under: query.under })
   const limit = query.limit ?? DEFAULT_SEARCH_LIMIT
-  const hits = shortlisted(derived, matched, limit)
+  const hits = ranked(derived, matched)
+    .slice(0, limit)
     .map(({ at, match }): SearchHit => {
       const found = foundOf(derived, at)
       // ANNOTATED, never asserted. It was `as Hit` for as long as this function

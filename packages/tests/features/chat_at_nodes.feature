@@ -40,9 +40,11 @@ Feature: Typing @ in the chat completes a node of the directory
     And the completion offers "order"
     And the completion block "files" comes before the block "nodes"
     # The row reads the TITLE, and what it writes is beside it: the id first,
-    # because a line that must be ellipsized loses its end and the id is the
-    # only always-unique half — then where the node sits, nearest first.
-    And the completion row "order" reads "order the new cabinets" in "@order · kitchen remodel #home"
+    # because it is the only always-unique half — then where the node sits,
+    # nearest first. The `·` belongs to the PLACE and to nothing else, so a
+    # reader never has to work out which dots are boundaries and which are
+    # ancestry.
+    And the completion row "order" reads "order the new cabinets" in "@order — kitchen remodel #home"
 
   @scratch:chat
   Scenario: Taking a node writes its id and arms the node
@@ -79,8 +81,8 @@ Feature: Typing @ in the chat completes a node of the directory
     When I type "chase @supplier" into the chat
     Then the completion offers "chase-supplier"
     And the completion offers "chase-tiler"
-    And the completion row "chase-supplier" reads "chase the supplier" in "@chase-supplier · install the cabinets · kitchen remodel #home"
-    And the completion row "chase-tiler" reads "chase the supplier" in "@chase-tiler · kitchen remodel #home"
+    And the completion row "chase-supplier" reads "chase the supplier" in "@chase-supplier — install the cabinets · kitchen remodel #home"
+    And the completion row "chase-tiler" reads "chase the supplier" in "@chase-tiler — kitchen remodel #home"
 
   @scratch:chat
   Scenario: A row says when it is here for something written in the note
@@ -91,7 +93,7 @@ Feature: Typing @ in the chat completes a node of the directory
     # only one that has to say so.
     When I type "the @brass" into the chat
     Then the completion offers "hinges"
-    And the completion row "hinges" reads "pick the hinges" in "@hinges · in the note · install the cabinets · kitchen remodel #home"
+    And the completion row "hinges" reads "pick the hinges" in "@hinges (in the note) — install the cabinets · kitchen remodel #home"
 
   @scratch:chat
   Scenario: The words are the last word — deleting one takes its chip

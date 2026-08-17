@@ -14,20 +14,22 @@
  * means, so a list with private rules teaches the wrong thing about every other
  * box in the app.
  *
- * So the query is read by the grammar and matched by the matcher, and the
- * ranking is the ranking (`shortlisted`, which came down into the format for
- * this door — a browser cannot call the ops layer per keystroke, and a second
- * opinion about whether a finished node outranks an open one is exactly the
- * kind of thing nobody notices until two lists disagree in front of them).
+ * So the query is read by the grammar and matched by the matcher, and the order
+ * is the order (`ranked`, which came down into the format for this door — a
+ * completion cannot make a round trip per keystroke, and a second opinion about
+ * whether a finished node outranks an open one is exactly the kind of thing
+ * nobody notices until two lists disagree in front of them). The other doors
+ * ask that same rule through the wire; this one imports it, and that is the
+ * whole of the difference between them.
  *
  * What that buys, free and unasked for: `@is:blocked` names something waiting,
  * `@#home` names by tag, `@date:today` names something scheduled — and
  * `@is:archived` reaches what was put away, which is the only way to reach it
  * (below). What it does NOT buy is a survey: an operator with no word in it
- * scores every match zero, so the eight rows are the first eight in the
- * directory's own order. That is honest rather than clever — `@` NAMES one
- * node, the ⌘K palette SEARCHES — and it is the matcher's own answer rather
- * than a cap this file invented.
+ * scores every match the same, so all that orders the eight is the rule that
+ * puts finished work last, and then the directory's own order. That is honest
+ * rather than clever — `@` NAMES one node, the ⌘K palette SEARCHES — and it is
+ * the matcher's own answer rather than a cap this file invented.
  *
  * ## ONE TOKEN, because a completion may not swallow the sentence
  *
@@ -75,7 +77,9 @@ import {
   type Derived,
   matching,
   parseFilter,
-  shortlisted,
+  ranked,
+  SEARCH_FIELDS,
+  type SearchField,
 } from "@olai/format"
 
 import { nodePlace } from "../search/place.ts"
@@ -126,7 +130,8 @@ export const matchNodes = (
   now: string,
   limit: number,
 ): ReadonlyArray<NodeMatch> =>
-  shortlisted(derived, matching(derived, parseFilter(query, now)), limit)
+  ranked(derived, matching(derived, parseFilter(query, now)))
+    .slice(0, limit)
     .map(({ at, match }) => ({
       id: at.node.id,
       label: at.node.title.trim() === "" ? at.node.id : at.node.title,
@@ -138,5 +143,24 @@ export const matchNodes = (
         file: at.file,
         path: ancestorsOf(derived, at.node.id).map((crumb) => crumb.node.title),
       }),
-      note: match.field === "desc",
+      note: match.field !== null && !SHOWN_ON_THE_ROW.has(match.field),
     }))
+
+/**
+ * The fields a row shows for itself, as a set the compiler keeps whole.
+ *
+ * Written as what IS visible rather than as `field === "desc"`, so the rule and
+ * the code say the same thing: a row owes an explanation when the reason is not
+ * already on it. Spelled the other way round, a FIFTH search field would
+ * silently become an unexplained row that compiles clean — and `Match.field`'s
+ * own doc calls its list "closed" while `Match.props` exists precisely because
+ * it has been under pressure. Typed off `SearchField` so a new field is a type
+ * error here rather than a quiet default.
+ */
+const SHOWN_ON_THE_ROW: ReadonlySet<SearchField> = new Set(
+  // The title IS the label, the id is written in the hint, and a tag is written
+  // inside the title — three of the four, pointed at rather than named.
+  (["title", "id", "tag"] as const satisfies ReadonlyArray<
+    (typeof SEARCH_FIELDS)[number]
+  >),
+)

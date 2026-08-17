@@ -25,9 +25,12 @@
  * the better behaviour as well as the true one: what was put away is reachable
  * at every door that asks for it (#226 took the default presence, never the way
  * to ask), and "why did we put this away?" is a question to be able to ask. So
- * it goes, and the line SAYS SO ({@link ../../surface/src/chat.ts}'s
- * `NodeContext.archived`), because an agent handed a row that reads like live
- * work will treat it as live work.
+ * it goes, with the `file` it sits in — and the LINE says which that is
+ * (`@olai/chat`'s `lineFor`, which asks the format the same `isArchived` every
+ * other reader of an archive asks), because an agent handed a row that reads
+ * like live work will treat it as live work. Nothing about it is decided here:
+ * this answers WHICH node, and what the sentence says about one is the sentence
+ * writer's.
  *
  * PURE over a reading, like {@link ./edit.ts} and for its reasons: every case
  * is a question about the set, so it is answerable with a value and testable
@@ -35,7 +38,6 @@
  */
 
 import {
-  isArchived,
   isMirror,
   type LocatedRegular,
   type OpFailure,
@@ -87,15 +89,5 @@ const nodeContextFor = (
     at.derived,
     located as LocatedRegular,
   )
-  return Result.succeed({
-    id: found,
-    title,
-    file,
-    line,
-    path,
-    // The format's own question about the file it sits in, asked rather than
-    // re-derived from the path — and omitted when the answer is no, which is
-    // this format's rule for a field that holds nothing.
-    ...(isArchived(file) ? { archived: true } : {}),
-  })
+  return Result.succeed({ id: found, title, file, line, path })
 }

@@ -239,9 +239,9 @@ export type {
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it
- *  selects, `shortlisted` keeps the best few of them for a door that shows a
- *  stranger a list, `keeping` and `matchedIn` are what a TREE narrowed to them
- *  looks like and how many rows of it are hits, and `shownRecord` is the record
+ *  selects, `ranked` puts them in the order a door shows them in, `keeping` and
+ *  `matchedIn` are what a TREE narrowed to them looks like and how many rows of
+ *  it are hits, and `shownRecord` is the record
  *  a row draws — the rule a fold already follows, said once. The grammar's own
  *  vocabulary (the operator names, the field weights, the per-node predicate)
  *  stays inside: a consumer reaching for one of them would be re-implementing
@@ -262,9 +262,9 @@ export {
    *  so it is one declaration like the hit it travels beside. */
   Refusal,
   SEARCH_FIELDS,
-  /** The best few, best first — the rule for showing a stranger a list, which
-   *  two doors now need and neither may respell. */
-  shortlisted,
+  /** Best first — the rest of the score the matcher starts, which two doors now
+   *  need and neither may respell. The cap is each door's own. */
+  ranked,
   shownRecord,
 } from "./filter.ts"
 export type { Filter, Match, Matched, Scope, SearchField } from "./filter.ts"

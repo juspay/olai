@@ -45,7 +45,7 @@
 import type { Derived } from "@olai/format"
 
 import { dirOf, folded, matchFiles, nameOf } from "./files.ts"
-import { matchNodes } from "./nodes.ts"
+import { matchNodes, type NodeMatch } from "./nodes.ts"
 
 /** How many rows the list offers — the eight every shortlist in this app shows
  *  (`../complete/tags.ts`, `./files.ts`). */
@@ -61,7 +61,14 @@ const RESERVE = 4
  *  is what taking it WRITES — a path, or a node's id — and it is what a
  *  scenario names the row by. */
 export interface Offer {
+  /** WHICH HALF answered, for the composer: a node is armed when it is taken
+   *  and a file is not ({@link ./Composer.tsx}). */
   readonly kind: "file" | "node"
+  /** ...and the word over the first row of its block, which is this file's to
+   *  say because this file is what decides where a block starts. A ternary at
+   *  the drawing end would put the label a reader sees one module away from the
+   *  arithmetic that groups the rows under it. */
+  readonly section: string
   readonly value: string
   /** What a person READS to choose it: a file's own name, a node's title. */
   readonly label: string
@@ -92,6 +99,7 @@ export const offers = (
   return [
     ...paths.slice(0, forFiles).map((path): Offer => ({
       kind: "file",
+      section: "files",
       value: path,
       // The NAME is what a person reads for, and where it sits is the hint
       // beside it — a vault of daily notes is a column of identical prefixes
@@ -101,14 +109,33 @@ export const offers = (
     })),
     ...nodes.slice(0, forNodes).map((node): Offer => ({
       kind: "node",
+      section: "nodes",
       value: node.id,
       label: node.label,
-      // The id FIRST — it is what the row writes into the sentence, and it is
-      // what tells two nodes of one title in one place apart when even the
-      // place cannot. Then why the row is here, when that is not visible on it
-      // ({@link ./nodes.ts}'s `note`), and then where it sits.
-      hint: [`@${node.id}`, ...(node.note ? ["in the note"] : []), node.place]
-        .join(" · "),
+      hint: hintFor(node),
     })),
   ]
+}
+
+/**
+ * What a node row says beside its title: the id it writes, why it is here when
+ * that is not visible, and where it sits.
+ *
+ * THE `·` IS THE PLACE'S ALONE. `../search/place.ts` joins ancestor crumbs with
+ * it — the same line four other search surfaces draw — so a hint that also used
+ * it between its own parts would be one glyph doing two jobs on one line, with
+ * a reader left to work out which dots are boundaries and which are ancestry.
+ * The parts are separated the way a sentence separates them: the aside in
+ * brackets, the place after a dash.
+ *
+ * THE ID FIRST, because it is what the row writes into the message and it is
+ * what tells two nodes of one title in one place apart when even the place
+ * cannot. (What it does not survive is a long TITLE: the row truncates as one
+ * line, so a title that fills it takes the hint with it. That is the row shape
+ * this list has for every kind of row, and buying a second one for this half
+ * would cost the thing the list is — one shortlist, one shape, one cursor.)
+ */
+const hintFor = (node: NodeMatch): string => {
+  const why = node.note ? " (in the note)" : ""
+  return `@${node.id}${why} — ${node.place}`
 }

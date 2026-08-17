@@ -24,6 +24,7 @@
  * PURE, and tested as such.
  */
 
+import { isArchived } from "@olai/format"
 import type { NodeContext } from "@olai/surface"
 
 import { annotated } from "./prompt.ts"
@@ -41,10 +42,16 @@ import { annotated } from "./prompt.ts"
  * exactly like live work would be ticked off like live work. The `file:line`
  * carries `Archive.olai` already; a filename is a thing to notice, and this is
  * a thing that was said.
+ *
+ * ASKED OF THE FILE, here, rather than carried as a second field beside it: it
+ * is `isArchived`'s answer about `node.file` and nothing else, so a boolean on
+ * the wire would be a pair for every producer of a context to keep true, and
+ * this format's rule for what an archive IS frozen into a schema — where the
+ * 2026-08-17 ruling moved this very area. One fact, one place, one reader.
  */
 export const lineFor = (node: NodeContext): string => {
   const under = node.path.length === 0 ? "" : `; under ${node.path.join(" › ")}`
-  const away = node.archived === true ? "; archived" : ""
+  const away = isArchived(node.file) ? "; archived" : ""
   return `Node in context: \`${node.id}\` — ${node.title} (${node.file}:${node.line}${under}${away})`
 }
 

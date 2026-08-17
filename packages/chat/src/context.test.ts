@@ -56,15 +56,17 @@ describe("the line a node arrives on", () => {
   // any other. What it must not do is arrive reading like live work: no tool
   // refuses a write into an archive, so the line says which it is.
   test("a node that was put away says so, after where it sits", () => {
-    expect(lineFor({ ...ORDER, file: "Archive.olai", line: 1, archived: true }))
+    expect(lineFor({ ...ORDER, file: "Archive.olai", line: 1 }))
       .toBe(
         "Node in context: `order` — order the new cabinets (Archive.olai:1; under kitchen remodel; archived)",
       )
   })
 
   test("...and every other node says nothing at all about it", () => {
+    // The question is asked of the FILE, so there is no second field to
+    // disagree with it: a node in `house.olai` cannot be marked away.
     expect(lineFor(ORDER)).not.toContain("archived")
-    expect(lineFor({ ...ORDER, archived: false })).not.toContain("archived")
+    expect(lineFor({ ...ORDER, file: "notes/Archive.olai" })).toContain("; archived")
   })
 })
 

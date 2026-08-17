@@ -32,7 +32,7 @@
  *
  * This paragraph used to say the ranking stayed up there too, "where the
  * matcher is". The matcher came down in the filter-in-place change and the
- * ranking followed it one door later (`./filter.ts`'s `shortlisted`), for the
+ * ranking followed it one door later (`./filter.ts`'s `ranked`), for the
  * same reason both times: a browser cannot call a procedure per keystroke, and
  * a second spelling of a rule is a second answer to it.
  *

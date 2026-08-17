@@ -105,9 +105,10 @@ test("a mirror is refused naming the node it shows", () => {
 // WHAT WAS PUT AWAY IS NOT A REFUSAL, and the header says why: archiving moves
 // a record into an archive with its id intact, the doors that ask for it reach
 // it (#226 took the default presence, never the way to ask), and "why did we
-// put this away?" is a question to be able to ask. What the answer carries is
-// the fact that changes what the agent should do with it.
-test("an archived node resolves, and says that it was put away", () => {
+// put this away?" is a question to be able to ask. Which archive it is in comes
+// back as the FILE, and the line the agent reads asks the format about that
+// (`@olai/chat`'s `lineFor`) rather than being told twice.
+test("an archived node resolves, with the archive it is in as its file", () => {
   const set = setOf({
     "house.olai": HOUSE,
     "Archive.olai": `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`,
@@ -121,14 +122,6 @@ test("an archived node resolves, and says that it was put away", () => {
       file: "Archive.olai",
       line: 1,
       path: [],
-      archived: true,
     },
   ])
-})
-
-test("...and a live node says nothing about it at all", () => {
-  // The format's rule for a field that holds nothing, kept on the wire: absent
-  // rather than `false`, so an agent reading a corpus of these does not have to
-  // filter a "no" out of every line.
-  expect(resolved(["order"])[0]).not.toHaveProperty("archived")
 })

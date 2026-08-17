@@ -12,8 +12,8 @@
  *
  *   - `@olai/ops`' `Query.search`, which is what an agent's `search_nodes` and
  *     the wire's `search.nodes` answer with. It calls {@link matching} as its
- *     gate and {@link shortlisted} to keep the best twelve, and what is left of
- *     its own is the situating and the total;
+ *     gate and {@link ranked} to order them, and what is left of its own is
+ *     the situating, the cap it applies and the total;
  *   - the ⌘K palette and the header's search box, which are callers of that
  *     procedure and so get every operator here for free;
  *   - the browser's FILTER over the tree on screen, which cannot be a caller of
@@ -22,14 +22,14 @@
  *     of ids to test rows against rather than as a ranked list of situated hits;
  *   - the chat composer's `@` list (`@olai/web`'s `chat/nodes.ts`), which is
  *     the filter's shape with a shortlist on the end: one token, matched here,
- *     ranked by {@link shortlisted}, eight rows.
+ *     ordered by {@link ranked}, eight rows taken off the top.
  *
  * The last two are why the matcher is down here rather than in the ops layer.
  * The alternative was a client-side predicate written to the same description,
  * which is exactly the drift docs/search.md was written to forbid — `is:done`
  * meaning one thing to an agent and another to the box a person types in. The
  * ranking followed it down for the same reason, one door later: see
- * {@link shortlisted}.
+ * {@link ranked}.
  *
  * The design, with the alternatives that lost, is
  * docs/brainstorming/filter-in-place.md.
@@ -72,18 +72,53 @@ export type SearchField = (typeof SEARCH_FIELDS)[number]
  *
  *  Here rather than beside the penalty a finished node takes because {@link
  *  matchOf} has to answer WHICH field carried a match, and "which" and "how
- *  much" are one table. The penalty and the cap are {@link shortlisted}'s, one
- *  section down; the total is the caller's, since it is a fact about the answer
- *  rather than about any row of it. */
+ *  much" are one table. The penalty a finished node takes is {@link ranked}'s,
+ *  one section down; the cap and the total are the caller's, since a row count
+ *  is a fact about a door and a total is a fact about the answer. */
 const FIELD_WEIGHT = { title: 1000, id: 750, tag: 500, desc: 250 } as const
 
-/** The case-folded text of one node, per field — what a word is looked for in.
+/**
+ * The folded text of a RECORD, kept for as long as the record is.
+ *
+ * Every door that matches a word folds four fields per node per question, and
+ * two of them ask a question per keystroke: the browser's filter over a page,
+ * and the chat composer's `@` list. A vault of twenty thousand nodes is
+ * eighty thousand throwaway lowercase strings per character typed, of which the
+ * overwhelming majority are the same strings as the keystroke before.
+ *
+ * A `WeakMap` on the RECORD rather than on the set, which is what makes it
+ * correct without an invalidation rule: a record is a value here — a file that
+ * changes is re-parsed into new records and the set is PATCHED with them
+ * (`@olai/web`'s `deriving.ts`, over `./patch.ts`) — so a fold that is still
+ * reachable is a fold of text that has not changed, and one nothing holds any
+ * more is collectable with the record it was about. There is no frame, no
+ * revision and no clearing.
+ *
+ * The two completions in the browser each keep a fold of their own for the same
+ * reason (`chat/files.ts` over the served paths, `complete/tags.ts` over the
+ * set's tags). This one is HERE rather than beside them because the text it
+ * folds is this file's own question, and a cache in a caller would be a second
+ * answer for the four other doors to miss.
+ */
+const folded = new WeakMap<RegularNode, Record<SearchField, ReadonlyArray<string>>>()
+
+const haystacksOf = (
+  node: RegularNode,
+): Record<SearchField, ReadonlyArray<string>> => {
+  const before = folded.get(node)
+  if (before !== undefined) return before
+  const now = foldOf(node)
+  folded.set(node, now)
+  return now
+}
+
+/** The fold itself — what a word is looked for in.
  *
  *  A tag is indexed TWICE, bare and as written, so `alice` finds `@alice` with
  *  the full start-of-field bonus and `@alice` finds only the one with that
  *  sigil. A single written form would have demoted every bare-word tag search
  *  by a character. One fold, and the bare name is a slice of it. */
-const haystacksOf = (
+const foldOf = (
   node: RegularNode,
 ): Record<SearchField, ReadonlyArray<string>> => ({
   title: [node.title.toLowerCase()],
@@ -1304,18 +1339,23 @@ export const matching = (
 const DONE_PENALTY = 300
 
 /**
- * The best `limit` of them, best first — what a SHORTLIST is, as against the
- * whole answer {@link matching} gives.
+ * The same matches, BEST FIRST — the rest of the score {@link matchOf} started.
  *
- * It was the ops layer's, and every word of the rule is still its words; what
- * moved is where it lives, for the reason the matcher itself moved here in the
- * filter-in-place change. A browser cannot call a procedure on every keystroke,
- * and a browser that respelled this would be a second opinion about whether a
- * finished node outranks an open one — the ⌘K palette and the chat composer
- * ranking the same words in the same directory differently, which is the exact
- * drift docs/search.md exists to forbid. So the two callers are `@olai/ops`'
- * `Query.search` (whose own header keeps the argument) and `@olai/web`'s `@`
- * completion, and neither of them owns it.
+ * It reads as presentation and it is not: the penalty below is denominated in
+ * {@link FIELD_WEIGHT}'s own units — a finished node loses about a field — so
+ * it is a term of one score that happened to be spelled a package away from the
+ * table it is measured against. Nothing here is about showing anybody anything;
+ * it sorts, and a caller that wants a shortlist takes the first few. Which is
+ * why the CAP is not a parameter: a row count is a fact about a door (twelve
+ * for `search_nodes`, eight for a completion), and a floor that took one would
+ * be inviting the next presentational rule in beside it.
+ *
+ * It was the ops layer's, and it came down for the reason the matcher itself
+ * came down in the filter-in-place change. A browser cannot call a procedure on
+ * every keystroke, and a browser that respelled this would be a second opinion
+ * about whether a finished node outranks an open one — the ⌘K palette and the
+ * chat composer ranking the same words in the same directory differently, which
+ * is the exact drift docs/search.md exists to forbid.
  *
  * OVER {@link Matched}, before anything is situated, which is the other half of
  * why this is a function rather than three lines in each caller: the ops layer
@@ -1329,22 +1369,21 @@ const DONE_PENALTY = 300
  * the cursor between two keystrokes that scored the same. Sorted in a copy:
  * the array a caller passes is the caller's.
  */
-export const shortlisted = (
+export const ranked = (
   derived: Pick<Derived, "status">,
   matched: ReadonlyArray<Matched>,
-  limit: number,
 ): ReadonlyArray<Matched> => {
   // The penalty is read ONCE PER NODE rather than once per comparison, which is
   // what a comparator asking the status map would be: a sort is n log n
   // comparisons and this is n lookups.
-  const ranked = matched.map((one) => ({
+  const scored = matched.map((one) => ({
     one,
     score: derived.status.get(one.at.node.id) === "done"
       ? one.match.score - DONE_PENALTY
       : one.match.score,
   }))
-  ranked.sort((a, b) => b.score - a.score)
-  return ranked.slice(0, limit).map((entry) => entry.one)
+  scored.sort((a, b) => b.score - a.score)
+  return scored.map((entry) => entry.one)
 }
 
 /**

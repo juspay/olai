@@ -59,7 +59,9 @@
  * message, and it is deliberately not a parser of prose: it can only recognise
  * words this box itself wrote, because it is asked which of the ids ALREADY
  * TAKEN from the list the message still says. Typing `@alice` arms nothing,
- * whatever the set declares.
+ * whatever the set declares — and the trigger, the read-back and the removal
+ * are three questions about ONE walk (`namesOf`), so none of them can come to
+ * disagree with the list that wrote a word.
  *
  * The one rule that IS shared is where a sigil may open at all: `tagOpensAt`
  * is the format's own, asked here rather than respelled, because "an `@` in
@@ -113,25 +115,32 @@ const commandIn = (text: string): Completing | null => {
 }
 
 /**
- * The `@` nearest the caret that opens a word, if what follows it could still
- * be a name.
+ * The `@` the caret is inside, if what follows it could still be a name.
  *
- * It stops at the FIRST such character walking back, live or not: an earlier
- * `@` is behind whitespace by construction, and whitespace is exactly what
- * would have ended it. So there is nothing further left that could still be
- * open.
+ * The LAST name in the text before the caret, and only when it reaches the
+ * caret — an earlier `@` is behind whitespace by construction, and whitespace
+ * is exactly what would have ended it, so a name that stops short of the caret
+ * is a name somebody has finished typing.
+ *
+ * Through {@link namesOf}, which is what makes "the two readers cannot disagree
+ * with the list that wrote a word" a fact rather than a hope: the trigger, the
+ * read-back and the removal are three questions about one walk. Written as its
+ * own backwards scan, this file held two spellings of "where a word starts and
+ * where it ends" and they agreed by coincidence of two regexes.
  */
 const nameIn = (text: string, caret: number): Completing | null => {
   const before = text.slice(0, Math.max(0, caret))
-  for (let at = before.length - 1; at >= 0; at--) {
-    if (before[at] !== "@") continue
-    if (!tagOpensAt(before, at)) continue
-    const query = before.slice(at + 1)
-    return query.length <= NAME_CAP && !/\s/.test(query)
-      ? { kind: "name", from: at, query }
-      : null
-  }
-  return null
+  const said = namesOf(before).at(-1)
+  if (said === undefined) return null
+  // The QUERY is what was WRITTEN — the whole of it, not the name with what a
+  // sentence puts after it trimmed off. A caret after `@hinges,` asks the two
+  // lists about `hinges,`, which is a thing neither of them holds, so the list
+  // shuts on the comma; trimming here instead would re-open it over a word
+  // somebody has finished and offer to rewrite the punctuation out of it.
+  const query = before.slice(said.at + 1)
+  return !/\s/.test(query) && query.length <= NAME_CAP
+    ? { kind: "name", from: said.at, query }
+    : null
 }
 
 /** WHICH token a dismissal is about: the kind and where it starts, so Escape
