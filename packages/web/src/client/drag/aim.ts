@@ -81,21 +81,20 @@ export type Aim =
  * with one page on screen is the only page there is, which is the gesture that
  * shipped.
  */
+const awayFrom = (field: Aimed, x: number): number => {
+  const right = field.box.left + field.box.width
+  return x < field.box.left ? field.box.left - x : x > right ? x - right : 0
+}
+
 const aimedAt = (
   fields: ReadonlyArray<Aimed>,
   x: number,
-): Aimed | undefined => {
-  let nearest: Aimed | undefined
-  let away = Number.POSITIVE_INFINITY
-  for (const field of fields) {
-    const right = field.box.left + field.box.width
-    const off = x < field.box.left ? field.box.left - x : x > right ? x - right : 0
-    if (off >= away) continue
-    away = off
-    nearest = field
-  }
-  return nearest
-}
+): Aimed | undefined =>
+  fields.reduce<Aimed | undefined>(
+    (nearest, field) =>
+      nearest === undefined || awayFrom(field, x) < awayFrom(nearest, x) ? field : nearest,
+    undefined,
+  )
 
 /**
  * The words a page with no landing has for the row over it.

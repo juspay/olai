@@ -17,6 +17,22 @@
  * than a history of it — the registry's LIFETIME is the app's, and every
  * entry's is the page it describes.
  *
+ * THE AXIS IT ENCAPSULATES, named so the next reader can hold it to one: HOW
+ * MANY EDITABLE PAGES ARE ON SCREEN, AND WHICH. It went from "always one" to
+ * "one or more, side by side" in #225, and the pane list's own file already
+ * says the next move is a second projection — children stacked rather than
+ * beside each other (`../pane/geometry.ts`'s `Axis`). A gesture that reached
+ * for the pages itself would move with every one of those.
+ *
+ * AND IT IS NOT `../workspace.ts` READ AGAIN, which is the boundary question to
+ * answer before believing in a second register at all. That module owns the
+ * pane list as ROUTES, and a route is not a page a drop can land in: a day, a
+ * document and the Trash draw no tree, a collapsed pane draws nothing at all,
+ * and a file that will not parse draws its errors. What is drawn is a fact the
+ * PAGES have and the address does not, so the supply side is the components
+ * themselves — which is exactly what makes this a socket rather than a second
+ * copy of the workspace.
+ *
  * IT CARRIES ACCESSORS, NOT ROWS. A field is read at the moment a drag lifts,
  * not at the moment it joined: a pane that has since navigated, filtered or
  * folded is drawing something else entirely, and a snapshot taken at mount

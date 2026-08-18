@@ -97,18 +97,28 @@ import type { Landing, Placed } from "./plan.ts"
 export const HANDLE = "data-handle"
 
 /**
- * WHAT A LIFT DECIDED: the file the rows in the air came from, and every page
- * on screen measured for them.
+ * WHAT A LIFT DECIDED — the whole of it: the rows in the air, the file they
+ * came from, and every page on screen measured for them.
  *
- * ONE value rather than two locals beside each other, and the reason is that
- * neither means anything without the other: a page is measured AGAINST a file
- * (rows of any other are not candidates there), and a file with no pages
- * measured for it is a question nobody can be asked. Two fields would need a
- * "no file yet" to stand in the gap before a gesture becomes a drag, and the
- * only spellings for that are a sentinel nobody may compare against or a second
- * `null` to keep in step with the first.
+ * ONE value rather than three locals beside each other, because they are one
+ * decision made in one place and every pair of them is coupled by a rule the
+ * shape can hold instead. A page is measured AGAINST a file (rows of any other
+ * are not candidates there); a file is the CARRIED rows' rather than any
+ * page's; and "is anything being carried" and "has anything been measured" are
+ * the same question asked twice. As three fields they would each need a value
+ * meaning "not yet" — an empty array to be length-checked, a `""` no
+ * comparison may reach — and three `null`s to keep in step with each other.
+ * As one, the gesture has it or it does not.
+ *
+ * IT IS NOT WHAT FADES, and that is the one thing deliberately left outside.
+ * The set of keys in the air is a signal because every row of every tree reads
+ * it on every frame the store publishes, and it does not change once the row
+ * has lifted; where the row would LAND changes on every pointer move and is
+ * read by one component. Folding the two together would re-run the first
+ * reader — per row, per frame — for an answer that cannot have changed.
  */
 interface Lifted {
+  readonly rows: ReadonlyArray<Row>
   readonly from: string
   readonly pages: ReadonlyArray<Aimed>
 }
@@ -244,15 +254,15 @@ export const createDragging = (
    * (`./lines.ts`), shared with the sweep, and what is left in this file is the
    * only part that is about a PLACEMENT.
    */
-  const measure = (carried: ReadonlyArray<Row>): Lifted | null => {
+  const measure = (rows: ReadonlyArray<Row>): Lifted | null => {
     // The file the drag is ABOUT — the carried rows', not any page's, which is
     // what makes a mirror's children draggable among themselves. A pick that
     // spans two files has no one answer; the rows of the other file are then
     // left out, and the ops layer refuses them by name on the bar, which is the
     // same way every other half-legal run ends here.
-    const from = carried[0]?.at.file
+    const from = rows[0]?.at.file
     if (from === undefined) return null
-    const held = new Set(carried.map((one) => one.at.node.id))
+    const held = new Set(rows.map((one) => one.at.node.id))
     const pages = fields.all().flatMap((field): ReadonlyArray<Aimed> => {
       const drawn = field.element()
       if (drawn === undefined) return []
@@ -261,7 +271,7 @@ export const createDragging = (
       if (box === null) return []
       return [{ file: field.file, box, placed: placeable(field, pane, from, held) }]
     })
-    return { from, pages }
+    return { rows, from, pages }
   }
 
   /** One page's rows, as places a drop may land beside. The reading above,
@@ -336,17 +346,16 @@ export const createDragging = (
    * would drift.
    */
   const gesture = (from: PointerEvent, row: Row, held: boolean) => {
-    /** What this gesture is carrying, decided when it becomes a drag rather
-     *  than at the press: a press that turns out to be a click must not have
-     *  cleared the selection on its way past. */
-    let carried: ReadonlyArray<Row> = []
-    /** What the lift decided, or `null` until it has happened. */
+    /** What this gesture is carrying and where it may put it — decided when it
+     *  becomes a drag rather than at the press, because a press that turns out
+     *  to be a click must not have cleared the selection on its way past, and
+     *  `null` until then. */
     let lifted: Lifted | null = null
 
     const lift = () => {
       travelled = true
       const picked = page.selection.keys()
-      carried = picked.has(row.key) ? page.selection.rows() : [row]
+      const carried = picked.has(row.key) ? page.selection.rows() : [row]
       if (!picked.has(row.key)) page.selection.clear()
       setMoving(new Set(carried.map((one) => one.key)))
       lifted = measure(carried)
@@ -375,9 +384,10 @@ export const createDragging = (
         // reason the primitive answers with `null` rather than with the last
         // move: a pointer taken away mid-drag has not chosen anything.
         const target = up === null ? null : aim()
+        const carrying = lifted
         setMoving(new Set<string>())
         setAim(null)
-        if (target === null || carried.length === 0) return
+        if (target === null || carrying === null) return
         // A REFUSAL IS SAID RATHER THAN SWALLOWED, and it is said in the place
         // every other refused gesture over these rows says its piece: the bar
         // (`../select/SelectionBar.tsx`), which draws for a sentence with no
@@ -388,7 +398,7 @@ export const createDragging = (
           page.selection.say({ tone: "alarm", text: target.refusal.why })
           return
         }
-        void drop(target.landing, carried)
+        void drop(target.landing, carrying.rows)
       },
     })
   }
