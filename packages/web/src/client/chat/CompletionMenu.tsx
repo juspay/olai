@@ -188,6 +188,12 @@ export function CompletionMenu(props: {
   })
 
   return (
+    // `WITHIN.pop`, and it STAYS in this panel. The chat dock is already a
+    // stacking context at {@link LAYER.page}, above every sticky section
+    // heading (`../layer.ts`). Portalling this list to the document at
+    // `z-3` would put it UNDER the page; raising it to a page layer would
+    // be answering a question this list is not asked. The `•••` menu's
+    // portal is the escape for overlays that live IN the outline.
     <ul
       class={`absolute bottom-full left-2 right-2 ${WITHIN.pop} mb-1 max-h-64 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}
       data-testid={TESTID.chatCompletion}

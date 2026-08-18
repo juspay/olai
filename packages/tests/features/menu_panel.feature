@@ -24,10 +24,9 @@ Feature: The ••• menu opens and shuts
     # A menu opened with the keyboard HOLDS the caret, so the dismissal has to
     # give it back or the reader is on `<body>` — nowhere, and the whole
     # document to walk down again. The primitive's own way of doing that
-    # (`onCloseAutoFocus`) never fires for a row whose menu is laid out in
-    # place rather than portalled: the hook is a focus scope's unmount half,
-    # and the component that owns it outlives every open and close. So this
-    # step is the only thing standing between a keyboard and nowhere.
+    # (`onCloseAutoFocus`) is refused: it restores the trigger on every close,
+    # and a pointer that landed somewhere else must not be pulled back. So
+    # this step is the only thing standing between a keyboard and nowhere.
     When I open the node menu of "kitchen" with the keyboard
     And I press "Escape"
     Then the node menu is closed
@@ -103,10 +102,9 @@ Feature: The ••• menu opens and shuts
   Scenario: A row opened a SECOND time still puts the caret in the panel
     # The row is armed after the first press (`Dots`), and that is the case the
     # panel's own focus line exists for: the first open creates the primitive
-    # while it is already open, so it focuses itself, while every reopen swaps
-    # the panel back in under a component that does not run again. Without the
-    # line this scenario walks nothing — the caret stays on the `•••` and the
-    # arrows go to a button that is not a menu.
+    # while it is already open, so a binding-not-a-signal can miss it. Without
+    # the line this scenario walks nothing — the caret stays on the `•••` and
+    # the arrows go to a button that is not a menu.
     Given I mark the page
     When I open the node menu of "kitchen" with the keyboard
     And I press "Escape"
@@ -115,4 +113,20 @@ Feature: The ••• menu opens and shuts
     And I press "Enter"
     Then the zoomed node is "kitchen"
     And the page has not reloaded
+    And there should be no page errors
+
+  # ── the panel paints over the page ──────────────────────────────────
+  #
+  # A top-level row is a sticky section heading (`Tree.tsx`), at the same
+  # layer the menu rides. Left in the row, the panel is a preceding sibling
+  # of the next heading's stacking context, and the heading paints through
+  # it — the human's screenshot, "Move to Trash" cut in two. Zoomed into
+  # `kitchen`, `order` and `install` are those two headings: the menu of
+  # the first hangs down over the second. `elementFromPoint` at the overlap
+  # is the only honest assertion; a bounding box cannot see a layer.
+
+  Scenario: An open menu paints over a later section heading
+    Given I zoom into the node "kitchen"
+    When I open the node menu of "order"
+    Then the node menu takes the pointer where it crosses the section heading of "install"
     And there should be no page errors

@@ -26,25 +26,26 @@
  * one.
  *
  * WHAT IS STILL THIS FILE'S is the caret, both ways: in when the panel opens
- * and back on the `•••` when it goes. Kobalte has both, and neither fires for a
- * menu laid out in the row rather than portalled — each is registered by an
- * effect owned by a component that outlives every open and close. The two are
- * named where they are done (the content's `ref`, and `handBack`), and
- * `features/menu_panel.feature` holds both ends so a Kobalte bump that fixes
- * them upstream shows up as a passing suite rather than as a surprise.
+ * and back on the `•••` when it goes. Kobalte has both (`onOpenAutoFocus`,
+ * `onCloseAutoFocus`). Close-focus is refused here and replaced by
+ * {@link handBack}, because the primitive restores the trigger on every close
+ * and a pointer that landed somewhere else must not be pulled back. Open-focus
+ * is the content's `ref`. `features/menu_panel.feature` holds both ends so a
+ * Kobalte bump that changes them shows up as a passing suite rather than as a
+ * surprise.
  *
  * Three decisions keep it drawn exactly where the hand-rolled panel was:
  *
  *   - **`placement="bottom-start"` with a 2px `gutter`** is what `absolute
- *     left-0 top-full mt-0.5` was, and Kobalte's positioner is an `absolute`
- *     box in the row's own positioned root — NOT portalled (there is no
- *     `DropdownMenu.Portal` below) — so the panel still scrolls with its anchor
- *     instead of being a detached `fixed` box, and the open menu is still
- *     inside `group/row` so the `•••` it hangs off stays revealed while it is
- *     up. That root is `./NodeMenu.tsx`'s and stays on the page whether this
- *     file has arrived or not, which is why the arrival moves no pixel of the
- *     gutter. What is new since the hand-rolled panel is that floating-ui FLIPS
- *     it above the row near the bottom of the window.
+ *     left-0 top-full mt-0.5` was. The panel is PORTALLED
+ *     (`DropdownMenu.Portal`) so it leaves the outline's stacking contexts —
+ *     a sticky section heading is one, at the same {@link LAYER.row} this
+ *     panel rides, and an in-tree menu is the one that is cut in two
+ *     (`menu-under-headers`). Floating-ui still hangs it off the trigger and
+ *     still FLIPS it above the row near the bottom of the window; the `•••`
+ *     stays revealed because the trigger wears `data-[expanded]`, not because
+ *     the panel is a descendant of `group/row`. That root is `./NodeMenu.tsx`'s
+ *     and stays on the page whether this file has arrived or not.
  *   - **`modal={false}`**: a row menu is not the only thing on the page. Modal
  *     would lock the scroll, disable pointer events outside and trap focus —
  *     none of which the panel this replaces did.
@@ -105,6 +106,7 @@ import { DOTS } from "./Dots.tsx"
 import { topmostWhileOpen } from "../topmost.ts"
 import { swallowGhost } from "../ghost.ts"
 import { LAYER } from "../layer.ts"
+import { overlayRoot } from "../overlay.ts"
 import { Panel } from "./Panel.tsx"
 import { TESTID } from "../testids.ts"
 
@@ -161,14 +163,10 @@ export function Dropdown(props: {
    * THE CARET COMES BACK when the panel that had it goes.
    *
    * Kobalte has this — `onCloseAutoFocus` puts the caret on the trigger — and
-   * here it never fires: the hook is the focus scope's UNMOUNT half, registered
-   * by an effect owned by the content COMPONENT, and that component outlives
-   * every open/close of an armed row (the panel is a `<Show>` inside it). So
-   * the cleanup that would restore the caret is never reached, and Escape out
-   * of a menu opened with the keyboard leaves it on `<body>` — the whole page
-   * to walk down again, which is the same failure the confirm's own focus is
-   * written down to prevent. Called from the panel's own disposal, which is a
-   * place that does run.
+   * that is refused below, because the primitive restores the trigger on EVERY
+   * close. A pointer that landed somewhere else must not be pulled back (the
+   * same rule `../popover.ts` keeps for the header's panels). Called from the
+   * panel's own disposal, which is a place that does run.
    *
    * Two guards, and each is a decision rather than a nicety:
    *
@@ -248,32 +246,27 @@ export function Dropdown(props: {
       >
         •••
       </DropdownMenu.Trigger>
+      <DropdownMenu.Portal mount={overlayRoot()}>
       <DropdownMenu.Content
         ref={(el: HTMLElement) => {
-          // AND THE CARET GOES IN — on the SECOND open and every one after
-          // it, which is the case this exists for.
-          //
-          // Kobalte's own mount focus (`onOpenAutoFocus`, and the focus
-          // scope behind it) is registered by an effect that reads the
-          // content's element through a plain binding rather than a signal,
-          // so it lands once and is never asked again. Without a
-          // `DropdownMenu.Portal` the panel is a `<Show>` INSIDE that
-          // component: the first open creates the component while already
-          // open (arming a row opens it in the same breath — `./door.ts`),
-          // so that one focuses
-          // itself — and every REOPEN swaps the `<Show>` back in under a
-          // component that never re-runs, leaving the caret on the `•••`
-          // with the arrow keys, half of what the primitive is FOR, with
-          // nothing to walk. Both halves verified by driving the browser
-          // with this line and without it. From the panel, `Home`/`End` and
-          // the arrows reach the entries.
+          // AND THE CARET GOES IN. Kobalte's own mount focus
+          // (`onOpenAutoFocus`) is the same job, and a portal makes it
+          // fire on every open — the content unmounts when the menu shuts.
+          // The first-ask still creates this component WHILE already open
+          // (`./door.ts` arms and opens in one verb), and that one mount
+          // is the case a binding-not-a-signal can miss. The ref covers
+          // every open the same way. From the panel, `Home`/`End` and the
+          // arrows reach the entries.
           //
           // A menu opened with a POINTER still ends up with the caret on
           // the button that was pressed, exactly as the panel this replaces
           // did: the press focuses the trigger back immediately afterwards.
           // `queueMicrotask` for the same reason `../popover.ts` uses one:
           // the element is not attached at the instant the ref runs.
-          queueMicrotask(() => el.focus())
+          // `preventScroll`: a portal mounts the panel before floating-ui
+          // has placed it, and a focus that scrolled to that first box
+          // jumped the page out from under the row the menu belongs to.
+          queueMicrotask(() => el.focus({ preventScroll: true }))
         }}
         data-testid={TESTID.nodeMenuPanel}
         // NAMED here rather than by the trigger Kobalte would point at
@@ -286,9 +279,10 @@ export function Dropdown(props: {
         // nothing. (Kobalte's content carries `position: relative` in an
         // inline style of its own; this says so in the class list rather
         // than depending on it.) `LAYER.row` is the whole claim — over the
-        // rows it covers, under every piece of chrome (`../layer.ts`).
-        // Everything else here is the panel the hand-rolled one drew,
-        // class for class.
+        // rows it covers, under every piece of chrome (`../layer.ts`) —
+        // and it is true because the portal above took the panel out of
+        // the outline. Everything else here is the panel the hand-rolled
+        // one drew, class for class.
         // `focus:outline-none` because the caret lands on this BOX when the
         // menu opens (see the ref above) and a box is not what anybody is
         // aiming at — the ring belongs on the entry the keyboard is
@@ -296,6 +290,10 @@ export function Dropdown(props: {
         // Without it, Chromium rings the whole panel for a menu opened with
         // a mouse.
         class={`relative ${LAYER.row} min-w-[10.5rem] rounded border border-rule/70 bg-panel py-1 text-sm text-ink shadow-md focus:outline-none`}
+        // The primitive restores the trigger on every close. A KEY still
+        // gets the caret back (`handBack`); a pointer that landed somewhere
+        // else must not be pulled off it.
+        onCloseAutoFocus={(event: Event) => event.preventDefault()}
         onFocusOutside={(event: Event) => event.preventDefault()}
         // WHICH GESTURE is driving this menu, for the caret's way home. A
         // key anywhere in the panel (Escape, an entry chosen with Enter,
@@ -316,6 +314,7 @@ export function Dropdown(props: {
       >
         <Panel actions={props.actions} onPick={props.onPick} onGone={handBack} />
       </DropdownMenu.Content>
+      </DropdownMenu.Portal>
     </DropdownMenu>
   )
 }
