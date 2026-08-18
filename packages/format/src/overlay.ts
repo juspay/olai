@@ -4,12 +4,15 @@
  * {@link ./patch.ts} answers a one-file edit by rebuilding only what depended
  * on that file — and then paid for a whole `new Map(byId)` anyway, one clone of
  * an entry per record in the directory, so that the revision a reader is
- * holding could not move under them. On a 21,552-record vault that clone was
- * HALF of a patch: 1.15ms per patch with it, 0.57ms without (`docs/
- * brainstorming/model-indices.md`, open question 1). This is the lever that
- * question named: a LAYER over the map the last patch left standing, holding
- * the entries this one changed, so an edit costs what it touched rather than
- * what the directory holds.
+ * holding could not move under them. On a 21,552-record vault that clone is
+ * the largest single line in a patch — 0.4ms of one, which `patch.bench.ts`
+ * prints as `patch+clone` against `patch` (1.35ms against 0.96ms, a 1.4×) and
+ * again as the step on its own. This is the lever `docs/brainstorming/
+ * model-indices.md`'s open question 1 named: a LAYER over the map the last
+ * patch left standing, holding the entries this one changed, so an edit costs
+ * what it touched rather than what the directory holds. Layered, the same step
+ * costs 0.01ms where the edits wander and 0.002ms where they are one file
+ * typed in, which is the case a keystroke is.
  *
  * WHAT IT IS EQUAL TO is the whole of its contract, and it is one line:
  *
@@ -55,13 +58,23 @@
  *     copies more than half the map — and in the case that matters it copies
  *     nothing like that: successive edits to one file re-set the ids already in
  *     the layer, so a session of typing holds a layer the size of that file.
+ *     Both cases are timed — the leg's two `lever` rows — and the flatten is
+ *     printed with the edit it happened at, which on the 1,000-file vault is
+ *     edit 489 of 900 wandering ones and never at all when one file is typed
+ *     in. The default forty-edit run never reaches it.
  *
  * WHAT IT COSTS A READER is one extra lookup on the way past: a key the layer
  * does not hold is looked for there before `base` answers. That is the trade,
  * and it is deliberate — the layer is small, a missed lookup in a small map is
  * a hash the engine has already computed for the string once, and the walk it
- * buys back is corpus-sized. `patch.bench.ts` times both halves so the trade is
- * a measurement rather than a claim.
+ * buys back is corpus-sized. It is `get` that pays it, and `get` is how every
+ * production caller reads this index; `has`, `size` and {@link Layer.keys} are
+ * the underlying map's own answers and pay nothing, which is why the
+ * did-you-mean's walk of `byId.keys()` is untouched. A whole-index SPREAD does
+ * pay it once per entry — `values`, `entries` and `forEach` read through `get`
+ * — and nothing in the tree spreads this index outside its tests.
+ * `patch.bench.ts` times the `get` walk, which is the shape the validator asks
+ * on every write, so the trade is a measurement rather than a claim.
  *
  * WHAT IT HOLDS ONTO: `base` keeps the values the layer covers, so an overlaid
  * map retains the records the edit replaced until it flattens. Bounded by the
@@ -69,15 +82,15 @@
  *
  * ONE INDEX USES THIS, and the other eight the patcher clones stay clones on
  * purpose. `byId` is the corpus-sized one — 21,552 entries against 8,282 for
- * the next largest and a few hundred for most — and cloning it costs 0.47ms
- * where all eight others together cost 0.38ms (on the 1,000-file vault). Six of
- * those eight also DELETE keys across a patch, which a layer that keeps
- * `base`'s key set cannot do. The one that does not — `namedBy` — was left
- * alone deliberately: the validator WALKS it whole ({@link ./validate.ts}'s
- * `checkTargets`), and a walk through the generator below costs more per entry
- * than the 0.05ms clone it would save,
- * where `byId`'s only whole-index reader asks for {@link Layer.keys}, which is
- * the underlying map's own iterator and not a generator at all.
+ * the next largest and a few hundred for most, so one clone of it costs about
+ * what all eight others together cost, which `patch.bench.ts` prints as a pair.
+ * Size is not the whole reason and not the deciding one: six of those eight
+ * DELETE keys across a patch, which a layer that keeps `base`'s key set cannot
+ * do. The one that does not — `namedBy` — was left alone deliberately: the
+ * validator WALKS it whole ({@link ./validate.ts}'s `checkTargets`), and a walk
+ * through the generator below costs more per entry than the clone it would
+ * save, where `byId`'s only whole-index reader asks for {@link Layer.keys},
+ * which is the underlying map's own iterator and not a generator at all.
  *
  * IT KNOWS NOTHING ABOUT OUTLINES, and it lives here anyway: this package is
  * the floor of the tree (`docs/architecture.md`), so the lowest honest home for

@@ -11,18 +11,29 @@
  * `just check`, for `./filter.bench.ts`'s reason: a timing that fails a lane on
  * a busy machine teaches nobody anything.
  *
- * TWO ARMS over one generated vault, driven with the same edits:
+ * THREE ARMS over one generated vault, driven with the same edits:
  *
  *   - `rebuild` — {@link derive} over the whole corpus, which is what the write
  *     gate cost before the patcher and what the patcher falls back to;
  *   - `patch` — {@link patched}, the incremental answer with the fallback taken
  *     OFF, so an arm that quietly declined would fail here rather than report
- *     the rebuild's number under the patcher's name.
+ *     the rebuild's number under the patcher's name;
+ *   - `patch+clone` — the same patch paying the `new Map(byId)` this branch
+ *     replaced, which is this PR's own before/after printed rather than quoted
+ *     ({@link patching} states the two ways it is a reconstruction).
  *
- * AND ONE MORE MEASUREMENT under them, because the layer below makes a trade
- * rather than a saving: a corpus-wide walk of `byId` on each arm's own final
- * view, which is what a saving in the patch that came straight back out of
- * every read afterwards would show up as ({@link walked}).
+ * AND TWO MEASUREMENTS UNDER THEM, both about the layer rather than the patch,
+ * because a claim about {@link ./overlay.ts} that this file did not print would
+ * be the unreproducible laptop sample the paragraph above says it retired:
+ *
+ *   - what the layer COSTS a reader — a corpus-wide walk of `byId` on each
+ *     arm's own final view ({@link walked}). It times `get`, which is how every
+ *     production caller reads this index; a whole-index spread pays one extra
+ *     lookup per entry and nothing in the tree does one;
+ *   - what the layer SAVES — the copy-on-write step timed both ways over the
+ *     same edits, cloned against layered ({@link lever}), for a spread of files
+ *     and for one file typed in, with the eight indexes that stay clones sized
+ *     beside them.
  *
  * THE PATCHED ARM CARRIES ITS VIEW FORWARD, edit after edit, because that is
  * what both callers do — the write gate patches the last published view, the
@@ -38,14 +49,19 @@
  * twentieth of them mirrors reaching into the file before. It is the SAME vault
  * `@olai/web`'s `deriving.bench.ts` runs on, so the two benches' numbers are
  * about one directory. Size it with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS /
- * OLAI_BENCH_EDITS.
+ * OLAI_BENCH_EDITS — and the last of those is worth turning up: the layer
+ * flattens when it has grown past half the map, which forty edits over
+ * twenty-record files come nowhere near. `OLAI_BENCH_EDITS=900` reaches it,
+ * and {@link lever} prints the edit it happened at rather than leaving a reader
+ * to work out whether it ever did.
  */
 
 import { derive, type Derived } from "./derive.ts"
 import { median, nodesOf, retitled, retitledIn, timed, vaultOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
-import { byPath } from "./paths.ts"
+import { overlaid } from "./overlay.ts"
 import { patched, type SetDelta } from "./patch.ts"
+import { byPath } from "./paths.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 21)
@@ -98,6 +114,25 @@ const edits = Array.from({ length: EDITS }, (_, which) => editOf(which))
 const first = derive(flat(parsed))
 const records = first.nodes.length
 
+/** The view the layered arm ends on, which the oracle below is compared with
+ *  and the reader-walk is timed on. Assigned by {@link patching}. */
+let carried = first
+
+/** `new Map(byId)` and a `set` per arriving record — the expression
+ *  {@link ./patch.ts}'s `ids` held before this branch, kept here because two
+ *  arms below are about exactly what it costs. */
+const cloned: CopyOnWrite = (base, changes) => {
+  const next = new Map(base)
+  for (const [id, at] of changes) next.set(id, at)
+  return next
+}
+
+/** The two ways a patch can hand the id map forward, as one shape. */
+type CopyOnWrite = (
+  base: ReadonlyMap<string, Located>,
+  changes: ReadonlyArray<readonly [string, Located]>,
+) => ReadonlyMap<string, Located>
+
 /** WHICH EDIT an arm says it is at, read back off the arm's OWN answer after
  *  every one of them — because an arm that stopped recomputing would otherwise
  *  go on reporting the first revision very fast, which is precisely the
@@ -133,27 +168,55 @@ const rebuilt = edits.map(({ file, records: own }, which) => {
   return ms
 })
 
-/** The patch, with the view carried forward: each edit lands on the view the
- *  one before it left. A LOOP rather than the `map` the rebuild arm is, and
- *  the difference is the measurement: that arm's forty answers are independent
- *  and this one is a fold, which is the whole reason copy-on-write over a
- *  session is visible here and not there. */
-const patchedMs: Array<number> = []
-let carried = first
-for (const [which, { delta }] of edits.entries()) {
-  let next: Derived | undefined
-  patchedMs.push(timed(() => {
-    next = patched(carried, delta)
-  }))
-  if (next === undefined) {
-    throw new Error(
-      `patch DECLINED edit ${which} — a benchmark of the incremental answer` +
-        ` cannot be a benchmark of the rebuild it fell back to`,
-    )
+/**
+ * The patch, with the view carried forward: each edit lands on the view the one
+ * before it left. A LOOP rather than the `map` the rebuild arm is, and the
+ * difference is the measurement: that arm's forty answers are independent and
+ * this one is a fold, which is the whole reason copy-on-write over a session is
+ * visible here and not there.
+ *
+ * RUN TWICE, and the second run is this PR's before/after rather than a claim
+ * about it (#231, grok — a figure the harness cannot print is the
+ * unreproducible sample this file exists to retire). `alsoCloned` adds, inside
+ * the timed window, the exact expression {@link ./patch.ts}'s `ids` used to
+ * hold — `new Map(byId)` and a `set` per arriving record — and carries THAT
+ * index forward, so the arm patches against a plain `Map` every time and the
+ * layer is paid for and thrown away.
+ *
+ * It is a reconstruction and the tree cannot make it more than one: a true A/B
+ * would need two patchers in it, and a second patcher nothing runs is worse
+ * than an arm whose two approximations are stated. They are: the layer is built
+ * and discarded (which {@link lever} prices at under a hundredth of a
+ * millisecond), and the reads INSIDE the patch go through it rather than
+ * through the plain map the old code had (which {@link walked} prices at
+ * nothing). Both make this arm slightly slower than the code it stands for, so
+ * the saving it shows is a ceiling rather than a flattering floor.
+ */
+const patching = (name: string, alsoCloned: boolean): ReadonlyArray<number> => {
+  const times: Array<number> = []
+  let carrying = first
+  for (const [which, { delta, records: own }] of edits.entries()) {
+    const changes = own.map((at) => [at.node.id, at] as const)
+    let next: Derived | undefined
+    times.push(timed(() => {
+      next = patched(carrying, delta)
+      if (next !== undefined && alsoCloned) next = { ...next, byId: cloned(carrying.byId, changes) }
+    }))
+    if (next === undefined) {
+      throw new Error(
+        `${name} DECLINED edit ${which} — a benchmark of the incremental answer` +
+          ` cannot be a benchmark of the rebuild it fell back to`,
+      )
+    }
+    carrying = next
+    said(name, carrying, which)
   }
-  carried = next
-  said("patch", carried, which)
+  if (!alsoCloned) carried = carrying
+  return times
 }
+
+const patchedMs = patching("patch", false)
+const patchedCloneMs = patching("patch+clone", true)
 
 // THE CARRIED VIEW AGAINST THE ORACLE, once and outside every timed window.
 // Forty patches deep, each layered on the last, is where a copy-on-write bug
@@ -166,9 +229,14 @@ const oracle = derive(flat(edits.reduce(
   (held, { file, records: own }) => held.set(file, own),
   new Map(parsed),
 )))
-const places = (view: Derived): string =>
-  [...view.byId].map(([id, at]) => `${id}@${at.file}:${at.line}`).join("\n")
-if (carried.nodes.length !== oracle.nodes.length || places(carried) !== places(oracle)) {
+/** Every claim the index makes, WITH THE RECORD — not the place alone. The edit
+ *  under test is a title change, so a layer that dropped an earlier patch's
+ *  entries would restore old titles at the very same `file:line` and a
+ *  place-only comparison would wave it through (#231, grok). */
+const claims = (view: Derived): string =>
+  [...view.byId].map(([id, at]) => `${id}@${at.file}:${at.line} ${JSON.stringify(at.node)}`)
+    .join("\n")
+if (carried.nodes.length !== oracle.nodes.length || claims(carried) !== claims(oracle)) {
   throw new Error(
     `${EDITS} patches deep, the carried view and a fresh derive disagree about the corpus`,
   )
@@ -207,27 +275,176 @@ const walked = (views: ReadonlyArray<Derived>): ReadonlyArray<number> => {
   return views.map((_, which) => median(rounds.map((round) => round[which] as number)))
 }
 
+// ── the lever itself ───────────────────────────────────────────────────
+
+/**
+ * THE COPY-ON-WRITE STEP, TIMED BOTH WAYS — the A/B this PR's own numbers rest
+ * on, printed by the leg rather than quoted from a laptop (#231, grok: a figure
+ * the committed harness cannot reproduce is the unreproducible sample this
+ * whole file exists to retire, moved one file over).
+ *
+ * The two arms are the two spellings of one line in {@link ./patch.ts}'s `ids`,
+ * given the real index and the real arriving records of each edit:
+ *
+ *   - `cloned` — `new Map(byId)` and then a `set` per arriving record, which is
+ *     what a patch paid before this branch;
+ *   - `layered` — {@link overlaid}, which is what it pays now.
+ *
+ * CARRIED FORWARD, both of them, because the layer a patch is handed is the one
+ * the patch before it left: the layer grows over a session and the clone never
+ * does, and that difference is invisible to a run that does one edit. The two
+ * are then compared whole, so an arm that got cheaper by answering differently
+ * fails the run.
+ *
+ * It is the LEVER and not the whole patch: what a patch costs around it is the
+ * `patch` arm above, and the clone's share of that is arithmetic on two numbers
+ * this file prints. Timing the whole patch both ways would mean two patchers in
+ * the tree, and a second one nothing runs is worse than a subtraction anybody
+ * can check.
+ */
+const layered: CopyOnWrite = (base, changes) => overlaid(base, changes)
+
+/** One stream of edits, run through one strategy from the first view's index —
+ *  the times per edit, what it ended holding, and every edit after which the
+ *  answer was a plain `Map` again, which for the layer is where it flattened. */
+const handedOn = (
+  apply: CopyOnWrite,
+  stream: ReadonlyArray<{ readonly records: ReadonlyArray<Located> }>,
+): {
+  readonly times: ReadonlyArray<number>
+  readonly held: ReadonlyMap<string, Located>
+  readonly flattenedAt: ReadonlyArray<number>
+} => {
+  let held: ReadonlyMap<string, Located> = first.byId
+  const times: Array<number> = []
+  const flattenedAt: Array<number> = []
+  stream.forEach(({ records: own }, which) => {
+    const changes = own.map((at) => [at.node.id, at] as const)
+    times.push(timed(() => {
+      held = apply(held, changes)
+    }))
+    if (held instanceof Map) flattenedAt.push(which)
+  })
+  return { times, held, flattenedAt }
+}
+
+/** THE SAME FILE EVERY TIME, which is what typing is — the case the layer's
+ *  argument rests on and the one `fileFor` deliberately does not run, since a
+ *  patch-vs-rebuild figure wants the harsher spread. Each edit re-sets the ids
+ *  already in the layer, so it never grows and never flattens. */
+const typing = Array.from(
+  { length: EDITS },
+  (_, which) => ({
+    records: nodesOf(retitled(corpus.get(paths[0] as string) as string, which), paths[0] as string),
+  }),
+)
+
+/** Both arms over one stream, in ALTERNATING ORDER for {@link walked}'s
+ *  reason, compared whole at the end. */
+const lever = (
+  what: string,
+  stream: ReadonlyArray<{ readonly records: ReadonlyArray<Located> }>,
+): void => {
+  handedOn(cloned, stream)
+  handedOn(layered, stream)
+  const rounds = Array.from({ length: 5 }, (_, round) => {
+    const first = round % 2 === 0 ? cloned : layered
+    const second = round % 2 === 0 ? layered : cloned
+    const one = handedOn(first, stream)
+    const other = handedOn(second, stream)
+    return round % 2 === 0 ? [one, other] as const : [other, one] as const
+  })
+  const [asClone, asLayer] = [0, 1].map((which) =>
+    median(rounds.map((round) => median(round[which as 0 | 1].times)))
+  )
+  const ends = rounds[0] as readonly [ReturnType<typeof handedOn>, ReturnType<typeof handedOn>]
+  const sameAnswer = (one: ReadonlyMap<string, Located>, other: ReadonlyMap<string, Located>) =>
+    one.size === other.size &&
+    [...one].every(([id, at]) => other.get(id) === at) &&
+    [...one.keys()].join("\n") === [...other.keys()].join("\n")
+  if (!sameAnswer(ends[0].held, ends[1].held)) {
+    throw new Error(
+      `${what}: the cloned index and the layered one disagree after ${stream.length} edits` +
+        ` — an arm that is cheaper by being wrong is not an arm`,
+    )
+  }
+  const flattens = ends[1].flattenedAt
+  console.log(
+    `  ${what.padEnd(28)} ${(asClone as number).toFixed(3)}ms cloned,` +
+      ` ${(asLayer as number).toFixed(3)}ms layered` +
+      `   (layer flattened ${
+        flattens.length === 0 ? "never" : `at ${flattens.map((at) => `edit ${at}`).join(", ")}`
+      })`,
+  )
+}
+
+/**
+ * `byId` cloned, against all EIGHT other indexes cloned together — the number
+ * behind "`byId` is the one that gets a layer", measured as a pair rather than
+ * as two figures from two moments, for {@link walked}'s reason.
+ *
+ * Clones on both sides, because the eight are what the patcher GOES ON doing:
+ * six of them delete keys across a patch, which a layer keeping the base's key
+ * set cannot, and the one that does not is walked whole by the validator.
+ */
+const beside = (): readonly [byId: number, others: number] => {
+  const others = (["children", "status", "after", "blocked", "byFile", "mirrorsOf", "edgesTo",
+    "namedBy"] as const).map((key) => first[key] as ReadonlyMap<string, unknown>)
+  const arms = [
+    () => {
+      new Map(first.byId)
+    },
+    () => {
+      for (const map of others) new Map(map)
+    },
+  ] as const
+  for (const arm of arms) timed(arm)
+  const rounds = Array.from({ length: 9 }, (_, round) => {
+    const order = round % 2 === 0 ? [0, 1] : [1, 0]
+    const times: Array<number> = []
+    for (const which of order) times[which] = timed(arms[which as 0 | 1])
+    return times
+  })
+  return [
+    median(rounds.map((round) => round[0] as number)),
+    median(rounds.map((round) => round[1] as number)),
+  ]
+}
+
 const say = (name: string, times: ReadonlyArray<number>): void => {
   const ms = (at: number) => `${at.toFixed(2)}ms`
   console.log(
-    `${name.padEnd(8)} median ${ms(median(times))}` +
+    `${name.padEnd(12)} median ${ms(median(times))}` +
       `, mean ${ms(times.reduce((one, other) => one + other, 0) / times.length)}` +
       `, min ${ms(Math.min(...times))}, max ${ms(Math.max(...times))}`,
   )
 }
 
 console.log(
-  `vault: ${corpus.size} files, ${records} records, ${EDITS} one-file edits\n` +
+  `vault: ${corpus.size} files, ${records} records, ` +
+    `${EDITS} one-file edits, each to a different file\n` +
     `runtime: bun ${Bun.version}\n`,
 )
 say("rebuild", rebuilt)
+say("patch+clone", patchedCloneMs)
 say("patch", patchedMs)
 console.log(
   `\npatch is ${(median(rebuilt) / median(patchedMs)).toFixed(1)}× the rebuild's speed` +
-    ` on one file's edit`,
+    ` on one file's edit, and ${
+      (median(patchedCloneMs) / median(patchedMs)).toFixed(1)
+    }× the same patch with the clone this branch replaced`,
 )
 const [asMap, asLayer] = walked([oracle, carried])
 console.log(
   `byId read, one lookup per record: ${(asMap as number).toFixed(2)}ms rebuilt,` +
     ` ${(asLayer as number).toFixed(2)}ms patched`,
+)
+console.log(`\nthe id map handed forward, per edit:`)
+lever("a different file each time", edits)
+lever("the same file every time", typing)
+const [byIdClone, othersClone] = beside()
+console.log(
+  `\none clone of each index: ${byIdClone.toFixed(3)}ms for byId,` +
+    ` ${othersClone.toFixed(3)}ms for all eight others together` +
+    ` — which is the work a patch still does`,
 )
