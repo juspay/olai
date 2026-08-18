@@ -15,17 +15,19 @@
  * (`client/clock.ts`), imported rather than re-spelled, for the reason
  * `journal_steps.ts` gives: a suite that computed the day its own way would
  * disagree with the browser at exactly midnight, in one time zone, on somebody
- * else's machine. TOMORROW is built the same way the client's own midnight is
- * (`clock.ts`'s `untilMidnight`) — the day after this one by calendar
- * arithmetic, never twenty-four hours later, because the day a clock goes
- * forward is not.
+ * else's machine. EVERY OTHER DAY these scenarios name is that one stepped
+ * ({@link daysFromToday}) with `@olai/format`'s own `shiftDay` — integers over
+ * `{year, month, day}`, never milliseconds added to an instant, because the day
+ * a clock goes forward is not twenty-four hours later. One spelling of "the day
+ * after this one", so tomorrow and a fortnight out cannot come from two
+ * different calendars.
  */
 
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import { shiftDay } from "@olai/format";
-import { isoDayOf, untilMidnight } from "@olai/web/src/client/clock.ts";
+import { isoDayOf } from "@olai/web/src/client/clock.ts";
 
 import {
   AGENDA_COUNT,
@@ -50,15 +52,13 @@ import {
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-/** The day after today, in the reader's own zone — asked with the client's own
- *  statement of where a local day ENDS (`clock.ts`'s `untilMidnight`) rather
- *  than a second one written here, for the reason the day itself is asked with
- *  the client's `isoDayOf`: a day is 23 hours twice a year, and a suite that
- *  did its own arithmetic would disagree with the browser on exactly those two. */
-const tomorrow = (): string => {
-  const now = new Date();
-  return isoDayOf(new Date(now.getTime() + untilMidnight(now)));
-};
+/** A day counted from today, in the reader's own zone: the browser's own day
+ *  (`isoDayOf`), stepped by the format's own calendar (`shiftDay`). */
+const daysFromToday = (days: number): string =>
+  shiftDay(isoDayOf(new Date()), days);
+
+/** The day after this one — the one every scenario about "coming up" names. */
+const tomorrow = (): string => daysFromToday(1);
 
 /** The days on one stretch of the line, by which side of now they are on.
  *  Exported for the reason `outline_tree_steps.ts`'s `revealGutter` is: a
@@ -215,7 +215,7 @@ Then(
 Then(
   "the day {int} days from today says {string}",
   async function (this: OlaiWorld, days: number, said: string) {
-    await expectSays(this, shiftDay(isoDayOf(new Date()), days), said);
+    await expectSays(this, daysFromToday(days), said);
   },
 );
 
@@ -545,7 +545,7 @@ When(
       ord: "z8",
       title: "sign the rental agreement",
       todo: true,
-      date: shiftDay(isoDayOf(new Date()), -1),
+      date: daysFromToday(-1),
     });
   },
 );
@@ -579,7 +579,7 @@ When(
       ord: `z${days}`,
       title: `the ${days}-day thing`,
       todo: true,
-      date: shiftDay(isoDayOf(new Date()), days),
+      date: daysFromToday(days),
     });
   },
 );

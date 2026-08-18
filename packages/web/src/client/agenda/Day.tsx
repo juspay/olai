@@ -42,7 +42,7 @@
 
 import { isOverdue, owedFact, type Standing } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
-import { Show } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
 import { CRUMB } from "../Breadcrumbs.tsx"
 import { DayNode } from "../day/DayNode.tsx"
@@ -52,6 +52,7 @@ import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { useToday } from "../today.tsx"
 import {
+  QUIET_INDENT,
   SPINE_CELL,
   SPINE_DOT,
   SPINE_INDENT,
@@ -106,7 +107,10 @@ export function Day(props: {
   const face = (): Face => FACE[felt().standing]
   const today = useToday()
   const narrowed = useNarrowed()
-  const rows = () => rowsOn(props.rung.day)
+  // MEMOISED: the list is read twice on the way to the screen — once to ask
+  // whether the day has anything, once to draw it — and a plain accessor would
+  // flatten the day's groups for each of them, every frame.
+  const rows = createMemo(() => rowsOn(props.rung.day))
   /** What a day CALLS itself: the felt word in front where it is the news, and
    *  the calendar day alone otherwise — including for a day nothing could
    *  count the distance to, where there is no word to put in front of it
@@ -146,7 +150,7 @@ export function Day(props: {
         <Show when={props.rung.quiet.label}>
           {(label) => (
             <span
-              class="pl-9 text-[0.6875rem] italic text-muted opacity-60"
+              class={`${QUIET_INDENT} text-[0.6875rem] italic text-muted opacity-60`}
               data-testid={TESTID.agendaQuiet}
               data-days={String(props.rung.quiet.days)}
             >
@@ -164,10 +168,9 @@ export function Day(props: {
           <span class={SPINE_CELL} aria-hidden="true">
             <span
               class={face().dot}
-              style={{
-                background: inkOf(felt().tone),
-                ...(face().ring === undefined ? {} : { "box-shadow": face().ring }),
-              }}
+              // An absent ring is an absent declaration: Solid drops a style
+              // whose value is `undefined`, so the two faces need no branch.
+              style={{ background: inkOf(felt().tone), "box-shadow": face().ring }}
             />
           </span>
           <span class="flex min-w-0 items-baseline gap-2">

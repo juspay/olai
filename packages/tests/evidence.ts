@@ -11,9 +11,11 @@
  * entitled not to notice — so a gesture made after one would be a gesture over
  * a frame nobody can reproduce.
  */
-import { fileKind, isoDate, shiftDay } from "@olai/format"
+import { fileKind, shiftDay } from "@olai/format"
 import { readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { type Browser, chromium, type Locator, type Page } from "playwright"
+
+import { isoDayOf } from "@olai/web/src/client/clock.ts"
 
 import { BROWSER_ARGS } from "./support/browser.ts"
 
@@ -537,16 +539,16 @@ const piled = async (page: Page) =>
     '[data-testid="node-title"]',
   )) || "  (nothing)"
 
+/** The day the run started — read ONCE, so every date in a section is counted
+ *  from the same day even if the run crosses midnight. The client's own reading
+ *  of the local day, like the browser tests', rather than a second one. */
+const TAKEN = isoDayOf(new Date())
+
 /** A day this many days from today, as the ISO text a record holds. The
  *  agenda's section writes its whole outline relative to the day it runs on:
  *  a spine drawn from fixed dates would say "seven years ago" in a shot meant
  *  to show what next month looks like. */
-const away = (days: number): string =>
-  shiftDay(isoDate(TAKEN.getFullYear(), TAKEN.getMonth() + 1, TAKEN.getDate()), days)
-
-/** The instant the run started — read ONCE, so every date in a section is
- *  counted from the same day even if the run crosses midnight. */
-const TAKEN = new Date()
+const away = (days: number): string => shiftDay(TAKEN, days)
 
 /** The preferences panel, and a theme picked in it — the only way a palette is
  *  chosen in this app (`theme/Chips.tsx`). Left OPEN by `pick`, exactly as the

@@ -68,7 +68,7 @@ export function AgendaPage(props: {
   readonly today: string
 }) {
   const narrowed = useNarrowed()
-  const owed = () => !nothingDue(props.agenda)
+  const nothing = () => nothingDue(props.agenda)
 
   return (
     <section data-testid={TESTID.agendaPage} data-date={props.today}>
@@ -82,13 +82,13 @@ export function AgendaPage(props: {
           page for a reason of its own and says so in its own words — the one
           reading every page with a sentence like this is drawn on
           (`../filter/narrowed.tsx`). */}
-      <Show when={unfiltered(narrowed) && nothingDue(props.agenda)}>
+      <Show when={unfiltered(narrowed) && nothing()}>
         <p class="text-muted" data-testid={TESTID.agendaEmpty}>
           Nothing is due.
         </p>
       </Show>
 
-      <Show when={owed()}>
+      <Show when={!nothing()}>
         <Spine agenda={props.agenda} today={props.today} />
       </Show>
     </section>

@@ -16,6 +16,9 @@
  *   the LINE      2px wide, from 1.25rem − 1px          → centre 1.25rem
  *   a DAY DOT     7px, centred in a 2.5rem cell         → centre 1.25rem
  *   the NOW DOT   11px, same cell                       → centre 1.25rem
+ *   a SILENCE     2.25rem in, so it clears the line by 1rem and still sits
+ *                 left of the rows, which is what makes it read as beside the
+ *                 line rather than as one of them
  *
  * ONE CELL for both dots, so the three sizes cannot come to disagree about
  * where the middle is: move the gutter and the line, the dots and the indent
@@ -44,3 +47,6 @@ export const SPINE_DOT = "size-[7px] shrink-0 rounded-full"
 /** NOW, on the line: bigger, so it reads as a place rather than as a louder
  *  dot. What makes it a place is the ring, which is ink and is ./spine.ts's. */
 export const SPINE_NOW = "size-[11px] shrink-0 rounded-full"
+
+/** Where a named silence sits — short of the rows, beside the line. */
+export const QUIET_INDENT = "pl-9"

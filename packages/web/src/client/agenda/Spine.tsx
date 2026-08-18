@@ -19,7 +19,7 @@
 
 import type { Agenda } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, Show } from "solid-js"
+import { createMemo } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { Day } from "./Day.tsx"
@@ -36,6 +36,10 @@ export function Spine(props: {
   // for the days and once for the tail's ink — and a plain accessor would
   // assemble the whole line for each of them, every frame the store publishes.
   const rungs = createMemo(() => rungsOf(props.agenda, props.today))
+  /** The ink the line runs out in. There is ALWAYS a last rung — now is always
+   *  on the line (`rungsOf`), and the page draws none of this when nothing is
+   *  owed — so this is the invariant read rather than a case guarded against. */
+  const ending = () => rungs()[rungs().length - 1]!.felt.tone
 
   return (
     <div data-testid={TESTID.agendaSpine}>
@@ -46,13 +50,9 @@ export function Spine(props: {
       {/* Past the last day the directory knows about, the line runs out. It is
           the same fade the page opens with, the other way round: time does not
           stop where an outline stops having anything to say about it. */}
-      <Show when={rungs().at(-1)}>
-        {(last) => (
-          <div class={`relative ${TAIL}`} aria-hidden="true">
-            <span class={SPINE_LINE} style={{ background: tailOf(last().felt.tone) }} />
-          </div>
-        )}
-      </Show>
+      <div class={`relative ${TAIL}`} aria-hidden="true">
+        <span class={SPINE_LINE} style={{ background: tailOf(ending()) }} />
+      </div>
     </div>
   )
 }
