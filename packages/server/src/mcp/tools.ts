@@ -169,8 +169,10 @@ const bespoke = (tool: Tool): BespokeTool => {
  * A write's schema carries its `op` discriminator, which is exactly one value
  * for this tool — so it comes out here, once, and the handler puts it back.
  * Reaching for `.fields` is how a `Schema.Struct` is taken apart in Effect 4;
- * there is no `Schema.omit` at this pin. Field-level annotations ride on the
- * field schemas, so the descriptions an agent reads survive the rebuild.
+ * there is no `Schema.omit` at this pin, and the table's own declaration says
+ * every tool's schema IS a struct, so this reads them rather than asserting
+ * them. Field-level annotations ride on the field schemas, so the descriptions
+ * an agent reads survive the rebuild.
  *
  * **An empty field set becomes `undefined`, and must.** Effect compiles
  * `Schema.Struct({})` to `anyOf: [object, array]` rather than to an object
@@ -183,7 +185,7 @@ const bespoke = (tool: Tool): BespokeTool => {
  * as the empty object MCP wants.
  */
 const argsOf = (tool: Tool): ToolInputSchema<unknown> | undefined => {
-  const fields = { ...(tool.schema as unknown as { fields: Schema.Struct.Fields }).fields }
+  const fields = { ...tool.schema.fields }
   if (tool.kind === "write") {
     for (const fixed of Object.keys(tool.fixed)) delete fields[fixed]
   }

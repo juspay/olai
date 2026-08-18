@@ -44,17 +44,22 @@
  */
 
 import {
+  CommitRequest,
+  CreateRequest,
+  NodeAnswer,
+  NodeRequest,
   type OutlineSet,
   type Placed,
   type Placement,
   type Reading,
+  type SearchRequest,
   type Subtree,
 } from "@olai/format"
 import { expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 
 import { readingOf, setOf, steady } from "./fixtures.testlib.ts"
-import { asking, TOOLS } from "./tools.ts"
+import { act, asking, read, TOOLS, write } from "./tools.ts"
 
 /** One house, and everything a read can carry: both marker kinds, a note, a
  *  date, both tag sigils, a placement with a parent and one without, a child
@@ -221,4 +226,102 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   // a curated list is read with.
   const placed = house?.["placed"] as ReadonlyArray<Placed>
   expect(placed[0]?.shows).toMatchObject({ id: "paint", status: "done", path: ["House #home @sam"] })
+})
+
+/**
+ * EVERY TOOL'S SECOND DECLARATION IS CHECKED AGAINST ITS SCHEMA — and only the
+ * compiler can check it, which is what this test is.
+ *
+ * Each entry in the table says one thing twice: the schema an agent fills in,
+ * and then something ABOUT that schema — a read's asker takes the request, an
+ * act's does too, a write names the field its own name decides and is written
+ * in the planner's vocabulary. The walks above can see none of it: the table
+ * erases every entry to a `Tool`, whose `ask` takes `never` and whose `fixed`
+ * is a bag of `unknown`. The three constructors are exported for this.
+ *
+ * THE FIRST CALL IS THE ONLY ONE THAT COMPILES. It annotates nothing and hands
+ * `args` to a door wanting a `NodeRequest`, so a lost inference — `unknown`,
+ * which is what the request parameter's old `| Schema.Top` union left — fails
+ * here. (The table has that shape too, so it would fail there as well; this
+ * says it where the refusals below can be read against it.)
+ *
+ * THE OTHER FOUR ARE EXPECTED TO BE REFUSED, and `@ts-expect-error` fails the
+ * build when the line it guards compiles — which is what rules out the other
+ * way this goes wrong, an `any` swallowing the wrong annotation and leaving the
+ * directive unused. EACH BODY IS VALID ON ITS OWN, deliberately: a refusal that
+ * would also be a refusal for some second reason proves nothing about the
+ * first, so `asking.node({ id })` and `ops.commit({})` are calls that type-check
+ * — leaving the parameter annotation as the only thing on the line that can
+ * fail.
+ *
+ * None of the five is a tool and none reaches {@link TOOLS}; what is under test
+ * is the constructors, and the table is only how they are normally called.
+ */
+test("what a tool says twice has to agree with its own schema", () => {
+  const tool = read(
+    "read_node",
+    "Read a node",
+    "One node in full.",
+    NodeRequest,
+    NodeAnswer,
+    (asking, args) => asking.node(args),
+  )
+  expect(tool.kind).toBe("read")
+
+  read(
+    "read_node",
+    "Read a node",
+    "One node in full.",
+    NodeRequest,
+    NodeAnswer,
+    // @ts-expect-error — the schema beside it says `NodeRequest`, so an asker
+    // claiming to take a `SearchRequest` is not a reader of this tool.
+    (asking, args: SearchRequest) => asking.node({ id: "paint" }),
+  )
+
+  act(
+    "commit",
+    "Commit what you changed",
+    "Record what is waiting as one git commit.",
+    CommitRequest,
+    // @ts-expect-error — the same rule on the act arm, which has its own
+    // signature and could lose it on its own.
+    (ops, args: NodeRequest) => ops.commit({}),
+  )
+
+  write(
+    "create_outline",
+    "Create an outline",
+    "Start a new outline file.",
+    CreateRequest,
+    // @ts-expect-error — a write's `fixed` is a field of the request beside
+    // it, and `CreateRequest`'s `op` is `"create"`.
+    { op: "creat" },
+  )
+
+  write(
+    "read_node",
+    "Read a node",
+    "Not a write at all.",
+    // @ts-expect-error — and the schema itself has to be one the planner can
+    // take: a read's request is not an arm of the write vocabulary, so this is
+    // a tool `Running.run` could never answer.
+    NodeRequest,
+    {},
+  )
+
+  read(
+    "read_node",
+    "Read a node",
+    "Not an object at all.",
+    // @ts-expect-error — and it has to have FIELDS. This is the one bound the
+    // table cannot speak for, and the reason it is here: every schema the floor
+    // hands this file is a struct, so {@link Arguments} holding and
+    // {@link Arguments} not being there look identical from the table. A call
+    // arrives as a JSON object; a schema that is not one has nothing for
+    // `argsOf` to take apart and nothing for an agent to fill in.
+    Schema.String,
+    NodeAnswer,
+    (asking) => asking.node({ id: "paint" }),
+  )
 })

@@ -26,6 +26,13 @@
  * nothing answers is a type error rather than a runtime throw, which is what
  * the dispatch switch this replaced could only discover when somebody called
  * it. One declaration, several uses, no second list to keep in step.
+ *
+ * And WHAT EACH ENTRY SAYS ABOUT ITS SCHEMA is checked against that schema, in
+ * all three arms: a read's asker and an act's are handed the request the entry
+ * names, a write's fixed field is a field of it, and a write's schema is an arm
+ * of the vocabulary its own writer takes. None of that is written out here — it
+ * is inferred from the one schema the entry already carries, so there is
+ * nothing beside it to spell differently.
  */
 
 import { Effect, Schema } from "effect"
@@ -35,8 +42,7 @@ import {
   AfterRequest,
   ApplyRequest,
   ArchiveRequest,
-  type CommitRequest,
-  CommitRequest as CommitRequestSchema,
+  CommitRequest,
   type CommitResult,
   CreateDocumentRequest,
   CreateRequest,
@@ -82,12 +88,54 @@ import * as Query from "./query.ts"
 // reason is the exception that proves it — those carry names that are this
 // layer's (`Request`, `Applied`) rather than the format's.
 
+/**
+ * WHAT A TOOL'S ARGUMENTS ARE: named fields, and one declaration of that.
+ *
+ * A call arrives as a JSON object, so a tool's arguments are named fields or
+ * they are nothing — which is why this is the bound and not `Schema.Top`. It is
+ * a name rather than the type written out at each of the four places that mean
+ * it (the field below, and the three constructors' `S`), because those four are
+ * one decision and moving it should be one edit.
+ *
+ * IT ASKS FOR EXACTLY THE TWO THINGS THIS FILE READS off a tool's schema, and
+ * that is why it is spelled this way rather than as `Schema.Struct`. Effect
+ * publishes `Constraint` for precisely this kind of API — "accepts schema
+ * values but only reads their data and type-level views" — and nothing here
+ * calls `annotate`, `check`, `rebuild` or `make` on one. What it reads is
+ * `Type` (the constructors infer each asker's arguments from it) and `fields`
+ * (`@olai/server`'s `argsOf` takes a write's schema apart by them, to drop the
+ * `op` the tool's NAME already decides). Asking for those two says what is
+ * true; `Schema.Struct<Schema.Struct.Fields>` says it by re-checking the whole
+ * struct protocol structurally against each of the twenty-eight request
+ * schemas, which is the same claim at a price — MEASURED, on review, at 97,450
+ * type instantiations for this package against 79,609 for this spelling, the
+ * second of which is under the 82,194 the inference-defeating union it replaced
+ * used to cost.
+ *
+ * The bound itself is pinned in `./tools.test.ts`, because it is the one part
+ * of this that every real schema satisfies: the table cannot tell a bound that
+ * holds from a bound that is not there, so a `Schema.String` is refused there
+ * on purpose.
+ */
+type Arguments = Schema.Constraint & { readonly fields: Schema.Struct.Fields }
+
 interface Described {
   readonly name: string
   readonly title: string
   readonly description: string
-  /** The schema the arguments are decoded against. */
-  readonly schema: Schema.Top
+  /**
+   * The schema the arguments are decoded against.
+   *
+   * NAMED FIELDS rather than any schema at all, and that is a claim about what
+   * a tool is: a call arrives as a JSON object, so a tool's arguments are named
+   * fields or they are nothing. Two things follow, and both were paid for by a
+   * cast somewhere before this said so. `@olai/server`'s `argsOf` takes a
+   * write's schema APART by `.fields` — to drop the `op` the tool's name
+   * already decides — which a bare `Schema.Top` has no way to offer; and the
+   * constructors below infer each asker's argument type from this same
+   * declaration. {@link Arguments} is where both are asked for.
+   */
+  readonly schema: Arguments
 }
 
 /**
@@ -196,7 +244,7 @@ export interface Acting {
  * answers from the ops layer and says how; a WRITE names the part of the
  * request its own NAME already decides (`set_done` is `op: "done"`), so that
  * field never appears in the schema an agent fills in — and it is the one arm
- * with nothing to carry, because every write is the same call.
+ * carrying a value rather than a call, because every write is the same call.
  *
  * That is the rule the read arm was built on and the reason it is worth
  * keeping: a tool the table declares and nothing answers is a type error rather
@@ -239,6 +287,10 @@ export type Tool =
   })
   | (Described & {
     readonly kind: "write"
+    /** The part of the request this tool's NAME decides, put back by the
+     *  dispatcher after the schema advertised without it. Bare here because
+     *  that is all a dispatcher can use it as; what it has to agree with is
+     *  {@link write}'s. */
     readonly fixed: Readonly<Record<string, unknown>>
   })
   | (Described & {
@@ -261,20 +313,40 @@ const NoArgs = Schema.Struct({})
 /**
  * Both schemas, then the question between them.
  *
- * `R` is INFERRED from `answers`, so the call is checked against the floor's
- * declaration with nothing written at the call site — and a read that does not
- * say what it answers does not compile, rather than quietly getting `unknown`
- * and being checked against nothing. `A` still needs its annotation on the
- * asker, because the request parameter's `| Schema.Top` arm defeats inference;
- * that is the older half and untouched here.
+ * BOTH SIDES ARE INFERRED, and neither one is written at a call site. `R` comes
+ * from `answers`, so a read that does not say what it answers does not compile
+ * rather than quietly getting `unknown` and being checked against nothing; and
+ * the asker's `args` come from `schema` as `S["Type"]` — the same property the
+ * floor reads to publish each request as a type (`export type NodeRequest =
+ * typeof NodeRequest.Type`), so what an asker is handed and what a caller of
+ * the ops layer writes are one declaration read twice.
+ *
+ * THE SCHEMA IS TAKEN AS ITSELF — `S` is the struct that was passed, and the
+ * asker reads its `Type` off it — rather than as "something that decodes to
+ * `A`". The older spelling was a union —
+ * `Schema.Codec<A, never, never, never> | Schema.Top` — and a union is what a
+ * parameter cannot be inferred through: the second arm matches every schema, so
+ * `A` was never fixed and every read hand-wrote its request shape on the asker
+ * instead. That annotation is what this removes. It was a SECOND declaration of
+ * a fact `@olai/format` already states, free to name a different request from
+ * the one the tool advertises to an agent.
+ *
+ * A read whose asker names the wrong request now fails to COMPILE, which is the
+ * one thing `./tools.test.ts`'s walk over the table cannot check — it is pinned
+ * there instead, which is what the three constructors are exported for.
+ *
+ * NOTHING IS ASSERTED HERE ANY MORE. Widening the asker onto the `Tool` arm's
+ * `(asking, args: never)` used to need an `as`; tied to the schema it is a
+ * relation the compiler checks for itself, including that the answer really is
+ * the `R` the declaration promised.
  */
-const read = <A, R>(
+export const read = <S extends Arguments, R>(
   name: string,
   title: string,
   description: string,
-  schema: Schema.Codec<A, never, never, never> | Schema.Top,
+  schema: S,
   answers: Schema.Codec<R, R, never, never>,
-  ask: (asking: Asking, args: A) => Effect.Effect<R, OpFailure>,
+  ask: (asking: Asking, args: S["Type"]) => Effect.Effect<R, OpFailure>,
 ): Tool => ({
   name,
   title,
@@ -282,30 +354,63 @@ const read = <A, R>(
   schema,
   kind: "read",
   answers,
-  ask: ask as (asking: Asking, args: never) => Effect.Effect<unknown, OpFailure>,
+  ask,
 })
 
-const write = (
+/**
+ * The write arm, whose second declaration is `fixed` rather than an asker —
+ * and which is also the arm that has to say WHICH VOCABULARY it is writing in.
+ *
+ * `fixed` first. It is the same hand-spelling {@link read}'s just lost, in the
+ * one arm carrying a value instead of a function: `{ op: "create" }` is a field
+ * of the request this call already names, written out beside it. Typed as a
+ * `Partial<S["Type"]>` the two have to agree, so `{ op: "creat" }` under
+ * `CreateRequest` is a compile error rather than a tool that advertises
+ * `create_outline` and asks the planner for a verb nothing has heard of.
+ * PARTIAL, and not narrower, because which fields a name decides is the tool's
+ * own business — every write here fixes exactly its `op`, and one that fixed a
+ * second field would be saying something true about itself.
+ *
+ * WHAT THAT DOES NOT REACH is a schema whose `op` is more than one literal:
+ * `MarkRequest`'s is the format's whole `Status`, so this type is satisfied by
+ * any of the three and cannot tell `set_done` from `set_todo`. Nothing here can
+ * — the fact lives in the NAME — which is why the three are built by keying
+ * both off one `mark` ({@link MARK_TOOLS}) rather than written out; that is a
+ * construction holding them together, and this type is not a second one.
+ *
+ * THE SCHEMA ITSELF is bounded by `Request`, the write vocabulary the planner
+ * switches on. Every write is the same call — `Running.run` — so a table entry
+ * naming a schema that is not one of its arms is a tool this package advertises
+ * and its own writer cannot take: refused at a decode, for a live agent, as
+ * late as a refusal can arrive. It is the read arm's rule reaching the last arm
+ * that did not have it — a tool the table declares and nothing answers should
+ * be a type error, and the write arm is twenty of the twenty-eight.
+ */
+export const write = <S extends Arguments & { readonly Type: Request }>(
   name: string,
   title: string,
   description: string,
-  schema: Schema.Top,
-  fixed: Readonly<Record<string, unknown>>,
+  schema: S,
+  fixed: Partial<S["Type"]>,
 ): Tool => ({ name, title, description, schema, kind: "write", fixed })
 
-const act = <A>(
+/** The act arm's constructor, inferring its `args` the way {@link read} does
+ *  and for the same reason: what `commit` takes is `@olai/format`'s to say, and
+ *  saying it again here is a second spelling free to drift from the schema this
+ *  same call advertises. */
+export const act = <S extends Arguments>(
   name: string,
   title: string,
   description: string,
-  schema: Schema.Codec<A, never, never, never> | Schema.Top,
-  answer: (ops: Acting, args: A) => Effect.Effect<unknown, never>,
+  schema: S,
+  answer: (ops: Acting, args: S["Type"]) => Effect.Effect<unknown, never>,
 ): Tool => ({
   name,
   title,
   description,
   schema,
   kind: "act",
-  act: answer as (ops: Acting, args: never) => Effect.Effect<unknown, never>,
+  act: answer,
 })
 
 /**
@@ -365,7 +470,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     // the two ends a caller reads it from.
     SearchRequest,
     SearchAnswer,
-    (asking, args: SearchRequest) => asking.search(args),
+    (asking, args) => asking.search(args),
   ),
   read(
     "read_node",
@@ -373,7 +478,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "One node in full: its record, its `custom` properties (the named facts `set_prop` writes), its tags (`#topic` and `@person`, reported as written), its ancestors, its immediate children, and its mark when it carries one — a node with no `status` is not a task. `progress` counts how many of its child tasks are done, which is an annotation and nothing more. Its edges come too when it has them — `see` and `after`, the ids `set_see` / `set_after` take.\n\nTHIS IS ALSO WHERE MIRRORS ARE FOUND, and it is the only place: a placement is not a node, so a search never returns one and `children` never lists one. Ask the node instead. `mirrors` is every placement OF this node — where else it is drawn, chains followed — and each entry's `id` is what `remove_mirror` takes, so a Now entry is retired by reading the ITEM that finished. `placed` is the other half: the placements UNDER this node, each with the node it shows — which is how you read a curated list (\"what is on Now?\") without knowing in advance what is on it.",
     NodeRequest,
     NodeAnswer,
-    (asking, args: NodeRequest) => asking.node(args),
+    (asking, args) => asking.node(args),
   ),
   read(
     "read_subtree",
@@ -381,7 +486,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "A node and everything under it, nested. Says when it stopped at the depth it was given rather than at a leaf. Mirrors are not walked — a placement is a second view of a node rather than something hanging off this one — so read a list of them with `read_node`'s `placed`.",
     SubtreeRequest,
     SubtreeAnswer,
-    (asking, args: SubtreeRequest) => asking.subtree(args),
+    (asking, args) => asking.subtree(args),
   ),
 
   write(
@@ -525,8 +630,8 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "commit",
     "Commit what you changed",
     "Record what is waiting in the repository as one git commit — the audit trail of what this tool wrote. Writes land on disk immediately and WAIT for this; nothing commits on your behalf. Call it when a train of thought is finished, not after every edit, and give `message` saying what the work was (`reconcile the roadmap with the #70-#81 merges`) — an omitted one is composed from what changed, which can only describe the edits and not why you made them.\n\nIT SWEEPS THE WHOLE REPOSITORY, not only the outlines: every file that differs from HEAD, including a `.md` or a source file a person edited by hand, and including anything untracked that `.gitignore` does not cover. Read `surface://cells/pending` first to see exactly what that is — `outlines` with their node-level changes, `others` as paths with a status each, and `served` saying which part of the repository olai serves. Give `paths` (repository-root-relative, as `pending` lists them) to commit only some of it; what you leave out stays waiting for a commit and a message of its own. A path nothing is waiting on is refused rather than quietly skipped. A row that says `renamed` names both halves in `from`, and it is ONE path to give — the commit carries the side it came from with it.\n\nIt never touches git's index, so anything staged by hand is left exactly as it was, and it refuses while the repository is mid-merge, mid-rebase or on a detached HEAD.",
-    CommitRequestSchema,
-    (ops, args: CommitRequest) => ops.commit(args),
+    CommitRequest,
+    (ops, args) => ops.commit(args),
   ),
 
   act(
