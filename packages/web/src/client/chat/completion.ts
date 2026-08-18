@@ -194,7 +194,8 @@ export const tokenOf = (found: Completing): string =>
  * space at all (`@olai/format`'s `ID_SHAPE`), which is the other half of why a
  * node is named by its id here and not by its title.
  */
-export const inserted = (name: string): string => `@${name} `
+export const inserted = (name: string, followed = " "): string =>
+  `@${name}${followed}`
 
 /**
  * WHICH OF THE NODES ALREADY TAKEN this message still names, in the order it
@@ -210,8 +211,8 @@ export const inserted = (name: string): string => `@${name} `
  * It exists because the alternative is a chip that outlives its word. Taking a
  * node writes `@<id>` into the sentence and arms the node, so the id rides the
  * send and the server says what it is ({@link ./armed.ts}, `chat/context.ts`) —
- * and then the person selects the word and deletes it, or presses ⌘Z, and the
- * message that goes is about a node it does not mention. Reading the draft back
+ * and then the person selects the word and deletes it, and the message that
+ * goes is about a node it does not mention. Reading the draft back
  * makes the words the last word: delete `@hinges` and the chip goes with it,
  * put it back and it returns. There is no disarm to remember and no undo to
  * write, which is `./completion.ts`'s own argument about the trigger applied to
@@ -275,22 +276,51 @@ export const unnamed = (text: string, id: string, caret: number): Written => {
 }
 
 /**
- * What a sentence puts AFTER a name rather than in it — trimmed off the end of
- * a word, never out of the middle of one.
+ * What a sentence puts AFTER a name rather than in it.
  *
- * `look at @hinges, then the doors` is the sentence this exists for. The word
- * ends at whitespace, so without this the comma is part of it, `@hinges,` names
- * nothing, and the chip goes out from under a person who only wrote a comma —
- * the one thing the "delete the word and the chip goes" rule must not do by
- * accident.
+ * `look at @hinges, then the doors` is the sentence this exists for, and it is
+ * read from both ends: the comma comes OFF a word being read back
+ * ({@link namesOf}, or `@hinges,` names nothing and the chip goes out from
+ * under a person who only wrote a comma), and it stops a space being written IN
+ * FRONT of it by a completion ({@link completed}). One set, asked twice, so the
+ * two can never come to disagree about what a sentence's own punctuation is.
  *
- * TRAILING ONLY, and only these, which is the convention every terminal and
- * chat client already applies to a URL at the end of a sentence. It is why the
- * rule is safe for the other kind of name: a path's dots and slashes are inside
- * it (`@notes/cabinets.md` keeps every character), and an id's own alphabet
- * holds none of these, so `@order-2` is still `order-2` and never `order`.
+ * AT THE EDGES ONLY, which is what makes one rule safe for both kinds of name:
+ * a path's dots and slashes are INSIDE it (`@notes/cabinets.md` keeps every
+ * character) and an id's own alphabet holds none of these, so `@order-2` is
+ * still `order-2` and never `order`. It is the convention every terminal and
+ * chat client already applies to a URL at the end of a sentence.
+ *
+ * WHAT THE EDGES-ONLY RULE COSTS, since it was asked (review, d17ec4f6):
+ * `@hinges,@order` with no space between them names NEITHER — the word runs to
+ * the whitespace, so the comma and the second name are inside it. Splitting
+ * there was refused twice over. The format says a `@` opens a word after
+ * whitespace or a bracket and nowhere else (`tagOpensAt`), so the trigger would
+ * never have offered a list for `,@order`: a read-back that saw a name there
+ * would be recognising a word this box could not have written, which is the
+ * whole of what {@link namesOf} exists not to do. And splitting on the marks
+ * themselves — the shape review suggested — takes `@notes/cabinets.md` apart at
+ * its own dot. The case is reachable only by hand-editing a completion's own
+ * space away, the chip goes as the character is typed rather than at send, and
+ * the sentence is the thing that decides: it says one word, so it names one
+ * thing, and that thing is not a node.
  */
-const AFTER_A_NAME = /[,.;:!?)\]}'"]+$/
+const SENTENCE_MARK = /[,.;:!?)\]}'"]/
+
+/** A name with what the sentence put after it taken off. */
+const trimmed = (word: string): string => {
+  let end = word.length
+  while (end > 0 && SENTENCE_MARK.test(word[end - 1] ?? "")) end--
+  return word.slice(0, end)
+}
+
+/** ...and how many of those marks stand at `at`, which is what a completion
+ *  must not write a space in front of. */
+const markedAt = (text: string, at: number): number => {
+  let end = at
+  while (end < text.length && SENTENCE_MARK.test(text[end] ?? "")) end++
+  return end - at
+}
 
 /** Every `@word` in a message, in the order it says them — where a `@` OPENS a
  *  word (the format's own rule, the trigger's) and the word ends where a query
@@ -305,7 +335,7 @@ const namesOf = (
     const rest = text.slice(at + 1)
     const end = rest.search(/\s/)
     const said = end === -1 ? rest : rest.slice(0, end)
-    found.push({ at, word: said.replace(AFTER_A_NAME, "") })
+    found.push({ at, word: trimmed(said) })
     // Past the whole of what was written, punctuation included: what was
     // trimmed is not part of the name and is not somewhere another `@` can
     // open either.
@@ -334,11 +364,33 @@ const namesOf = (
  * nothing to give it up — and where it does the second job the trailing space
  * has, which is to end the trigger so the list does not come straight back
  * over the path it just wrote.
+ *
+ * AND NO SPACE AT ALL WHEN THE SENTENCE ALREADY PUT ONE OF ITS OWN MARKS
+ * THERE. `look at @hin, then the doors`, completed with the caret against the
+ * comma, wrote `look at @hinges , then` — a space nobody typed, in front of
+ * somebody's punctuation (reported by review). The trailing space is a
+ * separator between this name and the next WORD; a comma is the separator, so
+ * there is nothing for it to do. It is the same closed set of marks
+ * {@link namesOf} takes off the end of a name, asked from the other side: what
+ * a sentence puts after a name is not part of it, and not something to space
+ * away from it either.
+ *
+ * The caret then goes PAST those marks, which is the other half of the same
+ * sentence — the next thing typed is the next word, and it goes after the
+ * comma rather than in front of it. It also keeps the list from coming
+ * straight back: with the caret there the query is `hinges,`, which is a thing
+ * neither half of the list holds.
  */
 export const completed = (
   text: string,
   at: Completing,
   name: string,
   caret: number,
-): Written =>
-  written(text, at, inserted(name), text[caret] === " " ? caret + 1 : caret)
+): Written => {
+  const marks = markedAt(text, caret)
+  if (marks > 0) {
+    const put = written(text, at, inserted(name, ""), caret)
+    return { ...put, caret: put.caret + marks }
+  }
+  return written(text, at, inserted(name), text[caret] === " " ? caret + 1 : caret)
+}

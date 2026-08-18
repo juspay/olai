@@ -404,9 +404,9 @@ The fourth door onto the one query language, and the only one that does not list
 
 The filter rides the ADDRESS (`routes.ts`'s `?q=`), so a narrowed page is a link and Back works; typing REPLACES the history entry (`router.tsx`'s `replace`) rather than pushing one per keystroke.
 
-## Search: one reading, three of the four doors
+## Search: one reading, three of the five doors
 
-`src/client/search/` holds the search itself, and what every list of results is drawn and walked with, because the palette is not the only door to either. The FOURTH door is the section above — the filter narrows the page instead of listing hits, and parses the same grammar locally rather than asking; these three ask the server.
+`src/client/search/` holds the search itself, and what every list of results is drawn and walked with, because the palette is not the only door to either. The FOURTH door is the section above — the filter narrows the page instead of listing hits, and parses the same grammar locally rather than asking — and the FIFTH is the chat composer's `@` list (`chat/nodes.ts`), which also parses locally and, unlike the filter, ranks: it shares `@olai/format`'s `ranked` with the three below, so a shortlist cannot be ordered one way here and another way there. These three ask the server.
 
 - `nodes.ts` — `createNodeSearch`, a `createResource` over a debounced query (`@solid-primitives/scheduled`). The resource drops the answer to a query the box has moved past, which is why there is no sequence counter here.
 - `Result.tsx` — the row every door draws: TWO STACKED LINES, title then place, each `truncate`d over `min-w-0`, plus a THIRD for a node carrying properties. It was one line with the place inline, and a mono place refusing to shrink starved the title into one-word-per-line rows and pushed the palette into a sideways scroll; a popover never scrolls sideways. The property line borrows the drawer's type vocabulary (mono key, reading-face value — `props/PropsDrawer.tsx`) and deliberately not its two-column grid, which would cost a line per property in a panel that shows eight rows and would put a `max-content` column — the refuses-to-shrink child again — back on the row. Which properties, and in what order, is `search/props.ts`: matched first, because an ellipsis eats the end.

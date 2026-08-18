@@ -114,6 +114,20 @@ Feature: Typing @ in the chat completes a node of the directory
     Then the composer is armed with "hinges"
 
   @scratch:chat
+  Scenario: A completion writes no space in front of the sentence's own punctuation
+    # Reported by review. The trailing space separates the name from the next
+    # WORD; a comma is already a separator, so writing one in front of it put a
+    # space nobody typed into somebody's sentence. The caret goes past the mark,
+    # because that is where the next word starts.
+    When I type "look at @hing, then the doors" into the chat
+    And I put the caret after "look at @hing" in the chat
+    Then the completion offers "hinges"
+    When I accept the completion
+    Then the chat input reads "look at @hinges, then the doors"
+    And the caret in the chat box is at 16
+    And the composer is armed with "hinges"
+
+  @scratch:chat
   Scenario: The chip's × takes the word out of the sentence
     # One press, one meaning: this message is not about that node. A chip that
     # went while its word stayed would come straight back — the words are what
@@ -124,6 +138,29 @@ Feature: Typing @ in the chat completes a node of the directory
     When I take the armed node "hinges" off
     Then the composer is armed with nothing
     And the chat input reads "look at "
+
+  @scratch:chat
+  Scenario: A node that goes between the row and the send refuses, and everything comes back
+    # The other end of "the words are the last word", asked of the case the
+    # `•••` door already pins (`features/node_context.feature`): a row taken off
+    # this list arms an id, and nothing stops the node going away before Enter.
+    # The send is refused rather than sent with a subject that is not there —
+    # and what comes back is the WHOLE message, the words and the permission for
+    # them together, so pressing send again asks the same question.
+    When I type "context @hing" into the chat
+    Then the completion offers "hinges"
+    When I accept the completion
+    Then the composer is armed with "hinges"
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doing":"2026-08-02"}
+      """
+    Then the node "hinges" is not shown
+    When I send the chat message
+    Then the chat shows a refusal
+    And the chat input reads "context @hinges "
+    And the composer is armed with "hinges"
 
   @scratch:chat
   Scenario: A word nobody took off the list arms nothing
@@ -163,6 +200,12 @@ Feature: Typing @ in the chat completes a node of the directory
     And the completion does not offer "install"
     When I type "look at @#home" into the chat
     Then the completion offers "kitchen"
+    # ...and ONE token is the whole of it, which is the fence rather than a
+    # shortcoming: a trigger that took the space would be a completion eating
+    # the rest of the sentence on the chance the next word was meant for it. So
+    # the space closes the list, and what needs one is the palette's question.
+    When I type "look at @is:done " into the chat
+    Then no completion is open
 
   @scratch:chat
   Scenario: A file still wins the first row, and Enter still takes it

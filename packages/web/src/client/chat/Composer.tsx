@@ -85,11 +85,10 @@
  *
  *     THE WORDS ARE THE LAST WORD. What this message is about is the nodes
  *     taken off the list that the draft STILL NAMES ({@link namedIn}), so
- *     deleting the word — or pressing ⌘Z over the completion that wrote it —
- *     takes the chip with it, and nothing has to remember a disarm. The one
- *     thing that is not read back is the `•••` menu's arming: that gesture put
- *     a node there INSTEAD of a sentence, so there are no words for it to be
- *     contradicted by.
+ *     deleting the word takes the chip with it, and nothing has to remember a
+ *     disarm. The one thing that is not read back is the `•••` menu's arming:
+ *     that gesture put a node there INSTEAD of a sentence, so there are no
+ *     words for it to be contradicted by.
  *
  * The draft is local to this tab and is deliberately NOT a surface member: it
  * is an editor, not committed state, and two tabs typing at once should not
@@ -160,10 +159,9 @@ export function Composer(props: {
   /**
    * The nodes TAKEN off the `@` list, which is not the same as the nodes this
    * message is about: what it is about is these, minus the ones whose word is
-   * no longer in the draft ({@link namedIn}). A person who deletes `@hinges`,
-   * or presses ⌘Z over the completion that wrote it, has said the message is
-   * not about that node — and a chip that outlived its word would send a
-   * subject the sentence never mentions.
+   * no longer in the draft ({@link namedIn}). A person who deletes `@hinges`
+   * has said the message is not about that node — and a chip that outlived its
+   * word would send a subject the sentence never mentions.
    *
    * A SET rather than a list, because order is the draft's: `compare @a with
    * @b` says which is which, and this remembers only which rows were chosen.
@@ -428,6 +426,16 @@ export function Composer(props: {
    * because taking a row is what ends the trigger. Without this, completing
    * with the mouse would leave the sentence half-typed and nothing focused —
    * the one gesture where a completion costs a click instead of saving one.
+   *
+   * AND IT COSTS THE UNDO, which is worth knowing here because two comments and
+   * a paragraph of docs/chat.md used to claim otherwise (found by review,
+   * d17ec4f6, and then checked in a browser rather than argued): assigning
+   * `value` is a write the box did not receive as input, so the engine's own
+   * undo history for it is dropped and ⌘Z has nothing to take back. The
+   * alternative is `execCommand("insertText")` — deprecated, and it would put
+   * the composer's one text edit on a path nothing else in this client uses to
+   * buy back a keystroke that has another answer: delete the word, which is
+   * what the chip is read from anyway.
    */
   const rewrite = (next: Written) => {
     if (input !== undefined) {
@@ -463,9 +471,9 @@ export function Composer(props: {
    * ...and it is the ONLY edit: what was taken stays taken. A second lever here
    * — dropping the id out of {@link taken} as well — would make this press mean
    * something a keyboard delete does not, and the difference would show up at
-   * the undo: ⌘Z over a deletion brings the word and the chip back together,
-   * where ⌘Z over an `×` that had also revoked the take would bring back a word
-   * naming nothing. One rule, one lever, and the word decides.
+   * word: an `×` that also revoked the take would mean something a keyboard
+   * delete does not, and the take is what makes retyping the word bring the
+   * node back. One rule, one lever, and the word decides.
    */
   const unname = (id: string) => {
     disarmNode(id)
@@ -571,9 +579,16 @@ export function Composer(props: {
         // not a micro-optimisation: the list is a memo of the draft AND the
         // caret, both of which every character moves, and Solid does not batch
         // an event handler — so two writes ran the whole of `offers()` twice
-        // for one key, the second time to the same answer. That was free while
-        // an `@` only matched paths; it is a walk of the set now (measured at
-        // 20k nodes: ~10ms a run, so ~20ms a keystroke against a 16ms frame).
+        // for one key, the second time to the same answer.
+        //
+        // What is claimed here is the COUNT — one recompute where there were
+        // two — because that is what this can be held to; what a recompute
+        // costs is the matcher's, and `@olai/format`'s `filter.bench.ts` is
+        // where that number lives (about 10ms per keystroke over 20k nodes, so
+        // the pair was around a 16ms frame). An earlier version of this comment
+        // quoted a before-and-after in milliseconds for the `batch` itself,
+        // which no bench in this repo measured: that bench runs the matcher and
+        // never Solid, so the two figures were two runs of the same arm.
         onInput={(event) => {
           batch(() => {
             setDraft(event.currentTarget.value)

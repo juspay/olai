@@ -100,12 +100,23 @@ const FIELD_WEIGHT = { title: 1000, id: 750, tag: 500, desc: 250 } as const
  * folds is this file's own question, and a cache in a caller would be a second
  * answer for the four other doors to miss.
  *
+ * WHAT IT BUYS is a leg rather than a sentence — `just bench`, over
+ * `./filter.bench.ts`, one word typed a character at a time over 20,000 nodes:
+ *
+ *     cold   426.7ms over 7 keystrokes — 60.95ms each
+ *     warm    67.3ms over 7 keystrokes —  9.61ms each
+ *
+ * The bench is in the tree because a reviewer asked where an earlier pair of
+ * numbers in this paragraph came from and the honest answer was a scratch file
+ * (#228). Run it on your own machine before quoting it: the ratio is the claim,
+ * the milliseconds are one laptop's.
+ *
  * WHAT IT COSTS, said rather than left to be discovered: the first word typed
  * anywhere in the app materialises a fold for every node the query reaches, and
- * it lives as long as the records do — measured at 20,000 nodes with long notes,
- * about 29 MB. It buys the walk back: the same measurement puts a cold pass at
- * 85ms and a warm one at 11ms, which is the difference between a completion
- * that keeps up with typing and one that does not.
+ * it lives as long as the records do — four folded fields per node, held until
+ * the record is replaced or the set is dropped. That is the shape, and it is
+ * deliberately not a figure: the bench's own note says why the heap delta it
+ * tried to report could not be stood behind.
  */
 const folded = new WeakMap<RegularNode, Record<SearchField, ReadonlyArray<string>>>()
 

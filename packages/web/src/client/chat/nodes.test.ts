@@ -91,9 +91,24 @@ test("a query the grammar refuses draws nothing rather than a lesson", () => {
   expect(ids(`"open`)).toEqual([])
 })
 
-test("the operators that fit in one token work, because the grammar reads it", () => {
+test("the operators that fit in ONE TOKEN work, because the grammar reads it", () => {
+  // One token is the whole of what this door can be asked, since the trigger
+  // ends at whitespace (`./completion.ts`) — so what is asserted here is what
+  // the box can actually send. The conjunctions, phrases and `OR` groups that
+  // need a space are the matcher's own, and are asked of it in
+  // `@olai/format`'s `filter.test.ts` rather than of a caller that cannot reach
+  // them.
   expect(ids("is:done")).toEqual(["chase-order"])
-  expect(ids("-is:done supplier")).toEqual(["chase-beds"])
+  // Set order among equals: nothing scores, so all that moves anything is the
+  // finished-last rule, and `chase-order` is the one node it takes out.
+  expect(ids("-is:done")).toEqual([
+    "kitchen",
+    "install",
+    "hinges",
+    "garden",
+    "chase-beds",
+  ])
+  expect(ids("#nothing")).toEqual([])
 })
 
 test("what was put away is out, and `is:archived` is how it is asked for", () => {

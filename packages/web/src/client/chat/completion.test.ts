@@ -240,3 +240,31 @@ test("the `×` leaves the punctuation, which was the sentence's and not the name
   expect(unnamed("look at @hinges, then", "hinges", 21))
     .toEqual({ text: "look at , then", caret: 14 })
 })
+
+test("a completion writes no space in front of the sentence's own punctuation", () => {
+  // Reported by review: the trailing space separates this name from the next
+  // WORD, and a comma is already a separator — so `look at @hinges , then` was
+  // a space nobody typed, in front of somebody's punctuation.
+  expect(taking("look at @hin, then", 12, "hinges")).toEqual({
+    text: "look at @hinges, then",
+    // ...and the caret goes PAST the comma, because that is where the next word
+    // starts — which also keeps the list from coming straight back: the query
+    // is then `hinges,`, a thing neither half of the list holds.
+    caret: 16,
+  })
+})
+
+test("...however many marks the sentence put there", () => {
+  expect(taking("(@hin)!", 5, "hinges")).toEqual({ text: "(@hinges)!", caret: 10 })
+})
+
+test("two names run together name neither, and that is the edges-only rule", () => {
+  // Pinned rather than fixed (review, d17ec4f6): the word runs to the
+  // whitespace, so `@hinges,@order` is one word with a comma in it. The format
+  // says a `@` opens a word after whitespace or a bracket and nowhere else, so
+  // the trigger would never have offered a list for `,@order` — and splitting
+  // on the marks themselves would take `@notes/cabinets.md` apart at its dot.
+  expect(namedIn("@hinges,@order", TAKEN)).toEqual([])
+  // A space is all it takes, and a space is what the completion writes.
+  expect(namedIn("@hinges, @order", TAKEN)).toEqual(["hinges", "order"])
+})

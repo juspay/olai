@@ -8,7 +8,7 @@
  *
  * THE MATCHING IS NOT HERE. `@olai/format`'s `parseFilter` / `matching` is what
  * decides which nodes a query selects, and it is the same function an agent's
- * `search_nodes` is gated by — one matcher, four callers, argued in that file's
+ * `search_nodes` is gated by — one matcher, five callers, argued in that file's
  * header and in docs/brainstorming/filter-in-place.md. This file decides only
  * what to do with the answer.
  *
