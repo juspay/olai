@@ -381,6 +381,17 @@ const aheadOf = (
 // printed verbatim, because the format stores it verbatim). A pill that read
 // "1 day late" would have been a component doing arithmetic on a date; a pill
 // handed "1 day late" is still printing what it was given.
+//
+// THE RUNTIME SHIPS TWO OF THESE AND NEITHER IS ADOPTED, which is worth saying
+// rather than leaving as an oversight. `Intl.RelativeTimeFormat` would give
+// "in 6 days" and "yesterday"; `Intl.DateTimeFormat` would give "Mon, Aug 24".
+// Both move with the MACHINE'S LOCALE, and this codebase already ruled the
+// other way for the words beside a date (`@olai/web`'s `monthLabel`: these sit
+// beside ISO dates somebody typed by hand, so they are words rather than
+// something that moves with a setting). Neither can say the other half of what
+// this module says at all — "2½ months", "1 day late", "two quiet weeks" are
+// not relative times, they are this page's sentences. Adopting one for the
+// third of the vocabulary it covers would be two spellings of the same ramp.
 
 /** Which side of NOW a day sits on. Three, because the line has three
  *  stretches and a dot is drawn differently in each — and it is a fact about
@@ -394,18 +405,34 @@ export type Standing = "late" | "today" | "ahead"
  *  at it, then ink fading through muted to rule as the future recedes. */
 export type Tone = "alarm" | "accent" | "ink" | "muted" | "rule"
 
-/** A day on the spine: where it sits, how far it is, and what to call that. */
+/**
+ * A day on the spine: where it sits, how far it is, and what to call that.
+ *
+ * TWO FIELDS ARE ABSENT TOGETHER or present together — the distance and the
+ * words for it — and they are optional for one reason: this is total in both
+ * its arguments, and text that names no calendar day can be COMPARED but not
+ * COUNTED. Saying nothing is the only honest answer to "how far away"; the
+ * shape is what stops the alternative, which is what this used to do — a `0`
+ * standing for both "today" and "I could not count", read one line later as
+ * "0 days ago" under a heading that had already said the day was late.
+ *
+ * The format's own parser makes that unreachable from a validated set: a date
+ * is checked for CALENDAR REALITY and not merely for shape (./parse.ts —
+ * `2026-02-30` is refused), so nothing on a page reaches here uncountable. The
+ * optionality is therefore a statement about this function rather than a state
+ * a view has to draw around, and a view that draws around it anyway costs one
+ * `Show`.
+ */
 export interface Felt {
   readonly standing: Standing
-  /** Whole calendar days from today — negative for a day that has gone, and
-   *  `0` for a date-shaped value naming no real day, which is the one input
-   *  this cannot count (`2026-02-30` passes the format's shape check). */
-  readonly days: number
-  /** The day itself, in words: `Mon, Aug 24`. */
+  /** Whole calendar days from today — negative for a day that has gone. */
+  readonly days: number | undefined
+  /** The day itself, in words: `Mon, Aug 24`. Always answerable: text that
+   *  names no day is printed back as it was written. */
   readonly calendar: string
   /** How far away it FEELS: `Today`, `Tomorrow`, `Yesterday`, `in 6 days`,
    *  `in 3 weeks`, `in 2½ months`, `7 years ago`. */
-  readonly distance: string
+  readonly distance: string | undefined
   /** How far the day has RECEDED, `1` near at hand down to {@link FURTHEST} —
    *  what a row's whole entry is drawn at. */
   readonly fade: number
@@ -415,7 +442,7 @@ export interface Felt {
 
 /** How faint the far future gets. A floor rather than a fade to nothing: a row
  *  a reader cannot read is a row the page may as well not have drawn. */
-export const FURTHEST = 0.5
+const FURTHEST = 0.5
 
 /** Within a week is NEAR — full ink, no fade. A week is the horizon a person
  *  actually plans against, and everything closer than one is equally present. */
@@ -445,15 +472,17 @@ export const feltOn = (date: string, today: string): Felt => {
   const day = dayOf(date)
   const now = dayOf(today)
   const standing: Standing = day < now ? "late" : day > now ? "ahead" : "today"
-  const days = daysBetween(now, day) ?? 0
-  const fade = fadeOf(standing, days)
+  const days = daysBetween(now, day) ?? undefined
   return {
     standing,
     days,
     calendar: calendarOf(day),
-    distance: distanceOf(standing, days),
-    fade,
-    tone: toneOf(standing, days),
+    distance: days === undefined ? undefined : distanceOf(standing, days),
+    // An uncountable day is drawn at the near end of the ramp: the fade and the
+    // ink are how far away a day LOOKS, and looking as though it were at hand
+    // is the reading that hides nothing.
+    fade: days === undefined ? 1 : fadeOf(standing, days),
+    tone: days === undefined ? toneOf(standing, 0) : toneOf(standing, days),
   }
 }
 
@@ -471,6 +500,13 @@ export const feltOn = (date: string, today: string): Felt => {
  *   - WHAT TIME a datetime names. `14:00` is a fact about the appointment and
  *     not about the day, and it is the one thing a day heading is not.
  *
+ * It takes the DAY'S OWN reading rather than a second date to count from, and
+ * that is two things at once. The subtraction happens once per day instead of
+ * once per row — every row of a day is late by exactly that day's distance, by
+ * construction ({@link behind} files a node under the day its `date` names) —
+ * and the call site stops being two interchangeable ISO strings in a row, which
+ * is a swap no type could have caught.
+ *
  * `overdue` is passed rather than re-derived: the row has already asked
  * {@link isOverdue} of the node, and asking it again of a date alone would be a
  * second, weaker spelling of the predicate — a date in the past is not late
@@ -479,9 +515,11 @@ export const feltOn = (date: string, today: string): Felt => {
 export const owedFact = (
   date: string,
   overdue: boolean,
-  today: string,
-): string | undefined =>
-  overdue ? lateness(daysBetween(dayOf(today), dayOf(date)) ?? 0) : timeOf(date)
+  felt: Felt,
+): string | undefined => {
+  if (!overdue) return timeOf(date)
+  return felt.days === undefined ? undefined : lateness(felt.days)
+}
 
 /** How late something is, said the way a pill says it: `1 day late`,
  *  `3 weeks late`. Takes the (negative) distance {@link Felt} counts. */

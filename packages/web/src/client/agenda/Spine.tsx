@@ -19,7 +19,7 @@
 
 import type { Agenda } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
-import { Show } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { Day } from "./Day.tsx"
@@ -31,7 +31,10 @@ export function Spine(props: {
    *  the day it names says itself in words (./Day.tsx). */
   readonly today: string
 }) {
-  const rungs = () => rungsOf(props.agenda, props.today)
+  // MEMOISED, because the list is read twice on the way to the screen — once
+  // for the days and once for the tail's ink — and a plain accessor would
+  // assemble the whole line for each of them, every frame the store publishes.
+  const rungs = createMemo(() => rungsOf(props.agenda, props.today))
 
   return (
     <div data-testid={TESTID.agendaSpine}>

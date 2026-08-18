@@ -32,7 +32,7 @@
  * ancestry line under it and the `data-file` on the row.
  */
 
-import { type DayEntry, isOverdue, owedFact } from "@olai/format"
+import { type DayEntry, isOverdue, owedFact, type Standing } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 
@@ -57,12 +57,15 @@ import {
 
 /** How a day's own name is set, per standing. Small caps and the accent for
  *  now; the alarm for what has gone; the plain heading weight for what is
- *  coming, whose distance rides beside it in the muted voice. */
-const HEADING = {
+ *  coming, whose distance rides beside it in the muted voice.
+ *
+ *  Typed by the format's own vocabulary, so a fourth side of now would be a
+ *  type error here rather than a heading drawn with no class on it. */
+const HEADING: Record<Standing, string> = {
   late: "text-xs font-semibold text-alarm",
   today: "text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-accent",
   ahead: "text-xs font-semibold text-ink",
-} as const
+}
 
 export function Day(props: {
   readonly rung: Rung
@@ -75,11 +78,15 @@ export function Day(props: {
   const rows = (): ReadonlyArray<DayEntry> =>
     props.rung.day.groups.flatMap((group) => group.nodes)
   /** What a day CALLS itself: the felt word in front for the two standings
-   *  where it is the news, and the calendar day alone for the rest. */
-  const named = (): string =>
-    felt().standing === "ahead"
+   *  where it is the news, and the calendar day alone for the rest — or for a
+   *  day nothing could count the distance to, where there is no word to put in
+   *  front of it (`@olai/format`'s `Felt`). */
+  const named = (): string => {
+    const distance = felt().distance
+    return felt().standing === "ahead" || distance === undefined
       ? felt().calendar
-      : `${felt().distance} · ${felt().calendar}`
+      : `${distance} · ${felt().calendar}`
+  }
 
   return (
     // `flow-root` is load-bearing and not a tidy-up: a row carries its own
@@ -138,10 +145,12 @@ export function Day(props: {
             >
               {named()}
             </Link>
-            <Show when={felt().standing === "ahead"}>
-              <span class="shrink-0 text-[0.6875rem] text-muted">
-                {felt().distance}
-              </span>
+            <Show when={felt().standing === "ahead" ? felt().distance : undefined}>
+              {(distance) => (
+                <span class="shrink-0 text-[0.6875rem] text-muted">
+                  {distance()}
+                </span>
+              )}
             </Show>
           </span>
         </h2>
@@ -172,7 +181,7 @@ export function Day(props: {
                   pill={owedFact(
                     dated().date,
                     isOverdue(dated().shows.node, today()),
-                    today(),
+                    felt(),
                   )}
                 />
               )}

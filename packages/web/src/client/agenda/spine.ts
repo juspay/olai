@@ -136,17 +136,20 @@ export const rungsOf = (
     { date: today, groups: agenda.today },
     ...agenda.upcoming,
   ]
-  return days.map((day, index) => {
-    const before = days[index - 1]
-    return {
-      day,
-      felt: feltOn(day.date, today),
-      quiet: before === undefined
-        ? { days: 0, label: undefined, space: LEAD }
-        : quietBetween(before.date, day.date),
-      from: before === undefined ? undefined : feltOn(before.date, today).tone,
-    }
-  })
+  // Each day felt ONCE. The ink a rung arrives wearing is the day above's, and
+  // reading it back off that day's own reading is what makes it the same
+  // answer — asking `feltOn` a second time about a day already read would be
+  // two chances for the top of one stretch to disagree with the bottom of the
+  // one over it.
+  const felts = days.map((day) => feltOn(day.date, today))
+  return days.map((day, index) => ({
+    day,
+    felt: felts[index]!,
+    quiet: index === 0
+      ? { days: 0, label: undefined, space: LEAD }
+      : quietBetween(days[index - 1]!.date, day.date),
+    from: felts[index - 1]?.tone,
+  }))
 }
 
 /**
