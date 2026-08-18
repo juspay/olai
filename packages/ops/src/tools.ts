@@ -273,8 +273,10 @@ const NoArgs = Schema.Struct({})
  * BOTH SIDES ARE INFERRED, and neither one is written at a call site. `R` comes
  * from `answers`, so a read that does not say what it answers does not compile
  * rather than quietly getting `unknown` and being checked against nothing; and
- * the asker's `args` come from `schema` as `S["Type"]`, which is that schema's
- * own statement of what it decodes to.
+ * the asker's `args` come from `schema` as `S["Type"]` — the same property the
+ * floor reads to publish each request as a type (`export type NodeRequest =
+ * typeof NodeRequest.Type`), so what an asker is handed and what a caller of
+ * the ops layer writes are one declaration read twice.
  *
  * THE SCHEMA IS TAKEN AS ITSELF — `S` is the struct that was passed, and the
  * asker reads its `Type` off it — rather than as "something that decodes to
@@ -289,6 +291,12 @@ const NoArgs = Schema.Struct({})
  * A read whose asker names the wrong request now fails to COMPILE, which is the
  * one thing `./tools.test.ts`'s walk over the table cannot check — it is pinned
  * there with `@ts-expect-error`, and that is why this constructor is exported.
+ *
+ * NOTHING IS ASSERTED HERE ANY MORE. Widening the asker to the `Tool` arm's own
+ * `(asking, args: never)` used to need an `as`, because `A` was a variable this
+ * signature never tied to anything; tied to the schema, it is a relation the
+ * compiler checks for itself — including that the answer really is the `R` the
+ * declaration promised.
  */
 export const read = <S extends Schema.Struct<Schema.Struct.Fields>, R>(
   name: string,
@@ -304,7 +312,7 @@ export const read = <S extends Schema.Struct<Schema.Struct.Fields>, R>(
   schema,
   kind: "read",
   answers,
-  ask: ask as (asking: Asking, args: never) => Effect.Effect<unknown, OpFailure>,
+  ask,
 })
 
 const write = (
@@ -331,7 +339,7 @@ const act = <S extends Schema.Struct<Schema.Struct.Fields>>(
   description,
   schema,
   kind: "act",
-  act: answer as (ops: Acting, args: never) => Effect.Effect<unknown, never>,
+  act: answer,
 })
 
 /**
