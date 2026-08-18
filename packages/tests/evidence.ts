@@ -246,12 +246,15 @@ const recordOf = (id: string): string => {
  *
  * Throws without a `VAULT` rather than writing nothing, which is {@link
  * recordOf}'s rule read the other way: a shot of a gesture that never reached
- * a file is worse than no shot.
+ * a file is worse than no shot. And it ENDS THE FILE, exactly as the suite's
+ * own `writeServed` does, rather than leaving that to whoever writes the next
+ * section: a records file whose last line has no newline is a footgun this
+ * helper can simply not have.
  */
-const rewrite = (file: string, text: string): void => {
+const rewrite = (file: string, records: ReadonlyArray<string>): void => {
   const vault = process.env["VAULT"]
   if (vault === undefined) throw new Error("no VAULT; run through evidence.sh")
-  writeFileSync(`${vault}/${file}`, text)
+  writeFileSync(`${vault}/${file}`, records.map((one) => `${one}\n`).join(""))
 }
 
 // ── the filter over the page ───────────────────────────────────────────
@@ -1026,6 +1029,11 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
    */
   "move-to-trash-from-the-menu": async (page) => {
     await openMenu(page, "install")
+    // Printed on BOTH sections, because the claim is a pair and half of it is
+    // an ABSENCE: a node's own row is offered the put-away and not the retire,
+    // and a mirror row the other way about (`retire-a-placement`). One reader,
+    // two transcripts, and neither of them asks anybody to compare two images.
+    console.log(`  the menu offers: ${await verbsOf(page)}`)
     await shot(page, "the-entry")
     await page.locator(TRASH_VERB).first().click()
     await page.locator('[data-testid="node-menu-confirm"]').first().waitFor()
@@ -1067,14 +1075,11 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     // hide; the reload after it is the driver's own hygiene, not a claim —
     // this row is holding an open menu, and re-pressing the `•••` of a row
     // whose panel is up is the gesture that SHUTS one.
-    rewrite(
-      "house.olai",
-      [
-        `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
-        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","see":["kitchen-herbs"]}`,
-        `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
-      ].join("\n") + "\n",
-    )
+    rewrite("house.olai", [
+      `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
+      `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","see":["kitchen-herbs"]}`,
+      `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
+    ])
     await page.locator(row("install")).first().waitFor({ state: "detached" })
     await opened(page, "/o/house.olai", OUTLINE_TREE)
 
