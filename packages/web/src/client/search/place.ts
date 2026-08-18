@@ -16,9 +16,16 @@
  *
  * Its own module rather than an export of the component, so a pure unit test of
  * a caller does not have to compile a `.tsx` to reach it.
+ *
+ * IT TAKES THE TWO FIELDS IT READS rather than a whole hit, and that is what
+ * lets a FOURTH caller in that never asked the server anything: the chat
+ * composer's `@` list situates a node out of the set the tab is already holding
+ * (`../chat/nodes.ts`), and a signature spelled `SearchHit` would have made it
+ * mint a fake one — a shape with an id, a title and a status in it, invented to
+ * satisfy a function that reads none of them.
  */
 
 import type { SearchHit } from "@olai/surface"
 
-export const nodePlace = (hit: SearchHit): string =>
+export const nodePlace = (hit: Pick<SearchHit, "file" | "path">): string =>
   hit.path.length === 0 ? hit.file : [...hit.path].reverse().join(" · ")

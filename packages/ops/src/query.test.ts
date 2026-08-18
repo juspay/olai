@@ -394,7 +394,9 @@ describe("a query is words and operators", () => {
   test("an operator gates the words, and the two compose", () => {
     expect(ids({ text: "is:done" })).toEqual(["book", "paint"])
     // "the" is in all five (`pack` carries it in its note); the clause is what
-    // cuts them, and the ranking is still this layer's.
+    // cuts them, and what this layer still decides about the answer is the CAP
+    // and the situating — the order is `@olai/format`'s `ranked`, called from
+    // here (`./query.ts`).
     expect(ids({ text: "the is:done" })).toEqual(["book", "paint"])
     expect(ids({ text: "the -is:done" })).toEqual(["trip", "house", "pack"])
     expect(ids({ text: "has:desc" })).toEqual(["pack"])
@@ -416,7 +418,9 @@ describe("a query is words and operators", () => {
 
   // A phrase and a group reach this door the way every other part of the
   // grammar does — through the one `parseFilter` — so what an agent can ask for
-  // is what a person can type into the filter. Ranked here, and only here.
+  // is what a person can type into the filter. Ordered by the format's `ranked`,
+  // which is what the chat composer's own list orders by: one answer about
+  // whether a finished node outranks an open one, wherever it is asked.
   test("a phrase and an `OR` group reach the ranked door too", () => {
     expect(ids({ text: `"book the flights"` })).toEqual(["book"])
     // The same words, with the order between them no longer part of the query.

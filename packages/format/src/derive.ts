@@ -1009,6 +1009,23 @@ export const ancestorsOf = (
 }
 
 /**
+ * ...and what those crumbs SAY, which is what every reader of them draws:
+ * the titles, outermost first.
+ *
+ * Its own function because it had three callers spelling one `.map` — the ops
+ * layer's `foundOf` (which is public precisely so a second `ancestorsOf(…).map`
+ * could not drift from what `read_node` answers), the line a chat message's
+ * node arrives on, and the chat composer's `@` row, which cannot reach the ops
+ * layer at all. Three copies of one expression is three chances for "where does
+ * this node hang" to come to mean three things about one id in one turn.
+ */
+export const ancestorTitles = (
+  derived: Derived,
+  id: string,
+): ReadonlyArray<string> =>
+  ancestorsOf(derived, id).map((crumb) => crumb.node.title)
+
+/**
  * A node, and the derived facts that say what it IS.
  *
  * One concept with two readers so far, and they would otherwise be two

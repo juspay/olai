@@ -120,6 +120,15 @@ export default function App() {
       <DerivedProvider derived={outlines.derived()}>
       <OpensProvider opens={(path, at) => opensAt(found(), path, at)}>
       <ServedProvider outlines={found().files} documents={found().documents}>
+      {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
+          the TAB (`./clock.ts`), and the panel reads it too — the `@` list's
+          node half is matched by the format's own grammar, whose relative words
+          (`@date:today`) count from the day the reader is standing on. Under
+          the page's own arm, as it was, the composer's only way to that day
+          would be a second `createToday()` — a second midnight timer and a
+          second answer to what day it is, in a tab that is supposed to have
+          one. */}
+      <TodayProvider today={today()}>
       <Connection readout={connectionReadout()} />
       <ChatPanel />
       <Palette
@@ -157,7 +166,6 @@ export default function App() {
           </Match>
           <Match when={focusedPage()}>
             {(open) => (
-                <TodayProvider today={today()}>
                 <DocumentsProvider documents={documents}>
                   <div
                     class="relative md:grid md:grid-cols-[var(--width-sidebar)_1fr]"
@@ -196,12 +204,12 @@ export default function App() {
                     />
                   </div>
                 </DocumentsProvider>
-                </TodayProvider>
             )}
             </Match>
           </Switch>
         </div>
       </div>
+      </TodayProvider>
       </ServedProvider>
       </OpensProvider>
       </DerivedProvider>

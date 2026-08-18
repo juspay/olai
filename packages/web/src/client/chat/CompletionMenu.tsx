@@ -4,8 +4,10 @@
  *
  * `/` offers the AGENT'S own commands (they arrive on the chat cell, so what
  * is offered is what that agent actually has and olai maintains no list of its
- * own to go stale) and `@` offers the served directory's files. One component
- * rather than two, for `../complete/completing.tsx`'s reason one panel over:
+ * own to go stale) and `@` offers what the served directory holds under a word
+ * — its files and its nodes, in two blocks under one cursor
+ * ({@link ./naming.ts}). One component rather than two — three, now — for
+ * `../complete/completing.tsx`'s reason one panel over:
  * they are one gesture — type a character, see a shortlist, walk it with the
  * arrows, press Enter — and two copies of the arrow keys is two chances for
  * the arrows to mean something slightly different depending on which character
@@ -18,7 +20,7 @@
  * same thing for the times a hand is already there.
  */
 
-import { createEffect, For, on, onCleanup, onMount } from "solid-js"
+import { createEffect, For, on, onCleanup, onMount, Show } from "solid-js"
 
 import { listKey } from "../keys.ts"
 import { WITHIN } from "../layer.ts"
@@ -28,8 +30,8 @@ import { topmostWhileOpen } from "../topmost.ts"
 
 /**
  * One row. `value` is what taking it is ABOUT — a command's name, a file's
- * path — and it is what a scenario names the row by; `label` and `hint` are
- * what a person reads.
+ * path, a node's id — and it is what a scenario names the row by; `label` and
+ * `hint` are what a person reads.
  *
  * `take` is what CHOOSING it does, carried on the row rather than reported
  * back as an index — the arrangement `../complete/completing.tsx`'s `Choice`
@@ -47,6 +49,19 @@ export interface MenuRow {
   readonly value: string
   readonly label: string
   readonly hint?: string
+  /**
+   * WHICH BLOCK this row belongs to, if the list has more than one kind of row
+   * in it — `files` and `nodes` under an `@` ({@link ./naming.ts}), nothing at
+   * all under a `/`.
+   *
+   * Drawn as a word above the first row that says it, and only there: rows
+   * arrive grouped, so a heading is "this row starts a block" rather than a
+   * second list to keep aligned with the first. It is deliberately NOT a row of
+   * its own — the cursor counts takeable things (`../search/cursor.ts` over
+   * `rows.length`), and a list where ↓ sometimes lands on a label would be the
+   * one thing this component exists to prevent: arrows that mean two things.
+   */
+  readonly section?: string
   readonly take: () => void
 }
 
@@ -54,7 +69,7 @@ export function CompletionMenu(props: {
   /** WHICH list this is, as a fact in the markup rather than as a guess from
    *  what is in it — the contract `../complete/Completions.tsx` keeps about
    *  its own three widgets, kept here for the two. */
-  readonly kind: "command" | "path"
+  readonly kind: "command" | "name"
   readonly rows: ReadonlyArray<MenuRow>
   /** WHAT IS BEING ASKED — the armed kind and its query, as one string. The
    *  cursor goes back to the top when it changes, because a keystroke means a
@@ -180,25 +195,43 @@ export function CompletionMenu(props: {
     >
       <For each={props.rows}>
         {(row, index) => (
-          <li>
-            <button
-              type="button"
-              class={`block w-full truncate rounded px-2 py-1 text-left text-xs ${
-                index() === cursor.at() ? "bg-rule" : ""
-              }`}
-              data-testid={TESTID.chatCompletionRow}
-              data-value={row.value}
-              data-active={index() === cursor.at()}
-              // THE ROW, not its position: see {@link MenuRow.take}.
-              onClick={() => row.take()}
-            >
-              {/* The space between them is a real character as well as a
-                  margin: what the eye reads as two words has to be two words
-                  when the row is copied or read aloud, and `ml-2` is neither. */}
-              <span class="font-mono">{row.label}</span>{" "}
-              <span class="ml-1 text-muted">{row.hint}</span>
-            </button>
-          </li>
+          <>
+            {/* The block's own word, over the row that opens it — which is
+                any row whose section differs from the one above it, so a list
+                of one kind (the `/` commands, whose rows carry none) draws no
+                heading without being asked about. A `<li>` because a list's
+                children are list items and a reader with a screen reader is
+                told how many there are; not a cursor position, because it is a
+                label rather than something to take. */}
+            <Show when={row.section !== props.rows[index() - 1]?.section}>
+              <li
+                class="px-2 pb-0.5 pt-1 font-mono text-[0.625rem] uppercase tracking-wide text-muted"
+                data-testid={TESTID.chatCompletionSection}
+                data-section={row.section}
+              >
+                {row.section}
+              </li>
+            </Show>
+            <li>
+              <button
+                type="button"
+                class={`block w-full truncate rounded px-2 py-1 text-left text-xs ${
+                  index() === cursor.at() ? "bg-rule" : ""
+                }`}
+                data-testid={TESTID.chatCompletionRow}
+                data-value={row.value}
+                data-active={index() === cursor.at()}
+                // THE ROW, not its position: see {@link MenuRow.take}.
+                onClick={() => row.take()}
+              >
+                {/* The space between them is a real character as well as a
+                    margin: what the eye reads as two words has to be two words
+                    when the row is copied or read aloud, and `ml-2` is neither. */}
+                <span class="font-mono">{row.label}</span>{" "}
+                <span class="ml-1 text-muted">{row.hint}</span>
+              </button>
+            </li>
+          </>
         )}
       </For>
     </ul>

@@ -650,11 +650,14 @@ export const CHAT_SEND = selector(TESTID.chatSend);
 export const CHAT_CANCEL = selector(TESTID.chatCancel);
 /** The shortlist over the message box, and one row of it. Both lists the
  *  composer completes draw the same box — the agent's commands under a `/`,
- *  the directory's files under an `@` — so the row is named by its
- *  `data-value` (the command's name, the file's path) and the box by its
- *  `data-kind`. */
+ *  what the directory holds under an `@` — so the row is named by its
+ *  `data-value` (the command's name, the file's path, the node's id) and the
+ *  box by its `data-kind`. The `@` list holds two BLOCKS, each with a label
+ *  over its first row (`data-section`), which is a label and never a row: the
+ *  arrows do not land on it. */
 export const CHAT_COMPLETION = selector(TESTID.chatCompletion);
 export const CHAT_COMPLETION_ROW = selector(TESTID.chatCompletionRow);
+export const CHAT_COMPLETION_SECTION = selector(TESTID.chatCompletionSection);
 /** A picture on a message — pending in the composer, or sent, on the row. Its
  *  `data-name` is the file name, which is the only thing about it every tab
  *  agrees on; the preview is drawn ONLY by the tab that has the Blob. */
@@ -836,6 +839,36 @@ export const expectDrawn = async (
     expected.split(",").map((one) => one.trim()),
   );
 };
+/**
+ * WHICH OF TWO IS DRAWN ABOVE THE OTHER, waited for rather than sampled.
+ *
+ * The sibling of {@link expectDrawn}, for the question that is about a PAIR
+ * rather than about a whole list: sibling order after a move, and which block
+ * of a two-kind completion comes first. Both were the same fifteen lines in two
+ * step files — one `evaluateAll` over the attribute, one `indexOf` comparison,
+ * one sentence — which is the shape this file exists to hold once (the reason
+ * `expectDrawn` gives about its own two callers).
+ *
+ * `first` must be PRESENT as well as above: an absent row has an `indexOf` of
+ * `-1`, which is above everything.
+ */
+export const expectBefore = async (
+  world: OlaiWorld,
+  found: Locator,
+  attribute: string,
+  first: string,
+  second: string,
+): Promise<void> => {
+  await world.waitUntil(async () => {
+    const drawn = await found.evaluateAll(
+      (all, name) => all.map((element) => element.getAttribute(name)),
+      attribute,
+    );
+    return drawn.indexOf(first) !== -1 &&
+      drawn.indexOf(first) < drawn.indexOf(second);
+  }, `"${first}" to be drawn above "${second}"`);
+};
+
 /** One line, with the `#` that marks a tag dropped.
  *
  *  The `#` is dropped on BOTH sides of every title comparison because the

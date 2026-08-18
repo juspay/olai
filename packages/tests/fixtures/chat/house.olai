@@ -2,3 +2,6 @@
 {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
 {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets"}
 {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doing":"2026-08-02"}
+{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges","desc":"brass, if the budget survives"}
+{"id":"chase-supplier","parent":"install","ord":"a1","title":"chase the supplier"}
+{"id":"chase-tiler","parent":"kitchen","ord":"a3","title":"chase the supplier"}

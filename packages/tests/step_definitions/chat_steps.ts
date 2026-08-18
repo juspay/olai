@@ -35,6 +35,7 @@ import {
   CHAT_CANCEL,
   CHAT_COMPLETION,
   CHAT_COMPLETION_ROW,
+  CHAT_COMPLETION_SECTION,
   CHAT_DIFF,
   CHAT_DIFF_EXPAND,
   CHAT_DIFF_GUTTER,
@@ -83,6 +84,7 @@ import {
   CHAT_WAITING,
   CHAT_WORKING,
   CHAT_WROTE,
+  expectBefore,
   HYDRATION_TIMEOUT,
   NODE_TITLE,
   nodeSelector,
@@ -1339,14 +1341,14 @@ Then(
 
 // ── the completion over the box ────────────────────────────────────────
 //
-// ONE set of steps for both lists — the agent's commands under a `/` and the
-// served directory's files under an `@` — because they are one box in the
+// ONE set of steps for both lists — the agent's commands under a `/` and what
+// the served directory holds under an `@` — because they are one box in the
 // client (`web/src/client/chat/CompletionMenu.tsx`) and a second spelling here
 // would be two scenarios' worth of drift about what "the completion offers"
 // means. A row is named by its `data-value`, which is what taking it writes:
-// the command's name, or the file's path.
+// the command's name, the file's path, or the node's id.
 
-/** WHICH list, off `data-kind` — `command` or `path`. Named rather than
+/** WHICH list, off `data-kind` — `command` or `name`. Named rather than
  *  guessed from the rows, because the whole design claim is that one scan of
  *  the line decides which character the caret is inside. */
 Then(
@@ -1400,6 +1402,28 @@ Then(
     const row = this.page.locator(`${CHAT_COMPLETION_ROW}${attr("data-value", value)}`);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(oneLine(await row.innerText()), `${label} ${hint}`);
+  },
+);
+
+/**
+ * WHICH BLOCK IS ABOVE WHICH, when the `@` list holds both of the things the
+ * directory can be named by.
+ *
+ * The labels in the order they are drawn, which is the only way to assert this:
+ * "files first" is a claim about the LIST rather than about any row of it, and
+ * two `offers` steps in the order somebody wrote them would pass whatever the
+ * list did.
+ */
+Then(
+  "the completion block {string} comes before the block {string}",
+  async function (this: OlaiWorld, first: string, second: string) {
+    await expectBefore(
+      this,
+      this.page.locator(CHAT_COMPLETION_SECTION),
+      "data-section",
+      first,
+      second,
+    );
   },
 );
 

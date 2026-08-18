@@ -24,18 +24,35 @@
  * PURE, and tested as such.
  */
 
+import { isArchived } from "@olai/format"
 import type { NodeContext } from "@olai/surface"
 
 import { annotated } from "./prompt.ts"
 
-/** One node, as the agent reads it. The `file:line` is spelled once and the
- *  ancestors are the varying tail: this line is a contract with two other
- *  files (the scripted agent parses it, the panel makes the same spelling
- *  pressable), and half of it drifting is not a thing to leave to two arms of
- *  a ternary. */
+/**
+ * One node, as the agent reads it. The `file:line` is spelled once and what
+ * varies is the tail: this line is a contract with two other files (the
+ * scripted agent parses it, the panel makes the same spelling pressable), and
+ * half of it drifting is not a thing to leave to two arms of a ternary.
+ *
+ * `; archived` is the one clause that is not a fact about WHERE the node is but
+ * about what to do with it. A node that was put away can be named on a message
+ * — that is deliberate, and it is how "why did we put this away?" gets asked —
+ * and no tool refuses a write into an archive, so a row that arrived reading
+ * exactly like live work would be ticked off like live work. The `file:line`
+ * carries `Archive.olai` already; a filename is a thing to notice, and this is
+ * a thing that was said.
+ *
+ * ASKED OF THE FILE, here, rather than carried as a second field beside it: it
+ * is `isArchived`'s answer about `node.file` and nothing else, so a boolean on
+ * the wire would be a pair for every producer of a context to keep true, and
+ * this format's rule for what an archive IS frozen into a schema — where the
+ * 2026-08-17 ruling moved this very area. One fact, one place, one reader.
+ */
 export const lineFor = (node: NodeContext): string => {
   const under = node.path.length === 0 ? "" : `; under ${node.path.join(" › ")}`
-  return `Node in context: \`${node.id}\` — ${node.title} (${node.file}:${node.line}${under})`
+  const away = isArchived(node.file) ? "; archived" : ""
+  return `Node in context: \`${node.id}\` — ${node.title} (${node.file}:${node.line}${under}${away})`
 }
 
 /**

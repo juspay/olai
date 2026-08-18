@@ -9,6 +9,7 @@ import {
   matching,
   parseFilter,
   type Refusal,
+  ranked,
   relativeSpan,
   shownRecord,
 } from "./filter.ts"
@@ -1130,6 +1131,61 @@ test("`is:archived` and `date:` compose over a day the page itself draws empty",
   // Without the operator the same day selects nothing: the archive is out of
   // the reading, not out of the record.
   expect(selects("date:2026-06-01")).toEqual([])
+})
+
+// ── the order ──────────────────────────────────────────────────────────
+//
+// The rest of the score {@link matchOf} starts — a finished node loses about a
+// field — which two doors need (`search_nodes` and the chat composer's `@`) and
+// neither may respell (`ranked`'s own header). The CAP is each door's own, so
+// these ask for the order and take what they want off the top.
+
+/** The ids a query's best few name, best first. */
+const bestOf = (text: string, limit: number): ReadonlyArray<string> =>
+  ranked(derived, matching(derived, parseFilter(text, TODAY)))
+    .slice(0, limit)
+    .map(({ at }) => at.node.id)
+
+test("the shortlist is ranked, where the answer it is cut from is not", () => {
+  // `the` opens `the herb bed` and is buried in five other titles, so one node
+  // outranks the rest by the position bonus alone — and it is not the one the
+  // set lists first (`basil` is, in the file that sorts before `house.olai`).
+  expect(matching(derived, parseFilter("the", TODAY)).map(({ at }) => at.node.id))
+    .toEqual(["herbs", "basil", "demo", "order", "install", "hinges"])
+  expect(bestOf("the", 3)).toEqual(["herbs", "order", "install"])
+})
+
+test("a finished node loses ties without losing its place in the list", () => {
+  // `basil` and `demo` carry the same buried `the` as three live nodes and are
+  // both done, so the penalty puts them under all three — and neither is
+  // dropped: the reason to look for a node you finished is usually that you
+  // finished it.
+  expect(bestOf("the", 8))
+    .toEqual(["herbs", "order", "install", "hinges", "basil", "demo"])
+})
+
+test("the cap is a cap, and ties keep the set's own order", () => {
+  // Three tags of equal weight in three different files: the answer is the
+  // set's own order, because the sort is stable over a list already in it.
+  expect(bestOf("#home", 8)).toEqual(["herbs", "kitchen", "hinges"])
+  expect(bestOf("#home", 2)).toEqual(["herbs", "kitchen"])
+  expect(bestOf("#home", 0)).toEqual([])
+})
+
+// The archive rule is the MATCHER's, and a shortlist inherits it rather than
+// re-deciding it — which is what lets a door offer the best few without
+// writing an archive rule of its own (`@olai/web`'s `chat/nodes.ts`).
+test("what was put away is out of a shortlist too, unless the query says so", () => {
+  // `the old kitchen table` is in the archive, so the word alone does not
+  // reach it — and the operator, which SELECTS what was put away rather than
+  // widening the reading, answers with it alone.
+  expect(bestOf("kitchen", 8)).toEqual(["kitchen"])
+  expect(bestOf("kitchen is:archived", 8)).toEqual(["gone"])
+})
+
+test("a query the grammar refuses, and an empty one, have no shortlist", () => {
+  expect(bestOf("is:open", 8)).toEqual([])
+  expect(bestOf("", 8)).toEqual([])
 })
 
 test("how many rows a day draws is how many entries it holds, not how many files", () => {

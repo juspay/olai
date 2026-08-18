@@ -21,7 +21,7 @@
  */
 
 import {
-  ancestorsOf,
+  ancestorTitles,
   countedChildren,
   DEFAULT_SEARCH_LIMIT,
   DEFAULT_SUBTREE_DEPTH,
@@ -43,6 +43,7 @@ import {
   type Placed,
   type Placement,
   progressOf,
+  ranked,
   type SearchAnswer,
   type SearchHit,
   type SearchRequest,
@@ -101,8 +102,10 @@ import {
  * this layer situates the same node for the same agent. `@olai/server` builds
  * the line that names a node a chat message is ABOUT, and "where does a node
  * live, and what does it hang under" is a question this file already answers —
- * a second `ancestorsOf(…).map(…)` up there would be a second answer, free to
- * drift from the one `read_node` gives about the same id in the same turn.
+ * a second answer to it up there would be free to drift from the one
+ * `read_node` gives about the same id in the same turn. The `.map` those two
+ * shared is the format's own now (`ancestorTitles`), because a THIRD reader
+ * arrived that cannot import this layer at all: the chat composer's `@` row.
  */
 export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
   const status = derived.status.get(located.node.id)
@@ -115,7 +118,7 @@ export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
     // applies to its own absent fields, and an agent reading a corpus of notes
     // should not have to filter a status out of every answer.
     ...(status === undefined ? {} : { status }),
-    path: ancestorsOf(derived, located.node.id).map((crumb) => crumb.node.title),
+    path: ancestorTitles(derived, located.node.id),
     ...carriedOf(located.node),
   }
 }
@@ -166,11 +169,6 @@ const carriedOf = (
 
 // ── search ─────────────────────────────────────────────────────────────
 
-/** A done node is demoted by about a field's worth: enough to lose a tie, not
- *  enough to disappear. The reason to look for a node you finished is usually
- *  that you finished it. */
-const DONE_PENALTY = 300
-
 /**
  * A query, ranked and shortened — the reading behind `search_nodes` and behind
  * every box a person types into.
@@ -180,14 +178,25 @@ const DONE_PENALTY = 300
  * their negations), the archive rule and which field carried a hit all live in
  * `@olai/format`'s `filter.ts`, because a browser narrowing rows it already
  * holds cannot call this procedure on every keystroke and must not answer
- * differently for having to do it itself. One matcher, four callers; that file's
- * header names them and docs/brainstorming/filter-in-place.md argues it.
+ * differently for having to do it itself. One matcher, five callers; that
+ * file's header names them and docs/brainstorming/filter-in-place.md argues it.
  *
- * What is still this layer's is everything about showing a stranger a
- * SHORTLIST — a finished node loses ties, the list is capped, and the total is
- * reported uncapped so "twelve of ninety" is sayable — and CARRYING THE
- * REFUSAL, because this is the only layer that has both the parser's answer and
- * a caller to hand it to.
+ * NEITHER IS THE ORDER, as of the chat composer's `@` list: the done penalty
+ * and the sort went down to the matcher with the same argument one door later
+ * ({@link ranked}) — a completion in a browser cannot call this and must not
+ * hold a second opinion about whether a finished node outranks an open one.
+ * The CAP stayed, because a row count is a fact about a door rather than about
+ * a query: twelve here, eight in that completion, and a floor holding either
+ * would be holding somebody else's layout. What is left with it is the
+ * SITUATING, which is this layer's alone ({@link foundOf}), the uncapped total,
+ * so "twelve of ninety" is sayable, and CARRYING THE REFUSAL, because this is
+ * the only layer that has both the parser's answer and a caller to hand it to.
+ *
+ * SHORTENED BEFORE IT IS SITUATED, which is a change of order rather than a
+ * change of answer: a hit carries the ancestor titles `ancestorsOf` walks to
+ * find, and building one for every node a common word selects — to keep twelve
+ * — was thousands of walks up a tree on a large vault, thrown away by the next
+ * line. Ranking asks only for the score and the mark, and both are in hand.
  */
 export const search = (
   derived: Derived,
@@ -212,8 +221,11 @@ export const search = (
   }
   if (filter.kind === "nothing") return { hits: [], total: 0 }
 
-  const ranked = matching(derived, filter, { file: query.file, under: query.under })
-    .map(({ at, match }) => {
+  const matched = matching(derived, filter, { file: query.file, under: query.under })
+  const limit = query.limit ?? DEFAULT_SEARCH_LIMIT
+  const hits = ranked(derived, matched)
+    .slice(0, limit)
+    .map(({ at, match }): SearchHit => {
       const found = foundOf(derived, at)
       // ANNOTATED, never asserted. It was `as Hit` for as long as this function
       // has existed, and an assertion is exactly the thing that stops checking
@@ -223,7 +235,7 @@ export const search = (
       // spells the same pattern under a plain return type — so what the cast was
       // buying was nothing, at the one place in this file that produces a shape
       // the wire carries.
-      const hit: SearchHit = {
+      return {
         ...found,
         // Omitted for a query that named no words — `is:done` on its own is
         // carried by no field, and answering "title" would be inventing a
@@ -234,20 +246,11 @@ export const search = (
         // every query that named no property.
         ...(match.props.length === 0 ? {} : { matchedProps: match.props }),
       }
-      return {
-        hit,
-        score: found.status === "done" ? match.score - DONE_PENALTY : match.score,
-      }
     })
 
-  // Ties keep the order the outlines are written in, so an answer never moves
-  // under the cursor between two keystrokes. The list is already in that order
-  // — `matching` walks the set in file-then-line order — and `sort` is stable.
-  // Sorted in place, because the array was minted by the `map` above and is
-  // nobody else's.
-  ranked.sort((a, b) => b.score - a.score)
-  const limit = query.limit ?? DEFAULT_SEARCH_LIMIT
-  return { hits: ranked.slice(0, limit).map((entry) => entry.hit), total: ranked.length }
+  // The TOTAL is what matched, never what was kept, so "twelve of ninety" is
+  // sayable — the one number that has to be read off the uncapped list.
+  return { hits, total: matched.length }
 }
 
 // ── one node, and what is under it ─────────────────────────────────────
