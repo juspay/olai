@@ -52,6 +52,10 @@
  *   refuse steering   turn `_session/steering` into an error from here on, so
  *                a scenario can see what a panel does with words it could not
  *                deliver
+ *   swallow steering  take every `_session/steering` and NEVER ANSWER it, so
+ *                a scenario can see the other face: an agent that went quiet
+ *                with a person's words on the wire, where nothing here can say
+ *                whether they landed
  *   slow steering  make `_session/steering` answer two seconds late from here
  *                on, so a cancel can overtake a steer already in flight
  *   model <id>   switch the model the way the wrapped CLI does — which is to
@@ -201,6 +205,18 @@ const steered: Array<string> = []
  *  turn is over — which is the one case where a person's words have nowhere to
  *  go but back on the screen. */
 let steerRefused = false
+/**
+ * Whether `_session/steering` is taken and never answered from here on
+ * (`swallow steering`).
+ *
+ * The other half of {@link steerRefused}, and the DIFFERENT thing entirely: a
+ * refusal is an answer, and this is the absence of one. The turn goes on
+ * normally — this agent is alive, reading, and streaming — which is what makes
+ * it the honest shape of the case a client can only meet with a deadline. It
+ * is not `deaf`: that one destroys its own stdin and stops taking anything at
+ * all, so the cancel it exists for is unreachable too.
+ */
+let steerSwallowed = false
 /**
  * How long `_session/steering` sits on a steer before answering (`slow
  * steering`). Zero answers off the read loop, which is what every other
@@ -874,6 +890,17 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "refuse" && argument === "steering") {
     steerRefused = true
     say("steering refused from here on.")
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // From now on a steer is TAKEN and never answered. Nothing is refused and
+  // nothing is injected: the request sits open, the turn goes on, and the only
+  // thing that can end the wait is the client's own deadline — which is the
+  // one case where a panel cannot say whether the words arrived.
+  if (verb === "swallow" && argument === "steering") {
+    steerSwallowed = true
+    say("steering will be swallowed from here on.")
     respond(id, { stopReason: "end_turn" })
     return
   }
@@ -1559,7 +1586,9 @@ const promptTextOf = (params: Record<string, unknown>): string =>
 /**
  * A message put INTO the turn that is running, answered from the read loop.
  *
- * Three answers, and the client has to tell them apart:
+ * Four outcomes, and the client has to tell them apart — the fourth being the
+ * absence of the other three (`swallow steering`), which is what an agent that
+ * stopped listening while still alive looks like on this wire:
  *
  *   - a turn is running → the message joins it (`injected`) and the turn acts
  *     on it before it ends ({@link takeSteering});
@@ -1568,7 +1597,10 @@ const promptTextOf = (params: Record<string, unknown>): string =>
  *     while it believes a turn is running, so this is the race — and a client
  *     that took it as delivered would lose the message;
  *   - `refuse steering` was asked for → a JSON-RPC error, which is an agent
- *     that cannot be reached mid-turn at all.
+ *     that cannot be reached mid-turn at all;
+ *   - `swallow steering` was asked for → NOTHING, ever. The request stays open
+ *     and the client's deadline is the only thing that ends it, which is the
+ *     one case where "did the message land" has no answer on this end.
  */
 const steerTurn = (id: unknown, params: Record<string, unknown>): void => {
   // WHETHER A TURN IS RUNNING IS READ WHEN THE ANSWER IS SENT, not when the
@@ -1577,6 +1609,10 @@ const steerTurn = (id: unknown, params: Record<string, unknown>): void => {
   // steer on the wire, and the answer that comes back — "nothing to steer" —
   // is then about a turn a PERSON stopped rather than one that finished.
   const answer = (): void => {
+    // NEVER ANSWERED, and the request is left open rather than errored: the
+    // client's own deadline is the only thing that can end this, which is the
+    // whole point of the verb.
+    if (steerSwallowed) return
     if (steerRefused) {
       refuse(id, -32000, "this turn cannot be steered")
       return

@@ -63,6 +63,7 @@ import {
   client as acpClient,
   type ClientConnection,
   methods,
+  RequestError,
 } from "@agentclientprotocol/sdk"
 import type {
   ContentBlock,
@@ -137,10 +138,41 @@ export interface ToolServer {
   readonly token: string
 }
 
+/**
+ * HOW a verb failed, in the only distinction anything downstream can act on:
+ * did the request get an ANSWER?
+ *
+ *   - `refused` — something said no, and said it about a request that did not
+ *     take effect: the agent answered a JSON-RPC error (a method it does not
+ *     have, a session it does not know), or this file refused before anything
+ *     reached the wire at all (no process, no session, a spawn that failed, a
+ *     notification the pipe would not take). Whatever was asked for did NOT
+ *     happen, so offering to ask again is honest.
+ *   - `unanswered` — the request went out and NOTHING came back: the deadline
+ *     passed, or the connection died with it in flight. Whether the agent acted
+ *     on it cannot be known from this end — one that took a message and then
+ *     went quiet is indistinguishable from one that never took it — so the
+ *     honest thing to do with this is SAY so, and never quietly ask again.
+ *
+ * The WIRE decides which, not the caller: an error RESPONSE arrives as the
+ * SDK's own {@link RequestError}, and every other rejection — a closed
+ * connection, an interrupted deadline — is silence wearing an `Error`. That
+ * reading is {@link goneOf}, and it lives here rather than in
+ * {@link ./interpret.ts} because it is the protocol SDK's vocabulary rather
+ * than one adapter's extension.
+ */
+export type Gone = "refused" | "unanswered"
+
 /** The agent is not there — it never started, it died, or the handshake failed.
  *  Every verb can fail this way and the next one retries the boot, which is why
- *  a crash and a cold start are the same recovery path. */
+ *  a crash and a cold start are the same recovery path.
+ *
+ *  `why` is the sentence a person reads; {@link Gone} is the half a caller can
+ *  ACT on — whether what they asked for can honestly be offered again. One
+ *  message in the panel is drawn entirely out of it ({@link ./chat.ts}'s
+ *  `undeliverable`). */
 export class AgentGone extends Data.TaggedError("AgentGone")<{
+  readonly gone: Gone
   readonly why: string
 }> {
   override get message(): string {
@@ -684,7 +716,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  value of this reason over the broken pipe that follows it is that a
      *  person can see what they set. */
     const notStarted = (why: string): AgentGone =>
-      new AgentGone({ why: `could not start the agent \`${options.command}\`: ${why}` })
+      new AgentGone({
+        // Nothing was asked of anything: there is no process to ask.
+        gone: "refused",
+        why: `could not start the agent \`${options.command}\`: ${why}`,
+      })
 
     const start = (): Effect.Effect<Live, AgentGone> =>
       Effect.gen(function*() {
@@ -1178,7 +1214,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     const boot = booting.withPermit(
       Effect.gen(function*() {
-        if (stopped) return yield* new AgentGone({ why: "the server is shutting down" })
+        if (stopped) return yield* new AgentGone({ gone: "refused", why: "the server is shutting down" })
         if (live !== null && session !== null) return
         const started = live ?? (yield* start())
         live = started
@@ -1199,7 +1235,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       Effect.gen(function*() {
         yield* boot
         const at = live
-        if (at === null) return yield* new AgentGone({ why: "the agent is not running" })
+        if (at === null) return yield* new AgentGone({ gone: "refused", why: "the agent is not running" })
         return yield* use(at)
       })
 
@@ -1210,7 +1246,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       withLive((at) => {
         const id = session
         return id === null
-          ? Effect.fail(new AgentGone({ why: "the agent has no session open" }))
+          ? Effect.fail(new AgentGone({ gone: "refused", why: "the agent has no session open" }))
           : use(at, id)
       })
 
@@ -1299,7 +1335,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // their sentence is "the turn is still running".
       return Effect.mapError(
         notify(at, methods.agent.session.cancel, { sessionId: id }),
-        (gone) => new AgentGone({ why: notCancelled(gone.why) }),
+        // The sentence is re-worded and the READING is not: whether the cancel
+        // could have taken effect is what the transport has already decided.
+        (gone) => new AgentGone({ gone: gone.gone, why: notCancelled(gone.why) }),
       )
     })
 
@@ -1334,6 +1372,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           Effect.gen(function*() {
             if (!at.canLoad) {
               return yield* new AgentGone({
+                gone: "refused",
                 why: `\`${id}\` cannot be opened: this agent does not keep conversations`,
               })
             }
@@ -1401,7 +1440,11 @@ const ask = (
           options?: { readonly cancellationSignal?: AbortSignal },
         ) => Promise<unknown>
       }).request(method, params, { cancellationSignal: signal }),
-    catch: (cause) => new AgentGone({ why: `\`${method}\` failed: ${reasonOf(cause)}` }),
+    catch: (cause) =>
+      new AgentGone({
+        gone: goneOf(cause),
+        why: `\`${method}\` failed: ${reasonOf(cause)}`,
+      }),
   })
   if (timeout === null) return call
   // `Effect.timeout` INTERRUPTS what it is timing out, which is what fires the
@@ -1413,11 +1456,35 @@ const ask = (
     () =>
       Effect.fail(
         new AgentGone({
+          // The deadline is the definition of `unanswered`: the request is on
+          // the wire, nothing came back, and interrupting our own wait tells us
+          // nothing about what the agent did with it.
+          gone: "unanswered",
           why: `\`${method}\` did not answer in ${String(timeout)}`,
         }),
       ),
   )
 }
+
+/**
+ * Whether the agent ANSWERED the request this rejection came out of — with a
+ * no, which is still an answer — or said nothing at all.
+ *
+ * The SDK gives exactly one shape to an error RESPONSE, its own
+ * `RequestError`, minted where an `{ error: … }` frame is matched to the
+ * request waiting on it. Everything else it can reject with is silence:
+ * `close()` rejects every pending request with the reason the connection died
+ * of, and a write that fails leaves the request pending until one of those two
+ * happens. So the whole of the reading is this `instanceof`, and the losing
+ * direction is the safe one — an unrecognised rejection reads as `unanswered`,
+ * which offers a person nothing rather than offering a retry that could
+ * duplicate a message the agent already has.
+ *
+ * Exported for its own test: it is one line, and it is the line the panel's two
+ * faces are drawn out of.
+ */
+export const goneOf = (cause: unknown): Gone =>
+  cause instanceof RequestError ? "refused" : "unanswered"
 
 const notify = (
   at: Live,
@@ -1429,7 +1496,13 @@ const notify = (
       (at.connection.agent as unknown as {
         notify: (method: string, params: unknown) => Promise<void>
       }).notify(method, params),
-    catch: (cause) => new AgentGone({ why: `\`${method}\` failed: ${reasonOf(cause)}` }),
+    // A notification is never answered, so there is no silence to tell from a
+    // no: what fails here is the WRITE, and a write that failed put nothing on
+    // the wire. (A write that SUCCEEDS is evidence of nothing at all — see
+    // `cancel` in {@link ./chat.ts} — but that path does not come through
+    // here.)
+    catch: (cause) =>
+      new AgentGone({ gone: "refused", why: `\`${method}\` failed: ${reasonOf(cause)}` }),
   })
 
 // ── reading the payloads ───────────────────────────────────────────────

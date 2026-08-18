@@ -515,7 +515,7 @@ export const surface = defineSurface({
       },
       /**
        * Try a message the agent would not take AGAIN — `id` is the `user`
-       * row's own key, the one carrying `unsent`.
+       * row's own key, the one carrying `delivery: "refused"`.
        *
        * The row is the only copy of those words, so retrying from it is the
        * only retry that can be whole: the server still holds the prompt it
@@ -524,9 +524,14 @@ export const surface = defineSurface({
        * paths. What lands is the same message, not a reconstruction of it.
        *
        * A person's click and nothing else drains this. Nothing retries on its
-       * own, which is the difference between a row marked unsent and the queue
-       * this replaced: an undelivered message stays on screen, in the
+       * own, which is the difference between a row that says it did not go and
+       * the queue this replaced: an undelivered message stays on screen, in the
        * conversation, until somebody decides what to do with it.
+       *
+       * It REFUSES for a row whose delivery went `unanswered`: the server kept
+       * no prompt for one, because an agent that went quiet may have the
+       * message already and a second copy is the one outcome this must not be
+       * able to produce.
        */
       resend: {
         input: Schema.Struct({ id: Schema.String }),
@@ -657,6 +662,7 @@ export {
   ChatFailure,
   ChatState,
   Command,
+  Delivery,
   FileDiff,
   isOpFailure,
   kindOf,

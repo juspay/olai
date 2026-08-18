@@ -85,15 +85,20 @@ export class Transcript {
   #open: string | null = null
   #minted = 0
   /**
-   * What it would take to send an `unsent` row again, by that row's key.
+   * What it would take to send a REFUSED row again, by that row's key.
    *
    * HERE, beside the rows, rather than in the caller that knows about agents —
    * because it is half of one fact and the other half is a field on the entry.
-   * A row marked `unsent` with no prompt behind it draws a button that refuses;
-   * a prompt with no row is a message nobody can see. Kept together, neither is
-   * constructible: {@link unsent} writes both, {@link sent} drops both, and
-   * {@link clear} — the one place a conversation ends — takes both with it
-   * instead of a caller having to remember the second.
+   * A row offering a retry with no prompt behind it draws a button that
+   * refuses; a prompt with no row is a message nobody can see. Kept together,
+   * neither is constructible: {@link refused} writes both, {@link sent} drops
+   * both, and {@link clear} — the one place a conversation ends — takes both
+   * with it instead of a caller having to remember the second.
+   *
+   * ONLY refused rows are in here, which is the map carrying the design rather
+   * than reminding somebody of it: a row whose delivery went `unanswered` is
+   * one the agent may already have, so there is no honest retry to offer and
+   * nothing to keep for one ({@link unanswered}).
    *
    * The prompt is OPAQUE to this file: it is the agent's own string, with tmp
    * paths in it, and nothing here reads it or publishes it. The transcript
@@ -131,7 +136,7 @@ export class Transcript {
    *
    * The one caller that has to keep a key. Every other entry is written and
    * forgotten, but a user message can turn out to be undeliverable after it
-   * has been drawn ({@link unsent}), and a retry that lands has to find the
+   * has been drawn ({@link refused}), and a retry that lands has to find the
    * same row again — so the key comes back here rather than being fished out
    * of the change or re-derived from a counter kept somewhere else.
    *
@@ -148,8 +153,8 @@ export class Transcript {
   }
 
   /**
-   * That message never reached the agent, and here is what it would take to
-   * send it again.
+   * That message CERTAINLY never reached the agent, and here is what it would
+   * take to send it again.
    *
    * The row does not move and nothing is minted: what a person typed stays
    * exactly where they typed it, in the conversation, with a mark saying it is
@@ -160,39 +165,57 @@ export class Transcript {
    * and for its reason. The prompt is not kept either: there is no row for it
    * to belong to.
    */
-  unsent(key: string, prompt: string): Change {
+  refused(key: string, prompt: string): Change {
     if (!this.#entries.has(key)) return EMPTY
     this.#undelivered.set(key, prompt)
-    return this.#mark(key, true)
+    return this.#mark(key, "refused")
   }
 
-  /** ... and it has now. The mark comes off and the prompt is let go: a row
-   *  must not go on advertising a failure that has stopped being true, and a
-   *  prompt kept past its row's mark is a retry nothing can ask for. */
+  /**
+   * NOTHING CAME BACK about that message, and that is all anybody can say.
+   *
+   * The other half of {@link refused}, and it takes no prompt — deliberately.
+   * An agent that went quiet may have the message already, so a retry would be
+   * a duplicate offered to somebody with no way to tell, and the way to make
+   * that unofferable is to keep nothing to offer. The words are still on the
+   * row, which is the promise this whole mechanism exists to keep; what is not
+   * there is a button.
+   */
+  unanswered(key: string): Change {
+    // A prompt kept from an EARLIER failure of the same row goes with it: a
+    // retry that went out and then went quiet leaves a row nothing may offer
+    // to send again, and the offer lives in this map.
+    this.#undelivered.delete(key)
+    return this.#mark(key, "unanswered")
+  }
+
+  /** ... and it went after all. The mark comes off and the prompt is let go: a
+   *  row must not go on advertising a failure that has stopped being true, and
+   *  a prompt kept past its row's mark is a retry nothing can ask for. */
   sent(key: string): Change {
     this.#undelivered.delete(key)
-    return this.#mark(key, false)
+    return this.#mark(key, null)
   }
 
-  /** What it would take to send that row again, or `null` when it is not one
-   *  that failed. The prompt the agent refused, verbatim — never rebuilt from
-   *  the row, which carries its pictures by name where the prompt carries
-   *  their paths. */
+  /** What it would take to send that row again, or `null` when there is no
+   *  honest retry to offer — it went, or nothing ever answered about it. The
+   *  prompt the agent refused, verbatim: never rebuilt from the row, which
+   *  carries its pictures by name where the prompt carries their paths. */
   undelivered(key: string): string | null {
     return this.#undelivered.get(key) ?? null
   }
 
-  /** The `unsent` field, on or off, without minting a row for a key that has
-   *  gone. Private because the field never moves without the prompt beside it
-   *  — which is the whole reason both live here. */
-  #mark(key: string, undelivered: boolean): Change {
+  /** The `delivery` field, said or unsaid, without minting a row for a key
+   *  that has gone. Private because the field never moves without the prompt
+   *  map beside it — which is the whole reason both live here. */
+  #mark(key: string, delivery: ChatEntry["delivery"] | null): Change {
     const current = this.#entries.get(key)
     if (current === undefined) return EMPTY
-    // `unsent` comes off along with the derived fields, for the same reason
+    // `delivery` comes off along with the derived fields, for the same reason
     // `contentOf` takes those: this line is what DECIDES it, and a spread of
     // the old entry would carry the previous answer past the decision.
-    const { unsent: _unsent, ...content } = contentOf(current)
-    return this.#put(key, undelivered ? { ...content, unsent: true } : content)
+    const { delivery: _delivery, ...content } = contentOf(current)
+    return this.#put(key, delivery === null ? content : { ...content, delivery })
   }
 
   /** One chunk of the agent's prose. Appends to the entry already open, or

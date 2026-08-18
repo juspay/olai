@@ -261,17 +261,21 @@ describe("questions", () => {
 })
 
 // The rule every test here is about: THE MARK AND THE PROMPT MOVE TOGETHER.
-// A row drawn as `unsent` with no prompt behind it offers a retry that
-// refuses, and a prompt with no marked row is a message nobody can see. They
-// live in one place so that neither is constructible, which is what these
-// assert — always both, at every door.
+// A row offering a retry with no prompt behind it offers one that refuses, and
+// a prompt with no marked row is a message nobody can see. They live in one
+// place so that neither is constructible, which is what these assert — always
+// both, at every door.
+//
+// And the mark is TWO marks, which is the other half of the same rule: a
+// refusal is certain and keeps its prompt, a silence is not and keeps none, so
+// the button a person can press exists exactly where pressing it is honest.
 
 describe("a message the agent would not take", () => {
   test("the mark goes on the row that was already drawn, and the words stay", () => {
     const transcript = new Transcript()
     const row = transcript.user("done order", { context: [] })
 
-    const marked = transcript.unsent(row.key, "done order\nAbout: `order`")
+    const marked = transcript.refused(row.key, "done order\nAbout: `order`")
     // THE SAME ROW, not a second one and not a notice underneath: what a
     // person typed stays where they typed it, and the failure is a property
     // of that message rather than an event beside it.
@@ -280,7 +284,7 @@ describe("a message the agent would not take", () => {
     expect(rows(transcript)[0]).toMatchObject({
       kind: "user",
       text: "done order",
-      unsent: true,
+      delivery: "refused",
     })
     // The PROMPT, not the row's text: what the agent refused had a node line
     // under it, and a retry rebuilt from what the panel shows would send
@@ -291,13 +295,13 @@ describe("a message the agent would not take", () => {
   test("a retry that lands takes the mark off and lets the prompt go", () => {
     const transcript = new Transcript()
     const row = transcript.user("done order")
-    transcript.unsent(row.key, "done order")
+    transcript.refused(row.key, "done order")
 
     transcript.sent(row.key)
-    // ABSENT rather than `false`: an ordinary message says nothing about this,
-    // and a row left carrying the key would go on being drawn as one that had
-    // failed once.
-    expect(rows(transcript)[0]?.unsent).toBeUndefined()
+    // ABSENT rather than a third value: an ordinary message says nothing about
+    // this, and a row left carrying the field would go on being drawn as one
+    // that had failed once.
+    expect(rows(transcript)[0]?.delivery).toBeUndefined()
     expect(rows(transcript)[0]?.text).toBe("done order")
     // ... and nothing is left to retry it with, so a second click is refused
     // rather than sending the message twice.
@@ -309,7 +313,7 @@ describe("a message the agent would not take", () => {
     const row = transcript.user("done order")
     transcript.clear()
 
-    expect(transcript.unsent(row.key, "done order")).toEqual({ upserts: [], removes: [] })
+    expect(transcript.refused(row.key, "done order")).toEqual({ upserts: [], removes: [] })
     expect(rows(transcript)).toEqual([])
     // The prompt is not kept for a row that is not there: it would be a retry
     // nothing on screen could ask for, landing in a conversation that never
@@ -320,11 +324,49 @@ describe("a message the agent would not take", () => {
   test("clearing takes the prompts with the rows", () => {
     const transcript = new Transcript()
     const row = transcript.user("done order")
-    transcript.unsent(row.key, "done order")
+    transcript.refused(row.key, "done order")
 
     transcript.clear()
     // The one place a conversation ends empties BOTH halves, so no caller has
     // to remember the second — which is the whole reason they live together.
+    expect(transcript.undelivered(row.key)).toBeNull()
+  })
+})
+
+describe("a message nothing ever answered about", () => {
+  test("the row says so, and there is nothing to send it again with", () => {
+    const transcript = new Transcript()
+    const row = transcript.user("done order", { context: [] })
+
+    const marked = transcript.unanswered(row.key)
+
+    expect(touched(marked)).toEqual([row.key])
+    expect(rows(transcript)[0]).toMatchObject({
+      kind: "user",
+      // THE WORDS ARE STILL THERE, which was always the promise. What is
+      // missing is the certainty, not the message.
+      text: "done order",
+      delivery: "unanswered",
+    })
+    // NO PROMPT, and that is the design rather than an omission: the agent may
+    // have this message already, so a retry would be a duplicate offered to
+    // somebody with no way to tell. Keeping nothing is what makes the button
+    // unofferable rather than merely undrawn.
+    expect(transcript.undelivered(row.key)).toBeNull()
+  })
+
+  test("a refusal that turns into a silence lets its prompt go", () => {
+    const transcript = new Transcript()
+    const row = transcript.user("done order")
+    transcript.refused(row.key, "done order")
+
+    // The retry went out and THAT one went quiet — the same row, a second
+    // reading of what became of it. The first failure's prompt must not
+    // outlive it: a button built from it would send a message the agent may
+    // now be holding.
+    transcript.unanswered(row.key)
+
+    expect(rows(transcript)[0]?.delivery).toBe("unanswered")
     expect(transcript.undelivered(row.key)).toBeNull()
   })
 })

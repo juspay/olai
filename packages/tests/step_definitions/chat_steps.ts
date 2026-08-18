@@ -36,6 +36,7 @@ import {
   CHAT_COMPLETION,
   CHAT_COMPLETION_ROW,
   CHAT_COMPLETION_SECTION,
+  CHAT_DELIVERY,
   CHAT_DIFF,
   CHAT_DIFF_EXPAND,
   CHAT_DIFF_GUTTER,
@@ -79,7 +80,6 @@ import {
   CHAT_TOOL_PROGRESS,
   CHAT_TRANSCRIPT,
   CHAT_TROUBLE,
-  CHAT_UNSENT,
   CHAT_USAGE,
   CHAT_WAITING,
   CHAT_WORKING,
@@ -90,6 +90,8 @@ import {
   nodeSelector,
   oneLine,
   POLL_TIMEOUT,
+  STEER_DEADLINE_STEP_TIMEOUT,
+  STEER_DEADLINE_TIMEOUT,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -311,23 +313,50 @@ Then("the chat input still has the caret", async function (this: OlaiWorld) {
   );
 });
 
-// ── words the agent would not take ─────────────────────────────────────
+// ── words that did not land ────────────────────────────────────────────
 //
 // The row is the copy. There is no queue behind the panel any more, so a
-// message the agent refused has exactly one place to be, and it is on screen
-// where it was typed — which is what these three steps are about.
+// message the agent did not take has exactly one place to be, and it is on
+// screen where it was typed — which is what these steps are about.
+//
+// WHICH way it did not land is the other half, and the two faces are asserted
+// through the same step with the word the panel itself carries
+// (`data-delivery`): a refusal is certain and offers a retry, a silence is not
+// and must not.
+
+/** The strip under a message, by what became of that message. */
+const deliverySaid = (world: OlaiWorld, fate: string): Locator =>
+  world.page.locator(attr("data-delivery", fate));
 
 Then(
-  "the chat shows my message {string} as not sent",
-  async function (this: OlaiWorld, text: string) {
+  "the chat shows my message {string} as {string}",
+  async function (this: OlaiWorld, text: string, fate: string) {
     // The BUBBLE has to still say it. A row that reported the failure and lost
     // the words would pass a check for the mark alone, and losing the words is
     // the whole thing this feature exists to stop.
     await myMessage(this, text).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(
-      async () => (await this.page.locator(CHAT_UNSENT).count()) > 0,
-      `"${text}" to be marked as not sent`,
+      async () => (await deliverySaid(this, fate).count()) > 0,
+      `"${text}" to be marked ${fate}`,
       HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+/** The same claim, waiting out the client's own steer deadline — the ONE way
+ *  the `unanswered` face can be reached, since nothing but that deadline ends
+ *  a steer nobody answers. Its own step (and its own envelope) rather than a
+ *  wider budget on the one above, so exactly one scenario in the suite pays
+ *  for it. */
+Then(
+  "the chat eventually shows my message {string} as {string}",
+  { timeout: STEER_DEADLINE_STEP_TIMEOUT },
+  async function (this: OlaiWorld, text: string, fate: string) {
+    await myMessage(this, text).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await deliverySaid(this, fate).count()) > 0,
+      `"${text}" to be marked ${fate}`,
+      STEER_DEADLINE_TIMEOUT,
     );
   },
 );
@@ -339,10 +368,22 @@ When("I send the unsent message again", async function (this: OlaiWorld) {
   await this.press(this.page.locator(CHAT_RESEND).first());
 });
 
-Then("no message is marked unsent", async function (this: OlaiWorld) {
+/** The claim that costs nothing to state and is the whole point of telling the
+ *  two faces apart: where a retry would be a guess, there is no button to make
+ *  it with. Read off the SETTLED page — the step before it waited for the mark
+ *  — so it is an assertion rather than a race. */
+Then("the chat offers no way to send it again", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(CHAT_RESEND).count(),
+    0,
+    "a `send again` button is drawn under a message nothing ever answered about",
+  );
+});
+
+Then("no message is marked undelivered", async function (this: OlaiWorld) {
   await this.waitUntil(
-    async () => (await this.page.locator(CHAT_UNSENT).count()) === 0,
-    "the unsent mark to come off",
+    async () => (await this.page.locator(CHAT_DELIVERY).count()) === 0,
+    "the undelivered mark to come off",
     HYDRATION_TIMEOUT,
   );
 });

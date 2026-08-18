@@ -47,7 +47,7 @@
  */
 
 import { nodeNamed } from "@olai/format"
-import type { ChatEntry } from "@olai/surface"
+import type { ChatEntry, Delivery } from "@olai/surface"
 import { createScheduled, throttle } from "@solid-primitives/scheduled"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 
@@ -67,6 +67,35 @@ import { ToolFrame } from "./ToolFrame.tsx"
 /** How often a growing answer may be re-rendered. Fast enough that it reads as
  *  live, slow enough that the cost is the clock's rather than the agent's. */
 const FRAME_MS = 120
+
+/**
+ * What a message's own bubble is edged with, per fate — and the ordinary row
+ * that went is a key in the same table rather than a `?:` above it, so the
+ * three appearances are read in one place.
+ *
+ * ALARM for the certainty and DOING for the doubt, which is the palette's own
+ * vocabulary rather than two shades of wrong: `alarm` is a refusal, and `doing`
+ * is the token for something in flight — which is exactly what a message
+ * nothing has answered about still is.
+ */
+const BUBBLE: Record<Delivery | "sent", string> = {
+  refused: "border border-dashed border-alarm bg-alarm/5",
+  unanswered: "border border-dashed border-doing bg-doing/5",
+  sent: "border border-accent/30 bg-accent/10",
+}
+
+/**
+ * What the strip under it SAYS, in plain words a person can act on.
+ *
+ * Both sentences are about the message rather than about the protocol: nobody
+ * needs the word "steer" or a deadline in seconds to know what to do next. The
+ * detail — which method, which agent, how long — is the banner's, where the
+ * reason it failed already goes.
+ */
+const WORDS: Record<Delivery, { readonly said: string; readonly tone: string }> = {
+  refused: { said: "not sent", tone: "text-alarm" },
+  unanswered: { said: "no answer — it may not have arrived", tone: "text-doing" },
+}
 
 /** What the agent said is not in a file, so there is no path to name — and the
  *  empty string resolves against the served directory itself, which is where
@@ -92,10 +121,11 @@ export function Entry(props: {
     if (props.entry.streaming !== true) return text
     return due() ? text : previous
   })
-  /** The agent would not take this message — read once, because the bubble and
-   *  the strip under it are two views of the one fact and a second `=== true`
-   *  is a second chance to spell it differently. */
-  const unsent = () => props.entry.unsent === true
+  /** What became of this message's delivery, or `undefined` on the ordinary
+   *  row that simply went — read once, because the bubble and the strip under
+   *  it are two views of the one fact and a second reading is a second chance
+   *  to spell it differently. */
+  const delivery = () => props.entry.delivery
 
   // ONLY for the agent's own prose, which is the only row that has rendered
   // markdown in it — and `kind` never changes for an entry, so this is a
@@ -157,46 +187,54 @@ export function Entry(props: {
             <Show when={props.entry.text !== ""}>
               <p
                 class={`whitespace-pre-wrap rounded px-2 py-1.5 text-sm text-ink ${
-                  unsent()
-                    ? "border border-dashed border-alarm bg-alarm/5"
-                    : "border border-accent/30 bg-accent/10"
+                  BUBBLE[delivery() ?? "sent"]
                 }`}
                 data-testid={TESTID.chatMine}
               >
                 {props.entry.text}
               </p>
             </Show>
-            {/* IT NEVER WENT — and the words are still here, which is the whole
-                of the promise. The bubble goes dashed and alarm-edged rather
+            {/* IT DID NOT LAND — and the words are still here, which is the
+                whole of the promise. The bubble goes dashed and edged rather
                 than being replaced by a notice, because what a person wants to
                 see is the message they typed, exactly as they typed it; what
-                they want to know is that the agent has not got it, and what
-                they want next is one press to try again. Nothing retries on
-                its own: the send that failed already happened without being
-                asked twice. */}
-            <Show when={unsent()}>
-              <div
-                class="mt-1 flex items-center gap-2"
-                data-testid={TESTID.chatUnsent}
-              >
-                <span class="font-mono text-[0.6875rem] text-alarm">
-                  not sent
-                </span>
-                {/* The quiet pill's shape in the transcript's own scale, and
-                    that divergence says why in place, as `../pill.ts` asks of
-                    every lookalike: this button sits in a line of 11px mono
-                    with `not sent` beside it, and wearing `QUIET_PILL`'s
-                    `text-xs`/`px-2 py-1` would make one control in that line
-                    a size larger than the words it belongs to. */}
-                <button
-                  type="button"
-                  class="rounded border border-rule px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted hover:text-ink"
-                  data-testid={TESTID.chatResend}
-                  onClick={() => props.chat.resend(props.entry.id)}
+                they want to know is what became of it.
+
+                WHICH of the two it was is the difference between an offer and
+                a lie. A refusal is certain, so the strip says so plainly and
+                puts one press under it. A silence is not: the agent may have
+                the message already, so the strip says THAT — and carries no
+                button at all, because a retry there would hand somebody a
+                duplicate they had no way to predict. Nothing retries on its
+                own either way. */}
+            <Show when={delivery()} keyed>
+              {(fate) => (
+                <div
+                  class="mt-1 flex items-center gap-2"
+                  data-testid={TESTID.chatDelivery}
+                  data-delivery={fate}
                 >
-                  send again
-                </button>
-              </div>
+                  <span class={`font-mono text-[0.6875rem] ${WORDS[fate].tone}`}>
+                    {WORDS[fate].said}
+                  </span>
+                  {/* The quiet pill's shape in the transcript's own scale, and
+                      that divergence says why in place, as `../pill.ts` asks of
+                      every lookalike: this button sits in a line of 11px mono
+                      with `not sent` beside it, and wearing `QUIET_PILL`'s
+                      `text-xs`/`px-2 py-1` would make one control in that line
+                      a size larger than the words it belongs to. */}
+                  <Show when={fate === "refused"}>
+                    <button
+                      type="button"
+                      class="rounded border border-rule px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted hover:text-ink"
+                      data-testid={TESTID.chatResend}
+                      onClick={() => props.chat.resend(props.entry.id)}
+                    >
+                      send again
+                    </button>
+                  </Show>
+                </div>
+              )}
             </Show>
           </div>
         </Match>

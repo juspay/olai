@@ -183,6 +183,30 @@ const CANCELLED_UNDER_IT =
   "the turn was stopped before this reached it — the message below is still yours to send"
 
 /**
+ * Which events are THE AGENT WORKING, as against olai's own reports about it.
+ *
+ * Two questions are answered by "has this agent said anything since", and
+ * neither of them means "has anything at all happened" — a boot that failed, a
+ * subprocess that exited, a session that ended are all things said ABOUT the
+ * agent by this process. Counting those was harmless while {@link Chat.cancel}
+ * was the only reader (it looks at a live turn, where they do not arrive), and
+ * is not harmless now that {@link begin} reads the same counter to ask whether
+ * a failed turn ever reached the agent: an unreachable agent emits a `trouble`
+ * on its way to refusing, which would otherwise read as the agent speaking.
+ *
+ * The four are prose, tool frames, questions and usage — everything a turn
+ * produces that could only have come from the other end of the pipe. A `model`
+ * announcement is deliberately not one: it arrives when a SESSION opens as
+ * readily as when a turn starts.
+ */
+const SPOKE: ReadonlySet<AgentEvent["_tag"]> = new Set([
+  "said",
+  "tool",
+  "asked",
+  "usage",
+])
+
+/**
  * The turn in flight, as a TICKET rather than as a fiber handle.
  *
  * It exists because the fiber does not, yet: the ticket is written down before
@@ -258,7 +282,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *  three-megabyte attachment chunk and a send should not queue behind a
      *  picture. */
     const sending = yield* Semaphore.make(1)
-    /** Everything the agent has said, counted. See {@link receive}. */
+    /** Everything the agent has said FOR ITSELF, counted. See {@link receive}
+     *  and {@link SPOKE}. */
     let heard = 0
 
     const publish = (change: Change) => {
@@ -292,11 +317,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     /** The agent's events, as rows and as state. The one place the vocabulary
      *  of {@link ./events.ts} is consumed. */
     const receive = (event: AgentEvent): void => {
-      // How much this agent has said, ever. Read by {@link cancel} and by
-      // nothing else: what it needs is not a count but a CHANGE, and a
-      // monotonic counter answers "has anything arrived since I looked" with
-      // no clock to read and nothing to reset.
-      heard++
+      // How much this agent has said, ever. What its two readers need is not a
+      // count but a CHANGE — has anything arrived since I looked — and a
+      // monotonic counter answers that with no clock to read and nothing to
+      // reset. {@link cancel} asks it about an agent that was told to stop;
+      // {@link begin} asks it about a turn that failed.
+      if (SPOKE.has(event._tag)) heard++
       switch (event._tag) {
         case "said":
           publish(transcript.say(event.text))
@@ -525,7 +551,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         if (aimed !== null) {
           const steered = yield* Effect.result(agent.steer(prompt))
           if (steered._tag === "Failure") {
-            return undeliverable(key, prompt, steered.failure.message)
+            // WHICH failure it was is the agent's reading, not ours: it is the
+            // wire that knows whether anything answered, and this is the one
+            // fact the row's two faces are drawn out of.
+            return undeliverable(key, prompt, steered.failure.gone, steered.failure.message)
           }
           if (steered.success === "taken") {
             // Delivered, and into the turn a person could see running — so a
@@ -533,36 +562,62 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // something the agent has visibly moved on from.
             return move({ trouble: null })
           }
-          if (aimed.stopped) return undeliverable(key, prompt, CANCELLED_UNDER_IT)
+          // The agent ANSWERED — "nothing to steer" — so nothing took the
+          // message, which is a refusal however the turn came to be over.
+          if (aimed.stopped) return undeliverable(key, prompt, "refused", CANCELLED_UNDER_IT)
         }
-        yield* begin(prompt)
+        yield* begin(key, prompt)
       }))
 
     /**
-     * The agent would not take it: the row says so and keeps the prompt
-     * ({@link ./transcript.ts}), and the banner says why. Nothing is dropped
-     * and nothing is retried — {@link Chat.resend} is a person's click and is
-     * the only thing that moves this.
+     * The message did not land, said on the row it was typed into — in the ONE
+     * of two ways this end can honestly say it.
      *
-     * TWO CERTAINTIES AND ONE INFERENCE, and it is worth being straight about
-     * which is which. A steer the agent ANSWERED with an error — a method it
-     * does not have, a session it does not know — did not arrive, full stop. A
-     * steer that could not be WRITTEN did not arrive either. A steer that went
-     * unanswered until {@link ./agent.ts}'s deadline is the inference: it
-     * probably never landed, but an agent that took the message and then went
-     * quiet looks identical from here.
+     * A REFUSAL is a certainty: something answered no while the message had
+     * taken no effect — a method the agent does not have, a session it does not
+     * know, a process that was not there, a turn its own sender had stopped.
+     * The row keeps the prompt ({@link ./transcript.ts}) and offers *send
+     * again*, because nothing happened and asking again is honest.
      *
-     * It is marked anyway, and the reason it is safe to is that nothing here
-     * ACTS on the mark — the retry is a person's click, made while looking at
-     * the row and at whatever the turn did next. That is the whole difference
-     * from a turn that DIED mid-prompt ({@link begin}), which is not marked at
-     * all: there the agent demonstrably received the prompt and worked on it,
-     * so a button offering to send it again would be offering a duplicate to
-     * somebody with no way to tell.
+     * SILENCE is not. The steer went out, the deadline passed, and an agent
+     * that took the message and then went quiet is indistinguishable from one
+     * that never took it. So the row says exactly that and offers NOTHING to
+     * press: a retry here would hand somebody a duplicate they had no way to
+     * predict. The words stay on screen, which was always the promise — what is
+     * missing is the certainty, not the message.
+     *
+     * The distinction is not made here and never was ours to make: it is
+     * {@link ./agent.ts}'s `Gone`, decided at the wire, where "did anything
+     * answer" is a fact rather than a guess. This file used to infer it from a
+     * comment.
+     *
+     * A silence also goes in as a NOTICE, which a refusal does not need. Both
+     * put the reason on the banner, and the banner is cleared by the next turn
+     * that comes back — fine for a row that goes on saying *not sent* with a
+     * button under it, and not fine for the one thing nobody will act on: what
+     * happened to those words is a fact about the conversation, so it belongs
+     * in the conversation.
      */
-    const undeliverable = (key: string, prompt: string, why: string): void => {
-      publish(transcript.unsent(key, prompt))
+    const undeliverable = (
+      key: string,
+      prompt: string,
+      gone: AcpAgent.Gone,
+      why: string,
+    ): void => {
+      markUndelivered(key, prompt, gone)
+      if (gone === "unanswered") publish(transcript.add("notice", why))
       move({ trouble: why })
+    }
+
+    /** WHICH mark the row takes — the whole of the difference, in one place
+     *  because both delivery lanes reach it: a refusal keeps the prompt beside
+     *  the row and hands a person the button that sends it again; a silence
+     *  keeps nothing, which is what makes the button unofferable rather than
+     *  merely undrawn ({@link ./transcript.ts}). */
+    const markUndelivered = (key: string, prompt: string, gone: AcpAgent.Gone): void => {
+      publish(
+        gone === "refused" ? transcript.refused(key, prompt) : transcript.unanswered(key),
+      )
     }
 
     /**
@@ -582,12 +637,24 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * still BEING the turn, because a turn that settled while its replacement
      * was starting has nothing true left to say about where the conversation
      * stands, and saying it anyway would mark a thinking panel idle.
+     *
+     * It is handed the ROW as well as the prompt, because a prompt is a
+     * delivery like a steer is: a turn that never started because the agent was
+     * not there took nobody's message anywhere, and the words deserve the same
+     * account of themselves ({@link undeliverable}).
      */
-    const begin = (prompt: string): Effect.Effect<void> =>
+    const begin = (key: string, prompt: string): Effect.Effect<void> =>
       Effect.gen(function*() {
         const ticket: Turn = { fiber: null, stopped: false }
         turn = ticket
         move({ status: "thinking", trouble: null })
+        // How much the agent had said before this turn was asked for. What it
+        // answers, on a turn that FAILED, is whether the prompt demonstrably
+        // arrived — an agent that streamed so much as a thought was working on
+        // it — which is the one thing a failed turn cannot say about itself.
+        // The same evidence {@link cancel} reads, for the same reason: a count
+        // answers "has anything arrived" with no clock to read.
+        const quietSince = heard
 
         const running = yield* Effect.forkDetach(
           Effect.gen(function*() {
@@ -598,15 +665,20 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // only the state is withheld.
             const current = turn === ticket
             if (outcome._tag === "Failure") {
-              // NOT marked `unsent`, and that boundary is deliberate: this
-              // failure is a turn that died, and from here there is no telling
-              // whether the agent read the prompt first. `unsent` means WE
-              // KNOW it did not go — a steer the agent refused, a method it
-              // does not have — and offering to send this one again would be
-              // offering to send it twice. The words are on the row either
-              // way, which is the promise; the button is only on the rows
-              // where pressing it is honest.
               publish(transcript.add("notice", outcome.failure.message))
+              // A turn that produced NOTHING is a delivery that failed, and it
+              // is said on the row like any other ({@link markUndelivered}) —
+              // a refusal where the agent was never reached at all (no
+              // process, no session), a silence where the pipe died with the
+              // prompt on it.
+              //
+              // An agent that SAID something first is the case this must not
+              // touch, and the reason this file used to mark nothing here: it
+              // demonstrably had the prompt and worked on it, so a row calling
+              // that undelivered would contradict the answer sitting above it.
+              // What has changed is that "did it arrive" is now answerable —
+              // by the turn's own silence, and by `Gone` where it is not.
+              if (heard === quietSince) markUndelivered(key, prompt, outcome.failure.gone)
               if (current) move({ status: "gone", trouble: outcome.failure.message })
               return
             }

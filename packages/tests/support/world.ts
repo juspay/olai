@@ -94,6 +94,25 @@ export const HYDRATION_TIMEOUT = 30_000;
  */
 export const BACKSTOP_TIMEOUT = 90_000;
 
+/**
+ * Per-step budget for the one change only the CLIENT'S STEER DEADLINE can
+ * deliver: a message put to an agent that took it and never answered.
+ *
+ * A fourth axis, on the same argument as the third. There is exactly one way to
+ * see that face and it is to wait out `@olai/chat`'s own deadline
+ * (`interpret.ts`'s `STEER_TIMEOUT`, thirty seconds — the number is a claim
+ * about the steering extension, not about this suite, so it is not shortened to
+ * suit a test), and folding that wait into `HYDRATION_TIMEOUT` would make every
+ * first paint in the suite wait on the slowest thing in it.
+ *
+ * Kept as a literal beside the interaction budgets rather than imported from
+ * the client: this package deliberately imports NAMES from `@olai/*` and no
+ * BEHAVIOUR, and a duration is neither — it is a number this suite must wait
+ * PAST. The comment above is the contract; the scenario fails loudly and
+ * specifically if it ever stops holding.
+ */
+export const STEER_DEADLINE_TIMEOUT = 45_000;
+
 /** How long a freshly spawned server gets to print its listening line. Not a
  *  poll budget — it bounds a child process — but it is derived from the same
  *  scale so `hooks.ts` and this file cannot drift. */
@@ -125,6 +144,11 @@ setDefaultTimeout(Math.max(POLL_TIMEOUT, HYDRATION_TIMEOUT) + STEP_GUARD);
  * a 90s wait killed at 40s by an envelope nobody had told.
  */
 export const BACKSTOP_STEP_TIMEOUT = BACKSTOP_TIMEOUT + STEP_GUARD;
+
+/** ... and the same again for the step that waits out a steer's deadline, for
+ *  the same two reasons: the envelope must be wider than the wait it contains,
+ *  and no other step should inherit a budget this wide. */
+export const STEER_DEADLINE_STEP_TIMEOUT = STEER_DEADLINE_TIMEOUT + STEP_GUARD;
 
 /** The `Before` hook may have to boot a server before it can open a page. */
 export const SCENARIO_SETUP_TIMEOUT = SERVER_START_TIMEOUT + STEP_GUARD;
@@ -641,9 +665,10 @@ export const CHAT_ASK_SUBMIT = selector(TESTID.chatAskSubmit);
 export const CHAT_ASK_DISMISS = selector(TESTID.chatAskDismiss);
 export const CHAT_ASK_OUTCOME = selector(TESTID.chatAskOutcome);
 export const CHAT_INPUT = selector(TESTID.chatInput);
-/** The strip on a `user` row the agent would not take, and the button that
- *  tries again. The words stay in the bubble above both. */
-export const CHAT_UNSENT = selector(TESTID.chatUnsent);
+/** The strip on a `user` row that did not land, saying WHICH way in
+ *  `data-delivery`, and the button that tries again — which only one of the two
+ *  faces has. The words stay in the bubble above both. */
+export const CHAT_DELIVERY = selector(TESTID.chatDelivery);
 export const CHAT_RESEND = selector(TESTID.chatResend);
 export const CHAT_WAITING = selector(TESTID.chatWaiting);
 export const CHAT_SEND = selector(TESTID.chatSend);
