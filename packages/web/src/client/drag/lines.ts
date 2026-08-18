@@ -1,13 +1,22 @@
 /**
- * WHAT A GESTURE MEASURES OFF THE PAGE: a drawn row's LINE, and the PAGE those
- * lines are in.
+ * WHAT A GESTURE MEASURES OFF THE PAGE: a drawn row's LINE, and the box a PANE
+ * occupies.
  *
- * The second half arrived with the second pane and is not a separate subject —
- * it is the first one's scope. A `Row.key` is unique inside a page and not
- * across two, so "where are the lines" cannot be asked without saying WHICH
- * page, and where that page is on screen is the same reading (`paneOf` finds
- * it, {@link measureBox} says where it is). Splitting them would be two modules
- * that had to agree about what a page is.
+ * The second half arrived with the second pane, and the two are one subject
+ * because they are the two halves of "which page, and where". They are NOT the
+ * same scope, and getting that wrong is the bug this module exists to prevent:
+ *
+ *   - **the lines are a PAGE's.** A `Row.key` is a chain from the roots of its
+ *     page, so it is unique inside one and not across two — "where are the
+ *     lines" cannot be asked without saying which page, and the page is the box
+ *     it draws its rows in ({@link measureLines} takes it). Scoping to the PANE
+ *     instead would be a tighter question answered with a wider one, correct
+ *     only while a pane draws exactly one page.
+ *   - **the box is a PANE's.** Which COLUMN a pointer is over is a question
+ *     about the column, and the answer has to cover the whole of it — the
+ *     chrome above the rows included, since a pointer over a pane's filter bar
+ *     is over that pane ({@link paneOf} plus {@link measureBox}, read by
+ *     `./aim.ts` and by nothing else).
  *
  * Two gestures aim at rows and both begin by asking the page the same question:
  * where are the lines, in coordinates that survive a scroll. Each had its own
@@ -27,14 +36,6 @@
  * on purpose — `../autoscroll.ts`), and the affordances that promise it are
  * positioned absolutely against the page rather than the window.
  *
- * **WHICH PAGE'S LINES, and that is not a refinement — it is the fact a split
- * workspace makes load-bearing.** A `Row.key` is the chain of ids from the
- * roots of ITS PAGE (`@olai/format`'s `expand`), so two panes showing one file
- * draw two sets of lines wearing the SAME keys, and a sweep of the whole
- * document would answer a question about pane 1 with the boxes of pane 0. The
- * scope is therefore an argument rather than a default: every caller says which
- * page it means, by handing over anything drawn inside it ({@link paneOf}).
- *
  * MEASURED ONCE, when a gesture begins. Nothing here is optimistic, so nothing
  * on screen moves while a row is in the air — the tree redraws when the file
  * says so. Measuring per `pointermove` would be a forced layout per frame over
@@ -45,22 +46,24 @@
 export const ROW_KEY = "data-row-key"
 
 /**
- * The attribute one PANE's page wears — its index in the workspace
+ * The attribute one PANE wears — its index in the workspace
  * (`../pane/PageView.tsx`).
  *
  * Read here rather than drawn here, and read as a BOUNDARY rather than as a
- * number: what a gesture wants is "everything drawn in the same page as this",
- * and the pane's own box is the one element in the tree that means exactly
- * that. `../claims.test.ts` holds the three files entitled to spell it.
+ * number: what the aim wants is the COLUMN a pointer is in, and the pane's own
+ * element is the one box in the tree that means exactly that.
+ * `../claims.test.ts` holds the files entitled to spell it.
  */
 const PANE = "data-pane"
 
 /**
- * The PAGE something is drawn in, as the element to scope a measurement to.
+ * The PANE something is drawn in, as the element to measure a column by.
  *
- * The document body when there is no pane above it, which is not a fallback
- * anybody relies on — every editable page in this app is drawn inside one — but
- * an answer rather than a `null` every caller would have to answer for.
+ * NOT what {@link measureLines} is scoped to — that is the page's own box, and
+ * the difference is the header of this file. The document body when there is no
+ * pane above it, which is not a fallback anybody relies on (every editable page
+ * in this app is drawn inside one) but an answer rather than a `null` every
+ * caller would have to answer for.
  */
 export const paneOf = (within: Element): Element =>
   within.closest(`[${PANE}]`) ?? document.body

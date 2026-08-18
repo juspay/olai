@@ -28,7 +28,6 @@ import { Given, Then, When } from "@cucumber/cucumber";
 import {
   aboveTitle,
   carry,
-  everywhere,
   farInside,
   handleOf,
   insideTitle,
@@ -56,7 +55,7 @@ import type { OlaiWorld } from "../support/world.ts";
 When(
   "I pick up the bullet of {string} and hold it above the title of {string}",
   async function (this: OlaiWorld, id: string, above: string) {
-    const here = everywhere(this);
+    const here = this.everywhere();
     await carry(this, here, id, await aboveTitle(this, here, above));
   },
 );
@@ -64,7 +63,7 @@ When(
 When(
   "I pick up the bullet of {string} and hold it one step in under the title of {string}",
   async function (this: OlaiWorld, id: string, under: string) {
-    const here = everywhere(this);
+    const here = this.everywhere();
     await carry(this, here, id, await insideTitle(this, here, under));
   },
 );
@@ -72,7 +71,7 @@ When(
 When(
   "I pick up the bullet of {string} and hold it far inside the title of {string}",
   async function (this: OlaiWorld, id: string, under: string) {
-    const here = everywhere(this);
+    const here = this.everywhere();
     await carry(this, here, id, await farInside(this, here, under));
   },
 );
@@ -85,7 +84,7 @@ When("I let go", async function (this: OlaiWorld) {
 When(
   "I drag the bullet of {string} above the title of {string}",
   async function (this: OlaiWorld, id: string, above: string) {
-    const here = everywhere(this);
+    const here = this.everywhere();
     await carry(this, here, id, await aboveTitle(this, here, above));
     await this.page.mouse.up();
     await this.waitForFrame();
@@ -95,7 +94,7 @@ When(
 When(
   "I drag the bullet of {string} one step in under the title of {string}",
   async function (this: OlaiWorld, id: string, under: string) {
-    const here = everywhere(this);
+    const here = this.everywhere();
     await carry(this, here, id, await insideTitle(this, here, under));
     await this.page.mouse.up();
     await this.waitForFrame();
@@ -103,7 +102,7 @@ When(
 );
 
 When("I click the bullet of {string}", async function (this: OlaiWorld, id: string) {
-  await this.press(handleOf(everywhere(this), id));
+  await this.press(handleOf(this.everywhere(), id));
 });
 
 Then(
@@ -394,7 +393,7 @@ const holdAtTheEdge = async (world: OlaiWorld, x: number): Promise<void> => {
 When(
   "I pick up the bullet of {string} and hold it at the bottom of the window",
   async function (this: OlaiWorld, id: string) {
-    const box = await pressBullet(this, everywhere(this), id);
+    const box = await pressBullet(this, this.everywhere(), id);
     await holdAtTheEdge(this, box.x + ONE_STEP);
   },
 );

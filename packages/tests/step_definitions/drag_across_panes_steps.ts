@@ -21,16 +21,10 @@ import * as assert from "node:assert";
 
 import { Then, When } from "@cucumber/cucumber";
 
-import { aboveTitle, carry, inPane, titleOf } from "../support/dragging.ts";
+import { aboveTitle, carry, titleOf } from "../support/dragging.ts";
+import { childOf, notChildOf } from "../support/nesting.ts";
 import { saysThat } from "../support/said.ts";
-import { attr } from "../support/selectors.ts";
-import {
-  DROP_LINE,
-  DROP_REFUSED,
-  NODE,
-  nodeSelector,
-  POLL_TIMEOUT,
-} from "../support/world.ts";
+import { DROP_LINE, DROP_REFUSED } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 // ── carrying a row across ──────────────────────────────────────────────
@@ -38,8 +32,8 @@ import type { OlaiWorld } from "../support/world.ts";
 When(
   "I pick up the bullet of {string} in pane {int} and hold it above the title of {string} in pane {int}",
   async function (this: OlaiWorld, id: string, from: number, above: string, to: number) {
-    const target = inPane(this, to);
-    await carry(this, inPane(this, from), id, await aboveTitle(this, target, above));
+    const target = this.pane(to);
+    await carry(this, this.pane(from), id, await aboveTitle(this, target, above));
   },
 );
 
@@ -52,12 +46,12 @@ When(
   "I pick up the bullet of {string} in pane {int} and hold it over the title of {string} in pane {int}",
   async function (this: OlaiWorld, id: string, from: number, over: string, to: number) {
     const box = await this.box(
-      titleOf(inPane(this, to), over),
+      titleOf(this.pane(to), over),
       `the title of "${over}" in pane ${to}`,
     );
     await carry(
       this,
-      inPane(this, from),
+      this.pane(from),
       id,
       { x: box.x + box.width / 2, y: box.y + box.height / 2 },
       DROP_REFUSED,
@@ -67,32 +61,23 @@ When(
 
 // ── what the drag promises, and where ──────────────────────────────────
 
-/** The affordance is over the PANE the pointer is in, which is a claim about
- *  its box rather than about its data: the two are drawn from one answer, and
- *  this is the half a person actually sees. */
-const drawnOver = async (
-  world: OlaiWorld,
-  what: string,
-  index: number,
-  name: string,
-): Promise<void> => {
-  const drawn = await world.box(world.page.locator(what).first(), name);
-  const pane = await world.box(inPane(world, index).first(), `pane ${index}`);
-  const middle = drawn.x + drawn.width / 2;
-  assert.ok(
-    middle >= pane.x && middle <= pane.x + pane.width,
-    `${name} is drawn at x ${Math.round(drawn.x)}–${
-      Math.round(drawn.x + drawn.width)
-    }, which is not over pane ${index} (x ${Math.round(pane.x)}–${
-      Math.round(pane.x + pane.width)
-    })`,
-  );
-};
-
+/** The line is drawn over the PANE the pointer is in, which is a claim about
+ *  its box rather than about its data: the two come from one answer, and this
+ *  is the half a person actually sees. */
 Then(
   "the drop line is drawn over pane {int}",
   async function (this: OlaiWorld, index: number) {
-    await drawnOver(this, DROP_LINE, index, "the drop line");
+    const line = await this.box(this.page.locator(DROP_LINE).first(), "the drop line");
+    const pane = await this.box(this.pane(index).first(), `pane ${index}`);
+    const middle = line.x + line.width / 2;
+    assert.ok(
+      middle >= pane.x && middle <= pane.x + pane.width,
+      `the drop line is drawn at x ${Math.round(line.x)}–${
+        Math.round(line.x + line.width)
+      }, which is not over pane ${index} (x ${Math.round(pane.x)}–${
+        Math.round(pane.x + pane.width)
+      })`,
+    );
   },
 );
 
@@ -125,45 +110,23 @@ Then("no drop is refused", async function (this: OlaiWorld) {
 });
 
 // ── where the row ended up, in the pane that drew it ────────────────────
+//
+// The same pair `outline_tree_steps.ts` asks of the whole page, asked of ONE
+// pane — which is the whole difference a split makes to a structural claim.
+// Both go through `support/nesting.ts`, so the wait semantics (and the reason
+// the negative is a different question rather than a negated one) are stated
+// once.
 
 Then(
   "the node {string} is a child of {string} in pane {int}",
   async function (this: OlaiWorld, child: string, parent: string, index: number) {
-    const nested = inPane(this, index)
-      .locator(nodeSelector(parent))
-      .first()
-      .locator(`${NODE}${attr("data-node-id", child)}`);
-    await nested
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-      .catch(() => undefined);
-    assert.ok(
-      (await nested.count()) > 0,
-      `"${child}" is not rendered inside "${parent}" in pane ${index}`,
-    );
+    await childOf(this, this.pane(index), child, parent, ` in pane ${index}`);
   },
 );
 
-/** The negative, and it is a different question rather than a negated one: a
- *  row drawn nowhere at all is also not a child of anything, so this waits for
- *  the row to be on screen in that pane first. */
 Then(
   "the node {string} is not a child of {string} in pane {int}",
   async function (this: OlaiWorld, child: string, parent: string, index: number) {
-    const pane = inPane(this, index);
-    await pane
-      .locator(nodeSelector(parent))
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await this.waitUntil(
-      async () =>
-        (await pane.locator(nodeSelector(child)).count()) > 0 &&
-        (await pane
-          .locator(nodeSelector(parent))
-          .first()
-          .locator(nodeSelector(child))
-          .count()) === 0,
-      `"${child}" to be drawn in pane ${index} somewhere other than inside "${parent}"`,
-    );
+    await notChildOf(this, this.pane(index), child, parent, ` in pane ${index}`);
   },
 );

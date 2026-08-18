@@ -44,15 +44,13 @@ const row = (id: string) => `[data-node-id="${id}"]`
 const handle = (id: string) => `${row(id)} [data-testid="drag-handle"] >> nth=0`
 const title = (id: string) => `${row(id)} [data-testid="node-title"] >> nth=0`
 
-/** The same three, with a COLUMN named. A node id is unique in a set and not
- *  on a screen: two panes showing one file draw every row of it twice, so a
- *  section about dragging between them has to say which one it means. */
+/** The same two, with a COLUMN named — the selectors above with one prefix. A
+ *  node id is unique in a set and not on a screen: two panes showing one file
+ *  draw every row of it twice, so a section about dragging between them has to
+ *  say which one it means. */
 const paneAt = (index: number) => `[data-testid="pane"][data-pane="${index}"]`
-const rowIn = (index: number, id: string) => `${paneAt(index)} ${row(id)} >> nth=0`
-const handleIn = (index: number, id: string) =>
-  `${rowIn(index, id)} >> [data-testid="drag-handle"] >> nth=0`
-const titleIn = (index: number, id: string) =>
-  `${rowIn(index, id)} >> [data-testid="node-title"] >> nth=0`
+const handleIn = (index: number, id: string) => `${paneAt(index)} ${handle(id)}`
+const titleIn = (index: number, id: string) => `${paneAt(index)} ${title(id)}`
 
 /** The face a pane wears while a row is held over it that cannot land there —
  *  the drag's other answer, and never drawn beside the line. */

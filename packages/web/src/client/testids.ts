@@ -455,6 +455,9 @@ export const TESTID = {
    *  inside is the one the selection bar says when the pointer is released, so
    *  a scenario can hold the promise and the outcome to one another. */
   dropRefused: "drop-refused",
+  /** The sentence inside that face — `Refused.tsx`'s box, so a refusal reads
+   *  and is toned the same here as everywhere else a write is turned down. */
+  dropRefusedSaid: "drop-refused-said",
   /** The band a drag-across pulls, while it is being pulled and never
    *  otherwise. `data-rows` is how many rows it is crossing right now — the one
    *  thing about a sweep that is still a prediction while the pointer is down.

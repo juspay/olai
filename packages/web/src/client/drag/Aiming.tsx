@@ -12,26 +12,24 @@
  * place, not a switch to keep in step with a union.
  */
 
-import { Match, Show, Switch } from "solid-js"
+import { Match, Switch } from "solid-js"
 
-import { only } from "../narrow.ts"
 import type { Aim } from "./aim.ts"
 import { DropLine } from "./DropLine.tsx"
 import { DropRefusal } from "./Refusal.tsx"
 
 export function Aiming(props: { readonly aim: Aim | null }) {
   return (
-    <Show when={props.aim}>
-      {(aim) => (
-        <Switch>
-          <Match when={only(aim(), "drop")}>
-            {(drop) => <DropLine landing={drop().landing} />}
-          </Match>
-          <Match when={only(aim(), "refused")}>
-            {(refused) => <DropRefusal refusal={refused().refusal} />}
-          </Match>
-        </Switch>
-      )}
-    </Show>
+    <Switch>
+      {/* The arms narrow by projecting the half each one draws, which is what
+          lets `<Match>` hand it over already typed — `../narrow.ts`'s `only`
+          is the same move for a value that is never absent, and this one is. */}
+      <Match when={props.aim?.kind === "drop" ? props.aim.landing : undefined}>
+        {(landing) => <DropLine landing={landing()} />}
+      </Match>
+      <Match when={props.aim?.kind === "refused" ? props.aim.refusal : undefined}>
+        {(refusal) => <DropRefusal refusal={refusal()} />}
+      </Match>
+    </Switch>
   )
 }

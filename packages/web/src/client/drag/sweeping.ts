@@ -55,7 +55,7 @@
 import { type Accessor, createSignal } from "solid-js"
 
 import { createDrags, TRAVEL_PX } from "../pointer.ts"
-import { type Line, measureLines, paneOf } from "./lines.ts"
+import { type Line, measureLines } from "./lines.ts"
 import { planSweep, type Run, type Sweep } from "./sweep.ts"
 
 /**
@@ -90,7 +90,17 @@ interface Picked {
   readonly clear: () => void
 }
 
-export const createSweeping = (selection: Picked): Sweeping => {
+/**
+ * A page's sweep. `page` is the box its rows are drawn in — where the lines are
+ * measured, and the reason it is an argument rather than something derived from
+ * the press: the element pressed is whatever piece of SCAFFOLDING the pull
+ * began on, which may be a nested `<ul>` holding one branch, while the pick is
+ * about the whole page (`./lines.ts`).
+ */
+export const createSweeping = (
+  selection: Picked,
+  page: () => Element | undefined,
+): Sweeping => {
   const [band, setBand] = createSignal<Sweep | null>(null)
   /** This page's gestures: one at a time, and whatever is in flight is ended
    *  with the page that made it (`../pointer.ts`). */
@@ -152,13 +162,14 @@ export const createSweeping = (selection: Picked): Sweeping => {
       // name on the bar (`../select/SelectionBar.tsx`) rather than by the
       // gesture pretending those rows are not on screen.
       //
-      // SCOPED TO THE PANE the pull began in, which is not a detail a split
-      // workspace lets slide: a `Row.key` is a chain from the roots of ITS page,
-      // so two panes showing one file draw two sets of lines wearing the same
-      // keys, and a sweep of the whole document would hand this pane's pick the
-      // other one's boxes (`./lines.ts`).
+      // SCOPED TO THIS PAGE, which is not a detail a split workspace lets
+      // slide: a `Row.key` is a chain from the roots of ITS page, so two panes
+      // showing one file draw two sets of lines wearing the same keys, and a
+      // sweep of the whole document would hand this page's pick the other
+      // one's boxes (`./lines.ts`).
       onStart: () => {
-        rows = measureLines(paneOf(on))
+        const box = page()
+        rows = box === undefined ? [] : measureLines(box)
       },
       // Y only, and ON THE PAGE — which moves under a pointer held near an edge
       // of the window, so a sweep reaches past the fold (`../pointer.ts`).

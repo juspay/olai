@@ -10,6 +10,7 @@
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
+import { childOf, notChildOf } from "../support/nesting.ts";
 import {
   APP_HEADER,
   attr,
@@ -70,38 +71,22 @@ Then(
   },
 );
 
+/** Both halves are `support/nesting.ts`'s, taking the whole page as the scope
+ *  — the same question a split asks of one pane (`./drag_across_panes_steps.ts`
+ *  passes `world.pane(i)`), and the reason the wait semantics live in one
+ *  place: the negative is a different question rather than a negated one, and
+ *  getting that subtly wrong twice is how a suite stops asking it properly. */
 Then(
   "the node {string} is a child of {string}",
   async function (this: OlaiWorld, child: string, parent: string) {
-    const nested = this.node(parent).locator(`${NODE}${attr("data-node-id", child)}`);
-    await nested
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-      .catch(() => undefined);
-    assert.ok(
-      (await nested.count()) > 0,
-      `"${child}" is not rendered inside "${parent}"`,
-    );
+    await childOf(this, this.everywhere(), child, parent);
   },
 );
 
-/** The negative of the pair above, and it is a different question rather than
- *  a negated one: a row that is not drawn AT ALL is also not a child of
- *  anything, so this waits for the parent to be on screen first and asks about
- *  what is inside it. Without that, a scenario asserting "it went somewhere
- *  else" would pass over a tree that had lost the row entirely. */
 Then(
   "the node {string} is not a child of {string}",
   async function (this: OlaiWorld, child: string, parent: string) {
-    await this.node(parent)
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await this.waitUntil(
-      async () =>
-        (await this.node(child).count()) > 0 &&
-        (await this.node(parent).locator(nodeSelector(child)).count()) === 0,
-      `"${child}" to be drawn somewhere other than inside "${parent}"`,
-    );
+    await notChildOf(this, this.everywhere(), child, parent);
   },
 );
 

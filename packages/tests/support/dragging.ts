@@ -19,8 +19,9 @@
  * EVERYTHING TAKES A SCOPE, and that is what the second feature added. A row id
  * is unique in a SET but not on a SCREEN: two panes showing one file draw every
  * row of it twice, so "the bullet of `knobs`" is a question that needs to say
- * which pane before it has an answer. {@link everywhere} is the answer for a
- * lone page, and it is the whole page.
+ * which pane before it has an answer. `OlaiWorld.pane(i)` is one column and
+ * `OlaiWorld.everywhere()` is the whole page; both are the world's, because a
+ * pane locator is not a drag concern.
  */
 
 import type { Locator } from "playwright";
@@ -30,22 +31,13 @@ import {
   DROP_LINE,
   NODE_TITLE,
   nodeSelector,
-  PANE,
   POLL_TIMEOUT,
 } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
-import { attr } from "./selectors.ts";
 
 /** How far in one level is drawn, near enough: the pointer only has to land
  *  closer to one step than to the next, and the client rounds. */
 export const ONE_STEP = 40;
-
-/** Where a row is looked for: the whole page. */
-export const everywhere = (world: OlaiWorld): Locator => world.page.locator("body");
-
-/** Where a row is looked for: ONE pane of a split, by its index. */
-export const inPane = (world: OlaiWorld, index: number): Locator =>
-  world.page.locator(`${PANE}${attr("data-pane", String(index))}`);
 
 /** One row's own bullet-as-handle, inside a scope. `.first()` twice over: a
  *  descendant's row matches inside the scope too, and a descendant's handle

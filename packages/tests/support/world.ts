@@ -1305,9 +1305,26 @@ export class OlaiWorld extends World {
     return this.fileLink(OUTLINE_LINK, file);
   }
 
+  /** ONE PANE of the workspace, by its index — the scope every question about
+   *  a split has to be asked in. A node id is unique in a SET and not on a
+   *  SCREEN: two panes showing one file draw every row of it twice, so
+   *  "the bullet of `knobs`" has no answer until a step says which column it
+   *  means. Spelled once here for the reason every other selector is. */
+  pane(index: number): Locator {
+    return this.page.locator(`${PANE}${attr("data-pane", String(index))}`);
+  }
+
+  /** Where a row is looked for when the step does NOT name a pane: the whole
+   *  page. The unscoped answer, as a scope — so the helpers that take one do
+   *  not need a second arity for the lone case. */
+  everywhere(): Locator {
+    return this.page.locator("body");
+  }
+
   /** One node in the tree, by id. Ids are unique across the whole loaded set,
    *  so this never needs a scope — except inside a mirror, where the target's
-   *  subtree is rendered a second time; those steps scope explicitly. */
+   *  subtree is rendered a second time, or inside a split, where a second pane
+   *  may draw the same file; those steps scope explicitly ({@link pane}). */
   node(id: string): Locator {
     return this.page.locator(nodeSelector(id));
   }

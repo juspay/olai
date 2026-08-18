@@ -97,11 +97,12 @@ export function Editable(props: {
   const selection = createSelection(page)
   const editor = createEditor(page, selection)
   const dragging = createDragging({ selection })
-  const sweeping = createSweeping(selection)
+  const sweeping = createSweeping(selection, () => surface)
 
-  /** This page's own box, for the two gestures that measure rows: a `Row.key`
-   *  is unique within a page and not across two, so both scope what they read
-   *  to the pane this element is in (`../drag/lines.ts`). */
+  /** This page's own box, and what BOTH row gestures measure inside: a `Row.key`
+   *  is a chain from the roots of ITS page, so it is unique in one and not
+   *  across two, and a measurement of the whole document would hand this page's
+   *  answer the next page's boxes (`../drag/lines.ts`). */
   let surface: HTMLDivElement | undefined
   // JOINED FOR AS LONG AS THIS PAGE LIVES, which is what makes the registry a
   // reading of what is on screen rather than a history of it: a drag begun in

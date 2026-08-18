@@ -68,12 +68,32 @@ export type Aim =
   | { readonly kind: "drop"; readonly landing: Landing }
   | { readonly kind: "refused"; readonly refusal: Refusal }
 
+/** How far outside a span a point is, and `0` for one inside it. */
+const outside = (at: number, from: number, extent: number): number =>
+  at < from ? from - at : at > from + extent ? at - (from + extent) : 0
+
 /**
- * WHICH page the pointer is in — decided on X alone, and clamped to the nearest.
+ * How far the pointer is from a page's box — `0` while it is inside one.
  *
- * X alone because a split is COLUMNS: the panes tile the width and share the
- * height, so which one a pointer is over is a horizontal question, and the
- * vertical one is the gap-between-rows question `./plan.ts` already answers.
+ * BOTH AXES, though today only one of them ever decides. A split is COLUMNS:
+ * the panes tile the width and share the height, so every box gives the same
+ * vertical answer and the horizontal one picks the pane. Reading Y as well
+ * costs a subtraction and buys the projection the pane list already names as
+ * next — children STACKED rather than side by side (`../pane/geometry.ts`'s
+ * `Axis`) — where a horizontal-only reading would pick a plausible wrong pane
+ * silently, which is the worst way for this to be out of date.
+ *
+ * Squared, because nothing compares it to a distance in pixels; it is only ever
+ * held against another one of itself.
+ */
+const awayFrom = (field: Aimed, x: number, y: number): number => {
+  const dx = outside(x, field.box.left, field.box.width)
+  const dy = outside(y, field.box.top, field.box.height)
+  return dx * dx + dy * dy
+}
+
+/**
+ * WHICH page the pointer is in — the nearest one, and it is always one.
  *
  * Clamped rather than answered with `null`, and that is what keeps a lone page
  * behaving exactly as it did: a pointer dragged out over the sidebar, the
@@ -81,18 +101,14 @@ export type Aim =
  * with one page on screen is the only page there is, which is the gesture that
  * shipped.
  */
-const awayFrom = (field: Aimed, x: number): number => {
-  const right = field.box.left + field.box.width
-  return x < field.box.left ? field.box.left - x : x > right ? x - right : 0
-}
-
 const aimedAt = (
   fields: ReadonlyArray<Aimed>,
   x: number,
+  y: number,
 ): Aimed | undefined =>
   fields.reduce<Aimed | undefined>(
     (nearest, field) =>
-      nearest === undefined || awayFrom(field, x) < awayFrom(nearest, x) ? field : nearest,
+      nearest === undefined || awayFrom(field, x, y) < awayFrom(nearest, x, y) ? field : nearest,
     undefined,
   )
 
@@ -135,7 +151,7 @@ export const aimAt = (
   x: number,
   y: number,
 ): Aim | null => {
-  const field = aimedAt(fields, x)
+  const field = aimedAt(fields, x, y)
   if (field === undefined) return null
   if (field.placed.length === 0) {
     return { kind: "refused", refusal: { ...field.box, why: whyNot(field, carried), file: field.file } }

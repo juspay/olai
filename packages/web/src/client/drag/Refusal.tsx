@@ -11,10 +11,13 @@
  * IT COVERS THE WHOLE PANE rather than marking a gap, because that is the shape
  * of what it is saying. A drop line is about a PLACE among rows; this is about
  * the PAGE — every row in it is the same no, so a line drawn at one of them
- * would be an answer aimed at the wrong question. The wash is the alarm tone
- * everything else in this client refuses in (`../Refused.tsx`, the `•••` menu's
- * line, the selection bar's), so the colour is already learned by the time
- * anybody meets it here.
+ * would be an answer aimed at the wrong question.
+ *
+ * THE SENTENCE ITSELF IS `../Refused.tsx`, which is the component that exists
+ * so a refusal is not a `<p>` copied per surface — that consolidation was made
+ * over four copies that had already drifted in padding, and a fifth here would
+ * be the same drift starting again. What this adds around it is the WASH, which
+ * is the part that is about a pane rather than about a sentence.
  *
  * WHAT IT SAYS IS WHAT THE BAR WILL SAY. One spelling, carried on the aim, so
  * the reason cannot change between the hand hovering and the hand letting go
@@ -29,6 +32,7 @@
 
 import { Portal } from "solid-js/web"
 
+import { Refused } from "../Refused.tsx"
 import { LAYER } from "../layer.ts"
 import { TESTID } from "../testids.ts"
 import type { Refusal } from "./aim.ts"
@@ -50,11 +54,13 @@ export function DropRefusal(props: { readonly refusal: Refusal }) {
         data-testid={TESTID.dropRefused}
         // Which file said no, so a scenario names it rather than reading prose.
         data-file={props.refusal.file}
-        aria-hidden="true"
       >
-        <p class="m-0 max-w-sm rounded border border-alarm bg-paper px-3 py-1.5 text-[0.8125rem] leading-snug text-alarm shadow-sm">
-          {props.refusal.why}
-        </p>
+        {/* The wash and the sentence are two boxes because they are two
+            widths: the no is about the whole pane, and a paragraph as wide as
+            a pane is a paragraph nobody reads. */}
+        <div class="max-w-sm">
+          <Refused said={props.refusal.why} testid={TESTID.dropRefusedSaid} />
+        </div>
       </div>
     </Portal>
   )

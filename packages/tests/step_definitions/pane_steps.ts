@@ -26,8 +26,7 @@ import {
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-const paneAt = (world: OlaiWorld, index: number) =>
-  world.page.locator(`${PANE}${attr("data-pane", String(index))}`);
+const paneAt = (world: OlaiWorld, index: number) => world.pane(index);
 
 When(
   "I alt-click the zoom of {string}",
