@@ -10,12 +10,12 @@
  * its own, at 0.39ms of it. (The two do not have to agree: the step's own cost
  * is what a clone takes to build, and the gap between the arms is that plus
  * the garbage a 21,552-entry allocation leaves for later work to collect.)
- * This is the lever `docs/brainstorming/
- * model-indices.md`'s open question 1 named: a LAYER over the map the last
- * patch left standing, holding the entries this one changed, so an edit costs
- * what it touched rather than what the directory holds. Layered, the same step
- * costs 0.009ms where the edits wander and 0.001ms where they are one file
- * typed in, which is the case a keystroke is.
+ * This is the lever open question 1 of `docs/brainstorming/model-indices.md`
+ * named: a LAYER over the map the last patch left standing, holding the
+ * entries this one changed, so an edit costs what it touched rather than what
+ * the directory holds. Layered, the same step costs 0.009ms where the edits
+ * wander and 0.001ms where they are one file typed in, which is the case a
+ * keystroke is.
  *
  * WHAT IT IS EQUAL TO is the whole of its contract, and it is one line:
  *
