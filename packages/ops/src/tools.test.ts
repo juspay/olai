@@ -44,17 +44,20 @@
  */
 
 import {
+  NodeAnswer,
+  NodeRequest,
   type OutlineSet,
   type Placed,
   type Placement,
   type Reading,
+  type SearchRequest,
   type Subtree,
 } from "@olai/format"
 import { expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 
 import { readingOf, setOf, steady } from "./fixtures.testlib.ts"
-import { asking, TOOLS } from "./tools.ts"
+import { asking, read, TOOLS } from "./tools.ts"
 
 /** One house, and everything a read can carry: both marker kinds, a note, a
  *  date, both tag sigils, a placement with a parent and one without, a child
@@ -221,4 +224,45 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   // a curated list is read with.
   const placed = house?.["placed"] as ReadonlyArray<Placed>
   expect(placed[0]?.shows).toMatchObject({ id: "paint", status: "done", path: ["House #home @sam"] })
+})
+
+/**
+ * A read's asker is typed BY ITS SCHEMA, and this is the only place that can be
+ * said — the table above erases every tool to a `Tool`, whose `ask` takes
+ * `never`, so nothing that runs can tell what the constructor inferred.
+ *
+ * Two facts, and it takes both. The FIRST call annotates nothing and passes
+ * `args` straight to a door that wants a `NodeRequest`: if inference were lost
+ * — `unknown`, which is what the parameter's old `| Schema.Top` union left —
+ * that line would not compile, and this file would fail rather than quietly
+ * checking nothing. The SECOND names the wrong request and is expected to be
+ * REFUSED: `@ts-expect-error` fails the build when the line it guards compiles,
+ * which is what rules out the other way inference can go wrong. Were `args`
+ * `any`, the wrong annotation would be accepted, the directive would be unused,
+ * and `tsc` would report exactly that.
+ *
+ * Neither call is a tool and neither reaches {@link TOOLS}; what is under test
+ * is the constructor, and a table entry is only how it is normally used.
+ */
+test("a read's asker takes what its own schema decodes to", () => {
+  const tool = read(
+    "read_node",
+    "Read a node",
+    "One node in full.",
+    NodeRequest,
+    NodeAnswer,
+    (asking, args) => asking.node(args),
+  )
+  expect(tool.kind).toBe("read")
+
+  read(
+    "read_node",
+    "Read a node",
+    "One node in full.",
+    NodeRequest,
+    NodeAnswer,
+    // @ts-expect-error — the schema beside it says `NodeRequest`, so an asker
+    // that claims to take a `SearchRequest` is not a reader of this tool.
+    (asking, args: SearchRequest) => asking.search(args),
+  )
 })

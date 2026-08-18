@@ -35,8 +35,7 @@ import {
   AfterRequest,
   ApplyRequest,
   ArchiveRequest,
-  type CommitRequest,
-  CommitRequest as CommitRequestSchema,
+  CommitRequest,
   type CommitResult,
   CreateDocumentRequest,
   CreateRequest,
@@ -86,8 +85,18 @@ interface Described {
   readonly name: string
   readonly title: string
   readonly description: string
-  /** The schema the arguments are decoded against. */
-  readonly schema: Schema.Top
+  /**
+   * The schema the arguments are decoded against.
+   *
+   * A STRUCT rather than any schema at all, and that is a claim about what a
+   * tool is: a call arrives as a JSON object, so a tool's arguments are named
+   * fields or they are nothing. Two things follow, and both were paid for by a
+   * cast somewhere before this said so. `@olai/server`'s `argsOf` takes a
+   * write's schema APART by `.fields` — to drop the `op` the tool's name
+   * already decides — which only a struct has; and the constructors below infer
+   * each asker's argument type from this same declaration.
+   */
+  readonly schema: Schema.Struct<Schema.Struct.Fields>
 }
 
 /**
@@ -261,20 +270,33 @@ const NoArgs = Schema.Struct({})
 /**
  * Both schemas, then the question between them.
  *
- * `R` is INFERRED from `answers`, so the call is checked against the floor's
- * declaration with nothing written at the call site — and a read that does not
- * say what it answers does not compile, rather than quietly getting `unknown`
- * and being checked against nothing. `A` still needs its annotation on the
- * asker, because the request parameter's `| Schema.Top` arm defeats inference;
- * that is the older half and untouched here.
+ * BOTH SIDES ARE INFERRED, and neither one is written at a call site. `R` comes
+ * from `answers`, so a read that does not say what it answers does not compile
+ * rather than quietly getting `unknown` and being checked against nothing; and
+ * the asker's `args` come from `schema` as `S["Type"]`, which is that schema's
+ * own statement of what it decodes to.
+ *
+ * THE SCHEMA IS TAKEN AS ITSELF — `S` is the struct that was passed, and the
+ * asker reads its `Type` off it — rather than as "something that decodes to
+ * `A`". The older spelling was a union —
+ * `Schema.Codec<A, never, never, never> | Schema.Top` — and a union is what a
+ * parameter cannot be inferred through: the second arm matches every schema, so
+ * `A` was never fixed and every read hand-wrote its request shape on the asker
+ * instead. That annotation is what this removes. It was a SECOND declaration of
+ * a fact `@olai/format` already states, free to name a different request from
+ * the one the tool advertises to an agent.
+ *
+ * A read whose asker names the wrong request now fails to COMPILE, which is the
+ * one thing `./tools.test.ts`'s walk over the table cannot check — it is pinned
+ * there with `@ts-expect-error`, and that is why this constructor is exported.
  */
-const read = <A, R>(
+export const read = <S extends Schema.Struct<Schema.Struct.Fields>, R>(
   name: string,
   title: string,
   description: string,
-  schema: Schema.Codec<A, never, never, never> | Schema.Top,
+  schema: S,
   answers: Schema.Codec<R, R, never, never>,
-  ask: (asking: Asking, args: A) => Effect.Effect<R, OpFailure>,
+  ask: (asking: Asking, args: S["Type"]) => Effect.Effect<R, OpFailure>,
 ): Tool => ({
   name,
   title,
@@ -289,16 +311,20 @@ const write = (
   name: string,
   title: string,
   description: string,
-  schema: Schema.Top,
+  schema: Schema.Struct<Schema.Struct.Fields>,
   fixed: Readonly<Record<string, unknown>>,
 ): Tool => ({ name, title, description, schema, kind: "write", fixed })
 
-const act = <A>(
+/** The act arm's constructor, inferring its `args` the way {@link read} does
+ *  and for the same reason: what `commit` takes is `@olai/format`'s to say, and
+ *  saying it again here is a second spelling free to drift from the schema this
+ *  same call advertises. */
+const act = <S extends Schema.Struct<Schema.Struct.Fields>>(
   name: string,
   title: string,
   description: string,
-  schema: Schema.Codec<A, never, never, never> | Schema.Top,
-  answer: (ops: Acting, args: A) => Effect.Effect<unknown, never>,
+  schema: S,
+  answer: (ops: Acting, args: S["Type"]) => Effect.Effect<unknown, never>,
 ): Tool => ({
   name,
   title,
@@ -365,7 +391,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     // the two ends a caller reads it from.
     SearchRequest,
     SearchAnswer,
-    (asking, args: SearchRequest) => asking.search(args),
+    (asking, args) => asking.search(args),
   ),
   read(
     "read_node",
@@ -373,7 +399,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "One node in full: its record, its `custom` properties (the named facts `set_prop` writes), its tags (`#topic` and `@person`, reported as written), its ancestors, its immediate children, and its mark when it carries one — a node with no `status` is not a task. `progress` counts how many of its child tasks are done, which is an annotation and nothing more. Its edges come too when it has them — `see` and `after`, the ids `set_see` / `set_after` take.\n\nTHIS IS ALSO WHERE MIRRORS ARE FOUND, and it is the only place: a placement is not a node, so a search never returns one and `children` never lists one. Ask the node instead. `mirrors` is every placement OF this node — where else it is drawn, chains followed — and each entry's `id` is what `remove_mirror` takes, so a Now entry is retired by reading the ITEM that finished. `placed` is the other half: the placements UNDER this node, each with the node it shows — which is how you read a curated list (\"what is on Now?\") without knowing in advance what is on it.",
     NodeRequest,
     NodeAnswer,
-    (asking, args: NodeRequest) => asking.node(args),
+    (asking, args) => asking.node(args),
   ),
   read(
     "read_subtree",
@@ -381,7 +407,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "A node and everything under it, nested. Says when it stopped at the depth it was given rather than at a leaf. Mirrors are not walked — a placement is a second view of a node rather than something hanging off this one — so read a list of them with `read_node`'s `placed`.",
     SubtreeRequest,
     SubtreeAnswer,
-    (asking, args: SubtreeRequest) => asking.subtree(args),
+    (asking, args) => asking.subtree(args),
   ),
 
   write(
@@ -525,8 +551,8 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "commit",
     "Commit what you changed",
     "Record what is waiting in the repository as one git commit — the audit trail of what this tool wrote. Writes land on disk immediately and WAIT for this; nothing commits on your behalf. Call it when a train of thought is finished, not after every edit, and give `message` saying what the work was (`reconcile the roadmap with the #70-#81 merges`) — an omitted one is composed from what changed, which can only describe the edits and not why you made them.\n\nIT SWEEPS THE WHOLE REPOSITORY, not only the outlines: every file that differs from HEAD, including a `.md` or a source file a person edited by hand, and including anything untracked that `.gitignore` does not cover. Read `surface://cells/pending` first to see exactly what that is — `outlines` with their node-level changes, `others` as paths with a status each, and `served` saying which part of the repository olai serves. Give `paths` (repository-root-relative, as `pending` lists them) to commit only some of it; what you leave out stays waiting for a commit and a message of its own. A path nothing is waiting on is refused rather than quietly skipped. A row that says `renamed` names both halves in `from`, and it is ONE path to give — the commit carries the side it came from with it.\n\nIt never touches git's index, so anything staged by hand is left exactly as it was, and it refuses while the repository is mid-merge, mid-rebase or on a detached HEAD.",
-    CommitRequestSchema,
-    (ops, args: CommitRequest) => ops.commit(args),
+    CommitRequest,
+    (ops, args) => ops.commit(args),
   ),
 
   act(
