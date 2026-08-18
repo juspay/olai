@@ -39,13 +39,15 @@
  * already is". This app has two affordances that mean exactly that and say so
  * (`Alt+Shift+↑/↓`, and dragging), and the sentence points at them.
  *
- * Pure, and over the one step of ancestry it needs rather than over a whole
- * derivation: `parentOf` is `derived.byId.get(id)?.node.parent`, and taking it
- * as a function is what lets every rule below be a unit test with a `Map` in it
- * (`./destination.test.ts`).
+ * Pure over the set's own indexes, and the one walk it needs is the FORMAT's
+ * (`ancestorsOf`) rather than a loop of its own: what an ancestor chain is —
+ * canonical `parent` links, stopping at a placement, safe over a set the
+ * validator has already condemned — is that package's answer, and a second
+ * spelling here would be free to disagree with the ops layer's own
+ * `containing`, which is the refusal this rule arrives one gesture ahead of.
  */
 
-import { isArchived } from "@olai/format"
+import { ancestorsOf, type Derived, isArchived } from "@olai/format"
 
 import { SAME_FILE } from "../across.ts"
 
@@ -93,13 +95,12 @@ export interface Destination {
 export const whyNot = (
   moved: Moved,
   to: Destination,
-  parentOf: (id: string) => string | undefined,
+  derived: Derived,
 ): string | null => {
   if (to.id === moved.id) {
     return `\`${to.title}\` is the row you are moving — nothing can go under itself.`
   }
-  const inside = drawnBy(moved.shows, to.id, parentOf)
-  if (inside) {
+  if (drawnBy(moved.shows, to.id, derived)) {
     return moved.shows === moved.id
       ? `\`${to.title}\` is inside the row you are moving, so this would fold the ` +
         `branch into itself.`
@@ -126,24 +127,17 @@ export const whyNot = (
  * Is `to` inside the subtree rooted at `shows` — itself included?
  *
  * UPWARD through the parents, which is the direction the question is actually
- * asked in ("is what I picked one of my own descendants?"), and the walk the
- * ops layer's `containing` makes for the identical refusal. Bounded by a set of
- * what it has seen: a cycle is a set the validator refuses, so this can only
- * meet one in a frame drawn before that verdict, and a browser must not hang on
- * one.
+ * asked in ("is what I picked one of my own descendants?") and the direction
+ * the ops layer walks for the identical refusal (`containing`). The walk itself
+ * is the FORMAT's `ancestorsOf`: canonical `parent` links, stopping where a
+ * chain stops being one, and cycle-safe over a set the validator has already
+ * condemned — three rules this file would otherwise be keeping a second copy
+ * of, free to disagree with the refusal it arrives one gesture ahead of.
  */
 const drawnBy = (
   shows: string | undefined,
   to: string,
-  parentOf: (id: string) => string | undefined,
-): boolean => {
-  if (shows === undefined) return false
-  const seen = new Set<string>()
-  let at: string | undefined = to
-  while (at !== undefined && !seen.has(at)) {
-    if (at === shows) return true
-    seen.add(at)
-    at = parentOf(at)
-  }
-  return false
-}
+  derived: Derived,
+): boolean =>
+  shows !== undefined &&
+  (to === shows || ancestorsOf(derived, to).some((one) => one.node.id === shows))

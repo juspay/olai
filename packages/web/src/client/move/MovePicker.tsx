@@ -110,8 +110,15 @@ export function MovePicker(props: {
    * LIVE derivation, so it is the tree this tab is drawing.
    */
   const verdicts = createMemo<ReadonlyArray<string | null>>(() => {
-    const parentOf = (id: string): string | undefined => derived()?.byId.get(id)?.node.parent
-    return found.hits().map((hit) => whyNot(props.moved, hit, parentOf))
+    const indexes = derived()
+    // NO INDEXES is the frame before the first one arrives — which no row is
+    // drawn in, so no panel is open over it either. The answer if it ever were
+    // is `null` rather than a refusal: this module is a preview of the
+    // planner's verdict, and with nothing to preview from, the planner is the
+    // one that answers. A refusal invented here would be a fence.
+    return found.hits().map((hit) =>
+      indexes === undefined ? null : whyNot(props.moved, hit, indexes)
+    )
   })
 
   /** Why the destination under the cursor cannot take this row — `null` when it

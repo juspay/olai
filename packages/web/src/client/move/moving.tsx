@@ -89,37 +89,48 @@ export interface Moving {
   readonly Panel: () => JSX.Element
 }
 
-/** Which row is being moved: its record (what the write names, and what the
- *  panel is re-found by) and where it is drawn right now. */
-interface Standing {
-  readonly record: string
-  readonly place: string
-  /** Is the PICKER up, or is this a landed write's sentence still standing
-   *  under the row it moved? Two states rather than two signals: a said line
-   *  belongs to the row it is about, and that row is this one. */
-  readonly open: boolean
+/**
+ * WHICH ROW this gesture is about, and which half of it is happening — the
+ * record (what the write names, and what the panel is re-found by) and where
+ * that row is drawn right now.
+ *
+ * A UNION rather than a record with a flag and a maybe-field, because the two
+ * arms know different things and only one of them grounds the second: `under`
+ * is where the row WENT, which is a fact that does not exist until a write has
+ * landed. Flat, those two fields spell three states this gesture does not have
+ * ("picking, and it already went there") and leave the one it does have to a
+ * rule nobody enforces.
+ */
+type Standing =
+  /** The picker is up on this row. */
+  | { readonly kind: "picking"; readonly record: string; readonly place: string }
   /**
-   * WHERE THE ROW WENT, once a move has landed — and `undefined` until then.
+   * The picker is spent: a move landed, and what it SAID is still standing
+   * under the row — which is normally the row itself, drawn wherever it went.
    *
-   * The fallback for the one case where following the row is not enough: a
-   * destination this page does not DRAW. A collapsed branch is the ordinary
-   * one (its children are not in the rows, deliberately — `../edit/order.ts`
-   * flattens what is on screen), and done-hidden is the other. The row is
-   * genuinely gone from the page, so there is no row of its own to hang the
-   * sentence under — and dropping it would be losing the ops layer's `nudge`
-   * exactly when it has something to say.
+   * `under` is the fallback for the one case where following the row is not
+   * enough: a destination this page does not DRAW. A collapsed branch is the
+   * ordinary one (its children are not among the rows, deliberately —
+   * `../edit/order.ts` flattens what is on screen), and done-hidden is the
+   * other. The row is genuinely gone from the page, so it has no line of its
+   * own to hang the sentence under — and dropping it would lose the ops layer's
+   * `nudge` exactly when it has something to say.
    *
    * So the line falls back to the row it landed IN, which is drawn, is the
    * nearest thing on screen to where it went, and — for the nudge this can
    * actually carry — is a row the sentence is about anyway.
    *
-   * NOT unfolding that branch instead: this app does not open what a reader
-   * has closed on their behalf (`../focus.ts` takes the same position for a
-   * chat reference pointing into a collapsed branch, and answers by
-   * navigating rather than by unfolding).
+   * NOT unfolding that branch instead: this app does not open what a reader has
+   * closed on their behalf (`../focus.ts` takes the same position for a chat
+   * reference pointing into a collapsed branch, and answers by navigating
+   * rather than by unfolding).
    */
-  readonly landed?: string
-}
+  | {
+    readonly kind: "landed"
+    readonly record: string
+    readonly place: string
+    readonly under: string
+  }
 
 const MovingContext = createContext<Moving>()
 
@@ -170,10 +181,11 @@ export const createMoving = (
     if (held === null) return
     const drawn = flatten(page.rows(), page.collapsed())
     const moved = refound(drawn, held.record, held.place) ??
-      // …or the row it landed in, for a destination this page does not draw
-      // ({@link Standing.landed}). `null` for the place it came from, because
-      // that is a place this row was never at.
-      (held.landed === undefined ? undefined : refound(drawn, held.landed, null))
+      // …or the row it landed in, for a destination this page does not draw —
+      // which is a fact the `landed` arm has and the `picking` one does not.
+      // `null` for the place it came from, because that is a place the
+      // destination row was never at.
+      (held.kind === "picking" ? undefined : refound(drawn, held.under, null))
     if (moved === held.place) return
     setStanding(moved === undefined ? null : { ...held, place: moved })
   })
@@ -215,14 +227,17 @@ export const createMoving = (
     void applying(edit, undo.record)
       .then((said) => {
         saying.say(said)
-        // A landed write is the end of this gesture: the row is somewhere else
-        // now, and the panel closes rather than offering to move it again from
-        // a list answering a question about where it used to be. What stays is
-        // the sentence, under the row, wherever the row now is — which is what
-        // `refound` above is for.
-        if (said?.tone !== "alarm") {
-          setStanding((held) => held && { ...held, open: false, landed: under })
-        }
+        // …and a landed write SPENDS the picker: the row is somewhere else now,
+        // so the panel goes rather than offering to move it again from a list
+        // answering a question about where it used to be. The gesture becomes
+        // its other arm — the sentence, standing under the row, wherever
+        // `refound` above finds it.
+        if (said?.tone === "alarm" || under === undefined) return
+        setStanding((held) =>
+          held === null
+            ? null
+            : { kind: "landed", record: held.record, place: held.place, under }
+        )
       })
       .finally(() => setSending(false))
   }
@@ -237,12 +252,12 @@ export const createMoving = (
       // just opened to make another one, is a sentence about nothing they can
       // see.
       saying.say(null)
-      setStanding({ ...at, open: true })
+      setStanding({ kind: "picking", ...at })
     },
     showing: (key) => {
       const held = standing()
       return held !== null && held.place === key &&
-        (held.open || saying.said() !== null)
+        (held.kind === "picking" || saying.said() !== null)
     },
     Panel: () => (
       <>
@@ -250,7 +265,7 @@ export const createMoving = (
             panel's own arrangement and for its reason: the picker needs both
             and each is separately absent — a panel nobody opened, and a row
             whose record has left the set. */}
-        <Show when={standing()?.open === true}>
+        <Show when={standing()?.kind === "picking"}>
           <Show when={moved()}>
             {(at) => (
               <MovePicker
