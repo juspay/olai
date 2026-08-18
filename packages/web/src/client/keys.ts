@@ -276,6 +276,16 @@ export const editKey = (
   ) return "note"
   if (field === "block") return null
 
+  // ⌘⇧D / Ctrl+⇧D — FIRST of the line-only readings, and outside the chain of
+  // them: every branch below is a more specific reading of a key a later branch
+  // also matches, and this one shares its key with nothing. The letter IS
+  // claimed one modifier down, though, which is why Shift is required rather
+  // than tolerated — bare ⌘D stays the bookmark it has always been.
+  if (
+    (event.key === "d" || event.key === "D") && (event.ctrlKey || event.metaKey) &&
+    event.shiftKey && !event.altKey
+  ) return "duplicate"
+
   if (event.key === "Enter") {
     if (event.ctrlKey || event.metaKey) return event.shiftKey ? "walk" : "toggle"
     if (event.altKey) return null
@@ -298,14 +308,6 @@ export const editKey = (
     event.key === "Backspace" && !event.shiftKey && !event.altKey && !event.ctrlKey &&
     !event.metaKey && at !== undefined && at.start === 0 && at.end === 0
   ) return "merge"
-  // ⌘⇧D / Ctrl+⇧D — the one chord here that is not an `Enter` or an arrow, and
-  // the one whose letter is claimed by the browser one modifier down. Shift is
-  // required rather than tolerated, so bare ⌘D stays the bookmark it has always
-  // been.
-  if (
-    (event.key === "d" || event.key === "D") && (event.ctrlKey || event.metaKey) &&
-    event.shiftKey && !event.altKey
-  ) return "duplicate"
   if (event.key === "Tab" && !event.ctrlKey && !event.metaKey && !event.altKey) {
     return event.shiftKey ? "out" : "in"
   }

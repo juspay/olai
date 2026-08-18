@@ -3254,14 +3254,8 @@ const planDuplicate = (
   const records = recordsOf(scope, file)
   const subtree = subtreeOf(scope, records, node.id)
   const copies = copiesOf(scope, subtree)
-  /** A TARGET, as the copy names it: the copy of what it named when that was
-   *  inside the subtree, and the thing itself when it was not. The fallback IS
-   *  the rule — a reference out of the subtree points at something this write
-   *  did not copy — which is why it is spelled here and never in the lookups
-   *  below, where a miss is a defect ({@link copyOf}). */
-  const to = (id: string): string => copies.get(id) ?? id
 
-  const id = copyOf(copies, node.id)
+  const id = copies.of(node.id)
   const ords = placed(siblingsOf(scope.derived, file, node.parent), id, { after: node.id })
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
   const ord = ordFor(ords.success, id)
@@ -3273,18 +3267,21 @@ const planDuplicate = (
     const at = record.id === node.id
       ? { parent: node.parent, ord }
       : {
-        parent: record.parent === undefined ? undefined : copyOf(copies, record.parent),
+        parent: record.parent === undefined ? undefined : copies.of(record.parent),
         ord: record.ord,
       }
-    const placement = { id: copyOf(copies, record.id), ord: at.ord }
+    const placement = { id: copies.of(record.id), ord: at.ord }
     // The two arms of the record, branched BEFORE anything is built, so each is
     // written as the shape it is rather than assembled once and cast twice.
     // A placement points with `mirror` and with nothing else — the format's own
     // reason for it being a separate struct — so this arm is exhaustive by the
     // type, and {@link repointed} answers for the other.
     return isMirror(record)
-      ? { ...withParent(record, at.parent), ...placement, mirror: to(record.mirror) }
-      : borne(scope, { ...repointed(withParent(record, at.parent), to), ...placement })
+      ? { ...withParent(record, at.parent), ...placement, mirror: copies.target(record.mirror) }
+      : borne(scope, {
+        ...repointed(withParent(record, at.parent), copies.target),
+        ...placement,
+      })
   })
 
   const under = written.length - 1
@@ -3307,14 +3304,38 @@ const planDuplicate = (
   )
 }
 
-/** A fresh id for every record in the subtree, keyed by the id it replaces —
- *  the whole map decided before any record is built, because a record's
- *  references may name a node that comes LATER in file order and a half-built
- *  map would re-point some of them and not others. */
-const copiesOf = (
-  scope: Scope,
-  subtree: ReadonlyArray<Node>,
-): ReadonlyMap<string, string> => {
+/**
+ * The COPY of every record in the subtree — and the two questions anybody asks
+ * of it, which answer a miss differently.
+ *
+ * ONE socket rather than a map plus two readers, because the difference between
+ * those two answers IS the op's rule and it is only legible with them side by
+ * side: {@link Copies.of} is asked about a record this write is MAKING and a
+ * miss is a defect, while {@link Copies.target} is asked about an id a record
+ * NAMES and a miss is the ordinary case — the whole "inside follows the copy,
+ * outside keeps its target" half of the semantics is that fallback. Handed out
+ * as a map, the fallback would be one `?? id` at each call site, free to appear
+ * at the structural ones too, where it would silently land a copied child at
+ * top level instead of throwing.
+ */
+interface Copies {
+  /** The copy of a record this write is MAKING, by the id it replaces. Every
+   *  record in the subtree has one — they are all decided before anything is
+   *  built — so a miss is a defect in this file rather than anything a caller
+   *  can act on, which is {@link ordFor}'s arrangement one map over. */
+  readonly of: (id: string) => string
+  /** A TARGET, as the copy names it: the copy of what it named when that was
+   *  inside the subtree, and the thing itself when it was not. The fallback is
+   *  the rule rather than a tolerance — a reference out of the subtree points
+   *  at something this write did not copy, and there is nothing else it could
+   *  mean. */
+  readonly target: (id: string) => string
+}
+
+/** Fresh ids for the whole subtree, decided before any record is built —
+ *  because a record's references may name a node that comes LATER in file order
+ *  and a half-built map would re-point some of them and not others. */
+const copiesOf = (scope: Scope, subtree: ReadonlyArray<Node>): Copies => {
   const taken = new Set<string>()
   const copies = new Map<string, string>()
   for (const record of subtree) {
@@ -3322,22 +3343,19 @@ const copiesOf = (
     taken.add(fresh)
     copies.set(record.id, fresh)
   }
-  return copies
-}
-
-/** The copy of a record this write is MAKING, by the id it replaces. Every
- *  record in the subtree has one — {@link copiesOf} decided them all before
- *  anything was built — so a miss is a defect in this file rather than anything
- *  a caller can act on, which is {@link ordFor}'s arrangement one map over. */
-const copyOf = (copies: ReadonlyMap<string, string>, id: string): string => {
-  const copy = copies.get(id)
-  if (copy === undefined) throw new Error(`the subtree copy did not include \`${id}\``)
-  return copy
+  return {
+    of: (id) => {
+      const copy = copies.get(id)
+      if (copy === undefined) throw new Error(`the subtree copy did not include \`${id}\``)
+      return copy
+    },
+    target: (id) => copies.get(id) ?? id,
+  }
 }
 
 /**
- * One node's references, re-aimed by `to` — the EDGE fields, which is every way
- * a regular record names another one.
+ * One node's references, re-aimed by `target` — the EDGE fields, which is every
+ * way a regular record names another one.
  *
  * The fields are the format's own closed list rather than a list spelled here:
  * {@link targetsOf} answers what a record points at AND with which field, which
@@ -3348,7 +3366,7 @@ const copyOf = (copies: ReadonlyMap<string, string>, id: string): string => {
  */
 const repointed = (
   node: RegularNode,
-  to: (id: string) => string,
+  target: (id: string) => string,
 ): RegularNode => {
   const named = targetsOf(node)
   if (named.length === 0) return node
@@ -3361,7 +3379,7 @@ const repointed = (
     // thing being read rather than a list of three this file chose.
     if (field === "mirror") continue
     const ids = node[field]
-    if (ids !== undefined) next[field] = ids.map(to)
+    if (ids !== undefined) next[field] = ids.map(target)
   }
   return next
 }

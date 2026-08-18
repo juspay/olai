@@ -231,13 +231,6 @@ const twinOf = (file: string, id: string): Record<string, unknown> => {
   return twins[0] as Record<string, unknown>
 }
 
-/** The ids under one record, in file order — what a section prints when the
- *  claim is about records the copy made rather than about the row on screen. */
-const childIdsOf = (file: string, id: string): ReadonlyArray<string> =>
-  recordsIn(file).filter((record) => record["parent"] === id).map((record) =>
-    String(record["id"])
-  )
-
 /**
  * WHERE THE PROMISE LIVES, printed at the top of a section's transcript.
  *
@@ -1301,8 +1294,8 @@ const SECTIONS = {
     // The FRESH-ID guarantee, printed where a picture cannot show it: the copy
     // of the row that waits on two things waits on the COPY of the one inside
     // the subtree and on the same `order` outside it.
-    for (const child of childIdsOf("house.olai", id)) {
-      console.log(`             ${recordOf(child)}`)
+    for (const child of recordsIn("house.olai").filter((one) => one["parent"] === id)) {
+      console.log(`             ${recordOf(String(child["id"]))}`)
     }
     shotSays("install", "house.olai")
     shotSays(id, "house.olai")

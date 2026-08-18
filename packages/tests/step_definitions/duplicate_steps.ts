@@ -47,16 +47,37 @@ const DIFFERS = new Set([
 const nodesIn = (world: OlaiWorld, file: string): ReadonlyArray<Record_> =>
   world.servedNodesSoFar(file) as ReadonlyArray<Record_>;
 
-/** One row of children, in the order the outline reads them — `ord` is a
- *  fractional index over base62, so plain string comparison IS the sort. */
+/**
+ * One row of children, in the order the outline reads them — the format's own
+ * `byOrd` rule, spelled WHOLE: `ord` is a fractional index over base62, so
+ * plain string comparison is the sort, and FILE ORDER breaks a tie rather than
+ * the engine's sort stability.
+ *
+ * Spelled rather than imported, and that is this package's rule rather than an
+ * oversight: `@olai/format` is here for NAMES and no behaviour (package.json
+ * says so at length), because these tests drive the client through a browser
+ * and not through its modules. What that costs is exactly this — a second
+ * spelling of sibling order — so it is spelled in FULL. The tie-break is the
+ * half a shorter version drops, and `byOrd`'s own comment is why it is here:
+ * that function breaks ties rather than leaving them to the engine, and a
+ * comparator that quietly relied on `Array.sort` being stable would be reading
+ * the same file a different way from the app under test.
+ */
 const childrenOf = (
   nodes: ReadonlyArray<Record_>,
   parent: unknown,
 ): ReadonlyArray<Record_> =>
   nodes
-    .filter((node) => node["parent"] === parent)
-    .slice()
-    .sort((a, b) => (String(a["ord"]) < String(b["ord"]) ? -1 : 1));
+    .map((node, line) => ({ node, line }))
+    .filter(({ node }) => node["parent"] === parent)
+    .sort((a, b) =>
+      a.node["ord"] === b.node["ord"]
+        ? a.line - b.line
+        : String(a.node["ord"]) < String(b.node["ord"])
+        ? -1
+        : 1
+    )
+    .map(({ node }) => node);
 
 const named = (nodes: ReadonlyArray<Record_>, id: string): Record_ => {
   const found = nodes.find((node) => node["id"] === id);
