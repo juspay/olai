@@ -52,11 +52,15 @@
  * stuck at the top. The jump is instant — assigning `scrollTop`, no animation
  * — because an open is a place, not a motion.
  *
- * The jump itself is not a reader scroll. Assigning `scrollTop` fires the same
- * event a wheel does, and if anything has grown between the assignment and the
- * handler — the markdown chunk landing on a restored transcript is the usual
- * case — `atBottom()` would come back false and following would drop at the
- * moment there is something to follow. A flag keeps that event from counting.
+ * The jump is not a reader scroll, but the event it schedules cannot be
+ * ignored with a flag around the assignment: Chromium (149, and the suite's
+ * Playwright) dispatches `scroll` asynchronously, at a rendering update, so
+ * a boolean held across the write is already false when the handler runs.
+ * What we remember instead is the `scrollTop` we assigned. An event that
+ * lands on that value is our jump — or growth that did not move the top —
+ * and if a follow is still owed and we are no longer at the bottom, the
+ * handler re-jumps rather than stamping following false. An event that
+ * lands somewhere else is the reader.
  */
 
 import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "solid-js"
@@ -73,8 +77,9 @@ import type { Chat } from "./state.ts"
 
 /** How close to the bottom still counts as "at the bottom". Anything under a
  *  line or two of slack and a smooth scroll mid-flight reads as "the reader
- *  scrolled away". */
-const NEAR = 64
+ *  scrolled away". Exported so the scenarios that measure the same slack
+ *  (`chat_steps.ts`) cannot drift from the pane that defined it. */
+export const NEAR = 64
 
 export function Transcript(props: { readonly chat: Chat }) {
   const show = useShowNode()
@@ -83,9 +88,10 @@ export function Transcript(props: { readonly chat: Chat }) {
   /** Should new text pull the view down with it? True until the reader scrolls
    *  away from the bottom, and true again the moment they come back. */
   let following = true
-  /** True while we are assigning `scrollTop` ourselves, so the scroll event
-   *  that assignment fires is not read as the reader leaving the bottom. */
-  let jumping = false
+  /** The `scrollTop` we last assigned. A later `scroll` event that still sits
+   *  here is our jump, not the reader — the event is dispatched after the
+   *  assignment returns, so a boolean around the write cannot see it. */
+  let assignedTop = Number.NaN
 
   const atBottom = (): boolean =>
     pane !== undefined &&
@@ -93,21 +99,15 @@ export function Transcript(props: { readonly chat: Chat }) {
 
   const jump = (): void => {
     if (pane === undefined) return
-    // The assignment fires `scroll` synchronously. Hold the flag only
-    // across that event — a frame later would also swallow a reader who
-    // left the bottom in the same turn, and the follow-observer would
-    // pull them back.
-    jumping = true
     pane.scrollTop = pane.scrollHeight
-    jumping = false
+    assignedTop = pane.scrollTop
   }
 
   onMount(() => {
     if (content === undefined) return
     // Content growing does NOT move `scrollTop`, so the browser fires no scroll
-    // event for it — which is what makes this safe: every scroll event this
-    // component sees is one the reader caused, or the one our own jump below
-    // causes (and that one is ignored, see `jumping`).
+    // event for it. New text is followed from here. The jump's own `scroll`
+    // arrives later and is recognised by `assignedTop`, not by a flag.
     const grown = new ResizeObserver(() => {
       if (following) jump()
     })
@@ -195,7 +195,15 @@ export function Transcript(props: { readonly chat: Chat }) {
       data-testid={TESTID.chatTranscript}
       ref={pane}
       onScroll={() => {
-        if (jumping) return
+        if (pane === undefined) return
+        // Same top we assigned: our jump's late event, or growth that left
+        // the top alone. If a follow is still owed and we are no longer at
+        // the bottom, more content landed after the assignment — re-jump
+        // rather than decide the reader left.
+        if (Number.isFinite(assignedTop) && Math.abs(pane.scrollTop - assignedTop) < 1) {
+          if (following && !atBottom()) jump()
+          return
+        }
         following = atBottom()
       }}
       onClick={(event) => {

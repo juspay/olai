@@ -18,6 +18,7 @@ import * as path from "node:path";
 import { Given, Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
+import { NEAR } from "@olai/web/src/client/chat/Transcript.tsx";
 import { selector, TESTID, type TestId } from "@olai/web/src/client/testids.ts";
 
 import {
@@ -160,6 +161,13 @@ When("the agent is released", async function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), ".agent-release"), "");
 });
 
+/** Ask the next `session/load` of `an older conversation` to hold a last
+ *  line until `the agent is released`. The open-jump can then be observed
+ *  before that growth, which is the claim the late-line scenario makes. */
+When("I arm late growth on the next stored conversation", function (this: OlaiWorld) {
+  fs.writeFileSync(path.join(this.scratch(), ".agent-want-late"), "");
+});
+
 /** Take a stored conversation out of the agent's store, the way a deleted
  *  session or a cleaned-out store would. The next boot's `session/list` no
  *  longer offers it, so a panel that remembers being in it has to fall back.
@@ -206,6 +214,21 @@ Then(
       async () => (await transcriptText(this)).includes(text),
       `the chat to say "${text}"`,
       HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+/** A read, not a wait: the step before it has already waited for something
+ *  that arrives BEFORE the late growth this is about, so if the late line
+ *  were already here the open-jump would have nothing left to follow. */
+Then(
+  "the chat does not yet show {string}",
+  async function (this: OlaiWorld, text: string) {
+    assert.ok(
+      !(await transcriptText(this)).includes(text),
+      `the chat already says "${text}" — the late growth this scenario is ` +
+        "about landed before the open-jump was observed, so the second " +
+        "assertion would not be testing growth after open",
     );
   },
 );
@@ -495,7 +518,7 @@ Then(
     await this.waitUntil(
       async () => {
         const at = await scrollOf(this);
-        return at.overflow > 0 && at.fromBottom < 64;
+        return at.overflow > 0 && at.fromBottom < NEAR;
       },
       "the transcript to be following the newest line",
       HYDRATION_TIMEOUT,
@@ -510,7 +533,7 @@ When("I scroll the transcript to the top", async function (this: OlaiWorld) {
       pane.scrollTop = 0;
     });
   await this.waitUntil(
-    async () => (await scrollOf(this)).fromBottom > 64,
+    async () => (await scrollOf(this)).fromBottom > NEAR,
     "the transcript to be scrolled away from the bottom",
   );
 });
@@ -520,7 +543,7 @@ Then(
   async function (this: OlaiWorld) {
     const at = await scrollOf(this);
     assert.ok(
-      at.fromBottom > 64,
+      at.fromBottom > NEAR,
       "the panel scrolled a reader who had deliberately scrolled away back to " +
         "the newest token. Being yanked out of what the agent did two turns " +
         "ago is worse than a panel that never scrolled at all.",

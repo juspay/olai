@@ -1591,6 +1591,17 @@ const replay = (): void => {
     for (let line = 0; line < 40; line++) {
       say(`line ${line} — ${"the quick brown fox jumps over the lazy dog. ".repeat(3)}\n\n`)
     }
+    // AFTER the open-jump has landed, and only when a scenario asked: a
+    // restored transcript's markdown (and any later row) grows the pane
+    // once the reader is already looking at it. Armed by `.agent-want-late`,
+    // released by the same `.agent-release` a held turn uses, so the late
+    // line is a step rather than a race against the first assertion.
+    if (existsSync(`${cwd}/.agent-want-late`)) {
+      rmSync(`${cwd}/.agent-want-late`, { force: true })
+      void released().then(() => {
+        say(`late line — ${"the quick brown fox jumps over the lazy dog. ".repeat(3)}\n\n`)
+      })
+    }
   }
 }
 

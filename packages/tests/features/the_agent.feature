@@ -950,6 +950,26 @@ Feature: Talking to the agent
     And the chat eventually shows "line 39"
     And the transcript is scrolled to the newest line
 
+  @agent-stored @scratch:chat
+  Scenario: Growth after opening still lands on the newest line
+    # The open-jump can pass while the pane is still growing — a restored
+    # conversation's markdown lands after the first paint, and a late row is
+    # the same shape. The first assertion is the open; the second is growth
+    # that arrives after that assertion has already passed. If following
+    # were stamped false by the jump's own late `scroll` event, the late
+    # line would leave the reader short of the newest. Armed and released
+    # rather than slept, so the two moments are steps, not a race.
+    When I arm late growth on the next stored conversation
+    And I open the session picker
+    And I pick the conversation "an older conversation"
+    Then the conversation is titled "an older conversation"
+    And the chat eventually shows "line 39"
+    And the transcript is scrolled to the newest line
+    And the chat does not yet show "late line"
+    When the agent is released
+    Then the chat eventually shows "late line"
+    And the transcript is scrolled to the newest line
+
   @scratch:chat
   Scenario: The agent's question is a form in the conversation, and the answer goes back
     # The panel advertises `elicitation.form`, so the agent may ask a
