@@ -4,12 +4,12 @@
  * {@link ./patch.ts} answers a one-file edit by rebuilding only what depended
  * on that file — and then paid for a whole `new Map(byId)` anyway, one clone of
  * an entry per record in the directory, so that the revision a reader is
- * holding could not move under them. On a 21,000-record vault that clone was
- * the single largest cost in a patch, at roughly half of it (`docs/
- * brainstorming/model-indices.md`, open question 1, measured by slice 3). This
- * is the lever that question named: a LAYER over the map the last patch left
- * standing, holding the entries this one changed, so an edit costs what it
- * touched rather than what the directory holds.
+ * holding could not move under them. On a 21,552-record vault that clone was
+ * the single largest cost in a patch, 0.6ms of 1.6ms (`docs/brainstorming/
+ * model-indices.md`, open question 1). This is the lever that question named: a
+ * LAYER over the map the last patch left standing, holding the entries this one
+ * changed, so an edit costs what it touched rather than what the directory
+ * holds.
  *
  * WHAT IT IS EQUAL TO is the whole of its contract, and it is one line:
  *
@@ -17,11 +17,24 @@
  *
  * Same answers, same `size`, same key order, same iteration — a `ReadonlyMap`
  * a caller cannot tell from the one it replaces, which is why nothing that
- * reads {@link ../format/src/derive.ts}'s `Derived.byId` had to learn about it.
- * Key order is not a detail here: the did-you-mean behind every unknown-target
- * error walks those keys and promises that ties go to the first candidate
- * offered ({@link ./suggest.ts}), so two readings of one set must offer them in
- * one order.
+ * reads {@link ./derive.ts}'s `Derived.byId` had to learn about it. Key order
+ * is not a detail here: the did-you-mean behind every unknown-target error
+ * walks those keys and promises that ties go to the first candidate offered
+ * ({@link ./suggest.ts}), so two readings of one set must offer them in one
+ * order.
+ *
+ * WHY NOT A PERSISTENT MAP, which is the other half of what the open question
+ * offered and would have cost nothing to import: `effect`'s `HashMap` is
+ * already in this package's dependencies and is exactly the structure — a HAMT
+ * with structural sharing, where a change costs the path to it. It is ruled out
+ * by the paragraph above and by the one after it. A HAMT iterates in HASH
+ * order, and `byId`'s key order is a promise a reader spends; and it is not a
+ * `ReadonlyMap` — `get` answers with an `Option` — so adopting it would rewrite
+ * the forty-odd call sites that read this index across three packages, to reach
+ * a structure this one is not asking for. What a patch does to `byId` is
+ * replace values at keys it already has: the narrowest structure that does that
+ * is a layer, and the narrowest structure is the one whose promises can be
+ * checked.
  *
  * IT IS COPY-ON-WRITE AND NOT A MUTATION. `base` is never touched, and the
  * value it gave a key stays whatever it was — a reader holding the previous
@@ -65,6 +78,13 @@
  * the generator below costs more per entry than the 0.1ms clone it would save,
  * where `byId`'s only whole-index reader asks for {@link Layer.keys}, which is
  * the underlying map's own iterator and not a generator at all.
+ *
+ * IT KNOWS NOTHING ABOUT OUTLINES, and it lives here anyway: this package is
+ * the floor of the tree (`docs/architecture.md`), so the lowest honest home for
+ * a structure with one consumer in it is beside that consumer. Population one
+ * is the reason it is not somewhere shared yet rather than an argument that it
+ * never should be — a second caller, here or in kolu, is what would move it,
+ * and nothing about the shape would have to change when it does.
  */
 
 /**

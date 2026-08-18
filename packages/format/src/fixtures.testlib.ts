@@ -216,7 +216,7 @@ const unparsable = (
  * Here rather than in either benchmark for {@link seeded}'s own reason, and
  * with a sharper edge on it: two benches quote figures about "the 1,000-file
  * vault" — what a frame costs a tab (`@olai/web`'s `deriving.bench.ts`) and
- * what a patch costs the patcher underneath it ({@link ../patch.bench.ts}) —
+ * what a patch costs the patcher underneath it ({@link ./patch.bench.ts}) —
  * and two numbers about two different generated corpora are two numbers nobody
  * may compare. One generator is what makes them one vault.
  *
@@ -298,5 +298,16 @@ const fileOf = (random: () => number, at: number, records: number): string => {
  * find it — have to agree about what was written, and the regex here is the
  * half that knows what {@link vaultOf} wrote.
  */
-export const retitled = (text: string, title: string): string =>
-  text.replace(/"title":"record 1 of file \d+"/, `"title":${JSON.stringify(title)}`)
+export const retitled = (text: string, title: string): string => {
+  const written = text.replace(/"title":"record 1 of file \d+"/, `"title":${JSON.stringify(title)}`)
+  // THROWN rather than handed back unchanged, like every other fixture in this
+  // module: a no-op here is a benchmark whose edit edits nothing, and the arm
+  // that catches it catches it one step later and blames the arm.
+  if (written === text) {
+    throw new Error(
+      `fixture: this is not a \`vaultOf\` file — it holds no record to retitle:\n` +
+        text.split("\n").slice(0, 3).map((line, index) => `  ${index + 1} | ${line}`).join("\n"),
+    )
+  }
+  return written
+}
