@@ -95,3 +95,33 @@ test("nowhere to aim at all is an answer, and it is silence", () => {
   // there is nothing to land in and nothing to refuse either.
   expect(asked([], 24, 25)).toBe("nothing")
 })
+
+test("the panes tile the width and share the height, which is why X decides", () => {
+  // The invariant `awayFrom` rests on, pinned rather than left implicit. Both
+  // panes are measured against the same clipped viewport band, so every box
+  // gives the SAME vertical answer and only the horizontal one can separate
+  // them — which is what makes "the nearest pane" mean "the column the pointer
+  // is in" for a row split, whatever y the pointer is at.
+  expect(asked([here, there], 24, 25)).toBe("under (top) after one")
+  expect(asked([here, there], 524, 25)).toBe("under (top) after three")
+  // Far down the shared band, where only Y has changed: the same two answers,
+  // deeper into each pane's own list.
+  expect(asked([here, there], 24, 700)).toBe("under (top) after two")
+  expect(asked([here, there], 524, 700)).toBe("under (top) after four")
+})
+
+test("a pane STACKED under another is picked by Y, which X alone could not do", () => {
+  // The projection `../pane/geometry.ts` already names (`Axis = "row" | "col"`)
+  // and does not draw yet. Two panes sharing a column: a horizontal-only
+  // reading would give both the same answer and pick whichever came first,
+  // silently. Pinned now so the day that split lands, the aim is already right
+  // rather than plausibly wrong.
+  const above = { ...here, box: { top: 0, left: 0, width: 500, height: 400 } }
+  const below = {
+    ...there,
+    box: { top: 400, left: 0, width: 500, height: 400 },
+    placed: [placed("three", 0, 21, 20), placed("four", 0, 22, 20)],
+  }
+  expect(asked([above, below], 24, 25)).toBe("under (top) after one")
+  expect(asked([above, below], 24, 445)).toBe("under (top) after three")
+})

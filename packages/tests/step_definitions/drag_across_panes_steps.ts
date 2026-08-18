@@ -24,7 +24,7 @@ import { Then, When } from "@cucumber/cucumber";
 import { aboveTitle, carry, titleOf } from "../support/dragging.ts";
 import { childOf, notChildOf } from "../support/nesting.ts";
 import { saysThat } from "../support/said.ts";
-import { DROP_LINE, DROP_REFUSED } from "../support/world.ts";
+import { DROP_LINE, DROP_REFUSED, POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 // ── carrying a row across ──────────────────────────────────────────────
@@ -92,6 +92,23 @@ Then(
   "the refused pane says {string}",
   async function (this: OlaiWorld, said: string) {
     await saysThat(this, DROP_REFUSED, said, "refusal over the pane");
+  },
+);
+
+/** The negative of the pair above, and it is a real assertion rather than a
+ *  negated one: the face IS drawn, and what is being held is that it carries
+ *  the OTHER of the two sentences. Two pieces of news share one box, so a
+ *  scenario that only checked for its own words would pass on either. */
+Then(
+  "the refused pane does not say {string}",
+  async function (this: OlaiWorld, said: string) {
+    const face = this.page.locator(DROP_REFUSED).first();
+    await face.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const text = (await face.innerText()).trim();
+    assert.ok(
+      !text.includes(said),
+      `the refusal reads ${JSON.stringify(text)}, which mentions ${JSON.stringify(said)} and should not`,
+    );
   },
 );
 

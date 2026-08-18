@@ -44,6 +44,14 @@ Feature: Dragging a row from one pane into the other
     # The affordance is identical to an in-pane drop's, which means it has to
     # be over the ROWS it is about — the pane the pointer is in, not the pane
     # the press began in.
+    #
+    # THIS IS THE GEOMETRIC ASSERTION, and it is worth saying that it carries
+    # more than it looks like it does. With one file in both panes the two trees
+    # are identical, so a plan made against the WRONG pane's boxes computes the
+    # same `data-parent` and `data-after` — the scenario above cannot tell them
+    # apart, and neither can the file. What separates them is where the line is
+    # DRAWN, which is why this scenario exists and why the one below asserts the
+    # same thing from the other side (review, opencode + grok, 2026-08-18).
     When I open the address "/s/o%2Fhouse.olai/o%2Fhouse.olai"
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 1
     Then the drop line is drawn over pane 1
@@ -93,4 +101,32 @@ Feature: Dragging a row from one pane into the other
     And the drop line would put it under "kitchen"
     When I let go
     Then the node "knobs" is a child of "kitchen" in pane 0
+    And there should be no page errors
+
+  # ── a pane zoomed INSIDE what the hand is holding ────────────────────
+
+  Scenario: A pane zoomed into the branch being carried has nowhere to put it
+    # The other way a page can have no landing, and the one that is NOT about
+    # files: pane 1 is zoomed into `install`, so every row it draws is under the
+    # branch pane 0 just lifted. "A branch is never offered a place inside
+    # itself" is answered ACROSS two pages here, which a row key cannot do — a
+    # zoomed page's keys start at its own roots, so `/handles` says nothing
+    # about `install` being above it. What answers is the page's own zoom
+    # ancestry (`drag/fields.ts`'s `within`), asked once for the whole page.
+    #
+    # Delete that early-out and this scenario fails rather than argues: pane 1's
+    # three children become candidates, and the line offers to put `install`
+    # inside itself — the loop the ops layer would then have to refuse.
+    When I open the address "/s/o%2Fhouse.olai/n%2Finstall"
+    And I mark the page
+    And I pick up the bullet of "install" in pane 0 and hold it over the title of "handles" in pane 1
+    Then the drop is refused by "house.olai"
+    And the refused pane says "inside what you are carrying"
+    # ...and NOT the file rule's words, which is the whole reason there are two
+    # sentences: nothing here is about files at all.
+    And the refused pane does not say "another file"
+    And no drop line is drawn
+    When I let go
+    Then the pick says "inside what you are carrying"
+    And the node "install" is a child of "kitchen" in pane 0
     And there should be no page errors
