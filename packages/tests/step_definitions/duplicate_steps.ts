@@ -182,9 +182,24 @@ Then(
         `the copy of \`${String(was["id"])}\` carries its id`,
       );
     }
-    // THE GUARANTEE, stated over the whole file rather than over the pairs: no
-    // id in the outline is claimed twice. A copy that reused one would resolve
-    // every reference to whichever record the derivation kept.
+    // THE TWO SUBTREES SHARE NO ID, asserted over the union rather than left to
+    // fall out of the pairwise check above (opencode, review of 85c64a83).
+    //
+    // The pairwise check reads a pair at a time, so its guarantee is "no copy
+    // carries the id of the record it was paired WITH" — which is the claim
+    // only as long as the pairing lined the two subtrees up the way this
+    // harness believes it did. This one needs no such belief: 2N records, 2N
+    // distinct ids, or the copy is standing on the original somewhere. It is
+    // also the half that is legible without reading `paired` at all.
+    const both = pairs.flatMap(([was, copy]) => [String(was["id"]), String(copy["id"])]);
+    assert.strictEqual(
+      new Set(both).size,
+      both.length,
+      `the original and its copy share an id: ${both.join(", ")}`,
+    );
+    // …and THE WHOLE FILE, which is the guarantee as the format states it: an
+    // id is unique across the set, so a copy that reused one belonging to a
+    // record neither subtree holds is caught here and nowhere above.
     const ids = nodesIn(this, file).map((node) => String(node["id"]));
     assert.strictEqual(
       new Set(ids).size,

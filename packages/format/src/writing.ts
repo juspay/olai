@@ -614,6 +614,12 @@ export const ArchiveRequest = Schema.Struct({
  * copied and there is nothing else the reference could mean. A mirror stays a
  * MIRROR either way: a placement is copied as a placement, never expanded into
  * a twin of the node it shows.
+ *
+ * AND THE THIRD CASE, which is the rule read from the other end: a reference
+ * pointing INTO the subtree from outside it is not followed at all — the
+ * original keeps it. That record was not copied and this write was not asked
+ * to touch it, so copying its edge would invent a second claim nobody made and
+ * moving it would take one away. Only the records being copied are rewritten.
  */
 export const DuplicateRequest = Schema.Struct({
   op: Schema.Literal("duplicate"),

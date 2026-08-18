@@ -104,6 +104,8 @@ Both keys are ONE write at the same gate everything else goes through, and an ag
 
 **What the copy points at follows one rule with two halves.** A reference the branch made to ITSELF is re-aimed at the copy: a row that waited on its own sibling waits on the copy of that sibling, a `see` between two rows inside it links the two copies, and a mirror placed under it is copied as a mirror in the same place. A reference that LEFT the branch keeps its target, because that target was not copied and there is nothing else it could mean — so a copied row that waited on something outside still waits on the same thing. The copy is therefore a working copy of the shape rather than a tangle of half-references back into the original.
 
+**What points AT the branch does not follow it.** A row somewhere else that linked to something inside what you copied still links to that same thing — the original — because that row was not copied and nothing you did was about it. So duplicating never quietly re-aims somebody else's reference, and never doubles it.
+
 **A mirror is copied as a placement**, never as a twin: the copied line still shows the node it always showed, wherever that lives, so duplicating a Now list gives you a second list of the same work rather than a second copy of the work.
 
 **There is no Duplicate on a placement.** A mirror's own verb is `Remove this placement`: copying through one would write a branch into the file its target lives in, out of sight of the line you clicked. Ask for it on the node itself.

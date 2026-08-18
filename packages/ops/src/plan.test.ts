@@ -3606,6 +3606,30 @@ describe("duplicate", () => {
     expect(record(made, "n2").see).toEqual(["permit"])
   })
 
+test("an edge pointing INTO the subtree stays on the original", () => {
+    // THE THIRD CASE of the point-at rule, and the one neither of the two
+    // above states: an edge whose far end is outside what was copied is a
+    // claim made by a record this write was not asked to touch. Copying it
+    // would invent a second claim nobody made; swinging it onto the copy
+    // would take one away.
+    const set = setOf({
+      "house.olai": [
+        `{"id":"job","ord":"a0","title":"the job"}`,
+        `{"id":"order","parent":"job","ord":"a0","title":"order","todo":true}`,
+        `{"id":"watcher","ord":"a1","title":"the watcher","see":["order"],"after":["order"]}`,
+      ].join("\n"),
+    })
+    const { nodes } = copied(set, "job")
+    // The outsider still names the ORIGINAL, on both of its edges…
+    expect(record(nodes, "watcher").see).toEqual(["order"])
+    expect(record(nodes, "watcher").after).toEqual(["order"])
+    // …and nothing was minted pointing at the copy of it.
+    const made = fresh(set, nodes)
+    expect(made.map((node) => (node as RegularNode).title)).toEqual(["the job", "order"])
+    for (const node of made) expect((node as RegularNode).see).toBeUndefined()
+  })
+
+
   test("a mirror under the subtree is copied as a PLACEMENT, target and all", () => {
     const set = setOf({
       "house.olai": [
