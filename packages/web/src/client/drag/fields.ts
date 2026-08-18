@@ -33,7 +33,7 @@
  */
 
 import type { Row } from "@olai/format"
-import { type Accessor, createContext, onCleanup, useContext } from "solid-js"
+import { type Accessor, createContext, createSignal, onCleanup, useContext } from "solid-js"
 
 /** One editable page, as something a drag can aim at. */
 export interface Field {
@@ -80,21 +80,26 @@ export const FieldsProvider = FieldsContext.Provider
 /**
  * The registry, made once per app.
  *
- * A plain array behind no signal, and that is the decision: nothing DRAWS the
- * field list — it is read once, when a drag lifts, by the gesture that is about
- * to measure it. A signal would re-run every reader on every pane mount for an
- * answer nobody is watching.
+ * SUCCESSIVE VALUES rather than one array mutated in place, which costs nothing
+ * here and is worth saying why: what is on screen is a fact with one writer (a
+ * page mounting or unmounting) and several readers, and a shared array is a
+ * place two of them could disagree about mid-write. A pane mount is rare and a
+ * workspace is a handful of pages, so the copy is not a cost anybody can
+ * measure — while an `all()` that hands out the live array is a caller free to
+ * splice the workspace.
+ *
+ * {@link Fields.join} MUST be called during a component's setup, because that is
+ * where its `onCleanup` finds an owner; Solid says so itself on a call without
+ * one. That is not a fence — it is what makes the register a reading of the
+ * screen rather than a list of every page that was ever drawn.
  */
 export const createFields = (): Fields => {
-  const joined: Array<Field> = []
+  const [joined, setJoined] = createSignal<ReadonlyArray<Field>>([])
   return {
     join: (field) => {
-      joined.push(field)
-      onCleanup(() => {
-        const at = joined.indexOf(field)
-        if (at >= 0) joined.splice(at, 1)
-      })
+      setJoined((were) => [...were, field])
+      onCleanup(() => setJoined((were) => were.filter((one) => one !== field)))
     },
-    all: () => joined,
+    all: joined,
   }
 }

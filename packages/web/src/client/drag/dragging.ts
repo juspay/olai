@@ -96,6 +96,23 @@ import type { Landing, Placed } from "./plan.ts"
  */
 export const HANDLE = "data-handle"
 
+/**
+ * WHAT A LIFT DECIDED: the file the rows in the air came from, and every page
+ * on screen measured for them.
+ *
+ * ONE value rather than two locals beside each other, and the reason is that
+ * neither means anything without the other: a page is measured AGAINST a file
+ * (rows of any other are not candidates there), and a file with no pages
+ * measured for it is a question nobody can be asked. Two fields would need a
+ * "no file yet" to stand in the gap before a gesture becomes a drag, and the
+ * only spellings for that are a sentinel nobody may compare against or a second
+ * `null` to keep in step with the first.
+ */
+interface Lifted {
+  readonly from: string
+  readonly pages: ReadonlyArray<Aimed>
+}
+
 export interface Dragging {
   /** Is this place in the air — either picked up, or drawn under something
    *  that was? A subtree moves whole, so the whole of it fades: a branch that
@@ -227,23 +244,24 @@ export const createDragging = (
    * (`./lines.ts`), shared with the sweep, and what is left in this file is the
    * only part that is about a PLACEMENT.
    */
-  const measure = (carried: ReadonlyArray<Row>): ReadonlyArray<Aimed> => {
+  const measure = (carried: ReadonlyArray<Row>): Lifted | null => {
     // The file the drag is ABOUT — the carried rows', not any page's, which is
     // what makes a mirror's children draggable among themselves. A pick that
     // spans two files has no one answer; the rows of the other file are then
     // left out, and the ops layer refuses them by name on the bar, which is the
     // same way every other half-legal run ends here.
-    const file = carried[0]?.at.file
-    if (file === undefined) return []
+    const from = carried[0]?.at.file
+    if (from === undefined) return null
     const held = new Set(carried.map((one) => one.at.node.id))
-    return fields.all().flatMap((field): ReadonlyArray<Aimed> => {
+    const pages = fields.all().flatMap((field): ReadonlyArray<Aimed> => {
       const drawn = field.element()
       if (drawn === undefined) return []
       const pane = paneOf(drawn)
       const box = measureBox(pane)
       if (box === null) return []
-      return [{ file: field.file, box, placed: placeable(field, pane, file, held) }]
+      return [{ file: field.file, box, placed: placeable(field, pane, from, held) }]
     })
+    return { from, pages }
   }
 
   /** One page's rows, as places a drop may land beside. The reading above,
@@ -322,10 +340,8 @@ export const createDragging = (
      *  than at the press: a press that turns out to be a click must not have
      *  cleared the selection on its way past. */
     let carried: ReadonlyArray<Row> = []
-    let pages: ReadonlyArray<Aimed> = []
-    /** The file the rows in the air came from — a fact about the GESTURE, and
-     *  what a page with none of it is refused BY name (`./aim.ts`). */
-    let carriedFrom = ""
+    /** What the lift decided, or `null` until it has happened. */
+    let lifted: Lifted | null = null
 
     const lift = () => {
       travelled = true
@@ -333,8 +349,7 @@ export const createDragging = (
       carried = picked.has(row.key) ? page.selection.rows() : [row]
       if (!picked.has(row.key)) page.selection.clear()
       setMoving(new Set(carried.map((one) => one.key)))
-      carriedFrom = carried[0]?.at.file ?? ""
-      pages = measure(carried)
+      lifted = measure(carried)
     }
 
     if (held) {
@@ -353,7 +368,7 @@ export const createDragging = (
       // behind it (`../pointer.ts`, `../autoscroll.ts`). Without that the reach
       // of a drag is whatever was visible when the press landed, which on an
       // outline is most of the gesture missing.
-      onPage: (x, y) => setAim(aimAt(pages, carriedFrom, x, y)),
+      onPage: (x, y) => setAim(lifted === null ? null : aimAt(lifted.pages, lifted.from, x, y)),
       onEnd: (up) => {
         if (held) freeScroll()
         // A CANCELLED gesture is not a drop, and the difference is the whole

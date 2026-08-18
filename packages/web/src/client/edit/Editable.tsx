@@ -75,11 +75,14 @@ export function Editable(props: {
    *  FOR is a drag from another pane, which has to be told which file said no
    *  (`../drag/fields.ts`). */
   readonly file: string
-  /** The nodes this page is drawn INSIDE, its own zoomed node last — empty for
-   *  a whole outline. The ancestry a `Row.key` here cannot spell, and therefore
-   *  the half of "a branch is never offered a place inside itself" that only a
+  /** The nodes this page is drawn INSIDE, its own zoomed node last — and `[]`
+   *  for a whole outline, which is an ANSWER rather than an absence and is why
+   *  it is not optional: an outline is inside nothing, and a page that forgot
+   *  to say what it is inside would silently offer a drop into the branch it is
+   *  a zoom of. The ancestry a `Row.key` here cannot spell, and therefore the
+   *  half of "a branch is never offered a place inside itself" that only a
    *  second pane can ask for. */
-  readonly within?: ReadonlyArray<string>
+  readonly within: ReadonlyArray<string>
   readonly children: JSX.Element
 }) {
   const page = {
@@ -109,7 +112,7 @@ export function Editable(props: {
       return props.file
     },
     get within() {
-      return props.within ?? []
+      return props.within
     },
     rows: page.rows,
     collapsed: page.collapsed,

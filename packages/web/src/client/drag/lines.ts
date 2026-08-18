@@ -1,6 +1,13 @@
 /**
- * A DRAWN ROW'S LINE, as something a gesture can measure — the attribute it
- * carries, the box it occupies, and where every one of them is.
+ * WHAT A GESTURE MEASURES OFF THE PAGE: a drawn row's LINE, and the PAGE those
+ * lines are in.
+ *
+ * The second half arrived with the second pane and is not a separate subject —
+ * it is the first one's scope. A `Row.key` is unique inside a page and not
+ * across two, so "where are the lines" cannot be asked without saying WHICH
+ * page, and where that page is on screen is the same reading (`paneOf` finds
+ * it, {@link measureBox} says where it is). Splitting them would be two modules
+ * that had to agree about what a page is.
  *
  * Two gestures aim at rows and both begin by asking the page the same question:
  * where are the lines, in coordinates that survive a scroll. Each had its own
