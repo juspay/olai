@@ -208,3 +208,95 @@ const unparsable = (
     "as written:",
     ...contents.split("\n").map((line, index) => `  ${index + 1} | ${line}`),
   ].join("\n")
+
+/**
+ * A GENERATED VAULT: path → the file's JSONL, one directory's worth of
+ * outlines with the shapes a real one has.
+ *
+ * Here rather than in either benchmark for {@link seeded}'s own reason, and
+ * with a sharper edge on it: two benches quote figures about "the 1,000-file
+ * vault" — what a frame costs a tab (`@olai/web`'s `deriving.bench.ts`) and
+ * what a patch costs the patcher underneath it ({@link ../patch.bench.ts}) —
+ * and two numbers about two different generated corpora are two numbers nobody
+ * may compare. One generator is what makes them one vault.
+ *
+ * WHAT IT WRITES, and each of the shapes earns its place: a root per file with
+ * its records under it, marks on about a third of them so blockedness has
+ * something to answer, an `after` edge on a tenth so the ordering graph is not
+ * empty, and — every twentieth record — a MIRROR pointing into the file before
+ * this one, so a mark that flips reaches a file the delta never named and the
+ * dirty set is not always one record. Paths are mostly flat, some nested, and
+ * a few in a directory named after a file beside it: the pair the two readings
+ * of path order used to disagree about.
+ *
+ * SEEDED, so the corpus is a fixture rather than a lottery, and the seed is a
+ * parameter rather than a constant so a caller that wants a second, different
+ * vault of the same shape can have one.
+ */
+export const vaultOf = (
+  { files, records, seed = 20260817 }: {
+    readonly files: number
+    readonly records: number
+    readonly seed?: number
+  },
+): ReadonlyMap<string, string> => {
+  const random = seeded(seed)
+  const corpus = new Map<string, string>()
+  for (let at = 0; at < files; at++) {
+    const path = pathOf(random, at)
+    if (corpus.has(path)) continue
+    corpus.set(path, fileOf(random, at, records))
+  }
+  return corpus
+}
+
+/** Paths a directory really holds — see {@link vaultOf}. Drawn from the same
+ *  stream the records are, so the whole vault is one seed's answer. */
+const pathOf = (random: () => number, at: number): string => {
+  const roll = random()
+  if (roll < 0.2) return `area${at % 20}/note${at}.olai`
+  if (roll < 0.24) return `area${at % 20}.olai`
+  return `note${at}.olai`
+}
+
+/** One file's JSONL: a root and its children, some marked, a few naming each
+ *  other and a few standing for a record in the file before them. */
+const fileOf = (random: () => number, at: number, records: number): string => {
+  const lines: Array<string> = []
+  const root = `f${at}r`
+  lines.push(JSON.stringify({ id: root, ord: "a0", title: `file ${at}` }))
+  for (let which = 1; which < records; which++) {
+    const id = `f${at}n${which}`
+    const record: Record<string, unknown> = {
+      id,
+      parent: root,
+      ord: `a${which}`,
+      title: `record ${which} of file ${at}`,
+    }
+    if (random() < 0.3) record["todo"] = true
+    else if (random() < 0.15) record["done"] = true
+    if (which > 1 && random() < 0.1) record["after"] = [`f${at}n${which - 1}`]
+    // A placement pointing into the file before this one, so a mark that flips
+    // reaches a file the frame never named.
+    if (at > 0 && random() < 0.05) {
+      lines.push(
+        JSON.stringify({ id: `${id}m`, parent: root, ord: `b${which}`, mirror: `f${at - 1}n1` }),
+      )
+    }
+    lines.push(JSON.stringify(record))
+  }
+  return lines.join("\n")
+}
+
+/**
+ * One record of a {@link vaultOf} file, retitled — the EDIT both benches make,
+ * spelled once beside the generator whose titles it has to match.
+ *
+ * A benchmark's edit is not decoration: an arm that answered a frame it never
+ * recomputed reports a magnificent number, and what catches that is reading the
+ * new title back out of the arm's own answer. So the two halves — write it,
+ * find it — have to agree about what was written, and the regex here is the
+ * half that knows what {@link vaultOf} wrote.
+ */
+export const retitled = (text: string, title: string): string =>
+  text.replace(/"title":"record 1 of file \d+"/, `"title":${JSON.stringify(title)}`)

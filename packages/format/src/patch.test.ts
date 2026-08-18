@@ -353,6 +353,29 @@ test("an edit keeps the files it did not touch, entry by entry", () => {
   expect(next.byId.get("m")).toBe(view.byId.get("m"))
 })
 
+test("an edit does not copy the id map — it layers over it", () => {
+  // The economy of the patch, said about the index that used to break it: `byId`
+  // has an entry per record in the DIRECTORY, and cloning it was the single
+  // largest cost in a patch (`./overlay.ts`, `./patch.bench.ts`). Nothing else
+  // in the tree can tell a layer from a map — that is the whole contract, and
+  // every assertion above holds either way — so this is the one place the
+  // difference is visible, and it is asserted here rather than measured in a
+  // benchmark nobody runs on a lane.
+  const before: Corpus = {
+    "a.olai": `{"id":"p","ord":"a","title":"p"}\n{"id":"q","ord":"b","title":"q"}`,
+    "b.olai": `{"id":"r","ord":"a","title":"r"}\n{"id":"s","ord":"b","title":"s"}`,
+    "deep/c.olai": `{"id":"t","ord":"a","title":"t"}\n{"id":"u","ord":"b","title":"u"}`,
+  }
+  const typed = `{"id":"p","ord":"a","title":"p again"}\n{"id":"q","ord":"b","title":"q"}`
+  const view = viewOf(before)
+  const next = patched(view, editing("a.olai", typed))
+  expect(next).toBeDefined()
+  same(next as Derived, viewOf({ ...before, "a.olai": typed }), () => "a title typed")
+  expect((next as Derived).byId instanceof Map).toBe(false)
+  // And the view a reader was already holding still answers with what it held.
+  expect(view.byId.get("p")?.node).toMatchObject({ title: "p" })
+})
+
 test("a mirror chain that dangled resolves the moment its target arrives", () => {
   // `mirrorsOf` files a chain under the node it ENDS at, and this one ends
   // nowhere — so nothing but the raw index can find these two placements when

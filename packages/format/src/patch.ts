@@ -31,6 +31,15 @@
  * already holding never moves under them. What is not touched is shared, which
  * is the whole economy of the thing.
  *
+ * EXCEPT FOR THE ONE MAP THAT IS THE CORPUS. `byId` has an entry per record in
+ * the directory, and cloning it was the largest single cost in a patch —
+ * roughly half of one, which is a copy-on-write that costs what the directory
+ * holds inside a function whose whole claim is that it costs what the edit
+ * touched. It is LAYERED instead ({@link ./overlay.ts}): the entries this edit
+ * changed, over the map the last patch left standing. Same answers, same key
+ * order, same everything a reader can ask — and the old view goes on being
+ * answered by the map it was given, which is the property the clone was for.
+ *
  * WHAT IT ASSUMES ABOUT ITS INPUT, said out loud because it is not checked: the
  * view it is handed is one of an ASSEMBLED set — files in path order, records
  * in line order within a file ({@link ./set.ts}'s `assemble`) — and the records
@@ -54,6 +63,7 @@ import {
   storedMarker,
 } from "./derive.ts"
 import { isMirror, type Located, type Status, targetsOf } from "./node.ts"
+import { overlaid } from "./overlay.ts"
 import { byPath } from "./paths.ts"
 
 /**
@@ -349,9 +359,11 @@ const ids = (
     for (const at of nodes) if (!byId.has(at.node.id)) byId.set(at.node.id, at)
     return byId
   }
-  const byId = new Map(edit.before.byId)
-  for (const at of edit.incoming) byId.set(at.node.id, at)
-  return byId
+  // A LAYER over the map that stood, rather than a clone of it: with no key
+  // added, moved or dropped, what this edit changed is a value per arriving
+  // record, and the other twenty thousand are the map's own answers still
+  // ({@link ./overlay.ts}, which is where the trade is argued and measured).
+  return overlaid(edit.before.byId, edit.incoming.map((at) => [at.node.id, at]))
 }
 
 /**
