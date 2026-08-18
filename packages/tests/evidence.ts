@@ -208,27 +208,42 @@ const recordsIn = (file: string): ReadonlyArray<Record<string, unknown>> => {
     .map((line) => JSON.parse(line) as Record<string, unknown>)
 }
 
+/** Every id one outline holds right now — what a section takes BEFORE a write
+ *  so it can name what that write MADE afterwards. */
+const idsIn = (file: string): ReadonlySet<string> =>
+  new Set(recordsIn(file).map((record) => String(record["id"])))
+
 /**
- * THE COPY a duplicate just made, found the way a reader finds it: the other
- * record among the same siblings that says what this one says.
+ * The ROOT of the copy a duplicate just made, found the way the op's own
+ * promise says to find it: the record this write brought into being that sits
+ * among the ORIGINAL's siblings.
  *
  * Its id is MINTED by the write, so nothing here may spell one — which is also
- * the fact the shots are about. A throw when there are not exactly two is the
- * guard {@link shotSays} is: a section that photographed the wrong row would
- * be a picture that lies.
+ * the fact the shots are about. What the driver has instead is the set of ids
+ * that existed a moment ago, which is exact where a title match is a guess: the
+ * two branches say the same thing after a duplicate, so a section that found
+ * the copy by its title would go on finding SOMETHING after a write that made
+ * the wrong thing, or nothing at all. A throw when there is not exactly one is
+ * the guard {@link shotSays} is: a section that photographed the wrong row
+ * would be a picture that lies.
  */
-const twinOf = (file: string, id: string): Record<string, unknown> => {
+const copyRootOf = (
+  file: string,
+  before: ReadonlySet<string>,
+  id: string,
+): Record<string, unknown> => {
   const records = recordsIn(file)
   const original = records.find((record) => record["id"] === id)
   if (original === undefined) throw new Error(`no record \`${id}\` in ${file}`)
-  const twins = records.filter((record) =>
-    record["id"] !== id && record["title"] === original["title"] &&
-    record["parent"] === original["parent"]
+  const made = records.filter((record) =>
+    !before.has(String(record["id"])) && record["parent"] === original["parent"]
   )
-  if (twins.length !== 1) {
-    throw new Error(`${twins.length} records sit beside \`${id}\` saying what it says`)
+  if (made.length !== 1) {
+    throw new Error(
+      `${made.length} records were made beside \`${id}\`, and a copy is one`,
+    )
   }
-  return twins[0] as Record<string, unknown>
+  return made[0] as Record<string, unknown>
 }
 
 /**
@@ -1279,6 +1294,7 @@ const SECTIONS = {
     // `install the cabinets` is three rows deep with a `doc`, two `todo`
     // children and an `after` edge leaving the subtree — most of what a record
     // can carry, which is the point of copying this one.
+    const before = idsIn("house.olai")
     console.log(`  before:    ${recordOf("install")}`)
     await shot(page, "before")
 
@@ -1288,8 +1304,7 @@ const SECTIONS = {
 
     await page.locator(DUPLICATE_VERB).first().click()
     await page.waitForTimeout(SETTLE)
-    const copy = twinOf("house.olai", "install")
-    const id = String(copy["id"])
+    const id = String(copyRootOf("house.olai", before, "install")["id"])
     console.log(`  the copy:  ${recordOf(id)}`)
     // The FRESH-ID guarantee, printed where a picture cannot show it: the copy
     // of the row that waits on two things waits on the COPY of the one inside

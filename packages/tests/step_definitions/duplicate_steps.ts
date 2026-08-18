@@ -47,6 +47,16 @@ const DIFFERS = new Set([
 const nodesIn = (world: OlaiWorld, file: string): ReadonlyArray<Record_> =>
   world.servedNodesSoFar(file) as ReadonlyArray<Record_>;
 
+/** A record with the line it sits on — what {@link childrenOf} sorts, built
+ *  once per read rather than per row of children. */
+interface Placed {
+  readonly node: Record_;
+  readonly line: number;
+}
+
+const placedIn = (world: OlaiWorld, file: string): ReadonlyArray<Placed> =>
+  nodesIn(world, file).map((node, line) => ({ node, line }));
+
 /**
  * One row of children, in the order the outline reads them — the format's own
  * `byOrd` rule, spelled WHOLE: `ord` is a fractional index over base62, so
@@ -64,11 +74,10 @@ const nodesIn = (world: OlaiWorld, file: string): ReadonlyArray<Record_> =>
  * the same file a different way from the app under test.
  */
 const childrenOf = (
-  nodes: ReadonlyArray<Record_>,
+  rows: ReadonlyArray<Placed>,
   parent: unknown,
 ): ReadonlyArray<Record_> =>
-  nodes
-    .map((node, line) => ({ node, line }))
+  rows
     .filter(({ node }) => node["parent"] === parent)
     .sort((a, b) =>
       a.node["ord"] === b.node["ord"]
@@ -79,10 +88,10 @@ const childrenOf = (
     )
     .map(({ node }) => node);
 
-const named = (nodes: ReadonlyArray<Record_>, id: string): Record_ => {
-  const found = nodes.find((node) => node["id"] === id);
+const named = (rows: ReadonlyArray<Placed>, id: string): Record_ => {
+  const found = rows.find(({ node }) => node["id"] === id);
   if (found === undefined) throw new Error(`no record \`${id}\` in the outline`);
-  return found;
+  return found.node;
 };
 
 /**
@@ -106,9 +115,9 @@ const paired = (
   file: string,
   id: string,
 ): ReadonlyArray<readonly [Record_, Record_]> | undefined => {
-  const nodes = nodesIn(world, file);
-  const original = named(nodes, id);
-  const row = childrenOf(nodes, original["parent"]);
+  const rows = placedIn(world, file);
+  const original = named(rows, id);
+  const row = childrenOf(rows, original["parent"]);
   const at = row.findIndex((node) => node["id"] === id);
   const copy = row[at + 1];
   // Not there YET: the write is a round trip, and the row below the original is
@@ -118,8 +127,8 @@ const paired = (
   const pairs: Array<readonly [Record_, Record_]> = [];
   const walk = (left: Record_, right: Record_): void => {
     pairs.push([left, right]);
-    const mine = childrenOf(nodes, left["id"]);
-    const theirs = childrenOf(nodes, right["id"]);
+    const mine = childrenOf(rows, left["id"]);
+    const theirs = childrenOf(rows, right["id"]);
     // A defect rather than a wait: the write is all-or-none, so a copy that is
     // on disk is on disk whole.
     if (mine.length !== theirs.length) {
@@ -224,31 +233,16 @@ const pairFor = (
 };
 
 /**
- * The two REFERENCE steps name the root that was duplicated AND the row inside
- * it they are about, because those are two different ids and the pairing is
- * built from the root. An edge is the one thing a copy may legitimately say
- * differently from what it copied, so which half of the rule it takes is
- * asserted per row.
+ * THE EDGE RULE, both halves in one assertion — which is the only way to state
+ * it, because both halves live on one record: `pick the hinges` waits on a
+ * sibling INSIDE the subtree being copied and on a node OUTSIDE it.
+ *
+ * It names the root that was duplicated AND the row inside it, because those
+ * are two different ids and the pairing is built from the root. The inside
+ * target is named through the pairing (its copy's id was minted by the write
+ * and nothing here may spell one); the outside target is named LITERALLY,
+ * because keeping the target it always had is the whole claim.
  */
-Then(
-  "in the copy of {string} in {string}, {string} waits on the copy of {string}",
-  async function (
-    this: OlaiWorld,
-    root: string,
-    file: string,
-    id: string,
-    target: string,
-  ) {
-    const pairs = await waitForCopy(this, file, root);
-    const [, copy] = pairFor(pairs, id);
-    const [, copiedTarget] = pairFor(pairs, target);
-    assert.deepStrictEqual(copy["after"], [copiedTarget["id"]]);
-  },
-);
-
-/** The other half of the rule, and the one asserted with a LITERAL id: an edge
- *  leaving the subtree keeps the target it always had, because that target was
- *  not copied and there is nothing else it could mean. */
 Then(
   "in the copy of {string} in {string}, {string} waits on the copy of {string} and on {string}",
   async function (
