@@ -54,9 +54,8 @@ const surfaces = EditorView.theme({
   },
   "&.cm-focused": { outline: "none" },
   // The scroller must not hold a font of its own either, and it must not
-  // scroll: both editors grow with their content — a note is two lines and
-  // occasionally twenty, a document is as long as it is — and the page is the
-  // one thing that scrolls (`../scroll.ts`).
+  // scroll: the editor grows with its content — a document is as long as it is
+  // — and the page is the one thing that scrolls (`../scroll.ts`).
   ".cm-scroller": {
     fontFamily: "inherit",
     lineHeight: "var(--olai-md-leading-body)",

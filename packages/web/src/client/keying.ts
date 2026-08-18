@@ -31,7 +31,7 @@ import { vimIn } from "./settings/vim.ts"
  * WHETHER THIS IS A VIM EDITOR is asked of the preference that owns the rule
  * (`./settings/vim.ts`) and handed to the map, which is what decides `Escape`.
  * Asked inside the handler rather than closed over, so a person who turns the
- * preference on while a note is open gets the answer the editor beside them
+ * preference on while an editor is open gets the answer the editor beside them
  * already has.
  *
  * THREE ANSWERS, and the middle one is why the map returns a value for it: the
@@ -44,15 +44,15 @@ export const keyHandler = (
 ) =>
 (event: KeyboardEvent): void => {
   // Not in PROSE, where the matcher answers before it would ever look
-  // (./keys.ts: a note is prose, and the keys that edit a row are the row's).
-  // Reading it anyway would materialise the whole editor's value per keystroke
-  // to take its length — on the one field that can be long.
+  // (./keys.ts: prose is not a row, and the keys that edit a row are the
+  // row's). Reading it anyway would materialise the whole editor's value per
+  // keystroke to take its length — on the fields that can be long.
   const at = field === "line" ? caretOf(event.currentTarget) : undefined
   const action = editKey(event, field, at, vimIn(field))
   if (action === null) return
   // The editor's own: it stops here rather than travelling on, because what it
   // would reach is the listener that shuts the panels this client draws
-  // (`./dismiss.ts`) — which for a note is the row it is being typed in.
+  // (`./dismiss.ts`).
   if (action === HELD) {
     event.stopPropagation()
     return

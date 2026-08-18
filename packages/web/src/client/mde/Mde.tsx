@@ -106,10 +106,10 @@ export interface MdeProps {
    * Whether the caret is in this surface — the MODE, and the one prop that
    * makes this an editor rather than a rendering.
    *
-   * The caller owns it because the caller owns the draft: a note is being
-   * written when the row's editor says it is (`../edit/editing.tsx`), and a
-   * document when its page is in edit mode. What this component owns is that
-   * the change costs no re-render.
+   * The caller owns it because the caller owns the draft — a document is being
+   * written from the click that put the caret in it until the caret leaves
+   * (`../document/DocEditor.tsx`). What this component owns is that the change
+   * costs no re-render.
    */
   readonly writing: boolean
   /** A reader clicked the surface, at the character they clicked — the gesture
@@ -120,13 +120,6 @@ export interface MdeProps {
    *  rendering of this same markdown. Absent for a surface that is only ever
    *  written in, where the textarea is the honest wait. */
   readonly reading?: JSX.Element
-  /** A counter whose every bump means "take the caret back" — the row
-   *  editor's, after an op that redrew the row the key was pressed in. */
-  readonly take?: () => number
-  /** Whether the plain face grows with its content. A note does (it is two
-   *  lines and occasionally twenty); a document's box is a panel with a
-   *  minimum height and a drag handle. */
-  readonly grows?: boolean
   /**
    * The mounted PREVIEW, handed out while it is on screen and withdrawn with
    * `undefined` when it goes.
@@ -297,12 +290,6 @@ function Live(props: MdeProps & Placed) {
   // this prop echoing what was just typed — dispatches nothing at all.
   createEffect(() => editor?.write(props.text))
 
-  // The caret, taken BACK: where it already is, because a `Tab` in the middle
-  // of a word must not throw the reader to the end of the line. Deferred, so
-  // the counter's current value is not a second focus on the frame that
-  // mounted this.
-  createEffect(on(() => props.take?.(), () => editor?.focus(), { defer: true }))
-
   // The preference, under a live editor: a compartment, so turning vim on does
   // not remount the thing the caret is in.
   createEffect(on(vimEditing, (on) => editor?.vim(on), { defer: true }))
@@ -354,10 +341,10 @@ function Live(props: MdeProps & Placed) {
 /**
  * The plain face: the textarea, unchanged.
  *
- * A `desc` is one verbatim markdown string, so a textarea is the honest editor
- * — what is typed is what is stored. It was the whole editor before this item
- * and it is what a reader gets while the chunk is in the air, so it keeps
- * every behaviour it had, the growing box included.
+ * A document is one verbatim markdown string, so a textarea is the honest
+ * editor — what is typed is what is stored. It is what this app wrote a
+ * document with before live preview, and it is what a writer gets while the
+ * chunk is in the air, so it keeps every behaviour it had.
  */
 function Plain(
   props: MdeProps & Placed & {
@@ -391,11 +378,8 @@ function Plain(
     // Only ever drawn for a surface being WRITTEN in (see `Mde`), so the caret
     // is this face's from the moment it exists.
     place(props.caret ?? element.value.length)
-    if (props.grows === true) grow(element)
   })
   onCleanup(() => props.onCaret(at()))
-
-  createEffect(on(() => props.take?.(), () => place(at()), { defer: true }))
 
   return (
     <textarea
@@ -411,29 +395,9 @@ function Plain(
       aria-label={props.label}
       rows={2}
       value={props.text}
-      onInput={(event) => {
-        if (props.grows === true) grow(event.currentTarget)
-        props.onInput(event.currentTarget.value)
-      }}
+      onInput={(event) => props.onInput(event.currentTarget.value)}
       onKeyDown={(event) => props.onKey(event)}
       onBlur={() => props.onBlur(left(element.isConnected))}
     />
   )
-}
-
-/**
- * A textarea that is as tall as what is in it.
- *
- * Measuring costs a synchronous layout — `height: auto` invalidates, reading
- * `scrollHeight` forces the recompute — and that is per keystroke in an open
- * note. It is paid rather than optimised away: a guard comparing the height
- * after setting `auto` never skips anything (the value it compares against is
- * `auto`), which is what the last attempt did, and the honest alternatives are
- * to remember the last height across calls or to let CSS do it
- * (`field-sizing: content`, not yet everywhere olai runs). One note at a time
- * is open, so the cost is bounded by that.
- */
-const grow = (element: HTMLTextAreaElement): void => {
-  element.style.height = "auto"
-  element.style.height = `${element.scrollHeight}px`
 }

@@ -1,9 +1,8 @@
 /**
- * AUTOSAVE: the rule the two markdown editors write by, in one place.
+ * AUTOSAVE: the rule a markdown editor writes by, said where both the rule and
+ * the number can be read at once.
  *
- * Ruled 2026-08-18 (md-live-preview-editor). A note and a document are one
- * editor at two sizes (`../mde/`), so they are one rule at two sizes, and it
- * has four parts:
+ * Ruled 2026-08-18 (md-live-preview-editor), and it has four parts:
  *
  *   - **no Save button and no dirty flag.** What is in the editor is what the
  *     file is about to say; there is no second state a person has to remember
@@ -16,8 +15,9 @@
  *     does not.
  *   - **every write is CONDITIONAL**, with `was` set to the text this editor
  *     last saved. So a concurrent write — vim on the same file, an agent on
- *     the same node — is refused by the ops layer rather than overwritten, in
- *     the ops layer's own words.
+ *     the same document — is refused by the ops layer rather than overwritten,
+ *     in the ops layer's own words. The baseline advances on every write that
+ *     LANDS, which is what keeps an editor from conflicting with itself.
  *   - **a refusal is on the page**, under the editor it came from, and the
  *     text stays exactly where it was typed. Nothing a person wrote may be
  *     lost because a validator said no, and nothing anyone ELSE wrote may be
@@ -27,14 +27,13 @@
  * verb that sends no `was` and means exactly what it says
  * (`../document/DocEditor.tsx`).
  *
- * WHAT THIS FILE IS NOT is a scheduler. The two surfaces already own their own
- * commit loops — a row's draft goes through the editor's queue with the caret
- * and the keys around it (./editing.tsx), a document's is one text and one
- * write — and folding those into one timer would be a third machine sitting
- * between a person and a file. What has to be shared is the NUMBER and the
- * rule, and the number is shared because two surfaces disagreeing about how
- * long a pause is would be two answers to one question a person asks with
- * their hands.
+ * WHAT THIS FILE IS NOT is a scheduler. The surface owns its own commit loop —
+ * a document's is one text and one write — and folding that into a timer here
+ * would be a third machine sitting between a person and a file. What is shared
+ * is the RULE and the NUMBER, and the number is stated apart from its one
+ * caller because the day a second surface autosaves (a note, its own item),
+ * two surfaces disagreeing about how long a pause is would be two answers to
+ * one question a person asks with their hands.
  */
 
 /**
@@ -45,25 +44,7 @@
  * deliberately shorter than a TITLE's ({@link ./draft.ts}'s `IDLE_COMMIT`),
  * and the difference is what the two fields are: a title is one line that is
  * nearly always finished by `Enter` or a click away, so its timer is a
- * backstop; a note is prose somebody sits inside for minutes at a time, where
- * the timer is the ONLY thing that ever writes.
+ * backstop; a document is prose somebody sits inside for minutes at a time,
+ * where the timer is the ONLY thing that ever writes.
  */
 export const AUTOSAVE_IDLE = 500
-
-/**
- * Which fields are autosaved at all — one predicate, so the rule is a fact
- * rather than a branch two files write with opposite polarity.
- *
- * A NOTE is: prose somebody sits inside, where the timer is the only thing
- * that ever writes, and where the write is therefore conditional ({@link
- * ./draft.ts}'s `commitOf` sends the `was`). A TITLE is not: one line,
- * finished by `Enter` or by looking somewhere else, written unconditionally
- * because typing a title MEANS it. A line that does not exist yet is not
- * either — an `add` has nothing to be conditional ON.
- *
- * It lives here rather than beside either consequence because it is the same
- * fact underneath both, and the two would otherwise have to agree by
- * hand: a field given the fast clock without the guard is an autosave that can
- * overwrite somebody else, which is the one thing this rule exists to prevent.
- */
-export const autosaves = (field: "title" | "desc" | "new"): boolean => field === "desc"
