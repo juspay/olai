@@ -97,7 +97,9 @@ A filtered page can be entirely correct and still leave you guessing. Every row 
 
 The note is **excerpted, never auto-expanded**. Notes here run to paragraphs; the filter re-evaluates on every keystroke, so opening them all would reflow the page violently while you type — and it would trample whatever you had open, which would then need saving and putting back. A clamped window is the same idea with a bounded cost.
 
-None of this is stored, and none of it is a second matcher: the highlight comes from the same case fold `matching` searched with, so the page cannot light up a stretch of text the query never looked at.
+None of this is stored, and none of it is a second matcher: the highlight comes from the same case fold `matching` searched with, so the page cannot light up a stretch of text the query never looked at — and a letter whose lower case is written with two characters (`İ`) lights whole, because there is no half a character to light.
+
+Two places a matched row lights nothing, named so they are not mistaken for bugs. A needle that lives **only inside a title's `code` span or link** selects the row and lights nothing: those are the one part of a title this app deliberately does not re-read (a `#` in a URL fragment is not a tag), and the highlight follows the same walk. And a phrase spanning two rendered pieces of a title — across a `**bold**`, say — lights neither, because the words are found per piece of rendered markup. A phrase across a `#tag` does light, since a tag is a split of one string rather than a second piece.
 
 ### Which pages filter, and what it means on each
 

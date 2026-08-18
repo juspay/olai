@@ -24,7 +24,7 @@
  * about which characters are the needle.
  */
 
-import { litBy, type Lit } from "@olai/format"
+import type { Lit } from "@olai/format"
 
 /**
  * The class a lit run wears — a `<mark>`, which is the element for exactly
@@ -45,27 +45,20 @@ export interface Run {
 }
 
 /**
- * A text as the runs it turns out to be — never empty, and a single unlit run
- * for the text nothing was found in.
+ * A WINDOW of a text as the runs it turns out to be — never empty, and a single
+ * unlit run for a window nothing landed in.
  *
  * The alternation is what a caller draws: unlit runs go out as they came in,
- * and a lit one is wrapped. Empty runs are dropped rather than emitted, so a
- * hit at the very start of a title is one run and not two.
- */
-export const runsOf = (
-  text: string,
-  needles: ReadonlyArray<string>,
-): ReadonlyArray<Run> => runsIn(text, litBy(text, needles))
-
-/**
- * The same alternation over a WINDOW of the text, from landings already in
- * hand — what a note's one-line excerpt is cut from (`./excerpt.ts`).
+ * and a lit one is wrapped. Empty runs are never emitted, so a hit at the very
+ * start of a window is one run and not two.
  *
- * TAKING THE LANDINGS rather than the needles is the whole of why this is the
- * primitive and {@link runsOf} the shorthand: there is exactly one search of a
- * note, and the window is a pair of bounds applied to what it found. Searching
- * the slice instead would be a second search — cheap, and free to disagree at
- * the edge where a needle straddles the cut.
+ * IT TAKES THE LANDINGS rather than the needles, and that is the whole of the
+ * shape: there is exactly one search of a title or a note (`@olai/format`'s
+ * `litBy`), and every window onto it is a pair of bounds applied to what that
+ * search found. Searching each window instead would be a second search — cheap,
+ * and wrong twice over: free to disagree at the edge where a needle straddles a
+ * cut, and blind to a phrase that spans two of them (`"remodel #home"` is in
+ * neither the text part nor the tag part it crosses).
  *
  * The bounds are the TEXT's own offsets, so a caller slices nothing itself.
  */

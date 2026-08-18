@@ -1290,3 +1290,36 @@ test("a fold that changes length is mapped back onto what was written", () => {
   expect(lit("İstanbul cabinets", "cabinets")).toBe("İstanbul [cabinets]")
   expect(lit("aİb cabinets", "cabinets")).toBe("aİb [cabinets]")
 })
+
+test("a needle landing INSIDE such a character lights the whole of it", () => {
+  // The half the two above do not reach: they pin an ASCII needle AFTER the
+  // `İ`, where the map is only shifting an offset. `i` is a hit on the FIRST
+  // of that character's two fold units, and there is no half a character to
+  // light — a map that sent both ends to the character's start answered with an
+  // empty span, which the view draws as a highlight of nothing beside a letter
+  // the reader can see (grok, #240).
+  expect(lit("İstanbul", "i")).toBe("[İ]stanbul")
+  expect(lit("aİb", "i")).toBe("a[İ]b")
+  // The combining dot is the second unit, and asking for both is the same
+  // character rather than a wider run.
+  expect(lit("İstanbul", "i\u0307")).toBe("[İ]stanbul")
+  // ...and a needle that reaches THROUGH it takes what follows with it.
+  expect(lit("İstanbul", "i\u0307st")).toBe("[İst]anbul")
+  // A run that ends inside one is rounded out the same way, from the other
+  // side: `ai` covers the `a` and the first unit of `İ`.
+  expect(lit("aİb", "ai")).toBe("[aİ]b")
+})
+
+test("no run a needle produces is ever empty, whatever the fold did", () => {
+  // The property the two-table map buys, asserted as a property rather than
+  // left to the view to elide: an empty `<mark>` is a 2px smudge where the
+  // reader typed a letter.
+  for (const text of ["İstanbul", "aİb", "İİ", "ﬁle", "ǅungla", "plain"]) {
+    for (const needle of ["i", "i\u0307", "a", "l", "ǆ", "ﬁ"]) {
+      for (const one of litBy(text, [needle])) {
+        expect(one.end, `${text} / ${needle}`).toBeGreaterThan(one.at)
+        expect(text.slice(one.at, one.end), `${text} / ${needle}`).not.toBe("")
+      }
+    }
+  }
+})

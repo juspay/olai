@@ -24,7 +24,7 @@ import { installPipeline } from "./chunk.ts"
 import * as pipeline from "./pipeline.ts"
 import { plainTitle } from "./plain.ts"
 import { hastToHtml, renderToTree } from "./render.ts"
-import { styleTags } from "./tags.ts"
+import { styleTags, TAG_CLASS } from "./tags.ts"
 
 installPipeline(pipeline)
 
@@ -131,6 +131,23 @@ test("a needle inside a TAG is lit inside the pill, not instead of it", () => {
   // lights the name without the sigil, which is what the query asked for.
   expect(plainTitle("kitchen remodel #home", ["home"]))
     .toContain(`#<mark class="olai-hit" data-testid="hit">home</mark>`)
+})
+
+test("a phrase that spans a tag boundary lights across it, on both paths", () => {
+  // The query is looked for ONCE over the whole title and the parts are windows
+  // onto what it found. Searched per part instead, `remodel #home` is inside
+  // neither the text part nor the tag part — the row matched and lit nothing,
+  // which is the exact confusion this feature exists to end (grok, #240).
+  const html = plainTitle("kitchen remodel #home", ["remodel #home"])
+  expect(html).toBe(viaPipeline("kitchen remodel #home", ["remodel #home"]))
+  // The pill is still a pill: the mark opens in the text and closes inside the
+  // span, because the tag's own markup is not something a highlight may span.
+  expect(html).toContain(`data-tag="#home"`)
+  expect(html).toBe(
+    `kitchen <mark class="olai-hit" data-testid="hit">remodel </mark>` +
+      `<span class="${TAG_CLASS}" data-testid="tag" data-tag="#home">` +
+      `<mark class="olai-hit" data-testid="hit">#home</mark></span>`,
+  )
 })
 
 test("a title the query is not in is written exactly as it was without one", () => {

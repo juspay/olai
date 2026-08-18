@@ -18,14 +18,14 @@
  * DOM under `bun test`, so each case builds its own reading.
  */
 
-import { derive, rowsOf } from "@olai/format"
+import { derive, litBy, rowsOf } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
 import type { Drawn } from "../page.ts"
 import { excerptOf } from "../note/excerpt.ts"
-import { runsOf } from "./lit.ts"
+import { runsIn } from "./lit.ts"
 import type { Narrowed } from "./narrowed.tsx"
 import { asContext, behindTheMark, lighting } from "./why.ts"
 import { createNarrowing } from "./narrowing.ts"
@@ -95,7 +95,8 @@ test("a tag click lights the tag on the row that WEARS it, on both readings of i
   const reading = page("#home")
   expect(lighting(reading, "kitchen")).toEqual(["#home"])
   expect(lighting(reading, "hinges")).toEqual(["#home"])
-  expect(runsOf("a hinge is filed under #home", lighting(reading, "hinges")))
+  const title = "a hinge is filed under #home"
+  expect(runsIn(title, litBy(title, lighting(reading, "hinges"))))
     .toEqual([
       { text: "a hinge is filed under ", lit: false },
       { text: "#home", lit: true },
@@ -124,6 +125,22 @@ test("the excerpt is a window on the hit, one line, with the word lit in it", ()
     .toEqual(["alcove"])
   // It opened somewhere other than the top of the note, and says so.
   expect(said.startsWith("…")).toBe(true)
+})
+
+test("the marks around a word survive the cut, because they are what the note says", () => {
+  // The excerpt is a POSITION in a note, not an opening (./preview.ts is the
+  // opening, and tidies). Stripping `**` would move every offset after it away
+  // from where the matcher found the hit — so the marks stay, and the word is
+  // lit INSIDE them (grok, #240, asking for this pinned rather than argued).
+  const runs = excerptOf("- **walnut** — six week lead time", ["walnut"]) ?? []
+  expect(runs.map((run) => run.text).join("")).toBe(
+    "- **walnut** — six week lead time",
+  )
+  expect(runs).toEqual([
+    { text: "- **", lit: false },
+    { text: "walnut", lit: true },
+    { text: "** — six week lead time", lit: false },
+  ])
 })
 
 test("a note the query is not in has no excerpt to draw", () => {

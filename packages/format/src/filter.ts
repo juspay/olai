@@ -1313,26 +1313,45 @@ export const litBy = (
  * that does not agree with the whole-string fold means the two are not the
  * same operation on this string, and the honest answer to that is no highlight
  * rather than one placed by a map nothing stands behind.
+ *
+ * A RUN IS ROUNDED OUT TO WHOLE SOURCE CHARACTERS, and that is the half a
+ * naive map gets wrong. `İ` folds to `i` plus a combining dot, so `i` is a
+ * real matcher hit covering the FIRST of that character's two fold units — and
+ * a map that sent both ends to the character's start would answer with an
+ * empty span, which the view draws as a highlight of nothing where the reader
+ * can plainly see the letter they typed (grok, #240). There is no half a
+ * character to light: a run that reaches into a character lights the whole of
+ * it. So the two ends are read off two different tables — `opens` for where a
+ * unit's character STARTS, `closes` for where it ENDS — and an empty run
+ * becomes unrepresentable rather than filtered downstream, since every needle
+ * has at least one unit and every character is at least one unit wide.
  */
 const sourceOffsets = (
   runs: ReadonlyArray<Lit>,
   text: string,
   fold: string,
 ): ReadonlyArray<Lit> => {
-  // `where[unit]` is where that folded unit's character starts in the text,
-  // with the end on the tail so a run that reaches it has somewhere to land.
-  const where: Array<number> = []
+  // One entry per FOLDED unit: where the character that produced it starts in
+  // the text, and where it ends. Two tables rather than one plus arithmetic,
+  // because the widths are the source's and the index is the fold's.
+  const opens: Array<number> = []
+  const closes: Array<number> = []
   let at = 0
   for (const character of text) {
     const width = character.toLowerCase().length
-    for (let unit = 0; unit < width; unit++) where.push(at)
+    for (let unit = 0; unit < width; unit++) {
+      opens.push(at)
+      closes.push(at + character.length)
+    }
     at += character.length
   }
-  where.push(text.length)
-  if (where.length !== fold.length + 1) return []
+  if (opens.length !== fold.length) return []
   return runs.map((run) => ({
-    at: where[run.at] as number,
-    end: where[run.end] as number,
+    at: opens[run.at] as number,
+    // The character the LAST covered unit belongs to, ended — never the next
+    // run's start, which is what would clip a partly-covered character to
+    // nothing.
+    end: closes[run.end - 1] as number,
   }))
 }
 
