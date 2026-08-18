@@ -27,6 +27,8 @@
  */
 
 import { REPEAT_RULES } from "@olai/format"
+
+import type { Press } from "../edit/RowPanel.tsx"
 import type { Edit } from "@olai/surface"
 
 /** Every rule a person may choose, in the grammar's own order and its own
@@ -62,12 +64,10 @@ export const repeatPick = (id: string, rule: string): Edit => ({
   repeat: rule === "" ? null : rule,
 })
 
-/** The button, as the two things a reader can see about it — {@link
- *  ../date/pick.ts}'s `Press`, and the same two questions. */
-export interface Press {
-  readonly label: string
-  readonly writes: boolean
-}
+/** The button, as the two things a reader can see about it — the panel's own
+ *  vocabulary ({@link ../edit/RowPanel.tsx}), re-exported beside the function
+ *  that answers it, exactly as {@link ./pick.ts} does one field along. */
+export type { Press } from "../edit/RowPanel.tsx"
 
 /**
  * What the button IS, over the rule the node stores and the one in the box.

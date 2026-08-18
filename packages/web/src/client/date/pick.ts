@@ -36,6 +36,8 @@
  */
 
 import { dayOf } from "@olai/format"
+
+import type { Press } from "../edit/RowPanel.tsx"
 import type { Edit } from "@olai/surface"
 
 /**
@@ -69,15 +71,11 @@ export const datePick = (id: string, day: string): Edit => ({
   date: day === "" ? null : day,
 })
 
-/** The button, as the two things a reader can see about it. */
-export interface Press {
-  /** What it says — which is the VERB, so the words are the ones the `•••`
-   *  menu uses for the same edit. */
-  readonly label: string
-  /** Whether pressing it would ask the directory for anything. `false` draws
-   *  it dead. */
-  readonly writes: boolean
-}
+/** The button, as the two things a reader can see about it — the panel's own
+ *  vocabulary ({@link ../edit/RowPanel.tsx}), re-exported so a reader of this
+ *  file finds the type beside the function that answers it. Three surfaces
+ *  declared this pair for themselves before the shell did. */
+export type { Press } from "../edit/RowPanel.tsx"
 
 /**
  * What the button IS, over the node's stored date and the day in the box.

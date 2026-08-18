@@ -1,13 +1,13 @@
 /**
  * Writing one property, in place under the row — the drawer's other half.
  *
- * `../date/DatePicker.tsx`'s arrangement, deliberately and line for line: a
- * panel under the line it was opened on rather than a popover, Escape and
- * Cancel as the ways out that write nothing, one press at a time, and the ops
- * layer's own words kept on screen when a write is refused. The reasons are
- * that file's — a row already says everything else it has to say in this place,
- * and a floating panel would be the one editing surface with geometry to keep
- * anchored while the page scrolls.
+ * The panel is {@link ../edit/RowPanel.tsx}, the shell every surface a row
+ * opens shares: under the line rather than floating, Escape and Cancel as the
+ * ways out that write nothing, one press at a time, a dead button where the
+ * gesture would write nothing, and the ops layer's own words kept on screen
+ * when a write is refused. This file used to spell all of that out, and its
+ * header used to say it was `../date/DatePicker.tsx`'s arrangement "line for
+ * line" — which is the sentence that eventually earned the extraction.
  *
  * WHAT IT SENDS is one `prop` edit, at the same gate `set_prop` goes through,
  * judged by the same planner and refused in the same words. Nothing is echoed:
@@ -18,13 +18,23 @@
  * get gestures an agent cannot make.
  */
 
-import { createSignal, Show } from "solid-js"
+import { createSignal } from "solid-js"
 
-import { type Editing, type Press, pressOf } from "./editor.ts"
-import { SaidLine } from "../edit/SaidLine.tsx"
+import { RowPanel } from "../edit/RowPanel.tsx"
 import type { Said } from "../edit/undoing.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
+import { type Editing, type Press, pressOf } from "./editor.ts"
+
+/** This panel's identity, off the one table that declares it. There is no
+ *  notice line here: the two pickers have a stored value their control cannot
+ *  hold, and a text box can hold whatever is in the file. */
+const IDS = {
+  panel: TESTID.propEditor,
+  set: TESTID.propEditorSet,
+  cancel: TESTID.propEditorCancel,
+  said: TESTID.propEditorSaid,
+} as const
 
 export function PropEditor(props: {
   /** The property being changed, or `null` for one being added. */
@@ -41,130 +51,71 @@ export function PropEditor(props: {
    *  under somebody is a page taking their words out of their hands. */
   const [key, setKey] = createSignal(props.editing?.key ?? "")
   const [value, setValue] = createSignal(props.editing?.value ?? "")
-  const [said, setSaid] = createSignal<Said | null>(null)
-  const [sending, setSending] = createSignal(false)
   const press = (): Press => pressOf(props.editing, key(), value())
 
-  const send = async (): Promise<void> => {
-    if (sending() || !press().writes) return
-    setSending(true)
-    setSaid(null)
-    try {
-      const answer = await props.onSet(key().trim(), value())
-      if (answer !== undefined) {
-        setSaid(answer)
-        return
-      }
-      props.onClose()
-    } finally {
-      setSending(false)
-    }
-  }
-
   return (
-    <div
-      class="my-1"
-      data-testid={TESTID.propEditor}
-      data-key={props.editing?.key}
-      onKeyDown={(event) => {
-        if (event.key !== "Escape") return
-        // Stopped here, as the picker stops it: the row's editor and the
-        // palette both listen for Escape further up, and one key must not close
-        // two things.
-        event.preventDefault()
-        event.stopPropagation()
-        props.onClose()
-      }}
+    <RowPanel
+      ids={IDS}
+      press={press}
+      send={() => props.onSet(key().trim(), value())}
+      onClose={props.onClose}
+      about={props.editing?.key}
     >
-      <form
-        class="flex flex-wrap items-center gap-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void send()
-        }}
-      >
-        {/* The labels WRAP their boxes rather than naming them by id: a row
-            owns its own editor, so two can be open at once and a fixed id would
-            be the same id twice in one document. */}
-        <label class="flex items-center gap-2 text-xs text-muted">
-          Property
-          <input
-            type="text"
-            // NARROWER BELOW md, and it is arithmetic rather than taste: this
-            // form sits past the row's gutter on a 390pt screen, every width in
-            // it is a `rem`, and the type size is now a reader's choice
-            // (`../theme/sizes.ts`) — so at `Larger` a fixed 8rem key box put
-            // the value box a point off the edge. 6rem is what the old 8rem was
-            // in pixels at the size this app used to be nailed to.
-            class={`${TARGET} md:min-h-0 w-24 md:w-32 rounded border border-rule bg-paper px-2 py-1 font-mono text-xs text-ink read-only:text-muted`}
-            data-testid={TESTID.propEditorKey}
-            placeholder="key"
-            autocomplete="off"
-            spellcheck={false}
-            readOnly={props.editing !== null}
-            value={key()}
-            // The caret lands in the box there is something to type in: the key
-            // for a new property, the value for one that already has a name.
-            ref={(element) =>
-              queueMicrotask(() => {
-                if (props.editing === null) element.focus()
-              })}
-            onInput={(event) => setKey(event.currentTarget.value)}
-          />
-        </label>
-        {/* `min-w-0` on the LABEL and not only on the box inside it: a flex
-            item's default `min-width: auto` is its content's min-content width,
-            so without this the label refused to shrink past the input's own
-            intrinsic size and carried the box off the right edge of a 390pt
-            screen — which the type-size preference made visible by making
-            every rem in here bigger. */}
-        <label class="flex min-w-0 flex-1 items-center gap-2 text-xs text-muted">
-          holds
-          <input
-            type="text"
-            class={`${TARGET} md:min-h-0 min-w-0 flex-1 rounded border border-rule bg-paper px-2 py-1 text-sm text-ink`}
-            data-testid={TESTID.propEditorValue}
-            placeholder="value"
-            autocomplete="off"
-            spellcheck={false}
-            value={value()}
-            ref={(element) =>
-              queueMicrotask(() => {
-                if (props.editing !== null) {
-                  element.focus()
-                  element.select()
-                }
-              })}
-            onInput={(event) => setValue(event.currentTarget.value)}
-          />
-        </label>
-        <button
-          type="submit"
-          class={`${TARGET} md:min-h-0 cursor-pointer rounded border border-rule bg-transparent px-2 py-1 text-sm text-ink hover:bg-rule disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent`}
-          data-testid={TESTID.propEditorSet}
-          disabled={sending() || !press().writes}
-        >
-          {press().label}
-        </button>
-        <button
-          type="button"
-          class={`${TARGET} md:min-h-0 cursor-pointer rounded border-0 bg-transparent px-2 py-1 text-sm text-muted hover:text-ink`}
-          data-testid={TESTID.propEditorCancel}
-          onClick={() => props.onClose()}
-        >
-          Cancel
-        </button>
-      </form>
-
-      <Show when={said()}>
-        {(message) => (
-          <SaidLine
-            said={message()}
-            class="mt-1 mb-0 text-[0.8125rem] leading-snug"
-            testid={TESTID.propEditorSaid}
-          />
-        )}
-      </Show>
-    </div>
+      {/* The labels WRAP their boxes rather than naming them by id: a row
+          owns its own editor, so two can be open at once and a fixed id would
+          be the same id twice in one document. */}
+      <label class="flex items-center gap-2 text-xs text-muted">
+        Property
+        <input
+          type="text"
+          // NARROWER BELOW md, and it is arithmetic rather than taste: this
+          // form sits past the row's gutter on a 390pt screen, every width in
+          // it is a `rem`, and the type size is now a reader's choice
+          // (`../theme/sizes.ts`) — so at `Larger` a fixed 8rem key box put
+          // the value box a point off the edge. 6rem is what the old 8rem was
+          // in pixels at the size this app used to be nailed to.
+          class={`${TARGET} md:min-h-0 w-24 md:w-32 rounded border border-rule bg-paper px-2 py-1 font-mono text-xs text-ink read-only:text-muted`}
+          data-testid={TESTID.propEditorKey}
+          placeholder="key"
+          autocomplete="off"
+          spellcheck={false}
+          readOnly={props.editing !== null}
+          value={key()}
+          // The caret lands in the box there is something to type in: the key
+          // for a new property, the value for one that already has a name.
+          ref={(element) =>
+            queueMicrotask(() => {
+              if (props.editing === null) element.focus()
+            })}
+          onInput={(event) => setKey(event.currentTarget.value)}
+        />
+      </label>
+      {/* `min-w-0` on the LABEL and not only on the box inside it: a flex
+          item's default `min-width: auto` is its content's min-content width,
+          so without this the label refused to shrink past the input's own
+          intrinsic size and carried the box off the right edge of a 390pt
+          screen — which the type-size preference made visible by making
+          every rem in here bigger. */}
+      <label class="flex min-w-0 flex-1 items-center gap-2 text-xs text-muted">
+        holds
+        <input
+          type="text"
+          class={`${TARGET} md:min-h-0 min-w-0 flex-1 rounded border border-rule bg-paper px-2 py-1 text-sm text-ink`}
+          data-testid={TESTID.propEditorValue}
+          placeholder="value"
+          autocomplete="off"
+          spellcheck={false}
+          value={value()}
+          ref={(element) =>
+            queueMicrotask(() => {
+              if (props.editing !== null) {
+                element.focus()
+                element.select()
+              }
+            })}
+          onInput={(event) => setValue(event.currentTarget.value)}
+        />
+      </label>
+    </RowPanel>
   )
 }
