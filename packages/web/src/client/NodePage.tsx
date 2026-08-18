@@ -20,6 +20,7 @@
 import { isOverdue, type Row, type Zoomed } from "@olai/format"
 import { Show } from "solid-js"
 
+import { Backlinks } from "./backlinks/Backlinks.tsx"
 import { blockedIds } from "./blocked.ts"
 import { Blocked } from "./Blocked.tsx"
 import { Breadcrumbs } from "./Breadcrumbs.tsx"
@@ -161,6 +162,13 @@ function Zoom(props: {
               read, and it opens the same panel a row's menu opens. */}
           <EdgeVerbs open={edges.open} openFor={edges.openFor()} />
           <edges.Panel />
+
+          {/* ...and the same relations read BACKWARDS: what points at this
+              node, and what names it in prose. Last in the header and shut by
+              default, because it is the one block here that is about other
+              records — everything above says what this node IS
+              (./backlinks/Backlinks.tsx). */}
+          <Backlinks id={props.zoomed.shows.node.id} />
         </div>
       </header>
 

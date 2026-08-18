@@ -29,20 +29,10 @@ import { type JSX, Show } from "solid-js"
 
 import { DropRef } from "./edges/DropRef.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
+import type { NodeRef } from "./ref.ts"
 import { Link } from "./router.tsx"
 import { type TestId, TESTID } from "./testids.ts"
 import { TARGET } from "./touch.ts"
-
-/** One target, already resolved: the id a link opens and the text it shows.
- *  Resolving is the caller's, because what an edge NAMES is a question about
- *  the set (`@olai/format`'s `nodeNamed`) rather than about this row. */
-export interface NodeRef {
-  readonly id: string
-  readonly title: string
-  /** Outline the title is written in — handed to {@link NodeTitle} for the
-   *  markdown pipeline. Empty when the title is a fallback id with no prose. */
-  readonly from: string
-}
 
 export function NodeRefs(props: {
   /** What the relation is called, in the reader's words: `see`, `blocked by`. */

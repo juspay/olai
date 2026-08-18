@@ -25,7 +25,7 @@
  * changing which records there are.
  *
  * WHAT "the same" MEANS here is a decision, and it is made in {@link readable}
- * rather than left to a deep-equality helper: three of the ten indexes promise
+ * rather than left to a deep-equality helper: three of the eleven indexes promise
  * an ORDER their keys are read in, and the rest are asked one key at a time.
  * Comparing all ten by key order would hold the patcher to a promise no reader
  * spends; comparing none of them would let it silently reorder the two that a
@@ -68,11 +68,17 @@ const deltaOf = (before: Corpus, after: Corpus): SetDelta => ({
  * named them; `byFile`, because the flat list of records IS that map read in
  * order, so a key in the wrong place is a corpus in the wrong order.
  *
- * The other seven are asked one key at a time — `derived.children.get(id)`,
+ * The other eight are asked one key at a time — `derived.children.get(id)`,
  * `derived.status.get(id)` — and are sorted here so the comparison is about
  * what they ANSWER. Their values are compared in order all the same, including
  * the two that are sets: `mirrorsOf` and `edgesTo` promise corpus order to
  * whoever spreads them, and `toEqual` over a `Set` would only read membership.
+ *
+ * `mentionedBy` is deliberately in the sorted half. It is the one reverse index
+ * that promises its VALUES in corpus order and nothing about its keys, which is
+ * exactly what lets the patcher add and drop keys in place — so comparing key
+ * order here would be this test holding the patcher to a promise the index does
+ * not make, and the two would have to be changed together to relax it.
  */
 const readable = (derived: Derived): unknown => ({
   nodes: derived.nodes,
@@ -85,6 +91,7 @@ const readable = (derived: Derived): unknown => ({
   blocked: byKey(derived.blocked),
   mirrorsOf: byKey(spread(derived.mirrorsOf)),
   edgesTo: byKey(spread(derived.edgesTo)),
+  mentionedBy: byKey(derived.mentionedBy),
 })
 
 const byKey = <V>(map: ReadonlyMap<string, V>): ReadonlyArray<readonly [string, V]> =>
@@ -144,6 +151,20 @@ const idFor = (random: () => number, used: Set<string>): string => {
   return id
 }
 
+/**
+ * A word for prose to say, or nothing — what `mentionedBy` is keyed by.
+ *
+ * Mostly an id the corpus really uses, so a mention is usually a REFERENCE the
+ * reading over this index would draw; sometimes a word nothing declares, which
+ * is a person tag and has to file exactly the same way, since the index is
+ * about what prose says rather than about what exists.
+ */
+const mention = (random: () => number): string => {
+  const roll = random()
+  if (roll < 0.55) return ""
+  return roll < 0.9 ? ` @${pick(random, IDS)}` : " @nobody"
+}
+
 const fileOf = (random: () => number, used: Set<string>): string => {
   const lines: Array<string> = []
   const own: Array<string> = []
@@ -160,11 +181,16 @@ const fileOf = (random: () => number, used: Set<string>): string => {
     }
     if (random() < 0.25) record["mirror"] = pick(random, IDS)
     else {
-      record["title"] = `line ${at}`
+      record["title"] = `line ${at}${mention(random)}`
       if (random() < 0.4) record[pick(random, ["done", "doing", "todo"])] = true
       if (random() < 0.3) record["after"] = [pick(random, IDS)]
       if (random() < 0.3) record["blocks"] = [pick(random, IDS)]
       if (random() < 0.2) record["see"] = [pick(random, IDS)]
+      // A note, sometimes with a word in it — the second half of what
+      // `mentionedBy` files, and the reason a title alone would not do: a
+      // record naming one word in BOTH is one mention, so the fold's
+      // once-per-record rule is only reachable from here.
+      if (random() < 0.3) record["desc"] = `a note${mention(random)}${mention(random)}`
     }
     own.push(id)
     lines.push(JSON.stringify(record))
@@ -213,8 +239,15 @@ const tweak = (random: () => number, text: string): string => {
   }
   const record = JSON.parse(lines[at] as string) as Record<string, unknown>
   if ("mirror" in record) record["mirror"] = pick(random, IDS)
-  else if (roll < 0.45) record["title"] = `edited ${Math.floor(random() * 100)}`
-  else if (roll < 0.65) {
+  else if (roll < 0.4) record["title"] = `edited ${Math.floor(random() * 100)}${mention(random)}`
+  else if (roll < 0.45) {
+    // The note rewritten — the edit this whole feature is about, since a
+    // reference somebody adds in prose is a keystroke in a `desc` and nothing
+    // else about the record moves.
+    const written = `edited note${mention(random)}`
+    if (written === "edited note" && random() < 0.5) delete record["desc"]
+    else record["desc"] = written
+  } else if (roll < 0.65) {
     for (const mark of ["done", "doing", "todo"]) delete record[mark]
     if (random() < 0.75) record[pick(random, ["done", "doing", "todo"])] = true
   } else if (roll < 0.85) {
@@ -302,7 +335,7 @@ test("the patched view is the derived view, for any corpus and any delta", () =>
   // Not a performance assertion — a claim that the assertions above are about
   // the patcher at all. Left unchecked, a patcher that declined everything
   // would pass this whole file.
-  // 96 of 500 as this is written, and BOTH bounds are the claim. The ceiling is
+  // 86 of 500 as this is written, and BOTH bounds are the claim. The ceiling is
   // what fails when the patcher stops patching — the whole suite would go on
   // passing otherwise, since a decline is answered by `derive` and `derive` is
   // the oracle. The floor is what fails when the generator stops writing the
@@ -411,6 +444,44 @@ test("an edge written at a placement moves with the placement", () => {
   same(next as Derived, viewOf({ ...before, "b.olai": moved }), () => "a placement moves")
   expect((next as Derived).after.get("wait")).toEqual(["wash"])
   expect([...((next as Derived).edgesTo.get("wash") ?? [])]).toEqual(["wait"])
+})
+
+test("a word typed into a note reaches the index, and taking it out empties the key", () => {
+  // The edit `backlinks` is for, at the size it really is: one `desc` rewritten
+  // in one file, and a key that has to appear in an index nothing else in the
+  // delta mentions.
+  const before: Corpus = {
+    "a.olai": `{"id":"cook","ord":"a","title":"cook"}`,
+    "b.olai": `{"id":"note","ord":"a","title":"a note"}`,
+  }
+  const view = viewOf(before)
+  expect(view.mentionedBy.has("cook")).toBe(false)
+
+  const said = `{"id":"note","ord":"a","title":"a note","desc":"see @cook first"}`
+  const next = patched(view, editing("b.olai", said))
+  expect(next).toBeDefined()
+  same(next as Derived, viewOf({ ...before, "b.olai": said }), () => "a note names a node")
+  expect((next as Derived).mentionedBy.get("cook")?.map((at) => at.node.id)).toEqual(["note"])
+
+  // ...and out again. A key nothing says any more GOES, rather than standing
+  // empty where a rebuild would have had no key at all.
+  const quiet = patched(next as Derived, editing("b.olai", before["b.olai"] as string))
+  expect(quiet).toBeDefined()
+  same(quiet as Derived, viewOf(before), () => "the word is deleted")
+  expect((quiet as Derived).mentionedBy.has("cook")).toBe(false)
+})
+
+test("one record saying a word twice is one mention, in the title and in the note", () => {
+  const before: Corpus = {
+    "a.olai": `{"id":"cook","ord":"a","title":"cook"}`,
+    "b.olai": `{"id":"note","ord":"a","title":"a note"}`,
+  }
+  const both = `{"id":"note","ord":"a","title":"about @cook","desc":"and again: @cook"}`
+  const view = viewOf(before)
+  const next = patched(view, editing("b.olai", both))
+  expect(next).toBeDefined()
+  same(next as Derived, viewOf({ ...before, "b.olai": both }), () => "said twice")
+  expect((next as Derived).mentionedBy.get("cook")?.length).toBe(1)
 })
 
 // ── where the key ORDER is the answer ──────────────────────────────────

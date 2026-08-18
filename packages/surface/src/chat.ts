@@ -239,6 +239,34 @@ export const Spawned = Schema.Struct({
 export type Spawned = typeof Spawned.Type
 
 /**
+ * What became of a message that did not land — the two things this end can
+ * HONESTLY know, and the difference between them is a button.
+ *
+ *   - `refused` — it CERTAINLY did not go. Something said no to it while it
+ *     had taken no effect: the agent has no steering method or no such session,
+ *     the process was not there to be asked, or the turn it was aimed at had
+ *     been stopped by the person who sent it (the agent answers "nothing to
+ *     steer", and the server tells that from a turn that merely finished by the
+ *     ticket the message was aimed at). Nothing happened, so *send again* is an
+ *     honest offer and the server still holds the exact prompt to make good on
+ *     it.
+ *   - `unanswered` — NOTHING CAME BACK. The steer went out and the deadline
+ *     passed, or the connection died with it in flight. An agent that took the
+ *     message and then went quiet is indistinguishable from one that never took
+ *     it, so this end cannot say which — and the panel says exactly that, with
+ *     no retry, because pressing one would offer a duplicate to somebody with
+ *     no way to tell. The words are still on the row, which was always the
+ *     promise; what is missing is the certainty, not the message.
+ *
+ * The distinction is made where it is knowable — at the wire, in
+ * `@olai/chat`'s `AgentGone` — and carried here rather than re-inferred from a
+ * sentence: a reason is prose, and prose is not something a panel can draw two
+ * faces out of.
+ */
+export const Delivery = Schema.Literals(["refused", "unanswered"])
+export type Delivery = typeof Delivery.Type
+
+/**
  * What a row of the conversation is.
  *
  * A union of six kinds rather than a struct with everything optional, because
@@ -246,9 +274,9 @@ export type Spawned = typeof Spawned.Type
  *
  *   - `user` — what was typed, the names of any pictures sent with it, and the
  *     nodes it was ABOUT ({@link NodeContext}). Never markdown: it is quoted,
- *     not rendered. Marked `unsent` when the agent would not take it, which is
- *     the one row in this collection that records something that did NOT
- *     happen — see that field.
+ *     not rendered. Carries a {@link Delivery} when it did not go, or cannot
+ *     be shown to have gone — the one row in this collection that records
+ *     something that did NOT happen.
  *   - `agent` — the agent's prose, accumulated as it streams. Rendered as
  *     markdown once the turn is done, which is a view-time decision.
  *   - `tool` — a tool call, foldable, updated in place by its own id, carrying
@@ -363,38 +391,23 @@ export const ChatEntry = Schema.Struct({
    *  deliberately in tmp. */
   attachments: Schema.optionalKey(Schema.Array(Schema.String)),
   /**
-   * `user` only: this message NEVER REACHED THE AGENT, and can be sent again.
+   * `user` only: what became of this message's DELIVERY, when it did not
+   * simply go.
    *
    * Everything typed goes to the agent the moment it is sent — a turn already
    * running is steered rather than waited on — so a row only carries this when
-   * that delivery did not happen. Four ways it can:
+   * that delivery did not happen, or cannot be shown to have happened. Two
+   * values, because there are exactly two things this end can honestly know
+   * (see {@link Delivery}), and they were one flag until they were told apart:
+   * a person watching a message go quiet read the same `not sent` a refusal
+   * gives, and pressed the same button under it.
    *
-   *   - the agent REFUSED the steer (it has no such method, or no such
-   *     session), which is certain;
-   *   - the steer could not be WRITTEN, the agent having died between the row
-   *     being drawn and the message going out — also certain;
-   *   - the steer went UNANSWERED past the deadline, which is an INFERENCE: an
-   *     agent that took the message and then went quiet is indistinguishable
-   *     from one that never took it, and the two are the same `AgentGone` by
-   *     the time anything here can look;
-   *   - the turn was CANCELLED under it — a person's own second press
-   *     overtaking their own message. The agent then answers "nothing to
-   *     steer", which is what a turn that simply finished answers too, so the
-   *     server tells them apart by the turn the message was aimed at rather
-   *     than by the answer.
-   *
-   * Marking the inferred case is safe because nothing ACTS on this: the retry
-   * is a click, made by somebody looking at the row and at whatever the turn
-   * did next. What used to happen to these words is the whole reason the flag
-   * exists — they sat in a server-side queue nobody could see and were thrown
-   * away by the next cancel.
-   *
-   * Absent on every row that WAS delivered, rather than `false` — the ordinary
+   * Absent on every row that WENT, rather than a `null` arm — the ordinary
    * message says nothing about this, the same way it says nothing about diffs.
    * It is cleared by {@link ../index.ts}'s `chat.resend` when the retry lands,
    * so the row stops advertising a failure that has stopped being true.
    */
-  unsent: Schema.optionalKey(Schema.Boolean),
+  delivery: Schema.optionalKey(Delivery),
 })
 export type ChatEntry = typeof ChatEntry.Type
 

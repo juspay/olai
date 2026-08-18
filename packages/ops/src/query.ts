@@ -22,6 +22,7 @@
 
 import {
   ancestorTitles,
+  backlinksOf,
   countedChildren,
   DEFAULT_SEARCH_LIMIT,
   DEFAULT_SUBTREE_DEPTH,
@@ -43,6 +44,7 @@ import {
   type Placed,
   type Placement,
   progressOf,
+  type Reference,
   ranked,
   type SearchAnswer,
   type SearchHit,
@@ -273,6 +275,7 @@ export const detail = (derived: Derived, id: string): Detail | null => {
   const progress = progressOf(derived, id)
   const placements = placementsOf(derived, id)
   const placed = placedUnder(derived, id)
+  const referencedBy = referrersOf(derived, id)
   return {
     ...foundOf(derived, regular),
     ...(node.date === undefined ? {} : { date: node.date }),
@@ -295,8 +298,23 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     children: countedChildren(derived, id).map((child) => foundOf(derived, child)),
     ...(placements.length === 0 ? {} : { mirrors: placements }),
     ...(placed.length === 0 ? {} : { placed }),
+    ...(referencedBy.length === 0 ? {} : { referencedBy }),
   }
 }
+
+/**
+ * What refers to this node — the browser's own "referenced by" section, in the
+ * shape a read answers in.
+ *
+ * SITUATED, which is this layer's whole contribution: `backlinksOf` says WHICH
+ * records refer and how ({@link `@olai/format`}, where the four rulings about
+ * what counts as a reference are argued and tested), and `foundOf` turns each
+ * of them into the same answer every other list here is made of — so a referrer
+ * arrives with its title, its place, its ancestors and its mark, and nothing
+ * has to be read a second time to say what it is.
+ */
+const referrersOf = (derived: Derived, id: string): ReadonlyArray<Reference> =>
+  backlinksOf(derived, id).map((one) => ({ ...foundOf(derived, one.at), ways: one.ways }))
 
 /**
  * The placements UNDER a node, in sibling order — the list side of a mirror.

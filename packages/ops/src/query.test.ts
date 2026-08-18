@@ -244,6 +244,49 @@ describe("the properties a node carries", () => {
   })
 })
 
+describe("what refers to a node", () => {
+  /**
+   * The reverse of a reference, through the door an agent uses.
+   *
+   * `sticky` does BOTH things to `git` — it sees it and it comes after it — and
+   * only the first is a reference: the ordering edge is already answered by
+   * `after` on the record and by the blockedness derived from it, so counting
+   * it here would say one edge twice under a word that means something else.
+   * The placements chained onto `git` are not references either, and they are
+   * answered one describe up as `mirrors`.
+   */
+  test("a `see` is a reference and an ordering edge is not", () => {
+    expect(detail(at(), "git")?.referencedBy).toEqual([
+      {
+        id: "sticky",
+        title: "the header scrolls away",
+        file: "roadmap.olai",
+        line: 5,
+        status: "doing",
+        path: ["Bugs"],
+        see: ["git"],
+        after: ["git"],
+        ways: ["see"],
+      },
+    ])
+  })
+
+  test("a word in a title or a note refers too, and one record is one referrer", () => {
+    const at = derivedOf(setOf({
+      "a.olai": [
+        `{"id":"git","ord":"a0","title":"two git indicators"}`,
+        `{"id":"said","ord":"a1","title":"about @git","desc":"and @git again"}`,
+        `{"id":"both","ord":"a2","title":"see @git","see":["git"]}`,
+      ].join("\n"),
+    }))
+    expect(detail(at, "git")?.referencedBy?.map((one) => `${one.id} ${one.ways.join("+")}`))
+      .toEqual(["said mention", "both see+mention"])
+  })
+
+  test("a node nobody has written about says nothing rather than an empty list", () => {
+    expect(detail(at(), "sticky")).not.toHaveProperty("referencedBy")
+  })
+})
 describe("placements", () => {
   /** WHERE ELSE this node is drawn — the id half of `remove_mirror`, and the
    *  only way to reach a placement a previous session made. */

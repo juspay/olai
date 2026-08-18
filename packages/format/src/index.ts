@@ -241,6 +241,17 @@ export type {
 } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
+/** What REFERS to a node: the `see` edges that land on it and the notes and
+ *  titles that write its `@id`, out of the two reverse indexes `derive` keeps.
+ *  The reading rather than the indexes, because every question about what a
+ *  reference MEANS — whether a placement is one, whether the archive counts, and
+ *  which ids this node answers to — is asked there. `WAYS` is the closed list of
+ *  how one record can refer to another, in the order a referrer says them, and
+ *  `Way` is the SCHEMA read off it — which is what the answer vocabulary
+ *  carries (`Reference`) and what a browser keys its rows by, rather than
+ *  either of them being a second spelling of the list. */
+export { backlinksOf, Way, WAYS } from "./backlinks.ts"
+export type { Backlink } from "./backlinks.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it
  *  selects, `ranked` puts them in the order a door shows them in, `keeping` and
  *  `matchedIn` are what a TREE narrowed to them looks like and how many rows of
@@ -379,6 +390,7 @@ export {
   OutlineSummary,
   Placed,
   Placement,
+  Reference,
   type Stamps,
   Subtree,
   SubtreeAnswer,
