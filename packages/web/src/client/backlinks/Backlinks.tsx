@@ -22,10 +22,19 @@
  * a vault where everything points at one hub node would otherwise open that
  * node with a wall of links above its own children.
  *
+ * ...AND THE ROWS ARE NOT BUILT WHILE IT IS SHUT, which the `<details>` alone
+ * does not give: that element renders its children whether or not it is open,
+ * so on the hub node this feature is for — a curated list several hundred
+ * records point at — every frame the store published was minting several
+ * hundred refs and diffing several hundred anchors nobody could see. The
+ * element's own `toggle` drives a signal, and the rows live behind it; the
+ * SUMMARY needs only the count, which is a length.
+ *
  * KEYED ON THE NODE, for the reason the contents is: `open` is an attribute the
  * browser then owns, so a page reused from `/n/a` to `/n/b` would carry the
  * reader's answer about the first node onto the second. A different node is a
- * different element by construction. It is NOT keyed on the count — the section
+ * different element by construction — and the signal is reset with it, since it
+ * is created inside the keyed block. It is NOT keyed on the count: the section
  * staying open while a reference is added elsewhere is exactly the live update
  * this feature is for.
  *
@@ -36,12 +45,12 @@
  * appears in both, which is what it is doing.
  */
 
-import { createMemo, For, Show } from "solid-js"
+import { createMemo, createSignal, For, Show } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
 import { NodeRefs } from "../NodeRefs.tsx"
 import { TESTID } from "../testids.ts"
-import { referrersOf } from "./refs.ts"
+import { referringTo, rowsOf } from "./refs.ts"
 import { REFERRINGS } from "./way.ts"
 
 export function Backlinks(props: {
@@ -50,43 +59,73 @@ export function Backlinks(props: {
   readonly id: string
 }) {
   const derived = useDerived()
-  const referrers = createMemo(() => referrersOf(derived(), props.id))
+  const found = createMemo(() => referringTo(derived(), props.id))
 
   return (
     // ONE `<Show>`, keyed on the node while there is anything to say about it.
     // It carries both rules at once: a node nobody refers to draws NOTHING (the
     // absence is the answer, as it is for every relation row on this page), and
     // a page reused from `/n/a` to `/n/b` gets a NEW element rather than the
-    // reader’s answer about the first node. Two nested `Show`s said the same
+    // reader's answer about the first node. Two nested `Show`s said the same
     // thing in two places and left the second free to stop keying.
-    <Show when={referrers().total > 0 ? props.id : undefined} keyed>
-      <details
-        class="mt-3 border-t border-rule pt-2"
-        data-testid={TESTID.backlinks}
-        data-count={referrers().total}
+    <Show when={found().length > 0 ? props.id : undefined} keyed>
+      <Section found={found} />
+    </Show>
+  )
+}
+
+/**
+ * The section itself, its own component so that the open state is MINTED WITH
+ * IT: a signal declared one level up would outlive the keyed block and carry
+ * one node's answer onto the next, which is the very thing the key is for.
+ */
+function Section(props: {
+  readonly found: () => ReadonlyArray<ReturnType<typeof referringTo>[number]>
+}) {
+  const [open, setOpen] = createSignal(false)
+  return (
+    <details
+      class="mt-3 border-t border-rule pt-2"
+      data-testid={TESTID.backlinks}
+      data-count={props.found().length}
+      // The element's own state, read back rather than commanded: `<details>`
+      // opens itself on a press, on a keyboard activation and on a browser's
+      // find-in-page, and a component that set `open` from a signal would be
+      // fighting all three.
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary
+        class="cursor-pointer text-sm text-muted select-none"
+        data-testid={TESTID.backlinksSummary}
       >
-        <summary
-          class="cursor-pointer text-sm text-muted select-none"
-          data-testid={TESTID.backlinksSummary}
-        >
-          {said(referrers().total)}
-        </summary>
+        {said(props.found().length)}
+      </summary>
+      <Show when={open()}>
         {/* A row per WAY, out of the one table that says what each is called
             (./way.ts) — never a label written here beside a testid picked by
             hand, which is the fragmentation ../edges/EdgeRefs.tsx exists to
             have stopped one direction over. An empty row draws nothing, which
-            is `NodeRefs`’ own rule rather than a guard per way. */}
-        <For each={REFERRINGS}>
-          {(referring) => (
-            <NodeRefs
-              label={referring.label}
-              refs={referrers().rows[referring.way]}
-              testid={referring.refs}
-            />
-          )}
-        </For>
-      </details>
-    </Show>
+            is `NodeRefs`' own rule rather than a guard per way. */}
+        <Rows found={props.found()} />
+      </Show>
+    </details>
+  )
+}
+
+function Rows(props: {
+  readonly found: ReadonlyArray<ReturnType<typeof referringTo>[number]>
+}) {
+  const rows = createMemo(() => rowsOf(props.found))
+  return (
+    <For each={REFERRINGS}>
+      {(referring) => (
+        <NodeRefs
+          label={referring.label}
+          refs={rows()[referring.way]}
+          testid={referring.refs}
+        />
+      )}
+    </For>
   )
 }
 

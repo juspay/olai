@@ -200,8 +200,11 @@ export interface Derived {
    * kept for the same reader: what asks this wants to know WHICH records to
    * draw, and a record is one record however often it says the word.
    *
-   * A MIRROR IS NEVER IN IT: a placement has no title and no note of its own,
-   * so it has no prose to mention anything with.
+   * A MIRROR IS NEVER IN IT — and that is in the TYPE rather than in this
+   * sentence: a placement has no title and no note of its own, so it has no
+   * prose to mention anything with, and a reader of this index should not have
+   * to re-narrow what the fold already proved. ({@link Derived.namedBy} next
+   * door stays `Located` because `mirror` IS one of the fields it files.)
    *
    * NOTHING READS THE KEYS IN ORDER, unlike the three indexes above, and the
    * patcher spends exactly that — it adds and drops keys in place rather than
@@ -209,7 +212,7 @@ export interface Derived {
    * and promised so: a reader listing what refers to a node says them in the
    * order the directory holds them.
    */
-  readonly mentionedBy: ReadonlyMap<string, ReadonlyArray<Located>>
+  readonly mentionedBy: ReadonlyMap<string, ReadonlyArray<LocatedRegular>>
 }
 
 /**
@@ -293,13 +296,27 @@ export const nameInto = (
  * parser, so deciding what a reference IS out of one would put a parser under
  * the write gate. What the record SAYS is the honest answer here, and it is the
  * answer `filter.ts`'s tag facet already gives about the same text.
+ *
+ * WHERE THAT PARTS from the browser is narrower than it sounds, and the
+ * difference is worth knowing before anybody widens either side. A `@id` in a
+ * CODE SPAN is not a mention on either — not because this reading knows about
+ * fences, but because {@link titleTagRe} claims `@` only where a word STARTS
+ * and a backtick does not open one. What differs is a LINK'S TEXT: `[` opens a
+ * word, so `[@herbs](…)` is a mention here and not a styled tag there.
+ * `./backlinks.test.ts` pins both halves — the prose said otherwise until it
+ * ran.
  */
 export const mentionsOf = (node: Node): ReadonlyArray<string> => {
   if (isMirror(node)) return NOTHING_MENTIONED
   const title = mentionsIn(node.title)
-  if (node.desc === undefined) return title
-  const note = mentionsIn(node.desc)
-  return note.length === 0 ? title : title.length === 0 ? note : [...title, ...note]
+  const note = node.desc === undefined ? NOTHING_MENTIONED : mentionsIn(node.desc)
+  // Three answers rather than one concat, and each shares a list the caller
+  // does not own: nearly every record says nothing at all, and of the ones that
+  // do, most say it in one of the two places. Statements rather than a nested
+  // ternary — the same three arms, read top to bottom.
+  if (note.length === 0) return title
+  if (title.length === 0) return note
+  return [...title, ...note]
 }
 
 /** The answer for prose that mentions nothing: ONE list, shared. */
@@ -316,12 +333,11 @@ const NOTHING_MENTIONED: ReadonlyArray<string> = []
  * is 23.0µs against 23.8µs, because the cost is the regex and not the parts.
  * A 3% figure is not worth a second reading of what a tag is.
  *
- * The cheap negative IS this function's own, and it is not {@link mayHoldTag}:
- * that one is for a walk that wants both sigils, and a title full of `#topic`
- * should not pay a regex to find out that it mentions nothing.
+ * The cheap negative is {@link mayHoldSigil} rather than {@link mayHoldTag}:
+ * that one is for a walk that wants both sigils, and this walk wants one.
  */
 const mentionsIn = (text: string): ReadonlyArray<string> => {
-  if (!text.includes("@")) return NOTHING_MENTIONED
+  if (!mayHoldSigil("@", text)) return NOTHING_MENTIONED
   let found: Array<string> | undefined
   for (const part of titleParts(text)) {
     if (part.kind === "tag" && part.sigil === "@") (found ??= []).push(part.tag)
@@ -341,9 +357,13 @@ const mentionsIn = (text: string): ReadonlyArray<string> => {
  * record in hand can only be the one on the end.
  */
 export const mentionInto = (
-  mentionedBy: Map<string, Array<Located>>,
+  mentionedBy: Map<string, Array<LocatedRegular>>,
   located: Located,
 ): void => {
+  // The narrowing the index's type promises, done once at the fold: a mirror
+  // mentions nothing, so this drops nothing that {@link mentionsOf} would not
+  // have answered empty for anyway.
+  if (!isRegular(located)) return
   for (const word of mentionsOf(located.node)) {
     const held = mentionedBy.get(word)
     if (held === undefined) mentionedBy.set(word, [located])
@@ -365,7 +385,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   const byId = new Map<string, Located>()
   const children = new Map<string, Array<Located>>()
   const namedBy = new Map<string, Array<{ at: Located; fields: Array<TargetField> }>>()
-  const mentionedBy = new Map<string, Array<Located>>()
+  const mentionedBy = new Map<string, Array<LocatedRegular>>()
 
   for (const located of nodes) {
     if (!byId.has(located.node.id)) byId.set(located.node.id, located)
@@ -1300,6 +1320,20 @@ export const tagText = (part: { readonly sigil: TagSigil; readonly tag: string }
  */
 export const mayHoldTag = (text: string): boolean =>
   text.includes("#") || text.includes("@")
+
+/**
+ * ...and the same cheap negative for ONE of them, which is what a walk that
+ * wants a single namespace asks: a title full of `#topic` should not pay a
+ * regex to find out it mentions nobody.
+ *
+ * It takes a {@link TagSigil} rather than a string, and that is the whole point
+ * of it existing beside the function above rather than as a fourth bare
+ * `includes` somewhere: {@link mayHoldTag}'s own note records that this guard
+ * was written three times before it was named and that two of them had already
+ * drifted — one asking about `#` only. A guard that cannot be handed a
+ * character which does not open a tag cannot drift that way again.
+ */
+export const mayHoldSigil = (sigil: TagSigil, text: string): boolean => text.includes(sigil)
 
 /**
  * A fresh `/g` regex for an inline tag in a title.

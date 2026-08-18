@@ -1,6 +1,6 @@
 /**
  * What refers to a zoomed node, read backwards — the section, its count, and
- * the two rows inside it.
+ * the rows inside it.
  *
  * Its own file rather than more of `edge_steps.ts`, and the reason is the
  * division that file already draws: those steps are about WRITING a relation
@@ -12,6 +12,14 @@
  * whole of what a SHUT section says, so a scenario about live updating can read
  * it without unfolding anything — which is the honest shape of the claim, since
  * a section that only grew once opened would be a section that had not updated.
+ * It is also the honest shape of the CLIENT: the rows are not built until a
+ * reader opens the section (`backlinks/Backlinks.tsx`).
+ *
+ * Which row a scenario means is named by the LABEL a reader sees on it — a
+ * relation is read in the reader's language rather than as a field name in a
+ * slot (`edge_steps.ts`' own rule) — and resolved through the client's own
+ * table (`backlinks/way.ts`, via `world.ts`'s `backlinkRow`), so a row renamed
+ * there fails a scenario saying so rather than leaving it looking at nothing.
  */
 
 import * as assert from "node:assert";
@@ -19,29 +27,16 @@ import { Then, When } from "@cucumber/cucumber";
 
 import {
   attr,
-  backlinkRow,
   BACKLINKS,
+  backlinkRow,
   BACKLINKS_SUMMARY,
+  detailsOpen,
   NODE_REF,
-  oneLine,
   POLL_TIMEOUT,
+  rowReads,
   ZOOM_TITLE,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
-
-/** Which row a scenario means, by the LABEL a reader sees on it — a relation is
- *  read in the reader's language rather than as a field name in a slot
- *  (`edge_steps.ts`' own rule). The pairing of a label with its testid is the
- *  client's (`backlinks/way.ts`, through `world.ts`), so a row renamed there is
- *  a scenario that fails saying so rather than one that quietly looks at
- *  nothing. */
-const rowOf = (label: string): string => {
-  const row = backlinkRow(label);
-  if (row === undefined) {
-    throw new Error(`the referenced-by section draws no \`${label}\` row`);
-  }
-  return row;
-};
 
 Then(
   "the page says it is referenced by {int} nodes",
@@ -65,14 +60,14 @@ Then(
   },
 );
 
-/** SHUT, which is the default and therefore the thing worth asserting: a
+/** SHUT, which is the default and therefore the thing worth asserting: the
  *  `<details>` carries its own `open`, so this is the browser's answer rather
  *  than a class name. */
 Then("the referenced-by section is collapsed", async function (this: OlaiWorld) {
   const section = this.page.locator(BACKLINKS).first();
   await section.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
   assert.strictEqual(
-    await section.evaluate((el) => (el as HTMLDetailsElement).open),
+    await detailsOpen(section),
     false,
     "the referenced-by section is open before anybody asked it to be",
   );
@@ -81,11 +76,7 @@ Then("the referenced-by section is collapsed", async function (this: OlaiWorld) 
 When("I open the referenced-by section", async function (this: OlaiWorld) {
   await this.press(this.page.locator(BACKLINKS_SUMMARY).first());
   await this.waitUntil(
-    async () =>
-      await this.page
-        .locator(BACKLINKS)
-        .first()
-        .evaluate((el) => (el as HTMLDetailsElement).open),
+    async () => await detailsOpen(this.page.locator(BACKLINKS)),
     "the referenced-by section to be open",
   );
 });
@@ -94,10 +85,7 @@ Then(
   "the referenced-by section is still open",
   async function (this: OlaiWorld) {
     assert.ok(
-      await this.page
-        .locator(BACKLINKS)
-        .first()
-        .evaluate((el) => (el as HTMLDetailsElement).open),
+      await detailsOpen(this.page.locator(BACKLINKS)),
       "the referenced-by section shut under the reader when the set moved",
     );
   },
@@ -108,14 +96,12 @@ Then(
  *  satisfy a contains. */
 Then(
   "the referenced-by {string} row reads {string}",
-  async function (this: OlaiWorld, way: string, titles: string) {
-    const row = this.page.locator(rowOf(way)).first();
-    await this.waitUntil(
-      async () =>
-        (await row.count()) > 0 &&
-        (await row.locator(NODE_REF).allInnerTexts()).map(oneLine).join(", ") ===
-          titles,
-      `the referenced-by \`${way}\` row to read ${JSON.stringify(titles)}`,
+  async function (this: OlaiWorld, label: string, titles: string) {
+    await rowReads(
+      this,
+      this.page.locator(backlinkRow(label)).first(),
+      titles,
+      `the referenced-by \`${label}\` row`,
     );
   },
 );
@@ -139,10 +125,10 @@ When(
 
 Then(
   "the referenced-by section draws no {string} row",
-  async function (this: OlaiWorld, way: string) {
+  async function (this: OlaiWorld, label: string) {
     await this.waitUntil(
-      async () => (await this.page.locator(rowOf(way)).count()) === 0,
-      `the referenced-by \`${way}\` row to be absent`,
+      async () => (await this.page.locator(backlinkRow(label)).count()) === 0,
+      `the referenced-by \`${label}\` row to be absent`,
     );
   },
 );

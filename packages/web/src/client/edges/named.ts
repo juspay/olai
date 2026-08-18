@@ -52,7 +52,7 @@
 import { type Derived, nodeNamed, type RegularNode } from "@olai/format"
 import type { Accessor } from "solid-js"
 
-import type { NodeRef } from "../NodeRefs.tsx"
+import type { NodeRef } from "../ref.ts"
 import type { Relation } from "./relation.ts"
 
 export const namedBy = (

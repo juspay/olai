@@ -44,12 +44,20 @@ const REFERRING: Record<Way, Referring> = {
   mention: { way: "mention", label: "mentions this", refs: TESTID.backlinkMentionRefs },
 }
 
-/** The descriptor for one way — total, so a caller holding a {@link Way} never
- *  has to handle "not found". */
-export const referring = (way: Way): Referring => REFERRING[way]
-
-/** Both of them, in the order the section draws them — the format's own order
- *  ({@link WAYS}: the edge first, the prose after it), read rather than
- *  re-declared, so the rows and a referrer's own `ways` cannot come out in two
- *  different orders on one page. */
-export const REFERRINGS: ReadonlyArray<Referring> = WAYS.map(referring)
+/**
+ * Both of them, in the order the section draws them — the format's own order
+ * ({@link WAYS}: the edge first, the prose after it), READ rather than
+ * re-declared.
+ *
+ * That is one decision and not two: the rows on screen and a referrer's own
+ * `ways` array come out the same way round because there is one list, and a
+ * hand-written `[REFERRING.see, REFERRING.mention]` here — `relation.ts`'s
+ * shape — would take the order back but lose the totality with it: an array
+ * literal that forgot a way type-checks clean and draws two rows out of three,
+ * where a `map` over the format's list cannot.
+ *
+ * Nothing outside this module needs one descriptor on its own, so there is no
+ * `referring(way)` door beside this: a lookup with no caller is a second way in
+ * for the next reader to wonder about.
+ */
+export const REFERRINGS: ReadonlyArray<Referring> = WAYS.map((way) => REFERRING[way])

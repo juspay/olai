@@ -65,7 +65,7 @@ import {
   nodeNamed,
   storedMarker,
 } from "./derive.ts"
-import { isMirror, type Located, type Status, targetsOf } from "./node.ts"
+import { isMirror, type Located, type LocatedRegular, type Status, targetsOf } from "./node.ts"
 import { overlaid } from "./overlay.ts"
 import { byPath } from "./paths.ts"
 
@@ -437,12 +437,19 @@ const namings = (
  * records write, or one the departing records wrote — because a record in a
  * file the delta never named cannot have changed its prose.
  */
-const mentions = (edit: Edit): ReadonlyMap<string, ReadonlyArray<Located>> => {
-  const arriving = new Map<string, Array<Located>>()
+const mentions = (edit: Edit): ReadonlyMap<string, ReadonlyArray<LocatedRegular>> => {
+  const arriving = new Map<string, Array<LocatedRegular>>()
   for (const at of edit.incoming) mentionInto(arriving, at)
 
   const keys = new Set<string>(arriving.keys())
   for (const at of edit.outgoing) for (const word of mentionsOf(at.node)) keys.add(word)
+  // NOTHING SAID A WORD, which is what nearly every keystroke in nearly every
+  // file is — so the map that stood IS the answer, and the clone below is not
+  // paid at all. Without this line the ninth corpus-adjacent copy in a function
+  // whose whole claim is that an edit costs what it touched ran on every edit
+  // in the vault to change nothing ({@link ./overlay.ts} argues the same trade
+  // for the one index that is corpus-SIZED).
+  if (keys.size === 0) return edit.before.mentionedBy
 
   const mentionedBy = new Map(edit.before.mentionedBy)
   for (const key of keys) {

@@ -121,6 +121,29 @@ test("the referrers come in corpus order, whichever index found them", () => {
   expect(said(view, "herbs")).toEqual(["early mention", "late see"])
 })
 
+test("a note is read as TEXT, and where that parts from the browser", () => {
+  // A note is markdown, and this package holds no markdown parser: deciding
+  // what a reference IS out of one would put a parser under the write gate, so
+  // what the record SAYS is the answer here (`./derive.ts`’s `mentionsOf`).
+  //
+  // WHERE THAT ACTUALLY PARTS from the browser is NARROWER than it first looks,
+  // and this test is what found that out. A `@id` in a CODE SPAN is not a
+  // mention on either side — not because this reading knows about fences, but
+  // because `titleTagRe` claims `@` only where a word STARTS and a backtick does
+  // not open one. The divergence is a LINK’S TEXT: `[` opens a word, so this
+  // side counts it, while the client declines to style a tag inside an `a`
+  // (`web/src/client/markdown/tags.ts`).
+  //
+  // It is a test rather than a sentence because a divergence nothing asserts is
+  // one that widens quietly — and because the sentence was WRONG until this ran.
+  const view = viewOf({
+    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+      `{"id":"fenced","ord":"b","title":"fenced","desc":"write \`@herbs\` in the note"}\n` +
+      `{"id":"linked","ord":"c","title":"linked","desc":"see [@herbs](https://example.invalid)"}`,
+  })
+  expect(said(view, "herbs")).toEqual(["linked mention"])
+})
+
 test("a word inside another word is not a mention", () => {
   // `titleTagRe`'s own rule for `@`, inherited rather than restated: the sigil
   // is claimed only where a word starts, because `@` sits inside addresses all

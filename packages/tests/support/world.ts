@@ -252,12 +252,56 @@ export const BACKLINKS_SUMMARY = selector(TESTID.backlinksSummary);
  * Through the client's own table (`backlinks/way.ts`), which is what pairs a
  * way with its label and its testid: a suite that mapped a reader's word to a
  * testid here would be that pairing spelled a third time, and `EdgeRefs.tsx`'s
- * header says what a second spelling of it costs. `undefined` for a label no
- * row carries, so a scenario naming one fails saying so.
+ * header says what a second spelling of it costs. THROWS on a label no row
+ * carries — one rule, said once: a helper handing back `undefined` for the
+ * caller to re-check is the same refusal written twice, and the second writer
+ * is the one who forgets.
  */
-export const backlinkRow = (label: string): string | undefined => {
+/**
+ * Every link one row of node references draws, in DOM order and counting
+ * repeats — asserted as a WHOLE LIST rather than as a membership, because a row
+ * drawing one target twice reads as a row drawing two and a step that looked
+ * only for the target would pass over it.
+ *
+ * Here rather than in a step file because two suites ask it of two different
+ * rows — the edge rows a node declares (`edge_steps.ts`) and the referenced-by
+ * rows read backwards (`backlinks_steps.ts`) — and both had spelled the same
+ * join, the same `oneLine` and the same waiting sentence for themselves. What
+ * a row READS is one decision about one component (`NodeRefs.tsx`), so a change
+ * to how it renders a link is one assertion to fix rather than two.
+ */
+export const rowReads = async (
+  world: OlaiWorld,
+  row: Locator,
+  titles: string,
+  what: string,
+): Promise<void> => {
+  await world.waitUntil(
+    async () =>
+      (await row.count()) > 0 &&
+      (await row.locator(NODE_REF).allInnerTexts()).map(oneLine).join(", ") === titles,
+    `${what} to read ${JSON.stringify(titles)}`,
+  );
+};
+
+/**
+ * Whether a `<details>` is open — the BROWSER'S own answer, not a class this
+ * app writes, which is the whole point of the two places that use one
+ * (`document/Toc.tsx`, `backlinks/Backlinks.tsx`).
+ *
+ * One spelling of the cast, because it was four across two suites: what a
+ * section reports about itself is one contract, and a DOM interface named at
+ * four call sites is four edits with no compiler help.
+ */
+export const detailsOpen = async (locator: Locator): Promise<boolean> =>
+  await locator.first().evaluate((el) => (el as HTMLDetailsElement).open);
+
+export const backlinkRow = (label: string): string => {
   const drawn = REFERRINGS.find((one) => one.label === label);
-  return drawn === undefined ? undefined : selector(drawn.refs);
+  if (drawn === undefined) {
+    throw new Error(`the referenced-by section draws no \`${label}\` row`);
+  }
+  return selector(drawn.refs);
 };
 
 // ── writing a node's edges ─────────────────────────────────────────────

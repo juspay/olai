@@ -124,11 +124,11 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
     // talking about the page it is on, and a `see` onto one of its own
     // placements is the same sentence through a mirror.
     if (at.node.id === id || isArchived(at.file)) return
-    // A REFERRER IS A REGULAR NODE, asked rather than asserted — through the
-    // format’s own guard (`isRegular`), so this narrows the way every other
-    // consumer does. Both indexes answer it already (a mirror carries no edge
-    // fields and no prose), so it can never drop anything; a cast leaning on
-    // that would be a claim about two other modules held in a comment.
+    // A REFERRER IS A REGULAR NODE. `mentionedBy` says so in its TYPE, so this
+    // is asked only of the naming side, where `Located` is honest because
+    // `mirror` is one of the fields that index files — and asked through the
+    // format’s own guard, so this narrows the way every other consumer does.
+    // It can never drop a `see`: a mirror carries no edge fields.
     if (!isRegular(at)) return
     const ways = found.get(at)
     if (ways === undefined) found.set(at, new Set([way]))

@@ -260,6 +260,16 @@ const opened = async (page: Page, path: string, marker: string) => {
   await page.waitForTimeout(DRAWN)
 }
 
+/** What a served outline holds NOW, line by line — {@link rewrite}'s read half,
+ *  for the section that adds a record rather than replacing a file, and with
+ *  the same refusal: without a `VAULT` the path would be the string
+ *  `undefined/…`, and an ENOENT naming that is a worse thing to debug than the
+ *  sentence. */
+const servedLines = (file: string): ReadonlyArray<string> => {
+  if (VAULT === undefined) throw new Error("no VAULT; run through evidence.sh")
+  return readFileSync(`${VAULT}/${file}`, "utf8").split("\n").filter((line) => line !== "")
+}
+
 /**
  * What the FILE says about one node — the record, off the disk the driver is
  * serving, because that is the whole claim a pointer's gesture makes here.
@@ -275,7 +285,7 @@ const findRecord = (id: string): { file: string; line: string } | undefined => {
     // the same reason: this package and `@olai/format` never otherwise meet, so
     // a disagreement between them is silent.
     if (fileKind(file) !== "outline") continue
-    for (const line of readFileSync(`${VAULT}/${file}`, "utf8").split("\n")) {
+    for (const line of servedLines(file)) {
       if (line.includes(`"id":"${id}"`)) return { file, line }
     }
   }
@@ -333,15 +343,6 @@ const rewrite = (file: string, records: ReadonlyArray<string>): void => {
   writeFileSync(`${VAULT}/${file}`, records.map((one) => `${one}\n`).join(""))
 }
 
-/** What a served outline holds NOW, line by line — {@link rewrite}'s read half,
- *  for the section that adds a record rather than replacing a file, and with
- *  the same refusal: without a `VAULT` the path would be the string
- *  `undefined/…`, and an ENOENT naming that is a worse thing to debug than the
- *  sentence. */
-const servedLines = (file: string): ReadonlyArray<string> => {
-  if (VAULT === undefined) throw new Error("no VAULT; run through evidence.sh")
-  return readFileSync(`${VAULT}/${file}`, "utf8").split("\n").filter((line) => line !== "")
-}
 
 // ── the filter over the page ───────────────────────────────────────────
 

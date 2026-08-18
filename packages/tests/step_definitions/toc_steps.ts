@@ -28,6 +28,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  detailsOpen,
   DESC,
   HEADINGS,
   HYDRATION_TIMEOUT,
@@ -79,7 +80,7 @@ Then(
     // back to it.
     await toc.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
-      await toc.evaluate((node) => (node as HTMLDetailsElement).open),
+      await detailsOpen(toc),
       state === "open",
       `the contents is ${state === "open" ? "shut" : "still open"}`,
     );
