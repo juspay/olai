@@ -37,9 +37,10 @@
  *     the session was never in it. The queue is gone rather than fixed, and
  *     with it the reason a cancel had anything to decide: everything typed has
  *     already been delivered, so cancel means stop the agent and nothing else.
- *     Delivery that genuinely fails is said ON THE ROW — `unsent`, retryable by
- *     a person and by nobody else — because the alternative to holding words
- *     out of sight is not dropping them, it is showing them.
+ *     Delivery that genuinely fails is said ON THE ROW — `delivery`, and
+ *     retryable by a person and by nobody else where a retry is honest —
+ *     because the alternative to holding words out of sight is not dropping
+ *     them, it is showing them.
  *   - **the refusals the ops layer produces are OURS to render.** The agent gets
  *     the structured detail in its tool result, but what it then says about it
  *     is prose. So the MCP layer tells us about every refusal and it lands in
@@ -181,6 +182,25 @@ const CANCEL_GRACE = "5 seconds"
  */
 const CANCELLED_UNDER_IT =
   "the turn was stopped before this reached it — the message below is still yours to send"
+
+/**
+ * WHY a message did not land: the reading and the sentence, as ONE value.
+ *
+ * Not two parameters. `key`, `prompt` and `why` are all strings, so a call site
+ * handing them over in the wrong order compiles and draws somebody's prompt as
+ * the reason it failed — and the classification is not independent of the
+ * sentence anyway: they are one account of one failure.
+ *
+ * An {@link AcpAgent.AgentGone} IS one of these, structurally, which is the
+ * point rather than a coincidence — the two lanes that already have a failure
+ * pass it whole, and the one case that has none (a person's own cancel
+ * overtaking their own message) writes the pair out where a reader can see both
+ * halves at once.
+ */
+interface Undelivered {
+  readonly gone: AcpAgent.Gone
+  readonly why: string
+}
 
 /**
  * Which events are THE AGENT WORKING, as against olai's own reports about it.
@@ -554,7 +574,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // WHICH failure it was is the agent's reading, not ours: it is the
             // wire that knows whether anything answered, and this is the one
             // fact the row's two faces are drawn out of.
-            return undeliverable(key, prompt, steered.failure.gone, steered.failure.message)
+            return undeliverable(key, prompt, steered.failure)
           }
           if (steered.success === "taken") {
             // Delivered, and into the turn a person could see running — so a
@@ -564,7 +584,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           }
           // The agent ANSWERED — "nothing to steer" — so nothing took the
           // message, which is a refusal however the turn came to be over.
-          if (aimed.stopped) return undeliverable(key, prompt, "refused", CANCELLED_UNDER_IT)
+          if (aimed.stopped) {
+            return undeliverable(key, prompt, { gone: "refused", why: CANCELLED_UNDER_IT })
+          }
         }
         yield* begin(key, prompt)
       }))
@@ -598,15 +620,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * happened to those words is a fact about the conversation, so it belongs
      * in the conversation.
      */
-    const undeliverable = (
-      key: string,
-      prompt: string,
-      gone: AcpAgent.Gone,
-      why: string,
-    ): void => {
-      markUndelivered(key, prompt, gone)
-      if (gone === "unanswered") publish(transcript.add("notice", why))
-      move({ trouble: why })
+    const undeliverable = (key: string, prompt: string, failed: Undelivered): void => {
+      markUndelivered(key, prompt, failed.gone)
+      if (failed.gone === "unanswered") publish(transcript.add("notice", failed.why))
+      move({ trouble: failed.why })
     }
 
     /** WHICH mark the row takes — the whole of the difference, in one place
