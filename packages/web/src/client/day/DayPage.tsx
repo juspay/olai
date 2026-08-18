@@ -53,7 +53,8 @@
 import type { DayGroup } from "@olai/format"
 import { For, Show } from "solid-js"
 
-import { unfiltered, useNarrowed } from "../filter/narrowed.tsx"
+import { useNarrowed } from "../filter/narrowed.tsx"
+import { unfiltered } from "../filter/why.ts"
 import { TESTID } from "../testids.ts"
 import { DayGroups } from "./DayGroups.tsx"
 import { DayNote } from "./DayNote.tsx"

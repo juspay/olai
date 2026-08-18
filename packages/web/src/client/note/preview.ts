@@ -6,6 +6,11 @@
  * markdown. Full markdown is a document of its own, and drawing every note
  * open is what used to leave only a few nodes on a screen.
  *
+ * THE TOP of the note, which is what makes ./excerpt.ts a sibling rather than
+ * a caller: that one takes the same clamped line from around a QUERY's hit,
+ * for a row a filter found behind its ¶, and it keeps the marks this one drops
+ * because it is about a POSITION and this one is about an opening.
+ *
  * PLAIN TEXT, not rendered markdown: this sits inside a line beside a title,
  * and a list, a heading or a fenced block drawn there would be a note
  * pretending to be a row. The first non-blank line is taken and its common

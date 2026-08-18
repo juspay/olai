@@ -1204,6 +1204,157 @@ const wordHit = (
   return field === null ? null : { field, score }
 }
 
+// ── where the words landed ─────────────────────────────────────────────
+
+/**
+ * The WORDS a query looks for, folded — what a page lights up.
+ *
+ * The matcher answers whether a node holds them and {@link Match} answers
+ * which field carried it; neither says WHERE, because neither has ever needed
+ * to. A row does: a filtered page that draws a title without saying which part
+ * of it the query landed on leaves the reader to guess why it is in front of
+ * them, and guessing is what the highlight exists to end.
+ *
+ * ALREADY FOLDED, because {@link tokensOf} folds a token as it reads it — so
+ * these are the same strings {@link wordHit} looks for, never a second
+ * spelling of the reader's text. That is the whole reason this is here rather
+ * than in the browser: an offset found under some other case rule would light
+ * up a stretch of title the matcher never looked at.
+ *
+ * NEGATED WORDS ARE LEFT OUT, for {@link Match.props}' reason one field along:
+ * a node kept by `-walnut` is not here BECAUSE of walnut, and lighting the one
+ * place the query said it did not want would be the row drawing a lie. So are
+ * the clauses — `is:done` selects on a mark, and a mark is not text in a title.
+ *
+ * DEDUPED: `pick pick` is one needle, and two would walk the same text twice
+ * for the same answer. The ORDER is the groups' — {@link inCostOrder}'s
+ * evaluation order rather than the reader's — and deliberately not fixed:
+ * {@link litBy} merges what it finds and a highlight is the same picture
+ * whichever word landed first, so a second list carried on {@link Filter} (the
+ * shape `namedProps` takes, for a question asked once per selected NODE) would
+ * be state to keep in step for an order nothing can see. This is asked once per
+ * QUERY.
+ */
+export const needlesOf = (filter: Filter): ReadonlyArray<string> => {
+  if (filter.kind !== "asking") return []
+  const words: Array<string> = []
+  for (const group of filter.groups) {
+    for (const one of group) {
+      if (one.kind !== "term" || one.negated || one.word === "") continue
+      if (!words.includes(one.word)) words.push(one.word)
+    }
+  }
+  return words
+}
+
+/** One run of a text a needle landed on — half-open, in the text's OWN
+ *  offsets, so a caller slices the string it handed in. */
+export interface Lit {
+  readonly at: number
+  readonly end: number
+}
+
+/**
+ * Every place one of those needles lands in a piece of text — the fold's
+ * answer, mapped back onto what was written.
+ *
+ * ONE FOLD, {@link foldOf}'s: `toLowerCase`, whole-string, exactly as the four
+ * haystacks are folded. A case-insensitive regex or a locale compare here
+ * would be a second opinion about what "matches" means, and where it would
+ * show is a title lit up in a place the query never looked — worse than no
+ * highlight at all, because it is the row explaining itself wrongly.
+ *
+ * OVERLAPS ARE MERGED, because two needles landing on the same word are one
+ * stretch of ink and not two — `pick "pick the"` would otherwise light `pick`
+ * twice, nested, and every caller would have to undo it.
+ *
+ * FOLDING CAN CHANGE A LENGTH (`İ` lowercases to two units), so an offset in
+ * the fold is not always an offset in the source. Every ASCII title there is —
+ * which is nearly every title there is — has the two agreeing, and that case
+ * is the whole of the fast arm; the other is {@link sourceOffsets}.
+ */
+export const litBy = (
+  text: string,
+  needles: ReadonlyArray<string>,
+): ReadonlyArray<Lit> => {
+  if (needles.length === 0 || text === "") return []
+  const fold = text.toLowerCase()
+  const found: Array<Lit> = []
+  for (const needle of needles) {
+    let at = fold.indexOf(needle)
+    while (at !== -1) {
+      found.push({ at, end: at + needle.length })
+      at = fold.indexOf(needle, at + 1)
+    }
+  }
+  if (found.length === 0) return []
+  // Earliest first, and the longest of two that start together — which is what
+  // makes the merge below one pass rather than a search.
+  found.sort((one, other) => one.at - other.at || other.end - one.end)
+  const merged: Array<Lit> = []
+  for (const one of found) {
+    const last = merged[merged.length - 1]
+    if (last === undefined || one.at > last.end) {
+      merged.push(one)
+      continue
+    }
+    if (one.end > last.end) merged[merged.length - 1] = { at: last.at, end: one.end }
+  }
+  return fold.length === text.length ? merged : sourceOffsets(merged, text, fold)
+}
+
+/**
+ * The same runs in the SOURCE's offsets, for a string whose fold is a
+ * different length from it.
+ *
+ * Walked rather than computed, because there is no arithmetic to do: each
+ * character of the source contributes however many units its own fold has, and
+ * the running total of those IS the map. The guard is the last line — a total
+ * that does not agree with the whole-string fold means the two are not the
+ * same operation on this string, and the honest answer to that is no highlight
+ * rather than one placed by a map nothing stands behind.
+ *
+ * A RUN IS ROUNDED OUT TO WHOLE SOURCE CHARACTERS, and that is the half a
+ * naive map gets wrong. `İ` folds to `i` plus a combining dot, so `i` is a
+ * real matcher hit covering the FIRST of that character's two fold units — and
+ * a map that sent both ends to the character's start would answer with an
+ * empty span, which the view draws as a highlight of nothing where the reader
+ * can plainly see the letter they typed (grok, #240). There is no half a
+ * character to light: a run that reaches into a character lights the whole of
+ * it. So the two ends are read off two different tables — `opens` for where a
+ * unit's character STARTS, `closes` for where it ENDS — and an empty run
+ * becomes unrepresentable rather than filtered downstream, since every needle
+ * has at least one unit and every character is at least one unit wide.
+ */
+const sourceOffsets = (
+  runs: ReadonlyArray<Lit>,
+  text: string,
+  fold: string,
+): ReadonlyArray<Lit> => {
+  // One entry per FOLDED unit: where the character that produced it starts in
+  // the text, and where it ends. Two tables rather than one plus arithmetic,
+  // because the widths are the source's and the index is the fold's.
+  const opens: Array<number> = []
+  const closes: Array<number> = []
+  let at = 0
+  for (const character of text) {
+    const width = character.toLowerCase().length
+    for (let unit = 0; unit < width; unit++) {
+      opens.push(at)
+      closes.push(at + character.length)
+    }
+    at += character.length
+  }
+  if (opens.length !== fold.length) return []
+  return runs.map((run) => ({
+    at: opens[run.at] as number,
+    // The character the LAST covered unit belongs to, ended — never the next
+    // run's start, which is what would clip a partly-covered character to
+    // nothing.
+    end: closes[run.end - 1] as number,
+  }))
+}
+
 /**
  * What `is:` asks of one node — a SWITCH over the value's own type, for the
  * reason {@link clauseOf} is one: three of these six are answered by three
@@ -1433,6 +1584,25 @@ const scoping = (
 // ── what a filtered page looks like ────────────────────────────────────
 
 /**
+ * WHAT A QUERY SELECTED, as the one question a prune asks of it.
+ *
+ * A membership test and nothing else, which is what lets the same walk serve
+ * two callers that hold two different values: the tests and the flat pages
+ * hand in a `Set` of ids, and the browser's filter hands in the MAP it needs
+ * anyway — id to {@link Match}, because a row that draws WHY it is in front of
+ * somebody has to know which field carried the hit (`@olai/web`'s
+ * `filter/narrowing.ts`). Asking for a `ReadonlySet` forced that caller to
+ * keep both and kept them free to disagree; asking for the question makes the
+ * map the one answer.
+ *
+ * Deliberately NOT a union of the two: a prune has no business reading a
+ * value out of either, and a signature that could would be an invitation to.
+ */
+export interface Selected {
+  readonly has: (id: string) => boolean
+}
+
+/**
  * The RECORD a row draws: what it shows, or — for a row that shows nothing (a
  * mirror whose chain died, one that closed a loop) — the row's own.
  *
@@ -1465,7 +1635,7 @@ export const shownRecord = (row: Row): Located =>
  */
 export const keeping = (
   rows: ReadonlyArray<Row>,
-  matched: ReadonlySet<string>,
+  matched: Selected,
 ): ReadonlyArray<Row> =>
   rows.flatMap((row) => {
     if (matched.has(shownRecord(row).node.id)) return [row]
@@ -1482,7 +1652,7 @@ export const keeping = (
  */
 export const matchedIn = (
   rows: ReadonlyArray<Row>,
-  matched: ReadonlySet<string>,
+  matched: Selected,
 ): number =>
   rows.reduce(
     (total, row) =>
@@ -1528,7 +1698,7 @@ export const rowsIn = (rows: ReadonlyArray<Row>): number =>
  */
 export const keepingDated = (
   groups: ReadonlyArray<DayGroup>,
-  matched: ReadonlySet<string>,
+  matched: Selected,
 ): ReadonlyArray<DayGroup> =>
   groups.flatMap((group) => {
     const nodes = group.nodes.filter((entry) => matched.has(entry.shows.node.id))

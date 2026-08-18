@@ -357,6 +357,13 @@ export const OUTLINE_TREE = selector(TESTID.outlineTree);
 export const NODE = selector(TESTID.node);
 export const NODE_TITLE = selector(TESTID.nodeTitle);
 export const TAG = selector(TESTID.tag);
+/** A stretch of a title — or of the note line under one — the query LANDED on
+ *  (`client/filter/lit.ts`). Drawn only where a filter put one, so its presence
+ *  is half the assertion and its text is the other half. */
+export const HIT = selector(TESTID.hit);
+/** The one clamped line of a note a filter found the row BY, under the title of
+ *  a row whose only hit is behind its ¶. */
+export const DESC_HIT = selector(TESTID.descHit);
 export const DATE = selector(TESTID.date);
 /** The bar that narrows the page — the box, what it found, and what it
  *  refused. On the two routes that may carry a filter and nowhere else. */

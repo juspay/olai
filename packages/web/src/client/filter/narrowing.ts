@@ -43,7 +43,7 @@
  * would make the preference mean two things depending on what else was typed.
  */
 
-import type { Derived, Refusal } from "@olai/format"
+import type { Derived, Match, Refusal, Selected } from "@olai/format"
 import {
   datedIn,
   isArchived,
@@ -52,6 +52,7 @@ import {
   keepingOwed,
   matchedIn,
   matching,
+  needlesOf,
   owedIn,
   parseFilter,
   rowsIn,
@@ -61,10 +62,10 @@ import { type Accessor, createMemo } from "solid-js"
 
 import type { Drawn, TrashGroup } from "../page.ts"
 
-/** What an unfiltered page has selected — ONE set, shared by every reading of
- *  it. A fresh `new Set()` per read would be a new value every frame, and every
+/** What an unfiltered page has selected — ONE value, shared by every reading of
+ *  it. A fresh `new Map()` per read would be a new value every frame, and every
  *  row of the tree memoises against this one. */
-export const NOTHING_MATCHED: ReadonlySet<string> = new Set()
+export const NOTHING_MATCHED: ReadonlyMap<string, Match> = new Map()
 
 /** What a filtered page knows about itself. */
 export interface Narrowing {
@@ -78,9 +79,23 @@ export interface Narrowing {
    *  bar wants the sentences, and nothing in this client has any business
    *  reading a query's terms apart from the matcher that owns them. */
   readonly refusals: Accessor<ReadonlyArray<Refusal>>
-  /** The node ids the query selects, across the whole set. Tested against what
-   *  the page draws, which is what scopes it to the page. */
-  readonly matched: Accessor<ReadonlySet<string>>
+  /**
+   * The nodes the query selects across the whole set, each against WHY.
+   * Tested against what the page draws, which is what scopes it to the page.
+   *
+   * A MAP where this was a `Set` of ids, and the whole of the change is what a
+   * ROW can now ask. The prune only ever asked membership (`Selected`, the
+   * question `keeping` takes) — but a row that draws why it is in front of
+   * somebody has to know which FIELD carried the hit, since a match found only
+   * behind the ¶ draws a title with nothing the query said in it. Keeping a
+   * second structure beside the set was the alternative, and two answers to one
+   * question are free to disagree by a frame.
+   */
+  readonly matched: Accessor<ReadonlyMap<string, Match>>
+  /** The words the query looks for, folded — what a matched row lights up in
+   *  its title (`@olai/format`'s `needlesOf`, and `./lit.ts` for the split).
+   *  Empty for a query that named none (`is:done`) and for no query at all. */
+  readonly needles: Accessor<ReadonlyArray<string>>
   /** What the page actually draws: done-hidden first, then narrowed. */
   readonly drawn: Accessor<Drawn>
   /** How many drawn rows are matches, and how many rows there are in all —
@@ -145,8 +160,10 @@ export const createNarrowing = (source: {
   const matched = createMemo(() => {
     const indexes = source.derived()
     if (indexes === undefined || !active()) return NOTHING_MATCHED
-    return new Set(
-      matching(indexes, query(), { archived: archived() }).map(({ at }) => at.node.id),
+    return new Map(
+      matching(indexes, query(), { archived: archived() }).map((
+        { at, match },
+      ) => [at.node.id, match]),
     )
   })
 
@@ -165,6 +182,10 @@ export const createNarrowing = (source: {
   return {
     text: source.text,
     active,
+    // A fact about the QUERY and so a memo of its own: it is read by every
+    // matched row on the page, and re-deriving it per row per frame would be
+    // the tree walking its own groups once for each of them.
+    needles: createMemo(() => needlesOf(query())),
     refusals: createMemo(() => {
       const asked = query()
       return asked.kind === "refused" ? asked.refusals : []
@@ -210,7 +231,7 @@ export const createNarrowing = (source: {
  * — a heading over no rows would say that archive holds something the query
  * did not find.
  */
-const narrowed = (drawn: Drawn, matched: ReadonlySet<string>): Drawn => {
+const narrowed = (drawn: Drawn, matched: Selected): Drawn => {
   switch (drawn.kind) {
     case "tree":
       return { kind: "tree", rows: keeping(drawn.rows, matched) }
@@ -286,7 +307,7 @@ const showsArchived = (drawn: Drawn): boolean => {
 
 const keepingArchives = (
   groups: ReadonlyArray<TrashGroup>,
-  matched: ReadonlySet<string>,
+  matched: Selected,
 ): ReadonlyArray<TrashGroup> =>
   groups.flatMap((group) => {
     const rows = keeping(group.rows, matched)
@@ -318,7 +339,7 @@ const placesIn = (drawn: Drawn): number => {
  * for a third reason — a kept ancestor is drawn and is not a match — which is
  * the distinction the whole feature is made of.
  */
-const matchesIn = (drawn: Drawn, matched: ReadonlySet<string>): number => {
+const matchesIn = (drawn: Drawn, matched: Selected): number => {
   switch (drawn.kind) {
     case "tree":
       return matchedIn(drawn.rows, matched)

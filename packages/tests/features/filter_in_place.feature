@@ -29,6 +29,56 @@ Feature: Filtering the outline in place
     And the node "hinges" is a match
     And the node "kitchen" is context
 
+  Scenario: A filtered page says WHY each row is drawn
+    # The whole of the 2026-08-18 ruling, on one page: every row here was
+    # already CORRECT before it and the page was still confusing, because
+    # nothing said why any given row was in front of the reader. Three cases,
+    # and this one query draws all three at once.
+    #
+    # `alcove` is a word in `order`'s NOTE and nowhere in its title; `hinges`
+    # is a word in the title of `hinges`. `kitchen` and `install` carry
+    # neither and are here only as the ancestry that leads to the two matches.
+    Given I open the outline "house.olai"
+    When I filter the page by "alcove OR hinges"
+    Then the outline has 4 rows
+    And the filter found "2 of 10"
+    # 1. THE MATCH SHOWS ITS NEEDLE — where in the title the query landed,
+    #    which is the reader's own answer to use-versus-mention.
+    And the node "hinges" is a match
+    And the node "hinges" lights "hinges"
+    # 2. A KEPT ANCESTOR IS NOT A MATCH, and now says so in ink as well as in
+    #    `data-match`: nothing of the query is in either title, so nothing
+    #    lights up in them.
+    And the node "kitchen" is context
+    And the node "kitchen" lights nothing
+    And the node "install" is context
+    And the node "install" lights nothing
+    # 3. A NOTE-ONLY MATCH DRAWS ITS REASON — one clamped line of the note
+    #    around the hit, because the title holds nothing the reader typed.
+    And the node "order" is a match
+    And the node "order" lights nothing
+    And the node "order" excerpts "alcove"
+
+  Scenario: A row found by its title needs no second line saying so
+    # The excerpt is drawn for the row whose title says NOTHING of the query,
+    # and only that row — a note repeating what the title already lit would be
+    # noise on a page whose whole problem was too little signal. `order` is
+    # the one node here carrying a note, and `cabinets` is in its title.
+    Given I open the outline "house.olai"
+    When I filter the page by "cabinets"
+    Then the node "order" is a match
+    And the node "order" lights "cabinets"
+    And the node "order" draws no excerpt
+
+  Scenario: A query with no words in it lights nothing on the rows it finds
+    # `is:done` selects on a MARK, and a mark is not text in a title — so
+    # there is nothing to light, and lighting something would be the row
+    # inventing a reason it was not found for.
+    Given I open the outline "house.olai"
+    When I filter the page by "is:done"
+    Then the node "demo" is a match
+    And the node "demo" lights nothing
+
   Scenario: The filter is part of the address, so it survives a reload
     # A narrowed page is a link somebody can send. That is the same argument
     # `/n/<id>` is made of, and it is why the filter is in the URL rather than
@@ -321,6 +371,17 @@ Feature: Filtering the outline in place
     Then the address is exactly "/o/garden.olai?q=%23outdoors"
     And the filter box holds "#outdoors"
     And the node "garden" is a match
+
+  Scenario: A pressed tag lights up on the rows that carry it
+    # The gesture the whole ruling came from. The format cannot tell a tag USED
+    # from a tag MENTIONED — a `#word` in a title IS a tag, deliberately — so
+    # the pill is lit where it sits and the reader resolves the ambiguity
+    # themselves, which is what a page of identical-looking rows could not let
+    # them do.
+    Given I open the outline "garden.olai"
+    When I press the tag "#outdoors"
+    Then the node "garden" is a match
+    And the node "garden" lights "#outdoors"
 
   Scenario: Pressing a tag does not also put a caret in the row
     # One press, one act. A tag pill sits inside the title, whose own click

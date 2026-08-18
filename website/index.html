@@ -125,6 +125,12 @@
      badge, the outline a collected row came out of. */
   .rollup, .marklbl, .pill, .grp { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
   .tagchip { color: var(--accent); }
+  /* A filtered page says WHY each row is drawn: the query's words are lit
+     where they sit, and a row kept only as the ancestry leading to a match is
+     drawn one step back. */
+  .hit { background: color-mix(in srgb, var(--accent) 30%, transparent); border-radius: 2px; padding: 0 1px; }
+  .dimrow { opacity: 0.6; }
+  .noteline { padding-left: 1.6rem; font-size: 0.85em; color: var(--muted); }
   .pill {
     line-height: 1.5; border: 1px solid var(--rule); border-radius: 999px;
     padding: 0 0.5em; white-space: nowrap; flex: none;
@@ -762,14 +768,19 @@ The corner unit is the **risky one** — see
     the fourth takes rows away and leaves the rest standing where they live.</p>
     <div class="cols">
       <div class="panel">
-        <div class="file">/o/house.olai?q=%23home+-is%3Adone</div>
-        <div class="row"><span class="bullet">●</span><span class="t"><strong>kitchen remodel</strong> <span class="tagchip">#home</span></span></div>
-        <div class="row d1"><span class="bullet">●</span><span class="t">install the cabinets</span></div>
-        <div class="row d2"><span class="box"></span><span class="t">pick the hinges <span class="tagchip">#home</span></span></div>
+        <div class="file">/o/house.olai?q=%23home+OR+alcove</div>
+        <div class="row"><span class="bullet">●</span><span class="t"><strong>kitchen remodel</strong> <span class="tagchip"><span class="hit">#home</span></span></span></div>
+        <div class="row d1"><span class="bullet">●</span><span class="t">order the new cabinets</span></div>
+        <div class="noteline">…measure the <span class="hit">alcove</span> before ordering.</div>
+        <div class="row d1 dimrow"><span class="bullet">●</span><span class="t">install the cabinets</span></div>
+        <div class="row d2"><span class="box"></span><span class="t">pick the hinges <span class="tagchip"><span class="hit">#home</span></span></span></div>
         <p class="caption">A match is drawn with the ancestors that lead to it,
-        so a bare title still says what it is about. Everything else goes; the
-        collapse you left on <em>install</em> is suspended while the filter is
-        on, and comes back when it clears.</p>
+        so a bare title still says what it is about — and every row says WHICH
+        it is. The query's words are lit where they sit; a row drawn only as
+        the ancestry leading somewhere is dim; and a row found behind its ¶
+        draws one clamped line of the note around the hit, since its title
+        holds nothing you typed. The collapse you left on <em>install</em> is
+        suspended while the filter is on, and comes back when it clears.</p>
       </div>
       <div>
         <p><strong>Words are substrings; operators say what a node

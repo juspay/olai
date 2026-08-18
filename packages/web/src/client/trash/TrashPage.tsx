@@ -43,11 +43,12 @@
 
 import { isMirror, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
-import { Match, Show, Switch } from "solid-js"
+import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
-import { matchedAttr, unfiltered, useNarrowed } from "../filter/narrowed.tsx"
+import { useNarrowed } from "../filter/narrowed.tsx"
+import { CONTEXT_DIM, lighting, matchedAttr, unfiltered } from "../filter/why.ts"
 import { NodeTitle } from "../NodeTitle.tsx"
 import type { TrashGroup } from "../page.ts"
 import { createSaying } from "../saying.ts"
@@ -147,17 +148,37 @@ function Branch(props: {
     say(answer)
   }
 
+  /** The node this row SHOWS — a placement in a pile matches, lights and dims
+   *  by what it stands for. One accessor because three bindings ask it and
+   *  `props.row` is a fresh object on every frame the store publishes; the
+   *  tree's own row keeps the same one (`../Tree.tsx`). */
+  const shownId = createMemo(() => shownRecord(props.row).node.id)
+
   return (
     <li
       data-testid={TESTID.trashRow}
       data-node-id={props.row.at.node.id}
       // Whether the filter SELECTED this row or kept it as the scaffold that
       // leads to one — one spelling for every surface that says it
-      // (`../filter/narrowed.tsx`), asked of the node the row SHOWS, because a
+      // (`../filter/why.ts`), asked of the node the row SHOWS, because a
       // placement in a pile matches by what it stands for.
-      data-match={matchedAttr(narrowed, shownRecord(props.row).node.id)}
+      data-match={matchedAttr(narrowed, shownId())}
     >
-      <div class="group flex min-h-6 items-baseline gap-2 py-0.5">
+      {/* The dim is on the LINE, never on the `<li>`: a pile nests, and an
+          item would take every match under this row down with it
+          (`../filter/why.ts`, `../blocked.ts`).
+
+          TWO of the three things a narrowed row says are drawn here and the
+          third cannot be: a trash row is a title and a `Put back`, with no
+          note body under it (`../NodeBody.tsx` is the tree's and the day's),
+          so there is no ¶ for a note-only hit to be excerpted from. What a
+          reader gets instead is the row and its pile — which is what this page
+          is for. */}
+      <div
+        class={`group flex min-h-6 items-baseline gap-2 py-0.5 ${
+          CONTEXT_DIM(narrowed, shownId())
+        }`}
+      >
         <span class="select-none text-muted" aria-hidden="true">
           {isMirror(props.row.at.node) ? "⇢" : "•"}
         </span>
@@ -170,7 +191,7 @@ function Branch(props: {
           data-testid={TESTID.nodeTitle}
           classList={{ "line-through opacity-60": props.row.status === "done" }}
         >
-          <Title row={props.row} />
+          <Title row={props.row} needles={lighting(narrowed, shownId())} />
         </span>
         <Show when={props.row.kind === "node" ? props.row : undefined}>
           {(row) => (
@@ -213,6 +234,9 @@ function Branch(props: {
  *  read the same words about it). */
 function Title(props: {
   readonly row: Row
+  /** The words the query found this row by, lit in its title — the same fact
+   *  every other surface's rows draw (`../filter/lit.ts`). */
+  readonly needles?: ReadonlyArray<string>
 }) {
   return (
     <Switch>
@@ -221,7 +245,13 @@ function Title(props: {
           ? props.row
           : undefined}
       >
-        {(row) => <NodeTitle title={row().shows.node.title} from={row().shows.file} />}
+        {(row) => (
+          <NodeTitle
+            title={row().shows.node.title}
+            from={row().shows.file}
+            needles={props.needles}
+          />
+        )}
       </Match>
       <Match when={props.row.kind === "dangling" ? props.row : undefined}>
         {(row) => (

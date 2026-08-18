@@ -207,6 +207,28 @@ A `#tag` in a title becomes a real affordance: a pill that says it is pressable,
 
 (Since `search-everywhere` the list of such pages is down to the document, which draws no pills at all — `markdown/tags.ts` styles TITLES, and a document is a body. The machinery stays, because the condition is still a real one and is still read in two places; what changed is that a tag in a title is now live wherever a title is drawn. A tag inside an ancestry crumb is the one that still does not filter, and for the reason it never did: the crumb is a link, the tag walk skips anchors, and one press is one act.)
 
+## Every row says why it is drawn (2026-08-18)
+
+Ruled with the human from one screenshot: a `#deferral` tag-click over this repository's own roadmap. Every number and every row was **correct**, and the page was still confusing — because a filtered page never said why any given row was in front of the reader. Three cases, all present in that one screenshot:
+
+1. **A match did not show its needle.** `ir-deferral-tag`'s title merely *talks about* the tag ("a deferral node wears #deferral") and matched exactly like a row that wears it as a label. The format cannot tell use from mention — a `#word` in a title IS a tag, deliberately — so the UI's job is not to distinguish them but to make the reason visible: show WHERE the query landed, and the reader resolves the ambiguity themselves.
+2. **A kept ancestor looked like a match.** `instructions-reconcile` carried the tag nowhere; it was drawn only as the chain leading to a match. Nothing marked it as context rather than result — the distinction already existed in the model (membership in the `matched` set vs merely surviving `keeping`'s prune, which `matchedIn` counts) and the row simply never drew it.
+3. **A note-only match showed no reason at all.** A row whose hit is behind the ¶ drew a title containing nothing the query said.
+
+The fix is three things, all view-time — nothing is stored, nothing is re-matched:
+
+- **The words are lit where they sit.** `needlesOf` hands a parsed query's positive words to the view and `litBy` says where each lands in a text; both are in `@olai/format`'s `filter.ts`, beside the fold they use, which is the whole point — an offset found under some other case rule would light up a stretch of title the matcher never looked at. The two title paths that are already held byte-for-byte to each other (`markdown/plain.ts`'s fast path and the HAST walk) take the needles through one split (`filter/lit.ts`), so a tag pill lights inside itself rather than instead of itself, and `plain.test.ts` sweeps both readings.
+- **A row that did not match is dim** — the same utility a row that cannot be started yet already wears (`blocked.ts`'s `WAITING_DIM`), deliberately the same value rather than a second number, since a row can be both at once. On the LINE and the body, never on the `<li>`: opacity compounds through a subtree, and an item would dim the very match the context leads to.
+- **A note-only match draws one clamped line** of its note, opening at the hit's own line, with the word lit (`note/excerpt.ts`, beside `note/preview.ts` — one concept, two selectors). It replaces the density preference's top-of-note preview on that row rather than sitting beside it.
+
+**Auto-expanding a matched note lost, and it was the obvious alternative.** Notes here run to ~1.5KB paragraphs; the filter re-evaluates per keystroke, so a page of open notes would reflow violently under somebody still typing; and it would trample the reader's own open/closed state, which would then need saving and restoring to put back. A clamped window is the same idea with a bounded cost.
+
+**What it cost the format:** `matching`'s answer was already `Matched` (the node and WHY); it was the browser that reduced it to a `Set` of ids. It now keeps the map, and the prunes take the one question they ever asked of it (`Selected`, "does this hold that id") rather than a concrete `Set` — so nothing has to hold two structures that could disagree by a frame.
+
+**What review found (grok, opencode, 2026-08-18), and where it landed.** Both do-not-object; three things changed. A needle covering only PART of a multi-unit fold character mapped to an empty source span — `İ` folds to `i` plus a combining dot, so a query of `i` was a real hit that drew a highlight of nothing beside a letter the reader can see; a run now rounds out to whole source characters, and an empty run is unrepresentable rather than elided downstream. The query is looked for ONCE per title rather than once per part, which is one fold instead of several and is also what lets a phrase light across a tag boundary (`"remodel #home"` was inside neither piece it crossed). Two shapes are named rather than fixed: a needle living only inside a title's `code` span or link lights nothing (that subtree is the one this app refuses to re-read, since a `#` in a URL fragment is not a tag), and a phrase spanning two pieces of rendered markdown lights neither.
+
+**Out of scope, filed separately if wanted:** the count line's mixed denominators ("8 of 57 — 17 more matches hidden as done" reads as 8+17≠57; the 57 is page rows, the 17 is matches).
+
 ## Deferred, named
 
 - Changed-since dates (`changed:7d`) — the relative words landed (`search-relative-dates`); a question about HISTORY is a different one, and nothing in the format answers it.

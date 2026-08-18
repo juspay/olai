@@ -37,6 +37,13 @@
  * The clamp stays pressable where it is drawn, because a reader whose eye is
  * already on the note should not have to travel back to the mark to open it.
  *
+ * `noteHit` is the third shape and it OVERRULES the preference: a row a filter
+ * found behind its ¶ draws the same clamp taken around the hit instead of off
+ * the top (`./note/excerpt.ts`), because that line is the reason the row is on
+ * screen and a reader who hid previews did not ask to be told less about the
+ * query they just typed. Which of the two lines it is, is one memo below; the
+ * element is one either way (`./note/Line.tsx`).
+ *
  * `zoomed` is one fact with two consequences, not two knobs: on the node's own
  * page the body IS the page, so the note is read at page size, the drawer draws
  * the node's own facts as well as its properties, and the document is drawn in
@@ -60,11 +67,12 @@ import { docOf, type LocatedRegular } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
 import { DocRef } from "./document/DocRef.tsx"
+import { excerptOf } from "./note/excerpt.ts"
+import { NoteLine } from "./note/Line.tsx"
 import { plainLine } from "./note/preview.ts"
 import { Note } from "./Note.tsx"
 import { PropsDrawer } from "./props/PropsDrawer.tsx"
 import { EdgeRefs } from "./edges/EdgeRefs.tsx"
-import { TESTID } from "./testids.ts"
 import { ROW_NOTE } from "./touch.ts"
 
 export function NodeBody(props: {
@@ -82,6 +90,18 @@ export function NodeBody(props: {
   /** Click/tap the clamped line to open the row — the pilcrow's gesture, from
    *  the other end of the note. */
   readonly onToggle?: () => void
+  /**
+   * The words a filter found this node BY and found nowhere but its note
+   * (`./filter/why.ts`'s `behindTheMark`) — so a closed row draws a
+   * window onto the note around the hit instead of the plain top-of-note
+   * preview, and stops being a title with nothing of the query in it.
+   *
+   * Empty for every other row, filtered or not. Handed IN rather than read off
+   * the narrowing here, for the reason `onEdit` and `onUnsee` are: this
+   * component is a body, and which of the surfaces drawing one has a filter
+   * over it is the caller's fact.
+   */
+  readonly noteHit?: ReadonlyArray<string>
   /** Click/tap the open note to put the CARET in it: absent wherever a node is
    *  drawn read-only (a day page), which is the same rule `NodeLine.onEdit`
    *  follows for the title. */
@@ -95,9 +115,33 @@ export function NodeBody(props: {
 }) {
   const zoomed = () => props.zoomed === true
   const open = () => props.expanded === true
-  const snippet = createMemo(() => {
+  /**
+   * THE ONE DIM LINE a closed row draws under its title, as the runs it is
+   * drawn from — or `undefined` for a row that draws none.
+   *
+   * ONE memo for what used to be two, because the two answers are exclusive by
+   * construction and were held so by hand: an excerpt REPLACES the preview
+   * (two dim lines under one title, saying nearly the same thing, is the noise
+   * this whole feature is against), and a `<Show>` re-stating the other's
+   * negation is that rule kept in a condition rather than in the shape.
+   *
+   * The needles are read FIRST, so an unfiltered page — which is nearly every
+   * page — does not subscribe to `desc` twice per row for a line it is not
+   * drawing.
+   */
+  const line = createMemo(() => {
+    const needles = props.noteHit
+    if (needles !== undefined && needles.length > 0) {
+      const desc = props.shows.node.desc
+      const runs = desc === undefined || desc === ""
+        ? undefined
+        : excerptOf(desc, needles)
+      if (runs !== undefined) return { runs, hit: true }
+    }
+    if (props.preview !== true) return undefined
     const desc = props.shows.node.desc
-    return desc === undefined || desc === "" ? undefined : plainLine(desc)
+    if (desc === undefined || desc === "") return undefined
+    return { runs: [{ text: plainLine(desc), lit: false }], hit: false }
   })
 
   return (
@@ -105,26 +149,15 @@ export function NodeBody(props: {
       when={zoomed()}
       fallback={
         <>
-          {/* Closed at `cozy`: one clamped dim line under the title. At
-              `compact` there is nothing here and the pilcrow says it all. */}
-          <Show when={!open() && props.preview === true && snippet()}>
-            {(line) => (
-              <button
-                type="button"
-                class={`mt-0.5 mb-1 block w-full max-w-full cursor-text truncate border-0 bg-transparent p-0 text-left ${ROW_NOTE}`}
-                data-testid={TESTID.desc}
-                data-preview="true"
-                data-open="false"
-                title="show the full note"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  // Open. A clamped line is not something anybody can type
-                  // into, so the caret belongs to the click after this one.
-                  props.onToggle?.()
-                }}
-              >
-                {line()}
-              </button>
+          {/* CLOSED: one clamped dim line under the title, which is either the
+              top of the note (`Cozy`) or the window a filter found this row
+              through — whatever the density says, because a reader who has
+              hidden previews has not asked to be told less about the query
+              they just typed. At `compact` with no query there is nothing here
+              and the pilcrow says it all. */}
+          <Show when={!open() ? line() : undefined}>
+            {(one) => (
+              <NoteLine runs={one().runs} hit={one().hit} onOpen={props.onToggle} />
             )}
           </Show>
 

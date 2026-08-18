@@ -11,6 +11,19 @@
 import type { InTheWay } from "@olai/format"
 
 /**
+ * HOW DIM A ROW GOES when it is not one of the ones to read — one number, and
+ * exported because two different facts now draw it: a row that cannot be
+ * started yet ({@link WAITING_DIM}, below) and a row a filter kept only as the
+ * ancestry leading to a match (`./filter/why.ts`'s `CONTEXT_DIM`).
+ *
+ * ONE UTILITY rather than two that agree by hand, and that is not tidiness: a
+ * row can be both at once, and two different opacities on one element is a race
+ * between two classes rather than a decision. Written here, beside the first
+ * fact that needed it.
+ */
+export const ROW_DIM = "opacity-60"
+
+/**
  * The row's own dim: enough to fall behind the rows that can be started,
  * nowhere near what a reader would take for finished.
  *
@@ -25,7 +38,7 @@ import type { InTheWay } from "@olai/format"
  * a blocked row.
  */
 export const WAITING_DIM = (blocked: ReadonlyArray<InTheWay>): string =>
-  blocked.length > 0 ? "opacity-60" : ""
+  blocked.length > 0 ? ROW_DIM : ""
 
 /**
  * The ids a node is waiting on, space-separated and in the order the format

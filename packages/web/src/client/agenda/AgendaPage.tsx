@@ -55,7 +55,8 @@
 import { type Agenda, nothingDue } from "@olai/format"
 import { Show } from "solid-js"
 
-import { unfiltered, useNarrowed } from "../filter/narrowed.tsx"
+import { useNarrowed } from "../filter/narrowed.tsx"
+import { unfiltered } from "../filter/why.ts"
 import { TESTID } from "../testids.ts"
 import { Spine } from "./Spine.tsx"
 

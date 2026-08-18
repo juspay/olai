@@ -35,10 +35,18 @@
  * escaped source. A title that looks correct while missing a word is worse
  * than the marks. The fallback is plain escaped text (no tag styling): it is
  * "show what you wrote", not a second render path.
+ *
+ * A FILTERED PAGE HANDS DOWN ITS NEEDLES, and they ride both of the first two
+ * answers rather than one: the words a query found this node by are wrapped
+ * where they sit (`../filter/lit.ts`), so a row says which part of its title
+ * put it in front of the reader. The third answer draws none — escaped source
+ * is the "show what you wrote" fallback, and marking it up is exactly what it
+ * is refusing to do.
  */
 
 import type { Element, ElementContent, Root, RootContent, Text } from "hast"
 
+import { NO_NEEDLES } from "../filter/lit.ts"
 import { markdownReady } from "./chunk.ts"
 import { plainTitle } from "./plain.ts"
 import { hastToHtml, renderToTree } from "./render.ts"
@@ -48,6 +56,15 @@ export interface TitleRender {
   /** When false, markdown links are unwrapped to their children so the title
    *  can sit inside an existing `<a>` (breadcrumb, see-ref) without nesting. */
   readonly links?: boolean
+  /**
+   * The words a filter found this node by, lit inside the title
+   * (../filter/lit.ts) — empty, which is every title on an unfiltered page.
+   *
+   * The one option that is not a property of the title: it is a fact about the
+   * PAGE, handed down so a row can say why it is in front of somebody. Which
+   * is also why a highlighted title is not remembered below.
+   */
+  readonly needles?: ReadonlyArray<string>
 }
 
 /**
@@ -59,31 +76,60 @@ export interface TitleRender {
  *   - a PLAIN title (./plain.ts) depends on nothing but the title, so it is
  *     keyed on the title alone and the same words in a row, a breadcrumb and a
  *     see-ref are one entry rather than three;
- *   - a RENDERED one depends on the file it is in (relative pictures) and on
- *     whether its links survive, so it is keyed on all three.
+ *   - a RENDERED one depends on the file it is in (relative pictures), on
+ *     whether its links survive, and on the query's needles, so it is keyed on
+ *     all four.
  *
  * Separate maps rather than one, because the caps are what they are for: plain
  * titles are ~99% of them and cost a few regexes, and letting them fill a
  * shared map would drop the handful of pipeline renders — the expensive
  * ones — on every clear.
+ *
+ * A FILTERED PAGE IS WHERE THE TWO CAPS EARN THEIR SEPARATION, and it decides
+ * the needles differently for each. The query changes on every keystroke, so a
+ * needle in a key is an entry nobody asks for twice — which is why a
+ * highlighted PLAIN title is drawn and not remembered at all (`isPlain` plus a
+ * tag split is microseconds, and a filtered page would otherwise clear this map
+ * every few keystrokes). A highlighted RENDERED one is remembered, needles and
+ * all, for the opposite reason: it is a whole unified parse, there is no
+ * virtual scroller under the tree, and re-parsing every matched markdown title
+ * on every keystroke is the cost this cache exists to refuse.
  */
 const plainTitles = new Map<string, string>()
 const rendered = new Map<string, string>()
 const CACHE_LIMIT = 1024
 
-/** One title → one HTML string, safe for `innerHTML`. */
+/**
+ * One title → one HTML string, safe for `innerHTML`.
+ *
+ * THE LADDER IS WRITTEN ONCE — plain, then rendered, then the escaped source —
+ * and the caches are conditions on it rather than a second copy of it. It was
+ * briefly two: a filtered page had a fork of its own that skipped the lookups,
+ * which is the same three answers held to each other by nothing, and the one
+ * path with no sweep over it (./plain.test.ts holds the FAST path against the
+ * pipeline, never one caller against another).
+ */
 export const renderTitle = (
   title: string,
   from: string,
   options: TitleRender = {},
 ): string => {
-  const wasPlain = plainTitles.get(title)
-  if (wasPlain !== undefined) return wasPlain
-  const plain = plainTitle(title)
-  if (plain !== null) return remember(plainTitles, title, plain)
-
+  const needles = options.needles ?? NO_NEEDLES
   const links = options.links !== false
-  const key = `${links ? "a" : "n"}\n${from}\n${title}`
+
+  // A plain title under a query is drawn and not remembered — see the caches'
+  // own note. Unfiltered, which is nearly every title this app draws, the
+  // lookup is the first thing that happens.
+  if (needles.length === 0) {
+    const wasPlain = plainTitles.get(title)
+    if (wasPlain !== undefined) return wasPlain
+  }
+  const plain = plainTitle(title, needles)
+  if (plain !== null) {
+    return needles.length === 0 ? remember(plainTitles, title, plain) : plain
+  }
+
+  const key = `${links ? "a" : "n"}\n${from}\n${needles.join("\u0000")}\n${title}`
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 
@@ -92,7 +138,7 @@ export const renderTitle = (
   // afterwards. The read is what re-runs the caller's memo when it lands.
   if (!markdownReady()) return escapeHtml(title)
 
-  return remember(rendered, key, build(title, from, links))
+  return remember(rendered, key, build(title, from, links, needles))
 }
 
 const remember = (
@@ -105,9 +151,14 @@ const remember = (
   return html
 }
 
-const build = (title: string, from: string, links: boolean): string => {
+const build = (
+  title: string,
+  from: string,
+  links: boolean,
+  needles: ReadonlyArray<string>,
+): string => {
   const tree = renderToTree(title, from, "inline")
-  styleTags(tree)
+  styleTags(tree, needles)
   if (!links) unwrapAnchors(tree)
 
   // The pipeline dropped words the source still accounts for — fully empty,

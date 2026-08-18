@@ -52,7 +52,7 @@ import {
   timeOf,
 } from "./dates.ts"
 import { type Derived, storedMarker } from "./derive.ts"
-import { keepingDated } from "./filter.ts"
+import { keepingDated, type Selected } from "./filter.ts"
 import type { RegularNode } from "./node.ts"
 
 /**
@@ -231,7 +231,7 @@ export const owedOf = (agenda: Agenda): Owed => ({
  */
 export const keepingOwed = (
   agenda: Agenda,
-  matched: ReadonlySet<string>,
+  matched: Selected,
 ): Agenda => ({
   overdue: keepingDays(agenda.overdue, matched),
   today: keepingDated(agenda.today, matched),
@@ -245,7 +245,7 @@ export const keepingOwed = (
  *  page claiming a wait that has nothing at either end of it. */
 const keepingDays = (
   days: ReadonlyArray<AgendaDay>,
-  matched: ReadonlySet<string>,
+  matched: Selected,
 ): ReadonlyArray<AgendaDay> =>
   days.flatMap((day) => {
     const groups = keepingDated(day.groups, matched)

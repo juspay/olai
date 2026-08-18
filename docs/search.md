@@ -87,6 +87,20 @@ Above every page that draws nodes there is a filter box. It is not the header's 
 - **Hiding finished work happens first.** The Prefs switch is a standing claim about the reader; the filter is a question about the page. So `is:done` under a done-hiding preference draws nothing — and the bar says how many matches are being held back, rather than leaving it a mystery.
 - The bar reports **"3 of 41"**: how many drawn rows are matches, of how many rows the page draws.
 
+### Every row says why it is drawn
+
+A filtered page can be entirely correct and still leave you guessing. Every row on it belongs there — but for one of two quite different reasons, and until you can tell which, a title that merely *talks about* `#deferral` and one that *wears it* read exactly alike. The format cannot separate those two: a `#word` in a title **is** a tag, deliberately. So the page does not try to; it shows you where the query landed and lets you decide.
+
+- **A match shows its needle.** The words the query found the row by are highlighted where they sit in the title — a word, a quoted phrase, or the `#tag` you pressed, lit inside the pill rather than instead of it. Case is the matcher's own: `CABINETS` lights `Cabinets`, and a bare `home` lights the name inside `#home` without the sigil, because that is exactly what the query asked for. A query that names no words at all (`is:done`, `date:today`) lights nothing — a mark is not text in a title, and lighting something would be the row inventing a reason.
+- **A kept ancestor is dim.** A row drawn only as the ancestry that leads to a match — or as part of a match's own subtree — is drawn one step back, the same dim a row that cannot be started yet already wears. It is context, and it now looks like context.
+- **A note-only match draws its reason.** A row found behind its ¶ has a title with nothing you typed in it, so one clamped line of the note is drawn under the title, opening at the hit's own line and with the word lit in it. Pressing that line opens the note.
+
+The note is **excerpted, never auto-expanded**. Notes here run to paragraphs; the filter re-evaluates on every keystroke, so opening them all would reflow the page violently while you type — and it would trample whatever you had open, which would then need saving and putting back. A clamped window is the same idea with a bounded cost.
+
+None of this is stored, and none of it is a second matcher: the highlight comes from the same case fold `matching` searched with, so the page cannot light up a stretch of text the query never looked at — and a letter whose lower case is written with two characters (`İ`) lights whole, because there is no half a character to light.
+
+Two places a matched row lights nothing, named so they are not mistaken for bugs. A needle that lives **only inside a title's `code` span or link** selects the row and lights nothing: those are the one part of a title this app deliberately does not re-read (a `#` in a URL fragment is not a tag), and the highlight follows the same walk. And a phrase spanning two rendered pieces of a title — across a `**bold**`, say — lights neither, because the words are found per piece of rendered markup. A phrase across a `#tag` does light, since a tag is a split of one string rather than a second piece.
+
 ### Which pages filter, and what it means on each
 
 **Every page but a document.** The filter shipped on the two tree pages and stopped there for a release; a day, the agenda and the trash drew the same rows out of the same set and ignored the box. They do not any more, and the promise is that there is nothing new to learn — same grammar, same address, same count, same refusal. What differs is only what each page is made of.

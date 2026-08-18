@@ -86,7 +86,8 @@ import { repeatPick } from "./date/repeat.ts"
 import { useDerived } from "./derived.tsx"
 import { createEdgeEditing } from "./edges/editing.tsx"
 import { useEditor } from "./edit/editing.tsx"
-import { matchedAttr, useNarrowed } from "./filter/narrowed.tsx"
+import { useNarrowed } from "./filter/narrowed.tsx"
+import { behindTheMark, CONTEXT_DIM, lighting, matchedAttr } from "./filter/why.ts"
 import { onATag } from "./filter/tag.ts"
 import { useUndo } from "./edit/undoing.ts"
 import { NewRow } from "./edit/NewRow.tsx"
@@ -180,7 +181,8 @@ function Branch(props: {
    *  knows. It buys exactly one thing, which is what a SECTION is. */
   readonly depth: number
 }) {
-  // WHAT THIS PAGE IS NARROWED BY (./filter/narrowed.tsx): whether this row was
+  // WHAT THIS PAGE IS NARROWED BY (./filter/narrowed.tsx, ./filter/why.ts):
+  // whether this row was
   // a match rather than an ancestor of one. A fact about the PAGE, not the row,
   // which is why it arrives through a context rather than a thousand props.
   const narrowed = useNarrowed()
@@ -331,6 +333,17 @@ function Branch(props: {
    *  row of the tree. */
   const focused = createMemo(() => focusedNode() === foldIdOf(props.row))
 
+  /** WHY this row is drawn, in the three things a narrowed page says about it
+   *  (./filter/why.ts): the words to light in its title, the dim it wears
+   *  if it is only the ancestry that leads to a match, and the note to excerpt
+   *  when the hit is behind its ¶.
+   *
+   *  Asked of the node the row SHOWS, which is the rule `data-match` beside it
+   *  already follows — a mirror of a matching node is a match wherever it is
+   *  drawn. A memo because four bindings read it, and `props.row` is a fresh
+   *  object on every frame the store publishes. */
+  const shownId = createMemo(() => shownRecord(props.row).node.id)
+
   /** Is this row PICKED, and is it in the air? Two facts about the same row and
    *  neither is the caret's: a pick is a set of places
    *  (`./select/selection.ts`), and a row being carried is one the drop is not
@@ -406,11 +419,11 @@ function Branch(props: {
       // Whether the filter SELECTED this row or kept it as the context that
       // leads to one. Absent on an unfiltered page, which is the difference
       // between "not a match" and "there is no query" — one spelling for the
-      // three surfaces that draw a row now (`./filter/narrowed.tsx`). No memo:
+      // three surfaces that draw a row now (`./filter/why.ts`). No memo:
       // a JSX attribute is already its own computation, and this one has no
       // second reader — asked of the node the row SHOWS, which is the rule a
       // fold follows too and the format spells once (`shownRecord`).
-      data-match={matchedAttr(narrowed, shownRecord(props.row).node.id)}
+      data-match={matchedAttr(narrowed, shownId())}
     >
       {/* group/row is on the LINE, not the <li>: a parent li also contains
           every nested child, and a named group-hover on the li would reveal
@@ -425,7 +438,7 @@ function Branch(props: {
         // the platform that raises it without an event to prevent.
         class={`group/row relative flex items-center ${HELD} ${GUTTER_GAP} ${
           WAITING_DIM(props.row.blocked)
-        }`}
+        } ${CONTEXT_DIM(narrowed, shownId())}`}
         // The phone's door to the `•••` menu: hold a finger on the row. Touch
         // only, so a mouse and a pen are untouched — and so is the page, which
         // goes on scrolling under a finger that moves (./longPress.ts).
@@ -584,6 +597,7 @@ function Branch(props: {
                 title={shows().node.title}
                 from={shows().file}
                 status={props.row.status}
+                needles={lighting(narrowed, shownId())}
                 section={section()}
                 open={note.expanded()}
                 // The one fact a folded row may say (./hot.ts), plus what this
@@ -702,7 +716,9 @@ function Branch(props: {
       <Show when={!collapsed() && shown()}>
         {(shows) => (
           <div
-            class={`${PAST_CONTROLS} ${WAITING_DIM(props.row.blocked)}`}
+            class={`${PAST_CONTROLS} ${WAITING_DIM(props.row.blocked)} ${
+              CONTEXT_DIM(narrowed, shownId())
+            }`}
             ref={note.setRoot}
           >
             {/* The note as TEXT while it is being written, rendered markdown
@@ -714,6 +730,9 @@ function Branch(props: {
                 <NodeBody
                   shows={shows()}
                   expanded={note.expanded()}
+                  // The one line that says why a row with nothing of the query
+                  // in its title is on screen (./filter/why.ts).
+                  noteHit={behindTheMark(narrowed, shownId())}
                   // Whether a CLOSED row keeps the clamped line — the density
                   // preference, arriving as the one thing it means here.
                   preview={showsPreview(density())}

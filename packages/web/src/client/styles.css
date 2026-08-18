@@ -163,6 +163,33 @@
   color: var(--color-accent);
 }
 
+/* WHERE THE QUERY LANDED, in a title or in the one line of a note a row was
+ * found by (`client/filter/lit.ts`). A filtered page used to draw every row it
+ * kept in the same voice, so a title that merely TALKS about `#deferral` and
+ * one that wears it read identically — the format cannot tell use from mention
+ * (a `#word` in a title IS a tag, deliberately), so the view's job is not to
+ * distinguish them but to show WHERE the words are and let the reader do it.
+ *
+ * A WASH, not a colour swap: the ink stays whatever the row's own tone made it
+ * — a done row is still struck and dim, a tag is still a tag — and the mark is
+ * a band of accent behind it. Swapping the ink instead would have made a hit
+ * inside a finished row look unfinished, and a hit inside a tag look like an
+ * ordinary word. The alpha is low for the same reason it is low on a picked
+ * row: this is the page pointing, not the page shouting.
+ *
+ * Here rather than in a utility because a title is HTML that belongs to no
+ * component (`client/markdown/tags.ts`, over `innerHTML`), and `<mark>` arrives
+ * with a UA background of its own that has to be answered whatever the theme
+ * is. Unguarded by `data-narrowable`, unlike the tag rules above: a tag is
+ * drawn on every page whether or not it can be pressed, where a mark exists
+ * only where a query put one — so there is no page for a guard to protect. */
+mark.olai-hit {
+  background-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
 /* A raised card on the desk — the month, and anything else that sits up off
  * the workbench. Ink-tinted so it follows every palette rather than a gray. */
 .olai-card {
