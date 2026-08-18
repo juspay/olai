@@ -257,6 +257,26 @@ export interface Caret {
   readonly text: string
 }
 
+/**
+ * THE THIRD ANSWER a keystroke can have: not the app's, not nobody's — the
+ * EDITOR'S, and the editor is going to use it.
+ *
+ * There is exactly one today, and it is vim's `Escape` ({@link editKey} argues
+ * why). It has to be an answer rather than a decline, because the two are not
+ * the same at the call site: a key the map declines is left alone and travels
+ * on, and `Escape` travelling on reaches the listener that shuts the panels
+ * this client draws itself (`dismiss.ts`) — which for a note is the row it is
+ * being typed in. So "nobody's" would fold the row a vim editor is inside,
+ * which is the same "thrown out of what you were writing" the decline exists
+ * to prevent.
+ *
+ * A value in the same union rather than a second predicate beside it: a caller
+ * that has to remember to ask a SECOND function, with the same arguments, is a
+ * caller that can forget — and forgetting compiles.
+ */
+export const HELD = "held"
+export type Held = typeof HELD
+
 export const editKey = (
   event: KeyboardEvent,
   field: EditField,
@@ -273,7 +293,7 @@ export const editKey = (
    * "stop inserting", pressed dozens of times a minute, and an app that also
    * read it as "abandon what you were typing" would throw a person out of the
    * editor every time their hands did the thing vim taught them. So the map
-   * declines it, and the editor's own keymap gets it.
+   * hands it to the editor, and says so with {@link HELD}.
    *
    * It is said HERE, in the registry, and that is the whole point of the
    * parameter: the alternative is a guard in the editor component that
@@ -283,10 +303,10 @@ export const editKey = (
    * `whileEditing: false`, and `Shift+Enter` still closes a note.
    */
   vim = false,
-): EditAction | null => {
+): EditAction | Held | null => {
   // Order matters: every branch below is a more specific reading of a key a
   // later branch also matches, and the modifiers are what tell them apart.
-  if (event.key === "Escape") return vim ? null : "cancel"
+  if (event.key === "Escape") return vim ? HELD : "cancel"
   // A DOCUMENT is not a row, so nothing below this line is about it: it has no
   // note to open, no sibling to make, no mark to walk. `Escape` above is the
   // whole of what this layer claims there.
@@ -363,26 +383,6 @@ export const editKey = (
   ) return "selectAll"
   return null
 }
-
-/**
- * WHOSE `Escape` IS IT — the other half of the vim sentence in
- * {@link editKey}, and the half that has to be answered out loud.
- *
- * A key the map declines is normally left alone: the field gets it, and so
- * does everything listening further up. That is exactly wrong for this one.
- * The panels this client draws itself shut on `Escape` from a listener on the
- * DOCUMENT (`dismiss.ts`), and a row's open note is one of them — so an
- * `Escape` the map declined for vim's sake would still fold the row the vim
- * editor is inside, which is the same "you were thrown out of what you were
- * writing" the decline exists to prevent.
- *
- * So there are three answers to a keystroke and not two: the app's, nobody's,
- * and the EDITOR'S. This is the third, and it is here rather than in the
- * editor for the reason every other key is: whose a key is, is decided in this
- * file.
- */
-export const heldByVim = (event: KeyboardEvent, vim: boolean): boolean =>
-  vim && event.key === "Escape"
 
 /** Is the whole line already selected? What tells the second `⌘A` from the
  *  first, and the reason it is a question about the CARET rather than a flag

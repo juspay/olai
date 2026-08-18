@@ -4,7 +4,7 @@ import {
   CHORDS,
   type EditAction,
   editKey,
-  heldByVim,
+  HELD,
   isApplePlatform,
   type ListAction,
   listKey,
@@ -186,8 +186,8 @@ test("inside a VIM editor, Escape belongs to vim — and nothing else moves", ()
   // dozens of times a minute, and an app that also read it as "abandon what
   // you were typing" would throw a person out of the editor every time their
   // hands did what vim taught them.
-  expect(editKey(key("Escape"), "block", undefined, true)).toBeNull()
-  expect(editKey(key("Escape"), "doc", undefined, true)).toBeNull()
+  expect(editKey(key("Escape"), "block", undefined, true)).toBe(HELD)
+  expect(editKey(key("Escape"), "doc", undefined, true)).toBe(HELD)
   // Everything else is what it always was — a vim editor is still a text
   // field, and `Shift+Enter` still closes a note.
   expect(editKey(key("Enter", { shift: true }), "block", undefined, true)).toBe("note")
@@ -197,15 +197,16 @@ test("inside a VIM editor, Escape belongs to vim — and nothing else moves", ()
   expect(editKey(key("Enter"), "line", at(5, LINE), true)).toBe("split")
 })
 
-test("a key the map declines is nobody's — except vim's Escape", () => {
-  // The third answer, and the reason it has to be one: the panels that shut on
-  // Escape listen on the document, so a decline that merely let the key
-  // through would fold the row the vim editor is inside. Everything else the
-  // map declines is genuinely nobody's and travels on.
-  expect(heldByVim(key("Escape"), true)).toBe(true)
-  expect(heldByVim(key("Escape"), false)).toBe(false)
-  expect(heldByVim(key("Enter"), true)).toBe(false)
-  expect(heldByVim(key("i"), true)).toBe(false)
+test("a key the map declines is nobody's — except vim's Escape, which is HELD", () => {
+  // The third answer, and the reason it is a VALUE rather than a second
+  // predicate: the panels that shut on Escape listen on the document, so a
+  // decline that merely let the key through would fold the row the vim editor
+  // is inside. Everything else the map declines is genuinely nobody's and
+  // travels on — including every key vim wants that this app never claimed.
+  expect(editKey(key("Escape"), "block", undefined, true)).toBe(HELD)
+  expect(editKey(key("Escape"), "block", undefined, false)).toBe("cancel")
+  expect(editKey(key("i"), "block", undefined, true)).toBeNull()
+  expect(editKey(key("ArrowUp"), "block", undefined, true)).toBeNull()
 })
 
 // ── the three the caret decides ────────────────────────────────────────

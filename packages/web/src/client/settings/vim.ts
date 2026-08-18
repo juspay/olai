@@ -23,6 +23,7 @@
 
 import type { Accessor } from "solid-js"
 
+import type { EditField } from "../keys.ts"
 import { boolCodec, createPreference } from "../preference.ts"
 
 export const EDITOR_VIM_KEY = "olai.editor.vim"
@@ -35,6 +36,19 @@ const pref = createPreference(EDITOR_VIM_KEY, boolCodec(OFF))
 
 /** Whether the markdown editors are vim editors in this browser. */
 export const vimEditing: Accessor<boolean> = pref.value
+
+/**
+ * ...and whether the field a key was pressed in is one of them.
+ *
+ * The rule and the preference belong together, which is why this is here and
+ * not in the keyboard adapter that asks it: "vim is for PROSE" is a fact about
+ * what this preference means, and an adapter that spelled `field !== "line" &&
+ * vimEditing()` for itself would be the second place to change on the day a
+ * title becomes a markdown editor too (`../edit/RowEditor.tsx` contemplates
+ * exactly that). The editors in `../mde/` need no such test: they ARE prose
+ * editors, by construction and by their own header.
+ */
+export const vimIn = (field: EditField): boolean => field !== "line" && vimEditing()
 
 /** Persist on change — `pref.set` writes `olai.editor.vim`. */
 export const setVimEditing = (value: boolean): void => pref.set(value)

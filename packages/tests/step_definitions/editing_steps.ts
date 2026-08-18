@@ -47,13 +47,11 @@ import {
   EDIT_NUDGE,
   EDIT_REFUSAL,
   expectBefore,
-  HYDRATION_TIMEOUT,
   NEW_ROW,
   NODE,
   nodeSelector,
   oneLine,
   POLL_TIMEOUT,
-  PREVIEWING,
   START_LINE,
   TITLE_EDITOR,
 } from "../support/world.ts";
@@ -326,22 +324,6 @@ Then("no other row holds the caret", async function (this: OlaiWorld) {
   );
 });
 
-/**
- * The note editor, once it is LIVE-PREVIEWED.
- *
- * Waiting on the face rather than on a timeout: until the chunk lands
- * (`client/mde/chunk.ts`) a caret lands in the textarea this app shipped
- * before live preview, where every marker is visible — which is a correct
- * editor and the wrong subject.
- */
-const previewing = async (world: OlaiWorld): Promise<Locator> => {
-  // The PAGE's, not a row's: there is exactly one draft in a tab, because
-  // there is exactly one caret.
-  const editor = world.page.locator(`${DESC_EDITOR}${PREVIEWING}`).first();
-  await editor.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  return editor;
-};
-
 Then(
   "the note being typed draws {string} in bold",
   async function (this: OlaiWorld, text: string) {
@@ -351,7 +333,7 @@ Then(
     // (there is none: this is one string with decorations over it), against
     // the scale's own major weight — the same number the rendered page uses,
     // read through the same custom property.
-    const editor = await previewing(this);
+    const editor = await this.previewing();
     const word = editor.getByText(text, { exact: true }).first();
     await word.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const weight = await word.evaluate((el) => getComputedStyle(el).fontWeight);

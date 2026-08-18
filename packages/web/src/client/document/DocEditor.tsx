@@ -46,6 +46,7 @@ import { createMemo, createSignal, onCleanup, Show } from "solid-js"
 import { AUTOSAVE_IDLE } from "../edit/autosave.ts"
 import { keyHandler } from "../keying.ts"
 import { serial } from "../edit/queue.ts"
+import { SaidLine } from "../edit/SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
 import { Mde } from "../mde/Mde.tsx"
 import { Refused } from "../Refused.tsx"
@@ -84,12 +85,24 @@ export function DocEditor(props: {
    *  of the conflict story, said while there is still time to read it calmly. */
   const drifted = createMemo(() => props.served !== saved())
 
+  /** What the last guarded write PUT ON THE WIRE, which is not the same thing
+   *  as what landed: a write that was refused leaves this holding the text the
+   *  server said no to. Sending it again would earn the same refusal, and
+   *  leaving the editor asks three times over (the blur, the verb, the
+   *  unmount) — so a re-send of an identical payload is skipped rather than
+   *  paid for three times. Cleared by a write that lands, since after that the
+   *  baseline itself answers. */
+  let sent: string | null = null
+
   const write = async (guarded: boolean): Promise<void> => {
     const sending = text()
     // A write that would change nothing sends nothing — the draft rule, at
     // file size, and the reason idling in a document you only opened is not a
-    // git commit.
-    if (guarded && sending === saved()) return
+    // git commit. The second test is the same rule about a write that already
+    // went: OVERWRITE is deliberately exempt from both, because it is a person
+    // saying "send it anyway".
+    if (guarded && (sending === saved() || sending === sent)) return
+    if (guarded) sent = sending
     const outcome = await applying(
       {
         verb: "doc",
@@ -109,6 +122,7 @@ export function DocEditor(props: {
     // expects to replace and what drift is measured against.
     setSaved(sending)
     setSaid(null)
+    sent = null
   }
 
   /** The idle write. Scheduled by every keystroke and cancelled by every
@@ -116,27 +130,40 @@ export function DocEditor(props: {
    *  pause. */
   const idle = debounce(() => enqueue(() => write(true)), AUTOSAVE_IDLE)
 
-  /** Everything that is not a pause: the caret leaving, and the editor closing
-   *  — including the one that closes because the reader navigated away, which
-   *  is why this is also the cleanup. */
-  const flush = (): void => {
+  /**
+   * Write now rather than on the pause: the caret leaving, the Done verb, and
+   * the editor closing because the reader navigated away — which is why this
+   * is also the cleanup.
+   *
+   * `guarded` is what the OVERWRITE verb turns off, and it is a parameter
+   * rather than a second copy of these two lines: cancelling the pending idle
+   * write and queueing one now is the same act whichever verb asked.
+   */
+  const flush = (guarded = true): void => {
     idle.clear()
-    enqueue(() => write(true))
+    enqueue(() => write(guarded))
   }
-  onCleanup(flush)
+  onCleanup(() => flush())
 
   return (
     <div class="flex flex-col gap-2">
+      {/* The drift line is a SAID LINE like every other thing this client says
+          about a write (`../edit/SaidLine.tsx`), and in the alarm mood: it is
+          not advice about something that landed, it is the reason the next
+          write will not. Drawn through the same component so its tone is a
+          `data-tone` fact a scenario can read — spelled by hand here, it was
+          the one line in this file whose mood nothing could check. */}
       <Show when={drifted() && said() === null}>
-        <p
-          class="m-0 rounded border border-alarm/60 bg-paper px-3 py-1.5 text-[0.8125rem] leading-snug text-alarm"
-          data-testid={TESTID.documentDrifted}
-          role="status"
-        >
-          This document has changed on disk while you were editing. The next
-          write will be refused rather than overwrite it; your text is safe
-          here.
-        </p>
+        <SaidLine
+          said={{
+            tone: "alarm",
+            text: "This document has changed on disk while you were editing. " +
+              "The next write will be refused rather than overwrite it; your " +
+              "text is safe here.",
+          }}
+          class="m-0 rounded border border-alarm/60 bg-paper px-3 py-1.5 text-[0.8125rem] leading-snug"
+          testid={TESTID.documentDrifted}
+        />
       </Show>
 
       <Mde
@@ -187,10 +214,7 @@ export function DocEditor(props: {
             type="button"
             class="cursor-pointer rounded border border-alarm/60 bg-transparent px-2 py-1 text-[0.8125rem] text-alarm hover:bg-alarm/10"
             data-testid={TESTID.documentOverwrite}
-            onClick={() => {
-              idle.clear()
-              enqueue(() => write(false))
-            }}
+            onClick={() => flush(false)}
           >
             Overwrite what is there
           </button>

@@ -24,6 +24,10 @@ import * as os from "node:os";
 // Aliased: `NODE_REF` below is the see/after reference ELEMENT (`NodeRefs.tsx`),
 // and this is the ATTRIBUTE a pressable node reference in the chat panel
 // carries. Two different things, one word — so the import says which.
+// The client's own autosave idle, for the reason the long-press deadline
+// below is imported rather than guessed: a suite that waited a number of its
+// own would go flaky the day the editor's moved.
+import { AUTOSAVE_IDLE } from "@olai/web/src/client/edit/autosave.ts";
 import { REFERRINGS } from "@olai/web/src/client/backlinks/way.ts";
 import { NODE_REF as CHAT_NODE_REF_ATTR } from "@olai/web/src/client/chat/refs.ts";
 // The client's own long-press deadline, for the same reason the testids are
@@ -1452,6 +1456,36 @@ export class OlaiWorld extends World {
    *  child's. */
   within(id: string, control: string): Locator {
     return this.node(id).locator(control).first();
+  }
+
+  /**
+   * THE NOTE'S EDITOR, once it is LIVE-PREVIEWED — the page's, since there is
+   * exactly one draft in a tab because there is exactly one caret.
+   *
+   * Waiting on the FACE rather than on a timeout is the whole of it: until the
+   * chunk lands (`client/mde/chunk.ts`) a caret lands in the textarea this app
+   * shipped before live preview, where every marker is visible — a correct
+   * editor and the wrong subject. It is here rather than in a step file
+   * because two of them ask it, which is the drift `PREVIEWING` is declared
+   * once against.
+   */
+  async previewing(): Promise<Locator> {
+    const editor = this.page.locator(`${DESC_EDITOR}${PREVIEWING}`).first();
+    await editor.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    return editor;
+  }
+
+  /**
+   * The pause an autosave is keyed on, plus the round trip it starts.
+   *
+   * There is no verb to press (`client/edit/autosave.ts`), so what a scenario
+   * does is WAIT — and it waits the same amount whichever surface it is about,
+   * because a note and a document write on one shared number. Three times the
+   * idle: what is being waited out is a debounce and a server, not a debounce.
+   */
+  async settleAutosave(): Promise<void> {
+    await this.page.waitForTimeout(AUTOSAVE_IDLE * 3);
+    await this.waitForFrame();
   }
 
   /**

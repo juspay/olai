@@ -1,7 +1,7 @@
 # olai docs
 
 - [running.md](running.md) — how to serve a directory: `olai web` and its flags, one olai per directory, the home-manager module, and the HTTP MCP face at `/mcp`.
-- [editing.md](editing.md) — changing an outline by hand: the keys, dragging a row, picking several at once, what a draft is, how ⌘Z takes an edit back, and writing a document.
+- [editing.md](editing.md) — changing an outline by hand: the keys, dragging a row, picking several at once, what a draft is, how ⌘Z takes an edit back, the markdown editor a note and a document are written in (live preview over a verbatim source, autosave, vim in prefs), and writing a document.
 - [search.md](search.md) — one query language, five doors: what matches, the operators (`is:`, `has:`, `date:`, `-`), the `"quoted phrase"` and the `OR` that compose them, what a result row shows, and the filter that narrows a page in place — every page that draws nodes, and what narrowing means on each.
 - [git.md](git.md) — the git integration: commit modes, the pill, and the audit view.
 - [chat.md](chat.md) — the chat agent: ACP and `OLAI_ACP_AGENT`, the node tools, pictures, and kolu.

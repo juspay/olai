@@ -24,16 +24,19 @@
  * component module for a function about keys.
  */
 
-import { type Caret, type EditAction, type EditField, editKey, heldByVim } from "./keys.ts"
-import { vimEditing } from "./settings/vim.ts"
+import { type Caret, type EditAction, type EditField, editKey, HELD } from "./keys.ts"
+import { vimIn } from "./settings/vim.ts"
 
 /**
- * WHETHER THIS IS A VIM EDITOR is read here, from the preference, and handed to
- * the map — which is what decides `Escape` (`./keys.ts` argues it). Only a
- * prose field can be one: a title is one line in an `<input>`, and vim over a
- * single-line field is a mode nobody asked for. Read inside the handler rather
- * than closed over, so a person who turns the preference on while a note is
- * open gets the answer the editor beside them already has.
+ * WHETHER THIS IS A VIM EDITOR is asked of the preference that owns the rule
+ * (`./settings/vim.ts`) and handed to the map, which is what decides `Escape`.
+ * Asked inside the handler rather than closed over, so a person who turns the
+ * preference on while a note is open gets the answer the editor beside them
+ * already has.
+ *
+ * THREE ANSWERS, and the middle one is why the map returns a value for it: the
+ * app's (spend the event and press it), the EDITOR'S (stop it here — see
+ * `./keys.ts`'s `HELD`), and nobody's (leave it alone and let it travel).
  */
 export const keyHandler = (
   field: EditField,
@@ -45,14 +48,13 @@ export const keyHandler = (
   // Reading it anyway would materialise the whole editor's value per keystroke
   // to take its length — on the one field that can be long.
   const at = field === "line" ? caretOf(event.currentTarget) : undefined
-  const vim = field !== "line" && vimEditing()
-  const action = editKey(event, field, at, vim)
-  if (action === null) {
-    // Nothing of the app's — and for one key that is not the same as nobody's.
-    // A vim editor's `Escape` is the mode switch, and the panels that shut on
-    // Escape listen on the document (`./dismiss.ts`), so it has to stop here or
-    // it folds the row the editor is inside.
-    if (heldByVim(event, vim)) event.stopPropagation()
+  const action = editKey(event, field, at, vimIn(field))
+  if (action === null) return
+  // The editor's own: it stops here rather than travelling on, because what it
+  // would reach is the listener that shuts the panels this client draws
+  // (`./dismiss.ts`) — which for a note is the row it is being typed in.
+  if (action === HELD) {
+    event.stopPropagation()
     return
   }
   event.preventDefault()

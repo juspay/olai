@@ -49,3 +49,21 @@
  * the timer is the ONLY thing that ever writes.
  */
 export const AUTOSAVE_IDLE = 500
+
+/**
+ * Which fields are autosaved at all — one predicate, so the rule is a fact
+ * rather than a branch two files write with opposite polarity.
+ *
+ * A NOTE is: prose somebody sits inside, where the timer is the only thing
+ * that ever writes, and where the write is therefore conditional ({@link
+ * ./draft.ts}'s `commitOf` sends the `was`). A TITLE is not: one line,
+ * finished by `Enter` or by looking somewhere else, written unconditionally
+ * because typing a title MEANS it. A line that does not exist yet is not
+ * either — an `add` has nothing to be conditional ON.
+ *
+ * It lives here rather than beside either consequence because it is the same
+ * fact underneath both, and the two would otherwise have to agree by
+ * hand: a field given the fast clock without the guard is an autosave that can
+ * overwrite somebody else, which is the one thing this rule exists to prevent.
+ */
+export const autosaves = (field: "title" | "desc" | "new"): boolean => field === "desc"

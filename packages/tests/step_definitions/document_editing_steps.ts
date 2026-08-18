@@ -17,7 +17,6 @@
 
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
-import { AUTOSAVE_IDLE } from "@olai/web/src/client/edit/autosave.ts";
 import { isoDayOf } from "@olai/web/src/client/clock.ts";
 import type { Page } from "playwright";
 
@@ -79,12 +78,12 @@ When("I retype the document as:", async function (this: OlaiWorld, source: strin
   await this.retypeEditor(this.page.locator(DOCUMENT_EDITOR), source);
 });
 
-/** The pause the autosave is keyed on, plus the round trip it starts. There is
- *  no verb to press: what a scenario waits for is the file, and every step
- *  after this one asks the page or the disk what happened. */
+/** There is no verb to press: what a scenario waits for is the file, and every
+ *  step after this one asks the page or the disk what happened. The wait
+ *  itself is `support/world.ts`'s — one number, one multiplier, both
+ *  surfaces. */
 When("the document autosaves", async function (this: OlaiWorld) {
-  await this.page.waitForTimeout(AUTOSAVE_IDLE * 3);
-  await this.waitForFrame();
+  await this.settleAutosave();
 });
 
 When("I leave the document editor", async function (this: OlaiWorld) {

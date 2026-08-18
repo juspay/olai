@@ -87,9 +87,12 @@ const NOT_A_TAG = new Set([
 
 /** Whether the character at `at` is inside one of those. Walks up from the
  *  innermost node, since a `CodeText` is a child of a `FencedCode` and either
- *  answer is the same "leave it alone". */
-const sheltered = (view: EditorView, at: number): boolean => {
-  let node = syntaxTree(view.state).resolveInner(at, 1)
+ *  answer is the same "leave it alone".
+ *
+ *  It takes the TREE rather than the view: the tree cannot change inside one
+ *  pass, and looking it up per tag is a facet read per tag per keystroke. */
+const sheltered = (tree: ReturnType<typeof syntaxTree>, at: number): boolean => {
+  let node = tree.resolveInner(at, 1)
   for (;;) {
     if (NOT_A_TAG.has(node.name)) return true
     const above = node.parent
@@ -119,12 +122,13 @@ const TAG_MARK = Decoration.mark({
  *  being true. */
 const tagDecorations = (view: EditorView): DecorationSet => {
   const marks = new RangeSetBuilder<Decoration>()
+  const tree = syntaxTree(view.state)
   for (const { from, to } of view.visibleRanges) {
     for (let at = from; at <= to;) {
       const line = view.state.doc.lineAt(at)
       for (const span of tagsIn(line.text)) {
         const starts = line.from + span.from
-        if (!sheltered(view, starts)) marks.add(starts, line.from + span.to, TAG_MARK)
+        if (!sheltered(tree, starts)) marks.add(starts, line.from + span.to, TAG_MARK)
       }
       at = line.to + 1
     }

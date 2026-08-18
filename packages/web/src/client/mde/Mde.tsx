@@ -200,6 +200,11 @@ function Live(props: MdeProps & Placed) {
  */
 function Plain(
   props: MdeProps & Placed & {
+    /** Where the caret was when this face went — read ONCE, as it leaves. It
+     *  is the only thing the face that replaces it cannot find out for itself,
+     *  and nothing in between observes it, so the four handlers that used to
+     *  publish it per keystroke were four handlers keeping a value nobody was
+     *  reading. */
     readonly onCaret: (at: number) => void
     /** Which face this is, and why — `waiting` while the chunk is in the air,
      *  `plain` once it is known not to be coming. Handed down rather than
@@ -210,23 +215,24 @@ function Plain(
   let element!: HTMLTextAreaElement
   const left = createLeft()
 
-  const read = (): void => props.onCaret(element.selectionStart ?? 0)
+  /** Take the caret, at an offset — the same two lines the mount and the
+   *  take-back both want, which is one verb in `Live` (`Mounted.focus`) and
+   *  was two copies here. */
+  const place = (at: number): void => {
+    element.focus()
+    element.setSelectionRange(at, at)
+  }
+  /** ...and the offset a detached textarea still knows, which is what makes
+   *  reading it on the way out enough. */
+  const at = (): number => element.selectionStart ?? element.value.length
 
   onMount(() => {
-    const at = props.caret ?? element.value.length
-    element.focus()
-    element.setSelectionRange(at, at)
-    // Where the caret is, told to whoever replaces this face: the offset it
-    // was put at, since nothing has moved it yet and no event will say so.
-    read()
+    place(props.caret ?? element.value.length)
     if (props.grows === true) grow(element)
   })
+  onCleanup(() => props.onCaret(at()))
 
-  createEffect(on(() => props.take?.(), () => {
-    const at = element.selectionStart ?? element.value.length
-    element.focus()
-    element.setSelectionRange(at, at)
-  }, { defer: true }))
+  createEffect(on(() => props.take?.(), () => place(at()), { defer: true }))
 
   return (
     <textarea
@@ -239,15 +245,9 @@ function Plain(
       value={props.text}
       onInput={(event) => {
         if (props.grows === true) grow(event.currentTarget)
-        read()
         props.onInput(event.currentTarget.value)
       }}
-      onKeyDown={(event) => {
-        props.onKey(event)
-        queueMicrotask(read)
-      }}
-      onClick={read}
-      onSelect={read}
+      onKeyDown={(event) => props.onKey(event)}
       onBlur={() => props.onBlur(left(element.isConnected))}
     />
   )

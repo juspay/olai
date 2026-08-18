@@ -168,6 +168,19 @@ export const mount = (
    *  its life is the dispatch two lines below it. */
   let echoing = false
 
+  /**
+   * The text this editor and its caller last agreed on — the string that went
+   * out through `typed`, or came in through `write`.
+   *
+   * It is kept because the ordinary loop is a ROUND TRIP: what is typed goes
+   * out, the caller stores it, and it comes straight back as the same string,
+   * so `write` has to decide whether anything changed. Asking the document
+   * (`view.state.doc.toString()`) serialises the whole file to answer, on
+   * every keystroke, about a string that is usually the very object that just
+   * left — where this comparison is a pointer.
+   */
+  let agreed = said.doc
+
   const view = new EditorView({
     parent: host,
     state: EditorState.create({
@@ -205,7 +218,9 @@ export const mount = (
           }),
         ),
         EditorView.updateListener.of((update) => {
-          if (update.docChanged && !echoing) said.typed(update.state.doc.toString())
+          if (!update.docChanged || echoing) return
+          agreed = update.state.doc.toString()
+          said.typed(agreed)
         }),
       ],
     }),
@@ -213,7 +228,8 @@ export const mount = (
 
   return {
     write: (text) => {
-      if (text === view.state.doc.toString()) return
+      if (text === agreed) return
+      agreed = text
       echoing = true
       try {
         view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } })
@@ -223,7 +239,13 @@ export const mount = (
     },
     focus: (at) => {
       view.focus()
-      const to = Math.min(at ?? view.state.selection.main.head, view.state.doc.length)
+      const main = view.state.selection.main
+      const to = Math.min(at ?? main.head, view.state.doc.length)
+      // A transaction only when it MOVES something. Taking the caret back after
+      // an op that redrew the row asks for wherever it already is, and a
+      // dispatch for that builds a whole new state, runs every field and
+      // listener, and redraws the selection layer to change nothing.
+      if (to === main.head && main.empty) return
       view.dispatch({ selection: { anchor: to } })
     },
     vim: (on) => {

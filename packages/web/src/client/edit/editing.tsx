@@ -57,7 +57,7 @@ import {
 } from "solid-js"
 import { Result } from "effect"
 
-import { AUTOSAVE_IDLE } from "./autosave.ts"
+import { autosaves, AUTOSAVE_IDLE } from "./autosave.ts"
 import { datePick } from "../date/pick.ts"
 import type { Caret, EditAction } from "../keys.ts"
 import { runAsync } from "../run.ts"
@@ -382,9 +382,11 @@ export const createEditor = (
     block: debounce(() => enqueue(commit), AUTOSAVE_IDLE),
   }
   const idle = {
-    /** Start the clock the field being typed in runs on. */
-    start: (field: "title" | "desc" | "new"): void => {
-      if (field === "desc") clocks.block()
+    /** Start the clock the field being typed in runs on — which field is
+     *  autosaved is {@link ./autosave.ts}'s to say, beside the number, so the
+     *  clock and the guard cannot be given to different fields. */
+    start: (field: Slot["field"]): void => {
+      if (autosaves(field)) clocks.block()
       else clocks.line()
     },
     clear: (): void => {
@@ -765,8 +767,11 @@ export const createEditor = (
       })
     },
     type: (text) => {
-      const held = untrack(draft)
-      setDraft((current) => (current === null ? current : typed(current, text)))
+      // The setter's own answer, rather than a second read of the signal: what
+      // is being typed in is what was just stored, and two reads are two
+      // chances for the clock to be started for a field the draft no longer
+      // has.
+      const held = setDraft((current) => (current === null ? current : typed(current, text)))
       if (held !== null) idle.start(slotOf(held).field)
     },
     blur: (from, left) => {

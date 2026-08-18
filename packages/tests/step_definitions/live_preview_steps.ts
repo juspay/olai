@@ -17,36 +17,16 @@
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
-import { AUTOSAVE_IDLE } from "@olai/web/src/client/edit/autosave.ts";
-
 import { chunkOf } from "../support/chunks.ts";
-import {
-  DESC_EDITOR,
-  EDIT_REFUSAL,
-  HYDRATION_TIMEOUT,
-  oneLine,
-  POLL_TIMEOUT,
-  PREVIEWING,
-  TAG,
-} from "../support/world.ts";
+import { saysThat } from "../support/said.ts";
+import { EDIT_REFUSAL, oneLine, POLL_TIMEOUT, TAG } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-/**
- * The editor, once it is live-previewed — the PAGE's, since there is exactly
- * one draft in a tab because there is exactly one caret.
- *
- * Waiting on the FACE rather than on a timeout: until the chunk lands, a caret
- * lands in the textarea this app shipped before live preview, where every
- * marker is visible — a correct editor and the wrong subject.
- */
-const previewing = (world: OlaiWorld) =>
-  world.page.locator(`${DESC_EDITOR}${PREVIEWING}`).first();
-
-const drawn = async (world: OlaiWorld): Promise<string> => {
-  const editor = previewing(world);
-  await editor.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  return await world.editorDraws(editor);
-};
+/** What the note's live-previewed editor is DRAWING — the two halves this
+ *  file asks about together, and both are the world's (`support/world.ts`:
+ *  `previewing` waits for the face, `editorDraws` reads it). */
+const drawn = async (world: OlaiWorld): Promise<string> =>
+  await world.editorDraws(await world.previewing());
 
 // ── what the caret shows and hides ─────────────────────────────────────
 
@@ -83,8 +63,7 @@ Then(
 When(
   "I put the caret in the note's word {string}",
   async function (this: OlaiWorld, word: string) {
-    const editor = previewing(this);
-    await editor.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const editor = await this.previewing();
     const at = editor.getByText(word, { exact: true }).first();
     await at.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await at.click();
@@ -99,7 +78,7 @@ Then(
     // over the same test id: the pill in the editor and the pill on the row
     // are one decision, delegated to one walk of the format
     // (`client/mde/tags.ts`).
-    const tags = previewing(this).locator(TAG);
+    const tags = (await this.previewing()).locator(TAG);
     await tags
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
@@ -129,13 +108,11 @@ Then(
 
 // ── autosave, which is a pause rather than a verb ──────────────────────
 
-/** The idle the write is keyed on, plus the round trip it starts. There is
- *  nothing to press: what a scenario waits for is the file, and the step after
- *  this one asks the disk. Three times the pause, because what is being waited
- *  out is a debounce and a server, not a debounce. */
+/** There is nothing to press: what a scenario waits for is the file, and the
+ *  step after this one asks the disk (`support/world.ts` holds the wait, since
+ *  the document's phrasing waits the same amount). */
 When("I wait for the autosave", async function (this: OlaiWorld) {
-  await this.page.waitForTimeout(AUTOSAVE_IDLE * 3);
-  await this.waitForFrame();
+  await this.settleAutosave();
 });
 
 // ── vim, which owns one key ────────────────────────────────────────────
@@ -179,19 +156,12 @@ Then("nothing has asked for the markdown editor", function (this: OlaiWorld) {
 
 /** What the refusal under the row says — the note editor's own line, which is
  *  where an autosave that was refused surfaces (`client/edit/RowEditor.tsx`'s
- *  `Said`). Spelled here rather than reached for from `editing_steps.ts`
- *  because the scenario reads better as a sentence about the WRITE. */
+ *  `Said`). The PHRASE is its own because the scenario reads as a sentence
+ *  about the write; the assertion is `support/said.ts`'s, like every other
+ *  question about what a surface said. */
 Then(
   "the autosave is refused saying {string}",
   async function (this: OlaiWorld, said: string) {
-    const refusal = this.page.locator(EDIT_REFUSAL).first();
-    await refusal.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(await refusal.getAttribute("data-tone"), "alarm");
-    const text = oneLine(await refusal.innerText());
-    assert.ok(
-      text.includes(said),
-      `the refusal reads ${JSON.stringify(text)}, which does not say ` +
-        `${JSON.stringify(said)} — the ops layer's own words are the answer`,
-    );
+    await saysThat(this, EDIT_REFUSAL, said, "autosave refusal", "alarm");
   },
 );
