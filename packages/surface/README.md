@@ -87,6 +87,12 @@ Two things about it are worth reading before the file:
 
 Who is on the other end is deliberately NOT a member here. It is a real question — a page bound to a server that has been replaced must know, and both ends of the stale-tab handshake compare that id — but the framework reserves `system/identity` for it and answers it out of every surface, process id included. A member of our own would be a second answer to a question already answered.
 
+## One FACT that is not a member
+
+`src/holding.ts` is the other kind of thing here: not a member, not an address, but a fact about a member's subscriptions that the wire had no way to state. A per-key `get` says when a reader OPENS a key. Nothing says when the last one LETS GO — the framework owns that lifetime (a handler answers with a `Stream`, and the stream's scope is the subscription) and does not publish it, so a server that has to know whether anybody is still showing a file had to infer it from opens and age the answer out. `@olai/server`'s `bodies.ts` did exactly that, bounded at sixteen paths, and named this module as what would replace it.
+
+`holding` wraps one collection's `get` in a scoped acquire — hold on the way in, release on the way out — so its holders are counted by the same lifetime the framework already manages: a tab navigating, a socket dropping, a runtime closing and a one-shot reader taking its frame and leaving are all the same event. It is deliberately NOT a member: a verb a reader had to call to say "I am done" would be a promise a closed tab cannot keep, and the readers this exists for are exactly the ones that vanish. Nothing new crosses the wire, and the module counts without deciding — what a hold is WORTH belongs to whoever asked for one. It is the package's one serving-side module and lives behind its own subpath (`@olai/surface/holding`) for that reason: the index is what the browser bundles, and this reaches for `@kolu/surface/server`.
+
 ## One address that is not a member
 
 A picture cannot travel the surface: a document's `![](shot.png)` becomes an `<img src>` and the browser fetches that URL itself. So there is exactly one HTTP route besides the bundle, and it has two ends — the renderer that writes the URL and the route that reads it — in packages that cannot import each other. `src/media.ts` is that bijection: the prefix, `mediaHref`, and `mediaTarget` with the traversal guard and `@olai/format`'s `isAsset` allowlist in it. The guard alone is `mediaPath`, split out for the one reader that asks which file of the vault an address names WITHOUT asking whether the route may answer it — a link clicked inside a preview, which may name a `.md` the route refuses and olai still has a page for. One decoder for both: a second parse of this URL space would be a second traversal guard, and the one nobody thought to attack is the one that would be wrong. Two writers of these URLs, one spelling: the markdown renderer rewrites a picture's `src`, and a `.html` preview's frame is POINTED at one — the file's own address, so that every relative address inside it resolves beside the file with nothing rewritten. Two copies of "what a media URL looks like" would be a contract kept by memory, and its failures are silent in both directions — a URL the client writes and the server does not recognise is a broken image, and a URL the server reads more loosely than the client writes is a file nobody meant to serve.
@@ -97,7 +103,7 @@ A picture cannot travel the surface: a document's `![](shot.png)` becomes an `<i
 
 ## Entry point
 
-`main`, `types` and `exports` all point at `src/index.ts`, which exports the `surface` definition, the `OutlineEntry` and `Manifest` schemas, the `Edit` vocabulary, the media URL and the seal above. That is the whole package — a declaration, with no implementation on either side of it.
+`main`, `types` and the `.` export all point at `src/index.ts`, which exports the `surface` definition, the `OutlineEntry` and `Manifest` schemas, the `Edit` vocabulary, the media URL and the seal above. That is the declaration, with no implementation on either side of it. The one other door is `./holding` (above), which a serving side asks for by name so that the index — what the browser bundles — never carries it.
 
 ## Layering
 

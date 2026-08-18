@@ -23,7 +23,7 @@ import type { DocumentEntry, Head } from "@olai/surface"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, test } from "bun:test"
-import { Effect, Fiber, Stream, SubscriptionRef } from "effect"
+import { Effect, Fiber, Queue, Stream, SubscriptionRef } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -191,8 +191,122 @@ test("a reader watching a head is told the file moved, and no body is read", () 
         expect(frames[0]?.rev).toBeLessThan(frames[1]?.rev ?? 0)
 
         // THE POINT. The file changed under a reader who is watching it, and
-        // nothing opened it: no body was read, so none was sent, and the path
-        // never entered the watch set (`./bodies.ts`).
+        // nothing opened it: no body was read, so none was sent, and nobody
+        // holds the path at all (`./bodies.ts`).
         expect(reads).toEqual([])
       }),
   ))
+
+/** One body-carrying subscription, drained onto a queue so a test can wait for
+ *  a FRAME rather than for a duration: taking one proves the subscription is
+ *  open and says what it was handed. The fiber is a child of the test's scope,
+ *  so it is interrupted with it — which is the release, and which is what two of
+ *  the tests below are about. */
+const opening = (
+  bound: Bound,
+  key: string,
+): Effect.Effect<
+  { readonly frame: Effect.Effect<DocumentEntry>; readonly reader: Fiber.Fiber<void> }
+> =>
+  Effect.gen(function*() {
+    const get = bound.handlers["surface/documents/get"]
+    if (get === undefined) throw new Error("the documents collection has no `get`")
+    const frames = yield* Queue.unbounded<DocumentEntry>()
+    const reader = yield* Effect.forkChild(
+      Stream.runForEach(get({ key }) as Stream.Stream<DocumentEntry>, (frame) =>
+        Queue.offer(frames, frame)),
+    )
+    return { frame: Queue.take(frames), reader }
+  })
+
+/**
+ * The live half of a held body: the file is rewritten under a reader who has it
+ * open, and that reader is handed the new bytes.
+ *
+ * This is what the refcount buys over the bound it replaced. There is no
+ * capacity here to age the path out of and no number that decides whether this
+ * reader is still one — the subscription is open, so the body is re-read, and
+ * that is true of the seventeenth open page exactly as of the first.
+ */
+test("a file a reader is holding is re-read for them when it moves", () =>
+  withRuntime(
+    { "a.olai": OUTLINE, "report.html": "<h1>Before</h1>\n" },
+    ({ wired, store, root, reads }) =>
+      Effect.gen(function*() {
+        const open = yield* opening(wired.bound, "report.html")
+        expect(yield* open.frame).toEqual({ rev: 1, text: "<h1>Before</h1>\n" })
+
+        fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
+        yield* store.refresh
+
+        expect(yield* open.frame).toEqual({ rev: 2, text: "<h1>After</h1>\n" })
+        expect(reads).toEqual(["report.html", "report.html"])
+      }),
+  ))
+
+/**
+ * And the half that could not be said before: the reader LEFT, so the file
+ * stops being read.
+ *
+ * The negative is proven the way `./bodies.test.ts` proves its own — the body
+ * reader is serial, so a read the revision should not have made would land
+ * BEFORE the barrier read this test waits for. The head subscription is the
+ * other half of the barrier: its second frame says the revision has been
+ * published, which is the same statement that hands the moved paths to the body
+ * reader.
+ */
+test("a file whose reader has gone is not re-read on a later revision", () =>
+  withRuntime(
+    { "a.olai": OUTLINE, "report.html": "<h1>Before</h1>\n" },
+    ({ wired, store, root, reads }) =>
+      Effect.gen(function*() {
+        const open = yield* opening(wired.bound, "report.html")
+        expect(yield* open.frame).toEqual({ rev: 1, text: "<h1>Before</h1>\n" })
+
+        // The reader goes away — a closed tab, a dropped socket, an agent that
+        // took its frame and exited.
+        yield* Fiber.interrupt(open.reader)
+
+        const heads = wired.bound.handlers["surface/heads/get"]
+        if (heads === undefined) throw new Error("the heads collection has no `get`")
+        const moved = yield* Effect.forkChild(
+          Stream.runCollect(
+            Stream.take(heads({ key: "report.html" }) as Stream.Stream<Head>, 2),
+          ),
+        )
+        fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
+        yield* store.refresh
+        yield* Fiber.join(moved)
+
+        // The barrier: a body asked for by a reader who IS here, which the
+        // serial reader cannot answer before anything the revision asked for.
+        const again = yield* opening(wired.bound, "report.html")
+        expect(yield* again.frame).toEqual({ rev: 2, text: "<h1>After</h1>\n" })
+        expect(reads).toEqual(["report.html", "report.html"])
+      }),
+  ))
+
+/**
+ * The birth-announce edge, closed by the same change (`./published.ts`).
+ *
+ * A reader may hold a `get` open on a key the directory does not hold yet — the
+ * framework allows it, and a file appearing is what used to leave such a reader
+ * with the announce frame's `null` and no body until it asked again. The hold is
+ * taken by the SUBSCRIPTION rather than by a successful read, so the newborn
+ * path has a holder the moment the revision names it, and the body follows the
+ * announcement on the same key.
+ */
+test("a reader holding a key across a file's birth is handed the body", () =>
+  withRuntime({ "a.olai": OUTLINE }, ({ wired, store, root }) =>
+    Effect.gen(function*() {
+      const open = yield* opening(wired.bound, "report.html")
+
+      fs.writeFileSync(path.join(root, "report.html"), "<h1>Born</h1>\n")
+      yield* store.refresh
+
+      // TWO frames, in this order: the upsert that says the collection has a new
+      // key (which cannot carry a body — nothing has read one), and the body
+      // read for the reader holding it.
+      expect(yield* open.frame).toEqual({ rev: 2, text: null })
+      expect(yield* open.frame).toEqual({ rev: 2, text: "<h1>Born</h1>\n" })
+    })))

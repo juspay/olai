@@ -10,8 +10,8 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
+import { attr } from "../support/selectors.ts";
 import {
-  attr,
   nodeSelector,
   PANE,
   PANE_CLOSE,
