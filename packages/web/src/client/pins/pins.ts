@@ -161,18 +161,24 @@ export const pinsOf = (derived: Derived | undefined): ReadonlyArray<Pin> => {
 }
 
 /**
- * The pin that already stands for this page, or `undefined`.
+ * The pin that already stands for this page, or `undefined` — what every door
+ * onto the shelf draws its label from, so "Pin" and "Unpin" are one control
+ * reading one answer.
+ *
+ * OVER THE INDEXES rather than over a list of pins, because that is what every
+ * caller has: the `•••` menu, the ⌘K row and the chord each hold the app's one
+ * derivation and nothing else, and a version taking the list had exactly one
+ * consumer — a wrapper, one module over, that read the shelf and handed it
+ * straight back. Two names for one question is one too many.
  *
  * COMPARED THROUGH THE BIJECTION rather than as text, so a pin written
  * `?q=is:todo` by hand and the address a browser would mint for the same page
- * are one pin. That is what lets the `•••` menu and the shelf agree about
- * whether a thing is pinned, which is the whole of "pin" and "unpin" being one
- * affordance.
+ * are one pin.
  */
 export const pinnedAt = (
-  pins: ReadonlyArray<Pin>,
+  derived: Derived | undefined,
   route: Route,
 ): Pin | undefined => {
   const address = hrefOf(route)
-  return pins.find((pin) => hrefOf(pin.route) === address)
+  return pinsOf(derived).find((pin) => hrefOf(pin.route) === address)
 }

@@ -51,7 +51,7 @@ import type { Edit } from "@olai/surface"
 import { datePick } from "../date/pick.ts"
 import { repeatPick } from "../date/repeat.ts"
 import { type Relation, RELATIONS } from "../edges/relation.ts"
-import { pinAt } from "../pins/pinning.ts"
+import { pinnedAt } from "../pins/pins.ts"
 import { customEntries } from "../props/drawer.ts"
 import { hrefOf } from "../routes.ts"
 import { archiveQuestion } from "../trash/question.ts"
@@ -212,7 +212,7 @@ export const writeVerbs = (
     // and a mirror's page is its target's; storing the placement's id instead
     // would leave a pin that stops resolving the day somebody retires that
     // placement, which is a write about a line and not about the shelf.
-    const pinned = pinAt(derived, { kind: "node", id: shown.node.id })
+    const pinned = pinnedAt(derived, { kind: "node", id: shown.node.id })
     verbs.push(
       pinned === undefined
         ? {

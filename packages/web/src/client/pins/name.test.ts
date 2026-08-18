@@ -7,7 +7,7 @@ import { derive } from "@olai/format"
 import { setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { nameOf, narrowingOf } from "./name.ts"
+import { nameOf, shelfName } from "./name.ts"
 
 const derived = (title: string) =>
   derive(setOf({ "garden.olai": `{"id":"herbs","ord":"a0","title":"${title}"}` }).nodes)
@@ -49,8 +49,9 @@ test("the pages that are not files are called what a reader calls them", () => {
   expect(nameOf({ kind: "trash" }, set)).toBe("Trash")
 })
 
-test("the query is its own answer, and empty for a whole page", () => {
-  expect(narrowingOf({ kind: "agenda", filter: "is:todo" })).toBe("is:todo")
-  expect(narrowingOf({ kind: "agenda" })).toBe("")
-  expect(narrowingOf({ kind: "document", file: "x.md" })).toBe("")
+test("a name written ON a pin wins; a bare address is called what the set calls it", () => {
+  const set = derived("the herb bed")
+  const bare = { id: "p", route: { kind: "node", id: "herbs" }, named: undefined } as const
+  expect(shelfName(bare, set)).toBe("the herb bed")
+  expect(shelfName({ ...bare, named: "the spiral" }, set)).toBe("the spiral")
 })

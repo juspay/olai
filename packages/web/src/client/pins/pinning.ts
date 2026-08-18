@@ -40,7 +40,7 @@ import type { Said, Undo } from "../edit/undoing.ts"
 import { hrefOf, type Route } from "../routes.ts"
 import { createSaying } from "../saying.ts"
 import { applying } from "../writes.ts"
-import { pinnedAt, pinsOf } from "./pins.ts"
+import { pinnedAt } from "./pins.ts"
 
 /**
  * The line, and the one thing about it that is not `../saying.ts`'s: it has no
@@ -68,13 +68,6 @@ export const pinSaid: Accessor<Said | null> = line.said
 /** Say it, for the dwell every said-line in this client keeps. */
 export const sayPin = (message: Said | null | void): void => line.say(message)
 
-/** Whether the shelf already holds this page — what a door draws its label
- *  from, so "Pin" and "Unpin" are one control reading one answer. */
-export const pinAt = (
-  derived: Derived | undefined,
-  route: Route,
-): ReturnType<typeof pinnedAt> => pinnedAt(pinsOf(derived), route)
-
 /**
  * Put this address on the shelf, or take it off — and answer with whatever
  * there is to say, which the caller draws where it makes sense.
@@ -88,7 +81,7 @@ export const togglePin = async (
   derived: Derived | undefined,
   record: Undo["record"],
 ): Promise<Said | undefined> => {
-  const already = pinAt(derived, route)
+  const already = pinnedAt(derived, route)
   return already === undefined
     ? applying({ verb: "pin", at: hrefOf(route) }, record)
     : applying({ verb: "archive", id: already.id }, record)

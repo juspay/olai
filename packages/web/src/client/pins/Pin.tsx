@@ -52,7 +52,6 @@ export function Pin(props: {
    *  drag — which is when the click that follows must be swallowed. */
   readonly dragged: () => boolean
   readonly onRemove: () => void
-  readonly ref: (element: HTMLLIElement) => void
 }) {
   return (
     <li
@@ -62,7 +61,6 @@ export function Pin(props: {
       data-at={hrefOf(props.pin.route)}
       data-lifted={props.lifted ? "true" : undefined}
       classList={{ "opacity-40": props.lifted }}
-      ref={props.ref}
       // THE WHOLE ROW IS THE HANDLE, which is what a shelf of five doors wants
       // and what a tree of a thousand rows could not have (there the handle is
       // the bullet, because the row is text somebody selects). The press is

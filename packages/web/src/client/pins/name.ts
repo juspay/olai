@@ -9,25 +9,38 @@
  * name on the frame the store publishes, because there was never a second copy
  * of it to go stale.
  *
- * NOT `../pane/label.ts`, and the difference is worth stating because the two
- * answer questions that sound alike. That one names a PANE: it is asked of the
- * route alone, deliberately, so a tab strip has a label before the set has been
- * read and keeps it when a file will not parse — which is why a zoomed node
- * there is its id. This one is asked of the set, because a door with an id
- * written on it is a door nobody can read; and where the set has nothing to say
- * (a pin to a node that was archived or deleted) it answers the ADDRESS, which
- * is at least the truth about where the pin goes.
+ * ## Not `../pane/label.ts`, and the placement was argued rather than assumed
+ *
+ * That module names a PANE and this one names a DOOR, and they are two total
+ * switches over one `Route` — which is the shape to justify, because "name a
+ * route" is one kind of operation and a second table for it is how concepts
+ * multiply. Three things decide it:
+ *
+ *   - **they answer differently, not just more.** A pane label is asked of the
+ *     route ALONE, deliberately, so a tab strip has a label before the set has
+ *     been read and keeps it when a file will not parse — which is why a zoomed
+ *     node there is its id. A door with an id written on it is a door nobody
+ *     can read, so this one is asked of the set. And a pane draws a file's
+ *     whole PATH (two panes on `a/x.olai` and `b/x.olai` have to be tellable
+ *     apart) where a shelf row draws its NAME, in a column too narrow for
+ *     either path.
+ *   - **so unifying them needs a mode flag**, and a mode flag is the braid
+ *     rather than the fix: one function answering "short or long, with the set
+ *     or without" is two callers' layouts pushed into one signature.
+ *   - **and the axis they share is held by the COMPILER already.** What is
+ *     volatile about a route is the union itself, and both switches are total
+ *     over it, so a seventh kind of page is two compile errors rather than one
+ *     table quietly falling behind the other.
+ *
+ * Where the set has nothing to say — a pin to a node that was archived or
+ * deleted — this answers the ADDRESS, which is at least the truth about where
+ * the pin goes.
  */
 
-import { type Derived, nodeNamed } from "@olai/format"
+import { basenameOf, type Derived, nodeNamed } from "@olai/format"
 
-import { filterOf, hrefOf, type Route } from "../routes.ts"
-
-/** The last segment of a path — what a file is CALLED, as the sidebar's tree
- *  calls it (`../fileTree.ts`), rather than the whole path a route spells. A
- *  shelf is narrow and a document three directories down is still its own
- *  name. */
-const basenameOf = (file: string): string => file.slice(file.lastIndexOf("/") + 1)
+import { hrefOf, type Route } from "../routes.ts"
+import type { Pin } from "./pins.ts"
 
 /**
  * The name of the page an address opens.
@@ -51,7 +64,9 @@ export const nameOf = (route: Route, derived: Derived | undefined): string => {
     case "outline":
       // `null` is the front page — "whichever outline was found first" — and it
       // has no filename to draw, so it takes the word a reader would use for
-      // it. Every other outline is its own name.
+      // it. Every other outline is its own name, through the format's own
+      // spelling of "the last segment of a path" (`basenameOf`) rather than a
+      // second slice here.
       return route.file === null ? "Home" : basenameOf(route.file)
     case "document":
       return basenameOf(route.file)
@@ -66,8 +81,16 @@ export const nameOf = (route: Route, derived: Derived | undefined): string => {
   }
 }
 
-/** What the page is NARROWED by, drawn as its own chip beside the name — empty
- *  for a pin to a whole page. Read off the route through the one function that
- *  answers it (`../routes.ts`), so the shelf cannot disagree with the filter bar
- *  about what a page is filtered by. */
-export const narrowingOf = (route: Route): string => filterOf(route)
+/**
+ * What one SHELF ROW says — the name somebody gave the pin, or the one the set
+ * answers with.
+ *
+ * One line, and it is here rather than at the row that draws it because it is
+ * the rule rather than the drawing: *a name written on a pin is somebody's and
+ * wins; a bare address is called whatever the set calls it right now*
+ * (`./pins.ts` argues why only one of those two can be stored). Spelled in a
+ * component, that rule would be a fact about pins living in a `<li>`, and the
+ * second surface that ever draws a pin would spell it again.
+ */
+export const shelfName = (pin: Pin, derived: Derived | undefined): string =>
+  pin.named ?? nameOf(pin.route, derived)

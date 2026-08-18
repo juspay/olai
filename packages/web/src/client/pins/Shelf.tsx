@@ -36,16 +36,16 @@
  * forced layout for an answer that cannot have changed.
  */
 
-import { createMemo, createSignal, For, onCleanup, Show } from "solid-js"
+import { createMemo, createSignal, For, Show } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
 import { useUndo } from "../edit/undoing.ts"
 import { createDrags, TRAVEL_PX } from "../pointer.ts"
 import { useRouter } from "../router.tsx"
-import { hrefOf } from "../routes.ts"
-import { TESTID } from "../testids.ts"
+import { filterOf, hrefOf } from "../routes.ts"
+import { selector, TESTID } from "../testids.ts"
 import { applying } from "../writes.ts"
-import { nameOf, narrowingOf } from "./name.ts"
+import { shelfName } from "./name.ts"
 import { Pin } from "./Pin.tsx"
 import { sayPin } from "./pinning.ts"
 import { type Pin as Pinned, pinsOf } from "./pins.ts"
@@ -103,23 +103,31 @@ export function Shelf() {
    * it must not become arrives a moment later.
    */
   let travelled = false
-  const rows: Array<HTMLLIElement | undefined> = []
   let list: HTMLUListElement | undefined
 
-  /** The rows' places, read off the DOM at the moment the drag lifts. */
+  /**
+   * The rows' places, read off the DOM at the moment the drag lifts.
+   *
+   * ASKED OF THE DOM rather than of a list of refs this component kept: the
+   * rows are already in the document, already carry the testid that identifies
+   * them, and already sit in the order the shelf draws — so an array of
+   * elements filled by a `ref` per row, cleaned up per row, and read once per
+   * gesture was a second copy of the list, kept in step by machinery, for a
+   * question the container answers in one call.
+   */
   const measure = (): Measured => {
     const box = list?.getBoundingClientRect()
-    const middles: Array<number> = []
-    const gaps: Array<number> = []
-    for (const row of rows) {
-      if (row === undefined) continue
-      const at = row.getBoundingClientRect()
-      middles.push(at.top + at.height / 2 + window.scrollY)
-      gaps.push(at.top - (box?.top ?? 0))
+    const at = [...(list?.querySelectorAll(selector(TESTID.pin)) ?? [])]
+      .map((row) => row.getBoundingClientRect())
+    return {
+      middles: at.map((row) => row.top + row.height / 2 + window.scrollY),
+      // One more than there are rows: a gap above the first and one below the
+      // last, which is what `./reorder.ts` counts over.
+      gaps: [
+        ...at.map((row) => row.top - (box?.top ?? 0)),
+        (at.at(-1)?.bottom ?? box?.top ?? 0) - (box?.top ?? 0),
+      ],
     }
-    const last = rows.at(-1)?.getBoundingClientRect()
-    gaps.push(last === undefined ? 0 : last.bottom - (box?.top ?? 0))
-    return { middles, gaps }
   }
 
   const grab = (at: number, event: PointerEvent) => {
@@ -167,19 +175,16 @@ export function Shelf() {
             {(pin, at) => (
               <Pin
                 pin={pin}
-                name={pin.named ?? nameOf(pin.route, derived())}
-                narrowing={narrowingOf(pin.route)}
+                name={shelfName(pin, derived())}
+                // What the page is NARROWED by, read off the route through the
+                // one function that answers it (`../routes.ts`), so the shelf
+                // cannot disagree with the filter bar about it.
+                narrowing={filterOf(pin.route)}
                 current={here() === hrefOf(pin.route)}
                 lifted={carrying()?.from === at()}
                 onGrab={(event) => grab(at(), event)}
                 dragged={() => travelled}
                 onRemove={() => unpin(pin)}
-                ref={(element) => {
-                  rows[at()] = element
-                  onCleanup(() => {
-                    if (rows[at()] === element) rows[at()] = undefined
-                  })
-                }}
               />
             )}
           </For>

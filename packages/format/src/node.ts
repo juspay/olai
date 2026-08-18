@@ -24,7 +24,7 @@ import { Schema } from "effect"
 
 import { Custom } from "./custom.ts"
 import { OUTLINE_EXT } from "./kinds.ts"
-import { byPath } from "./paths.ts"
+import { basenameOf, byPath } from "./paths.ts"
 
 /** `true`, or the ISO date/datetime the state was reached at. */
 const Marker = Schema.Union([Schema.Literal(true), Schema.String])
@@ -511,6 +511,5 @@ const outlineCalled = (
     .sort((a, b) => depthOf(a) - depthOf(b) || byPath(a, b))
     .at(0)
 
-const basenameOf = (file: string): string => file.slice(file.lastIndexOf("/") + 1)
 
 const depthOf = (file: string): number => file.split("/").length

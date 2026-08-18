@@ -234,6 +234,8 @@ A `.md` file under the served directory is a **document**, and documents are par
 
 **A mirror in there is not a pin either.** A placement means *draw it here too*, so a shelf built out of mirrors would pull every pinned node's whole subtree into `Pins.olai`. A pin says *go there*, which is a different thing, and the difference is why this convention is titles rather than placements.
 
+**Which half of this convention lives where is deliberate.** *Which file the shelf is* is a fact about the DIRECTORY, so it is `@olai/format`'s (`pinsIn`, beside the inbox's rule) and both faces read it there. *What a title MEANS* is a fact about this app's ADDRESS SPACE — `/n/`, `/doc/`, `?q=` — which the format has no business knowing, so it is the browser's, at view time, through the same bijection that wrote it. The `pin` verb carries the address across as an opaque string; nothing between the affordance and the file parses one.
+
 **Both faces write it with the tools they already have.** An agent pins with `add_node` into `Pins.olai` (or `create_outline` when the directory has none), reorders with `move_node`, and unpins with `archive_node` — which is exactly what the browser's own gestures resolve to, one op each ([architecture.md](architecture.md)'s one write gate). The web has one verb of its own, `pin`, and all it saves a browser is the READING: which file the shelf is is a fact about the directory, so it is resolved where the write is judged, the same way a quick capture finds the inbox.
 
 ## Hypertext

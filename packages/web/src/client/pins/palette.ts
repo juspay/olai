@@ -20,13 +20,13 @@ import type { PaletteItem } from "../palette/items.ts"
 import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { nameOf } from "./name.ts"
-import { pinAt } from "./pinning.ts"
+import { pinnedAt } from "./pins.ts"
 
 export const pinItem = (
   route: Route,
   derived: Derived | undefined,
 ): PaletteItem => {
-  const already = pinAt(derived, route)
+  const already = pinnedAt(derived, route)
   return {
     id: TESTID.pinToggle,
     label: already === undefined ? "Pin this page" : "Unpin this page",
