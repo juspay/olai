@@ -53,9 +53,11 @@
  * there is a LONG PRESS on the row's line (`../longPress.ts`) — markup this
  * component does not own. That is why being open is the ROW's (`./door.ts`)
  * rather than a signal in here, and why the `<div>` below is a zero-width
- * absolute box at the row's left edge until `md`: it cannot simply be `hidden`
- * there, because the panel is inside it and a `display: none` ancestor takes
- * the panel with it. Where the panel is then drawn from is `./Dropdown.tsx`'s
+ * absolute box at the row's left edge until `md`: that is what the gutter
+ * arithmetic in `../touch.ts` is written against. The panel is portalled
+ * (`./Dropdown.tsx`), so a `display: none` ancestor would no longer take it
+ * with it; the root stays in the markup because it is what holds the
+ * trigger. Where the panel is then drawn from is `./Dropdown.tsx`'s
  * `getAnchorRect`. There is no media query in this file at all.
  */
 

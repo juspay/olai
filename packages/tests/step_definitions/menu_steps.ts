@@ -238,6 +238,49 @@ Then("the node menu is closed", async function (this: OlaiWorld) {
   );
 });
 
+/**
+ * WHAT PAINTS AT THE OVERLAP — the only honest assertion a stacking bug
+ * has. A bounding box cannot see a layer: the heading is still laid out
+ * exactly where it should be, still `visible` to Playwright, and still
+ * what a pointer would reach if the panel were left in the row.
+ *
+ * `topmostTestidAt` walks to the nearest `data-testid`, so a hit on an
+ * entry reports `node-menu-item` rather than the panel — both are the
+ * menu. The heading is `node-gutter`.
+ */
+Then(
+  "the node menu takes the pointer where it crosses the section heading of {string}",
+  async function (this: OlaiWorld, id: string) {
+    const panel = await panelOf(this);
+    const heading = this.within(id, NODE_GUTTER);
+    const over = await this.box(panel, "the node menu");
+    const under = await this.box(heading, `the section heading "${id}"`);
+    const left = Math.max(over.x, under.x);
+    const right = Math.min(over.x + over.width, under.x + under.width);
+    const top = Math.max(over.y, under.y);
+    const bottom = Math.min(over.y + over.height, under.y + under.height);
+    assert.ok(
+      right > left && bottom > top,
+      `the menu (${Math.round(over.x)},${Math.round(over.y)} ` +
+        `${Math.round(over.width)}×${Math.round(over.height)}) does not ` +
+        `cross the section heading of "${id}" ` +
+        `(${Math.round(under.x)},${Math.round(under.y)} ` +
+        `${Math.round(under.width)}×${Math.round(under.height)}) — ` +
+        "without an overlap this step cannot see a layer",
+    );
+    const found = await this.topmostTestidAt(
+      (left + right) / 2,
+      (top + bottom) / 2,
+    );
+    assert.ok(
+      found === TESTID.nodeMenuPanel || found === TESTID.nodeMenuItem ||
+        found === TESTID.nodeMenuConfirm,
+      `the element at the overlap is ${found} — a sticky heading ` +
+        "painting through the panel is the bug this scenario holds",
+    );
+  },
+);
+
 /** What it is offering, in order. Through `oneLine` like every other text this
  *  suite reads out of the DOM, so a label that wraps is still one label. */
 const menuLabels = async (world: OlaiWorld): Promise<ReadonlyArray<string>> =>

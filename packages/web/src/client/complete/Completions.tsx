@@ -12,29 +12,34 @@
  * What this adds is only the BOX — where it sits, and the fact of which widget
  * it belongs to.
  *
- * ## Absolutely positioned, which is not the same as a popover
+ * ## Out of flow, and out of the tree
  *
  * The date picker two directories over argues at length for drawing in place
  * under the row rather than floating (`../date/DatePicker.tsx`), and that
  * argument does not reach this: what it rules out is a panel with geometry of
- * its own to keep anchored while the page scrolls. This box is laid out inside
- * the row's own title cell — `absolute` against it, so it scrolls with the row,
- * needs no measurement, and has no anchoring code at all.
- *
- * What it buys by being out of flow is the one thing an in-flow list could not
- * do: the tree below does not JUMP as candidates appear and disappear on every
- * keystroke. A list that pushed the outline down by four rows while somebody
+ * its own to keep anchored while the page scrolls. This box is out of flow so
+ * the tree below does not JUMP as candidates appear and disappear on every
+ * keystroke — a list that pushed the outline down by four rows while somebody
  * typed `#ho` and pulled it back up on the `m` would be unusable for exactly
  * the gesture it exists to serve.
+ *
+ * It is also PORTALLED. A sticky section heading is a stacking context at the
+ * same {@link LAYER.row} this list rides (`../layer.ts`), and a box left in
+ * the title cell is cut in two the moment the next section arrives — the
+ * `•••` menu's own bug (`menu-under-headers`). The portal is the same escape
+ * that menu takes; the measure below is what "scrolls with the row" costs
+ * once the box has left the cell.
  *
  * The caret never leaves the input, so nothing here takes focus: the rows are
  * chosen by the arrows and Enter (`./completing.tsx`), and a pointer press is
  * defaulted-away by the row itself so a click cannot blur the line being typed.
  */
 
-import { Index, Show } from "solid-js"
+import { createEffect, createSignal, Index, onCleanup, Show } from "solid-js"
+import { Portal } from "solid-js/web"
 
 import { LAYER } from "../layer.ts"
+import { overlayRoot } from "../overlay.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
 
 /** What this door calls its rows (`../search/Result.tsx`'s `RowTestids`). */
@@ -46,19 +51,61 @@ const COMPLETION_ROW: RowTestids = {
 import { TESTID } from "../testids.ts"
 import type { Listing } from "./completing.tsx"
 
+/** Where the list hangs, in viewport pixels — the title cell's left edge
+ *  and the line under it. */
+interface At {
+  readonly left: number
+  readonly top: number
+}
+
+const sameAt = (a: At | null, b: At | null): boolean =>
+  a === b || (a !== null && b !== null && a.left === b.left && a.top === b.top)
+
 export function Completions(props: { readonly listing: Listing }) {
+  /** The title cell this list belongs to. `contents` so it adds no box of
+   *  its own; the parent is the `relative` span `../edit/RowEditor.tsx`
+   *  wraps the input in. */
+  let host: HTMLSpanElement | undefined
+  const [at, setAt] = createSignal<At | null>(null, { equals: sameAt })
+
+  const measure = (): void => {
+    const cell = host?.parentElement
+    if (cell === undefined || cell === null) return
+    const box = cell.getBoundingClientRect()
+    setAt({ left: box.left, top: box.bottom + 4 })
+  }
+
+  createEffect(() => {
+    if (!props.listing.showing()) {
+      setAt(null)
+      return
+    }
+    measure()
+    window.addEventListener("resize", measure)
+    // Capture: the pane that moves under a list is not the window.
+    document.addEventListener("scroll", measure, true)
+    onCleanup(() => {
+      window.removeEventListener("resize", measure)
+      document.removeEventListener("scroll", measure, true)
+    })
+  })
+
   return (
-    // WHETHER there is a box is the listing's own answer, not a second formula
-    // here — see `Listing.showing`.
-    <Show when={props.listing.showing()}>
+    <span ref={host} class="contents">
+    {/* WHETHER there is a box is the listing's own answer, not a second
+        formula here — see `Listing.showing`. */}
+    <Show when={props.listing.showing() ? at() : undefined}>
+      {(spot) => (
+      <Portal mount={overlayRoot()}>
       <div
         // `LAYER.row` is the whole stacking claim, and it is the `•••` menu's
-        // (`../layer.ts`): this hangs off a ROW, in the outline's own flow, so
-        // it covers the rows under it and gives way to every piece of chrome —
-        // a list opened under the header or beside the chat dock is the one
-        // that goes. A bare number here would be the twentieth call site that
-        // could only be read by looking at the other nineteen.
-        class={`absolute top-full left-0 ${LAYER.row} mt-1 w-[min(24rem,80vw)] overflow-hidden rounded-md border border-rule/70 bg-panel shadow-lg`}
+        // (`../layer.ts`): this hangs off a ROW, so it covers the rows under
+        // it and gives way to every piece of chrome. The portal is what
+        // makes the number mean that against a later sticky heading. A bare
+        // number here would be the twentieth call site that could only be
+        // read by looking at the other nineteen.
+        class={`fixed ${LAYER.row} w-[min(24rem,80vw)] overflow-hidden rounded-md border border-rule/70 bg-panel shadow-lg`}
+        style={{ left: `${spot().left}px`, top: `${spot().top}px` }}
         data-testid={TESTID.completions}
         // WHICH widget this is, as a fact in the markup rather than as a guess
         // from what is in it — the same contract every other panel in this
@@ -106,6 +153,9 @@ export function Completions(props: { readonly listing: Listing }) {
           </Index>
         </ul>
       </div>
+      </Portal>
+      )}
     </Show>
+    </span>
   )
 }

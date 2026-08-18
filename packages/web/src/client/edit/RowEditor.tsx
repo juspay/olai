@@ -108,9 +108,9 @@ export function TitleEditor(props: {
   })
 
   return (
-    // `relative`, and the input keeps the cell it always had: the popup hangs
-    // off this box, out of flow, so the row's own geometry is untouched
-    // (../complete/Completions.tsx says why it is not in flow).
+    // `relative`, and the input keeps the cell it always had: the popup
+    // measures this box and portals out of it, so the row's own geometry is
+    // untouched (../complete/Completions.tsx says why it is not in flow).
     <span class="relative flex min-w-0 flex-1">
       <input
         ref={element}
