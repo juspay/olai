@@ -35,10 +35,18 @@
  * escaped source. A title that looks correct while missing a word is worse
  * than the marks. The fallback is plain escaped text (no tag styling): it is
  * "show what you wrote", not a second render path.
+ *
+ * A FILTERED PAGE HANDS DOWN ITS NEEDLES, and they ride both of the first two
+ * answers rather than one: the words a query found this node by are wrapped
+ * where they sit (`../filter/lit.ts`), so a row says which part of its title
+ * put it in front of the reader. The third answer draws none — escaped source
+ * is the "show what you wrote" fallback, and marking it up is exactly what it
+ * is refusing to do.
  */
 
 import type { Element, ElementContent, Root, RootContent, Text } from "hast"
 
+import { NO_NEEDLES } from "../filter/lit.ts"
 import { markdownReady } from "./chunk.ts"
 import { plainTitle } from "./plain.ts"
 import { hastToHtml, renderToTree } from "./render.ts"
@@ -48,6 +56,15 @@ export interface TitleRender {
   /** When false, markdown links are unwrapped to their children so the title
    *  can sit inside an existing `<a>` (breadcrumb, see-ref) without nesting. */
   readonly links?: boolean
+  /**
+   * The words a filter found this node by, lit inside the title
+   * (../filter/lit.ts) — empty, which is every title on an unfiltered page.
+   *
+   * The one option that is not a property of the title: it is a fact about the
+   * PAGE, handed down so a row can say why it is in front of somebody. Which
+   * is also why a highlighted title is not remembered below.
+   */
+  readonly needles?: ReadonlyArray<string>
 }
 
 /**
@@ -77,6 +94,17 @@ export const renderTitle = (
   from: string,
   options: TitleRender = {},
 ): string => {
+  const needles = options.needles ?? NO_NEEDLES
+  // A HIGHLIGHTED TITLE IS DRAWN RATHER THAN REMEMBERED, and that is the cache
+  // saying no rather than the feature paying nothing. Its key would have to
+  // hold the query, which changes on every keystroke — so every row of a
+  // filtered page would mint an entry nobody asks for twice, and the handful of
+  // expensive pipeline renders in the map beside it would be cleared to make
+  // room for them. What it costs is what it was always going to cost: a
+  // filtered page is a small page, and the memo that asked re-runs per
+  // keystroke either way.
+  if (needles.length > 0) return lit(title, from, options.links !== false, needles)
+
   const wasPlain = plainTitles.get(title)
   if (wasPlain !== undefined) return wasPlain
   const plain = plainTitle(title)
@@ -92,7 +120,21 @@ export const renderTitle = (
   // afterwards. The read is what re-runs the caller's memo when it lands.
   if (!markdownReady()) return escapeHtml(title)
 
-  return remember(rendered, key, build(title, from, links))
+  return remember(rendered, key, build(title, from, links, NO_NEEDLES))
+}
+
+/** The same three answers, with the query's words lit and nothing kept — the
+ *  order above, minus the two lookups it exists to skip. */
+const lit = (
+  title: string,
+  from: string,
+  links: boolean,
+  needles: ReadonlyArray<string>,
+): string => {
+  const plain = plainTitle(title, needles)
+  if (plain !== null) return plain
+  if (!markdownReady()) return escapeHtml(title)
+  return build(title, from, links, needles)
 }
 
 const remember = (
@@ -105,9 +147,14 @@ const remember = (
   return html
 }
 
-const build = (title: string, from: string, links: boolean): string => {
+const build = (
+  title: string,
+  from: string,
+  links: boolean,
+  needles: ReadonlyArray<string>,
+): string => {
   const tree = renderToTree(title, from, "inline")
-  styleTags(tree)
+  styleTags(tree, needles)
   if (!links) unwrapAnchors(tree)
 
   // The pipeline dropped words the source still accounts for — fully empty,

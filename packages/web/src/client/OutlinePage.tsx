@@ -11,7 +11,8 @@ import { Show } from "solid-js"
 
 import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
-import { unfiltered, useNarrowed } from "./filter/narrowed.tsx"
+import { useNarrowed } from "./filter/narrowed.tsx"
+import { unfiltered } from "./filter/why.ts"
 import { doneHidden } from "./settings/done.ts"
 import { Tree } from "./Tree.tsx"
 

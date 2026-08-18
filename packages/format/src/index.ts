@@ -263,8 +263,15 @@ export type { Backlink } from "./backlinks.ts"
 export {
   keeping,
   keepingDated,
+  /** Where a query's words LAND in a piece of text, in the fold the matcher
+   *  folded them with — what a filtered row lights up so the reader can see
+   *  why it is in front of them, rather than a second case rule in the view. */
+  litBy,
   matchedIn,
   matching,
+  /** The words a query looks for, folded and deduped — {@link litBy}'s other
+   *  half, and the only thing a view needs off a parsed query. */
+  needlesOf,
   parseFilter,
   /** Both halves of "3 of 41" over a tree: {@link matchedIn} counts the rows a
    *  query selected and `rowsIn` counts the rows there are, so the two cannot
@@ -281,7 +288,7 @@ export {
   ranked,
   shownRecord,
 } from "./filter.ts"
-export type { Filter, Match, Matched, Scope, SearchField } from "./filter.ts"
+export type { Filter, Lit, Match, Matched, Scope, SearchField, Selected } from "./filter.ts"
 export {
   dailyNoteDays,
   dailyNotePathFor,

@@ -34,7 +34,8 @@ import { Show } from "solid-js"
 import { Aside } from "../Aside.tsx"
 import { blockedIds, WAITING_DIM } from "../blocked.ts"
 import { Breadcrumbs } from "../Breadcrumbs.tsx"
-import { matchedAttr, useNarrowed } from "../filter/narrowed.tsx"
+import { useNarrowed } from "../filter/narrowed.tsx"
+import { behindTheMark, lighting, matchedAttr } from "../filter/why.ts"
 import { Glyph } from "../Glyph.tsx"
 import { hotOf } from "../hot.ts"
 import { NoteMark } from "../note/Mark.tsx"
@@ -72,7 +73,7 @@ export function DayNode(props: {
       data-note-open={note.expanded() ? "true" : "false"}
       data-blocked={blockedIds(props.dated.blocked)}
       // Whether the filter SELECTED this row — one spelling, wherever a row
-      // says it (../filter/narrowed.tsx). Asked of the node this entry IS: a
+      // says it (../filter/why.ts). Asked of the node this entry IS: a
       // day collects records rather than placements, so there is no `shows` to
       // follow the way a tree row has one. It answers `true` for every row a
       // filtered day draws, and that is the page's claim rather than a
@@ -107,6 +108,10 @@ export function DayNode(props: {
           title={node().title}
           from={props.dated.shows.file}
           status={props.dated.status}
+          // A day draws no CONTEXT rows — every row it keeps is a match
+          // (`keepingDated`) — so the only two things a narrowed page has to
+          // say here are which words landed, and where.
+          needles={lighting(narrowed, node().id)}
           open={note.expanded()}
           aside={
             <Aside hot={hotOf(node(), props.dated.progress, props.dated.status)} />
@@ -134,6 +139,7 @@ export function DayNode(props: {
           expanded={note.expanded()}
           preview={showsPreview(density())}
           onToggle={note.toggle}
+          noteHit={behindTheMark(narrowed, node().id)}
         />
       </div>
     </li>

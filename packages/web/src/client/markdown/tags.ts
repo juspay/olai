@@ -18,11 +18,19 @@
  *
  * They are side by side because they are one decision, and `./plain.test.ts`
  * holds them to each other by rendering the same titles both ways.
+ *
+ * THE QUERY'S WORDS ARE LIT ON THE SAME TWO PATHS, and they had to be: a
+ * filtered row that highlighted its hit on the fast path and not on the other
+ * would light up nearly every title in the app and quietly miss the ones with
+ * markdown in them. So the needles ride through both walks and are wrapped by
+ * one split (`../filter/lit.ts`) — text and tags alike, since a `#tag` typed
+ * into the box is exactly the hit a reader most needs to see.
  */
 
 import { mayHoldTag, tagText, titleParts } from "@olai/format"
 import type { Element, ElementContent, Root } from "hast"
 
+import { HIT_CLASS, NO_NEEDLES, runsOf } from "../filter/lit.ts"
 import { TAG_ATTRIBUTE } from "../filter/tag.ts"
 import { TESTID } from "../testids.ts"
 
@@ -70,16 +78,20 @@ export const TAG_CLASS =
  *  and href are not re-parsed for tags (a URL fragment is the sharpest case). */
 const SKIP_TAGS = new Set(["code", "a"])
 
-/** Walk text nodes and turn `#tags` into styled spans. */
-export const styleTags = (parent: Root | Element): void => {
+/** Walk text nodes and turn `#tags` into styled spans — and, where the page
+ *  is filtered, the query's words into marks (../filter/lit.ts). */
+export const styleTags = (
+  parent: Root | Element,
+  needles: ReadonlyArray<string> = NO_NEEDLES,
+): void => {
   const next: ElementContent[] = []
   for (const child of parent.children) {
     if (child.type === "text") {
-      next.push(...splitTags(child.value))
+      next.push(...splitTags(child.value, needles))
       continue
     }
     if (child.type === "element") {
-      if (!SKIP_TAGS.has(child.tagName)) styleTags(child)
+      if (!SKIP_TAGS.has(child.tagName)) styleTags(child, needles)
       next.push(child)
       continue
     }
@@ -91,35 +103,77 @@ export const styleTags = (parent: Root | Element): void => {
  *  format's own cheap negative, exactly as the HTML path below and the search
  *  index are, because a HAST walk asks this per TEXT NODE and most of them hold
  *  no sigil at all. */
-const splitTags = (text: string): ElementContent[] => {
-  if (!mayHoldTag(text)) return [{ type: "text", value: text } as ElementContent]
-  return titleParts(text).map((part) =>
+const splitTags = (
+  text: string,
+  needles: ReadonlyArray<string>,
+): ElementContent[] => {
+  if (!mayHoldTag(text)) return marked(text, needles)
+  return titleParts(text).flatMap((part) =>
     part.kind === "tag"
-      ? pill(tagText(part))
-      : ({ type: "text", value: part.text } as ElementContent),
+      ? [pill(tagText(part), needles)]
+      : marked(part.text, needles),
   )
 }
 
+/** One run of ordinary text as the content it becomes: itself, or itself with
+ *  the query's words wrapped in marks. */
+const marked = (
+  text: string,
+  needles: ReadonlyArray<string>,
+): ElementContent[] =>
+  runsOf(text, needles).map((run) =>
+    run.lit ? mark(run.text) : ({ type: "text", value: run.text } as ElementContent),
+  )
+
+const mark = (text: string): Element => ({
+  type: "element",
+  tagName: "mark",
+  properties: { className: [HIT_CLASS], dataTestid: TESTID.hit },
+  children: [{ type: "text", value: text }],
+})
+
 /** The same text and the same pills, written straight to HTML — no tree, and
  *  so no stringifier to wait for. */
-export const taggedHtml = (text: string): string => {
-  if (!mayHoldTag(text)) return escapeText(text)
+export const taggedHtml = (
+  text: string,
+  needles: ReadonlyArray<string> = NO_NEEDLES,
+): string => {
+  if (!mayHoldTag(text)) return markedHtml(text, needles)
   return titleParts(text)
     .map((part) => {
-      if (part.kind !== "tag") return escapeText(part.text)
+      if (part.kind !== "tag") return markedHtml(part.text, needles)
       // AS WRITTEN in both places: the text a reader sees, and the value the
       // delegated press filters by. `titleParts` restricts a tag's alphabet
       // (`isTagName`), so the attribute cannot carry a quote — and `escapeText`
       // is applied anyway rather than reasoned about at each call.
       const written = escapeText(tagText(part))
-      return `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}" ${TAG_ATTRIBUTE}="${written}">${written}</span>`
+      return `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}" ${TAG_ATTRIBUTE}="${written}">${
+        markedHtml(tagText(part), needles)
+      }</span>`
     })
     .join("")
 }
 
+/** The same runs {@link marked} makes, written straight to HTML — and the
+ *  `<mark>` has to stringify EXACTLY as `hast-util-to-html` writes the element
+ *  above, which is what ./plain.test.ts holds the two paths to. */
+const markedHtml = (text: string, needles: ReadonlyArray<string>): string =>
+  runsOf(text, needles)
+    .map((run) =>
+      run.lit
+        ? `<mark class="${HIT_CLASS}" data-testid="${TESTID.hit}">${
+          escapeText(run.text)
+        }</mark>`
+        : escapeText(run.text),
+    )
+    .join("")
+
 /** The pill, over the tag AS WRITTEN — sigil and all, because that is what the
  *  title says, what a reader searches for, and what a press filters by. */
-const pill = (written: string): Element => ({
+const pill = (
+  written: string,
+  needles: ReadonlyArray<string>,
+): Element => ({
   type: "element",
   tagName: "span",
   properties: {
@@ -127,7 +181,10 @@ const pill = (written: string): Element => ({
     dataTestid: TESTID.tag,
     dataTag: written,
   },
-  children: [{ type: "text", value: written }],
+  // A PILL IS LIT LIKE ANY OTHER TEXT — `#deferral` typed into the box, or
+  // pressed, lands on the tag itself, and a row that lit every word but the one
+  // the reader clicked would be the row not answering the question.
+  children: marked(written, needles),
 })
 
 /**

@@ -6,9 +6,12 @@
  * see-link cannot disagree about either. This file is only the element that
  * hands that HTML to the page.
  *
- * Decorative for tags, for now. Clicking a tag becomes a filter when the filter
- * machinery exists (docs/brainstorming/viewing-web.md); until then styling one
- * as a link would promise something nothing answers.
+ * A filtered page hands down the words it found the node by, and they are lit
+ * inside whatever the title turns out to be — a word, a phrase, or the `#tag`
+ * that was pressed. That is a fact about the PAGE rather than about the title,
+ * which is why it arrives as a prop from the row rather than being read here:
+ * the same title is drawn in a breadcrumb and a see-link, where there is no
+ * query to have found anything.
  */
 
 import { createMemo } from "solid-js"
@@ -24,9 +27,16 @@ export function NodeTitle(props: {
    *  existing `<a>` (breadcrumb, see-ref) without nesting anchors. Default
    *  true — tree rows and zoomed headings keep their links. */
   readonly links?: boolean
+  /** The words a filter found this node by, lit where they sit
+   *  (`./filter/lit.ts`) — absent on every title an unfiltered page draws, and
+   *  on every title drawn for a row the query did not select. */
+  readonly needles?: ReadonlyArray<string>
 }) {
   const html = createMemo(() =>
-    renderTitle(props.title, props.from, { links: props.links }),
+    renderTitle(props.title, props.from, {
+      links: props.links,
+      needles: props.needles,
+    }),
   )
   return (
     <span

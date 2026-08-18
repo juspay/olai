@@ -5,8 +5,10 @@ import { derive, type Derived, type Row, rowsOf } from "./derive.ts"
 import {
   keeping,
   keepingDated,
+  litBy,
   matchedIn,
   matching,
+  needlesOf,
   parseFilter,
   type Refusal,
   ranked,
@@ -1194,4 +1196,97 @@ test("how many rows a day draws is how many entries it holds, not how many files
   expect(datedIn(third)).toBe(1)
   expect(datedIn(onDay("2026-08-10"))).toBe(1)
   expect(datedIn([])).toBe(0)
+})
+
+// ── where the words landed ─────────────────────────────────────────────
+//
+// The half of a query a ROW needs and the matcher never had to answer: not
+// "does this node hold the words" but "where in this text are they", so a
+// filtered page can say why each row is in front of the reader.
+
+/** The needles of a query, as the matcher folded them. */
+const needles = (text: string): ReadonlyArray<string> =>
+  needlesOf(parseFilter(text, TODAY))
+
+/** A text with its lit runs marked, which is what a highlight IS — written
+ *  this way so a failure reads as the sentence somebody would see. */
+const lit = (text: string, query: string): string => {
+  const runs = litBy(text, needles(query))
+  let out = ""
+  let at = 0
+  for (const run of runs) {
+    out += `${text.slice(at, run.at)}[${text.slice(run.at, run.end)}]`
+    at = run.end
+  }
+  return out + text.slice(at)
+}
+
+test("the needles are the query's positive words, folded and deduped", () => {
+  expect(needles("Cabinets")).toEqual(["cabinets"])
+  expect(needles("pick pick the")).toEqual(["pick", "the"])
+  expect(needles('"pick the hinges"')).toEqual(["pick the hinges"])
+  expect(needles("handles OR knobs")).toEqual(["handles", "knobs"])
+})
+
+test("a word the query took BACK OUT is not a reason, so it is not a needle", () => {
+  // A node kept by `-walnut` is not here because of walnut, and lighting the
+  // one word the reader said they did not want would be the row drawing a lie.
+  expect(needles("cabinets -walnut")).toEqual(["cabinets"])
+  expect(needles("-walnut")).toEqual([])
+})
+
+test("a query with no words in it has no needles at all", () => {
+  // `is:done` selects on a mark, and a mark is not text in a title — so there
+  // is nothing to light, and saying "title" would be inventing an answer.
+  expect(needles("is:done")).toEqual([])
+  expect(needles("date:2026-08-10 prop:pr")).toEqual([])
+  expect(needles("")).toEqual([])
+  expect(needles("is:open")).toEqual([])
+})
+
+test("a needle lands wherever the fold finds it, whatever case it was written in", () => {
+  // The SAME fold `matching` uses — so a highlight cannot appear in a stretch
+  // of text the matcher never looked at.
+  expect(lit("order the cabinets", "cabinets")).toBe("order the [cabinets]")
+  expect(lit("Order the Cabinets", "CABINETS")).toBe("Order the [Cabinets]")
+  expect(lit("pick the hinges", "the")).toBe("pick [the] hinges")
+})
+
+test("every occurrence is lit, not only the first", () => {
+  expect(lit("pick the hinges, pick the knobs", "pick")).toBe(
+    "[pick] the hinges, [pick] the knobs",
+  )
+})
+
+test("a phrase is one landing where two words are two", () => {
+  expect(lit("pick the hinges", '"pick the"')).toBe("[pick the] hinges")
+  expect(lit("pick the hinges", "pick the")).toBe("[pick] [the] hinges")
+})
+
+test("two needles on the same stretch are one run, never one inside another", () => {
+  // Without the merge, `pick` would be lit twice — once alone and once inside
+  // the phrase — and every caller would have to undo it.
+  expect(lit("pick the hinges", 'pick "pick the"')).toBe("[pick the] hinges")
+  expect(lit("cabinets", "cabinet cabinets")).toBe("[cabinets]")
+})
+
+test("a text the query is not in has no runs, and neither has an empty query", () => {
+  expect(litBy("order the cabinets", needles("walnut"))).toEqual([])
+  expect(litBy("order the cabinets", needles("is:done"))).toEqual([])
+  expect(litBy("", needles("cabinets"))).toEqual([])
+})
+
+test("a tag is lit as the text it is, sigil and all or bare", () => {
+  // Both spellings find it — the fold indexes a tag twice — and each lights
+  // exactly what it asked for.
+  expect(lit("kitchen remodel #home", "#home")).toBe("kitchen remodel [#home]")
+  expect(lit("kitchen remodel #home", "home")).toBe("kitchen remodel #[home]")
+})
+
+test("a fold that changes length is mapped back onto what was written", () => {
+  // `İ` lowercases to two units, so an offset in the fold is not an offset in
+  // the source — and a highlight placed by the fold's own arithmetic would sit
+  // one character to the left of the word for the rest of the line.
+  expect(lit("İstanbul cabinets", "cabinets")).toBe("İstanbul [cabinets]")
+  expect(lit("aİb cabinets", "cabinets")).toBe("aİb [cabinets]")
 })

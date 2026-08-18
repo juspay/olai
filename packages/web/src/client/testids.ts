@@ -153,6 +153,17 @@ export const TESTID = {
    *  since two spellings of one fact is one of them written twice. */
   foldedDone: "folded-done",
   desc: "desc",
+  /** The one clamped line of a note a filter found the row BY, drawn under the
+   *  title on a row whose only hit is behind its ¶ (`client/filter/
+   *  excerpt.ts`). Absent on every other row, filtered or not — the excerpt is
+   *  the reason a row with nothing of the query in its title is in front of
+   *  somebody, so drawing it anywhere else would say that of a row it is not
+   *  true of. */
+  descHit: "desc-hit",
+  /** A stretch of a title or an excerpt the query LANDED on
+   *  (`client/filter/lit.ts`). Drawn only where a filter put one, which is what
+   *  makes its presence the assertion. */
+  hit: "hit",
   /** The pilcrow beside a title: the door to the row's open state
    *  (`client/note/Mark.tsx`). `data-open` says which way it is; drawn only on
    *  a node that HAS an open state — a note, or a property somebody added. */

@@ -2,9 +2,14 @@
  * Whether a filter is on, reachable from wherever a row is drawn.
  *
  * Two things every row of a filtered tree has to know, and neither is a
- * property of the row: whether it MATCHED (so the page can say which rows the
- * query actually found, rather than which ones are ancestors of one), and
- * whether folds are suspended.
+ * property of the row: WHY IT IS DRAWN — whether the query selected it, and
+ * where in it the words landed, so the row can say so rather than leaving the
+ * reader to guess — and whether folds are suspended.
+ *
+ * This file is the WAY THERE and not the answers: what a row asks of the value
+ * below is `./why.ts`, which is pure and takes the view rather than the
+ * context. The two are split because this one is a component and that one is
+ * asked by three surfaces and by a test.
  *
  * FOLDS ARE SUSPENDED WHILE A FILTER IS ON, and that is the decision this
  * context exists to carry. A fold is a claim about a tree the reader was
@@ -24,23 +29,25 @@
 
 import { createContext, type JSX, useContext } from "solid-js"
 
+import { NO_NEEDLES } from "./lit.ts"
 import { NOTHING_MATCHED, type Narrowing } from "./narrowing.ts"
 
 /**
- * The two halves of the page's reading (`./narrowing.ts`) that a ROW asks for:
- * whether a filter is on, and which nodes it selected.
+ * The three parts of the page's reading (`./narrowing.ts`) that a ROW asks for:
+ * whether a filter is on, which nodes it selected and why, and the words to
+ * light up in the one it selected.
  *
- * A VIEW of that one value rather than a second declaration of the same two
- * fields — the page has exactly one narrowing, and a parallel interface saying
- * the same thing is a second place for the two to drift. What it adds is a
- * DEFAULT (below), which is the whole reason a row asks a context instead of
- * the page.
+ * A VIEW of that one value rather than a second declaration of the same fields
+ * — the page has exactly one narrowing, and a parallel interface saying the
+ * same thing is a second place for the two to drift. What it adds is a DEFAULT
+ * (below), which is the whole reason a row asks a context instead of the page.
  */
-export type Narrowed = Pick<Narrowing, "active" | "matched">
+export type Narrowed = Pick<Narrowing, "active" | "matched" | "needles">
 
 const NOTHING: Narrowed = {
   active: () => false,
   matched: () => NOTHING_MATCHED,
+  needles: () => NO_NEEDLES,
 }
 
 const NarrowedContext = createContext<Narrowed>(NOTHING)
@@ -60,38 +67,3 @@ export function NarrowedProvider(props: {
  *  provider. A default rather than a throw, because "no filter" is a real
  *  state a page can be in and not a bug. */
 export const useNarrowed = (): Narrowed => useContext(NarrowedContext)
-
-/**
- * What a ROW publishes as `data-match`: whether the filter SELECTED it, or kept
- * it as the context that leads to one — and NOTHING at all on an unfiltered
- * page, which is the difference between "not a match" and "there is no query".
- *
- * One spelling, because three surfaces draw the attribute now — the outline
- * tree, a day's rows and the trash's piles — and it is the one fact a scenario
- * reads to tell a hit from the ancestry around it. Three copies could drift on
- * the absent-when-inactive half, which is exactly the half nothing would fail
- * over.
- *
- * Asked of an ID rather than of a row, because the three surfaces disagree
- * about what a row IS: a tree row and a trash row match by the node they SHOW
- * (`shownRecord`, the rule a fold follows too), where a day entry is a situated
- * record with no placement about it.
- */
-export const matchedAttr = (
-  narrowed: Narrowed,
-  id: string,
-): string | undefined =>
-  narrowed.active() ? String(narrowed.matched().has(id)) : undefined
-
-/**
- * May this page say what it HOLDS?
- *
- * "Nothing is on this day", "Nothing is due.", "The Trash is empty.", "write
- * its first line" — each of those is a claim about the PAGE, and a query that
- * selected none of it is a claim about the QUERY, which the filter bar makes in
- * its own words ("no matches"). So every one of them is drawn on this, and it
- * is one reading rather than four `!active()`s: a page that forgot would not go
- * quiet, it would tell somebody their day was empty over a query that simply
- * found nothing.
- */
-export const unfiltered = (narrowed: Narrowed): boolean => !narrowed.active()

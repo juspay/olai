@@ -75,6 +75,11 @@ export function NodeLine(props: {
   readonly from: string
   /** Absent for a plain bullet, which is toned like the text it is. */
   readonly status: Status | undefined
+  /** The words a filter found this node by — lit inside the title, so a row on
+   *  a narrowed page says WHICH part of it the query landed on
+   *  (`./filter/lit.ts`). Absent wherever there is no query, and on the rows a
+   *  query kept as the ancestry leading to one. */
+  readonly needles?: ReadonlyArray<string>
   /** This row is a section heading — a top-level node of the view. Heavier
    *  name; everything else about a section is the tree's. */
   readonly section?: boolean
@@ -141,7 +146,7 @@ export function NodeLine(props: {
           title={props.title}
         >
           {props.children}
-          <NodeTitle title={props.title} from={props.from} />
+          <NodeTitle title={props.title} from={props.from} needles={props.needles} />
         </span>
         {/* The pilcrow hugs the TITLE, because it is about the title — "there
             is more of this" — and the facts follow it. */}

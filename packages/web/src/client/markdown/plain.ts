@@ -27,6 +27,7 @@
  * walk over a parsed tree gives.
  */
 
+import { NO_NEEDLES } from "../filter/lit.ts"
 import { taggedHtml } from "./tags.ts"
 
 /**
@@ -35,8 +36,15 @@ import { taggedHtml } from "./tags.ts"
  * `null` is not a failure — it is "ask the pipeline", which is exactly what
  * ./title.ts then does.
  */
-export const plainTitle = (title: string): string | null =>
-  isPlain(title) ? taggedHtml(title) : null
+export const plainTitle = (
+  title: string,
+  /** The query's words, where the page is filtered — lit inside the words and
+   *  the tags alike (../filter/lit.ts). They change nothing about WHICH titles
+   *  this path answers: a highlight is a wrapper around text that was going to
+   *  be written either way, which is why ./plain.test.ts sweeps the same
+   *  strings with needles and without. */
+  needles: ReadonlyArray<string> = NO_NEEDLES,
+): string | null => (isPlain(title) ? taggedHtml(title, needles) : null)
 
 /**
  * Nothing in this string can be markdown.

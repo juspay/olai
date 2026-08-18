@@ -231,6 +231,59 @@ const MENU_CONFIRM = '[data-testid="node-menu-confirm"]'
  *  label renamed in the client is one line to follow here. */
 const DUPLICATE_VERB = '[data-testid="node-menu-panel"] >> text=Duplicate'
 
+// ── a filtered row, saying why it is drawn ─────────────────────────────
+
+/** A stretch of a title — or of the note line under one — the query landed on
+ *  (`client/filter/lit.ts`). */
+const HIT = '[data-testid="hit"]'
+/** The one clamped line of a note a filter found the row BY. */
+const DESC_HIT = '[data-testid="desc-hit"]'
+
+/** Which rows this page drew and what each of them SAYS about why it is there
+ *  — printed, because the three cases are one `data-` fact and two pieces of
+ *  markup, and a screenshot cannot be grepped. */
+const whyDrawn = async (page: Page) =>
+  (await page.locator('[data-testid="node"]').evaluateAll((rows) =>
+    rows.map((one) => {
+      const id = one.getAttribute("data-node-id")
+      const match = one.getAttribute("data-match")
+      const line = one.querySelector("[data-row-key]")
+      const own = (selector: string) => {
+        const found = one.querySelector(selector)
+        // A row's OWN, never a descendant's: rows nest, and the title is
+        // rendered before the children.
+        return found !== null && found.closest("[data-node-id]") === one
+          ? (found.textContent ?? "")
+          : ""
+      }
+      // The DIM is one utility with two reasons — a row that is only the
+      // ancestry leading to a match, and a row that cannot be started yet
+      // (`client/filter/why.ts`, `client/blocked.ts`) — so both are named,
+      // or a blocked match would read here as a row this feature dimmed.
+      const dim = line !== null && line.className.includes("opacity-60")
+      const waiting = one.getAttribute("data-blocked") !== null
+      return `${id}: ${match === "true" ? "match" : "context"}` +
+        `${dim ? (waiting && match === "true" ? " (dim: waiting)" : " (dim)") : ""}` +
+        `${own('[data-testid="node-title"] [data-testid="hit"]') !== ""
+          ? ` lights “${own('[data-testid="node-title"] [data-testid="hit"]')}”`
+          : ""}` +
+        `${own('[data-testid="desc-hit"]') !== ""
+          ? ` · note: ${own('[data-testid="desc-hit"]').replace(/\s+/g, " ").trim()}`
+          : ""}`
+    })
+  )).join("\n              ")
+
+/** The same page in the other half of the palette table. A theme is a PICK
+ *  this browser keeps (`client/theme/state.ts`), so it is written where the
+ *  page keeps it and the tab is reloaded — which is also the honest way to
+ *  photograph it, since the boot script is what paints the first frame. */
+const inTheDark = async (page: Page) => {
+  await page.evaluate(() => localStorage.setItem("olai.theme", "dark"))
+  await page.reload()
+  await page.locator('[data-testid="outline-tree"]').first().waitFor()
+  await page.waitForTimeout(DRAWN)
+}
+
 /** Every record of one outline, off the disk the driver is serving. */
 const recordsIn = (file: string): ReadonlyArray<Record<string, unknown>> => {
   if (VAULT === undefined) throw new Error("no VAULT; run through evidence.sh")
@@ -1529,6 +1582,56 @@ const SECTIONS = {
    * added by the tab under the camera would prove the forward half over again
    * rather than the reverse one.
    */
+  /**
+   * A FILTERED ROW SAYS WHY IT IS DRAWN — the three cases, on one page, in
+   * both halves of the palette table.
+   *
+   * The ruling came from one screenshot of a `#deferral` tag-click over this
+   * repository's own roadmap: every number was correct, every row belonged, and
+   * the page was still confusing, because nothing said why any given row was in
+   * front of the reader. `alcove OR hinges` puts all three cases on this
+   * fixture at once — a title hit, two kept ancestors, and a row whose only
+   * reason is behind its ¶.
+   *
+   * The tag case gets its own leg on `garden.olai`, because it is the gesture
+   * the whole thing was ruled from: a pill, pressed, lighting up on the rows
+   * that carry it.
+   */
+  "a-filtered-row-says-why": async (page) => {
+    pinnedBy(
+      "filter_in_place.feature",
+      "A filtered page says WHY each row is drawn",
+      "A row found by its title needs no second line saying so",
+      "A pressed tag lights up on the rows that carry it",
+    )
+    await opened(page, "/o/house.olai", '[data-testid="outline-tree"]')
+    await shot(page, "before-the-query")
+
+    await narrow(page, "alcove OR hinges")
+    console.log(`  the bar says: ${await textOf(page, FILTER_COUNT)}`)
+    console.log(`  the rows say: ${await whyDrawn(page)}`)
+    console.log(`  lit stretches: ${
+      (await page.locator(HIT).allInnerTexts()).map(oneLine).join(" · ")
+    }`)
+    console.log(`  the note-only row reads: ${await textOf(page, DESC_HIT)}`)
+    await shot(page, "three-cases-light")
+
+    await inTheDark(page)
+    await shot(page, "three-cases-dark")
+
+    // ...and the tag, pressed rather than typed, on the outline that wears one.
+    await page.evaluate(() => localStorage.setItem("olai.theme", "chalk"))
+    await opened(page, "/o/garden.olai", '[data-testid="outline-tree"]')
+    await page.locator('[data-testid="tag"]').first().click()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the address is now: ${await page.evaluate(() => location.search)}`)
+    console.log(`  the rows say: ${await whyDrawn(page)}`)
+    await shot(page, "a-pressed-tag-lights-up")
+
+    await inTheDark(page)
+    await shot(page, "a-pressed-tag-lights-up-dark")
+  },
+
   "what-refers-to-this-node": async (page) => {
     pinnedBy(
       "backlinks.feature",

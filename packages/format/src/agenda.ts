@@ -52,7 +52,7 @@ import {
   groupedOn,
 } from "./dates.ts"
 import { type Derived, storedMarker } from "./derive.ts"
-import { keepingDated } from "./filter.ts"
+import { keepingDated, type Selected } from "./filter.ts"
 import type { RegularNode } from "./node.ts"
 
 /**
@@ -217,7 +217,7 @@ export const owedOf = (agenda: Agenda): Owed => ({
  */
 export const keepingOwed = (
   agenda: Agenda,
-  matched: ReadonlySet<string>,
+  matched: Selected,
 ): Agenda => ({
   overdue: keepingDated(agenda.overdue, matched),
   today: keepingDated(agenda.today, matched),

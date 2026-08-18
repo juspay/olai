@@ -60,6 +60,8 @@ import { docOf, type LocatedRegular } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
 import { DocRef } from "./document/DocRef.tsx"
+import { Excerpt } from "./filter/Excerpt.tsx"
+import { excerptOf } from "./filter/excerpt.ts"
 import { plainLine } from "./note/preview.ts"
 import { Note } from "./Note.tsx"
 import { PropsDrawer } from "./props/PropsDrawer.tsx"
@@ -82,6 +84,18 @@ export function NodeBody(props: {
   /** Click/tap the clamped line to open the row — the pilcrow's gesture, from
    *  the other end of the note. */
   readonly onToggle?: () => void
+  /**
+   * The words a filter found this node BY and found nowhere but its note
+   * (`./filter/why.ts`'s `behindTheMark`) — so a closed row draws a
+   * window onto the note around the hit instead of the plain top-of-note
+   * preview, and stops being a title with nothing of the query in it.
+   *
+   * Empty for every other row, filtered or not. Handed IN rather than read off
+   * the narrowing here, for the reason `onEdit` and `onUnsee` are: this
+   * component is a body, and which of the surfaces drawing one has a filter
+   * over it is the caller's fact.
+   */
+  readonly noteHit?: ReadonlyArray<string>
   /** Click/tap the open note to put the CARET in it: absent wherever a node is
    *  drawn read-only (a day page), which is the same rule `NodeLine.onEdit`
    *  follows for the title. */
@@ -99,15 +113,39 @@ export function NodeBody(props: {
     const desc = props.shows.node.desc
     return desc === undefined || desc === "" ? undefined : plainLine(desc)
   })
+  /** The window onto a note-only hit — `undefined` on every row that is not
+   *  one, which is what makes the preview below the fallback rather than a
+   *  second line beside it. */
+  const excerpt = createMemo(() => {
+    const needles = props.noteHit
+    const desc = props.shows.node.desc
+    if (needles === undefined || needles.length === 0) return undefined
+    return desc === undefined || desc === "" ? undefined : excerptOf(desc, needles)
+  })
 
   return (
     <Show
       when={zoomed()}
       fallback={
         <>
+          {/* Closed, and the filter found this row behind its ¶: the note read
+              AROUND the hit rather than from the top, whatever the density
+              preference says — the excerpt is the reason this row is on screen,
+              and a reader who has hidden previews has not asked to be told less
+              about the query they just typed. */}
+          <Show when={!open() && excerpt()}>
+            {(runs) => <Excerpt runs={runs()} onOpen={props.onToggle} />}
+          </Show>
+
           {/* Closed at `cozy`: one clamped dim line under the title. At
-              `compact` there is nothing here and the pilcrow says it all. */}
-          <Show when={!open() && props.preview === true && snippet()}>
+              `compact` there is nothing here and the pilcrow says it all. The
+              excerpt above REPLACES it where there is one — two dim lines under
+              one title, saying nearly the same thing, is the noise this whole
+              change is against. */}
+          <Show
+            when={!open() && excerpt() === undefined && props.preview === true &&
+              snippet()}
+          >
             {(line) => (
               <button
                 type="button"

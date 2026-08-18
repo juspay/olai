@@ -52,7 +52,8 @@ import { type JSX, Show } from "solid-js"
 
 import { CRUMB } from "../Breadcrumbs.tsx"
 import { DayGroups } from "../day/DayGroups.tsx"
-import { unfiltered, useNarrowed } from "../filter/narrowed.tsx"
+import { useNarrowed } from "../filter/narrowed.tsx"
+import { unfiltered } from "../filter/why.ts"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 

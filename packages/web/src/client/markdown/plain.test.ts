@@ -40,11 +40,29 @@ const NOTE = "house.olai"
  * file is about. The sweep would catch it if that stopped being true — the
  * fallback's output is escaped source, which is not what a tag renders as.
  */
-const viaPipeline = (title: string): string => {
+const viaPipeline = (
+  title: string,
+  needles: ReadonlyArray<string> = [],
+): string => {
   const tree = renderToTree(title, NOTE, "inline")
-  styleTags(tree)
+  styleTags(tree, needles)
   return hastToHtml(tree)
 }
+
+/**
+ * A filter's words, for the half of this sweep that is about the HIGHLIGHT.
+ *
+ * A filtered row lights the query's words where they sit (`../filter/lit.ts`),
+ * and it has to do it on both paths — a page that highlighted the fast titles
+ * and not the ones with markdown in them would miss exactly the rows a reader
+ * is least able to explain to themselves. So the claim this file makes is made
+ * twice: with no query, and with one.
+ *
+ * These are chosen to LAND, on the alphabet below as well as on the real
+ * titles: a sweep whose needles were never in anything would prove that two
+ * paths agree about doing nothing.
+ */
+const NEEDLES = ["a", "the", "#", "1", "b9"]
 
 /** Titles this app actually draws: this repository's own roadmap, the test
  *  corpus, and the shapes a person types into an outline. */
@@ -86,6 +104,39 @@ test("every title this app really draws takes the fast path", () => {
 
 test("what the fast path writes is what the pipeline writes", () => {
   for (const title of REAL) expect(plainTitle(title), title).toBe(viaPipeline(title))
+})
+
+test("...and the same is true with the query's words lit in them", () => {
+  for (const title of REAL) {
+    expect(plainTitle(title, NEEDLES), title).toBe(viaPipeline(title, NEEDLES))
+  }
+})
+
+test("a needle in a title is wrapped where it sits, on both paths", () => {
+  const html = plainTitle("order the new cabinets", ["cabinets"])
+  expect(html).toBe(
+    `order the new <mark class="olai-hit" data-testid="hit">cabinets</mark>`,
+  )
+  expect(html).toBe(viaPipeline("order the new cabinets", ["cabinets"]))
+})
+
+test("a needle inside a TAG is lit inside the pill, not instead of it", () => {
+  // The gesture this whole feature was ruled from: `#deferral` pressed, and a
+  // page that lit every word but the one the reader clicked.
+  const html = plainTitle("kitchen remodel #home", ["#home"])
+  expect(html).toContain(`data-tag="#home"`)
+  expect(html).toContain(`<mark class="olai-hit" data-testid="hit">#home</mark>`)
+  expect(html).toBe(viaPipeline("kitchen remodel #home", ["#home"]))
+  // The BARE spelling finds the same tag — the fold indexes it twice — and
+  // lights the name without the sigil, which is what the query asked for.
+  expect(plainTitle("kitchen remodel #home", ["home"]))
+    .toContain(`#<mark class="olai-hit" data-testid="hit">home</mark>`)
+})
+
+test("a title the query is not in is written exactly as it was without one", () => {
+  for (const title of REAL) {
+    expect(plainTitle(title, ["zzzz"]), title).toBe(plainTitle(title))
+  }
 })
 
 /**
@@ -157,11 +208,20 @@ const ALPHABET = [
 
 test("anything the fast path accepts renders the same as the pipeline", () => {
   let accepted = 0
+  // BOTH READINGS of every accepted title: as the page draws it, and as a
+  // filtered page draws it. The highlight is a wrapper around text that was
+  // going to be written either way, so what is refused does not move — which
+  // is itself part of the claim, since a fast path that answered a different
+  // set of titles under a query would be two rules pretending to be one.
   const check = (title: string): void => {
     const fast = plainTitle(title)
-    if (fast === null) return
+    if (fast === null) {
+      expect(plainTitle(title, NEEDLES), title).toBeNull()
+      return
+    }
     accepted++
     expect(fast, title).toBe(viaPipeline(title))
+    expect(plainTitle(title, NEEDLES), title).toBe(viaPipeline(title, NEEDLES))
   }
 
   for (const one of ALPHABET) {

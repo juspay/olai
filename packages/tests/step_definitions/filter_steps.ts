@@ -19,11 +19,13 @@ import { Then, When } from "@cucumber/cucumber";
 
 import { saysThat } from "../support/said.ts";
 import {
+  DESC_HIT,
   FILTER_BAR,
   FILTER_CLEAR,
   FILTER_COUNT,
   FILTER_INPUT,
   FILTER_REFUSAL,
+  HIT,
   NODE,
   NODE_TITLE,
   nodeSelector,
@@ -108,6 +110,77 @@ Then(
       "data-match",
       "false",
       `node \`${id}\``,
+    );
+  },
+);
+
+// ── why a row is drawn ─────────────────────────────────────────────────
+//
+// The three things a narrowed row says about itself. Every one of them is
+// waited for rather than read once: they follow a keystroke that re-renders
+// the whole tree.
+
+/** A node's OWN title, never a descendant's — nodes nest, and a parent's scope
+ *  holds every title under it. `.first()` is its own because a title is
+ *  rendered before the children (`world.nodeTitle`'s rule, one level down). */
+const lit = (world: OlaiWorld, id: string) =>
+  world.nodeTitle(id).locator(HIT);
+
+/** WHERE the query landed in this row's title — the highlight, read as the
+ *  text it wraps. A page that draws the row and lights nothing in it is the
+ *  page this whole feature is against: every number correct, and no row saying
+ *  why it is in front of the reader. */
+Then(
+  "the node {string} lights {string}",
+  async function (this: OlaiWorld, id: string, said: string) {
+    await this.waitUntil(
+      async () => (await lit(this, id).allInnerTexts()).join(" ") === said,
+      `node \`${id}\` lights ${JSON.stringify(said)}`,
+    ).catch(() => undefined);
+    assert.strictEqual(
+      (await lit(this, id).allInnerTexts()).join(" "),
+      said,
+      `node \`${id}\` does not light ${JSON.stringify(said)}`,
+    );
+  },
+);
+
+/** ...and the other half, which is the one that would go unnoticed: a row
+ *  whose title holds nothing of the query lights nothing, whether it is the
+ *  ancestry leading to a match or a match found behind its ¶. */
+Then(
+  "the node {string} lights nothing",
+  async function (this: OlaiWorld, id: string) {
+    await this.waitUntil(
+      async () => (await lit(this, id).count()) === 0,
+      `node \`${id}\` lights nothing`,
+    );
+  },
+);
+
+/** The note a row was found BY, one clamped line under its title with the word
+ *  lit inside it — drawn only where the hit is behind the ¶ and the title says
+ *  nothing the reader typed. */
+Then(
+  "the node {string} excerpts {string}",
+  async function (this: OlaiWorld, id: string, said: string) {
+    const line = this.node(id).locator(DESC_HIT).first();
+    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const text = await line.innerText();
+    assert.ok(
+      text.includes(said),
+      `node \`${id}\` excerpts ${JSON.stringify(text)}, which does not hold ` +
+        JSON.stringify(said),
+    );
+  },
+);
+
+Then(
+  "the node {string} draws no excerpt",
+  async function (this: OlaiWorld, id: string) {
+    await this.waitUntil(
+      async () => (await this.node(id).locator(DESC_HIT).count()) === 0,
+      `node \`${id}\` draws no excerpt`,
     );
   },
 );
