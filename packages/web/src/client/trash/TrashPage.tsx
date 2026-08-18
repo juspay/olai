@@ -43,7 +43,7 @@
 
 import { isMirror, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
-import { Match, Show, Switch } from "solid-js"
+import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
@@ -148,6 +148,12 @@ function Branch(props: {
     say(answer)
   }
 
+  /** The node this row SHOWS — a placement in a pile matches, lights and dims
+   *  by what it stands for. One accessor because three bindings ask it and
+   *  `props.row` is a fresh object on every frame the store publishes; the
+   *  tree's own row keeps the same one (`../Tree.tsx`). */
+  const shownId = createMemo(() => shownRecord(props.row).node.id)
+
   return (
     <li
       data-testid={TESTID.trashRow}
@@ -156,7 +162,7 @@ function Branch(props: {
       // leads to one — one spelling for every surface that says it
       // (`../filter/why.ts`), asked of the node the row SHOWS, because a
       // placement in a pile matches by what it stands for.
-      data-match={matchedAttr(narrowed, shownRecord(props.row).node.id)}
+      data-match={matchedAttr(narrowed, shownId())}
     >
       {/* The dim is on the LINE, never on the `<li>`: a pile nests, and an
           item would take every match under this row down with it
@@ -170,7 +176,7 @@ function Branch(props: {
           is for. */}
       <div
         class={`group flex min-h-6 items-baseline gap-2 py-0.5 ${
-          CONTEXT_DIM(narrowed, shownRecord(props.row).node.id)
+          CONTEXT_DIM(narrowed, shownId())
         }`}
       >
         <span class="select-none text-muted" aria-hidden="true">
@@ -185,7 +191,7 @@ function Branch(props: {
           data-testid={TESTID.nodeTitle}
           classList={{ "line-through opacity-60": props.row.status === "done" }}
         >
-          <Title row={props.row} needles={lighting(narrowed, shownRecord(props.row).node.id)} />
+          <Title row={props.row} needles={lighting(narrowed, shownId())} />
         </span>
         <Show when={props.row.kind === "node" ? props.row : undefined}>
           {(row) => (

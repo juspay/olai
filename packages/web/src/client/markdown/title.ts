@@ -76,42 +76,60 @@ export interface TitleRender {
  *   - a PLAIN title (./plain.ts) depends on nothing but the title, so it is
  *     keyed on the title alone and the same words in a row, a breadcrumb and a
  *     see-ref are one entry rather than three;
- *   - a RENDERED one depends on the file it is in (relative pictures) and on
- *     whether its links survive, so it is keyed on all three.
+ *   - a RENDERED one depends on the file it is in (relative pictures), on
+ *     whether its links survive, and on the query's needles, so it is keyed on
+ *     all four.
  *
  * Separate maps rather than one, because the caps are what they are for: plain
  * titles are ~99% of them and cost a few regexes, and letting them fill a
  * shared map would drop the handful of pipeline renders — the expensive
  * ones — on every clear.
+ *
+ * A FILTERED PAGE IS WHERE THE TWO CAPS EARN THEIR SEPARATION, and it decides
+ * the needles differently for each. The query changes on every keystroke, so a
+ * needle in a key is an entry nobody asks for twice — which is why a
+ * highlighted PLAIN title is drawn and not remembered at all (`isPlain` plus a
+ * tag split is microseconds, and a filtered page would otherwise clear this map
+ * every few keystrokes). A highlighted RENDERED one is remembered, needles and
+ * all, for the opposite reason: it is a whole unified parse, there is no
+ * virtual scroller under the tree, and re-parsing every matched markdown title
+ * on every keystroke is the cost this cache exists to refuse.
  */
 const plainTitles = new Map<string, string>()
 const rendered = new Map<string, string>()
 const CACHE_LIMIT = 1024
 
-/** One title → one HTML string, safe for `innerHTML`. */
+/**
+ * One title → one HTML string, safe for `innerHTML`.
+ *
+ * THE LADDER IS WRITTEN ONCE — plain, then rendered, then the escaped source —
+ * and the caches are conditions on it rather than a second copy of it. It was
+ * briefly two: a filtered page had a fork of its own that skipped the lookups,
+ * which is the same three answers held to each other by nothing, and the one
+ * path with no sweep over it (./plain.test.ts holds the FAST path against the
+ * pipeline, never one caller against another).
+ */
 export const renderTitle = (
   title: string,
   from: string,
   options: TitleRender = {},
 ): string => {
   const needles = options.needles ?? NO_NEEDLES
-  // A HIGHLIGHTED TITLE IS DRAWN RATHER THAN REMEMBERED, and that is the cache
-  // saying no rather than the feature paying nothing. Its key would have to
-  // hold the query, which changes on every keystroke — so every row of a
-  // filtered page would mint an entry nobody asks for twice, and the handful of
-  // expensive pipeline renders in the map beside it would be cleared to make
-  // room for them. What it costs is what it was always going to cost: a
-  // filtered page is a small page, and the memo that asked re-runs per
-  // keystroke either way.
-  if (needles.length > 0) return lit(title, from, options.links !== false, needles)
-
-  const wasPlain = plainTitles.get(title)
-  if (wasPlain !== undefined) return wasPlain
-  const plain = plainTitle(title)
-  if (plain !== null) return remember(plainTitles, title, plain)
-
   const links = options.links !== false
-  const key = `${links ? "a" : "n"}\n${from}\n${title}`
+
+  // A plain title under a query is drawn and not remembered — see the caches'
+  // own note. Unfiltered, which is nearly every title this app draws, the
+  // lookup is the first thing that happens.
+  if (needles.length === 0) {
+    const wasPlain = plainTitles.get(title)
+    if (wasPlain !== undefined) return wasPlain
+  }
+  const plain = plainTitle(title, needles)
+  if (plain !== null) {
+    return needles.length === 0 ? remember(plainTitles, title, plain) : plain
+  }
+
+  const key = `${links ? "a" : "n"}\n${from}\n${needles.join("\u0000")}\n${title}`
   const hit = rendered.get(key)
   if (hit !== undefined) return hit
 
@@ -120,21 +138,7 @@ export const renderTitle = (
   // afterwards. The read is what re-runs the caller's memo when it lands.
   if (!markdownReady()) return escapeHtml(title)
 
-  return remember(rendered, key, build(title, from, links, NO_NEEDLES))
-}
-
-/** The same three answers, with the query's words lit and nothing kept — the
- *  order above, minus the two lookups it exists to skip. */
-const lit = (
-  title: string,
-  from: string,
-  links: boolean,
-  needles: ReadonlyArray<string>,
-): string => {
-  const plain = plainTitle(title, needles)
-  if (plain !== null) return plain
-  if (!markdownReady()) return escapeHtml(title)
-  return build(title, from, links, needles)
+  return remember(rendered, key, build(title, from, links, needles))
 }
 
 const remember = (

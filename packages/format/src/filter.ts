@@ -1226,8 +1226,14 @@ const wordHit = (
  * place the query said it did not want would be the row drawing a lie. So are
  * the clauses — `is:done` selects on a mark, and a mark is not text in a title.
  *
- * DEDUPED, and in the order the query first names them: `pick pick` is one
- * needle, and two would walk the same text twice for the same answer.
+ * DEDUPED: `pick pick` is one needle, and two would walk the same text twice
+ * for the same answer. The ORDER is the groups' — {@link inCostOrder}'s
+ * evaluation order rather than the reader's — and deliberately not fixed:
+ * {@link litBy} merges what it finds and a highlight is the same picture
+ * whichever word landed first, so a second list carried on {@link Filter} (the
+ * shape `namedProps` takes, for a question asked once per selected NODE) would
+ * be state to keep in step for an order nothing can see. This is asked once per
+ * QUERY.
  */
 export const needlesOf = (filter: Filter): ReadonlyArray<string> => {
   if (filter.kind !== "asking") return []

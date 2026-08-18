@@ -12,6 +12,7 @@
  * a frame nobody can reproduce.
  */
 import { fileKind } from "@olai/format"
+import { ROW_DIM } from "@olai/web/src/client/blocked.ts"
 import { readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { type Browser, chromium, type Locator, type Page } from "playwright"
 
@@ -64,7 +65,7 @@ const SELECTION_SAID = '[data-testid="selection-said"]'
  *  about the boot. */
 const splitOn = async (page: Page, address: string): Promise<void> => {
   await page.goto(`${BASE}${address}`)
-  await page.locator('[data-testid="outline-tree"]').nth(1).waitFor()
+  await page.locator(OUTLINE_TREE).nth(1).waitFor()
   await page.waitForTimeout(600)
 }
 
@@ -243,7 +244,7 @@ const DESC_HIT = '[data-testid="desc-hit"]'
  *  — printed, because the three cases are one `data-` fact and two pieces of
  *  markup, and a screenshot cannot be grepped. */
 const whyDrawn = async (page: Page) =>
-  (await page.locator('[data-testid="node"]').evaluateAll((rows) =>
+  (await page.locator('[data-testid="node"]').evaluateAll((rows, dimClass) =>
     rows.map((one) => {
       const id = one.getAttribute("data-node-id")
       const match = one.getAttribute("data-match")
@@ -260,18 +261,15 @@ const whyDrawn = async (page: Page) =>
       // ancestry leading to a match, and a row that cannot be started yet
       // (`client/filter/why.ts`, `client/blocked.ts`) — so both are named,
       // or a blocked match would read here as a row this feature dimmed.
-      const dim = line !== null && line.className.includes("opacity-60")
+      const dim = line !== null && line.className.includes(dimClass)
       const waiting = one.getAttribute("data-blocked") !== null
+      const lit = own('[data-testid="node-title"] [data-testid="hit"]')
+      const note = own('[data-testid="desc-hit"]').replace(/\s+/g, " ").trim()
       return `${id}: ${match === "true" ? "match" : "context"}` +
         `${dim ? (waiting && match === "true" ? " (dim: waiting)" : " (dim)") : ""}` +
-        `${own('[data-testid="node-title"] [data-testid="hit"]') !== ""
-          ? ` lights “${own('[data-testid="node-title"] [data-testid="hit"]')}”`
-          : ""}` +
-        `${own('[data-testid="desc-hit"]') !== ""
-          ? ` · note: ${own('[data-testid="desc-hit"]').replace(/\s+/g, " ").trim()}`
-          : ""}`
-    })
-  )).join("\n              ")
+        `${lit === "" ? "" : ` lights “${lit}”`}` +
+        `${note === "" ? "" : ` · note: ${note}`}`
+    }), ROW_DIM)).join("\n              ")
 
 /** The same page in the other half of the palette table. A theme is a PICK
  *  this browser keeps (`client/theme/state.ts`), so it is written where the
@@ -280,7 +278,7 @@ const whyDrawn = async (page: Page) =>
 const inTheDark = async (page: Page) => {
   await page.evaluate(() => localStorage.setItem("olai.theme", "dark"))
   await page.reload()
-  await page.locator('[data-testid="outline-tree"]').first().waitFor()
+  await page.locator(OUTLINE_TREE).first().waitFor()
   await page.waitForTimeout(DRAWN)
 }
 
@@ -1604,7 +1602,7 @@ const SECTIONS = {
       "A row found by its title needs no second line saying so",
       "A pressed tag lights up on the rows that carry it",
     )
-    await opened(page, "/o/house.olai", '[data-testid="outline-tree"]')
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
     await shot(page, "before-the-query")
 
     await narrow(page, "alcove OR hinges")
@@ -1621,7 +1619,7 @@ const SECTIONS = {
 
     // ...and the tag, pressed rather than typed, on the outline that wears one.
     await page.evaluate(() => localStorage.setItem("olai.theme", "chalk"))
-    await opened(page, "/o/garden.olai", '[data-testid="outline-tree"]')
+    await opened(page, "/o/garden.olai", OUTLINE_TREE)
     await page.locator('[data-testid="tag"]').first().click()
     await page.waitForTimeout(DRAWN)
     console.log(`  the address is now: ${await page.evaluate(() => location.search)}`)
@@ -1756,7 +1754,7 @@ const main = async () => {
   const page = await context.newPage()
   page.on("pageerror", (error) => console.error("PAGE ERROR", error))
   await page.goto(`${BASE}/o/house.olai`)
-  await page.locator('[data-testid="outline-tree"]').first().waitFor()
+  await page.locator(OUTLINE_TREE).first().waitFor()
   await page.waitForTimeout(600)
   await SECTIONS[name](page)
   await browser.close()

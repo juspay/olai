@@ -18,6 +18,7 @@
  * nothing here has to be called during a component's setup.
  */
 
+import { ROW_DIM } from "../blocked.ts"
 import { NO_NEEDLES } from "./lit.ts"
 import type { Narrowed } from "./narrowed.tsx"
 
@@ -85,12 +86,12 @@ export const asContext = (narrowed: Narrowed, id: string): boolean =>
  * How a row says it is context and not an answer — the ink for {@link
  * asContext}.
  *
- * THE SAME DIM A WAITING ROW WEARS (`../blocked.ts`'s `WAITING_DIM`), and
- * deliberately the same utility rather than a second number: a row can be both
- * at once, and two different opacities on one line is a race between two
- * classes rather than a decision. Applied to a row's LINE and its body for
- * that file's reason — opacity compounds through a subtree, and an `<li>`
- * would take every match nested under this row down with it.
+ * THE SAME DIM A WAITING ROW WEARS, and the same VALUE rather than a second
+ * number that agrees by hand — `../blocked.ts`'s `ROW_DIM`, which argues why
+ * one row wearing both facts must not wear two opacities. Applied to a row's
+ * LINE and its body for that file's other reason: opacity compounds through a
+ * subtree, and an `<li>` would take every match nested under this row down
+ * with it.
  *
  * Not a stylesheet rule off `data-match="false"` for the same reason: rows
  * NEST, so a descendant selector would dim the very match the context leads
@@ -99,7 +100,7 @@ export const asContext = (narrowed: Narrowed, id: string): boolean =>
  * that can carry one has a query.
  */
 export const CONTEXT_DIM = (narrowed: Narrowed, id: string): string =>
-  asContext(narrowed, id) ? "opacity-60" : ""
+  asContext(narrowed, id) ? ROW_DIM : ""
 
 /**
  * Did the query find this row ONLY behind its ¶ — and if so, what to look for

@@ -158,20 +158,44 @@ Then(
   },
 );
 
+/** A row's OWN excerpt lines — never a descendant's.
+ *
+ *  `.first()` is the rule the sibling helpers use and it will not do here: it
+ *  answers for the POSITIVE case (a row is drawn before its children) and gets
+ *  the negative one exactly backwards, since a descendant's line would make
+ *  "this row draws no excerpt" quietly false. So the filter is asked of the
+ *  element — which node does this line belong to — the same question
+ *  `shownRecord` answers in the client. */
+const excerpts = async (
+  world: OlaiWorld,
+  id: string,
+): Promise<ReadonlyArray<string>> =>
+  await world.node(id).locator(DESC_HIT).evaluateAll(
+    (lines, owner) =>
+      lines
+        .filter((line) =>
+          line.closest("[data-node-id]")?.getAttribute("data-node-id") === owner
+        )
+        .map((line) => (line.textContent ?? "").replace(/\s+/g, " ").trim()),
+    id,
+  );
+
 /** The note a row was found BY, one clamped line under its title with the word
  *  lit inside it — drawn only where the hit is behind the ¶ and the title says
  *  nothing the reader typed. */
 Then(
   "the node {string} excerpts {string}",
   async function (this: OlaiWorld, id: string, said: string) {
-    const line = this.node(id).locator(DESC_HIT).first();
-    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const text = await line.innerText();
-    assert.ok(
-      text.includes(said),
-      `node \`${id}\` excerpts ${JSON.stringify(text)}, which does not hold ` +
-        JSON.stringify(said),
-    );
+    await this.waitUntil(
+      async () => (await excerpts(this, id)).some((line) => line.includes(said)),
+      `node \`${id}\` excerpts ${JSON.stringify(said)}`,
+    ).catch(async () => {
+      const drawn = await excerpts(this, id);
+      assert.fail(
+        `node \`${id}\` excerpts ${JSON.stringify(drawn.join(" · "))}, ` +
+          `which does not hold ${JSON.stringify(said)}`,
+      );
+    });
   },
 );
 
@@ -179,7 +203,7 @@ Then(
   "the node {string} draws no excerpt",
   async function (this: OlaiWorld, id: string) {
     await this.waitUntil(
-      async () => (await this.node(id).locator(DESC_HIT).count()) === 0,
+      async () => (await excerpts(this, id)).length === 0,
       `node \`${id}\` draws no excerpt`,
     );
   },

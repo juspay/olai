@@ -120,10 +120,15 @@ const splitTags = (
 const marked = (
   text: string,
   needles: ReadonlyArray<string>,
-): ElementContent[] =>
-  runsOf(text, needles).map((run) =>
+): ElementContent[] => {
+  // The unfiltered shape, which is every title this app draws until somebody
+  // types: one text node, no run list to walk and throw away. Guarded here
+  // rather than in `runsOf` because the split is what that function IS.
+  if (needles.length === 0) return [{ type: "text", value: text } as ElementContent]
+  return runsOf(text, needles).map((run) =>
     run.lit ? mark(run.text) : ({ type: "text", value: run.text } as ElementContent),
   )
+}
 
 const mark = (text: string): Element => ({
   type: "element",
@@ -143,13 +148,15 @@ export const taggedHtml = (
     .map((part) => {
       if (part.kind !== "tag") return markedHtml(part.text, needles)
       // AS WRITTEN in both places: the text a reader sees, and the value the
-      // delegated press filters by. `titleParts` restricts a tag's alphabet
-      // (`isTagName`), so the attribute cannot carry a quote — and `escapeText`
-      // is applied anyway rather than reasoned about at each call.
-      const written = escapeText(tagText(part))
-      return `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}" ${TAG_ATTRIBUTE}="${written}">${
-        markedHtml(tagText(part), needles)
-      }</span>`
+      // delegated press filters by — ONE binding, so the attribute and the
+      // words inside the pill cannot be produced by two expressions that must
+      // agree. `titleParts` restricts a tag's alphabet (`isTagName`), so the
+      // attribute cannot carry a quote — and `escapeText` is applied anyway
+      // rather than reasoned about at each call.
+      const written = tagText(part)
+      return `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}" ${TAG_ATTRIBUTE}="${
+        escapeText(written)
+      }">${markedHtml(written, needles)}</span>`
     })
     .join("")
 }
@@ -157,8 +164,11 @@ export const taggedHtml = (
 /** The same runs {@link marked} makes, written straight to HTML — and the
  *  `<mark>` has to stringify EXACTLY as `hast-util-to-html` writes the element
  *  above, which is what ./plain.test.ts holds the two paths to. */
-const markedHtml = (text: string, needles: ReadonlyArray<string>): string =>
-  runsOf(text, needles)
+const markedHtml = (text: string, needles: ReadonlyArray<string>): string => {
+  // {@link marked}'s guard, one path over — the same reason, and the same
+  // bytes it used to write before there was a query to answer.
+  if (needles.length === 0) return escapeText(text)
+  return runsOf(text, needles)
     .map((run) =>
       run.lit
         ? `<mark class="${HIT_CLASS}" data-testid="${TESTID.hit}">${
@@ -167,6 +177,7 @@ const markedHtml = (text: string, needles: ReadonlyArray<string>): string =>
         : escapeText(run.text),
     )
     .join("")
+}
 
 /** The pill, over the tag AS WRITTEN — sigil and all, because that is what the
  *  title says, what a reader searches for, and what a press filters by. */
