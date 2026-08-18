@@ -37,6 +37,13 @@ Feature: One place to set how this browser reads
   and Compact — the default, because a fold whose default is the old behaviour
   is a feature nobody discovers — is the title alone.
 
+  The Editing row is the newest of them and the only one that is about a
+  KEYBOARD rather than about what a page draws: whether this browser's markdown
+  editors are vim editors. It is off until somebody says otherwise — an editor
+  that swallows every letter you type is indistinguishable from a broken one —
+  and what it moves is `live_preview_editing.feature`'s subject. What is here
+  is that it is a preference like the others.
+
   The Done row is the one switch. The floating pill that sat above the outline
   was a second door for the same preference — the same redundancy the theme
   pill used to be, and the same one `one-git-indicator` closed for the two git

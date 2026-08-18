@@ -218,16 +218,22 @@ export type EditAction =
   | "selectAll"
 
 /**
- * Which field is being edited, because two of these keys mean different things
- * in a note than on a title.
+ * Which field is being edited, because these keys mean different things in a
+ * note than on a title, and different things again in a whole document.
  *
  *   - `line` — the title: one verbatim line, so `Enter` is "next row" and the
  *     arrows are "next row" too.
  *   - `block` — the note: prose, so `Enter` is a newline and the arrows move
  *     the caret. Only `Shift+Enter` (close it) and `Escape` (abandon it) are
- *     this layer's, and everything else is the textarea's own.
+ *     this layer's, and everything else is the editor's own.
+ *   - `doc` — a whole document: prose that is not inside a row at all, so
+ *     `Shift+Enter` is a newline like any other and `Escape` is the only key
+ *     this layer claims. It is here rather than in a matcher of the document
+ *     editor's own for the reason this whole file exists — a key claimed in
+ *     two places is a key two files disagree about, silently, in a browser,
+ *     while somebody is typing.
  */
-export type EditField = "line" | "block"
+export type EditField = "line" | "block" | "doc"
 
 /**
  * Where the caret is in the field the key was pressed in, and what that field
@@ -259,10 +265,32 @@ export const editKey = (
    *  goes on opening the next line, `Backspace` stays the field's own, and
    *  `⌘A` stays the platform's. */
   at?: Caret,
+  /**
+   * WHETHER THIS EDITOR IS A VIM EDITOR — the one thing this map has to know
+   * about a preference (`settings/vim.ts`).
+   *
+   * Inside a vim editor `Escape` is the mode switch: it is the key that means
+   * "stop inserting", pressed dozens of times a minute, and an app that also
+   * read it as "abandon what you were typing" would throw a person out of the
+   * editor every time their hands did the thing vim taught them. So the map
+   * declines it, and the editor's own keymap gets it.
+   *
+   * It is said HERE, in the registry, and that is the whole point of the
+   * parameter: the alternative is a guard in the editor component that
+   * swallows the key before this file is asked, which is exactly the private
+   * matcher this file exists to make impossible. Nothing else moves — a vim
+   * editor is still a text field, so the reserved chords are still
+   * `whileEditing: false`, and `Shift+Enter` still closes a note.
+   */
+  vim = false,
 ): EditAction | null => {
   // Order matters: every branch below is a more specific reading of a key a
   // later branch also matches, and the modifiers are what tell them apart.
-  if (event.key === "Escape") return "cancel"
+  if (event.key === "Escape") return vim ? null : "cancel"
+  // A DOCUMENT is not a row, so nothing below this line is about it: it has no
+  // note to open, no sibling to make, no mark to walk. `Escape` above is the
+  // whole of what this layer claims there.
+  if (field === "doc") return null
   // The NOTE is `Shift+Enter` and nothing else on top of it — the bare pair.
   // Adding Ctrl or Meta makes it the mark walk, one branch down, which is why
   // this test names the two modifiers it must not see rather than letting an
@@ -335,6 +363,26 @@ export const editKey = (
   ) return "selectAll"
   return null
 }
+
+/**
+ * WHOSE `Escape` IS IT — the other half of the vim sentence in
+ * {@link editKey}, and the half that has to be answered out loud.
+ *
+ * A key the map declines is normally left alone: the field gets it, and so
+ * does everything listening further up. That is exactly wrong for this one.
+ * The panels this client draws itself shut on `Escape` from a listener on the
+ * DOCUMENT (`dismiss.ts`), and a row's open note is one of them — so an
+ * `Escape` the map declined for vim's sake would still fold the row the vim
+ * editor is inside, which is the same "you were thrown out of what you were
+ * writing" the decline exists to prevent.
+ *
+ * So there are three answers to a keystroke and not two: the app's, nobody's,
+ * and the EDITOR'S. This is the third, and it is here rather than in the
+ * editor for the reason every other key is: whose a key is, is decided in this
+ * file.
+ */
+export const heldByVim = (event: KeyboardEvent, vim: boolean): boolean =>
+  vim && event.key === "Escape"
 
 /** Is the whole line already selected? What tells the second `⌘A` from the
  *  first, and the reason it is a question about the CARET rather than a flag

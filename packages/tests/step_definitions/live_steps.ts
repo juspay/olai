@@ -83,6 +83,24 @@ When(
   },
 );
 
+/** A NOTE rewritten under everybody's feet — the sibling of the retitle above,
+ *  and what the autosave's `was` guard is for: a browser holding a draft over
+ *  this node is about to send a condition the file no longer says, and the
+ *  answer must be a refusal rather than these words being replaced. */
+When(
+  "another writer rewrites the note of {string} in {string} as {string}",
+  function (this: OlaiWorld, id: string, file: string, desc: string) {
+    const records = this.servedNodes(file).map((node) =>
+      node["id"] === id ? { ...node, desc } : node
+    );
+    assert.ok(
+      records.some((node) => node["id"] === id),
+      `${file} holds no node \`${id}\` to write a note on`,
+    );
+    this.writeServed(file, records.map((node) => JSON.stringify(node)).join("\n"));
+  },
+);
+
 /** A row REPARENTED under everybody's feet — the anchor an undo recorded,
  *  moved somewhere that anchor no longer means. Lifting it to the top level is
  *  the smallest edit that does it and leaves a valid set behind (a parent is

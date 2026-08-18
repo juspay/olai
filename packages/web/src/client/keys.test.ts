@@ -4,6 +4,7 @@ import {
   CHORDS,
   type EditAction,
   editKey,
+  heldByVim,
   isApplePlatform,
   type ListAction,
   listKey,
@@ -167,6 +168,44 @@ test("a note keeps Enter and the arrows for itself", () => {
   expect(editKey(key("Tab"), "block")).toBeNull()
   expect(editKey(key("Enter", { shift: true }), "block")).toBe("note")
   expect(editKey(key("Escape"), "block")).toBe("cancel")
+})
+
+test("a DOCUMENT keeps everything but Escape", () => {
+  // It is prose that is not inside a row, so there is no note to open and no
+  // sibling to make: `Shift+Enter` is the editor's own newline, and `Escape`
+  // — leaving the editor — is the whole of what this layer claims.
+  expect(editKey(key("Escape"), "doc")).toBe("cancel")
+  expect(editKey(key("Enter", { shift: true }), "doc")).toBeNull()
+  expect(editKey(key("Enter", { meta: true }), "doc")).toBeNull()
+  expect(editKey(key("Tab"), "doc")).toBeNull()
+})
+
+test("inside a VIM editor, Escape belongs to vim — and nothing else moves", () => {
+  // The one key the preference costs (`settings/vim.ts`), said here in the
+  // registry rather than guarded in an editor: Esc is the mode switch, pressed
+  // dozens of times a minute, and an app that also read it as "abandon what
+  // you were typing" would throw a person out of the editor every time their
+  // hands did what vim taught them.
+  expect(editKey(key("Escape"), "block", undefined, true)).toBeNull()
+  expect(editKey(key("Escape"), "doc", undefined, true)).toBeNull()
+  // Everything else is what it always was — a vim editor is still a text
+  // field, and `Shift+Enter` still closes a note.
+  expect(editKey(key("Enter", { shift: true }), "block", undefined, true)).toBe("note")
+  // ...and a TITLE is never a vim editor, so the flag is never true there —
+  // but the map answers the same way whichever way it is asked, because the
+  // vim rule is about Escape and Escape alone.
+  expect(editKey(key("Enter"), "line", at(5, LINE), true)).toBe("split")
+})
+
+test("a key the map declines is nobody's — except vim's Escape", () => {
+  // The third answer, and the reason it has to be one: the panels that shut on
+  // Escape listen on the document, so a decline that merely let the key
+  // through would fold the row the vim editor is inside. Everything else the
+  // map declines is genuinely nobody's and travels on.
+  expect(heldByVim(key("Escape"), true)).toBe(true)
+  expect(heldByVim(key("Escape"), false)).toBe(false)
+  expect(heldByVim(key("Enter"), true)).toBe(false)
+  expect(heldByVim(key("i"), true)).toBe(false)
 })
 
 // ── the three the caret decides ────────────────────────────────────────

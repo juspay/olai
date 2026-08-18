@@ -214,11 +214,13 @@ export const DOCUMENT_PAGE = selector(TESTID.documentPage);
 export const DOCUMENT_BODY = selector(TESTID.documentBody);
 /** The way into a document's editor, on its page header. */
 export const DOCUMENT_EDIT = selector(TESTID.documentEdit);
-/** The editor itself — a textarea holding the document's SOURCE, verbatim.
- *  Present exactly while the page is in its edit mode. */
+/** The editor itself — the document's SOURCE, verbatim, live-previewed.
+ *  Present exactly while the page is in its edit mode; `data-mde` says which
+ *  face is drawn (`client/mde/`). */
 export const DOCUMENT_EDITOR = selector(TESTID.documentEditor);
-export const DOCUMENT_SAVE = selector(TESTID.documentSave);
-export const DOCUMENT_CANCEL = selector(TESTID.documentCancel);
+/** Back to reading. NOT a commit: a document autosaves, so this flushes
+ *  whatever is owed and closes the editor. */
+export const DOCUMENT_DONE = selector(TESTID.documentDone);
 /** What the last document write had to say; `data-tone` is which mood. */
 export const DOCUMENT_SAID = selector(TESTID.documentSaid);
 /** The explicit "overwrite anyway" after a conflict refusal. */
@@ -458,8 +460,16 @@ export const CHECKBOX = selector(TESTID.checkbox);
  *  that row is being typed in. A page with none of these has no editor open,
  *  which is how "nothing is being edited" is asked. */
 export const TITLE_EDITOR = selector(TESTID.titleEditor);
-/** The note as text, under the row, while it is being written. */
+/** The note's own markdown editor, under the row, while it is being written.
+ *  `data-mde` says which face is drawn — `preview` once CodeMirror has
+ *  arrived, `waiting` while its chunk is in the air (`client/mde/`). */
 export const DESC_EDITOR = selector(TESTID.descEditor);
+/** Either markdown editor once it is LIVE-PREVIEWED, which is the state a
+ *  scenario about hidden markers has to wait for: until the chunk lands, both
+ *  are the textarea this app shipped before live preview and every marker is
+ *  visible. One spelling, because a note and a document are one editor at two
+ *  sizes and a second one would be the drift the suite exists to catch. */
+export const PREVIEWING = '[data-mde="preview"]';
 /** Either of them: the editor the caret is in, whichever field it is. A page
  *  matching neither has no caret in a row, which is the state ⌘Z is answered
  *  from — and is what `support/caret.ts` is written around. */
@@ -1442,6 +1452,45 @@ export class OlaiWorld extends World {
    *  child's. */
   within(id: string, control: string): Locator {
     return this.node(id).locator(control).first();
+  }
+
+  /**
+   * WHAT A MARKDOWN EDITOR IS DRAWING — a note's or a document's, which are
+   * one editor at two sizes (`client/mde/`).
+   *
+   * It is DRAWING and not HOLDING, and the difference is the whole feature:
+   * the source is what the editor holds and what the file gets, and the
+   * markers around bold, italic and a heading are hidden unless the caret is
+   * inside them. So this reads what a person can see — which for everything
+   * that is not a marker is the same string either way, and for a marker is
+   * the assertion a live-preview scenario actually wants to make.
+   *
+   * Both faces are answered, because which one is on screen is a fact about a
+   * chunk that may still be in the air: the textarea has a `value`, the
+   * editor has text nodes. A scenario that cares waits for `PREVIEWING`
+   * first.
+   */
+  async editorDraws(editor: Locator): Promise<string> {
+    await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const textarea = await editor.evaluate((el) => el.tagName === "TEXTAREA");
+    return textarea ? await editor.inputValue() : await editor.innerText();
+  }
+
+  /**
+   * Replace everything in a markdown editor with `text`.
+   *
+   * Select-all and type, rather than a `fill`: a live-previewed editor is a
+   * contenteditable, so there is no value to set — and typing is what the
+   * feature is about anyway, since it is the keystrokes that arm the autosave.
+   * ⌘A is the platform's own here (`client/keys.ts` claims the second one in a
+   * TITLE and nothing in prose), which is why it can be used to clear.
+   */
+  async retypeEditor(editor: Locator, text: string): Promise<void> {
+    await this.press(editor);
+    await this.page.keyboard.press("ControlOrMeta+a");
+    await this.page.keyboard.press("Delete");
+    await this.page.keyboard.type(text);
+    await this.waitForFrame();
   }
 
   /** Press something, and let the render settle.

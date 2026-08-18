@@ -21,6 +21,7 @@ import {
   type Density,
 } from "@olai/web/src/client/settings/density.ts";
 import { DONE_HIDDEN_KEY } from "@olai/web/src/client/settings/done.ts";
+import { EDITOR_VIM_KEY } from "@olai/web/src/client/settings/vim.ts";
 import { TESTID } from "@olai/web/src/client/testids.ts";
 import { SIZE_STORAGE_KEY } from "@olai/web/src/client/theme/sizes.ts";
 
@@ -368,6 +369,56 @@ Then(
       stored,
       state === "hidden" ? "true" : "false",
       `this browser keeps "${stored}" under ${DONE_HIDDEN_KEY}`,
+    );
+  },
+);
+
+// ── the Editing preference: which keyboard a markdown editor takes ─────
+
+/** The two words the Editing row offers, checked here for the reason the three
+ *  Notes words are: a `data-value` that matches nothing waits thirty seconds
+ *  and then says a segment was not visible. */
+const asKeyboard = (value: string): "plain" | "vim" => {
+  if (value !== "plain" && value !== "vim") {
+    throw new Error(`Editing is plain or vim, not "${value}"`);
+  }
+  return value;
+};
+
+/** ...and then put the panel away, because every scenario that sets this is
+ *  about an EDITOR next, and a portalled panel would be sitting on top of the
+ *  row it wants to click. The trigger rather than Escape, for the reason the
+ *  Done twin gives. */
+When(
+  "I set editing to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "vim", asKeyboard(value));
+    await this.press(this.page.locator(PREFS_TRIGGER));
+    await this.page
+      .locator(PREFS_PANEL)
+      .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the Editing row explains that {string}",
+  async function (this: OlaiWorld, expected: string) {
+    const hint = await hintOf(this, "vim");
+    assert.ok(
+      hint.includes(expected),
+      `the Editing row says "${hint}", which does not say "${expected}"`,
+    );
+  },
+);
+
+Then(
+  "this browser has stored that editing is {string}",
+  async function (this: OlaiWorld, value: string) {
+    const stored = await this.stored(EDITOR_VIM_KEY);
+    assert.equal(
+      stored,
+      asKeyboard(value) === "vim" ? "true" : "false",
+      `this browser keeps "${stored}" under ${EDITOR_VIM_KEY}`,
     );
   },
 );

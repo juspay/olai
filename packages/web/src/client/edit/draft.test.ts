@@ -58,9 +58,27 @@ test("an emptied title is still asked for, so the refusal can be seen", () => {
 
 test("a note is written, and an emptied one is removed", () => {
   const note = editing({ field: "desc", text: "oak", saved: "" })
-  expect(commitOf(note)).toEqual({ verb: "desc", id: "order", desc: "oak" })
+  expect(commitOf(note)).toEqual({ verb: "desc", id: "order", desc: "oak", was: null })
   expect(commitOf({ ...note, text: "", saved: "oak" }))
-    .toEqual({ verb: "desc", id: "order", desc: null })
+    .toEqual({ verb: "desc", id: "order", desc: null, was: "oak" })
+})
+
+test("a note's write is CONDITIONAL on what this editor last saved", () => {
+  // Autosave writes a note while somebody is still in it, over and over, on a
+  // pause (./autosave.ts) — so it may not be the write that loses somebody
+  // else's words. `was` is what this editor last saved, and "there was no
+  // note" is spelled `null` on both sides so the value and its condition
+  // cannot drift apart.
+  expect(commitOf(editing({ field: "desc", text: "oak, oiled", saved: "oak" })))
+    .toEqual({ verb: "desc", id: "order", desc: "oak, oiled", was: "oak" })
+})
+
+test("a title's write is not conditional, because typing one means it", () => {
+  // The asymmetry with the note above is deliberate: a title is one line, and
+  // typing it means "the title is this now" — which is exactly what
+  // `set_title` does for an agent. What is conditional there is an UNDO.
+  expect(commitOf(editing({ text: "order the oak" })))
+    .toEqual({ verb: "title", id: "order", title: "order the oak" })
 })
 
 test("a text edit names the node the row SHOWS, not the row", () => {

@@ -1,29 +1,36 @@
 /**
  * Editing documents: the editor a document page becomes, the two creation
- * doors, and the conflict a save meets when the file moved underneath it.
+ * doors, and the conflict a write meets when the file moved underneath it.
  *
- * Everything here drives the UI — the Edit control, the textarea, Save — and
- * asserts what came BACK on the wire: a rendered body that changed, a second
- * tab that followed, a refusal drawn in the ops layer's own words. Nothing
- * reads the disk directly, because nothing in the client does either.
+ * Everything here drives the UI — the Edit control, the editor, the pause that
+ * arms the autosave — and asserts what came BACK on the wire: a rendered body
+ * that changed, a second tab that followed, a refusal drawn in the ops layer's
+ * own words. Nothing reads the disk directly, because nothing in the client
+ * does either.
+ *
+ * THERE IS NO SAVE STEP, and its absence is the ruling (2026-08-18): a
+ * document is written on a pause and when the caret leaves, so what a scenario
+ * does is wait — `AUTOSAVE_IDLE` is imported from the client rather than
+ * spelled here, so a number changed in one place cannot leave this suite
+ * asserting against the other.
  */
 
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
+import { AUTOSAVE_IDLE } from "@olai/web/src/client/edit/autosave.ts";
 import { isoDayOf } from "@olai/web/src/client/clock.ts";
 import type { Page } from "playwright";
 
 import {
   CALENDAR_MINT,
   DOCUMENT_BODY,
-  DOCUMENT_CANCEL,
+  DOCUMENT_DONE,
   DOCUMENT_DRIFTED,
   DOCUMENT_EDIT,
   DOCUMENT_EDITOR,
   DOCUMENT_OVERWRITE,
   DOCUMENT_PAGE,
   DOCUMENT_SAID,
-  DOCUMENT_SAVE,
   HYDRATION_TIMEOUT,
   oneLine,
   POLL_TIMEOUT,
@@ -46,9 +53,7 @@ When("I start editing the document", async function (this: OlaiWorld) {
 Then(
   "the document editor holds text containing {string}",
   async function (this: OlaiWorld, text: string) {
-    const editor = this.page.locator(DOCUMENT_EDITOR);
-    await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const held = await editor.inputValue();
+    const held = await this.editorDraws(this.page.locator(DOCUMENT_EDITOR));
     assert.ok(
       held.includes(text),
       `the editor holds ${JSON.stringify(oneLine(held))}, which does not ` +
@@ -60,9 +65,7 @@ Then(
 Then(
   "the document editor holds no text containing {string}",
   async function (this: OlaiWorld, text: string) {
-    const editor = this.page.locator(DOCUMENT_EDITOR);
-    await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const held = await editor.inputValue();
+    const held = await this.editorDraws(this.page.locator(DOCUMENT_EDITOR));
     assert.ok(
       !held.includes(text),
       `the editor holds ${JSON.stringify(oneLine(held))}, which carries ` +
@@ -73,17 +76,28 @@ Then(
 );
 
 When("I retype the document as:", async function (this: OlaiWorld, source: string) {
-  const editor = this.page.locator(DOCUMENT_EDITOR);
-  await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await editor.fill(source);
+  await this.retypeEditor(this.page.locator(DOCUMENT_EDITOR), source);
 });
 
-When("I save the document", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(DOCUMENT_SAVE));
+/** The pause the autosave is keyed on, plus the round trip it starts. There is
+ *  no verb to press: what a scenario waits for is the file, and every step
+ *  after this one asks the page or the disk what happened. */
+When("the document autosaves", async function (this: OlaiWorld) {
+  await this.page.waitForTimeout(AUTOSAVE_IDLE * 3);
+  await this.waitForFrame();
 });
 
-When("I cancel the document editor", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(DOCUMENT_CANCEL));
+When("I leave the document editor", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(DOCUMENT_DONE));
+});
+
+/** The caret's own way out — the same door Done is, said with a key. It is the
+ *  one key `client/keys.ts` claims in a document, and inside a vim editor it
+ *  is not claimed at all. */
+When("I press Escape in the document editor", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(DOCUMENT_EDITOR));
+  await this.page.keyboard.press("Escape");
+  await this.waitForFrame();
 });
 
 When("I overwrite the document anyway", async function (this: OlaiWorld) {
@@ -111,7 +125,7 @@ Then("the editor notices the file changed on disk", async function (this: OlaiWo
 });
 
 Then(
-  "the save is refused saying {string}",
+  "the write is refused saying {string}",
   async function (this: OlaiWorld, said: string) {
     const refusal = this.page.locator(DOCUMENT_SAID);
     await refusal.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

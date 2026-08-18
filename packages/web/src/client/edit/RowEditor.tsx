@@ -17,9 +17,18 @@
  *
  * The trade is visible and deliberate: WHILE YOU TYPE, a title reads as its
  * SOURCE — `**bold**` and `#tags` as they are written — and the rendering
- * comes back the moment you leave. That is honest, it is what the file will
- * say, and it is exactly the trade the note takes one level down, where a
- * textarea shows markdown until it closes.
+ * comes back the moment you leave. That is honest, and it is what the file
+ * will say.
+ *
+ * THE NOTE ONE LEVEL DOWN NO LONGER TAKES THAT TRADE, and the difference
+ * between the two is a difference in size rather than in doctrine. A title is
+ * one line and its rendering is inline phrasing; a note is prose, where
+ * markers are most of what is on the screen, so it is live-previewed
+ * (`../mde/`) — the source is still the model, still verbatim, and what
+ * changes is only that the `**` hides while the caret is elsewhere. The same
+ * thing could be done to a title one day and it would be the same editor; it
+ * is not done today because the argument above (one string in, one string out,
+ * and the platform's own caret) is worth more on a field that holds one line.
  *
  * Styled to be invisible: the same font, size, weight and colour as the title
  * it replaces, no border, no background, no ring. A row must not jump when it
@@ -38,7 +47,10 @@ import { createEffect, createSignal, on, Show } from "solid-js"
 import { createCompletion } from "../complete/completing.tsx"
 import type { Draft } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
-import { type Caret, type EditAction, type EditField, editKey } from "../keys.ts"
+import { type Caret, type EditAction, type EditField, editKey, heldByVim } from "../keys.ts"
+import { Mde } from "../mde/Mde.tsx"
+import { SaidLine } from "./SaidLine.tsx"
+import { vimEditing } from "../settings/vim.ts"
 import { TESTID } from "../testids.ts"
 import { ROW_NOTE as AS_NOTE, ROW_TITLE } from "../touch.ts"
 
@@ -151,19 +163,25 @@ export function TitleEditor(props: {
 }
 
 /**
- * The note, as the text it is.
+ * The note, as the markdown it is.
  *
- * A `desc` is one verbatim markdown string, so a textarea is the honest
- * editor: what is typed is what is stored, and the rendering comes back when
- * it closes. It grows with its content because a note is usually two lines and
- * occasionally twenty, and a fixed box would be wrong for both.
+ * A `desc` is one verbatim markdown string, and this is where that string is
+ * typed — LIVE-PREVIEWED since md-live-preview-editor, which changes what the
+ * caret sees and nothing at all about what is stored: `**bold**` is bold with
+ * its markers hidden until you stand in the word, and the file holds the six
+ * characters it always held (`../mde/codemirror.ts` argues why there is no
+ * serializer in the middle).
  *
  * INLINE, and styled as the note rather than as a control (human, on sight of
  * the first shape: a monospace box under the row is ugly, and it is also a
  * lie — it says "form field" where the page says "the note"). Same size, same
- * muted tone, same place, no border and no background: what changes when the
- * caret arrives is that the markdown stops being rendered and starts being
- * text, which is exactly the trade the title takes one line up.
+ * muted tone, same place, no border and no background. The box is spelled here
+ * and worn by BOTH of the editor's faces (`../mde/Mde.tsx`: the textarea while
+ * the chunk is in the air, CodeMirror after it lands), so a note does not move
+ * on the page when the one replaces the other.
+ *
+ * It grows with its content because a note is usually two lines and
+ * occasionally twenty, and a fixed box would be wrong for both.
  */
 export function DescEditor(props: {
   readonly text: string
@@ -171,22 +189,26 @@ export function DescEditor(props: {
   readonly onKey: (event: KeyboardEvent) => void
   readonly onBlur: (left: boolean) => void
 }) {
-  let element!: HTMLTextAreaElement
-  takeCaret(() => element, { then: () => grow(element) })
+  // The counter the open editor watches — read from the EDITOR rather than
+  // passed in, for the reason {@link takeCaret} gives: every one of these is
+  // drawn inside the provider by construction.
+  const editor = useEditor()
 
   return (
-    <textarea
-      ref={element}
-      class={`mt-0.5 mb-1 block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none ${AS_NOTE}`}
-      data-testid={TESTID.descEditor}
-      rows={2}
-      value={props.text}
-      onInput={(event) => {
-        grow(event.currentTarget)
-        props.onInput(event.currentTarget.value)
-      }}
-      onKeyDown={(event) => props.onKey(event)}
-      onBlur={() => props.onBlur(element.isConnected)}
+    <Mde
+      text={props.text}
+      onInput={props.onInput}
+      onKey={props.onKey}
+      onBlur={props.onBlur}
+      // `olai-md olai-md-compact` is not decoration: it is where the markdown
+      // type and spacing scale is declared (`../theme/scale.ts`), so a heading
+      // being typed is the size the heading will be, in the density a note is
+      // drawn at. The editor's own theme reads those same properties and
+      // spells no size of its own (`../mde/theme.ts`).
+      class={`mt-0.5 mb-1 block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none olai-md olai-md-compact ${AS_NOTE}`}
+      testid={TESTID.descEditor}
+      take={editor.caret}
+      grows
     />
   )
 }
@@ -211,29 +233,29 @@ export function Said(props: { readonly draft: Draft }) {
     <>
       <Show when={props.draft.refused}>
         {(failure) => (
-          <p
-            class="mt-0.5 mb-1 text-[0.8125rem] leading-snug text-alarm"
-            data-testid={TESTID.editRefusal}
-            data-kind={failure()._tag}
-            role="alert"
-          >
-            {failure().message}
-          </p>
+          <SaidLine
+            said={{ tone: "alarm", text: failure().message }}
+            class={SAID_BOX}
+            testid={TESTID.editRefusal}
+          />
         )}
       </Show>
       <Show when={props.draft.nudge}>
         {(nudge) => (
-          <p
-            class="mt-0.5 mb-1 text-[0.8125rem] leading-snug text-muted"
-            data-testid={TESTID.editNudge}
-          >
-            {nudge()}
-          </p>
+          <SaidLine
+            said={{ tone: "aside", text: nudge() }}
+            class={SAID_BOX}
+            testid={TESTID.editNudge}
+          />
         )}
       </Show>
     </>
   )
 }
+
+/** Where a said line sits under a row's editor — the caller's half of
+ *  {@link SaidLine}, which owns the mood and not the layout. */
+const SAID_BOX = "mt-0.5 mb-1 text-[0.8125rem] leading-snug"
 
 /**
  * The key handler a row's editor wants: read the key against the map, and let
@@ -250,6 +272,13 @@ export function Said(props: { readonly draft: Draft }) {
  * `Backspace` merges at offset zero), and everything on either side of this
  * function — the matcher above it, the editor below it — is testable without a
  * browser because neither of them touches an element.
+ *
+ * WHETHER THIS IS A VIM EDITOR is read here too, from the preference, and
+ * handed to the map — which is what decides `Escape` (`../keys.ts` argues it).
+ * Only a prose field can be one: a title is one line in an `<input>`, and vim
+ * over a single-line field is a mode nobody asked for. Read inside the handler
+ * rather than closed over, so a person who turns the preference on while a
+ * note is open gets the answer the editor beside them already has.
  */
 export const keyHandler = (
   field: EditField,
@@ -258,12 +287,19 @@ export const keyHandler = (
 (event: KeyboardEvent): void => {
   // Not in a NOTE, where the matcher answers before it would ever look
   // (../keys.ts: a note is prose, and the keys that edit a row are the row's).
-  // Reading it anyway would materialise the whole textarea's value per
-  // keystroke to take its length — a prose block, on the one field that can be
-  // long.
+  // Reading it anyway would materialise the whole editor's value per keystroke
+  // to take its length — a prose block, on the one field that can be long.
   const at = field === "line" ? caretOf(event.currentTarget) : undefined
-  const action = editKey(event, field, at)
-  if (action === null) return
+  const vim = field !== "line" && vimEditing()
+  const action = editKey(event, field, at, vim)
+  if (action === null) {
+    // Nothing of the app's — and for one key that is not the same as nobody's.
+    // A vim editor's `Escape` is the mode switch, and the panels that shut on
+    // Escape listen on the document (`../dismiss.ts`), so it has to stop here
+    // or it folds the row the editor is inside.
+    if (heldByVim(event, vim)) event.stopPropagation()
+    return
+  }
   event.preventDefault()
   // Stop it there: the palette listens on the window, and an outline key that
   // also reached a global handler would be one keystroke doing two things.
@@ -314,17 +350,17 @@ const caretOf = (target: EventTarget | null): Caret | undefined => {
  * here, because the draft is what survives the row being redrawn.
  */
 const takeCaret = (
-  element: () => HTMLInputElement | HTMLTextAreaElement,
-  /** Named rather than positional, because the two callers want different ONES
-   *  of them and a positional `undefined` in the middle is a call site that
-   *  reads as a mistake. */
+  element: () => HTMLInputElement,
+  /** Named rather than positional, because a caller wants one or the other of
+   *  them and a positional `undefined` in the middle is a call site that reads
+   *  as a mistake. */
   said: {
     /** Where the caret goes when the editor OPENS, when the draft says. */
     readonly at?: () => number | undefined
-    /** Anything else the caret arriving implies: the note's box growing to fit
-     *  what is in it, and the title's own reading of WHERE the caret now is —
-     *  this function moved it, so anything tracking it has to be told rather
-     *  than left waiting for an event that will not come. */
+    /** Anything else the caret arriving implies: the title's own reading of
+     *  WHERE the caret now is — this function moved it, so anything tracking it
+     *  has to be told rather than left waiting for an event that will not
+     *  come. */
     readonly then?: () => void
   } = {},
 ): void => {
@@ -340,21 +376,4 @@ const takeCaret = (
     field.setSelectionRange(at, at)
     said.then?.()
   }))
-}
-
-/**
- * A textarea that is as tall as what is in it.
- *
- * Measuring costs a synchronous layout — `height: auto` invalidates, reading
- * `scrollHeight` forces the recompute — and that is per keystroke in an open
- * NOTE. It is paid rather than optimised away: a guard comparing the height
- * after setting `auto` never skips anything (the value it compares against is
- * `auto`), which is what the last attempt did, and the honest alternatives are
- * to remember the last height across calls or to let CSS do it
- * (`field-sizing: content`, not yet everywhere olai runs). One note at a time
- * is open, so the cost is bounded by that.
- */
-const grow = (element: HTMLTextAreaElement): void => {
-  element.style.height = "auto"
-  element.style.height = `${element.scrollHeight}px`
 }

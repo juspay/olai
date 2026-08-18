@@ -14,6 +14,7 @@ import { trackDesktop } from "./layout/media.ts"
 import { followLayout } from "./layout/prefs.ts"
 import { followDensity } from "./settings/density.ts"
 import { followDoneHidden } from "./settings/done.ts"
+import { followVimEditing } from "./settings/vim.ts"
 import { followStoredFont } from "./theme/fontState.ts"
 import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
@@ -42,12 +43,14 @@ followStoredFont()
 followStoredSize()
 
 // Layout preferences (sidebar open/width, chat open/width/snap), how much of a
-// row is drawn by default, what a page does with finished work, what this
-// browser has folded — of the outline and of the directory — and the
-// phone/desktop media query — document-lifetime, like the theme.
+// row is drawn by default, what a page does with finished work, whether the
+// markdown editors are vim editors, what this browser has folded — of the
+// outline and of the directory — and the phone/desktop media query —
+// document-lifetime, like the theme.
 followLayout()
 followDensity()
 followDoneHidden()
+followVimEditing()
 followFolds()
 followFolders()
 trackDesktop()

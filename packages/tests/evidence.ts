@@ -568,6 +568,87 @@ const wearTheme = async (page: Page, theme: string): Promise<void> => {
   await page.waitForTimeout(250)
 }
 
+/** The preferences panel, scrolled to its end. The panel is taller than a
+ *  720px window and the row this section is about is the LAST one, so a shot
+ *  of it as opened is a shot of the theme chips. */
+const panelEnd = async (page: Page): Promise<void> => {
+  await page.locator('[data-testid="prefs-panel"]').evaluate((el) => {
+    el.scrollTo(0, el.scrollHeight)
+  })
+  await page.waitForTimeout(150)
+}
+
+/**
+ * A caret in `order`'s note, from whatever state the page is in.
+ *
+ * Idempotent, like `wearTheme` above and for the same reason: this section is
+ * a SEQUENCE, and half of what it photographs (Escape, a preferences panel)
+ * also folds the row. A step that pressed the pilcrow unconditionally would
+ * close the note it was asked to open, exactly half the time.
+ */
+const inTheNote = async (page: Page): Promise<void> => {
+  const editor = page.locator(`${row("order")} ${DESC_EDITOR}`).first()
+  const note = page.locator(`${row("order")} [data-testid="desc"]`).first()
+  const showing = async (what: Locator) => await what.isVisible().catch(() => false)
+  // THREE STATES, and the pilcrow is only right in the third: the caret is
+  // already here (a refusal keeps the draft open, which is exactly the state
+  // half this section photographs), the row is open and drawing its note, or
+  // the row is folded. Pressing the mark in the first two SHUTS what was
+  // asked for.
+  if (!(await showing(editor))) {
+    if (!(await showing(note))) {
+      await page.locator(`${row("order")} [data-testid="note-mark"]`).first().click()
+    }
+    await note.waitFor()
+    await note.click()
+  }
+  await page.locator(`${DESC_EDITOR}[data-mde="preview"]`).first().waitFor()
+  await page.locator(`${DESC_EDITOR}`).first().click()
+  // ...and the caret at the END, which is where a click into a note puts it
+  // anyway. It matters because a caret parked in the middle REVEALS the
+  // markers around whatever it is standing in — and a step that then goes
+  // looking for a word by its text would be looking at a line that has just
+  // changed shape under it.
+  await page.keyboard.press("Control+End")
+  // ...and the frame that redraws the lines the caret has left, which is what
+  // puts a line's words back into ONE text node: a caret parked mid-word
+  // splits it, and a step that then asks for a word by its text asks for half
+  // of one.
+  await page.waitForTimeout(250)
+}
+
+/**
+ * The caret INSIDE `**walnut**`, which is the whole subject of the first shot.
+ *
+ * Walked in with the keyboard rather than clicked at by text, and the reason is
+ * the feature itself: with its markers hidden the word is a span the editor
+ * re-shapes as the caret moves through it, so a click aimed at "the element
+ * whose text is walnut" is aimed at the shape it had a frame ago — flaky in
+ * exactly the way a screenshot driver must not be. Each step therefore asks
+ * what the editor is DRAWING and stops when the markers are there, which is
+ * the same question the shot is about to be of.
+ */
+const intoTheWord = async (page: Page): Promise<void> => {
+  await page.keyboard.press("Control+Home")
+  await page.keyboard.press("ArrowDown")
+  await page.keyboard.press("ArrowDown")
+  for (let step = 0; step < 12; step++) {
+    await page.waitForTimeout(100)
+    if ((await textOf(page, DESC_EDITOR)).includes("**walnut**")) return
+    await page.keyboard.press("ArrowRight")
+  }
+  throw new Error(
+    `the caret never reached \`walnut\`, so its markers never came back — the editor draws ${
+      JSON.stringify(await textOf(page, DESC_EDITOR))
+    }`,
+  )
+}
+
+/** The caret in a NOTE: the markdown editor under a row (`client/mde/`).
+ *  `data-mde` says which of its two faces is drawn, which is what a section
+ *  about live preview waits on rather than on a timeout. */
+const DESC_EDITOR = '[data-testid="desc-editor"]'
+
 const SECTIONS = {
   /**
    * THE AGENDA AS A SPINE OF TIME (`agenda-spine`, ruled 2026-08-18): one
@@ -616,6 +697,127 @@ const SECTIONS = {
 
     await wearTheme(page, "pitch")
     await shot(page, "pitch-dark", { full: true })
+  },
+
+  /**
+   * MARKDOWN EDITING STOPS BEING A DUMB TEXT BOX (`md-live-preview-editor`,
+   * ruled 2026-08-18): a note edited with its markers hidden except at the
+   * caret, the bytes on disk unchanged by the drawing, autosave with no Save
+   * verb, a refusal instead of a clobber, and vim behind a preference.
+   *
+   * The section is a SEQUENCE rather than five independent shots, because the
+   * claim is about one editor over one note: the same caret that hides a `**`
+   * writes the file, and the same file that refuses a write is the one being
+   * drawn. `order`'s note is the fixture's own — bold, italic and a list, in
+   * one node — so nothing here is written for the picture except the external
+   * edit that provokes the refusal.
+   *
+   * THE BYTES ARE PRINTED, not photographed, and that is deliberate: olai
+   * serves a browser rows and rendered documents, never a raw file, so a shot
+   * of "the bytes" would be a shot of something this app does not draw. What
+   * the driver prints is its own read of the disk `evidence.sh` is serving,
+   * before and after the write — the whole record, both times — so the claim
+   * "the drawing changed nothing and the write appended exactly what was
+   * typed" is one diff a reader can do by eye.
+   */
+  "markdown-is-not-a-text-box": async (page) => {
+    console.log(`  the note on disk BEFORE:  ${recordOf("order")}`)
+
+    // Open the row, then put a caret in its note — the two gestures a person
+    // makes (`client/NodeBody.tsx`): the pilcrow opens, the note itself is the
+    // way in. The wait inside is for the CHUNK (`client/mde/chunk.ts`): a
+    // caret lands in the textarea until CodeMirror arrives, so a section about
+    // live preview waits for the face that has it rather than for a timeout.
+    const editor = page.locator(DESC_EDITOR).first()
+
+    // THE CARET DECIDES WHAT IS SHOWN. Standing in `walnut` reveals its `**`;
+    // `birch` two lines down keeps its markers hidden and stays italic.
+    //
+    // ONCE PER PALETTE, and in that order rather than one caret photographed
+    // twice: picking a theme is a press in a PANEL, which takes the caret out
+    // of the note — so a "same shot, other palette" would be a shot of the
+    // rendering. Every colour in the editor is a theme token and none of them
+    // is spelled by this feature (`client/mde/theme.ts`), which is what the
+    // pair is here to show.
+    for (const palette of ["chalk", "pitch"] as const) {
+      await wearTheme(page, palette)
+      await inTheNote(page)
+      await intoTheWord(page)
+      console.log(`  ${palette}: the editor's face ${await editor.getAttribute("data-mde")}, drawing: ${
+        await textOf(page, DESC_EDITOR)
+      }`)
+      await shot(page, `markers-hide-except-at-the-caret-${palette}`)
+    }
+    await wearTheme(page, "chalk")
+    await inTheNote(page)
+
+    // AUTOSAVE: no Save verb anywhere on the page. Type at the end of the
+    // note, stop, and the write goes on its own.
+    await page.keyboard.press("Control+End")
+    await page.keyboard.type(" Ask about the **oiled** finish.")
+    await page.waitForTimeout(1200)
+    console.log(`  the note on disk AFTER:   ${recordOf("order")}`)
+
+    // A CONCURRENT WRITE IS REFUSED, NEVER CLOBBERED. vim gets there first:
+    // the record moves on disk while this editor holds a draft over it, and
+    // the next autosave sends a `was` the file no longer says.
+    rewrite("house.olai", servedLines("house.olai").map((line) =>
+      line.includes(`"id":"order"`)
+        ? line.replace(/"desc":"[^"]*"/, `"desc":"vim got here first."`)
+        : line
+    ))
+    await page.waitForTimeout(600)
+    await inTheNote(page)
+    await page.keyboard.press("Control+End")
+    await page.keyboard.type(" And the hinges.")
+    await page.locator(`${row("order")} [data-testid="edit-refusal"]`).first().waitFor()
+    console.log(`  the refused write says:   ${
+      await textOf(page, `${row("order")} [data-testid="edit-refusal"]`)
+    }`)
+    console.log(`  and the disk still says:  ${recordOf("order")}`)
+    await shot(page, "a-refusal-is-a-line-under-the-row")
+    await wearTheme(page, "pitch")
+    await shot(page, "a-refusal-is-a-line-under-the-row-dark")
+
+    // VIM, BEHIND THE PREFERENCE. The toggle is in prefs beside Done, and the
+    // one key it moves is Escape: inside a vim editor it is the mode switch,
+    // so the editor does NOT close under it.
+    await page.locator('[data-testid="prefs-trigger"]').first().click()
+    await page.locator('[data-testid="prefs-panel"]').waitFor()
+    await panelEnd(page)
+    await page.locator('[data-testid="prefs-row"][data-pref="vim"] >> text=Vim').click()
+    await page.waitForTimeout(200)
+    console.log(`  the preference says:      ${
+      await textOf(page, '[data-testid="prefs-row"][data-pref="vim"] [data-testid="prefs-hint"]')
+    }`)
+    await shot(page, "the-vim-preference-dark")
+    await wearTheme(page, "chalk")
+    await page.locator('[data-testid="prefs-trigger"]').first().click()
+    await page.locator('[data-testid="prefs-panel"]').waitFor()
+    await panelEnd(page)
+    await shot(page, "the-vim-preference")
+    await page.keyboard.press("Escape")
+
+    // Back into the note — from wherever the panel left the row — and then the
+    // key the preference moved: in a vim editor Escape is the mode switch, so
+    // what it does here is nothing a reader can see except the cursor, and the
+    // editor is still standing. Per palette, for the reason the first pair is.
+    for (const palette of ["chalk", "pitch"] as const) {
+      await wearTheme(page, palette)
+      await inTheNote(page)
+      await page.keyboard.press("Escape")
+      await page.waitForTimeout(300)
+      console.log(`  ${palette}: after Escape in vim, the editor is still open: ${
+        await page.locator(DESC_EDITOR).first().isVisible()
+      }`)
+      // A motion, to say the mode is real: `0` goes to the head of the line and
+      // `k` walks up one — neither of them a character typed into the file.
+      await page.keyboard.press("k")
+      await page.keyboard.press("0")
+      await page.waitForTimeout(200)
+      await shot(page, `vim-normal-mode-in-a-note-${palette}`)
+    }
+    console.log(`  and the note on disk:     ${recordOf("order")}`)
   },
 
   /**

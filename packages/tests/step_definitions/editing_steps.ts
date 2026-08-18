@@ -47,10 +47,13 @@ import {
   EDIT_NUDGE,
   EDIT_REFUSAL,
   expectBefore,
+  HYDRATION_TIMEOUT,
   NEW_ROW,
   NODE,
   nodeSelector,
+  oneLine,
   POLL_TIMEOUT,
+  PREVIEWING,
   START_LINE,
   TITLE_EDITOR,
 } from "../support/world.ts";
@@ -323,17 +326,46 @@ Then("no other row holds the caret", async function (this: OlaiWorld) {
   );
 });
 
+/**
+ * The note editor, once it is LIVE-PREVIEWED.
+ *
+ * Waiting on the face rather than on a timeout: until the chunk lands
+ * (`client/mde/chunk.ts`) a caret lands in the textarea this app shipped
+ * before live preview, where every marker is visible — which is a correct
+ * editor and the wrong subject.
+ */
+const previewing = async (world: OlaiWorld): Promise<Locator> => {
+  // The PAGE's, not a row's: there is exactly one draft in a tab, because
+  // there is exactly one caret.
+  const editor = world.page.locator(`${DESC_EDITOR}${PREVIEWING}`).first();
+  await editor.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  return editor;
+};
+
 Then(
-  "the note being typed holds the source of {string}",
-  async function (this: OlaiWorld, id: string) {
-    // The SOURCE, not the rendering: a note is markdown, and what an editor
-    // holds is what the record holds.
-    const editor = this.within(id, DESC_EDITOR);
-    await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const text = await editor.inputValue();
+  "the note being typed draws {string} in bold",
+  async function (this: OlaiWorld, text: string) {
+    // The rendering, INSIDE the editor — which is the whole feature: the
+    // source is what the file gets, and what the caret sits in looks like what
+    // it says. Bold is asked of the computed weight rather than of a `<strong>`
+    // (there is none: this is one string with decorations over it), against
+    // the scale's own major weight — the same number the rendered page uses,
+    // read through the same custom property.
+    const editor = await previewing(this);
+    const word = editor.getByText(text, { exact: true }).first();
+    await word.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const weight = await word.evaluate((el) => getComputedStyle(el).fontWeight);
+    assert.strictEqual(
+      weight,
+      "700",
+      `${JSON.stringify(text)} is drawn at weight ${weight} inside the editor`,
+    );
+    // ...and the markers are not on the page while the caret is elsewhere.
+    const drawn = await this.editorDraws(editor);
     assert.ok(
-      text.includes("**walnut**"),
-      `the note editor holds ${JSON.stringify(text)}, which is not the markdown the file holds`,
+      !drawn.includes(`**${text}**`),
+      `the editor draws ${JSON.stringify(oneLine(drawn))} — the markers are ` +
+        "still on screen with the caret nowhere near them",
     );
   },
 );

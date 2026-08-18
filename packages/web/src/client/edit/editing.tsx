@@ -57,6 +57,7 @@ import {
 } from "solid-js"
 import { Result } from "effect"
 
+import { AUTOSAVE_IDLE } from "./autosave.ts"
 import { datePick } from "../date/pick.ts"
 import type { Caret, EditAction } from "../keys.ts"
 import { runAsync } from "../run.ts"
@@ -358,10 +359,39 @@ export const createEditor = (
     return true
   }
 
-  /** The idle commit. Scheduled by every keystroke and cancelled by every
-   *  commit, so a person who keeps typing causes one write rather than one per
-   *  pause. */
-  const idle = debounce(() => enqueue(commit), IDLE_COMMIT)
+  /**
+   * The idle commit. Scheduled by every keystroke and cancelled by every
+   * commit, so a person who keeps typing causes one write rather than one per
+   * pause.
+   *
+   * TWO CLOCKS, ONE COMMIT, because the two fields are two different acts.
+   * Typing a TITLE is finished by `Enter` or by looking somewhere else, so its
+   * timer is a backstop and is long enough that a pause mid-sentence is not a
+   * git commit ({@link ./draft.ts}'s `IDLE_COMMIT`). Typing a NOTE is prose,
+   * and the timer is the only thing that ever writes it — that is autosave,
+   * and its number is {@link ./autosave.ts}'s. Both fire the same `commit`,
+   * which is what keeps this a difference in WHEN rather than a second way to
+   * write.
+   *
+   * `clear` is both of them, always: a draft is one caret in one field, so at
+   * most one is ever pending, and a caller that had to know which would be a
+   * caller that can forget.
+   */
+  const clocks = {
+    line: debounce(() => enqueue(commit), IDLE_COMMIT),
+    block: debounce(() => enqueue(commit), AUTOSAVE_IDLE),
+  }
+  const idle = {
+    /** Start the clock the field being typed in runs on. */
+    start: (field: "title" | "desc" | "new"): void => {
+      if (field === "desc") clocks.block()
+      else clocks.line()
+    },
+    clear: (): void => {
+      clocks.line.clear()
+      clocks.block.clear()
+    },
+  }
 
   /** The row the caret is in, as the page is drawing it now. */
   const row = (): Row | undefined => {
@@ -735,8 +765,9 @@ export const createEditor = (
       })
     },
     type: (text) => {
-      setDraft((held) => (held === null ? held : typed(held, text)))
-      idle()
+      const held = untrack(draft)
+      setDraft((current) => (current === null ? current : typed(current, text)))
+      if (held !== null) idle.start(slotOf(held).field)
     },
     blur: (from, left) => {
       // A blur we caused ourselves — see `settling`.
