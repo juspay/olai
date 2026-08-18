@@ -1412,7 +1412,7 @@ type Section = keyof typeof SECTIONS
 const sectionNamed = (name: string): Section | undefined =>
   name in SECTIONS ? name as Section : undefined
 
-/** A window tall enough for the whole `•••` panel: fifteen entries opened off a
+/** A window tall enough for the whole `•••` panel: sixteen entries opened off a
  *  row partway down the page is more than the default leaves room for, and a
  *  shot that clips the verb it is about says nothing. The WIDTH is the
  *  default's, so the two sections that ask for this differ from every other one
@@ -1428,7 +1428,7 @@ const PANEL_FITS = { viewport: { width: WIDE, height: 1000 } }
  * rather than inside the section for the same reason — a resize after load
  * leaves this page reporting the new `innerHeight` while `100dvh` still
  * resolves against the old one (below). What wants one is a section whose
- * subject is the `•••` panel itself: fifteen entries is taller than the
+ * subject is the `•••` panel itself: sixteen entries is taller than the
  * default window, and a shot that clips the verb it is about says nothing.
  *
  * THERE IS NO SECTION FOR AUTO-SCROLL, deliberately. That gesture is only

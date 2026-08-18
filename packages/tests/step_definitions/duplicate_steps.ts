@@ -120,9 +120,18 @@ const paired = (
   const row = childrenOf(rows, original["parent"]);
   const at = row.findIndex((node) => node["id"] === id);
   const copy = row[at + 1];
-  // Not there YET: the write is a round trip, and the row below the original is
-  // where it will appear.
-  if (copy === undefined) return undefined;
+  // NOT THERE YET, and the row below the original being OCCUPIED is not the
+  // same as it being the copy — which is the whole of what this poll gets
+  // wrong if it only counts. `install` already has a mirror below it in the
+  // fixture, so a look taken before the write landed finds a placement there;
+  // reading that as the copy made the children-count check below fire as a
+  // DEFECT against a row nobody had written yet (CI, 9a7df98f).
+  //
+  // So the wait is for a row below the original that SAYS what the original
+  // says. That is the op's own promise about a copy and the one thing about it
+  // this harness may assume — and it is a wait rather than an assertion, so a
+  // write that never lands still fails, as the claim it was making.
+  if (copy === undefined || copy["title"] !== original["title"]) return undefined;
 
   const pairs: Array<readonly [Record_, Record_]> = [];
   const walk = (left: Record_, right: Record_): void => {

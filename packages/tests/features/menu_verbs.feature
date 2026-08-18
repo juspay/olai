@@ -34,6 +34,11 @@ Feature: The ••• menu writes
     # nothing about this row to leave them out for — and what WOULD be refused
     # (a loop) is the ops layer's sentence to say when it is asked for, not a
     # missing entry (`edge_editing.feature`).
+    #
+    # `Duplicate` is here for the edge verbs' reason read once more — every node
+    # can be copied, so there is nothing about this row to leave it out for —
+    # and it sits ABOVE `Move to Trash` because the additive verb should not be
+    # next to the one with reach (`duplicate_subtree.feature`).
     Given the node "kitchen" is expanded
     When I open the node menu of "kitchen"
     Then the node menu offers exactly:
@@ -50,6 +55,7 @@ Feature: The ••• menu writes
       | Add property…      |
       | Link to a node…    |
       | Wait for a node…   |
+      | Duplicate          |
       | Move to Trash      |
       | Copy as text       |
 
