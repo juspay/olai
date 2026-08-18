@@ -109,6 +109,12 @@ const FACE: Record<Delivery, {
  *  it", and nothing became of an ordinary message. */
 const SENT = "border border-accent/30 bg-accent/10"
 
+/** The edge a message's bubble takes, fate or none. A function of the row and
+ *  nothing else, so it sits out here with the table it reads rather than being
+ *  minted per component. */
+const bubbleOf = (fate: Delivery | undefined): string =>
+  fate === undefined ? SENT : FACE[fate].bubble
+
 /** What the agent said is not in a file, so there is no path to name — and the
  *  empty string resolves against the served directory itself, which is where
  *  the agent was started and therefore what a relative path in what it says is
@@ -133,15 +139,6 @@ export function Entry(props: {
     if (props.entry.streaming !== true) return text
     return due() ? text : previous
   })
-  /** What became of this message and how that READS, or `undefined` on the
-   *  ordinary row that simply went — one accessor, because the bubble and the
-   *  strip under it are two views of the one fact and a second reading is a
-   *  second chance to spell it differently. */
-  const face = () => {
-    const fate = props.entry.delivery
-    return fate === undefined ? undefined : { fate, ...FACE[fate] }
-  }
-
   // ONLY for the agent's own prose, which is the only row that has rendered
   // markdown in it — and `kind` never changes for an entry, so this is a
   // question asked once rather than a `said === undefined` bail inside an
@@ -202,7 +199,7 @@ export function Entry(props: {
             <Show when={props.entry.text !== ""}>
               <p
                 class={`whitespace-pre-wrap rounded px-2 py-1.5 text-sm text-ink ${
-                  face()?.bubble ?? SENT
+                  bubbleOf(props.entry.delivery)
                 }`}
                 data-testid={TESTID.chatMine}
               >
@@ -222,15 +219,15 @@ export function Entry(props: {
                 button at all, because a retry there would hand somebody a
                 duplicate they had no way to predict. Nothing retries on its
                 own either way. */}
-            <Show when={face()} keyed>
-              {(shown) => (
+            <Show when={props.entry.delivery} keyed>
+              {(fate) => (
                 <div
                   class="mt-1 flex items-center gap-2"
                   data-testid={TESTID.chatDelivery}
-                  data-delivery={shown.fate}
+                  data-delivery={fate}
                 >
-                  <span class={`font-mono text-[0.6875rem] ${shown.tone}`}>
-                    {shown.said}
+                  <span class={`font-mono text-[0.6875rem] ${FACE[fate].tone}`}>
+                    {FACE[fate].said}
                   </span>
                   {/* The quiet pill's shape in the transcript's own scale, and
                       that divergence says why in place, as `../pill.ts` asks of
@@ -238,7 +235,7 @@ export function Entry(props: {
                       with `not sent` beside it, and wearing `QUIET_PILL`'s
                       `text-xs`/`px-2 py-1` would make one control in that line
                       a size larger than the words it belongs to. */}
-                  <Show when={shown.fate === "refused"}>
+                  <Show when={fate === "refused"}>
                     <button
                       type="button"
                       class="rounded border border-rule px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted hover:text-ink"
