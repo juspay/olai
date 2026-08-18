@@ -5,14 +5,14 @@
  * The rules are the ops layer's (`ops/src/plan.ts`'s `planMove`) read one
  * gesture earlier, so what is worth pinning here is not that they exist — the
  * write would be refused either way — but that the picker says the RIGHT one.
- * Four of the five are true at once about a node in the Trash (it is archived,
- * it is in another file, it is not this row's parent, it is not this row), and
- * a reader who is told the wrong true thing has been told nothing.
+ * Four of them are true at once about a node in the Trash (it is archived, it
+ * is in another file, it is not this row's parent, it is not this row), and a
+ * reader who is told the wrong true thing has been told nothing.
  *
  * Over a REAL derivation of a real corpus (`derive` + the format's own
  * `setOf`), because the walk this module asks for is the format's own: a `Map`
- * of parents would be a second answer to what an ancestor chain is, in the one
- * test that exists to hold this file to the first.
+ * of parents would be a second answer to what "inside" means, in the one test
+ * that exists to hold this file to the first.
  */
 
 import { derive } from "@olai/format"
@@ -22,18 +22,27 @@ import { expect, test } from "bun:test"
 import { type Destination, type Moved, whyNot } from "./destination.ts"
 
 /**
- * The browser suite's own `house.olai`, plus the two files a destination can be
- * refused for being in:
+ * The browser suite's own `house.olai` plus a NOW SECTION, which is the
+ * topology the drawing walk exists for — `ops` documents a Now/Focus list as
+ * mirrors of live work, and this is that:
  *
- *     kitchen → demo
- *             → install → handles, knobs
+ *     now
+ *       now-install     (a mirror of install)
+ *     kitchen
+ *       demo
+ *       install
+ *         handles
+ *         knobs
+ *       kitchen-install (a mirror of install, a sibling of what it shows)
  *
  * with `herbs` over in `garden.olai` and `tiles` put away in an archive that
  * sits under a folder — an archive is `Archive.olai` at the root or beside any
  * outline under it (`@olai/format`'s own rule).
  */
 const HOUSE = [
-  `{"id":"kitchen","ord":"a0","title":"kitchen remodel","doing":true}`,
+  `{"id":"now","ord":"a0","title":"Now"}`,
+  `{"id":"now-install","parent":"now","ord":"a0","mirror":"install"}`,
+  `{"id":"kitchen","ord":"a1","title":"kitchen remodel","doing":true}`,
   `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}`,
   `{"id":"install","parent":"kitchen","ord":"a1","title":"install the cabinets"}`,
   `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles"}`,
@@ -61,15 +70,20 @@ const at = (id: string): Destination => {
   return { id, title: "title" in located.node ? located.node.title : id, file: located.file }
 }
 
-/** The ordinary row being moved: `install`, an outline node under `kitchen`,
- *  showing itself. */
-const INSTALL: Moved = {
-  id: "install",
-  title: "install the cabinets",
-  file: "house.olai",
-  shows: "install",
-  parent: "kitchen",
+/** A row being moved, by the id of its own record — the title is what the
+ *  panel says and no rule judges it, so it is the record's own here. */
+const moving = (id: string): Moved => {
+  const located = derived.byId.get(id)
+  if (located === undefined) throw new Error(`no \`${id}\` in the fixture`)
+  return {
+    id,
+    title: "title" in located.node ? located.node.title : id,
+    file: located.file,
+    parent: located.node.parent ?? null,
+  }
 }
+
+const INSTALL = moving("install")
 
 test("an ordinary destination in the same file is not refused at all", () => {
   expect(whyNot(INSTALL, at("demo"), derived)).toBeNull()
@@ -81,9 +95,58 @@ test("a row cannot go under itself", () => {
 
 test("...nor under anything inside it, however deep", () => {
   // `handles` is `install`'s child: the move would fold the branch into itself,
-  // which is the loop `planMove`'s own `containing` refuses.
-  expect(whyNot(INSTALL, at("handles"), derived)).toContain("inside the row you are moving")
+  // which is the loop `planMove`'s own `containing` refuses. A destination the
+  // reader can SEE under the row needs no chain to explain it.
+  const why = whyNot(INSTALL, at("handles"), derived) ?? ""
+  expect(why).toContain("inside the row you are moving")
+  expect(why).not.toContain("→")
 })
+
+// ── the case a parent walk cannot see ──────────────────────────────────
+
+test("a destination a descendant PLACEMENT draws is refused, naming the chain", () => {
+  // THE REVIEW'S FINDING, pinned. `now` holds a mirror of `install`, so moving
+  // `now` under `install` draws `now` inside itself for ever — and no parent
+  // link says so: `install` is in another branch entirely. Before the drawing
+  // walk this was silent here, planned by `planMove`, and refused by the write
+  // gate's validator as a `mirror-cycle` about a file nobody wrote.
+  const why = whyNot(moving("now"), at("install"), derived) ?? ""
+  expect(why).toContain("drawn inside this row, through a placement")
+  expect(why).toContain("`now` → `now-install` → `install`")
+})
+
+test("...and so is anything under it, however deep", () => {
+  const why = whyNot(moving("now"), at("handles"), derived) ?? ""
+  expect(why).toContain("through a placement")
+  expect(why).toContain("`now` → `now-install` → `install` → `handles`")
+})
+
+test("a SIBLING of what the placement shows is not refused", () => {
+  // The other half, and what keeps the walk honest rather than merely strict:
+  // `kitchen` is where `install` lives, not something `now` draws, so `now`
+  // may go there. A rule that refused it would be inventing one.
+  expect(whyNot(moving("now"), at("kitchen"), derived)).toBeNull()
+  expect(whyNot(moving("now"), at("demo"), derived)).toBeNull()
+})
+
+// ── a MIRROR, which is moved as the placement it is ────────────────────
+
+test("a placement may not be put inside what it shows — it would expand forever", () => {
+  // The mirror-cycle the validator refuses ("this mirror is placed inside the
+  // subtree it shows, so expanding it never ends"), said at the aim. It is the
+  // same walk as the case above with one hop fewer: what this ROW draws is its
+  // target's whole subtree, so both the target and a child of it are refused.
+  expect(whyNot(moving("kitchen-install"), at("install"), derived))
+    .toContain("through a placement")
+  expect(whyNot(moving("kitchen-install"), at("handles"), derived))
+    .toContain("through a placement")
+})
+
+test("...and may go anywhere else in its file, including beside what it shows", () => {
+  expect(whyNot(moving("kitchen-install"), at("demo"), derived)).toBeNull()
+})
+
+// ── the other three refusals ───────────────────────────────────────────
 
 test("a destination in another outline is refused, naming both files", () => {
   const why = whyNot(INSTALL, at("herbs"), derived) ?? ""
@@ -112,43 +175,4 @@ test("the row's CURRENT parent is refused, and says what it would have done", ()
   const why = whyNot(INSTALL, at("kitchen"), derived) ?? ""
   expect(why).toContain("already this row's parent")
   expect(why).toContain("reorder")
-})
-
-// ── a MIRROR, which is moved as the placement it is ────────────────────
-
-/** The fixture's placement of `install`, sitting under `kitchen` in the same
- *  file. Its own record has no children; what it DRAWS is `install`'s subtree. */
-const PLACEMENT: Moved = {
-  id: "kitchen-install",
-  title: "install the cabinets",
-  file: "house.olai",
-  shows: "install",
-  parent: "kitchen",
-}
-
-test("a placement may not be put inside what it shows — it would expand forever", () => {
-  // The mirror-cycle the validator refuses ("this mirror is placed inside the
-  // subtree it shows, so expanding it never ends"), said at the aim. Asked of
-  // what the row DRAWS rather than of its own record, which is the whole
-  // difference between this case and the one above: nothing has the placement
-  // as a parent, so a walk of its own descendants would find nothing to refuse.
-  expect(whyNot(PLACEMENT, at("handles"), derived)).toContain("inside what this row shows")
-  expect(whyNot(PLACEMENT, at("install"), derived)).toContain("inside what this row shows")
-})
-
-test("...and may go anywhere else in its file, including under a node it does not show", () => {
-  expect(whyNot(PLACEMENT, at("demo"), derived)).toBeNull()
-})
-
-test("a placement drawing nothing is inside nothing", () => {
-  // A chain that died: there is no subtree to be inside, so only the ordinary
-  // rules apply. The row is still movable, which is what the `•••` offers.
-  const lost: Moved = {
-    id: "lost",
-    title: "lost",
-    file: "house.olai",
-    shows: undefined,
-    parent: "kitchen",
-  }
-  expect(whyNot(lost, at("handles"), derived)).toBeNull()
 })

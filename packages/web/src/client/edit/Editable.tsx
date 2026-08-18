@@ -104,7 +104,12 @@ export function Editable(props: {
     collapsed: createFoldReading(),
   }
   const selection = createSelection(page)
-  const moving = createMoving(page)
+  // The two know each other one way round each: the editor's `⌘⇧M` opens the
+  // picker, and the picker hands the caret back to the row when it is
+  // dismissed. The second is a thunk rather than a value because the editor is
+  // made on the next line — a keyboard door that left focus on `<body>` is the
+  // gap both reviews of #245 named, and this is the one line that closes it.
+  const moving = createMoving(page, (row) => editor.open(row, "title"))
   const editor = createEditor(page, selection, moving)
   const dragging = createDragging({ selection })
   const sweeping = createSweeping(selection, () => surface)

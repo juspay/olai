@@ -26,9 +26,12 @@
  *
  * The KEYS are `../keys.ts`'s list layer, never a private match: these are the
  * same four keys a row editor and the palette claim, and a component matching
- * them itself is the silent disagreement that registry exists to prevent.
- * Escape is STOPPED here, because the row's editor and the palette both listen
- * for it further up and one key must not close two things.
+ * them itself is the silent disagreement that registry exists to prevent. THREE
+ * of the four are answered here; ESCAPE is deliberately not, because it is a
+ * fact about the PANEL rather than about the list — a reader who has tabbed to
+ * the way out is still in the panel, and a key answered on the box did nothing
+ * there (review of #245). It bubbles, and each door stops it on its own
+ * wrapper, which is what `../edit/RowPanel.tsx` has always done.
  *
  * ## What it does NOT own
  *
@@ -105,8 +108,6 @@ export function Shortlist(props: {
     readonly why: (hit: SearchHit) => string | null
     readonly testid: TestId
   }
-  /** Escape. The door decides what shutting means. */
-  readonly onDismiss: () => void
 }) {
   const [query, setQuery] = createSignal("")
   const found = createNodeSearch(() => query())
@@ -185,10 +186,15 @@ export function Shortlist(props: {
         }}
         onKeyDown={(event) => {
           switch (listKey(event)) {
+            // ESCAPE IS THE PANEL'S, and this arm exists to say so: it is
+            // deliberately not answered here, so the key bubbles to whatever
+            // drew this list (`../edges/EdgePanel.tsx`, `../move/
+            // MovePicker.tsx`, which stop it there the way `../edit/
+            // RowPanel.tsx` does). It used to be answered on this box, and a
+            // reader who had tabbed to the way-out button then pressed a key
+            // that did nothing — the panel is what a dismissal is about, and
+            // the box is only where the caret usually is (review of #245).
             case "dismiss":
-              event.preventDefault()
-              event.stopPropagation()
-              props.onDismiss()
               return
             case "next":
               event.preventDefault()

@@ -92,6 +92,20 @@ export function MovePicker(props: {
       // reader has to infer from where it is drawn — the row moves under it
       // when a write lands, and this is what says the panel followed.
       data-row={props.moved.id}
+      // ESCAPE IS THE PANEL'S, wherever the caret is inside it — the box, a
+      // destination, or the way out somebody tabbed to. `../edit/RowPanel.tsx`
+      // listens on its wrapper for exactly this reason, and the shortlist
+      // deliberately lets the key bubble here rather than answering it at the
+      // one element the caret usually happens to be on.
+      //
+      // Stopped HERE: the row's own editor and the ⌘K palette both listen for
+      // Escape further up, and one key must not close two things.
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return
+        event.preventDefault()
+        event.stopPropagation()
+        props.onClose()
+      }}
     >
       <p class="m-0 mb-1 text-xs text-muted">
         Move <span class="text-ink">{props.moved.title}</span> under…
@@ -114,7 +128,6 @@ export function MovePicker(props: {
           },
         }}
         onTake={(hit) => props.onWrite({ verb: "under", id: props.moved.id, parent: hit.id })}
-        onDismiss={() => props.onClose()}
       />
 
       <div class="mt-1 flex items-center justify-end">

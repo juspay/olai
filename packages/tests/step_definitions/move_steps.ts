@@ -22,6 +22,7 @@ import { Then, When } from "@cucumber/cucumber";
 
 import {
   attr,
+  MOVE_CLOSE,
   MOVE_HIT,
   MOVE_PICKER,
   MOVE_REFUSED,
@@ -102,6 +103,13 @@ Then(
     });
   },
 );
+
+/** Tab out of the box, onto the panel's way out — the position the Escape
+ *  handler had to move up the tree to answer from. `focus()` rather than a
+ *  press, because pressing it would take the way out rather than stand on it. */
+When("I focus the move picker's way out", async function (this: OlaiWorld) {
+  await (await pickerOf(this)).locator(MOVE_CLOSE).first().focus();
+});
 
 /** Put the cursor on a row without taking it — which is what a hover does, and
  *  what makes the aim's refusal a thing a scenario can read one row at a time.

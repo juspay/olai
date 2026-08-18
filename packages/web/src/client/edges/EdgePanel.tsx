@@ -117,6 +117,20 @@ export function EdgePanel(props: {
       class="my-1 w-[min(28rem,90vw)] rounded border border-rule/70 bg-panel p-2"
       data-testid={TESTID.edgePanel}
       data-relation={props.relation}
+      // ESCAPE IS THIS PANEL'S, wherever the caret is inside it — the box, a
+      // hit, an `×` on a chip, or the `Done` somebody tabbed to. It was the
+      // search box's until the shortlist was shared, which meant the key did
+      // nothing anywhere else in the panel; `../edit/RowPanel.tsx` has always
+      // listened on the wrapper, and this is that rule read here.
+      //
+      // Stopped HERE: the row's own editor and the ⌘K palette both listen for
+      // Escape further up, and one key must not close two things.
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return
+        event.preventDefault()
+        event.stopPropagation()
+        props.onClose()
+      }}
     >
       <p class="m-0 mb-1 text-xs text-muted">{words().heading}</p>
 
@@ -153,7 +167,6 @@ export function EdgePanel(props: {
         label={words().placeholder}
         testids={EDGE_LIST}
         onTake={(hit) => props.onWrite(linking(props.node.id, props.relation, hit.id))}
-        onDismiss={() => props.onClose()}
       />
 
       <div class="mt-1 flex items-center justify-end">

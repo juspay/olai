@@ -3,11 +3,11 @@
  * cannot, the sentence that says why.
  *
  * The picker searches the WHOLE SET, so most of what it finds is somewhere the
- * row cannot go: another outline, its own subtree, the Trash. Nothing is
- * hidden — a reader typing a title they can see must find it (`../edges/
- * EdgePanel.tsx` argues that at length for the edge panel: a browser that
- * dropped rows would teach a rule this app does not have) — so every hit is
- * drawn and the ones that cannot take the row say so.
+ * row cannot go: another outline, the Trash, or somewhere this row already
+ * draws. Nothing is hidden — a reader typing a title they can see must find it
+ * (`../edges/EdgePanel.tsx` argues that at length for the edge panel: a browser
+ * that dropped rows would teach a rule this app does not have) — so every hit
+ * is drawn and the ones that cannot take the row say so.
  *
  * ## Asked at the AIM, which is #238's shape read for a keyboard
  *
@@ -28,7 +28,32 @@
  * fact about the SET as this tab is drawing it, and none of them is a guess
  * about the write.
  *
- * ## The current parent is ONE of them, and that was a decision
+ * ## The one walk, and the case a parent walk cannot see
+ *
+ * "Inside" is asked of the DRAWING graph (`@olai/format`'s `drawnFrom`, walked
+ * by its `drawingPath`) rather than of parent links, and that is a correction
+ * this module shipped without: a parent walk answers "is the destination one of
+ * my descendants", which misses the destination that a descendant PLACEMENT
+ * draws. A Now section is mirrors of live work, so
+ *
+ *     now
+ *       now-install   (a mirror of install)
+ *     kitchen
+ *       install
+ *         handles
+ *
+ * offers `install` and `handles` as destinations for `now` — and moving it
+ * there draws `now` inside itself for ever. The parent walk was silent, the
+ * planner had no rule either, and the write gate's validator refused the SET:
+ * an undimmed row, a keystroke, and a refusal about a file nobody wrote, which
+ * is the exact shape this module exists to prevent (found by review, and the
+ * planner grew the same walk in the same change).
+ *
+ * One walk answers every case: the destination is inside this row's own
+ * subtree, is what a placement inside it shows, or — where the row IS a
+ * placement — is what this row itself shows.
+ *
+ * ## The current parent is refused too, and that was a decision
  *
  * The roadmap asked for a ruling: does the picker offer the row's own parent?
  * It is OFFERED (finding it and not finding it is a reader hunting for a bug)
@@ -38,16 +63,15 @@
  * of a list that may be long, from a gesture that reads as "put it where it
  * already is". This app has two affordances that mean exactly that and say so
  * (`Alt+Shift+↑/↓`, and dragging), and the sentence points at them.
- *
- * Pure over the set's own indexes, and the one walk it needs is the FORMAT's
- * (`ancestorsOf`) rather than a loop of its own: what an ancestor chain is —
- * canonical `parent` links, stopping at a placement, safe over a set the
- * validator has already condemned — is that package's answer, and a second
- * spelling here would be free to disagree with the ops layer's own
- * `containing`, which is the refusal this rule arrives one gesture ahead of.
  */
 
-import { ancestorsOf, type Derived, isArchived } from "@olai/format"
+import {
+  chainOf,
+  type Derived,
+  drawingPath,
+  isArchived,
+  isMirror,
+} from "@olai/format"
 
 import { SAME_FILE } from "../across.ts"
 
@@ -55,13 +79,18 @@ import { SAME_FILE } from "../across.ts"
  * THE ROW BEING MOVED — one value, read off the set where the picker is
  * created (`./moving.tsx`) and handed whole to everything that asks about it.
  *
- * Four of the five fields are what a destination is judged against and the
- * fifth is what the panel calls the row out loud, and they are ONE value
+ * Three of the four fields are what a destination is judged against and the
+ * fourth is what the panel calls the row out loud, and they are ONE value
  * because the domain has one: "the row being moved". Passed as a judging shape
  * plus a title beside it, the two would be held together by an unenforced rule
- * (that the title is the title of `shows`) at the one reader that needs both.
- * A function reading four of five fields is ordinary; a caller reassembling one
- * concept out of two arguments is the fragmentation this avoids.
+ * (that the title is the title of what the row shows) at the one reader that
+ * needs both.
+ *
+ * It names the row's OWN RECORD throughout, which is what the write names and
+ * what the drawing walk starts from — so a mirror moves as the placement it is,
+ * and what it draws is asked of the record rather than of the node it stands
+ * for. This value carried that node as a field for one release; the walk made
+ * it unnecessary, because `drawnFrom` follows a placement to its target itself.
  */
 export interface Moved {
   /** The row's OWN record — what the write names, so a mirror moves as the
@@ -74,21 +103,6 @@ export interface Moved {
   readonly title: string
   /** The outline it lives in. */
   readonly file: string
-  /**
-   * The node the row SHOWS — itself for an ordinary row, and a mirror's target
-   * for a placement.
-   *
-   * It is what the never-inside-itself rule is asked of, and the two cases are
-   * one question: a row may not go inside what it DRAWS. For an ordinary row
-   * that is its own subtree (the move would make a loop, which is the
-   * ops layer's own `containing` refusal); for a mirror it is the target's
-   * subtree, where a placement of a node inside what that node shows expands
-   * forever (`planMirror`'s refusal, and the validator's).
-   *
-   * `undefined` for a placement whose chain is broken — nothing is drawn, so
-   * there is nothing to be inside.
-   */
-  readonly shows: string | undefined
   /** The node it sits under NOW, or `null` at the top level of its file. */
   readonly parent: string | null
 }
@@ -104,9 +118,16 @@ export interface Destination {
  * Why this destination cannot take this row — or `null` when it can.
  *
  * The ORDER of the tests is what a reader gets told, and each one is in front
- * of the ones it would otherwise be answered by: a node in the Trash is in
- * another file too, and hearing "another outline" about work that has been put
- * away is a true sentence about the wrong fact.
+ * of the ones it would otherwise be answered by:
+ *
+ *   - the row ITSELF first, because every other sentence would be true of it
+ *     and none of them would be the news;
+ *   - the TRASH before the file rule, because an archive is another outline by
+ *     construction and "another outline" is a true sentence about the wrong
+ *     fact;
+ *   - the FILE rule before the drawing walk, because that is the planner's own
+ *     order (`planMove` refuses a cross-file parent before it asks about
+ *     loops), and this module previews the planner rather than out-ruling it.
  */
 export const whyNot = (
   moved: Moved,
@@ -116,13 +137,6 @@ export const whyNot = (
   if (to.id === moved.id) {
     return `\`${to.title}\` is the row you are moving — nothing can go under itself.`
   }
-  if (drawnBy(moved.shows, to.id, derived)) {
-    return moved.shows === moved.id
-      ? `\`${to.title}\` is inside the row you are moving, so this would fold the ` +
-        `branch into itself.`
-      : `\`${to.title}\` is inside what this row shows, so the placement would be ` +
-        `drawn inside itself and expand forever.`
-  }
   if (isArchived(to.file)) {
     return `\`${to.title}\` has been put away — the Trash holds what is finished ` +
       `with, and nothing is moved INTO it. \`Put back\` is how something comes out.`
@@ -131,6 +145,8 @@ export const whyNot = (
     return `\`${to.title}\` is in \`${to.file}\` and this row lives in ` +
       `\`${moved.file}\`. ${SAME_FILE}`
   }
+  const drawn = drawingPath(derived, moved.id, to.id)
+  if (drawn !== null) return insideItself(derived, to, drawn)
   if (to.id === moved.parent) {
     return `\`${to.title}\` is already this row's parent. A destination puts the row ` +
       `LAST under it, so picking this one would reorder rather than move — ` +
@@ -140,20 +156,30 @@ export const whyNot = (
 }
 
 /**
- * Is `to` inside the subtree rooted at `shows` — itself included?
+ * The sentence for a destination this row already draws — TWO of them, because
+ * they are two different mistakes and only one of them is visible on the page.
  *
- * UPWARD through the parents, which is the direction the question is actually
- * asked in ("is what I picked one of my own descendants?") and the direction
- * the ops layer walks for the identical refusal (`containing`). The walk itself
- * is the FORMAT's `ancestorsOf`: canonical `parent` links, stopping where a
- * chain stops being one, and cycle-safe over a set the validator has already
- * condemned — three rules this file would otherwise be keeping a second copy
- * of, free to disagree with the refusal it arrives one gesture ahead of.
+ * A chain of plain parent links is a destination the reader can SEE under the
+ * row they are moving, and saying so is enough. A chain through a PLACEMENT is
+ * a destination that may be three branches away on screen, and the reader has
+ * no way to know what this row draws — so that one names the chain, in the
+ * spelling `chainOf` gives every other refusal about a loop in this codebase
+ * (the validator's, and the two the ops layer raises). A person who then meets
+ * the planner's own words about the same move reads one story.
  */
-const drawnBy = (
-  shows: string | undefined,
-  to: string,
+const insideItself = (
   derived: Derived,
-): boolean =>
-  shows !== undefined &&
-  (to === shows || ancestorsOf(derived, to).some((one) => one.node.id === shows))
+  to: Destination,
+  drawn: ReadonlyArray<string>,
+): string => {
+  const through = drawn.some((id) => {
+    const at = derived.byId.get(id)
+    return at !== undefined && isMirror(at.node)
+  })
+  return through
+    ? `\`${to.title}\` is drawn inside this row, through a placement — ${
+      chainOf(drawn)
+    } — so putting it there would make the page draw itself for ever.`
+    : `\`${to.title}\` is inside the row you are moving, so this would fold the ` +
+      `branch into itself.`
+}

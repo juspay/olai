@@ -364,6 +364,10 @@ export const MOVE_REFUSED = selector(TESTID.moveRefused);
 /** What the last MOVE said: the ops layer's refusal, or a nudge from one that
  *  landed. Never the same line as the aim's refusal above. */
 export const MOVE_SAID = selector(TESTID.moveSaid);
+/** The picker's way out for a pointer — and the one place in the panel that is
+ *  not the search box, which is what makes it the position Escape has to be
+ *  answered from as well. */
+export const MOVE_CLOSE = selector(TESTID.movePickerClose);
 /** One link from a node to another node, in either of those rows. The target
  *  id rides `data-ref`, which is what a scenario picks one by. */
 export const NODE_REF = selector(TESTID.nodeRef);

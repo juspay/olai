@@ -115,6 +115,27 @@ Feature: The ••• menu opens and shuts
     And the page has not reloaded
     And there should be no page errors
 
+  # ── the panel is taller than the window ─────────────────────────────
+  #
+  # The list is seventeen verbs on a node with children, which is taller than
+  # a laptop window leaves either above or below a row. Floating-ui flips it to
+  # whichever side has more room and then stops helping: the rest hangs off the
+  # screen, where nothing can press it. What answers that is the popper's own
+  # measurement — `--kb-popper-content-available-height` capping the panel, and
+  # the panel scrolling inside the cap (`menu/Dropdown.tsx`).
+  #
+  # It is pinned HERE, and by the LAST entry, because that is the one the next
+  # verb pushes off the edge: a menu that grew an eighteenth would fail this
+  # rather than shipping a verb nobody can reach.
+
+  Scenario: A menu taller than the window keeps its last entry reachable
+    Given the window is shorter than the outline
+    When I open the node menu of "kitchen"
+    Then the node menu offers "Copy as text"
+    And every entry of the node menu is inside the window
+    And the last entry of the node menu can be pressed
+    And there should be no page errors
+
   # ── the panel paints over the page ──────────────────────────────────
   #
   # A top-level row is a sticky section heading (`Tree.tsx`), at the same

@@ -2029,6 +2029,50 @@ describe("move", () => {
     expect(failure.message).toContain("`order` → `kitchen`")
   })
 
+  test("moving a branch under what a PLACEMENT inside it shows is refused too", () => {
+    // The loop the parent walk above cannot see, and the one the write gate
+    // used to catch as a `mirror-cycle` about a file that was never written: a
+    // Now section is mirrors of live work, so `now` DRAWS `install` — and
+    // moving `now` under `install` draws it inside itself for ever. The graph
+    // is `drawnFrom`, the walk is the validator's own, and the refusal names
+    // the chain like every other one about a loop.
+    const set = setOf({
+      "house.olai": [
+        `{"id":"now","ord":"a0","title":"Now"}`,
+        `{"id":"now-install","parent":"now","ord":"a0","mirror":"install"}`,
+        `{"id":"kitchen","ord":"a1","title":"kitchen"}`,
+        `{"id":"install","parent":"kitchen","ord":"a0","title":"install them"}`,
+        `{"id":"handles","parent":"install","ord":"a0","title":"the handles"}`,
+      ].join("\n"),
+    })
+    const failure = refused(set, { op: "move", id: "now", parent: "install" })
+    expect(failure.message).toContain("`now` → `now-install` → `install`")
+    expect(failure.message).toContain("never ends")
+    // …one level deeper, which is the same walk one hop further.
+    expect(refused(set, { op: "move", id: "now", parent: "handles" }).message)
+      .toContain("`now` → `now-install` → `install` → `handles`")
+    // …and a SIBLING of what the placement shows is a legal move, which is
+    // what keeps the rule a rule rather than a fence: `kitchen` is where
+    // `install` lives, not something `now` draws.
+    expect(record(fileOf(planned(set, { op: "move", id: "now", parent: "kitchen" }), "house.olai"), "now").parent)
+      .toBe("kitchen")
+  })
+
+  test("a MIRROR moved under what it shows is refused by the same walk", () => {
+    // The other way into the same cycle, and the one `add_mirror` has always
+    // refused for a placement being CREATED: the record moving is the
+    // placement itself, so what it draws is its target's whole subtree.
+    const set = setOf({
+      "house.olai": [
+        `{"id":"kitchen","ord":"a0","title":"kitchen"}`,
+        `{"id":"install","parent":"kitchen","ord":"a0","title":"install them"}`,
+        `{"id":"echo","parent":"kitchen","ord":"a1","mirror":"install"}`,
+      ].join("\n"),
+    })
+    expect(refused(set, { op: "move", id: "echo", parent: "install" }).message)
+      .toContain("`echo` → `install`")
+  })
+
   test("both `before` and `after` is a usage refusal", () => {
     expect(
       refused(house(), { op: "move", id: "order", before: "demo", after: "install" })._tag,

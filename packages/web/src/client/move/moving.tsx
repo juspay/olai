@@ -152,6 +152,24 @@ export const createMoving = (
     readonly rows: Accessor<ReadonlyArray<Row>>
     readonly collapsed: Accessor<ReadonlySet<string>>
   },
+  /**
+   * WHERE THE CARET GOES when the picker is dismissed — back into the row it
+   * was opened on.
+   *
+   * `⌘⇧M` is the keyboard door, and a keyboard door that leaves focus on
+   * `<body>` is a reader who has to reach for the pointer to get back into the
+   * outline. It is the rule the `•••` menu already keeps (`menu/Dropdown.tsx`'s
+   * `handBack`: a KEY gets the caret back, a pointer does not) and the picker
+   * is where it matters most, because there is no trigger element to restore —
+   * the row's own editor is where the reader was.
+   *
+   * Handed in rather than reached for, because the editor is made from this
+   * same page one line later (`../edit/Editable.tsx`) and the dependency runs
+   * one way: the editor knows the picker, and the picker knows one verb of the
+   * editor's. It takes the ROW, because opening a caret is a fact about a row
+   * and this module holds the place to find one at.
+   */
+  back: (row: Row) => void,
 ): Moving => {
   const derived = useDerived()
   const undo = useUndo()
@@ -199,8 +217,11 @@ export const createMoving = (
     if (held === null || indexes === undefined) return undefined
     const located = indexes.byId.get(held.record)
     if (located === undefined) return undefined
-    // What the row SHOWS: itself, or what a placement points at — the id the
-    // never-inside-itself rule is asked of, and the title the panel names.
+    // The TITLE is the one thing here that is about the node a row SHOWS
+    // rather than about its record, so it is the one thing `follow` is asked
+    // for. What the row DRAWS is not read here at all: the rule walks the
+    // drawing graph from the record itself (`./destination.ts`), which follows
+    // a placement to its target without being handed one.
     const shown = follow(indexes, located)
     return {
       id: located.node.id,
@@ -209,7 +230,6 @@ export const createMoving = (
       // reader can see, and there is nothing else to see.
       title: shown.kind === "found" ? shown.shows.node.title : held.record,
       file: located.file,
-      shows: shown.kind === "found" ? shown.shows.node.id : undefined,
       parent: located.node.parent ?? null,
     }
   })
@@ -243,8 +263,22 @@ export const createMoving = (
       .finally(() => setSending(false))
   }
 
+  /**
+   * Put the picker away, and hand the caret back to the row it was opened on.
+   *
+   * The row is looked up in what is DRAWN now rather than remembered from the
+   * open: a panel can stand through another writer's frame, and the row it is
+   * about may have been redrawn at a new place since (which is what `refound`
+   * above keeps `standing.place` honest through). A row that has left the page
+   * altogether takes nothing back — there is nowhere for a caret to go, and
+   * putting one somewhere else would be worse than leaving it where it is.
+   */
   const close = (): void => {
+    const held = standing()
     setStanding(null)
+    if (held === null) return
+    const row = flatten(page.rows(), page.collapsed()).find((one) => one.key === held.place)
+    if (row !== undefined) back(row)
   }
 
   return {
