@@ -194,6 +194,35 @@ const PLACEMENT_VERB = '[data-testid="node-menu-panel"] >> text=Remove this plac
 const MENU_SAID = '[data-testid="node-menu-said"]'
 const MENU_CONFIRM = '[data-testid="node-menu-confirm"]'
 
+/**
+ * WHERE THE PROMISE LIVES, printed at the top of a section's transcript.
+ *
+ * A reader of the screenshots alone sees pictures rather than proofs — the
+ * point a reviewer of #234 made, and it is the file's opening line read from
+ * the other end: the promises live in the features, so a section should say
+ * WHICH ones rather than leave somebody to grep for them.
+ *
+ * AND THE CITATION IS CHECKED, which is the difference between this and a
+ * comment: a scenario renamed in the suite makes the section that cites it
+ * throw, naming what it could not find, rather than going on printing a
+ * pointer at nothing. Read off `import.meta.dir` rather than the working
+ * directory — `evidence.sh` runs from this package, and a driver that quietly
+ * found no feature file would be back to citing whatever it liked.
+ *
+ * Only the sections that have been through this door carry one. The older ones
+ * predate it and are not retrofitted with pins nobody checked.
+ */
+const pinnedBy = (feature: string, ...scenarios: ReadonlyArray<string>): void => {
+  const text = readFileSync(`${import.meta.dir}/features/${feature}`, "utf8")
+  console.log(`  pinned by: ${feature}`)
+  for (const one of scenarios) {
+    if (!text.includes(`Scenario: ${one}`)) {
+      throw new Error(`${feature} holds no scenario called “${one}” — the pin has gone stale`)
+    }
+    console.log(`             “${one}”`)
+  }
+}
+
 /** Every entry an open panel is offering, in the order it offers them — what a
  *  shot of a menu says in a line, so a section can print the pair above being
  *  exclusive rather than ask a reader to compare two images. */
@@ -238,8 +267,8 @@ const opened = async (page: Page, path: string, marker: string) => {
  * `VAULT` is `evidence.sh`'s copy; without one this prints why rather than a
  * guess, since a shot beside an invented line is worse than a shot alone.
  */
-const recordOf = (id: string): string => {
-  if (VAULT === undefined) return "(no VAULT; run through evidence.sh)"
+const findRecord = (id: string): { file: string; line: string } | undefined => {
+  if (VAULT === undefined) return undefined
   for (const file of readdirSync(VAULT)) {
     // Which files hold records is the format's answer, not a suffix retyped
     // here — the same arrangement `step_definitions/` has with `MARKS`, and for
@@ -247,10 +276,43 @@ const recordOf = (id: string): string => {
     // a disagreement between them is silent.
     if (fileKind(file) !== "outline") continue
     for (const line of readFileSync(`${VAULT}/${file}`, "utf8").split("\n")) {
-      if (line.includes(`"id":"${id}"`)) return `${file} — ${line}`
+      if (line.includes(`"id":"${id}"`)) return { file, line }
     }
   }
-  return `(no record for \`${id}\`)`
+  return undefined
+}
+
+const recordOf = (id: string): string => {
+  if (VAULT === undefined) return "(no VAULT; run through evidence.sh)"
+  const found = findRecord(id)
+  return found === undefined ? `(no record for \`${id}\`)` : `${found.file} — ${found.line}`
+}
+
+/**
+ * WHERE THE NEXT SHOT SAYS THIS RECORD IS — checked against the disk, and a
+ * throw when the disk disagrees. `undefined` is "in no outline at all", which
+ * is what a retired placement is.
+ *
+ * NOT a promise. Promises live in the features (this file's opening line), and
+ * a write that lands in the wrong place is `menu_verbs.feature`'s to fail on.
+ * This is a guard on the PICTURE, in the same category as {@link boxOf}
+ * refusing to aim at nothing: a gesture whose write silently did not land
+ * draws a page that looks exactly like one where it did — the row is gone from
+ * the tab either way — so a screenshot is the one lie this driver is able to
+ * tell all by itself. Both reviewers of #234 arrived at that hole from
+ * different directions; this is what closes it.
+ *
+ * Skipped without a `VAULT`, where the answer is unknown rather than false.
+ */
+const shotSays = (id: string, file: string | undefined): void => {
+  if (VAULT === undefined) return
+  const at = findRecord(id)?.file
+  if (at === file) return
+  throw new Error(
+    `the shot about to be taken says \`${id}\` is ${
+      file === undefined ? "in no outline" : `in ${file}`
+    }, and the files say it is ${at === undefined ? "in none" : `in ${at}`}`,
+  )
 }
 
 /**
@@ -1042,6 +1104,15 @@ const SECTIONS = {
    * three rows under it here and the sentence says three.
    */
   "move-to-trash-from-the-menu": async (page) => {
+    pinnedBy(
+      "menu_verbs.feature",
+      "Moving to the Trash asks first, and names how much goes with it",
+      "The confirm counts what the write moves, not what is on screen",
+      "Confirming moves the subtree to the Trash, ids and all",
+    )
+    // The file BEFORE anything is pressed, so the claim the last two shots make
+    // is a move rather than a coincidence.
+    shotSays("install", "house.olai")
     await openMenu(page, "install")
     // Printed on BOTH sections, because the claim is a pair and half of it is
     // an ABSENCE: a node's own row is offered the put-away and not the retire,
@@ -1057,9 +1128,19 @@ const SECTIONS = {
     await page.waitForTimeout(SETTLE)
     console.log(`  order: ${await order(page)}`)
     console.log(`  the record: ${recordOf("install")}`)
+    // The whole claim of the shot below: the row left the page BECAUSE the
+    // subtree moved, not because a click found the label and wrote nothing.
+    shotSays("install", "Archive.olai")
+    shotSays("knobs", "Archive.olai")
     await shot(page, "gone-from-the-page")
     await opened(page, "/trash", TRASH_PAGE)
-    console.log(`  the pile:\n${await piled(page)}`)
+    const pile = await piled(page)
+    console.log(`  the pile:\n${pile}`)
+    // …and the Trash DRAWS it. The file having moved and the page having drawn
+    // it are two claims, and this shot is the second one.
+    if (pile.includes("(nothing)")) {
+      throw new Error("the Trash drew nothing, and the shot after this says it drew the pile")
+    }
     await shot(page, "in-the-trash")
   },
 
@@ -1079,6 +1160,11 @@ const SECTIONS = {
    * where it lives.
    */
   "retire-a-placement": async (page) => {
+    pinnedBy(
+      "menu_verbs.feature",
+      "Retiring a placement takes the line and leaves the node",
+      "A placement something else still names is refused, naming what",
+    )
     await openMenu(page, "kitchen-herbs")
     console.log(`  the menu offers: ${await verbsOf(page)}`)
     await shot(page, "on-the-placement")
@@ -1108,6 +1194,9 @@ const SECTIONS = {
     await page.locator(MENU_SAID).first().waitFor()
     console.log(`  it says: ${await textOf(page, MENU_SAID)}`)
     console.log(`  untouched: ${recordOf("kitchen-herbs")}`)
+    // A refusal is a write that did NOT happen, so this shot claims the line is
+    // exactly where it was — the one claim a picture of a sentence cannot make.
+    shotSays("kitchen-herbs", "house.olai")
     await shot(page, "refused")
 
     // The way through: that `see` re-pointed at `herbs`, the node the
@@ -1126,6 +1215,10 @@ const SECTIONS = {
     await page.waitForTimeout(SETTLE)
     console.log(`  the line:  ${recordOf("kitchen-herbs")}`)
     console.log(`  the node:  ${recordOf("herbs")}`)
+    // Both halves of what the verb means, and neither is legible in the pixels:
+    // the placement is in no outline at all, and the node it drew never moved.
+    shotSays("kitchen-herbs", undefined)
+    shotSays("herbs", "garden.olai")
     await shot(page, "retired")
     // …and the other half of what "retire a placement" means, which the shot
     // above cannot carry on its own: the node the line was drawing is exactly
