@@ -1522,6 +1522,35 @@ const SECTIONS = {
     await pass(false, "hinges", "order the new cabinets")
     await wearTheme(page, "pitch")
     await pass(true, "handles", "take out the old counters")
+
+    // THE REFUSAL THAT NAMES A CHAIN, which is the one worth looking at rather
+    // than only asserting: a Now section is mirrors of live work, so `Now`
+    // DRAWS the item its placement points at — and a destination three
+    // branches away on screen is "inside" this row for a reason no other
+    // sentence in the panel has to explain. Written by another hand, because
+    // the fixture has no same-file placement of its own (found by review of
+    // this PR; `move_to_picker.feature` pins the words).
+    rewrite("house.olai", [
+      `{"id":"now","ord":"a0","title":"Now"}`,
+      `{"id":"now-install","parent":"now","ord":"a0","mirror":"install"}`,
+      `{"id":"kitchen","ord":"a1","title":"kitchen remodel #home","doing":"2026-08-01"}`,
+      `{"id":"install","parent":"kitchen","ord":"a0","title":"install the cabinets"}`,
+      `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles"}`,
+    ])
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await pickerOn(page, "now")
+    await page.locator(MOVE_SEARCH).fill("install the cabinets")
+    await page.locator(MOVE_HIT).first().waitFor()
+    await page.waitForTimeout(300)
+    console.log(`  drawn-inside says:  ${await textOf(page, MOVE_REFUSED)}`)
+    console.log(`  and it is untouched:  ${recordOf("now")}`)
+    await shot(page, "drawn-inside-refused-dark")
+    await wearTheme(page, "chalk")
+    await pickerOn(page, "now")
+    await page.locator(MOVE_SEARCH).fill("install the cabinets")
+    await page.locator(MOVE_HIT).first().waitFor()
+    await page.waitForTimeout(300)
+    await shot(page, "drawn-inside-refused")
   },
 
   "new-outline": async (page) => {
