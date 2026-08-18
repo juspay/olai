@@ -611,6 +611,13 @@ export const createEditor = (
     toggle: () =>
       enqueue(() => structural((held) => ({ verb: "toggle", id: held.id, mark: "done" }))),
     walk: () => enqueue(() => structural((held) => ({ verb: "walk", id: held.id }))),
+    // The DUPLICATE names the ROW's own record, where the two mark keys above
+    // name what the row SHOWS — the same split `split` and `merge` make, and
+    // the same argument: this key puts rows on the page a reader has open, and
+    // a copy of a mirror's TARGET would be a subtree appearing in a file nobody
+    // is looking at. So a placement is refused in the ops layer's own words.
+    duplicate: () =>
+      enqueue(() => structural((held) => ({ verb: "duplicate", id: held.row }))),
     // A MOVE is about the row itself, so a mirror moves as the placement it is
     // and the node it stands for stays where it lives.
     // The three that LEAVE the caret. Each commits what is being typed first —

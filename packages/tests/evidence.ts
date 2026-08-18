@@ -194,6 +194,50 @@ const PLACEMENT_VERB = '[data-testid="node-menu-panel"] >> text=Remove this plac
 const MENU_SAID = '[data-testid="node-menu-said"]'
 const MENU_CONFIRM = '[data-testid="node-menu-confirm"]'
 
+/** The `•••` menu's own COPY verb, beside the two above for their reason: the
+ *  three writes a row offers about its whole subtree are one family, and a
+ *  label renamed in the client is one line to follow here. */
+const DUPLICATE_VERB = '[data-testid="node-menu-panel"] >> text=Duplicate'
+
+/** Every record of one outline, off the disk the driver is serving. */
+const recordsIn = (file: string): ReadonlyArray<Record<string, unknown>> => {
+  if (VAULT === undefined) throw new Error("no VAULT; run through evidence.sh")
+  return readFileSync(`${VAULT}/${file}`, "utf8")
+    .split("\n")
+    .filter((line) => line.trim() !== "")
+    .map((line) => JSON.parse(line) as Record<string, unknown>)
+}
+
+/**
+ * THE COPY a duplicate just made, found the way a reader finds it: the other
+ * record among the same siblings that says what this one says.
+ *
+ * Its id is MINTED by the write, so nothing here may spell one — which is also
+ * the fact the shots are about. A throw when there are not exactly two is the
+ * guard {@link shotSays} is: a section that photographed the wrong row would
+ * be a picture that lies.
+ */
+const twinOf = (file: string, id: string): Record<string, unknown> => {
+  const records = recordsIn(file)
+  const original = records.find((record) => record["id"] === id)
+  if (original === undefined) throw new Error(`no record \`${id}\` in ${file}`)
+  const twins = records.filter((record) =>
+    record["id"] !== id && record["title"] === original["title"] &&
+    record["parent"] === original["parent"]
+  )
+  if (twins.length !== 1) {
+    throw new Error(`${twins.length} records sit beside \`${id}\` saying what it says`)
+  }
+  return twins[0] as Record<string, unknown>
+}
+
+/** The ids under one record, in file order — what a section prints when the
+ *  claim is about records the copy made rather than about the row on screen. */
+const childIdsOf = (file: string, id: string): ReadonlyArray<string> =>
+  recordsIn(file).filter((record) => record["parent"] === id).map((record) =>
+    String(record["id"])
+  )
+
 /**
  * WHERE THE PROMISE LIVES, printed at the top of a section's transcript.
  *
@@ -1221,6 +1265,64 @@ const SECTIONS = {
    * and the last two shots are the line going while `herbs` stays exactly
    * where it lives.
    */
+  /**
+   * A SUBTREE AND ITS COPY, side by side — and then the copy proved to be a
+   * node of its own by being written to while the original does not move.
+   *
+   * The shot a reviewer actually needs is the third one. The first two show
+   * what happened; only the third shows what it MEANS, because two identical
+   * branches are exactly what a broken duplicate would draw too — a second
+   * placement of the same node, or a copy that shared its ids, would sit there
+   * looking the same. Retitling one row of the copy is the cheapest gesture
+   * that separates them on screen, and the transcript prints both records so
+   * the ids are readable beside the picture.
+   */
+  "a-subtree-and-its-copy": async (page) => {
+    pinnedBy(
+      "duplicate_subtree.feature",
+      "The menu copies the row and everything under it",
+      "An edge inside the copy follows the copy; one that leaves it does not",
+    )
+    // `install the cabinets` is three rows deep with a `doc`, two `todo`
+    // children and an `after` edge leaving the subtree — most of what a record
+    // can carry, which is the point of copying this one.
+    console.log(`  before:    ${recordOf("install")}`)
+    await shot(page, "before")
+
+    await openMenu(page, "install")
+    console.log(`  the menu offers: ${await verbsOf(page)}`)
+    await shot(page, "the-verb")
+
+    await page.locator(DUPLICATE_VERB).first().click()
+    await page.waitForTimeout(SETTLE)
+    const copy = twinOf("house.olai", "install")
+    const id = String(copy["id"])
+    console.log(`  the copy:  ${recordOf(id)}`)
+    // The FRESH-ID guarantee, printed where a picture cannot show it: the copy
+    // of the row that waits on two things waits on the COPY of the one inside
+    // the subtree and on the same `order` outside it.
+    for (const child of childIdsOf("house.olai", id)) {
+      console.log(`             ${recordOf(child)}`)
+    }
+    shotSays("install", "house.olai")
+    shotSays(id, "house.olai")
+    await shot(page, "after")
+
+    // …and the claim the two shots above cannot make on their own. Writing to
+    // the copy leaves the original exactly as it was, which is what "its own
+    // identity" means on a page rather than in a record.
+    await page.locator(title(id)).click()
+    await page.locator('[data-testid="title-editor"]').first().waitFor()
+    await page.keyboard.press("ControlOrMeta+a")
+    await page.keyboard.type("install the cabinets — the spare bathroom")
+    await page.keyboard.press("Enter")
+    await page.keyboard.press("Escape")
+    await page.waitForTimeout(SETTLE)
+    console.log(`  the copy:  ${recordOf(id)}`)
+    console.log(`  untouched: ${recordOf("install")}`)
+    await shot(page, "the-copy-is-its-own-node")
+  },
+
   "retire-a-placement": async (page) => {
     pinnedBy(
       "menu_verbs.feature",
@@ -1344,8 +1446,9 @@ const SHAPES: Partial<Record<Section, Parameters<Browser["newContext"]>[0]>> = {
     hasTouch: true,
     isMobile: true,
   },
-  // The two sections ABOUT the menu, in a window the whole panel fits in — one
-  // name for it, so the third one does not copy a third literal.
+  // The sections ABOUT the menu, in a window the whole panel fits in — one
+  // name for it, so the next one does not copy another literal.
+  "a-subtree-and-its-copy": PANEL_FITS,
   "move-to-trash-from-the-menu": PANEL_FITS,
   "retire-a-placement": PANEL_FITS,
 }

@@ -158,6 +158,14 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       return mirrorRequest(at, edit)
     case "archive":
       return Result.succeed({ op: "archive", id: edit.id })
+    // A duplicate resolves nothing either, and for `archive`'s reason read the
+    // other way: what the copy SAYS is already on disk, so the op reads the
+    // subtree where the write is judged rather than being handed one. A
+    // resolver that assembled it out of `add`s would be the web doing in one
+    // keystroke what MCP needs a call per node for — and it could stop in the
+    // middle, which is the half a person feels.
+    case "duplicate":
+      return Result.succeed({ op: "duplicate", id: edit.id })
     case "unarchive":
       return Result.succeed({
         op: "unarchive",
@@ -779,6 +787,18 @@ export const inverseOf = (
     // same scaffold rebuilt, so ⌘Z after a `Put back` puts it back IN.
     case "unarchive":
       return [{ verb: "archive", id: edit.id }]
+    // A duplicate is taken back by putting the COPY away — `applied` is the
+    // copy's root, never the original, which this write did not touch. It is
+    // `remove`'s answer without `remove`'s narrowing, and the narrowing has
+    // nothing to narrow to: that rule exists because an `add` makes ONE row and
+    // an undo may not take away what somebody built on it, while a duplicate
+    // makes a BRANCH by construction and taking it back means taking the branch
+    // it made. What that leaves open is the same window `archive`'s own inverse
+    // has — a row somebody filed under the copy in the meantime goes with it —
+    // and it goes to the Trash rather than anywhere else, so ⌘⇧Z (an
+    // `unarchive` of the same subtree) is the way back.
+    case "duplicate":
+      return [{ verb: "archive", id: applied }]
     // A placement is taken back by retiring it, and `applied` is the placement
     // the write minted — never the target, which this write did not touch. One
     // edit, exact, and its own inverse is refused by the ops layer for the same

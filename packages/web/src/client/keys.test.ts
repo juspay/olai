@@ -117,6 +117,33 @@ test("neither mark key is a note's", () => {
   expect(editKey(key("Enter", { ctrl: true, shift: true }), "block")).toBeNull()
 })
 
+test("the duplicate is the shifted D chord, on either platform", () => {
+  expect(editKey(key("d", { ctrl: true, shift: true }), "line")).toBe("duplicate")
+  expect(editKey(key("D", { meta: true, shift: true }), "line")).toBe("duplicate")
+})
+
+test("bare ⌘D stays the browser's bookmark key, and Alt does not stand in for Shift", () => {
+  // The SHIFT is required rather than tolerated. Stealing ⌘D inside a text
+  // field would take a chord every browser has trained every reader on, for a
+  // verb that is also two clicks away in the row's menu.
+  expect(editKey(key("d", { ctrl: true }), "line")).toBeNull()
+  expect(editKey(key("d", { meta: true }), "line")).toBeNull()
+  expect(editKey(key("d", { ctrl: true, shift: true, alt: true }), "line")).toBeNull()
+  expect(editKey(key("d", { shift: true }), "line")).toBeNull()
+})
+
+test("the duplicate is dead in a note, like the mark keys", () => {
+  // A note is prose, and the keys that edit a ROW are the row's.
+  expect(editKey(key("d", { ctrl: true, shift: true }), "block")).toBeNull()
+})
+
+test("a pick has no duplicate: bulk verbs are buttons in this app, not chords", () => {
+  // The selection layer answers every other row key and deliberately not this
+  // one — the same ruling that keeps the put-away off the keyboard while rows
+  // are picked (`./keys.ts`).
+  expect(selectKey(key("d", { ctrl: true, shift: true }))).toBeNull()
+})
+
 test("the bare arrows move between rows; modified ones do not", () => {
   expect(editKey(key("ArrowUp"), "line")).toBe("prev")
   expect(editKey(key("ArrowDown"), "line")).toBe("next")

@@ -140,6 +140,30 @@ Feature: An agent olai did not start
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: A terminal duplicates a subtree and the page draws the copy beside it
+    # HACKING.md's parity rule on this PR's op: `duplicate_node` is the same
+    # request the row menu's `Duplicate` and ⌘⇧D send, so what an agent gets is
+    # what a person gets — a second subtree, one row below, sharing no id with
+    # the first. The page follows because the write went through the one ops
+    # layer, not because anything was echoed.
+    When the terminal agent duplicates "install"
+    Then the terminal agent was told it captured 3 nodes
+    And the copy of "install" in "house.olai" repeats every field but the ids and the stamps
+    And "house.olai" holds a copy of "install" with fresh ids throughout
+    And the tree eventually shows a node titled "install the cabinets"
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A placement is not a node, and duplicating one says which node to name
+    # The refusal every op that names a node makes, in the same words — so an
+    # agent that reached for a mirror is told what to reach for instead rather
+    # than quietly copying a subtree in a file nobody asked about.
+    When the terminal agent mirrors "kitchen" at the top of "house.olai" as "now-kitchen"
+    And the terminal agent tries to duplicate "now-kitchen"
+    Then the terminal agent was refused with the kind "usage"
+    And the terminal agent was refused, saying "`now-kitchen` is a mirror — a second placement of `kitchen`, not a node of its own. Name `kitchen` instead."
+    And "house.olai" holds exactly 1 node titled "kitchen remodel #home"
+
   Scenario: A terminal wires a dependency and the page draws what is waiting
     # `set_after` writes the ordering edge, and blockedness is DERIVED from it
     # together with the MARKS — which is why the agent marks first: an unmarked

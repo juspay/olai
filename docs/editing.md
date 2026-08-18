@@ -11,6 +11,7 @@ Click a title and the caret is in it. From there it is the outliner's loop on th
 | **Alt+Shift+↑/↓** | move a row among its siblings |
 | **⌘Enter** / **Ctrl+Enter** | tick it off, or take that back |
 | **⌘⇧Enter** / **Ctrl+⇧Enter** | walk the mark on: to do, then doing, then none |
+| **⌘⇧D** / **Ctrl+⇧D** | duplicate the row, and everything under it |
 | **Shift+Enter** | write the note under it |
 | **↑** / **↓** | walk to the row above or below |
 | **Escape** | drop what you were typing |
@@ -92,6 +93,22 @@ The first row of a level has nothing above it to join, and a row above that is a
 **⌘Z takes either back.** The undo of a split is the merge that puts the two halves back together; the undo of a merge is longer and does the whole thing — the record out of the Trash, back where it sat, its children back under it, and the joined title cut back to what it said. Judged against the outline as it is now, like every other undo below, so an undo that no longer fits says so rather than guessing.
 
 Both keys are ONE write at the same gate everything else goes through, and an agent has them too — `split_node` and `merge_node` are the same two ops. That matters more here than anywhere else on this page: a merge moves four rows and puts a record away, and it either happens whole or does not happen.
+
+## Copying a branch
+
+**⌘⇧D copies the row you are in and everything under it**, as the sibling immediately below. The same verb is `Duplicate` in the row's `•••` menu and in the ⌘K palette on a zoomed node, and `duplicate_node` for an agent — one op, one write, whichever hand asks. It is what a template is for: write the shape once, and take a copy of it every time you need it again.
+
+**The copy is a second THING, not a second view of the first.** Every id in it is new — the row's, and every row under it, however deep — so writing to the copy leaves the original exactly as it was. That is the whole promise, and it is what makes this different from the `((` placement one section up: a mirror is one node in two places, and a duplicate is two nodes.
+
+**Everything else comes across as it was written, the marks included.** A `done` keeps the instant it was stamped at, so the copy is on that day's page too; a `todo` is still a `todo`; the date, the repeat rule, the note, the properties and the document a row names all come with it. Nothing is re-stamped and nothing is cleared, because each of those would put a claim on the copy that nobody made — that it was never a task, that you finished it today, that you have not started it. The two fields that ARE the copy's own are the ones nobody writes on purpose: it was created just now, and nothing has changed it since. The title is copied verbatim too — no `(copy)`, no `#copy` tag — because a title is stored exactly as it was typed and a word nobody typed is a word in somebody's history.
+
+**What the copy points at follows one rule with two halves.** A reference the branch made to ITSELF is re-aimed at the copy: a row that waited on its own sibling waits on the copy of that sibling, a `see` between two rows inside it links the two copies, and a mirror placed under it is copied as a mirror in the same place. A reference that LEFT the branch keeps its target, because that target was not copied and there is nothing else it could mean — so a copied row that waited on something outside still waits on the same thing. The copy is therefore a working copy of the shape rather than a tangle of half-references back into the original.
+
+**A mirror is copied as a placement**, never as a twin: the copied line still shows the node it always showed, wherever that lives, so duplicating a Now list gives you a second list of the same work rather than a second copy of the work.
+
+**There is no Duplicate on a placement.** A mirror's own verb is `Remove this placement`: copying through one would write a branch into the file its target lives in, out of sight of the line you clicked. Ask for it on the node itself.
+
+**⌘Z takes the copy to the Trash**, keeping its ids, and ⌘⇧Z brings it back — the same way back every removal in this app has.
 
 ## Three characters that open something
 
@@ -251,7 +268,7 @@ The palette goes places and asks the agent ([search.md](search.md)); it writes t
 
 **An untouched palette has nothing chosen.** The rows a node can take are listed first, where you can see them, and that is only safe because the highlight is where the arrows START rather than a choice you made: press ⌘K and Enter and nothing happens. The first character you type is the choice, and it lights the best match; ↓ is the other way in.
 
-**The verbs of the node you have ZOOMED.** On `/n/<id>`, the palette lists what that node can take — `Mark todo`, `Complete`, `Clear mark`, `Clear date`, `Move to Trash` — the entries of the row's ••• menu that need no second gesture, decided by the same rule (a verb that would change nothing is not drawn), naming the same ids, and refused in the same words. Each row says which node it is about on its second line, because a palette is opened from anywhere. This is the affordance the zoomed node never had: the ••• hangs off a row, and a zoom is a page.
+**The verbs of the node you have ZOOMED.** On `/n/<id>`, the palette lists what that node can take — `Mark todo`, `Complete`, `Clear mark`, `Clear date`, `Duplicate`, `Move to Trash` — the entries of the row's ••• menu that need no second gesture, decided by the same rule (a verb that would change nothing is not drawn), naming the same ids, and refused in the same words. Each row says which node it is about on its second line, because a palette is opened from anywhere. This is the affordance the zoomed node never had: the ••• hangs off a row, and a zoom is a page.
 
 On any other page there are none of them. A command read out of context must not be aimed at a node you cannot see, and what the address says you are looking at is a fact you and the palette can both see.
 

@@ -42,6 +42,7 @@ import {
   AfterRequest,
   ApplyRequest,
   ArchiveRequest,
+  DuplicateRequest,
   CommitRequest,
   type CommitResult,
   CreateDocumentRequest,
@@ -575,6 +576,13 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "Move a node and everything under it into `Archive.olai` beside its outline, re-creating the chain of ancestor titles it hung off. Ids move with the nodes, so mirrors and edges pointing at them keep resolving. Nothing is stamped: archiving is not finishing. What DOES change beyond the file is which readings draw it: an archived node is out of every date reading — no day page, no calendar day, nothing owed on the agenda — and out of a search unless the query says `is:archived`. Its own dates and marks are untouched, and `unarchive_node` is the way back.",
     ArchiveRequest,
     { op: "archive" },
+  ),
+  write(
+    "duplicate_node",
+    "Duplicate a subtree",
+    "Copy a node and everything under it, as the sibling immediately below it. One call, one write: the whole subtree lands or none of it does, however deep it goes — there is no nesting cap here, because nothing is being described (the op reads what is on disk).\n\nEVERY ID IN THE COPY IS FRESH, root and descendants alike, and that is the whole promise: the copy is a second thing, not a second claim on the first. The answer's `captured` names every node it made, parent before child, so you can mark, retitle or capture under one of them without a search — and `id` is the copy's root.\n\nEVERYTHING ELSE COMES ACROSS VERBATIM, THE MARKS INCLUDED: a `done` keeps the instant it was stamped at (so the copy lands on that day's page too), a `todo` stays a `todo`, and the date, the repeat rule, the note, the properties and the attached `doc` come with it. Nothing is re-stamped and nothing is cleared, because every alternative would invent a claim you did not make; the two fields that ARE the copy's own are `created` (now) and `changed` (absent), which are the ledger's rather than yours. Sweeping the copy's marks afterwards is an `apply`.\n\nWHAT THE COPY POINTS AT follows one rule with two halves. A reference INSIDE the subtree is re-aimed at the copy of what it named — a mirror placed under it, a `see` between two of its nodes, an `after` edge one of them waits on — so the copy is self-contained. A reference OUT of it keeps its target, which was never copied. A mirror is copied as a MIRROR: the placement, not the identity, so a curated list inside the subtree still shows the same node rather than a twin of it.\n\nRefused on the id of a mirror (a placement is not a node — `add_mirror` places a second one), and on an id nothing declares, with the closest one that exists. Where the copy GOES is not a field: it lands beside the original, and `move_node` carries it elsewhere.",
+    DuplicateRequest,
+    { op: "duplicate" },
   ),
   write(
     "unarchive_node",

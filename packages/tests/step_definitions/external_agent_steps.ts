@@ -224,6 +224,26 @@ When(
   },
 );
 
+/**
+ * THE COPY, as a terminal asks for one — one id, and the op reads the rest off
+ * the disk. What comes back is asserted with `duplicate_steps.ts`'s own steps,
+ * which read the records: the claim is about ids and fields rather than about
+ * a row appearing.
+ */
+When(
+  "the terminal agent duplicates {string}",
+  async function (this: OlaiWorld, id: string) {
+    this.toolAnswer = await callTool(agentOf(this), "duplicate_node", { id });
+  },
+);
+
+When(
+  "the terminal agent tries to duplicate {string}",
+  async function (this: OlaiWorld, id: string) {
+    this.toolAnswer = await tryTool(agentOf(this), "duplicate_node", { id });
+  },
+);
+
 /** The arrow is written from the node that WAITS — `a blocks b` is spelled as
  *  `b after a`, and the ops layer writes it one way. */
 When(
@@ -302,6 +322,22 @@ When(
 );
 
 // ── what it was told ───────────────────────────────────────────────────
+
+/** The refusal's own SENTENCE, beside the kind above — because what a refusal
+ *  teaches is the half a caller acts on when the kind alone cannot say which
+ *  node to name instead. */
+Then(
+  "the terminal agent was refused, saying {string}",
+  function (this: OlaiWorld, said: string) {
+    const reason = structuredOf(this)["reason"];
+    assert.ok(
+      typeof reason === "string" && reason.includes(said),
+      `the refusal reads ${JSON.stringify(reason)}, which does not say ` +
+        `${JSON.stringify(said)}`,
+    );
+  },
+);
+
 
 Then(
   "the terminal agent was refused with the kind {string}",

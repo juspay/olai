@@ -1,0 +1,261 @@
+/**
+ * The copy, read off the disk.
+ *
+ * Its own file for the reason the trash's steps are: what a duplicate claims
+ * is not "a row appeared" but "the file now holds a second subtree that says
+ * everything the first one says and shares no id with it" — and that is a
+ * claim about RECORDS, which the tree's steps have no way to make. The page is
+ * still asserted, by the tree's own steps, in the scenarios that press a key;
+ * these are the half a screenshot cannot show.
+ *
+ * NOTHING HERE NAMES THE COPY'S IDS, and it cannot: they are minted by the
+ * write, so a step that spelled one would be a step that only passes against a
+ * fixed `mint`. The copy is found by its PLACE instead — the sibling
+ * immediately below the node that was duplicated — and its descendants are
+ * paired with the original's by walking both subtrees in sibling order. That
+ * pairing is what every assertion below is written against, so an op that
+ * copied the right fields into the wrong shape fails here rather than passing
+ * on a field-by-field spot check.
+ */
+
+import * as assert from "node:assert";
+import { Then } from "@cucumber/cucumber";
+
+import type { OlaiWorld } from "../support/world.ts";
+
+type Record_ = Record<string, unknown>;
+
+/** The fields a copy is ENTITLED to differ in — everything else is compared
+ *  verbatim, which is what makes the field-for-field step below a claim about the
+ *  whole record rather than about the fields somebody remembered to list.
+ *
+ *  `parent` and `ord` are placement, `id` is identity, the two stamps are the
+ *  ledger's, and the four reference fields have their own steps because their
+ *  answer depends on whether the target was inside the subtree. */
+const DIFFERS = new Set([
+  "id",
+  "parent",
+  "ord",
+  "created",
+  "changed",
+  "after",
+  "blocks",
+  "see",
+  "mirror",
+]);
+
+const nodesIn = (world: OlaiWorld, file: string): ReadonlyArray<Record_> =>
+  world.servedNodesSoFar(file) as ReadonlyArray<Record_>;
+
+/** One row of children, in the order the outline reads them — `ord` is a
+ *  fractional index over base62, so plain string comparison IS the sort. */
+const childrenOf = (
+  nodes: ReadonlyArray<Record_>,
+  parent: unknown,
+): ReadonlyArray<Record_> =>
+  nodes
+    .filter((node) => node["parent"] === parent)
+    .slice()
+    .sort((a, b) => (String(a["ord"]) < String(b["ord"]) ? -1 : 1));
+
+const named = (nodes: ReadonlyArray<Record_>, id: string): Record_ => {
+  const found = nodes.find((node) => node["id"] === id);
+  if (found === undefined) throw new Error(`no record \`${id}\` in the outline`);
+  return found;
+};
+
+/**
+ * The original's records paired with the copy's, in sibling order.
+ *
+ * The copy's ROOT is the sibling immediately below the original, which is
+ * where the op puts it and the only thing about the copy this harness may
+ * assume. Everything under it is paired positionally, and a row that does not
+ * line up is a throw naming both sides rather than a quiet miss.
+ */
+const paired = (
+  world: OlaiWorld,
+  file: string,
+  id: string,
+): ReadonlyArray<readonly [Record_, Record_]> => {
+  const nodes = nodesIn(world, file);
+  const original = named(nodes, id);
+  const row = childrenOf(nodes, original["parent"]);
+  const at = row.findIndex((node) => node["id"] === id);
+  const copy = row[at + 1];
+  if (copy === undefined) {
+    throw new Error(`nothing sits below \`${id}\` among its siblings, so there is no copy`);
+  }
+
+  const pairs: Array<readonly [Record_, Record_]> = [];
+  const walk = (left: Record_, right: Record_): void => {
+    pairs.push([left, right]);
+    const mine = childrenOf(nodes, left["id"]);
+    const theirs = childrenOf(nodes, right["id"]);
+    if (mine.length !== theirs.length) {
+      throw new Error(
+        `\`${String(left["id"])}\` has ${mine.length} children and its copy ` +
+          `\`${String(right["id"])}\` has ${theirs.length}`,
+      );
+    }
+    mine.forEach((child, index) => walk(child, theirs[index] as Record_));
+  };
+  walk(original, copy);
+  return pairs;
+};
+
+/** Is the copy on disk yet? The write is a round trip, so every step below
+ *  waits for it rather than reading once. */
+const arrived = (world: OlaiWorld, file: string, id: string): boolean => {
+  try {
+    paired(world, file, id);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const waitForCopy = async (
+  world: OlaiWorld,
+  file: string,
+  id: string,
+): Promise<ReadonlyArray<readonly [Record_, Record_]>> => {
+  await world.waitUntil(
+    async () => arrived(world, file, id),
+    `${file} to hold a copy of ${JSON.stringify(id)} below it`,
+  );
+  return paired(world, file, id);
+};
+
+Then(
+  "{string} holds a copy of {string} with fresh ids throughout",
+  async function (this: OlaiWorld, file: string, id: string) {
+    const pairs = await waitForCopy(this, file, id);
+    for (const [was, copy] of pairs) {
+      assert.notStrictEqual(
+        copy["id"],
+        was["id"],
+        `the copy of \`${String(was["id"])}\` carries its id`,
+      );
+    }
+    // THE GUARANTEE, stated over the whole file rather than over the pairs: no
+    // id in the outline is claimed twice. A copy that reused one would resolve
+    // every reference to whichever record the derivation kept.
+    const ids = nodesIn(this, file).map((node) => String(node["id"]));
+    assert.strictEqual(
+      new Set(ids).size,
+      ids.length,
+      `${file} claims an id twice: ${ids.join(", ")}`,
+    );
+  },
+);
+
+Then(
+  "the copy of {string} in {string} repeats every field but the ids and the stamps",
+  async function (this: OlaiWorld, id: string, file: string) {
+    const pairs = await waitForCopy(this, file, id);
+    for (const [was, copy] of pairs) {
+      const left = Object.fromEntries(
+        Object.entries(was).filter(([key]) => !DIFFERS.has(key)),
+      );
+      const right = Object.fromEntries(
+        Object.entries(copy).filter(([key]) => !DIFFERS.has(key)),
+      );
+      assert.deepStrictEqual(
+        right,
+        left,
+        `the copy of \`${String(was["id"])}\` does not say what it says`,
+      );
+      // Born NOW, and written to by nobody since — the two the ledger owns.
+      // A PLACEMENT carries neither, and carries nothing else either: a mirror
+      // record is `{id, parent, ord, mirror}`, so a stamp on one would be a
+      // field the format does not give it.
+      if (copy["mirror"] !== undefined) continue;
+      assert.ok(
+        typeof copy["created"] === "string" && copy["created"] !== was["created"],
+        `the copy of \`${String(was["id"])}\` should carry a \`created\` of its own`,
+      );
+      assert.strictEqual(
+        copy["changed"],
+        undefined,
+        `the copy of \`${String(was["id"])}\` should carry no \`changed\``,
+      );
+    }
+  },
+);
+
+/** The pair one id names, for the reference steps: the record it was, and the
+ *  record it became. */
+const pairFor = (
+  pairs: ReadonlyArray<readonly [Record_, Record_]>,
+  id: string,
+): readonly [Record_, Record_] => {
+  const found = pairs.find(([was]) => was["id"] === id);
+  if (found === undefined) {
+    throw new Error(`\`${id}\` is not in the subtree that was copied`);
+  }
+  return found;
+};
+
+/**
+ * The two REFERENCE steps name the root that was duplicated AND the row inside
+ * it they are about, because those are two different ids and the pairing is
+ * built from the root. An edge is the one thing a copy may legitimately say
+ * differently from what it copied, so which half of the rule it takes is
+ * asserted per row.
+ */
+Then(
+  "in the copy of {string} in {string}, {string} waits on the copy of {string}",
+  async function (
+    this: OlaiWorld,
+    root: string,
+    file: string,
+    id: string,
+    target: string,
+  ) {
+    const pairs = await waitForCopy(this, file, root);
+    const [, copy] = pairFor(pairs, id);
+    const [, copiedTarget] = pairFor(pairs, target);
+    assert.deepStrictEqual(copy["after"], [copiedTarget["id"]]);
+  },
+);
+
+/** The other half of the rule, and the one asserted with a LITERAL id: an edge
+ *  leaving the subtree keeps the target it always had, because that target was
+ *  not copied and there is nothing else it could mean. */
+Then(
+  "in the copy of {string} in {string}, {string} waits on the copy of {string} and on {string}",
+  async function (
+    this: OlaiWorld,
+    root: string,
+    file: string,
+    id: string,
+    inside: string,
+    outside: string,
+  ) {
+    const pairs = await waitForCopy(this, file, root);
+    const [, copy] = pairFor(pairs, id);
+    const [, copiedTarget] = pairFor(pairs, inside);
+    assert.deepStrictEqual(copy["after"], [copiedTarget["id"], outside]);
+  },
+);
+
+Then(
+  "the copy of {string} in {string} places a mirror of {string}",
+  async function (this: OlaiWorld, id: string, file: string, target: string) {
+    const pairs = await waitForCopy(this, file, id);
+    const placements = pairs
+      .map(([, copy]) => copy)
+      .filter((copy) => copy["mirror"] !== undefined);
+    assert.deepStrictEqual(
+      placements.map((copy) => copy["mirror"]),
+      [target],
+      `the copy should place exactly one mirror, of \`${target}\``,
+    );
+    // A PLACEMENT and nothing else: the four fields a mirror record may carry,
+    // which is what "the placement, not the identity" means on disk.
+    assert.deepStrictEqual(
+      Object.keys(placements[0] as Record_).sort(),
+      ["id", "mirror", "ord", "parent"],
+    );
+  },
+);

@@ -404,6 +404,7 @@ export {
   CreateRequest,
   DateRequest,
   DescRequest,
+  DuplicateRequest,
   MarkRequest,
   MergeRequest,
   Minted,

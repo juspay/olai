@@ -235,6 +235,8 @@ export const plan = (
       return planMerge(scope, request)
     case "archive":
       return planArchive(scope, request)
+    case "duplicate":
+      return planDuplicate(scope, request)
     case "unarchive":
       return planUnarchive(scope, request)
     case "create":
@@ -3170,6 +3172,152 @@ const bareScaffold = (node: Node): boolean => {
   if (isMirror(node)) return false
   const { id: _id, parent: _parent, ord: _ord, title: _title, ...rest } = node
   return Object.keys(rest).length === 0
+}
+
+// ── duplicate ──────────────────────────────────────────────────────────
+
+/**
+ * A node and everything under it, written again as the sibling below it.
+ *
+ * IT READS THE SUBTREE RATHER THAN TAKING ONE, which is what makes it the
+ * shortest op in this file that produces the most records: what the copy says
+ * is already on disk, so there is nothing to describe and nothing a caller can
+ * get wrong. The request is one id ({@link ../../format/src/writing.ts}'s
+ * `DuplicateRequest`, where the semantics are argued).
+ *
+ * THREE DECISIONS ARE MADE HERE, and each of them is the same decision read
+ * from a different angle — that the copy is a second THING and not a second
+ * claim on the first:
+ *
+ *   - **every id in it is fresh** ({@link copiesOf}), so nothing in the set
+ *     resolves to two records and nothing that pointed at the original now
+ *     points at both;
+ *   - **what the copy points AT follows that split** ({@link repointed}). A
+ *     reference inside the subtree is re-aimed at the copy of what it named, so
+ *     the copy is self-contained; one that leaves the subtree keeps its target,
+ *     because that target was never copied. A MIRROR is copied as a mirror —
+ *     the placement, not the identity — which is the roadmap's own word for it:
+ *     a second view of a node is not a second node, and expanding one into a
+ *     twin would be this op inventing content nobody wrote;
+ *   - **the two STAMPS are the copy's own**, exactly as they are on a captured
+ *     node ({@link capturedNode}): `created` is now, and there is no `changed`
+ *     on a record nobody has written to yet. Every other field — the mark and
+ *     its instant, the date, the rule, the note, the properties, the attached
+ *     `doc` — comes across verbatim.
+ *
+ * THE ORDS BELOW THE ROOT ARE COPIED VERBATIM, and that falls out of the ids
+ * being fresh: each copied child sits among copied siblings only, so the keys
+ * that sorted them sort them again. The one key this op has to mint is the
+ * ROOT's, which lands it immediately after the node it copies among that node's
+ * real siblings ({@link placed}).
+ *
+ * WHAT IT REFUSES is what every op that names a node refuses: an id nothing
+ * declares, an id that is a MIRROR (a placement is not a node — `add_mirror`
+ * places a second one), and a file the set could not read. There is no rule of
+ * its own, and deliberately: a subtree that is legal on disk is legal written
+ * twice, because the copy is isomorphic to something the validator has already
+ * approved.
+ */
+const planDuplicate = (
+  scope: Scope,
+  request: Extract<Request, { op: "duplicate" }>,
+): Planned => {
+  const target = editable(scope, request.id)
+  if (Result.isFailure(target)) return Result.fail(target.failure)
+  const { file, node } = target.success
+
+  const records = recordsOf(scope, file)
+  const subtree = subtreeOf(scope, records, node.id)
+  const copies = copiesOf(scope, subtree)
+
+  const id = copies.get(node.id) as string
+  const ords = placed(siblingsOf(scope.derived, file, node.parent), id, { after: node.id })
+  if (Result.isFailure(ords)) return Result.fail(ords.failure)
+  const ord = ordFor(ords.success, id)
+
+  const written = subtree.map((record) => {
+    const copy: Draft<Node> = {
+      ...repointed(record, copies),
+      id: copies.get(record.id) as string,
+      // The ROOT joins the original's row; everything below it hangs off the
+      // copy of whatever it hung off, which is always in the map because a
+      // subtree is closed under its own children.
+      ...(record.id === node.id
+        ? { ...(node.parent === undefined ? {} : { parent: node.parent }), ord }
+        : { parent: copies.get(record.parent as string) as string, ord: record.ord }),
+    }
+    if (isMirror(record)) return copy as MirrorNode
+    // Born now, and never written to since — the stamps a capture writes, said
+    // by the same reasoning rather than copied from the record this came off
+    // (whose `created` is a fact about a different node's past).
+    const born: Draft<RegularNode> = { ...(copy as RegularNode), created: scope.context.now() }
+    delete born.changed
+    return born
+  })
+
+  const under = written.length - 1
+  return Result.succeed(
+    arriving(scope, { file, parent: node.parent }, () => holdsOpenWork(scope, node), {
+      files: [{ file, nodes: withOrds([...records, ...written], ords.success) }],
+      id,
+      title: node.title,
+      file,
+      summary: under === 0
+        ? `duplicate: ${node.title}`
+        : `duplicate: ${node.title} (+${under})`,
+      // The placements are absent from it for the reason they are absent from a
+      // capture's: `captured` names NODES, and a mirror has no title of its own
+      // to report ({@link ../../format/src/writing.ts}'s `WriteResult`).
+      captured: mintedOf(written.filter((record) => !isMirror(record)) as ReadonlyArray<RegularNode>),
+    }),
+  )
+}
+
+/** A fresh id for every record in the subtree, keyed by the id it replaces —
+ *  the whole map decided before any record is built, because a record's
+ *  references may name a node that comes LATER in file order and a half-built
+ *  map would re-point some of them and not others. */
+const copiesOf = (
+  scope: Scope,
+  subtree: ReadonlyArray<Node>,
+): ReadonlyMap<string, string> => {
+  const taken = new Set<string>()
+  const copies = new Map<string, string>()
+  for (const record of subtree) {
+    const fresh = freshId(scope, taken)
+    taken.add(fresh)
+    copies.set(record.id, fresh)
+  }
+  return copies
+}
+
+/**
+ * One record's references, re-aimed at the copies of whatever they named INSIDE
+ * the subtree — and left alone for everything else.
+ *
+ * The fields are the format's own closed list rather than a list spelled here:
+ * {@link targetsOf} answers what a record points at AND with which field, which
+ * is the same function the validator reads forwards and `remove_mirror` reads
+ * backwards. So a fourth relation added to the format is re-pointed by this op
+ * the day it exists, rather than being the one field a copy quietly leaves
+ * aimed at the original.
+ */
+const repointed = (record: Node, copies: ReadonlyMap<string, string>): Node => {
+  const named = targetsOf(record)
+  if (named.length === 0) return record
+  const to = (id: string): string => copies.get(id) ?? id
+  if (isMirror(record)) return { ...record, mirror: to(record.mirror) }
+  const next: Draft<RegularNode> = { ...record }
+  // One pass per FIELD rather than per target: `targetsOf` answers a pair per
+  // id, so a node with three `after` edges names that field three times.
+  for (const field of new Set(named.map(([which]) => which))) {
+    // Unreachable — a regular record does not point with `mirror`, which is the
+    // arm above — and spelled so the closed list stays the thing being read.
+    if (field === "mirror") continue
+    const ids = record[field]
+    if (ids !== undefined) next[field] = ids.map(to)
+  }
+  return next
 }
 
 // ── several writes, one plan ───────────────────────────────────────────

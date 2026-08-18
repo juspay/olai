@@ -50,6 +50,7 @@ test("the zoomed node's own verbs, minus the one that opens a picker", () => {
     "Mark todo",
     "Complete",
     "Clear mark",
+    "Duplicate",
     "Move to Trash",
   ])
   expect(labels("order")).toContain("Clear date")
@@ -86,10 +87,20 @@ test("a row carries the edit it will send, and the archive carries its question"
 
 test("the ids are namespaced, so a shell row and an op row cannot collide", () => {
   expect(opItems(at("kitchen"), derived).map((row) => row.id))
-    .toEqual(["op-mark-todo", "op-mark-done", "op-clear-mark", "op-archive"])
+    .toEqual([
+      "op-mark-todo",
+      "op-mark-done",
+      "op-clear-mark",
+      "op-duplicate",
+      "op-archive",
+    ])
 })
 
 test("with no indexes yet the archive is not offered, rather than uncounted", () => {
+  // The DUPLICATE is still there, and that is the difference between the two
+  // verbs rather than an inconsistency: what a copy would make is decided
+  // where the write is judged, so this one has no number to read off an index
+  // it has not been given.
   expect(opItems(at("kitchen"), undefined).map((row) => row.label))
-    .toEqual(["Mark todo", "Complete", "Clear mark"])
+    .toEqual(["Mark todo", "Complete", "Clear mark", "Duplicate"])
 })

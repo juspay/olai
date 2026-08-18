@@ -62,6 +62,14 @@ test("neither input widget's write moves the row it was typed in", () => {
   expect(redraws(of("mirror"))).toBe(false)
 })
 
+// A DUPLICATE is the placement's case exactly: the copy is a new row AFTER the
+// one the key was pressed in, and the row itself does not move — so the caret
+// stays where it is and nothing suppresses a blur waiting for a frame that
+// changes nothing about this line.
+test("a duplicate leaves the row it was made in exactly where it was", () => {
+  expect(redraws(of("duplicate"))).toBe(false)
+})
+
 // ...and neither does plain text, which is why a committed title never took
 // the caret back in the first place.
 test("text does not move the row either", () => {
