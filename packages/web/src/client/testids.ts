@@ -264,9 +264,11 @@ export const TESTID = {
   edgeVerb: "edge-verb",
   /** The panel that writes one relation of one node — in place under the row,
    *  or under a zoomed node's heading. `data-relation` says WHICH (`see` /
-   *  `after`); present only while it is open. `data-asked` says which query the
-   *  hits in it ANSWER — absent while they answer one the reader has moved on
-   *  from, which is what makes "wait for the rows of this search" askable. */
+   *  `after`); present only while it is open. The shortlist INSIDE it carries
+   *  `data-asked`, which says which query its hits ANSWER — absent while they
+   *  answer one the reader has moved on from, and what makes "wait for the rows
+   *  of this search" askable (`search/Shortlist.tsx`, whose attribute it is
+   *  because the search is what it is about). */
   edgePanel: "edge-panel",
   /** What the node says right now, inside that panel — one chip per target. */
   edgeHeld: "edge-held",
@@ -296,8 +298,9 @@ export const TESTID = {
   /** The panel that carries one row to a new parent — in place under the row,
    *  opened by ⌘⇧M or the `•••` menu's `Move to…`. `data-row` is the RECORD
    *  being moved, which is what makes "the panel followed its row" askable
-   *  after the write lands; `data-asked` is the edge panel's own, and means the
-   *  same thing. Present only while it is open. */
+   *  after the write lands; the shortlist inside it carries `data-asked`, the
+   *  same fact in the same place as the edge panel's. Present only while it is
+   *  open. */
   movePicker: "move-picker",
   /** Its search box — the server's own node search, over the whole set. */
   moveSearch: "move-search",

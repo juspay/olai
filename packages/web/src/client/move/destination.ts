@@ -51,11 +51,27 @@ import { ancestorsOf, type Derived, isArchived } from "@olai/format"
 
 import { SAME_FILE } from "../across.ts"
 
-/** The ROW being moved, as the four facts a destination is judged against. */
+/**
+ * THE ROW BEING MOVED — one value, read off the set where the picker is
+ * created (`./moving.tsx`) and handed whole to everything that asks about it.
+ *
+ * Four of the five fields are what a destination is judged against and the
+ * fifth is what the panel calls the row out loud, and they are ONE value
+ * because the domain has one: "the row being moved". Passed as a judging shape
+ * plus a title beside it, the two would be held together by an unenforced rule
+ * (that the title is the title of `shows`) at the one reader that needs both.
+ * A function reading four of five fields is ordinary; a caller reassembling one
+ * concept out of two arguments is the fragmentation this avoids.
+ */
 export interface Moved {
   /** The row's OWN record — what the write names, so a mirror moves as the
    *  placement it is and the node it stands for stays where it lives. */
   readonly id: string
+  /** What the row SAYS: the title of the node it shows, for the one line the
+   *  panel writes about what is being moved. The only field here no rule
+   *  judges — a title is what a reader recognises the row by, and every other
+   *  field is an id or a path. */
+  readonly title: string
   /** The outline it lives in. */
   readonly file: string
   /**

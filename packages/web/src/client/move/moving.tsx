@@ -193,7 +193,7 @@ export const createMoving = (
   /** The row being moved, as the SET says it now — re-read per frame rather
    *  than captured at open, so a panel left standing while an agent writes is
    *  judging destinations against where the row has actually got to. */
-  const moved = createMemo<{ readonly moved: Moved; readonly title: string } | undefined>(() => {
+  const moved = createMemo<Moved | undefined>(() => {
     const held = standing()
     const indexes = derived()
     if (held === null || indexes === undefined) return undefined
@@ -203,13 +203,14 @@ export const createMoving = (
     // never-inside-itself rule is asked of, and the title the panel names.
     const shown = follow(indexes, located)
     return {
-      moved: {
-        id: located.node.id,
-        file: located.file,
-        shows: shown.kind === "found" ? shown.shows.node.id : undefined,
-        parent: located.node.parent ?? null,
-      },
+      id: located.node.id,
+      // A placement whose chain died draws no title anywhere, so the row is
+      // called by the one thing it still is: its id. The panel says what a
+      // reader can see, and there is nothing else to see.
       title: shown.kind === "found" ? shown.shows.node.title : held.record,
+      file: located.file,
+      shows: shown.kind === "found" ? shown.shows.node.id : undefined,
+      parent: located.node.parent ?? null,
     }
   })
 
@@ -268,12 +269,7 @@ export const createMoving = (
         <Show when={standing()?.kind === "picking"}>
           <Show when={moved()}>
             {(at) => (
-              <MovePicker
-                moved={at().moved}
-                title={at().title}
-                onWrite={write}
-                onClose={close}
-              />
+              <MovePicker moved={at()} onWrite={write} onClose={close} />
             )}
           </Show>
         </Show>

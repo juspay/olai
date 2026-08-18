@@ -65,6 +65,7 @@ const at = (id: string): Destination => {
  *  showing itself. */
 const INSTALL: Moved = {
   id: "install",
+  title: "install the cabinets",
   file: "house.olai",
   shows: "install",
   parent: "kitchen",
@@ -119,6 +120,7 @@ test("the row's CURRENT parent is refused, and says what it would have done", ()
  *  file. Its own record has no children; what it DRAWS is `install`'s subtree. */
 const PLACEMENT: Moved = {
   id: "kitchen-install",
+  title: "install the cabinets",
   file: "house.olai",
   shows: "install",
   parent: "kitchen",
@@ -141,6 +143,12 @@ test("...and may go anywhere else in its file, including under a node it does no
 test("a placement drawing nothing is inside nothing", () => {
   // A chain that died: there is no subtree to be inside, so only the ordinary
   // rules apply. The row is still movable, which is what the `•••` offers.
-  const lost: Moved = { id: "lost", file: "house.olai", shows: undefined, parent: "kitchen" }
+  const lost: Moved = {
+    id: "lost",
+    title: "lost",
+    file: "house.olai",
+    shows: undefined,
+    parent: "kitchen",
+  }
   expect(whyNot(lost, at("handles"), derived)).toBeNull()
 })

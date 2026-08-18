@@ -84,7 +84,7 @@ When(
     // scenario that searches twice would otherwise assert against the first
     // search's list.
     await this.page
-      .locator(`${MOVE_PICKER}${attr("data-asked", text.trim())}`)
+      .locator(`${MOVE_PICKER} ${attr("data-asked", text.trim())}`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.page
       .locator(MOVE_HIT)
