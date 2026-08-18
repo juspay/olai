@@ -18,23 +18,22 @@
 
 import { Show } from "solid-js"
 
+import { ENTRY_SHAPE, ROW_GAP } from "../layout/entry.ts"
 import { LAYER } from "../layer.ts"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { hrefOf } from "../routes.ts"
-import { CONTROL, TARGET } from "../touch.ts"
+import { CONTROL } from "../touch.ts"
 import type { Pin } from "./pins.ts"
 
-/** The row's own box, and the two faces it wears — the same hover and
- *  current-page wash the file tree's entries wear (`../Sidebar.tsx`'s
- *  `ENTRY_SHAPE`), because a pin is one more way to a page and not a different
- *  kind of thing. Spelled here rather than imported for the one reason that
- *  file's own comment gives: the ink is the row's business, and this row has a
- *  control on it that the tree's rows do not. */
-const ROW = `group/pin relative flex ${TARGET} w-full items-center gap-1.5 rounded-md px-2 py-0.5 ` +
-  "text-[0.8125rem] leading-snug text-ink no-underline hover:bg-rule/50 " +
-  "aria-[current=page]:bg-accent/15 aria-[current=page]:text-accent " +
-  "aria-[current=page]:font-semibold md:min-h-0"
+/**
+ * The row's own box, and the two faces it wears — the SAME shape and gap every
+ * other entry in this column wears (`../layout/entry.ts`), because a pin is one
+ * more way to a page and not a different kind of thing. What it adds is what
+ * this row has and the tree's rows do not: a positioned box, because it carries
+ * a control over its right edge.
+ */
+const ROW = `group/pin relative ${ENTRY_SHAPE} ${ROW_GAP} w-full text-ink`
 
 export function Pin(props: {
   readonly pin: Pin
@@ -117,7 +116,8 @@ export function Pin(props: {
       <button
         type="button"
         class={`absolute right-1 top-1/2 -translate-y-1/2 ${LAYER.row} ${CONTROL} ` +
-          "rounded text-muted opacity-0 transition-opacity hover:text-ink " +
+          "cursor-pointer rounded border-0 bg-transparent p-0 text-xs leading-none " +
+          "text-muted opacity-0 transition-opacity hover:text-alarm " +
           "focus-visible:opacity-100 group-hover/pin:opacity-100"}
         data-testid={TESTID.pinRemove}
         aria-label={`unpin ${props.name}`}
@@ -128,9 +128,10 @@ export function Pin(props: {
           props.onRemove()
         }}
       >
-        <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true" fill="currentColor">
-          <path d="M4.28 3.22a.75.75 0 0 0-1.06 1.06L6.94 8l-3.72 3.72a.75.75 0 1 0 1.06 1.06L8 9.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L9.06 8l3.72-3.72a.75.75 0 0 0-1.06-1.06L8 6.94 4.28 3.22z" />
-        </svg>
+        {/* The CHARACTER, as every other `×` in this app is drawn
+            (`../edges/DropRef.tsx`): a path of its own would be a second
+            drawing of a mark the type already has. */}
+        ×
       </button>
     </li>
   )

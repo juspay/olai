@@ -36,7 +36,7 @@
  * forced layout for an answer that cannot have changed.
  */
 
-import { createMemo, createSignal, For, Show } from "solid-js"
+import { createMemo, createSelector, createSignal, For, Show } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
 import { useUndo } from "../edit/undoing.ts"
@@ -165,7 +165,12 @@ export function Shelf() {
     void applying({ verb: "archive", id: pin.id }, undo.record).then(sayPin)
   }
 
-  const here = createMemo(() => hrefOf(router.route()))
+  // `createSelector` rather than comparing in each row, which is the sidebar's
+  // own reason one line down (`../Sidebar.tsx`): that form subscribes every
+  // pin to the open page, and this notifies exactly the row that lit and the
+  // one that went out. Through the BIJECTION rather than `samePage`, because a
+  // pinned filtered page and the same page unfiltered are two different doors.
+  const isHere = createSelector(() => hrefOf(router.route()))
 
   return (
     <Show when={pins().length > 0}>
@@ -180,7 +185,7 @@ export function Shelf() {
                 // one function that answers it (`../routes.ts`), so the shelf
                 // cannot disagree with the filter bar about it.
                 narrowing={filterOf(pin.route)}
-                current={here() === hrefOf(pin.route)}
+                current={isHere(hrefOf(pin.route))}
                 lifted={carrying()?.from === at()}
                 onGrab={(event) => grab(at(), event)}
                 dragged={() => travelled}
@@ -188,13 +193,12 @@ export function Shelf() {
               />
             )}
           </For>
-          {/* Where it would land. Drawn only while something is carried, and
-              positioned against the LIST rather than the page, so it does not
-              have to know where in the column the shelf sits. */}
-          {/* Drawn from the carried value alone, which is what makes the gap
-              ABOVE the first pin (zero, and the landing a reader is most
-              likely to aim at) drawable at all: as three loose facts this was
-              a `Show` over a number, and zero is falsy. */}
+          {/* Where it would land: drawn only while something is carried,
+              positioned against the LIST rather than the page (so it does not
+              have to know where in the column the shelf sits), and read off
+              the carried value alone — which is what makes the gap ABOVE the
+              first pin drawable at all, since as a loose number that gap is
+              zero and a `Show` reads zero as absent. */}
           <Show when={carrying()}>
             {(held) => (
               <li

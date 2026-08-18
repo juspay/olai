@@ -104,44 +104,13 @@ import { Glyph } from "./file/icons.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
 import { LAYER, WITHIN } from "./layer.ts"
+import { ENTRY_SHAPE, ROW_GAP } from "./layout/entry.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
 import { Shelf } from "./pins/Shelf.tsx"
 import { Link, useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
-
-/** One entry's box, hover and current-page wash — everything about it EXCEPT
- *  what colour the words are. The ink is split out because the agenda's entry
- *  changes it (`./agenda/owed.ts`), and two utilities setting one property are
- *  settled by the order Tailwind emitted its rules in rather than by the order
- *  they were written here: appending `text-alarm` to a class that already says
- *  `text-ink` is a coin toss, which is the trap `./calendar/Day.tsx` composes
- *  per-property to avoid. So every user of this names an ink, and exactly one
- *  does. */
-const ENTRY_SHAPE =
-  `flex ${TARGET} items-center break-all rounded-md px-2 py-0.5 text-[0.8125rem] leading-snug ` +
-  "no-underline hover:bg-rule/50 aria-[current=page]:bg-accent/15 " +
-  "aria-[current=page]:text-accent aria-[current=page]:font-semibold md:min-h-0"
-
-/** The space between the things on a row of the tree — a glyph, a name, and
- *  the mark when a file could not be read.
- *
- *  ONE gap for both kinds of row, spelled once, because the two agreeing is a
- *  promise and not a coincidence: a folder's name and a file's name are read
- *  as one column of names, and a folder row that took a different gap would
- *  put its names a couple of pixels off every file's for as long as nobody
- *  looked. Named for the same reason `./touch.ts` names the tree's
- *  `GUTTER_GAP` rather than repeating it down the row: a gap that is written
- *  twice is a rule, and a rule is what nothing enforces.
- *
- *  It MOVES the folder rows, and that is the promise rather than a side
- *  effect: a folder's row was `gap-0.5`, so adopting this widens
- *  triangle-to-glyph from 2px to 6px. Two pixels of difference between the two
- *  kinds of row is exactly what "one column of names" rules out, and the
- *  before/after shots are where it can be checked — the folder rows are inside
- *  the region this PR says DIFFERS, not the ones it says are byte-identical. */
-const ROW_GAP = "gap-1.5"
 
 /** One file entry. Workflowy-quiet: soft hover, a wash when current.
  *

@@ -18,7 +18,6 @@ import type { Derived } from "@olai/format"
 
 import type { PaletteItem } from "../palette/items.ts"
 import type { Route } from "../routes.ts"
-import { TESTID } from "../testids.ts"
 import { nameOf } from "./name.ts"
 import { pinnedAt } from "./pins.ts"
 
@@ -28,7 +27,7 @@ export const pinItem = (
 ): PaletteItem => {
   const already = pinnedAt(derived, route)
   return {
-    id: TESTID.pinToggle,
+    id: "pin-page",
     label: already === undefined ? "Pin this page" : "Unpin this page",
     hint: "⌘⇧P",
     // WHICH page, on the second line — the slot a search hit puts its ancestry

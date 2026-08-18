@@ -61,9 +61,6 @@ export const TESTID = {
   pinRemove: "pin-remove",
   /** The line that says where a dragged pin would land. */
   pinDropLine: "pin-drop-line",
-  /** The palette's pin row — one row with two labels, since pinning and
-   *  unpinning are one affordance over one address. */
-  pinToggle: "pin-toggle",
   /** Rail icon: jump to today. */
   railCalendar: "rail-calendar",
   /** Rail icon: open outlines / home. */
