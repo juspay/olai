@@ -51,11 +51,28 @@
  */
 export const LAYER = {
   /**
-   * Hangs off a ROW, in the outline's own flow — the `•••` menu's panel and
-   * the line beside it (`menu/`). Above the rows it is drawn over, and under
-   * every piece of chrome: a menu opened next to the chat dock or under the
-   * header is the one that gives way, because the reader asked for the chrome
-   * first and it is still there when the menu goes.
+   * Over a ROW, under every piece of chrome. Two different things sit here
+   * and they are not interchangeable:
+   *
+   *   - **in the tree**: a sticky section heading (`Tree.tsx`). It covers the
+   *     rows scrolling under it, and it is page content — later siblings at
+   *     this same layer paint over earlier ones, which is how a heading holds
+   *     the seam.
+   *   - **out of the tree**: anything that HANGS off a row — the `•••` menu,
+   *     the title-cell completions, the drop line, the sweep band. These must
+   *     PORTAL to the document. A `z-index` only compares inside its own
+   *     stacking context, and a sticky heading is one: an overlay left in the
+   *     row is cut in two the moment the next section arrives
+   *     (`menu-under-headers`). The number is the same; the tree position is
+   *     the whole of what makes the claim true. The socket is
+   *     {@link ./overlay.ts}: one `position: fixed` box at the viewport
+   *     origin, because Kobalte's popper is `strategy: "absolute"` and a
+   *     body-mounted absolute box is positioned against the document.
+   *
+   * A menu opened next to the chat dock or under the header is still the one
+   * that gives way — the reader asked for the chrome first, and it is still
+   * there when the menu goes. Portalling does not promote the overlay; it
+   * lets this layer mean what it says.
    */
   row: "z-20",
   /**
