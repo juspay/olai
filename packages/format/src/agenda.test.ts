@@ -1,12 +1,16 @@
 import { expect, test } from "bun:test"
 
 import {
+  type AgendaDay,
   agendaOf,
+  feltOn,
   isOverdue,
   keepingOwed,
   nothingDue,
+  owedFact,
   owedIn,
   owedOf,
+  quietBetween,
   UPCOMING_DAYS,
 } from "./agenda.ts"
 import { derive, type Derived } from "./derive.ts"
@@ -64,12 +68,17 @@ const SET = derive(
   }),
 )
 
-/** The ids a section lists, across its groups and in the order it lists them —
- *  the membership and the order are one promise. */
+/** The ids a run of day groups lists, in the order it lists them — the
+ *  membership and the order are one promise. */
 const listed = (
   groups: ReadonlyArray<{ readonly nodes: ReadonlyArray<{ readonly shows: Located }> }>,
 ): ReadonlyArray<string> =>
   groups.flatMap((group) => group.nodes.map((entry) => entry.shows.node.id))
+
+/** The same, over a run of DAYS — what the two halves of the line hold, read
+ *  end to end, which is the order the page draws them in. */
+const across = (days: ReadonlyArray<AgendaDay>): ReadonlyArray<string> =>
+  days.flatMap((day) => listed(day.groups))
 
 /** One record, parsed the way every fixture in this package is — the predicate
  *  takes a node rather than a set, so this is all it needs. */
@@ -148,10 +157,29 @@ test("a task with no date is not late — it has no WHEN to be late against", ()
 
 // ── the page ───────────────────────────────────────────────────────────
 
-test("Overdue is every slipped task in the set, oldest first, grouped by outline", () => {
+test("what slipped arrives as DAYS, oldest first, each grouped by outline", () => {
   const agenda = agendaOf(SET, TODAY)
-  expect(agenda.overdue.map((group) => group.file)).toEqual(["work.olai"])
-  expect(listed(agenda.overdue)).toEqual(["permit", "posts"])
+  // A day is where a node goes on the line, so late work brings the day it was
+  // owed on with it — one day per date, ascending, and the outline grouping
+  // kept INSIDE each of them (the page flattens it; the reading does not).
+  expect(agenda.overdue.map((day) => day.date)).toEqual(["2026-08-03", "2026-08-10"])
+  expect(agenda.overdue.map((day) => day.groups.map((group) => group.file)))
+    .toEqual([["work.olai"], ["work.olai"]])
+  expect(across(agenda.overdue)).toEqual(["permit", "posts"])
+})
+
+test("late days are unbounded, where the days ahead stop at seven", () => {
+  // A horizon on what is LATE would be the page quietly dropping the one answer
+  // no day page can give. Ten slipped days, ten dots on the line.
+  const slipped = derive(
+    nodesOfFiles({
+      "work.olai": Array.from({ length: 10 }, (_, index) => {
+        const day = String(1 + index).padStart(2, "0")
+        return `{"id":"d${day}","ord":"a${index}","title":"day ${day}","todo":true,"date":"2026-08-${day}"}`
+      }).join("\n"),
+    }),
+  )
+  expect(agendaOf(slipped, TODAY).overdue.length).toBe(10)
 })
 
 test("Today is the day page's answer, minus what is finished", () => {
@@ -182,9 +210,9 @@ test("a day whose only work is already done is not upcoming at all", () => {
 test("undated work is absent from the whole page", () => {
   const agenda = agendaOf(SET, TODAY)
   const everywhere = [
-    ...listed(agenda.overdue),
+    ...across(agenda.overdue),
     ...listed(agenda.today),
-    ...agenda.upcoming.flatMap((day) => listed(day.groups)),
+    ...across(agenda.upcoming),
   ]
   // `paint` is work nobody scheduled and `filed` is work whose only date is on
   // its mark. Neither has a WHEN, and inventing one is what this refuses to do.
@@ -200,14 +228,14 @@ test("an occurrence whose day has passed simply leaves", () => {
   // `delivery` was the 4th and carries no mark. It is not overdue, and its day
   // is behind us, so it is on no section of the agenda — while it is still on
   // the 4th's own page, where a reader can go and find it.
-  expect(listed(agendaOf(SET, TODAY).overdue)).not.toContain("delivery")
+  expect(across(agendaOf(SET, TODAY).overdue)).not.toContain("delivery")
 })
 
 test("every entry arrives situated, the way a day page's does", () => {
   // A title torn out of its outline says nothing, and the agenda collects from
   // all over the set — so the ancestry, the mark and what is in the way ride
   // along, computed by the same `situate` a day uses.
-  const [permit] = agendaOf(SET, TODAY).overdue[0]!.nodes
+  const [permit] = agendaOf(SET, TODAY).overdue[0]!.groups[0]!.nodes
   expect(permit!.trail.map((crumb) => crumb.node.id)).toEqual(["deck"])
   expect(permit!.status).toBe("doing")
   expect(permit!.occasion).toBe("date")
@@ -226,9 +254,27 @@ test("a blocked task keeps both answers, and stays on the agenda", () => {
       ].join("\n"),
     }),
   )
-  const [wire] = agendaOf(blocked, TODAY).overdue[0]!.nodes
+  const [wire] = agendaOf(blocked, TODAY).overdue[0]!.groups[0]!.nodes
   expect(wire!.shows.node.id).toBe("wire")
   expect(wire!.blocked.map((one) => one.at.node.id)).toEqual(["trench"])
+})
+
+test("one row per node, even where a day holds both of its dates", () => {
+  // A node scheduled for a past day and finished on another past day is on
+  // neither: `done` extinguishes overdue. The half worth pinning is the shape —
+  // what is behind us is built from the same bucketed walk, so a node can only
+  // ever reach it through its `date`.
+  const both = derive(
+    nodesOfFiles({
+      "work.olai": [
+        `{"id":"open","ord":"a0","title":"still open","todo":true,"date":"2026-08-04"}`,
+        `{"id":"shut","ord":"a1","title":"finished late","done":"2026-08-09T09:00:00-04:00","date":"2026-08-04"}`,
+      ].join("\n"),
+    }),
+  )
+  const [day, ...rest] = agendaOf(both, TODAY).overdue
+  expect(rest).toEqual([])
+  expect(listed(day!.groups)).toEqual(["open"])
 })
 
 test("a mirror is a placement, so late work is late once", () => {
@@ -240,7 +286,7 @@ test("a mirror is a placement, so late work is late once", () => {
       "now.olai": `{"id":"posts-now","ord":"a0","mirror":"posts"}`,
     }),
   )
-  expect(listed(agendaOf(mirrored, TODAY).overdue)).toEqual(["posts"])
+  expect(across(agendaOf(mirrored, TODAY).overdue)).toEqual(["posts"])
 })
 
 test("an agenda with nothing due says so, and says it once", () => {
@@ -287,7 +333,7 @@ test("the counts are the rows the page draws, across every outline", () => {
   expect(owed).toEqual({ overdue: 2, today: 2 })
 })
 
-test("a count is of NODES, and never of the outlines they are grouped under", () => {
+test("a count is of NODES, and never of the days or outlines holding them", () => {
   // The same two late tasks, one per file: a mark saying "2" means two things
   // are late, and a group-count would have said the same number for the wrong
   // reason — so they are split here on purpose.
@@ -300,6 +346,15 @@ test("a count is of NODES, and never of the outlines they are grouped under", ()
   const agenda = agendaOf(spread, TODAY)
   expect(agenda.overdue.length).toBe(2)
   expect(owedOf(agenda).overdue).toBe(2)
+  // Two files on two days here; a set with both on ONE day is still two.
+  const together = derive(
+    nodesOfFiles({
+      "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-09"}`,
+      "life.olai": `{"id":"visas","ord":"a0","title":"send the visa forms","todo":true,"date":"2026-08-09"}`,
+    }),
+  )
+  expect(agendaOf(together, TODAY).overdue.length).toBe(1)
+  expect(owedOf(agendaOf(together, TODAY)).overdue).toBe(2)
 })
 
 test("what is COMING is not owed: Upcoming is no part of the counts", () => {
@@ -362,9 +417,9 @@ const selecting = (text: string): ReadonlySet<string> =>
     matching(SET, parseFilter(text, TODAY)).map(({ at }) => at.node.id),
   )
 
-test("every section narrows, and one left with nothing stops being a section", () => {
+test("every stretch of the line narrows, and a day left with nothing leaves it", () => {
   const agenda = agendaOf(SET, TODAY)
-  expect(listed(agenda.overdue)).toEqual(["permit", "posts"])
+  expect(across(agenda.overdue)).toEqual(["permit", "posts"])
   expect(listed(agenda.today)).toEqual(["birthday", "ferry"])
 
   const ferry = keepingOwed(agenda, selecting("ferry"))
@@ -393,7 +448,7 @@ test("a day in Upcoming with nothing left leaves it, heading and all", () => {
 /** How many rows the PAGE draws, which is the second number in the filter
  *  bar's "1 of 6" — Upcoming included, where `owedOf` leaves it out because a
  *  task due next Tuesday is not news today. */
-test("what an agenda draws is every row of all three sections", () => {
+test("what an agenda draws is every row of the whole line", () => {
   const agenda = agendaOf(SET, TODAY)
   expect(owedIn(agenda)).toBe(6)
   expect(owedIn(keepingOwed(agenda, selecting("ferry")))).toBe(1)

@@ -245,20 +245,18 @@ test("a day's note goes while a filter is on, and comes back when it clears", ()
 const agenda: Agenda = agendaOf(derived, TODAY)
 const owed: Drawn = { kind: "agenda", agenda }
 
-test("the agenda narrows section by section, and counts every row it draws", () => {
+test("the agenda narrows day by day, and counts every row it draws", () => {
   // Everything dated the 14th slipped, and none of it is finished — except the
-  // archived one, which is on no section at all now that what was put away is
+  // archived one, which is nowhere on the line now that what was put away is
   // the trash's alone.
-  expect(agenda.overdue.flatMap((group) => group.nodes.map((one) => one.shows.node.id)))
-    .toEqual(["order", "hinges"])
+  expect(datedIds(owed)).toEqual(["order", "hinges"])
 
   const reading = narrowing(owed, "is:todo")
   expect(reading.total()).toBe(2)
   expect(reading.shown()).toBe(1)
   const drawn = reading.drawn()
-  // One outline's worth of overdue rows left, narrowed to the one that says
-  // `todo` — `order` is `doing`, and the archive is not here to be a second
-  // group.
+  // One late DAY left, narrowed to the row that says `todo` — `order` is
+  // `doing`, and the archive is not here to be a second anything.
   expect(drawn.kind === "agenda" ? drawn.agenda.overdue.length : -1).toBe(1)
   expect(datedIds(drawn)).toEqual(["hinges"])
 })
@@ -345,13 +343,13 @@ const notesIn = (drawn: Drawn): ReadonlyArray<string> =>
   only(drawn, "day")?.notes ?? []
 
 /** Every group a date-shaped page draws, whichever of the two it is — the
- *  agenda's three sections read as the one list they are made of. */
+ *  agenda's line read as the one list of groups it is made of. */
 const groupsIn = (drawn: Drawn): ReadonlyArray<DayGroup> => {
   const day = only(drawn, "day")
   if (day !== undefined) return day.groups
   const owed = only(drawn, "agenda")?.agenda
   return owed === undefined ? [] : [
-    ...owed.overdue,
+    ...owed.overdue.flatMap((gone) => gone.groups),
     ...owed.today,
     ...owed.upcoming.flatMap((ahead) => ahead.groups),
   ]
@@ -443,14 +441,14 @@ test("a day handed an archived row still does not widen the scope", () => {
   expect(narrowing(drawn, "is:archived").shown()).toBe(1)
 })
 
-test("the agenda handed one does not either, in any of its three sections", () => {
+test("the agenda handed one does not either, anywhere on its line", () => {
   const group = putAwayOnADay()
-  const sections: ReadonlyArray<Agenda> = [
-    { overdue: [group], today: [], upcoming: [] },
+  const stretches: ReadonlyArray<Agenda> = [
+    { overdue: [{ date: "2026-08-10", groups: [group] }], today: [], upcoming: [] },
     { overdue: [], today: [group], upcoming: [] },
     { overdue: [], today: [], upcoming: [{ date: "2026-08-14", groups: [group] }] },
   ]
-  for (const agenda of sections) {
+  for (const agenda of stretches) {
     const reading = narrowing({ kind: "agenda", agenda }, "shims")
     expect(reading.shown()).toBe(0)
     expect(datedIds(reading.drawn())).toEqual([])

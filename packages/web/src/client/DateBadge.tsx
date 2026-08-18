@@ -6,6 +6,18 @@
  * a badge is not a good reason to be the first place in this codebase that
  * parses one.
  *
+ * ## What it prints is what it was HANDED
+ *
+ * The prop is `says` rather than `date`, and the word is the whole promise:
+ * this file prints a string beside a title and reads none of it. Nearly
+ * everywhere that string IS the node's date — a tree row, a day entry, a
+ * zoomed heading. On the agenda's spine it is one fact the day heading has not
+ * already given: "3 days late" under a day that has gone, "14:00" on a
+ * datetime (`@olai/format`'s `owedFact`, where the counting happens). The
+ * verbatim principle above is what makes that safe rather than a leak — a pill
+ * that worked out how late something was would be a component doing date
+ * arithmetic; a pill handed the sentence is still printing what it was given.
+ *
  * One component, so a row and that row's own page carry the same badge — and
  * the `date` testid stays one promise rather than two spellings of it.
  *
@@ -51,7 +63,9 @@ import { Pill } from "./Pill.tsx"
 import { TESTID } from "./testids.ts"
 
 export function DateBadge(props: {
-  readonly date: string
+  /** What the pill PRINTS. Verbatim, and decided by whoever knows what this
+   *  surface has already said — see the header. */
+  readonly says: string
   /** Which of the node's dates this is. Absent means the `date` field, which
    *  is what a tree row draws and needs no saying. */
   readonly occasion?: Occasion
@@ -80,7 +94,7 @@ export function DateBadge(props: {
       <Show when={occasion() !== "date"}>
         <span class="mr-1 opacity-70">{occasion()}</span>
       </Show>
-      {props.date}
+      {props.says}
     </Pill>
   )
 }

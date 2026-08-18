@@ -1,8 +1,16 @@
-Feature: The agenda — what is owed
+Feature: The agenda — what is owed, on one line of time
   The agenda is a QUERY, not a place, exactly as a day page is: nothing on disk
   is the agenda. It is every dated node in the served directory read FORWARD —
   what slipped, what is on today, what is coming — and the reading is `date`
   and the mark together, with no new field anywhere.
+
+  It is DRAWN as one continuous spine of time (`agenda-spine`, ruled
+  2026-08-18): a line down the left with NOW marked on it, every listed day a
+  dot, what has gone above it and what is coming below it, receding. There are
+  no Overdue / Today / Upcoming boxes — three boxes gave a task seventy-three
+  days out the same claim on a reader as one due on Monday — so a scenario here
+  asks which SIDE OF NOW a day is on (`data-when`) rather than which heading it
+  was filed under.
 
   Which is the whole of it: a date with a `todo` or a `doing` on it is work
   somebody said was work and said when, and that is the only thing that can be
@@ -18,18 +26,44 @@ Feature: The agenda — what is owed
   out that something slipped without opening the page that would have said so.
 
   @corpus:agenda
-  Scenario: Overdue is every slipped task, oldest first, grouped by outline
+  Scenario: What slipped is a run of days above now, oldest first
     When I open the agenda
-    Then the agenda has the sections "overdue"
-    # Grouped by outline, in path order, because a `parent` never crosses a
-    # file — the same heading a day page uses, for the same reason.
-    And the "overdue" section groups are "life.olai, work.olai"
-    # `permit` is dated before `posts` and written after it, so a page ordering
-    # by line rather than by date would put them the other way round.
-    And the "overdue" section lists "visas, permit, posts"
+    # Three late tasks on three different days, and the line runs through all
+    # three before it reaches now — which is drawn whether or not anything is
+    # due on it.
+    Then the agenda spine runs "late, late, late, today"
+    And the spine's "late" days are "2019-10-30, 2019-11-03, 2019-11-05"
+    # TIME ORDER, across the outlines: `permit` is in work.olai and `visas` in
+    # life.olai, and on a line a day is where a node goes. The old page grouped
+    # by file first and read "visas, permit, posts".
+    And the spine's "late" rows are "permit, visas, posts"
     # `doing` IS overdue-capable (human, 2026-08-12): started-but-unfinished is
     # the most honest answer to "should this have happened by now".
     And the node "permit" has status "doing"
+    And there should be no page errors
+
+  @corpus:agenda
+  Scenario: A day says how far away it feels, and the chrome is gone
+    When I open the agenda
+    # No ISO date in a day heading: the weekday and the month are what a reader
+    # feels. The page's own `data-date` and the heading's link still carry the
+    # date itself. (The felt distance beside it — "7 years ago" — is not
+    # asserted here: it is true today and will be eight of them one day.)
+    Then the day "2019-11-05" says "Tue, Nov 5"
+    # No file heading over any day — the repetition this page was redrawn to
+    # lose. Which outline a row is in is the muted line under it.
+    And the agenda draws no file headings
+    # …and the ancestry is still there, as one muted line under the row itself.
+    And the ancestors of "visas" are "the coast trip"
+    And there should be no page errors
+
+  @corpus:agenda
+  Scenario: A silence between two listed days is content
+    When I open the agenda
+    # Nothing has been owed since 2019, and the page says so beside the line
+    # rather than leaving a reader to subtract two headings. Asked by the WAIT
+    # rather than by the words, which round.
+    Then the agenda notes a silence of at least 2000 days
     And there should be no page errors
 
   @corpus:agenda
@@ -82,6 +116,15 @@ Feature: The agenda — what is owed
     Then the date on "posts" is overdue
 
   @corpus:agenda
+  Scenario: Now is a place on the line, drawn with nothing due on it
+    When I open the agenda
+    # The fixtures are dated in 2019, so nothing is due today — and the dot is
+    # still there, saying so. A section would have vanished.
+    Then the agenda spine runs "late, late, late, today"
+    And the day "2019-11-05" says "Tue, Nov 5"
+    And there should be no page errors
+
+  @corpus:agenda
   Scenario: The agenda is one address, reachable from the directory
     Given I open the app
     And I mark the page
@@ -93,22 +136,58 @@ Feature: The agenda — what is owed
 
   @scratch:agenda
   Scenario: Today is what today holds, and what is coming is the days ahead
-    # Nothing in the fixtures is dated this century, so the two forward sections
-    # are empty until something is written into them — which is also the honest
-    # test of a node arriving under an open page.
+    # Nothing in the fixtures is dated this century, so the line ends at now
+    # until something is written past it — which is also the honest test of a
+    # node arriving under an open page.
     Given I open the agenda
     And I mark the page
-    Then the agenda has the sections "overdue"
+    Then the agenda spine runs "late, late, late, today"
     When something is scheduled for today in "work.olai"
-    Then the agenda has the sections "overdue, today"
-    And the "today" section lists "due-today"
+    Then the spine's "today" rows are "due-today"
     When something is scheduled for tomorrow in "work.olai"
-    Then the agenda has the sections "overdue, today, upcoming"
-    And the upcoming days are tomorrow
-    And the "upcoming" section lists "due-soon"
-    # Each upcoming heading is the way to that day's own page, where the note
+    Then the agenda spine runs "late, late, late, today, ahead"
+    And the days ahead are tomorrow
+    And the spine's "ahead" rows are "due-soon"
+    # Each day's heading is the way to that day's own page, where the note
     # somebody wrote on it and the work already finished are read.
-    And the upcoming day for tomorrow links to that day
+    And the day ahead for tomorrow links to that day
+    And the page has not reloaded
+    And there should be no page errors
+
+  @scratch:agenda
+  Scenario: The future recedes — felt distance, a named silence, and no date pills
+    # Two days ahead, a fortnight apart, so the line has a real gap in it. The
+    # dates are written while the page is open because a tracked fixture cannot
+    # name a day nobody knows in advance.
+    Given I open the agenda
+    And I mark the page
+    When something is scheduled for tomorrow in "work.olai"
+    And something is scheduled 14 days from today in "work.olai"
+    Then the agenda spine runs "late, late, late, today, ahead, ahead"
+    # Each says how far away it FEELS, in the unit a person would use.
+    And the day for tomorrow says "Tomorrow"
+    And the day 14 days from today says "in 2 weeks"
+    # And the thirteen days between them are a silence the page names.
+    And the agenda notes "two quiet weeks"
+    # Neither row wears a date pill: the day above it has already said the day,
+    # and neither of them is late or names a time.
+    And "due-soon" wears no date pill
+    And "due-in-14" wears no date pill
+    And the page has not reloaded
+    And there should be no page errors
+
+  @scratch:agenda
+  Scenario: A late row's pill says HOW late, and a timed one says when
+    # The two facts a day heading cannot give, and the only two a pill is kept
+    # for on this page.
+    Given I open the agenda
+    And I mark the page
+    When something is scheduled for yesterday in "work.olai"
+    Then the pill on "due-yesterday" says "1 day late"
+    And the date on "due-yesterday" is overdue
+    When something is scheduled for two o'clock tomorrow in "work.olai"
+    Then the pill on "due-at-two" says "14:00"
+    And the date on "due-at-two" is not overdue
     And the page has not reloaded
     And there should be no page errors
 
@@ -129,12 +208,12 @@ Feature: The agenda — what is owed
   Scenario: Something slipped, and the entry to it is on fire
     Given I open the outline "work.olai"
     # Three late tasks over two outlines, counted as NODES: a mark saying "3"
-    # means three things are late, not that three files hold them.
+    # means three things are late, not that three files or three days hold them.
     Then the agenda entry is on fire with 3 late
     And the agenda entry says "Agenda — 3 overdue"
     # The same three the page lists, one click away.
     When I follow the agenda link
-    Then the "overdue" section lists "visas, permit, posts"
+    Then the spine's "late" rows are "permit, visas, posts"
     And there should be no page errors
 
   @corpus:agenda
@@ -213,7 +292,7 @@ Feature: The agenda — what is owed
     When every date is taken off "life.olai"
     And every date is taken off "work.olai"
     Then the agenda is empty
-    And the agenda has no sections
+    And the agenda draws no spine
     # Not a dead end: the directory is still the way on.
     And the outline list is shown
     And the page has not reloaded

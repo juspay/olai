@@ -6,18 +6,18 @@
  * never crosses a file, so two nodes in two outlines have no shared ancestry to
  * draw them under — and within a group each node brings its own.
  *
- * ONE component for every page that draws that answer: a day (./DayPage.tsx)
- * and each of the agenda's sections (../agenda/AgendaPage.tsx), which is the
- * same question asked forward. The grouping itself is the format's
- * (`byOutline`), so what is shared here is only how it looks — and it is shared
- * rather than copied because two pages listing the set's dated nodes two ways
- * would be two answers a reader has to reconcile.
+ * THE DAY PAGES' — and, since `agenda-spine` (2026-08-18), theirs alone. The
+ * agenda used to draw this too; it draws a spine now, and a spine has no file
+ * headings on it (../agenda/Spine.tsx says why the chrome went). What the two
+ * still share is the ROW (./DayNode.tsx), which is the part that matters: two
+ * pages listing the set's dated nodes two ways would be two answers a reader
+ * has to reconcile, and the grouping itself is the format's (`byOutline`)
+ * either way.
  *
- * What DIFFERS between them is where a group's heading sits in the page's own
- * outline of headings — a day's groups hang off its `h1`, the agenda's off a
- * section and, in Upcoming, off a day inside it — so the level is the caller's
- * to name. It is a heading either way: moving by headings is how a long page of
- * these is skimmed at all.
+ * What DIFFERS between the day pages is where a group's heading sits in the
+ * page's own outline of headings — a day's groups hang off its `h1` — so the
+ * level is the caller's to name. It is a heading either way: moving by headings
+ * is how a long page of these is skimmed at all.
  */
 
 import type { DayGroup } from "@olai/format"
@@ -66,7 +66,12 @@ function Group(props: {
         {/* An entry is one record of the set, which `file/id` names the same
             way `Row.key` names a place in a tree. */}
         <Key each={props.group.nodes} by={placeOf}>
-          {(dated) => <DayNode dated={dated()} />}
+          {/* The date, printed verbatim, and the trail above the row: a day
+              page has said which outline this is in the heading over it, so
+              the ancestry goes between the two. */}
+          {(dated) => (
+            <DayNode dated={dated()} trail="over" pill={dated().date} />
+          )}
         </Key>
       </ul>
     </section>

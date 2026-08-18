@@ -142,18 +142,18 @@ Feature: Setting a date from the web
     Then the node "knobs" is shown
     And there should be no page errors
 
-  Scenario: A past date on a task puts it in Overdue, without a reload
+  Scenario: A past date on a task puts it above now on the line, without a reload
     # The agenda is the consumer, and it is a QUERY over the same dates: a
     # `todo` given a day that has gone is late by construction, and the page
     # that collects it is one SPA navigation away from the row it was set on.
-    # `knobs` is the new one; `order` was already late, and oldest goes first.
+    # `knobs` is the new one, dated 2019; `order` was already late and is dated
+    # 2026 — and the line runs oldest first, so the new one goes above it.
     When I open the node menu of "knobs"
     And I choose "Set date…" from the node menu
     And I pick the date "2019-11-05"
     Then the node "knobs" shows the date "2019-11-05"
     When I follow the agenda link
-    Then the agenda has the sections "overdue"
-    And the "overdue" section lists "knobs, order"
+    Then the spine's "late" rows are "knobs, order"
     And the date on "knobs" is overdue
     And the page has not reloaded
     And there should be no page errors

@@ -1,13 +1,15 @@
 /**
  * The agenda: what is owed, read forward off the same dates a day page reads
- * backward.
+ * backward — and drawn as ONE SPINE OF TIME (`agenda-spine`, 2026-08-18).
  *
  * Two things these steps are careful about, and both are the journal's own
- * rules one page over. WHICH section a list belongs to is asked by
- * `data-section` rather than by the words the heading is titled with — the
- * three sections are a promise and their wording is not — and a section with
- * nothing in it is absent rather than empty, so "which sections are on screen"
- * is a list of facts and not a count of headings.
+ * rules one page over. WHERE a day sits is asked by `data-when` — `late`,
+ * `today`, `ahead` — rather than by the words its heading is titled with: which
+ * side of now a day is on is a promise, and "Yesterday · Mon, Aug 17" is not.
+ * And a day with nothing on it is absent rather than empty, so "what the line
+ * runs through" is a list of facts and not a count of headings. TODAY is the
+ * one exception, and it is the ruling rather than a leak: now is a place on the
+ * line whether or not anything is due on it.
  *
  * And TODAY is asked of the clock with the same function the client uses
  * (`client/clock.ts`), imported rather than re-spelled, for the reason
@@ -22,6 +24,7 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
+import { shiftDay } from "@olai/format";
 import { isoDayOf, untilMidnight } from "@olai/web/src/client/clock.ts";
 
 import {
@@ -31,7 +34,8 @@ import {
   AGENDA_LINK,
   AGENDA_OWED,
   AGENDA_PAGE,
-  AGENDA_SECTION,
+  AGENDA_QUIET,
+  AGENDA_SPINE,
   attr,
   DATE,
   DAY_GROUP,
@@ -56,12 +60,13 @@ const tomorrow = (): string => {
   return isoDayOf(new Date(now.getTime() + untilMidnight(now)));
 };
 
-/** One section of the page, by what it MEANS. Exported for the reason
- *  `outline_tree_steps.ts`'s `revealGutter` is: a second file asserts about a
- *  section (`repeat_steps.ts`, for the occurrence a completion made), and a
- *  second spelling of "which section" would be two answers to it. */
-export const sectionSelector = (section: string): string =>
-  `${AGENDA_SECTION}${attr("data-section", section)}`;
+/** The days on one stretch of the line, by which side of now they are on.
+ *  Exported for the reason `outline_tree_steps.ts`'s `revealGutter` is: a
+ *  second file asserts about a day's standing (`repeat_steps.ts`, for the
+ *  occurrence a completion made), and a second spelling of it would be two
+ *  answers to one question. */
+export const standingSelector = (when: string): string =>
+  `${AGENDA_DAY}${attr("data-when", when)}`;
 
 // ── opening it ─────────────────────────────────────────────────────────
 
@@ -92,60 +97,167 @@ Then("the agenda says it is today", async function (this: OlaiWorld) {
 // ── what is on it ──────────────────────────────────────────────────────
 
 /**
- * Which of the three are on screen, in the order they are drawn.
+ * The line, day by day: which side of now each one is on, in the order it is
+ * drawn.
  *
- * Each one is WAITED FOR before the whole list is compared, and that is what
- * makes the step usable under a live page: a node written into today's date
- * arrives on the next revision the store publishes, and a list read the instant
- * the file lands would be the previous frame's answer — which, with Overdue
- * already drawn, is a perfectly plausible wrong one. The full-list compare is
- * still what says a section is ABSENT and what says they are in this order.
+ * The whole shape of the page in one list — what has gone, above now, above
+ * what is coming — and it is read as FACTS rather than as headings, so a
+ * scenario says nothing about the words a day is titled with.
+ *
+ * Each standing is WAITED FOR before the whole list is compared, and that is
+ * what makes the step usable under a live page: a node written into today's
+ * date arrives on the next revision the store publishes, and a list read the
+ * instant the file lands would be the previous frame's answer — which, with the
+ * late days already drawn, is a perfectly plausible wrong one.
  */
 Then(
-  "the agenda has the sections {string}",
+  "the agenda spine runs {string}",
   async function (this: OlaiWorld, expected: string) {
-    for (const section of expected.split(",").map((one) => one.trim())) {
+    for (const when of new Set(expected.split(",").map((one) => one.trim()))) {
       await this.page
-        .locator(sectionSelector(section))
+        .locator(standingSelector(when))
+        .first()
         .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
     }
-    await expectDrawn(this.page.locator(AGENDA_SECTION), "data-section", expected);
+    await expectDrawn(this.page.locator(AGENDA_DAY), "data-when", expected);
   },
 );
 
-Then("the agenda has no sections", async function (this: OlaiWorld) {
-  assert.strictEqual(
-    await this.page.locator(AGENDA_SECTION).count(),
-    0,
-    "a section is on screen with nothing in it; an empty one is not drawn at all",
+/** No line at all — the page's own claim that there is nothing to draw one
+ *  for. A lone today dot over an empty page is a diagram of nothing, so the
+ *  line is drawn exactly when something is owed. */
+Then("the agenda draws no spine", async function (this: OlaiWorld) {
+  await expectAbsent(
+    this,
+    AGENDA_PAGE,
+    AGENDA_SPINE,
+    "the agenda draws a line of time with nothing on it",
   );
 });
 
-/** The outlines one section groups its nodes under, in the order it draws
- *  them — path order, the same heading rule a day page follows. */
-Then(
-  "the {string} section groups are {string}",
-  async function (this: OlaiWorld, section: string, expected: string) {
-    await expectDrawn(
-      this.page.locator(`${sectionSelector(section)} ${DAY_GROUP}`),
-      "data-file",
-      expected,
-    );
-  },
-);
+/** The chrome that went: no file heading over any day. Which outline a row
+ *  lives in is the muted ancestry under it and the `data-file` on it — a
+ *  heading per file per day was the repetition this page was redrawn to lose. */
+Then("the agenda draws no file headings", async function (this: OlaiWorld) {
+  await this.page
+    .locator(AGENDA_SPINE)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.strictEqual(
+    await this.page.locator(`${AGENDA_PAGE} ${DAY_GROUP}`).count(),
+    0,
+    "the agenda heads a day with the outline its rows came from",
+  );
+});
 
-/** Every node of one section, in DOM order — across its groups, because the
- *  order within a group and the order of the groups are one reading. */
+/** Every row of one stretch of the line, in DOM order — across its days,
+ *  because the order within a day and the order of the days are one reading. */
 Then(
-  "the {string} section lists {string}",
-  async function (this: OlaiWorld, section: string, expected: string) {
+  "the spine's {string} rows are {string}",
+  async function (this: OlaiWorld, when: string, expected: string) {
     await expectDrawn(
-      this.page.locator(`${sectionSelector(section)} ${NODE}`),
+      this.page.locator(`${standingSelector(when)} ${NODE}`),
       "data-node-id",
       expected,
     );
   },
 );
+
+/** The days one stretch of the line runs through, oldest first. What a scenario
+ *  asks when the DAYS are the answer — three late tasks on three days is three
+ *  dots, where the same three in two outlines used to be two groups. */
+Then(
+  "the spine's {string} days are {string}",
+  async function (this: OlaiWorld, when: string, expected: string) {
+    await expectDrawn(
+      this.page.locator(standingSelector(when)),
+      "data-date",
+      expected,
+    );
+  },
+);
+
+/**
+ * What a day CALLS itself: felt distance and a weekday, never an ISO date.
+ *
+ * Asked of the day's own heading, which is also the link to its page — and
+ * asked as words the heading CONTAINS rather than the whole of it, because a
+ * scenario about "Tomorrow" has no business also pinning which Tuesday
+ * tomorrow happens to be.
+ */
+const expectSays = async (
+  world: OlaiWorld,
+  date: string,
+  said: string,
+): Promise<void> => {
+  await world.page
+    .locator(`${AGENDA_DAY}${attr("data-date", date)} h2`)
+    .filter({ hasText: said })
+    .first()
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+};
+
+Then(
+  "the day {string} says {string}",
+  async function (this: OlaiWorld, date: string, said: string) {
+    await expectSays(this, date, said);
+  },
+);
+
+/** The same, for the two days a tracked fixture cannot name — the suite works
+ *  out the date the way the client would and asks about the words. */
+Then(
+  "the day for tomorrow says {string}",
+  async function (this: OlaiWorld, said: string) {
+    await expectSays(this, tomorrow(), said);
+  },
+);
+
+Then(
+  "the day {int} days from today says {string}",
+  async function (this: OlaiWorld, days: number, said: string) {
+    await expectSays(this, shiftDay(isoDayOf(new Date()), days), said);
+  },
+);
+
+/** A silence the page NAMES, in the words it names it with. */
+Then(
+  "the agenda notes {string}",
+  async function (this: OlaiWorld, said: string) {
+    await this.page
+      .locator(AGENDA_QUIET)
+      .filter({ hasText: said })
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+/** The same silence asked by the WAIT behind it rather than by its words — for
+ *  a scenario over fixtures dated in 2019, where "seven quiet years" is true
+ *  today and will be eight of them one day. `data-days` is the count; the words
+ *  round it. */
+Then(
+  "the agenda notes a silence of at least {int} days",
+  async function (this: OlaiWorld, least: number) {
+    const label = this.page.locator(AGENDA_QUIET).first();
+    await label.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const days = Number(await label.getAttribute("data-days"));
+    assert.ok(
+      days >= least,
+      `the silence the agenda names is ${days} days, not the ${least}+ expected`,
+    );
+  },
+);
+
+/** A gap the page draws no words for — the whitespace is still there and still
+ *  grows with the wait, but "one quiet week" is not a silence anybody notices. */
+Then("the agenda notes no silence", async function (this: OlaiWorld) {
+  await expectAbsent(
+    this,
+    AGENDA_SPINE,
+    AGENDA_QUIET,
+    "the agenda names a silence too short to be worth a word",
+  );
+});
 
 /**
  * Not on the page at all — which is most of what this feature is about: an
@@ -193,15 +305,19 @@ Then("the agenda does not say it is empty", async function (this: OlaiWorld) {
 
 // ── the days ahead ─────────────────────────────────────────────────────
 
-Then("the upcoming days are tomorrow", async function (this: OlaiWorld) {
-  await expectDrawn(this.page.locator(AGENDA_DAY), "data-date", tomorrow());
+Then("the days ahead are tomorrow", async function (this: OlaiWorld) {
+  await expectDrawn(
+    this.page.locator(standingSelector("ahead")),
+    "data-date",
+    tomorrow(),
+  );
 });
 
 /** The heading is the way THROUGH: a day page is the fuller answer, and the
  *  agenda deliberately shows neither the note somebody wrote on it nor the
  *  work already finished. */
 Then(
-  "the upcoming day for tomorrow links to that day",
+  "the day ahead for tomorrow links to that day",
   async function (this: OlaiWorld) {
     const date = tomorrow();
     const link = this.page.locator(`${AGENDA_DAY}${attr("data-date", date)} a`).first();
@@ -232,6 +348,35 @@ const expectOverdue = async (
 Then("the date on {string} is overdue", async function (this: OlaiWorld, id: string) {
   await expectOverdue(this, id, true);
 });
+
+/** WHAT the pill says, where the words are the point: on the spine a date pill
+ *  is kept only where it adds a fact the day's own heading has not already
+ *  given — how late the work is, or the time on a datetime. */
+Then(
+  "the pill on {string} says {string}",
+  async function (this: OlaiWorld, id: string, said: string) {
+    const pill = this.page.locator(`${nodeSelector(id)} ${DATE}`).first();
+    await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await pill.innerText().catch(() => "")).trim() === said,
+      `the pill on "${id}" to say "${said}"`,
+    );
+  },
+);
+
+/** And the other half of that rule: no pill at all where the day above the row
+ *  has already said the date. */
+Then(
+  "{string} wears no date pill",
+  async function (this: OlaiWorld, id: string) {
+    await expectAbsent(
+      this,
+      nodeSelector(id),
+      `${nodeSelector(id)} ${DATE}`,
+      `the row "${id}" repeats a date its day heading already gave`,
+    );
+  },
+);
 
 Then(
   "the date on {string} is not overdue",
@@ -386,6 +531,55 @@ When(
       title: "collect the keys",
       todo: true,
       date: tomorrow(),
+    });
+  },
+);
+
+/** Work that slipped ONE day, which is the smallest lateness there is and the
+ *  one the pill spells in the singular. */
+When(
+  "something is scheduled for yesterday in {string}",
+  function (this: OlaiWorld, file: string) {
+    this.appendServed(file, {
+      id: "due-yesterday",
+      ord: "z8",
+      title: "sign the rental agreement",
+      todo: true,
+      date: shiftDay(isoDayOf(new Date()), -1),
+    });
+  },
+);
+
+/** And work at a TIME, which is the one fact a day heading cannot give and so
+ *  the one a future row still keeps a pill for. */
+When(
+  "something is scheduled for two o'clock tomorrow in {string}",
+  function (this: OlaiWorld, file: string) {
+    this.appendServed(file, {
+      id: "due-at-two",
+      ord: "z9",
+      title: "the rheumatology appointment",
+      todo: true,
+      date: `${tomorrow()}T14:00`,
+    });
+  },
+);
+
+/** A day further out than the two above can name — what the SPINE needs and
+ *  they cannot give: a silence between two listed days is a fact about the
+ *  distance between them, and two consecutive days have none. Counted with the
+ *  client's own step (`clock.ts`'s `shiftDay`, through `@olai/format`), for the
+ *  reason `tomorrow` is: a suite doing its own calendar arithmetic would
+ *  disagree with the browser twice a year. */
+When(
+  "something is scheduled {int} days from today in {string}",
+  function (this: OlaiWorld, days: number, file: string) {
+    this.appendServed(file, {
+      id: `due-in-${days}`,
+      ord: `z${days}`,
+      title: `the ${days}-day thing`,
+      todo: true,
+      date: shiftDay(isoDayOf(new Date()), days),
     });
   },
 );
