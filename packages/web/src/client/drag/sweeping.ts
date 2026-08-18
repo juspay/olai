@@ -55,7 +55,7 @@
 import { type Accessor, createSignal } from "solid-js"
 
 import { createDrags, TRAVEL_PX } from "../pointer.ts"
-import { type Line, measureLines } from "./lines.ts"
+import { type Line, measureLines, paneOf } from "./lines.ts"
 import { planSweep, type Run, type Sweep } from "./sweep.ts"
 
 /**
@@ -151,8 +151,14 @@ export const createSweeping = (selection: Picked): Sweeping => {
       // legal thing to have picked, and the bulk verbs refuse what they must by
       // name on the bar (`../select/SelectionBar.tsx`) rather than by the
       // gesture pretending those rows are not on screen.
+      //
+      // SCOPED TO THE PANE the pull began in, which is not a detail a split
+      // workspace lets slide: a `Row.key` is a chain from the roots of ITS page,
+      // so two panes showing one file draw two sets of lines wearing the same
+      // keys, and a sweep of the whole document would hand this pane's pick the
+      // other one's boxes (`./lines.ts`).
       onStart: () => {
-        rows = measureLines()
+        rows = measureLines(paneOf(on))
       },
       // Y only, and ON THE PAGE — which moves under a pointer held near an edge
       // of the window, so a sweep reaches past the fold (`../pointer.ts`).

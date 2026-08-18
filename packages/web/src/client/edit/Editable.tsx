@@ -22,6 +22,15 @@
  * selection to find out whether it is carrying one row or all of them, and the
  * sweep writes a run into it.
  *
+ * THE DRAG IS THE ONE OF THE FOUR THAT LOOKS OUTWARD, and that is what a split
+ * workspace changed (#225): a row picked up here may be released over the pane
+ * beside this one, so where a drop can LAND is the workspace's question rather
+ * than this page's. What this component does about it is join the register of
+ * pages a drag can aim at (`../drag/fields.ts`) — this page's rows, its file,
+ * and the box they are drawn in — and go on owning nothing but its own. The
+ * gesture's own lifetime is still exactly a page: it is created here, it dies
+ * here, and what it carries is decided by the selection on THIS side.
+ *
  * THE PAGE'S BOX IS THE SWEEP'S SURFACE, and that is the one piece of markup
  * this component owns. A drag-across begins where the outline is NOT
  * (`../drag/sweeping.ts` decides what that means and why), so it needs a box
@@ -43,8 +52,9 @@ import type { Row } from "@olai/format"
 import { type Accessor, type JSX, onCleanup, onMount } from "solid-js"
 
 import { createFoldReading } from "../fold/reading.ts"
+import { Aiming } from "../drag/Aiming.tsx"
 import { createDragging, DraggingProvider } from "../drag/dragging.ts"
-import { DropLine } from "../drag/DropLine.tsx"
+import { useFields } from "../drag/fields.ts"
 import { SweepBand } from "../drag/Sweep.tsx"
 import { createSweeping } from "../drag/sweeping.ts"
 import { isEditingTarget, type SelectAction, selectKey } from "../keys.ts"
@@ -59,6 +69,17 @@ export function Editable(props: {
    *  half to the browser and half to the reading (`../fold/reading.ts`), and
    *  all three read it where the tree does. */
   readonly rows: Accessor<ReadonlyArray<Row>>
+  /** The file this page is OF — the outline it draws, or the file its zoomed
+   *  node lives in. Not derivable from the rows: an empty page has none, and a
+   *  page whose rows all come through a mirror has the wrong one. What it is
+   *  FOR is a drag from another pane, which has to be told which file said no
+   *  (`../drag/fields.ts`). */
+  readonly file: string
+  /** The nodes this page is drawn INSIDE, its own zoomed node last — empty for
+   *  a whole outline. The ancestry a `Row.key` here cannot spell, and therefore
+   *  the half of "a branch is never offered a place inside itself" that only a
+   *  second pane can ask for. */
+  readonly within?: ReadonlyArray<string>
   readonly children: JSX.Element
 }) {
   const page = {
@@ -72,8 +93,28 @@ export function Editable(props: {
   }
   const selection = createSelection(page)
   const editor = createEditor(page, selection)
-  const dragging = createDragging({ ...page, selection })
+  const dragging = createDragging({ selection })
   const sweeping = createSweeping(selection)
+
+  /** This page's own box, for the two gestures that measure rows: a `Row.key`
+   *  is unique within a page and not across two, so both scope what they read
+   *  to the pane this element is in (`../drag/lines.ts`). */
+  let surface: HTMLDivElement | undefined
+  // JOINED FOR AS LONG AS THIS PAGE LIVES, which is what makes the registry a
+  // reading of what is on screen rather than a history of it: a drag begun in
+  // any pane measures the pages that are drawn NOW, off the accessors below
+  // rather than off a snapshot taken at mount.
+  useFields().join({
+    get file() {
+      return props.file
+    },
+    get within() {
+      return props.within ?? []
+    },
+    rows: page.rows,
+    collapsed: page.collapsed,
+    element: () => surface,
+  })
 
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -117,10 +158,10 @@ export function Editable(props: {
               literal for the reason that constant gives (a JSX spread would put
               every attribute of this box on Solid's runtime spread path) and
               held to that name by `../claims.test.ts`. */}
-          <div class="grow" data-sweep="" onPointerDown={sweeping.begin}>
+          <div ref={surface} class="grow" data-sweep="" onPointerDown={sweeping.begin}>
             {props.children}
           </div>
-          <DropLine landing={dragging.landing()} />
+          <Aiming aim={dragging.aim()} />
           <SweepBand sweep={sweeping.band()} />
           <SelectionBar />
         </EditorProvider>

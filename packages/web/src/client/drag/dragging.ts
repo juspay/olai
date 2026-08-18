@@ -32,6 +32,22 @@
  * **Several rows land as several writes**, each after the one before it, which
  * is what keeps the run in the order it was picked up in (`../writes.ts`).
  *
+ * **THE DRAG IS THE WORKSPACE'S, NOT THE PAGE'S**, and that is what a split
+ * changed here (#225). A gesture begun on a bullet in pane 0 is released
+ * wherever the pointer is, which may be pane 1 — so what it measures is every
+ * editable page on screen (`./fields.ts`), each scoped to its own pane, and
+ * which one it is aiming at is decided per move (`./aim.ts`). Two panes on the
+ * SAME file reconcile for free: the write goes to the file and both trees redraw
+ * off the same store, so the row leaves one pane and arrives in the other on the
+ * same frame, with nothing here saying so. Two panes on DIFFERENT files cannot
+ * be one placement — a parent is same-file by the format — and the pointer is
+ * told that over the pane it is over, before it is released, rather than by a
+ * write that would fail (or, at the top level, quietly succeed somewhere else).
+ *
+ * The one thing a drag still keeps to itself is its OWN page's selection: what
+ * it is carrying is decided where the press landed, and a run picked in pane 0
+ * is pane 0's run wherever it comes down.
+ *
  * **A FINGER HOLDS THE BULLET FIRST**, and that is the whole of what touch
  * added. The gesture a phone already owns on a row is the page scrolling under
  * it, so a drag that took the first pixel of travel would cost a reader the
@@ -61,10 +77,12 @@ import type { Said } from "../edit/undoing.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { longPressOn } from "../longPress.ts"
 import { createDrags, TRAVEL_PX } from "../pointer.ts"
-import { beneath, depthOf } from "../select/range.ts"
+import { beneath, chainOf, depthOf } from "../select/range.ts"
 import { applyingAll } from "../writes.ts"
-import { measureLines } from "./lines.ts"
-import { type Landing, type Placed, planDrop } from "./plan.ts"
+import { type Aim, type Aimed, aimAt } from "./aim.ts"
+import { type Field, useFields } from "./fields.ts"
+import { measureBox, measureLines, paneOf } from "./lines.ts"
+import type { Landing, Placed } from "./plan.ts"
 
 /**
  * The attribute the row's HANDLE wears — the bullet, as something to pick a row
@@ -84,9 +102,12 @@ export interface Dragging {
    *  lifted while its children stayed solid would be saying the children are
    *  staying behind, which is the one thing this gesture never does. */
   readonly carrying: (key: string) => boolean
-  /** Where they would land right now, or `null` before the threshold is
-   *  crossed and after the drop. */
-  readonly landing: Accessor<Landing | null>
+  /** What the pointer is asking for right now — a landing, or the refusal the
+   *  page under it has instead (`./aim.ts`) — and `null` before the threshold
+   *  is crossed and after the drop. ONE value rather than two signals, because
+   *  a landing and a refusal are two answers to one question and nothing on
+   *  screen may show both. */
+  readonly aim: Accessor<Aim | null>
   /** Begin a gesture on this row's handle. A mouse or a pen: nothing happens
    *  until the pointer moves. A finger: nothing happens until it has been HELD,
    *  and then the row lifts under it. */
@@ -120,11 +141,13 @@ export const DraggingProvider = DraggingContext.Provider
 
 export const createDragging = (
   page: {
-    readonly rows: Accessor<ReadonlyArray<Row>>
-    readonly collapsed: Accessor<ReadonlySet<string>>
     /** The multi-selection, because a drag that starts on a picked row carries
      *  the whole pick — and a drag that starts anywhere else puts it away,
-     *  which is what clicking outside a selection means everywhere. */
+     *  which is what clicking outside a selection means everywhere.
+     *
+     *  THE ONE THING STILL TAKEN FROM THIS PAGE. What a drop may land beside is
+     *  no longer this page's rows but every page's (`./fields.ts`) — a pick is
+     *  still made where the press was, and stays there. */
     readonly selection: {
       readonly keys: Accessor<ReadonlySet<string>>
       readonly rows: Accessor<ReadonlyArray<Row>>
@@ -134,7 +157,8 @@ export const createDragging = (
   },
 ): Dragging => {
   const [moving, setMoving] = createSignal<ReadonlySet<string>>(new Set())
-  const [landing, setLanding] = createSignal<Landing | null>(null)
+  const [aim, setAim] = createSignal<Aim | null>(null)
+  const fields = useFields()
   const undo = useUndo()
   /**
    * Did the gesture that ended most recently TRAVEL? Not a signal: nothing
@@ -152,16 +176,36 @@ export const createDragging = (
   let travelled = false
 
   /**
-   * Every row a drop may land beside, measured.
+   * EVERY PAGE ON SCREEN, measured — and in each of them, every row a drop may
+   * land beside.
    *
-   * TWO THINGS ARE LEFT OUT, and they are the same kind of fact: a place the
-   * write could not go.
+   * ONE PASS OVER THE WORKSPACE rather than over this page, which is the whole
+   * of what a second pane changed here: the pointer picks the page
+   * (`./aim.ts`), so the page cannot be assumed before the pointer has moved.
+   * Each is measured against ITS OWN PANE — a `Row.key` is a chain from the
+   * roots of its page, so two panes on one file draw two sets of lines wearing
+   * the same keys, and one sweep of the document would give pane 1's rows pane
+   * 0's boxes (`./lines.ts`).
+   *
+   * TWO THINGS ARE LEFT OUT of each page's rows, and they are the same kind of
+   * fact: a place the write could not go.
    *
    *   - **The rows being carried, and everything under them.** What makes "you
    *     cannot drop a branch inside itself" true by construction rather than by
    *     a guard — and it leaves a tree behind, since removing whole subtrees
    *     from a drawn tree leaves one, so the planner's walk back for an ancestor
    *     always finds a row.
+   *
+   *     Asked of the RECORDS in a row's chain rather than of the key's prefix,
+   *     and that is the second pane's doing. A prefix is the better answer
+   *     within one page — it knows the path as well as the record — but there
+   *     is no shared path across two: the branch a pane is ZOOMED INTO is not
+   *     drawn there at all, and every row under it wears a key that starts at
+   *     that page's own roots. Its ancestry rides on the field instead
+   *     (`./fields.ts`'s `within`), and the two are read as one chain. What the
+   *     ids alone cost is that a mirror of a carried node is excluded wherever
+   *     it is drawn, which is the more honest answer anyway: dropping a node
+   *     inside a second placement of itself is the loop the ops layer refuses.
    *   - **Every row of another FILE.** An outline is an independent tree and a
    *     parent is same-file by the format, so a row from `house.olai` has no
    *     landing among the rows a mirror of `garden.olai` expands — they are
@@ -172,7 +216,9 @@ export const createDragging = (
    * Read the second one the other way round and it is a FEATURE rather than a
    * fence: dragging one of a mirror's expanded children measures the rows of
    * ITS file, which are exactly its real siblings — so reordering a node inside
-   * a mirror works, and lands in the file that node lives in.
+   * a mirror works, and lands in the file that node lives in. And a whole PAGE
+   * left with nothing is not an error either: it is the refusal `./aim.ts`
+   * gives the pointer over it, which is how a cross-file drop says no.
    *
    * What may be dropped INTO is the other half, and it rides on each row
    * ({@link Placed.into}).
@@ -181,17 +227,39 @@ export const createDragging = (
    * (`./lines.ts`), shared with the sweep, and what is left in this file is the
    * only part that is about a PLACEMENT.
    */
-  const measure = (carried: ReadonlyArray<Row>): ReadonlyArray<Placed> => {
-    const lines = new Map(measureLines().map((line) => [line.key, line]))
-    const keys = new Set(carried.map((one) => one.key))
-    // The file the drag is ABOUT — the carried rows', not the page's, which is
+  const measure = (carried: ReadonlyArray<Row>): ReadonlyArray<Aimed> => {
+    // The file the drag is ABOUT — the carried rows', not any page's, which is
     // what makes a mirror's children draggable among themselves. A pick that
     // spans two files has no one answer; the rows of the other file are then
     // left out, and the ops layer refuses them by name on the bar, which is the
     // same way every other half-legal run ends here.
     const file = carried[0]?.at.file
-    return flatten(page.rows(), page.collapsed()).flatMap((row): ReadonlyArray<Placed> => {
-      if (row.at.file !== file || beneath(keys, row.key)) return []
+    if (file === undefined) return []
+    const held = new Set(carried.map((one) => one.at.node.id))
+    return fields.all().flatMap((field): ReadonlyArray<Aimed> => {
+      const drawn = field.element()
+      if (drawn === undefined) return []
+      const pane = paneOf(drawn)
+      const box = measureBox(pane)
+      if (box === null) return []
+      return [{ file: field.file, box, placed: placeable(field, pane, file, held) }]
+    })
+  }
+
+  /** One page's rows, as places a drop may land beside. The reading above,
+   *  applied to one field — separate because the walk is per page and the
+   *  facts it is filtered against are per gesture. */
+  const placeable = (
+    field: Field,
+    pane: Element,
+    file: string,
+    held: ReadonlySet<string>,
+  ): ReadonlyArray<Placed> => {
+    const lines = new Map(measureLines(pane).map((line) => [line.key, line]))
+    const inside = (key: string): boolean =>
+      [...field.within, ...chainOf(key)].some((id) => held.has(id))
+    return flatten(field.rows(), field.collapsed()).flatMap((row): ReadonlyArray<Placed> => {
+      if (row.at.file !== file || inside(row.key)) return []
       const line = lines.get(row.key)
       if (line === undefined) return []
       const shows = row.kind === "node" || row.kind === "mirror" ? row.shows : undefined
@@ -200,8 +268,12 @@ export const createDragging = (
         id: row.at.node.id,
         parent: row.at.node.parent ?? null,
         // A placement is not a parent; the node it SHOWS is, and only when that
-        // node is in this file. Same rule, same reason, as `move in`'s.
-        into: shows !== undefined && shows.file === file ? shows.node.id : null,
+        // node is in this file and is not itself in the air. Same rule, same
+        // reason, as `move in`'s — with the loop the second pane can draw
+        // (a mirror of what the hand is holding) closed by the same field.
+        into: shows !== undefined && shows.file === file && !held.has(shows.node.id)
+          ? shows.node.id
+          : null,
         depth: depthOf(row.key),
       }]
     })
@@ -250,7 +322,10 @@ export const createDragging = (
      *  than at the press: a press that turns out to be a click must not have
      *  cleared the selection on its way past. */
     let carried: ReadonlyArray<Row> = []
-    let placed: ReadonlyArray<Placed> = []
+    let pages: ReadonlyArray<Aimed> = []
+    /** The file the rows in the air came from — a fact about the GESTURE, and
+     *  what a page with none of it is refused BY name (`./aim.ts`). */
+    let carriedFrom = ""
 
     const lift = () => {
       travelled = true
@@ -258,7 +333,8 @@ export const createDragging = (
       carried = picked.has(row.key) ? page.selection.rows() : [row]
       if (!picked.has(row.key)) page.selection.clear()
       setMoving(new Set(carried.map((one) => one.key)))
-      placed = measure(carried)
+      carriedFrom = carried[0]?.at.file ?? ""
+      pages = measure(carried)
     }
 
     if (held) {
@@ -277,17 +353,27 @@ export const createDragging = (
       // behind it (`../pointer.ts`, `../autoscroll.ts`). Without that the reach
       // of a drag is whatever was visible when the press landed, which on an
       // outline is most of the gesture missing.
-      onPage: (x, y) => setLanding(planDrop(placed, x, y)),
+      onPage: (x, y) => setAim(aimAt(pages, carriedFrom, x, y)),
       onEnd: (up) => {
         if (held) freeScroll()
         // A CANCELLED gesture is not a drop, and the difference is the whole
         // reason the primitive answers with `null` rather than with the last
         // move: a pointer taken away mid-drag has not chosen anything.
-        const target = up === null ? null : landing()
+        const target = up === null ? null : aim()
         setMoving(new Set<string>())
-        setLanding(null)
+        setAim(null)
         if (target === null || carried.length === 0) return
-        void drop(target, carried)
+        // A REFUSAL IS SAID RATHER THAN SWALLOWED, and it is said in the place
+        // every other refused gesture over these rows says its piece: the bar
+        // (`../select/SelectionBar.tsx`), which draws for a sentence with no
+        // pick behind it and does not fade. The words are the ones the face
+        // over the pane was already showing — one spelling, so the answer
+        // cannot change at the moment the hand lets go.
+        if (target.kind === "refused") {
+          page.selection.say({ tone: "alarm", text: target.refusal.why })
+          return
+        }
+        void drop(target.landing, carried)
       },
     })
   }
@@ -343,7 +429,7 @@ export const createDragging = (
     // dragged in nearly all of them — without it, every row of the tree
     // allocates a copy of an empty set to walk.
     carrying: (key) => moving().size > 0 && beneath(moving(), key),
-    landing,
+    aim,
     grab,
     heldMenu: watcher.onContextMenu,
     dragged: () => travelled,

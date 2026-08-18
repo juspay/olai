@@ -399,6 +399,11 @@ export const DRAG_HANDLE = selector(TESTID.dragHandle);
  *  being dragged. `data-parent`, `data-after` and `data-depth` are what it
  *  PROMISES, which is a prediction right up until the pointer is released. */
 export const DROP_LINE = selector(TESTID.dropLine);
+/** The face a PANE wears while a row is held over it that cannot land there —
+ *  the drag's other answer, and never drawn beside the line. `data-file` is the
+ *  file that said no, and the sentence inside is the one the selection bar says
+ *  once the pointer is released. */
+export const DROP_REFUSED = selector(TESTID.dropRefused);
 /** The band a drag-across pulls — present only while one is being pulled.
  *  `data-rows` is how many rows it is crossing, which is the half of the
  *  gesture that is still a prediction while the pointer is down. */

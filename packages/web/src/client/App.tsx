@@ -25,6 +25,7 @@ import { createToday } from "./clock.ts"
 import { Commit } from "./commit/Commit.tsx"
 import { Connection } from "./connection/Connection.tsx"
 import { DerivedProvider } from "./derived.tsx"
+import { createFields, FieldsProvider } from "./drag/fields.ts"
 import { createDocuments, DocumentsProvider } from "./document/documents.tsx"
 import { createUndo, UndoContext } from "./edit/undoing.ts"
 import { UndoSaid } from "./edit/UndoSaid.tsx"
@@ -50,6 +51,11 @@ import { isLone } from "./workspace.ts"
 
 export default function App() {
   const outlines = createOutlines()
+  /** Every editable page on screen, for the one gesture that is about more
+   *  than the page it began in: a row dragged out of one pane and dropped in
+   *  the next (`./drag/fields.ts`). The WORKSPACE owns it because the drag is
+   *  the workspace's; each page joins as it mounts and leaves with itself. */
+  const fields = createFields()
   const documents = createDocuments()
   const errors = olai.cells.errors.use()
 
@@ -118,6 +124,7 @@ export default function App() {
     <UndoContext.Provider value={undo}>
       <RouterProvider router={router}>
       <DerivedProvider derived={outlines.derived()}>
+      <FieldsProvider value={fields}>
       <OpensProvider opens={(path, at) => opensAt(found(), path, at)}>
       <ServedProvider outlines={found().files} documents={found().documents}>
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
@@ -212,6 +219,7 @@ export default function App() {
       </TodayProvider>
       </ServedProvider>
       </OpensProvider>
+      </FieldsProvider>
       </DerivedProvider>
       </RouterProvider>
     </UndoContext.Provider>

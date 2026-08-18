@@ -24,7 +24,7 @@ export function OutlinePage(props: {
 }) {
   const narrowed = useNarrowed()
   return (
-    <Editable rows={() => props.rows}>
+    <Editable rows={() => props.rows} file={props.file}>
       <Tree rows={props.rows} />
       {/* An outline that holds nothing still has to be startable, and a tree
           of no rows offers nowhere to press a key. Only when the file really
