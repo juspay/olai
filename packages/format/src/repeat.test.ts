@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 
 import {
-  isRepeat,
+  canonicalRepeat,
   nextAfter,
   nextOccurrence,
   parseRepeat,
@@ -41,6 +41,19 @@ test("the grammar is ten rules and no eleventh", () => {
     "every month",
     "every year",
   ])
+})
+
+// The round trip in one call, and the one thing outside this module asks: a
+// write stores THIS, so a rule spelled short and the same rule spelled long
+// reach disk as one string. Two files meaning the same thing must not differ
+// byte for byte — that is what a line-based merge rests on.
+test("canonicalRepeat is the spelling a write stores", () => {
+  expect(canonicalRepeat("every monday")).toBe("every week on monday")
+  expect(canonicalRepeat("every week on MON")).toBe("every week on monday")
+  expect(canonicalRepeat("  Every   Day  ")).toBe("every day")
+  // …and it is idempotent, which is what makes "already canonical" a no-op
+  // rather than a second write.
+  for (const rule of REPEAT_RULES) expect(canonicalRepeat(rule)).toBe(rule)
 })
 
 test("a rule taken apart and put back together is the text it came from", () => {
@@ -83,7 +96,7 @@ test("what is not in the vocabulary is not guessed at", () => {
     "every m",
   ]) {
     expect(parseRepeat(text)).toBeUndefined()
-    expect(isRepeat(text)).toBe(false)
+    expect(canonicalRepeat(text)).toBeUndefined()
   }
 })
 

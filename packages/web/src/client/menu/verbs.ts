@@ -3,8 +3,8 @@
  *
  * The catalog of write verbs, pure over the SUBJECT it was asked about: which
  * entries a reader is offered, and the exact {@link Edit} each one sends — or,
- * for the three whose value a person still has to choose, which panel the row
- * opens ({@link Does}: the date picker, and the two edge panels). No socket,
+ * for the FOUR whose value a person still has to choose, which panel the row
+ * opens ({@link Does}: the two pickers, and the two edge panels). No socket,
  * no clipboard and no component —
  * those are `./actions.ts`'s — so the two decisions that live here are
  * decidable in a unit test:
@@ -100,12 +100,13 @@ export const subjectOfZoom = (zoomed: Situated): Subject => ({
  * has a question of its own to ask first.
  *
  * Almost all of them are an edit, known the moment the menu is drawn: the mark
- * to put on, the date to take off, the placement to retire. `Set date…` and the
- * two edge verbs are the exceptions, and none of them is an exception to the
- * SEAM — what each eventually sends is the same edit its other door sends,
- * through the same gate — only to the timing: a date and a target are values
- * somebody has to choose, and a menu entry cannot carry one. So each opens the
- * row's own panel ({@link ../date/DatePicker.tsx},
+ * to put on, the date to take off, the recurrence to stop, the placement to
+ * retire. `Set date…`, `Set repeat…` and the two edge verbs are the exceptions,
+ * and none of them is an exception to the SEAM — what each eventually sends is
+ * the same edit its other door sends, through the same gate — only to the
+ * timing: a date, a rule and a target are values somebody has to choose, and a
+ * menu entry cannot carry one. So each opens the row's own panel
+ * ({@link ../date/DatePicker.tsx}, {@link ../date/RepeatPicker.tsx},
  * {@link ../edges/EdgePanel.tsx}) and the write happens a gesture later.
  *
  * A tagged union rather than an optional `edit`, for the reason the wire's own

@@ -147,10 +147,32 @@ const weekOf = (word: string): Repeat | undefined => {
   return weekday === -1 ? undefined : { every: "week", weekday }
 }
 
-/** Whether text is a rule this format holds — the question ./parse.ts asks of
- *  a line, said as a predicate so the check reads as a rule rather than as an
- *  `undefined` comparison. */
-export const isRepeat = (text: string): boolean => parseRepeat(text) !== undefined
+/**
+ * The CANONICAL spelling of whatever rule this text names, or `undefined` for
+ * text that names none — the round trip in one call, and the one question
+ * anything outside this module asks about a rule's words.
+ *
+ * TWO CALLERS, and they are the two halves of "reading is forgiving about
+ * spelling and a write stores the canonical one" (docs/format.md): the per-line
+ * rule asks it to find out whether a line holds a rule at all (./parse.ts), and
+ * `set_repeat` asks it for the text to actually store (`@olai/ops`' planner).
+ * A third caller is the picker, which seeds its list from the rule a node
+ * carries however that node came by it.
+ *
+ * WHY A WRITE CANONICALISES, when a date does not: `every monday` and `every
+ * week on monday` are the same rule with nothing to tell them apart, where
+ * `2026-08-10` and `2026-08-10T09:00` are two different records. This format's
+ * whole bet is that a line-based git merge is safe, and that rests on two files
+ * meaning the same thing not differing byte for byte — a conflict over which
+ * way somebody spelled Monday is a conflict about nothing (docs/format.md's
+ * Writing). Reading stays forgiving, and a spelling already on disk is left
+ * exactly as it was found until somebody writes that field, which is the rule
+ * `done: true` keeps beside the instants olai now stamps.
+ */
+export const canonicalRepeat = (text: string): string | undefined => {
+  const rule = parseRepeat(text)
+  return rule === undefined ? undefined : printRepeat(rule)
+}
 
 /**
  * The next occurrence: the first day the rule names STRICTLY AFTER `date`.

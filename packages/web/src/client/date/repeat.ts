@@ -26,22 +26,31 @@
  * produce no write at all, which is the draft's own rule ({@link pressOf}).
  */
 
-import { REPEAT_RULES } from "@olai/format"
+import { canonicalRepeat } from "@olai/format"
 
 import { type Press, pressOf as panelPress } from "../edit/panel.ts"
 import type { Edit } from "@olai/surface"
 
 /**
- * What the box starts with: the rule the node stores, or nothing at all when
- * it carries none — which is the empty option, "does not repeat".
+ * What the box starts with: the rule the node stores, IN THE LIST'S OWN
+ * SPELLING, or nothing at all when it carries none — which is the empty
+ * option, "does not repeat".
  *
- * A stored rule this build's grammar does not know (a file written by a newer
- * olai, or by hand) seeds NOTHING, so the box shows the empty option rather
- * than inventing a selection: {@link noticeOf} is what says so out loud, and
- * nothing is rewritten until the button is pressed.
+ * Through `canonicalRepeat` rather than by testing membership of the list: a
+ * node whose rule was written by this app already carries the canonical text,
+ * and one hand-written `every monday` is the same rule spelled shorter, so
+ * seeding the list with the rule it names is showing what the node says rather
+ * than claiming it says nothing. Selecting it and pressing then writes nothing,
+ * which is correct — {@link pressOf} compares against the stored text, and the
+ * planner would store exactly what is already there.
+ *
+ * A rule this build's grammar cannot read at all (a file from a newer olai, a
+ * hand edit that is not a rule) seeds NOTHING, so the box shows the empty
+ * option rather than inventing a selection: {@link noticeOf} is what says so
+ * out loud, and nothing is rewritten until the button is pressed.
  */
 export const startsAt = (stored: string | undefined): string =>
-  stored !== undefined && REPEAT_RULES.includes(stored) ? stored : ""
+  stored === undefined ? "" : canonicalRepeat(stored) ?? ""
 
 /**
  * The one edit a pick sends — `set_repeat`'s own reach, and the constructor
@@ -73,17 +82,22 @@ export const pressOf = (stored: string | undefined, rule: string): Press =>
 
 /**
  * What the panel says about a stored rule the box cannot show — and nothing at
- * all for the ordinary case.
+ * all for the ordinary case, which now includes a rule merely spelled short.
  *
  * A list picker shows the rules it has, so a node carrying words this build
- * does not know (a hand edit, a file from a newer olai) would look exactly like
- * a node that does not repeat. That is the one silence worth breaking, and it
- * is {@link ../date/pick.ts}'s `noticeOf` asking the same question about the
- * other field: the value is quoted verbatim, with what choosing would do to it.
+ * cannot READ (a hand edit, a file from a newer olai) would look exactly like a
+ * node that does not repeat. That is the one silence worth breaking, and it is
+ * {@link ../date/pick.ts}'s `noticeOf` asking the same question about the other
+ * field: the value is quoted verbatim, with what choosing would do to it.
+ *
+ * It asks the same `canonicalRepeat` {@link startsAt} does, so the notice and
+ * the selection cannot disagree — a stored `every monday` seeds the list and
+ * says nothing, where a membership test would have seeded nothing and called a
+ * perfectly good rule unknown.
  */
 export const noticeOf = (stored: string | undefined): string | undefined =>
-  stored === undefined || REPEAT_RULES.includes(stored)
+  stored === undefined || canonicalRepeat(stored) !== undefined
     ? undefined
-    : `This node repeats "${stored}", which is not one of the rules below. ` +
+    : `This node repeats "${stored}", which is not a rule olai can read. ` +
       `Choosing one replaces it.`
 

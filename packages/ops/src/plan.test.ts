@@ -1580,6 +1580,29 @@ describe("repeat", () => {
     expect(cleared.summary).toBe("repeat: put the bins out -> (cleared)")
   })
 
+  // Reading a rule is forgiving and writing one is not: `every monday` is the
+  // same rule as `every week on monday` with nothing to tell the two apart, so
+  // one of them reaches disk. What that buys is the format's own bet — two
+  // files meaning the same thing must not differ byte for byte, or a merge
+  // conflicts over which way somebody spelled Monday.
+  test("a rule is stored in the grammar's own spelling, however it was typed", () => {
+    for (const typed of ["every monday", "every week on MON", "  Every   Monday "]) {
+      expect(
+        record(
+          fileOf(planned(chores(), { op: "repeat", id: "bins", repeat: typed }), "chores.olai"),
+          "bins",
+        ).repeat,
+      ).toBe("every week on monday")
+    }
+  })
+
+  // …and text that is NOT a rule passes through untouched, so the refusal the
+  // gate then makes quotes what the caller actually sent.
+  test("text the grammar cannot read is written back verbatim, and refused as sent", () => {
+    expect(() => after(chores(), { op: "repeat", id: "bins", repeat: "every 2 weeks" }))
+      .toThrow("`every 2 weeks`")
+  })
+
   // THE PLANNER JUDGES NEITHER HALF OF THE PAIR, and that is the whole of what
   // this verb had to be taught: a rule the grammar cannot read, and a rule with
   // no date under it, are per-line rules of the FORMAT's — so what refuses them

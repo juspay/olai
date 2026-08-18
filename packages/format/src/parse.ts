@@ -33,7 +33,7 @@ import {
   type Node,
   RegularNode,
 } from "./node.ts"
-import { isRepeat, REPEAT_GRAMMAR } from "./repeat.ts"
+import { canonicalRepeat, REPEAT_GRAMMAR } from "./repeat.ts"
 import type { Outline } from "./set.ts"
 
 const options = {
@@ -174,7 +174,7 @@ const checkRecord = ({ file, line, node }: Located): ReadonlyArray<OutlineError>
   // from. Both are answerable from this one line, which is why they are here
   // beside "at most one mark" rather than in the validator.
   if (node.repeat !== undefined) {
-    if (!isRepeat(node.repeat)) {
+    if (canonicalRepeat(node.repeat) === undefined) {
       at(
         "bad-repeat",
         `\`repeat\` is \`${node.repeat}\`, which is not a repeat rule: write ${REPEAT_GRAMMAR}`,

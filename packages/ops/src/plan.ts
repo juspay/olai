@@ -51,6 +51,7 @@ import {
   nodeNamed,
   type Status,
   NotFoundFailure,
+  canonicalRepeat,
   nextOccurrence,
   nodesOf,
   nothing,
@@ -205,10 +206,23 @@ export const plan = (
       // `date` under it, are both per-line rules of the format's, refused at
       // the write gate over the bytes this plan would produce (@olai/store's
       // `commit`). One rule, one wording, whichever verb moved which half.
+      //
+      // WHAT IT DOES DO is store the CANONICAL spelling: reading a rule is
+      // forgiving (`mon`, `every monday`, `Every Week On Monday`) and writing
+      // one is not, because two files meaning the same thing must not differ
+      // byte for byte — a merge conflict over which way somebody spelled Monday
+      // is a conflict about nothing (docs/format.md's Writing). Text the
+      // grammar cannot read passes through UNCHANGED, so the refusal quotes
+      // what the caller actually sent rather than something this line invented.
       return planEdit(
         scope,
         request.id,
-        (node) => withField(node, "repeat", request.repeat),
+        (node) =>
+          withField(
+            node,
+            "repeat",
+            request.repeat === null ? null : canonicalRepeat(request.repeat) ?? request.repeat,
+          ),
         (node) => `repeat: ${node.title} -> ${node.repeat ?? "(cleared)"}`,
       )
     case "prop":
