@@ -19,8 +19,11 @@
  *
  *     One thing a revision names is NOT published from here, and it is the one
  *     the server does not hold: a body the set keeps only the path of goes to
- *     `./bodies.ts`, which reads the file when a reader opens it and publishes
- *     it on that reader's own key.
+ *     `./bodies.ts`, which reads the file when a reader opens it, publishes it
+ *     on that reader's own key, and goes on doing so for exactly as long as
+ *     somebody holds that key — the subscription's own lifetime, which the
+ *     handlers this file binds are wrapped to report (`@olai/surface`'s
+ *     `holding.ts`).
  *   - the CONVERSATION is the chat's: a cell for where it stands, a collection
  *     for the rows, and the procedures. The collection is deliberately
  *     server-authored — `readAll` is the transcript itself and the writes come
@@ -69,6 +72,7 @@ import {
   type OpFailure,
   surface,
 } from "@olai/surface"
+import { holding } from "@olai/surface/holding"
 import { UsageFailure } from "@olai/format"
 import { surfaceTag } from "@kolu/surface/define"
 import {
@@ -314,6 +318,12 @@ export const bind = (
      *
      * `held` is not touched. That is the memory claim in one line: the body
      * goes to the wire and the projection goes on holding a path.
+     *
+     * WHO IS STILL READING is not inferred here either. Every per-key `get` on
+     * the documents collection is wrapped so that its subscription's lifetime is
+     * a hold on that path (`@olai/surface`'s `holding.ts`, applied to the bound
+     * handlers below), so this module re-reads a file for exactly the readers
+     * who have it open at that moment and stops the instant the last one goes.
      */
     const bodies = yield* Bodies.make({
       read: wiring.store.body,
@@ -511,7 +521,12 @@ export const bind = (
                   // file for: this is how a `.html` under an open preview
                   // learns it changed (`@olai/surface`'s `Head`).
                   apply(collections?.heads, revision.heads)
-                  bodies.moved(revision.unread)
+                  // …and the bodies this revision withheld are read for the
+                  // readers who are HOLDING those keys, and for nobody else
+                  // ({@link ./bodies.ts}). A newborn key is in this list too,
+                  // so a reader who subscribed before the file existed is
+                  // handed the body the announce frame above could not carry.
+                  bodies.unread(revision.unread)
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest
@@ -578,7 +593,14 @@ export const bind = (
             // entry IS the membership answer, and it is right here.
             if (entry === undefined) return undefined
             if (entry.text !== null) return entry
-            bodies.opened(key)
+            // The body this reader is owed, asked for HERE and not where the
+            // hold was taken: the ask has to land after the subscription is
+            // attached, and this call is the framework's own snapshot step,
+            // which runs after it (`subscribeBeforeSnapshot`). A read published
+            // to a key nobody has subscribed to yet would be a body dropped for
+            // the one reader who asked for it. What makes the ask reach the disk
+            // is the hold that is already in place ({@link ./bodies.ts}).
+            bodies.unread([key])
             return undefined
           },
           upsert: () => {},
@@ -592,8 +614,8 @@ export const bind = (
          * already in the projection, so a subscription is answered out of the
          * map like an outline's is. What that buys is at the OTHER end — a tab
          * showing a `.html` watches this instead of the body it never draws,
-         * so the file is not read, the bytes do not cross the wire, and the
-         * path never enters the watch set at all ({@link ./bodies.ts}).
+         * so the file is not read, the bytes do not cross the wire, and nobody
+         * holds the path at all ({@link ./bodies.ts}).
          */
         heads: {
           readAll: () => held?.heads.entries ?? NOTHING_YET,
@@ -718,7 +740,20 @@ export const bind = (
     published = runtime.ctx
 
     return {
-      bound: runtime,
+      /**
+       * The runtime, with one member's subscriptions reporting who holds them.
+       *
+       * Wrapped HERE, at the one place the handlers are minted, rather than at
+       * each face: every face is a FILTER over this record (`./faces.ts`) and
+       * `writerAt` rebuilds it by copying the values, so a reader that can reach
+       * the documents collection at all reaches it through this wrap. Doing it
+       * per face would make "a body stays live for the page somebody has open"
+       * one face's own arrangement, and a second face would inherit the guess.
+       */
+      bound: {
+        ...runtime,
+        handlers: holding(runtime.handlers, "documents", bodies.held),
+      },
       publish: {
         state: (state) => runtime.ctx.cells.chat.set(state),
         transcript: (change) => {

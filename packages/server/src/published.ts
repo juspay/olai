@@ -110,17 +110,26 @@ export interface Published {
  * is nothing to blank.
  *
  * WHO CAN SEE THAT `null`, exactly: only a reader holding a `get` open on the
- * key ACROSS the file's birth — and it stays what they hold, because a body is
- * read for whoever ASKED (`./bodies.ts`, and the ask is `readOne`), and this
- * frame is not an ask. No consumer here is in that position, which is why it is
- * left alone rather than answered with a read of every new `.html` in a
- * `git pull`: the browser's subscription is CREATED from the key set — the page
- * model refuses a path the directory does not hold (`@olai/web`'s `page.ts`),
- * so the file appearing is what mounts the page that subscribes — and an MCP
- * client reads afresh on every `notifications/resources/updated` rather than
- * holding one stream open. A raw client that did hold one would see this frame
- * and no body until it opened the key again. That is a known edge, written down
- * rather than papered over.
+ * key ACROSS the file's birth. It used to be all they saw — a body was read for
+ * whoever ASKED, the ask was `readOne`, and this frame is not an ask — so such a
+ * reader sat on the announcement with no body until it opened the key again.
+ * That is closed now, and by the other half of the same revision: the newborn
+ * path is in `unread` too, a hold is taken by the SUBSCRIPTION rather than by a
+ * successful read (`@olai/surface`'s `holding.ts`), so the body is read for
+ * exactly the readers holding that key and lands on the same key one frame
+ * later. What is left of the edge is an ORDER rather than an absence: a holder
+ * across a birth sees the announcement and then the body, where a reader who
+ * opens the key afterwards sees only the body. Nobody in tree is even in that
+ * position — the browser's subscription is CREATED from the key set (the page
+ * model refuses a path the directory does not hold, `@olai/web`'s `page.ts`),
+ * and an MCP client reads afresh on every `notifications/resources/updated` —
+ * and a raw client that holds one is now told the whole truth in two frames
+ * instead of half of it in one.
+ *
+ * WHAT IS STILL NOT DONE HERE, and deliberately: no body is READ from this
+ * function, on a birth or on any other revision. A `git pull` that adds four
+ * hundred saved pages announces four hundred keys and opens none of them,
+ * because the read is the body reader's and its filter is who is holding what.
  */
 const documentsOf = (
   snapshot: Snapshot<Reading>,
