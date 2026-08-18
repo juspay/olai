@@ -60,6 +60,30 @@ interface Measured {
   readonly gaps: ReadonlyArray<number>
 }
 
+/**
+ * A PIN IN THE AIR — one value, and that is the point of it being one.
+ *
+ * These three facts were three places for one revision, and the shape was the
+ * flat product a state review hunts for: `gap` means nothing without the row
+ * that was picked up, `rows` is a measurement of a moment that only exists
+ * while something is being carried, and "nothing is being dragged" was three
+ * separate `undefined`s that nothing stopped from disagreeing. Read as a
+ * product, "carrying row 2 over gap 4 against rows measured for a shelf that
+ * has since been redrawn" is spellable; read as one value it is not — there is
+ * no drag without a measurement, and no gap that is not this drag's.
+ */
+interface Carrying {
+  /** Which row was picked up, as its index in the shelf as drawn. */
+  readonly from: number
+  /** Where the rows were at the LIFT. Nothing on screen moves while a row is
+   *  carried — the shelf redraws when the file says so, which is after the
+   *  drop — so this is measured once rather than per frame. */
+  readonly rows: Measured
+  /** Which gap the pointer is over now — the only one of the three that
+   *  changes per move. */
+  readonly gap: number
+}
+
 export function Shelf() {
   const derived = useDerived()
   const router = useRouter()
@@ -68,12 +92,16 @@ export function Shelf() {
 
   const pins = createMemo(() => pinsOf(derived()))
 
-  // The row a press is on, the rows' places as they were at the lift, and the
-  // gap the pointer is over — three signals rather than one, because only the
-  // last of them changes per move.
-  const [carrying, setCarrying] = createSignal<number | undefined>(undefined)
-  const [gap, setGap] = createSignal<number | undefined>(undefined)
-  let measured: Measured | undefined
+  const [carrying, setCarrying] = createSignal<Carrying | undefined>(undefined)
+  /**
+   * Has the press that is still down TRAVELLED far enough to be a drag?
+   *
+   * Not part of {@link Carrying}, and the difference is a lifetime rather than
+   * a nicety: this has to stay true through the click that arrives AFTER the
+   * release, which is the click a row's link would otherwise follow
+   * (`./Pin.tsx` swallows it). A drag in the air is over at `onEnd`; the click
+   * it must not become arrives a moment later.
+   */
   let travelled = false
   const rows: Array<HTMLLIElement | undefined> = []
   let list: HTMLUListElement | undefined
@@ -100,25 +128,21 @@ export function Shelf() {
       threshold: TRAVEL_PX,
       onStart: () => {
         travelled = true
-        measured = measure()
-        setCarrying(at)
-        setGap(at)
+        setCarrying({ from: at, rows: measure(), gap: at })
       },
-      onPage: (_x, y) => {
-        if (measured !== undefined) setGap(gapAt(measured.middles, y))
-      },
+      onPage: (_x, y) =>
+        setCarrying((held) =>
+          held === undefined ? undefined : { ...held, gap: gapAt(held.rows.middles, y) }
+        ),
       onEnd: (ended) => {
-        const from = carrying()
-        const landing = gap()
+        const held = carrying()
         setCarrying(undefined)
-        setGap(undefined)
-        measured = undefined
         // A CANCELLED gesture is not a drop — the pointer was taken away
         // rather than released — so nothing is written, which is the
         // distinction `../pointer.ts` hands over and the one a caller must not
         // read past.
-        if (ended === null || from === undefined || landing === undefined) return
-        const edit = placing(pins(), from, landing)
+        if (ended === null || held === undefined) return
+        const edit = placing(pins(), held.from, held.gap)
         if (edit === undefined) return
         void applying(edit, undo.record).then(sayPin)
       },
@@ -146,7 +170,7 @@ export function Shelf() {
                 name={pin.named ?? nameOf(pin.route, derived())}
                 narrowing={narrowingOf(pin.route)}
                 current={here() === hrefOf(pin.route)}
-                lifted={carrying() === at()}
+                lifted={carrying()?.from === at()}
                 onGrab={(event) => grab(at(), event)}
                 dragged={() => travelled}
                 onRemove={() => unpin(pin)}
@@ -162,18 +186,20 @@ export function Shelf() {
           {/* Where it would land. Drawn only while something is carried, and
               positioned against the LIST rather than the page, so it does not
               have to know where in the column the shelf sits. */}
-          {/* `gap() !== undefined` rather than `when={gap()}`, because zero is
-              a real answer — the gap ABOVE the first pin — and a truthiness
-              test would draw no line for the one landing a reader is most
-              likely to aim at. */}
-          <Show when={gap() !== undefined}>
-            <li
-              class="pointer-events-none absolute inset-x-1 h-0.5 rounded bg-accent"
-              data-testid={TESTID.pinDropLine}
-              data-gap={String(gap())}
-              aria-hidden="true"
-              style={{ top: `${measured?.gaps[gap() ?? 0] ?? 0}px` }}
-            />
+          {/* Drawn from the carried value alone, which is what makes the gap
+              ABOVE the first pin (zero, and the landing a reader is most
+              likely to aim at) drawable at all: as three loose facts this was
+              a `Show` over a number, and zero is falsy. */}
+          <Show when={carrying()}>
+            {(held) => (
+              <li
+                class="pointer-events-none absolute inset-x-1 h-0.5 rounded bg-accent"
+                data-testid={TESTID.pinDropLine}
+                data-gap={String(held().gap)}
+                aria-hidden="true"
+                style={{ top: `${held().rows.gaps[held().gap] ?? 0}px` }}
+              />
+            )}
           </Show>
         </ul>
       </section>
