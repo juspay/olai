@@ -26,7 +26,7 @@
 
 import { litBy } from "@olai/format"
 
-import type { Run } from "./lit.ts"
+import { type Run, runsIn } from "./lit.ts"
 
 /** How much note a hit is read in — wide enough for the phrase around a word,
  *  short enough to stay one line beside a title that is already ellipsized. */
@@ -54,14 +54,8 @@ const ELLIPSIS = "…"
  * above and read as noise. {@link LEAD} is the floor for a line too long to
  * open at, and the ellipsis says which happened.
  *
- * THE RUNS ARE CUT FROM THE LANDINGS THEMSELVES rather than found again inside
- * the window, which is the same discipline the title highlight keeps one file
- * over: there is exactly one search of this note, `litBy`'s, and the window is
- * a pair of bounds applied to what it found. Searching the slice would have
- * been a second search — cheap, and free to disagree at the edge where a needle
- * straddles the cut.
- *
- * Newlines are folded to spaces INSIDE each run, after the cut, for the reason
+ * The runs are cut from the landings themselves — `./lit.ts`'s `runsIn`, which
+ * argues why the bounds rather than a second search. Newlines are folded to spaces INSIDE each run, after the cut, for the reason
  * the bounds are taken over the note's own offsets: a collapse before it would
  * have moved every landing.
  */
@@ -75,18 +69,8 @@ export const excerptOf = (
   const opens = lineStart(desc, first.at)
   const from = wordEdge(desc, Math.max(opens, first.at - LEAD), opens)
   const to = Math.min(desc.length, Math.max(from + WIDTH, first.end))
-  const runs: Array<Run> = []
-  let at = from
-  for (const hit of hits) {
-    if (hit.end <= from) continue
-    if (hit.at >= to) break
-    const start = Math.max(hit.at, from)
-    const end = Math.min(hit.end, to)
-    if (start > at) runs.push({ text: oneLine(desc.slice(at, start)), lit: false })
-    runs.push({ text: oneLine(desc.slice(start, end)), lit: true })
-    at = end
-  }
-  if (at < to) runs.push({ text: oneLine(desc.slice(at, to)), lit: false })
+  const runs: ReadonlyArray<Run> = runsIn(desc, hits, from, to)
+    .map((run) => ({ text: oneLine(run.text), lit: run.lit }))
   const opened = from > 0 ? [{ text: ELLIPSIS, lit: false }, ...runs] : runs
   return to < desc.length ? [...opened, { text: ELLIPSIS, lit: false }] : opened
 }

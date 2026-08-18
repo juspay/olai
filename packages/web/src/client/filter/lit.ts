@@ -24,7 +24,7 @@
  * about which characters are the needle.
  */
 
-import { litBy } from "@olai/format"
+import { litBy, type Lit } from "@olai/format"
 
 /**
  * The class a lit run wears — a `<mark>`, which is the element for exactly
@@ -55,24 +55,43 @@ export interface Run {
 export const runsOf = (
   text: string,
   needles: ReadonlyArray<string>,
+): ReadonlyArray<Run> => runsIn(text, litBy(text, needles))
+
+/**
+ * The same alternation over a WINDOW of the text, from landings already in
+ * hand — what a note's one-line excerpt is cut from (`./excerpt.ts`).
+ *
+ * TAKING THE LANDINGS rather than the needles is the whole of why this is the
+ * primitive and {@link runsOf} the shorthand: there is exactly one search of a
+ * note, and the window is a pair of bounds applied to what it found. Searching
+ * the slice instead would be a second search — cheap, and free to disagree at
+ * the edge where a needle straddles the cut.
+ *
+ * The bounds are the TEXT's own offsets, so a caller slices nothing itself.
+ */
+export const runsIn = (
+  text: string,
+  landings: ReadonlyArray<Lit>,
+  from = 0,
+  to = text.length,
 ): ReadonlyArray<Run> => {
-  const hits = litBy(text, needles)
-  if (hits.length === 0) return [{ text, lit: false }]
   const runs: Array<Run> = []
-  let at = 0
-  for (const hit of hits) {
-    if (hit.at > at) runs.push({ text: text.slice(at, hit.at), lit: false })
-    runs.push({ text: text.slice(hit.at, hit.end), lit: true })
-    at = hit.end
+  let at = from
+  for (const landing of landings) {
+    if (landing.end <= from) continue
+    if (landing.at >= to) break
+    const start = Math.max(landing.at, from)
+    const end = Math.min(landing.end, to)
+    if (start > at) runs.push({ text: text.slice(at, start), lit: false })
+    runs.push({ text: text.slice(start, end), lit: true })
+    at = end
   }
-  if (at < text.length) runs.push({ text: text.slice(at), lit: false })
+  // The tail — and, for a window nothing landed in, the whole of it: a text is
+  // always at least one run, so a caller never has an empty list to mean two
+  // things by.
+  if (at < to || runs.length === 0) runs.push({ text: text.slice(at, to), lit: false })
   return runs
 }
-
-/** Did the query land in this text at all? What decides whether a row draws an
- *  excerpt, asked without minting the runs to find out. */
-export const isLit = (text: string, needles: ReadonlyArray<string>): boolean =>
-  litBy(text, needles).length > 0
 
 /** No needles — one value, shared, because every title memoises against
  *  whatever it is handed and a fresh `[]` per row per frame is a fresh value
