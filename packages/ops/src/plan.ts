@@ -39,7 +39,7 @@ import {
   derive,
   type Derived,
   didYouMean,
-  drawnFrom,
+  drawingPath,
   DOCUMENT_EXT,
   fileKind,
   isMirror,
@@ -2161,6 +2161,30 @@ const planMove = (
         }),
       )
     }
+    // …and the same loop closed through a PLACEMENT, which the parent walk
+    // above cannot see: `parent` is not among this record's descendants, it is
+    // among what one of them DRAWS. Moving a branch that holds a mirror under
+    // what that mirror shows is the ordinary way in — a Now section is mirrors
+    // of live work, and "put Now under one of the items it shows" is a move a
+    // person can mean by accident.
+    //
+    // The graph is `@olai/format`'s `drawnFrom`, walked by its `drawingPath`,
+    // which is the walk the validator's own containment rule makes and the one
+    // `add_mirror` refuses by ({@link showsInto}). Without this the plan was
+    // BUILT and the write gate then refused the set — a refusal about a file
+    // that was never written, for a reason the tool that planned it did not
+    // know about, which is exactly what sharing that graph exists to prevent.
+    const draws = showsInto(scope, request.id, parent)
+    if (draws !== null) {
+      return Result.fail(
+        new UsageFailure({
+          reason: `\`${parent}\` is inside what \`${request.id}\` draws — ${draws} — so ` +
+            `moving it there would put a placement inside the subtree it shows, and ` +
+            `drawing that never ends. A mirror may not be placed inside the subtree it ` +
+            `shows.`,
+        }),
+      )
+    }
   }
 
   const ords = placed(siblingsOf(scope.derived, file, parent), node.id, request)
@@ -4031,27 +4055,33 @@ const planMirror = (
 }
 
 /**
- * The loop a mirror of `target` under `parent` would close, or `null`.
+ * The loop a record drawn under `parent` would close, or `null` — asked of what
+ * `target` DRAWS.
  *
- * The graph is `@olai/format`'s `drawnFrom` — what drawing a record leads to
- * drawing — which is the same derivation the validator's containment rule
+ * The graph is `@olai/format`'s `drawnFrom` and the walk over it is that
+ * package's `drawingPath`, which is what the validator's containment rule
  * walks. That sharing is the point rather than a convenience: a second copy
  * here would be a placement this op allowed and the write gate then refused,
  * which is a refusal the tool that planned it did not know it was heading for.
+ * (It was a second WALK over the shared graph until the move grew this check —
+ * and a rule that walks a shared graph its own way is a second answer with
+ * extra steps.)
  *
- * The new placement has exactly one way IN — it is a child of `parent` — so the
- * question is whether drawing what the target shows ever reaches `parent`, and
- * a top-level placement (no parent) has no way in at all.
+ * TWO OPS ASK IT, and the difference is only what `target` is. `add_mirror`
+ * asks about the node the new placement would SHOW: that placement has exactly
+ * one way in — it is a child of `parent` — so the question is whether drawing
+ * the target ever reaches `parent`, and a top-level placement (no parent) has
+ * no way in at all. `move_node` asks about the record being MOVED, which is
+ * the same question one level out: everything that record draws — its own
+ * subtree, and whatever the placements inside it show — is about to hang under
+ * `parent`.
  */
 const showsInto = (
   scope: Scope,
   target: string,
   parent: string,
 ): string | null => {
-  const path = pathTo(target, parent, (id) => {
-    const at = scope.derived.byId.get(id)
-    return at === undefined ? [] : drawnFrom(scope.derived, at.node)
-  })
+  const path = drawingPath(scope.derived, target, parent)
   return path === null ? null : chainOf(path)
 }
 

@@ -5,6 +5,7 @@ Feature: The ••• menu writes
   clear a date, retire a placement and archive a subtree. That gap is a
   HACKING.md consistency violation rather than a missing feature, and these
   are the verbs that close it for the mouse.
+      | Move to…           |
 
   Every one of them is ONE op through the same write gate the agent's tools go
   through, nothing is echoed, and what the ops layer refuses is quoted where
@@ -39,6 +40,12 @@ Feature: The ••• menu writes
     # can be copied, so there is nothing about this row to leave it out for —
     # and it sits ABOVE `Move to Trash` because the additive verb should not be
     # next to the one with reach (`duplicate_subtree.feature`).
+    #
+    # `Move to…` is the edge verbs' case a third time and one step further:
+    # every row can be carried somewhere, a PLACEMENT included, so it is the one
+    # write here offered on both kinds of row — and which destinations it will
+    # not take is the picker's own sentence at the aim rather than a missing
+    # entry (`move_to_picker.feature`).
     Given the node "kitchen" is expanded
     When I open the node menu of "kitchen"
     Then the node menu offers exactly:
@@ -55,6 +62,7 @@ Feature: The ••• menu writes
       | Add property…      |
       | Link to a node…    |
       | Wait for a node…   |
+      | Move to…           |
       | Duplicate          |
       | Move to Trash      |
       | Copy as text       |

@@ -955,6 +955,61 @@ export const drawnFrom = (
   ...(isMirror(node) ? [node.mirror] : []),
 ]
 
+/**
+ * The chain by which drawing `from` leads to drawing `to` — or `null` when it
+ * never does.
+ *
+ * {@link drawnFrom} walked, which is the whole of what this adds: the graph was
+ * already shared and the WALK over it was not, so each rule that asked "would
+ * this placement expand forever" wrote its own — and a rule that walks the
+ * shared graph its own way is a second answer with extra steps. THREE ask now,
+ * and they must agree because they are the same question at three moments: the
+ * validator refuses a set whose placements close a loop
+ * ({@link ./validate.ts}), the ops layer refuses the write that would close one
+ * (`ops`' `showsInto`, both for a new mirror and for a MOVE that carries one
+ * into what it shows), and the move-to picker refuses the destination at the
+ * aim, before the key (`web`'s `move/destination.ts`).
+ *
+ * A PATH rather than a boolean, because every one of those refusals names the
+ * loop: an agent told which chain it just tried to fold into itself can fix the
+ * call, and a person told the same can see why a row three branches away is
+ * "inside" this one. `chainOf` ({@link ./errors.ts}) is how all three spell it.
+ *
+ * `from === to` answers with a path of one, which is the honest reading of an
+ * edge onto itself — the same reading `chainOf` documents for a loop.
+ *
+ * Cycle-safe: a set whose containment graph already loops is one the validator
+ * has condemned, and a walk that is asked about it anyway must answer rather
+ * than hang.
+ */
+export const drawingPath = (
+  derived: Pick<Derived, "byId" | "children">,
+  from: string,
+  to: string,
+): ReadonlyArray<string> | null => {
+  const seen = new Set<string>()
+  // The trail is extended only for a node this walk actually descends into: a
+  // revisit answers `null` without copying anything, which matters because the
+  // common answer is `null` and a node reached through three mirrors is
+  // reached three times.
+  const walk = (at: string, trail: ReadonlyArray<string>): ReadonlyArray<string> | null => {
+    if (at === to) return [...trail, at]
+    if (seen.has(at)) return null
+    seen.add(at)
+    const located = derived.byId.get(at)
+    // An id nothing declares draws nothing. A set holding one is a set the
+    // validator has condemned, and this walk still has to answer over it.
+    if (located === undefined) return null
+    const path = [...trail, at]
+    for (const next of drawnFrom(derived, located.node)) {
+      const found = walk(next, path)
+      if (found !== null) return found
+    }
+    return null
+  }
+  return walk(from, [])
+}
+
 /** What one node is waiting on: empty when nothing is in its way, which is the
  *  answer for nearly every node. The reading side of {@link Derived.blocked},
  *  so no caller has to know that absence is how the index spells "nothing". */

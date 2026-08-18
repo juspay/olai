@@ -62,6 +62,8 @@ const MOVES: ReadonlySet<Edit["verb"]> = new Set<Edit["verb"]>([
   "unmirror",
   // A new row appears where the draft was standing.
   "add",
+  // ...and the picker carries it to a new parent entirely.
+  "under",
 ])
 
 export const redraws = (edit: Edit): boolean => MOVES.has(edit.verb)

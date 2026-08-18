@@ -16,11 +16,19 @@
  * are two: an outline and a zoomed node. A day lists nodes from all over the
  * set and a document is not an outline at all, so neither draws one.
  *
- * THE ORDER THE FOUR ARE MADE IN IS THE DEPENDENCY between them, and it is
- * one way: the selection knows nothing about the caret, the editor hands the
- * caret over to it for the three keys that leave a row, the drag reads the
- * selection to find out whether it is carrying one row or all of them, and the
- * sweep writes a run into it.
+ * THE ORDER THE FIVE ARE MADE IN IS THE DEPENDENCY between them, and it is
+ * one way: the selection and the move picker know nothing about the caret, the
+ * editor hands the caret over to them for the four keys that leave a row (three
+ * that pick, and `⌘⇧M`, which opens the picker), the drag reads the selection
+ * to find out whether it is carrying one row or all of them, and the sweep
+ * writes a run into it.
+ *
+ * THE PICKER IS THE PAGE'S for the reason the selection is, plus one of its
+ * own: the key that opens it is pressed in the row editor and the panel is
+ * drawn in a row, and those two components have no path between them
+ * (`../move/moving.tsx`). It also has to survive the write it sends — a moved
+ * row is drawn somewhere else, and the sentence about the move belongs under it
+ * there.
  *
  * THE DRAG IS THE ONE OF THE FOUR THAT LOOKS OUTWARD, and that is what a split
  * workspace changed (#225): a row picked up here may be released over the pane
@@ -58,6 +66,7 @@ import { useFields } from "../drag/fields.ts"
 import { SweepBand } from "../drag/Sweep.tsx"
 import { createSweeping } from "../drag/sweeping.ts"
 import { isEditingTarget, type SelectAction, selectKey } from "../keys.ts"
+import { createMoving, MovingProvider } from "../move/moving.tsx"
 import { createSelection, type Selection, SelectionProvider } from "../select/selection.ts"
 import { SelectionBar } from "../select/SelectionBar.tsx"
 import { createEditor, EditorProvider } from "./editing.tsx"
@@ -95,7 +104,13 @@ export function Editable(props: {
     collapsed: createFoldReading(),
   }
   const selection = createSelection(page)
-  const editor = createEditor(page, selection)
+  // The two know each other one way round each: the editor's `⌘⇧M` opens the
+  // picker, and the picker hands the caret back to the row when it is
+  // dismissed. The second is a thunk rather than a value because the editor is
+  // made on the next line — a keyboard door that left focus on `<body>` is the
+  // gap both reviews of #245 named, and this is the one line that closes it.
+  const moving = createMoving(page, (row) => editor.open(row, "title"))
+  const editor = createEditor(page, selection, moving)
   const dragging = createDragging({ selection })
   const sweeping = createSweeping(selection, () => surface)
 
@@ -141,34 +156,36 @@ export function Editable(props: {
   return (
     <SelectionProvider value={selection}>
       <DraggingProvider value={dragging}>
-        <EditorProvider editor={editor}>
-          {/* `grow` so the box reaches the foot of the pane: the page below a
-              short outline is the sweep's largest surface, and a wrapper that
-              stopped at the last row would leave a reader nothing to press.
+        <MovingProvider value={moving}>
+          <EditorProvider editor={editor}>
+            {/* `grow` so the box reaches the foot of the pane: the page below a
+                short outline is the sweep's largest surface, and a wrapper that
+                stopped at the last row would leave a reader nothing to press.
 
-              IT WAS `min-h-full`, and that is a CIRCULAR percentage: the pane
-              is auto-height, so `100%` resolved against a height the pane had
-              already computed WITHOUT this box, and the box came out exactly
-              one FilterBar too tall — overflowing the pane by that much. The
-              pane used to be a scroll container, which hid it; the moment it
-              stopped being one (`../App.tsx` says why, for the sticky section
-              headings) those pixels became scrollable overflow on the DOCUMENT,
-              and the sidebar's own sticky offset was clamped by them — a
-              directory pinned six pixels above the header, which is what the
-              suite caught. A flex fill asks the same question with no
-              circularity in it, so the pane is now a column (`../App.tsx`).
+                IT WAS `min-h-full`, and that is a CIRCULAR percentage: the pane
+                is auto-height, so `100%` resolved against a height the pane had
+                already computed WITHOUT this box, and the box came out exactly
+                one FilterBar too tall — overflowing the pane by that much. The
+                pane used to be a scroll container, which hid it; the moment it
+                stopped being one (`../App.tsx` says why, for the sticky section
+                headings) those pixels became scrollable overflow on the DOCUMENT,
+                and the sidebar's own sticky offset was clamped by them — a
+                directory pinned six pixels above the header, which is what the
+                suite caught. A flex fill asks the same question with no
+                circularity in it, so the pane is now a column (`../App.tsx`).
 
-              `data-sweep` is `../drag/sweeping.ts`'s `SWEEP`, spelled as a
-              literal for the reason that constant gives (a JSX spread would put
-              every attribute of this box on Solid's runtime spread path) and
-              held to that name by `../claims.test.ts`. */}
-          <div ref={surface} class="grow" data-sweep="" onPointerDown={sweeping.begin}>
-            {props.children}
-          </div>
-          <Aiming aim={dragging.aim()} />
-          <SweepBand sweep={sweeping.band()} />
-          <SelectionBar />
-        </EditorProvider>
+                `data-sweep` is `../drag/sweeping.ts`'s `SWEEP`, spelled as a
+                literal for the reason that constant gives (a JSX spread would put
+                every attribute of this box on Solid's runtime spread path) and
+                held to that name by `../claims.test.ts`. */}
+            <div ref={surface} class="grow" data-sweep="" onPointerDown={sweeping.begin}>
+              {props.children}
+            </div>
+            <Aiming aim={dragging.aim()} />
+            <SweepBand sweep={sweeping.band()} />
+            <SelectionBar />
+          </EditorProvider>
+        </MovingProvider>
       </DraggingProvider>
     </SelectionProvider>
   )

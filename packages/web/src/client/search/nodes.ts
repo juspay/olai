@@ -47,8 +47,10 @@ const SETTLE_MS = 200
  *  blank while somebody types. */
 const MIN_LENGTH = 3
 
-/** How many nodes the palette shows. Fewer than the tool's twelve: this is a
- *  modal over the page, not a report. */
+/** How many nodes a DOOR of this shows — every one of them, which is what
+ *  makes it a constant here rather than an argument. Fewer than the tool's
+ *  twelve: each of these is a shortlist over a page a reader is standing on
+ *  (a modal, a box in the header, a panel under a row), not a report. */
 const LIMIT = 8
 
 export interface NodeSearch {

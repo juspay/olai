@@ -3,11 +3,11 @@
  *
  * The catalog of write verbs, pure over the SUBJECT it was asked about: which
  * entries a reader is offered, and the exact {@link Edit} each one sends — or,
- * for the FOUR whose value a person still has to choose, which panel the row
- * opens ({@link Does}: the two pickers, and the two edge panels). No socket,
- * no clipboard and no component —
- * those are `./actions.ts`'s — so the two decisions that live here are
- * decidable in a unit test:
+ * for the FIVE whose value a person still has to choose, which panel the row
+ * opens ({@link Does}: the two pickers, the two edge panels, and the move-to
+ * picker). No socket, no clipboard and no component — those are
+ * `./actions.ts`'s — so the two decisions that live here are decidable in a
+ * unit test:
  *
  *   - **which of them apply.** Every entry in this list changes something. A
  *     verb that would be refused for asking about nothing is not drawn at all:
@@ -101,13 +101,14 @@ export const subjectOfZoom = (zoomed: Situated): Subject => ({
  *
  * Almost all of them are an edit, known the moment the menu is drawn: the mark
  * to put on, the date to take off, the recurrence to stop, the placement to
- * retire. `Set date…`, `Set repeat…` and the two edge verbs are the exceptions,
- * and none of them is an exception to the SEAM — what each eventually sends is
- * the same edit its other door sends, through the same gate — only to the
- * timing: a date, a rule and a target are values somebody has to choose, and a
- * menu entry cannot carry one. So each opens the row's own panel
- * ({@link ../date/DatePicker.tsx}, {@link ../date/RepeatPicker.tsx},
- * {@link ../edges/EdgePanel.tsx}) and the write happens a gesture later.
+ * retire. `Set date…`, `Set repeat…`, the two edge verbs and `Move to…` are the
+ * exceptions, and none of them is an exception to the SEAM — what each
+ * eventually sends is the same edit its other door sends, through the same
+ * gate — only to the timing: a date, a rule, a target and a destination are
+ * values somebody has to choose, and a menu entry cannot carry one. So each
+ * opens the row's own panel ({@link ../date/DatePicker.tsx},
+ * {@link ../date/RepeatPicker.tsx}, {@link ../edges/EdgePanel.tsx},
+ * {@link ../move/MovePicker.tsx}) and the write happens a gesture later.
  *
  * A tagged union rather than an optional `edit`, for the reason the wire's own
  * anchors are one: "an entry with no edit" is spellable by accident, and the
@@ -128,6 +129,11 @@ export type Does =
    *  panel is about travels with the arm, so the two entries are one code path
    *  rather than two that could drift. */
   | { readonly kind: "pick-edge"; readonly relation: Relation }
+  /** WHERE THIS ROW GOES, and `pick-date`'s shape for `pick-date`'s reason: a
+   *  destination is a node somebody has to find in a set too big to scroll, and
+   *  a menu entry cannot carry one. What eventually goes is the same `under`
+   *  edit ⌘⇧M's picker sends, through the same gate (`../move/`). */
+  | { readonly kind: "pick-move" }
   /**
    * A PROPERTY, which is `pick-date`'s shape for `pick-date`'s reason: a key
    * and a value are things somebody has to type, and a menu entry cannot carry
@@ -315,6 +321,24 @@ export const writeVerbs = (
       })
     }
   }
+
+  // MOVE TO…, and it is offered on EVERY row — a node's own and a placement
+  // alike, which is where it parts from the two verbs below it. It names the
+  // ROW's own record, so a mirror moves as the placement it is and the node it
+  // stands for stays where it lives; that is the same rule `Tab` and a drag
+  // already follow, and the reason the split those two make (a duplicate or an
+  // archive through a placement would touch a file the reader is not looking
+  // at) does not apply here: moving this line moves this line.
+  //
+  // It is the `•••` door onto ⌘⇧M — and the ONLY door on a phone, where there
+  // is no keyboard to press a chord on. `pick-date`'s shape for `pick-date`'s
+  // reason: a destination is a node somebody has to find, and a menu entry
+  // cannot carry one.
+  verbs.push({
+    id: "move-to",
+    label: "Move to…",
+    does: { kind: "pick-move" },
+  })
 
   // A PLACEMENT can be retired, and the question is asked of the RECORD rather
   // than of what the row managed to draw — so the two degenerate kinds (a

@@ -109,6 +109,31 @@ test("only pill.ts spells the alarm pill button", () => {
   expect(filesSpelling(spelling)).toEqual(["pill.ts"])
 })
 
+// The THIRD button vocabulary, swept for the reason the two above are: the way
+// OUT of a panel a row opened is worn in three files — the shell the three
+// one-value panels share (`Cancel`), and the two that search (`Done`) — and it
+// was written out three times before it was a constant. A fourth file retyping
+// the string fails here rather than drifting a pixel at a time.
+// across.ts's claim — one spelling of the LAW two gestures refuse by. A row
+// dragged over another outline's pane and a destination picked out of a search
+// of the whole set are told the same thing about the format, and they lead into
+// it differently (a pane has a file, a picked row has a title), so the sentence
+// itself is the shared part. Its own test file is the other legitimate speller,
+// for the reason `status.test.ts` is one above: an assertion that the words
+// reach a reader has to utter them.
+test("only across.ts spells the same-file law", () => {
+  expect(filesSpelling(/Every outline is an independent tree/)).toEqual([
+    "across.ts",
+    path.join("move", "destination.test.ts"),
+  ])
+})
+
+test("only pill.ts spells a panel's way out", () => {
+  const spelling =
+    /cursor-pointer rounded border-0 bg-transparent px-2 py-1 text-sm text-muted hover:text-ink/
+  expect(filesSpelling(spelling)).toEqual(["pill.ts"])
+})
+
 // chat/live.ts's claim — one spelling of the panel's "this is happening now"
 // cue. Two places wear it and they are the same fact one level apart: the
 // header says a TURN is in flight, a spawn's rail says an AGENT the turn sent

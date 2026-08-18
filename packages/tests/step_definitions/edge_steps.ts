@@ -119,12 +119,14 @@ When(
     // for the second — it passes today only because no scenario searches
     // twice, which is not a property a step should depend on.
     //
-    // `data-asked` is the panel's own answer to "which query are these rows
-    // for" (`client/search/nodes.ts`), so this waits for exactly that, and
-    // then for the list under it. Trimmed, because the query the search is
-    // asked is the trimmed one.
+    // `data-asked` is the SHORTLIST's own answer to "which query are these rows
+    // for" (`client/search/Shortlist.tsx`, over `search/nodes.ts`), so this
+    // waits for exactly that, and then for the list under it. Inside the panel
+    // rather than on it: the attribute is a fact about the search, and the
+    // search is a component this panel draws rather than something it is.
+    // Trimmed, because the query the search is asked is the trimmed one.
     await this.page
-      .locator(`${EDGE_PANEL}${attr("data-asked", text.trim())}`)
+      .locator(`${EDGE_PANEL} ${attr("data-asked", text.trim())}`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.page
       .locator(EDGE_HIT)

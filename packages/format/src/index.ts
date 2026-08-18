@@ -200,6 +200,12 @@ export {
    *  ops layer refusing the placement that would close one before it is
    *  written. */
   drawnFrom,
+  /** …and the WALK over it, naming the chain: the same question asked at three
+   *  moments — on load (the validator), at the write (the ops layer, for a new
+   *  placement and for a move that carries one into what it shows) and at the
+   *  aim (the move-to picker, before the key). Three rules, one walk, or they
+   *  are three answers about one graph. */
+  drawingPath,
   follow,
   nodeNamed,
   /** One file's records, in the order they are written — the reading of

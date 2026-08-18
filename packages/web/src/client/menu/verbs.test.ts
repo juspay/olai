@@ -73,6 +73,7 @@ test("a node with no mark is offered the three, and nothing to clear", () => {
     "Add property…",
     "Link to a node…",
     "Wait for a node…",
+    "Move to…",
     "Duplicate",
     "Move to Trash",
   ])
@@ -90,6 +91,7 @@ test("the mark a node already carries is not offered back to it", () => {
     "Add property…",
     "Link to a node…",
     "Wait for a node…",
+    "Move to…",
     "Duplicate",
     "Move to Trash",
   ])
@@ -278,13 +280,17 @@ test("a mirror row retires ITS OWN record, never the node it shows", () => {
   })
 })
 
-test("a placement drawing no node offers the placement verb and nothing else", () => {
+test("a placement drawing no node offers only the two verbs about its RECORD", () => {
   // The question is asked of the RECORD, so a row that drew nothing needs no
   // case of its own — and the verbs that are about a node are correctly absent
   // rather than absent by accident. A served set holding this mirror is one
   // the validator refuses, so it is not a row a reader meets today; what the
   // test pins is that the catalog does not depend on the row having drawn.
-  expect(labels("lost")).toEqual(["Remove this placement"])
+  //
+  // TWO of them are about the record rather than about a node: retiring the
+  // placement, and moving it. A line a reader can see is a line they can carry
+  // somewhere else, whatever it managed to draw.
+  expect(labels("lost")).toEqual(["Move to…", "Remove this placement"])
 })
 
 test("a node's own row has no placement verb", () => {
@@ -356,6 +362,7 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
       "Add property…",
       "Link to a node…",
       "Wait for a node…",
+      "Move to…",
       "Duplicate",
     ])
 })

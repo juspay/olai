@@ -552,7 +552,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "move_node",
     "Move a node",
-    "Reparent or reorder a node within its outline. `parent: null` puts it at top level; `before` / `after` place it among its new siblings. Outlines are independent trees, so this never crosses files — archiving is what does. Landing a subtree that holds an unfinished task under a `done` ancestor takes that ancestor's mark OFF, as `set_todo` does: the answer's `nudge` names what it re-opened.",
+    "Reparent or reorder a node within its outline. `parent: null` puts it at top level; `before` / `after` place it among its new siblings. Outlines are independent trees, so this never crosses files — archiving is what does. Landing a subtree that holds an unfinished task under a `done` ancestor takes that ancestor's mark OFF, as `set_todo` does: the answer's `nudge` names what it re-opened.\n\nREFUSED WHERE THE MOVE WOULD MAKE THE TREE DRAW ITSELF, and there are two ways in — both named with the chain they close. A parent that is one of this node's own descendants is the plain loop. The other runs through a PLACEMENT and is the one worth knowing about: everything this node DRAWS moves with it, so a branch holding a mirror (a Now list of live work) may not go under what that mirror shows, and a mirror itself may not go under its own target. That is the same rule `add_mirror` refuses a new placement by, asked of the record being moved.",
     MoveRequest,
     { op: "move" },
   ),

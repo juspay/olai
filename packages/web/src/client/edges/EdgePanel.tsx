@@ -35,6 +35,13 @@
  * process: what this finds and what an agent's `search_nodes` finds cannot
  * drift.
  *
+ * The box, the walk and the list are `../search/Shortlist.tsx` — this panel's
+ * own assembly of them until the move-to picker needed the identical one, at
+ * which point two copies of the focus ritual, the four-key switch and the
+ * failure line were two chances to disagree about what typing in a panel does.
+ * What is left here is what this door is ABOUT: the relation's words, what the
+ * node says now, and what a take WRITES.
+ *
  * ## In place, not floating
  *
  * The date picker's argument, unchanged (`../date/DatePicker.tsx`): everything
@@ -60,27 +67,28 @@
 
 import type { RegularNode } from "@olai/format"
 import type { Edit } from "@olai/surface"
-import { createMemo, createSignal, For, Index, Show } from "solid-js"
+import { createMemo, For, Show } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
-import { listKey } from "../keys.ts"
-import { createCursor } from "../search/cursor.ts"
-import { createNodeSearch } from "../search/nodes.ts"
-import { nodePlace } from "../search/place.ts"
-import { nodeProps } from "../search/props.ts"
-import { Result, type RowTestids } from "../search/Result.tsx"
-
-/** What this door calls its rows (`../search/Result.tsx`'s `RowTestids`). */
-const EDGE_ROW: RowTestids = {
-  row: TESTID.edgeHit,
-  place: TESTID.edgeHitPlace,
-  prop: TESTID.edgeHitProp,
-}
+import { Shortlist, type ShortlistTestids } from "../search/Shortlist.tsx"
 import { TESTID } from "../testids.ts"
-import { TARGET } from "../touch.ts"
+import { PANEL_OUT } from "../pill.ts"
 import { DropRef } from "./DropRef.tsx"
 import { namedBy } from "./named.ts"
 import { linking, type Relation, relating, unlinking } from "./relation.ts"
+
+/** What this door calls the parts of its shortlist. NOTHING IS FENCED here, so
+ *  it names no refusal line: every hit is takeable, and the ops layer is what
+ *  answers the ones that turn out not to be (see the header). */
+const EDGE_LIST: ShortlistTestids = {
+  box: TESTID.edgeSearch,
+  row: {
+    row: TESTID.edgeHit,
+    place: TESTID.edgeHitPlace,
+    prop: TESTID.edgeHitProp,
+  },
+  failed: TESTID.edgeSearchFailed,
+}
 
 export function EdgePanel(props: {
   /** The node these edges belong to — the node a row SHOWS, never a placement,
@@ -98,37 +106,31 @@ export function EdgePanel(props: {
   /** A table index, not a computation: a memo here would cost a reactive node
    *  to cache a property read whose key cannot change under it. */
   const words = () => relating(props.relation)
-  const [query, setQuery] = createSignal("")
 
   /** What the node says NOW — the same reading the row of links draws
    *  (`./named.ts`), so the panel and the page cannot disagree about what an id
    *  names or about the frame before the indexes arrive. */
   const held = createMemo(() => namedBy(props.node, props.relation, derived))
 
-  const found = createNodeSearch(() => query())
-  const cursor = createCursor(() => found.hits().length)
-
-  /** Take the row the cursor is on. Nothing to take is not a key — swallowing
-   *  Enter over an empty list would be a keystroke that does nothing at all. */
-  const take = (): boolean => {
-    const hit = found.hits()[cursor.at()]
-    if (hit === undefined) return false
-    props.onWrite(linking(props.node.id, props.relation, hit.id))
-    return true
-  }
-
   return (
     <div
       class="my-1 w-[min(28rem,90vw)] rounded border border-rule/70 bg-panel p-2"
       data-testid={TESTID.edgePanel}
       data-relation={props.relation}
-      // WHICH QUERY the rows below answer (`../search/nodes.ts`), as a fact in
-      // the markup rather than something a reader has to infer from what is in
-      // them. It is the same kind of claim `data-relation` beside it is, and it
-      // is what lets a scenario wait for the rows of the query it just typed —
-      // a wait for "any rows" is a wait a second search in one scenario would
-      // satisfy with the first one's list.
-      data-asked={found.answering() ?? undefined}
+      // ESCAPE IS THIS PANEL'S, wherever the caret is inside it — the box, a
+      // hit, an `×` on a chip, or the `Done` somebody tabbed to. It was the
+      // search box's until the shortlist was shared, which meant the key did
+      // nothing anywhere else in the panel; `../edit/RowPanel.tsx` has always
+      // listened on the wrapper, and this is that rule read here.
+      //
+      // Stopped HERE: the row's own editor and the ⌘K palette both listen for
+      // Escape further up, and one key must not close two things.
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return
+        event.preventDefault()
+        event.stopPropagation()
+        props.onClose()
+      }}
     >
       <p class="m-0 mb-1 text-xs text-muted">{words().heading}</p>
 
@@ -161,94 +163,16 @@ export function EdgePanel(props: {
         </ul>
       </Show>
 
-      <input
-        type="text"
-        class={`${TARGET} md:min-h-0 w-full rounded border border-rule bg-paper px-2 py-1 text-sm text-ink outline-none focus:border-accent`}
-        data-testid={TESTID.edgeSearch}
-        aria-label={words().placeholder}
-        placeholder={words().placeholder}
-        spellcheck={false}
-        value={query()}
-        // The caret goes here as the panel attaches — it was opened to be typed
-        // in. `queueMicrotask` for the reason every other panel in this client
-        // uses one: the element is not in the document when the ref runs.
-        ref={(box) => queueMicrotask(() => box.focus())}
-        onInput={(event) => {
-          setQuery(event.currentTarget.value)
-          // A keystroke is a NEW question, so the answer to the last one is not
-          // where anybody's eye is (`../search/cursor.ts`).
-          cursor.top()
-        }}
-        onKeyDown={(event) => {
-          // The registry's, never a private match (`../keys.ts`): these are the
-          // same four keys a row editor, the palette and the `((` widget claim,
-          // and a component matching them privately is the silent disagreement
-          // that file exists to prevent.
-          switch (listKey(event)) {
-            case "dismiss":
-              // Stopped here: the row's own editor and the palette both listen
-              // for Escape further up, and one key must not close two things.
-              event.preventDefault()
-              event.stopPropagation()
-              props.onClose()
-              return
-            case "next":
-              event.preventDefault()
-              cursor.step(1)
-              return
-            case "prev":
-              event.preventDefault()
-              cursor.step(-1)
-              return
-            case "take":
-              if (take()) event.preventDefault()
-              return
-            case null:
-              return
-          }
-        }}
+      <Shortlist
+        label={words().placeholder}
+        testids={EDGE_LIST}
+        onTake={(hit) => props.onWrite(linking(props.node.id, props.relation, hit.id))}
       />
-
-      {/* The search's own refusal, in its own words — never dropped. */}
-      <Show when={found.failure()}>
-        {(failure) => (
-          <p
-            class="m-0 mt-1 font-mono text-xs text-alarm"
-            data-testid={TESTID.edgeSearchFailed}
-            role="alert"
-          >
-            {failure()}
-          </p>
-        )}
-      </Show>
-
-      <ul class="m-0 max-h-56 list-none overflow-x-hidden overflow-y-auto p-0">
-        {/* `<Index>` for the reason the completions list uses one: the rows are
-            positional, there are at most eight, and every keystroke mints fresh
-            hits. */}
-        <Index each={found.hits()}>
-          {(hit, index) => (
-            <li>
-              <Result
-                label={hit().title}
-                place={nodePlace(hit())}
-                props={nodeProps(hit())}
-                active={index === cursor.at()}
-                testids={EDGE_ROW}
-                id={hit().id}
-                onHover={() => cursor.to(index)}
-                onSelect={() =>
-                  props.onWrite(linking(props.node.id, props.relation, hit().id))}
-              />
-            </li>
-          )}
-        </Index>
-      </ul>
 
       <div class="mt-1 flex items-center justify-end">
         <button
           type="button"
-          class={`${TARGET} md:min-h-0 cursor-pointer rounded border-0 bg-transparent px-2 py-1 text-sm text-muted hover:text-ink`}
+          class={PANEL_OUT}
           data-testid={TESTID.edgePanelClose}
           onClick={() => props.onClose()}
         >

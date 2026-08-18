@@ -289,7 +289,20 @@ export function Dropdown(props: {
         // standing on, and that is `data-[highlighted]` in `./Panel.tsx`.
         // Without it, Chromium rings the whole panel for a menu opened with
         // a mouse.
-        class={`relative ${LAYER.row} min-w-[10.5rem] rounded border border-rule/70 bg-panel py-1 text-sm text-ink shadow-md focus:outline-none`}
+        // A PANEL TALLER THAN THE WINDOW STILL REACHES ITS LAST ENTRY, and the
+        // two utilities that do it are the popper's own answer rather than a
+        // measurement taken here. Floating-ui already flips this list to
+        // whichever side of the row has more room; when NEITHER side has
+        // enough — seventeen verbs on a node with children, and a laptop window
+        // is not tall — flipping picks the better side and the rest hangs off
+        // the screen, where nothing can press it. `--kb-popper-content-
+        // available-height` is what the primitive's `size` middleware measures
+        // for exactly this, published on the positioner every time the panel is
+        // placed; the cap belongs on THIS box (the positioner's own
+        // `max-height`, which `fitViewport` would set, is a limit its
+        // overflowing child ignores), and the scroll is what turns a cap into a
+        // list somebody can still reach the end of.
+        class={`relative ${LAYER.row} min-w-[10.5rem] max-h-[var(--kb-popper-content-available-height)] overflow-y-auto rounded border border-rule/70 bg-panel py-1 text-sm text-ink shadow-md focus:outline-none`}
         // The primitive restores the trigger on every close. A KEY still
         // gets the caret back (`handBack`); a pointer that landed somewhere
         // else must not be pulled off it.
