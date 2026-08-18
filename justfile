@@ -179,12 +179,14 @@ hm-module:
 #
 #   - the tab's derived memo, timed as it was (flatten the corpus and derive
 #     it) against as it is (patch the held view with the file that moved);
-#   - the PATCHER underneath it, timed the same two ways with the browser taken
-#     out of the picture — `derive` over the whole corpus against `patched` on
-#     the view the last edit left (`packages/format/src/patch.bench.ts`). It is
-#     the harness slice 3 measured its order-of-magnitude figure with and did
-#     not commit, which is why architecture.md called that number one this tree
-#     could not reproduce;
+#   - the PATCHER underneath it, with the browser taken out of the picture —
+#     `derive` over the whole corpus, against `patched` on the view the last
+#     edit left, against that same patch paying the id-map clone the overlay
+#     replaced (`packages/format/src/patch.bench.ts`). It is the harness slice 3
+#     measured its order-of-magnitude figure with and did not commit, which is
+#     why architecture.md called that number one this tree could not reproduce,
+#     and the third arm is there so the overlay's own before/after is printed
+#     rather than quoted;
 #   - the MATCHER, timed with the fold it keeps per record against without it —
 #     what the filter over a page and the chat composer's `@` list each pay per
 #     keystroke (`packages/format/src/filter.bench.ts`, added when a reviewer
@@ -195,7 +197,9 @@ hm-module:
 # one directory. `--conditions browser` is load-bearing for the FIRST: without
 # it Bun resolves SolidJS's server build, whose memos never re-run, and every
 # arm reports an empty loop. Size both with OLAI_BENCH_FILES /
-# OLAI_BENCH_RECORDS / OLAI_BENCH_EDITS.
+# OLAI_BENCH_RECORDS / OLAI_BENCH_EDITS — and turning the last one up to 900 is
+# what makes the second leg's layer grow past half the id map and flatten, which
+# it prints the edit of.
 bench: install
     {{ nix_shell }} bun --conditions browser packages/web/src/client/deriving.bench.ts
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
