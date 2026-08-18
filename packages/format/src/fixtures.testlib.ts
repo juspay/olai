@@ -234,9 +234,10 @@ const unparsable = (
  * empty, and — every twentieth record — a MIRROR pointing into the file before
  * this one, so a mark that flips reaches a file the delta never named and the
  * dirty set is not always one record; a NOTE on every fifth record, with every
- * twenty-fifth of them naming another record by its `@id`, so the derivation
- * has prose to read and the mention index is not an empty map both benches
- * report nothing about. Paths are mostly flat, some nested, and a few in a
+ * TENTH of them naming another record by its `@id`, so the derivation has prose
+ * to read and the mention index is not an empty map both benches report nothing
+ * about — which `./vault.test.ts` asserts of the size the benches run, because
+ * the first spelling of this used a modulo that never fired. Paths are mostly flat, some nested, and a few in a
  * directory named after a file beside it: the pair the two readings of path
  * order used to disagree about.
  *
@@ -287,12 +288,20 @@ const fileOf = (random: () => number, at: number, records: number): string => {
     if (random() < 0.3) record["todo"] = true
     else if (random() < 0.15) record["done"] = true
     if (which > 1 && random() < 0.1) record["after"] = [`f${at}n${which - 1}`]
-    // A NOTE on every fifth record, and every twenty-fifth naming another by
-    // its `@id` — because a vault whose records hold no prose at all measures
-    // none of what a derivation does with prose. Without this the mention index
-    // is an empty map in both benches: the corpus-wide note scan finds nothing
-    // and the patcher’s re-file of it is free, so a new index prints as "costs
+    // A NOTE on every fifth record, and every TENTH naming another by its
+    // `@id` — because a vault whose records hold no prose at all measures none
+    // of what a derivation does with prose. Without this the mention index is
+    // an empty map in both benches: the corpus-wide note scan finds nothing and
+    // the patcher’s re-file of it is free, so a new index prints as "costs
     // zero" when what it printed was "was never asked".
+    //
+    // TENTH RATHER THAN TWENTY-FIFTH, and the difference is the whole reason
+    // `./vault.test.ts` exists: the default file holds twenty records, so
+    // `which % 25` NEVER FIRED and the vault this comment described had 3,920
+    // notes and not one `@` in it. The sentence was in the README beside the
+    // numbers for a whole review cycle before grok derived the corpus and
+    // counted. A fixture claim nothing asserts is a fixture claim that is
+    // false.
     //
     // COUNTED rather than DRAWN, and that is not a style choice: every
     // `random()` call shifts the rest of this seeded stream, so drawing for the
@@ -301,7 +310,7 @@ const fileOf = (random: () => number, at: number, records: number): string => {
     // reasons that have nothing to do with notes. The vault is the one it has
     // always been, with prose added to it.
     if (which % 5 === 0) {
-      record["desc"] = which % 25 === 0
+      record["desc"] = which % 10 === 0
         ? `a note about @f${at}n1 and what it is for`
         : "a note about what this is for"
     }

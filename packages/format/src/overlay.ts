@@ -6,14 +6,14 @@
  * an entry per record in the directory, so that the revision a reader is
  * holding could not move under them. On a 21,552-record vault that clone is
  * ABOUT HALF of a patch, which `patch.bench.ts` prints as `patch+clone`
- * against `patch` — 1.62ms against 0.94ms, a 1.7× — and again as the step on
- * its own, at 0.414ms of it. (The two do not have to agree: the step's own cost
+ * against `patch` — 1.50ms against 0.69ms, a 2.2× — and again as the step on
+ * its own, at 0.444ms of it. (The two do not have to agree: the step's own cost
  * is what a clone takes to build, and the gap between the arms is that plus
  * the garbage a 21,552-entry allocation leaves for later work to collect.)
  * This is the lever open question 1 of `docs/brainstorming/model-indices.md`
  * named: a LAYER over the map the last patch left standing, holding the
  * entries this one changed, so an edit costs what it touched rather than what
- * the directory holds. Layered, the same step costs 0.009ms where the edits
+ * the directory holds. Layered, the same step costs 0.014ms where the edits
  * wander and 0.002ms where they are one file typed in, which is the case a
  * keystroke is.
  *

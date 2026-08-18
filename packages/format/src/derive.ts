@@ -206,6 +206,14 @@ export interface Derived {
    * to re-narrow what the fold already proved. ({@link Derived.namedBy} next
    * door stays `Located` because `mirror` IS one of the fields it files.)
    *
+   * SOME KEYS CAN NEVER BECOME REFERENCES, and that is a decision rather than
+   * an oversight. A tag's alphabet takes `/` so that `#work/olai` is one tag,
+   * and an id's ({@link ID_SHAPE}) does not — so `@work/olai` files under a
+   * word no record can ever claim, and the reading answers nothing for it. They
+   * are left in: filtering by id SHAPE at the fold would be this index knowing
+   * about ids, which is exactly what keying it by the word exists to avoid, and
+   * the cost is one map entry per distinct slashed tag in the directory.
+   *
    * NOTHING READS THE KEYS IN ORDER, unlike the three indexes above, and the
    * patcher spends exactly that — it adds and drops keys in place rather than
    * rebuilding the map to keep an order nobody promised. The VALUES are ordered
@@ -297,14 +305,17 @@ export const nameInto = (
  * the write gate. What the record SAYS is the honest answer here, and it is the
  * answer `filter.ts`'s tag facet already gives about the same text.
  *
- * WHERE THAT PARTS from the browser is narrower than it sounds, and the
- * difference is worth knowing before anybody widens either side. A `@id` in a
- * CODE SPAN is not a mention on either — not because this reading knows about
- * fences, but because {@link titleTagRe} claims `@` only where a word STARTS
- * and a backtick does not open one. What differs is a LINK'S TEXT: `[` opens a
- * word, so `[@herbs](…)` is a mention here and not a styled tag there.
- * `./backlinks.test.ts` pins both halves — the prose said otherwise until it
- * ran.
+ * WHERE THAT PARTS from the browser RUNS BOTH WAYS, and one inherited rule
+ * decides every case: {@link titleTagRe} claims `@` only where a WORD STARTS.
+ * A tight ```@herbs``` is a mention on neither side — an ACCIDENT of that rule
+ * rather than knowledge, since a backtick does not open a word and nothing here
+ * has to know what a code span is. A space inside that span, a fenced or
+ * indented block (a newline opens a word), and a link's text are mentions here
+ * and styled nowhere. And `*@herbs*` is the reverse: not a mention here, drawn
+ * as a tag there, because the client walks into `em` and `strong`. So "the bias
+ * is toward showing more" is NOT a safe thing to say, and the docs said a
+ * narrower thing than the truth twice before `./backlinks.test.ts` pinned every
+ * row of it (docs/format.md's References carries the table).
  */
 export const mentionsOf = (node: Node): ReadonlyArray<string> => {
   if (isMirror(node)) return NOTHING_MENTIONED

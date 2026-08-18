@@ -123,7 +123,19 @@ The reverse reading — **what refers to this node** — comes out of two indexe
 
 **One record referring twice is one referrer.** A node that both `see`s another and names it in its note is one thing pointing, saying two things — the rule the edge fields already keep about a target named twice.
 
-**A note is read as TEXT.** A `desc` is markdown and the browser declines to style a tag inside a code span or a link, but `@olai/format` is the floor the validator stands on and holds no markdown parser: deciding what a reference IS out of one would put a parser under the write gate. So what the record SAYS is the answer here, which is the same answer the search grammar's tag facet gives about the same text. **Where that parts from the browser is one case, not two**: a `@id` in a code span is not a mention on either side — not because this reading knows about fences, but because `@` is claimed only where a word STARTS and a backtick does not open one — while a LINK'S TEXT (`[@herbs](…)`) is a mention here and not a styled tag there, since `[` does open a word.
+**A note is read as TEXT.** A `desc` is markdown and the browser parses it before it styles a tag, but `@olai/format` is the floor the validator stands on and holds no markdown parser: deciding what a reference IS out of one would put a parser under the write gate. So what the record SAYS is the answer here, which is the same answer the search grammar's tag facet gives about the same text.
+
+**What that costs is a disagreement with the browser, and it runs BOTH ways.** One rule decides every case and it is inherited rather than invented: `@` is claimed only where a WORD STARTS — the beginning of the text, or after a space, `(`, `[` or `{` — because `@` sits inside ordinary words all the time. So:
+
+| | here | drawn as a tag |
+|---|---|---|
+| `` `@herbs` `` — a tight code span | no | no |
+| `` `see @herbs here` `` — a space inside the span | **mention** | no |
+| a fenced or indented code block, `@herbs` after a newline | **mention** | no |
+| `[@herbs](…)` — a link's text | **mention** | no |
+| `*@herbs*` / `**@herbs**` — emphasis | no | **styled** |
+
+The tight span is the only row where the two agree, and the agreement is an accident of the sigil rule rather than knowledge — nothing here has to know what a code span is. The last row is the one worth knowing about: a reader can see `@herbs` styled as a tag on a record's own page and not find that record in the herb bed's referenced-by section, because `*` does not open a word. Every row is pinned by a test (`format/src/backlinks.test.ts`), so the table cannot drift from the code without something going red.
 
 ## Days
 

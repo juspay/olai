@@ -121,27 +121,71 @@ test("the referrers come in corpus order, whichever index found them", () => {
   expect(said(view, "herbs")).toEqual(["early mention", "late see"])
 })
 
-test("a note is read as TEXT, and where that parts from the browser", () => {
-  // A note is markdown, and this package holds no markdown parser: deciding
-  // what a reference IS out of one would put a parser under the write gate, so
-  // what the record SAYS is the answer here (`./derive.ts`’s `mentionsOf`).
-  //
-  // WHERE THAT ACTUALLY PARTS from the browser is NARROWER than it first looks,
-  // and this test is what found that out. A `@id` in a CODE SPAN is not a
-  // mention on either side — not because this reading knows about fences, but
-  // because `titleTagRe` claims `@` only where a word STARTS and a backtick does
-  // not open one. The divergence is a LINK’S TEXT: `[` opens a word, so this
-  // side counts it, while the client declines to style a tag inside an `a`
-  // (`web/src/client/markdown/tags.ts`).
-  //
-  // It is a test rather than a sentence because a divergence nothing asserts is
-  // one that widens quietly — and because the sentence was WRONG until this ran.
+// ── a note is markdown, and this reading is not ────────────────────────
+//
+// The decision is `./derive.ts`'s `mentionsOf`: this package holds no markdown
+// parser, and deciding what a reference IS out of one would put a parser under
+// the write gate — so what the record SAYS is the answer. What that costs is a
+// disagreement with the browser, which DOES parse before it styles a tag
+// (`web/src/client/markdown/tags.ts`, whose `SKIP_TAGS` is `code` and `a`).
+//
+// THE DISAGREEMENT GOES BOTH WAYS, and these tests are the enumeration. Two
+// reviewers of #237 each found the prose one case short of the truth — it said
+// "one case, not two" — so the cases are pinned rather than described. What
+// decides every one of them is a single inherited rule: `titleTagRe` claims `@`
+// only where a WORD STARTS (the beginning of the text, or after a space, `(`,
+// `[` or `{`), because `@` sits inside ordinary words all the time.
+
+test("markdown the browser skips: a `@id` that still starts a word IS a mention", () => {
+  // Over-report, three shapes, all of them the same rule: the character before
+  // the sigil opens a word even though the markup around it is something the
+  // browser would decline to style a tag inside.
   const view = viewOf({
     "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
-      `{"id":"fenced","ord":"b","title":"fenced","desc":"write \`@herbs\` in the note"}\n` +
-      `{"id":"linked","ord":"c","title":"linked","desc":"see [@herbs](https://example.invalid)"}`,
+      // A space INSIDE an inline code span. The backtick does not open a word;
+      // the space after it does.
+      `{"id":"spanned","ord":"b","title":"spanned","desc":"write \`see @herbs here\` please"}\n` +
+      // A fenced block: the content line begins after a newline, and `\\n` is
+      // whitespace, so the sigil starts a word.
+      `{"id":"fenced","ord":"c","title":"fenced","desc":"\`\`\`\\n@herbs do this\\n\`\`\`"}\n` +
+      // An indented block, for the same reason.
+      `{"id":"indented","ord":"d","title":"indented","desc":"    @herbs do this"}\n` +
+      // A link's TEXT: `[` is in the opening alphabet.
+      `{"id":"linked","ord":"e","title":"linked","desc":"see [@herbs](https://example.invalid)"}`,
   })
-  expect(said(view, "herbs")).toEqual(["linked mention"])
+  expect(said(view, "herbs")).toEqual([
+    "spanned mention",
+    "fenced mention",
+    "indented mention",
+    "linked mention",
+  ])
+})
+
+test("...and a TIGHT code span is not one, on either side", () => {
+  // The one case where the two agree, and it is worth pinning because the
+  // agreement is an ACCIDENT of the sigil rule rather than knowledge: a
+  // backtick is not in the opening alphabet, so nothing here has to know what
+  // a code span is.
+  const view = viewOf({
+    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+      `{"id":"tight","ord":"b","title":"tight","desc":"write \`@herbs\` in the note"}`,
+  })
+  expect(backlinksOf(view, "herbs")).toEqual([])
+})
+
+test("and the divergence runs the OTHER way too: emphasis is styled and is not a mention", () => {
+  // The half that is easy to miss, and the reason "the bias is toward showing
+  // more" is not a safe thing to say: `*` and `_` are not in the opening
+  // alphabet, so this reading skips them — while the client's tag styling walks
+  // into `em` and `strong` (they are not in `SKIP_TAGS`) and draws the pill.
+  // So a reader can see `@herbs` styled as a tag on a record's own page and not
+  // find that record in the herb bed's referenced-by section.
+  const view = viewOf({
+    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+      `{"id":"emphasised","ord":"b","title":"emphasised","desc":"see *@herbs* today"}\n` +
+      `{"id":"strong","ord":"c","title":"strong","desc":"see **@herbs** today"}`,
+  })
+  expect(backlinksOf(view, "herbs")).toEqual([])
 })
 
 test("a word inside another word is not a mention", () => {
