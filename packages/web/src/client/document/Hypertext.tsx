@@ -599,14 +599,13 @@ export function Hypertext(props: { readonly file: string }) {
   // exists, and what it replaced, is written where it is declared
   // (`@olai/surface`'s `Head`).
   //
-  // IT IS ALSO NO LONGER BOUNDED, which is the part that belongs here because
-  // it is a fact about this frame. What this used to watch was a BODY, re-read
-  // only while the server was watching the path — for a while, the sixteen most
-  // recently opened across every reader at once, so newer opens anywhere could
-  // leave this frame showing what the file said when it was opened. The server
-  // counts holders now and bounds nothing (`@olai/server`'s `bodies.ts`), so
-  // that is history twice over: a head moves on every revision, for every file,
-  // to every tab, and nothing ages out because there is nothing to read.
+  // IT IS ALSO NOT BOUNDED, which is the part that belongs here because it is
+  // a fact about THIS frame and nothing else: a head moves on every revision,
+  // for every file, to every tab, and there is nothing to read and nothing to
+  // age out. That is a property of the member this asks for, not of anything
+  // the server counts — what a body costs, and who keeps one live, is the
+  // BODY's story and is written where it happens (`@olai/server`'s
+  // `bodies.ts`). This frame stopped being part of it when it stopped asking.
   // …and the SECTION is watched beside it, for the case the revision cannot
   // cover: the page is keyed by FILE (`./DocumentPage.tsx`), so arriving at
   // another place inside the file already open is the same element being asked

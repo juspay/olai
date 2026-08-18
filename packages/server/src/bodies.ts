@@ -30,33 +30,28 @@
  * saved pages stop being resident, and stay non-resident however many of them a
  * reader visits.
  *
- * NOTHING IS EVICTED AND THERE IS NO BOUND, because there is no longer anything
- * to guess. A path is here while a reader holds it and gone the moment the last
- * one lets go, so the live set is exactly the pages somebody has open — one
- * entry per file being shown, across every reader at once. It was a bounded LRU
- * of the sixteen most recently opened paths for as long as the wire said when a
- * reader arrived and never when one left; that made "no eviction" untrue rather
- * than merely unlikely (sixteen newer opens anywhere silenced a still-visible
- * page, which then held what the file said when it was asked for), and it made a
- * closed tab leave a path behind that was re-read on every revision touching it
- * until sixteen newer opens pushed it out. Both were the cost of not knowing
- * when a reader leaves. The wire says now.
+ * NOTHING IS EVICTED AND THERE IS NO BOUND, because there is nothing left to
+ * guess: a path is here while a reader holds it and gone the moment the last one
+ * lets go, so the live set is exactly the files somebody has open, across every
+ * reader at once. This used to be a sixteen-path LRU, for one reason — the wire
+ * said when a reader arrived and never when one left — and it cost what an
+ * eviction costs: sixteen newer opens anywhere silenced a page somebody was
+ * still reading, and a closed tab went on being re-read until sixteen newer
+ * opens pushed it out. That is history rather than a trade-off worth restating,
+ * and `docs/format.md` keeps the long version.
  *
  * TWO READERS OF ONE FILE ARE TWO HOLDS, and the first to leave takes its own
- * and nobody else's — the shape kolu's refcounted watchers landed on
- * (`refcounted-dir-watcher.ts`: first subscribe installs, all consumers share,
- * last unsubscribe tears down, and the unsubscribe is idempotent). Here the
- * idempotence is not written at all: a hold is an `acquireRelease` on the
- * reader's own scope, and a scope does not run its finalizer twice. The teardown
- * lesson from those watchers does survive as a line of our own: a path asked for
- * and then released before the reader got to it is DROPPED rather than read, so
- * a page opened and closed in one frame costs no disk.
+ * and nobody else's. The idempotence that needs is not written anywhere: a hold
+ * is an `acquireRelease` on the reader's own scope, and a scope does not run its
+ * finalizer twice. One line does survive from kolu's refcounted watchers, whose
+ * teardown clears what a late callback would have fired: a path asked for and
+ * then released before the reader got to it is DROPPED rather than read, so a
+ * page opened and closed in one frame costs no disk.
  *
- * THE OTHER END OF THIS COUNT IS THE BROWSER'S, and it has always been there:
- * `@olai/web`'s `documents.tsx` counts the components asking for each path so
- * that one page's unmount cannot cancel another's subscription. The client knew
- * when a reader arrived and left all along; what changed is that the server can
- * hear it, and the two ends now keep the same kind of book.
+ * THE OTHER END OF THIS COUNT IS THE BROWSER'S: `@olai/web`'s `documents.tsx`
+ * counts the components asking for each path, so one page's unmount cannot
+ * cancel another's subscription. That half was always there — what changed is
+ * that the server can hear it, and both ends now keep the same kind of book.
  *
  * ONE failure is quieter than it used to be, and it is a trade rather than an
  * oversight: a `.html` that cannot be READ (not gone — unreadable) reaches the
@@ -105,20 +100,17 @@ export const make = (
   Effect.gen(function*() {
     /**
      * How many readers are showing each path — the ONE representation of "who
-     * is reading", and a path with none is absent from it rather than zero, so
-     * this map IS the set of files somebody has open and there is nothing to
-     * keep in step with it.
+     * is reading", with a path nobody holds absent rather than zero, so this map
+     * IS the set of files somebody has open.
      *
-     * It has to be readable on the spot: {@link Bodies.unread} is called from
-     * the middle of a revision, and its other caller is the framework's
-     * `readOne`, which is a plain synchronous function. That is what decided
-     * this against `effect`'s `RcMap`, which is the ecosystem's own
-     * refcount-by-key and was tried here first: its count is private and its
-     * keys are read through an `Effect`, so it left a second set beside it to
-     * answer the synchronous question — two accounts of one fact, and a lookup
-     * whose "resource" was that second set rather than anything of its own.
-     * `RcMap` is for sharing a scoped resource that HAS a value (a connection,
-     * a session); what is shared here is the fact of being watched.
+     * It must be readable ON THE SPOT, and that constraint is what shaped it:
+     * {@link Bodies.unread} is called from the middle of a revision, and its
+     * other caller is the framework's `readOne`, a plain synchronous function.
+     * `effect`'s `RcMap` is the ecosystem's refcount-by-key and was tried here
+     * first — it keeps its count private and answers `keys` through an
+     * `Effect`, so it left a second set beside it to answer that synchronous
+     * question, which is two accounts of one fact. It shares a scoped resource
+     * that HAS a value; what is shared here is the fact of being watched.
      */
     const holders = new Map<string, number>()
     /** What is on the queue and not yet taken, so a burst of asks about one

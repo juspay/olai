@@ -9,9 +9,10 @@
  * the runtime is torn down, or a one-shot reader takes its frame and leaves
  * ("FIBER INTERRUPTION IS THE UNSUBSCRIBE" — `@kolu/surface`'s `server.ts`).
  * The framework does not publish it, so a server that has to know whether
- * anybody is still showing a file was left inferring it from opens and aging
- * the answer out (`@olai/server`'s `bodies.ts`, which bounded that guess at
- * sixteen paths and named this module as what would replace it).
+ * anybody is still showing a key was left inferring it from opens and aging the
+ * answer out — a bound with no honest number in it. (`@olai/server`'s
+ * `bodies.ts` is the consumer that was doing so, and its header is where that
+ * history is kept.)
  *
  * This is that fact, taken from where it already exists rather than invented:
  * {@link holding} wraps one collection's `get` so that the {@link Hold} runs in
@@ -99,11 +100,27 @@ export const holding = (
       `holding: no handler at "${tag}" — the "${member}" collection does not serve a per-key \`get\`, so there is no subscription to hold.`,
     )
   }
-  /** The hold runs in the STREAM's scope rather than at the handler call, so a
-   *  subscription nobody runs holds nothing and one that is interrupted
-   *  anywhere — mid-snapshot included — releases exactly once. `Stream.unwrap`
-   *  is what provides that scope, which is the same construction the
-   *  framework's own channel subscription is built on. */
+  /**
+   * The hold runs in the STREAM's scope rather than at the handler call, so a
+   * subscription nobody runs holds nothing and one that is interrupted anywhere
+   * — mid-snapshot included — releases exactly once. `Stream.unwrap` is what
+   * provides that scope, which is the same construction the framework's own
+   * channel subscription is built on.
+   *
+   * THE PULL ORDER IS LOAD-BEARING, and it is why the hold is written as this
+   * effect rather than anywhere else in the expression. `Stream.unwrap` runs
+   * this effect FIRST and builds the wrapped stream from its result, so the
+   * hold is in place before the member's own `get` is constructed — and
+   * therefore before that `get` subscribes to the key's channel and calls
+   * `readOne` for its snapshot (`subscribeBeforeSnapshot`, in the framework's
+   * `server.ts`). A consumer whose `readOne` acts on the hold — asking for a
+   * body that only a held path is read for (`@olai/server`'s `runtime.ts`) —
+   * depends on exactly that order: a hold taken AFTER the snapshot — inside the
+   * wrapped stream, or by the member's own `readOne` — would leave the first
+   * ask naming a path nobody held yet, which such a consumer drops. It is
+   * pinned by a test rather than by this paragraph (`./holding.test.ts`, "the
+   * hold is taken before the wrapped handler runs").
+   */
   const held: SurfaceHandler = (payload: { readonly key: string }) =>
     Stream.unwrap(
       Effect.map(hold(payload.key), () => answer(payload) as Stream.Stream<unknown, unknown>),

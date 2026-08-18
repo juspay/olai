@@ -103,6 +103,30 @@ test("an interrupted subscription releases the key", async () => {
   )
 })
 
+// THE ORDER, pinned: the hold has to be in place before the wrapped handler
+// runs, because that is when a collection's `get` subscribes to the key's
+// channel and calls `readOne` — and a consumer that acts on the hold from
+// `readOne` (asking for a body only a held path is read for) would otherwise
+// ask about a path nobody was holding yet. A comment cannot keep that true.
+test("the hold is taken before the wrapped handler runs", async () => {
+  const events: Array<string> = []
+  const handlers = holding(
+    record(Stream.unwrap(Effect.sync(() => {
+      events.push("ran")
+      return Stream.fromArray([1])
+    }))),
+    "documents",
+    (key) =>
+      Effect.acquireRelease(
+        Effect.sync(() => events.push(`hold ${key}`)),
+        () => Effect.sync(() => events.push(`release ${key}`)),
+      ),
+  )
+
+  await Effect.runPromise(Stream.runCollect(get(handlers, "report.html")))
+  expect(events).toEqual(["hold report.html", "ran", "release report.html"])
+})
+
 test("two readers of one key are two holds", async () => {
   const { handlers, events } = watching(Stream.fromArray([1]))
 
