@@ -259,7 +259,11 @@ Feature: Keyboard editing
     When I click the note of "order"
     Then the note of "order" is being typed
     And the note being typed draws "walnut" in bold
-    When I type " — measured twice"
+    # The caret is where the click landed — the surface being the rendering is
+    # what makes that possible (`live_preview_editing.feature` has the promise
+    # itself). This scenario is about the END of the note, so it says so.
+    When I put the caret at the end of the note
+    And I type " — measured twice"
     And I click away from the editor
     Then "house.olai" holds a node whose note ends "— measured twice"
     # And clicking away is what it always was: the row folds back to its title.

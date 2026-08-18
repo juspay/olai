@@ -14,6 +14,36 @@
  * links a reader is entitled to follow, so a click that went to a caret would
  * delete the reading surface to save a press.
  *
+ * ## Why THIS surface is not the one the reader was already looking at
+ *
+ * A note is (`../edit/RowEditor.tsx`): a row's open note IS this editor,
+ * mounted readonly, and a click makes it writable in place — one surface, two
+ * modes, no jump (human, 2026-08-18). A document is the one place that ruling
+ * lands differently, and the reason is a list rather than a preference:
+ *
+ *   - **its CONTENTS** (`./Toc.tsx`) is derived from the heading tree the
+ *     markdown pipeline reports while rendering (`markdown/outline.ts`), on
+ *     the same memo the body draws from;
+ *   - **its `#fragment` anchors** are real element ids minted by that
+ *     pipeline (`markdown/anchors.ts`) — which is what makes a link into a
+ *     heading work at all: from the contents, from another document, and from
+ *     a `.html` preview (`features/documents.feature`,
+ *     `features/html_previews.feature`);
+ *   - **its footnotes**, **its tables**, **its `/media/`-resolved images**
+ *     and **its highlighted fences** are that pipeline's output too, and the
+ *     live-preview extensions draw none of the five: a table is pipe text in
+ *     the editor, an image is its source, a footnote is a bracket.
+ *
+ * A note loses nothing to that list, and it is measured rather than assumed:
+ * across the 282 notes in this repository's own outlines there is not one
+ * table, image, footnote or heading. A document is where they all live.
+ *
+ * So the editor takes this surface when Edit is pressed, and the rendering
+ * holds it the rest of the time. What would change the answer is the editor
+ * growing those five — the contents could then come off the editor's own
+ * heading field (`headingSlugField`), and this page would become the same
+ * two-mode surface a note already is.
+ *
  * LEAVING IT IS NO LONGER A VERB, and that half is superseded. The human ruled
  * AUTOSAVE on 2026-08-18: there is no Save, no Cancel, and no dirty flag. What
  * is in the editor is written on a pause and when the caret leaves
@@ -168,6 +198,11 @@ export function DocEditor(props: {
 
       <Mde
         text={text()}
+        // ALWAYS WRITING, and that is this page's own answer to the one-surface
+        // ruling rather than an oversight — the header says which surface keeps
+        // its rendering and why.
+        writing
+
         onInput={(next) => {
           setText(next)
           // Whatever the last write said was about the text this replaces.

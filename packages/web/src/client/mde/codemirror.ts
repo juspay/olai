@@ -111,6 +111,29 @@ const livePreview: Extension = [
 const vimming = new Compartment()
 
 /**
+ * ...and which the MODE swaps.
+ *
+ * The surface is one editor in two modes rather than two surfaces that replace
+ * each other (human, on sight of the first shape): READING is what a person
+ * looking at a note sees — the same decorations, the same type, no caret and
+ * nothing to type into — and WRITING is the same view with the caret in it.
+ * Because it is one `EditorView` reconfigured rather than a rendering swapped
+ * for an editor, there is nothing to re-lay-out between the two: the words do
+ * not move when you click into them.
+ *
+ * BOTH halves are set together and both are load-bearing. `editable` is what
+ * takes `contenteditable` off the content — so a reader cannot type, and the
+ * browser draws no caret — and `readOnly` is what makes the STATE refuse a
+ * change, so a command or an extension cannot write through the back door.
+ */
+const writing = new Compartment()
+
+const mode = (on: boolean): Extension => [
+  EditorView.editable.of(on),
+  EditorState.readOnly.of(!on),
+]
+
+/**
  * A mounted editor, as the surface around it needs it — four verbs, and every
  * one of them is something a CALLER does to an editor rather than something
  * CodeMirror does.
@@ -129,6 +152,17 @@ export interface Mounted {
   /** Take the caret: `at` for a chosen offset, absent for wherever it already
    *  is (which for a fresh editor is the end of the text). */
   readonly focus: (at?: number) => void
+  /** Reading, or writing. One view either way — see {@link writing}. */
+  readonly mode: (on: boolean) => void
+  /** Put a `data-` fact on the editable element after the fact — which the
+   *  mode needs, since it changes without the view being rebuilt and the
+   *  attributes were written when it was. */
+  readonly mark: (name: string, value: string) => void
+  /** Which character is under a point on screen, or `undefined` for a point
+   *  that is not over the text. What a click on a READING surface answers with,
+   *  so the caret can arrive where the reader put their finger rather than at
+   *  the end of the note. */
+  readonly at: (x: number, y: number) => number | undefined
   /** Turn vim mode on or off under a live editor. */
   readonly vim: (on: boolean) => void
   readonly destroy: () => void
@@ -139,6 +173,8 @@ export const mount = (
   said: {
     readonly doc: string
     readonly vim: boolean
+    /** Whether this surface starts as a caret or as a rendering. */
+    readonly writing: boolean
     /** What is in the editor now, on every change a person made. */
     readonly typed: (text: string) => void
     /** A key, handed to `../keys.ts` by whoever mounted this. Returning is not
@@ -196,6 +232,7 @@ export const mount = (
         livePreview,
         tagPills,
         vimming.of(said.vim ? vim() : []),
+        writing.of(mode(said.writing)),
         // LAST, and at the highest precedence: the two libraries above bring
         // themes of their own with hex greys and a red block cursor in them,
         // and vim's is itself `Prec.highest`. A theme's rules land in the
@@ -251,6 +288,11 @@ export const mount = (
     vim: (on) => {
       view.dispatch({ effects: vimming.reconfigure(on ? vim() : []) })
     },
+    mode: (on) => {
+      view.dispatch({ effects: writing.reconfigure(mode(on)) })
+    },
+    mark: (name, value) => view.contentDOM.setAttribute(name, value),
+    at: (x, y) => view.posAtCoords({ x, y }) ?? undefined,
     destroy: () => view.destroy(),
   }
 }

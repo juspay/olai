@@ -723,6 +723,33 @@ const SECTIONS = {
   "markdown-is-not-a-text-box": async (page) => {
     console.log(`  the note on disk BEFORE:  ${recordOf("order")}`)
 
+    // ONE SURFACE, TWO MODES. Opening a row draws the note as the EDITOR,
+    // readonly — the rendering a reader looks at — and the click that asks for
+    // a caret does not replace it with anything. The proof is the box: the
+    // same element, measured before and after, to the pixel.
+    await page.locator(`${row("order")} [data-testid="note-mark"]`).first().click()
+    const reading = page.locator(`${DESC_EDITOR}[data-mde="preview"]`).first()
+    await reading.waitFor()
+    console.log(`  an open note is:          the editor, mode=${
+      await reading.getAttribute("data-writing")
+    }, editable=${await reading.getAttribute("contenteditable")}`)
+    await shot(page, "an-open-note-is-the-editor-reading")
+    const before = await boxOf(reading)
+    await reading.getByText("birch", { exact: true }).click()
+    await page.waitForTimeout(300)
+    const after = await boxOf(page.locator(`${DESC_EDITOR}`).first())
+    console.log(`  after the click:          mode=${
+      await page.locator(DESC_EDITOR).first().getAttribute("data-writing")
+    }, editable=${await page.locator(DESC_EDITOR).first().getAttribute("contenteditable")}`)
+    console.log(`  and the surface moved by: ${
+      JSON.stringify({ x: after.x - before.x, y: after.y - before.y, w: after.width - before.width, h: after.height - before.height })
+    }`)
+    // ...and the caret is where the finger was, which the swap could not do.
+    await page.keyboard.type("!")
+    await page.waitForTimeout(1200)
+    console.log(`  typing at that click put:  ${recordOf("order")}`)
+    await shot(page, "the-caret-lands-where-the-click-landed")
+
     // Open the row, then put a caret in its note — the two gestures a person
     // makes (`client/NodeBody.tsx`): the pilcrow opens, the note itself is the
     // way in. The wait inside is for the CHUNK (`client/mde/chunk.ts`): a

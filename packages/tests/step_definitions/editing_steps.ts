@@ -54,6 +54,7 @@ import {
   POLL_TIMEOUT,
   START_LINE,
   TITLE_EDITOR,
+  WRITING,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -369,7 +370,10 @@ Then("a new row is being typed", async function (this: OlaiWorld) {
 Then(
   "the note of {string} is being typed",
   async function (this: OlaiWorld, id: string) {
-    await this.within(id, DESC_EDITOR)
+    // The surface is there whether or not anybody is typing in it — it is the
+    // note's rendering too (`client/mde/Mde.tsx`) — so what this asks is the
+    // MODE.
+    await this.within(id, `${DESC_EDITOR}${WRITING}`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
@@ -377,9 +381,11 @@ Then(
 Then(
   "the note of {string} is no longer being typed",
   async function (this: OlaiWorld, id: string) {
+    // Not "the surface is gone": an open note keeps it, reading. What ends is
+    // the caret being in it.
     await this.waitUntil(
-      async () => (await this.node(id).locator(DESC_EDITOR).count()) === 0,
-      `the note editor on "${id}" to close`,
+      async () => (await this.node(id).locator(`${DESC_EDITOR}${WRITING}`).count()) === 0,
+      `the caret to leave the note on "${id}"`,
     );
   },
 );
@@ -546,6 +552,21 @@ Then(
           String(node["desc"] ?? "").trimEnd().endsWith(ending)
         ),
       `${file} to hold a node whose note ends ${JSON.stringify(ending)}`,
+    );
+  },
+);
+
+/** The same question about the MIDDLE of a note, which is where a caret that
+ *  landed on the word somebody clicked writes (`live_preview_editing.feature`).
+ *  The source, not the rendering: what a scenario names here is the markdown
+ *  the file holds, markers and all. */
+Then(
+  "{string} holds a node whose note contains {string}",
+  async function (this: OlaiWorld, file: string, text: string) {
+    await this.waitUntil(
+      async () =>
+        this.servedNodesSoFar(file).some((node) => String(node["desc"] ?? "").includes(text)),
+      `${file} to hold a node whose note contains ${JSON.stringify(text)}`,
     );
   },
 );

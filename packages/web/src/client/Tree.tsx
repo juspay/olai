@@ -105,6 +105,7 @@ import { customEntries } from "./props/drawer.ts"
 import type { Editing } from "./props/editor.ts"
 import { PropEditor } from "./props/PropEditor.tsx"
 import { NodeBody } from "./NodeBody.tsx"
+import { Note } from "./Note.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { nodeMenuActions } from "./menu/actions.ts"
 import { createMenuDoor } from "./menu/door.ts"
@@ -316,6 +317,47 @@ function Branch(props: {
     const draft = editor.draft()
     return draft?.kind === "new" ? draft : undefined
   }
+  /**
+   * THE NOTE, as ONE SURFACE IN TWO MODES — the live-preview editor, reading
+   * until somebody clicks into it (`./mde/Mde.tsx`).
+   *
+   * Drawn whenever there is something to draw: a note to read, or a draft being
+   * written into a row that has none yet (`Shift+Enter`, which opens a caret
+   * without opening the row's reading of it). The `<Show>` is what keeps it
+   * ONE surface — its condition is true in BOTH modes, so the flip between them
+   * changes props and never the element.
+   *
+   * WHICH TEXT is the draft's while there is one and the node's the rest of the
+   * time, and the two are the same string at the instant a draft opens — so the
+   * editor sees no change and dispatches nothing.
+   *
+   * Defined once per row rather than inline at the call site, for the reason
+   * `./NodeBody.tsx` gives for taking a function: an element rebuilt per frame
+   * is an editor remounted per frame.
+   */
+  const noteSlot = () => (
+    <Show when={typing("desc") !== undefined || hasNote()}>
+      <DescEditor
+        text={typing("desc")?.text ?? noteOf() ?? ""}
+        writing={typing("desc") !== undefined}
+        reading={<Note desc={noteOf() ?? ""} from={shown()?.file ?? ""} open />}
+        onEdit={(at) => editor.open(props.row, "desc", at)}
+        onInput={editor.type}
+        onKey={keyHandler("block", editor.press)}
+        onBlur={(left) => editor.blur({ row: props.row.at.node.id, field: "desc" }, left)}
+      />
+    </Show>
+  )
+
+  /** What the node this row shows says in its note, and whether there is one
+   *  at all — two readings of one field, so the surface above can ask each
+   *  question without the other re-running it. */
+  const noteOf = () => shown()?.node.desc
+  const hasNote = () => {
+    const desc = noteOf()
+    return desc !== undefined && desc !== ""
+  }
+
   /** Is the caret in THIS row? What the row draws to say so, and what a
    *  scenario asks. A blinking text cursor at the end of a title was the whole
    *  affordance a walk with `↑`/`↓` had, and in a tree of a hundred rows that
@@ -706,41 +748,48 @@ function Branch(props: {
             class={`${PAST_CONTROLS} ${WAITING_DIM(props.row.blocked)}`}
             ref={note.setRoot}
           >
-            {/* The note as TEXT while it is being written, rendered markdown
-                the rest of the time — the same swap the title makes, one
-                level down. */}
-            <Show
-              when={typing("desc")}
-              fallback={
-                <NodeBody
-                  shows={shows()}
-                  expanded={note.expanded()}
-                  // Whether a CLOSED row keeps the clamped line — the density
-                  // preference, arriving as the one thing it means here.
-                  preview={showsPreview(density())}
-                  onToggle={note.toggle}
-                  onEdit={() => editor.open(props.row, "desc")}
-                  // The `×` on a `see` link the expanded note draws — one op,
-                  // `set_see`'s own removal, through the row's own edge editing
-                  // so a refusal lands in the same line the panel's writes use.
-                  // Handed in beside `onEdit` and for the same reason: a body
-                  // drawn where a node is READ ONLY (a day page) passes neither
-                  // (./NodeBody.tsx).
-                  onUnsee={(target) => edges.drop("see", target)}
-                />
-              }
-            >
-              {(draft) => (
-                <DescEditor
-                  text={draft().text}
-                  onInput={editor.type}
-                  onKey={keyHandler("block", editor.press)}
-                  onBlur={(left) => editor.blur({ row: props.row.at.node.id, field: "desc" }, left)}
-                />
-              )}
-            </Show>
+            <NodeBody
+              shows={shows()}
+              expanded={note.expanded()}
+              // Whether a CLOSED row keeps the clamped line — the density
+              // preference, arriving as the one thing it means here.
+              preview={showsPreview(density())}
+              onToggle={note.toggle}
+              onEdit={() => editor.open(props.row, "desc")}
+              // The `×` on a `see` link the expanded note draws — one op,
+              // `set_see`'s own removal, through the row's own edge editing
+              // so a refusal lands in the same line the panel's writes use.
+              // Handed in beside `onEdit` and for the same reason: a body
+              // drawn where a node is READ ONLY (a day page) passes neither
+              // (./NodeBody.tsx).
+              onUnsee={(target) => edges.drop("see", target)}
+              // THE NOTE IS THE EDITOR, reading until somebody clicks into it
+              // (`./mde/Mde.tsx`). One surface for both, so the words do not
+              // move when the caret arrives — where this used to draw a
+              // rendering and swap it for an editor at exactly the moment
+              // somebody was aiming at a word.
+              // ...but only where a person is actually looking at this note:
+              // one they opened, or one they are writing in. A row unfolded by
+              // the DENSITY preference keeps the rendering until it is touched,
+              // and that is a measurement rather than a taste — `open` unfolds
+              // every untouched row, which on this repository's own roadmap is
+              // 266 notes, and 266 editors take 8.3s to mount where the
+              // rendering takes none (`./note/expand.ts`'s `opened`).
+              note={note.opened() || typing("desc") !== undefined ? noteSlot : undefined}
+            />
           </div>
         )}
+      </Show>
+
+      {/* `Shift+Enter` on a row whose body is CLOSED: it writes a note without
+          opening the row's reading of one (`features/keyboard_editing.feature`),
+          so the surface has no note area to be in and is drawn here instead.
+          Nothing jumps between the two places — a closed row was drawing no
+          note to begin with, which is the whole reason this case exists. */}
+      <Show when={!(!collapsed() && shown() !== undefined && note.expanded()) && typing("desc")}>
+        <div class={`${PAST_CONTROLS} ${WAITING_DIM(props.row.blocked)}`}>
+          {noteSlot()}
+        </div>
       </Show>
 
       <Show when={props.row.kind === "cycle" ? props.row : undefined}>

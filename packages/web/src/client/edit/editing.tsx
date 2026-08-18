@@ -104,8 +104,16 @@ export interface Editor {
    *  in, because moving an element in the document is what takes focus off it
    *  (`./RowEditor.tsx` says the rest). */
   readonly caret: Accessor<number>
-  /** Start editing a row's title (a click on it) or its note. */
-  readonly open: (row: Row, field: "title" | "desc") => void
+  /**
+   * Start editing a row's title (a click on it) or its note.
+   *
+   * `at` is WHERE IN THE TEXT, and only one gesture has an opinion: a click on
+   * the note's reading surface, which is the live-preview editor and can
+   * therefore say which character was under the pointer (`../mde/Mde.tsx`). A
+   * title's click cannot — an `<input>` is given the caret by the platform —
+   * and every other way in means the end of the text.
+   */
+  readonly open: (row: Row, field: "title" | "desc", at?: number) => void
   /** What has just been typed. Starts the idle clock. */
   readonly type: (text: string) => void
   /** The editor at this slot lost focus: commit, and close if it landed. It
@@ -594,11 +602,16 @@ export const createEditor = (
   /** A row, as the draft that edits it. One place mints these, so the two ids
    *  and the place are read off the row together rather than assembled at
    *  every call site. */
-  const opened = (at: Row, field: "title" | "desc"): Draft | null => {
+  const opened = (at: Row, field: "title" | "desc", caret?: number): Draft | null => {
     if (at.kind !== "node" && at.kind !== "mirror") return null
     const text = (field === "title" ? at.shows.node.title : at.shows.node.desc) ?? ""
     return {
       kind: "row",
+      // Where the caret goes, when the gesture that opened this had an opinion
+      // — a click into the note's rendering, which knows the character it
+      // landed on. Clamped to the text, because the draft it seeds outlives the
+      // frame that measured it.
+      ...(caret === undefined ? {} : { caret: Math.min(caret, text.length) }),
       row: at.at.node.id,
       id: at.shows.node.id,
       place: at.key,
@@ -745,8 +758,8 @@ export const createEditor = (
     draft,
     where,
     caret,
-    open: (at, field) => {
-      const next = opened(at, field)
+    open: (at, field, caret) => {
+      const next = opened(at, field, caret)
       if (next === null) return
       // A caret arriving puts the pick away, and it happens HERE rather than at
       // the click that asked, so no later door can forget it. Synchronously,

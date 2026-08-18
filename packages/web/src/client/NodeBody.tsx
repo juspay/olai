@@ -57,7 +57,7 @@
  */
 
 import { docOf, type LocatedRegular } from "@olai/format"
-import { createMemo, Show } from "solid-js"
+import { createMemo, type JSX, Show } from "solid-js"
 
 import { DocRef } from "./document/DocRef.tsx"
 import { plainLine } from "./note/preview.ts"
@@ -86,6 +86,29 @@ export function NodeBody(props: {
    *  drawn read-only (a day page), which is the same rule `NodeLine.onEdit`
    *  follows for the title. */
   readonly onEdit?: () => void
+  /**
+   * THE NOTE ITSELF, when the page has a better one than a rendering.
+   *
+   * A tree row hands in the live-preview EDITOR, reading until it is clicked
+   * (`Tree.tsx`) — one surface that is the rendering and becomes the caret in
+   * place, rather than a rendering this file draws and something else replaces.
+   * A page that offers no caret at all — a day, the agenda, the trash, a
+   * zoomed subject — passes nothing and gets `./Note.tsx`, which is the same
+   * markdown through the page's own pipeline.
+   *
+   * A SLOT rather than a flag, because what the two draw is genuinely
+   * different machinery, and because the caller is the only one that knows
+   * whether there is a draft open on a row with no note yet — which is a note
+   * surface with nothing to render.
+   *
+   * A FUNCTION rather than an element, and that is load-bearing: an element in
+   * a prop is re-created every time the expression that built it re-runs, and
+   * re-creating THIS one would remount the editor — losing the caret, the undo
+   * history and the very no-jump the surface exists for. Called once, here, so
+   * the caller's own `<Show>` decides when it lives and its props carry every
+   * change.
+   */
+  readonly note?: () => JSX.Element
   /** Drop one of the node's `see` targets — the `×` beside each link
    *  (./NodeRefs.tsx), sent by whoever owns this node's edge editing
    *  (./edges/editing.tsx). ABSENT wherever the node is drawn read-only, which
@@ -137,34 +160,41 @@ export function NodeBody(props: {
                   two spellings of one fact under one title. The node's own page
                   is where the full drawer is (`always`). */}
               <PropsDrawer node={props.shows.node} />
-              <Show when={props.shows.node.desc}>
-                {(desc) => (
-                  <div
-                    class={`mt-0.5 mb-1 cursor-text ${ROW_NOTE}`}
-                    role="button"
-                    tabindex={0}
-                    title="write in this note"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      // Already open: the click is the caret's. Folding back is
-                      // what the pilcrow does, and what clicking AWAY does
-                      // (./note/expand.ts), which is also what commits.
-                      props.onEdit?.()
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault()
+              {/* The caller's surface when there is one (above), and otherwise
+                  the rendering — with the click that asks for a caret, for the
+                  pages that offer one but hand in no surface. */}
+              <Show when={props.note} fallback={
+                <Show when={props.shows.node.desc}>
+                  {(desc) => (
+                    <div
+                      class={`mt-0.5 mb-1 cursor-text ${ROW_NOTE}`}
+                      role="button"
+                      tabindex={0}
+                      title="write in this note"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        // Already open: the click is the caret's. Folding back
+                        // is what the pilcrow does, and what clicking AWAY does
+                        // (./note/expand.ts), which is also what commits.
                         props.onEdit?.()
-                      }
-                    }}
-                  >
-                    <Note
-                      desc={desc()}
-                      from={props.shows.file}
-                      open
-                    />
-                  </div>
-                )}
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault()
+                          props.onEdit?.()
+                        }
+                      }}
+                    >
+                      <Note
+                        desc={desc()}
+                        from={props.shows.file}
+                        open
+                      />
+                    </div>
+                  )}
+                </Show>
+              }>
+                {(note) => note()()}
               </Show>
               <EdgeRefs node={props.shows.node} relation="see" onRemove={props.onUnsee} />
             </div>

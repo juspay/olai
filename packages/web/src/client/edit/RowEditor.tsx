@@ -42,7 +42,7 @@
  * parent is folded — are places the tree draws no body under.
  */
 
-import { createEffect, createSignal, on, Show } from "solid-js"
+import { createEffect, createSignal, type JSX, on, Show } from "solid-js"
 
 import { createCompletion } from "../complete/completing.tsx"
 import type { Draft } from "./draft.ts"
@@ -161,31 +161,47 @@ export function TitleEditor(props: {
 }
 
 /**
- * The note, as the markdown it is.
+ * The note: the markdown it is, READ and WRITTEN on one surface.
  *
  * A `desc` is one verbatim markdown string, and this is where that string is
- * typed — LIVE-PREVIEWED since md-live-preview-editor, which changes what the
- * caret sees and nothing at all about what is stored: `**bold**` is bold with
- * its markers hidden until you stand in the word, and the file holds the six
- * characters it always held (`../mde/codemirror.ts` argues why there is no
+ * both drawn and typed — live-previewed either way, which changes what the
+ * reader sees and nothing at all about what is stored: `**bold**` is bold with
+ * its markers hidden until the caret stands in the word, and the file holds the
+ * six characters it always held (`../mde/codemirror.ts` argues why there is no
  * serializer in the middle).
+ *
+ * ONE SURFACE, TWO MODES (human, on the first shape): an open note is this
+ * component in READING mode — the rendering, with no caret in it — and a click
+ * makes the very same view writable, at the character that was clicked. What
+ * it replaces is a rendered `<Note>` that was swapped for an editor: two DOMs
+ * for one paragraph, and a jump between them at the exact moment somebody was
+ * aiming at a word.
  *
  * INLINE, and styled as the note rather than as a control (human, on sight of
  * the first shape: a monospace box under the row is ugly, and it is also a
  * lie — it says "form field" where the page says "the note"). Same size, same
  * muted tone, same place, no border and no background. The box is spelled here
- * and worn by BOTH of the editor's faces (`../mde/Mde.tsx`: the textarea while
- * the chunk is in the air, CodeMirror after it lands), so a note does not move
- * on the page when the one replaces the other.
+ * and worn by every face — reading, writing, and the textarea while the chunk
+ * is in the air — so a note does not move on the page whichever is drawn.
  *
  * It grows with its content because a note is usually two lines and
  * occasionally twenty, and a fixed box would be wrong for both.
  */
 export function DescEditor(props: {
   readonly text: string
+  /** Whether the caret is in this note — the row's draft, arriving as the one
+   *  thing that tells the two modes apart. */
+  readonly writing: boolean
   readonly onInput: (text: string) => void
   readonly onKey: (event: KeyboardEvent) => void
   readonly onBlur: (left: boolean) => void
+  /** A reader clicked the note, at the character they clicked: open the draft
+   *  there. */
+  readonly onEdit: (at: number | undefined) => void
+  /** The page's own rendering of this note, for the moment before the editor
+   *  arrives — a reader waiting on a chunk gets prose rather than a box of
+   *  source (`../mde/Mde.tsx`). */
+  readonly reading: JSX.Element
 }) {
   // The counter the open editor watches — read from the EDITOR rather than
   // passed in, for the reason {@link takeCaret} gives: every one of these is
@@ -195,6 +211,9 @@ export function DescEditor(props: {
   return (
     <Mde
       text={props.text}
+      writing={props.writing}
+      onEdit={props.onEdit}
+      reading={props.reading}
       onInput={props.onInput}
       onKey={props.onKey}
       onBlur={props.onBlur}
@@ -205,6 +224,9 @@ export function DescEditor(props: {
       // spells no size of its own (`../mde/theme.ts`).
       class={`mt-0.5 mb-1 block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none olai-md olai-md-compact ${AS_NOTE}`}
       testid={TESTID.descEditor}
+      // The box is THE NOTE — the same name the rendering has always had, on
+      // the surface that now draws it (`../mde/Mde.tsx`).
+      boxTestid={TESTID.desc}
       take={editor.caret}
       grows
     />

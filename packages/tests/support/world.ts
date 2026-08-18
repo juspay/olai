@@ -468,6 +468,16 @@ export const TITLE_EDITOR = selector(TESTID.titleEditor);
  *  `data-mde` says which face is drawn — `preview` once CodeMirror has
  *  arrived, `waiting` while its chunk is in the air (`client/mde/`). */
 export const DESC_EDITOR = selector(TESTID.descEditor);
+/**
+ * The note's surface WHILE SOMEBODY IS TYPING IN IT.
+ *
+ * One surface reads and writes now (`client/mde/Mde.tsx`), so its PRESENCE no
+ * longer answers "is this being typed in" — a note the reader merely opened is
+ * the same element, reading. The client says which mode it is in as a
+ * `data-` fact, and this is that question.
+ */
+export const WRITING = '[data-writing="true"]';
+
 /** Either markdown editor once it is LIVE-PREVIEWED, which is the state a
  *  scenario about hidden markers has to wait for: until the chunk lands, both
  *  are the textarea this app shipped before live preview and every marker is
@@ -477,7 +487,7 @@ export const PREVIEWING = '[data-mde="preview"]';
 /** Either of them: the editor the caret is in, whichever field it is. A page
  *  matching neither has no caret in a row, which is the state ⌘Z is answered
  *  from — and is what `support/caret.ts` is written around. */
-export const CARET_EDITOR = `${TITLE_EDITOR}, ${DESC_EDITOR}`;
+export const CARET_EDITOR = `${TITLE_EDITOR}, ${DESC_EDITOR}${WRITING}`;
 /** A row that does not exist yet — an editor standing where `Enter` will put
  *  one. Finding one is finding a DRAFT, never a write. */
 export const NEW_ROW = selector(TESTID.newRow);
@@ -1470,7 +1480,7 @@ export class OlaiWorld extends World {
    * once against.
    */
   async previewing(): Promise<Locator> {
-    const editor = this.page.locator(`${DESC_EDITOR}${PREVIEWING}`).first();
+    const editor = this.page.locator(`${DESC_EDITOR}${PREVIEWING}${WRITING}`).first();
     await editor.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     return editor;
   }

@@ -24,11 +24,25 @@ Feature: Markdown editing stops being a dumb text box
   editor — said in the keyboard map (`client/keys.ts`) rather than guarded in
   the editor.
 
+  ONE SURFACE, TWO MODES (human, on the first shape). A note the reader has
+  opened IS this editor, mounted readonly — the rendering they are looking at —
+  and a click makes that very view writable, at the character they clicked.
+  Nothing is swapped for anything, so nothing moves: the words a reader was
+  aiming at are still where they were when the caret arrives.
+
+  Where the editor cannot be the reading surface, the page's own markdown
+  rendering stays, and each is a place no caret can go: a day page, the agenda,
+  the trash, a chat reply, a node's own page, and a row unfolded by the DENSITY
+  preference rather than by a reader — that last one because `open` unfolds
+  every untouched row, and an editor per note is 266 of them on this
+  repository's own roadmap.
+
   The editor itself is a chunk (~700 kB of CodeMirror, its markdown grammar and
-  the live-preview plugins), fetched the first time a caret lands in prose.
-  Until it does — and forever, if it never comes — what a person types into is
-  the textarea this app shipped before live preview. Nothing about writing is
-  gated on a fetch.
+  the live-preview plugins), fetched the first time a reader opens a note or a
+  caret lands in prose. Until it does — and forever, if it never comes — what a
+  reader sees is the rendering and what a writer types into is the textarea this
+  app shipped before live preview. Nothing about reading or writing is gated on
+  a fetch.
 
   @scratch:good
   Scenario: The markers hide, and the caret is what shows them
@@ -47,6 +61,38 @@ Feature: Markdown editing stops being a dumb text box
     And "house.olai" holds a node whose note ends "Measure the alcove before ordering."
 
   @scratch:good
+  Scenario: An open note IS the editor, reading — and a click makes it writable in place
+    Given I open the outline "house.olai"
+    # No caret anywhere yet: opening a row is reading, not editing.
+    When I open the note of "order"
+    Then the note of "order" is the live-preview surface
+    And the note of "order" is not being typed
+    And the description of "order" renders bold text "walnut"
+    # ...and the click does not replace anything. The surface is the same
+    # element before and after — which is what "no jump" means when it is
+    # measured rather than described.
+    When I click the note of "order"
+    Then the note of "order" is being typed
+    And the note of "order" did not move when the caret arrived
+
+  @scratch:good
+  Scenario: The caret lands where the click landed
+    Given I open the outline "house.olai"
+    When I open the note of "order"
+    And I click the note's word "walnut"
+    Then the note of "order" is being typed
+    # Typing goes where the finger went, not to the end of the note — which the
+    # rendering-swapped-for-an-editor shape could not do at all, since the thing
+    # clicked was not the thing that got the caret.
+    When I type "!"
+    And I wait for the autosave
+    # It went INTO the word rather than to the end of the note, which is the
+    # whole claim: the last sentence is untouched, and the mark is where the
+    # pointer was.
+    Then "house.olai" holds a node whose note contains "!"
+    And "house.olai" holds a node whose note ends "Measure the alcove before ordering."
+
+  @scratch:good
   Scenario: A tag in the editor is the tag on the row
     Given I open the outline "house.olai"
     When I open the note of "order"
@@ -60,6 +106,7 @@ Feature: Markdown editing stops being a dumb text box
     Given I open the outline "house.olai"
     When I open the note of "order"
     And I click the note of "order"
+    And I put the caret at the end of the note
     And I type " Ask about the oiled finish."
     And I wait for the autosave
     # No Enter, no click away, no Save: the caret is still in the note.
@@ -71,12 +118,14 @@ Feature: Markdown editing stops being a dumb text box
     Given I open the outline "house.olai"
     When I open the note of "order"
     And I click the note of "order"
+    And I put the caret at the end of the note
     And I type " Mine."
     And I wait for the autosave
     # vim, or an agent, gets there first: the record moves on disk after this
     # editor's last write, so the `was` it sends next is one the file no longer
     # says.
     And another writer rewrites the note of "order" in "house.olai" as "Theirs."
+    And I put the caret at the end of the note
     And I type " And mine again."
     And I wait for the autosave
     Then the autosave is refused saying "is not the one this write expected to replace"
