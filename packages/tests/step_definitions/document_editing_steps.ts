@@ -299,3 +299,15 @@ Then("the editor has not noticed a conflict", async function (this: OlaiWorld) {
     "the page says the file changed under an editor nobody was typing in",
   );
 });
+
+/** NOTHING SAID, which is the assertion an autosave chain's own next write
+ *  needs: a refusal drawn under a document nobody else touched would be the
+ *  editor conflicting with itself (`client/document/DocEditor.tsx` advances
+ *  the baseline on every write that lands). */
+Then("nothing was refused", async function (this: OlaiWorld) {
+  const said = this.page.locator(DOCUMENT_SAID);
+  // The line is READ only if it is there: a message that asks a locator that
+  // matches nothing for its text is a step that times out instead of passing.
+  const drawn = (await said.count()) === 0 ? "" : oneLine(await said.first().innerText());
+  assert.strictEqual(drawn, "", `the page refused a write, saying ${JSON.stringify(drawn)}`);
+});

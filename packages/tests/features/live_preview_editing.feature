@@ -141,6 +141,23 @@ Feature: Markdown editing stops being a dumb text box
     Then the document is being typed
     And "finishes.md" holds the text "Ask about the oiled finish."
 
+  # AND ITS OWN NEXT WRITE IS NEVER THE CONFLICT. Every write is conditional on
+  # what this editor LAST SAVED, so the baseline has to advance with each one
+  # that lands: an autosave chain judging its second write against the file as
+  # it was before its first would refuse ordinary typing, in the words that are
+  # supposed to mean somebody else got there.
+  @scratch:good
+  Scenario: Typing, pausing and typing again is two writes and no refusal
+    Given I open the document "finishes.md"
+    When I put the caret at the end of the document
+    And I type " One."
+    And I wait for the autosave
+    And I type " Two."
+    And I wait for the autosave
+    Then "finishes.md" holds the text " One. Two."
+    And nothing was refused
+    And there should be no page errors
+
   @scratch:good
   Scenario: A concurrent write is refused, in the ops layer's own words
     Given I open the document "finishes.md"
