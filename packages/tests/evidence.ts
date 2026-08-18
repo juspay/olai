@@ -12,7 +12,7 @@
  * a frame nobody can reproduce.
  */
 import { fileKind } from "@olai/format"
-import { readdirSync, readFileSync } from "node:fs"
+import { readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { type Browser, chromium, type Locator, type Page } from "playwright"
 
 import { BROWSER_ARGS } from "./support/browser.ts"
@@ -20,6 +20,11 @@ import { BROWSER_ARGS } from "./support/browser.ts"
 const BASE = process.env["BASE"] ?? "http://127.0.0.1:7788"
 const OUT = process.env["SHOTS"] ?? "."
 const SECTION = process.env["SECTION"] ?? ""
+/** The COPY `evidence.sh` made and is serving — where a section reads a record
+ *  back off the disk, and where the one section that provokes a refusal writes
+ *  one. Absent when this file is run by hand against a server somebody else
+ *  started, which the two helpers below answer for in their own ways. */
+const VAULT = process.env["VAULT"]
 
 let shots = 0
 const shot = async (page: Page, name: string) => {
@@ -141,6 +146,10 @@ const atTheEdge = async (page: Page, x: number): Promise<void> => {
 
 const SETTLE = 1800
 
+/** How wide every section is photographed — the one number both the default
+ *  window and {@link PANEL_FITS} are built from. */
+const WIDE = 1100
+
 // ── the edge panel, and what a record says afterwards ──────────────────
 
 const EDGE_PANEL = '[data-testid="edge-panel"]'
@@ -171,6 +180,55 @@ const textOf = async (page: Page, locator: string) =>
  *  because the confirm answers with the same words on the same panel, and a
  *  section that photographs the question in between still presses this. */
 const TRASH_VERB = '[data-testid="node-menu-panel"] >> text=Move to Trash'
+
+/** The other write a `•••` menu offers about the LINE rather than about what
+ *  it draws, and the one a mirror row is offered instead of the archive above
+ *  (`client/menu/verbs.ts`). Spelled beside it because the pair is the claim:
+ *  a placement is retired, a node is put away, and no row is offered both. */
+const PLACEMENT_VERB = '[data-testid="node-menu-panel"] >> text=Remove this placement'
+
+/** What the panel SAYS afterwards, in its two moods, and the question the one
+ *  verb with a blast radius asks first — named here for the reason every other
+ *  selector in this file is: a testid renamed in the client is one line to
+ *  follow rather than six spellings to grep. */
+const MENU_SAID = '[data-testid="node-menu-said"]'
+const MENU_CONFIRM = '[data-testid="node-menu-confirm"]'
+
+/**
+ * WHERE THE PROMISE LIVES, printed at the top of a section's transcript.
+ *
+ * A reader of the screenshots alone sees pictures rather than proofs — the
+ * point a reviewer of #234 made, and it is the file's opening line read from
+ * the other end: the promises live in the features, so a section should say
+ * WHICH ones rather than leave somebody to grep for them.
+ *
+ * AND THE CITATION IS CHECKED, which is the difference between this and a
+ * comment: a scenario renamed in the suite makes the section that cites it
+ * throw, naming what it could not find, rather than going on printing a
+ * pointer at nothing. Read off `import.meta.dir` rather than the working
+ * directory — `evidence.sh` runs from this package, and a driver that quietly
+ * found no feature file would be back to citing whatever it liked.
+ *
+ * Only the sections that have been through this door carry one. The older ones
+ * predate it and are not retrofitted with pins nobody checked.
+ */
+const pinnedBy = (feature: string, ...scenarios: ReadonlyArray<string>): void => {
+  const text = readFileSync(`${import.meta.dir}/features/${feature}`, "utf8")
+  console.log(`  pinned by: ${feature}`)
+  for (const one of scenarios) {
+    if (!text.includes(`Scenario: ${one}`)) {
+      throw new Error(`${feature} holds no scenario called “${one}” — the pin has gone stale`)
+    }
+    console.log(`             “${one}”`)
+  }
+}
+
+/** Every entry an open panel is offering, in the order it offers them — what a
+ *  shot of a menu says in a line, so a section can print the pair above being
+ *  exclusive rather than ask a reader to compare two images. */
+const verbsOf = async (page: Page) =>
+  (await page.locator('[data-testid="node-menu-item"]').allInnerTexts())
+    .map(oneLine).join(" · ")
 
 /**
  * Move a row and everything under it to the Trash, through that menu and that
@@ -209,20 +267,70 @@ const opened = async (page: Page, path: string, marker: string) => {
  * `VAULT` is `evidence.sh`'s copy; without one this prints why rather than a
  * guess, since a shot beside an invented line is worse than a shot alone.
  */
-const recordOf = (id: string): string => {
-  const vault = process.env["VAULT"]
-  if (vault === undefined) return "(no VAULT; run through evidence.sh)"
-  for (const file of readdirSync(vault)) {
+const findRecord = (id: string): { file: string; line: string } | undefined => {
+  if (VAULT === undefined) return undefined
+  for (const file of readdirSync(VAULT)) {
     // Which files hold records is the format's answer, not a suffix retyped
     // here — the same arrangement `step_definitions/` has with `MARKS`, and for
     // the same reason: this package and `@olai/format` never otherwise meet, so
     // a disagreement between them is silent.
     if (fileKind(file) !== "outline") continue
-    for (const line of readFileSync(`${vault}/${file}`, "utf8").split("\n")) {
-      if (line.includes(`"id":"${id}"`)) return `${file} — ${line}`
+    for (const line of readFileSync(`${VAULT}/${file}`, "utf8").split("\n")) {
+      if (line.includes(`"id":"${id}"`)) return { file, line }
     }
   }
-  return `(no record for \`${id}\`)`
+  return undefined
+}
+
+const recordOf = (id: string): string => {
+  if (VAULT === undefined) return "(no VAULT; run through evidence.sh)"
+  const found = findRecord(id)
+  return found === undefined ? `(no record for \`${id}\`)` : `${found.file} — ${found.line}`
+}
+
+/**
+ * WHERE THE NEXT SHOT SAYS THIS RECORD IS — checked against the disk, and a
+ * throw when the disk disagrees. `undefined` is "in no outline at all", which
+ * is what a retired placement is.
+ *
+ * NOT a promise. Promises live in the features (this file's opening line), and
+ * a write that lands in the wrong place is `menu_verbs.feature`'s to fail on.
+ * This is a guard on the PICTURE, in the same category as {@link boxOf}
+ * refusing to aim at nothing: a gesture whose write silently did not land
+ * draws a page that looks exactly like one where it did — the row is gone from
+ * the tab either way — so a screenshot is the one lie this driver is able to
+ * tell all by itself. Both reviewers of #234 arrived at that hole from
+ * different directions; this is what closes it.
+ *
+ * Skipped without a `VAULT`, where the answer is unknown rather than false.
+ */
+const shotSays = (id: string, file: string | undefined): void => {
+  if (VAULT === undefined) return
+  const at = findRecord(id)?.file
+  if (at === file) return
+  throw new Error(
+    `the shot about to be taken says \`${id}\` is ${
+      file === undefined ? "in no outline" : `in ${file}`
+    }, and the files say it is ${at === undefined ? "in none" : `in ${at}`}`,
+  )
+}
+
+/**
+ * ANOTHER HAND writing the directory while the page is open — the same gesture
+ * `menu_verbs.feature` makes with its `I rewrite`, and the reason one section
+ * needs it: the placement's fence is about the set as it IS, so the thing that
+ * still names a line has to be written by somebody other than this tab.
+ *
+ * Throws without a `VAULT` rather than writing nothing, which is {@link
+ * recordOf}'s rule read the other way: a shot of a gesture that never reached
+ * a file is worse than no shot. And it ENDS THE FILE, exactly as the suite's
+ * own `writeServed` does, rather than leaving that to whoever writes the next
+ * section: a records file whose last line has no newline is a footgun this
+ * helper can simply not have.
+ */
+const rewrite = (file: string, records: ReadonlyArray<string>): void => {
+  if (VAULT === undefined) throw new Error("no VAULT; run through evidence.sh")
+  writeFileSync(`${VAULT}/${file}`, records.map((one) => `${one}\n`).join(""))
 }
 
 // ── the filter over the page ───────────────────────────────────────────
@@ -313,7 +421,7 @@ const piled = async (page: Page) =>
     '[data-testid="node-title"]',
   )) || "  (nothing)"
 
-const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
+const SECTIONS = {
   /**
    * `set_doing` refusing what the order forbids, on the web's two mark-walking
    * surfaces — the shot being the half a transcript cannot show: the DRAFT is
@@ -340,9 +448,9 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     await page.waitForTimeout(200)
     await openMenu(page, "install")
     await page.locator('[data-testid="node-menu-panel"] >> text=Mark doing').first().click()
-    await page.locator('[data-testid="node-menu-said"]').first().waitFor()
+    await page.locator(MENU_SAID).first().waitFor()
     await page.waitForTimeout(200)
-    console.log(`  the ••• menu says:        ${await textOf(page, '[data-testid="node-menu-said"]')}`)
+    console.log(`  the ••• menu says:        ${await textOf(page, MENU_SAID)}`)
     console.log(`  and the file still says:  ${recordOf("install")}`)
     await shot(page, "menu-refused")
   },
@@ -982,23 +1090,174 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     await page.waitForTimeout(SETTLE)
     await shot(page, "first-row")
   },
-}
+
+  /**
+   * The `•••` menu's own put-away — `archive_node` from the mouse, which is
+   * the half the bulk bar's section above does not show: one row, its own
+   * menu, and the question that names how much goes with it.
+   *
+   * Photographed because the two halves are what a person actually meets: the
+   * ENTRY (`Move to Trash`, in the writing half of the menu) and the CONFIRM
+   * that replaces the list before anything is written. The count in it is
+   * taken from the SET rather than from the rows on screen, which is the one
+   * claim about this verb a screenshot can carry — `install the cabinets` has
+   * three rows under it here and the sentence says three.
+   */
+  "move-to-trash-from-the-menu": async (page) => {
+    pinnedBy(
+      "menu_verbs.feature",
+      "Moving to the Trash asks first, and names how much goes with it",
+      "The confirm counts what the write moves, not what is on screen",
+      "Confirming moves the subtree to the Trash, ids and all",
+    )
+    // The file BEFORE anything is pressed, so the claim the last two shots make
+    // is a move rather than a coincidence.
+    shotSays("install", "house.olai")
+    await openMenu(page, "install")
+    // Printed on BOTH sections, because the claim is a pair and half of it is
+    // an ABSENCE: a node's own row is offered the put-away and not the retire,
+    // and a mirror row the other way about (`retire-a-placement`). One reader,
+    // two transcripts, and neither of them asks anybody to compare two images.
+    console.log(`  the menu offers: ${await verbsOf(page)}`)
+    await shot(page, "the-entry")
+    await page.locator(TRASH_VERB).first().click()
+    await page.locator(MENU_CONFIRM).first().waitFor()
+    console.log(`  it asks: ${await textOf(page, MENU_CONFIRM)}`)
+    await shot(page, "asks")
+    await page.locator(TRASH_VERB).first().click()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  order: ${await order(page)}`)
+    console.log(`  the record: ${recordOf("install")}`)
+    // The whole claim of the shot below: the row left the page BECAUSE the
+    // subtree moved, not because a click found the label and wrote nothing.
+    shotSays("install", "Archive.olai")
+    shotSays("knobs", "Archive.olai")
+    await shot(page, "gone-from-the-page")
+    await opened(page, "/trash", TRASH_PAGE)
+    const pile = await piled(page)
+    console.log(`  the pile:\n${pile}`)
+    // …and the Trash DRAWS it. The file having moved and the page having drawn
+    // it are two claims, and this shot is the second one.
+    if (pile.includes("(nothing)")) {
+      throw new Error("the Trash drew nothing, and the shot after this says it drew the pile")
+    }
+    await shot(page, "in-the-trash")
+  },
+
+  /**
+   * Retiring ONE PLACEMENT — `remove_mirror` from the row it is about, which
+   * is the distinction this whole section exists to photograph: the menu on a
+   * mirror offers `Remove this placement` and does NOT offer `Move to Trash`,
+   * because what a reader is looking at is a line standing for a node that
+   * lives somewhere else.
+   *
+   * Then the op's own fence, quoted where the click happened: `order` is made
+   * to name the placement by another hand while the page is open — which is
+   * also what makes the refusal about the set as it IS rather than as this tab
+   * last drew it — and the retire is refused naming what still points at it.
+   * Re-pointing that `see` at the node the placement shows is the way through,
+   * and the last two shots are the line going while `herbs` stays exactly
+   * where it lives.
+   */
+  "retire-a-placement": async (page) => {
+    pinnedBy(
+      "menu_verbs.feature",
+      "Retiring a placement takes the line and leaves the node",
+      "A placement something else still names is refused, naming what",
+    )
+    await openMenu(page, "kitchen-herbs")
+    console.log(`  the menu offers: ${await verbsOf(page)}`)
+    await shot(page, "on-the-placement")
+
+    // ANOTHER HAND points a `see` at the PLACEMENT rather than at the node it
+    // shows — the one shape the op refuses, and the same three lines
+    // `menu_verbs.feature` writes for the same scenario. Whole file rather
+    // than one patched record, for that reason and one more: the sentence
+    // below names two rows, and a shot of exactly those two rows is a better
+    // reading of it than the same sentence under twenty.
+    //
+    // Escape, then `install` GOING, is what says the write arrived at this
+    // tab: the panel from the shot above is still up (a second press of a
+    // `•••` shuts one rather than opening it), and the row that leaves is the
+    // frame the menu below can be opened on.
+    rewrite("house.olai", [
+      `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
+      `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","see":["kitchen-herbs"]}`,
+      `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
+    ])
+    await page.keyboard.press("Escape")
+    await page.locator(row("install")).first().waitFor({ state: "detached" })
+    await page.waitForTimeout(DRAWN)
+
+    await openMenu(page, "kitchen-herbs")
+    await page.locator(PLACEMENT_VERB).first().click()
+    await page.locator(MENU_SAID).first().waitFor()
+    console.log(`  it says: ${await textOf(page, MENU_SAID)}`)
+    console.log(`  untouched: ${recordOf("kitchen-herbs")}`)
+    // A refusal is a write that did NOT happen, so this shot claims the line is
+    // exactly where it was — the one claim a picture of a sentence cannot make.
+    shotSays("kitchen-herbs", "house.olai")
+    await shot(page, "refused")
+
+    // The way through: that `see` re-pointed at `herbs`, the node the
+    // placement shows — through the panel, which is the same door the refusal
+    // named.
+    await opened(page, "/n/order", '[data-testid="zoom-title"]')
+    await page.locator(`${EDGE_VERB}[data-relation="see"]`).click()
+    await page.locator(EDGE_PANEL).first().waitFor()
+    await page.locator(`${EDGE_DROP}[data-ref="kitchen-herbs"]`).first().click()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  re-pointed: ${recordOf("order")}`)
+
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await openMenu(page, "kitchen-herbs")
+    await page.locator(PLACEMENT_VERB).first().click()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  the line:  ${recordOf("kitchen-herbs")}`)
+    console.log(`  the node:  ${recordOf("herbs")}`)
+    // Both halves of what the verb means, and neither is legible in the pixels:
+    // the placement is in no outline at all, and the node it drew never moved.
+    shotSays("kitchen-herbs", undefined)
+    shotSays("herbs", "garden.olai")
+    await shot(page, "retired")
+    // …and the other half of what "retire a placement" means, which the shot
+    // above cannot carry on its own: the node the line was drawing is exactly
+    // where it lives, with its mark, its children and its own outline intact.
+    await opened(page, "/o/garden.olai", OUTLINE_TREE)
+    await shot(page, "the-node-stays")
+  },
+} satisfies Record<string, (page: Page) => Promise<void>>
+
+/**
+ * The name of one — a `string` narrowed to a KEY of the table above, which is
+ * what makes {@link SHAPES} below unable to name a section that is not there.
+ *
+ * `satisfies` rather than an annotation on the table is what leaves the key
+ * type as the section NAMES rather than `string`, and this is the
+ * price: the one place a name arrives as data (the environment) has to ask.
+ */
+type Section = keyof typeof SECTIONS
+const sectionNamed = (name: string): Section | undefined =>
+  name in SECTIONS ? name as Section : undefined
+
+/** A window tall enough for the whole `•••` panel: fifteen entries opened off a
+ *  row partway down the page is more than the default leaves room for, and a
+ *  shot that clips the verb it is about says nothing. The WIDTH is the
+ *  default's, so the two sections that ask for this differ from every other one
+ *  in exactly the dimension the panel needs. */
+const PANEL_FITS = { viewport: { width: WIDE, height: 1000 } }
 
 /**
  * What SHAPE of browser a section wants, where the default is not it.
  *
- * Only ONE thing is set here, and it is the thing that can only be set at
- * creation: a context with a TOUCHSCREEN and no mouse, which is the whole point
- * of the finger's section. The two auto-scroll sections want a short window and
- * ask for it INSIDE the section instead ({@link short}), because setting it
- * here does not do what it looks like — see that helper.
- */
-/**
- * What SHAPE of browser a section wants, where the default is not it.
- *
- * One entry, and it is the thing that can ONLY be set at creation: a context
- * with a touchscreen and no mouse, which is the whole point of the finger's
- * section.
+ * Two kinds of entry. The first is the thing that can ONLY be set at creation:
+ * a context with a touchscreen and no mouse, which is the whole point of the
+ * finger's section. The second is a TALLER WINDOW, and it is asked for here
+ * rather than inside the section for the same reason — a resize after load
+ * leaves this page reporting the new `innerHeight` while `100dvh` still
+ * resolves against the old one (below). What wants one is a section whose
+ * subject is the `•••` panel itself: fifteen entries is taller than the
+ * default window, and a shot that clips the verb it is about says nothing.
  *
  * THERE IS NO SECTION FOR AUTO-SCROLL, deliberately. That gesture is only
  * itself in a window SHORTER than the outline, and this driver cannot reliably
@@ -1012,7 +1271,7 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
  * division this file's opening line already draws: the promises live in the
  * features, and this is what a person looks at.
  */
-const SHAPES: Record<string, Parameters<Browser["newContext"]>[0]> = {
+const SHAPES: Partial<Record<Section, Parameters<Browser["newContext"]>[0]>> = {
   // The browser tests' own handset, to the pixel and the scale factor
   // (`support/hooks.ts`'s `PHONE`): an iPhone 13's 390×844, a touch screen and
   // no mouse. `isMobile` is what makes Chromium honour the shell's viewport
@@ -1023,11 +1282,15 @@ const SHAPES: Record<string, Parameters<Browser["newContext"]>[0]> = {
     hasTouch: true,
     isMobile: true,
   },
+  // The two sections ABOUT the menu, in a window the whole panel fits in — one
+  // name for it, so the third one does not copy a third literal.
+  "move-to-trash-from-the-menu": PANEL_FITS,
+  "retire-a-placement": PANEL_FITS,
 }
 
 const main = async () => {
-  const section = SECTIONS[SECTION]
-  if (section === undefined) {
+  const name = sectionNamed(SECTION)
+  if (name === undefined) {
     console.log(Object.keys(SECTIONS).join("\n"))
     return
   }
@@ -1044,14 +1307,14 @@ const main = async () => {
   // be against a context that has one. The browser tests take the same route
   // (`support/hooks.ts`).
   const context = await browser.newContext(
-    SHAPES[SECTION] ?? { viewport: { width: 1100, height: 720 } },
+    SHAPES[name] ?? { viewport: { width: WIDE, height: 720 } },
   )
   const page = await context.newPage()
   page.on("pageerror", (error) => console.error("PAGE ERROR", error))
   await page.goto(`${BASE}/o/house.olai`)
   await page.locator('[data-testid="outline-tree"]').first().waitFor()
   await page.waitForTimeout(600)
-  await section(page)
+  await SECTIONS[name](page)
   await browser.close()
 }
 
