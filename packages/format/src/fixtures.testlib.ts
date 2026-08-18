@@ -297,17 +297,18 @@ const fileOf = (random: () => number, at: number, records: number): string => {
 }
 
 /**
- * One record of a {@link vaultOf} file, retitled — the EDIT both benches make,
- * spelled once beside the generator whose titles it has to match.
+ * One record of a {@link vaultOf} file, retitled to say it was edit `which` —
+ * the EDIT both benches make, spelled once beside the generator whose titles it
+ * has to match, and beside {@link retitledIn}, which is how it is read back.
  *
  * A benchmark's edit is not decoration: an arm that answered a frame it never
  * recomputed reports a magnificent number, and what catches that is reading the
  * new title back out of the arm's own answer. So the two halves — write it,
- * find it — have to agree about what was written, and the regex here is the
- * half that knows what {@link vaultOf} wrote.
+ * find it — have to agree about what was written, which is why they are one
+ * pair here and not a regex in this module and a `startsWith` in each bench.
  */
-export const retitled = (text: string, title: string): string => {
-  const written = text.replace(/"title":"record 1 of file \d+"/, `"title":${JSON.stringify(title)}`)
+export const retitled = (text: string, which: number): string => {
+  const written = text.replace(/"title":"record 1 of file \d+"/, `"title":"${EDITED}${which}"`)
   // THROWN rather than handed back unchanged, like every other fixture in this
   // module: a no-op here is a benchmark whose edit edits nothing, and the arm
   // that catches it catches it one step later and blames the arm.
@@ -319,6 +320,22 @@ export const retitled = (text: string, title: string): string => {
   }
   return written
 }
+
+/** Which edit {@link retitled} last wrote into one file's records, or
+ *  `undefined` where an arm is still holding a revision that has not heard
+ *  about any. The `EDITED` mark never leaves this module: a bench asks "which
+ *  edit does this view say it is at" and compares that to the edit it made. */
+export const retitledIn = (nodes: ReadonlyArray<Located>): number | undefined => {
+  for (const at of nodes) {
+    const title = (at.node as { readonly title?: string }).title
+    if (title?.startsWith(EDITED) === true) return Number(title.slice(EDITED.length))
+  }
+  return undefined
+}
+
+/** What a retitled record's title starts with. Private, so the two halves above
+ *  are the only way to write one or find one. */
+const EDITED = "edited "
 
 /**
  * The middle of a run's times, in milliseconds.

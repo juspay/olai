@@ -42,7 +42,7 @@
  */
 
 import { derive, type Derived } from "./derive.ts"
-import { median, nodesOf, retitled, timed, vaultOf } from "./fixtures.testlib.ts"
+import { median, nodesOf, retitled, retitledIn, timed, vaultOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
 import { byPath } from "./paths.ts"
 import { patched, type SetDelta } from "./patch.ts"
@@ -87,7 +87,7 @@ const editOf = (which: number): {
   readonly delta: SetDelta
 } => {
   const file = fileFor(which)
-  const records = nodesOf(retitled(corpus.get(file) as string, `edited ${which}`), file)
+  const records = nodesOf(retitled(corpus.get(file) as string, which), file)
   return { file, records, delta: { upserts: [[file, { nodes: records }]], removes: [] } }
 }
 
@@ -95,21 +95,20 @@ const edits = Array.from({ length: EDITS }, (_, which) => editOf(which))
 
 // ── the run ────────────────────────────────────────────────────────────
 
-/** What the arm said the edited record's title is now — read back off the
- *  arm's OWN answer, per edit, because an arm that stopped recomputing would
- *  otherwise go on reporting the first revision very fast, which is precisely
- *  the magnificent number a benchmark must never print. */
-const edited = (view: Derived, file: string): string | undefined =>
-  (view.byFile.get(file) ?? [])
-    .map((at) => (at.node as { readonly title?: string }).title)
-    .find((title) => title?.startsWith("edited "))
+const first = derive(flat(parsed))
+const records = first.nodes.length
 
+/** WHICH EDIT an arm says it is at, read back off the arm's OWN answer after
+ *  every one of them — because an arm that stopped recomputing would otherwise
+ *  go on reporting the first revision very fast, which is precisely the
+ *  magnificent number a benchmark must never print. Its size is checked with
+ *  it: an arm answering for the wrong corpus is not measuring what it says. */
 const said = (name: string, view: Derived, which: number): void => {
-  const found = edited(view, fileFor(which))
-  if (found !== `edited ${which}`) {
+  const found = retitledIn(view.byFile.get(fileFor(which)) ?? [])
+  if (found !== which) {
     throw new Error(
-      `${name} says ${found ?? "nothing"} after edit ${which} — the arm answered` +
-        ` a view it never recomputed`,
+      `${name} is at edit ${found ?? "none"} after edit ${which} — the arm` +
+        ` answered a view it never recomputed`,
     )
   }
   if (view.nodes.length !== records) {
@@ -119,9 +118,6 @@ const said = (name: string, view: Derived, which: number): void => {
     )
   }
 }
-
-const first = derive(flat(parsed))
-const records = first.nodes.length
 
 /** The rebuild: the whole corpus derived again, which is the answer the
  *  patcher is held to and the one it falls back to. */
@@ -202,7 +198,7 @@ const walked = (views: ReadonlyArray<Derived>): ReadonlyArray<number> => {
   // between them, and smaller again than what going second in a round is worth.
   for (const view of views) once(view)
   const rounds = Array.from({ length: 10 }, (_, round) => {
-    const order = views.map((_view, which) => which)
+    const order = [...views.keys()]
     if (round % 2 === 1) order.reverse()
     const times: Array<number> = []
     for (const which of order) times[which] = once(views[which] as Derived)

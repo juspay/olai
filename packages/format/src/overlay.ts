@@ -104,11 +104,23 @@ export const overlaid = <K, V extends {}>(
   // handed, and a chain would make a read cost the session's history.
   const under = base instanceof Layer ? (base as Layer<K, V>).base : base
   const over = new Map<K, V>(base instanceof Layer ? (base as Layer<K, V>).over : undefined)
+  /** The real map, for when a layer is not the cheaper way to it — built from
+   *  what is UNDER `base` rather than by spreading `base`, which for a layer
+   *  would go through the walk below and read every key twice on the one path
+   *  that is already paying for the whole map. Same value either way: the keys
+   *  `over` carries are `under`'s own, so re-setting them keeps their places,
+   *  and anything genuinely new lands at the end exactly as it would have. */
+  const flattened = (): ReadonlyMap<K, V> => {
+    const whole = new Map(under)
+    for (const [key, value] of over) whole.set(key, value)
+    for (const [key, value] of changes) whole.set(key, value)
+    return whole
+  }
   for (const [key, value] of changes) {
-    if (!under.has(key)) return new Map([...base, ...changes])
+    if (!under.has(key)) return flattened()
     over.set(key, value)
   }
-  if (over.size * 2 > under.size) return new Map([...base, ...changes])
+  if (over.size * 2 > under.size) return flattened()
   return new Layer(under, over)
 }
 
@@ -154,7 +166,7 @@ class Layer<K, V extends {}> implements ReadonlyMap<K, V> {
   }
 
   *values(): MapIterator<V> {
-    for (const [, value] of this.entries()) yield value
+    for (const key of this.base.keys()) yield this.get(key) as V
   }
 
   *entries(): MapIterator<[K, V]> {

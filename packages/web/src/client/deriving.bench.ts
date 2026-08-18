@@ -37,8 +37,8 @@
  * rather than a result.
  */
 
-import { derive, type Derived, type Located } from "@olai/format"
-import { median, nodesOf, retitled, timed, vaultOf } from "@olai/format/testlib"
+import { derive, type Derived } from "@olai/format"
+import { median, nodesOf, retitled, retitledIn, timed, vaultOf } from "@olai/format/testlib"
 import { writeWrappedValue } from "@kolu/surface/solid"
 import { createMemo, createRoot } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -141,7 +141,7 @@ const fileFor = (which: number): string =>
  *  for one edited outline. */
 const editOf = (previous: Fold, which: number): Fold => {
   const file = fileFor(which)
-  const text = retitled(corpus.get(file) as string, `edited ${which}`)
+  const text = retitled(corpus.get(file) as string, which)
   const byKey = Object.assign(Object.create(null) as Record<string, Entry>, previous.byKey)
   byKey[file] = { rev: previous.byKey[file]!.rev + 1, nodes: nodesOf(text, file) }
   return { byKey, order: previous.order }
@@ -191,9 +191,9 @@ const run = (name: string, end: Arm, probe: Probe): void => {
     }))
     // Off the clock, and about the value the clock was just stopped on.
     const said = probe.edited(answer, fileFor(which))
-    if (said !== `edited ${which}`) {
+    if (said !== which) {
       throw new Error(
-        `${name} still says ${said ?? "nothing"} after edit ${which}` +
+        `${name} is at edit ${said ?? "none"} after edit ${which}` +
           ` — the arm answered a frame it never recomputed`,
       )
     }
@@ -210,7 +210,7 @@ const run = (name: string, end: Arm, probe: Probe): void => {
 
 /**
  * What an arm is asked about its own answer: how much of the corpus is in it,
- * and what it says the edited record's title is now.
+ * and which edit it says it is at.
  *
  * Per arm, because the three answer with three shapes — the frame itself, a
  * `Derived`, a {@link View} — and the guard has to read each of them the way a
@@ -218,32 +218,25 @@ const run = (name: string, end: Arm, probe: Probe): void => {
  */
 interface Probe {
   readonly records: (answer: unknown) => number
-  readonly edited: (answer: unknown, file: string) => string | undefined
+  readonly edited: (answer: unknown, file: string) => number | undefined
 }
-
-/** The title this edit wrote, read out of one file's records — `undefined` when
- *  the arm is still holding a revision that has not heard about it. */
-const editedIn = (nodes: ReadonlyArray<Located>): string | undefined =>
-  nodes
-    .map((at) => (at.node as { readonly title?: string }).title)
-    .find((title) => title?.startsWith("edited "))
 
 const frameProbe: Probe = {
   records: (answer) =>
     Object.values((answer as Fold | undefined)?.byKey ?? {})
       .reduce((total, entry) => total + entry.nodes.length, 0),
-  edited: (answer, file) => editedIn((answer as Fold | undefined)?.byKey[file]?.nodes ?? []),
+  edited: (answer, file) => retitledIn((answer as Fold | undefined)?.byKey[file]?.nodes ?? []),
 }
 
 const viewProbe: Probe = {
   records: (answer) => (answer as Derived | undefined)?.nodes.length ?? 0,
-  edited: (answer, file) => editedIn((answer as Derived | undefined)?.byFile.get(file) ?? []),
+  edited: (answer, file) => retitledIn((answer as Derived | undefined)?.byFile.get(file) ?? []),
 }
 
 const foldProbe: Probe = {
   records: (answer) => (answer as View | undefined)?.derived.nodes.length ?? 0,
   edited: (answer, file) =>
-    editedIn((answer as View | undefined)?.derived.byFile.get(file) ?? []),
+    retitledIn((answer as View | undefined)?.derived.byFile.get(file) ?? []),
 }
 
 console.log(
