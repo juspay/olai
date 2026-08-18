@@ -7,15 +7,7 @@
  * pair that decides whether a screen reader is interrupted. Five copies of one
  * decision is five chances for the next surface to alarm about a nudge — and
  * the rule those lines encode is not a look, it is what {@link Said}'s two
- * moods MEAN.
- *
- * TWO MORE JOINED WITH THE MARKDOWN EDITOR, and both were copies: a row's own
- * refusal and nudge (`./RowEditor.tsx`'s `Said`, which had the colour pair
- * written out), and the box the three document-writing affordances share
- * (`../Refused.tsx`, which had the alarm half). Neither had a mood of its own
- * to keep; what they keep is where the line sits.
- *
- * The two moods:
+ * moods MEAN:
  *
  *   - a REFUSAL is why nothing happened. It is toned alarm and announced
  *     assertively, because a reader who does not notice it believes a write

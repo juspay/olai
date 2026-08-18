@@ -44,6 +44,21 @@ When(
   },
 );
 
+/** The same door as `I rewrite`, in the line endings a file written on
+ *  Windows has. A docstring cannot carry them — Gherkin's own lines are `\n` —
+ *  so the conversion is here, where it can be said out loud.
+ *
+ *  THE LAST LINE ENDS THE SAME WAY as the others, which is the whole point of
+ *  the fixture: a file whose final break is a bare `\n` is a MIXED file, and a
+ *  mixed file is one the editor deliberately leaves alone rather than the
+ *  Windows file this is about (`client/mde/separator.ts`). */
+When(
+  "I rewrite {string} in CRLF as:",
+  function (this: OlaiWorld, file: string, contents: string) {
+    this.writeServed(file, `${contents.replace(/\r?\n/g, "\r\n")}\r\n`);
+  },
+);
+
 When("I delete {string}", function (this: OlaiWorld, file: string) {
   this.removeServed(file);
 });
@@ -78,24 +93,6 @@ When(
     assert.ok(
       records.some((node) => node["id"] === id),
       `${file} holds no node \`${id}\` to retitle`,
-    );
-    this.writeServed(file, records.map((node) => JSON.stringify(node)).join("\n"));
-  },
-);
-
-/** A NOTE rewritten under everybody's feet — the sibling of the retitle above,
- *  and what the autosave's `was` guard is for: a browser holding a draft over
- *  this node is about to send a condition the file no longer says, and the
- *  answer must be a refusal rather than these words being replaced. */
-When(
-  "another writer rewrites the note of {string} in {string} as {string}",
-  function (this: OlaiWorld, id: string, file: string, desc: string) {
-    const records = this.servedNodes(file).map((node) =>
-      node["id"] === id ? { ...node, desc } : node
-    );
-    assert.ok(
-      records.some((node) => node["id"] === id),
-      `${file} holds no node \`${id}\` to write a note on`,
     );
     this.writeServed(file, records.map((node) => JSON.stringify(node)).join("\n"));
   },

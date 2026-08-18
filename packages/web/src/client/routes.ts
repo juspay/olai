@@ -53,6 +53,8 @@
  * thing standing between a link the app writes and a link it cannot read back.
  */
 
+import { bodiedOf } from "@olai/format"
+
 export type Route =
   /** One outline. `null` is "whichever was found first" — the bare `/`. */
   | { readonly kind: "outline"; readonly file: string | null; readonly filter?: string }
@@ -210,6 +212,42 @@ export const fileNamed = (route: Route): string | undefined =>
  */
 export const routeIn = (href: string): Route | null =>
   href.startsWith(DOCUMENT_PREFIX) && !href.includes("#") ? routeOf(href) : null
+
+/**
+ * The address a link WRITTEN IN A FILE means, when it names a document of this
+ * directory — or `undefined` for one to leave exactly as it is.
+ *
+ * The one thing this decides that `bodiedOf` does not is the FRAGMENT. A vault
+ * writes `[the bed](garden.md#beds)`, and the path and the anchor are two
+ * different questions: the path is a file to resolve, the anchor is what to do
+ * once the page is there. So it is cut off before the arithmetic and put back
+ * afterwards, verbatim.
+ *
+ * A link this leaves alone is a link that goes exactly where it says: an
+ * `http:` address is somebody pointing at the internet on purpose, and a
+ * relative path to something that is not a document is not this app's to
+ * reinterpret. Whether the directory HOLDS the document is not asked, for the
+ * same reason `/doc/<anything>` is an address a person may type — the page
+ * model has a screen that names a document it does not have, and a link
+ * quietly left relative would send the reader somewhere with nothing to say at
+ * all.
+ *
+ * IT IS HERE, in the module that owns what an address of this app looks like,
+ * because it now has two callers who cannot see each other: the rendering
+ * (`markdown/rewrite.ts`, which rewrites the `href` of an `<a>` before the
+ * page draws it) and the EDITOR (`mde/links.ts`, which draws the same anchor
+ * over the source a reader is looking at). Two copies of this arithmetic is a
+ * link that goes one place when rendered and another place when live, which is
+ * exactly the drift a reader would report as "sometimes it works".
+ */
+export const documentHref = (from: string, written: string): string | undefined => {
+  // ONE index, so the two halves cannot be cut at two places: an href with no
+  // `#` ends at its own end, which makes the fragment the empty tail.
+  const cut = written.includes("#") ? written.indexOf("#") : written.length
+  const document = bodiedOf(from, written.slice(0, cut))
+  if (document === null) return undefined
+  return hrefOf({ kind: "document", file: document }) + written.slice(cut)
+}
 
 /**
  * Anything this does not recognise is the default outline: an unknown path is

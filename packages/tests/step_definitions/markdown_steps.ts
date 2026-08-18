@@ -76,7 +76,12 @@ Then("the document shows its own markdown source", async function (this: OlaiWor
 Then(
   "the document says its renderer never came",
   async function (this: OlaiWorld) {
-    const failed = this.page.locator(`${DOCUMENT_BODY}[data-markdown="failed"]`);
+    // The mark is on what the PIPELINE drew, which on a document's page is
+    // inside the body rather than the body itself: the surface is the editor's
+    // now, and the rendering is what it falls back to (`client/mde/Mde.tsx`).
+    const failed = this.page
+      .locator(`${DOCUMENT_BODY}[data-markdown="failed"], ${DOCUMENT_BODY} [data-markdown="failed"]`)
+      .first();
     await failed.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const text = await failed.innerText();
     assert.ok(

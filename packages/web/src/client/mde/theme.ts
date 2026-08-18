@@ -115,6 +115,18 @@ const surfaces = EditorView.theme({
   ".cm-list-bullet": { color: "var(--color-muted)" },
   ".cm-task-marker-checkbox": { marginRight: "var(--olai-md-pad-chipX)" },
 
+  // A LINK a reader can follow — the anchor ./links.ts draws over the link's
+  // own text while the surface is reading. It takes the page's accent and the
+  // pointer that promises a navigation, because on a document page it IS one;
+  // in writing mode there is no anchor at all, so this rule cannot promise a
+  // click the caret is about to take.
+  ".olai-mde-link": {
+    color: "var(--color-accent)",
+    cursor: "pointer",
+    textDecoration: "none",
+  },
+  ".olai-mde-link:hover": { textDecoration: "underline" },
+
   // A tag is TEXT here, whatever it is on a row. The page makes a tag
   // pressable wherever the pane can carry a filter (`../styles.css`), and a
   // pointer promising a filter inside an editor would be a promise about the

@@ -57,7 +57,6 @@ import {
 } from "solid-js"
 import { Result } from "effect"
 
-import { autosaves, AUTOSAVE_IDLE } from "./autosave.ts"
 import { datePick } from "../date/pick.ts"
 import type { Caret, EditAction } from "../keys.ts"
 import { runAsync } from "../run.ts"
@@ -104,16 +103,8 @@ export interface Editor {
    *  in, because moving an element in the document is what takes focus off it
    *  (`./RowEditor.tsx` says the rest). */
   readonly caret: Accessor<number>
-  /**
-   * Start editing a row's title (a click on it) or its note.
-   *
-   * `at` is WHERE IN THE TEXT, and only one gesture has an opinion: a click on
-   * the note's reading surface, which is the live-preview editor and can
-   * therefore say which character was under the pointer (`../mde/Mde.tsx`). A
-   * title's click cannot — an `<input>` is given the caret by the platform —
-   * and every other way in means the end of the text.
-   */
-  readonly open: (row: Row, field: "title" | "desc", at?: number) => void
+  /** Start editing a row's title (a click on it) or its note. */
+  readonly open: (row: Row, field: "title" | "desc") => void
   /** What has just been typed. Starts the idle clock. */
   readonly type: (text: string) => void
   /** The editor at this slot lost focus: commit, and close if it landed. It
@@ -367,41 +358,10 @@ export const createEditor = (
     return true
   }
 
-  /**
-   * The idle commit. Scheduled by every keystroke and cancelled by every
-   * commit, so a person who keeps typing causes one write rather than one per
-   * pause.
-   *
-   * TWO CLOCKS, ONE COMMIT, because the two fields are two different acts.
-   * Typing a TITLE is finished by `Enter` or by looking somewhere else, so its
-   * timer is a backstop and is long enough that a pause mid-sentence is not a
-   * git commit ({@link ./draft.ts}'s `IDLE_COMMIT`). Typing a NOTE is prose,
-   * and the timer is the only thing that ever writes it — that is autosave,
-   * and its number is {@link ./autosave.ts}'s. Both fire the same `commit`,
-   * which is what keeps this a difference in WHEN rather than a second way to
-   * write.
-   *
-   * `clear` is both of them, always: a draft is one caret in one field, so at
-   * most one is ever pending, and a caller that had to know which would be a
-   * caller that can forget.
-   */
-  const clocks = {
-    line: debounce(() => enqueue(commit), IDLE_COMMIT),
-    block: debounce(() => enqueue(commit), AUTOSAVE_IDLE),
-  }
-  const idle = {
-    /** Start the clock the field being typed in runs on — which field is
-     *  autosaved is {@link ./autosave.ts}'s to say, beside the number, so the
-     *  clock and the guard cannot be given to different fields. */
-    start: (field: Slot["field"]): void => {
-      if (autosaves(field)) clocks.block()
-      else clocks.line()
-    },
-    clear: (): void => {
-      clocks.line.clear()
-      clocks.block.clear()
-    },
-  }
+  /** The idle commit. Scheduled by every keystroke and cancelled by every
+   *  commit, so a person who keeps typing causes one write rather than one per
+   *  pause. */
+  const idle = debounce(() => enqueue(commit), IDLE_COMMIT)
 
   /** The row the caret is in, as the page is drawing it now. */
   const row = (): Row | undefined => {
@@ -602,16 +562,11 @@ export const createEditor = (
   /** A row, as the draft that edits it. One place mints these, so the two ids
    *  and the place are read off the row together rather than assembled at
    *  every call site. */
-  const opened = (at: Row, field: "title" | "desc", caret?: number): Draft | null => {
+  const opened = (at: Row, field: "title" | "desc"): Draft | null => {
     if (at.kind !== "node" && at.kind !== "mirror") return null
     const text = (field === "title" ? at.shows.node.title : at.shows.node.desc) ?? ""
     return {
       kind: "row",
-      // Where the caret goes, when the gesture that opened this had an opinion
-      // — a click into the note's rendering, which knows the character it
-      // landed on. Clamped to the text, because the draft it seeds outlives the
-      // frame that measured it.
-      ...(caret === undefined ? {} : { caret: Math.min(caret, text.length) }),
       row: at.at.node.id,
       id: at.shows.node.id,
       place: at.key,
@@ -758,8 +713,8 @@ export const createEditor = (
     draft,
     where,
     caret,
-    open: (at, field, caret) => {
-      const next = opened(at, field, caret)
+    open: (at, field) => {
+      const next = opened(at, field)
       if (next === null) return
       // A caret arriving puts the pick away, and it happens HERE rather than at
       // the click that asked, so no later door can forget it. Synchronously,
@@ -780,12 +735,8 @@ export const createEditor = (
       })
     },
     type: (text) => {
-      // The setter's own answer, rather than a second read of the signal: what
-      // is being typed in is what was just stored, and two reads are two
-      // chances for the clock to be started for a field the draft no longer
-      // has.
-      const held = setDraft((current) => (current === null ? current : typed(current, text)))
-      if (held !== null) idle.start(slotOf(held).field)
+      setDraft((held) => (held === null ? held : typed(held, text)))
+      idle()
     },
     blur: (from, left) => {
       // A blur we caused ourselves — see `settling`.

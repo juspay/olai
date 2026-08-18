@@ -286,8 +286,10 @@ export const TESTID = {
    *  span (titles change under a live page; ids do not) — and the blocked pill
    *  carries that span too, being a link to the first blocker. */
   nodeRef: "node-ref",
-  /** The document itself, rendered — on its own page, or inline under the node
-   *  that attaches it. */
+  /** The document itself — on its own PAGE it is the live-preview surface a
+   *  reader reads and writes in (`client/document/DocEditor.tsx`); everywhere
+   *  else (under the node that attaches it, on a day) it is the same markdown
+   *  rendered. One name, because it is one question: where the document is. */
   documentBody: "document-body",
   /** A `.html` file's page: the sandboxed frame its markup is drawn in, and the
    *  only element of it this app owns. Everything a scenario asks ABOUT the
@@ -300,18 +302,13 @@ export const TESTID = {
    *  (`edit/SaidLine.tsx`), so a scenario reads its `data-tone` rather than a
    *  colour. */
   hypertextSaid: "hypertext-said",
-  /** The way into a document's editor: the quiet control on the page header
-   *  that turns the rendered body into its source. */
-  documentEdit: "document-edit",
-  /** The editor itself — the document's SOURCE, verbatim, live-previewed.
-   *  Present exactly while the page is in its edit mode. `data-mde` says which
-   *  face is drawn: `preview` once CodeMirror has arrived, `waiting` while its
-   *  chunk is in the air, `plain` if it never came (`client/mde/`). */
+  /** The thing a caret can be in — the document's SOURCE, verbatim,
+   *  live-previewed. It is the page's body rather than a mode over it, so it is
+   *  present the whole time and `data-writing` says which mode it is in.
+   *  `data-mde` says which face draws it: `preview` once CodeMirror has
+   *  arrived, `waiting` while its chunk is in the air, `plain` if it never came
+   *  (`client/mde/`). */
   documentEditor: "document-editor",
-  /** Back to reading. NOT a commit: a document autosaves on a pause and when
-   *  the caret leaves (`client/edit/autosave.ts`), so this flushes whatever is
-   *  still owed and closes the editor. */
-  documentDone: "document-done",
   /** Why the last document write did not happen — the ops layer's own words,
    *  with the draft kept. One mood (`data-tone="alarm"`) and not the two a
    *  row's line has: a document write has no rollup to remark on. */

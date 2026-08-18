@@ -408,18 +408,17 @@
     <p class="lead">Notes are Markdown. Longer content goes in <code>.md</code>
     files, referenced from the outline by the <code>doc</code> field. Each
     document gets its own page and appears in the sidebar's file tree — and
-    the page edits: <em>Edit</em> turns the rendered body into its source, in
-    an editor that draws the Markdown while you write it — bold looks bold,
-    a heading is heading-sized, and the <code>**</code> is there whenever the
-    caret is. It saves itself: half a second of quiet, or the caret leaving,
-    and it is on disk, as one operation through the same layer the agent's
-    <code>write_document</code> uses. There is no Save button and nothing to
-    remember. A file that changed on disk while you were typing refuses the
-    write in plain words instead of being silently overwritten, in either
-    direction. New documents come from the sidebar's path box, or from a bare
-    calendar day — pressing one creates that day's note where your vault
-    already keeps them. Notes under a row are the same editor, one size down,
-    and vim mode is a preference away.</p>
+    the page IS the editor: what you are reading draws the Markdown while you
+    write it — bold looks bold, a heading is heading-sized, and the
+    <code>**</code> is there whenever the caret is. No Edit button and no Save
+    button: click the prose and the caret is where you pointed, and half a
+    second of quiet — or the caret leaving — puts it on disk, as one operation
+    through the same layer the agent's <code>write_document</code> uses. A file
+    that changed on disk while you were typing refuses the write in plain words
+    instead of being silently overwritten, in either direction. New documents
+    come from the sidebar's path box, or from a bare calendar day — pressing one
+    creates that day's note where your vault already keeps them. Vim mode is a
+    preference away.</p>
     <p>A <code>.html</code> file in the directory — a saved article, a report
     a build wrote, a dashboard something exported — is listed and previewed the
     same way, and is read rather than edited. <strong>The page works</strong>:
@@ -992,7 +991,7 @@ The corner unit is the **risky one** — see
     <h2>Preferences, and fifteen palettes</h2>
     <p class="lead">One door in the app header, and the rows behind it: the
     theme, the typeface, how a page is set, what it does with finished work,
-    and which keyboard its Markdown editors take. Every one of them is this
+    and which keyboard its Markdown editor takes. Every one of them is this
     browser’s, which is the panel’s own first claim about itself: two machines
     reading the same outlines are entitled to look different, and the served
     directory neither knows nor cares.</p>
@@ -1034,8 +1033,8 @@ The corner unit is the **risky one** — see
         <div class="prow">
           <div class="lbl">Editing</div>
           <div class="seg"><span class="on">Plain</span><span>Vim</span></div>
-          <p class="hint">Notes and documents take the keys your platform
-          already gives a text field.</p>
+          <p class="hint">Documents take the keys your platform already gives
+          a text field.</p>
         </div>
         <p class="scope">These are this browser’s. They are stored here, reach
         every tab you have olai open in, and are never sent to the server.</p>

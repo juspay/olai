@@ -45,7 +45,7 @@ Feature: Documents become writable
     And the document autosaves
     And I leave the document editor
     Then the document renders bold text "unlacquered"
-    And the document editor is gone
+    And the document is no longer being typed
     And the page has not reloaded
     And there should be no page errors
 
@@ -61,7 +61,7 @@ Feature: Documents become writable
       Typed, and **left** without pressing anything.
       """
     And I press Escape in the document editor
-    Then the document editor is gone
+    Then the document is no longer being typed
     And the document renders bold text "left"
 
   @scratch:good
@@ -111,7 +111,7 @@ Feature: Documents become writable
     When I overwrite the document anyway
     And I leave the document editor
     Then the document renders bold text "mine"
-    And the document editor is gone
+    And the document is no longer being typed
     And there should be no page errors
 
   @scratch:good
@@ -120,7 +120,7 @@ Feature: Documents become writable
     And I mark the page
     When I create the document "notes/wiring.md" from the sidebar
     Then the document open is "notes/wiring.md"
-    And the document editor is open
+    And the document is being typed
     And the page has not reloaded
     When I retype the document as:
       """
@@ -159,7 +159,7 @@ Feature: Documents become writable
     And I mark the page
     When I create the document "notes/wiring.md" from the sidebar
     Then the document open is "notes/wiring.md"
-    And the document editor is open
+    And the document is being typed
     And the page has not reloaded
 
   # TODAY's cell, because a document page anchors the month to today rather
@@ -172,7 +172,7 @@ Feature: Documents become writable
     And I mark the page
     When I press today's bare day
     Then the document open is today's note under "Daily"
-    And the document editor is open
+    And the document is being typed
     And the page has not reloaded
 
   # The clobber shape. A draft belongs to the file it was typed in, and a
@@ -194,7 +194,7 @@ Feature: Documents become writable
       """
     When I click the document "kitchen-sink.md"
     Then the document open is "kitchen-sink.md"
-    And the document editor is gone
+    And the document is no longer being typed
     # And what an editor opened here holds is THIS file, never the draft left
     # behind on the last one.
     When I start editing the document
@@ -210,7 +210,7 @@ Feature: Documents become writable
     And I mark the page
     When I press the bare day "2019-11-20"
     Then the document open is "Daily/2019/11/2019-11-20.md"
-    And the document editor is open
+    And the document is being typed
     And the page has not reloaded
     When I retype the document as:
       """

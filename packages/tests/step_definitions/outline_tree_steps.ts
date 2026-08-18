@@ -8,8 +8,6 @@
  */
 
 import * as assert from "node:assert";
-
-import type { Locator } from "playwright";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import { childOf, notChildOf } from "../support/nesting.ts";
@@ -276,42 +274,16 @@ Then(
   },
 );
 
-/**
- * A NOTE HAS TWO FACES NOW, and every question about what one DRAWS has to be
- * true of both.
- *
- * A note the reader has opened is the markdown editor, reading
- * (`client/mde/Mde.tsx`) — one surface that becomes the caret in place — and
- * everywhere else it is the page's own rendering (a day, the agenda, a row the
- * density preference unfolded). Both carry `DESC`, because both ARE the note;
- * what differs is the markup underneath: the rendering makes a `<strong>`, the
- * editor makes a span at the scale's major weight over text whose markers are
- * hidden.
- *
- * So these read what a PERSON would see rather than which element carries it:
- * the word is there, and it is heavy. Asserting `<strong>` alone would be
- * asserting which face is drawn, which is a fact about the density preference
- * and not about the note.
- */
-const boldly = async (where: Locator, text: string): Promise<boolean> => {
-  const bold = await where.locator("strong, b").allInnerTexts();
-  if (bold.some((value) => value.trim() === text)) return true;
-  const word = where.getByText(text, { exact: true }).first();
-  if ((await word.count()) === 0) return false;
-  const weight = await word.evaluate((el) => getComputedStyle(el).fontWeight);
-  return Number(weight) >= 600;
-};
-
 Then(
   "the description of {string} renders bold text {string}",
   async function (this: OlaiWorld, id: string, text: string) {
     // The preview is also `DESC` and is already visible; "visible" is not
     // "expanded". Wait for the markdown the expand is supposed to draw.
     const desc = this.node(id).locator(DESC).first();
-    await this.waitUntil(
-      async () => await boldly(desc, text),
-      `the description of "${id}" to render bold text ${JSON.stringify(text)}`,
-    );
+    await this.waitUntil(async () => {
+      const bold = await desc.locator("strong, b").allInnerTexts();
+      return bold.some((value) => value.trim() === text);
+    }, `the description of "${id}" to render bold text ${JSON.stringify(text)}`);
   },
 );
 
@@ -320,15 +292,7 @@ Then(
   async function (this: OlaiWorld, id: string, expected: number) {
     const desc = this.node(id).locator(DESC).first();
     await desc.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // The rendering makes `<li>`; the editor draws the line's own `-` as a
-    // bullet widget and leaves it a line. Same claim, two shapes.
-    const items = await desc.locator("li").count();
-    const bullets = await desc.locator(".cm-list-bullet").count();
-    assert.strictEqual(
-      Math.max(items, bullets),
-      expected,
-      `the description of "${id}" draws ${items} list items and ${bullets} bullets`,
-    );
+    assert.strictEqual(await desc.locator("li").count(), expected);
   },
 );
 

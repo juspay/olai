@@ -177,12 +177,12 @@ test("a row's line is marked in exactly the module that reads it and the tree th
 // SAME FILE apart, which is a view this app can draw and therefore a place its
 // identifiers stop being unique. A `Row.key` is a chain from the roots of ITS
 // page (the two row gestures measure through one door, `drag/lines.ts`), and a
-// markdown heading's id is minted from the heading (`document/faces.tsx` scrolls
-// under its own pane's root). A fifth file spelling it is a new reader, which is
-// a new answer to "which page is this in".
+// markdown heading's id is minted from the heading (`document/DocEditor.tsx`
+// scrolls under its own pane's root). A fifth file spelling it is a new reader,
+// which is a new answer to "which page is this in".
 test("a pane's index is drawn by the workspace and read where two panes must be told apart", () => {
   expect(filesSpelling(/data-pane/)).toEqual([
-    path.join("document", "faces.tsx"),
+    path.join("document", "DocEditor.tsx"),
     path.join("drag", "lines.ts"),
     path.join("pane", "PageView.tsx"),
     path.join("pane", "Panes.tsx"),
@@ -301,7 +301,7 @@ test("nothing outside the menu's chunk imports the menu's chunk", () => {
 // TESTS ARE NOT IN THE SCAN, and that is the one difference from the sweep
 // above: `mde/tags.test.ts` imports the module it tests, as it must, and a
 // test file is never in any bundle.
-const EDITOR_CHUNK = ["codemirror.ts", "tags.ts", "theme.ts"]
+const EDITOR_CHUNK = ["codemirror.ts", "links.ts", "separator.ts", "tags.ts", "theme.ts"]
   .map((one) => path.join("mde", one))
 
 test("nothing outside the editor's chunk imports the editor's chunk", () => {
@@ -312,6 +312,8 @@ test("nothing outside the editor's chunk imports the editor's chunk", () => {
   }
   expect([...importers].map(([file, from]) => [file, from.sort()])).toEqual([
     [path.join("mde", "codemirror.ts"), []],
+    [path.join("mde", "links.ts"), [path.join("mde", "codemirror.ts")]],
+    [path.join("mde", "separator.ts"), [path.join("mde", "codemirror.ts")]],
     [path.join("mde", "tags.ts"), [path.join("mde", "codemirror.ts")]],
     [path.join("mde", "theme.ts"), [path.join("mde", "codemirror.ts")]],
   ])
@@ -325,6 +327,7 @@ test("only the editor's chunk names CodeMirror", () => {
   expect(filesSpelling(/@codemirror\/|@retronav\/ixora|@replit\/codemirror-vim/))
     .toEqual([
       path.join("mde", "codemirror.ts"),
+      path.join("mde", "links.ts"),
       path.join("mde", "tags.ts"),
       path.join("mde", "theme.ts"),
     ])

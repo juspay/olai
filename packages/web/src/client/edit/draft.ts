@@ -41,11 +41,8 @@
 import type { Anchor, Edit, OpFailure } from "@olai/surface"
 
 /**
- * How long a person stops typing before a TITLE they typed is written — the
- * third of the three commit moments, and the only one that is a duration.
- *
- * A note has its own, shorter number ({@link ./autosave.ts}), because a note
- * is prose somebody sits inside rather than a line finished by `Enter`.
+ * How long a person stops typing before what they typed is written — the third
+ * of the three commit moments, and the only one that is a duration.
  *
  * Long enough that a pause mid-sentence is not a git commit, short enough that
  * walking away from the keyboard cannot lose the line. It is here rather than
@@ -161,35 +158,10 @@ export const commitOf = (draft: Draft): Edit | null => {
   if (draft.text === draft.saved) return null
   return draft.field === "title"
     ? { verb: "title", id: draft.id, title: draft.text }
-    : {
-      verb: "desc",
-      id: draft.id,
-      // An emptied note is a note removed, which is what `null` spells — not a
+    : // An emptied note is a note removed, which is what `null` spells — not a
       // note whose text is the empty string.
-      desc: noteOf(draft.text),
-      // AND THE NOTE'S WRITE IS CONDITIONAL, which the title's is not.
-      //
-      // A note is autosaved: it is written while a person is still in it, on
-      // a pause, over and over, for as long as they are writing
-      // (./autosave.ts). That is a write nobody pressed anything for, so it
-      // may not be the write that loses somebody else's words — `was` is the
-      // text THIS editor last saved, and an agent or another tab that wrote
-      // in between makes it a refusal in the ops layer's own words, drawn
-      // under the row, with the draft kept.
-      //
-      // A title is not conditional and should not be: it is one line, and
-      // typing a title MEANS "the title is this now", which is exactly what
-      // `set_title` does for an agent. What is conditional there is an UNDO,
-      // which may only overwrite what it wrote
-      // ({@link ../../../../surface/src/edit.ts}'s `Was`).
-      was: noteOf(draft.saved),
-    }
+      { verb: "desc", id: draft.id, desc: draft.text === "" ? null : draft.text }
 }
-
-/** A note's text as the record spells it: absent is `null`, here and in the
- *  `was` beside it, so "there was no note" and "the note was empty" cannot
- *  drift apart between the value and its condition. */
-const noteOf = (text: string): string | null => (text === "" ? null : text)
 
 /** The same draft with what has just been typed in it — and with whatever the
  *  last write said dropped, because it was about the text this replaces. */

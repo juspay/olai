@@ -45,12 +45,12 @@
  * asking a question this one already has the answer to.
  */
 
-import { bodiedOf, pictureOf } from "@olai/format"
+import { pictureOf } from "@olai/format"
 import { mediaHref } from "@olai/surface"
 import type { Element, Root } from "hast"
 
 import { type Heading, headingOf } from "./outline.ts"
-import { hrefOf } from "../routes.ts"
+import { documentHref } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 
 export interface Rewrite {
@@ -144,13 +144,12 @@ const resolvePicture = (element: Element, from: string): void => {
 /**
  * Point an `<a>` at a served document's own page, when that is what it names.
  *
- * The one thing this decides that `bodiedOf` does not is the FRAGMENT. A
- * vault writes `[the bed](garden.md#beds)`, and the path and the anchor are two
- * different questions: the path is a file to resolve, the anchor is what to do
- * once the page is there. So it is cut off before the arithmetic and put back
- * afterwards, verbatim — this pass mints ids per rendered BLOCK ({@link mint}),
- * so an anchor into another page is a thing that page will have to answer for,
- * and dropping it here would be this pass deciding it never existed.
+ * THE ARITHMETIC IS `documentHref`'s (`../routes.ts`), because the editor draws
+ * the same anchor over the same source (`../mde/links.ts`) and a link that went
+ * one place rendered and another place live is the drift a reader would report
+ * as "sometimes it works". What is left here is where the answer GOES: an
+ * element's `href`, in a pass that mints ids per rendered BLOCK ({@link mint}),
+ * so an anchor into another page is a thing that page will have to answer for.
  *
  * A link this leaves alone is a link that goes exactly where it says. There is
  * no allowlist to widen and no refusal to draw: the sanitiser has already run
@@ -158,24 +157,13 @@ const resolvePicture = (element: Element, from: string): void => {
  * pointing at the internet on purpose — {@link openExternal} is the tab that
  * click opens, not a rewrite of the address — and a relative path to something
  * that is not a document is not this app's to reinterpret.
- *
- * Whether the directory HOLDS the document is not asked, for the same reason
- * `/doc/<anything>` is an address a person may type: the page model already has
- * a screen that names a document it does not have, and a link quietly left
- * relative would send the reader somewhere with nothing to say at all.
  */
 const resolveDocument = (element: Element, from: string): void => {
   const written = element.properties?.["href"]
   if (typeof written !== "string") return
-  // ONE index, so the two halves cannot be cut at two places: an href with no
-  // `#` ends at its own end, which makes the fragment the empty tail.
-  const cut = written.includes("#") ? written.indexOf("#") : written.length
-  const document = bodiedOf(from, written.slice(0, cut))
-  if (document === null) return
-  element.properties = {
-    ...element.properties,
-    href: hrefOf({ kind: "document", file: document }) + written.slice(cut),
-  }
+  const href = documentHref(from, written)
+  if (href === undefined) return
+  element.properties = { ...element.properties, href }
 }
 
 /**

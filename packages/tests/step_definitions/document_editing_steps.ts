@@ -2,11 +2,16 @@
  * Editing documents: the editor a document page becomes, the two creation
  * doors, and the conflict a write meets when the file moved underneath it.
  *
- * Everything here drives the UI — the Edit control, the editor, the pause that
- * arms the autosave — and asserts what came BACK on the wire: a rendered body
- * that changed, a second tab that followed, a refusal drawn in the ops layer's
- * own words. Nothing reads the disk directly, because nothing in the client
- * does either.
+ * Everything here drives the UI — a click into the prose, the pause that arms
+ * the autosave — and asserts what came BACK on the wire: a body that changed,
+ * a second tab that followed, a refusal drawn in the ops layer's own words.
+ * Nothing reads the disk directly, because nothing in the client does either
+ * (the one exception says why it is one: the line-ending claim below).
+ *
+ * THERE IS NO EDIT VERB EITHER (ruled 2026-08-18, documents-only pass). The
+ * page IS the editor, mounted reading, so "start editing" is a CLICK IN THE
+ * PROSE and "leave" is looking somewhere else. What a scenario asks about is
+ * therefore the MODE (`data-writing`) rather than whether an element exists.
  *
  * THERE IS NO SAVE STEP, and its absence is the ruling (2026-08-18): a
  * document is written on a pause and when the caret leaves, so what a scenario
@@ -23,9 +28,7 @@ import type { Page } from "playwright";
 import {
   CALENDAR_MINT,
   DOCUMENT_BODY,
-  DOCUMENT_DONE,
   DOCUMENT_DRIFTED,
-  DOCUMENT_EDIT,
   DOCUMENT_EDITOR,
   DOCUMENT_OVERWRITE,
   DOCUMENT_PAGE,
@@ -33,19 +36,22 @@ import {
   HYDRATION_TIMEOUT,
   oneLine,
   POLL_TIMEOUT,
+  WRITING,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 // ── the editor ─────────────────────────────────────────────────────────
 
+/** A CLICK IN THE PROSE, which is the whole gesture: the surface a reader is
+ *  looking at becomes the one they are typing in, at the character they hit.
+ *  The hydration wait is its own — the body arrives a frame behind the
+ *  heading. */
 When("I start editing the document", async function (this: OlaiWorld) {
-  const edit = this.page.locator(DOCUMENT_EDIT);
-  // The hydration wait is its own: the control appears when the page has a
-  // body to edit. `press` is the click and the frame after it.
-  await edit.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await this.press(edit);
+  const surface = this.page.locator(DOCUMENT_BODY).first();
+  await surface.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.press(surface);
   await this.page
-    .locator(DOCUMENT_EDITOR)
+    .locator(`${DOCUMENT_EDITOR}${WRITING}`)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
@@ -86,8 +92,11 @@ When("the document autosaves", async function (this: OlaiWorld) {
   await this.settleAutosave();
 });
 
+/** Look somewhere else — the page's own heading, which is on every document
+ *  page and can hold no caret. There is no Done verb to press: the blur IS the
+ *  leaving, and it flushes what is owed (`client/document/DocEditor.tsx`). */
 When("I leave the document editor", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(DOCUMENT_DONE));
+  await this.press(this.page.locator(`${DOCUMENT_PAGE} h1`).first());
 });
 
 /** The caret's own way out — the same door Done is, said with a key. It is the
@@ -103,16 +112,21 @@ When("I overwrite the document anyway", async function (this: OlaiWorld) {
   await this.press(this.page.locator(DOCUMENT_OVERWRITE));
 });
 
-Then("the document editor is open", async function (this: OlaiWorld) {
+Then("the document is being typed", async function (this: OlaiWorld) {
   await this.page
-    .locator(DOCUMENT_EDITOR)
+    .locator(`${DOCUMENT_EDITOR}${WRITING}`)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
-Then("the document editor is gone", async function (this: OlaiWorld) {
-  await this.page
-    .locator(DOCUMENT_EDITOR)
-    .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+/** NOT "the editor is gone": the surface stays, because it is the page's body.
+ *  What ends is the caret being in it — and while the editor's chunk is still
+ *  in the air that really is an element going, since what a reader gets there
+ *  is the page's own rendering. Both are "nobody is typing in this". */
+Then("the document is no longer being typed", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(`${DOCUMENT_EDITOR}${WRITING}`).count()) === 0,
+    "the caret to leave the document",
+  );
 });
 
 // ── the conflict story ─────────────────────────────────────────────────
@@ -138,6 +152,63 @@ Then(
   },
 );
 
+/**
+ * WHAT THE FILE SAYS, asked of the disk.
+ *
+ * The one assertion here that does not go through the page, and the reason is
+ * the whole verbatim law: what a live-preview editor DRAWS is markers hidden
+ * and words drawn, and the claim these scenarios make is about the bytes
+ * underneath. A page cannot make that claim about itself.
+ *
+ * `\n` in a feature file is a backslash and an n — Gherkin unescapes nothing —
+ * so it is read here as the line break a scenario means by it, which is what
+ * lets one step say "this line, then that one, and nothing between them".
+ */
+const onDisk = (text: string): string => text.replaceAll("\\n", "\n");
+
+Then(
+  "{string} holds the text {string}",
+  async function (this: OlaiWorld, file: string, text: string) {
+    await this.waitUntil(
+      () => Promise.resolve(this.readServed(file).includes(onDisk(text))),
+      `${file} to hold ${JSON.stringify(text)}`,
+    );
+  },
+);
+
+/** ...and the same question asked the other way, which is how a scenario says
+ *  a keystroke landed WHERE THE FINGER WAS: the line it went into is not the
+ *  line the file used to have. */
+Then(
+  "{string} no longer holds the text {string}",
+  async function (this: OlaiWorld, file: string, text: string) {
+    await this.waitUntil(
+      () => Promise.resolve(!this.readServed(file).includes(onDisk(text))),
+      `${file} to stop holding ${JSON.stringify(text)}`,
+    );
+  },
+);
+
+/**
+ * THE LINE ENDINGS ON DISK, asked of the bytes.
+ *
+ * A file written in CRLF that comes back in LF is every line changed by a
+ * keystroke that was about one word — the verbatim law breaking through the
+ * breaks rather than through the markup (`client/mde/separator.ts`). So this
+ * counts them: every break is a CRLF, and none is a bare LF.
+ */
+Then(
+  "{string} still uses CRLF line endings",
+  async function (this: OlaiWorld, file: string) {
+    await this.waitUntil(async () => {
+      const text = this.readServed(file);
+      const breaks = text.split("\n").length - 1;
+      const crlf = text.split("\r\n").length - 1;
+      return breaks > 0 && breaks === crlf;
+    }, `${file} to still end its lines with CRLF`);
+  },
+);
+
 // ── a second tab is just another reader ────────────────────────────────
 
 /** The other tab of this scenario. Module state, reset by the Given that opens
@@ -150,9 +221,12 @@ Given(
   async function (this: OlaiWorld, file: string) {
     other = await this.context.newPage();
     await other.goto(`${this.baseUrl}/doc/${file}`);
+    // Reading, and nothing more: a tab that opened a document has its body on
+    // screen and no caret in it.
     await other
-      .locator(DOCUMENT_EDITOR)
-      .waitFor({ state: "detached", timeout: HYDRATION_TIMEOUT });
+      .locator(DOCUMENT_BODY)
+      .first()
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   },
 );
 
@@ -213,3 +287,15 @@ Then(
     );
   },
 );
+
+/** The other side of the drift line: NOT noticed, which is what a document
+ *  nobody is typing in must say when the file moves under it. A re-read is not
+ *  a conflict (`client/document/DocEditor.tsx`), and a page that alarmed about
+ *  one would be teaching readers to ignore the line that matters. */
+Then("the editor has not noticed a conflict", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(DOCUMENT_DRIFTED).count(),
+    0,
+    "the page says the file changed under an editor nobody was typing in",
+  );
+});

@@ -51,10 +51,7 @@ Feature: Undo
     When I open the note of "order"
     And I click the note of "order"
     Then the note of "order" is being typed
-    # Clicking a note puts the caret WHERE THE CLICK LANDED, so a scenario
-    # about the end of one says so (`live_preview_editing.feature`).
-    When I put the caret at the end of the note
-    And I type " — measured twice"
+    When I type " — measured twice"
     And I click away from the editor
     Then "house.olai" holds a node whose note ends "— measured twice"
     When I press "ControlOrMeta+z"

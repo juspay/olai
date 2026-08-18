@@ -41,20 +41,6 @@ import { dismissOn } from "../dismiss.ts"
 
 export interface NoteExpand {
   readonly expanded: Accessor<boolean>
-  /**
-   * Whether THIS READER opened this row, as against the density preference
-   * having unfolded it — the first of the three states above, asked on its
-   * own.
-   *
-   * It is a fact this file already keeps and already acts on (the dismissal
-   * below fires only for a row somebody opened), and it is exported because
-   * one more thing needs the same distinction for the same reason: a row a
-   * person opened is a row they are LOOKING at, and `../Tree.tsx` mounts the
-   * markdown editor as that note's surface. At `open` every untouched row on
-   * the page is unfolded, and mounting an editor per note there is 266 of them
-   * on this repository's own roadmap — measured at 8.3 seconds to unfold.
-   */
-  readonly opened: Accessor<boolean>
   /** Toggle open/closed — the pilcrow's press, and the clamped line's. */
   readonly toggle: () => void
   /** Wire as `ref` on the note control root so "click away" can find it. */
@@ -97,7 +83,6 @@ export const createNoteExpand = (
 
   return {
     expanded,
-    opened: () => touched() === true,
     toggle: () => setTouched(!expanded()),
     setRoot: (el) => {
       root = el

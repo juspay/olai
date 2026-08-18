@@ -206,7 +206,6 @@ const doneHint = (): string =>
  *  Escape has stopped being the app's. */
 const vimHint = (): string =>
   vimEditing()
-    ? "Notes and documents are vim editors: modes, hjkl, and Escape is the " +
-      "mode switch rather than the app's way out of an editor."
-    : "Notes and documents take the keys your platform already gives a text " +
-      "field."
+    ? "A document is a vim editor: modes, hjkl, and Escape is the mode " +
+      "switch rather than the app's way out of an editor."
+    : "A document takes the keys your platform already gives a text field."

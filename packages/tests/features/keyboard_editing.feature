@@ -252,18 +252,14 @@ Feature: Keyboard editing
     # fold: the pilcrow opens the row (and that open note is where a row draws
     # its rendering and its see links), and a click in the note you are now
     # reading puts the caret in it — one click from what Workflowy would have
-    # been showing all along. What is UNDER the caret is still the source; what
-    # it looks like is live preview's ( `live_preview_editing.feature` ).
+    # been showing all along. What you see while you are in it is the markdown
+    # SOURCE, the same trade the title takes.
     When I open the note of "order"
     Then the description of "order" renders bold text "walnut"
     When I click the note of "order"
     Then the note of "order" is being typed
-    And the note being typed draws "walnut" in bold
-    # The caret is where the click landed — the surface being the rendering is
-    # what makes that possible (`live_preview_editing.feature` has the promise
-    # itself). This scenario is about the END of the note, so it says so.
-    When I put the caret at the end of the note
-    And I type " — measured twice"
+    And the note being typed holds the source of "order"
+    When I type " — measured twice"
     And I click away from the editor
     Then "house.olai" holds a node whose note ends "— measured twice"
     # And clicking away is what it always was: the row folds back to its title.

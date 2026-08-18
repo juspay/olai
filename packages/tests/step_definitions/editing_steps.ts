@@ -50,11 +50,9 @@ import {
   NEW_ROW,
   NODE,
   nodeSelector,
-  oneLine,
   POLL_TIMEOUT,
   START_LINE,
   TITLE_EDITOR,
-  WRITING,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -326,29 +324,16 @@ Then("no other row holds the caret", async function (this: OlaiWorld) {
 });
 
 Then(
-  "the note being typed draws {string} in bold",
-  async function (this: OlaiWorld, text: string) {
-    // The rendering, INSIDE the editor — which is the whole feature: the
-    // source is what the file gets, and what the caret sits in looks like what
-    // it says. Bold is asked of the computed weight rather than of a `<strong>`
-    // (there is none: this is one string with decorations over it), against
-    // the scale's own major weight — the same number the rendered page uses,
-    // read through the same custom property.
-    const editor = await this.previewing();
-    const word = editor.getByText(text, { exact: true }).first();
-    await word.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const weight = await word.evaluate((el) => getComputedStyle(el).fontWeight);
-    assert.strictEqual(
-      weight,
-      "700",
-      `${JSON.stringify(text)} is drawn at weight ${weight} inside the editor`,
-    );
-    // ...and the markers are not on the page while the caret is elsewhere.
-    const drawn = await this.editorDraws(editor);
+  "the note being typed holds the source of {string}",
+  async function (this: OlaiWorld, id: string) {
+    // The SOURCE, not the rendering: a note is markdown, and what an editor
+    // holds is what the record holds.
+    const editor = this.within(id, DESC_EDITOR);
+    await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const text = await editor.inputValue();
     assert.ok(
-      !drawn.includes(`**${text}**`),
-      `the editor draws ${JSON.stringify(oneLine(drawn))} — the markers are ` +
-        "still on screen with the caret nowhere near them",
+      text.includes("**walnut**"),
+      `the note editor holds ${JSON.stringify(text)}, which is not the markdown the file holds`,
     );
   },
 );
@@ -370,10 +355,7 @@ Then("a new row is being typed", async function (this: OlaiWorld) {
 Then(
   "the note of {string} is being typed",
   async function (this: OlaiWorld, id: string) {
-    // The surface is there whether or not anybody is typing in it — it is the
-    // note's rendering too (`client/mde/Mde.tsx`) — so what this asks is the
-    // MODE.
-    await this.within(id, `${DESC_EDITOR}${WRITING}`)
+    await this.within(id, DESC_EDITOR)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
@@ -381,11 +363,9 @@ Then(
 Then(
   "the note of {string} is no longer being typed",
   async function (this: OlaiWorld, id: string) {
-    // Not "the surface is gone": an open note keeps it, reading. What ends is
-    // the caret being in it.
     await this.waitUntil(
-      async () => (await this.node(id).locator(`${DESC_EDITOR}${WRITING}`).count()) === 0,
-      `the caret to leave the note on "${id}"`,
+      async () => (await this.node(id).locator(DESC_EDITOR).count()) === 0,
+      `the note editor on "${id}" to close`,
     );
   },
 );
@@ -552,21 +532,6 @@ Then(
           String(node["desc"] ?? "").trimEnd().endsWith(ending)
         ),
       `${file} to hold a node whose note ends ${JSON.stringify(ending)}`,
-    );
-  },
-);
-
-/** The same question about the MIDDLE of a note, which is where a caret that
- *  landed on the word somebody clicked writes (`live_preview_editing.feature`).
- *  The source, not the rendering: what a scenario names here is the markdown
- *  the file holds, markers and all. */
-Then(
-  "{string} holds a node whose note contains {string}",
-  async function (this: OlaiWorld, file: string, text: string) {
-    await this.waitUntil(
-      async () =>
-        this.servedNodesSoFar(file).some((node) => String(node["desc"] ?? "").includes(text)),
-      `${file} to hold a node whose note contains ${JSON.stringify(text)}`,
     );
   },
 );

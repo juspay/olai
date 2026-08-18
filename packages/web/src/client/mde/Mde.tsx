@@ -1,14 +1,16 @@
 /**
- * The markdown editor, as a component — the one both surfaces mount.
+ * The markdown editor, as a component — one contract, whatever mounts it.
  *
- * A note under a row and a whole document are the same editor at two sizes
- * (the ruling's own words), so they are one component with one contract: the
- * text, what has just been typed in it, the keys, the blur, and the box the
- * caller draws it in. What differs between them is entirely that box and the
- * autosave around it, which are the callers' — `../edit/RowEditor.tsx` and
- * `../document/DocEditor.tsx`.
+ * Its caller today is the DOCUMENT PAGE (`../document/DocEditor.tsx`), and
+ * that is the whole of what this PR shipped: a note is still the textarea it
+ * has always been, and making it this editor is its own item. So the contract
+ * is deliberately about a markdown surface rather than about a page — the
+ * text, what has just been typed in it, the keys, the blur, the box the caller
+ * draws it in — and the second caller, when it comes, brings its own box and
+ * its own autosave and nothing else.
  *
- * ONE SURFACE, TWO MODES (human, on sight of the first shape). This is not an
+ * ONE SURFACE, TWO MODES (human, twice: on sight of the first shape, and again
+ * when the document page was ruled to be this and nothing else). This is not an
  * editor that replaces a rendering when somebody wants to type: it is the
  * rendering, mounted READING — no caret, nothing to type into — and it becomes
  * writable in place when they click into it. The same `EditorView`, the same
@@ -66,9 +68,17 @@ import { vimEditing } from "../settings/vim.ts"
  */
 type Mounted = ReturnType<ReturnType<typeof editorNow>["mount"]>
 
+/** What a mounted preview can be asked, from outside — see {@link
+ *  MdeProps.onSurface}. Derived from the chunk's handle rather than re-typed,
+ *  so a verb cannot drift from the one it names. */
+export type Surface = Pick<Mounted, "reveal">
+
 export interface MdeProps {
   /** The text being edited — the SOURCE, verbatim, which is the whole point. */
   readonly text: string
+  /** Which FILE that text is: what a relative link inside it is relative to
+   *  (./links.ts), and nothing else. */
+  readonly from: string
   /** What is in it now. Every change a person made, as it happens: the
    *  caller's debounce is what decides when that becomes a write. */
   readonly onInput: (text: string) => void
@@ -117,6 +127,18 @@ export interface MdeProps {
    *  lines and occasionally twenty); a document's box is a panel with a
    *  minimum height and a drag handle. */
   readonly grows?: boolean
+  /**
+   * The mounted PREVIEW, handed out while it is on screen and withdrawn with
+   * `undefined` when it goes.
+   *
+   * One verb hangs off it today ({@link Surface.reveal}) and it is the kind of
+   * thing that can only be answered from inside: where a heading IS, in a
+   * surface whose lines are drawn by a parser rather than minted as elements.
+   * A caller with no preview on screen gets `undefined` and does whatever it
+   * did before this editor existed — which for a contents line is the
+   * browser's own fragment jump into the rendering behind it.
+   */
+  readonly onSurface?: (surface: Surface | undefined) => void
 }
 
 /** Where the caret is, as the two faces hand it to each other — the one thing
@@ -161,7 +183,7 @@ export function Mde(props: MdeProps) {
               data-mde={drawn()}
               role="button"
               tabindex={0}
-              title="write in this note"
+              title="write here"
               onClick={() => props.onEdit?.(undefined)}
               onKeyDown={(event) => {
                 if (event.key !== "Enter" && event.key !== " ") return
@@ -229,6 +251,7 @@ function Live(props: MdeProps & Placed) {
   onMount(() => {
     const mounted = editorNow().mount(host, {
       doc: props.text,
+      from: props.from,
       vim: vimEditing(),
       writing: props.writing,
       typed: (text) => props.onInput(text),
@@ -256,7 +279,11 @@ function Live(props: MdeProps & Placed) {
       },
     })
     editor = mounted
-    onCleanup(() => mounted.destroy())
+    props.onSurface?.(mounted)
+    onCleanup(() => {
+      props.onSurface?.(undefined)
+      mounted.destroy()
+    })
     // A surface that opens WRITING takes the caret at the end of the text —
     // `Shift+Enter` on a row with no note means "carry on writing" — or where
     // the face this replaced had left it. One that opens reading takes
@@ -313,6 +340,10 @@ function Live(props: MdeProps & Placed) {
       data-testid={props.boxTestid}
       onClick={(event) => {
         if (props.writing) return
+        // A LINK IS A LINK, not a way in: the pane around this turns the press
+        // into a route (../router.tsx's `followed`), and taking the caret here
+        // would put a page's own navigation behind an edit nobody asked for.
+        if (event.target instanceof Element && event.target.closest("a") !== null) return
         clicked = editor?.at(event.clientX, event.clientY)
         props.onEdit?.(clicked)
       }}

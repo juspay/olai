@@ -579,75 +579,74 @@ const panelEnd = async (page: Page): Promise<void> => {
 }
 
 /**
- * A caret in `order`'s note, from whatever state the page is in.
+ * The caret INSIDE a word of the document, which is the whole subject of the
+ * first shots.
  *
- * Idempotent, like `wearTheme` above and for the same reason: this section is
- * a SEQUENCE, and half of what it photographs (Escape, a preferences panel)
- * also folds the row. A step that pressed the pilcrow unconditionally would
- * close the note it was asked to open, exactly half the time.
+ * The pointer is aimed by RANGE rather than by element, and the reason is the
+ * feature itself: this surface is one string with decorations over it, so a
+ * word in the middle of a line is a run of a text node and there is no
+ * element whose text is that word to click. A range around it has a
+ * rectangle, and that rectangle is what a person pointing at the word means.
+ * The wait afterwards is the frame in which the markers around it come back.
  */
-const inTheNote = async (page: Page): Promise<void> => {
-  const editor = page.locator(`${row("order")} ${DESC_EDITOR}`).first()
-  const note = page.locator(`${row("order")} [data-testid="desc"]`).first()
-  const showing = async (what: Locator) => await what.isVisible().catch(() => false)
-  // THREE STATES, and the pilcrow is only right in the third: the caret is
-  // already here (a refusal keeps the draft open, which is exactly the state
-  // half this section photographs), the row is open and drawing its note, or
-  // the row is folded. Pressing the mark in the first two SHUTS what was
-  // asked for.
-  if (!(await showing(editor))) {
-    if (!(await showing(note))) {
-      await page.locator(`${row("order")} [data-testid="note-mark"]`).first().click()
+const intoTheWord = async (page: Page, word: string): Promise<void> => {
+  const at = await page.locator(DOC_EDITOR).first().evaluate((root, needle) => {
+    const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+    for (let node = walk.nextNode(); node !== null; node = walk.nextNode()) {
+      const index = (node.textContent ?? "").indexOf(needle)
+      if (index < 0) continue
+      const range = document.createRange()
+      range.setStart(node, index)
+      range.setEnd(node, index + needle.length)
+      const rect = range.getBoundingClientRect()
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
     }
-    await note.waitFor()
-    await note.click()
+    return null
+  }, word)
+  if (at === null) {
+    throw new Error(
+      `the document draws no \`${word}\` to put a caret in — it draws ${
+        JSON.stringify(await textOf(page, DOC_EDITOR))
+      }`,
+    )
   }
-  await page.locator(`${DESC_EDITOR}[data-mde="preview"]`).first().waitFor()
-  await page.locator(`${DESC_EDITOR}`).first().click()
-  // ...and the caret at the END, which is where a click into a note puts it
-  // anyway. It matters because a caret parked in the middle REVEALS the
-  // markers around whatever it is standing in — and a step that then goes
-  // looking for a word by its text would be looking at a line that has just
-  // changed shape under it.
-  await page.keyboard.press("Control+End")
-  // ...and the frame that redraws the lines the caret has left, which is what
-  // puts a line's words back into ONE text node: a caret parked mid-word
-  // splits it, and a step that then asks for a word by its text asks for half
-  // of one.
-  await page.waitForTimeout(250)
+  await page.mouse.click(at.x, at.y)
+  await page.waitForTimeout(300)
 }
 
-/**
- * The caret INSIDE `**walnut**`, which is the whole subject of the first shot.
- *
- * Walked in with the keyboard rather than clicked at by text, and the reason is
- * the feature itself: with its markers hidden the word is a span the editor
- * re-shapes as the caret moves through it, so a click aimed at "the element
- * whose text is walnut" is aimed at the shape it had a frame ago — flaky in
- * exactly the way a screenshot driver must not be. Each step therefore asks
- * what the editor is DRAWING and stops when the markers are there, which is
- * the same question the shot is about to be of.
- */
-const intoTheWord = async (page: Page): Promise<void> => {
-  await page.keyboard.press("Control+Home")
-  await page.keyboard.press("ArrowDown")
-  await page.keyboard.press("ArrowDown")
-  for (let step = 0; step < 12; step++) {
-    await page.waitForTimeout(100)
-    if ((await textOf(page, DESC_EDITOR)).includes("**walnut**")) return
-    await page.keyboard.press("ArrowRight")
-  }
-  throw new Error(
-    `the caret never reached \`walnut\`, so its markers never came back — the editor draws ${
-      JSON.stringify(await textOf(page, DESC_EDITOR))
-    }`,
-  )
+/** THE DOCUMENT'S OWN SURFACE — the markdown editor a `.md` page IS
+ *  (`client/mde/`). `data-mde` says which of its two faces is drawn, which is
+ *  what a section about live preview waits on rather than on a timeout, and
+ *  `data-writing` says which mode it is in. */
+const DOC_EDITOR = '[data-testid="document-editor"]'
+
+/** ...and what a refused write said, under it. */
+const DOC_SAID = '[data-testid="document-said"]'
+
+/** A served FILE's bytes, on one line — the read that makes "the drawing
+ *  changed nothing" a claim rather than a description. `recordOf` above is the
+ *  same idea for a node; this is the idea for a document, whose whole content
+ *  is the file. */
+const fileOf = (file: string): string => {
+  if (VAULT === undefined) return "(no VAULT; run through evidence.sh)"
+  return oneLine(readFileSync(`${VAULT}/${file}`, "utf8"))
 }
 
-/** The caret in a NOTE: the markdown editor under a row (`client/mde/`).
- *  `data-mde` says which of its two faces is drawn, which is what a section
- *  about live preview waits on rather than on a timeout. */
-const DESC_EDITOR = '[data-testid="desc-editor"]'
+/** ...and ONE line of it, for the claim about where a keystroke landed. */
+const lineOf = (file: string, holding: string): string => {
+  if (VAULT === undefined) return "(no VAULT; run through evidence.sh)"
+  const found = readFileSync(`${VAULT}/${file}`, "utf8")
+    .split("\n")
+    .find((line) => line.includes(holding))
+  return found ?? `(no line of ${file} holds ${JSON.stringify(holding)})`
+}
+
+/** The other writer: vim, an agent, a second tab — whatever moves the file
+ *  under an editor holding words it has not saved. */
+const writeVault = (file: string, text: string): void => {
+  if (VAULT === undefined) throw new Error("no VAULT; run through evidence.sh")
+  writeFileSync(`${VAULT}/${file}`, text)
+}
 
 const SECTIONS = {
   /**
@@ -701,114 +700,105 @@ const SECTIONS = {
 
   /**
    * MARKDOWN EDITING STOPS BEING A DUMB TEXT BOX (`md-live-preview-editor`,
-   * ruled 2026-08-18): a note edited with its markers hidden except at the
-   * caret, the bytes on disk unchanged by the drawing, autosave with no Save
-   * verb, a refusal instead of a clobber, and vim behind a preference.
+   * ruled 2026-08-18; scoped to DOCUMENTS by the human on the same day): a
+   * `.md` page that IS its editor, markers hidden except at the caret, the
+   * bytes on disk unchanged by the drawing, autosave with no Save verb, a
+   * refusal instead of a clobber, and vim behind a preference.
    *
-   * The section is a SEQUENCE rather than five independent shots, because the
-   * claim is about one editor over one note: the same caret that hides a `**`
-   * writes the file, and the same file that refuses a write is the one being
-   * drawn. `order`'s note is the fixture's own — bold, italic and a list, in
-   * one node — so nothing here is written for the picture except the external
-   * edit that provokes the refusal.
+   * The section is a SEQUENCE rather than six independent shots, because the
+   * claim is about one surface over one file: the same caret that hides a
+   * `**` writes the file, and the same file that refuses a write is the one
+   * being drawn. `finishes.md` is the fixture's own — bold, a list, a link, a
+   * picture and a fence, in one small file — so nothing here is written for
+   * the picture except the external edit that provokes the refusal.
    *
-   * THE BYTES ARE PRINTED, not photographed, and that is deliberate: olai
-   * serves a browser rows and rendered documents, never a raw file, so a shot
-   * of "the bytes" would be a shot of something this app does not draw. What
-   * the driver prints is its own read of the disk `evidence.sh` is serving,
-   * before and after the write — the whole record, both times — so the claim
-   * "the drawing changed nothing and the write appended exactly what was
-   * typed" is one diff a reader can do by eye.
+   * THE BYTES ARE PRINTED, not photographed, and that is deliberate: what a
+   * live-preview editor DRAWS is the markers hidden and the words drawn, so a
+   * shot of "the bytes" would be a shot of the one thing this surface is
+   * built not to show. What the driver prints is its own read of the disk
+   * `evidence.sh` is serving, before and after the write, so the claim "the
+   * drawing changed nothing and the write appended exactly what was typed" is
+   * one diff a reader can do by eye.
    */
   "markdown-is-not-a-text-box": async (page) => {
-    console.log(`  the note on disk BEFORE:  ${recordOf("order")}`)
+    console.log(`  the file on disk BEFORE:  ${fileOf("finishes.md")}`)
 
-    // ONE SURFACE, TWO MODES. Opening a row draws the note as the EDITOR,
-    // readonly — the rendering a reader looks at — and the click that asks for
-    // a caret does not replace it with anything. The proof is the box: the
-    // same element, measured before and after, to the pixel.
-    await page.locator(`${row("order")} [data-testid="note-mark"]`).first().click()
-    const reading = page.locator(`${DESC_EDITOR}[data-mde="preview"]`).first()
-    await reading.waitFor()
-    console.log(`  an open note is:          the editor, mode=${
-      await reading.getAttribute("data-writing")
-    }, editable=${await reading.getAttribute("contenteditable")}`)
-    await shot(page, "an-open-note-is-the-editor-reading")
-    const before = await boxOf(reading)
-    await reading.getByText("birch", { exact: true }).click()
-    await page.waitForTimeout(300)
-    const after = await boxOf(page.locator(`${DESC_EDITOR}`).first())
-    console.log(`  after the click:          mode=${
-      await page.locator(DESC_EDITOR).first().getAttribute("data-writing")
-    }, editable=${await page.locator(DESC_EDITOR).first().getAttribute("contenteditable")}`)
+    // ONE SURFACE, TWO MODES. The page draws the file as the EDITOR, readonly
+    // — the rendering a reader looks at — and the click that asks for a caret
+    // does not replace it with anything. The proof is the box: the same
+    // element, measured before and after, to the pixel.
+    await opened(page, "/doc/finishes.md", `${DOC_EDITOR}[data-mde="preview"]`)
+    const surface = page.locator(`${DOC_EDITOR}[data-mde="preview"]`).first()
+    console.log(`  an open document is:      the editor, writing=${
+      await surface.getAttribute("data-writing")
+    }, editable=${await surface.getAttribute("contenteditable")}`)
+    await shot(page, "a-document-page-is-the-editor-reading")
+    const before = await boxOf(surface)
+    await intoTheWord(page, "gloss")
+    const after = await boxOf(page.locator(DOC_EDITOR).first())
+    console.log(`  after the click:          writing=${
+      await page.locator(DOC_EDITOR).first().getAttribute("data-writing")
+    }, editable=${await page.locator(DOC_EDITOR).first().getAttribute("contenteditable")}`)
     console.log(`  and the surface moved by: ${
-      JSON.stringify({ x: after.x - before.x, y: after.y - before.y, w: after.width - before.width, h: after.height - before.height })
+      JSON.stringify({
+        x: after.x - before.x,
+        y: after.y - before.y,
+        w: after.width - before.width,
+        h: after.height - before.height,
+      })
     }`)
     // ...and the caret is where the finger was, which the swap could not do.
     await page.keyboard.type("!")
     await page.waitForTimeout(1200)
-    console.log(`  typing at that click put:  ${recordOf("order")}`)
+    console.log(`  typing at that click put: ${lineOf("finishes.md", "Doors")}`)
     await shot(page, "the-caret-lands-where-the-click-landed")
 
-    // Open the row, then put a caret in its note — the two gestures a person
-    // makes (`client/NodeBody.tsx`): the pilcrow opens, the note itself is the
-    // way in. The wait inside is for the CHUNK (`client/mde/chunk.ts`): a
-    // caret lands in the textarea until CodeMirror arrives, so a section about
-    // live preview waits for the face that has it rather than for a timeout.
-    const editor = page.locator(DESC_EDITOR).first()
-
-    // THE CARET DECIDES WHAT IS SHOWN. Standing in `walnut` reveals its `**`;
-    // `birch` two lines down keeps its markers hidden and stays italic.
+    // THE CARET DECIDES WHAT IS SHOWN. Standing in `matte` reveals its `**`;
+    // everything else on the page keeps its markers hidden and stays drawn.
     //
     // ONCE PER PALETTE, and in that order rather than one caret photographed
     // twice: picking a theme is a press in a PANEL, which takes the caret out
-    // of the note — so a "same shot, other palette" would be a shot of the
-    // rendering. Every colour in the editor is a theme token and none of them
-    // is spelled by this feature (`client/mde/theme.ts`), which is what the
-    // pair is here to show.
+    // of the document — so a "same shot, other palette" would be a shot of the
+    // reading surface. Every colour in the editor is a theme token and none of
+    // them is spelled by this feature (`client/mde/theme.ts`), which is what
+    // the pair is here to show.
     for (const palette of ["chalk", "pitch"] as const) {
       await wearTheme(page, palette)
-      await inTheNote(page)
-      await intoTheWord(page)
-      console.log(`  ${palette}: the editor's face ${await editor.getAttribute("data-mde")}, drawing: ${
-        await textOf(page, DESC_EDITOR)
-      }`)
+      await intoTheWord(page, "matte")
+      console.log(`  ${palette}: the editor's face ${
+        await page.locator(DOC_EDITOR).first().getAttribute("data-mde")
+      }, drawing: ${await textOf(page, DOC_EDITOR)}`)
       await shot(page, `markers-hide-except-at-the-caret-${palette}`)
     }
     await wearTheme(page, "chalk")
-    await inTheNote(page)
 
     // AUTOSAVE: no Save verb anywhere on the page. Type at the end of the
-    // note, stop, and the write goes on its own.
+    // file, stop, and the write goes on its own.
+    await page.locator(DOC_EDITOR).first().click()
     await page.keyboard.press("Control+End")
-    await page.keyboard.type(" Ask about the **oiled** finish.")
+    await page.keyboard.type("\nAsk about the **oiled** finish.")
     await page.waitForTimeout(1200)
-    console.log(`  the note on disk AFTER:   ${recordOf("order")}`)
+    console.log(`  the file on disk AFTER:   ${fileOf("finishes.md")}`)
 
     // A CONCURRENT WRITE IS REFUSED, NEVER CLOBBERED. vim gets there first:
-    // the record moves on disk while this editor holds a draft over it, and
-    // the next autosave sends a `was` the file no longer says.
-    rewrite("house.olai", servedLines("house.olai").map((line) =>
-      line.includes(`"id":"order"`)
-        ? line.replace(/"desc":"[^"]*"/, `"desc":"vim got here first."`)
-        : line
-    ))
+    // the file moves on disk while this editor holds words it has not saved,
+    // and the next autosave sends a `was` the file no longer says.
+    writeVault("finishes.md", "# Finishes\n\nvim got here first.\n")
     await page.waitForTimeout(600)
-    await inTheNote(page)
+    await page.locator(DOC_EDITOR).first().click()
     await page.keyboard.press("Control+End")
     await page.keyboard.type(" And the hinges.")
-    await page.locator(`${row("order")} [data-testid="edit-refusal"]`).first().waitFor()
-    console.log(`  the refused write says:   ${
-      await textOf(page, `${row("order")} [data-testid="edit-refusal"]`)
-    }`)
-    console.log(`  and the disk still says:  ${recordOf("order")}`)
-    await shot(page, "a-refusal-is-a-line-under-the-row")
+    await page.locator(DOC_SAID).first().waitFor()
+    console.log(`  the refused write says:   ${await textOf(page, DOC_SAID)}`)
+    console.log(`  and the disk still says:  ${fileOf("finishes.md")}`)
+    await shot(page, "a-refusal-is-a-line-under-the-document")
     await wearTheme(page, "pitch")
-    await shot(page, "a-refusal-is-a-line-under-the-row-dark")
+    await shot(page, "a-refusal-is-a-line-under-the-document-dark")
+    await wearTheme(page, "chalk")
 
     // VIM, BEHIND THE PREFERENCE. The toggle is in prefs beside Done, and the
     // one key it moves is Escape: inside a vim editor it is the mode switch,
-    // so the editor does NOT close under it.
+    // so the caret does NOT leave under it.
     await page.locator('[data-testid="prefs-trigger"]').first().click()
     await page.locator('[data-testid="prefs-panel"]').waitFor()
     await panelEnd(page)
@@ -817,34 +807,34 @@ const SECTIONS = {
     console.log(`  the preference says:      ${
       await textOf(page, '[data-testid="prefs-row"][data-pref="vim"] [data-testid="prefs-hint"]')
     }`)
-    await shot(page, "the-vim-preference-dark")
-    await wearTheme(page, "chalk")
+    await shot(page, "the-vim-preference")
+    await wearTheme(page, "pitch")
     await page.locator('[data-testid="prefs-trigger"]').first().click()
     await page.locator('[data-testid="prefs-panel"]').waitFor()
     await panelEnd(page)
-    await shot(page, "the-vim-preference")
+    await shot(page, "the-vim-preference-dark")
     await page.keyboard.press("Escape")
 
-    // Back into the note — from wherever the panel left the row — and then the
+    // Back into the document — from wherever the panel left it — and then the
     // key the preference moved: in a vim editor Escape is the mode switch, so
     // what it does here is nothing a reader can see except the cursor, and the
-    // editor is still standing. Per palette, for the reason the first pair is.
+    // caret is still in it. Per palette, for the reason the first pair is.
     for (const palette of ["chalk", "pitch"] as const) {
       await wearTheme(page, palette)
-      await inTheNote(page)
+      await page.locator(DOC_EDITOR).first().click()
       await page.keyboard.press("Escape")
       await page.waitForTimeout(300)
-      console.log(`  ${palette}: after Escape in vim, the editor is still open: ${
-        await page.locator(DESC_EDITOR).first().isVisible()
+      console.log(`  ${palette}: after Escape in vim, the caret is still in it: ${
+        await page.locator(`${DOC_EDITOR}[data-writing="true"]`).first().isVisible()
       }`)
-      // A motion, to say the mode is real: `0` goes to the head of the line and
-      // `k` walks up one — neither of them a character typed into the file.
+      // A motion, to say the mode is real: `0` goes to the head of the line
+      // and `k` walks up one — neither of them a character typed into the file.
       await page.keyboard.press("k")
       await page.keyboard.press("0")
       await page.waitForTimeout(200)
-      await shot(page, `vim-normal-mode-in-a-note-${palette}`)
+      await shot(page, `vim-normal-mode-in-a-document-${palette}`)
     }
-    console.log(`  and the note on disk:     ${recordOf("order")}`)
+    console.log(`  and the file on disk:     ${fileOf("finishes.md")}`)
   },
 
   /**
