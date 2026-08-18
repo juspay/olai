@@ -12,7 +12,7 @@
  * a frame nobody can reproduce.
  */
 import { fileKind } from "@olai/format"
-import { readdirSync, readFileSync } from "node:fs"
+import { readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { type Browser, chromium, type Locator, type Page } from "playwright"
 
 import { BROWSER_ARGS } from "./support/browser.ts"
@@ -172,6 +172,19 @@ const textOf = async (page: Page, locator: string) =>
  *  section that photographs the question in between still presses this. */
 const TRASH_VERB = '[data-testid="node-menu-panel"] >> text=Move to Trash'
 
+/** The other write a `•••` menu offers about the LINE rather than about what
+ *  it draws, and the one a mirror row is offered instead of the archive above
+ *  (`client/menu/verbs.ts`). Spelled beside it because the pair is the claim:
+ *  a placement is retired, a node is put away, and no row is offered both. */
+const PLACEMENT_VERB = '[data-testid="node-menu-panel"] >> text=Remove this placement'
+
+/** Every entry an open panel is offering, in the order it offers them — what a
+ *  shot of a menu says in a line, so a section can print the pair above being
+ *  exclusive rather than ask a reader to compare two images. */
+const verbsOf = async (page: Page) =>
+  (await page.locator('[data-testid="node-menu-item"]').allInnerTexts())
+    .map(oneLine).join(" · ")
+
 /**
  * Move a row and everything under it to the Trash, through that menu and that
  * confirm — the gesture a person makes, twice over, because the second press
@@ -223,6 +236,22 @@ const recordOf = (id: string): string => {
     }
   }
   return `(no record for \`${id}\`)`
+}
+
+/**
+ * ANOTHER HAND writing the directory while the page is open — the same gesture
+ * `menu_verbs.feature` makes with its `I rewrite`, and the reason one section
+ * needs it: the placement's fence is about the set as it IS, so the thing that
+ * still names a line has to be written by somebody other than this tab.
+ *
+ * Throws without a `VAULT` rather than writing nothing, which is {@link
+ * recordOf}'s rule read the other way: a shot of a gesture that never reached
+ * a file is worse than no shot.
+ */
+const rewrite = (file: string, text: string): void => {
+  const vault = process.env["VAULT"]
+  if (vault === undefined) throw new Error("no VAULT; run through evidence.sh")
+  writeFileSync(`${vault}/${file}`, text)
 }
 
 // ── the filter over the page ───────────────────────────────────────────
@@ -982,23 +1011,116 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     await page.waitForTimeout(SETTLE)
     await shot(page, "first-row")
   },
+
+  /**
+   * The `•••` menu's own put-away — `archive_node` from the mouse, which is
+   * the half the bulk bar's section above does not show: one row, its own
+   * menu, and the question that names how much goes with it.
+   *
+   * Photographed because the two halves are what a person actually meets: the
+   * ENTRY (`Move to Trash`, in the writing half of the menu) and the CONFIRM
+   * that replaces the list before anything is written. The count in it is
+   * taken from the SET rather than from the rows on screen, which is the one
+   * claim about this verb a screenshot can carry — `install the cabinets` has
+   * three rows under it here and the sentence says three.
+   */
+  "move-to-trash-from-the-menu": async (page) => {
+    await openMenu(page, "install")
+    await shot(page, "the-entry")
+    await page.locator(TRASH_VERB).first().click()
+    await page.locator('[data-testid="node-menu-confirm"]').first().waitFor()
+    console.log(`  it asks: ${await textOf(page, '[data-testid="node-menu-confirm"]')}`)
+    await shot(page, "asks")
+    await page.locator(TRASH_VERB).first().click()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  order: ${await order(page)}`)
+    console.log(`  the record: ${recordOf("install")}`)
+    await shot(page, "gone-from-the-page")
+    await opened(page, "/trash", TRASH_PAGE)
+    console.log(`  the pile:\n${await piled(page)}`)
+    await shot(page, "in-the-trash")
+  },
+
+  /**
+   * Retiring ONE PLACEMENT — `remove_mirror` from the row it is about, which
+   * is the distinction this whole section exists to photograph: the menu on a
+   * mirror offers `Remove this placement` and does NOT offer `Move to Trash`,
+   * because what a reader is looking at is a line standing for a node that
+   * lives somewhere else.
+   *
+   * Then the op's own fence, quoted where the click happened: `order` is made
+   * to name the placement by another hand while the page is open — which is
+   * also what makes the refusal about the set as it IS rather than as this tab
+   * last drew it — and the retire is refused naming what still points at it.
+   * Re-pointing that `see` at the node the placement shows is the way through,
+   * and the last two shots are the line going while `herbs` stays exactly
+   * where it lives.
+   */
+  "retire-a-placement": async (page) => {
+    await openMenu(page, "kitchen-herbs")
+    console.log(`  the menu offers: ${await verbsOf(page)}`)
+    await shot(page, "on-the-placement")
+
+    // Another hand points a `see` at the PLACEMENT rather than at the node it
+    // shows — the one shape the op refuses. `install` going is the frame that
+    // says the write ARRIVED at this tab, which is the half a reload would
+    // hide; the reload after it is the driver's own hygiene, not a claim —
+    // this row is holding an open menu, and re-pressing the `•••` of a row
+    // whose panel is up is the gesture that SHUTS one.
+    rewrite(
+      "house.olai",
+      [
+        `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","see":["kitchen-herbs"]}`,
+        `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
+      ].join("\n") + "\n",
+    )
+    await page.locator(row("install")).first().waitFor({ state: "detached" })
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+
+    await openMenu(page, "kitchen-herbs")
+    await page.locator(PLACEMENT_VERB).first().click()
+    await page.locator('[data-testid="node-menu-said"]').first().waitFor()
+    console.log(`  it says: ${await textOf(page, '[data-testid="node-menu-said"]')}`)
+    console.log(`  untouched: ${recordOf("kitchen-herbs")}`)
+    await shot(page, "refused")
+
+    // The way through: that `see` re-pointed at `herbs`, the node the
+    // placement shows — through the panel, which is the same door the refusal
+    // named.
+    await opened(page, "/n/order", '[data-testid="zoom-title"]')
+    await page.locator(`${EDGE_VERB}[data-relation="see"]`).click()
+    await page.locator(EDGE_PANEL).first().waitFor()
+    await page.locator(`${EDGE_DROP}[data-ref="kitchen-herbs"]`).first().click()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  re-pointed: ${recordOf("order")}`)
+
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await openMenu(page, "kitchen-herbs")
+    await page.locator(PLACEMENT_VERB).first().click()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  the line:  ${recordOf("kitchen-herbs")}`)
+    console.log(`  the node:  ${recordOf("herbs")}`)
+    await shot(page, "retired")
+    // …and the other half of what "retire a placement" means, which the shot
+    // above cannot carry on its own: the node the line was drawing is exactly
+    // where it lives, with its mark, its children and its own outline intact.
+    await opened(page, "/o/garden.olai", OUTLINE_TREE)
+    await shot(page, "the-node-stays")
+  },
 }
 
 /**
  * What SHAPE of browser a section wants, where the default is not it.
  *
- * Only ONE thing is set here, and it is the thing that can only be set at
- * creation: a context with a TOUCHSCREEN and no mouse, which is the whole point
- * of the finger's section. The two auto-scroll sections want a short window and
- * ask for it INSIDE the section instead ({@link short}), because setting it
- * here does not do what it looks like — see that helper.
- */
-/**
- * What SHAPE of browser a section wants, where the default is not it.
- *
- * One entry, and it is the thing that can ONLY be set at creation: a context
- * with a touchscreen and no mouse, which is the whole point of the finger's
- * section.
+ * Two kinds of entry. The first is the thing that can ONLY be set at creation:
+ * a context with a touchscreen and no mouse, which is the whole point of the
+ * finger's section. The second is a TALLER WINDOW, and it is asked for here
+ * rather than inside the section for the same reason — a resize after load
+ * leaves this page reporting the new `innerHeight` while `100dvh` still
+ * resolves against the old one (below). What wants one is a section whose
+ * subject is the `•••` panel itself: fifteen entries is taller than the
+ * default window, and a shot that clips the verb it is about says nothing.
  *
  * THERE IS NO SECTION FOR AUTO-SCROLL, deliberately. That gesture is only
  * itself in a window SHORTER than the outline, and this driver cannot reliably
@@ -1023,6 +1145,9 @@ const SHAPES: Record<string, Parameters<Browser["newContext"]>[0]> = {
     hasTouch: true,
     isMobile: true,
   },
+  // The two sections ABOUT the menu, in a window the whole panel fits in.
+  "move-to-trash-from-the-menu": { viewport: { width: 1100, height: 1000 } },
+  "retire-a-placement": { viewport: { width: 1100, height: 1000 } },
 }
 
 const main = async () => {
