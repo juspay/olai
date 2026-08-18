@@ -44,6 +44,8 @@
  */
 
 import {
+  CommitRequest,
+  CreateRequest,
   NodeAnswer,
   NodeRequest,
   type OutlineSet,
@@ -57,7 +59,7 @@ import { expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 
 import { readingOf, setOf, steady } from "./fixtures.testlib.ts"
-import { asking, read, TOOLS } from "./tools.ts"
+import { act, asking, read, TOOLS, write } from "./tools.ts"
 
 /** One house, and everything a read can carry: both marker kinds, a note, a
  *  date, both tag sigils, a placement with a parent and one without, a child
@@ -227,24 +229,31 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
 })
 
 /**
- * A read's asker is typed BY ITS SCHEMA, and this is the only place that can be
- * said — the table above erases every tool to a `Tool`, whose `ask` takes
- * `never`, so nothing that runs can tell what the constructor inferred.
+ * EVERY TOOL'S SECOND DECLARATION IS CHECKED AGAINST ITS SCHEMA — and only the
+ * compiler can check it, which is why this test is written the way it is.
  *
- * Two facts, and it takes both. The FIRST call annotates nothing and passes
- * `args` straight to a door that wants a `NodeRequest`: if inference were lost
- * — `unknown`, which is what the parameter's old `| Schema.Top` union left —
- * that line would not compile, and this file would fail rather than quietly
- * checking nothing. The SECOND names the wrong request and is expected to be
- * REFUSED: `@ts-expect-error` fails the build when the line it guards compiles,
- * which is what rules out the other way inference can go wrong. Were `args`
- * `any`, the wrong annotation would be accepted, the directive would be unused,
- * and `tsc` would report exactly that.
+ * Each entry in the table says one thing twice: the schema an agent fills in,
+ * and then something ABOUT that schema — a read's asker takes the request, an
+ * act's does too, a write names the field its own name already decides
+ * (`{ op: "create" }`). The walks above cannot see any of it: the table erases
+ * every entry to a `Tool`, whose `ask` takes `never` and whose `fixed` is a bag
+ * of `unknown`, so nothing that RUNS can tell what the constructor was handed.
+ * The three constructors are exported for exactly this.
  *
- * Neither call is a tool and neither reaches {@link TOOLS}; what is under test
- * is the constructor, and a table entry is only how it is normally used.
+ * FOUR CALLS, AND THE FIRST IS THE POINT. It annotates nothing and hands `args`
+ * straight to a door that wants a `NodeRequest`: if inference were lost —
+ * `unknown`, which is what the request parameter's old `| Schema.Top` union
+ * left behind — that line would not compile, and everything below it would be
+ * pinning a type nobody derived. The other three are each expected to be
+ * REFUSED, and `@ts-expect-error` fails the build when the line it guards
+ * compiles: that is what rules out the other way this can go wrong, since an
+ * `any` would swallow the wrong annotation, leave the directive unused, and
+ * `tsc` reports exactly that.
+ *
+ * None of the four is a tool and none reaches {@link TOOLS}; what is under test
+ * is the constructors, and the table is only how they are normally called.
  */
-test("a read's asker takes what its own schema decodes to", () => {
+test("what a tool says twice has to agree with its own schema", () => {
   const tool = read(
     "read_node",
     "Read a node",
@@ -264,5 +273,27 @@ test("a read's asker takes what its own schema decodes to", () => {
     // @ts-expect-error — the schema beside it says `NodeRequest`, so an asker
     // that claims to take a `SearchRequest` is not a reader of this tool.
     (asking, args: SearchRequest) => asking.search(args),
+  )
+
+  act(
+    "commit",
+    "Commit what you changed",
+    "Record what is waiting as one git commit.",
+    CommitRequest,
+    // @ts-expect-error — same rule on the act arm, whose `args` are its
+    // schema's for the same reason a read's are.
+    (ops, args: NodeRequest) => ops.commit(args),
+  )
+
+  write(
+    "create_outline",
+    "Create an outline",
+    "Start a new outline file.",
+    CreateRequest,
+    // @ts-expect-error — a write's `fixed` is a field of the request beside
+    // it: `CreateRequest`'s `op` is `"create"`, and a table that misspelled
+    // the verb would otherwise advertise this tool and ask the planner for one
+    // nothing has ever heard of.
+    { op: "creat" },
   )
 })

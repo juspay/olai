@@ -26,6 +26,12 @@
  * nothing answers is a type error rather than a runtime throw, which is what
  * the dispatch switch this replaced could only discover when somebody called
  * it. One declaration, several uses, no second list to keep in step.
+ *
+ * And WHAT EACH ENTRY SAYS ABOUT ITS SCHEMA is checked against that schema, in
+ * all three arms: a read's asker and an act's are handed the request the entry
+ * names, and a write's fixed field is a field of it. None of that is written
+ * out here — it is inferred from the one schema the entry already carries, so
+ * there is nothing beside it to spell differently.
  */
 
 import { Effect, Schema } from "effect"
@@ -205,7 +211,7 @@ export interface Acting {
  * answers from the ops layer and says how; a WRITE names the part of the
  * request its own NAME already decides (`set_done` is `op: "done"`), so that
  * field never appears in the schema an agent fills in — and it is the one arm
- * with nothing to carry, because every write is the same call.
+ * carrying a value rather than a call, because every write is the same call.
  *
  * That is the rule the read arm was built on and the reason it is worth
  * keeping: a tool the table declares and nothing answers is a type error rather
@@ -248,6 +254,10 @@ export type Tool =
   })
   | (Described & {
     readonly kind: "write"
+    /** The part of the request this tool's NAME decides, put back by the
+     *  dispatcher after the schema advertised without it. Bare here because
+     *  that is all a dispatcher can use it as; it reaches this arm through
+     *  {@link write}, which checks it against the entry's own schema. */
     readonly fixed: Readonly<Record<string, unknown>>
   })
   | (Described & {
@@ -290,7 +300,8 @@ const NoArgs = Schema.Struct({})
  *
  * A read whose asker names the wrong request now fails to COMPILE, which is the
  * one thing `./tools.test.ts`'s walk over the table cannot check — it is pinned
- * there with `@ts-expect-error`, and that is why this constructor is exported.
+ * there with `@ts-expect-error`, and that is why all three constructors are
+ * exported.
  *
  * NOTHING IS ASSERTED HERE ANY MORE. Widening the asker to the `Tool` arm's own
  * `(asking, args: never)` used to need an `as`, because `A` was a variable this
@@ -315,19 +326,34 @@ export const read = <S extends Schema.Struct<Schema.Struct.Fields>, R>(
   ask,
 })
 
-const write = (
+/**
+ * The write arm, and its second declaration is `fixed` rather than an asker.
+ *
+ * It is the SAME hand-spelling {@link read}'s just lost, in the one arm that
+ * carries a value instead of a function: `{ op: "create" }` is a field of the
+ * request this call already names, written out beside it. Typed as a
+ * `Partial<S["Type"]>`, the two have to agree — a verb this table spells
+ * wrongly is a compile error where it used to be a tool that advertised
+ * `create_outline` and asked the planner for something it has never heard of,
+ * discoverable only by calling it.
+ *
+ * PARTIAL, and not narrower, because which fields a name decides is the tool's
+ * own business: every write here fixes exactly its `op`, and a tool that also
+ * fixed a second field would be saying something true about itself.
+ */
+export const write = <S extends Schema.Struct<Schema.Struct.Fields>>(
   name: string,
   title: string,
   description: string,
-  schema: Schema.Struct<Schema.Struct.Fields>,
-  fixed: Readonly<Record<string, unknown>>,
+  schema: S,
+  fixed: Partial<S["Type"]>,
 ): Tool => ({ name, title, description, schema, kind: "write", fixed })
 
 /** The act arm's constructor, inferring its `args` the way {@link read} does
  *  and for the same reason: what `commit` takes is `@olai/format`'s to say, and
  *  saying it again here is a second spelling free to drift from the schema this
  *  same call advertises. */
-const act = <S extends Schema.Struct<Schema.Struct.Fields>>(
+export const act = <S extends Schema.Struct<Schema.Struct.Fields>>(
   name: string,
   title: string,
   description: string,
