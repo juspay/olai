@@ -202,6 +202,11 @@ export type Anchor = typeof Anchor.Type
  *   - `out` — up a level, immediately after what used to be its parent
  *     (`Shift+Tab`);
  *   - `up` / `down` — swap with the sibling above or below (`Alt+Shift+↑/↓`).
+ *
+ * The FIFTH way a row moves is `under`, and it is a separate arm for the
+ * reason those four are one: it is the only one that names where it is GOING
+ * rather than which step it is taking. It is the move-to picker's (`⌘⇧M`), and
+ * its own comment says the rest.
  */
 export const Edit = Schema.Union([
   Schema.Struct({
@@ -216,6 +221,44 @@ export const Edit = Schema.Union([
     verb: Schema.Literal("move"),
     id: Id,
     how: Schema.Literals(["in", "out", "up", "down"]),
+  }),
+  /**
+   * PUT THIS ROW UNDER THAT NODE — the move-to picker's one write
+   * (`⌘⇧M`, `web/src/client/move/`), where the four above are steps a row takes
+   * from where it already is.
+   *
+   * A FIFTH ARM RATHER THAN A FIFTH `how`, because it is the only move that
+   * carries a destination: the other four are questions about the snapshot
+   * ("under the sibling above", "up a level") and this one names a node the
+   * reader chose out of a search of the whole set. Folding it into that enum
+   * would have made `id` mean two things and `how` sometimes need a second
+   * field.
+   *
+   * WHERE AMONG THAT PARENT'S CHILDREN IS NOT A FIELD, and that is the same
+   * decision `Tab` makes one arm up: last is where a row put under a node goes
+   * ({@link Anchor}'s `under` says it for a new row, and `move_node` with a
+   * `parent` and no anchor is already exactly this), and "which sibling is last"
+   * is a fact about the set, read where the write is judged rather than off a
+   * tree a tab drew some frames ago. {@link place} is the other shape — parent
+   * AND neighbour, both named — and it is the drag's, because a pointer picking
+   * a gap between two rows is a gesture that genuinely names one.
+   *
+   * It resolves to `move_node` with a `parent`, so every refusal a person meets
+   * here is the one an agent meets: a parent in another file (every outline is
+   * an independent tree), a parent inside the subtree being moved, an id
+   * nothing declares. The picker says the first two at the AIM as well — before
+   * `Enter` rather than after it, which is the shape `drag/aim.ts` shipped for
+   * a drop over the wrong pane — and neither face invents a rule the other
+   * does not have.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("under"),
+    id: Id,
+    /** The node it goes under. A NODE and never `null`: what the picker
+     *  searches is nodes, and "the top level of a file" is not something its
+     *  list can offer — a row already at the top of its own outline is there,
+     *  and any other file's top level is the cross-file refusal. */
+    parent: Id,
   }),
   /** Put the mark on, or take it off — whichever the node is not. The keyboard
    *  binds `done` (`Ctrl+Enter`); the field names a mark because the vocabulary

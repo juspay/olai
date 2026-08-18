@@ -115,6 +115,11 @@ export const nodeMenuActions = (args: {
    *  reason: a key and a value are typed, and the panel belongs to the ROW
    *  rather than to a menu that is closed by the time either of them is. */
   readonly pickProp: (editing: { key: string; value: string } | null) => void
+  /** Open the row's MOVE-TO picker — the same arrangement the three above are,
+   *  for the same reason: a destination is a node somebody has to find, and the
+   *  panel belongs to the ROW (⌘⇧M in its editor opens the same one), not to a
+   *  menu that is closed by the time anything has been chosen in it. */
+  readonly pickMove: () => void
 }): ReadonlyArray<MenuAction> => {
   const id = args.row.at.node.id
   const items: MenuAction[] = [
@@ -229,6 +234,9 @@ export const nodeMenuActions = (args: {
             return
           case "pick-prop":
             args.pickProp(does.editing)
+            return
+          case "pick-move":
+            args.pickMove()
             return
         }
       },

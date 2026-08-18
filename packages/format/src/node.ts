@@ -394,14 +394,18 @@ export const targetsOf = (
  *    - ./filter.ts, twice — the `is:archived` clause, which is how a query
  *      NAMES the archive, and the default one node up that keeps it out of
  *      every reading that did not;
- *    - `@olai/web`, four times, all of them the same ruling read on a screen:
+ *    - `@olai/web`, five times, all of them the same ruling read on a screen:
  *      an archive's own address opens the TRASH rather than an editable tree
  *      (`page.ts`, which also skips archives when `/` picks a first outline);
  *      the sidebar's file tree does not list one (`Sidebar.tsx`), because the
  *      Trash entry at the foot of the column is where they are read; the
  *      filter widens its scope only on a page already drawing archived rows
- *      (`filter/narrowing.ts`); and the tag vocabulary does not count them
- *      (`complete/tags.ts`), because that count is a promise about rows.
+ *      (`filter/narrowing.ts`); the tag vocabulary does not count them
+ *      (`complete/tags.ts`), because that count is a promise about rows; and
+ *      the move-to picker refuses one as a DESTINATION in its own words
+ *      (`move/destination.ts`) — a query that says `is:archived` can reach the
+ *      Trash from there, and what is put away is not somewhere work is moved
+ *      TO.
  *
  *  Two spellings would be two answers about the same file — and the
  *  commit-message reader makes that permanent, since a subject cannot be

@@ -88,6 +88,17 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       return captureRequest(at, edit)
     case "move":
       return moveRequest(at.derived, edit)
+    // The FIFTH move, and the one that resolves NOTHING: the picker names the
+    // parent outright, and where among that parent's children is the ops
+    // layer's own default (last — `move_node` with a `parent` and no anchor,
+    // which is the request `move in` above ends at). So there is nothing here
+    // to read off the snapshot, and every refusal is `planMove`'s own: a parent
+    // in another file, a parent inside the subtree being moved, an id nothing
+    // declares. The picker draws the first two before `Enter` as well
+    // (`web/src/client/move/destination.ts`), which is an aim and not a fence —
+    // this request is still the one an agent's `move_node` sends.
+    case "under":
+      return Result.succeed({ op: "move", id: edit.id, parent: edit.parent })
     case "toggle": {
       // The stored mark decides which way a toggle goes, and it is read here
       // rather than sent: a tab that had watched the row go done a moment ago
@@ -701,6 +712,12 @@ export const inverseOf = (
     // back, which is what makes redo the same machinery as undo.
     case "move":
     case "place":
+    // ...and the picker's move is the same question with a different way of
+    // asking it: where does this row sit right now, read before the write that
+    // carries it somewhere else. A `place` back is what puts it there again —
+    // the parent AND the neighbour, because "under my old parent" would put a
+    // row that was third among its siblings at the end of them.
+    case "under":
       return placementOf(at.derived, edit.id)
     // All three ask one question — which mark does this node carry right now —
     // before the write that replaces it. The only other thing `markOf` needs is

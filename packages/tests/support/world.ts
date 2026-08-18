@@ -349,6 +349,21 @@ export const EDGE_SAID = selector(TESTID.edgeSaid);
 /** One of the two edge verbs on a zoomed node's page, where a heading has no
  *  `•••` to put them in. `data-relation` says which. */
 export const EDGE_VERB = selector(TESTID.edgeVerb);
+
+// ── carrying a row to a new parent ─────────────────────────────────────
+/** The move-to picker, in place under the row it was opened on. `data-row` is
+ *  the RECORD being moved, `data-asked` the query its hits answer. */
+export const MOVE_PICKER = selector(TESTID.movePicker);
+/** Its search box — the server's own node search again, over the whole set. */
+export const MOVE_SEARCH = selector(TESTID.moveSearch);
+/** One destination in it; `data-id` is the node it would go under. */
+export const MOVE_HIT = selector(TESTID.moveHit);
+/** WHY the destination under the cursor cannot take the row — drawn at the
+ *  aim, before `Enter`, and absent whenever the aim is a legal one. */
+export const MOVE_REFUSED = selector(TESTID.moveRefused);
+/** What the last MOVE said: the ops layer's refusal, or a nudge from one that
+ *  landed. Never the same line as the aim's refusal above. */
+export const MOVE_SAID = selector(TESTID.moveSaid);
 /** One link from a node to another node, in either of those rows. The target
  *  id rides `data-ref`, which is what a scenario picks one by. */
 export const NODE_REF = selector(TESTID.nodeRef);

@@ -35,6 +35,7 @@
  * and this is it saying so out loud instead of saying nothing.
  */
 
+import { SAME_FILE } from "../across.ts"
 import type { Box } from "./lines.ts"
 import { type Landing, type Placed, planDrop } from "./plan.ts"
 
@@ -119,7 +120,9 @@ const aimedAt = (
  * with a hole in it. A page of ANOTHER FILE is the format's rule, and it is
  * said in the ops layer's own terms (`ops/src/plan.ts` refuses the same move in
  * nearly these words) so a person who then reads a refusal from an agent's
- * `move_node` reads one story. A page of the SAME file with nothing left is the
+ * `move_node` reads one story — and the law half of it is `../across.ts`,
+ * shared with the move-to picker, which has to say the same thing about a
+ * destination it found in another outline. A page of the SAME file with nothing left is the
  * gesture having eaten its own candidates — every row drawn there is inside
  * what the hand is holding — which is not about files at all.
  */
@@ -128,9 +131,7 @@ const whyNot = (field: Aimed, carried: string): string =>
     ? `every row drawn in \`${field.file}\` here is inside what you are carrying, ` +
       `so there is nowhere in this pane to put it`
     : `\`${field.file}\` is another file, and this row lives in \`${carried}\`. ` +
-      `Every outline is an independent tree, so a parent is always in the same ` +
-      `file — archiving is what moves a subtree between them, and a mirror is ` +
-      `how one node is drawn in two.`
+      SAME_FILE
 
 /**
  * What a pointer at `(x, y)` is asking of these pages — the ONE thing this

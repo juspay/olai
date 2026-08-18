@@ -167,6 +167,24 @@ test("Shift+Tab goes up a level, immediately after the old parent", () => {
     .toEqual({ op: "move", id: "handles", parent: "kitchen", after: "install" })
 })
 
+test("the picker's move names the parent it was given, and nothing else", () => {
+  // The FIFTH move, and the one that resolves nothing: where among that
+  // parent's children is the ops layer's own default — last — which is the same
+  // request `Tab` above ends at. Anything more here would be this resolver
+  // computing a placement the picker never asked for.
+  expect(asked({ verb: "under", id: "handles", parent: "order" }))
+    .toEqual({ op: "move", id: "handles", parent: "order" })
+})
+
+test("a destination this resolver cannot judge is passed through to the PLANNER", () => {
+  // Whether that parent is reachable — same file, no loop, a node rather than a
+  // placement — is `planMove`'s to answer, in the words an agent gets, and this
+  // arm invents none of it. `echo` is a mirror, which the ops layer refuses as
+  // a parent naming the node to go to instead.
+  expect(asked({ verb: "under", id: "handles", parent: "echo" }))
+    .toEqual({ op: "move", id: "handles", parent: "echo" })
+})
+
 test("Shift+Tab one level down lands at top level, spelled `null`", () => {
   // `parent: null` is what a move means by "top level" — absent would mean
   // "leave the parent alone", which is a reorder rather than an outdent.
@@ -561,6 +579,15 @@ test("the FIRST of its siblings records `after: null` — a place with no neighb
 test("a top-level row records `parent: null` and the row above it in the file", () => {
   expect(inverse({ verb: "move", id: "loose", how: "in" }))
     .toEqual([{ verb: "place", id: "loose", parent: null, after: "kitchen" }])
+})
+
+test("the picker's move records the place it leaves, like every other one", () => {
+  // Same question as the four above, asked before a write that carries the row
+  // to a named parent instead of one step from where it was — so ⌘Z is a
+  // `place` back, with the neighbour, and not "under my old parent" (which
+  // would put a row that was third among its siblings at the end of them).
+  expect(inverse({ verb: "under", id: "install", parent: "loose" }))
+    .toEqual([{ verb: "place", id: "install", parent: "kitchen", after: "order" }])
 })
 
 test("an undo is itself undoable: a place records the place it leaves", () => {

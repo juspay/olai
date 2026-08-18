@@ -12,6 +12,7 @@ Click a title and the caret is in it. From there it is the outliner's loop on th
 | **⌘Enter** / **Ctrl+Enter** | tick it off, or take that back |
 | **⌘⇧Enter** / **Ctrl+⇧Enter** | walk the mark on: to do, then doing, then none |
 | **⌘⇧D** / **Ctrl+⇧D** | duplicate the row, and everything under it |
+| **⌘⇧M** / **Ctrl+⇧M** | move the row under a node you search for, anywhere in the set |
 | **Shift+Enter** | write the note under it |
 | **↑** / **↓** | walk to the row above or below |
 | **Escape** | drop what you were typing |
@@ -111,6 +112,23 @@ Both keys are ONE write at the same gate everything else goes through, and an ag
 **There is no Duplicate on a placement.** A mirror's own verb is `Remove this placement`: copying through one would write a branch into the file its target lives in, out of sight of the line you clicked. Ask for it on the node itself.
 
 **⌘Z takes the copy to the Trash**, keeping its ids, and ⌘⇧Z brings it back — the same way back every removal in this app has.
+
+## Moving a row somewhere else entirely
+
+Every key above moves a row one step from where it is: **Tab** goes under the row above, **Shift+Tab** up a level, **Alt+Shift+↑/↓** among its siblings, and a drag reaches as far as you can carry it. None of them can say *this belongs under that node, three hundred rows down* — which is the move you actually mean once a branch has ended up in the wrong place.
+
+**⌘⇧M opens a picker on the row you are in.** Type, and it searches every node in the directory; **Enter** puts the row — and everything under it — under the one you chose. It is the same search ⌘K and the header box use, so what it finds and what an agent's `search_nodes` finds cannot differ, and each row says where that node sits. The same verb is **Move to…** in the row's `•••` menu, which is the door a phone has. What lands is one `move_node`, the op an agent sends.
+
+**The row goes LAST among its new siblings.** Where among them is not part of what you asked: you named a parent, and "last" is what this app means by putting something under a node — the same place **Tab** leaves an indented row. Move it up from there with the arrows if it belongs higher.
+
+**The picker shows everything it finds, including where the row cannot go — and says why.** The reason appears as you walk onto a row, before you press Enter, and pressing Enter there writes nothing. There are four of them:
+
+- **Another outline.** Every outline is an independent tree, so a parent is always in the same file. Archiving is what moves a subtree between files, and a mirror is how one node is drawn in two — the same sentence a drag over the other pane's outline gets, and the same one `move_node` refuses an agent with.
+- **Inside itself.** A branch cannot go under its own child, or under itself; at a mirror the same rule reads one step further — a placement inside the subtree it draws would expand forever.
+- **The Trash.** Work that has been put away is not somewhere to move work to; **Put back** is how something comes out. Archived nodes are out of the search's answer anyway unless you ask for them with `is:archived`, so this is the sentence for when you did.
+- **The parent it already has.** It is in the list — you should be able to find a title you can see — and it is refused, because a destination puts the row *last* under it, which would silently reorder rather than move. Reordering has two gestures of its own that say so: **Alt+Shift+↑/↓**, and dragging.
+
+**Nothing is echoed, and ⌘Z takes it back.** The row appears in its new home when the file says so; if the move re-opened a finished branch on the way in (the rule two sections up), the sentence saying which is drawn under the row *where it landed*. ⌘Z puts it back where it sat — the parent and the neighbour it left, not merely the parent.
 
 ## Three characters that open something
 

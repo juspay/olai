@@ -86,6 +86,7 @@ import { repeatPick } from "./date/repeat.ts"
 import { useDerived } from "./derived.tsx"
 import { createEdgeEditing } from "./edges/editing.tsx"
 import { useEditor } from "./edit/editing.tsx"
+import { useMoving } from "./move/moving.tsx"
 import { useNarrowed } from "./filter/narrowed.tsx"
 import { behindTheMark, CONTEXT_DIM, lighting, matchedAttr } from "./filter/why.ts"
 import { onATag } from "./filter/tag.ts"
@@ -293,6 +294,15 @@ function Branch(props: {
    *  the time anything has been chosen in it. Over the node the row SHOWS,
    *  because edges are facts about a node and a placement carries none. */
   const edges = createEdgeEditing(() => shown()?.node)
+
+  /** The PAGE's move-to picker (./move/moving.tsx), which this row opens from
+   *  its `•••` and draws when it is the row being moved. The one panel here
+   *  that is not the row's own, and for a reason the four above do not have:
+   *  ⌘⇧M opens it from the row editor, and the row MOVES when the write lands —
+   *  so what is being moved has to outlive both this component's menu and the
+   *  place this row is drawn at. Over the row's OWN record, because a move is
+   *  about the line rather than about what it shows. */
+  const moving = useMoving()
 
   // The editor is one draft for the whole page, and this is the one question a
   // row asks of it: is the caret HERE? Asked of WHERE the caret is rather than
@@ -527,6 +537,7 @@ function Branch(props: {
               pickRepeat: openRepeat,
               pickEdge: edges.open,
               pickProp: (editing) => setPropping(editing),
+              pickMove: () => moving.open({ record: props.row.at.node.id, place: props.row.key }),
             })}
           />
           <Show
@@ -695,6 +706,18 @@ function Branch(props: {
       <Show when={edges.showing()}>
         <div class={PAST_CONTROLS}>
           <edges.Panel />
+        </div>
+      </Show>
+
+      {/* The move-to picker and whatever its write said, in the same place and
+          on the same terms as the panels above — with one difference that is
+          the point of it: this one is about the ROW's own record rather than
+          about the node it shows, so a mirror moves as the placement it is. It
+          is drawn where the row is drawn, which after a landed move is the row
+          in its new home (./move/moving.tsx follows it there). */}
+      <Show when={moving.showing(props.row.key)}>
+        <div class={PAST_CONTROLS}>
+          <moving.Panel />
         </div>
       </Show>
 

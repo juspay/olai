@@ -60,6 +60,7 @@ import { Result } from "effect"
 import { datePick } from "../date/pick.ts"
 import type { Caret, EditAction } from "../keys.ts"
 import { runAsync } from "../run.ts"
+import type { Moving } from "../move/moving.tsx"
 import type { Selection } from "../select/selection.ts"
 import { olai } from "../wire.ts"
 import {
@@ -204,6 +205,16 @@ export const createEditor = (
    * rows were picked.
    */
   selection: Pick<Selection, "start" | "grow" | "widen" | "clear">,
+  /**
+   * The page's move-to picker (`../move/moving.tsx`), handed in for the reason
+   * the selection above is: the two are made together by the same page, and
+   * `⌘⇧M` is a key of this editor's that opens something that is not.
+   *
+   * ONE VERB, which is the whole of the coupling: this file knows how to leave
+   * a row cleanly and knows nothing about destinations, searches or the write
+   * that eventually lands.
+   */
+  moving: Pick<Moving, "open">,
 ): Editor => {
   const [draft, setDraft] = createSignal<Draft | null>(null)
   const [caret, setCaret] = createSignal(0)
@@ -618,6 +629,13 @@ export const createEditor = (
     // is looking at. So a placement is refused in the ops layer's own words.
     duplicate: () =>
       enqueue(() => structural((held) => ({ verb: "duplicate", id: held.row }))),
+    // The ONE key here that writes nothing: it opens the move-to picker on this
+    // row (`../move/moving.tsx`), and what lands is chosen in it. It is the
+    // three picking keys' shape rather than a write's — commit what is being
+    // typed, then leave the caret — because the panel is what takes focus next,
+    // and a draft still open behind it would be a second live editor with the
+    // same keys claimed twice.
+    moveTo: () => enqueue(() => picking((place, record) => moving.open({ record, place }))),
     // A MOVE is about the row itself, so a mirror moves as the placement it is
     // and the node it stands for stays where it lives.
     // The three that LEAVE the caret. Each commits what is being typed first —
@@ -684,22 +702,34 @@ export const createEditor = (
   }
 
   /**
-   * Leave the caret, and start picking rows from the one it was in.
+   * Leave the caret, and hand the row it was in to whatever takes it next.
    *
    * The draft is COMMITTED first, and a refusal stops it — the row that would
    * not save is the row to stay in, which is the rule the arrows and a click on
    * another title already follow. Then the draft is closed, because a caret and
    * a pick are never live together: that is what lets `Tab` mean one thing at
    * any moment rather than needing a second grammar for bulk.
+   *
+   * FOUR KEYS do this now, and the fourth leaves the caret for something that
+   * is not a pick: `⌘⇧M` opens the move-to picker, which is a panel with a box
+   * to type in. Same three steps for the same reason — a draft left open behind
+   * it would be two live editors with the same keys claimed twice.
+   *
+   * What the callback is handed is both halves of "which row was that": WHERE
+   * it was drawn, which is what a selection is a set of, and the RECORD it is,
+   * which is what a write names. The three picking keys read the first; the
+   * picker needs both.
    */
-  const picking = async (pick: (from: string) => void): Promise<void> => {
+  const picking = async (
+    pick: (place: string, record: string) => void,
+  ): Promise<void> => {
     const held = draft()
     if (held === null || held.kind !== "row" || held.place === null) return
     const from = held.place
     if (!(await commit())) return
     idle.clear()
     setDraft(null)
-    pick(from)
+    pick(from, held.row)
   }
 
   /** The arrows: the next row the eye would reach, folds and all. */

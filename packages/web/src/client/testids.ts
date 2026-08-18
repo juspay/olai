@@ -291,6 +291,36 @@ export const TESTID = {
   edgeSaid: "edge-said",
   /** The way out, for a pointer. Escape is the same door. */
   edgePanelClose: "edge-panel-close",
+
+  // ── the move-to picker ───────────────────────────────────────────────
+  /** The panel that carries one row to a new parent — in place under the row,
+   *  opened by ⌘⇧M or the `•••` menu's `Move to…`. `data-row` is the RECORD
+   *  being moved, which is what makes "the panel followed its row" askable
+   *  after the write lands; `data-asked` is the edge panel's own, and means the
+   *  same thing. Present only while it is open. */
+  movePicker: "move-picker",
+  /** Its search box — the server's own node search, over the whole set. */
+  moveSearch: "move-search",
+  /** One destination in it; `data-id` is the node it would go under. Its own
+   *  `<li>` carries `data-refused` when that node cannot take the row. */
+  moveHit: "move-hit",
+  /** Where that destination sits — the row's second line. */
+  moveHitPlace: "move-hit-place",
+  /** One `key value` pair on a destination's third line. */
+  moveHitProp: "move-hit-prop",
+  /** WHY the destination under the cursor cannot take this row — drawn as the
+   *  cursor arrives rather than after `Enter`, which is the drop refusal's own
+   *  shape (`drag/Refusal.tsx`). Absent whenever the aim is a legal one. */
+  moveRefused: "move-refused",
+  /** A refused SEARCH, in the server's words — never the same slot as the two
+   *  lines above, for the reason the edge panel keeps them apart. */
+  moveSearchFailed: "move-search-failed",
+  /** What the last MOVE said: a refusal verbatim, or the nudge from one that
+   *  landed — drawn under the row, which after a landed move is the row in its
+   *  new home. Two moods, `data-tone` apart, like every other said line. */
+  moveSaid: "move-said",
+  /** The way out, for a pointer. Escape is the same door. */
+  movePickerClose: "move-picker-close",
   /** One link from a node to another node, in any of those rows. Which
    *  RELATION it came from is the row it is in, so this name is the same for
    *  `see` and for `blocked by`; the target id rides `data-ref` on a child

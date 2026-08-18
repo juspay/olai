@@ -216,6 +216,27 @@ const openMenu = async (page: Page, id: string) => {
   await page.waitForTimeout(200)
 }
 
+// ── the move-to picker ────────────────────────────────────────────────
+
+const MOVE_PICKER = '[data-testid="move-picker"]'
+const MOVE_SEARCH = '[data-testid="move-search"]'
+const MOVE_HIT = '[data-testid="move-hit"]'
+/** WHY the destination under the cursor cannot take the row — drawn at the
+ *  aim, which is what makes it photographable at all: a refusal that only
+ *  appeared after `Enter` would be a picture of an answer nobody was still
+ *  deciding with. */
+const MOVE_REFUSED = '[data-testid="move-refused"]'
+
+/** The picker, opened the way the item is about: the caret in a row, then the
+ *  chord. The `•••`'s `Move to…` opens the identical panel and is a scenario
+ *  rather than a shot. */
+const pickerOn = async (page: Page, id: string) => {
+  await page.locator(title(id)).first().click()
+  await page.locator('[data-testid="title-editor"]').first().waitFor()
+  await page.keyboard.press("ControlOrMeta+Shift+m")
+  await page.locator(MOVE_PICKER).first().waitFor()
+}
+
 /** One line out of however many the markup wrapped it over — what a console
  *  line can hold, spelled once for every reader here that prints something the
  *  page drew. */
@@ -1435,6 +1456,74 @@ const SECTIONS = {
     await shot(page, "dropped")
   },
 
+  /**
+   * THE MOVE-TO PICKER (`move-to-picker`): the move no key could make — a
+   * destination searched for across the whole set, and the row carried under
+   * it with everything beneath it.
+   *
+   * Three pictures, which are the three things the item asked to be shown: the
+   * picker open on fuzzy results, the row in its new home, and the cross-file
+   * REFUSAL — said at the aim, before Enter, so what the shot holds is a
+   * sentence a person reads while deciding rather than one they get afterwards.
+   *
+   * The caret's door is the one photographed (⌘⇧M in the row's own editor),
+   * because that is the gesture the item is about; the `•••`'s `Move to…` opens
+   * the identical panel and is a scenario rather than a shot.
+   */
+  "move-to-picker": async (page) => {
+    /** The three pictures, made once per palette — every one of them is drawn
+     *  in theme tokens, and the refusal's alarm ink most of all. A ROW per
+     *  pass, because the middle one is a WRITE and a row that has already
+     *  moved cannot move there again. */
+    const pass = async (dark: boolean, moving: string, to: string) => {
+      const suffix = dark ? "-dark" : ""
+      // ONE BROAD QUERY for all three, because the whole list is the claim:
+      // `the` is in six titles across two outlines, so what is drawn is legal
+      // destinations and refused ones together — the refused ones dimmed where
+      // a reader can see them rather than dropped where nobody can.
+      await pickerOn(page, moving)
+      await page.locator(MOVE_SEARCH).fill("the")
+      await page.locator(MOVE_HIT).first().waitFor()
+      await page.waitForTimeout(400)
+      console.log(`  open on:            ${await page.locator(MOVE_PICKER).getAttribute("data-row")}`)
+      console.log(`  destinations drawn: ${await page.locator(MOVE_HIT).count()}`)
+      console.log(
+        `  …of which refused:  ${await page.locator(`${MOVE_PICKER} li[data-refused]`).count()}`,
+      )
+      console.log(`  ${moving} sits at: ${recordOf(moving)}`)
+      await shot(page, `open-on-a-row${suffix}`)
+
+      // THE CROSS-FILE REFUSAL, at the AIM: the cursor is walked onto a row of
+      // the other outline and the reason is on screen before anything is
+      // pressed — the shape a drop over the wrong pane already has (#238).
+      await page.locator(MOVE_HIT).filter({ hasText: "the compost heap" }).first().hover()
+      await page.waitForTimeout(200)
+      console.log(`  it refuses:         ${await textOf(page, MOVE_REFUSED)}`)
+      await shot(page, `another-outline-refused${suffix}`)
+
+      // …and one that CAN take it, found by narrowing the same box — which is
+      // what a person does with a list of eight and is the only way to reach a
+      // hit the cap left out (`../web/src/client/search/nodes.ts` asks for
+      // eight: this is a modal over a page, not a report).
+      await page.locator(MOVE_SEARCH).fill(to)
+      await page.locator(MOVE_HIT).filter({ hasText: to }).first().waitFor()
+      await page.waitForTimeout(300)
+      await page.locator(MOVE_HIT).filter({ hasText: to }).first().click()
+      await page.waitForTimeout(SETTLE)
+      console.log(`  after the press:    ${recordOf(moving)}`)
+      console.log(`  the panel is gone:  ${(await page.locator(MOVE_SEARCH).count()) === 0}`)
+      // The guard, so this shot cannot be a picture of a write that did not
+      // land: the row is still in `house.olai` — what moved is where it SITS,
+      // which the record line above says.
+      shotSays(moving, "house.olai")
+      await shot(page, `moved-into-its-new-home${suffix}`)
+    }
+
+    await pass(false, "hinges", "order the new cabinets")
+    await wearTheme(page, "pitch")
+    await pass(true, "handles", "take out the old counters")
+  },
+
   "new-outline": async (page) => {
     await page.locator('[data-testid="new-outline"]').click()
     const box = page.locator('[data-testid="new-outline-path"]')
@@ -1818,6 +1907,11 @@ const SHAPES: Partial<Record<Section, Parameters<Browser["newContext"]>[0]>> = {
   "a-subtree-and-its-copy": PANEL_FITS,
   "move-to-trash-from-the-menu": PANEL_FITS,
   "retire-a-placement": PANEL_FITS,
+  // …and the section about a panel of the same kind, for the same reason: a
+  // list of eight destinations with a refusal under it is taller than the
+  // default window leaves below a row, and a shot that clips the sentence it
+  // is about says nothing.
+  "move-to-picker": PANEL_FITS,
 }
 
 const main = async () => {

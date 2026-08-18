@@ -181,6 +181,14 @@ export const isEditingTarget = (target: EventTarget | null): boolean => {
  *     note, like the mark keys, and it has no twin on the selection layer —
  *     duplicating a PICK is a bulk verb, and this app puts those behind a
  *     button rather than a chord (below).
+ *   - `moveTo` — `⌘⇧M` / `Ctrl+⇧M`: open the move-to picker on this row and
+ *     search every outline for a new parent (`move/`). Workflowy's own chord
+ *     for the same verb, and `duplicate`'s case one letter along in every
+ *     other respect: SHIFT is required rather than tolerated, it is dead in a
+ *     note, and it has no twin on the selection layer — carrying several rows
+ *     somewhere is what the drag already does, with the pick it is holding.
+ *     Unlike every other key here it WRITES NOTHING by itself: it opens a
+ *     panel, and what lands is chosen in it.
  *   - `note` — `Shift+Enter`: open the note under the row, and close it again
  *     from inside.
  *   - `prev` / `next` — the bare arrows, moving the caret between rows. The
@@ -209,6 +217,7 @@ export type EditAction =
   | "toggle"
   | "walk"
   | "duplicate"
+  | "moveTo"
   | "note"
   | "prev"
   | "next"
@@ -285,6 +294,15 @@ export const editKey = (
     (event.key === "d" || event.key === "D") && (event.ctrlKey || event.metaKey) &&
     event.shiftKey && !event.altKey
   ) return "duplicate"
+
+  // ⌘⇧M / Ctrl+⇧M — the branch above, one letter along and for its reasons:
+  // Workflowy's own chord, outside the chain because it shares its key with
+  // nothing, and Shift required rather than tolerated so bare ⌘M stays the
+  // platform's (minimize, on an Apple keyboard).
+  if (
+    (event.key === "m" || event.key === "M") && (event.ctrlKey || event.metaKey) &&
+    event.shiftKey && !event.altKey
+  ) return "moveTo"
 
   if (event.key === "Enter") {
     if (event.ctrlKey || event.metaKey) return event.shiftKey ? "walk" : "toggle"
@@ -528,6 +546,11 @@ export const SHORTCUTS: ReadonlyArray<{
         keys: "⌘⇧D / Ctrl+⇧D",
         what: "duplicate the row, and everything under it",
         action: "duplicate",
+      },
+      {
+        keys: "⌘⇧M / Ctrl+⇧M",
+        what: "move the row under a node you search for, anywhere in the set",
+        action: "moveTo",
       },
       { keys: "Shift+Enter", what: "write the note under it", action: "note" },
       { keys: "↑ / ↓", what: "walk to the row above or below", action: "prev" },
