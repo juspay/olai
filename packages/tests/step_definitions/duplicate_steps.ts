@@ -65,36 +65,46 @@ const named = (nodes: ReadonlyArray<Record_>, id: string): Record_ => {
 };
 
 /**
- * The original's records paired with the copy's, in sibling order.
+ * The original's records paired with the copy's, in sibling order — or
+ * `undefined` while the copy is not on disk yet.
  *
- * The copy's ROOT is the sibling immediately below the original, which is
- * where the op puts it and the only thing about the copy this harness may
- * assume. Everything under it is paired positionally, and a row that does not
- * line up is a throw naming both sides rather than a quiet miss.
+ * TWO OUTCOMES THAT ARE NOT THE SAME THING, and keeping them apart is the whole
+ * shape of this function. "The write has not landed" is what every step below
+ * WAITS on; "the two subtrees do not line up" is a defect, and a defect that
+ * came back as `undefined` would be polled at for the full timeout and then
+ * reported as a write that never arrived. So the second one THROWS, naming both
+ * sides — the suite's rule that an error is never silently swallowed, read into
+ * a harness.
+ *
+ * The copy's ROOT is the sibling immediately below the original, which is where
+ * the op puts it and the only thing about the copy this harness may assume.
+ * Everything under it is paired positionally.
  */
 const paired = (
   world: OlaiWorld,
   file: string,
   id: string,
-): ReadonlyArray<readonly [Record_, Record_]> => {
+): ReadonlyArray<readonly [Record_, Record_]> | undefined => {
   const nodes = nodesIn(world, file);
   const original = named(nodes, id);
   const row = childrenOf(nodes, original["parent"]);
   const at = row.findIndex((node) => node["id"] === id);
   const copy = row[at + 1];
-  if (copy === undefined) {
-    throw new Error(`nothing sits below \`${id}\` among its siblings, so there is no copy`);
-  }
+  // Not there YET: the write is a round trip, and the row below the original is
+  // where it will appear.
+  if (copy === undefined) return undefined;
 
   const pairs: Array<readonly [Record_, Record_]> = [];
   const walk = (left: Record_, right: Record_): void => {
     pairs.push([left, right]);
     const mine = childrenOf(nodes, left["id"]);
     const theirs = childrenOf(nodes, right["id"]);
+    // A defect rather than a wait: the write is all-or-none, so a copy that is
+    // on disk is on disk whole.
     if (mine.length !== theirs.length) {
       throw new Error(
-        `\`${String(left["id"])}\` has ${mine.length} children and its copy ` +
-          `\`${String(right["id"])}\` has ${theirs.length}`,
+        `\`${String(left["id"])}\` has ${mine.length} children and the copy below ` +
+          `it, \`${String(right["id"])}\`, has ${theirs.length}`,
       );
     }
     mine.forEach((child, index) => walk(child, theirs[index] as Record_));
@@ -103,27 +113,23 @@ const paired = (
   return pairs;
 };
 
-/** Is the copy on disk yet? The write is a round trip, so every step below
- *  waits for it rather than reading once. */
-const arrived = (world: OlaiWorld, file: string, id: string): boolean => {
-  try {
-    paired(world, file, id);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 const waitForCopy = async (
   world: OlaiWorld,
   file: string,
   id: string,
 ): Promise<ReadonlyArray<readonly [Record_, Record_]>> => {
   await world.waitUntil(
-    async () => arrived(world, file, id),
+    async () => paired(world, file, id) !== undefined,
     `${file} to hold a copy of ${JSON.stringify(id)} below it`,
   );
-  return paired(world, file, id);
+  const pairs = paired(world, file, id);
+  // Read again rather than kept from inside the poll, and checked rather than
+  // asserted: another writer could take the copy away between the two, and a
+  // harness that said so beats one that reported the next assertion instead.
+  if (pairs === undefined) {
+    throw new Error(`${file} held a copy of ${JSON.stringify(id)} and then did not`);
+  }
+  return pairs;
 };
 
 Then(
