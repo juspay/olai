@@ -1583,6 +1583,26 @@ const replay = (): void => {
       content: { type: "text", text: "we decided to order the cabinets." },
     },
   })
+  // `an older conversation` is the one a scenario picks, so it has to overflow
+  // the pane — otherwise "scrolled to the newest line" is true of a short
+  // transcript by construction and says nothing. The two lines above stay so
+  // every other stored-session claim still has the words it already asserts.
+  if (sessionId === "fake-stored-old") {
+    for (let line = 0; line < 40; line++) {
+      say(`line ${line} — ${"the quick brown fox jumps over the lazy dog. ".repeat(3)}\n\n`)
+    }
+    // AFTER the open-jump has landed, and only when a scenario asked: a
+    // restored transcript's markdown (and any later row) grows the pane
+    // once the reader is already looking at it. Armed by `.agent-want-late`,
+    // released by the same `.agent-release` a held turn uses, so the late
+    // line is a step rather than a race against the first assertion.
+    if (existsSync(`${cwd}/.agent-want-late`)) {
+      rmSync(`${cwd}/.agent-want-late`, { force: true })
+      void released().then(() => {
+        say(`late line — ${"the quick brown fox jumps over the lazy dog. ".repeat(3)}\n\n`)
+      })
+    }
+  }
 }
 
 /** The steering extension's method name, as the real adapter spells it. */

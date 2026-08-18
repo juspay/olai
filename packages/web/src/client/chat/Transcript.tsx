@@ -44,9 +44,26 @@
  * Leaving a reader alone when they have scrolled away is the part worth
  * keeping: being yanked to the newest token while reading what the agent did
  * two turns ago is worse than a panel that never scrolled at all.
+ *
+ * OPENING A CONVERSATION is not that question. The session id is the
+ * conversation's identity; when it changes (or first appears) the reader has
+ * just opened this chat, and the newest line is where they start. following is
+ * reset so a scroll-away in the previous conversation cannot leave this one
+ * stuck at the top. The jump is instant — assigning `scrollTop`, no animation
+ * — because an open is a place, not a motion.
+ *
+ * The jump is not a reader scroll, but the event it schedules cannot be
+ * ignored with a flag around the assignment: Chromium (149, and the suite's
+ * Playwright) dispatches `scroll` asynchronously, at a rendering update, so
+ * a boolean held across the write is already false when the handler runs.
+ * What we remember instead is the `scrollTop` we assigned. An event that
+ * lands on that value is our jump — or growth that did not move the top —
+ * and if a follow is still owed and we are no longer at the bottom, the
+ * handler re-jumps rather than stamping following false. An event that
+ * lands somewhere else is the reader.
  */
 
-import { createMemo, For, onCleanup, onMount, Show } from "solid-js"
+import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "solid-js"
 
 import { useShowNode } from "../focus.ts"
 import { TESTID } from "../testids.ts"
@@ -60,8 +77,9 @@ import type { Chat } from "./state.ts"
 
 /** How close to the bottom still counts as "at the bottom". Anything under a
  *  line or two of slack and a smooth scroll mid-flight reads as "the reader
- *  scrolled away". */
-const NEAR = 64
+ *  scrolled away". Exported so the scenarios that measure the same slack
+ *  (`chat_steps.ts`) cannot drift from the pane that defined it. */
+export const NEAR = 64
 
 export function Transcript(props: { readonly chat: Chat }) {
   const show = useShowNode()
@@ -70,23 +88,46 @@ export function Transcript(props: { readonly chat: Chat }) {
   /** Should new text pull the view down with it? True until the reader scrolls
    *  away from the bottom, and true again the moment they come back. */
   let following = true
+  /** The `scrollTop` we last assigned. A later `scroll` event that still sits
+   *  here is our jump, not the reader — the event is dispatched after the
+   *  assignment returns, so a boolean around the write cannot see it. */
+  let assignedTop = Number.NaN
 
   const atBottom = (): boolean =>
     pane !== undefined &&
     pane.scrollHeight - pane.scrollTop - pane.clientHeight < NEAR
 
+  const jump = (): void => {
+    if (pane === undefined) return
+    pane.scrollTop = pane.scrollHeight
+    assignedTop = pane.scrollTop
+  }
+
   onMount(() => {
     if (content === undefined) return
     // Content growing does NOT move `scrollTop`, so the browser fires no scroll
-    // event for it — which is what makes this safe: every scroll event this
-    // component sees is one the reader caused, or the one our own jump below
-    // causes, and that one lands at the bottom and agrees.
+    // event for it. New text is followed from here. The jump's own `scroll`
+    // arrives later and is recognised by `assignedTop`, not by a flag.
     const grown = new ResizeObserver(() => {
-      if (following && pane !== undefined) pane.scrollTop = pane.scrollHeight
+      if (following) jump()
     })
     grown.observe(content)
     onCleanup(() => grown.disconnect())
   })
+
+  // Opening a conversation is not "new text arrived while reading". The
+  // session id is the conversation's identity; when it changes, the newest
+  // line is where the reader starts — even if they had scrolled away in the
+  // conversation they just left.
+  createEffect(
+    on(
+      () => props.chat.state().session?.id,
+      () => {
+        following = true
+        jump()
+      },
+    ),
+  )
 
   /** An id the agent named, pressed — shown, or nothing when the press landed
    *  on the words around one.
@@ -154,6 +195,15 @@ export function Transcript(props: { readonly chat: Chat }) {
       data-testid={TESTID.chatTranscript}
       ref={pane}
       onScroll={() => {
+        if (pane === undefined) return
+        // Same top we assigned: our jump's late event, or growth that left
+        // the top alone. If a follow is still owed and we are no longer at
+        // the bottom, more content landed after the assignment — re-jump
+        // rather than decide the reader left.
+        if (Number.isFinite(assignedTop) && Math.abs(pane.scrollTop - assignedTop) < 1) {
+          if (following && !atBottom()) jump()
+          return
+        }
         following = atBottom()
       }}
       onClick={(event) => {

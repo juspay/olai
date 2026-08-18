@@ -23,6 +23,8 @@ The note lives with this machine's other state (`~/.local/state/olai/`, or where
 
 **chats** lists the stored conversations for this directory, and each row says when it was last touched, to the minute. That is deliberate rather than decorative: `/clear` leaves two sessions sharing one name, and the protocol carries no fact that says which of them replaced the other, so the time is what tells you the row you mean. Picking one loads it — and makes it the conversation you come back to.
 
+**A conversation opens on its newest line.** The panel jumps there at once, so a long transcript is not something you have to scroll down. While you read, new text only follows if you were already at the bottom; scroll up and it stays put.
+
 ## Which model the header names
 
 Under the conversation's title, the header names the model — because a turn's cost and character depend on it and nothing else on screen says.
