@@ -464,6 +464,15 @@ export const TESTID = {
    *  first among them), and `data-depth` how far in the line is drawn — the
    *  three facts that are still a prediction until the pointer is released. */
   dropLine: "drop-line",
+  /** The face a PANE wears while a row is held over it that cannot land there
+   *  — the other answer a drag has, and never drawn beside the line
+   *  (`drag/Aiming.tsx`). `data-file` is the file that said no; the sentence
+   *  inside is the one the selection bar says when the pointer is released, so
+   *  a scenario can hold the promise and the outcome to one another. */
+  dropRefused: "drop-refused",
+  /** The sentence inside that face — `Refused.tsx`'s box, so a refusal reads
+   *  and is toned the same here as everywhere else a write is turned down. */
+  dropRefusedSaid: "drop-refused-said",
   /** The band a drag-across pulls, while it is being pulled and never
    *  otherwise. `data-rows` is how many rows it is crossing right now — the one
    *  thing about a sweep that is still a prediction while the pointer is down.

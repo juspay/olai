@@ -75,7 +75,14 @@ function Zoom(props: {
   const edges = createEdgeEditing(() => props.zoomed.shows.node)
 
   return (
-    <Editable rows={() => props.rows}>
+    <Editable
+      rows={() => props.rows}
+      file={props.zoomed.shows.file}
+      // The page is drawn INSIDE this node, so nothing under it is a place a
+      // drag carrying it may land — a fact its rows' keys cannot state, because
+      // they start at this page's own roots (`./drag/fields.ts`).
+      within={[...props.zoomed.trail.map((crumb) => crumb.node.id), props.zoomed.shows.node.id]}
+    >
       <header class="mb-4">
         <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
 

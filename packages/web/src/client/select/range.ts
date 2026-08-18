@@ -40,6 +40,20 @@ export const recordOf = (key: string): string => key.slice(key.lastIndexOf("/") 
  *  per drawn row and would otherwise walk the tree a second time. */
 export const depthOf = (key: string): number => key.split("/").length - 2
 
+/**
+ * The chain itself: every record between this page's roots and this place, the
+ * place's own last.
+ *
+ * The other reading of {@link depthOf}, and it exists for the one question a
+ * key prefix cannot answer — "is this row inside THAT one" asked across two
+ * PAGES. Within a page, {@link beneath} answers it by prefix and answers it
+ * better, because a prefix knows the path as well as the record. Between two
+ * panes there is no shared path to prefix: the same node is `/kitchen/install`
+ * in an outline and the root of a page zoomed to it, so what the two readings
+ * have in common is the ids and nothing else (`../drag/fields.ts`).
+ */
+export const chainOf = (key: string): ReadonlyArray<string> => key.split("/").slice(1)
+
 /** Is the row at `key` drawn somewhere under the row at `ancestor`? A row is
  *  not under itself — the boundary that makes {@link topmost} keep exactly one
  *  of a chain rather than none of it. */

@@ -26,8 +26,7 @@ import {
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-const paneAt = (world: OlaiWorld, index: number) =>
-  world.page.locator(`${PANE}${attr("data-pane", String(index))}`);
+const paneAt = (world: OlaiWorld, index: number) => world.pane(index);
 
 When(
   "I alt-click the zoom of {string}",
@@ -145,7 +144,14 @@ When("I tap pane tab {int}", async function (this: OlaiWorld, index: number) {
 When("I close the focused pane from the keyboard", async function (this: OlaiWorld) {
   // The header's × is desktop chrome. On a phone the same verb is the
   // chord, and it is the one that must not throw after a tab switch.
-  await this.page.keyboard.press("Control+Shift+w");
+  //
+  // `ControlOrMeta`, which is Playwright's own spelling of the platform's
+  // modifier and the same split `keys.ts` makes — Meta on Apple, Control
+  // elsewhere. Spelled `Control` here, this step pressed a chord macOS never
+  // matches: the pane simply did not close, and the assertion after it read
+  // the pane that was still there. Linux never noticed, because there the two
+  // are the same key.
+  await this.page.keyboard.press("ControlOrMeta+Shift+w");
   await this.waitForFrame();
 });
 
