@@ -324,9 +324,22 @@ Then("the chat input still has the caret", async function (this: OlaiWorld) {
 // (`data-delivery`): a refusal is certain and offers a retry, a silence is not
 // and must not.
 
-/** The strip under a message, by what became of that message. */
-const deliverySaid = (world: OlaiWorld, fate: string): Locator =>
-  world.page.locator(attr("data-delivery", fate));
+/** MY MESSAGE'S OWN ROW — the entry whose bubble carries those words.
+ *
+ *  Every claim below is made THROUGH this rather than against the panel at
+ *  large, which is the difference between "that message is marked unanswered"
+ *  and "something on this page is". One undelivered row is all today's
+ *  scenarios ever have, so the loose reading does not currently lie — and a
+ *  claim that is only true while the fixture stays small is a claim that stops
+ *  being checked the day somebody grows it. */
+const myRow = (world: OlaiWorld, text: string): Locator =>
+  world.page
+    .locator(CHAT_ENTRY)
+    .filter({ has: world.page.locator(CHAT_MINE, { hasText: text }) });
+
+/** The strip under THAT message, by what became of it. */
+const deliverySaid = (world: OlaiWorld, text: string, fate: string): Locator =>
+  myRow(world, text).locator(attr("data-delivery", fate));
 
 Then(
   "the chat shows my message {string} as {string}",
@@ -336,7 +349,7 @@ Then(
     // the whole thing this feature exists to stop.
     await myMessage(this, text).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(
-      async () => (await deliverySaid(this, fate).count()) > 0,
+      async () => (await deliverySaid(this, text, fate).count()) > 0,
       `"${text}" to be marked ${fate}`,
       HYDRATION_TIMEOUT,
     );
@@ -354,14 +367,34 @@ Then(
   async function (this: OlaiWorld, text: string, fate: string) {
     await myMessage(this, text).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(
-      async () => (await deliverySaid(this, fate).count()) > 0,
+      async () => (await deliverySaid(this, text, fate).count()) > 0,
       `"${text}" to be marked ${fate}`,
       STEER_DEADLINE_TIMEOUT,
     );
   },
 );
 
-When("I send the unsent message again", async function (this: OlaiWorld) {
+/** WHAT THE STRIP SAYS, in the words a person reads.
+ *
+ *  The step above is about the panel's own vocabulary (`data-delivery`), which
+ *  is what the server decided; this is about the sentence drawn out of it. Both
+ *  reviewers found the same hole: with only the attribute asserted, swapping
+ *  the two faces' SENTENCES left the suite green, and a person reading "not
+ *  sent" over a message that may well have arrived is exactly the confusion
+ *  this PR exists to end. */
+Then(
+  "the strip under my message {string} reads {string}",
+  async function (this: OlaiWorld, text: string, said: string) {
+    const strip = myRow(this, text).locator(CHAT_DELIVERY);
+    await strip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.ok(
+      oneLine(await strip.innerText()).includes(said),
+      `the strip under "${text}" says "${oneLine(await strip.innerText())}", not "${said}"`,
+    );
+  },
+);
+
+When("I send the undelivered message again", async function (this: OlaiWorld) {
   // `press` rather than a hand-rolled wait-then-click: it also waits out the
   // frame the click schedules, and the very next step reads the row this
   // press is about.

@@ -71,7 +71,12 @@
  *   plan         ask to leave plan mode, the way the adapter does
  *   permit       ask permission for an ops tool, which needs no person
  *   nameless     ask permission for a tool nothing has named
- *   crash        exit mid-turn
+ *   crash        exit mid-turn, having SPOKEN first
+ *   vanish       exit mid-turn having said NOTHING AT ALL — not even the
+ *                usage frames every other turn opens with, so the client has
+ *                no evidence the prompt was ever read. The other side of
+ *                `crash`, and the pair is what pins which of the two may put a
+ *                mark on the message that started the turn
  *   a prompt naming an attached file   read the file and say how big it is
  *   anything     one chunk of prose and an `end_turn`
  *
@@ -774,6 +779,13 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   const [verb, ...rest] = text.trim().split(/\s+/)
   const argument = rest.join(" ")
 
+  // FALL OVER SAYING NOTHING, and BEFORE the usage frames below — which is the
+  // whole difference from `crash` and the only reason this verb exists. A turn
+  // that produced not one frame leaves the client unable to tell a prompt that
+  // was read from one that never arrived, which is the case a message may
+  // honestly be marked for. `crash` speaks first and must NOT be markable.
+  if (verb === "vanish") process.exit(1)
+
   // The window the agent believes in, moving under the conversation.
   //
   // `window`, NOT `context`: that verb is taken, by the scenarios that prove an
@@ -813,6 +825,9 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
 
   if (verb === "crash") {
+    // SPEAKS FIRST, deliberately — see `vanish`. This is a turn the agent
+    // demonstrably worked on, so the message that started it must keep its
+    // ordinary face however badly the turn ended.
     say("about to fall over")
     await sleep(20)
     process.exit(1)

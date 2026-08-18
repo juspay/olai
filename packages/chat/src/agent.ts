@@ -1480,6 +1480,20 @@ const ask = (
  * which offers a person nothing rather than offering a retry that could
  * duplicate a message the agent already has.
  *
+ * ONE ARM IS A BET, and it is JSON-RPC's rather than ours: that an error
+ * RESPONSE means the request did not take effect. An agent that took a steer
+ * and then answered it with an error would be read as a refusal and offered a
+ * retry — a protocol violation, and the only shape in here that could produce a
+ * duplicate.
+ *
+ * The SDK also mints a `RequestError` ITSELF for a response frame it cannot
+ * parse (`invalidRequest`), which is the agent having said SOMETHING
+ * unreadable rather than having said no. Read as a refusal, like the rest. It
+ * was worth excluding by code and is deliberately not: `-32600` off the WIRE is
+ * a genuine refusal ("your request was invalid"), so the guard would trade one
+ * rare misreading for another and pay a magic number for it — while pinning
+ * this file to which code the SDK happens to construct locally.
+ *
  * Exported for its own test: it is one line, and it is the line the panel's two
  * faces are drawn out of.
  */
