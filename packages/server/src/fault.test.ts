@@ -2,11 +2,13 @@
  * The path that used to call `process.exit(1)`, and could therefore not be
  * tested at all: a test process that exits does not fail, it disappears.
  *
- * Three outcomes, and the difference between them is the whole of this module.
- * A runtime that FAULTED is news and stops the server. A runtime that settled
- * because we are shutting down is not — that is every ordinary Ctrl+C, and the
- * shutdown a failed `listen` starts, which is how a busy port once managed to
- * report `[object Object]` instead of "address already in use".
+ * Four outcomes, and the difference between them is the whole of this module.
+ * A runtime that FAULTED is news and stops the server. A runtime that closed
+ * cleanly while we are still serving is news too — that is a hang if we ignore
+ * it. A runtime that settled because we are shutting down is not, either way
+ * it settled — that is every ordinary Ctrl+C, and the shutdown a failed
+ * `listen` starts, which is how a busy port once managed to report
+ * `[object Object]` instead of "address already in use".
  */
 
 import { expect, test } from "bun:test"
@@ -30,14 +32,14 @@ const runtime = (): {
 }
 
 /** What `faulted` did within the deadline — the failure, or `None` for the two
- *  of the three cases where it is meant to never settle at all. "Never" is a
+ *  of the four cases where it is meant to never settle at all. "Never" is a
  *  thing a bare `await` cannot assert: it hangs the runner instead of failing
  *  it, and the runner then reports only that something took too long. */
 const within = (watch: FaultWatch): Promise<Option.Option<SurfaceFaulted>> =>
   Effect.runPromise(Effect.timeoutOption(Effect.flip(watch.faulted), SETTLE_MS))
 
 /** Long enough that a fault that IS coming has arrived — it is one already-
- *  settled promise away — and short enough that three of these are free. */
+ *  settled promise away — and short enough that four of these are free. */
 const SETTLE_MS = "50 millis"
 
 test("a faulted runtime is a typed failure, rendered — not an exit code", async () => {
@@ -68,10 +70,22 @@ test("a runtime settling during shutdown is not news", async () => {
   expect(Option.isNone(await within(watching))).toBe(true)
 })
 
-test("a runtime that closed cleanly is not a fault either", async () => {
+test("a runtime that closed cleanly while still serving is a fault", async () => {
   const { close, watch } = runtime()
   const watching = await watch
 
+  close()
+
+  const said = Option.getOrElse(await within(watching), () => undefined)?.message
+  expect(said).toContain("surface runtime faulted")
+  expect(said).toContain("closed while still serving")
+})
+
+test("a runtime that closed cleanly during shutdown is not news", async () => {
+  const { close, watch } = runtime()
+  const watching = await watch
+
+  await Effect.runPromise(watching.stopped)
   close()
 
   expect(Option.isNone(await within(watching))).toBe(true)

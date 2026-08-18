@@ -2,13 +2,17 @@
  * Which runtime failures are news, and what happens to the one that is.
  *
  * The surface runtime's `done` settles for TWO reasons — it faulted, or it is
- * being closed — and only the first is one. The second happens on every
- * shutdown, including the shutdown a failed `listen` starts, and treating it as
- * a fault meant a busy port printed `[object Object]` over the perfectly good
- * "cannot listen on 127.0.0.1:7714: address already in use" and then exited
- * before the runtime could report it at all. So the watch only speaks while we
- * are still meant to be serving, and {@link FaultWatch.stopped} is what says we
- * are not.
+ * being closed — and the discriminator is not fulfill vs reject. Settling
+ * while we are still meant to be serving is news either way: a reject is the
+ * fault that used to print `[object Object]`, and a fulfill is the runtime
+ * walking off while `olai web` is still waiting on it, which used to be a
+ * hang that said nothing. The second reason — an ordinary close — happens on
+ * every shutdown, including the shutdown a failed `listen` starts, and
+ * treating THAT as a fault meant a busy port printed the runtime's close
+ * over the perfectly good "cannot listen on 127.0.0.1:7714: address already
+ * in use" and then exited before the runtime could report it at all. So the
+ * watch only speaks while we are still meant to be serving, and
+ * {@link FaultWatch.stopped} is what says we are not.
  *
  * A fault IS unrecoverable structural damage: serving past it would answer
  * subscriptions with silence, which is worse than stopping. But stopping is
@@ -28,7 +32,7 @@
 import { prettyCause } from "@olai/log"
 import { Data, Deferred, Effect, Exit } from "effect"
 
-/** The runtime is gone and nothing is going to answer. Carries the rejection
+/** The runtime is gone and nothing is going to answer. Carries the settle
  *  rendered, because the whole failure of the code this replaces was that it
  *  did not. */
 export class SurfaceFaulted extends Data.TaggedError("SurfaceFaulted")<{
@@ -58,10 +62,11 @@ export const watchFault = (
     const fault = yield* Deferred.make<never, SurfaceFaulted>()
     let serving = true
 
-    runtime.done.catch((cause: unknown) => {
+    const fail = (cause: unknown) => {
       if (!serving) return
       Deferred.doneUnsafe(fault, Exit.fail(new SurfaceFaulted({ cause })))
-    })
+    }
+    void runtime.done.then(() => fail("closed while still serving"), fail)
 
     return {
       faulted: Deferred.await(fault),
