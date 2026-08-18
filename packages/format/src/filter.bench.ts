@@ -35,6 +35,7 @@
 
 import { derive, type Derived } from "./derive.ts"
 import { matching, parseFilter } from "./filter.ts"
+import { median, timed } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
 
 const NODES = 20_000
@@ -64,18 +65,6 @@ const vault = (): ReadonlyArray<Located> =>
 
 const typedOver = (set: Derived): void => {
   for (const query of TYPED) matching(set, parseFilter(query, TODAY))
-}
-
-/** The middle of five, which is what a laptop with a browser open on it can be
- *  asked for: a mean is dragged by one scheduling hiccup and a minimum is a
- *  number nobody's machine reproduces. */
-const median = (runs: ReadonlyArray<number>): number =>
-  [...runs].sort((a, b) => a - b)[Math.floor(runs.length / 2)] ?? 0
-
-const timed = (run: () => void): number => {
-  const at = Bun.nanoseconds()
-  run()
-  return (Bun.nanoseconds() - at) / 1e6
 }
 
 const warm = derive(vault())

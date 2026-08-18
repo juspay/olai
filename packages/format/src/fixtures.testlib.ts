@@ -12,6 +12,14 @@
  * files used to each grow their own copy of this; one copy is what keeps that
  * diagnostic worth reading.
  *
+ * IT SERVES THE BENCHES TOO, and that is one concept rather than two: a
+ * generated corpus, a seeded random source, a median and a clock are what makes
+ * a MEASUREMENT re-runnable, which is the same thing that makes a fixture one.
+ * The alternative was a second helper module beside this one, and the argument
+ * against it is the argument for this one — `seeded` was moved here in the
+ * first place because a test and a benchmark were about to hold byte-identical
+ * copies of it.
+ *
  * Nothing here has tests of its own — it is a helper module, not a suite, and
  * `bun test` collects only `*.test.ts`.
  */
@@ -310,4 +318,28 @@ export const retitled = (text: string, title: string): string => {
     )
   }
   return written
+}
+
+/**
+ * The middle of a run's times, in milliseconds.
+ *
+ * Here for {@link seeded}'s reason once more, and this was the third copy about
+ * to be written: `just bench`'s three legs each measure something different and
+ * each read their times the same way. A MEDIAN rather than a mean or a minimum,
+ * which is a decision the three of them have to share — a mean is dragged by
+ * one scheduling hiccup, and a minimum is a number nobody else's machine
+ * reproduces.
+ */
+export const median = (times: ReadonlyArray<number>): number =>
+  [...times].sort((one, other) => one - other)[Math.floor(times.length / 2)] ?? 0
+
+/** What `run` took, in milliseconds — `Bun.nanoseconds` because it is monotonic
+ *  and because one clock across three legs is one fewer thing that can differ
+ *  between two numbers somebody is comparing. A body that has to hand something
+ *  back writes it to a binding it closes over; the clock stops before the
+ *  binding is read. */
+export const timed = (run: () => void): number => {
+  const at = Bun.nanoseconds()
+  run()
+  return (Bun.nanoseconds() - at) / 1e6
 }

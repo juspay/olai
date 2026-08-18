@@ -38,7 +38,7 @@
  */
 
 import { derive, type Derived, type Located } from "@olai/format"
-import { nodesOf, retitled, vaultOf } from "@olai/format/testlib"
+import { median, nodesOf, retitled, timed, vaultOf } from "@olai/format/testlib"
 import { writeWrappedValue } from "@kolu/surface/solid"
 import { createMemo, createRoot } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -147,9 +147,6 @@ const editOf = (previous: Fold, which: number): Fold => {
   return { byKey, order: previous.order }
 }
 
-const median = (times: ReadonlyArray<number>): number =>
-  [...times].sort((one, other) => one - other)[Math.floor(times.length / 2)] as number
-
 /**
  * One arm, driven and timed.
  *
@@ -170,10 +167,11 @@ const median = (times: ReadonlyArray<number>): number =>
  * print.
  */
 const run = (name: string, end: Arm, probe: Probe): void => {
-  const startedFirst = performance.now()
-  end.write(end.first)
-  const first = end.read()
-  const firstFrame = performance.now() - startedFirst
+  let first: unknown
+  const firstFrame = timed(() => {
+    end.write(end.first)
+    first = end.read()
+  })
   if (probe.records(first) !== records) {
     throw new Error(
       `${name} answered for ${probe.records(first)} records of ${records}` +
@@ -186,10 +184,11 @@ const run = (name: string, end: Arm, probe: Probe): void => {
   for (let which = 0; which < EDITS; which++) {
     const next = editOf(previous, which)
     previous = next
-    const before = performance.now()
-    end.write(next)
-    const answer = end.read()
-    frames.push(performance.now() - before)
+    let answer: unknown
+    frames.push(timed(() => {
+      end.write(next)
+      answer = end.read()
+    }))
     // Off the clock, and about the value the clock was just stopped on.
     const said = probe.edited(answer, fileFor(which))
     if (said !== `edited ${which}`) {

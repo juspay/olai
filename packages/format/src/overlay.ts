@@ -139,6 +139,12 @@ class Layer<K, V extends {}> implements ReadonlyMap<K, V> {
     return this.base.has(key)
   }
 
+  /** The ONE place the layer is read through, which every other reading below
+   *  goes past: what a key answers is one rule, and a second spelling of it
+   *  inside the walk would be a map that iterated to something other than what
+   *  it answers one key at a time. The extra lookup that costs a walk is a
+   *  walk's worth of lookups on an index whose only whole-index reader asks
+   *  for {@link Layer.keys}. */
   get(key: K): V | undefined {
     return this.over.get(key) ?? this.base.get(key)
   }
@@ -152,7 +158,7 @@ class Layer<K, V extends {}> implements ReadonlyMap<K, V> {
   }
 
   *entries(): MapIterator<[K, V]> {
-    for (const [key, value] of this.base) yield [key, this.over.get(key) ?? value]
+    for (const key of this.base.keys()) yield [key, this.get(key) as V]
   }
 
   [Symbol.iterator](): MapIterator<[K, V]> {

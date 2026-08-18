@@ -19,6 +19,11 @@
  *     OFF, so an arm that quietly declined would fail here rather than report
  *     the rebuild's number under the patcher's name.
  *
+ * AND ONE MORE MEASUREMENT under them, because the layer below makes a trade
+ * rather than a saving: a corpus-wide walk of `byId` on each arm's own final
+ * view, which is what a saving in the patch that came straight back out of
+ * every read afterwards would show up as ({@link walked}).
+ *
  * THE PATCHED ARM CARRIES ITS VIEW FORWARD, edit after edit, because that is
  * what both callers do — the write gate patches the last published view, the
  * tab patches the one it is holding — and because it is the only way to see
@@ -37,7 +42,7 @@
  */
 
 import { derive, type Derived } from "./derive.ts"
-import { nodesOf, retitled, vaultOf } from "./fixtures.testlib.ts"
+import { median, nodesOf, retitled, timed, vaultOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
 import { byPath } from "./paths.ts"
 import { patched, type SetDelta } from "./patch.ts"
@@ -90,15 +95,6 @@ const edits = Array.from({ length: EDITS }, (_, which) => editOf(which))
 
 // ── the run ────────────────────────────────────────────────────────────
 
-const median = (times: ReadonlyArray<number>): number =>
-  [...times].sort((one, other) => one - other)[Math.floor(times.length / 2)] as number
-
-const timed = (run: () => void): number => {
-  const at = Bun.nanoseconds()
-  run()
-  return (Bun.nanoseconds() - at) / 1e6
-}
-
 /** What the arm said the edited record's title is now — read back off the
  *  arm's OWN answer, per edit, because an arm that stopped recomputing would
  *  otherwise go on reporting the first revision very fast, which is precisely
@@ -142,13 +138,17 @@ const rebuilt = edits.map(({ file, records: own }, which) => {
 })
 
 /** The patch, with the view carried forward: each edit lands on the view the
- *  one before it left. */
+ *  one before it left. A LOOP rather than the `map` the rebuild arm is, and
+ *  the difference is the measurement: that arm's forty answers are independent
+ *  and this one is a fold, which is the whole reason copy-on-write over a
+ *  session is visible here and not there. */
+const patchedMs: Array<number> = []
 let carried = first
-const patchedMs = edits.map(({ delta }, which) => {
+for (const [which, { delta }] of edits.entries()) {
   let next: Derived | undefined
-  const ms = timed(() => {
+  patchedMs.push(timed(() => {
     next = patched(carried, delta)
-  })
+  }))
   if (next === undefined) {
     throw new Error(
       `patch DECLINED edit ${which} — a benchmark of the incremental answer` +
@@ -157,8 +157,7 @@ const patchedMs = edits.map(({ delta }, which) => {
   }
   carried = next
   said("patch", carried, which)
-  return ms
-})
+}
 
 // THE CARRIED VIEW AGAINST THE ORACLE, once and outside every timed window.
 // Forty patches deep, each layered on the last, is where a copy-on-write bug
