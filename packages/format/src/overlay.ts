@@ -5,11 +5,11 @@
  * on that file — and then paid for a whole `new Map(byId)` anyway, one clone of
  * an entry per record in the directory, so that the revision a reader is
  * holding could not move under them. On a 21,552-record vault that clone was
- * the single largest cost in a patch, 0.6ms of 1.6ms (`docs/brainstorming/
- * model-indices.md`, open question 1). This is the lever that question named: a
- * LAYER over the map the last patch left standing, holding the entries this one
- * changed, so an edit costs what it touched rather than what the directory
- * holds.
+ * HALF of a patch: 1.15ms per patch with it, 0.57ms without (`docs/
+ * brainstorming/model-indices.md`, open question 1). This is the lever that
+ * question named: a LAYER over the map the last patch left standing, holding
+ * the entries this one changed, so an edit costs what it touched rather than
+ * what the directory holds.
  *
  * WHAT IT IS EQUAL TO is the whole of its contract, and it is one line:
  *
@@ -69,13 +69,13 @@
  *
  * ONE INDEX USES THIS, and the other eight the patcher clones stay clones on
  * purpose. `byId` is the corpus-sized one — 21,552 entries against 8,282 for
- * the next largest and a few hundred for most — and cloning it measured 0.6ms
- * of a 1.6ms patch where all eight others together measured 0.5ms
- * (`patch.bench.ts`, on the 1,000-file vault). Six of those eight also DELETE
- * keys across a patch, which a layer that keeps `base`'s key set cannot do. The
- * one that does not — `namedBy` — was left alone deliberately: the validator
- * WALKS it whole ({@link ./validate.ts}'s `checkTargets`), and a walk through
- * the generator below costs more per entry than the 0.1ms clone it would save,
+ * the next largest and a few hundred for most — and cloning it costs 0.47ms
+ * where all eight others together cost 0.38ms (on the 1,000-file vault). Six of
+ * those eight also DELETE keys across a patch, which a layer that keeps
+ * `base`'s key set cannot do. The one that does not — `namedBy` — was left
+ * alone deliberately: the validator WALKS it whole ({@link ./validate.ts}'s
+ * `checkTargets`), and a walk through the generator below costs more per entry
+ * than the 0.05ms clone it would save,
  * where `byId`'s only whole-index reader asks for {@link Layer.keys}, which is
  * the underlying map's own iterator and not a generator at all.
  *
