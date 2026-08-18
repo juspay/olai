@@ -84,6 +84,7 @@ import {
   CHAT_WAITING,
   CHAT_WORKING,
   CHAT_WROTE,
+  expectBefore,
   HYDRATION_TIMEOUT,
   NODE_TITLE,
   nodeSelector,
@@ -1416,15 +1417,13 @@ Then(
 Then(
   "the completion block {string} comes before the block {string}",
   async function (this: OlaiWorld, first: string, second: string) {
-    await this.waitUntil(async () => {
-      const blocks = await this.page
-        .locator(CHAT_COMPLETION_SECTION)
-        .evaluateAll((labels) =>
-          labels.map((label) => label.getAttribute("data-section"))
-        );
-      return blocks.indexOf(first) !== -1 &&
-        blocks.indexOf(first) < blocks.indexOf(second);
-    }, `the "${first}" block to be drawn above the "${second}" block`);
+    await expectBefore(
+      this,
+      this.page.locator(CHAT_COMPLETION_SECTION),
+      "data-section",
+      first,
+      second,
+    );
   },
 );
 

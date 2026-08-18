@@ -9,8 +9,8 @@ import {
   matching,
   parseFilter,
   type Refusal,
-  relativeSpan,
   ranked,
+  relativeSpan,
   shownRecord,
 } from "./filter.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"

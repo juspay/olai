@@ -73,12 +73,11 @@
  */
 
 import {
-  ancestorsOf,
+  ancestorTitles,
   type Derived,
   matching,
   parseFilter,
   ranked,
-  SEARCH_FIELDS,
   type SearchField,
 } from "@olai/format"
 
@@ -139,10 +138,7 @@ export const matchNodes = (
       // an ancestor walk per hit over a common word is a walk per node in the
       // vault, and the shortlist above has already thrown all but eight away.
       // The ops layer answers a hit the same way round, for the same reason.
-      place: nodePlace({
-        file: at.file,
-        path: ancestorsOf(derived, at.node.id).map((crumb) => crumb.node.title),
-      }),
+      place: nodePlace({ file: at.file, path: ancestorTitles(derived, at.node.id) }),
       note: match.field !== null && !SHOWN_ON_THE_ROW.has(match.field),
     }))
 
@@ -154,13 +150,10 @@ export const matchNodes = (
  * already on it. Spelled the other way round, a FIFTH search field would
  * silently become an unexplained row that compiles clean — and `Match.field`'s
  * own doc calls its list "closed" while `Match.props` exists precisely because
- * it has been under pressure. Typed off `SearchField` so a new field is a type
- * error here rather than a quiet default.
+ * it has been under pressure. Typed off `SearchField` so a field this list has
+ * never heard of is a type error here rather than a quiet default.
+ *
+ * The three: the title IS the label, the id is written in the hint, and a tag
+ * is written inside the title — pointed at rather than named.
  */
-const SHOWN_ON_THE_ROW: ReadonlySet<SearchField> = new Set(
-  // The title IS the label, the id is written in the hint, and a tag is written
-  // inside the title — three of the four, pointed at rather than named.
-  (["title", "id", "tag"] as const satisfies ReadonlyArray<
-    (typeof SEARCH_FIELDS)[number]
-  >),
-)
+const SHOWN_ON_THE_ROW: ReadonlySet<SearchField> = new Set(["title", "id", "tag"])

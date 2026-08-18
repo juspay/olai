@@ -98,13 +98,13 @@
 
 import { nodeNamed } from "@olai/format"
 import { ATTACHMENT_EXTENSIONS } from "@olai/surface"
-import { createEffect, createMemo, createSignal, on, Show } from "solid-js"
+import { batch, createEffect, createMemo, createSignal, on, Show } from "solid-js"
 
-import { useToday } from "../today.tsx"
 import type { Written } from "../complete/trigger.ts"
 import { useDerived } from "../derived.tsx"
 import { useServed } from "../served.tsx"
 import { TESTID } from "../testids.ts"
+import { useToday } from "../today.tsx"
 import { armedNodes, disarmNode, releaseArmed, restoreArmed } from "./armed.ts"
 import { Attachments } from "./Attachments.tsx"
 import {
@@ -197,10 +197,12 @@ export function Composer(props: {
    * Deduped with the armed door winning its place: a node armed from a row and
    * then also named in the sentence is one node, and one chip.
    */
-  const subjects = createMemo<ReadonlyArray<string>>(() => {
-    const said = namedIn(draft(), taken())
-    return [...armedNodes(), ...said.filter((id) => !armedNodes().includes(id))]
-  })
+  const subjects = createMemo<ReadonlyArray<string>>(
+    // A `Set` keeps insertion order and the FIRST occurrence wins, which is the
+    // dedupe rule stated above without a filter to spell it (`../edges/named.ts`
+    // leans on the same guarantee).
+    () => [...new Set([...armedNodes(), ...namedIn(draft(), taken())])],
+  )
 
   /** ...as chips: the id is what was armed and what will be sent, and the TITLE
    *  is read out of the live set here — through the format's own rule for what
@@ -433,8 +435,13 @@ export function Composer(props: {
       input.setSelectionRange(next.caret, next.caret)
       input.focus()
     }
-    setDraft(next.text)
-    setCaret(next.caret)
+    // Batched for the reason the box's own `onInput` is: the two signals the
+    // list is a function of are being moved together, and two writes would ask
+    // the directory and the set the same question twice.
+    batch(() => {
+      setDraft(next.text)
+      setCaret(next.caret)
+    })
   }
 
   /**
@@ -560,12 +567,21 @@ export function Composer(props: {
         rows={2}
         placeholder={working() ? "…or say the next thing" : "ask the agent…"}
         value={draft()}
+        // ONE KEYSTROKE IS ONE QUESTION, which is what `batch` buys and it is
+        // not a micro-optimisation: the list is a memo of the draft AND the
+        // caret, both of which every character moves, and Solid does not batch
+        // an event handler — so two writes ran the whole of `offers()` twice
+        // for one key, the second time to the same answer. That was free while
+        // an `@` only matched paths; it is a walk of the set now (measured at
+        // 20k nodes: ~10ms a run, so ~20ms a keystroke against a 16ms frame).
         onInput={(event) => {
-          setDraft(event.currentTarget.value)
-          readCaret()
-          // Typing takes the popover back off the button: what is on screen
-          // should be what the line says, not what a click said a moment ago.
-          setAsked(false)
+          batch(() => {
+            setDraft(event.currentTarget.value)
+            readCaret()
+            // Typing takes the popover back off the button: what is on screen
+            // should be what the line says, not what a click said a moment ago.
+            setAsked(false)
+          })
         }}
         // The caret is the element's own answer, so everything that could have
         // moved it re-reads it — a click into the middle of a sentence arms the

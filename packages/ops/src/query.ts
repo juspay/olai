@@ -21,7 +21,7 @@
  */
 
 import {
-  ancestorsOf,
+  ancestorTitles,
   countedChildren,
   DEFAULT_SEARCH_LIMIT,
   DEFAULT_SUBTREE_DEPTH,
@@ -43,10 +43,10 @@ import {
   type Placed,
   type Placement,
   progressOf,
+  ranked,
   type SearchAnswer,
   type SearchHit,
   type SearchRequest,
-  ranked,
   type Stamps,
   type Subtree,
   tagText,
@@ -102,8 +102,10 @@ import {
  * this layer situates the same node for the same agent. `@olai/server` builds
  * the line that names a node a chat message is ABOUT, and "where does a node
  * live, and what does it hang under" is a question this file already answers —
- * a second `ancestorsOf(…).map(…)` up there would be a second answer, free to
- * drift from the one `read_node` gives about the same id in the same turn.
+ * a second answer to it up there would be free to drift from the one
+ * `read_node` gives about the same id in the same turn. The `.map` those two
+ * shared is the format's own now (`ancestorTitles`), because a THIRD reader
+ * arrived that cannot import this layer at all: the chat composer's `@` row.
  */
 export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
   const status = derived.status.get(located.node.id)
@@ -116,7 +118,7 @@ export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
     // applies to its own absent fields, and an agent reading a corpus of notes
     // should not have to filter a status out of every answer.
     ...(status === undefined ? {} : { status }),
-    path: ancestorsOf(derived, located.node.id).map((crumb) => crumb.node.title),
+    path: ancestorTitles(derived, located.node.id),
     ...carriedOf(located.node),
   }
 }

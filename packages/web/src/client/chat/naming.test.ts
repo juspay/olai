@@ -46,11 +46,13 @@ test("a kind with nothing to offer gives its rows away", () => {
   // files take the whole list. This is the case a cap computed per half before
   // either had answered would have got wrong, since the file half stops walking
   // once its share is full and could not have grown back.
-  expect(kinds("notes/").length).toBe(8)
-  expect(kinds("notes/").every((row) => row.startsWith("file:"))).toBe(true)
+  const folders = kinds("notes/")
+  expect(folders.length).toBe(8)
+  expect(folders.every((row) => row.startsWith("file:"))).toBe(true)
   // ...and the other way round: nothing in the directory is called `about`.
-  expect(kinds("about").every((row) => row.startsWith("node:"))).toBe(true)
-  expect(kinds("about").length).toBe(8)
+  const titled = kinds("about")
+  expect(titled.length).toBe(8)
+  expect(titled.every((row) => row.startsWith("node:"))).toBe(true)
 })
 
 test("a kind that answers short is not padded, and the other one grows", () => {

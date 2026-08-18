@@ -46,6 +46,7 @@ import {
   DESC_EDITOR,
   EDIT_NUDGE,
   EDIT_REFUSAL,
+  expectBefore,
   NEW_ROW,
   NODE,
   nodeSelector,
@@ -395,14 +396,13 @@ Then(
     // Sibling order as the page draws it, which is the `ord` the write
     // produced — read by position rather than by attribute, because "which is
     // above which" is what a reader is looking at.
-    await this.waitUntil(async () => {
-      const ids = await this.page
-        .locator(`${nodeSelector(first)}, ${nodeSelector(second)}`)
-        .evaluateAll((rows) =>
-          rows.map((row) => row.getAttribute("data-node-id") ?? ""),
-        );
-      return ids.indexOf(first) !== -1 && ids.indexOf(first) < ids.indexOf(second);
-    }, `"${first}" to be drawn above "${second}"`);
+    await expectBefore(
+      this,
+      this.page.locator(`${nodeSelector(first)}, ${nodeSelector(second)}`),
+      "data-node-id",
+      first,
+      second,
+    );
   },
 );
 

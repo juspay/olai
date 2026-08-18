@@ -130,7 +130,8 @@ test("a row says it is here for a note, and only then", () => {
     place: "install the cabinets · kitchen remodel",
     note: true,
   })
-  // The other three fields are on the row already: the title IS the label, the
-  // id is written beside it, and a tag is inside the title.
-  expect(matchNodes(SET, "hinges", TODAY, 8)[0]?.note).toBe(false)
+  // The other three fields are on the row already — the title IS the label, the
+  // id is written beside it, a tag is inside the title — so a word found in one
+  // of them owes no explanation. That half is asserted by the whole-row test
+  // above, where `pick the hinges` comes back with `note: false`.
 })

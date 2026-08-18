@@ -188,6 +188,9 @@ export type { HasCustom } from "./custom.ts"
 
 export {
   ancestorsOf,
+  /** The crumbs' titles, outermost first — what every reader of an ancestry
+   *  actually draws, said once. */
+  ancestorTitles,
   byOrd,
   countedChildren,
   derive,

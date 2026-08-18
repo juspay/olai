@@ -196,11 +196,14 @@ export function CompletionMenu(props: {
       <For each={props.rows}>
         {(row, index) => (
           <>
-            {/* The block's own word, over the row that opens it. A `<li>`
-                because a list's children are list items and a reader with a
-                screen reader is told how many there are; not a cursor position,
-                because it is a label rather than something to take. */}
-            <Show when={row.section !== undefined && row.section !== props.rows[index() - 1]?.section}>
+            {/* The block's own word, over the row that opens it — which is
+                any row whose section differs from the one above it, so a list
+                of one kind (the `/` commands, whose rows carry none) draws no
+                heading without being asked about. A `<li>` because a list's
+                children are list items and a reader with a screen reader is
+                told how many there are; not a cursor position, because it is a
+                label rather than something to take. */}
+            <Show when={row.section !== props.rows[index() - 1]?.section}>
               <li
                 class="px-2 pb-0.5 pt-1 font-mono text-[0.625rem] uppercase tracking-wide text-muted"
                 data-testid={TESTID.chatCompletionSection}

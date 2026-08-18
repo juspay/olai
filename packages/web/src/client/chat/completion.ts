@@ -263,10 +263,10 @@ export const unnamed = (text: string, id: string, caret: number): Written => {
   let moved = caret
   for (const found of namesOf(text)) {
     if (found.word !== id) continue
-    // The space the completion wrote after the word, if it is still there.
-    const end = text[found.at + 1 + id.length] === " "
-      ? found.at + 2 + id.length
-      : found.at + 1 + id.length
+    // Past the `@` and the name — then past the space the completion wrote
+    // after it, if it is still there.
+    const said = found.at + 1 + id.length
+    const end = text[said] === " " ? said + 1 : said
     out += text.slice(read, found.at)
     read = end
     if (caret > found.at) moved -= Math.min(caret, end) - found.at
