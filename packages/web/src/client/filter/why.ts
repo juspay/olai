@@ -108,7 +108,7 @@ export const CONTEXT_DIM = (narrowed: Narrowed, id: string): string =>
  * `desc` is the lowest-weighted field the matcher scores, so a `field` of
  * `desc` means no word landed in the title, the id or a tag anywhere in the
  * query: the row is drawing a title with nothing the reader typed in it. That
- * is the row the excerpt exists for (`./excerpt.ts`), and it is the model's own
+ * is the row the excerpt exists for (`../note/excerpt.ts`), and it is the model's own
  * answer rather than a second reading of where the words are.
  *
  * Empty for every other row, which includes a node found by BOTH its title and

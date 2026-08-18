@@ -1,11 +1,21 @@
 /**
- * A note-only hit, as one clamped line.
+ * A note as one clamped line, chosen by a QUERY — ./preview.ts's sibling, and
+ * the reason they are siblings rather than one function with a mode.
+ *
+ * Both answer "this note, as the one dim line that hangs under a title", in
+ * the same slot with the same clamp; they differ in which line, and that is a
+ * real difference rather than a parameter. ./preview.ts reads the TOP of a
+ * note and may tidy it — a preview is about what the note opens with, so
+ * dropping the marks around a word leaves the words. This one is about a
+ * POSITION in one, and dropping characters would move the hit away from the
+ * offsets the matcher found it at; so the marks stay, and what a reader sees
+ * is what the note says around the word they typed.
  *
  * The third of the three things a filtered row has to say. A node matched on
  * its `desc` draws a title holding nothing the reader typed — every word of
  * the reason is behind the ¶ — so the row draws a WINDOW onto the note around
  * the first hit, dim under the title, with the words lit exactly as they are
- * in a title (`./lit.ts`).
+ * in a title (`../filter/lit.ts`).
  *
  * NOT THE WHOLE NOTE, and the alternative is worth naming because it is the
  * obvious one: auto-expanding a matched note. It was ruled out on three counts
@@ -15,18 +25,14 @@
  * reader's own open/closed state, which would then need saving and restoring to
  * put back. A clamped window is the same idea with a bounded cost.
  *
- * PLAIN TEXT, never rendered markdown — `../note/preview.ts`'s ruling, for its
- * reason: this sits under a title, and a heading or a list drawn there would be
- * a note pretending to be a row. What it does NOT do is that file's
- * mark-stripping, and that is the whole difference between them: a preview is
- * about the top of a note and may tidy it, where this is about a POSITION in
- * one, and dropping characters would move the hit away from the offsets the
- * matcher found it at. The marks around a word are what the note says.
+ * PLAIN TEXT, never rendered markdown — ./preview.ts's ruling, inherited for
+ * its reason: this sits under a title, and a heading or a list drawn there
+ * would be a note pretending to be a row.
  */
 
 import { litBy } from "@olai/format"
 
-import { type Run, runsIn } from "./lit.ts"
+import { type Run, runsIn } from "../filter/lit.ts"
 
 /** How much note a hit is read in — wide enough for the phrase around a word,
  *  short enough to stay one line beside a title that is already ellipsized. */

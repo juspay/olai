@@ -24,7 +24,7 @@ import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
 import type { Drawn } from "../page.ts"
-import { excerptOf } from "./excerpt.ts"
+import { excerptOf } from "../note/excerpt.ts"
 import { runsOf } from "./lit.ts"
 import type { Narrowed } from "./narrowed.tsx"
 import { asContext, behindTheMark, lighting } from "./why.ts"

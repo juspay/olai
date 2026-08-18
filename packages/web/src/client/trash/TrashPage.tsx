@@ -160,7 +160,14 @@ function Branch(props: {
     >
       {/* The dim is on the LINE, never on the `<li>`: a pile nests, and an
           item would take every match under this row down with it
-          (`../filter/narrowed.tsx`, `../blocked.ts`). */}
+          (`../filter/why.ts`, `../blocked.ts`).
+
+          TWO of the three things a narrowed row says are drawn here and the
+          third cannot be: a trash row is a title and a `Put back`, with no
+          note body under it (`../NodeBody.tsx` is the tree's and the day's),
+          so there is no ¶ for a note-only hit to be excerpted from. What a
+          reader gets instead is the row and its pile — which is what this page
+          is for. */}
       <div
         class={`group flex min-h-6 items-baseline gap-2 py-0.5 ${
           CONTEXT_DIM(narrowed, shownRecord(props.row).node.id)

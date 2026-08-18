@@ -15,9 +15,9 @@
 
 import { For } from "solid-js"
 
+import { HIT_CLASS, type Run } from "../filter/lit.ts"
 import { TESTID } from "../testids.ts"
 import { ROW_NOTE } from "../touch.ts"
-import { HIT_CLASS, type Run } from "./lit.ts"
 
 export function Excerpt(props: {
   readonly runs: ReadonlyArray<Run>

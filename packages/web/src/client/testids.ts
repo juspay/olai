@@ -154,7 +154,7 @@ export const TESTID = {
   foldedDone: "folded-done",
   desc: "desc",
   /** The one clamped line of a note a filter found the row BY, drawn under the
-   *  title on a row whose only hit is behind its ¶ (`client/filter/
+   *  title on a row whose only hit is behind its ¶ (`client/note/
    *  excerpt.ts`). Absent on every other row, filtered or not — the excerpt is
    *  the reason a row with nothing of the query in its title is in front of
    *  somebody, so drawing it anywhere else would say that of a row it is not
