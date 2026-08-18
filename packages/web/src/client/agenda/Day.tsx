@@ -8,14 +8,22 @@
  * whether something was urgent was making them do the one job it exists for
  * (`agenda-spine`, ruled 2026-08-18).
  *
- * ## What each of the three standings looks like, and why
+ * ## One decision, one table
  *
- *   - LATE — "Yesterday · Mon, Aug 17", alarm ink. The felt word comes FIRST
- *     because it is the news; the calendar day behind it is the detail.
- *   - TODAY — "TODAY · Tue, Aug 18", small caps, accent, and drawn even with
- *     nothing under it (then one muted italic line saying so). Now is a place
- *     on the line, not a section that disappears when the day is clear.
- *   - AHEAD — "Mon, Aug 24" first and a muted "in 6 days" beside it: the day is
+ * WHICH SIDE OF NOW a day is on decides four things about how it is drawn: how
+ * its name is set, whether the felt word leads that name or trails it as a
+ * gloss, which dot marks it, and whether that dot is ringed. Those are four
+ * readings of ONE fact, so they are one row of {@link FACE} rather than four
+ * conditionals down this component — which is what they were, and what a
+ * fourth side of now would have had to find all of.
+ *
+ *   - LATE — "Yesterday · Mon, Aug 17", alarm ink. The felt word LEADS because
+ *     it is the news; the calendar day behind it is the detail.
+ *   - TODAY — "TODAY · Tue, Aug 18", small caps accent, on a bigger dot with a
+ *     paper ring — and drawn even with nothing under it (then one muted italic
+ *     line saying so). Now is a place on the line, not a section that
+ *     disappears when the day is clear.
+ *   - AHEAD — "Mon, Aug 24" first and a muted "in 6 days" BESIDE it: the day is
  *     what a reader is looking for out here, and the distance is the gloss.
  *
  * The whole entry FADES with distance (`Felt.fade`), dot included, so the far
@@ -27,12 +35,12 @@
  *
  * The day pages still group by outline (../day/DayGroups.tsx); this does not.
  * A heading per file over every day was the chrome that outweighed the content
- * four to one — so the groups are read end to end in the order the format put
- * them (path order, then time), and which outline a row lives in is the muted
+ * four to one — so the groups are read end to end (`rowsOn`, where that
+ * decision is written down), and which outline a row lives in is the muted
  * ancestry line under it and the `data-file` on the row.
  */
 
-import { type DayEntry, isOverdue, owedFact, type Standing } from "@olai/format"
+import { isOverdue, owedFact, type Standing } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 
@@ -44,49 +52,74 @@ import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { useToday } from "../today.tsx"
 import {
-  inkOf,
-  lineOf,
-  NOW_RING,
-  type Rung,
   SPINE_CELL,
   SPINE_DOT,
   SPINE_INDENT,
   SPINE_LINE,
   SPINE_NOW,
-} from "./spine.ts"
+} from "./gutter.ts"
+import { inkOf, lineOf, NOW_RING, type Rung, rowsOn } from "./spine.ts"
 
-/** How a day's own name is set, per standing. Small caps and the accent for
- *  now; the alarm for what has gone; the plain heading weight for what is
- *  coming, whose distance rides beside it in the muted voice.
- *
- *  Typed by the format's own vocabulary, so a fourth side of now would be a
- *  type error here rather than a heading drawn with no class on it. */
-const HEADING: Record<Standing, string> = {
-  late: "text-xs font-semibold text-alarm",
-  today: "text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-accent",
-  ahead: "text-xs font-semibold text-ink",
+/** How one side of now is drawn — see the header. Each field is a VALUE the
+ *  markup uses rather than a flag it branches on again, which is what keeps
+ *  this a table instead of a state machine spelled in booleans. */
+interface Face {
+  /** How the day's own name is set. */
+  readonly heading: string
+  /** Which dot marks it (../agenda/gutter.ts). */
+  readonly dot: string
+  /** The ring around it, where it has one. */
+  readonly ring: string | undefined
+  /** Where the felt distance goes: in front of the name, or beside it in the
+   *  muted voice. */
+  readonly distance: "leads" | "beside"
+}
+
+/** Typed by the format's own vocabulary, so a fourth side of now is a type
+ *  error at this table rather than a heading drawn with no class on it. */
+const FACE: Record<Standing, Face> = {
+  late: {
+    heading: "text-xs font-semibold text-alarm",
+    dot: SPINE_DOT,
+    ring: undefined,
+    distance: "leads",
+  },
+  today: {
+    heading:
+      "text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-accent",
+    dot: SPINE_NOW,
+    ring: NOW_RING,
+    distance: "leads",
+  },
+  ahead: {
+    heading: "text-xs font-semibold text-ink",
+    dot: SPINE_DOT,
+    ring: undefined,
+    distance: "beside",
+  },
 }
 
 export function Day(props: {
   readonly rung: Rung
 }) {
   const felt = () => props.rung.felt
+  const face = (): Face => FACE[felt().standing]
   const today = useToday()
   const narrowed = useNarrowed()
-  /** The day's rows, read end to end across its outlines — the order the
-   *  format grouped them in, with the grouping itself left undrawn. */
-  const rows = (): ReadonlyArray<DayEntry> =>
-    props.rung.day.groups.flatMap((group) => group.nodes)
-  /** What a day CALLS itself: the felt word in front for the two standings
-   *  where it is the news, and the calendar day alone for the rest — or for a
-   *  day nothing could count the distance to, where there is no word to put in
-   *  front of it (`@olai/format`'s `Felt`). */
+  const rows = () => rowsOn(props.rung.day)
+  /** What a day CALLS itself: the felt word in front where it is the news, and
+   *  the calendar day alone otherwise — including for a day nothing could
+   *  count the distance to, where there is no word to put in front of it
+   *  (`@olai/format`'s `Felt`). */
   const named = (): string => {
     const distance = felt().distance
-    return felt().standing === "ahead" || distance === undefined
-      ? felt().calendar
-      : `${distance} · ${felt().calendar}`
+    return face().distance === "leads" && distance !== undefined
+      ? `${distance} · ${felt().calendar}`
+      : felt().calendar
   }
+  /** The distance drawn BESIDE the name, where that is where it goes. */
+  const gloss = (): string | undefined =>
+    face().distance === "beside" ? felt().distance : undefined
 
   return (
     // `flow-root` is load-bearing and not a tidy-up: a row carries its own
@@ -130,10 +163,10 @@ export function Day(props: {
         <h2 class="m-0 mb-1.5 flex items-center">
           <span class={SPINE_CELL} aria-hidden="true">
             <span
-              class={felt().standing === "today" ? SPINE_NOW : SPINE_DOT}
+              class={face().dot}
               style={{
                 background: inkOf(felt().tone),
-                ...(felt().standing === "today" ? { "box-shadow": NOW_RING } : {}),
+                ...(face().ring === undefined ? {} : { "box-shadow": face().ring }),
               }}
             />
           </span>
@@ -141,11 +174,11 @@ export function Day(props: {
             {/* The way THROUGH: the day's own page is the fuller answer. */}
             <Link
               route={{ kind: "day", date: props.rung.day.date }}
-              class={`${CRUMB} ${HEADING[felt().standing]}`}
+              class={`${CRUMB} ${face().heading}`}
             >
               {named()}
             </Link>
-            <Show when={felt().standing === "ahead" ? felt().distance : undefined}>
+            <Show when={gloss()}>
               {(distance) => (
                 <span class="shrink-0 text-[0.6875rem] text-muted">
                   {distance()}

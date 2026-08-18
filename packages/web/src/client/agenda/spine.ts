@@ -1,38 +1,21 @@
 /**
- * The line itself: where it runs, what ink it takes, and what a day's stretch
- * of it is made of.
+ * The line itself: what it is made of, and what ink it takes.
  *
  * The agenda is ONE CONTINUOUS SPINE OF TIME — no Overdue / Today / Upcoming
  * boxes — because three boxes gave a task seventy-three days out the same claim
  * on a reader as one due on Monday (`agenda-spine`, ruled 2026-08-18). This
- * file is that line's geometry and its assembly; ./Day.tsx draws one day
- * against it and ./Spine.tsx puts them in order.
- *
- * ## The gutter (arithmetic, once, the way ../touch.ts does it)
- *
- * A rung's left side, left to right:
- *
- *   gutter (2.5rem) · the row's own content
- *
- * and inside the gutter, centred on its middle:
- *
- *   the LINE      2px wide, from 1.25rem − 1px          → centre 1.25rem
- *   a DAY DOT     7px, centred in a 2.5rem cell         → centre 1.25rem
- *   the NOW DOT   11px, same cell, plus a paper ring    → centre 1.25rem
- *
- * Everything is centred in the same cell, so the dots and the line cannot drift
- * apart when one of the three numbers moves — which is the whole reason they
- * are declared together here rather than at the three sites that draw them.
- * Literal class names, never computed ones: Tailwind scans this file as text.
+ * file is that line's assembly and its ink; ./gutter.ts is where it runs,
+ * ./Day.tsx draws one day against it and ./Spine.tsx puts them in order.
  *
  * ## The ink is TOKENS, never values
  *
  * A tone arrives as a palette token's NAME (`@olai/format`'s `Tone`) and
- * becomes `var(--color-…)` here and nowhere else, so all fifteen palettes
- * follow a line drawn once (../theme/palettes.ts). The two places a colour has
- * to be MIXED — the line fading out past the last day, and the ring around now
- * — go through `color-mix` over the same tokens rather than a hex with an
- * alpha on it.
+ * becomes a custom property here — through `../theme/css.ts`'s own
+ * `customProperty`, which is where that namespace is decided, so a renamed one
+ * is a rename there rather than a second spelling here. All fifteen palettes
+ * then follow a line drawn once. The two places a colour has to be MIXED — the
+ * line fading out past the last day, and the ring around now — go through
+ * `color-mix` over the same tokens rather than a hex with an alpha on it.
  *
  * ## Why the line is drawn per DAY and not once down the page
  *
@@ -49,6 +32,7 @@
 import {
   type Agenda,
   type AgendaDay,
+  type DayEntry,
   type Felt,
   feltOn,
   type Quiet,
@@ -56,28 +40,7 @@ import {
   type Tone,
 } from "@olai/format"
 
-/** The gutter the line runs in — what everything to the right of it is
- *  indented by. */
-export const SPINE_INDENT = "pl-10"
-
-/** One cell of that gutter, holding a dot centred on the line. */
-export const SPINE_CELL = "flex w-10 shrink-0 items-center justify-center"
-
-/** The line through one rung. `top-0 bottom-0` over a rung that is `relative`,
- *  so a stretch is exactly as tall as the day it belongs to. */
-export const SPINE_LINE = "absolute left-[calc(1.25rem-1px)] top-0 bottom-0 w-0.5"
-
-/** A listed day, on the line. */
-export const SPINE_DOT = "size-[7px] shrink-0 rounded-full"
-
-/** NOW, on the line: bigger, and ringed in the page's own paper so it reads as
- *  a place rather than as a louder dot. */
-export const SPINE_NOW = "size-[11px] shrink-0 rounded-full"
-
-/** The ring, as the one shadow it is: paper first so the line does not touch
- *  the dot, then the accent at a fifth of its strength. */
-export const NOW_RING = "0 0 0 3px var(--color-paper), " +
-  "0 0 0 4px color-mix(in srgb, var(--color-accent) 35%, transparent)"
+import { tokenValue } from "../theme/css.ts"
 
 /** How much room the line takes before the FIRST day of the page — the stretch
  *  it fades in over, so the page does not open on a line that starts mid-air. */
@@ -90,23 +53,30 @@ export const TAIL = "h-10"
 /** A palette token as a value a style attribute can hold. Absent is the ink of
  *  nothing at all, which is what the line is above its first day. */
 export const inkOf = (tone: Tone | undefined): string =>
-  tone === undefined ? "transparent" : `var(--color-${tone})`
+  tone === undefined ? "transparent" : tokenValue(tone)
+
+/** The ring that makes NOW a place rather than a louder dot: the page's own
+ *  paper first, so the line does not touch the dot, then the accent at a fifth
+ *  of its strength. Ink, not geometry — which is why it is here and the dot's
+ *  size is in ./gutter.ts. */
+export const NOW_RING = `0 0 0 3px ${tokenValue("paper")}, ` +
+  `0 0 0 4px color-mix(in srgb, ${tokenValue("accent")} 35%, transparent)`
 
 /**
  * One day of the line: the day, how it is felt from today, the silence before
  * it, and the ink the line arrives wearing.
  *
  * A RECORD rather than four arguments threaded through the components, because
- * every one of them is a fact about the same day and three of them are
- * computed from the day BEFORE it — which is a thing a component drawing one
- * row cannot see.
+ * every one of them is a fact about the same day and two of them are computed
+ * from the day BEFORE it — which is a thing a component drawing one row cannot
+ * see.
  */
 export interface Rung {
   readonly day: AgendaDay
   readonly felt: Felt
   /** The wait since the day above. For the first rung it is the lead-in, which
    *  is a length and not a silence: there is no earlier day for it to be
-   *  between, so it carries no label. */
+   *  between, so it carries no label and no days. */
   readonly quiet: Quiet
   /** The tone the line is already wearing when it reaches this rung —
    *  `undefined` at the top of the page, where it fades in out of nothing. */
@@ -151,6 +121,24 @@ export const rungsOf = (
     from: felts[index - 1]?.tone,
   }))
 }
+
+/**
+ * The rows one day draws, read end to end across its outlines.
+ *
+ * The chrome cut, as a function: the format groups a day's records by the
+ * outline they live in (`byOutline` — the only heading that is true, since a
+ * `parent` never crosses a file), and this page draws no heading between them,
+ * so the groups are simply concatenated in the order they came. It is HERE
+ * rather than inline in ./Day.tsx because it is the spine's decision and not a
+ * row's: the day pages still draw that heading (../day/DayGroups.tsx), and the
+ * one page that does not should say so somewhere a reader can find it.
+ *
+ * The order survives the flattening — path order, then time within a day — and
+ * that is what makes it safe: nothing is re-sorted here, so the rows a day
+ * lists are the rows the format put in it.
+ */
+export const rowsOn = (day: AgendaDay): ReadonlyArray<DayEntry> =>
+  day.groups.flatMap((group) => group.nodes)
 
 /**
  * The stretch of line one rung paints: the tone it arrived wearing, becoming

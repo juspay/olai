@@ -23,7 +23,8 @@ import { createMemo, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { Day } from "./Day.tsx"
-import { rungsOf, SPINE_LINE, TAIL, tailOf } from "./spine.ts"
+import { SPINE_LINE } from "./gutter.ts"
+import { rungsOf, TAIL, tailOf } from "./spine.ts"
 
 export function Spine(props: {
   readonly agenda: Agenda

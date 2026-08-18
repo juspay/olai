@@ -655,17 +655,21 @@ const calendarOf = (day: string): string => {
     .replace(/^./, (first) => first.toUpperCase())
 }
 
-/** A wait's magnitude, or nothing under a fortnight. Its own banding rather
- *  than {@link spanOf}'s, and the difference is exactly one: a THIRTEEN-day
- *  silence is two quiet weeks, where a day thirteen days out is "in 13 days".
- *  A distance is counted from now and a wait is counted between two things, and
- *  the second rounds sooner because nobody is planning against it. */
+/**
+ * A wait's magnitude, or nothing under a fortnight.
+ *
+ * IT DIFFERS FROM {@link spanOf} IN EXACTLY ONE BAND, and says so by handing
+ * every other one back to it: a THIRTEEN-day silence is two quiet weeks, where
+ * a day thirteen days out is "in 13 days". A distance is counted from now and
+ * somebody is planning against it; a wait is counted between two things and
+ * nobody is, so it rounds to weeks sooner. Past two months the two agree
+ * exactly, which is why the months and the years are not written here twice —
+ * a second copy of a banding is a second chance for one of them to move.
+ */
 const quietSpan = (days: number): Span | undefined => {
   const weeks = Math.round(days / 7)
   if (weeks < 2) return undefined
-  if (days < 60) return counted(weeks, "week")
-  if (days < 550) return halved(days / MONTH_DAYS, "month")
-  return halved(days / YEAR_DAYS, "year")
+  return days < 60 ? counted(weeks, "week") : spanOf(days)
 }
 
 /** The numbers a quiet label writes as WORDS. A silence is prose beside the
