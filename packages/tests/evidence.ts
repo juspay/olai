@@ -345,7 +345,7 @@ const piled = async (page: Page) =>
     '[data-testid="node-title"]',
   )) || "  (nothing)"
 
-const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
+const SECTIONS = {
   /**
    * `set_doing` refusing what the order forbids, on the web's two mark-walking
    * surfaces — the shot being the half a transcript cannot show: the DRAFT is
@@ -1113,7 +1113,19 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     await opened(page, "/o/garden.olai", OUTLINE_TREE)
     await shot(page, "the-node-stays")
   },
-}
+} satisfies Record<string, (page: Page) => Promise<void>>
+
+/**
+ * The name of one — a `string` narrowed to a KEY of the table above, which is
+ * what makes {@link SHAPES} below unable to name a section that is not there.
+ *
+ * `satisfies` rather than an annotation on the table is what leaves the key
+ * type as the section NAMES rather than `string`, and this is the
+ * price: the one place a name arrives as data (the environment) has to ask.
+ */
+type Section = keyof typeof SECTIONS
+const sectionNamed = (name: string): Section | undefined =>
+  name in SECTIONS ? name as Section : undefined
 
 /**
  * What SHAPE of browser a section wants, where the default is not it.
@@ -1139,7 +1151,7 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
  * division this file's opening line already draws: the promises live in the
  * features, and this is what a person looks at.
  */
-const SHAPES: Record<string, Parameters<Browser["newContext"]>[0]> = {
+const SHAPES: Partial<Record<Section, Parameters<Browser["newContext"]>[0]>> = {
   // The browser tests' own handset, to the pixel and the scale factor
   // (`support/hooks.ts`'s `PHONE`): an iPhone 13's 390×844, a touch screen and
   // no mouse. `isMobile` is what makes Chromium honour the shell's viewport
@@ -1156,8 +1168,8 @@ const SHAPES: Record<string, Parameters<Browser["newContext"]>[0]> = {
 }
 
 const main = async () => {
-  const section = SECTIONS[SECTION]
-  if (section === undefined) {
+  const name = sectionNamed(SECTION)
+  if (name === undefined) {
     console.log(Object.keys(SECTIONS).join("\n"))
     return
   }
@@ -1174,14 +1186,14 @@ const main = async () => {
   // be against a context that has one. The browser tests take the same route
   // (`support/hooks.ts`).
   const context = await browser.newContext(
-    SHAPES[SECTION] ?? { viewport: { width: 1100, height: 720 } },
+    SHAPES[name] ?? { viewport: { width: 1100, height: 720 } },
   )
   const page = await context.newPage()
   page.on("pageerror", (error) => console.error("PAGE ERROR", error))
   await page.goto(`${BASE}/o/house.olai`)
   await page.locator('[data-testid="outline-tree"]').first().waitFor()
   await page.waitForTimeout(600)
-  await section(page)
+  await SECTIONS[name](page)
   await browser.close()
 }
 

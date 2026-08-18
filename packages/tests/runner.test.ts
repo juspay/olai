@@ -30,7 +30,7 @@ test("PIN (runner): the suite is handed to bun, not to a shebang", () => {
 });
 
 test("PIN (runner): the file it names is cucumber's entry, and it is there", () => {
-  const entry = testScript.split(/\s+/)[1];
+  const [, entry = ""] = testScript.split(/\s+/);
   expect(entry).toBe("./node_modules/@cucumber/cucumber/bin/cucumber.js");
   // Not just well-spelled: a cucumber upgrade that moves this file has to
   // fail here, in a second, rather than in the e2e leg minutes later.

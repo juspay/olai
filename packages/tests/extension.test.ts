@@ -172,5 +172,5 @@ test("docs/format.md says it only on the lines the grant was written for", () =>
     .split("\n")
     .filter((line) => /\.jsonl/i.test(line))
     .map((line) => line.trim());
-  expect(said).toEqual(FORMAT_MD_LINES);
+  expect(said).toEqual([...FORMAT_MD_LINES]);
 });
