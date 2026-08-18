@@ -44,7 +44,7 @@ import { debounce } from "@solid-primitives/scheduled"
 import { createMemo, createSignal, onCleanup, Show } from "solid-js"
 
 import { AUTOSAVE_IDLE } from "../edit/autosave.ts"
-import { keyHandler } from "../edit/RowEditor.tsx"
+import { keyHandler } from "../keying.ts"
 import { serial } from "../edit/queue.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { Mde } from "../mde/Mde.tsx"

@@ -59,9 +59,6 @@ export interface MdeProps {
   /** The accessible name, for the editor that is a control on a page rather
    *  than a line inside a row. */
   readonly label?: string
-  /** Where the caret goes when this editor OPENS. Absent is the end of the
-   *  text, which is what clicking into a note means. */
-  readonly caret?: number
   /** A counter whose every bump means "take the caret back" — the row
    *  editor's, after an op that redrew the row the key was pressed in. */
   readonly take?: () => number
@@ -71,10 +68,19 @@ export interface MdeProps {
   readonly grows?: boolean
 }
 
+/** Where the caret is, as the two faces hand it to each other — the one thing
+ *  neither of them can read off the other, since only one of them is in the
+ *  document at a time. It is not a `MdeProps` field: no CALLER has an opinion
+ *  about where a caret opens in prose (the two that do are a split and a merge,
+ *  and those are a title's), so a prop for it would be a knob nobody turns. */
+interface Placed {
+  readonly caret?: number
+}
+
 export function Mde(props: MdeProps) {
-  // Where the caret was in the face being replaced. Seeded with what the
-  // caller asked for, which is the answer for the face that mounts first.
-  const [where, setWhere] = createSignal(props.caret)
+  // Where the caret was in the face being replaced — the end of the text until
+  // something has moved it, which is what opening a note means.
+  const [where, setWhere] = createSignal<number | undefined>(undefined)
 
   return (
     <Show
@@ -94,7 +100,7 @@ export function Mde(props: MdeProps) {
  * re-creating one because a prop changed would throw away the selection, the
  * undo history and the composition in flight.
  */
-function Live(props: MdeProps) {
+function Live(props: MdeProps & Placed) {
   let host!: HTMLDivElement
   let editor: Mounted | undefined
   /** This editor is being taken out of the document — see {@link left}. */
@@ -123,8 +129,7 @@ function Live(props: MdeProps) {
       mounted.destroy()
     })
     // Opening puts the caret at the end of the text — a click into a note
-    // means "carry on writing" — unless the caller has an opinion, which only
-    // a split or a merge ever has.
+    // means "carry on writing" — or where the face this replaced had left it.
     mounted.focus(props.caret ?? props.text.length)
   })
 
@@ -156,7 +161,7 @@ function Live(props: MdeProps) {
  * and it is what a reader gets while the chunk is in the air, so it keeps
  * every behaviour it had, the growing box included.
  */
-function Plain(props: MdeProps & { readonly onCaret?: (at: number) => void }) {
+function Plain(props: MdeProps & Placed & { readonly onCaret: (at: number) => void }) {
   let element!: HTMLTextAreaElement
   /** This textarea is being taken out of the document — see {@link left}. */
   let leaving = false
@@ -164,7 +169,7 @@ function Plain(props: MdeProps & { readonly onCaret?: (at: number) => void }) {
     leaving = true
   })
 
-  const read = (): void => props.onCaret?.(element.selectionStart ?? 0)
+  const read = (): void => props.onCaret(element.selectionStart ?? 0)
 
   onMount(() => {
     const at = props.caret ?? element.value.length

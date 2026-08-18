@@ -47,10 +47,8 @@ import { createEffect, createSignal, on, Show } from "solid-js"
 import { createCompletion } from "../complete/completing.tsx"
 import type { Draft } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
-import { type Caret, type EditAction, type EditField, editKey, heldByVim } from "../keys.ts"
 import { Mde } from "../mde/Mde.tsx"
 import { SaidLine } from "./SaidLine.tsx"
-import { vimEditing } from "../settings/vim.ts"
 import { TESTID } from "../testids.ts"
 import { ROW_NOTE as AS_NOTE, ROW_TITLE } from "../touch.ts"
 
@@ -256,69 +254,6 @@ export function Said(props: { readonly draft: Draft }) {
 /** Where a said line sits under a row's editor — the caller's half of
  *  {@link SaidLine}, which owns the mood and not the layout. */
 const SAID_BOX = "mt-0.5 mb-1 text-[0.8125rem] leading-snug"
-
-/**
- * The key handler a row's editor wants: read the key against the map, and let
- * the field have anything the map does not claim.
- *
- * Here rather than in each component because "which keys are the editor's" is
- * one question with one answer (../keys.ts) and two copies of the
- * `preventDefault` would be two chances to leave `Tab` moving focus out of the
- * outline.
- *
- * It is also the ONE place the caret is read off the DOM, and that is the whole
- * reason {@link Caret} is a value: two of the keys mean different things
- * depending on where in the line they were pressed (`Enter` splits mid-text,
- * `Backspace` merges at offset zero), and everything on either side of this
- * function — the matcher above it, the editor below it — is testable without a
- * browser because neither of them touches an element.
- *
- * WHETHER THIS IS A VIM EDITOR is read here too, from the preference, and
- * handed to the map — which is what decides `Escape` (`../keys.ts` argues it).
- * Only a prose field can be one: a title is one line in an `<input>`, and vim
- * over a single-line field is a mode nobody asked for. Read inside the handler
- * rather than closed over, so a person who turns the preference on while a
- * note is open gets the answer the editor beside them already has.
- */
-export const keyHandler = (
-  field: EditField,
-  press: (action: EditAction, at?: Caret) => void,
-) =>
-(event: KeyboardEvent): void => {
-  // Not in a NOTE, where the matcher answers before it would ever look
-  // (../keys.ts: a note is prose, and the keys that edit a row are the row's).
-  // Reading it anyway would materialise the whole editor's value per keystroke
-  // to take its length — a prose block, on the one field that can be long.
-  const at = field === "line" ? caretOf(event.currentTarget) : undefined
-  const vim = field !== "line" && vimEditing()
-  const action = editKey(event, field, at, vim)
-  if (action === null) {
-    // Nothing of the app's — and for one key that is not the same as nobody's.
-    // A vim editor's `Escape` is the mode switch, and the panels that shut on
-    // Escape listen on the document (`../dismiss.ts`), so it has to stop here
-    // or it folds the row the editor is inside.
-    if (heldByVim(event, vim)) event.stopPropagation()
-    return
-  }
-  event.preventDefault()
-  // Stop it there: the palette listens on the window, and an outline key that
-  // also reached a global handler would be one keystroke doing two things.
-  event.stopPropagation()
-  press(action, at)
-}
-
-/** The selection in the field a key was pressed in, or `undefined` for
- *  anything that is not one — which is not a case a row's editor reaches, and
- *  is answered rather than asserted because a handler that threw would take a
- *  keystroke down with it. */
-const caretOf = (target: EventTarget | null): Caret | undefined => {
-  if (!(target instanceof HTMLInputElement) && !(target instanceof HTMLTextAreaElement)) {
-    return undefined
-  }
-  const { selectionStart, selectionEnd, value } = target
-  if (selectionStart === null || selectionEnd === null) return undefined
-  return { start: selectionStart, end: selectionEnd, text: value }
-}
 
 /**
  * Take the caret when the editor opens, and take it BACK whenever the editor
