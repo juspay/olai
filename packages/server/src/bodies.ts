@@ -169,18 +169,16 @@ export const make = (
       // subscription. That is where a release function's idempotence went — a
       // scope cannot run its finalizer twice, so there is no flag to remember.
       held: (path) =>
-        Effect.asVoid(
-          Effect.acquireRelease(
+        Effect.acquireRelease(
+          Effect.sync(() => {
+            holders.set(path, (holders.get(path) ?? 0) + 1)
+          }),
+          () =>
             Effect.sync(() => {
-              holders.set(path, (holders.get(path) ?? 0) + 1)
+              const count = holders.get(path) ?? 0
+              if (count > 1) holders.set(path, count - 1)
+              else holders.delete(path)
             }),
-            () =>
-              Effect.sync(() => {
-                const count = holders.get(path)
-                if (count !== undefined && count > 1) holders.set(path, count - 1)
-                else holders.delete(path)
-              }),
-          ),
         ),
       unread: (paths) => {
         for (const path of paths) if (holders.has(path)) ask(path)

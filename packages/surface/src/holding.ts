@@ -109,8 +109,7 @@ export const holding = (
       Effect.map(hold(payload.key), () => answer(payload) as Stream.Stream<unknown, unknown>),
     )
 
-  const reported = emptyHandlers()
-  for (const [at, handler] of Object.entries(handlers)) reported[at] = handler
-  reported[tag] = held
-  return reported
+  // Onto a null-prototype record rather than into a literal, for the reason
+  // above; `Object.assign` copies the own keys and inherits nothing.
+  return Object.assign(emptyHandlers(), handlers, { [tag]: held })
 }
