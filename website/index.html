@@ -799,10 +799,9 @@ The corner unit is the **risky one** — see
     retiring one placement of a mirrored node, moving a subtree to the Trash —
     it asks first, and says how many rows go with it — and copying the subtree
     as tab-indented plain text. Those go on the same undo stack, so ⌘Z takes a
-    menu edit back too — all but the retire, which is the one write with no
-    inverse to record: taking it back would mean minting that placement’s own
-    id again in the slot it sat in, and <code>((</code> is how it comes back
-    instead. There is no delete: the Trash keeps the subtree whole,
+    menu edit back too — all but the retire, which has no ⌘Z at all, and
+    <code>((</code> is how that line comes back instead.
+    There is no delete: the Trash keeps the subtree whole,
     ids and all — on disk it is an <code>Archive.olai</code> beside the outline
     it left, which is why nothing that pointed at it breaks — and the sidebar’s
     Trash is where you read it, with <em>Put back</em> on the rows that were put

@@ -20,6 +20,11 @@ import { BROWSER_ARGS } from "./support/browser.ts"
 const BASE = process.env["BASE"] ?? "http://127.0.0.1:7788"
 const OUT = process.env["SHOTS"] ?? "."
 const SECTION = process.env["SECTION"] ?? ""
+/** The COPY `evidence.sh` made and is serving — where a section reads a record
+ *  back off the disk, and where the one section that provokes a refusal writes
+ *  one. Absent when this file is run by hand against a server somebody else
+ *  started, which the two helpers below answer for in their own ways. */
+const VAULT = process.env["VAULT"]
 
 let shots = 0
 const shot = async (page: Page, name: string) => {
@@ -141,6 +146,10 @@ const atTheEdge = async (page: Page, x: number): Promise<void> => {
 
 const SETTLE = 1800
 
+/** How wide every section is photographed — the one number both the default
+ *  window and {@link PANEL_FITS} are built from. */
+const WIDE = 1100
+
 // ── the edge panel, and what a record says afterwards ──────────────────
 
 const EDGE_PANEL = '[data-testid="edge-panel"]'
@@ -177,6 +186,13 @@ const TRASH_VERB = '[data-testid="node-menu-panel"] >> text=Move to Trash'
  *  (`client/menu/verbs.ts`). Spelled beside it because the pair is the claim:
  *  a placement is retired, a node is put away, and no row is offered both. */
 const PLACEMENT_VERB = '[data-testid="node-menu-panel"] >> text=Remove this placement'
+
+/** What the panel SAYS afterwards, in its two moods, and the question the one
+ *  verb with a blast radius asks first — named here for the reason every other
+ *  selector in this file is: a testid renamed in the client is one line to
+ *  follow rather than six spellings to grep. */
+const MENU_SAID = '[data-testid="node-menu-said"]'
+const MENU_CONFIRM = '[data-testid="node-menu-confirm"]'
 
 /** Every entry an open panel is offering, in the order it offers them — what a
  *  shot of a menu says in a line, so a section can print the pair above being
@@ -223,15 +239,14 @@ const opened = async (page: Page, path: string, marker: string) => {
  * guess, since a shot beside an invented line is worse than a shot alone.
  */
 const recordOf = (id: string): string => {
-  const vault = process.env["VAULT"]
-  if (vault === undefined) return "(no VAULT; run through evidence.sh)"
-  for (const file of readdirSync(vault)) {
+  if (VAULT === undefined) return "(no VAULT; run through evidence.sh)"
+  for (const file of readdirSync(VAULT)) {
     // Which files hold records is the format's answer, not a suffix retyped
     // here — the same arrangement `step_definitions/` has with `MARKS`, and for
     // the same reason: this package and `@olai/format` never otherwise meet, so
     // a disagreement between them is silent.
     if (fileKind(file) !== "outline") continue
-    for (const line of readFileSync(`${vault}/${file}`, "utf8").split("\n")) {
+    for (const line of readFileSync(`${VAULT}/${file}`, "utf8").split("\n")) {
       if (line.includes(`"id":"${id}"`)) return `${file} — ${line}`
     }
   }
@@ -252,9 +267,8 @@ const recordOf = (id: string): string => {
  * helper can simply not have.
  */
 const rewrite = (file: string, records: ReadonlyArray<string>): void => {
-  const vault = process.env["VAULT"]
-  if (vault === undefined) throw new Error("no VAULT; run through evidence.sh")
-  writeFileSync(`${vault}/${file}`, records.map((one) => `${one}\n`).join(""))
+  if (VAULT === undefined) throw new Error("no VAULT; run through evidence.sh")
+  writeFileSync(`${VAULT}/${file}`, records.map((one) => `${one}\n`).join(""))
 }
 
 // ── the filter over the page ───────────────────────────────────────────
@@ -372,9 +386,9 @@ const SECTIONS = {
     await page.waitForTimeout(200)
     await openMenu(page, "install")
     await page.locator('[data-testid="node-menu-panel"] >> text=Mark doing').first().click()
-    await page.locator('[data-testid="node-menu-said"]').first().waitFor()
+    await page.locator(MENU_SAID).first().waitFor()
     await page.waitForTimeout(200)
-    console.log(`  the ••• menu says:        ${await textOf(page, '[data-testid="node-menu-said"]')}`)
+    console.log(`  the ••• menu says:        ${await textOf(page, MENU_SAID)}`)
     console.log(`  and the file still says:  ${recordOf("install")}`)
     await shot(page, "menu-refused")
   },
@@ -1036,8 +1050,8 @@ const SECTIONS = {
     console.log(`  the menu offers: ${await verbsOf(page)}`)
     await shot(page, "the-entry")
     await page.locator(TRASH_VERB).first().click()
-    await page.locator('[data-testid="node-menu-confirm"]').first().waitFor()
-    console.log(`  it asks: ${await textOf(page, '[data-testid="node-menu-confirm"]')}`)
+    await page.locator(MENU_CONFIRM).first().waitFor()
+    console.log(`  it asks: ${await textOf(page, MENU_CONFIRM)}`)
     await shot(page, "asks")
     await page.locator(TRASH_VERB).first().click()
     await page.waitForTimeout(SETTLE)
@@ -1069,24 +1083,30 @@ const SECTIONS = {
     console.log(`  the menu offers: ${await verbsOf(page)}`)
     await shot(page, "on-the-placement")
 
-    // Another hand points a `see` at the PLACEMENT rather than at the node it
-    // shows — the one shape the op refuses. `install` going is the frame that
-    // says the write ARRIVED at this tab, which is the half a reload would
-    // hide; the reload after it is the driver's own hygiene, not a claim —
-    // this row is holding an open menu, and re-pressing the `•••` of a row
-    // whose panel is up is the gesture that SHUTS one.
+    // ANOTHER HAND points a `see` at the PLACEMENT rather than at the node it
+    // shows — the one shape the op refuses, and the same three lines
+    // `menu_verbs.feature` writes for the same scenario. Whole file rather
+    // than one patched record, for that reason and one more: the sentence
+    // below names two rows, and a shot of exactly those two rows is a better
+    // reading of it than the same sentence under twenty.
+    //
+    // Escape, then `install` GOING, is what says the write arrived at this
+    // tab: the panel from the shot above is still up (a second press of a
+    // `•••` shuts one rather than opening it), and the row that leaves is the
+    // frame the menu below can be opened on.
     rewrite("house.olai", [
       `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
       `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","see":["kitchen-herbs"]}`,
       `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
     ])
+    await page.keyboard.press("Escape")
     await page.locator(row("install")).first().waitFor({ state: "detached" })
-    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await page.waitForTimeout(DRAWN)
 
     await openMenu(page, "kitchen-herbs")
     await page.locator(PLACEMENT_VERB).first().click()
-    await page.locator('[data-testid="node-menu-said"]').first().waitFor()
-    console.log(`  it says: ${await textOf(page, '[data-testid="node-menu-said"]')}`)
+    await page.locator(MENU_SAID).first().waitFor()
+    console.log(`  it says: ${await textOf(page, MENU_SAID)}`)
     console.log(`  untouched: ${recordOf("kitchen-herbs")}`)
     await shot(page, "refused")
 
@@ -1127,6 +1147,13 @@ type Section = keyof typeof SECTIONS
 const sectionNamed = (name: string): Section | undefined =>
   name in SECTIONS ? name as Section : undefined
 
+/** A window tall enough for the whole `•••` panel: fifteen entries opened off a
+ *  row partway down the page is more than the default leaves room for, and a
+ *  shot that clips the verb it is about says nothing. The WIDTH is the
+ *  default's, so the two sections that ask for this differ from every other one
+ *  in exactly the dimension the panel needs. */
+const PANEL_FITS = { viewport: { width: WIDE, height: 1000 } }
+
 /**
  * What SHAPE of browser a section wants, where the default is not it.
  *
@@ -1162,9 +1189,10 @@ const SHAPES: Partial<Record<Section, Parameters<Browser["newContext"]>[0]>> = {
     hasTouch: true,
     isMobile: true,
   },
-  // The two sections ABOUT the menu, in a window the whole panel fits in.
-  "move-to-trash-from-the-menu": { viewport: { width: 1100, height: 1000 } },
-  "retire-a-placement": { viewport: { width: 1100, height: 1000 } },
+  // The two sections ABOUT the menu, in a window the whole panel fits in — one
+  // name for it, so the third one does not copy a third literal.
+  "move-to-trash-from-the-menu": PANEL_FITS,
+  "retire-a-placement": PANEL_FITS,
 }
 
 const main = async () => {
@@ -1186,7 +1214,7 @@ const main = async () => {
   // be against a context that has one. The browser tests take the same route
   // (`support/hooks.ts`).
   const context = await browser.newContext(
-    SHAPES[name] ?? { viewport: { width: 1100, height: 720 } },
+    SHAPES[name] ?? { viewport: { width: WIDE, height: 720 } },
   )
   const page = await context.newPage()
   page.on("pageerror", (error) => console.error("PAGE ERROR", error))

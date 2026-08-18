@@ -8,7 +8,7 @@
   // suite's, and the TypeScript side re-exports it.
   //
   // `*.ts` is the package ROOT, and it is here because it was missing: the
-  // unit tests beside this file and the three DRIVERS (`evidence.ts`,
+  // unit tests beside this file and the four DRIVERS (`evidence.ts`,
   // `wire.ts`, `shot.ts`, `underload.ts`) are TypeScript that the `typecheck`
   // leg was not reading, so a rename inside one of them failed in a lane —
   // or in a screenshot nobody could take — rather than in a second here.
