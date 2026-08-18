@@ -227,16 +227,22 @@ export type EditAction =
   | "selectAll"
 
 /**
- * Which field is being edited, because two of these keys mean different things
- * in a note than on a title.
+ * Which field is being edited, because these keys mean different things in a
+ * note than on a title, and different things again in a whole document.
  *
  *   - `line` — the title: one verbatim line, so `Enter` is "next row" and the
  *     arrows are "next row" too.
  *   - `block` — the note: prose, so `Enter` is a newline and the arrows move
  *     the caret. Only `Shift+Enter` (close it) and `Escape` (abandon it) are
- *     this layer's, and everything else is the textarea's own.
+ *     this layer's, and everything else is the editor's own.
+ *   - `doc` — a whole document: prose that is not inside a row at all, so
+ *     `Shift+Enter` is a newline like any other and `Escape` is the only key
+ *     this layer claims. It is here rather than in a matcher of the document
+ *     editor's own for the reason this whole file exists — a key claimed in
+ *     two places is a key two files disagree about, silently, in a browser,
+ *     while somebody is typing.
  */
-export type EditField = "line" | "block"
+export type EditField = "line" | "block" | "doc"
 
 /**
  * Where the caret is in the field the key was pressed in, and what that field
@@ -260,6 +266,26 @@ export interface Caret {
   readonly text: string
 }
 
+/**
+ * THE THIRD ANSWER a keystroke can have: not the app's, not nobody's — the
+ * EDITOR'S, and the editor is going to use it.
+ *
+ * There is exactly one today, and it is vim's `Escape` ({@link editKey} argues
+ * why). It has to be an answer rather than a decline, because the two are not
+ * the same at the call site: a key the map declines is left alone and travels
+ * on, and `Escape` travelling on reaches the listener that shuts the panels
+ * this client draws itself (`dismiss.ts`) — which for a note is the row it is
+ * being typed in. So "nobody's" would fold the row a vim editor is inside,
+ * which is the same "thrown out of what you were writing" the decline exists
+ * to prevent.
+ *
+ * A value in the same union rather than a second predicate beside it: a caller
+ * that has to remember to ask a SECOND function, with the same arguments, is a
+ * caller that can forget — and forgetting compiles.
+ */
+export const HELD = "held"
+export type Held = typeof HELD
+
 export const editKey = (
   event: KeyboardEvent,
   field: EditField,
@@ -268,10 +294,32 @@ export const editKey = (
    *  goes on opening the next line, `Backspace` stays the field's own, and
    *  `⌘A` stays the platform's. */
   at?: Caret,
-): EditAction | null => {
+  /**
+   * WHETHER THIS EDITOR IS A VIM EDITOR — the one thing this map has to know
+   * about a preference (`settings/vim.ts`).
+   *
+   * Inside a vim editor `Escape` is the mode switch: it is the key that means
+   * "stop inserting", pressed dozens of times a minute, and an app that also
+   * read it as "abandon what you were typing" would throw a person out of the
+   * editor every time their hands did the thing vim taught them. So the map
+   * hands it to the editor, and says so with {@link HELD}.
+   *
+   * It is said HERE, in the registry, and that is the whole point of the
+   * parameter: the alternative is a guard in the editor component that
+   * swallows the key before this file is asked, which is exactly the private
+   * matcher this file exists to make impossible. Nothing else moves — a vim
+   * editor is still a text field, so the reserved chords are still
+   * `whileEditing: false`, and `Shift+Enter` still closes a note.
+   */
+  vim = false,
+): EditAction | Held | null => {
   // Order matters: every branch below is a more specific reading of a key a
   // later branch also matches, and the modifiers are what tell them apart.
-  if (event.key === "Escape") return "cancel"
+  if (event.key === "Escape") return vim ? HELD : "cancel"
+  // A DOCUMENT is not a row, so nothing below this line is about it: it has no
+  // note to open, no sibling to make, no mark to walk. `Escape` above is the
+  // whole of what this layer claims there.
+  if (field === "doc") return null
   // The NOTE is `Shift+Enter` and nothing else on top of it — the bare pair.
   // Adding Ctrl or Meta makes it the mark walk, one branch down, which is why
   // this test names the two modifiers it must not see rather than letting an

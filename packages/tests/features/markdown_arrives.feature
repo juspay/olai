@@ -36,24 +36,45 @@ Feature: The markdown pipeline arrives when it is needed
     And the page requested nothing off this server
     And there should be no page errors
 
+  # BOTH CHUNKS HELD, and the second one is why these read the way they do. A
+  # `.md` page's body is the live-preview EDITOR now, which is a chunk of its
+  # own and draws the file's marks itself — so the state where a document is a
+  # box of its own source is the state where NEITHER has landed. Which is the
+  # honest thing to pin: the promise is that nothing about reading a document
+  # waits on a fetch, and the two chunks are the two fetches.
   @corpus:good
   Scenario: While it is on its way, the document is its own text
-    Given the markdown pipeline is held up
+    Given the markdown editor never arrives
+    And the markdown pipeline is held up
     When I open the document "finishes.md"
     Then the document shows its own markdown source
     When the markdown pipeline arrives
     Then the document renders bold text "matte"
-    And there should be no page errors
 
   # A renderer that never comes is a page that must still be readable, and must
   # say what happened. There ARE page errors in this one — the failed fetch is
   # reported in the console, deliberately — so the usual step is absent.
   @corpus:good
   Scenario: If it never comes, the page says so and keeps the text
-    Given the markdown pipeline never arrives
+    Given the markdown editor never arrives
+    And the markdown pipeline never arrives
     When I open the document "finishes.md"
     Then the document says its renderer never came
     And the document shows its own markdown source
+
+  # ...and with the editor's own chunk in hand, a document does not wait for the
+  # pipeline at all: the body is drawn, and the CONTENTS is the one thing the
+  # pipeline is still asked for (`client/document/DocEditor.tsx`).
+  @scratch:good
+  Scenario: A document with no pipeline is still read and written
+    Given the markdown pipeline never arrives
+    When I open the document "finishes.md"
+    Then the document renders bold text "matte"
+    And there is no contents on the page
+    When I start editing the document
+    And I type " Typed with no renderer at all."
+    And the document autosaves
+    Then "finishes.md" holds the text " Typed with no renderer at all."
 
   # Titles are the case that decides whether an outline pays for markdown at
   # all: a plain one is drawn immediately, and one with marks in it shows what

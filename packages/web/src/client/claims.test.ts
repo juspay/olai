@@ -202,12 +202,12 @@ test("a row's line is marked in exactly the module that reads it and the tree th
 // SAME FILE apart, which is a view this app can draw and therefore a place its
 // identifiers stop being unique. A `Row.key` is a chain from the roots of ITS
 // page (the two row gestures measure through one door, `drag/lines.ts`), and a
-// markdown heading's id is minted from the heading (`document/faces.tsx` scrolls
-// under its own pane's root). A fifth file spelling it is a new reader, which is
-// a new answer to "which page is this in".
+// markdown heading's id is minted from the heading (`document/DocEditor.tsx`
+// scrolls under its own pane's root). A fifth file spelling it is a new reader,
+// which is a new answer to "which page is this in".
 test("a pane's index is drawn by the workspace and read where two panes must be told apart", () => {
   expect(filesSpelling(/data-pane/)).toEqual([
-    path.join("document", "faces.tsx"),
+    path.join("document", "DocEditor.tsx"),
     path.join("drag", "lines.ts"),
     path.join("pane", "PageView.tsx"),
     path.join("pane", "Panes.tsx"),
@@ -304,6 +304,58 @@ test("nothing outside the menu's chunk imports the menu's chunk", () => {
     [path.join("menu", "Panel.tsx"), [path.join("menu", "Dropdown.tsx")]],
     [path.join("menu", "Confirm.tsx"), [path.join("menu", "Panel.tsx")]],
   ])
+})
+
+// mde/chunk.ts's claim, which is the menu's one folder over and about four
+// times the bytes: CodeMirror, its markdown grammar, the live-preview plugins
+// and vim are ~700 kB, and a reader looking at an outline has asked for none
+// of it. The split is a fact about the module GRAPH and nothing in the source
+// looks wrong on the day it is undone — one static `import` of
+// `mde/codemirror.ts` from a file the entry reaches (an `import type` for the
+// handle's shape is exactly how it would happen) and the bundler inlines the
+// whole graph again while every test still passes and every pixel is where it
+// was.
+//
+// The expectation is the chunk's own SHAPE, as a table: `codemirror.ts` is
+// reached only by the `import(...)` in `mde/chunk.ts`, which carries no `from`
+// and is the split itself, and the two files behind it are imported by it
+// alone. `mde/Mde.tsx` — which is first-paint code, since the textarea it
+// falls back to is the editor until the chunk lands — names none of them, and
+// derives the handle's type from the chunk's accessor for that reason.
+//
+// TESTS ARE NOT IN THE SCAN, and that is the one difference from the sweep
+// above: `mde/tags.test.ts` imports the module it tests, as it must, and a
+// test file is never in any bundle.
+const EDITOR_CHUNK = ["codemirror.ts", "links.ts", "separator.ts", "tags.ts", "theme.ts"]
+  .map((one) => path.join("mde", one))
+
+test("nothing outside the editor's chunk imports the editor's chunk", () => {
+  const importers = new Map(EDITOR_CHUNK.map((one) => [one, [] as string[]]))
+  for (const source of SOURCES) {
+    if (/\.test\.tsx?$/.test(source.file)) continue
+    for (const target of importsOf(source)) importers.get(target)?.push(source.file)
+  }
+  expect([...importers].map(([file, from]) => [file, from.sort()])).toEqual([
+    [path.join("mde", "codemirror.ts"), []],
+    [path.join("mde", "links.ts"), [path.join("mde", "codemirror.ts")]],
+    [path.join("mde", "separator.ts"), [path.join("mde", "codemirror.ts")]],
+    [path.join("mde", "tags.ts"), [path.join("mde", "codemirror.ts")]],
+    [path.join("mde", "theme.ts"), [path.join("mde", "codemirror.ts")]],
+  ])
+})
+
+// ...and the other edge of the same claim, which is how it would be undone
+// without naming a file of the chunk at all: a static import of CodeMirror
+// itself, or of the plugins, from anywhere the entry reaches. The three files
+// of the chunk are the only ones allowed to say those names.
+test("only the editor's chunk names CodeMirror", () => {
+  expect(filesSpelling(/@codemirror\/|@retronav\/ixora|@replit\/codemirror-vim/))
+    .toEqual([
+      path.join("mde", "codemirror.ts"),
+      path.join("mde", "links.ts"),
+      path.join("mde", "tags.ts"),
+      path.join("mde", "theme.ts"),
+    ])
 })
 
 // dismiss.ts's claim — the two gestures that shut a panel are spelled in ONE

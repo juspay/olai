@@ -74,6 +74,17 @@ export function Toc(props: {
    *  one's. See the note above. */
   readonly file: string
   readonly headings: readonly Heading[]
+  /**
+   * Also take the jump, because the browser cannot always make it.
+   *
+   * A document page is an EDITOR now (../document/DocEditor.tsx) and an editor
+   * mints no anchors for a fragment to find, so the page scrolls its own
+   * surface to that heading. The click is NOT taken from the browser: the
+   * address must go on naming the section — that is what a contents line IS,
+   * and it is the half a reader copies — and a fragment naming nothing is
+   * exactly what the platform already does nothing about.
+   */
+  readonly onGo?: (heading: Heading) => void
 }) {
   // Re-based against the shallowest heading the document actually has: a note
   // whose top level is `##` is not a document indented one step, and a
@@ -113,12 +124,17 @@ export function Toc(props: {
             <For each={props.headings}>
               {(heading) => (
                 <li style={{ "padding-left": `${(heading.depth - base()) * INDENT_REM}rem` }}>
-                  {/* A plain `<a href="#…">`, not a `<Link>`: this goes
-                      nowhere — it is the same page, and the fragment is the
-                      browser's own job. Intercepting it would be this app
-                      re-implementing a scroll the platform already does, and
-                      losing the address a reader can copy. */}
-                  <a href={`#${heading.id}`} class={LINE} data-testid={TESTID.tocLink}>
+                  {/* STILL A PLAIN `<a href="#…">`, and the click is still the
+                      browser's: this goes nowhere, it is the same page, and the
+                      address is the half a reader copies. What is added is the
+                      page's own scroll for the surface the browser cannot land
+                      in — see `onGo`. */}
+                  <a
+                    href={`#${heading.id}`}
+                    class={LINE}
+                    data-testid={TESTID.tocLink}
+                    onClick={() => props.onGo?.(heading)}
+                  >
                     {heading.text}
                   </a>
                 </li>

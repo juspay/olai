@@ -19,7 +19,7 @@ import { TESTID } from "../testids.ts"
 import { anchorRow, sameAnchor } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
 import { NewRow } from "./NewRow.tsx"
-import { keyHandler } from "./RowEditor.tsx"
+import { keyHandler } from "../keying.ts"
 
 export function StartLine(props: {
   /** Where the row this offers would go. */

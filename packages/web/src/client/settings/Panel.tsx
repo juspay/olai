@@ -12,8 +12,12 @@
  *
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
- * theme, the typeface, how much of a row is drawn by default, and what this
- * browser does with finished work. The DENSITY belongs here for exactly the
+ * theme, the typeface, how much of a row is drawn by default, what this
+ * browser does with finished work, and which keyboard its markdown editors
+ * take. That last one is here for the same reason as the rest and not because
+ * editors are settings: vim is a claim about the reader's HANDS, it reaches
+ * every note and every document, and a switch on one editor would be a
+ * per-editor control for a per-person fact. The DENSITY belongs here for exactly the
  * reason the done preference does: it is a claim about the reader ("I read a
  * tree as a list of titles") rather than about any one outline, so a switch
  * bolted to the outline page would be a per-page control for a per-person fact —
@@ -38,6 +42,7 @@ import { type Anchor, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
+import { setVimEditing, vimEditing } from "./vim.ts"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
 import { TESTID } from "../testids.ts"
@@ -53,6 +58,14 @@ import { currentTheme } from "../theme/state.ts"
 const DONE_CHOICES = [
   { value: "visible", label: "Visible" },
   { value: "hidden", label: "Hidden" },
+] as const
+
+/** Editing: whether the markdown editors are vim editors (./vim.ts). "Plain"
+ *  rather than "Off", because the choice is between two keyboards and not
+ *  between a feature and its absence. */
+const VIM_CHOICES = [
+  { value: "plain", label: "Plain" },
+  { value: "vim", label: "Vim" },
 ] as const
 
 /** Size: the strip is the size TABLE, read (../theme/sizes.ts) — three sizes
@@ -130,6 +143,17 @@ export function Panel(props: {
         />
       </Row>
 
+      {/* Under Done, and last, because it is the one row here that is about a
+          KEYBOARD rather than about what a page draws — and because it is the
+          one a reader who does not know vim should be able to skip. */}
+      <Row label="Editing" pref="vim" hint={vimHint()}>
+        <Segmented
+          choices={VIM_CHOICES}
+          value={vimEditing() ? "vim" : "plain"}
+          onPick={(value) => setVimEditing(value === "vim")}
+        />
+      </Row>
+
       {/* One sentence for the whole panel, because it is one fact about every
           row on it and repeating it per row would be three copies of the
           doctrine. It is here at all because "where did this go" is exactly
@@ -176,3 +200,12 @@ const doneHint = (): string =>
     ? "Finished work is hidden — a row not drawn, never a node marked or a " +
       "file written."
     : "Finished work is shown."
+
+/** What the editing preference in force MEANS — and, in the vim case, the one
+ *  key it moves, since a person who turns this on is entitled to know that
+ *  Escape has stopped being the app's. */
+const vimHint = (): string =>
+  vimEditing()
+    ? "A document is a vim editor: modes, hjkl, and Escape is the mode " +
+      "switch rather than the app's way out of an editor."
+    : "A document takes the keys your platform already gives a text field."

@@ -330,8 +330,10 @@ export const TESTID = {
    *  span (titles change under a live page; ids do not) — and the blocked pill
    *  carries that span too, being a link to the first blocker. */
   nodeRef: "node-ref",
-  /** The document itself, rendered — on its own page, or inline under the node
-   *  that attaches it. */
+  /** The document itself — on its own PAGE it is the live-preview surface a
+   *  reader reads and writes in (`client/document/DocEditor.tsx`); everywhere
+   *  else (under the node that attaches it, on a day) it is the same markdown
+   *  rendered. One name, because it is one question: where the document is. */
   documentBody: "document-body",
   /** A `.html` file's page: the sandboxed frame its markup is drawn in, and the
    *  only element of it this app owns. Everything a scenario asks ABOUT the
@@ -344,18 +346,13 @@ export const TESTID = {
    *  (`edit/SaidLine.tsx`), so a scenario reads its `data-tone` rather than a
    *  colour. */
   hypertextSaid: "hypertext-said",
-  /** The way into a document's editor: the quiet control on the page header
-   *  that turns the rendered body into its source. */
-  documentEdit: "document-edit",
-  /** The editor itself — a textarea holding the document's SOURCE, verbatim.
-   *  Present exactly while the page is in its edit mode. */
+  /** The thing a caret can be in — the document's SOURCE, verbatim,
+   *  live-previewed. It is the page's body rather than a mode over it, so it is
+   *  present the whole time and `data-writing` says which mode it is in.
+   *  `data-mde` says which face draws it: `preview` once CodeMirror has
+   *  arrived, `waiting` while its chunk is in the air, `plain` if it never came
+   *  (`client/mde/`). */
   documentEditor: "document-editor",
-  /** Commit the editor's text: one write, at the same gate every other edit
-   *  goes through. */
-  documentSave: "document-save",
-  /** Leave the editor without writing. The draft is abandoned, which is what
-   *  Escape means everywhere else in this app. */
-  documentCancel: "document-cancel",
   /** Why the last document write did not happen — the ops layer's own words,
    *  with the draft kept. One mood (`data-tone="alarm"`) and not the two a
    *  row's line has: a document write has no rollup to remark on. */
@@ -455,8 +452,11 @@ export const TESTID = {
    *  span was. Present only while that row is being typed in — a page with no
    *  editor open carries none of these at all. */
   titleEditor: "title-editor",
-  /** The same for a note: a plain textarea under the row, opened with
-   *  `Shift+Enter`, whose rendering comes back when it closes. */
+  /** The same for a note: the markdown editor under the row, opened with
+   *  `Shift+Enter`, whose rendering comes back when it closes. `data-mde` says
+   *  which face is drawn — `preview`, `waiting` or `plain` (`client/mde/`) — so a
+   *  scenario about live preview waits for the editor rather than for a
+   *  timeout. */
   descEditor: "desc-editor",
   /** A row that does not exist yet — the editor standing where `Enter` will
    *  put one. It becomes a node when it has a title and is committed, so a

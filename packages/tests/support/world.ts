@@ -24,6 +24,10 @@ import * as os from "node:os";
 // Aliased: `NODE_REF` below is the see/after reference ELEMENT (`NodeRefs.tsx`),
 // and this is the ATTRIBUTE a pressable node reference in the chat panel
 // carries. Two different things, one word — so the import says which.
+// The client's own autosave idle, for the reason the long-press deadline
+// below is imported rather than guessed: a suite that waited a number of its
+// own would go flaky the day the editor's moved.
+import { AUTOSAVE_IDLE } from "@olai/web/src/client/edit/autosave.ts";
 import { REFERRINGS } from "@olai/web/src/client/backlinks/way.ts";
 import { NODE_REF as CHAT_NODE_REF_ATTR } from "@olai/web/src/client/chat/refs.ts";
 // The client's own long-press deadline, for the same reason the testids are
@@ -209,16 +213,15 @@ export const HYPERTEXT_PREVIEW = selector(TESTID.hypertextPreview);
 export const HYPERTEXT_SAID = selector(TESTID.hypertextSaid);
 /** One document, as a page: `/doc/<file>`. */
 export const DOCUMENT_PAGE = selector(TESTID.documentPage);
-/** The rendered markdown of a document — on its own page, or inline under the
- *  node that attaches it. */
+/** The document's BODY — on its own page that is the live-preview surface a
+ *  reader reads and writes in; inline under the node that attaches it, and on
+ *  a day, it is the same markdown rendered. */
 export const DOCUMENT_BODY = selector(TESTID.documentBody);
-/** The way into a document's editor, on its page header. */
-export const DOCUMENT_EDIT = selector(TESTID.documentEdit);
-/** The editor itself — a textarea holding the document's SOURCE, verbatim.
- *  Present exactly while the page is in its edit mode. */
+/** The thing a caret can be in on a document's page — the document's SOURCE,
+ *  verbatim, live-previewed. It is the page's body rather than a mode over it,
+ *  so it is there the whole time: `WRITING` is the question about the mode and
+ *  `data-mde` says which face draws it (`client/mde/`). */
 export const DOCUMENT_EDITOR = selector(TESTID.documentEditor);
-export const DOCUMENT_SAVE = selector(TESTID.documentSave);
-export const DOCUMENT_CANCEL = selector(TESTID.documentCancel);
 /** What the last document write had to say; `data-tone` is which mood. */
 export const DOCUMENT_SAID = selector(TESTID.documentSaid);
 /** The explicit "overwrite anyway" after a conflict refusal. */
@@ -239,7 +242,18 @@ export const TOC_LINK = selector(TESTID.tocLink);
  *  its tags come out of a file on disk — so the tags themselves are the
  *  selector, spelled once here like every other one rather than in the steps
  *  that reach for them. */
-export const HEADINGS = "h1, h2, h3, h4, h5, h6";
+/**
+ * A HEADING of rendered markdown — or of the live-preview surface a document
+ * page is (`client/mde/`), where it is a LINE with a class rather than an
+ * element with an id.
+ *
+ * Both, because a heading is what a reader sees rather than which markup
+ * carries it, and which of the two is on screen is a fact about a chunk in the
+ * air. What the two do NOT share is the id: only the rendering mints one, which
+ * is why the steps that are about ANCHORS ask for the rendering on purpose
+ * (`features/documents.feature`).
+ */
+export const HEADINGS = "h1, h2, h3, h4, h5, h6, .cm-heading";
 /** A node's `doc`: the reference, carrying the RESOLVED path as `data-doc`. */
 export const DOC_REF = selector(TESTID.docRef);
 /** The link inside that reference, to the document's own page. */
@@ -486,6 +500,21 @@ export const CHECKBOX = selector(TESTID.checkbox);
 export const TITLE_EDITOR = selector(TESTID.titleEditor);
 /** The note as text, under the row, while it is being written. */
 export const DESC_EDITOR = selector(TESTID.descEditor);
+/**
+ * A markdown surface WHILE SOMEBODY IS TYPING IN IT.
+ *
+ * A document's page is one surface that reads AND writes
+ * (`client/document/DocEditor.tsx`), so its presence answers nothing — a
+ * reader who has typed nothing is looking at the same element. The client says
+ * which mode it is in as a `data-` fact, and this is that question.
+ */
+export const WRITING = '[data-writing="true"]';
+
+/** That surface once it is LIVE-PREVIEWED, which is the state a scenario about
+ *  hidden markers has to wait for: until the chunk lands, what a writer types
+ *  into is the textarea this app shipped before live preview, where every
+ *  marker is visible. */
+export const PREVIEWING = '[data-mde="preview"]';
 /** Either of them: the editor the caret is in, whichever field it is. A page
  *  matching neither has no caret in a row, which is the state ⌘Z is answered
  *  from — and is what `support/caret.ts` is written around. */
@@ -1383,10 +1412,20 @@ export class OlaiWorld extends World {
    */
   async rendersBold(where: Locator, text: string): Promise<void> {
     await this.waitUntil(
-      async () =>
-        (await where.locator("strong, b").allInnerTexts()).some(
-          (value) => value.trim() === text,
-        ),
+      async () => {
+        const tagged = await where.locator("strong, b").allInnerTexts();
+        if (tagged.some((value) => value.trim() === text)) return true;
+        // ...OR DRAWN BOLD BY THE LIVE PREVIEW, which makes no `<strong>`: a
+        // document page is one string with decorations over it
+        // (`client/mde/`), so what a person sees is a span at the scale's own
+        // major weight with the `**` hidden beside it. Both are "this word is
+        // bold"; asserting the tag alone would be asserting which surface is
+        // drawn, which is a fact about a chunk in the air.
+        const word = where.getByText(text, { exact: true }).first();
+        if ((await word.count()) === 0) return false;
+        const weight = await word.evaluate((el) => getComputedStyle(el).fontWeight);
+        return Number(weight) >= 600;
+      },
       `${JSON.stringify(text)} to be rendered in bold`,
     );
   }
@@ -1468,6 +1507,79 @@ export class OlaiWorld extends World {
    *  child's. */
   within(id: string, control: string): Locator {
     return this.node(id).locator(control).first();
+  }
+
+  /**
+   * THE DOCUMENT'S SURFACE, once it is LIVE-PREVIEWED — the page's, since a
+   * page is one file (`client/document/DocumentPage.tsx`).
+   *
+   * Waiting on the FACE rather than on a timeout is the whole of it: until the
+   * chunk lands (`client/mde/chunk.ts`) a document is drawn by the page's own
+   * markdown rendering and written in a textarea, where every marker is
+   * visible — a correct surface and the wrong subject. It is here rather than
+   * in a step file because several of them ask it, which is the drift
+   * `PREVIEWING` is declared once against.
+   *
+   * `writing` says whether the caret has to be in it as well: a scenario about
+   * hidden markers is about the READING surface, and one about what a caret
+   * shows is not.
+   */
+  async previewing(writing = false): Promise<Locator> {
+    const editor = this.page
+      .locator(`${DOCUMENT_EDITOR}${PREVIEWING}${writing ? WRITING : ""}`)
+      .first();
+    await editor.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    return editor;
+  }
+
+  /**
+   * The pause an autosave is keyed on, plus the round trip it starts.
+   *
+   * There is no verb to press (`client/edit/autosave.ts`), so what a scenario
+   * does is WAIT. Three times the idle: what is being waited out is a debounce
+   * AND a server, not a debounce.
+   */
+  async settleAutosave(): Promise<void> {
+    await this.page.waitForTimeout(AUTOSAVE_IDLE * 3);
+    await this.waitForFrame();
+  }
+
+  /**
+   * WHAT A MARKDOWN EDITOR IS DRAWING.
+   *
+   * It is DRAWING and not HOLDING, and the difference is the whole feature:
+   * the source is what the editor holds and what the file gets, and the
+   * markers around bold, italic and a heading are hidden unless the caret is
+   * inside them. So this reads what a person can see — which for everything
+   * that is not a marker is the same string either way, and for a marker is
+   * the assertion a live-preview scenario actually wants to make.
+   *
+   * Both faces are answered, because which one is on screen is a fact about a
+   * chunk that may still be in the air: the textarea has a `value`, the
+   * editor has text nodes. A scenario that cares waits for `PREVIEWING`
+   * first.
+   */
+  async editorDraws(editor: Locator): Promise<string> {
+    await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const textarea = await editor.evaluate((el) => el.tagName === "TEXTAREA");
+    return textarea ? await editor.inputValue() : await editor.innerText();
+  }
+
+  /**
+   * Replace everything in a markdown editor with `text`.
+   *
+   * Select-all and type, rather than a `fill`: a live-previewed editor is a
+   * contenteditable, so there is no value to set — and typing is what the
+   * feature is about anyway, since it is the keystrokes that arm the autosave.
+   * ⌘A is the platform's own here (`client/keys.ts` claims the second one in a
+   * TITLE and nothing in prose), which is why it can be used to clear.
+   */
+  async retypeEditor(editor: Locator, text: string): Promise<void> {
+    await this.press(editor);
+    await this.page.keyboard.press("ControlOrMeta+a");
+    await this.page.keyboard.press("Delete");
+    await this.page.keyboard.type(text);
+    await this.waitForFrame();
   }
 
   /** Press something, and let the render settle.
@@ -1860,7 +1972,15 @@ export class OlaiWorld extends World {
   writeServed(file: string, contents: string): void {
     const target = path.join(this.scratch(), file);
     fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, contents.endsWith("\n") ? contents : `${contents}\n`);
+    fs.writeFileSync(target, contents.endsWith("\n") || contents.endsWith("\r\n") ? contents : `${contents}\n`);
+  }
+
+  /** One served file's BYTES, exactly as they are — the read that a claim
+   *  about line endings has to make, since every other reader here splits the
+   *  text before a scenario can see it (`client/mde/separator.ts` is what the
+   *  claim is about). */
+  readServed(file: string): string {
+    return fs.readFileSync(path.join(this.scratch(), file), "utf8");
   }
 
   /** What one served outline HOLDS, as the records on disk — the read half of

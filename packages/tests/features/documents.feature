@@ -32,8 +32,27 @@ Feature: Documents
     And the document renders bold text "matte"
     And there should be no page errors
 
+  # THE RENDERING'S OWN PROMISES, pinned where the rendering is still drawn.
+  #
+  # A `.md` page IS the live-preview editor since md-live-preview-editor: no
+  # Edit verb, no rendered body, and none of what the pipeline does beyond the
+  # marks — a table is pipe text, an image is its `![](…)`, a fence is not
+  # highlighted, a footnote is a bracket, and there are no minted ids for an
+  # anchor to land on. That is the ruling and it is stated in the PR.
+  #
+  # The pipeline itself is unchanged and is what every OTHER surface draws — a
+  # note, a day, a chat reply, a document under the node that attaches it — and
+  # it is also what THIS page falls back to while the editor's chunk is in the
+  # air or after it has failed to come. So the scenarios that pin it hold the
+  # editor up: the subject is the pipeline, the fixture is the one written to
+  # exercise it, and the surface is a state this page really reaches.
+  #
+  # None of them asks for "no page errors": a chunk held up IS a failed fetch,
+  # reported in the console deliberately (`client/arriving.ts`), exactly as the
+  # pipeline's own never-arrives scenario has always had to allow.
   @corpus:good
   Scenario: A fenced code block is highlighted, by code this server shipped
+    Given the markdown editor never arrives
     When I open the document "finishes.md"
     Then the document highlights a code block as "ts"
     # Vendored, never a CDN: a page that fetched its highlighter from the
@@ -48,6 +67,7 @@ Feature: Documents
   # list drawn with two markers, and a value in a table split into two words.
   @corpus:good
   Scenario: The whole markdown surface is drawn without breaking the page
+    Given the markdown editor never arrives
     When I open the document "kitchen-sink.md"
     Then nothing overflows the pane
     And the task list is drawn with checkboxes and no bullets
@@ -56,7 +76,6 @@ Feature: Documents
     # `nix` fences: an unregistered language is grey text, not an error.
     And the document highlights a code block as "nix"
     And the document highlights a code block as "ts"
-    And there should be no page errors
 
   # The RHYTHM, as an invariant rather than a look somebody once approved. The
   # scale is declared in `@olai/web`'s theme/scale.ts, the stylesheet is
@@ -81,6 +100,11 @@ Feature: Documents
   # id the rendered page is carrying.
   @corpus:good
   Scenario: A document opens with a contents of its own headings
+    # Held up for the ANCHORS, which is what a contents line is compared
+    # against here: same list, same order, each line pointing at the id its own
+    # heading carries. The contents itself is drawn from the same memo on
+    # either face — a document's headings are a fact about its text.
+    Given the markdown editor never arrives
     When I open the document "kitchen-sink.md"
     Then the contents is open
     And the contents lists every heading in the document
@@ -88,7 +112,6 @@ Feature: Documents
     # platform's, so this is the element's own state and not a flag beside it.
     When I shut the contents
     Then the contents is shut
-    And there should be no page errors
 
   # `open` is an attribute the BROWSER owns once a reader has touched it, so
   # "open by default" is only true of a document that gets its own `<details>`.
@@ -133,6 +156,7 @@ Feature: Documents
 
   @corpus:good
   Scenario: Every heading is a place a reader can link to
+    Given the markdown editor never arrives
     When I open the document "kitchen-sink.md"
     Then every heading links to itself
 
@@ -158,11 +182,13 @@ Feature: Documents
 
   @corpus:good
   Scenario: A footnote links to its own note
+    Given the markdown editor never arrives
     When I open the document "finishes.md"
     Then the document shows a footnote that lands on its note
 
   @corpus:good
   Scenario: A relative picture is served from the directory it lives in
+    Given the markdown editor never arrives
     When I open the document "finishes.md"
     Then the picture "/media/art/handle.png" is drawn in the document
     And requesting "/media/art/handle.png" answers 200 with type "image/png"

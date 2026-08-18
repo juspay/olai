@@ -44,6 +44,21 @@ When(
   },
 );
 
+/** The same door as `I rewrite`, in the line endings a file written on
+ *  Windows has. A docstring cannot carry them — Gherkin's own lines are `\n` —
+ *  so the conversion is here, where it can be said out loud.
+ *
+ *  THE LAST LINE ENDS THE SAME WAY as the others, which is the whole point of
+ *  the fixture: a file whose final break is a bare `\n` is a MIXED file, and a
+ *  mixed file is one the editor deliberately leaves alone rather than the
+ *  Windows file this is about (`client/mde/separator.ts`). */
+When(
+  "I rewrite {string} in CRLF as:",
+  function (this: OlaiWorld, file: string, contents: string) {
+    this.writeServed(file, `${contents.replace(/\r?\n/g, "\r\n")}\r\n`);
+  },
+);
+
 When("I delete {string}", function (this: OlaiWorld, file: string) {
   this.removeServed(file);
 });

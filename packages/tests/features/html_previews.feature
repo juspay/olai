@@ -57,9 +57,10 @@ Feature: A `.html` in the vault
   @corpus:good
   Scenario: A `.html` is read, not written — there is no editor on its page
     # `write_document` takes a `.md` and refuses anything else (`@olai/ops`),
-    # so an Edit control here would be a door onto a refusal. The document page
-    # beside it still has one, which is what makes this an assertion about the
-    # KIND rather than about the page having lost a button.
+    # so a caret here would be a door onto a refusal. A `.md` page beside it IS
+    # an editor — no verb in between, since md-live-preview-editor — which is
+    # what makes this an assertion about the KIND rather than about a page
+    # having lost a button.
     When I open the page "report.html"
     Then there is no way to edit this page
     When I open the document "finishes.md"

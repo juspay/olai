@@ -29,7 +29,8 @@ import { MEDIA_PREFIX, mediaHref, mediaTarget, sealPolicy } from "@olai/surface"
 
 import { saysThat } from "../support/said.ts";
 import {
-  DOCUMENT_EDIT,
+  DOCUMENT_EDITOR,
+  HEADINGS,
   HYDRATION_TIMEOUT,
   HYPERTEXT_LINK,
   HYPERTEXT_PREVIEW,
@@ -743,7 +744,12 @@ Then(
 Then(
   "the document is scrolled to the heading {string}",
   async function (this: OlaiWorld, text: string) {
-    const heading = this.documentBody().locator("h1, h2, h3", { hasText: text }).first();
+    // `HEADINGS` rather than a tag list: a document page's body is the
+    // live-preview surface, where a heading is a LINE with a class and not an
+    // element (`support/world.ts` argues the selector). Which of the two is on
+    // screen is a fact about a chunk in the air, and this claim is about
+    // neither — it is about where the reader is looking.
+    const heading = this.documentBody().locator(HEADINGS, { hasText: text }).first();
     await heading.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await this.waitUntil(async () => {
       const top = await heading.evaluate((node) => node.getBoundingClientRect().top);
@@ -1332,17 +1338,19 @@ Then("the app's page is untouched by the preview", async function (this: OlaiWor
 
 Then("there is no way to edit this page", async function (this: OlaiWorld) {
   // The preview first, because "not there" is the assertion: reading for the
-  // control before the page has drawn would pass for the wrong reason.
+  // surface before the page has drawn would pass for the wrong reason.
   await preview(this);
   assert.strictEqual(
-    await this.page.locator(DOCUMENT_EDIT).count(),
+    await this.page.locator(DOCUMENT_EDITOR).count(),
     0,
-    "this page offers an Edit control for a file the ops layer will refuse to write",
+    "this page draws an editor over a file the ops layer will refuse to write",
   );
 });
 
+/** ...and a `.md` page IS one, with no verb in between: the body a reader
+ *  reads is the surface they type in (`client/document/DocEditor.tsx`). */
 Then("there is a way to edit this page", async function (this: OlaiWorld) {
   await this.page
-    .locator(DOCUMENT_EDIT)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    .locator(DOCUMENT_EDITOR)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });

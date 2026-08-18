@@ -147,17 +147,30 @@ When(
   },
 );
 
+/**
+ * The address names the section, and it is the CONTENTS LINE that says which.
+ *
+ * It used to be asked of the heading element the fragment lands on, and that
+ * is the half a document page no longer has: its body is the live-preview
+ * editor, which draws headings as lines rather than minting an id per one
+ * (`client/document/DocEditor.tsx` says what the page scrolls instead). What
+ * is still true — and is the whole of what a copied address is worth — is that
+ * the fragment is the one the line the reader pressed points at. That the ids
+ * are the headings' own is the rendering's claim and is asserted where the
+ * rendering is drawn ("Every heading is a place a reader can link to").
+ */
 Then(
   "the address names the heading {string}",
   async function (this: OlaiWorld, text: string) {
     const fragment = new URL(this.page.url()).hash.slice(1);
     assert.notStrictEqual(fragment, "", "the address carries no fragment at all");
-    const landed = (await headings(this, "document")).find((one) => one.fragment === fragment);
-    assert.ok(
-      landed !== undefined,
-      `the address says #${fragment}, and no heading on the page has that id`,
+    const line = this.page.locator(TOC_LINK).filter({ hasText: text }).first();
+    assert.strictEqual(
+      (await line.getAttribute("href")) ?? "",
+      `#${fragment}`,
+      `the address says #${fragment}, which is not what the contents line for ` +
+        `${JSON.stringify(text)} points at`,
     );
-    assert.strictEqual(landed.text, text);
   },
 );
 
