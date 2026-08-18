@@ -32,6 +32,8 @@ import type {
   DayGroup,
   Derived,
   FileKind,
+  Graph,
+  Hops,
   Row,
   Zoomed,
 } from "@olai/format"
@@ -39,6 +41,9 @@ import {
   dailyNotesOn,
   bodyKind,
   datedOn,
+  graphOf,
+  HOPS_DEFAULT,
+  NOTHING_DRAWN_GRAPH,
   isArchived,
   rowsOf,
   rowsUnder,
@@ -90,6 +95,27 @@ export type Page =
    *  back out, and the archive tool re-creates the file on first use, so an
    *  absent archive and an empty trash are the same sight. */
   | { readonly kind: "trash"; readonly files: ReadonlyArray<string> }
+  /**
+   * THE REFERENCE GRAPH, around one node or over the whole directory.
+   *
+   * `zoomed` is what the address named, resolved — and it is the whole `Zoomed`
+   * rather than an id because the three ways a node reference can fail (nothing
+   * claims it, a chain dangles, a chain closes) are three different things to
+   * tell a reader, and `../NotFound.tsx` already says all of them. A node page
+   * and a graph of that node answer an unknown id identically, which is what
+   * being the same resolution means. `undefined` is the corpus-wide reading:
+   * the address named no node, so there is nothing to fail.
+   *
+   * The `graph` is the reading the address asked for, computed here for the
+   * reason a day's groups are: what a page draws is decided in one place, so
+   * the filter can prune and count it without re-deriving it.
+   */
+  | {
+    readonly kind: "graph"
+    readonly zoomed: Zoomed | undefined
+    readonly hops: Hops
+    readonly graph: Graph
+  }
   /** An outline whose file did not parse: it has no tree to draw, so its own
    *  pane carries its errors instead. Every other outline is unaffected. */
   | { readonly kind: "broken"; readonly file: BrokenFile }
@@ -149,6 +175,27 @@ export const pageOf = (
   }
 
   if (route.kind === "agenda") return { kind: "agenda", date: today }
+
+  if (route.kind === "graph") {
+    const hops = route.hops ?? HOPS_DEFAULT
+    // The corpus-wide reading names no node, so there is nothing to resolve.
+    if (route.focus === null) {
+      return { kind: "graph", zoomed: undefined, hops, graph: graphOf(derived, { hops }) }
+    }
+    // ...and a named one goes through `zoom`, which is what makes the graph of a
+    // MIRROR the graph of the node it stands for — exactly as `/n/` on that
+    // mirror is the node's own page. An id that resolves to nothing draws no
+    // graph, and the page says which of the three ways it failed.
+    const zoomed = zoom(derived, route.focus)
+    return {
+      kind: "graph",
+      zoomed,
+      hops,
+      graph: zoomed.kind === "node"
+        ? graphOf(derived, { focus: zoomed.shows.node.id, hops })
+        : NOTHING_DRAWN_GRAPH,
+    }
+  }
 
   if (route.kind === "trash") return trashOf(found)
 
@@ -240,7 +287,12 @@ export const opensAt = (
 /** The file the open page belongs to — the sidebar entry to light up, in
  *  whichever of its two lists. A zoomed node belongs to the file its CANONICAL
  *  record is in, whichever file the mirror that was clicked lived in; a
- *  document belongs to itself. */
+ *  document belongs to itself.
+ *
+ *  A day, the agenda, the trash and a GRAPH belong to none, and the graph is
+ *  not an omission: even centred on a node it is a reading of references ACROSS
+ *  the directory, so lighting the centre's own outline would claim the page is
+ *  about that file when what it draws is mostly other files' records. */
 export const fileOf = (page: Page): string | undefined => {
   if (page.kind === "outline") return page.file
   if (page.kind === "document") return page.file
@@ -325,6 +377,16 @@ export type Drawn =
     readonly files: ReadonlyArray<string>
     readonly groups: ReadonlyArray<TrashGroup>
   }
+  /** A neighbourhood, or the whole reference graph — and the node it is ABOUT,
+   *  which a filter may not take away for the reason a day keeps its date: the
+   *  page is that node's, and a neighbourhood with no centre is a picture of
+   *  nothing. `undefined` is the corpus-wide reading, which is about no one
+   *  node and so has nothing to protect. */
+  | {
+    readonly kind: "graph"
+    readonly focus: string | undefined
+    readonly graph: Graph
+  }
   | { readonly kind: "none" }
 
 /** Nothing to narrow, as one value: `none` carries nothing, so a fresh object
@@ -365,8 +427,17 @@ export const drawnBy = (
   if (page.kind === "trash") {
     return { kind: "trash", files: page.files, groups: archivesOf(derived, page) }
   }
+  if (page.kind === "graph") {
+    return { kind: "graph", focus: focusOf(page), graph: page.graph }
+  }
   return NOTHING_DRAWN
 }
+
+/** The node a graph page is centred on, canonically — read off the one
+ *  resolution the page made rather than off the address, so the id the filter
+ *  protects and the id the walk was built from are the same id. */
+const focusOf = (page: Extract<Page, { kind: "graph" }>): string | undefined =>
+  page.zoomed?.kind === "node" ? page.zoomed.shows.node.id : undefined
 
 /** An agenda nobody has read yet. The three empty sections a page draws nothing
  *  from — never a claim, which is the rule every readout of what is owed keeps

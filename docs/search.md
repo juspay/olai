@@ -111,7 +111,10 @@ Two places a matched row lights nothing, named so they are not mistaken for bugs
 | `/d/<date>`, `/today` | every row that did not match, and an outline heading left with none | the matches — and their ancestry, which was never a row |
 | `/agenda` | the same, per day of the spine; a day left with nothing leaves the line, and the silences either side of it close up into one longer wait | the matches, under the days that still hold one — and no line at all when none do |
 | `/trash` | the same as a tree, per archive; an archive left with nothing goes | the matches, their subtrees, and the scaffold that says where the pile came from |
+| `/graph`, `/graph/<id>` | every dot that did not match, and the arrows either end of it went with | the matches — and the node the page is ABOUT, which stays whether or not it matched |
 | `/doc/<file>` | — no box, and no `?q=` in the address | — |
+
+**The graph keeps its CENTRE, and that is the same rule a day keeps its date by.** `/graph/<id>` is a page about one node, so a query that does not select it takes away its neighbours and leaves the node — a neighbourhood with no centre is a picture of nothing, and the count says so honestly (`1 of 3` means one of the three dots matched, the centre included in the three). An arrow needs both its ends drawn, so the ones a prune orphaned go with them; the corpus-wide `/graph` has no centre to protect and simply keeps what matched.
 
 **A day and the agenda keep no context, and that is not a shortcut.** Their rows are flat and every one already arrives with the crumb that says what it is about, which is what those pages are FOR. So "matches keep their ancestors" is true of every row before a query touches it, and what is left after one is exactly what matched.
 

@@ -611,6 +611,39 @@ const piled = async (page: Page) =>
     '[data-testid="node-title"]',
   )) || "  (nothing)"
 
+// ── the reference graph ────────────────────────────────────────────────
+
+const GRAPH_CANVAS = '[data-testid="graph-canvas"]'
+const GRAPH_NODE = '[data-testid="graph-node"]'
+const GRAPH_EDGE = '[data-testid="graph-edge"]'
+const GRAPH_FILE = '[data-testid="graph-file"]'
+const GRAPH_CAPTION = '[data-testid="graph-caption"]'
+const GRAPH_HORIZON = '[data-testid="graph-horizon"]'
+
+/** What the drawing is OF, printed beside the shot — a picture cannot be read
+ *  back as data, and these three lines are what a reviewer checks the pixels
+ *  against. Ids rather than titles: an id is what an arrow's ends are. */
+const graphNodes = async (page: Page): Promise<string> =>
+  (await page.locator(GRAPH_NODE).evaluateAll((found) =>
+    found.map((one) => one.getAttribute("data-node-id"))
+  )).join(", ")
+
+/** ...and every arrow as the claim it makes: the record that wrote it, HOW it
+ *  refers, and the node it named. */
+const graphArrows = async (page: Page): Promise<string> =>
+  (await page.locator(GRAPH_EDGE).evaluateAll((found) =>
+    found.map((one) =>
+      `${one.getAttribute("data-from")} -${one.getAttribute("data-ways")}-> ${
+        one.getAttribute("data-to")
+      }`
+    )
+  )).join(" · ")
+
+const graphFiles = async (page: Page): Promise<string> =>
+  (await page.locator(GRAPH_FILE).evaluateAll((found) =>
+    found.map((one) => one.getAttribute("data-file"))
+  )).join(", ")
+
 /** The day the run started — read ONCE, so every date in a section is counted
  *  from the same day even if the run crosses midnight. The client's own reading
  *  of the local day, like the browser tests', rather than a second one. */
@@ -1836,6 +1869,103 @@ const SECTIONS = {
 
     await inTheDark(page)
     await shot(page, "a-pressed-tag-lights-up-dark")
+  },
+
+  /**
+   * THE REFERENCE GRAPH — what a directory's references look like as a shape,
+   * which is the one claim no transcript and no `✔` can carry.
+   *
+   * The corpus is WRITTEN first, because `good/` holds exactly one reference
+   * (`order` sees `herbs`) and a picture of one arrow says nothing about the
+   * two kinds of arrow there are. What is added is the smallest set that puts
+   * both on one screen — a mention from another outline, a record that does
+   * BOTH, and a second-hop referrer that is invisible at one hop and arrives at
+   * two — through {@link rewrite}, the same door another hand writes with.
+   *
+   * Five shots, and each is a different promise:
+   *
+   *   1. the neighbourhood, with both edge kinds and the file names under the
+   *      groups they belong to — light, and then
+   *   2. the same page in the dark half of the palette table, because every
+   *      line, dot and label here is drawn in theme tokens and a colour written
+   *      in hex would be right in one palette out of fifteen;
+   *   3. a HOVER: the ancestry of the dot under the pointer, said in the line
+   *      under the drawing, with everything the dot is not talking to gone
+   *      quiet — light and dark, since the quiet is an opacity over tokens;
+   *   4. the horizon moved to two hops, which reaches the ring beyond and
+   *      writes the address;
+   *   5. the CLICK-THROUGH: the same dot pressed, and the node's own page —
+   *      which is where the `Referenced by …` section and the door back to this
+   *      drawing both are.
+   */
+  "the-reference-graph": async (page) => {
+    pinnedBy(
+      "reference_graph.feature",
+      "A node's neighbourhood draws both kinds of reference",
+      "One record doing both is one arrow carrying both ways",
+      "A dot is a link to the node",
+      "Pointing at a dot says where that node sits",
+      "A second hop reaches the ring beyond, and the address says so",
+    )
+    rewrite("garden.olai", [
+      ...servedLines("garden.olai"),
+      `{"id":"cuttings","parent":"garden","ord":"z0","title":"take cuttings from @herbs before the frost"}`,
+      `{"id":"labels","parent":"garden","ord":"z1","title":"write the plant labels","see":["cuttings"]}`,
+    ])
+    rewrite("house.olai", [
+      ...servedLines("house.olai"),
+      `{"id":"worktop","parent":"kitchen","ord":"z0","title":"seal the worktop like @herbs","see":["herbs"]}`,
+    ])
+
+    await opened(page, "/graph/herbs", GRAPH_CANVAS)
+    console.log(`  the dots are:   ${await graphNodes(page)}`)
+    console.log(`  the arrows are: ${await graphArrows(page)}`)
+    console.log(`  the files under them: ${await graphFiles(page)}`)
+    console.log(`  the caption says: ${await textOf(page, GRAPH_CAPTION)}`)
+    await shot(page, "neighbourhood-light")
+
+    await wearTheme(page, "pitch")
+    await shot(page, "neighbourhood-dark")
+
+    // THE HOVER, in both halves of the table: the line under the drawing names
+    // where the pointed-at node sits, and the rest of the picture recedes.
+    await wearTheme(page, "chalk")
+    await page.locator(`${GRAPH_NODE}[data-node-id="worktop"] a`).first().hover()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  pointing at \`worktop\`, the caption says: ${
+      await textOf(page, GRAPH_CAPTION)
+    }`)
+    await shot(page, "hover-ancestry-light")
+
+    await wearTheme(page, "pitch")
+    await page.locator(`${GRAPH_NODE}[data-node-id="worktop"] a`).first().hover()
+    await page.waitForTimeout(DRAWN)
+    await shot(page, "hover-ancestry-dark")
+
+    // TWO HOPS: `labels` sees `cuttings`, which mentions `herbs` — so it is one
+    // ring further out and is not on the picture above at all.
+    await wearTheme(page, "chalk")
+    await page.locator(`${GRAPH_HORIZON}[data-hops="2"]`).first().click()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  two hops out:   ${await graphNodes(page)}`)
+    console.log(`  the address is: ${await page.evaluate(() => location.pathname + location.search)}`)
+    await shot(page, "two-hops")
+
+    // ...and the click-through, which is what a dot IS.
+    await page.locator(`${GRAPH_NODE}[data-node-id="worktop"] a`).first().click()
+    await page.locator(ZOOM_TITLE).first().waitFor()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the dot opened: ${await textOf(page, ZOOM_TITLE)}`)
+    // ...and the way back is on it: the same door every node's page carries,
+    // which is how this drawing is reached in the first place.
+    console.log(`  the door back is on that page: ${
+      await page.locator('[data-testid="node-graph-link"]').count()
+    }`)
+    shotSays("worktop", "house.olai")
+    await shot(page, "click-through-light")
+
+    await wearTheme(page, "pitch")
+    await shot(page, "click-through-dark")
   },
 
   "what-refers-to-this-node": async (page) => {

@@ -28,6 +28,7 @@ import { expect, test } from "bun:test"
 import { armedNodes, releaseArmed } from "../chat/armed.ts"
 import type { Relation } from "../edges/relation.ts"
 import { flatten } from "../edit/order.ts"
+import type { Route } from "../routes.ts"
 import { chatOpen, setChatOpen } from "../layout/prefs.ts"
 import { nodeMenuActions } from "./actions.ts"
 
@@ -204,4 +205,50 @@ test("...and it opens the panel the chip is in", () => {
   entry("install", "Ask agent").run()
   expect(chatOpen()).toBe(true)
   releaseArmed()
+})
+
+/**
+ * The reference-graph entry, which is a READ like `Zoom in` beside it: it
+ * navigates and writes nothing at all.
+ *
+ * It names the ROW's own record and lets the address resolve it — the same
+ * arrangement `Zoom in` has, and the reason a mirror row and the node it stands
+ * for open one graph rather than two: `/graph/<id>` follows a mirror chain
+ * exactly as `/n/<id>` does (`../page.ts`).
+ */
+test("the reference graph entry navigates, and lets the address resolve a placement", () => {
+  const went: Array<Route> = []
+  const catalog = (id: string) =>
+    nodeMenuActions({
+      row: row(id),
+      derived,
+      collapsed: false,
+      foldable: [],
+      go: (route) => {
+        went.push(route)
+      },
+      record: () => {},
+      pickDate: () => {},
+      pickRepeat: () => {},
+      pickEdge: () => {},
+      pickProp: () => {},
+      pickMove: () => {},
+    })
+  const graphOn = (id: string) => {
+    const found = catalog(id).find((one) => one.label === "Reference graph")
+    if (found === undefined) throw new Error(`\`${id}\` offers no reference graph`)
+    return found
+  }
+
+  // Nothing is SAID: a read has no sentence to put beside the `•••`, which is
+  // the same promise every opener above keeps.
+  expect(graphOn("install").run()).toBeUndefined()
+  // `echo` is a MIRROR of `install`, and what the entry spells is the row's own
+  // id: the page resolves the chain, so nothing here has a second opinion about
+  // which node a placement stands for.
+  expect(graphOn("echo").run()).toBeUndefined()
+  expect(went).toEqual([
+    { kind: "graph", focus: "install" },
+    { kind: "graph", focus: "echo" },
+  ])
 })

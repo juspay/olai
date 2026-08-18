@@ -129,6 +129,18 @@ export const nodeMenuActions = (args: {
       run: () => args.go({ kind: "node", id }),
     },
     {
+      // This node's neighbourhood in the reference graph — a READ like the zoom
+      // above it, and the row's half of the door a zoomed page draws for itself
+      // (`../graph/GraphLink.tsx`). It spells the ROW's own id and lets the
+      // address resolve it, exactly as `Zoom in` does: `/graph/<id>` follows a
+      // mirror's chain the way `/n/<id>` does (`../page.ts`), so a placement and
+      // the node it stands for open one graph rather than two.
+
+      id: "graph",
+      label: "Reference graph",
+      run: () => args.go({ kind: "graph", focus: id }),
+    },
+    {
       // The composer, armed with this node — a READ, and it sits among the
       // reads for exactly the reason the divider below exists: it changes what
       // this tab is pointed at and writes nothing at all. What happens to the

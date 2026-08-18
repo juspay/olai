@@ -648,6 +648,42 @@ export const TESTID = {
    *  anything has ever been archived: an empty trash is a fact, not a hidden
    *  control. */
   trashLink: "trash-link",
+  /** The way to the reference graph over the WHOLE directory, in the same strip
+   *  as the trash — a reading of the set rather than a file to open. */
+  graphLink: "graph-link",
+  /** ...and the way to ONE node's neighbourhood, from that node's own page.
+   *  A zoomed heading has no `•••` to hang a verb off, which is why this is a
+   *  control of its own (the row's menu carries the same door). */
+  nodeGraphLink: "node-graph-link",
+  /** The reference graph, as a page. `data-focus` is the node it is centred on
+   *  and is absent for the corpus-wide reading; `data-hops` is how far out. */
+  graphPage: "graph-page",
+  /** The drawing itself — the box the dots and the arrows are in. */
+  graphCanvas: "graph-canvas",
+  /** One dot and its label: a link to the node. `data-node-id` is which,
+   *  `data-hops` how far from the centre it is, and `data-focus` marks the one
+   *  the page is about. */
+  graphNode: "graph-node",
+  /** One arrow. `data-from` / `data-to` are the ends and `data-ways` is how
+   *  that record refers — the format's own list, joined, so a scenario can
+   *  tell a `see` from a mention without reading a colour. */
+  graphEdge: "graph-edge",
+  /** A file's name, written where its nodes landed — "files as groupings",
+   *  drawn as a place rather than as a colour. `data-file` is which. */
+  graphFile: "graph-file",
+  /** The line under the drawing: the hovered node's ancestry, which is what a
+   *  bare title cannot say. It is always drawn, so nothing on the page moves
+   *  when a pointer arrives. */
+  graphCaption: "graph-caption",
+  /** How far the reading reaches, as a control — one button per value in the
+   *  format's closed list; `data-hops` is which, `aria-pressed` which is on. */
+  graphHorizon: "graph-horizon",
+  /** The legend's `see` row, and the same for a mention. */
+  graphLegendSee: "graph-legend-see",
+  graphLegendMention: "graph-legend-mention",
+  /** Said in the drawing's place when there is nothing to draw — which is a
+   *  real answer (nothing refers to this node) rather than a missing page. */
+  graphEmpty: "graph-empty",
   /** The trash, as a page. Every archive the directory holds, read-only. */
   trashPage: "trash-page",
   /** One archive's worth of rows on it; `data-file` is which `Archive.olai`.

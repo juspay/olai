@@ -706,6 +706,25 @@ The same long-press door reaches it on a phone, and the pill is drawn everywhere
 **Keyed on the node and NOT on the count.** `open` is an attribute the browser then owns, so a page reused from `/n/a` to `/n/b` would carry the reader's answer about the first node onto the second — a different node is a different element by construction. The count deliberately does not key it: a section staying open while a reference is added elsewhere is exactly the live update this is for.
 
 
+## The reference graph
+
+`src/client/graph/` is those same relations drawn as a SHAPE, and the only page in this client that is about the relations rather than about the records. `/graph/<id>` is one node's neighbourhood — dots for nodes, arrows for the references somebody wrote, pointing the way they were written — and `/graph` alone is the whole of it.
+
+**Scoped by default, and the horizon is in the address.** One hop is the node's own conversation; two is what those nodes are talking to, and there is no third, because past that every graph in a real directory is the corpus with extra steps. It rides as `?hops=2` and spells nothing at its default, so `/graph/herbs` is the clean permalink it would otherwise have been ([docs/search.md](../../docs/search.md) for the other thing that rides in that query).
+
+**The reading is `@olai/format`'s** (`graphOf`), so nothing about what an edge IS is decided here: a mirror is at no end, an ordering edge is no arrow, and an archived record is at neither end — the centre included. What is new one layer down is the FORWARD half (`referencesOf`), and it is held to `backlinksOf` over a whole corpus by a test rather than by a comment.
+
+**`layout.ts` is d3-force and nothing else.** A repulsion, a spring, a collision and a pull toward each node's own file — hand-rolling that is exactly what HACKING.md's rule is about. It is STOPPED and ticked to rest in one pass rather than animated, which buys three things worth more than the motion: the layout is a pure function of the graph and unit-testable without a browser, the picture is identical on every machine and every reload (d3's randomness is a seeded LCG and the starting positions are derived), and there is no timer inside a page that redraws on every revision the store publishes. The settled positions are then FITTED into one box by a uniform scale, so a picture of three nodes and a picture of three hundred both fill the frame.
+
+**Files are a PLACE, not a colour.** "Files as groupings" is that per-file pull, with the file's name written under what landed there. A hue per file cannot work: every tone here comes from the eleven theme tokens so that all fifteen palettes follow, and eleven tokens is four usable hues — a vault of twenty outlines would be drawing something false rather than something less.
+
+**Two layers, and the nodes are real links.** The arrows are an `<svg>` that takes no pointer events; the dots are absolutely-positioned `<a>`s over it, so ⌘-click, middle-click, "copy link address" and Alt+click-to-the-right all behave the way they do everywhere else in this app, and a label is selectable text in the reading face. Both live in ONE coordinate space — the box locks the layout's aspect ratio, so a `viewBox` unit and a percentage of the box are the same place and nothing converts between them.
+
+**The ancestry is never hover-only.** Pointing at a dot writes where that node sits in the line under the drawing (and dims everything the dot is not talking to); the same sentence is on every dot's `aria-label`, which is this app's standing rule for anything a tip would otherwise be the only home of. The caption line is always drawn, so nothing moves when a pointer arrives.
+
+**Two doors, and they are the two this app already has for a node verb**: the row's `•••` (among the READS, beside `Zoom in`) and a control on the zoomed page itself, under the `Referenced by …` section — a heading has no `•••`, which is the same gap `edges/EdgeVerbs.tsx` fills. The corpus-wide reading is a third, in the directory column beside the Trash, because like the trash it belongs to no file.
+
+
 ## What belongs to a reading, not to the file
 
 Three switches decide how a tab is reading rather than what the files say: what is folded, whether done nodes are drawn, and which month the calendar shows. None of them goes to the server or to disk, and hiding what is done is a row not drawn rather than anything marked.

@@ -113,6 +113,8 @@ Being blocked is a SECOND fact about a node, never a replacement for the first: 
 
 The reverse reading — **what refers to this node** — comes out of two indexes kept beside the rest of the derived view and patched per changed file like everything else in it (`@olai/format`'s `derive.ts` and `patch.ts`, [architecture.md](architecture.md)). It is what the browser draws under a zoomed node and what `read_node` answers as `referencedBy`: one reading, so a person and an agent cannot be told different things about one id.
 
+**The same references read as a SHAPE are the same reading again.** The browser's reference graph (`/graph/<id>`, [architecture.md](architecture.md)) draws these edges as arrows, which needs the FORWARD half too — what does this record refer to — and that half is `@olai/format`'s `referencesOf` beside the reverse one, held to it over a whole corpus by a test rather than by a paragraph. Every ruling below therefore holds on the drawing unchanged, with one added by the picture rather than by the format: a walk never steps into an `Archive.olai` at either end, the CENTRE included, so `/graph` on a node that was put away draws nothing and says why.
+
 **Three things are deliberately not references, and each is already answered elsewhere:**
 
 - **A `mirror` is not.** A placement is a second VIEW of a node rather than a claim about it — the record says nothing except *draw it here too*, it carries no prose of its own, and where else a node is drawn is `read_node`'s `mirrors`. Counting placements would put one fact under two names, and would fill the section on exactly the nodes a curated list points at with entries that say nothing about them.

@@ -87,12 +87,15 @@ Feature: The ••• menu opens and shuts
     And the node menu's "Move to Trash" has the caret
 
   Scenario: ArrowDown walks the entries in order
-    # Two down from `Zoom in` is `Collapse` (`menu_verbs.feature` holds the
+    # Three down from `Zoom in` is `Collapse` (`menu_verbs.feature` holds the
     # whole list, in order): a walk that stopped short or ran on would choose
-    # something else, and every entry around it does something visible.
+    # something else, and every entry around it does something visible — the
+    # two above it both navigate, so a walk one step short would open the chat
+    # panel and one two steps short would leave this page entirely.
     Given the node "kitchen" is expanded
     When I open the node menu of "kitchen" with the keyboard
     And I press "Home"
+    And I press "ArrowDown"
     And I press "ArrowDown"
     And I press "ArrowDown"
     And I press "Enter"

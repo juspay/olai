@@ -12,7 +12,8 @@
 
 import { createMemo, Match, Show, Switch } from "solid-js"
 
-import type { Agenda, Derived } from "@olai/format"
+import type { Agenda, Derived, Hops } from "@olai/format"
+import { NOTHING_DRAWN_GRAPH } from "@olai/format"
 
 import { AgendaPage } from "../agenda/AgendaPage.tsx"
 import { CLEARANCE } from "../connection/Indicator.tsx"
@@ -20,6 +21,7 @@ import { DayPage } from "../day/DayPage.tsx"
 import { DocumentPage } from "../document/DocumentPage.tsx"
 import { Broken } from "../errors/Broken.tsx"
 import { FilterBar } from "../filter/FilterBar.tsx"
+import { GraphPage } from "../graph/GraphPage.tsx"
 import { NarrowedProvider } from "../filter/narrowed.tsx"
 import { createNarrowing } from "../filter/narrowing.ts"
 import { taggedBy } from "../filter/tag.ts"
@@ -31,7 +33,14 @@ import { Nothing } from "../Nothing.tsx"
 import { drawnBy, type Found, NOTHING_DRAWN, pageOf } from "../page.ts"
 import { OutlinePage } from "../OutlinePage.tsx"
 import { followed, followedSplit, useGo, useHere, useRouter } from "../router.tsx"
-import { filterOf, hrefOf, narrowable, narrowedTo, samePage } from "../routes.ts"
+import {
+  filterOf,
+  hrefOf,
+  narrowable,
+  narrowedTo,
+  reachingTo,
+  samePage,
+} from "../routes.ts"
 import { panesOf } from "../workspace.ts"
 import { visibleIn } from "../settings/done.ts"
 import { TESTID } from "../testids.ts"
@@ -77,9 +86,18 @@ export function PageView(props: {
   const day = () => only(narrowing.drawn(), "day")
   const owed = () => only(narrowing.drawn(), "agenda")?.agenda
   const trash = () => only(narrowing.drawn(), "trash")
+  const shape = () => only(narrowing.drawn(), "graph")
 
   const narrow = (text: string): void => {
     router.replaceIn(here(), narrowedTo(route(), text))
+  }
+
+  /** A PUSH where the filter replaces, and the difference is the gesture: a
+   *  query is typed one character at a time and would fill the history with
+   *  prefixes, while a horizon is one deliberate press — so Back takes a reader
+   *  from two hops to the one they were reading. */
+  const reach = (hops: Hops): void => {
+    router.goIn(here(), reachingTo(route(), hops))
   }
 
   return (
@@ -157,6 +175,17 @@ export function PageView(props: {
                   files={trash()?.files ?? []}
                   groups={trash()?.groups ?? []}
                 />
+              </Match>
+              <Match when={only(open(), "graph")}>
+                {(open) => (
+                  <GraphPage
+                    zoomed={open().zoomed}
+                    hops={open().hops}
+                    graph={shape()?.graph ?? NOTHING_DRAWN_GRAPH}
+                    focus={shape()?.focus}
+                    onHorizon={reach}
+                  />
+                )}
               </Match>
               <Match when={only(open(), "nothing")}>
                 {(nothing) => (

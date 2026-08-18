@@ -294,8 +294,10 @@ export function Sidebar(props: {
           <NewOutline />
           <NewDocument />
 
-          {/* And below both, the way OUT of the directory rather than into it:
-              what has been put away. */}
+          {/* And below both, the two readings that are about the set rather
+              than about a file in it: the SHAPE of what it says (every
+              reference, drawn), and what has been put away. */}
+          <GraphOfIt />
           <Trash />
         </div>
       </nav>
@@ -386,11 +388,39 @@ function Trash() {
   return (
     <Link
       route={{ kind: "trash" }}
-      class={`${ENTRY} mt-4 text-muted`}
+      class={`${ENTRY} mt-1 text-muted`}
       testid={TESTID.trashLink}
       current={router.route().kind === "trash"}
     >
       Trash
+    </Link>
+  )
+}
+
+/** The way to the whole reference graph — every `see` and every `@id` mention
+ *  in the directory, drawn.
+ *
+ *  Below the tree with the trash rather than above it with the agenda, and the
+ *  division is the one this column already keeps: the two entries at the top
+ *  are the JOURNAL's questions, asked of dates. This one is asked of
+ *  references, and like the trash it belongs to no file — which is why it is
+ *  outside the tree and why, like the trash, whether it is the page being read
+ *  is asked of the ROUTE.
+ *
+ *  A NODE's own neighbourhood is reached from that node (`../NodePage.tsx`, and
+ *  the row's `•••`); this entry is the reading with no centre, which is the one
+ *  a directory column can offer. */
+function GraphOfIt() {
+  const router = useRouter()
+
+  return (
+    <Link
+      route={{ kind: "graph", focus: null }}
+      class={`${ENTRY} mt-4 text-muted`}
+      testid={TESTID.graphLink}
+      current={router.route().kind === "graph"}
+    >
+      Graph
     </Link>
   )
 }
