@@ -179,10 +179,8 @@ export function PageView(props: {
               <Match when={only(open(), "graph")}>
                 {(open) => (
                   <GraphPage
-                    zoomed={open().zoomed}
-                    hops={open().hops}
+                    around={open().around}
                     graph={shape()?.graph ?? NOTHING_DRAWN_GRAPH}
-                    focus={shape()?.focus}
                     onHorizon={reach}
                   />
                 )}

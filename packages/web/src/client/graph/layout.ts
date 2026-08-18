@@ -111,8 +111,11 @@ export interface Placement {
   readonly files: ReadonlyArray<Grouping>
 }
 
-/** Nothing placed — ONE value, shared, for the graph that draws nothing. */
-export const NOTHING_PLACED: Placement = { at: new Map(), files: [] }
+/** Nothing placed — ONE value, shared, for the graph that draws nothing. Not
+ *  exported: the page never asks for it, it asks {@link placed} for whatever it
+ *  is holding, and a second door onto the same empty answer is one more thing
+ *  for the next reader to wonder about. */
+const NOTHING_PLACED: Placement = { at: new Map(), files: [] }
 
 interface Body extends SimulationNodeDatum {
   readonly id: string

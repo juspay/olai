@@ -259,14 +259,15 @@ export type { Zoomed } from "./zoom.ts"
  *  either of them being a second spelling of the list. */
 export { backlinksOf, Way, WAYS } from "./backlinks.ts"
 export type { Backlink } from "./backlinks.ts"
-/** The same references read as a SHAPE: the reference graph around one node, or
- *  the whole of it. `referencesOf` is `backlinksOf` read FORWARDS — the one
- *  reading this package owed that a backwards section could not be asked for —
- *  and every ruling about what counts as a reference stays in `backlinks.ts`,
- *  held to this direction by `graph.test.ts`. `HOPS` is the closed horizon both
- *  the address and the control read; `keepingGraph` / `placesInGraph` /
- *  `matchedInGraph` are the same three things a filtered page asks of every
- *  other shape it draws. */
+/** The same references read as a SHAPE: `graphOf` is the reference graph around
+ *  one node, or the whole of it. Every ruling about what counts as a reference
+ *  stays in `backlinks.ts`, and the FORWARD reading this needs (`referencesOf`)
+ *  is `graph.ts`'s own — not on this list, because nothing outside that module
+ *  asks it and a door with no caller is one more thing for the next reader to
+ *  wonder about; it is held to `backlinksOf` over a whole corpus by
+ *  `graph.test.ts`. `HOPS` is the closed horizon both the address and the
+ *  control read; `keepingGraph` / `placesInGraph` / `matchedInGraph` are the
+ *  same three things a filtered page asks of every other shape it draws. */
 export {
   graphOf,
   HOPS,
@@ -275,9 +276,8 @@ export {
   matchedInGraph,
   NOTHING_DRAWN_GRAPH,
   placesInGraph,
-  referencesOf,
 } from "./graph.ts"
-export type { Asked, Graph, GraphEdge, GraphNode, Hops, Outgoing } from "./graph.ts"
+export type { Asked, Graph, GraphEdge, GraphNode, Hops } from "./graph.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it
  *  selects, `ranked` puts them in the order a door shows them in, `keeping` and
  *  `matchedIn` are what a TREE narrowed to them looks like and how many rows of

@@ -34,6 +34,7 @@ import type {
   FileKind,
   Graph,
   Hops,
+  LocatedRegular,
   Row,
   Zoomed,
 } from "@olai/format"
@@ -43,6 +44,7 @@ import {
   datedOn,
   graphOf,
   HOPS_DEFAULT,
+  nodeNamed,
   NOTHING_DRAWN_GRAPH,
   isArchived,
   rowsOf,
@@ -98,13 +100,12 @@ export type Page =
   /**
    * THE REFERENCE GRAPH, around one node or over the whole directory.
    *
-   * `zoomed` is what the address named, resolved — and it is the whole `Zoomed`
-   * rather than an id because the three ways a node reference can fail (nothing
-   * claims it, a chain dangles, a chain closes) are three different things to
-   * tell a reader, and `../NotFound.tsx` already says all of them. A node page
-   * and a graph of that node answer an unknown id identically, which is what
-   * being the same resolution means. `undefined` is the corpus-wide reading:
-   * the address named no node, so there is nothing to fail.
+   * `around` is the CENTRE — what the address named, resolved, and how far the
+   * reading reaches from it — and `undefined` is the corpus-wide reading, which
+   * named no node and has no centre to be far from. The horizon rides on that
+   * arm rather than beside it for the reason `Asked` is a union one layer down:
+   * a horizon with nothing to be a horizon of is a value a caller can write and
+   * a reader cannot interpret.
    *
    * The `graph` is the reading the address asked for, computed here for the
    * reason a day's groups are: what a page draws is decided in one place, so
@@ -112,8 +113,7 @@ export type Page =
    */
   | {
     readonly kind: "graph"
-    readonly zoomed: Zoomed | undefined
-    readonly hops: Hops
+    readonly around: Around | undefined
     readonly graph: Graph
   }
   /** An outline whose file did not parse: it has no tree to draw, so its own
@@ -131,6 +131,26 @@ export type Page =
     readonly sought: FileKind
     readonly requested: string | null
   }
+
+/**
+ * THE CENTRE of a graph page: the node the address named, and how far out the
+ * reading goes — or which of the three ways that id failed to name one.
+ *
+ * The failures are `Zoomed`'s own arms rather than a second vocabulary for the
+ * same three facts, so `../NotFound.tsx` draws this exactly as it draws a
+ * `/n/<id>` that named nothing: a graph is not a second opinion about whether a
+ * node exists.
+ *
+ * What is deliberately NOT reused is the arm that succeeds. A `Zoomed`'s node
+ * arm carries the node's whole visible SUBTREE (`zoom` builds it), and this
+ * page draws none of it — so resolving through `zoom` would mint a row per
+ * descendant on every revision the store publishes, for a heading and a
+ * `data-` attribute. The centre is `nodeNamed`, which is the same resolution
+ * with nothing built.
+ */
+export type Around =
+  | { readonly kind: "node"; readonly shows: LocatedRegular; readonly hops: Hops }
+  | Exclude<Zoomed, { readonly kind: "node" }>
 
 /** The set, as the page model reads it: what was found, and what could not be
  *  read. One argument rather than three, because they are one snapshot and a
@@ -177,23 +197,29 @@ export const pageOf = (
   if (route.kind === "agenda") return { kind: "agenda", date: today }
 
   if (route.kind === "graph") {
-    const hops = route.hops ?? HOPS_DEFAULT
     // The corpus-wide reading names no node, so there is nothing to resolve.
     if (route.focus === null) {
-      return { kind: "graph", zoomed: undefined, hops, graph: graphOf(derived, { hops }) }
+      return { kind: "graph", around: undefined, graph: graphOf(derived, { kind: "whole" }) }
     }
-    // ...and a named one goes through `zoom`, which is what makes the graph of a
-    // MIRROR the graph of the node it stands for — exactly as `/n/` on that
-    // mirror is the node's own page. An id that resolves to nothing draws no
-    // graph, and the page says which of the three ways it failed.
-    const zoomed = zoom(derived, route.focus)
+    // ...and a named one is resolved the way every reader of a target id is
+    // (`nodeNamed`), which is what makes the graph of a MIRROR the graph of the
+    // node it stands for — exactly as `/n/` on that mirror is the node's own
+    // page. An id that resolves to nothing draws no graph, and `zoom` is asked
+    // only THEN, for the one thing it knows that this does not: which of the
+    // three ways the id failed, in the words `/n/` already uses.
+    const shows = nodeNamed(derived, route.focus)
+    if (shows === undefined) {
+      return {
+        kind: "graph",
+        around: failed(zoom(derived, route.focus)),
+        graph: NOTHING_DRAWN_GRAPH,
+      }
+    }
+    const hops = route.hops ?? HOPS_DEFAULT
     return {
       kind: "graph",
-      zoomed,
-      hops,
-      graph: zoomed.kind === "node"
-        ? graphOf(derived, { focus: zoomed.shows.node.id, hops })
-        : NOTHING_DRAWN_GRAPH,
+      around: { kind: "node", shows, hops },
+      graph: graphOf(derived, { kind: "around", focus: shows.node.id, hops }),
     }
   }
 
@@ -437,7 +463,25 @@ export const drawnBy = (
  *  resolution the page made rather than off the address, so the id the filter
  *  protects and the id the walk was built from are the same id. */
 const focusOf = (page: Extract<Page, { kind: "graph" }>): string | undefined =>
-  page.zoomed?.kind === "node" ? page.zoomed.shows.node.id : undefined
+  page.around?.kind === "node" ? page.around.shows.node.id : undefined
+
+/**
+ * A `zoom` that is only ever asked about an id that resolved to NOTHING,
+ * narrowed to say so.
+ *
+ * `nodeNamed` has already answered `undefined` by the time this is called, and
+ * `zoom` answers `unknown` / `dangling` / `cycle` for exactly the ids it does —
+ * so the `node` arm is unreachable here. It is a THROW rather than a fallback
+ * because there is no honest fallback: an unreachable arm that quietly picked
+ * one of the three would be a page telling a reader the wrong story about why
+ * their link is dead.
+ */
+const failed = (zoomed: Zoomed): Exclude<Zoomed, { readonly kind: "node" }> => {
+  if (zoomed.kind === "node") {
+    throw new Error(`\`${zoomed.shows.node.id}\` resolves two different ways`)
+  }
+  return zoomed
+}
 
 /** An agenda nobody has read yet. The three empty sections a page draws nothing
  *  from — never a claim, which is the rule every readout of what is owed keeps

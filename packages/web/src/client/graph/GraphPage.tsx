@@ -48,12 +48,13 @@
  * is the query's and the bar above has already counted it.
  */
 
-import { isArchived, type Graph, type Hops, HOPS, type Zoomed } from "@olai/format"
+import { isArchived, type Graph, type Hops, HOPS } from "@olai/format"
 import { createMemo, createSignal, For, Show } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
 import { useNarrowed } from "../filter/narrowed.tsx"
 import { only } from "../narrow.ts"
+import type { Around } from "../page.ts"
 import { NotFound } from "../NotFound.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
@@ -63,14 +64,16 @@ import { placed, sameShape } from "./layout.ts"
 import { EDGE_LOOKS } from "./look.ts"
 
 export interface GraphPageProps {
-  /** The node the address named, resolved — `undefined` for the corpus-wide
-   *  reading, which named none. */
-  readonly zoomed: Zoomed | undefined
-  readonly hops: Hops
-  /** What the page draws, AFTER the filter: the reading and the node it is
-   *  about, which a filter may not take away (`../page.ts`). */
+  /** The CENTRE, resolved — the node and how far the reading reaches, or which
+   *  of the three ways the address failed to name one. `undefined` is the
+   *  corpus-wide reading, which named none (`../page.ts`'s `Around`). */
+  readonly around: Around | undefined
+  /** What the page draws, AFTER the filter — which is the reading with what
+   *  did not match taken out of it, the centre excepted (`../page.ts`). Which
+   *  node that centre IS is not a second prop: it is {@link GraphPageProps.around}
+   *  read once, below, so the accent and the pruned graph cannot come to two
+   *  answers about one page. */
   readonly graph: Graph
-  readonly focus: string | undefined
   readonly onHorizon: (hops: Hops) => void
 }
 
@@ -78,8 +81,8 @@ export function GraphPage(props: GraphPageProps) {
   /** The address named a node and the set could not resolve it. The whole page
    *  is that news, in `/n/`'s own words, rather than a heading over an empty
    *  drawing. */
-  const missing = (): Zoomed | undefined =>
-    props.zoomed === undefined || props.zoomed.kind === "node" ? undefined : props.zoomed
+  const missing = (): Exclude<Around, { kind: "node" }> | undefined =>
+    props.around === undefined || props.around.kind === "node" ? undefined : props.around
 
   return (
     <Show when={missing()} fallback={<Shape {...props} />}>
@@ -93,9 +96,43 @@ export function GraphPage(props: GraphPageProps) {
 function Shape(props: GraphPageProps) {
   const derived = useDerived()
   const narrowed = useNarrowed()
-  const [hovered, setHovered] = createSignal<string | undefined>()
+  const [pointed, setPointed] = createSignal<string | undefined>()
 
-  const shows = () => (props.zoomed === undefined ? undefined : only(props.zoomed, "node"))
+  /** The centre, when there is one — the node this page is about, with the
+   *  horizon that is only meaningful beside it. */
+  const centre = () => (props.around === undefined ? undefined : only(props.around, "node"))
+
+  /** The node the page is ABOUT, read off that one resolution — the accent on
+   *  a dot, and the dot the caption falls back to. */
+  const focus = (): string | undefined => centre()?.shows.node.id
+
+  /** ...and how far it reaches, as the attribute the page publishes. Absent on
+   *  the corpus-wide reading rather than defaulted: there is no centre for a
+   *  horizon to be measured from, so a number there would be a claim. */
+  const reach = (): string | undefined => {
+    const at = centre()
+    return at === undefined ? undefined : String(at.hops)
+  }
+
+  /**
+   * WHAT THE READER IS POINTING AT — derived against what is DRAWN rather than
+   * held on its own.
+   *
+   * The signal is a fact about a pointer, and everything it feeds is a fact
+   * about this graph: which dot is named in the caption, and which dots go
+   * quiet. Those two come apart the moment the graph moves under the pointer —
+   * navigating from one neighbourhood to the next, or a live update taking the
+   * pointed-at node out of the set — and what the page would then draw is every
+   * dot dimmed against one that is not there. Asking the reading rather than
+   * remembering is the same rule the rest of this client keeps: the reading is
+   * the answer, and a held id is at most a question.
+   */
+  const hovered = createMemo(() => {
+    const asked = pointed()
+    return asked !== undefined && props.graph.nodes.some((one) => one.at.node.id === asked)
+      ? asked
+      : undefined
+  })
 
   // THE LAYOUT IS HELD BY SHAPE, not by identity. The reading is minted fresh
   // on every revision the store publishes — every keystroke anywhere in the
@@ -108,7 +145,7 @@ function Shape(props: GraphPageProps) {
   /** The sentence under the drawing: where the dot under the pointer sits, or —
    *  with nothing pointed at — where the page's own node does. */
   const said = createMemo(() => {
-    const asked = hovered() ?? props.focus
+    const asked = hovered() ?? focus()
     const node = props.graph.nodes.find((one) => one.at.node.id === asked)
     return node === undefined
       ? ""
@@ -118,12 +155,12 @@ function Shape(props: GraphPageProps) {
   return (
     <div
       data-testid={TESTID.graphPage}
-      data-focus={props.focus}
-      data-hops={String(props.hops)}
+      data-focus={focus()}
+      data-hops={reach()}
     >
       <header class="mb-4 flex flex-wrap items-baseline justify-between gap-3">
         <h1 class="m-0 text-2xl font-bold">
-          <Show when={shows()} fallback="Reference graph">
+          <Show when={centre()} fallback="Reference graph">
             {(node) => (
               <>
                 <span class="text-muted">Around </span>
@@ -138,8 +175,8 @@ function Shape(props: GraphPageProps) {
           </Show>
         </h1>
         {/* Only where there is a centre to be far from. */}
-        <Show when={shows()}>
-          <Horizon hops={props.hops} onPick={props.onHorizon} />
+        <Show when={centre()}>
+          {(node) => <Horizon hops={node().hops} onPick={props.onHorizon} />}
         </Show>
       </header>
 
@@ -147,7 +184,7 @@ function Shape(props: GraphPageProps) {
         when={worthDrawing(props.graph) || narrowed.active()}
         fallback={
           <p class="text-muted" data-testid={TESTID.graphEmpty}>
-            {nothing(shows(), props.hops)}
+            {nothing(centre())}
           </p>
         }
       >
@@ -156,8 +193,8 @@ function Shape(props: GraphPageProps) {
           placement={placement()}
           derived={derived()}
           hovered={hovered()}
-          onHover={setHovered}
-          focus={props.focus}
+          onHover={setPointed}
+          focus={focus()}
         />
         {/* Reserved rather than conditional: a line that appears would push the
             drawing up the moment a pointer reached a dot. */}
@@ -186,17 +223,14 @@ const worthDrawing = (graph: Graph): boolean => graph.edges.length > 0
  * reading, because "the walk refused this centre" and "nothing refers to it"
  * are the same empty graph and not the same sentence.
  */
-const nothing = (
-  node: Extract<Zoomed, { kind: "node" }> | undefined,
-  hops: Hops,
-): string => {
+const nothing = (node: Extract<Around, { kind: "node" }> | undefined): string => {
   if (node === undefined) {
     return "Nothing in this directory refers to anything yet — no node points at another with see, and no note names one by its @id."
   }
   if (isArchived(node.shows.file)) {
     return "This node is in the Trash, and what is put away is drawn there and nowhere else."
   }
-  return hops === 1
+  return node.hops === 1
     ? "Nothing refers to this node, and it refers to nothing."
     : "Nothing refers to this node, and it refers to nothing — not even two hops out."
 }

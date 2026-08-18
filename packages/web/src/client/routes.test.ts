@@ -30,7 +30,6 @@ const ROUTES: ReadonlyArray<Route> = [
   { kind: "graph", focus: null },
   { kind: "graph", focus: "kitchen" },
   { kind: "graph", focus: "a-minted_id9", hops: 2 },
-  { kind: "graph", focus: null, hops: 2 },
   { kind: "graph", focus: "kitchen", hops: 2, filter: "is:todo" },
   // ...and the same pages, narrowed. The filter is part of the address, so it
   // is part of the round trip: a query the app writes into the bar and cannot
@@ -323,6 +322,18 @@ test("a graph's horizon rides in the query, and only when it is not the default"
   // so it reads as the ordinary page rather than as nothing at all.
   expect(routeOf("/graph/herbs?hops=9")).toEqual({ kind: "graph", focus: "herbs" })
   expect(routeOf("/graph/herbs?hops=")).toEqual({ kind: "graph", focus: "herbs" })
+})
+
+// ...and the corpus-wide reading takes NO horizon at all, which is the same
+// exclusion a document has from the filter: a query key that means nothing on a
+// page is left off the route, so nothing is written that cannot be read back.
+test("a graph with no centre has no horizon to be a horizon of", () => {
+  expect(hrefOf({ kind: "graph", focus: null })).toBe("/graph")
+  expect(routeOf("/graph?hops=2")).toEqual({ kind: "graph", focus: null })
+  expect(reachingTo({ kind: "graph", focus: null }, 2)).toEqual({
+    kind: "graph",
+    focus: null,
+  })
 })
 
 test("a graph carries both keys at once, in one query", () => {

@@ -169,12 +169,18 @@ export const referencesOf = (
   }))
 }
 
-/** What a reading was asked for: one node's neighbourhood, or the whole
- *  reference graph when no node is named. */
-export interface Asked {
+/**
+ * What a reading was asked for — TWO readings and not one with an optional
+ * field, because a horizon means nothing without a centre to be far from.
+ *
+ * `{focus: undefined, hops: 2}` was spellable while this was one struct, and it
+ * said nothing: a value a caller can write and a reader cannot interpret. The
+ * discrimination is what makes the pair the two questions they are.
+ */
+export type Asked =
   /**
-   * The node at the centre — CANONICAL, since a zoom has already resolved a
-   * mirror's chain by the time a page asks. An id nothing claims draws nothing,
+   * One node's neighbourhood. The centre is CANONICAL, since a page resolves a
+   * mirror's chain before it asks — and an id nothing claims draws nothing,
    * which is the same answer an empty directory gives.
    *
    * AN ARCHIVED ID DRAWS NOTHING EITHER, and that is #226 rather than a gap: a
@@ -185,12 +191,13 @@ export interface Asked {
    * not: a picture whose arrows pointed one way only, about a node the ruling
    * says is not on this page at all.
    */
-  readonly focus?: string
-  readonly hops: Hops
-}
+  | { readonly kind: "around"; readonly focus: string; readonly hops: Hops }
+  /** ...and the whole reference graph, which is about no one node and so has
+   *  no horizon to be given. */
+  | { readonly kind: "whole" }
 
 export const graphOf = (derived: Derived, asked: Asked): Graph => {
-  const reached = asked.focus === undefined
+  const reached = asked.kind === "whole"
     ? everythingReferring(derived)
     : neighbourhoodOf(derived, asked.focus, asked.hops)
   if (reached.size === 0) return NOTHING_DRAWN_GRAPH
