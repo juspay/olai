@@ -110,10 +110,18 @@ const livePreview: Extension = [
 /** Which extensions the vim preference swaps. */
 const vimming = new Compartment()
 
-/** A mounted editor, as the surface around it needs it. */
+/**
+ * A mounted editor, as the surface around it needs it — four verbs, and every
+ * one of them is something a CALLER does to an editor rather than something
+ * CodeMirror does.
+ *
+ * There is deliberately no `doc()` and no `caret()`: what the editor holds is
+ * what the caller last heard through `typed`, and where the caret is is the
+ * editor's own business between one `focus` and the next. Both existed for a
+ * while and neither was ever read — an accessor nobody calls is a second
+ * answer to a question that already has one, waiting for the two to disagree.
+ */
 export interface Mounted {
-  /** What it holds right now. */
-  readonly doc: () => string
   /** Put text in it that did NOT come from typing — an external write, or a
    *  draft the app replaced. Silent: the change notifies nothing, because the
    *  caller is the one who already knows. */
@@ -121,8 +129,6 @@ export interface Mounted {
   /** Take the caret: `at` for a chosen offset, absent for wherever it already
    *  is (which for a fresh editor is the end of the text). */
   readonly focus: (at?: number) => void
-  /** Where the caret is — read off the editor, which is the one authority. */
-  readonly caret: () => number
   /** Turn vim mode on or off under a live editor. */
   readonly vim: (on: boolean) => void
   readonly destroy: () => void
@@ -206,7 +212,6 @@ export const mount = (
   })
 
   return {
-    doc: () => view.state.doc.toString(),
     write: (text) => {
       if (text === view.state.doc.toString()) return
       echoing = true
@@ -221,7 +226,6 @@ export const mount = (
       const to = Math.min(at ?? view.state.selection.main.head, view.state.doc.length)
       view.dispatch({ selection: { anchor: to } })
     },
-    caret: () => view.state.selection.main.head,
     vim: (on) => {
       view.dispatch({ effects: vimming.reconfigure(on ? vim() : []) })
     },

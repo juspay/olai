@@ -23,7 +23,7 @@
  * the other.
  */
 
-import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from "solid-js"
 
 import { editorFailure, editorNow, editorReady } from "./chunk.ts"
 import { vimEditing } from "../settings/vim.ts"
@@ -77,19 +77,60 @@ interface Placed {
   readonly caret?: number
 }
 
+/**
+ * WHICH FACE IS DRAWN, and why — one word, and the three states a reader (or a
+ * scenario) can be in.
+ *
+ * A union rather than two booleans read at two sites. It was `editorReady()`
+ * for the swap and `editorFailure() === undefined ? "waiting" : "plain"` for
+ * the attribute — one decision spelled twice, in two components, which is how
+ * a page comes to say `waiting` about an editor that is never coming.
+ */
+type Face = "preview" | "waiting" | "plain"
+
+const face = (): Face =>
+  editorReady() ? "preview" : editorFailure() === undefined ? "waiting" : "plain"
+
 export function Mde(props: MdeProps) {
   // Where the caret was in the face being replaced — the end of the text until
   // something has moved it, which is what opening a note means.
   const [where, setWhere] = createSignal<number | undefined>(undefined)
+  const drawn = createMemo(face)
 
   return (
     <Show
-      when={editorReady()}
-      fallback={<Plain {...props} caret={where()} onCaret={setWhere} />}
+      when={drawn() === "preview"}
+      fallback={<Plain {...props} caret={where()} onCaret={setWhere} face={drawn()} />}
     >
       <Live {...props} caret={where()} />
     </Show>
   )
+}
+
+/**
+ * Did the CARET go somewhere else, or was this editor taken out of the document
+ * underneath it?
+ *
+ * The distinction is `../edit/editing.tsx`'s (`Editor.blur`): a person looking
+ * somewhere else COMMITS and closes the draft; an element removed by a
+ * re-render did not lose focus to anybody, so the draft stays open and the
+ * caret is put back. Getting it wrong the second way closes the row somebody is
+ * mid-keystroke in.
+ *
+ * IT IS A GUARANTEE MADE WHERE IT CAN BE MADE, which is why it is a primitive
+ * both faces take rather than a flag each of them keeps. `isConnected` alone is
+ * the app guessing from outside: browsers disagree about whether a focused
+ * element being removed fires `blur` before or after it is detached, so in some
+ * of them the swap this component makes reads as "the reader clicked away" and
+ * closes the note they are writing. The component doing the removing knows;
+ * this is it saying so.
+ */
+const createLeft = (): ((connected: boolean) => boolean) => {
+  let leaving = false
+  onCleanup(() => {
+    leaving = true
+  })
+  return (connected) => !leaving && connected
 }
 
 /**
@@ -103,8 +144,7 @@ export function Mde(props: MdeProps) {
 function Live(props: MdeProps & Placed) {
   let host!: HTMLDivElement
   let editor: Mounted | undefined
-  /** This editor is being taken out of the document — see {@link left}. */
-  let leaving = false
+  const left = createLeft()
 
   onMount(() => {
     const mounted = editorNow().mount(host, {
@@ -112,7 +152,7 @@ function Live(props: MdeProps & Placed) {
       vim: vimEditing(),
       typed: (text) => props.onInput(text),
       key: (event) => props.onKey(event),
-      blurred: (from) => props.onBlur(left(leaving, from)),
+      blurred: (connected) => props.onBlur(left(connected)),
       // ON THE EDITABLE ELEMENT, which for this face is CodeMirror's own
       // content and for the plain one is the textarea. Same marks, same
       // element, so "the caret is in the editor" is one question with one
@@ -124,10 +164,7 @@ function Live(props: MdeProps & Placed) {
       },
     })
     editor = mounted
-    onCleanup(() => {
-      leaving = true
-      mounted.destroy()
-    })
+    onCleanup(() => mounted.destroy())
     // Opening puts the caret at the end of the text — a click into a note
     // means "carry on writing" — or where the face this replaced had left it.
     mounted.focus(props.caret ?? props.text.length)
@@ -161,13 +198,17 @@ function Live(props: MdeProps & Placed) {
  * and it is what a reader gets while the chunk is in the air, so it keeps
  * every behaviour it had, the growing box included.
  */
-function Plain(props: MdeProps & Placed & { readonly onCaret: (at: number) => void }) {
+function Plain(
+  props: MdeProps & Placed & {
+    readonly onCaret: (at: number) => void
+    /** Which face this is, and why — `waiting` while the chunk is in the air,
+     *  `plain` once it is known not to be coming. Handed down rather than
+     *  re-derived, so the swap above and the mark here are one decision. */
+    readonly face: Face
+  },
+) {
   let element!: HTMLTextAreaElement
-  /** This textarea is being taken out of the document — see {@link left}. */
-  let leaving = false
-  onCleanup(() => {
-    leaving = true
-  })
+  const left = createLeft()
 
   const read = (): void => props.onCaret(element.selectionStart ?? 0)
 
@@ -192,7 +233,7 @@ function Plain(props: MdeProps & Placed & { readonly onCaret: (at: number) => vo
       ref={element}
       class={props.class}
       data-testid={props.testid}
-      data-mde={editorFailure() === undefined ? "waiting" : "plain"}
+      data-mde={props.face}
       aria-label={props.label}
       rows={2}
       value={props.text}
@@ -207,30 +248,10 @@ function Plain(props: MdeProps & Placed & { readonly onCaret: (at: number) => vo
       }}
       onClick={read}
       onSelect={read}
-      onBlur={() => props.onBlur(left(leaving, element.isConnected))}
+      onBlur={() => props.onBlur(left(element.isConnected))}
     />
   )
 }
-
-/**
- * Did the CARET go somewhere else, or was this editor taken out of the
- * document underneath it?
- *
- * The distinction is `../edit/editing.tsx`'s (`Editor.blur`): a person looking
- * somewhere else COMMITS and closes the draft; an element removed by a
- * re-render did not lose focus to anybody, so the draft stays open and the
- * caret is put back. Getting it wrong the second way closes the row somebody
- * is mid-keystroke in.
- *
- * TWO ANSWERS RATHER THAN ONE, because the swap this component makes is
- * exactly the case a single one gets wrong. When the chunk lands under an open
- * editor, the textarea is replaced by CodeMirror — and browsers disagree about
- * whether a focused element that is being removed fires `blur` before or after
- * it is detached. `isConnected` alone is therefore true in some of them, which
- * reads as "the reader clicked away" and closes the note they are writing. The
- * component knows better: it is the thing doing the removing, so it says so.
- */
-const left = (leaving: boolean, connected: boolean): boolean => !leaving && connected
 
 /**
  * A textarea that is as tall as what is in it.

@@ -14,16 +14,24 @@
  * copies of one `<p>` between them that had already drifted in padding. What
  * differs per site is the testid and the text, so that is what it takes.
  *
- * It holds no MOOD, and that is the difference from the two-mood lines
- * elsewhere in this client (`edit/UndoSaid.tsx`, the `•••` menu's): those draw
- * a nudge as well as a refusal, and a document write has no rollup to remark
- * on — there is nothing an `aside` would say here that leaving the editor does
- * not already show. A component that carried a mood nothing emits would be an
- * abstraction one caller wide.
+ * WHAT IT IS, EXACTLY, IS A BOX: it draws {@link SaidLine} in the one mood a
+ * document write has. That split is the whole of why both components exist —
+ * `SaidLine` owns the MOOD (the tone, and with it the colour, the `data-tone`
+ * a scenario reads, and whether a screen reader is interrupted), and this owns
+ * the LAYOUT three surfaces share (a bordered box on paper, in two sizes).
+ * They were two spellings of one mood until this file was made to ask for it:
+ * the alarm colour, the `role="alert"` and the tone attribute were written out
+ * here as well as there, which is exactly the drift `SaidLine`'s own header
+ * exists to end.
+ *
+ * It carries no `aside` arm, and that stays deliberate: a document write has
+ * no rollup to remark on, so a mood nothing emits would be a knob nobody
+ * turns.
  */
 
 import { Show } from "solid-js"
 
+import { SaidLine } from "./edit/SaidLine.tsx"
 import type { TestId } from "./testids.ts"
 
 export function Refused(props: {
@@ -37,15 +45,12 @@ export function Refused(props: {
   return (
     <Show when={props.said}>
       {(text) => (
-        <p
-          class={"m-0 rounded border border-alarm bg-paper leading-snug text-alarm " +
+        <SaidLine
+          said={{ tone: "alarm", text: text() }}
+          class={"m-0 rounded border border-alarm bg-paper leading-snug " +
             (props.compact === true ? "px-2 py-1 text-xs" : "px-3 py-1.5 text-[0.8125rem]")}
-          data-testid={props.testid}
-          data-tone="alarm"
-          role="alert"
-        >
-          {text()}
-        </p>
+          testid={props.testid}
+        />
       )}
     </Show>
   )
