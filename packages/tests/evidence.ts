@@ -27,20 +27,59 @@ const SECTION = process.env["SECTION"] ?? ""
 const VAULT = process.env["VAULT"]
 
 let shots = 0
-/** A shot, numbered in the order the section takes them. `full` takes the
- *  whole page rather than the window, for the one section whose subject is
- *  taller than a screen on purpose — the agenda's line of time. */
-const shot = async (page: Page, name: string, full = false) => {
+/**
+ * A shot, numbered in the order the section takes them — and the two ways a
+ * section asks for less or more of the page than the window gives it.
+ *
+ * `clip` is a WINDOW onto the shot rather than a second kind of shot: some
+ * affordances are two pixels tall (the drop line), and a whole-page frame of
+ * one is a frame of the page. The section that asks for it takes the wide one
+ * as well, so the close-up is read beside what it is a close-up OF.
+ *
+ * `full` is the other direction, for the one section whose subject is taller
+ * than a screen on purpose — the agenda's line of time, which is about how far
+ * away the far end of it feels.
+ */
+const shot = async (
+  page: Page,
+  name: string,
+  within?: { clip?: { x: number; y: number; width: number; height: number }; full?: boolean },
+) => {
   shots += 1
   await page.screenshot({
     path: `${OUT}/${SECTION}-${shots}-${name}.png`,
-    fullPage: full,
+    ...(within?.clip ? { clip: within.clip } : {}),
+    ...(within?.full === true ? { fullPage: true } : {}),
   })
 }
 
 const row = (id: string) => `[data-node-id="${id}"]`
 const handle = (id: string) => `${row(id)} [data-testid="drag-handle"] >> nth=0`
 const title = (id: string) => `${row(id)} [data-testid="node-title"] >> nth=0`
+
+/** The same two, with a COLUMN named — the selectors above with one prefix. A
+ *  node id is unique in a set and not on a screen: two panes showing one file
+ *  draw every row of it twice, so a section about dragging between them has to
+ *  say which one it means. */
+const paneAt = (index: number) => `[data-testid="pane"][data-pane="${index}"]`
+const handleIn = (index: number, id: string) => `${paneAt(index)} ${handle(id)}`
+const titleIn = (index: number, id: string) => `${paneAt(index)} ${title(id)}`
+
+/** The face a pane wears while a row is held over it that cannot land there —
+ *  the drag's other answer, and never drawn beside the line. */
+const DROP_REFUSED = '[data-testid="drop-refused"]'
+/** What a bulk gesture — a key over a pick, or a drop — had to say afterwards. */
+const SELECTION_SAID = '[data-testid="selection-said"]'
+
+/** Open a split, and wait until both columns have drawn their tree. Waiting on
+ *  the COUNT rather than on the first one is the whole of it: a section that
+ *  photographed one pane while the other was still empty would be a section
+ *  about the boot. */
+const splitOn = async (page: Page, address: string): Promise<void> => {
+  await page.goto(`${BASE}${address}`)
+  await page.locator('[data-testid="outline-tree"]').nth(1).waitFor()
+  await page.waitForTimeout(600)
+}
 
 const order = async (page: Page) =>
   (await page.locator('[data-testid="node"]').evaluateAll((rows) =>
@@ -571,10 +610,10 @@ const SECTIONS = {
       (await page.locator('[data-testid="agenda-quiet"]').allInnerTexts()).join(" · ")
     }`)
     console.log(`  file headings on it:  ${await page.locator('[data-testid="day-group"]').count()}`)
-    await shot(page, "chalk-light", true)
+    await shot(page, "chalk-light", { full: true })
 
     await wearTheme(page, "pitch")
-    await shot(page, "pitch-dark", true)
+    await shot(page, "pitch-dark", { full: true })
   },
 
   /**
@@ -1000,6 +1039,66 @@ const SECTIONS = {
     await page.waitForTimeout(SETTLE)
     console.log(`  order: ${await order(page)}`)
     await shot(page, "dropped")
+  },
+
+  /**
+   * A ROW PICKED UP IN ONE PANE AND PUT DOWN IN THE OTHER, with both panes
+   * showing the same file — so the drop is watched from both ends at once.
+   *
+   * The gap above `demo` is chosen because it is the one gap in this outline
+   * whose depth the pointer cannot get wrong: the row above is `kitchen` and
+   * the row below is its first child, so "one inside the row above" and "level
+   * with the row below" are the same answer. What the shot is about is that
+   * the line is drawn over the OTHER column, promising a landing there.
+   */
+  "drag-across-panes": async (page) => {
+    await splitOn(page, "/s/o%2Fhouse.olai/o%2Fhouse.olai")
+    console.log(`  two panes, one file. before: ${await order(page)}`)
+    await shot(page, "two-panes-on-one-file")
+
+    const above = await boxOf(page.locator(titleIn(1, "demo")))
+    await carry(page, handleIn(0, "knobs"), above.x + 4, above.y - 2)
+    console.log(`  picked up in pane 0, held in pane 1 — the line promises: ${await promised(page)}`)
+    await shot(page, "carried-into-the-other-pane")
+    // ...and a close-up of the two panes at the gap, because the line is two
+    // pixels tall and the row it left is a fade: both are lost in a shot of a
+    // whole workspace, and they are the whole of what this section is about.
+    const line = await boxOf(page.locator('[data-testid="drop-line"]'))
+    await shot(page, "the-line-over-the-other-pane", {
+      clip: { x: 260, y: Math.max(0, line.y - 120), width: 840, height: 260 },
+    })
+
+    await page.mouse.up()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  knobs now sits under ${await parentOf(page, "knobs")} — in both panes, off one write`)
+    console.log(`  and the file says:     ${recordOf("knobs")}`)
+    await shot(page, "landed-and-both-panes-agree")
+  },
+
+  /**
+   * THE SAME GESTURE AIMED AT ANOTHER FILE, which is the drag's other answer.
+   *
+   * Every outline is an independent tree, so a parent is always in the same
+   * file — there is no `place` that expresses this and no `move_node` that
+   * would take it. The shot is the half a transcript cannot show: the pane
+   * under the pointer says so while the hand is still holding the row, and
+   * there is no drop line beside it offering a landing it could not keep.
+   */
+  "a-drop-into-another-file-is-refused": async (page) => {
+    await splitOn(page, "/s/o%2Fhouse.olai/o%2Fgarden.olai")
+    await shot(page, "two-panes-two-files")
+
+    const over = await boxOf(page.locator(titleIn(1, "mint")))
+    await carry(page, handleIn(0, "knobs"), over.x + over.width / 2, over.y + over.height / 2)
+    console.log(`  the pane says:      ${await textOf(page, DROP_REFUSED)}`)
+    console.log(`  drop lines drawn:   ${await page.locator('[data-testid="drop-line"]').count()}`)
+    await shot(page, "refused-under-the-pointer")
+
+    await page.mouse.up()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  after letting go, the bar says: ${await textOf(page, SELECTION_SAID)}`)
+    console.log(`  and the file is untouched:     ${recordOf("knobs")}`)
+    await shot(page, "refused-and-nothing-moved")
   },
 
   "trash": async (page) => {

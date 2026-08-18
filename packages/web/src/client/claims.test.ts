@@ -171,6 +171,24 @@ test("a row's line is marked in exactly the module that reads it and the tree th
   expect(filesSpelling(/data-row-key/)).toEqual(["Tree.tsx", path.join("drag", "lines.ts")])
 })
 
+// A PANE'S index, which is the same kind of claim read from the other end. The
+// workspace DRAWS it — the page itself, and the three chrome projections of the
+// pane list — and what READS it is every place that has to tell two panes of the
+// SAME FILE apart, which is a view this app can draw and therefore a place its
+// identifiers stop being unique. A `Row.key` is a chain from the roots of ITS
+// page (the two row gestures measure through one door, `drag/lines.ts`), and a
+// markdown heading's id is minted from the heading (`document/faces.tsx` scrolls
+// under its own pane's root). A fifth file spelling it is a new reader, which is
+// a new answer to "which page is this in".
+test("a pane's index is drawn by the workspace and read where two panes must be told apart", () => {
+  expect(filesSpelling(/data-pane/)).toEqual([
+    path.join("document", "faces.tsx"),
+    path.join("drag", "lines.ts"),
+    path.join("pane", "PageView.tsx"),
+    path.join("pane", "Panes.tsx"),
+  ])
+})
+
 // The handle's is two rather than three, and the missing one is the point:
 // `menu/door.ts` stands down on this mark and spells it as the CONSTANT, so the
 // type checker already holds its end. Only the declaration and the cell that

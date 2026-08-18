@@ -142,7 +142,13 @@ That line answers two questions at once, because the gesture asks two: **which g
 
 What a drop sends is one op per row moved — the same `move_node` an agent would send, naming a parent and the sibling to sit after — so a drop is refused, and says why, exactly as a `Tab` is. ⌘Z takes one back like any other edit.
 
-**Hold a row near the top or bottom of the window and the page comes to you.** An outline is longer than a screen nearly always, so a drag that could only reach what happened to be visible when you pressed would be most of the gesture missing. The nearer the edge, the faster it moves; move away and it stops. The line that says where the row would land is re-read as the page goes, so it is always about where the pointer is *on the page*.
+**Drag it into the other pane.** With a split open, a row picked up in one pane is dropped in the next: carry it across and the same line appears over *that* outline, saying the same two things about it — which gap, and how far in. Let go and it goes there. Nothing about the gesture changes; what changed is that the pane the pointer is over decides where the row lands, rather than the pane the press began in.
+
+Two panes showing the **same file** reorganize each other. The write goes to the file, both trees read the same directory, so the row leaves one pane and arrives in the other on the same frame — you watch it go.
+
+Two panes showing **different files** cannot, and the pane says so before you let go: it fills with the reason, in the same words `move_node` refuses in. Every outline is an independent tree, so a parent is always in the same file — moving a subtree between files is what archiving does, and drawing one node in two places is what a mirror is for. Let go anyway and nothing moves; the sentence stays on the bar rather than disappearing with the gesture.
+
+**Hold a row near the top or bottom of the window and the page comes to you.** An outline is longer than a screen nearly always, so a drag that could only reach what happened to be visible when you pressed would be most of the gesture missing. The nearer the edge, the faster it moves; move away and it stops. The line that says where the row would land is re-read as the page goes, so it is always about where the pointer is *on the page*. (This one is the *window* scrolling, so it is a lone page's; a split gives each pane its own scroller, and there the reach of a drag is what that column is showing.)
 
 **With a finger, hold the bullet first.** Press it, wait for the row to lift, and then it follows your thumb — the same drop line, the same landing. Until that moment nothing is claimed: a finger that moves before the row lifts is scrolling the page, exactly as it always was, and that is true whether it started on a bullet or anywhere else. The bullet is the handle on every device, which is why holding a finger *there* no longer opens the row's ••• menu — holding the row anywhere else still does.
 

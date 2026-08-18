@@ -25,9 +25,17 @@ import * as assert from "node:assert";
 
 import { Given, Then, When } from "@cucumber/cucumber";
 
+import {
+  aboveTitle,
+  carry,
+  farInside,
+  handleOf,
+  insideTitle,
+  ONE_STEP,
+  pressBullet,
+} from "../support/dragging.ts";
 import { saysNothing, saysThat } from "../support/said.ts";
 import {
-  DRAG_HANDLE,
   DROP_LINE,
   NODE,
   nodeSelector,
@@ -40,88 +48,31 @@ import {
   SELECTION_TRASH,
   SWEEP_BAND,
 } from "../support/world.ts";
-import type { Box, OlaiWorld } from "../support/world.ts";
-
-/** How far in one level is drawn, near enough: the pointer only has to land
- *  closer to one step than to the next, and the client rounds. */
-const ONE_STEP = 40;
-
-/** A row's own bullet-as-handle — `.first()` because a descendant's matches
- *  inside the scope too, and the row's own is rendered before any child's. */
-const handleOf = (world: OlaiWorld, id: string) =>
-  world.node(id).locator(DRAG_HANDLE).first();
-
-/** Put the pointer on a row's bullet and press. Answers with the box it landed
- *  on, because every gesture that starts here then travels somewhere measured
- *  from it. */
-const pressBullet = async (world: OlaiWorld, id: string): Promise<Box> => {
-  const box = await world.box(handleOf(world, id), `the bullet of "${id}"`);
-  await world.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await world.page.mouse.down();
-  return box;
-};
-
-/** Press the bullet and travel to a point, without letting go. The travel is
- *  in STEPS because the client only starts a drag once the pointer has moved
- *  far enough to say it was not a click — one jump would arrive as a single
- *  move and still work, but a scenario should exercise the gesture a hand
- *  makes. */
-const carry = async (
-  world: OlaiWorld,
-  id: string,
-  x: number,
-  y: number,
-): Promise<void> => {
-  await pressBullet(world, id);
-  await world.page.mouse.move(x, y, { steps: 12 });
-  await world.page
-    .locator(DROP_LINE)
-    .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
-};
-
-/** Just above a row's title: the gap between it and whatever is above it. */
-const aboveTitle = async (world: OlaiWorld, id: string) => {
-  const box = await world.box(world.nodeTitle(id), `the title of "${id}"`);
-  return { x: box.x + 4, y: box.y - 2 };
-};
-
-/** Just under a row's title, one level further in than that row is drawn. */
-const insideTitle = async (world: OlaiWorld, id: string) => {
-  const box = await world.box(world.nodeTitle(id), `the title of "${id}"`);
-  return { x: box.x + ONE_STEP, y: box.y + box.height + 2 };
-};
-
-/** The same gap, asked for as far in as the pointer can reach. What the client
- *  answers is then the deepest the gap ALLOWS, which is the assertion for a row
- *  nothing may hang under. */
-const farInside = async (world: OlaiWorld, id: string) => {
-  const box = await world.box(world.nodeTitle(id), `the title of "${id}"`);
-  return { x: box.x + box.width, y: box.y + box.height + 2 };
-};
+import type { OlaiWorld } from "../support/world.ts";
 
 // ── dragging ───────────────────────────────────────────────────────────
 
 When(
   "I pick up the bullet of {string} and hold it above the title of {string}",
   async function (this: OlaiWorld, id: string, above: string) {
-    const at = await aboveTitle(this, above);
-    await carry(this, id, at.x, at.y);
+    const here = this.everywhere();
+    await carry(this, here, id, await aboveTitle(this, here, above));
   },
 );
 
 When(
   "I pick up the bullet of {string} and hold it one step in under the title of {string}",
   async function (this: OlaiWorld, id: string, under: string) {
-    const at = await insideTitle(this, under);
-    await carry(this, id, at.x, at.y);
+    const here = this.everywhere();
+    await carry(this, here, id, await insideTitle(this, here, under));
   },
 );
 
 When(
   "I pick up the bullet of {string} and hold it far inside the title of {string}",
   async function (this: OlaiWorld, id: string, under: string) {
-    const at = await farInside(this, under);
-    await carry(this, id, at.x, at.y);
+    const here = this.everywhere();
+    await carry(this, here, id, await farInside(this, here, under));
   },
 );
 
@@ -133,8 +84,8 @@ When("I let go", async function (this: OlaiWorld) {
 When(
   "I drag the bullet of {string} above the title of {string}",
   async function (this: OlaiWorld, id: string, above: string) {
-    const at = await aboveTitle(this, above);
-    await carry(this, id, at.x, at.y);
+    const here = this.everywhere();
+    await carry(this, here, id, await aboveTitle(this, here, above));
     await this.page.mouse.up();
     await this.waitForFrame();
   },
@@ -143,15 +94,15 @@ When(
 When(
   "I drag the bullet of {string} one step in under the title of {string}",
   async function (this: OlaiWorld, id: string, under: string) {
-    const at = await insideTitle(this, under);
-    await carry(this, id, at.x, at.y);
+    const here = this.everywhere();
+    await carry(this, here, id, await insideTitle(this, here, under));
     await this.page.mouse.up();
     await this.waitForFrame();
   },
 );
 
 When("I click the bullet of {string}", async function (this: OlaiWorld, id: string) {
-  await this.press(handleOf(this, id));
+  await this.press(handleOf(this.everywhere(), id));
 });
 
 Then(
@@ -442,7 +393,7 @@ const holdAtTheEdge = async (world: OlaiWorld, x: number): Promise<void> => {
 When(
   "I pick up the bullet of {string} and hold it at the bottom of the window",
   async function (this: OlaiWorld, id: string) {
-    const box = await pressBullet(this, id);
+    const box = await pressBullet(this, this.everywhere(), id);
     await holdAtTheEdge(this, box.x + ONE_STEP);
   },
 );

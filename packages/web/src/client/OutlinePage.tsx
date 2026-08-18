@@ -24,7 +24,9 @@ export function OutlinePage(props: {
 }) {
   const narrowed = useNarrowed()
   return (
-    <Editable rows={() => props.rows}>
+    // A whole outline is drawn inside nothing, which is the answer rather than
+    // the absence of one (`./drag/fields.ts`).
+    <Editable rows={() => props.rows} file={props.file} within={[]}>
       <Tree rows={props.rows} />
       {/* An outline that holds nothing still has to be startable, and a tree
           of no rows offers nowhere to press a key. Only when the file really
