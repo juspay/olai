@@ -69,33 +69,45 @@ import { ToolFrame } from "./ToolFrame.tsx"
 const FRAME_MS = 120
 
 /**
- * What a message's own bubble is edged with, per fate — and the ordinary row
- * that went is a key in the same table rather than a `?:` above it, so the
- * three appearances are read in one place.
+ * WHAT A FATE LOOKS LIKE — the whole of it, per fate, in one row.
+ *
+ * The bubble's edge, the words under it and their tone are three views of one
+ * thing: what became of this message. They were two tables keyed by the same
+ * fate, so answering "what does an unanswered message look like" meant reading
+ * two places and holding them together — the same split this feature exists to
+ * undo one layer up.
  *
  * ALARM for the certainty and DOING for the doubt, which is the palette's own
- * vocabulary rather than two shades of wrong: `alarm` is a refusal, and `doing`
- * is the token for something in flight — which is exactly what a message
- * nothing has answered about still is.
+ * vocabulary rather than two shades of wrong: `alarm` is an error or a
+ * refusal, and `doing` is the token for something in flight — which is exactly
+ * what a message nothing has answered about still is.
+ *
+ * The words are about the MESSAGE rather than about the protocol: nobody needs
+ * the word "steer" or a deadline in seconds to know what to do next. The detail
+ * — which method, which agent, how long — is the banner's, where the reason it
+ * failed already goes.
  */
-const BUBBLE: Record<Delivery | "sent", string> = {
-  refused: "border border-dashed border-alarm bg-alarm/5",
-  unanswered: "border border-dashed border-doing bg-doing/5",
-  sent: "border border-accent/30 bg-accent/10",
+const FACE: Record<Delivery, {
+  readonly bubble: string
+  readonly said: string
+  readonly tone: string
+}> = {
+  refused: {
+    bubble: "border border-dashed border-alarm bg-alarm/5",
+    said: "not sent",
+    tone: "text-alarm",
+  },
+  unanswered: {
+    bubble: "border border-dashed border-doing bg-doing/5",
+    said: "no answer — it may not have arrived",
+    tone: "text-doing",
+  },
 }
 
-/**
- * What the strip under it SAYS, in plain words a person can act on.
- *
- * Both sentences are about the message rather than about the protocol: nobody
- * needs the word "steer" or a deadline in seconds to know what to do next. The
- * detail — which method, which agent, how long — is the banner's, where the
- * reason it failed already goes.
- */
-const WORDS: Record<Delivery, { readonly said: string; readonly tone: string }> = {
-  refused: { said: "not sent", tone: "text-alarm" },
-  unanswered: { said: "no answer — it may not have arrived", tone: "text-doing" },
-}
+/** ... and what a message that simply WENT looks like, which is not a fate and
+ *  is deliberately not a third row above: the table answers "what became of
+ *  it", and nothing became of an ordinary message. */
+const SENT = "border border-accent/30 bg-accent/10"
 
 /** What the agent said is not in a file, so there is no path to name — and the
  *  empty string resolves against the served directory itself, which is where
@@ -121,11 +133,14 @@ export function Entry(props: {
     if (props.entry.streaming !== true) return text
     return due() ? text : previous
   })
-  /** What became of this message's delivery, or `undefined` on the ordinary
-   *  row that simply went — read once, because the bubble and the strip under
-   *  it are two views of the one fact and a second reading is a second chance
-   *  to spell it differently. */
-  const delivery = () => props.entry.delivery
+  /** What became of this message and how that READS, or `undefined` on the
+   *  ordinary row that simply went — one accessor, because the bubble and the
+   *  strip under it are two views of the one fact and a second reading is a
+   *  second chance to spell it differently. */
+  const face = () => {
+    const fate = props.entry.delivery
+    return fate === undefined ? undefined : { fate, ...FACE[fate] }
+  }
 
   // ONLY for the agent's own prose, which is the only row that has rendered
   // markdown in it — and `kind` never changes for an entry, so this is a
@@ -187,7 +202,7 @@ export function Entry(props: {
             <Show when={props.entry.text !== ""}>
               <p
                 class={`whitespace-pre-wrap rounded px-2 py-1.5 text-sm text-ink ${
-                  BUBBLE[delivery() ?? "sent"]
+                  face()?.bubble ?? SENT
                 }`}
                 data-testid={TESTID.chatMine}
               >
@@ -207,15 +222,15 @@ export function Entry(props: {
                 button at all, because a retry there would hand somebody a
                 duplicate they had no way to predict. Nothing retries on its
                 own either way. */}
-            <Show when={delivery()} keyed>
-              {(fate) => (
+            <Show when={face()} keyed>
+              {(shown) => (
                 <div
                   class="mt-1 flex items-center gap-2"
                   data-testid={TESTID.chatDelivery}
-                  data-delivery={fate}
+                  data-delivery={shown.fate}
                 >
-                  <span class={`font-mono text-[0.6875rem] ${WORDS[fate].tone}`}>
-                    {WORDS[fate].said}
+                  <span class={`font-mono text-[0.6875rem] ${shown.tone}`}>
+                    {shown.said}
                   </span>
                   {/* The quiet pill's shape in the transcript's own scale, and
                       that divergence says why in place, as `../pill.ts` asks of
@@ -223,7 +238,7 @@ export function Entry(props: {
                       with `not sent` beside it, and wearing `QUIET_PILL`'s
                       `text-xs`/`px-2 py-1` would make one control in that line
                       a size larger than the words it belongs to. */}
-                  <Show when={fate === "refused"}>
+                  <Show when={shown.fate === "refused"}>
                     <button
                       type="button"
                       class="rounded border border-rule px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted hover:text-ink"

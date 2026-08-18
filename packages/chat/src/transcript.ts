@@ -182,6 +182,7 @@ export class Transcript {
    * there is a button.
    */
   unanswered(key: string): Change {
+    if (!this.#entries.has(key)) return EMPTY
     // A prompt kept from an EARLIER failure of the same row goes with it: a
     // retry that went out and then went quiet leaves a row nothing may offer
     // to send again, and the offer lives in this map.
