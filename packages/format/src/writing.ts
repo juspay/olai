@@ -425,6 +425,27 @@ export const DateRequest = Schema.Struct({
 })
 
 /**
+ * The REPEAT RULE, set or cleared — {@link DateRequest}'s shape one field
+ * along, and deliberately so: both are one optional field on the record with
+ * one value and no condition, so a second arrangement here would be a
+ * difference nobody could justify.
+ *
+ * The value is the rule's own TEXT (./repeat.ts), verbatim, because that is
+ * what the record holds: the grammar is spelled in the file, and this is the
+ * field that carries the spelling. Nothing on the way parses it — the per-line
+ * rule at the far end is the gate, exactly as it is for the `date` beside it —
+ * so a rule this grammar does not have is refused in the validator's own
+ * words, with `file:line`, rather than by whichever door happened to send it.
+ */
+export const RepeatRequest = Schema.Struct({
+  op: Schema.Literal("repeat"),
+  id: Id,
+  /** `null` clears it, which is how a recurrence STOPS: the node keeps the day
+   *  it is on and stops coming back. */
+  repeat: Schema.NullOr(Schema.String),
+})
+
+/**
  * One CUSTOM key on a node — a named fact, set or taken off.
  *
  * The only writer of `custom` (./custom.ts), and the only write in this file
@@ -807,7 +828,7 @@ export const AfterRequest = Schema.Struct({
  * second planner here and therefore no second policy.
  *
  * **The order is fixed and it is a decision** — `title`, `desc`, `date`,
- * `props`, `after`, and the MARK LAST. A mark is a claim about the node as it
+ * `repeat`, `props`, `after`, and the MARK LAST. A mark is a claim about the node as it
  * now stands, so it is judged against the node this call has finished making:
  * `{mark: "doing", after: ["order"]}` is a caller saying "start this" and "this
  * waits on `order`" in one breath, and it is REFUSED, because the edge is in
@@ -853,6 +874,18 @@ export const UpdateRequest = Schema.Struct({
     Schema.NullOr(Schema.String).annotate({
       description:
         "ISO date (`2026-08-10`) or datetime, scheduling the node; `null` clears it.",
+    }),
+  ),
+  /** The repeat rule, `set_repeat`'s own field — in the fold for the reason
+   *  every other single verb is: a shape claiming to be the verbs folded with
+   *  one of them missing is a hole a caller finds by having a field silently
+   *  dropped. Written BEFORE the mark, like the date it needs, so a call that
+   *  schedules a node, gives it a rule and ticks it in one breath spawns the
+   *  next occurrence off the values this call wrote. */
+  repeat: Schema.optionalKey(
+    Schema.NullOr(Schema.String).annotate({
+      description:
+        "The repeat rule, in the format's own words — `every day`, `every week on monday`, `every month`, `every year`; `null` stops the recurrence. Needs a `date` on the node (set one in the same call if it has none).",
     }),
   ),
   /** MERGED per key, which is `set_prop`'s own semantics repeated: this is not
@@ -956,6 +989,7 @@ const BATCHED = [
   arm(TitleRequest),
   arm(DescRequest),
   arm(DateRequest),
+  arm(RepeatRequest),
   arm(PropRequest),
   arm(UpdateRequest),
   arm(MoveRequest),
@@ -1038,6 +1072,7 @@ export const WriteRequest = Schema.Union([
   TitleRequest,
   DescRequest,
   DateRequest,
+  RepeatRequest,
   PropRequest,
   MoveRequest,
   SplitRequest,

@@ -33,6 +33,7 @@ import {
   type Node,
   RegularNode,
 } from "./node.ts"
+import { isRepeat, REPEAT_GRAMMAR } from "./repeat.ts"
 import type { Outline } from "./set.ts"
 
 const options = {
@@ -166,6 +167,25 @@ const checkRecord = ({ file, line, node }: Located): ReadonlyArray<OutlineError>
         marks.map((field) => `\`${field}\``).join(" and ")
       }; drop whichever is stale`,
     )
+  }
+
+  // A repeat rule is TEXT the format itself reads (./repeat.ts), so unlike a
+  // title it has to BE something — and it has to have something to repeat
+  // from. Both are answerable from this one line, which is why they are here
+  // beside "at most one mark" rather than in the validator.
+  if (node.repeat !== undefined) {
+    if (!isRepeat(node.repeat)) {
+      at(
+        "bad-repeat",
+        `\`repeat\` is \`${node.repeat}\`, which is not a repeat rule: write ${REPEAT_GRAMMAR}`,
+      )
+    } else if (node.date === undefined) {
+      at(
+        "bad-repeat",
+        `\`repeat\` is \`${node.repeat}\`, but this node has no \`date\` to repeat from — ` +
+          `a rule says how often, and the date says when the next one is`,
+      )
+    }
   }
 
   for (const field of [...MARKS, "date", "created", "changed"] as const) {

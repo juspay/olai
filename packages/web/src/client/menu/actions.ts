@@ -99,6 +99,11 @@ export const nodeMenuActions = (args: {
    *  line opens the same one, and the panel is closed by the time either of
    *  them has been chosen. */
   readonly pickDate: () => void
+  /** Open the row's REPEAT picker — `pickDate` one field along, and the same
+   *  arrangement for the same reason: which rule is a choice, and the panel
+   *  belongs to the ROW (the pill on the line opens the same one), not to a
+   *  menu that is closed by the time it has been chosen from. */
+  readonly pickRepeat: () => void
   /** Open the row's edge panel for one relation — the same arrangement
    *  `pickDate` is, for the same reason: a target is a node somebody has to
    *  find, and the panel belongs to the ROW (the `×` on a drawn reference
@@ -218,6 +223,9 @@ export const nodeMenuActions = (args: {
             return
           case "pick-date":
             args.pickDate()
+            return
+          case "pick-repeat":
+            args.pickRepeat()
             return
           case "pick-prop":
             args.pickProp(does.editing)

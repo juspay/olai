@@ -80,7 +80,9 @@ import { useDragging } from "./drag/dragging.ts"
 import { Handle } from "./drag/Handle.tsx"
 import { useSelection } from "./select/selection.ts"
 import { DatePicker } from "./date/DatePicker.tsx"
+import { RepeatPicker } from "./date/RepeatPicker.tsx"
 import { datePick } from "./date/pick.ts"
+import { repeatPick } from "./date/repeat.ts"
 import { useDerived } from "./derived.tsx"
 import { createEdgeEditing } from "./edges/editing.tsx"
 import { useEditor } from "./edit/editing.tsx"
@@ -264,6 +266,15 @@ function Branch(props: {
   /** ...and one opener for both of them, so the two triggers cannot drift. */
   const openPicker = (): void => {
     setPicking(true)
+  }
+
+  /** Is this row's REPEAT picker open? The date picker's arrangement one field
+   *  along, and separate from it on purpose: they are two writes at the gate,
+   *  and one signal holding "which panel" would make opening the second an act
+   *  that closes the first for a reason nobody asked for. */
+  const [repeating, setRepeating] = createSignal(false)
+  const openRepeat = (): void => {
+    setRepeating(true)
   }
 
   /** Is this row's property editor open, and on WHAT — a property it carries,
@@ -497,6 +508,7 @@ function Branch(props: {
               go,
               record: undo.record,
               pickDate: openPicker,
+              pickRepeat: openRepeat,
               pickEdge: edges.open,
               pickProp: (editing) => setPropping(editing),
             })}
@@ -587,9 +599,11 @@ function Branch(props: {
                   </Show>
                 }
                 date={shows().node.date}
+                repeat={shows().node.repeat}
                 overdue={isOverdue(shows().node, today())}
                 onEdit={clickTitle}
                 onPickDate={openPicker}
+                onPickRepeat={openRepeat}
               >
                 <Show when={props.row.kind !== "node"}>
                   <span class="mr-1 text-muted" title="a mirror of another node">
@@ -615,6 +629,22 @@ function Branch(props: {
               date={shows().node.date}
               onPick={(day) => applying(datePick(shows().node.id, day), undo.record)}
               onClose={() => setPicking(false)}
+            />
+          </div>
+        )}
+      </Show>
+
+      {/* The repeat picker, on exactly the terms the date picker above has:
+          opened from that row's pill or from the `•••`, drawn under the line,
+          about the node the row SHOWS — a placement carries no rule of its own,
+          so one chosen at a mirror lands on its target as a mark does. */}
+      <Show when={repeating() ? shown() : undefined}>
+        {(shows) => (
+          <div class={PAST_CONTROLS}>
+            <RepeatPicker
+              repeat={shows().node.repeat}
+              onPick={(rule) => applying(repeatPick(shows().node.id, rule), undo.record)}
+              onClose={() => setRepeating(false)}
             />
           </div>
         )}

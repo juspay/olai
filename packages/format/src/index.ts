@@ -313,6 +313,23 @@ export {
   owedOf,
 } from "./agenda.ts"
 export type { Agenda, AgendaDay, Owed } from "./agenda.ts"
+/** The repeat grammar (./repeat.ts): the small closed vocabulary a dated node
+ *  says it comes back in, and the arithmetic that says when the next one is.
+ *  Public because three layers ask it — the per-line rule here, the planner
+ *  that spawns the next occurrence, and the picker a person chooses a rule in
+ *  — and a second spelling of `every week on monday` in any of them would be a
+ *  file this format could write and could not read. */
+export {
+  isRepeat,
+  nextAfter,
+  nextOccurrence,
+  parseRepeat,
+  printRepeat,
+  REPEAT_GRAMMAR,
+  REPEAT_RULES,
+  WEEKDAYS,
+} from "./repeat.ts"
+export type { Repeat, Weekday } from "./repeat.ts"
 export { stampOf } from "./stamp.ts"
 
 export { biggestOf, changesOf, Field, NodeChange, Sort } from "./changes.ts"
@@ -388,6 +405,7 @@ export {
   MoveRequest,
   NESTING,
   PropRequest,
+  RepeatRequest,
   SeeRequest,
   SplitRequest,
   TitleRequest,

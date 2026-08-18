@@ -211,6 +211,39 @@ test("a date is checked against the calendar, not just the pattern", () => {
     .toEqual(["bad-date"])
 })
 
+// ── the repeat rule, which the format itself reads ─────────────────────
+
+// A `repeat` is TEXT this format gives a meaning to, so unlike a title it has
+// to BE something. Both halves of that are answerable from the one line, which
+// is why they are here beside "at most one mark" rather than in the validator.
+test("a repeat rule this grammar does not have is refused, naming the line", () => {
+  const errors = errorsOf(
+    `{"id":"a","ord":"a","title":"t","date":"2026-08-17","repeat":"every 2 weeks"}`,
+  )
+  expect(codes(errors)).toEqual(["bad-repeat"])
+  expect(errors[0]?.message).toContain("every 2 weeks")
+  expect(errors[0]?.message).toContain("every week on <weekday>")
+  expect(errors[0]?.line).toBe(1)
+})
+
+// A rule with nothing to repeat FROM answers no question at all: the rule says
+// how often and the date says when the next one is.
+test("a repeat with no date is refused, and told which field is missing", () => {
+  const errors = errorsOf(
+    `{"id":"a","ord":"a","title":"t","repeat":"every week on monday"}`,
+  )
+  expect(codes(errors)).toEqual(["bad-repeat"])
+  expect(errors[0]?.message).toContain("`date`")
+})
+
+test("a dated node with a rule of the grammar loads", () => {
+  const outline = outlineOf(
+    `{"id":"a","ord":"a","title":"t","date":"2026-08-17","repeat":"every week on monday"}\n` +
+      `{"id":"b","ord":"b","title":"t","date":"2026-08-17T09:00:00-04:00","repeat":"every day"}`,
+  )
+  expect(outline.nodes.length).toBe(2)
+})
+
 // Both spellings are legal and both are written back verbatim: a date-only
 // `date` must not have to become a datetime to be accepted.
 test("date-only and full datetime are both accepted, on every dated field", () => {

@@ -173,11 +173,27 @@ A node scheduled for a time of day rather than a bare day keeps whatever it says
 
 The row moves the moment the file says so: a task given a day that has gone is in Overdue on the agenda and on that day's page, without a reload and without this page deciding anything for itself.
 
+## Making a node come back
+
+A dated node can say **how often it repeats**, and completing it makes the next occurrence.
+
+**The pill beside the date is the control**, and it reads the rule in the words the file holds — `↻ every week on monday`. Press it and the picker opens under the row, exactly where the date picker opens; the ••• menu is the other door, with **Set repeat…** on a dated row that does not repeat and **Change repeat…** on one that does. Only a DATED row is offered it, and that is the format's rule rather than the menu's: the rule says how often and the date says when the next one is, so **Set date…** — directly above — is the thing to do first.
+
+What you get is a list, and the list is the whole grammar: **every day**, **every week on** each of the seven days, **every month**, **every year**. There is no box to type a rule into, because there is no rule to type that is not in the list — no `every 2 weeks`, no end date, no count. **Set repeat** writes it, **Escape** and **Cancel** leave without writing, and ⌘Z takes it back. Choose **Does not repeat** and the button becomes **Stop repeating**, which is the ••• menu's own verb and the same write.
+
+**Completing it is what makes the next one.** `Ctrl+Enter`, the checkbox, **Complete** in the menu — any of them — stamps the row done as always, and captures a fresh node immediately below it: same title, same note, same rule, on the day the rule names, marked `todo`. The line under the row says which day that is. The old row keeps its own date and its `done` instant, so the day page for the day you finished it still shows it: eleven weeks of bins are eleven rows on eleven days rather than one row whose date kept moving.
+
+The rule moves to the new node, and the finished one stops repeating — a recurrence has exactly one live head. Two things follow, and both are the answer to "what if I ticked it by mistake": **⌘Z puts the mark back and leaves the new occurrence**, which is still owed, and **completing it again makes no second one**, because the rule is on the row below now. If the new occurrence is not wanted, **Stop repeating** it or move it to the Trash.
+
+**The next occurrence counts from the row's own date, not from today.** Finish a weekly chore three weeks late and the next one is the week after the one you just finished — which is still in the past, and still genuinely owed. Nothing here quietly skips a backlog forward; clear the ones that are not happening.
+
+Everywhere else, the new occurrence is simply a dated node: on the agenda, on its day's page, in the calendar's dots, overdue when it goes past — read exactly as the one before it was.
+
 ## What a node says about itself
 
 A node's **properties** are named facts on it ([format.md](format.md)) — `pr`, `agent`, `isbn`, whatever a reader wants to be able to ask about later. They live in the record's one open field, `custom`, and they are drawn above the node's note as a quiet RUN: dim `key value` pairs on one wrapping line, dot-separated, reading like a byline under a headline. Never a grid and never a form — a table under every open row turns an outline into a spreadsheet.
 
-**On a row they are part of the open state** (see *A row is its title*, below), and a node that carries one earns a pilcrow for it even with no note — a fact written into a place with no door is a fact nobody can read. **A row draws the custom keys only.** The node's own facts are already on the row: the mark is the glyph, the date is the badge, the id is where the bullet goes, and repeating them under the title would put two spellings of one fact on one screen.
+**On a row they are part of the open state** (see *A row is its title*, below), and a node that carries one earns a pilcrow for it even with no note — a fact written into a place with no door is a fact nobody can read. **A row draws the custom keys only.** The node's own facts are already on the row: the mark is the glyph, the date is the badge, the repeat rule is the pill beside it, the id is where the bullet goes, and repeating them under the title would put two spellings of one fact on one screen.
 
 **A node's own page draws them all**, read-only ones first: its `id`, the mark it has, its `date`, and the `created`/`changed` stamps when it has them. Those have nowhere else to be read — the id in particular is what every tool call and every `((` reference takes.
 
@@ -187,7 +203,7 @@ A node's **properties** are named facts on it ([format.md](format.md)) — `pr`,
 
 **The key is fixed while you are changing a value**, and that is not a limitation of the boxes: `set_prop` writes one key, so renaming a property is removing one and adding another — two ops, which is exactly the two calls an agent makes. Both entries are in the menu.
 
-**The node's own facts have no entries.** Each of them already has a verb — the mark section, *Change date…*, the two edge verbs — and `set_prop` refuses every one of them by name, so an entry would be an affordance that leads to a refusal.
+**The node's own facts have no entries.** Each of them already has a verb — the mark section, *Change date…*, *Change repeat…*, the two edge verbs — and `set_prop` refuses every one of them by name, so an entry would be an affordance that leads to a refusal.
 
 **A zoomed node draws its drawer and has no door to it**, which is the gap *Set date…* has on the same page and for the same reason: the `•••` hangs off a row, and the ⌘K palette can only carry the verbs that need no second gesture. *Remove `pr`* is one of those, so the palette has it; adding and editing are reached from the row.
 
@@ -237,7 +253,7 @@ The palette goes places and asks the agent ([search.md](search.md)); it writes t
 
 On any other page there are none of them. A command read out of context must not be aimed at a node you cannot see, and what the address says you are looking at is a fact you and the palette can both see.
 
-**The three that ask something first stay where the asking happens** — `Set date…`, `Link to a node…` and `Wait for a node…`. Each opens a panel that hangs off a row, and a palette drawn over the page has nothing to open; a zoomed node reaches all three from its own controls instead (above). `Move to Trash` asks its question in the palette's own box, with the same sentence and the same count the menu asks. **The question takes the caret when it is raised** — so Enter answers it, Tab cycles its two ways out, and Escape or **Cancel** backs out. Nothing you type elsewhere becomes the answer.
+**The four that ask something first stay where the asking happens** — `Set date…`, `Set repeat…`, `Link to a node…` and `Wait for a node…`. Each opens a panel that hangs off a row, and a palette drawn over the page has nothing to open; a zoomed node reaches the two edge verbs from its own controls instead (above), and the two pickers from its row. `Move to Trash` asks its question in the palette's own box, with the same sentence and the same count the menu asks. **The question takes the caret when it is raised** — so Enter answers it, Tab cycles its two ways out, and Escape or **Cancel** backs out. Nothing you type elsewhere becomes the answer.
 
 **One write at a time.** The gate is a round trip, and a second Enter while the first is still out is two writes for one intention — so the second is ignored rather than sent, exactly as the date picker's button already worked.
 

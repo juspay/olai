@@ -1,0 +1,239 @@
+/**
+ * The repeat rule: a dated node that comes back, spelled in the file.
+ *
+ * A node's `repeat` is TEXT, and the text is the grammar — `every day`, `every
+ * week on monday`, `every month`, `every year`, and nothing else. It is stored
+ * the way a person would write it because a `.olai` is read by people: a
+ * cron field (`0 0 * * 1`) says the same thing in a dialect that has to be
+ * learned, and the moment a dialect exists the pressure is to grow it. Four
+ * spellings is a vocabulary; five fields with numbers in them is a language,
+ * and this format does not want one. What is deliberately NOT here, each of
+ * them a real feature somebody will ask for: intervals (`every 2 weeks`), end
+ * dates, counts, several weekdays, days of the month, and the org-mode
+ * catch-up modifiers ({@link nextAfter} argues the last of those).
+ *
+ * ## The rule rides the node that is NEXT
+ *
+ * A recurrence is a CHAIN of occurrences and exactly one of them is pending;
+ * the rule lives on that one. Completing an occurrence hands the rule forward
+ * to the occurrence it spawns (`@olai/ops`' `planMark`), so a finished node is
+ * a plain dated record of a thing that happened — it does not go on claiming
+ * to repeat, and the set never holds two live heads of one recurrence.
+ *
+ * Every question about the feature falls out of that one sentence, which is
+ * why it is written here rather than at the writer: un-doing a completion
+ * cannot un-spawn (the occurrence is owed whatever anyone says about the one
+ * before it), and re-doing it spawns nothing (the node no longer carries a
+ * rule), so the churn a stateful "have I already spawned this?" flag would
+ * have had to remember is not representable.
+ *
+ * ## A rule needs a date
+ *
+ * `every week on monday` with nothing to repeat FROM answers no question at
+ * all, so `repeat` without `date` is refused per line, beside "at most one
+ * mark" (./parse.ts). That keeps {@link nextAfter} total over the records the
+ * validator approves: every rule on disk has an anchor.
+ *
+ * ## Text in, text out
+ *
+ * This module is the one place that reads or writes the spelling. Everything
+ * else — the planner, the two pickers, the badge — holds either the TEXT the
+ * record carries or the {@link Repeat} this parses it into, and neither of
+ * them re-derives the other's shape. {@link nextAfter} counts with
+ * ./calendar.ts, which is the one place in this package a date is counted
+ * rather than compared; nothing here parses a date into an instant.
+ */
+
+import { isRealDay, shiftDay, shiftDayByMonth, weekdayOf } from "./calendar.ts"
+import { dayOf } from "./dates.ts"
+
+/**
+ * The weekdays, in the order ./calendar.ts's {@link weekdayOf} counts them —
+ * MONDAY FIRST, which is that module's one convention and this one reads it
+ * rather than declaring a second.
+ *
+ * The index IS the weekday number, so parsing is `indexOf` and printing is a
+ * lookup, and there is no table pairing names to numbers that could be off by
+ * one.
+ */
+export const WEEKDAYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const
+
+export type Weekday = (typeof WEEKDAYS)[number]
+
+/**
+ * A rule, taken apart.
+ *
+ * FOUR ARMS rather than one struct with an optional `weekday`, for the reason
+ * the format has two record shapes rather than one with an optional `mirror`:
+ * `{every: "day", weekday: 3}` is a value nobody can say the meaning of, and a
+ * union makes it unrepresentable. `weekday` is a number and not a name because
+ * that is what {@link weekdayOf} answers and what the arithmetic below counts
+ * with; the NAME is a spelling, and spellings live in {@link printRepeat}.
+ */
+export type Repeat =
+  | { readonly every: "day" }
+  | { readonly every: "week"; readonly weekday: number }
+  | { readonly every: "month" }
+  | { readonly every: "year" }
+
+/** The canonical spelling of a rule — what a write puts on disk, and what
+ *  {@link parseRepeat} answers about. ONE direction of the round trip; the
+ *  other is that function, and `./repeat.test.ts` holds them to each other. */
+export const printRepeat = (rule: Repeat): string =>
+  rule.every === "week"
+    ? `every week on ${WEEKDAYS[rule.weekday] ?? WEEKDAYS[0]}`
+    : `every ${rule.every}`
+
+/** Every rule that has no weekday in it, keyed by the word after `every`. A
+ *  table rather than three comparisons, so the grammar is a LIST — which is
+ *  what makes {@link REPEAT_RULES} below readable off it rather than written
+ *  out a second time. */
+const PLAIN = {
+  day: { every: "day" },
+  month: { every: "month" },
+  year: { every: "year" },
+} as const satisfies Record<string, Repeat>
+
+/**
+ * The whole grammar, as the canonical spellings of every rule it holds — ten
+ * of them, and there will not be an eleventh without an edit to this file.
+ *
+ * Read off {@link PLAIN} and {@link WEEKDAYS} rather than written out, so a
+ * grammar that grows a rule grows this list with it. It is what the pickers
+ * offer and what a refusal names: a person choosing from a list and an agent
+ * reading a tool description are looking at the same ten strings.
+ */
+export const REPEAT_RULES: ReadonlyArray<string> = [
+  printRepeat(PLAIN.day),
+  ...WEEKDAYS.map((_, weekday) => printRepeat({ every: "week", weekday })),
+  printRepeat(PLAIN.month),
+  printRepeat(PLAIN.year),
+]
+
+/** The grammar in one sentence, for the refusals and the tool descriptions
+ *  that have to quote it. Here rather than at each of them, because a sentence
+ *  spelled twice is two grammars the day one of them grows a rule. */
+export const REPEAT_GRAMMAR =
+  "`every day`, `every week on <weekday>`, `every month` or `every year`"
+
+/**
+ * The rule this text names, or `undefined` for text that names none.
+ *
+ * FORGIVING ABOUT SPELLING, strict about grammar. Case is folded and runs of
+ * whitespace collapse, because it is a sentence a person types; `mon` is
+ * `monday`, because the roadmap wrote it that way and a three-letter weekday
+ * is not a second grammar. Everything else — an interval, a second weekday, a
+ * day of the month — is not this vocabulary and comes back `undefined` rather
+ * than being guessed at, which is what makes the file's text and the rule the
+ * same thing.
+ */
+export const parseRepeat = (text: string): Repeat | undefined => {
+  const words = text.trim().toLowerCase().split(/\s+/)
+  if (words[0] !== "every") return undefined
+  const rest = words.slice(1)
+  if (rest.length === 1) {
+    const word = rest[0] as string
+    // `Object.hasOwn` before the lookup, not for tidiness: a bare index on an
+    // object literal answers `every constructor` with a function off the
+    // prototype, which a `Repeat | undefined` cast would wave straight through.
+    const plain = Object.hasOwn(PLAIN, word)
+      ? (PLAIN as Record<string, Repeat>)[word]
+      : undefined
+    return plain ?? weekOf(word)
+  }
+  // `every week on <weekday>` — the one three-word form, and `on` is required:
+  // `every week monday` is a sentence this grammar does not have.
+  if (rest.length === 3 && rest[0] === "week" && rest[1] === "on") {
+    return weekOf(rest[2] as string)
+  }
+  return undefined
+}
+
+/** `every <weekday>` and the tail of `every week on <weekday>`, which are the
+ *  same word read at two places. Abbreviations are the first three letters and
+ *  nothing shorter: `s` names two days, and a grammar that guessed between
+ *  them would be a rule whose meaning depends on a table nobody can see. */
+const weekOf = (word: string): Repeat | undefined => {
+  const weekday = WEEKDAYS.findIndex((name) =>
+    name === word || (word.length === 3 && name.startsWith(word))
+  )
+  return weekday === -1 ? undefined : { every: "week", weekday }
+}
+
+/** Whether text is a rule this format holds — the question ./parse.ts asks of
+ *  a line, said as a predicate so the check reads as a rule rather than as an
+ *  `undefined` comparison. */
+export const isRepeat = (text: string): boolean => parseRepeat(text) !== undefined
+
+/**
+ * The next occurrence: the first day the rule names STRICTLY AFTER `date`.
+ *
+ * The rhythm is the FILE's and never the clock's, and that is the decision
+ * this function is. Completing something three weeks late spawns the
+ * occurrence one period on — which may itself be in the past, and is, because
+ * it genuinely was owed. The alternative is a catch-up rule that skips forward
+ * to the first occurrence after TODAY, and it needs two things this refuses to
+ * take: a clock inside a derivation (the answer would change with the machine
+ * it ran on, which is the argument ./agenda.ts already makes about `today`),
+ * and a second modifier in the grammar to choose between the two readings —
+ * org-mode's `+1w` against `.+1w`, which is the cron dialect arriving one
+ * character at a time. One rule, one meaning; what a person does with a
+ * backlog of missed occurrences is complete them or clear them, and either way
+ * the file says what happened.
+ *
+ * TOTAL over what the validator approves: a `repeat` on disk has a `date`
+ * beside it, and a `date` is ISO. Handed something else — a datetime, whose
+ * time this drops the way every other reading of a date does, or text that is
+ * no day at all — it answers the day it was given, which is ./calendar.ts's
+ * own rule for text it cannot count with: shifting is a way to look around,
+ * never a way to end up somewhere that is not a day.
+ */
+export const nextAfter = (rule: Repeat, date: string): string => {
+  const day = dayOf(date)
+  if (!isRealDay(day)) return day
+  switch (rule.every) {
+    case "day":
+      return shiftDay(day, 1)
+    case "week": {
+      // Strictly after, so the search starts tomorrow — `every week on monday`
+      // completed ON a Monday is the NEXT Monday and not the same one. Seven
+      // steps reach every weekday from any day, so the loop is bounded by the
+      // week rather than by a guard.
+      for (let ahead = 1; ahead <= 7; ahead++) {
+        const candidate = shiftDay(day, ahead)
+        if (weekdayOf(candidate) === rule.weekday) return candidate
+      }
+      return shiftDay(day, 7)
+    }
+    case "month":
+      return shiftDayByMonth(day, 1)
+    case "year":
+      // Twelve MONTHS rather than a year added to the year, so the 29th of
+      // February lands on the 28th by ./calendar.ts's own clamp instead of
+      // minting a day that is not one.
+      return shiftDayByMonth(day, 12)
+  }
+}
+
+/**
+ * The next occurrence of the rule this TEXT names, or `undefined` when the
+ * text is not a rule — the two halves above in one call, for the callers that
+ * hold a record's field rather than a parsed rule.
+ *
+ * Every one of them is in that position: the planner reads `node.repeat`, and
+ * so does anything that wants to say what comes next. Composing the two
+ * themselves is what lets a caller get the order wrong or forget the
+ * `undefined`, which is ./calendar.ts's own argument for `monthOfDay`.
+ */
+export const nextOccurrence = (repeat: string, date: string): string | undefined => {
+  const rule = parseRepeat(repeat)
+  return rule === undefined ? undefined : nextAfter(rule, date)
+}

@@ -25,8 +25,9 @@
  *     any other page there are simply no op rows, in the same way the menu
  *     draws no `Clear date` on a row with no date.
  *   - **the verbs that have a question to ask first are left out**, and there
- *     are THREE of them now: `Set date…` opens the row's picker
- *     (`../date/DatePicker.tsx`), and `Link to a node…` / `Wait for a node…`
+ *     are FOUR of them now: `Set date…` opens the row's picker
+ *     (`../date/DatePicker.tsx`), `Set repeat…` opens the one beside it
+ *     (`../date/RepeatPicker.tsx`), and `Link to a node…` / `Wait for a node…`
  *     open the row's edge panel (`../edges/EdgePanel.tsx`). Each of those is an
  *     element in the tree the palette is drawn OVER, and there is nothing for a
  *     modal to open from here. Each stays where its panel is, which is also
@@ -34,11 +35,15 @@
  *     on a drawn reference.
  *
  *     THE FILTER IS THE ARM, not a list: `does.kind === "edit"` is what leaves
- *     them out, so the fourth verb that opens something is excluded by being
- *     written rather than by somebody remembering this paragraph. What the
- *     paragraph is for is saying WHY — and `../edges/EdgeVerbs.tsx` is the
- *     other half of the answer, since a zoomed node still has to be able to
- *     reach all three from somewhere.
+ *     them out, so the FIFTH verb that opens something is excluded by being
+ *     written rather than by somebody remembering this paragraph — which is
+ *     exactly how the repeat picker arrived, adding no line here but this one.
+ *     What the paragraph is for is saying WHY — and `../edges/EdgeVerbs.tsx` is
+ *     the other half of the answer for the two edge verbs, which a zoomed node
+ *     reaches from its own controls. The two PICKERS are the standing gap on
+ *     that page, and they are one gap rather than two: a heading has no `•••`,
+ *     so scheduling a zoomed node and making it repeat are both done from its
+ *     row (docs/editing.md).
  */
 
 import type { Derived, Situated } from "@olai/format"

@@ -601,6 +601,47 @@ The corner unit is the **risky one** — see
     </div>
     <div class="cols">
       <div>
+        <p><strong>A dated node can come back.</strong> Give it a repeat rule
+        and completing it does two things: it stamps the node done, as always,
+        and it captures the <em>next occurrence</em> — a fresh node on the day
+        the rule names, same title, same note, same rule, marked
+        <code>todo</code>, placed right below the one you finished. The old row
+        keeps its own date and the instant it was finished, so eleven weeks of
+        bins are eleven rows on eleven days rather than one row whose date kept
+        moving and could prove none of them.</p>
+        <p><strong>The grammar is four shapes and it is spelled in the
+        file.</strong> <code>every day</code>, <code>every week on
+        monday</code>, <code>every month</code>, <code>every year</code> — no
+        intervals, no end dates, no counts, no cron. A
+        <code>.olai</code> is read by people, and <code>0 0 * * 1</code> says
+        the same thing in a dialect that has to be learned. The picker is a
+        list of exactly those rules, because there is nothing to type that is
+        not on it.</p>
+        <p>The rule moves to the occurrence it makes, which is what a
+        recurrence with one live head means — so undoing a completion leaves
+        the new occurrence standing (it is still owed) and ticking the old row
+        again makes no second one. And the next date counts from the row's
+        <em>own</em> day, never from today: finish a weekly chore three weeks
+        late and the next one is the week after the one you just did. Nothing
+        here quietly skips a backlog forward.</p>
+        <p>Everywhere else it is simply a dated node — on this page, on its
+        day, in the calendar's dots, overdue when it goes past. An agent writes
+        the same rule with <code>set_repeat</code> and gets the same
+        occurrence out of <code>set_done</code>, because the deciding happens
+        in one place under both faces.</p>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="file">chores.olai</div>
+          <div class="row"><span class="box done"></span><span class="t">Put the bins out</span><span class="pill">2026-08-17</span></div>
+          <div class="row"><span class="box"></span><span class="t">Put the bins out</span><span class="pill">2026-08-24</span><span class="pill">↻ every week on monday</span></div>
+        </div>
+        <p class="caption">One completion, two rows: what happened on Monday
+        the 17th, and what is owed on Monday the 24th.</p>
+      </div>
+    </div>
+    <div class="cols">
+      <div>
         <p><strong>And the directory says so before you open it.</strong>
         Overdue is the one answer no day page can give — and a page nobody
         opens cannot give it either. So the <em>Agenda</em> entry in the
@@ -796,6 +837,8 @@ The corner unit is the **risky one** — see
     finger on the row (anywhere but the bullet, which is the handle) and the
     same menu opens: the three marks and clearing one, setting,
     changing or clearing a date — the same picker the row’s own pill opens —
+    setting, changing or stopping a repeat rule on a dated row, from the
+    picker its own <code>↻</code> pill opens —
     retiring one placement of a mirrored node, moving a subtree to the Trash —
     it asks first, and says how many rows go with it — and copying the subtree
     as tab-indented plain text. Those go on the same undo stack, so ⌘Z takes a

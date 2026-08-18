@@ -75,6 +75,17 @@ const CATALOGUE = {
   "several-marks": "line",
   /** A mark or `date` is not a valid ISO date or datetime. */
   "bad-date": "line",
+  /**
+   * The `repeat` field is wrong, in one of the two ways one line can be: the
+   * text is not a rule this format's small grammar spells (./repeat.ts), or
+   * there is no `date` beside it to repeat FROM.
+   *
+   * ONE code for the two, the way `bad-date` is one code for five fields: they
+   * are the same finding — this line's `repeat` says nothing anyone can act on
+   * — and the message is where the difference is said. Both are answerable
+   * from the single line, which is what puts it in this half of the catalogue.
+   */
+  "bad-repeat": "line",
 
   // ── the whole set ───────────────────────────────────────────────────
   /** Two records claim the same `id`. */

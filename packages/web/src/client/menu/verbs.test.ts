@@ -13,6 +13,7 @@ import { setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { datePick } from "../date/pick.ts"
+import { repeatPick } from "../date/repeat.ts"
 import { flatten } from "../edit/order.ts"
 import { subjectOfRow, writeVerbs } from "./verbs.ts"
 
@@ -165,6 +166,48 @@ test("the two date entries are next to each other, in that order", () => {
   // verb that takes the branch away.
   expect(labels("order").filter((label) => label.toLowerCase().includes("date")))
     .toEqual(["Change date…", "Clear date"])
+})
+
+// ── the repeat rule ────────────────────────────────────────────────────
+
+// The one place this menu FENCES a write rather than offering it and letting
+// the ops layer answer — and it is not the menu's policy: the format refuses a
+// rule with no date to repeat FROM, so the entry over an undated row is an
+// affordance whose only outcome is that refusal, with `Set date…` sitting
+// directly above it.
+test("only a dated row is offered a repeat rule", () => {
+  expect(labels("order")).toContain("Set repeat…")
+  expect(labels("install")).not.toContain("Set repeat…")
+})
+
+test("the repeat entry sends nothing on its own", () => {
+  // The write is a gesture later, when a rule has been chosen — and it is then
+  // the same `repeat` edit `Stop repeating` sends (`../date/repeat.ts`).
+  expect(verb("order", "Set repeat…").does).toEqual({ kind: "pick-repeat" })
+})
+
+test("a repeating row says CHANGE, and gains the entry that stops it", () => {
+  const repeating = derive(
+    setOf({
+      "house.olai": HOUSE.replace(
+        `"title":"order the cabinets","date":"2026-08-10"`,
+        `"title":"order the cabinets","date":"2026-08-10","repeat":"every week on monday"`,
+      ),
+      "garden.olai": GARDEN,
+    }).nodes,
+  )
+  const found = flatten(rowsOf(repeating, "house.olai"), new Set())
+    .find((one) => one.at.node.id === "order")
+  if (found === undefined) throw new Error("no row for `order`")
+  const verbs = writeVerbs(subjectOfRow(found), repeating)
+  const said = verbs.map((one) => one.label)
+  expect(said).toContain("Change repeat…")
+  expect(said).not.toContain("Set repeat…")
+  // ONE constructor for both doors: the menu's `Stop repeating` and the
+  // picker's empty option are the same edit, so they cannot come to disagree
+  // about how "no rule" is spelled on the wire.
+  const stop = verbs.find((one) => one.label === "Stop repeating")
+  expect(stop?.does).toEqual({ kind: "edit", edit: repeatPick("order", "") })
 })
 
 // ── the properties ─────────────────────────────────────────────────────

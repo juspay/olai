@@ -118,6 +118,12 @@ export const RegularNode = Schema.Struct({
   title: Schema.String,
   ...STAMPED,
   date: Schema.optionalKey(Schema.String),
+  /** How this node COMES BACK, in the words it is written in — `every week on
+   *  monday` (./repeat.ts). Only on the occurrence that is NEXT: completing one
+   *  hands the rule to the occurrence it spawns, so a finished record is a
+   *  plain dated node and a recurrence has one live head. Needs `date` beside
+   *  it, which is what it repeats from (./parse.ts refuses one without). */
+  repeat: Schema.optionalKey(Schema.String),
   /** The note: one string, embedded newlines, markdown, stored verbatim. */
   desc: Schema.optionalKey(Schema.String),
   /** Relative path to an attached `.md`, resolved against this file. */
@@ -188,6 +194,7 @@ const DOORS = {
   todo: "`set_todo` writes it, and records the instant",
   status: "the mark is `done`, `doing` or `todo` — `set_done` / `set_doing` / `set_todo` write it",
   date: "`set_date` writes it, and validates the day",
+  repeat: "`set_repeat` writes the repeat rule, and completing the node hands it to the next occurrence",
   desc: "`set_desc` writes the note",
   doc: "a node names its document when it is captured; `write_document` writes what is in it",
   after: "`set_after` writes it, and refuses a cycle",

@@ -276,6 +276,9 @@ export const detail = (derived: Derived, id: string): Detail | null => {
   return {
     ...foundOf(derived, regular),
     ...(node.date === undefined ? {} : { date: node.date }),
+    // The rule as the record spells it — the answer a writer about to change
+    // it reads, and the half of MCP parity that is not `set_repeat`.
+    ...(node.repeat === undefined ? {} : { repeat: node.repeat }),
     ...(node.desc === undefined ? {} : { desc: node.desc }),
     // `custom` arrives with `foundOf` above, which every situated answer is
     // built out of — a hit, a child in this list, a row of a subtree.

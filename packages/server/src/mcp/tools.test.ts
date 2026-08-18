@@ -49,6 +49,13 @@ const HOUSE = [
   "",
 ].join("\n")
 
+/** A dated chore, for the recurrence tests below: one node, so what the file
+ *  holds after a completion is exactly what the completion did. */
+const CHORES = [
+  `{"id":"bins","ord":"a0","title":"put the bins out","todo":true,"date":"2026-08-17"}`,
+  "",
+].join("\n")
+
 /** A SET-WIDE break, and it has to be one: a lone unparseable file is absorbed
  *  — the survivors are clean, so it rides as `OutlineSet.broken` and the rest
  *  stays live (format's error scope). What REJECTS a set is a rule that needs to
@@ -204,6 +211,7 @@ test("the tool list is reads and writes, and no file access at all", async () =>
       "set_doing",
       "set_done",
       "set_prop",
+      "set_repeat",
       "set_see",
       "set_title",
       "set_todo",
@@ -464,6 +472,73 @@ test("a write through a tool changes the directory", async () => {
     expect(answer.isError).toBe(false)
     expect(answer.structured).toMatchObject({ did: "set_done", id: "order" })
     expect(read("house.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
+  })
+})
+
+/**
+ * The recurrence, end to end through the agent's own face — the half of MCP
+ * parity that is not a schema: writing the rule, reading it back, and the
+ * `set_done` that makes the next occurrence.
+ *
+ * The spawn itself is the planner's and is tested there; what this asserts is
+ * that it reaches an AGENT — the new node named in `captured`, the day it
+ * landed on in the `nudge`, and the rule gone from the record that was
+ * finished, all through the same tool call a person's `Complete` resolves to.
+ */
+test("set_repeat, read_node and set_done are one recurrence through the tools", async () => {
+  await withTools({ "chores.olai": CHORES }, async ({ client, read }) => {
+    const set = await call(client, "set_repeat", {
+      id: "bins",
+      repeat: "every week on monday",
+    })
+    expect(set.isError).toBe(false)
+    expect(read("chores.olai")).toContain(`"repeat":"every week on monday"`)
+
+    // READING it back is the other half of parity: an agent about to change a
+    // rule has to be able to see the one that is there.
+    expect((await call(client, "read_node", { id: "bins" })).structured)
+      .toMatchObject({ id: "bins", date: "2026-08-17", repeat: "every week on monday" })
+
+    const done = await call(client, "set_done", { id: "bins" })
+    expect(done.isError).toBe(false)
+    const made = done.structured["captured"] as ReadonlyArray<Record<string, unknown>>
+    expect(made).toHaveLength(1)
+    expect(made[0]).toMatchObject({ title: "put the bins out" })
+    expect(String(done.structured["nudge"])).toContain("2026-08-24")
+
+    // The occurrence is on disk, born `todo` at the next date and carrying the
+    // rule — and the node that was completed carries neither the rule nor that
+    // date any more, which is what "one live head" means on the file itself.
+    expect(read("chores.olai"))
+      .toContain(`"todo":true,"date":"2026-08-24","repeat":"every week on monday"`)
+    expect((await call(client, "read_node", { id: "bins" })).structured)
+      .not.toHaveProperty("repeat")
+  })
+})
+
+/**
+ * The two ways a rule can be wrong, met by a live agent — and neither of them
+ * lands. That is the whole reason the pair is judged at the door as well as
+ * per line: an unreadable record is absorbed as a `broken` FILE rather than
+ * refusing the set, so a write that produced one would answer "done" while the
+ * outline dropped off every page.
+ */
+test("a repeat with no date to repeat from is refused, and nothing is written", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
+    const answer = await call(client, "set_repeat", { id: "order", repeat: "every day" })
+    expect(answer.isError).toBe(true)
+    expect(String(answer.structured["reason"])).toContain("no date to repeat from")
+    expect(refusals).toEqual(["repeat: UsageFailure"])
+    expect(read("house.olai")).toBe(HOUSE)
+  })
+})
+
+test("a rule the grammar does not have is refused, quoting the grammar", async () => {
+  await withTools({ "chores.olai": CHORES }, async ({ client, read }) => {
+    const answer = await call(client, "set_repeat", { id: "bins", repeat: "every 2 weeks" })
+    expect(answer.isError).toBe(true)
+    expect(String(answer.structured["reason"])).toContain("every week on <weekday>")
+    expect(read("chores.olai")).toBe(CHORES)
   })
 })
 
@@ -1240,6 +1315,7 @@ test("`apply` and `update` advertise finite schemas with no $ref", async () => {
       "mirror",
       "move",
       "prop",
+      "repeat",
       "see",
       "split",
       "title",
@@ -1257,7 +1333,17 @@ test("`apply` and `update` advertise finite schemas with no $ref", async () => {
     const update = tools.find((tool) => tool.name === "update")
     expect(JSON.stringify(update?.inputSchema)).not.toContain("$ref")
     expect(Object.keys(update?.inputSchema.properties ?? {}).sort())
-      .toEqual(["after", "date", "desc", "id", "mark", "props", "title", "was"])
+      .toEqual([
+        "after",
+        "date",
+        "desc",
+        "id",
+        "mark",
+        "props",
+        "repeat",
+        "title",
+        "was",
+      ])
   })
 })
 
@@ -1318,4 +1404,5 @@ test("a `was` and a bent `after` reach the planner instead of vanishing", async 
     expect(read("house.olai")).not.toContain(`"title":"lane"`)
   })
 })
+
 

@@ -604,6 +604,19 @@ What it is:
 
 A phone reaches this on a dated row through the pill, which is drawn everywhere, and on an undated one through the `•••` menu's own verb — which it now has a door to: no `•••` is drawn below `md`, so a long press on the row opens the menu (`longPress.ts`). The gap this paragraph used to record, along with the checkbox's, is closed.
 
+## The repeat picker
+
+`src/client/date/repeat.ts` and `RepeatPicker.tsx` sit in the same folder as the date picker, and that is the whole design claim: a day and how it recurs are one thought, so they are one arrangement asked twice — two doors (the `↻` pill on the row, the `•••` menu's `Set repeat…` / `Change repeat…`), a panel in place under the line, Escape and Cancel as the ways out, the ops layer quoted verbatim when a write does not happen, and a pure half whose `startsAt` / `pressOf` / `noticeOf` / `repeatPick` answer the same four questions one field along. They are TWO panels rather than one because they are two writes at the gate: a picker that sent both would be the web doing in one gesture what MCP needs two calls for.
+
+What differs is the control and one fence:
+
+- **a `<select>`, because the grammar is CLOSED.** `@olai/format`'s `REPEAT_RULES` is the vocabulary read off itself, and the picker draws that list — so the options a person sees and the strings the validator takes are one list, where hand-written `<option>` labels would be a second grammar that compiles, draws, and refuses on send. A text box would be the wrong control twice over: it invites the cron dialect the grammar exists to refuse, and it makes somebody type a sentence a list can hand them. A stored rule the list cannot show — a hand edit, a newer olai — seeds the empty option and is quoted verbatim in a notice, because otherwise it would look exactly like a node that does not repeat.
+- **only a DATED row is offered it**, and that is the one place this menu fences a write rather than offering it and letting the ops layer answer. It is not the menu's policy: the format refuses a rule with no date to repeat FROM, so the entry over an undated row is an affordance whose only outcome is that refusal — with `Set date…` sitting directly above it, which is the thing to do first.
+- **the `↻` pill is `RepeatBadge.tsx`**, beside `DateBadge.tsx` and shaped like it line for line — a `<button>` where a caller offers `onPick`, a `<span>` where none does, `data-picks` carrying which. It takes no tone ever, where the date pill takes the attention tone for being late: a rule is a claim about what happens next, and nothing about it can go wrong on a day.
+- **completing a repeating row is `Complete`, unchanged.** The spawn lives in the planner (`@olai/ops`' `recurring`), so this client has no rule about recurrence at all beyond drawing one: what lands is the request an agent's `set_done` would have sent, the occurrence arrives on the next frame like any other node, and the line under the row is the ops layer's own `nudge` saying which day it is on.
+
+The same long-press door reaches it on a phone, and the pill is drawn everywhere the date pill is.
+
 
 ## The edge panel
 

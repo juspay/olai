@@ -35,6 +35,7 @@ import { NodeBody } from "./NodeBody.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { NotFound } from "./NotFound.tsx"
 import { ProgressBadge } from "./ProgressBadge.tsx"
+import { RepeatBadge } from "./RepeatBadge.tsx"
 import { doneHidden } from "./settings/done.ts"
 import { TESTID } from "./testids.ts"
 import { useToday } from "./today.tsx"
@@ -111,6 +112,13 @@ function Zoom(props: {
                   overdue={isOverdue(props.zoomed.shows.node, today())}
                 />
               )}
+            </Show>
+            {/* …and how it comes back, beside the day it is on, in the same
+                order the row draws them. Read-only here as the date beside it
+                is: this heading says what the node IS, and the pickers are the
+                row's. */}
+            <Show when={props.zoomed.shows.node.repeat}>
+              {(repeat) => <RepeatBadge repeat={repeat()} />}
             </Show>
           </div>
 
