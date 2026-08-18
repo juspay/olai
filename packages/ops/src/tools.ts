@@ -91,19 +91,33 @@ import * as Query from "./query.ts"
 /**
  * WHAT A TOOL'S ARGUMENTS ARE: named fields, and one declaration of that.
  *
- * A call arrives as a JSON object, so a tool's arguments are a struct or they
- * are nothing — which is why this is the bound and not `Schema.Top`. It is a
- * name rather than the type written out at each of the four places that mean
- * it (the field below, and the three constructors' `S`), because those four
- * are one decision: tightening it — to admit a tagged struct, say — should be
- * one edit rather than four kept in step by eye.
+ * A call arrives as a JSON object, so a tool's arguments are named fields or
+ * they are nothing — which is why this is the bound and not `Schema.Top`. It is
+ * a name rather than the type written out at each of the four places that mean
+ * it (the field below, and the three constructors' `S`), because those four are
+ * one decision and moving it should be one edit.
  *
- * Not `@olai/format`'s, though the floor writes its own version of this thought
- * (`writing.ts`'s `arm`, parameterised over the FIELDS rather than over the
- * struct). That one keeps `F` so it can rebuild a struct; this one keeps `S` so
- * a caller can read `S["Type"]` off it. Same words, different type.
+ * IT ASKS FOR EXACTLY THE TWO THINGS THIS FILE READS off a tool's schema, and
+ * that is why it is spelled this way rather than as `Schema.Struct`. Effect
+ * publishes `Constraint` for precisely this kind of API — "accepts schema
+ * values but only reads their data and type-level views" — and nothing here
+ * calls `annotate`, `check`, `rebuild` or `make` on one. What it reads is
+ * `Type` (the constructors infer each asker's arguments from it) and `fields`
+ * (`@olai/server`'s `argsOf` takes a write's schema apart by them, to drop the
+ * `op` the tool's NAME already decides). Asking for those two says what is
+ * true; `Schema.Struct<Schema.Struct.Fields>` says it by re-checking the whole
+ * struct protocol structurally against each of the twenty-eight request
+ * schemas, which is the same claim at a price — MEASURED, on review, at 97,450
+ * type instantiations for this package against 79,609 for this spelling, the
+ * second of which is under the 82,194 the inference-defeating union it replaced
+ * used to cost.
+ *
+ * The bound itself is pinned in `./tools.test.ts`, because it is the one part
+ * of this that every real schema satisfies: the table cannot tell a bound that
+ * holds from a bound that is not there, so a `Schema.String` is refused there
+ * on purpose.
  */
-type Arguments = Schema.Struct<Schema.Struct.Fields>
+type Arguments = Schema.Constraint & { readonly fields: Schema.Struct.Fields }
 
 interface Described {
   readonly name: string
@@ -112,13 +126,14 @@ interface Described {
   /**
    * The schema the arguments are decoded against.
    *
-   * A STRUCT rather than any schema at all, and that is a claim about what a
-   * tool is: a call arrives as a JSON object, so a tool's arguments are named
+   * NAMED FIELDS rather than any schema at all, and that is a claim about what
+   * a tool is: a call arrives as a JSON object, so a tool's arguments are named
    * fields or they are nothing. Two things follow, and both were paid for by a
    * cast somewhere before this said so. `@olai/server`'s `argsOf` takes a
    * write's schema APART by `.fields` — to drop the `op` the tool's name
-   * already decides — which only a struct has; and the constructors below infer
-   * each asker's argument type from this same declaration.
+   * already decides — which a bare `Schema.Top` has no way to offer; and the
+   * constructors below infer each asker's argument type from this same
+   * declaration. {@link Arguments} is where both are asked for.
    */
   readonly schema: Arguments
 }

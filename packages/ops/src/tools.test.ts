@@ -309,4 +309,19 @@ test("what a tool says twice has to agree with its own schema", () => {
     NodeRequest,
     {},
   )
+
+  read(
+    "read_node",
+    "Read a node",
+    "Not an object at all.",
+    // @ts-expect-error — and it has to have FIELDS. This is the one bound the
+    // table cannot speak for, and the reason it is here: every schema the floor
+    // hands this file is a struct, so {@link Arguments} holding and
+    // {@link Arguments} not being there look identical from the table. A call
+    // arrives as a JSON object; a schema that is not one has nothing for
+    // `argsOf` to take apart and nothing for an agent to fill in.
+    Schema.String,
+    NodeAnswer,
+    (asking) => asking.node({ id: "paint" }),
+  )
 })
