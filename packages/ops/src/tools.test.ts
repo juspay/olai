@@ -230,27 +230,31 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
 
 /**
  * EVERY TOOL'S SECOND DECLARATION IS CHECKED AGAINST ITS SCHEMA — and only the
- * compiler can check it, which is why this test is written the way it is.
+ * compiler can check it, which is what this test is.
  *
  * Each entry in the table says one thing twice: the schema an agent fills in,
  * and then something ABOUT that schema — a read's asker takes the request, an
- * act's does too, a write names the field its own name already decides
- * (`{ op: "create" }`). The walks above cannot see any of it: the table erases
- * every entry to a `Tool`, whose `ask` takes `never` and whose `fixed` is a bag
- * of `unknown`, so nothing that RUNS can tell what the constructor was handed.
- * The three constructors are exported for exactly this.
+ * act's does too, a write names the field its own name decides and is written
+ * in the planner's vocabulary. The walks above can see none of it: the table
+ * erases every entry to a `Tool`, whose `ask` takes `never` and whose `fixed`
+ * is a bag of `unknown`. The three constructors are exported for this.
  *
- * FOUR CALLS, AND THE FIRST IS THE POINT. It annotates nothing and hands `args`
- * straight to a door that wants a `NodeRequest`: if inference were lost —
- * `unknown`, which is what the request parameter's old `| Schema.Top` union
- * left behind — that line would not compile, and everything below it would be
- * pinning a type nobody derived. The other three are each expected to be
- * REFUSED, and `@ts-expect-error` fails the build when the line it guards
- * compiles: that is what rules out the other way this can go wrong, since an
- * `any` would swallow the wrong annotation, leave the directive unused, and
- * `tsc` reports exactly that.
+ * THE FIRST CALL IS THE ONLY ONE THAT COMPILES. It annotates nothing and hands
+ * `args` to a door wanting a `NodeRequest`, so a lost inference — `unknown`,
+ * which is what the request parameter's old `| Schema.Top` union left — fails
+ * here. (The table has that shape too, so it would fail there as well; this
+ * says it where the refusals below can be read against it.)
  *
- * None of the four is a tool and none reaches {@link TOOLS}; what is under test
+ * THE OTHER FOUR ARE EXPECTED TO BE REFUSED, and `@ts-expect-error` fails the
+ * build when the line it guards compiles — which is what rules out the other
+ * way this goes wrong, an `any` swallowing the wrong annotation and leaving the
+ * directive unused. EACH BODY IS VALID ON ITS OWN, deliberately: a refusal that
+ * would also be a refusal for some second reason proves nothing about the
+ * first, so `asking.node({ id })` and `ops.commit({})` are calls that type-check
+ * — leaving the parameter annotation as the only thing on the line that can
+ * fail.
+ *
+ * None of the five is a tool and none reaches {@link TOOLS}; what is under test
  * is the constructors, and the table is only how they are normally called.
  */
 test("what a tool says twice has to agree with its own schema", () => {
@@ -271,8 +275,8 @@ test("what a tool says twice has to agree with its own schema", () => {
     NodeRequest,
     NodeAnswer,
     // @ts-expect-error — the schema beside it says `NodeRequest`, so an asker
-    // that claims to take a `SearchRequest` is not a reader of this tool.
-    (asking, args: SearchRequest) => asking.search(args),
+    // claiming to take a `SearchRequest` is not a reader of this tool.
+    (asking, args: SearchRequest) => asking.node({ id: "paint" }),
   )
 
   act(
@@ -280,9 +284,9 @@ test("what a tool says twice has to agree with its own schema", () => {
     "Commit what you changed",
     "Record what is waiting as one git commit.",
     CommitRequest,
-    // @ts-expect-error — same rule on the act arm, whose `args` are its
-    // schema's for the same reason a read's are.
-    (ops, args: NodeRequest) => ops.commit(args),
+    // @ts-expect-error — the same rule on the act arm, which has its own
+    // signature and could lose it on its own.
+    (ops, args: NodeRequest) => ops.commit({}),
   )
 
   write(
@@ -291,9 +295,18 @@ test("what a tool says twice has to agree with its own schema", () => {
     "Start a new outline file.",
     CreateRequest,
     // @ts-expect-error — a write's `fixed` is a field of the request beside
-    // it: `CreateRequest`'s `op` is `"create"`, and a table that misspelled
-    // the verb would otherwise advertise this tool and ask the planner for one
-    // nothing has ever heard of.
+    // it, and `CreateRequest`'s `op` is `"create"`.
     { op: "creat" },
+  )
+
+  write(
+    "read_node",
+    "Read a node",
+    "Not a write at all.",
+    // @ts-expect-error — and the schema itself has to be one the planner can
+    // take: a read's request is not an arm of the write vocabulary, so this is
+    // a tool `Running.run` could never answer.
+    NodeRequest,
+    {},
   )
 })

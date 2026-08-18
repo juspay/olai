@@ -29,9 +29,10 @@
  *
  * And WHAT EACH ENTRY SAYS ABOUT ITS SCHEMA is checked against that schema, in
  * all three arms: a read's asker and an act's are handed the request the entry
- * names, and a write's fixed field is a field of it. None of that is written
- * out here — it is inferred from the one schema the entry already carries, so
- * there is nothing beside it to spell differently.
+ * names, a write's fixed field is a field of it, and a write's schema is an arm
+ * of the vocabulary its own writer takes. None of that is written out here — it
+ * is inferred from the one schema the entry already carries, so there is
+ * nothing beside it to spell differently.
  */
 
 import { Effect, Schema } from "effect"
@@ -87,6 +88,23 @@ import * as Query from "./query.ts"
 // reason is the exception that proves it — those carry names that are this
 // layer's (`Request`, `Applied`) rather than the format's.
 
+/**
+ * WHAT A TOOL'S ARGUMENTS ARE: named fields, and one declaration of that.
+ *
+ * A call arrives as a JSON object, so a tool's arguments are a struct or they
+ * are nothing — which is why this is the bound and not `Schema.Top`. It is a
+ * name rather than the type written out at each of the four places that mean
+ * it (the field below, and the three constructors' `S`), because those four
+ * are one decision: tightening it — to admit a tagged struct, say — should be
+ * one edit rather than four kept in step by eye.
+ *
+ * Not `@olai/format`'s, though the floor writes its own version of this thought
+ * (`writing.ts`'s `arm`, parameterised over the FIELDS rather than over the
+ * struct). That one keeps `F` so it can rebuild a struct; this one keeps `S` so
+ * a caller can read `S["Type"]` off it. Same words, different type.
+ */
+type Arguments = Schema.Struct<Schema.Struct.Fields>
+
 interface Described {
   readonly name: string
   readonly title: string
@@ -102,7 +120,7 @@ interface Described {
    * already decides — which only a struct has; and the constructors below infer
    * each asker's argument type from this same declaration.
    */
-  readonly schema: Schema.Struct<Schema.Struct.Fields>
+  readonly schema: Arguments
 }
 
 /**
@@ -256,8 +274,8 @@ export type Tool =
     readonly kind: "write"
     /** The part of the request this tool's NAME decides, put back by the
      *  dispatcher after the schema advertised without it. Bare here because
-     *  that is all a dispatcher can use it as; it reaches this arm through
-     *  {@link write}, which checks it against the entry's own schema. */
+     *  that is all a dispatcher can use it as; what it has to agree with is
+     *  {@link write}'s. */
     readonly fixed: Readonly<Record<string, unknown>>
   })
   | (Described & {
@@ -300,16 +318,14 @@ const NoArgs = Schema.Struct({})
  *
  * A read whose asker names the wrong request now fails to COMPILE, which is the
  * one thing `./tools.test.ts`'s walk over the table cannot check — it is pinned
- * there with `@ts-expect-error`, and that is why all three constructors are
- * exported.
+ * there instead, which is what the three constructors are exported for.
  *
- * NOTHING IS ASSERTED HERE ANY MORE. Widening the asker to the `Tool` arm's own
- * `(asking, args: never)` used to need an `as`, because `A` was a variable this
- * signature never tied to anything; tied to the schema, it is a relation the
- * compiler checks for itself — including that the answer really is the `R` the
- * declaration promised.
+ * NOTHING IS ASSERTED HERE ANY MORE. Widening the asker onto the `Tool` arm's
+ * `(asking, args: never)` used to need an `as`; tied to the schema it is a
+ * relation the compiler checks for itself, including that the answer really is
+ * the `R` the declaration promised.
  */
-export const read = <S extends Schema.Struct<Schema.Struct.Fields>, R>(
+export const read = <S extends Arguments, R>(
   name: string,
   title: string,
   description: string,
@@ -327,21 +343,35 @@ export const read = <S extends Schema.Struct<Schema.Struct.Fields>, R>(
 })
 
 /**
- * The write arm, and its second declaration is `fixed` rather than an asker.
+ * The write arm, whose second declaration is `fixed` rather than an asker —
+ * and which is also the arm that has to say WHICH VOCABULARY it is writing in.
  *
- * It is the SAME hand-spelling {@link read}'s just lost, in the one arm that
- * carries a value instead of a function: `{ op: "create" }` is a field of the
- * request this call already names, written out beside it. Typed as a
- * `Partial<S["Type"]>`, the two have to agree — a verb this table spells
- * wrongly is a compile error where it used to be a tool that advertised
- * `create_outline` and asked the planner for something it has never heard of,
- * discoverable only by calling it.
- *
+ * `fixed` first. It is the same hand-spelling {@link read}'s just lost, in the
+ * one arm carrying a value instead of a function: `{ op: "create" }` is a field
+ * of the request this call already names, written out beside it. Typed as a
+ * `Partial<S["Type"]>` the two have to agree, so `{ op: "creat" }` under
+ * `CreateRequest` is a compile error rather than a tool that advertises
+ * `create_outline` and asks the planner for a verb nothing has heard of.
  * PARTIAL, and not narrower, because which fields a name decides is the tool's
- * own business: every write here fixes exactly its `op`, and a tool that also
- * fixed a second field would be saying something true about itself.
+ * own business — every write here fixes exactly its `op`, and one that fixed a
+ * second field would be saying something true about itself.
+ *
+ * WHAT THAT DOES NOT REACH is a schema whose `op` is more than one literal:
+ * `MarkRequest`'s is the format's whole `Status`, so this type is satisfied by
+ * any of the three and cannot tell `set_done` from `set_todo`. Nothing here can
+ * — the fact lives in the NAME — which is why the three are built by keying
+ * both off one `mark` ({@link MARK_TOOLS}) rather than written out; that is a
+ * construction holding them together, and this type is not a second one.
+ *
+ * THE SCHEMA ITSELF is bounded by `Request`, the write vocabulary the planner
+ * switches on. Every write is the same call — `Running.run` — so a table entry
+ * naming a schema that is not one of its arms is a tool this package advertises
+ * and its own writer cannot take: refused at a decode, for a live agent, as
+ * late as a refusal can arrive. It is the read arm's rule reaching the last arm
+ * that did not have it — a tool the table declares and nothing answers should
+ * be a type error, and the write arm is twenty of the twenty-eight.
  */
-export const write = <S extends Schema.Struct<Schema.Struct.Fields>>(
+export const write = <S extends Arguments & { readonly Type: Request }>(
   name: string,
   title: string,
   description: string,
@@ -353,7 +383,7 @@ export const write = <S extends Schema.Struct<Schema.Struct.Fields>>(
  *  and for the same reason: what `commit` takes is `@olai/format`'s to say, and
  *  saying it again here is a second spelling free to drift from the schema this
  *  same call advertises. */
-export const act = <S extends Schema.Struct<Schema.Struct.Fields>>(
+export const act = <S extends Arguments>(
   name: string,
   title: string,
   description: string,
