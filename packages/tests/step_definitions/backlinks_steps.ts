@@ -19,8 +19,7 @@ import { Then, When } from "@cucumber/cucumber";
 
 import {
   attr,
-  BACKLINK_MENTION_REFS,
-  BACKLINK_SEE_REFS,
+  backlinkRow,
   BACKLINKS,
   BACKLINKS_SUMMARY,
   NODE_REF,
@@ -30,13 +29,18 @@ import {
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-/** Which row a way is drawn in. Two locators rather than one built from the
- *  word, for `edge_steps.ts`' reason: these are two contracts, and a scenario
- *  naming a third way should fail here rather than quietly look at nothing. */
-const rowOf = (way: string): string => {
-  if (way === "sees") return BACKLINK_SEE_REFS;
-  if (way === "mentions") return BACKLINK_MENTION_REFS;
-  throw new Error(`there is no referenced-by row for a \`${way}\` way`);
+/** Which row a scenario means, by the LABEL a reader sees on it — a relation is
+ *  read in the reader's language rather than as a field name in a slot
+ *  (`edge_steps.ts`' own rule). The pairing of a label with its testid is the
+ *  client's (`backlinks/way.ts`, through `world.ts`), so a row renamed there is
+ *  a scenario that fails saying so rather than one that quietly looks at
+ *  nothing. */
+const rowOf = (label: string): string => {
+  const row = backlinkRow(label);
+  if (row === undefined) {
+    throw new Error(`the referenced-by section draws no \`${label}\` row`);
+  }
+  return row;
 };
 
 Then(
@@ -103,7 +107,7 @@ Then(
  *  reading promises, and a row that had gained an entry somewhere else would
  *  satisfy a contains. */
 Then(
-  "the referenced-by {word} row reads {string}",
+  "the referenced-by {string} row reads {string}",
   async function (this: OlaiWorld, way: string, titles: string) {
     const row = this.page.locator(rowOf(way)).first();
     await this.waitUntil(
@@ -134,7 +138,7 @@ When(
 );
 
 Then(
-  "the referenced-by section draws no {word} row",
+  "the referenced-by section draws no {string} row",
   async function (this: OlaiWorld, way: string) {
     await this.waitUntil(
       async () => (await this.page.locator(rowOf(way)).count()) === 0,

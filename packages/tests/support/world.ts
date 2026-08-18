@@ -24,6 +24,7 @@ import * as os from "node:os";
 // Aliased: `NODE_REF` below is the see/after reference ELEMENT (`NodeRefs.tsx`),
 // and this is the ATTRIBUTE a pressable node reference in the chat panel
 // carries. Two different things, one word — so the import says which.
+import { REFERRINGS } from "@olai/web/src/client/backlinks/way.ts";
 import { NODE_REF as CHAT_NODE_REF_ATTR } from "@olai/web/src/client/chat/refs.ts";
 // The client's own long-press deadline, for the same reason the testids are
 // imported rather than re-spelled: a scenario that held a finger for a number
@@ -243,11 +244,21 @@ export const REF_DROP = selector(TESTID.refDrop);
 export const BACKLINKS = selector(TESTID.backlinks);
 /** Its summary — the count in words, and what a pointer presses to open it. */
 export const BACKLINKS_SUMMARY = selector(TESTID.backlinksSummary);
-/** The two rows inside it: the referrers whose `see` lands here, and the ones
- *  whose title or note writes this node's `@id`. Each holds `NODE_REF` links
- *  exactly as the forward rows do. */
-export const BACKLINK_SEE_REFS = selector(TESTID.backlinkSeeRefs);
-export const BACKLINK_MENTION_REFS = selector(TESTID.backlinkMentionRefs);
+/**
+ * One row inside it, found by the label a READER sees on it — the referrers
+ * whose `see` lands here, or the ones whose title or note writes this node's
+ * `@id`. Each holds `NODE_REF` links exactly as the forward rows do.
+ *
+ * Through the client's own table (`backlinks/way.ts`), which is what pairs a
+ * way with its label and its testid: a suite that mapped a reader's word to a
+ * testid here would be that pairing spelled a third time, and `EdgeRefs.tsx`'s
+ * header says what a second spelling of it costs. `undefined` for a label no
+ * row carries, so a scenario naming one fails saying so.
+ */
+export const backlinkRow = (label: string): string | undefined => {
+  const drawn = REFERRINGS.find((one) => one.label === label);
+  return drawn === undefined ? undefined : selector(drawn.refs);
+};
 
 // ── writing a node's edges ─────────────────────────────────────────────
 /** The panel that writes one relation of one node, in place under the row or

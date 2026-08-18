@@ -36,10 +36,10 @@ Feature: Referenced by — a zoomed node says what points at it
     Then the page says it is referenced by 1 nodes
     And the referenced-by section is collapsed
     When I open the referenced-by section
-    Then the referenced-by sees row reads "order the new cabinets"
+    Then the referenced-by "sees this" row reads "order the new cabinets"
     # No note in this corpus names the herb bed, so the second row is absent
     # rather than empty — the rule every relation row on this page follows.
-    And the referenced-by section draws no mentions row
+    And the referenced-by section draws no "mentions this" row
     And there should be no page errors
 
   Scenario: Each entry opens the record that made the reference
@@ -63,7 +63,7 @@ Feature: Referenced by — a zoomed node says what points at it
     Then the zoomed node is "herbs"
     And the page says it is referenced by 1 nodes
     When I open the referenced-by section
-    Then the referenced-by sees row reads "order the new cabinets"
+    Then the referenced-by "sees this" row reads "order the new cabinets"
     And there should be no page errors
 
   Scenario: An ordering edge is not a reference
@@ -85,8 +85,8 @@ Feature: Referenced by — a zoomed node says what points at it
     # rather than three and each row holds exactly the live half.
     Then the page says it is referenced by 2 nodes
     When I open the referenced-by section
-    Then the referenced-by sees row reads "order the new cabinets"
-    And the referenced-by mentions row reads "look at @herbs before Tuesday"
+    Then the referenced-by "sees this" row reads "order the new cabinets"
+    And the referenced-by "mentions this" row reads "look at @herbs before Tuesday"
     And the page has not reloaded
     And there should be no page errors
 
@@ -99,8 +99,8 @@ Feature: Referenced by — a zoomed node says what points at it
     # The section a reader opened stays open when the set moves under it — the
     # list grows in place rather than shutting and starting again.
     And the referenced-by section is still open
-    And the referenced-by mentions row reads "look at @herbs before Tuesday"
-    And the referenced-by sees row reads "order the new cabinets"
+    And the referenced-by "mentions this" row reads "look at @herbs before Tuesday"
+    And the referenced-by "sees this" row reads "order the new cabinets"
     And the page has not reloaded
     And there should be no page errors
 
@@ -138,9 +138,9 @@ Feature: Referenced by — a zoomed node says what points at it
     # `order` is one record saying two things.
     Then the page says it is referenced by 2 nodes
     When I open the referenced-by section
-    Then the referenced-by sees row reads "order the new cabinets for @herbs"
+    Then the referenced-by "sees this" row reads "order the new cabinets for @herbs"
     # CORPUS ORDER, whichever index found them: garden.olai sorts before
     # house.olai, so the appended mention comes first even though the `see`
     # was there all along.
-    And the referenced-by mentions row reads "look at @herbs before Tuesday, order the new cabinets for @herbs"
+    And the referenced-by "mentions this" row reads "look at @herbs before Tuesday, order the new cabinets for @herbs"
     And there should be no page errors

@@ -26,10 +26,10 @@ const HOUSE = {
   "garden.olai": `{"id":"herbs","ord":"a0","title":"the herb bed"}`,
 }
 
-test("the two rows are the two ways, and a record doing both is in each", () => {
+test("the rows are keyed by the way, and a record doing both is in each", () => {
   const found = referrersOf(viewOf(HOUSE), "herbs")
-  expect(found.sees.map((ref) => ref.id)).toEqual(["order", "both"])
-  expect(found.mentions.map((ref) => ref.id)).toEqual(["install", "both"])
+  expect(found.rows.see.map((ref) => ref.id)).toEqual(["order", "both"])
+  expect(found.rows.mention.map((ref) => ref.id)).toEqual(["install", "both"])
   // THREE, not four: the count is the records referring, which is what
   // "Referenced by 3 nodes" claims.
   expect(found.total).toBe(3)
@@ -38,7 +38,7 @@ test("the two rows are the two ways, and a record doing both is in each", () => 
 test("a link carries the referrer's own title and the outline it is written in", () => {
   // Read off the record rather than resolved again: this list is already
   // records, so nothing here can disagree with the page the link opens.
-  expect(referrersOf(viewOf(HOUSE), "herbs").sees[0]).toEqual({
+  expect(referrersOf(viewOf(HOUSE), "herbs").rows.see[0]).toEqual({
     id: "order",
     title: "order the cabinets",
     from: "house.olai",

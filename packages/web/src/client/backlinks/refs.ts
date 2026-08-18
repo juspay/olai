@@ -5,10 +5,17 @@
  * The SPLIT is what this module is. `@olai/format`'s `backlinksOf` answers one
  * list of records with the ways each of them refers, because a record that both
  * points at this node and names it in a note is one record; a `NodeRefs` row is
- * about ONE relation and keys its links by target id, so a record appearing in
- * both rows is two links under one key in two lists rather than a duplicate in
- * one. Same reading, two shapes, and the arithmetic between them lives here
- * rather than inside a component's JSX.
+ * about ONE way and keys its links by target id, so a record appearing in both
+ * rows is two links under one key in two lists rather than a duplicate in one.
+ * Same reading, two shapes, and the arithmetic between them lives here rather
+ * than inside a component's JSX.
+ *
+ * A ROW PER `Way`, keyed by the format's own closed list rather than one field
+ * per way: two fields carry a presence rule nothing enforces ("if a referrer
+ * says `see` then `sees` holds it"), and a third way added where the rulings
+ * live would type-check clean past a struct that had no field for it. The
+ * record makes both mechanical, and `./way.ts` — total over the same list — is
+ * what turns it into rows on screen.
  *
  * NOTHING IS RESOLVED THAT THE READING DID NOT ALREADY HAVE. A `see` row
  * resolves its target ids through `nodeNamed` (`../edges/named.ts`) because the
@@ -32,18 +39,32 @@ import { type Backlink, backlinksOf, type Derived, type Way } from "@olai/format
 
 import type { NodeRef } from "../NodeRefs.tsx"
 
-/** The whole section's contents: one reading, drawn as two rows and counted
- *  once. `total` is the RECORDS, not the links — a node that refers twice is
- *  one thing referring, and the summary says how many things. */
+/** The whole section's contents: a row per way, and the count over all of them.
+ *  `total` is the RECORDS, not the links — a node that refers twice is one
+ *  thing referring, and the summary says how many things. */
 export interface Referrers {
   readonly total: number
-  readonly sees: ReadonlyArray<NodeRef>
-  readonly mentions: ReadonlyArray<NodeRef>
+  readonly rows: Record<Way, ReadonlyArray<NodeRef>>
 }
+
+/**
+ * A row per way, as a `Record<Way, …>` LITERAL rather than a fold over
+ * {@link WAYS}.
+ *
+ * The literal is what the compiler checks: a third way added where the rulings
+ * live (`format/src/backlinks.ts`) is an error HERE, at the one place that
+ * would otherwise have gone on answering two rows out of three. A
+ * `fromEntries` over the list reads tidier and hands back a `{[k: string]: …}`
+ * that only a cast can turn into this type — which is the check deleted and the
+ * exhaustiveness put back as a promise.
+ */
+const rowsOf = (
+  of: (way: Way) => ReadonlyArray<NodeRef>,
+): Record<Way, ReadonlyArray<NodeRef>> => ({ see: of("see"), mention: of("mention") })
 
 /** The empty answer, shared: most nodes have no referrers, and this is asked
  *  per node per frame the store publishes. */
-const NOTHING: Referrers = { total: 0, sees: [], mentions: [] }
+const NOTHING: Referrers = { total: 0, rows: rowsOf(() => []) }
 
 export const referrersOf = (
   derived: Derived | undefined,
@@ -54,11 +75,7 @@ export const referrersOf = (
   if (derived === undefined) return NOTHING
   const found = backlinksOf(derived, id)
   if (found.length === 0) return NOTHING
-  return {
-    total: found.length,
-    sees: refsOf(found, "see"),
-    mentions: refsOf(found, "mention"),
-  }
+  return { total: found.length, rows: rowsOf((way) => refsOf(found, way)) }
 }
 
 const refsOf = (found: ReadonlyArray<Backlink>, way: Way): ReadonlyArray<NodeRef> =>

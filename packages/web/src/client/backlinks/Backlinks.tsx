@@ -36,12 +36,13 @@
  * appears in both, which is what it is doing.
  */
 
-import { createMemo, Show } from "solid-js"
+import { createMemo, For, Show } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
 import { NodeRefs } from "../NodeRefs.tsx"
 import { TESTID } from "../testids.ts"
 import { referrersOf } from "./refs.ts"
+import { REFERRINGS } from "./way.ts"
 
 export function Backlinks(props: {
   /** The node the page is about — canonical, since a zoom resolves a mirror's
@@ -52,34 +53,39 @@ export function Backlinks(props: {
   const referrers = createMemo(() => referrersOf(derived(), props.id))
 
   return (
-    <Show when={referrers().total > 0}>
-      {/* A node nobody refers to draws NOTHING — not an empty section saying
-          so. The absence is the answer, which is the rule every relation row
-          on this page already follows. */}
-      <Show when={props.id} keyed>
-        <details
-          class="mt-3 border-t border-rule pt-2"
-          data-testid={TESTID.backlinks}
-          data-count={referrers().total}
+    // ONE `<Show>`, keyed on the node while there is anything to say about it.
+    // It carries both rules at once: a node nobody refers to draws NOTHING (the
+    // absence is the answer, as it is for every relation row on this page), and
+    // a page reused from `/n/a` to `/n/b` gets a NEW element rather than the
+    // reader’s answer about the first node. Two nested `Show`s said the same
+    // thing in two places and left the second free to stop keying.
+    <Show when={referrers().total > 0 ? props.id : undefined} keyed>
+      <details
+        class="mt-3 border-t border-rule pt-2"
+        data-testid={TESTID.backlinks}
+        data-count={referrers().total}
+      >
+        <summary
+          class="cursor-pointer text-sm text-muted select-none"
+          data-testid={TESTID.backlinksSummary}
         >
-          <summary
-            class="cursor-pointer text-sm text-muted select-none"
-            data-testid={TESTID.backlinksSummary}
-          >
-            {said(referrers().total)}
-          </summary>
-          <NodeRefs
-            label="sees this"
-            refs={referrers().sees}
-            testid={TESTID.backlinkSeeRefs}
-          />
-          <NodeRefs
-            label="mentions this"
-            refs={referrers().mentions}
-            testid={TESTID.backlinkMentionRefs}
-          />
-        </details>
-      </Show>
+          {said(referrers().total)}
+        </summary>
+        {/* A row per WAY, out of the one table that says what each is called
+            (./way.ts) — never a label written here beside a testid picked by
+            hand, which is the fragmentation ../edges/EdgeRefs.tsx exists to
+            have stopped one direction over. An empty row draws nothing, which
+            is `NodeRefs`’ own rule rather than a guard per way. */}
+        <For each={REFERRINGS}>
+          {(referring) => (
+            <NodeRefs
+              label={referring.label}
+              refs={referrers().rows[referring.way]}
+              testid={referring.refs}
+            />
+          )}
+        </For>
+      </details>
     </Show>
   )
 }
