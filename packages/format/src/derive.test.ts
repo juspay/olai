@@ -53,6 +53,12 @@ const namers = (derived: Derived, id: string): ReadonlyArray<string> =>
     `${one.at.node.id} ${one.fields.join(",")}`
   )
 
+/** ...and what `mentionedBy` says about a word: the records that write it,
+ *  which is all that index carries — the way one of them said it is not a fact
+ *  it keeps. */
+const mentioners = (derived: Derived, word: string): ReadonlyArray<string> =>
+  (derived.mentionedBy.get(word) ?? []).map((at) => at.node.id)
+
 /** The regular records of a fixture, for the functions that read a node's own
  *  stored fields rather than a whole set. */
 const regulars = (contents: string): ReadonlyArray<RegularNode> =>
@@ -848,6 +854,50 @@ test("a field naming the same id twice is named once", () => {
       `{"id":"a","ord":"b","title":"a","after":["x","x"],"see":["x"]}`,
   ))
   expect(namers(derived, "x")).toEqual(["a after,see"])
+})
+
+// `mentionedBy` is the fourth reverse index, and the one keyed by a WORD
+// rather than by an id: what a title or a note says after an `@`, filed as it
+// is written. Whether that word names a node — whether the mention is a
+// REFERENCE — is asked at the read (`./backlinks.ts`), so that minting a node
+// does not have to re-walk every note in the directory.
+test("a word after an `@` is filed under the word, in prose of either kind", () => {
+  const derived = derive(nodesOf(
+    `{"id":"x","ord":"a","title":"x"}\n` +
+      `{"id":"a","ord":"b","title":"about @x"}\n` +
+      `{"id":"b","ord":"c","title":"b","desc":"and @x again, and @alice"}`,
+  ))
+  expect(mentioners(derived, "x")).toEqual(["a", "b"])
+  // A word nothing declares files exactly the same way: this index is about
+  // what the prose SAYS, and `@alice` is a tag until somebody is called that.
+  expect(mentioners(derived, "alice")).toEqual(["b"])
+})
+
+test("a record saying one word twice is one mention of it", () => {
+  const derived = derive(nodesOf(
+    `{"id":"x","ord":"a","title":"x"}\n` +
+      `{"id":"a","ord":"b","title":"@x and @x","desc":"still @x"}`,
+  ))
+  expect(mentioners(derived, "x")).toEqual(["a"])
+})
+
+test("a mirror mentions nothing, having no prose to mention it with", () => {
+  const derived = derive(nodesOf(
+    `{"id":"x","ord":"a","title":"x"}\n{"id":"m","ord":"b","mirror":"x"}`,
+  ))
+  expect(derived.mentionedBy.size).toBe(0)
+})
+
+test("the alphabet is the title's own, and a sigil inside a word starts nothing", () => {
+  const derived = derive(nodesOf(
+    `{"id":"a","ord":"a","title":"write to sam@herbs.example"}\n` +
+      `{"id":"b","ord":"b","title":"filed under #herbs"}\n` +
+      `{"id":"c","ord":"c","title":"(@herbs) and @work/olai"}`,
+  ))
+  // The bracket opens a word, the `.` ends one, and `/` is part of a tag name
+  // — `titleTagRe`'s rules, inherited rather than restated here.
+  expect(mentioners(derived, "herbs")).toEqual(["c"])
+  expect(mentioners(derived, "work/olai")).toEqual(["c"])
 })
 
 // ── the drawable tree ──────────────────────────────────────────────────

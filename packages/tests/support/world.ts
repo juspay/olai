@@ -24,6 +24,7 @@ import * as os from "node:os";
 // Aliased: `NODE_REF` below is the see/after reference ELEMENT (`NodeRefs.tsx`),
 // and this is the ATTRIBUTE a pressable node reference in the chat panel
 // carries. Two different things, one word — so the import says which.
+import { REFERRINGS } from "@olai/web/src/client/backlinks/way.ts";
 import { NODE_REF as CHAT_NODE_REF_ATTR } from "@olai/web/src/client/chat/refs.ts";
 // The client's own long-press deadline, for the same reason the testids are
 // imported rather than re-spelled: a scenario that held a finger for a number
@@ -259,6 +260,73 @@ export const SEE_REFS = selector(TESTID.seeRefs);
 export const AFTER_REFS = selector(TESTID.afterRefs);
 /** The `×` on one drawn reference — drop that target. `data-ref` is which. */
 export const REF_DROP = selector(TESTID.refDrop);
+
+// ── what refers to a node, read backwards ──────────────────────────────
+/** The `<details>` under a zoomed node's heading. `data-count` is how many
+ *  RECORDS refer to it; the element's own `open` says whether it is unfolded.
+ *  Absent on a node nothing refers to. */
+export const BACKLINKS = selector(TESTID.backlinks);
+/** Its summary — the count in words, and what a pointer presses to open it. */
+export const BACKLINKS_SUMMARY = selector(TESTID.backlinksSummary);
+/**
+ * One row inside it, found by the label a READER sees on it — the referrers
+ * whose `see` lands here, or the ones whose title or note writes this node's
+ * `@id`. Each holds `NODE_REF` links exactly as the forward rows do.
+ *
+ * Through the client's own table (`backlinks/way.ts`), which is what pairs a
+ * way with its label and its testid: a suite that mapped a reader's word to a
+ * testid here would be that pairing spelled a third time, and `EdgeRefs.tsx`'s
+ * header says what a second spelling of it costs. THROWS on a label no row
+ * carries — one rule, said once: a helper handing back `undefined` for the
+ * caller to re-check is the same refusal written twice, and the second writer
+ * is the one who forgets.
+ */
+/**
+ * Every link one row of node references draws, in DOM order and counting
+ * repeats — asserted as a WHOLE LIST rather than as a membership, because a row
+ * drawing one target twice reads as a row drawing two and a step that looked
+ * only for the target would pass over it.
+ *
+ * Here rather than in a step file because two suites ask it of two different
+ * rows — the edge rows a node declares (`edge_steps.ts`) and the referenced-by
+ * rows read backwards (`backlinks_steps.ts`) — and both had spelled the same
+ * join, the same `oneLine` and the same waiting sentence for themselves. What
+ * a row READS is one decision about one component (`NodeRefs.tsx`), so a change
+ * to how it renders a link is one assertion to fix rather than two.
+ */
+export const rowReads = async (
+  world: OlaiWorld,
+  row: Locator,
+  titles: string,
+  what: string,
+): Promise<void> => {
+  await world.waitUntil(
+    async () =>
+      (await row.count()) > 0 &&
+      (await row.locator(NODE_REF).allInnerTexts()).map(oneLine).join(", ") === titles,
+    `${what} to read ${JSON.stringify(titles)}`,
+  );
+};
+
+/**
+ * Whether a `<details>` is open — the BROWSER'S own answer, not a class this
+ * app writes, which is the whole point of the two places that use one
+ * (`document/Toc.tsx`, `backlinks/Backlinks.tsx`).
+ *
+ * One spelling of the cast, because it was four across two suites: what a
+ * section reports about itself is one contract, and a DOM interface named at
+ * four call sites is four edits with no compiler help.
+ */
+export const detailsOpen = async (locator: Locator): Promise<boolean> =>
+  await locator.first().evaluate((el) => (el as HTMLDetailsElement).open);
+
+export const backlinkRow = (label: string): string => {
+  const drawn = REFERRINGS.find((one) => one.label === label);
+  if (drawn === undefined) {
+    throw new Error(`the referenced-by section draws no \`${label}\` row`);
+  }
+  return selector(drawn.refs);
+};
 
 // ── writing a node's edges ─────────────────────────────────────────────
 /** The panel that writes one relation of one node, in place under the row or

@@ -23,6 +23,7 @@
 import type { InTheWay } from "@olai/format"
 
 import { NodeRefs } from "./NodeRefs.tsx"
+import { refOf } from "./ref.ts"
 import { TESTID } from "./testids.ts"
 
 export function Blocked(props: {
@@ -33,11 +34,7 @@ export function Blocked(props: {
   return (
     <NodeRefs
       label="blocked by"
-      refs={props.blocked.map((one) => ({
-        id: one.at.node.id,
-        title: one.at.node.title,
-        from: one.at.file,
-      }))}
+      refs={props.blocked.map((one) => refOf(one.at))}
       testid={TESTID.blocked}
     />
   )

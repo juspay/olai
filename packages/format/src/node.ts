@@ -294,6 +294,20 @@ export type Located = typeof Located.Type
  *  is what saves every consumer from re-deriving it with a field test. */
 export type LocatedRegular = Located & { readonly node: RegularNode }
 
+/**
+ * ...and the guard that NARROWS to it, which {@link isMirror} cannot do on its
+ * own: a discriminant test on `at.node` narrows the record and leaves the place
+ * around it as wide as it was, so every caller that wanted the pair either
+ * annotated its own predicate or reached for a cast.
+ *
+ * Both of those were in the tree — `./derive.ts`'s counted-children filter
+ * spells the predicate inline, and the backlinks reading asserted one — which
+ * is the shape {@link isMirror}'s own note warns about one level down: every
+ * consumer should narrow the same way rather than re-derive it. This is that
+ * sentence read for the located pair.
+ */
+export const isRegular = (at: Located): at is LocatedRegular => !isMirror(at.node)
+
 /** Ids are slugs — a chosen name or a minted short string. The shape is
  *  checked rather than assumed because ids appear in URLs, in `#tag`-adjacent
  *  text and as bare wire keys. */

@@ -657,6 +657,22 @@ The same long-press door reaches it on a phone, and the pill is drawn everywhere
 
 **And they are facts about the node a row SHOWS**, so an edge chosen at a mirror lands on its target — the standing routing rule, one field along from the marks and the date. `NodeRefs.tsx` grew the `×` (outside the link, never inside it) and nothing else about a refs row moved.
 
+## Referenced by
+
+`src/client/backlinks/` is the same relations read BACKWARDS, and the one place in this client that asks what points AT something. Every reference in this format points one way on disk — `order` writes `see: ["herbs"]`, or a note writes `@herbs` — so until this existed, finding what talked about a node meant searching for its id by hand.
+
+**A `<details>`, shut by default, under a zoomed node's heading.** The collapse is the browser's, like `document/Toc.tsx`'s, so it works before this app's JavaScript has an opinion and is announced without an `aria-expanded` to keep in step; shut is the default because a reference is CONTEXT rather than content, and a hub node would otherwise open with a wall of links above its own children. The summary is the count in words, which is the whole of what a shut section says.
+
+**A row per WAY, out of one table** (`way.ts`, keyed by `@olai/format`'s own `Way`). Two rather than one because there are two claims — an edge somebody wrote with a verb, and a word in a sentence — and a record doing both is in both, which is also why the count is RECORDS rather than links. What each row is CALLED and what it is called to the browser tests live in that table and nowhere else: this is `edges/relation.ts`'s arrangement one direction over, for the reason `EdgeRefs.tsx`'s header gives — a label written in JSX beside a testid picked by hand is the fragmentation that let a renamed row go on compiling. Being keyed by the format's list makes it stronger than `relation.ts`'s: a third way added where the rulings live is a compile error in this package, in the view model (`refs.ts`'s `Record<Way, …>` literal) and in the table alike. The browser steps name a row by the LABEL a reader sees and resolve it through the same table.
+
+**And a shut section builds nothing.** A `<details>` renders its children whether or not it is open, so the hub node this feature exists for — a curated list several hundred records point at — was minting several hundred `NodeRef`s and diffing several hundred anchors on every frame the store published, none of them on screen. The element's own `toggle` drives a signal and the rows live behind it; the summary needs only a count, which is a length. That is why the reading is TWO calls (`referringTo` for the count, `rowsOf` for the rows) rather than one answer carrying both.
+
+**Read-only, and derived.** No `×`, for `NodeRefs.tsx`'s own reason: half of these entries are words in somebody else's sentence, and an affordance that could not take those back would do nothing for half the list. What removes a reference is editing the record that makes it, which is one click away on every row.
+
+**What counts is `@olai/format`'s, not this client's** (`backlinksOf`, over two reverse indexes carried in the derivation and patched per changed file). So it is a lookup rather than a walk — a page may ask it on every frame the store publishes — and it is the identical reading `read_node` answers as `referencedBy`. A placement is not a reference, an ordering edge is not one, and a referrer in an archive is left out; [docs/format.md](../../docs/format.md)'s References argues each.
+
+**Keyed on the node and NOT on the count.** `open` is an attribute the browser then owns, so a page reused from `/n/a` to `/n/b` would carry the reader's answer about the first node onto the second — a different node is a different element by construction. The count deliberately does not key it: a section staying open while a reference is added elsewhere is exactly the live update this is for.
+
 
 ## What belongs to a reading, not to the file
 

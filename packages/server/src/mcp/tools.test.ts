@@ -302,6 +302,11 @@ test("each tool carries its title and its description", async () => {
  * from the finished item's side, `placed` reads the list from the list's side,
  * and `after` is what a dependency is removed by. The data was already answered
  * when this test was written; what was missing was anybody being told.
+ *
+ * `referencedBy` joined the list for exactly that reason and not by analogy: a
+ * reference points one way on disk, so what TALKS ABOUT a node is unreachable
+ * without it — and the browser draws that list under every zoomed node, which
+ * would make it a fact a person can see and an agent cannot.
  */
 test("the read tools teach the fields the mirror and edge ops depend on", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
@@ -309,7 +314,9 @@ test("the read tools teach the fields the mirror and edge ops depend on", async 
     const said = (name: string) =>
       tools.find((tool) => tool.name === name)?.description ?? ""
 
-    for (const field of ["`mirrors`", "`placed`", "`after`", "`remove_mirror`"]) {
+    for (
+      const field of ["`mirrors`", "`placed`", "`after`", "`remove_mirror`", "`referencedBy`"]
+    ) {
       expect(said("read_node")).toContain(field)
     }
     expect(said("search_nodes")).toContain("`after`")

@@ -6,15 +6,15 @@
  * an entry per record in the directory, so that the revision a reader is
  * holding could not move under them. On a 21,552-record vault that clone is
  * ABOUT HALF of a patch, which `patch.bench.ts` prints as `patch+clone`
- * against `patch` — 1.23ms against 0.60ms, a 2.0× — and again as the step on
- * its own, at 0.39ms of it. (The two do not have to agree: the step's own cost
+ * against `patch` — 1.50ms against 0.69ms, a 2.2× — and again as the step on
+ * its own, at 0.444ms of it. (The two do not have to agree: the step's own cost
  * is what a clone takes to build, and the gap between the arms is that plus
  * the garbage a 21,552-entry allocation leaves for later work to collect.)
  * This is the lever open question 1 of `docs/brainstorming/model-indices.md`
  * named: a LAYER over the map the last patch left standing, holding the
  * entries this one changed, so an edit costs what it touched rather than what
- * the directory holds. Layered, the same step costs 0.009ms where the edits
- * wander and 0.001ms where they are one file typed in, which is the case a
+ * the directory holds. Layered, the same step costs 0.014ms where the edits
+ * wander and 0.002ms where they are one file typed in, which is the case a
  * keystroke is.
  *
  * WHAT IT IS EQUAL TO is the whole of its contract, and it is one line:
@@ -83,13 +83,14 @@
  * map retains the records the edit replaced until it flattens. Bounded by the
  * same half above, and gone at the next flatten.
  *
- * ONE INDEX USES THIS, and the other eight the patcher clones stay clones on
+ * ONE INDEX USES THIS, and the other nine the patcher clones stay clones on
  * purpose. `byId` is the corpus-sized one — 21,552 entries against 8,282 for
  * the next largest and a few hundred for most, so one clone of it costs about
- * what all eight others together cost, which `patch.bench.ts` prints as a pair.
- * Size is not the whole reason and not the deciding one: six of those eight
+ * what all the others together cost, which `patch.bench.ts` prints as a pair.
+ * Size is not the whole reason and not the deciding one: seven of those nine
  * DELETE keys across a patch, which a layer that keeps `base`'s key set cannot
- * do. The one that does not — `namedBy` — was left alone deliberately: the
+ * do. The two that do not are `namedBy` and `mentionedBy`, and both were left alone
+ * deliberately. `namedBy`: the
  * validator WALKS it whole ({@link ./validate.ts}'s `checkTargets`), and a walk
  * through the generator below costs more per entry than the clone it would
  * save, where `byId`'s only whole-index reader asks for {@link Layer.keys},

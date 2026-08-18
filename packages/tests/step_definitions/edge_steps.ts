@@ -34,10 +34,9 @@ import {
   EDGE_SAID,
   EDGE_SEARCH,
   EDGE_VERB,
-  NODE_REF,
-  oneLine,
   POLL_TIMEOUT,
   REF_DROP,
+  rowReads,
   SEE_REFS,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -312,12 +311,10 @@ Then(
 
 // ── what the page draws ────────────────────────────────────────────────
 
-/** Every link one relation's row draws, in DOM order and counting repeats —
- *  what both steps below ask, and the reason they ask it as a whole list
- *  rather than as a membership: a row drawing one target twice reads as a row
- *  drawing two, and a step that only looked for the target would pass over it.
- */
-const rowReads = async (
+/** One relation's row on one node, read WHOLE — `rowReads` is `world.ts`'s
+ *  now, shared with the referenced-by rows, and what is left here is which row
+ *  this suite means. */
+const rowOfNode = async (
   world: OlaiWorld,
   id: string,
   relation: string,
@@ -325,12 +322,7 @@ const rowReads = async (
 ): Promise<void> => {
   const row = world.node(id).locator(refsOf(relation)).first();
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await world.waitUntil(
-    async () =>
-      (await row.locator(NODE_REF).allInnerTexts()).map(oneLine).join(", ") ===
-        titles,
-    `the \`${relation}\` row of "${id}" to read ${JSON.stringify(titles)}`,
-  );
+  await rowReads(world, row, titles, `the \`${relation}\` row of "${id}"`);
 };
 
 /** The `after` a node DECLARES, in order — deliberately not `blocked by`,
@@ -338,7 +330,7 @@ const rowReads = async (
 Then(
   "the node {string} comes after {string}",
   async function (this: OlaiWorld, id: string, titles: string) {
-    await rowReads(this, id, "after", titles);
+    await rowOfNode(this, id, "after", titles);
   },
 );
 
@@ -351,7 +343,7 @@ Then(
 Then(
   "the node {string} sees exactly {string}",
   async function (this: OlaiWorld, id: string, titles: string) {
-    await rowReads(this, id, "see", titles);
+    await rowOfNode(this, id, "see", titles);
   },
 );
 
