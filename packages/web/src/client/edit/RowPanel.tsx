@@ -56,46 +56,10 @@
 
 import { createSignal, type JSX, Show } from "solid-js"
 
+import type { PanelIds, Press } from "./panel.ts"
 import { SaidLine } from "./SaidLine.tsx"
 import type { Said } from "./undoing.ts"
 import { TARGET } from "../touch.ts"
-
-/**
- * The button, as the two things a reader can see about it.
- *
- * ONE declaration for the three surfaces, and it is one because the two halves
- * are one question. Each of them derives its own answer — `pressOf` in each
- * pure module — and each used to declare this pair for itself, which is the
- * same concept written three times with nothing holding the three together.
- *
- * They are derived TOGETHER at each site for a reason worth keeping beside the
- * type: the date picker shipped them as two functions, and they disagreed —
- * an undated node's empty box read `Clear date`, over a node with no date to
- * clear, beside a button that was correctly dead.
- */
-export interface Press {
-  /** What it says — which is the VERB, so the words are the ones the `•••`
-   *  menu uses for the same edit. */
-  readonly label: string
-  /** Whether pressing it would ask the directory for anything. `false` draws
-   *  it dead. */
-  readonly writes: boolean
-}
-
-/** The four testids one panel carries. A record rather than four props for the
- *  reason the shape is a record anywhere else: they are one panel's identity,
- *  named once at the call site off `../testids.ts`, rather than four arguments
- *  a caller can pass in the wrong order. */
-export interface PanelIds {
-  readonly panel: string
-  readonly set: string
-  readonly cancel: string
-  /** The line that keeps the panel open saying what the ops layer said. */
-  readonly said: string
-  /** What the panel says about a stored value its control cannot hold — the
-   *  two pickers have one, the property editor does not. */
-  readonly notice?: string
-}
 
 export function RowPanel(props: {
   readonly ids: PanelIds

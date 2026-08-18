@@ -55,7 +55,14 @@
  * the DAY it stands for beside the words.
  */
 
-import { isoDate, isRealDay, shiftDay, shiftDayByMonth, weekdayOf } from "@olai/format"
+import {
+  comingWeekday,
+  isoDate,
+  isRealDay,
+  shiftDay,
+  shiftDayByMonth,
+  weekdayOf,
+} from "@olai/format"
 
 import { MONTH_NAMES, WEEKDAY_NAMES } from "../calendar/month.ts"
 
@@ -118,18 +125,6 @@ const phrases = (today: string): ReadonlyArray<Named> => {
     days.push({ day: shiftDay(coming, 7), phrase: `next ${name.toLowerCase()}` })
   }
   return days
-}
-
-/** The next day that falls on `weekday`, strictly after today — `null` only
- *  for a "today" that is not a day, which is a broken clock rather than a
- *  reachable state. */
-const comingWeekday = (today: string, weekday: number): string | null => {
-  const standing = weekdayOf(today)
-  if (standing === null) return null
-  // `|| 7` rather than `% 7`: the same weekday as today is a week away, not
-  // today. That is the decision the header states.
-  const ahead = (weekday - standing + 7) % 7 || 7
-  return shiftDay(today, ahead)
 }
 
 /** `in 3 days` / `in 2 weeks` / `in 1 month`, and the singular of each. */

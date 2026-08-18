@@ -4,10 +4,12 @@
  *
  * `@olai/format`'s grammar is small and CLOSED — `every day`, `every week on
  * <weekday>`, `every month`, `every year` — so the control is a `<select>` of
- * exactly those ten strings plus "Does not repeat", read off the format itself
- * ({@link ./repeat.ts}'s `RULES`). A text box would be the wrong control twice
- * over: it invites the cron dialect the grammar exists to refuse, and it makes
- * a person type a sentence a list can hand them.
+ * exactly those ten strings plus "Does not repeat", drawn straight off
+ * `REPEAT_RULES` — so the options a person sees and the strings the validator
+ * takes are one list, where hand-written labels would compile, draw, and be
+ * refused on send. A text box would be the wrong control twice over: it invites
+ * the cron dialect the grammar exists to refuse, and it makes a person type a
+ * sentence a list can hand them.
  *
  * ## Beside the date picker, and now literally
  *
@@ -24,13 +26,15 @@
  * forbids. One affordance in a person's hands, two ops underneath.
  */
 
+import { REPEAT_RULES } from "@olai/format"
 import { createSignal, For } from "solid-js"
 
+import type { Press } from "../edit/panel.ts"
 import { RowPanel } from "../edit/RowPanel.tsx"
 import type { Said } from "../edit/undoing.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
-import { noticeOf, type Press, pressOf, RULES, startsAt } from "./repeat.ts"
+import { noticeOf, pressOf, startsAt } from "./repeat.ts"
 
 /** This panel's identity, off the one table that declares it. */
 const IDS = {
@@ -80,7 +84,7 @@ export function RepeatPicker(props: {
           {/* The empty option IS the verb "stop repeating" — one spelling of
               "does not repeat", which is what `repeatPick` sends as `null`. */}
           <option value="">Does not repeat</option>
-          <For each={RULES}>{(one) => <option value={one}>{one}</option>}</For>
+          <For each={REPEAT_RULES}>{(one) => <option value={one}>{one}</option>}</For>
         </select>
       </label>
     </RowPanel>

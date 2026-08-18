@@ -299,6 +299,7 @@ export {
   isoDate,
   isRealDay,
   monthOfDay,
+  comingWeekday,
   shiftDay,
   shiftDayByMonth,
   shiftMonth,
@@ -309,7 +310,6 @@ export {
   WEEKDAYS,
   weekdayOf,
 } from "./calendar.ts"
-export type { Weekday } from "./calendar.ts"
 export {
   agendaOf,
   isOverdue,

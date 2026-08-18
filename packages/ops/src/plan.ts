@@ -51,7 +51,6 @@ import {
   nodeNamed,
   type Status,
   NotFoundFailure,
-  isRepeat,
   nextOccurrence,
   nodesOf,
   nothing,
@@ -197,22 +196,20 @@ export const plan = (
         request.id,
         (node) => withField(node, "date", request.date),
         (node) => `date: ${node.title} -> ${node.date ?? "(cleared)"}`,
-        // A date cleared out from under a RULE would leave a record with
-        // nothing to repeat from ({@link repeatable}) — the one thing this
-        // verb has ever been able to make illegal.
-        (node) => repeatable(node.title, node.repeat ?? null, request.date) ?? null,
       )
     case "repeat":
       // The DATE's own arm, one field along, and planned by the same function
-      // for the same reason: it is one optional field with one value, and the
-      // one thing either of them can get wrong is the pair they make
-      // ({@link repeatable}), asked here from the other side.
+      // for the same reason: it is one optional field with one value and no
+      // condition. Nothing here judges the rule, and nothing here judges the
+      // PAIR either — a `repeat` the grammar cannot read, and one with no
+      // `date` under it, are both per-line rules of the format's, refused at
+      // the write gate over the bytes this plan would produce (@olai/store's
+      // `commit`). One rule, one wording, whichever verb moved which half.
       return planEdit(
         scope,
         request.id,
         (node) => withField(node, "repeat", request.repeat),
         (node) => `repeat: ${node.title} -> ${node.repeat ?? "(cleared)"}`,
-        (node) => repeatable(node.title, request.repeat, node.date ?? null) ?? null,
       )
     case "prop":
       return planProp(scope, request)
@@ -272,51 +269,6 @@ const withField = <K extends "desc" | "date" | "repeat">(
   if (value === null || value === "") delete next[field]
   else next[field] = value
   return next
-}
-
-/**
- * May a node carry this rule on this date? — the refusal, or `undefined`,
- * which is nearly every write.
- *
- * ONE FUNCTION FOR THE TWO VERBS THAT CAN BREAK THE PAIR, asked from whichever
- * side is moving: `set_repeat` hands the rule it is writing and the date the
- * node has, `set_date` hands the date it is writing and the rule the node has.
- * Two spellings would be two chances to disagree about what a legal pair is,
- * over a rule this file does not own in the first place.
- *
- * IT IS THE FORMAT'S RULE, NOT A SECOND ONE. `@olai/format` refuses both
- * shapes per LINE — a `repeat` this grammar cannot read, and a `repeat` with no
- * `date` to repeat from — and this asks that package's own predicate
- * ({@link isRepeat}) one door earlier. It is worth the second site for a reason
- * the `set_date` beside it shows: a write that produces a line the parser will
- * not take LANDS, because a set absorbs an unreadable file as `broken` rather
- * than refusing the whole directory — so the caller is told the write succeeded
- * and the outline drops off the page. A refusal here is the difference between
- * "no, and here is the grammar" and a file somebody has to repair by hand.
- *
- * `null` on either side is that field being CLEARED, which is why both are
- * `string | null` rather than `string | undefined`: absent and cleared are the
- * same state on disk, and a caller here always knows which of the two it means.
- */
-const repeatable = (
-  title: string,
-  repeat: string | null,
-  date: string | null,
-): OpFailure | undefined => {
-  if (repeat === null || repeat === "") return undefined
-  if (!isRepeat(repeat)) {
-    return new UsageFailure({
-      reason: `\`${repeat}\` is not a repeat rule — write ${REPEAT_GRAMMAR}. ` +
-        `The grammar is small on purpose: no intervals, no end dates, no counts.`,
-    })
-  }
-  return date === null || date === ""
-    ? new UsageFailure({
-      reason: `\`${title}\` has no date to repeat from, so \`${repeat}\` says how often ` +
-        `and nothing says when. Give it a date first — the rule counts from the day ` +
-        `the node is on.`,
-    })
-    : undefined
 }
 
 /**
@@ -1336,7 +1288,7 @@ const planMark = (
     ? `${UNMARKED[mark]}: ${node.title}`
     : again === undefined
     ? `${mark}: ${node.title}`
-    : `${mark}: ${node.title} (next: ${again.next})`
+    : `${mark}: ${node.title} (next: ${again.spawned.date})`
 
   // The rollup's remark is suppressed by a spawn, and that is the whole of why
   // it is asked here rather than inside {@link nudged}: that function reads the
@@ -1346,7 +1298,7 @@ const planMark = (
   // own news, which is the thing a reader of this write actually wants.
   const said = again === undefined
     ? nudged(scope, node, mark, undo)
-    : `\`${node.title}\` repeats ${node.repeat} — the next one is on ${again.next}.`
+    : `\`${node.title}\` repeats ${node.repeat} — the next one is on ${again.spawned.date}.`
 
   const records = replacing(recordsOf(scope, file), node.id, touched(scope, next))
 
@@ -1382,21 +1334,24 @@ const planMark = (
 
 /**
  * What a `done` on a repeating node produces: the occurrence that comes next,
- * the day it landed on, and the `ord`s its placement decided.
+ * and the `ord`s its placement decided.
  *
  * EVERY FIELD REQUIRED, and the absence is the whole value ({@link recurring}
  * answers `undefined`) — which is the difference between a shape that can be
  * half-true and one that cannot. Three optional fields was a product whose
- * arms were held apart by reading order: `next` and `ords` mean nothing
- * without `spawned`, so every reader had to test the one field that grounds
- * the other two and trust itself to test the right one. One `undefined` is one
- * question, asked once at the top of the caller.
+ * arms were held apart by reading order, so every reader had to test the one
+ * field that grounds the others and trust itself to test the right one. One
+ * `undefined` is one question, asked once at the top of the caller.
+ *
+ * THE DAY IT LANDED ON IS THE RECORD'S, and `spawned` says so in its type
+ * rather than in a second field beside it: `RegularNode` spells `date`
+ * optional, which is true of records in general and never of this one, so the
+ * narrowing is what lets three readers say `spawned.date` and get a `string`.
+ * A `next` field carrying the same value was one more thing to keep in step
+ * with the record two lines above it.
  */
 interface Recurrence {
-  readonly spawned: RegularNode
-  /** The day it landed on — carried rather than read back off `spawned.date`,
-   *  which the record type spells optional and this one never is. */
-  readonly next: string
+  readonly spawned: RegularNode & { readonly date: string }
   readonly ords: ReadonlyArray<{ id: string; ord: string }>
 }
 
@@ -1481,20 +1436,28 @@ const recurring = (
         ords.failure.message,
     )
   }
-  const spawned: RegularNode = {
-    id,
-    ...(node.parent === undefined ? {} : { parent: node.parent }),
-    ord: ordFor(ords.success, id),
-    title: node.title,
-    todo: true,
+  // A NODE COMING INTO BEING, built by the one function that says what that
+  // looks like ({@link capturedNode}) — which is what the answer already calls
+  // this record, since it reports it in `captured`. Everything a born node
+  // carries is that function's: the `created` stamp with no `changed` beside
+  // it, and a mark spelled the way {@link marker} spells one. Written out here,
+  // the third mint site would know both of those rules independently.
+  //
+  // `repeat` is spread on after it, and it is the one field that has to be: a
+  // capture cannot carry a rule (nothing captures one — a rule arrives by
+  // travelling from the occurrence before it), so there is no `Capture` field
+  // for it and inventing one would be a door `add_node` would then advertise.
+  const spawned: RegularNode & { readonly date: string } = {
+    ...capturedNode(scope, {
+      title: node.title,
+      mark: "todo",
+      date: nextDate,
+      ...(node.desc === undefined ? {} : { desc: node.desc }),
+    }, { id, parent: node.parent, ord: ordFor(ords.success, id) }),
     date: nextDate,
     repeat: node.repeat,
-    ...(node.desc === undefined ? {} : { desc: node.desc }),
-    // A node coming into being, stamped the way {@link planSplit}'s tail is:
-    // this is the third way a node is born.
-    created: scope.context.now(),
   }
-  return { spawned, next: nextDate, ords: ords.success }
+  return { spawned, ords: ords.success }
 }
 
 /**
@@ -3435,14 +3398,24 @@ const planUpdate = (
     wrote.push("note")
   }
   // THE DATE AND THE RULE ARE A PAIR, and which of them goes first is decided
-  // by which way the pair is moving — the one place in this fold where the
-  // fixed order bends, and it bends because each op is judged against the set
-  // the ops before it left. A rule needs a date beside it, so starting a
-  // recurrence must schedule first; STOPPING one must take the rule off first,
-  // or the date is cleared out from under a rule that is still there and
-  // `update {date: null, repeat: null}` — a perfectly sensible thing to say —
-  // is refused for a state it was on its way out of. Removal before addition,
+  // by which way the pair is MOVING — the one place in this fold where the
+  // fixed order bends.
+  //
+  // It bends because of what a fold IS here: each op is planned against the set
+  // the ops before it left, and that set is assembled through the parser
+  // ({@link ./following.ts}), so every INTERMEDIATE record has to be one the
+  // format can read. A rule needs a date under it, so starting a recurrence
+  // must schedule first — and STOPPING one must take the rule off first, or the
+  // date is cleared out from under a rule that is still there and
+  // `{date: null, repeat: null}` — a perfectly sensible thing to say — is
+  // abandoned for a state it was on its way out of. Removal before addition,
   // which is the order every one of these calls actually means.
+  //
+  // `apply` needs no such rule and does not have one, and the difference is
+  // not an oversight: a batch is ops somebody ORDERED, so the order is the
+  // caller's to get right and the refusal names which one failed. `update` is
+  // FIELDS, which have no order at all — so the planner has to choose one, and
+  // this is the only choice that can work for both directions.
   const stopping = request.repeat === null
   const repeatOp = (): void => {
     if (request.repeat === undefined) return

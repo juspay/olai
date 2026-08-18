@@ -11,22 +11,20 @@
  * the write that made it, so a scenario can only name it the way a person
  * reading the page does — by its title and the day it landed on. That is a
  * fact about this feature rather than about the harness, so it lives with it.
+ *
+ * WHAT IS DELIBERATELY NOT HERE is any step for getting a row into the state a
+ * scenario is about. A rule is set by opening the `•••` and picking one, and a
+ * date by opening that picker and picking a day — which is four steps this
+ * suite already has, written out in the feature where a reader can see the
+ * gestures. A `Given the node "x" repeats "y"` would have been the same
+ * locators and the same waits under a fifth name, free to drift from the four.
  */
 
 import * as assert from "node:assert";
-import { Given, Then, When } from "@cucumber/cucumber";
+import { Then, When } from "@cucumber/cucumber";
 
 import {
-  AGENDA_SECTION,
-  attr,
-  DATE,
-  DATE_PICKER,
-  DATE_PICKER_DAY,
-  DATE_PICKER_SET,
   NODE,
-  NODE_MENU,
-  NODE_MENU_ITEM,
-  NODE_MENU_PANEL,
   nodeSelector,
   oneLine,
   POLL_TIMEOUT,
@@ -37,7 +35,7 @@ import {
   REPEAT_PICKER_SET,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
-import { revealGutter } from "./outline_tree_steps.ts";
+import { sectionSelector } from "./agenda_steps.ts";
 
 // ── opening it ─────────────────────────────────────────────────────────
 
@@ -227,20 +225,6 @@ Then(
   },
 );
 
-/** How many records in a file carry a title — what says a completion made ONE
- *  occurrence, and what says an undo-then-redo made no second one. */
-Then(
-  "{string} holds {int} nodes titled {string}",
-  async function (this: OlaiWorld, file: string, count: number, title: string) {
-    await this.waitUntil(
-      async () =>
-        this.servedNodesSoFar(file).filter((node) => node["title"] === title)
-          .length === count,
-      `${file} to hold exactly ${count} nodes titled ${JSON.stringify(title)}`,
-    );
-  },
-);
-
 /** The node that was COMPLETED, read for what it no longer says: the rule went
  *  with the occurrence, which is what "one live head" means on the file. */
 Then(
@@ -272,70 +256,17 @@ Then(
     title: string,
     date: string,
   ) {
-    const rows = this.page.locator(
-      `${AGENDA_SECTION}${attr("data-section", section)} ${NODE}`,
-    );
-    await this.waitUntil(async () => {
-      const count = await rows.count();
-      for (let at = 0; at < count; at++) {
-        const row = rows.nth(at);
-        const text = oneLine(await row.innerText());
-        if (text.includes(title) && text.includes(date)) return true;
-      }
-      return false;
-    }, `the ${JSON.stringify(section)} section to show ${JSON.stringify(title)} on ${date}`);
+    const rows = this.page.locator(`${sectionSelector(section)} ${NODE}`);
+    // One auto-retrying locator rather than a hand-rolled poll over every
+    // row: the wait is FOR the row to arrive, so a sweep that re-read each row
+    // in turn paid N round trips per attempt to learn what one `waitFor` says.
+    await rows
+      .filter({ hasText: title })
+      .filter({ hasText: date })
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
-
-// ── getting a row into the state a scenario is about ───────────────────
-
-/**
- * The two GIVENs the completion scenarios start from, driven through the very
- * controls the scenarios above assert on.
- *
- * A setup that wrote the file directly would be faster and would prove less:
- * these are the whole path a person takes, so a scenario about what a
- * COMPLETION does starts from a row a person could actually have made — and
- * the day the fixture is dated in stays a decision the feature file states
- * rather than one buried in a fixture nobody reads.
- */
-Given(
-  "the node {string} is dated {string}",
-  async function (this: OlaiWorld, id: string, day: string) {
-    await this.clickWithin(id, DATE);
-    const box = this.page.locator(DATE_PICKER_DAY);
-    await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await box.fill(day);
-    await this.press(this.page.locator(DATE_PICKER_SET));
-    await this.page
-      .locator(DATE_PICKER)
-      .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
-  },
-);
-
-Given(
-  "the node {string} repeats {string}",
-  async function (this: OlaiWorld, id: string, rule: string) {
-    await openFromMenu(this, id);
-    await rules(this).selectOption(rule);
-    await this.press(button(this));
-    await panel(this).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
-  },
-);
-
-/** The `•••` door, reached without importing the menu's steps: a row with no
- *  rule draws no pill, so this is the only way in for the first one. */
-const openFromMenu = async (world: OlaiWorld, id: string): Promise<void> => {
-  await revealGutter(world, id);
-  await world.within(id, NODE_MENU).click({ force: true });
-  await world.waitForFrame();
-  const panelUp = world.page.locator(NODE_MENU_PANEL);
-  await panelUp.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await world.press(
-    panelUp.locator(NODE_MENU_ITEM).filter({ hasText: "repeat…" }).first(),
-  );
-  await panel(world).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-}
 
 /** The `repeat` field on disk, as the exact string the record holds — the pair
  *  to the "no repeat rule" step above. */
@@ -364,7 +295,7 @@ Then(
   "the {string} section shows a node repeating {string}",
   async function (this: OlaiWorld, section: string, rule: string) {
     const pill = this.page
-      .locator(`${AGENDA_SECTION}${attr("data-section", section)} ${NODE} ${REPEAT}`)
+      .locator(`${sectionSelector(section)} ${NODE} ${REPEAT}`)
       .filter({ hasText: rule })
       .first();
     await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

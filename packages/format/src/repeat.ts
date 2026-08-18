@@ -44,7 +44,7 @@
  * rather than compared; nothing here parses a date into an instant.
  */
 
-import { shiftDay, shiftDayByMonth, WEEKDAYS, weekdayOf } from "./calendar.ts"
+import { comingWeekday, shiftDay, shiftDayByMonth, WEEKDAYS } from "./calendar.ts"
 import { dayOf } from "./dates.ts"
 
 /**
@@ -183,18 +183,15 @@ export const nextAfter = (rule: Repeat, date: string): string => {
   switch (rule.every) {
     case "day":
       return shiftDay(day, 1)
-    case "week": {
-      // Strictly after, so the search starts tomorrow — `every week on monday`
-      // completed ON a Monday is the NEXT Monday and not the same one.
-      for (let ahead = 1; ahead <= 7; ahead++) {
-        const candidate = shiftDay(day, ahead)
-        if (weekdayOf(candidate) === rule.weekday) return candidate
-      }
-      // Seven steps reach every weekday from any real day, so this line is
-      // reached only for text ./calendar.ts could not count with — and it is
-      // that module's own answer for such text, handed back unchanged.
-      return shiftDay(day, 7)
-    }
+    case "week":
+      // Strictly after — `every week on monday` completed ON a Monday is the
+      // NEXT Monday and not the same one. That rule is ./calendar.ts's, beside
+      // the count it is arithmetic over and shared with the `!` widget's "next
+      // friday", so the one subtle half of it has one answer.
+      //
+      // `null` is text that names no day, and it comes back as the day it was
+      // given — the delegation the other three arms make by construction.
+      return comingWeekday(day, rule.weekday) ?? day
     case "month":
       return shiftDayByMonth(day, 1)
     case "year":

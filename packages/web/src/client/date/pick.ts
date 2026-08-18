@@ -37,7 +37,7 @@
 
 import { dayOf } from "@olai/format"
 
-import type { Press } from "../edit/RowPanel.tsx"
+import { type Press, pressOf as panelPress } from "../edit/panel.ts"
 import type { Edit } from "@olai/surface"
 
 /**
@@ -71,46 +71,22 @@ export const datePick = (id: string, day: string): Edit => ({
   date: day === "" ? null : day,
 })
 
-/** The button, as the two things a reader can see about it — the panel's own
- *  vocabulary ({@link ../edit/RowPanel.tsx}), re-exported so a reader of this
- *  file finds the type beside the function that answers it. Three surfaces
- *  declared this pair for themselves before the shell did. */
-export type { Press } from "../edit/RowPanel.tsx"
-
 /**
- * What the button IS, over the node's stored date and the day in the box.
+ * What the button IS, over the node's stored date and the day in the box — the
+ * panel's own rule ({@link ../edit/RowPanel.tsx}) with this field's two WORDS
+ * in it.
  *
- * ONE answer, and it is one because the two halves are one question. They were
- * two functions — what it says, and whether it does anything — and the first
- * shipped disagreeing with the second: an undated node's empty box read
- * `Clear date`, over a node with no date to clear, beside a button that was
- * correctly dead. A label and an enabled-ness derived separately from the same
- * two strings are two readings that can differ, which is the whole of that bug;
- * derived together they cannot.
+ * **`Clear date` is #124's menu verb**, and the picker absorbs the gesture
+ * rather than adding a second spelling of it: the alternative was a button that
+ * went dead the moment somebody emptied the box, in the one place a person is
+ * most likely to be reaching for exactly that.
  *
- * **Dead means the write would ask for nothing** — an empty box over a node
- * with no date, or the day it already carries. That is the EDITOR's own rule
- * one field along (`../edit/draft.ts`: a commit that would change nothing sends
- * nothing, so sitting in a row is not a git commit), rather than a fence this
- * face invents: the ops layer would accept `set_date` to the value already
- * stored from either caller, and what is refused here is not a write but a
- * gesture that would produce none. A stored DATETIME is the case worth naming:
- * `2026-08-11T15:40` and `2026-08-11` are different records, so picking the day
- * it falls on is a real write.
- *
- * **An emptied box is `Clear date`** — the `•••` menu's own words, #124's verb,
- * for the edit {@link datePick} spells with `null`. The picker ABSORBS the
- * gesture rather than adding a second spelling of it; the alternative was a
- * button that went dead the moment somebody emptied the box, which is a dead
- * end in the one place a person is most likely to be reaching for exactly that.
- * Over a node with NO date the words stay `Set date`, because a dead button
- * naming a verb nobody can perform is worse than a dead one naming the verb
- * they came for.
+ * **A stored DATETIME is the case worth naming** against the shared rule's
+ * "writes when it differs": `2026-08-11T15:40` and `2026-08-11` are different
+ * records, so picking the day it falls on is a real write.
  */
 export const pressOf = (stored: string | undefined, day: string): Press =>
-  day === ""
-    ? { label: stored === undefined ? "Set date" : "Clear date", writes: stored !== undefined }
-    : { label: "Set date", writes: day !== stored }
+  panelPress(stored, day, { set: "Set date", clear: "Clear date" })
 
 /**
  * What the panel says about a stored value the box cannot hold — and nothing

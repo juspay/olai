@@ -32,6 +32,7 @@
 
 import { Sort } from "./changes.ts"
 import { Status } from "./node.ts"
+import { REPEAT_GRAMMAR } from "./repeat.ts"
 import { Schema } from "effect"
 
 /** An id the request names. Spelled once so every op's `id` field carries the
@@ -828,7 +829,9 @@ export const AfterRequest = Schema.Struct({
  * second planner here and therefore no second policy.
  *
  * **The order is fixed and it is a decision** — `title`, `desc`, `date`,
- * `repeat`, `props`, `after`, and the MARK LAST. A mark is a claim about the node as it
+ * `repeat`, `props`, `after`, and the MARK LAST. (`repeat` and `date` swap when
+ * the call is STOPPING a recurrence, which is the one bend and the planner's
+ * own: a rule needs a date under it, so removal goes before addition.) A mark is a claim about the node as it
  * now stands, so it is judged against the node this call has finished making:
  * `{mark: "doing", after: ["order"]}` is a caller saying "start this" and "this
  * waits on `order`" in one breath, and it is REFUSED, because the edge is in
@@ -885,7 +888,7 @@ export const UpdateRequest = Schema.Struct({
   repeat: Schema.optionalKey(
     Schema.NullOr(Schema.String).annotate({
       description:
-        "The repeat rule, in the format's own words — `every day`, `every week on monday`, `every month`, `every year`; `null` stops the recurrence. Needs a `date` on the node (set one in the same call if it has none).",
+        `The repeat rule, in the format's own words — ${REPEAT_GRAMMAR}; \`null\` stops the recurrence. Needs a \`date\` on the node (set one in the same call if it has none).`,
     }),
   ),
   /** MERGED per key, which is `set_prop`'s own semantics repeated: this is not

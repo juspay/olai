@@ -7,7 +7,7 @@
  * what is left in the component is a form.
  */
 
-import type { Press } from "../edit/RowPanel.tsx"
+import type { Press } from "../edit/panel.ts"
 
 /**
  * What the editor was opened ON: a property that exists, or nothing.
@@ -20,12 +20,6 @@ export interface Editing {
   readonly key: string
   readonly value: string
 }
-
-/** The button, in the one state it has: what it says, and whether it does
- *  anything. The panel's own vocabulary ({@link ../edit/RowPanel.tsx}),
- *  re-exported beside the function that answers it — derived together so the
- *  two cannot disagree, and it is the same button the two pickers draw. */
-export type { Press } from "../edit/RowPanel.tsx"
 
 /**
  * THE KEY IS FIXED WHILE EDITING, and that is a decision rather than an

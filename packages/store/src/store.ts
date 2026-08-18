@@ -456,6 +456,34 @@ export const make = <F, S, E>(
           const promised = new Map<string, Probe.Promised<F, E>>()
           for (const change of write.changes) {
             const promise = probe.decode(change.path, change.contents)
+            // A WRITE MUST PRODUCE FILES THIS CODEC CAN READ, and this is the
+            // one place that can say so.
+            //
+            // A set ABSORBS a file that will not decode — the survivors are
+            // clean, so the directory loads with that file's errors carried
+            // inside it and everything else stays live. That rule is right
+            // about LOADING, where the alternative is one hand-edited line
+            // taking a whole vault off the screen, and wrong about WRITING,
+            // where the unreadable file is the one this write just made: the
+            // caller would be told the write landed while the outline dropped
+            // off every page, and the repair would be somebody's text editor.
+            //
+            // So the guarantee is stated where enough is known to make it — the
+            // gate is the only thing that knows which files are THIS write's,
+            // and the codec is the only thing that knows what reading one
+            // means. Nothing here learns a rule: a decode already happened, and
+            // its failure is a value that was being dropped.
+            //
+            // It is what closes the per-line rules at the write door, all of
+            // them at once and for every verb: a `date` that is not a date, an
+            // `id` that is not a slug, two marks on one record, a `repeat` the
+            // grammar cannot read or one with no `date` under it. Each of those
+            // used to need its own predicate at whichever ops each could reach,
+            // which is three predicates the day there are three rules and a
+            // silent landing wherever somebody forgot one.
+            if (Result.isFailure(promise.decoded)) {
+              return Result.fail(promise.decoded.failure)
+            }
             candidate.set(change.path, promise.decoded)
             promised.set(change.path, promise)
           }

@@ -20,11 +20,12 @@
 
 import { createSignal } from "solid-js"
 
+import type { Press } from "../edit/panel.ts"
 import { RowPanel } from "../edit/RowPanel.tsx"
 import type { Said } from "../edit/undoing.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
-import { type Editing, type Press, pressOf } from "./editor.ts"
+import { type Editing, pressOf } from "./editor.ts"
 
 /** This panel's identity, off the one table that declares it. There is no
  *  notice line here: the two pickers have a stored value their control cannot

@@ -28,13 +28,8 @@
 
 import { REPEAT_RULES } from "@olai/format"
 
-import type { Press } from "../edit/RowPanel.tsx"
+import { type Press, pressOf as panelPress } from "../edit/panel.ts"
 import type { Edit } from "@olai/surface"
-
-/** Every rule a person may choose, in the grammar's own order and its own
- *  spelling. Re-exported rather than re-listed: the picker draws this and the
- *  format validates against the same words. */
-export const RULES: ReadonlyArray<string> = REPEAT_RULES
 
 /**
  * What the box starts with: the rule the node stores, or nothing at all when
@@ -46,7 +41,7 @@ export const RULES: ReadonlyArray<string> = REPEAT_RULES
  * nothing is rewritten until the button is pressed.
  */
 export const startsAt = (stored: string | undefined): string =>
-  stored !== undefined && RULES.includes(stored) ? stored : ""
+  stored !== undefined && REPEAT_RULES.includes(stored) ? stored : ""
 
 /**
  * The one edit a pick sends — `set_repeat`'s own reach, and the constructor
@@ -64,36 +59,17 @@ export const repeatPick = (id: string, rule: string): Edit => ({
   repeat: rule === "" ? null : rule,
 })
 
-/** The button, as the two things a reader can see about it — the panel's own
- *  vocabulary ({@link ../edit/RowPanel.tsx}), re-exported beside the function
- *  that answers it, exactly as {@link ./pick.ts} does one field along. */
-export type { Press } from "../edit/RowPanel.tsx"
-
 /**
- * What the button IS, over the rule the node stores and the one in the box.
+ * What the button IS, over the rule the node stores and the one in the box —
+ * the panel's own rule ({@link ../edit/RowPanel.tsx}) with this field's two
+ * WORDS in it, exactly as {@link ./pick.ts} takes it one field along.
  *
- * ONE answer for both halves, which is the bug the date picker's own `pressOf`
- * was written to make unreachable: a label and an enabled-ness derived
- * separately from the same two strings are two readings that can differ.
- *
- * **Dead means the write would ask for nothing** — an empty choice over a node
- * that does not repeat, or the rule it already carries. The ops layer would
- * take either from an agent; what is refused here is not a write but a gesture
- * that would produce none.
- *
- * **An emptied box is `Stop repeating`**, the menu's own words for the edit
- * {@link repeatPick} spells with `null`, so the picker ABSORBS that gesture
- * rather than adding a second spelling of it. Over a node that does not repeat
- * the words stay `Set repeat`, because a dead button naming a verb nobody can
- * perform is worse than one naming the verb they came for.
+ * `Stop repeating` is the `•••` menu's own verb for the edit {@link repeatPick}
+ * spells with `null`, so the empty option and the menu entry are one gesture
+ * under two doors rather than two spellings of one.
  */
 export const pressOf = (stored: string | undefined, rule: string): Press =>
-  rule === ""
-    ? {
-      label: stored === undefined ? "Set repeat" : "Stop repeating",
-      writes: stored !== undefined,
-    }
-    : { label: "Set repeat", writes: rule !== stored }
+  panelPress(stored, rule, { set: "Set repeat", clear: "Stop repeating" })
 
 /**
  * What the panel says about a stored rule the box cannot show — and nothing at
@@ -106,7 +82,7 @@ export const pressOf = (stored: string | undefined, rule: string): Press =>
  * other field: the value is quoted verbatim, with what choosing would do to it.
  */
 export const noticeOf = (stored: string | undefined): string | undefined =>
-  stored === undefined || RULES.includes(stored)
+  stored === undefined || REPEAT_RULES.includes(stored)
     ? undefined
     : `This node repeats "${stored}", which is not one of the rules below. ` +
       `Choosing one replaces it.`

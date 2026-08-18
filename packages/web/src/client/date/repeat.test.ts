@@ -11,16 +11,7 @@
 import { REPEAT_RULES } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { noticeOf, pressOf, repeatPick, RULES, startsAt } from "./repeat.ts"
-
-// ── the list is the format's ───────────────────────────────────────────
-
-// The whole of what keeps a browser and a validator agreeing about what a rule
-// is: one list, read off the grammar. A hand-written `<option>` list would
-// compile, draw, and refuse on send.
-test("every rule the picker offers is the format's own spelling", () => {
-  expect(RULES).toEqual(REPEAT_RULES)
-})
+import { noticeOf, pressOf, repeatPick, startsAt } from "./repeat.ts"
 
 // ── what the box starts with ───────────────────────────────────────────
 

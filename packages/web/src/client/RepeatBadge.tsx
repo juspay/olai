@@ -8,13 +8,14 @@
  * rather than a cron field — a badge over `0 0 * * 1` would need a translation
  * this component would then own.
  *
- * ONE COMPONENT, beside {@link ./DateBadge.tsx} and shaped like it line for
- * line: a row and that row's own page carry the same badge, the pill BECOMES a
- * `<button>` wherever a caller offers `onPick` and a `<span>` where none does,
- * and `data-picks` carries which of the two it is. Where a date badge takes the
- * attention tone for being late, this one never takes a tone at all: a rule is
- * not a claim about time, it is a claim about what happens next, and nothing
- * about it can go wrong on a day.
+ * ONE COMPONENT, so a row and that row's own page carry the same badge — and
+ * the BOX it sits in is {@link ./Pill.tsx}, shared with the date badge beside
+ * it: the element that becomes a `<button>` wherever a caller offers `onPick`
+ * and a `<span>` where none does, with `data-picks` carrying which. What is
+ * this file's is the words and the tone, and the tone is that there ISN'T one.
+ * A date pill turns amber for being late; a rule is not a claim about time, it
+ * is a claim about what happens next, and nothing about it can go wrong on a
+ * day.
  *
  * WHY IT IS A SECOND PILL rather than a word inside the date's. The date is
  * what the agenda, the calendar and the day pages read; the rule is read by
@@ -24,42 +25,30 @@
  * writes at the gate and want two pickers.
  */
 
-import { Dynamic } from "solid-js/web"
-
+import { Pill } from "./Pill.tsx"
 import { TESTID } from "./testids.ts"
 
 export function RepeatBadge(props: {
   readonly repeat: string
   /** Open the repeat picker on this node. Absent wherever the row is drawn
    *  read-only — a day page and the agenda are a query over the set — and then
-   *  the pill is a `<span>` again. */
+   *  the pill is a `<span>` again ({@link ./Pill.tsx}). */
   readonly onPick?: () => void
 }) {
-  const picks = (): boolean => props.onPick !== undefined
-
   return (
-    <Dynamic
-      component={picks() ? "button" : "span"}
-      type={picks() ? "button" : undefined}
-      class="shrink-0 rounded-full border border-transparent bg-pill px-2 text-xs text-muted"
-      classList={{ "cursor-pointer hover:text-ink": picks() }}
-      data-testid={TESTID.repeat}
-      data-picks={String(picks())}
-      title={picks() ? "change how this repeats" : `repeats ${props.repeat}`}
-      onClick={picks()
-        ? (event: MouseEvent) => {
-          // The row's own line answers a click by opening the title editor,
-          // and this one is not about the title.
-          event.stopPropagation()
-          props.onPick?.()
-        }
-        : undefined}
+    <Pill
+      testid={TESTID.repeat}
+      classList={{ "bg-pill text-muted": true }}
+      onPick={props.onPick}
+      title={props.onPick === undefined
+        ? `repeats ${props.repeat}`
+        : "change how this repeats"}
     >
       {/* The glyph says RECURRENCE without a word of chrome, and the words say
-          which one. Marked aria-hidden so a screen reader reads the rule
-          rather than the name of an arrow. */}
+          which one. `aria-hidden` so a screen reader reads the rule rather
+          than the name of an arrow. */}
       <span class="mr-1 opacity-70" aria-hidden="true">↻</span>
       {props.repeat}
-    </Dynamic>
+    </Pill>
   )
 }

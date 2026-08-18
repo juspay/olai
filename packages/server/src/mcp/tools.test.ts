@@ -518,17 +518,27 @@ test("set_repeat, read_node and set_done are one recurrence through the tools", 
 
 /**
  * The two ways a rule can be wrong, met by a live agent — and neither of them
- * lands. That is the whole reason the pair is judged at the door as well as
- * per line: an unreadable record is absorbed as a `broken` FILE rather than
- * refusing the set, so a write that produced one would answer "done" while the
- * outline dropped off every page.
+ * lands.
+ *
+ * They are the FORMAT's per-line rules, so the refusal is the validator's:
+ * a `validation` failure carrying its own rows as DATA, with the code, the
+ * `file:line` and the grammar quoted, which is what this surface promises an
+ * agent instead of prose it would have to parse. Nothing in the planner or in
+ * either face repeats the rule — and nothing needs to, because the write gate
+ * refuses any write whose own files will not decode (@olai/store's `commit`),
+ * which is what stops a set from absorbing one as a `broken` file and
+ * answering "done" while the outline drops off every page.
  */
 test("a repeat with no date to repeat from is refused, and nothing is written", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
     const answer = await call(client, "set_repeat", { id: "order", repeat: "every day" })
     expect(answer.isError).toBe(true)
-    expect(String(answer.structured["reason"])).toContain("no date to repeat from")
-    expect(refusals).toEqual(["repeat: UsageFailure"])
+    expect(answer.structured["kind"]).toBe("validation")
+    expect(answer.structured["errors"]).toMatchObject([
+      { file: "house.olai", code: "bad-repeat" },
+    ])
+    expect(JSON.stringify(answer.structured)).toContain("no `date` to repeat from")
+    expect(refusals).toEqual(["repeat: ValidationFailure"])
     expect(read("house.olai")).toBe(HOUSE)
   })
 })
@@ -537,8 +547,28 @@ test("a rule the grammar does not have is refused, quoting the grammar", async (
   await withTools({ "chores.olai": CHORES }, async ({ client, read }) => {
     const answer = await call(client, "set_repeat", { id: "bins", repeat: "every 2 weeks" })
     expect(answer.isError).toBe(true)
-    expect(String(answer.structured["reason"])).toContain("every week on <weekday>")
+    expect(answer.structured["errors"]).toMatchObject([
+      { file: "chores.olai", line: 1, code: "bad-repeat" },
+    ])
+    expect(JSON.stringify(answer.structured)).toContain("every week on <weekday>")
     expect(read("chores.olai")).toBe(CHORES)
+  })
+})
+
+/**
+ * The same gate, met through a verb that has nothing to do with recurrence —
+ * which is the half of it that is not this feature's. A `date` that is not a
+ * date used to LAND: the file stopped parsing, the set absorbed it as broken,
+ * and `set_date` answered success while the outline left every page.
+ */
+test("a date that is not a date is refused too, by the same gate", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
+    const answer = await call(client, "set_date", { id: "order", date: "someday" })
+    expect(answer.isError).toBe(true)
+    expect(answer.structured["errors"]).toMatchObject([
+      { file: "house.olai", code: "bad-date" },
+    ])
+    expect(read("house.olai")).toBe(HOUSE)
   })
 })
 
@@ -1404,5 +1434,6 @@ test("a `was` and a bent `after` reach the planner instead of vanishing", async 
     expect(read("house.olai")).not.toContain(`"title":"lane"`)
   })
 })
+
 
 

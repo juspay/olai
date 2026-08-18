@@ -1580,21 +1580,21 @@ describe("repeat", () => {
     expect(cleared.summary).toBe("repeat: put the bins out -> (cleared)")
   })
 
-  // The rule the format enforces per line, asked one door earlier — because a
-  // write that produces a line the parser will not take LANDS (a set absorbs
-  // an unreadable file as `broken`), so the caller would be told it worked
-  // while the outline dropped off the page.
-  test("a rule the grammar does not have is refused, and quotes the grammar", () => {
-    const failure = refused(chores(), { op: "repeat", id: "bins", repeat: "every 2 weeks" })
-    expect(failure._tag).toBe("UsageFailure")
-    expect(failure.message).toContain("every week on <weekday>")
-    expect(failure.message).toContain("no intervals")
+  // THE PLANNER JUDGES NEITHER HALF OF THE PAIR, and that is the whole of what
+  // this verb had to be taught: a rule the grammar cannot read, and a rule with
+  // no date under it, are per-line rules of the FORMAT's — so what refuses them
+  // is the write gate, over the bytes this plan would produce, in the
+  // validator's own words and whichever verb moved which half. `after` is that
+  // path (serialize the plan, parse it back), which is what makes these
+  // assertions the refusal rather than a description of it.
+  test("a rule the grammar does not have writes bytes the gate will not take", () => {
+    expect(() => after(chores(), { op: "repeat", id: "bins", repeat: "every 2 weeks" }))
+      .toThrow("every week on <weekday>")
   })
 
-  test("a rule over a node with no date is refused, and says which field is missing", () => {
-    const failure = refused(house(), { op: "repeat", id: "order", repeat: "every month" })
-    expect(failure._tag).toBe("UsageFailure")
-    expect(failure.message).toContain("no date to repeat from")
+  test("a rule over a node with no date is refused, naming the field it needs", () => {
+    expect(() => after(house(), { op: "repeat", id: "order", repeat: "every month" }))
+      .toThrow("no `date` to repeat from")
   })
 
   test("completing a repeating node stamps it AND makes the next occurrence", () => {
@@ -1698,12 +1698,12 @@ describe("repeat", () => {
     ).toThrow("bad-repeat")
   })
 
-  // The same pair, refused from the other side — one function asked by both
-  // verbs, so "what is a legal pair" has one answer however the pair moves.
-  test("clearing the date out from under a rule is refused", () => {
-    const failure = refused(chores(), { op: "date", id: "bins", date: null })
-    expect(failure._tag).toBe("UsageFailure")
-    expect(failure.message).toContain("no date to repeat from")
+  // The same pair, refused from the other side, by the same gate and in the
+  // same words — which is the point of it being the format's rule rather than
+  // one each verb carries a copy of.
+  test("clearing the date out from under a rule writes bytes the gate will not take", () => {
+    expect(() => after(chores(), { op: "date", id: "bins", date: null }))
+      .toThrow("no `date` to repeat from")
     // …and changing it to another day is not: a recurrence is free to move.
     expect(record(
       fileOf(planned(chores(), { op: "date", id: "bins", date: "2026-08-31" }), "chores.olai"),

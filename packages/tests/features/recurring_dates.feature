@@ -69,7 +69,9 @@ Feature: A dated node that comes back
     And there should be no page errors
 
   Scenario: The pill on a repeating row is the other way in, and it starts on that rule
-    Given the node "order" repeats "every month"
+    Given I open the node menu of "order"
+    And I choose "Set repeat…" from the node menu
+    And I pick the repeat rule "every month"
     When I open the repeat picker on "order"
     Then the repeat picker holds "every month"
     # Choosing what is already there would ask the directory for nothing.
@@ -78,7 +80,9 @@ Feature: A dated node that comes back
     Then the repeat picker offers to "Stop repeating"
 
   Scenario: A repeating row's menu says which of the two it is, and still stops
-    Given the node "order" repeats "every month"
+    Given I open the node menu of "order"
+    And I choose "Set repeat…" from the node menu
+    And I pick the repeat rule "every month"
     When I open the node menu of "order"
     Then the node menu offers "Change repeat…"
     And the node menu offers "Stop repeating"
@@ -89,7 +93,9 @@ Feature: A dated node that comes back
     And there should be no page errors
 
   Scenario: Cancelling and Escape write nothing
-    Given the node "order" repeats "every month"
+    Given I open the node menu of "order"
+    And I choose "Set repeat…" from the node menu
+    And I pick the repeat rule "every month"
     When I open the repeat picker on "order"
     And I cancel the repeat picker
     Then the repeat picker is closed
@@ -103,8 +109,11 @@ Feature: A dated node that comes back
   # ── completing one ─────────────────────────────────────────────────
 
   Scenario: Completing a repeating row makes the next occurrence
-    Given the node "order" is dated "2019-03-04"
-    And the node "order" repeats "every week on monday"
+    Given I open the date picker on "order"
+    And I pick the date "2019-03-04"
+    And I open the node menu of "order"
+    And I choose "Set repeat…" from the node menu
+    And I pick the repeat rule "every week on monday"
     When I click the title of "order"
     And I press "Control+Enter"
     Then the node "order" has status "done"
@@ -120,24 +129,27 @@ Feature: A dated node that comes back
   Scenario: Un-doing leaves the occurrence, and re-doing makes no second one
     # The churn edge, and it is structural rather than policed: the rule
     # travelled, so the node that was completed has none left to spawn from.
-    Given the node "order" is dated "2019-03-04"
-    And the node "order" repeats "every week on monday"
+    Given I open the date picker on "order"
+    And I pick the date "2019-03-04"
+    And I open the node menu of "order"
+    And I choose "Set repeat…" from the node menu
+    And I pick the repeat rule "every week on monday"
     When I click the title of "order"
     And I press "Control+Enter"
-    Then "house.olai" holds 2 nodes titled "order the new cabinets"
+    Then "house.olai" holds exactly 2 nodes titled "order the new cabinets"
     When I press "Control+Enter"
     Then the node "order" has no status
-    And "house.olai" holds 2 nodes titled "order the new cabinets"
+    And "house.olai" holds exactly 2 nodes titled "order the new cabinets"
     When I press "Control+Enter"
     Then the node "order" has status "done"
-    And "house.olai" holds 2 nodes titled "order the new cabinets"
+    And "house.olai" holds exactly 2 nodes titled "order the new cabinets"
     And there should be no page errors
 
   Scenario: A dated row with no rule is completed exactly as it always was
     When I click the title of "order"
     And I press "Control+Enter"
     Then the node "order" has status "done"
-    And "house.olai" holds 1 nodes titled "order the new cabinets"
+    And "house.olai" holds exactly 1 node titled "order the new cabinets"
     And there should be no page errors
 
   # ── where it is drawn ──────────────────────────────────────────────
@@ -147,8 +159,11 @@ Feature: A dated node that comes back
     # `todo` on a day that has gone, so it is owed exactly as the row before it
     # was. Its pill says something rather than doing something, because the
     # agenda is a query over the whole set drawn read-only.
-    Given the node "order" is dated "2019-03-04"
-    And the node "order" repeats "every week on monday"
+    Given I open the date picker on "order"
+    And I pick the date "2019-03-04"
+    And I open the node menu of "order"
+    And I choose "Set repeat…" from the node menu
+    And I pick the repeat rule "every week on monday"
     When I click the title of "order"
     And I press "Control+Enter"
     And I open the agenda

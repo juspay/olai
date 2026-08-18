@@ -56,8 +56,11 @@ const tomorrow = (): string => {
   return isoDayOf(new Date(now.getTime() + untilMidnight(now)));
 };
 
-/** One section of the page, by what it MEANS. */
-const sectionSelector = (section: string): string =>
+/** One section of the page, by what it MEANS. Exported for the reason
+ *  `outline_tree_steps.ts`'s `revealGutter` is: a second file asserts about a
+ *  section (`repeat_steps.ts`, for the occurrence a completion made), and a
+ *  second spelling of "which section" would be two answers to it. */
+export const sectionSelector = (section: string): string =>
   `${AGENDA_SECTION}${attr("data-section", section)}`;
 
 // ── opening it ─────────────────────────────────────────────────────────
