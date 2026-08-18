@@ -16,10 +16,11 @@
  * what the e2e suite's scripted one is for.
  */
 
+import { RequestError } from "@agentclientprotocol/sdk"
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
-import { adopt, make } from "./agent.ts"
+import { adopt, goneOf, make } from "./agent.ts"
 import type { Stored } from "./events.ts"
 import type { Memory } from "./memory.ts"
 
@@ -88,7 +89,39 @@ describe("an agent that will not start", () => {
     // refusal that talked about a destroyed stream would pass neither line.
     expect(why).toContain("ENOENT")
     expect(why).not.toContain("stream was destroyed")
+    // ... and it is a REFUSAL rather than a silence, which is the half a
+    // caller acts on: nothing was asked of anything, because there was nothing
+    // to ask. A message that failed this way certainly did not go, so the row
+    // it was typed into may honestly offer to send it again.
+    expect(outcome._tag === "Failure" ? outcome.failure.gone : null).toBe("refused")
 
     await Effect.runPromise(agent.stop)
+  })
+})
+
+describe("what a failure says about whether the message went", () => {
+  // The distinction this whole feature rests on, at the one place it is
+  // decided: the SDK gives an error RESPONSE its own class and rejects with a
+  // plain `Error` for everything else, so "did anything answer" is a question
+  // about the rejection rather than about the sentence in it.
+
+  test("an error response is the agent answering: refused", () => {
+    // What `refuse steering` produces, and what an agent with no such method
+    // produces: a JSON-RPC error frame, matched back to the request waiting on
+    // it. Nothing took the message.
+    expect(goneOf(new RequestError(-32000, "this turn cannot be steered"))).toBe("refused")
+  })
+
+  test("a connection that died is not an answer: unanswered", () => {
+    // Every pending request is rejected with this when the pipe goes. The
+    // request may have been read before it went — that is exactly the doubt
+    // this value carries.
+    expect(goneOf(new Error("ACP connection closed"))).toBe("unanswered")
+  })
+
+  test("anything else reads as unanswered, which is the safe direction", () => {
+    // An unrecognised rejection offers a person nothing, rather than offering
+    // a retry that could duplicate a message the agent already has.
+    expect(goneOf("something nobody has seen before")).toBe("unanswered")
   })
 })

@@ -923,9 +923,11 @@ export const TESTID = {
   /** What went wrong where nobody was waiting: a boot, a dead agent. */
   chatTrouble: "chat-trouble",
   chatInput: "chat-input",
-  /** On a `user` row the agent would not take: the strip saying so, with the
-   *  button that tries again. The words stay in the bubble above it. */
-  chatUnsent: "chat-unsent",
+  /** On a `user` row that did not land: the strip saying WHICH way it did not,
+   *  in `data-delivery` — `refused`, which carries the button that tries
+   *  again, or `unanswered`, which deliberately carries none. The words stay in
+   *  the bubble above it either way. */
+  chatDelivery: "chat-delivery",
   chatResend: "chat-resend",
   /** The composer saying the turn is stopped on YOU: the agent asked something
    *  and is waiting for the form above to be answered. */

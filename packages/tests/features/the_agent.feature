@@ -778,32 +778,100 @@ Feature: Talking to the agent
     Then the agent is idle
 
   @scratch:chat
-  Scenario: A message the agent will not take stays on screen, and can be sent again
+  Scenario: A message the agent REFUSED stays on screen, and can be sent again
     # The one way a send can still fail against a live agent: it is mid-turn
     # and cannot be reached. The words do NOT go into a queue and they do not
     # go anywhere — they stay in the conversation, in the bubble they were
     # typed into, marked as not sent, with one press to try again. A person
     # never has to wonder whether a sentence they typed still exists.
+    #
+    # THE FIRST OF TWO FACES. This one is a certainty: the agent ANSWERED the
+    # steer with an error, so nothing took the message and the button under it
+    # is an honest offer. The other face is the scenario below.
     When I ask the agent "refuse steering"
     Then the agent is idle
     When I ask the agent "hold"
     Then the agent is working
     When I ask the agent "done order"
-    Then the chat shows my message "done order" as not sent
+    Then the chat shows my message "done order" as "refused"
+    # ... in the words a person reads, not only in the attribute the panel
+    # carries. Swapping the two faces' sentences left this suite green until
+    # both reviewers said so.
+    And the strip under my message "done order" reads "not sent"
     # ... and it really did not go: nothing marked anything.
     And node "order" is not done
     # Pressing it again while the turn is still unreachable changes nothing but
     # is not silent either — the row stays, the words stay.
-    When I send the unsent message again
-    Then the chat shows my message "done order" as not sent
+    When I send the undelivered message again
+    Then the chat shows my message "done order" as "refused"
     # Once the turn is over there is a turn to start, so the same row's own
     # words go as an ordinary prompt — and the mark comes off, because a row
     # must not go on advertising a failure that has stopped being true.
     When the agent is released
     Then the agent is idle
-    When I send the unsent message again
+    When I send the undelivered message again
     Then node "order" is done
-    And no message is marked unsent
+    And no message is marked undelivered
+
+  @scratch:chat
+  Scenario: A message the agent never ANSWERED says so, and offers no retry
+    # THE SECOND FACE, and the whole reason the two are told apart. `swallow
+    # steering` takes the message and never answers: the agent is alive,
+    # reading, streaming its turn — and from this end there is no way to know
+    # whether those words landed in it. An agent that took the message and then
+    # went quiet is indistinguishable from one that never took it.
+    #
+    # So the panel says exactly that, and offers NOTHING to press. A retry here
+    # would hand somebody a duplicate they had no way to predict — which is the
+    # bug this scenario exists for: both faces used to read "not sent", with the
+    # same button under them.
+    When I ask the agent "swallow steering"
+    Then the agent is idle
+    When I ask the agent "hold"
+    Then the agent is working
+    When I ask the agent "done order"
+    # The only thing that can end a steer nobody answers is the client's own
+    # deadline, so this step — and this step alone in the suite — waits it out.
+    Then the chat eventually shows my message "done order" as "unanswered"
+    # The words are still in the bubble they were typed into. What is missing is
+    # the certainty, not the message.
+    And the chat shows my message "done order"
+    And the strip under my message "done order" reads "no answer — it may not have arrived"
+    And the chat offers no way to send it again
+    # ... and the transcript keeps the reason, rather than only the banner that
+    # the next turn will clear.
+    And the chat eventually shows "did not answer"
+    When the agent is released
+    Then the agent is idle
+
+  @scratch:chat
+  Scenario: A turn that died having said NOTHING marks the message that started it
+    # The OTHER delivery lane, and the gate inside it. A prompt is a delivery
+    # like a steer is: a turn that produced not one frame leaves this end unable
+    # to tell a prompt that was read from one that never arrived, and the words
+    # deserve the same account of themselves. `vanish` is exactly that — the
+    # agent falls over before even the usage frames every turn opens with.
+    When I ask the agent "vanish"
+    Then the chat eventually shows "the agent exited"
+    And the chat shows my message "vanish" as "unanswered"
+    And the strip under my message "vanish" reads "no answer — it may not have arrived"
+    # No button, for the reason the whole feature exists: the agent may have
+    # read those words before it died, and nobody can say.
+    And the chat offers no way to send it again
+
+  @scratch:chat
+  Scenario: A turn that SPOKE before it died leaves the message alone
+    # The other side of that gate, and the regression it exists to stop: an
+    # inverted reading would put "not sent" and a `send again` under a prompt
+    # the agent demonstrably worked on, which is an offer to send it twice to
+    # somebody with no way to tell. `crash` speaks first and then falls over.
+    When I ask the agent "crash"
+    Then the agent's answer mentions "about to fall over"
+    And the chat eventually shows "the agent exited"
+    # The words are on screen, as they always are — with no mark and no button,
+    # because there is nothing undelivered about them.
+    And the chat shows my message "crash"
+    And no message is marked undelivered
 
   @scratch:chat
   Scenario: Cancelling under a message in flight does not start the turn back up
@@ -824,8 +892,10 @@ Feature: Talking to the agent
     When I ask the agent "done order"
     And I cancel the turn
     # The steer answers a moment later, and the row is what it lands on: the
-    # words are kept and offered back, never re-sent on somebody's behalf.
-    Then the chat shows my message "done order" as not sent
+    # words are kept and offered back, never re-sent on somebody's behalf. It
+    # is a REFUSAL: the agent answered, and what it answered was that there was
+    # nothing to steer, so nothing took the message.
+    Then the chat shows my message "done order" as "refused"
     # THE CLAIM: still idle. A `begin` here would read as the cancel undoing
     # itself, which is the whole bug.
     And the agent is idle
