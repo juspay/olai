@@ -456,6 +456,23 @@ test("archive is the op, subtree and all — the fence is the menu's question", 
     .toEqual({ op: "archive", id: "kitchen" })
 })
 
+test("duplicate is the op and nothing else — the copy is the op's to build", () => {
+  // Nothing is resolved behind it: what the copy says is on disk, and the
+  // subtree is read where the write is judged rather than assembled here out
+  // of an `add` per node.
+  expect(asked({ verb: "duplicate", id: "install" }))
+    .toEqual({ op: "duplicate", id: "install" })
+})
+
+test("a duplicate through a placement is refused where every other op refuses one", () => {
+  // `echo` is a mirror of `order`. The id travels as the caller named it, so
+  // the refusal is `duplicate_node`'s own — a placement is not a node — rather
+  // than this file quietly copying the target's subtree into a file the reader
+  // is not looking at.
+  expect(asked({ verb: "duplicate", id: "echo" }))
+    .toEqual({ op: "duplicate", id: "echo" })
+})
+
 // ── the two an undo speaks ─────────────────────────────────────────────
 
 test("putting a row back names the parent it was given and the sibling above", () => {
@@ -732,6 +749,14 @@ test("a property is put back as the value it held, and a new one by removing it"
  */
 test("a property holding a LIST has no inverse, rather than a wrong one", () => {
   expect(inverse({ verb: "prop", id: "order", key: "tags", value: null })).toEqual([])
+})
+
+test("a duplicate is taken back by putting the COPY away, never the original", () => {
+  // `applied` is the copy's root — the one id in an inverse that did not exist
+  // when the reading was taken — and the original is untouched by both the
+  // write and its undo. ⌘⇧Z is the `unarchive` that answers the archive.
+  expect(inverse({ verb: "duplicate", id: "install" }, "copy"))
+    .toEqual([{ verb: "archive", id: "copy" }])
 })
 
 test("an archive records the place the row is about to stop having", () => {

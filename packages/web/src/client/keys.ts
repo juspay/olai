@@ -174,6 +174,13 @@ export const isEditingTarget = (target: EventTarget | null): boolean => {
  *     step lands on is the server's, over the mark the node actually carries
  *     ({@link ../../../server/src/edit.ts} holds the ring, and the argument for
  *     `done` not being on it).
+ *   - `duplicate` — `⌘⇧D` / `Ctrl+⇧D`: copy this row and everything under it,
+ *     as the sibling below. Workflowy's own chord for the same verb, and the
+ *     SHIFT is what keeps it: bare `⌘D` is the bookmark key in every browser
+ *     this app is read in, and a duplicate is not worth stealing it. Dead in a
+ *     note, like the mark keys, and it has no twin on the selection layer —
+ *     duplicating a PICK is a bulk verb, and this app puts those behind a
+ *     button rather than a chord (below).
  *   - `note` — `Shift+Enter`: open the note under the row, and close it again
  *     from inside.
  *   - `prev` / `next` — the bare arrows, moving the caret between rows. The
@@ -201,6 +208,7 @@ export type EditAction =
   | "down"
   | "toggle"
   | "walk"
+  | "duplicate"
   | "note"
   | "prev"
   | "next"
@@ -267,6 +275,16 @@ export const editKey = (
     !event.metaKey
   ) return "note"
   if (field === "block") return null
+
+  // ⌘⇧D / Ctrl+⇧D — FIRST of the line-only readings, and outside the chain of
+  // them: every branch below is a more specific reading of a key a later branch
+  // also matches, and this one shares its key with nothing. The letter IS
+  // claimed one modifier down, though, which is why Shift is required rather
+  // than tolerated — bare ⌘D stays the bookmark it has always been.
+  if (
+    (event.key === "d" || event.key === "D") && (event.ctrlKey || event.metaKey) &&
+    event.shiftKey && !event.altKey
+  ) return "duplicate"
 
   if (event.key === "Enter") {
     if (event.ctrlKey || event.metaKey) return event.shiftKey ? "walk" : "toggle"
@@ -505,6 +523,11 @@ export const SHORTCUTS: ReadonlyArray<{
         keys: "⌘⇧Enter / Ctrl+⇧Enter",
         what: "walk the mark on: to do, then doing, then none",
         action: "walk",
+      },
+      {
+        keys: "⌘⇧D / Ctrl+⇧D",
+        what: "duplicate the row, and everything under it",
+        action: "duplicate",
       },
       { keys: "Shift+Enter", what: "write the note under it", action: "note" },
       { keys: "↑ / ↓", what: "walk to the row above or below", action: "prev" },

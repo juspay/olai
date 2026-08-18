@@ -331,8 +331,32 @@ export const writeVerbs = (
       label: "Remove this placement",
       does: sends({ verb: "unmirror", id: subject.record.id }),
     })
-  } else if (shown !== undefined && derived !== undefined) {
-    // The put-away is drawn on a node's own row and not on a mirror of it,
+  } else if (shown !== undefined) {
+    // A COPY of this row and everything under it, as the sibling below.
+    //
+    // Drawn on a node's own row and not on a mirror of it — the same split the
+    // put-away below makes, and the same reason read once more: what a
+    // placement offers is retiring the placement, and duplicating through one
+    // would copy a subtree that lives somewhere else, out of sight, on a click
+    // that reads as being about this line. The verb therefore names the ROW's
+    // own record, which in this branch IS the node it shows.
+    //
+    // NO CONFIRM. Every other structural verb in this menu that asks one takes
+    // something away; this one only adds, and ⌘Z takes it back.
+    verbs.push({
+      id: "duplicate",
+      label: "Duplicate",
+      does: sends({ verb: "duplicate", id: subject.record.id }),
+    })
+
+    // The put-away is the one verb here whose question is about the SET —
+    // how much the archive would move — so it is not offered at all in the
+    // frame before the first snapshot arrives, where a count nobody checked
+    // would be worse than a missing entry. The verb above needs no index, and
+    // is drawn in that frame like every other one.
+    if (derived === undefined) return verbs
+
+    // It is drawn on a node's own row and not on a mirror of it,
     // which is the same split as the verb above rather than a missing case:
     // the reader is looking at a placement, and the verb for a placement is
     // retiring it. Archiving from here would put away a subtree that lives

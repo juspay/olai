@@ -577,6 +577,59 @@ export const ArchiveRequest = Schema.Struct({
 })
 
 /**
+ * COPY a node and everything under it, as the sibling immediately below it.
+ *
+ * One field, and the shortest request in this file, because everything the copy
+ * SAYS is already on disk: the op reads the subtree it is pointed at and writes
+ * it again. There is no anchor, no parent and no title here — a duplicate lands
+ * beside the thing it duplicates, which is the whole of the gesture, and
+ * `move_node` is what carries it somewhere else afterwards.
+ *
+ * WHAT DIFFERS BETWEEN THE COPY AND THE ORIGINAL IS EXACTLY TWO THINGS, and
+ * both of them are about identity rather than about content:
+ *
+ *   - **every `id` in the copy is fresh** — the root's and every descendant's —
+ *     so the copy is a second THING rather than a second claim on the first.
+ *     That is what the whole op exists to promise;
+ *   - **the two STAMPS are the copy's own.** `created` is the instant the copy
+ *     was made and `changed` is absent, exactly as they are on a node a capture
+ *     brought into being: those two fields are the ledger's rather than a
+ *     writer's ({@link ./node.ts}'s `STAMPED` neighbours), and a ledger does not
+ *     make up a past it did not see.
+ *
+ * Everything else comes across verbatim, THE MARKS INCLUDED — a `done` with the
+ * instant it was stamped at, a `todo`, a date, a repeat rule, a note, the
+ * properties, and the `doc` a node names. Every alternative invents something
+ * the caller did not say: dropping the mark says the copy was never a task,
+ * re-stamping the `done` says it was finished today, rewriting it to `todo`
+ * says it has not started. A copy that says something its original does not is
+ * not a copy, and the one field it is entitled to differ in is the one that
+ * says WHICH node it is.
+ *
+ * **WHAT THE COPY POINTS AT is one rule with two halves.** A reference the
+ * subtree makes to ITSELF follows the copy — a mirror placed under it, a `see`
+ * between two of its nodes, an `after` edge one of them waits on — so the copy
+ * is self-contained rather than reaching back into the original. A reference it
+ * makes to anything OUTSIDE keeps its target, because that target was not
+ * copied and there is nothing else the reference could mean. A mirror stays a
+ * MIRROR either way: a placement is copied as a placement, never expanded into
+ * a twin of the node it shows.
+ *
+ * AND THE THIRD CASE, which is the rule read from the other end: a reference
+ * pointing INTO the subtree from outside it is not followed at all — the
+ * original keeps it. That record was not copied and this write was not asked
+ * to touch it, so copying its edge would invent a second claim nobody made and
+ * moving it would take one away. Only the records being copied are rewritten.
+ */
+export const DuplicateRequest = Schema.Struct({
+  op: Schema.Literal("duplicate"),
+  id: Schema.String.annotate({
+    description:
+      "The `id` of the node to copy. The copy — it and everything under it, with fresh ids throughout — lands as the sibling immediately below it.",
+  }),
+})
+
+/**
  * Take a subtree back OUT of an `Archive.olai` — the inverse `archive` never
  * had, built once here and exposed on both faces together (HACKING.md's
  * consistency rule; `parity-unarchive`).
@@ -999,6 +1052,7 @@ const BATCHED = [
   arm(SplitRequest),
   arm(MergeRequest),
   arm(ArchiveRequest),
+  arm(DuplicateRequest),
   arm(UnarchiveRequest),
   arm(SeeRequest),
   arm(MirrorRequest),
@@ -1081,6 +1135,7 @@ export const WriteRequest = Schema.Union([
   SplitRequest,
   MergeRequest,
   ArchiveRequest,
+  DuplicateRequest,
   UnarchiveRequest,
   CreateRequest,
   SeeRequest,

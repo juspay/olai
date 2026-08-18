@@ -91,7 +91,7 @@ cd packages/tests
 SHOTS=/tmp/shots bash evidence.sh
 ```
 
-`evidence.ts` / `evidence.sh` are NOT part of the suite — nothing imports them and `just e2e` never runs them. They drive the real app through one gesture at a time and leave a screenshot beside each, which is what a pull request shows a reviewer that a passing `✔` cannot: what the drop indicator looks like while a row is in the air, what a pick looks like, what the Trash asks before it takes a branch.
+`evidence.ts` / `evidence.sh` are NOT part of the suite — nothing imports them and `just e2e` never runs them. They drive the real app through one gesture at a time and leave a screenshot beside each, which is what a pull request shows a reviewer that a passing `✔` cannot: what the drop indicator looks like while a row is in the air, what a pick looks like, what the Trash asks before it takes a branch, what a duplicated subtree looks like beside the one it was copied from.
 
 A section may also write the served directory behind the app's back, which is the driver's half of the suite's own `I rewrite` step: some refusals are about the set as it *is*, so the thing that provokes one has to be written by somebody other than the tab being photographed. It goes through the driver's `rewrite`, which needs the `VAULT` the runner exports and throws without one — a shot of a gesture that never reached a file is worse than no shot.
 

@@ -1,6 +1,6 @@
 # @olai/ops — the only writer
 
-Semantic edits over a served directory: create an outline, add a node or a whole subtree, mark done, doing or todo, retitle, note, schedule, move, split one node into two, merge one into the sibling above it, archive, set see references, place and retire mirrors, wire the `after` edges a node waits on. Everything that changes an outline goes through here, and everything an agent may READ of one comes out of here too.
+Semantic edits over a served directory: create an outline, add a node or a whole subtree, mark done, doing or todo, retitle, note, schedule, move, split one node into two, merge one into the sibling above it, copy one and everything under it, archive, set see references, place and retire mirrors, wire the `after` edges a node waits on. Everything that changes an outline goes through here, and everything an agent may READ of one comes out of here too.
 
 It sits between `@olai/format` (what a record is, and what is legal) and `@olai/store` (how bytes become durable). Neither of those knows what an EDIT is; this package is where "mark `order` done" lives, and it is what the web UI's procedures and the agent's MCP tools both call. [`@olai/git`](../git/README.md) is the third thing under it — the subprocesses a commit is made of, which decide nothing; the deciding is here.
 
@@ -107,6 +107,24 @@ It is also what keeps the two faces equal. The web's `Enter` mid-line and `Backs
 - **the mark, the date, the attached `doc` and the edges go with the RECORD into the archive.** The format allows one of each per node and the survivor already has its own answer, so there is no merge of two — and nothing is destroyed, because the record keeps its id in `Archive.olai` and `unarchive_node` brings it back. What the op owes is that this is never silent, which is what the reply's `nudge` is for: a `done` that has left the live outline is exactly the news a person is owed, and so is the file that was attached to it.
 
 Refused when the node is first among its siblings (nothing above it), when the row above is a MIRROR (a placement has no title to merge into) and, like every text op, on a placement's own id.
+
+## Duplicating, and what a copy is entitled to differ in
+
+`duplicate` copies a node and everything under it as the sibling immediately below. It is the shortest request in the vocabulary — one id — because everything the copy SAYS is already on disk: the op reads the subtree rather than being handed one, so there is nothing to describe, nothing to nest and no depth cap (`add`'s three levels are the JSON Schema's problem, and nothing here is being described to a schema).
+
+The whole semantic is one sentence — **the copy is a second thing, not a second claim on the first** — and every decision falls out of it:
+
+- **every id in it is fresh**, root and descendants alike, decided before any record is built. That is the promise; without it the "copy" would be a set the validator refuses, or a placement wearing a node's clothes;
+- **the two STAMPS are the copy's own** — `created` is now, `changed` is absent — exactly as they are on a node a capture brought into being. Those two are the ledger's rather than a writer's (`@olai/format`'s `node.ts`), and a ledger does not make up a past it did not see;
+- **everything else is verbatim, THE MARKS INCLUDED.** A `done` keeps the instant it was stamped at, a `todo` stays a `todo`, and the date, the repeat rule, the note, the properties and the attached `doc` all come across. Workflowy preserves completion and so does this, but the argument is stronger than precedent: every alternative INVENTS a claim the caller did not make — dropping the mark says the copy was never a task, re-stamping the `done` says it was finished today, rewriting it to `todo` says it has not started. The one visible consequence is stated rather than hidden: a duplicated `done` lands on the day the original was finished, because that is the only day either record knows about. Sweeping the copy's marks afterwards is an `apply`, which is one call;
+- **the title is verbatim too.** No `(copy)`, no `#copy` tag (which is what Workflowy adds): a title is stored exactly as it was typed, and a word nobody typed is a word in somebody's git history;
+- **the `ord`s below the root are the originals'**, which falls out of the ids being fresh — each copied child sits among copied siblings only, so the keys that sorted them sort them again. The one key minted is the ROOT's, which lands it immediately after the node it copies.
+
+**What the copy POINTS AT is one rule with two halves**, and it is the half of this op with real design in it. A reference the subtree makes to ITSELF follows the copy — a `see` between two of its nodes, an `after` edge one of them waits on, a mirror placed under it — so the copy is self-contained rather than reaching back into the original. A reference that LEAVES the subtree keeps its target, because that target was not copied and there is nothing else the reference could mean. Which fields those are is `@olai/format`'s `targetsOf`, the same closed list the validator reads forwards and `remove_mirror` reads backwards, so a fourth relation added to the format is re-pointed the day it exists rather than being the one field a copy quietly leaves aimed at the original. And the rule read from the OTHER end is the third case: an edge pointing INTO the subtree from outside it is not followed at all, because the record that made it was not copied and this write may not rewrite it — only the subtree's own records are re-emitted, so copying that edge would invent a second claim and moving it would take one away.
+
+**A mirror is copied as a MIRROR** — the placement, not the identity. Duplicating a Now list gives a second list OF THE SAME WORK, and never a twin of the item: expanding a placement into a node would be this op inventing content nobody wrote. A placement's own id is refused as the subject, in the same `notANode` words every other op refuses one with — `add_mirror` is what places a second one.
+
+It needs no rule of its own beyond that, and deliberately: a subtree that is legal on disk is legal written twice, because the copy is isomorphic to something the validator has already approved. The one thing it inherits is the ARRIVAL gate every other op that lands work somewhere inherits — a stale `done` above the landing, standing over unfinished work the copy brings, comes off and the `nudge` names it.
 
 ## Archiving, in racket's terms
 

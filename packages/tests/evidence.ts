@@ -194,6 +194,58 @@ const PLACEMENT_VERB = '[data-testid="node-menu-panel"] >> text=Remove this plac
 const MENU_SAID = '[data-testid="node-menu-said"]'
 const MENU_CONFIRM = '[data-testid="node-menu-confirm"]'
 
+/** The `•••` menu's own COPY verb, beside the two above for their reason: the
+ *  three writes a row offers about its whole subtree are one family, and a
+ *  label renamed in the client is one line to follow here. */
+const DUPLICATE_VERB = '[data-testid="node-menu-panel"] >> text=Duplicate'
+
+/** Every record of one outline, off the disk the driver is serving. */
+const recordsIn = (file: string): ReadonlyArray<Record<string, unknown>> => {
+  if (VAULT === undefined) throw new Error("no VAULT; run through evidence.sh")
+  return readFileSync(`${VAULT}/${file}`, "utf8")
+    .split("\n")
+    .filter((line) => line.trim() !== "")
+    .map((line) => JSON.parse(line) as Record<string, unknown>)
+}
+
+/** Every id one outline holds right now — what a section takes BEFORE a write
+ *  so it can name what that write MADE afterwards. */
+const idsIn = (file: string): ReadonlySet<string> =>
+  new Set(recordsIn(file).map((record) => String(record["id"])))
+
+/**
+ * The ROOT of the copy a duplicate just made, found the way the op's own
+ * promise says to find it: the record this write brought into being that sits
+ * among the ORIGINAL's siblings.
+ *
+ * Its id is MINTED by the write, so nothing here may spell one — which is also
+ * the fact the shots are about. What the driver has instead is the set of ids
+ * that existed a moment ago, which is exact where a title match is a guess: the
+ * two branches say the same thing after a duplicate, so a section that found
+ * the copy by its title would go on finding SOMETHING after a write that made
+ * the wrong thing, or nothing at all. A throw when there is not exactly one is
+ * the guard {@link shotSays} is: a section that photographed the wrong row
+ * would be a picture that lies.
+ */
+const copyRootOf = (
+  file: string,
+  before: ReadonlySet<string>,
+  id: string,
+): Record<string, unknown> => {
+  const records = recordsIn(file)
+  const original = records.find((record) => record["id"] === id)
+  if (original === undefined) throw new Error(`no record \`${id}\` in ${file}`)
+  const made = records.filter((record) =>
+    !before.has(String(record["id"])) && record["parent"] === original["parent"]
+  )
+  if (made.length !== 1) {
+    throw new Error(
+      `${made.length} records were made beside \`${id}\`, and a copy is one`,
+    )
+  }
+  return made[0] as Record<string, unknown>
+}
+
 /**
  * WHERE THE PROMISE LIVES, printed at the top of a section's transcript.
  *
@@ -1221,6 +1273,64 @@ const SECTIONS = {
    * and the last two shots are the line going while `herbs` stays exactly
    * where it lives.
    */
+  /**
+   * A SUBTREE AND ITS COPY, side by side — and then the copy proved to be a
+   * node of its own by being written to while the original does not move.
+   *
+   * The shot a reviewer actually needs is the third one. The first two show
+   * what happened; only the third shows what it MEANS, because two identical
+   * branches are exactly what a broken duplicate would draw too — a second
+   * placement of the same node, or a copy that shared its ids, would sit there
+   * looking the same. Retitling one row of the copy is the cheapest gesture
+   * that separates them on screen, and the transcript prints both records so
+   * the ids are readable beside the picture.
+   */
+  "a-subtree-and-its-copy": async (page) => {
+    pinnedBy(
+      "duplicate_subtree.feature",
+      "The menu copies the row and everything under it",
+      "An edge inside the copy follows the copy; one that leaves it does not",
+    )
+    // `install the cabinets` is three rows deep with a `doc`, two `todo`
+    // children and an `after` edge leaving the subtree — most of what a record
+    // can carry, which is the point of copying this one.
+    const before = idsIn("house.olai")
+    console.log(`  before:    ${recordOf("install")}`)
+    await shot(page, "before")
+
+    await openMenu(page, "install")
+    console.log(`  the menu offers: ${await verbsOf(page)}`)
+    await shot(page, "the-verb")
+
+    await page.locator(DUPLICATE_VERB).first().click()
+    await page.waitForTimeout(SETTLE)
+    const id = String(copyRootOf("house.olai", before, "install")["id"])
+    console.log(`  the copy:  ${recordOf(id)}`)
+    // The FRESH-ID guarantee, printed where a picture cannot show it: the copy
+    // of the row that waits on two things waits on the COPY of the one inside
+    // the subtree and on the same `order` outside it.
+    for (const child of recordsIn("house.olai").filter((one) => one["parent"] === id)) {
+      console.log(`             ${recordOf(String(child["id"]))}`)
+    }
+    shotSays("install", "house.olai")
+    shotSays(id, "house.olai")
+    await shot(page, "after")
+
+    // …and the claim the two shots above cannot make on their own. Writing to
+    // the copy leaves the original exactly as it was, which is what "its own
+    // identity" means on a page rather than in a record.
+    await page.locator(title(id)).click()
+    await page.locator('[data-testid="title-editor"]').first().waitFor()
+    await page.keyboard.press("ControlOrMeta+a")
+    await page.keyboard.type("install the cabinets — the spare bathroom")
+    await page.keyboard.press("Enter")
+    await page.keyboard.press("Escape")
+    await page.waitForTimeout(SETTLE)
+    console.log(`  the copy:  ${recordOf(id)}`)
+    console.log(`  untouched: ${recordOf("install")}`)
+    await shot(page, "the-copy-is-its-own-node")
+  },
+
   "retire-a-placement": async (page) => {
     pinnedBy(
       "menu_verbs.feature",
@@ -1302,7 +1412,7 @@ type Section = keyof typeof SECTIONS
 const sectionNamed = (name: string): Section | undefined =>
   name in SECTIONS ? name as Section : undefined
 
-/** A window tall enough for the whole `•••` panel: fifteen entries opened off a
+/** A window tall enough for the whole `•••` panel: sixteen entries opened off a
  *  row partway down the page is more than the default leaves room for, and a
  *  shot that clips the verb it is about says nothing. The WIDTH is the
  *  default's, so the two sections that ask for this differ from every other one
@@ -1318,7 +1428,7 @@ const PANEL_FITS = { viewport: { width: WIDE, height: 1000 } }
  * rather than inside the section for the same reason — a resize after load
  * leaves this page reporting the new `innerHeight` while `100dvh` still
  * resolves against the old one (below). What wants one is a section whose
- * subject is the `•••` panel itself: fifteen entries is taller than the
+ * subject is the `•••` panel itself: sixteen entries is taller than the
  * default window, and a shot that clips the verb it is about says nothing.
  *
  * THERE IS NO SECTION FOR AUTO-SCROLL, deliberately. That gesture is only
@@ -1344,8 +1454,9 @@ const SHAPES: Partial<Record<Section, Parameters<Browser["newContext"]>[0]>> = {
     hasTouch: true,
     isMobile: true,
   },
-  // The two sections ABOUT the menu, in a window the whole panel fits in — one
-  // name for it, so the third one does not copy a third literal.
+  // The sections ABOUT the menu, in a window the whole panel fits in — one
+  // name for it, so the next one does not copy another literal.
+  "a-subtree-and-its-copy": PANEL_FITS,
   "move-to-trash-from-the-menu": PANEL_FITS,
   "retire-a-placement": PANEL_FITS,
 }

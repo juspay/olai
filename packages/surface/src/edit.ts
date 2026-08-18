@@ -483,6 +483,30 @@ export const Edit = Schema.Union([
    * Trash view opens it and `Put back` is on every row.
    */
   Schema.Struct({ verb: Schema.Literal("archive"), id: Id }),
+  /**
+   * COPY a node and everything under it, as the sibling below — `duplicate_node`,
+   * from the row menu and from ⌘⇧D.
+   *
+   * ONE ID AND NOTHING ELSE, which is the same shape `archive` above has and for
+   * the same reason: the subtree is the OP's unit rather than this verb's
+   * arithmetic, and everything the copy says is already on disk. No anchor —
+   * a duplicate lands beside the thing it duplicates, and where a browser would
+   * otherwise have to say "after this row" the server would only be re-deriving
+   * what the op already knows.
+   *
+   * `id` is the ROW's own record, as `split`'s and `merge`'s are, and for their
+   * argument exactly: this key puts rows on the page a reader has open. Named
+   * through a mirror it would copy the TARGET's subtree, in the file that node
+   * lives in, and the copy would appear somewhere nobody is looking — so a
+   * placement is refused in the ops layer's own `notANode` words, and the menu
+   * offers `Remove this placement` on such a row instead.
+   *
+   * What lands is the op's to decide and is argued where it is decided
+   * ({@link ../../format/src/writing.ts}'s `DuplicateRequest`): fresh ids
+   * throughout, every other field verbatim, references inside the subtree
+   * following the copy and references out of it keeping their targets.
+   */
+  Schema.Struct({ verb: Schema.Literal("duplicate"), id: Id }),
 
   // ── the two EDGES a node carries ─────────────────────────────────────
 

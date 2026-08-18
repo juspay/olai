@@ -3453,6 +3453,286 @@ test("a mistyped id is offered the one it was probably meant to be, on any op", 
 })
 
 /**
+ * The COPY, field by field.
+ *
+ * Every test here asks the same question from a different side: what does the
+ * copy differ from the original in? The answer the op promises is "the ids, and
+ * the two stamps" — so the assertions are mostly about what came across
+ * UNCHANGED, which is the half a passing `✔` on a shorter test would not have
+ * held.
+ */
+describe("duplicate", () => {
+  const copied = (set: OutlineSet, id: string) => {
+    const result = planned(set, { op: "duplicate", id })
+    return { result, nodes: fileOf(result, "house.olai") }
+  }
+
+  /** The records the plan ADDED — everything the set did not already hold. */
+  const fresh = (
+    set: OutlineSet,
+    nodes: ReadonlyArray<Node>,
+  ): ReadonlyArray<Node> => {
+    const before = new Set(set.nodes.map((located) => located.node.id))
+    return nodes.filter((node) => !before.has(node.id))
+  }
+
+  test("the copy lands immediately after the original, under the same parent", () => {
+    const { nodes, result } = copied(house(), "order")
+    const row = nodes
+      .filter((node) => node.parent === "kitchen")
+      .sort((a, b) => (a.ord < b.ord ? -1 : 1))
+      .map((node) => node.id)
+    expect(row).toEqual(["demo", "order", "n1", "install"])
+    expect(result.id).toBe("n1")
+    expect(result.title).toBe("order the cabinets")
+    expect(result.summary).toBe("duplicate: order the cabinets")
+    // What the write MADE, so a caller can mark or capture under it without a
+    // search for an id nobody chose.
+    expect(result.captured).toEqual([{ id: "n1", title: "order the cabinets" }])
+  })
+
+  test("a deep subtree comes across whole, and every id in it is new", () => {
+    const set = setOf({
+      "house.olai": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order"}`,
+        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote"}`,
+        `{"id":"sign","parent":"quote","ord":"a0","title":"sign it"}`,
+        `{"id":"file","parent":"sign","ord":"a0","title":"file the copy"}`,
+        `{"id":"pay","parent":"order","ord":"a1","title":"pay the deposit"}`,
+      ].join("\n"),
+    })
+    const { nodes, result } = copied(set, "order")
+    const made = fresh(set, nodes)
+
+    // Six records in, four generations deep — nothing about this op caps the
+    // depth, because nothing here is DESCRIBING a tree.
+    expect(made.map((node) => node.id)).toEqual(["n1", "n2", "n3", "n4", "n5"])
+    expect(result.summary).toBe("duplicate: order (+4)")
+
+    // The shape, read off the copies: the same four generations.
+    const parents = Object.fromEntries(made.map((node) => [node.id, node.parent]))
+    expect(parents).toEqual({
+      n1: "kitchen",
+      n2: "n1",
+      n3: "n2",
+      n4: "n3",
+      n5: "n1",
+    })
+    // …and the titles, in the order the file reads.
+    expect(made.map((node) => (node as RegularNode).title)).toEqual([
+      "order",
+      "get a quote",
+      "sign it",
+      "file the copy",
+      "pay the deposit",
+    ])
+    // THE FRESH-ID GUARANTEE, stated as the thing it is: no id appears twice in
+    // the file the write would produce.
+    const ids = nodes.map((node) => node.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  test("the ords below the root are the originals', because the siblings are all copies", () => {
+    const set = setOf({
+      "house.olai": [
+        `{"id":"order","ord":"a0","title":"order"}`,
+        `{"id":"one","parent":"order","ord":"a0","title":"one"}`,
+        `{"id":"two","parent":"order","ord":"a1","title":"two"}`,
+        `{"id":"three","parent":"order","ord":"a2","title":"three"}`,
+      ].join("\n"),
+    })
+    const { nodes } = copied(set, "order")
+    expect(fresh(set, nodes).map((node) => node.ord)).toEqual(["a1", "a0", "a1", "a2"])
+  })
+
+  test("every field but the ids and the stamps comes across verbatim", () => {
+    const set = setOf({
+      "house.olai": [
+        `{"id":"order","ord":"a0","title":"order the cabinets","done":"2026-08-01T09:00:00-04:00","date":"2026-08-01","desc":"two\\nlines","custom":{"pr":"https://example/1"},"created":"2020-01-01T00:00:00-04:00","changed":"2021-01-01T00:00:00-04:00"}`,
+      ].join("\n"),
+    })
+    const { nodes } = copied(set, "order")
+    const copy = record(fresh(set, nodes), "n1")
+
+    // THE MARK, with the instant it was stamped at. Re-stamping it would say
+    // the copy was finished today; dropping it would say it was never a task.
+    expect(copy.done).toBe("2026-08-01T09:00:00-04:00")
+    expect(copy.date).toBe("2026-08-01")
+    expect(copy.desc).toBe("two\nlines")
+    expect(copy.custom).toEqual({ pr: "https://example/1" })
+    // The two the LEDGER writes: born now, and written to since by nobody.
+    expect(copy.created).toBe(STAMP)
+    expect(copy.changed).toBeUndefined()
+  })
+
+  test("a repeat rule and its date come across, so the copy is its own recurrence", () => {
+    const set = setOf({
+      "house.olai":
+        `{"id":"bins","ord":"a0","title":"put the bins out","date":"2026-08-03","repeat":"every week on monday","todo":true}`,
+    })
+    const copy = record(fresh(set, copied(set, "bins").nodes), "n1")
+    expect(copy.repeat).toBe("every week on monday")
+    expect(copy.date).toBe("2026-08-03")
+    expect(copy.todo).toBe(true)
+  })
+
+  test("an `after` edge INSIDE the subtree is re-aimed at the copy", () => {
+    const set = setOf({
+      "house.olai": [
+        `{"id":"job","ord":"a0","title":"the job"}`,
+        `{"id":"order","parent":"job","ord":"a0","title":"order","todo":true}`,
+        `{"id":"install","parent":"job","ord":"a1","title":"install","todo":true,"after":["order"]}`,
+      ].join("\n"),
+    })
+    const { nodes } = copied(set, "job")
+    const made = fresh(set, nodes)
+    // `n2` is the copy of `order`, `n3` the copy of `install` — and the copy
+    // waits on the copy, not on the original.
+    expect(record(made, "n3").after).toEqual(["n2"])
+    expect(record(nodes, "install").after).toEqual(["order"])
+  })
+
+  test("an edge that LEAVES the subtree keeps its target", () => {
+    const set = setOf({
+      "house.olai": [
+        `{"id":"permit","ord":"a0","title":"the permit","todo":true}`,
+        `{"id":"job","ord":"a1","title":"the job"}`,
+        `{"id":"order","parent":"job","ord":"a0","title":"order","todo":true,"after":["permit"],"see":["permit"]}`,
+      ].join("\n"),
+    })
+    const made = fresh(set, copied(set, "job").nodes)
+    expect(record(made, "n2").after).toEqual(["permit"])
+    expect(record(made, "n2").see).toEqual(["permit"])
+  })
+
+test("an edge pointing INTO the subtree stays on the original", () => {
+    // THE THIRD CASE of the point-at rule, and the one neither of the two
+    // above states: an edge whose far end is outside what was copied is a
+    // claim made by a record this write was not asked to touch. Copying it
+    // would invent a second claim nobody made; swinging it onto the copy
+    // would take one away.
+    const set = setOf({
+      "house.olai": [
+        `{"id":"job","ord":"a0","title":"the job"}`,
+        `{"id":"order","parent":"job","ord":"a0","title":"order","todo":true}`,
+        `{"id":"watcher","ord":"a1","title":"the watcher","see":["order"],"after":["order"]}`,
+      ].join("\n"),
+    })
+    const { nodes } = copied(set, "job")
+    // The outsider still names the ORIGINAL, on both of its edges…
+    expect(record(nodes, "watcher").see).toEqual(["order"])
+    expect(record(nodes, "watcher").after).toEqual(["order"])
+    // …and nothing was minted pointing at the copy of it.
+    const made = fresh(set, nodes)
+    expect(made.map((node) => (node as RegularNode).title)).toEqual(["the job", "order"])
+    for (const node of made) expect((node as RegularNode).see).toBeUndefined()
+  })
+
+
+  test("a mirror under the subtree is copied as a PLACEMENT, target and all", () => {
+    const set = setOf({
+      "house.olai": [
+        `{"id":"now","ord":"a0","title":"Now"}`,
+        `{"id":"m","parent":"now","ord":"a0","mirror":"live"}`,
+        `{"id":"live","ord":"a1","title":"the live item"}`,
+      ].join("\n"),
+    })
+    const { nodes, result } = copied(set, "now")
+    const made = fresh(set, nodes)
+    // Two records made, and the second is a mirror with a fresh id showing the
+    // SAME node — not a twin of it.
+    expect(made).toEqual([
+      { id: "n1", ord: "a0V", title: "Now", created: STAMP },
+      { id: "n2", parent: "n1", ord: "a0", mirror: "live" },
+    ])
+    // `captured` names NODES, so the placement is not in it.
+    expect(result.captured).toEqual([{ id: "n1", title: "Now" }])
+    expect(result.summary).toBe("duplicate: Now (+1)")
+  })
+
+  test("a mirror whose target is INSIDE the subtree shows the copy", () => {
+    const set = setOf({
+      "house.olai": [
+        `{"id":"week","ord":"a0","title":"This week"}`,
+        `{"id":"task","parent":"week","ord":"a0","title":"the task"}`,
+        `{"id":"now","parent":"week","ord":"a1","title":"Now"}`,
+        `{"id":"m","parent":"now","ord":"a0","mirror":"task"}`,
+      ].join("\n"),
+    })
+    const made = fresh(set, copied(set, "week").nodes)
+    // `n2` is the copy of `task`; the copied placement shows it, so the copied
+    // week is a week of its own rather than a second view of the first one's.
+    expect(made.find((node) => node.id === "n4")).toEqual({
+      id: "n4",
+      parent: "n3",
+      ord: "a0",
+      mirror: "n2",
+    })
+  })
+
+  test("a `see` between two nodes of the subtree follows the copy, both ends", () => {
+    const set = setOf({
+      "house.olai": [
+        `{"id":"plan","ord":"a0","title":"the plan"}`,
+        `{"id":"a","parent":"plan","ord":"a0","title":"a","see":["b"]}`,
+        `{"id":"b","parent":"plan","ord":"a1","title":"b","see":["a"]}`,
+      ].join("\n"),
+    })
+    const made = fresh(set, copied(set, "plan").nodes)
+    expect(record(made, "n2").see).toEqual(["n3"])
+    expect(record(made, "n3").see).toEqual(["n2"])
+  })
+
+  test("the original is untouched — every record it had, unchanged", () => {
+    const before = house()
+    const { nodes } = copied(before, "kitchen")
+    for (const located of before.nodes) {
+      expect(nodes.find((node) => node.id === located.node.id)).toEqual(located.node)
+    }
+  })
+
+  test("a `done` parent standing over copied open work is re-opened, and says so", () => {
+    const set = setOf({
+      "house.olai": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel","done":"2026-08-01"}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order","todo":true}`,
+      ].join("\n"),
+    })
+    const result = planned(set, { op: "duplicate", id: "order" })
+    expect(record(fileOf(result, "house.olai"), "kitchen").done).toBeUndefined()
+    expect(result.nudge).toContain("Kitchen remodel")
+    expect(result.summary).toContain("reopened: Kitchen remodel")
+  })
+
+  test("a mirror cannot be duplicated — it is a placement, and it says which node to name", () => {
+    const set = setOf({
+      "house.olai": KITCHEN,
+      "week.olai": `{"id":"m","ord":"a0","mirror":"order"}`,
+    })
+    expect(refused(set, { op: "duplicate", id: "m" }).message).toContain("`m` is a mirror")
+    expect(refused(set, { op: "duplicate", id: "m" }).message).toContain("`order`")
+  })
+
+  test("an id nothing declares is refused with the closest one that exists", () => {
+    const failure = refused(house(), { op: "duplicate", id: "ordr" })
+    expect(failure._tag).toBe("NotFoundFailure")
+    expect(failure.message).toContain("order")
+  })
+
+  test("it is one op in a batch, and the ids it minted are the batch's to name", () => {
+    const result = planned(house(), {
+      op: "apply",
+      ops: [
+        { op: "duplicate", id: "order" },
+        { op: "title", id: "n1", title: "order the handles" },
+      ],
+    })
+    expect(record(fileOf(result, "house.olai"), "n1").title).toBe("order the handles")
+  })
+})
+
+/**
  * The planner produces RECORDS and the format produces BYTES, and this is the
  * seam where that pays: whatever an op decides, what reaches the disk is one
  * line per record with one trailing newline. Asserted here as well as in the
@@ -3464,6 +3744,7 @@ test("whatever an op plans, the bytes are one record per line", () => {
     { op: "done", id: "order" },
     { op: "move", id: "install", before: "demo" },
     { op: "archive", id: "order" },
+    { op: "duplicate", id: "kitchen" },
   ] as ReadonlyArray<Request>) {
     for (const file of planned(house(), request).files) {
       const text = serializeOutline(file.nodes)

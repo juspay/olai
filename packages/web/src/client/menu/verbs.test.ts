@@ -73,6 +73,7 @@ test("a node with no mark is offered the three, and nothing to clear", () => {
     "Add property…",
     "Link to a node…",
     "Wait for a node…",
+    "Duplicate",
     "Move to Trash",
   ])
 })
@@ -89,6 +90,7 @@ test("the mark a node already carries is not offered back to it", () => {
     "Add property…",
     "Link to a node…",
     "Wait for a node…",
+    "Duplicate",
     "Move to Trash",
   ])
 })
@@ -289,6 +291,26 @@ test("a node's own row has no placement verb", () => {
   expect(labels("install")).not.toContain("Remove this placement")
 })
 
+// ── the duplicate ──────────────────────────────────────────────────────
+
+test("a duplicate names the row's own record, and asks nothing first", () => {
+  expect(edit("install", "Duplicate")).toEqual({ verb: "duplicate", id: "install" })
+  expect(verb("install", "Duplicate").confirm).toBeUndefined()
+})
+
+test("a placement is not duplicated — retiring it is what a line offers", () => {
+  // The same split the put-away makes. Copying through a mirror would write a
+  // subtree into the file its target lives in, out of sight of the row that
+  // was clicked.
+  expect(labels("kitchen-herbs")).not.toContain("Duplicate")
+  expect(labels("lost")).not.toContain("Duplicate")
+})
+
+test("it sits above the put-away, so the additive verb is not next to the reach", () => {
+  const shown = labels("install")
+  expect(shown.indexOf("Duplicate")).toBeLessThan(shown.indexOf("Move to Trash"))
+})
+
 // ── the trash ──────────────────────────────────────────────────────────
 
 test("the put-away is a node's verb, not a placement's", () => {
@@ -334,5 +356,6 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
       "Add property…",
       "Link to a node…",
       "Wait for a node…",
+      "Duplicate",
     ])
 })

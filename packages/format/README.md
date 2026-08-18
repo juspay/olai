@@ -140,9 +140,9 @@ bun test packages/format
 
 ## What a write ASKS for, and what one that landed says
 
-`src/writing.ts` is the third time this move was made — after `committing.ts` and `reading.ts`/`searching.ts`, and for the identical reason. It holds the twenty request schemas, the `WriteRequest` union over them, and `WriteResult`, which is what an op that succeeded answers with.
+`src/writing.ts` is the third time this move was made — after `committing.ts` and `reading.ts`/`searching.ts`, and for the identical reason. It holds the twenty-two request schemas, the `WriteRequest` union over them, and `WriteResult`, which is what an op that succeeded answers with.
 
-**Twenty schemas, twenty-two write tools**, and the gap is not a typo: the three marks share `MarkRequest`, because the format allows at most one mark and `set_done` / `set_doing` / `set_todo` differ only in the `op` their own NAME fixes. `@olai/ops`' table generates those three off the format's own `MARKS` list — which is the point of keying them, since a mark that was plannable and writable everywhere and had no tool would otherwise be silently missing.
+**Twenty-two schemas, twenty-four write tools**, and the gap is not a typo: the three marks share `MarkRequest`, because the format allows at most one mark and `set_done` / `set_doing` / `set_todo` differ only in the `op` their own NAME fixes. `@olai/ops`' table generates those three off the format's own `MARKS` list — which is the point of keying them, since a mark that was plannable and writable everywhere and had no tool would otherwise be silently missing.
 
 It moved here from `@olai/ops` when the writes went onto the surface: `ops.run` is a procedure now, so the request an agent sends and the answer it gets back are values that CROSS this floor. The ops layer produces them, the surface carries them, and `@olai/ops` re-exports the two under its own names — `Request` and `Applied` — the way `Pending` and `CommitRequest` are already re-exported by their consumers rather than declared twice.
 
