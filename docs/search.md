@@ -107,7 +107,7 @@ None of this is stored, and none of it is a second matcher: the highlight comes 
 |---|---|---|
 | `/o/<file>`, `/n/<id>` | every row that did not match | the matches, their subtrees, and the ancestors that lead to one |
 | `/d/<date>`, `/today` | every row that did not match, and an outline heading left with none | the matches — and their ancestry, which was never a row |
-| `/agenda` | the same, in each of the three sections; a section or an upcoming day left with nothing is not drawn | the matches, under the headings that still hold one |
+| `/agenda` | the same, per day of the spine; a day left with nothing leaves the line, and the silences either side of it close up into one longer wait | the matches, under the days that still hold one — and no line at all when none do |
 | `/trash` | the same as a tree, per archive; an archive left with nothing goes | the matches, their subtrees, and the scaffold that says where the pile came from |
 | `/doc/<file>` | — no box, and no `?q=` in the address | — |
 

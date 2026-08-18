@@ -24,9 +24,10 @@
  *     its way, what is on a day, what is overdue on it, which document that
  *     day's note is, and where a `doc` or a relative link lands, computing all
  *     of it with the same code — and, under all of it, the one place a date is
- *     COUNTED rather than compared (`weekdayOf`, `shiftDay`, `daysOf`), which
- *     is here because the query's relative words and the browser's calendar
- *     grid must not each own a Monday;
+ *     COUNTED rather than compared (`weekdayOf`, `shiftDay`, `daysOf`,
+ *     `daysBetween`), which is here because the query's relative words, the
+ *     browser's calendar grid and the agenda's felt distances must not each own
+ *     a Monday — or a subtraction;
  *   - what a QUERY means, `parseFilter` with `matchOf` / `matching` and the row
  *     transform `keeping` — the grammar (`is:`, `has:`, `date:`, `-`, and the
  *     substring terms around them), which nodes it selects, and what a tree
@@ -298,6 +299,10 @@ export {
   datedOn,
   dayOf,
   isDay,
+  /** The TIME a datetime names, where `dayOf` takes the day off the front of
+   *  the same value. Public because the agenda's spine keeps a pill for it and
+   *  drops one for everything else the day heading already said. */
+  timeOf,
 } from "./dates.ts"
 export type { DayEntry, DayGroup, Occasion } from "./dates.ts"
 /** The one place a date is COUNTED rather than compared (./calendar.ts): which
@@ -312,6 +317,10 @@ export type { DayEntry, DayGroup, Occasion } from "./dates.ts"
  *  beside one of them. `isRealDay` is not `dates.ts`'s `isDay` — that one asks
  *  what a filename says, this one whether a calendar holds the day. */
 export {
+  /** How many whole days lie between two of them. The third question the
+   *  counting exists for, and the agenda's spine is what asked it: "in 6 days"
+   *  and "1 day late" are a subtraction, and it happens where the calendar is. */
+  daysBetween,
   daysOf,
   isMonth,
   isoDate,
@@ -327,6 +336,10 @@ export {
    *  same list rather than keeping a second Monday. */
   WEEKDAYS,
   weekdayOf,
+  /** The twelve names, on the same journey the seven made: a second layer needed
+   *  them (the agenda's spine says "Aug"), so the list came down to the floor
+   *  both stand on rather than being written twice. */
+  MONTHS,
 } from "./calendar.ts"
 export {
   agendaOf,
@@ -335,8 +348,27 @@ export {
   nothingDue,
   owedIn,
   owedOf,
+  /** THE SPINE'S OWN ARITHMETIC (`agenda-spine`, 2026-08-18). The agenda draws
+   *  one line of time, and everything it says about a day past the day itself is
+   *  counted here rather than in a component: where a day sits and how far away
+   *  it feels ({@link feltOn}), how long the silence before it is
+   *  ({@link quietBetween}), and what a row's date pill still has to say
+   *  ({@link owedFact}). Public for the reason `isOverdue` is — the words on
+   *  the page are this package's reading of the files, and a badge doing its own
+   *  date arithmetic would be a second reading of them. */
+  feltOn,
+  owedFact,
+  quietBetween,
 } from "./agenda.ts"
-export type { Agenda, AgendaDay, Owed } from "./agenda.ts"
+export type {
+  Agenda,
+  AgendaDay,
+  Felt,
+  Owed,
+  Quiet,
+  Standing,
+  Tone,
+} from "./agenda.ts"
 /**
  * The repeat grammar (./repeat.ts): the small closed vocabulary a dated node
  * says it comes back in, and the arithmetic that says when the next one is.

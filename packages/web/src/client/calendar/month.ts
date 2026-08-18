@@ -18,7 +18,7 @@
  * headings.
  */
 
-import { daysOf, isMonth, WEEKDAYS, weekdayOf } from "@olai/format"
+import { daysOf, isMonth, MONTHS, WEEKDAYS, weekdayOf } from "@olai/format"
 
 /**
  * The weekdays in full, in the order `@olai/format`'s `weekdayOf` counts them
@@ -51,28 +51,13 @@ export const WEEKDAY_HEADINGS = WEEKDAY_NAMES.map((name) => name.slice(0, 2))
 
 const WEEK = WEEKDAY_HEADINGS.length
 
-export const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-] as const
-
-/** "August 2026" — the heading over the grid. English, and the outline's
- *  rather than the locale's: these months sit beside ISO dates written by
- *  hand, so they are words rather than something that moves with a machine's
- *  settings. */
+/** "August 2026" — the heading over the grid. The names are the floor's
+ *  ({@link MONTHS}, which is where the argument for them being English rather
+ *  than the locale's now lives), on the same journey the weekdays above made:
+ *  the agenda's spine needed the same twelve words one layer below a client. */
 export const monthLabel = (month: string): string =>
   isMonth(month)
-    ? `${MONTH_NAMES[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`
+    ? `${MONTHS[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`
     : month
 
 /**

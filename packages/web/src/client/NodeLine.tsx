@@ -91,8 +91,12 @@ export function NodeLine(props: {
   readonly aside?: JSX.Element
   /** The door to the note, when the node has one (./note/Mark.tsx). */
   readonly mark?: JSX.Element
-  readonly date?: string
-  /** Which of the node's dates {@link date} is, for the one surface that
+  /** What the date pill beside the title SAYS, and whether there is one at
+   *  all: absent draws none. The stored date wherever a row draws its own; on
+   *  the agenda, the one fact the day it is under has not already given
+   *  ({@link ./DateBadge.tsx}, whose word this is). */
+  readonly says?: string
+  /** Which of the node's dates the pill is about, for the one surface that
    *  collects more than one of them — a day page. Absent everywhere else,
    *  where the date drawn is the `date` field and says so by being there. */
   readonly occasion?: Occasion
@@ -159,10 +163,10 @@ export function NodeLine(props: {
             — a badge a hand's width from the row it is about reads as a value
             in a column, which is the shape this view has none of. Same rule as
             the aside beside it: shrink-0, dim, straight after the words. */}
-        <Show when={props.date}>
-          {(date) => (
+        <Show when={props.says}>
+          {(says) => (
             <DateBadge
-              date={date()}
+              says={says()}
               occasion={props.occasion}
               overdue={props.overdue}
               onPick={props.onPickDate}

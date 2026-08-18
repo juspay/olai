@@ -543,13 +543,16 @@ export const DAY_EMPTY = selector(TESTID.dayEmpty);
 /** The agenda: the same dates read forward. `data-date` is the day it was
  *  answered for, which `/agenda` does not spell. */
 export const AGENDA_PAGE = selector(TESTID.agendaPage);
-/** One of its three sections; `data-section` is which of them, and a section
- *  with nothing in it is not drawn at all. */
-export const AGENDA_SECTION = selector(TESTID.agendaSection);
-/** One day inside Upcoming; `data-date` is which, and its heading is the link
- *  to that day's own page. */
+/** THE LINE, drawn exactly when something is owed — so its absence is a claim
+ *  the page makes and not a layout accident. */
+export const AGENDA_SPINE = selector(TESTID.agendaSpine);
+/** One day ON that line. `data-date` is which day, `data-when` is which side of
+ *  now it sits on, and its heading is the link to that day's own page. */
 export const AGENDA_DAY = selector(TESTID.agendaDay);
-/** Said in place of all three when nothing is due. */
+/** A silence worth naming beside the line; `data-days` is how long the wait
+ *  was. Absent wherever a gap is too short to be worth a word. */
+export const AGENDA_QUIET = selector(TESTID.agendaQuiet);
+/** Said in place of the line when nothing is due. */
 export const AGENDA_EMPTY = selector(TESTID.agendaEmpty);
 /** The way to it from the directory column, above the month. */
 export const AGENDA_LINK = selector(TESTID.agendaLink);

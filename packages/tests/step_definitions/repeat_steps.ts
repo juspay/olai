@@ -24,6 +24,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  attr,
   NODE,
   nodeSelector,
   oneLine,
@@ -35,7 +36,7 @@ import {
   REPEAT_PICKER_SET,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
-import { sectionSelector } from "./agenda_steps.ts";
+import { standingSelector } from "./agenda_steps.ts";
 
 // ── opening it ─────────────────────────────────────────────────────────
 
@@ -247,22 +248,27 @@ Then(
  * This is the whole of what "the agenda shows the next occurrence like any
  * dated node" means: nothing on that page knows about recurrence, so a row
  * that arrived from a completion is owed exactly as the row before it was.
+ *
+ * WHICH DAY it landed on is asked of the day the row is UNDER rather than of
+ * the row's own words: the spine says a day once, in its own heading, and a
+ * row under it wears no date pill repeating it (`agenda-spine`, 2026-08-18).
  */
 Then(
-  "the {string} section shows a node titled {string} dated {string}",
+  "the {string} days show a node titled {string} on {string}",
   async function (
     this: OlaiWorld,
-    section: string,
+    when: string,
     title: string,
     date: string,
   ) {
-    const rows = this.page.locator(`${sectionSelector(section)} ${NODE}`);
+    const rows = this.page.locator(
+      `${standingSelector(when)}${attr("data-date", date)} ${NODE}`,
+    );
     // One auto-retrying locator rather than a hand-rolled poll over every
     // row: the wait is FOR the row to arrive, so a sweep that re-read each row
     // in turn paid N round trips per attempt to learn what one `waitFor` says.
     await rows
       .filter({ hasText: title })
-      .filter({ hasText: date })
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
@@ -292,10 +298,10 @@ Then(
  * an occurrence names it by what it says: its id was minted by the write.
  */
 Then(
-  "the {string} section shows a node repeating {string}",
-  async function (this: OlaiWorld, section: string, rule: string) {
+  "the {string} days show a node repeating {string}",
+  async function (this: OlaiWorld, when: string, rule: string) {
     const pill = this.page
-      .locator(`${sectionSelector(section)} ${NODE} ${REPEAT}`)
+      .locator(`${standingSelector(when)} ${NODE} ${REPEAT}`)
       .filter({ hasText: rule })
       .first();
     await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

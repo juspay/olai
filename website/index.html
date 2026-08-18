@@ -191,11 +191,54 @@
   table.keys td:first-child { white-space: nowrap; width: 1%; padding-right: 1.25rem; }
   kbd { font-size: 0.78rem; background: var(--well); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0.1em 0.45em; }
 
-  /* agenda mock */
-  .sect { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-top: 1rem; }
-  .panel .file + .sect { margin-top: 0; }
-  .grp { margin: 0.5rem 0 0.2rem; }
-  .trail { font-size: 0.75rem; color: var(--muted); margin-top: 0.35rem; }
+  /* agenda mock — ONE SPINE OF TIME. A line down the gutter with now marked on
+     it; what has gone above, the future receding below. The gradient is the
+     flow of time itself: alarm above the today point, accent at it, then ink
+     through muted to rule, fading out past the last day. */
+  .spine { position: relative; padding-left: 2.5rem; }
+  .spine .line {
+    position: absolute; left: calc(1.25rem - 1px); top: 0; bottom: 0; width: 2px;
+    background: linear-gradient(to bottom,
+      transparent 0, var(--alarm) 1.5rem, var(--alarm) 5rem,
+      var(--accent) 8.5rem, var(--ink) 12rem, var(--muted) 17rem,
+      var(--rule) 22rem, transparent 26rem);
+  }
+  .day { position: relative; margin-top: 1.4rem; }
+  .panel .file + .spine .day:first-child { margin-top: 0; }
+  .day .dot {
+    position: absolute; left: calc(-1.25rem - 3.5px); top: 0.35rem;
+    width: 7px; height: 7px; border-radius: 50%; background: var(--muted);
+  }
+  .day.gone .dot { background: var(--alarm); }
+  .day.near .dot { background: var(--ink); }
+  .day.far .dot { background: var(--rule); }
+  /* Now is a PLACE on the line, not a section that vanishes: bigger, ringed in
+     the page's own paper, and drawn on a day nothing is due on. */
+  .day.now .dot {
+    left: calc(-1.25rem - 5.5px); top: 0.2rem; width: 11px; height: 11px;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--paper), 0 0 0 4px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .dayname { font-size: 0.78rem; font-weight: 600; }
+  .dayname .away { font-family: var(--mono); font-size: 0.7rem; font-weight: 400; color: var(--muted); margin-left: 0.45rem; }
+  .day.gone .dayname { color: var(--alarm); }
+  .day.now .dayname { color: var(--accent); font-size: 0.68rem; }
+  /* The small caps are the WORD's, not the heading's: TODAY in caps, the date
+     in title case, so today reads like every other day on the line. */
+  .day.now .dayname .lead { text-transform: uppercase; letter-spacing: 0.07em; }
+  /* Whole entries recede with distance. */
+  .day.far { opacity: 0.62; }
+  /* A silence is CONTENT: named when it is long enough to notice, and the room
+     it takes grows with the wait. */
+  .quiet { font-size: 0.68rem; font-style: italic; color: var(--muted); opacity: 0.7; margin-left: 0.6rem; }
+  .quiet.long { margin-top: 2.1rem; margin-bottom: 2.1rem; }
+  .quiet.short { margin-top: 1.2rem; margin-bottom: 1.2rem; }
+  /* The ancestry is one muted line UNDER the row, where a file heading used to
+     sit over a whole group of them. */
+  .trail { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; padding-left: 1.4rem; }
+  /* A pill on this page says what the day heading cannot, so it sits against
+     the words rather than out at the margin. */
+  .spine .row .pill { margin-left: 0; }
 
   /* the date picker, open under a row */
   .picker { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.4rem 0 0.1rem 2.8rem; font-size: 0.8rem; color: var(--muted); }
@@ -533,28 +576,48 @@ The corner unit is the **risky one** — see
       <div class="panel">
         <div class="file">/agenda · 2026-08-12</div>
 
-        <p class="sect">overdue</p>
-        <p class="grp">kitchen.olai</p>
-        <p class="trail">Kitchen renovation</p>
-        <div class="row"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
+        <div class="spine">
+          <span class="line"></span>
 
-        <p class="sect">today</p>
-        <p class="grp">kitchen.olai</p>
-        <p class="trail">Kitchen renovation</p>
-        <div class="row"><span class="box"></span><span class="t">Book the plumber</span><span class="pill">2026-08-12</span></div>
-        <p class="grp">trip.olai</p>
-        <div class="row"><span class="bullet">●</span><span class="t">Ferry tickets go on sale</span><span class="pill">2026-08-12</span></div>
+          <div class="day gone">
+            <span class="dot"></span>
+            <p class="dayname">5 days ago · Fri, Aug 7</p>
+            <div class="row"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">5 days late</span></div>
+            <p class="trail">Kitchen renovation</p>
+          </div>
 
-        <p class="sect">upcoming</p>
-        <p class="grp"><a href="#daily">2026-08-15</a></p>
-        <div class="row"><span class="box"></span><span class="t">Template the countertop</span><span class="pill">2026-08-15</span></div>
+          <div class="day now">
+            <span class="dot"></span>
+            <p class="dayname"><span class="lead">Today</span> · Wed, Aug 12</p>
+            <div class="row"><span class="box"></span><span class="t">Book the plumber</span></div>
+            <p class="trail">Kitchen renovation</p>
+            <div class="row"><span class="bullet">●</span><span class="t">Ferry tickets go on sale</span></div>
+            <p class="trail">The coast trip</p>
+          </div>
+
+          <div class="day near">
+            <span class="dot"></span>
+            <p class="dayname"><a href="#daily">Sat, Aug 15</a><span class="away">in 3 days</span></p>
+            <div class="row"><span class="box"></span><span class="t">Template the countertop</span></div>
+            <p class="trail">Kitchen renovation</p>
+          </div>
+
+          <p class="quiet short">two quiet weeks</p>
+
+          <div class="day far">
+            <span class="dot"></span>
+            <p class="dayname">Fri, Aug 28<span class="away">in 2 weeks</span></p>
+            <div class="row"><span class="box"></span><span class="t">Meet the tiler on site</span><span class="pill">14:00</span></div>
+            <p class="trail">Kitchen renovation</p>
+          </div>
+        </div>
       </div>
       <div>
         <pre><code>overdue(n) ⇔ n carries todo or doing
              ∧ day(n.date) &lt; today</code></pre>
         <p class="caption">Derived when the page is drawn, stored nowhere, and
-        spelled once — the agenda's first section and the tone of every date
-        badge are the same predicate. <code>day()</code> is the first ten
+        spelled once — the days above now on the spine and the tone of every
+        date badge are the same predicate. <code>day()</code> is the first ten
         characters and the comparison is plain string order: dates are text.</p>
         <p><strong>Overdue is a definition, not a
         flag.</strong> Nobody sets it and nothing stores it. <code>done</code>
@@ -567,20 +630,31 @@ The corner unit is the **risky one** — see
     </div>
     <div class="cols">
       <div>
-        <p><strong>Three sections, because they are three pieces of news.</strong>
-        <em>Overdue</em> is every slipped task in the directory, oldest first,
-        grouped by the outline it lives in — the one answer no day page can
-        give, because a slipped task is on a day nobody visits. <em>Today</em>
-        is what today's day page holds, minus what is finished. <em>Upcoming</em>
-        is the next seven days that have anything on them, each heading a link
-        to that day's own page; days with nothing do not appear.</p>
+        <p><strong>One spine of time, and now is a place on it.</strong> Every
+        day the directory owes something on is a dot on one continuous line,
+        oldest first. Above the today mark is what SLIPPED — the one answer no
+        day page can give, because a slipped task is on a day nobody visits.
+        The mark itself is today, drawn whether or not anything is due on it.
+        Below it the future recedes: the line's ink fades, whole entries fade
+        with it, and the next seven days that have anything are the days you
+        see — each one a link to its own page, and days with nothing do not
+        appear.</p>
+        <p><strong>Days say how far away they FEEL.</strong> <em>Mon, Aug 24</em>
+        and <em>in 6 days</em>; <em>Yesterday</em>, in the attention tone, over
+        a row whose pill reads <em>1 day late</em>. Dates in the file are ten
+        characters and always will be — but a page that made you subtract them
+        to work out whether something was urgent was making you do the one job
+        it exists for. The silences between listed days are content too: a wait
+        long enough to notice says how long it was, and the room every wait
+        takes grows with it, so a fifty-day gap reads as longer than a two-day
+        one without costing a screen.</p>
         <p>A task nobody dated is absent entirely: it has no <em>when</em> to be
         late against, and inventing one is what this format refuses to do. So is
         one you moved to the Trash — putting something away takes it off your
         days and off this page, which is the whole of what putting it away
-        means. An
-        empty agenda says <em>Nothing is due.</em> and offers nothing to press —
-        every row on it lives somewhere else, and that is where it is changed.</p>
+        means. An empty agenda says <em>Nothing is due.</em>, draws no line at
+        all and offers nothing to press — every row on it lives somewhere else,
+        and that is where it is changed.</p>
         <p><strong>A date is set on the row.</strong> Press the date beside a
         title and the picker opens in place under it; a row with no date has no
         pill to press, so its way in is the <strong>•••</strong> menu —

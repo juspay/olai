@@ -11,10 +11,12 @@
  * entitled not to notice — so a gesture made after one would be a gesture over
  * a frame nobody can reproduce.
  */
-import { fileKind } from "@olai/format"
+import { fileKind, shiftDay } from "@olai/format"
 import { ROW_DIM } from "@olai/web/src/client/blocked.ts"
 import { readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { type Browser, chromium, type Locator, type Page } from "playwright"
+
+import { isoDayOf } from "@olai/web/src/client/clock.ts"
 
 import { BROWSER_ARGS } from "./support/browser.ts"
 
@@ -28,17 +30,30 @@ const SECTION = process.env["SECTION"] ?? ""
 const VAULT = process.env["VAULT"]
 
 let shots = 0
-/** `clip` is a WINDOW onto the shot rather than a second kind of shot: some
- *  affordances are two pixels tall (the drop line), and a whole-page frame of
- *  one is a frame of the page. The section that asks for it takes the wide one
- *  as well, so the close-up is read beside what it is a close-up OF. */
+/**
+ * A shot, numbered in the order the section takes them — and the two ways a
+ * section asks for less or more of the page than the window gives it.
+ *
+ * `clip` is a WINDOW onto the shot rather than a second kind of shot: some
+ * affordances are two pixels tall (the drop line), and a whole-page frame of
+ * one is a frame of the page. The section that asks for it takes the wide one
+ * as well, so the close-up is read beside what it is a close-up OF.
+ *
+ * `full` is the other direction, for the one section whose subject is taller
+ * than a screen on purpose — the agenda's line of time, which is about how far
+ * away the far end of it feels.
+ */
 const shot = async (
   page: Page,
   name: string,
-  clip?: { x: number; y: number; width: number; height: number },
+  within?: { clip?: { x: number; y: number; width: number; height: number }; full?: boolean },
 ) => {
   shots += 1
-  await page.screenshot({ path: `${OUT}/${SECTION}-${shots}-${name}.png`, ...(clip ? { clip } : {}) })
+  await page.screenshot({
+    path: `${OUT}/${SECTION}-${shots}-${name}.png`,
+    ...(within?.clip ? { clip: within.clip } : {}),
+    ...(within?.full === true ? { fullPage: true } : {}),
+  })
 }
 
 const row = (id: string) => `[data-node-id="${id}"]`
@@ -575,7 +590,85 @@ const piled = async (page: Page) =>
     '[data-testid="node-title"]',
   )) || "  (nothing)"
 
+/** The day the run started — read ONCE, so every date in a section is counted
+ *  from the same day even if the run crosses midnight. The client's own reading
+ *  of the local day, like the browser tests', rather than a second one. */
+const TAKEN = isoDayOf(new Date())
+
+/** A day this many days from today, as the ISO text a record holds. The
+ *  agenda's section writes its whole outline relative to the day it runs on:
+ *  a spine drawn from fixed dates would say "seven years ago" in a shot meant
+ *  to show what next month looks like. */
+const away = (days: number): string => shiftDay(TAKEN, days)
+
+/** The preferences panel, and a theme picked in it — the only way a palette is
+ *  chosen in this app (`theme/Chips.tsx`). Left OPEN by `pick`, exactly as the
+ *  browser tests leave it, so this closes it before the shot. */
+const wearTheme = async (page: Page, theme: string): Promise<void> => {
+  const panel = page.locator('[data-testid="prefs-panel"]')
+  if (!(await panel.isVisible().catch(() => false))) {
+    await page.locator('[data-testid="prefs-trigger"]').first().click()
+    await panel.waitFor()
+  }
+  await page.locator(`[data-testid="theme-chip"][data-value="${theme}"]`).first().click()
+  await page.waitForFunction(
+    (name) => document.documentElement.dataset["theme"] === name,
+    theme,
+  )
+  await page.keyboard.press("Escape")
+  await page.waitForTimeout(250)
+}
+
 const SECTIONS = {
+  /**
+   * THE AGENDA AS A SPINE OF TIME (`agenda-spine`, ruled 2026-08-18): one
+   * continuous line with now marked on it, what has slipped above it and the
+   * future receding below.
+   *
+   * The outline is WRITTEN HERE, relative to the day the run happens on,
+   * because that is the only way a shot can hold all five things the ruling is
+   * about at once — something late, something on today, something near,
+   * something far enough to have faded, and two silences long enough to be
+   * named. The dates are the design canvas's own offsets (a day late, six days
+   * out, nineteen, twenty-one at two o'clock, seventy-three), so the page in
+   * the shot is the artboard in the brief.
+   *
+   * Two palettes, because the whole line is drawn in theme tokens: a light one
+   * (the default, `chalk`) and a dark one (`pitch`). A gradient written in hex
+   * would look right in exactly one of them.
+   */
+  "the-agenda-is-a-spine": async (page) => {
+    rewrite("agenda.olai", [
+      `{"id":"admin","ord":"a0","title":"Admin"}`,
+      `{"id":"parking","parent":"admin","ord":"a0","title":"Renew the parking permit","todo":true,"date":"${away(-9)}"}`,
+      `{"id":"lease","parent":"admin","ord":"a1","title":"Sign the rental agreement","todo":true,"date":"${away(-1)}"}`,
+      `{"id":"survey","parent":"admin","ord":"a2","title":"Call the surveyor about the boundary","todo":true,"date":"${away(0)}"}`,
+      `{"id":"health","ord":"a1","title":"Health"}`,
+      `{"id":"leg","parent":"health","ord":"a0","title":"Leg pain"}`,
+      `{"id":"clinic","parent":"leg","ord":"a0","title":"Call Ste-Foy clinic — chart + cancellations","todo":true,"date":"${away(6)}"}`,
+      `{"id":"confirm","parent":"leg","ord":"a1","title":"Confirm rheumatology appointment","todo":true,"date":"${away(19)}"}`,
+      `{"id":"rheum","parent":"leg","ord":"a2","title":"Rheumatology appointment — Dre Leclerc, Ste-Foy","todo":true,"date":"${away(21)}T14:00"}`,
+      `{"id":"bell","ord":"a2","title":"Call Bell about Option 2 (lump-sum deferred payment)","todo":true,"date":"${away(73)}"}`,
+    ])
+    await page.goto(`${BASE}/agenda`)
+    await page.locator('[data-testid="agenda-spine"]').first().waitFor()
+    await page.waitForTimeout(400)
+    console.log(`  days on the line:   ${await page.locator('[data-testid="agenda-day"]').count()}`)
+    console.log(`  and their standing: ${
+      (await page.locator('[data-testid="agenda-day"]').evaluateAll((days) =>
+        days.map((one) => one.getAttribute("data-when"))
+      )).join(" ")
+    }`)
+    console.log(`  the silences it names: ${
+      (await page.locator('[data-testid="agenda-quiet"]').allInnerTexts()).join(" · ")
+    }`)
+    console.log(`  file headings on it:  ${await page.locator('[data-testid="day-group"]').count()}`)
+    await shot(page, "chalk-light", { full: true })
+
+    await wearTheme(page, "pitch")
+    await shot(page, "pitch-dark", { full: true })
+  },
+
   /**
    * `set_doing` refusing what the order forbids, on the web's two mark-walking
    * surfaces — the shot being the half a transcript cannot show: the DRAFT is
@@ -1025,10 +1118,7 @@ const SECTIONS = {
     // whole workspace, and they are the whole of what this section is about.
     const line = await boxOf(page.locator('[data-testid="drop-line"]'))
     await shot(page, "the-line-over-the-other-pane", {
-      x: 260,
-      y: Math.max(0, line.y - 120),
-      width: 840,
-      height: 260,
+      clip: { x: 260, y: Math.max(0, line.y - 120), width: 840, height: 260 },
     })
 
     await page.mouse.up()

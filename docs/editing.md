@@ -198,7 +198,7 @@ What you get is your browser's own date picker, and what is written is the day y
 
 A node scheduled for a time of day rather than a bare day keeps whatever it says on disk until you pick — the box shows the day that time falls on, and the panel says what picking one would replace, because a picker picks days.
 
-The row moves the moment the file says so: a task given a day that has gone is in Overdue on the agenda and on that day's page, without a reload and without this page deciding anything for itself.
+The row moves the moment the file says so: a task given a day that has gone is above now on the agenda’s spine and on that day's page, without a reload and without this page deciding anything for itself.
 
 ## Making a node come back
 

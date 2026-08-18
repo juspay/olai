@@ -59,12 +59,13 @@ import {
   comingWeekday,
   isoDate,
   isRealDay,
+  MONTHS,
   shiftDay,
   shiftDayByMonth,
   weekdayOf,
 } from "@olai/format"
 
-import { MONTH_NAMES, WEEKDAY_NAMES } from "../calendar/month.ts"
+import { WEEKDAY_NAMES } from "../calendar/month.ts"
 
 /** One day a phrase names. */
 export interface Named {
@@ -171,7 +172,7 @@ const monthDay = (wanted: string, today: string): ReadonlyArray<Named> => {
   // A prefix, so `au 20` and `august 20` are the same answer — and the FIRST
   // month it matches, which is why `ma` is March rather than an ambiguity a
   // popup would have to explain.
-  const month = MONTH_NAMES.findIndex((name) => name.toLowerCase().startsWith(word))
+  const month = MONTHS.findIndex((name) => name.toLowerCase().startsWith(word))
   if (month === -1) return []
   const day = Number(number)
   // The format's own spelling of a date from parts, so nothing here can
@@ -205,7 +206,7 @@ const LEAP_CYCLE = 8
 
 const found = (day: string, month: number, number: number): Named => ({
   day,
-  phrase: `${MONTH_NAMES[month]} ${number}, ${day.slice(0, 4)}`,
+  phrase: `${MONTHS[month]} ${number}, ${day.slice(0, 4)}`,
 })
 
 /** The ten characters themselves, typed out. The one form where the phrase and
@@ -224,7 +225,7 @@ const isoDay = (wanted: string): ReadonlyArray<Named> =>
 export const dayLabel = (day: string): string => {
   const weekday = weekdayOf(day)
   if (weekday === null) return day
-  const month = MONTH_NAMES[Number(day.slice(5, 7)) - 1] ?? ""
+  const month = MONTHS[Number(day.slice(5, 7)) - 1] ?? ""
   return `${WEEKDAY_NAMES[weekday]?.slice(0, 3)} ${Number(day.slice(8, 10))} ${
     month.slice(0, 3)
   } ${day.slice(0, 4)}`
