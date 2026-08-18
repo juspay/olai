@@ -241,6 +241,13 @@ export type {
 } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
+/** What REFERS to a node: the `see` edges that land on it and the notes and
+ *  titles that write its `@id`, out of the two reverse indexes `derive` keeps.
+ *  The reading rather than the indexes, because every question about what a
+ *  reference MEANS — whether a placement is one, whether the archive counts, and
+ *  which ids this node answers to — is asked there. */
+export { backlinksOf } from "./backlinks.ts"
+export type { Backlink, Way } from "./backlinks.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it
  *  selects, `ranked` puts them in the order a door shows them in, `keeping` and
  *  `matchedIn` are what a TREE narrowed to them looks like and how many rows of
@@ -379,6 +386,7 @@ export {
   OutlineSummary,
   Placed,
   Placement,
+  Reference,
   type Stamps,
   Subtree,
   SubtreeAnswer,

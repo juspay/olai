@@ -45,6 +45,7 @@ import {
   type TargetField,
   targetsOf,
 } from "./node.ts"
+import { byPath } from "./paths.ts"
 
 /** What a node's checkbox shows, re-exported rather than declared: it is one
  *  of `./node.ts`'s {@link MARKS}, and it lives beside that list because it is
@@ -178,6 +179,36 @@ export interface Derived {
    * it takes a record away.
    */
   readonly namedBy: ReadonlyMap<string, ReadonlyArray<Naming>>
+  /**
+   * The word after an `@` → the records that WRITE it, in a title or a note, in
+   * corpus order: {@link mentionsOf} read backwards.
+   *
+   * KEYED BY THE WORD rather than by a node, and that is the whole of why this
+   * index can be patched at all. `@alice` and `@order` are the same thing to a
+   * title ({@link titleTagRe}: two sigils, two namespaces, one alphabet); what
+   * makes the second a REFERENCE is that some record claims the id `order`,
+   * which is a question about a different index and is asked at the READ
+   * ({@link ./backlinks.ts}). Were existence asked here, minting a node would
+   * have to walk every note in the directory to find the mentions that had just
+   * become references, and dropping one would have to walk them again — a
+   * corpus-wide pass per capture, inside an index whose whole claim is that an
+   * edit costs what it touched.
+   *
+   * ONE ENTRY PER RECORD, so a node writing `@order` in its title and again in
+   * its note is one mention rather than two — {@link Naming}'s rule next door,
+   * kept for the same reader: what asks this wants to know WHICH records to
+   * draw, and a record is one record however often it says the word.
+   *
+   * A MIRROR IS NEVER IN IT: a placement has no title and no note of its own,
+   * so it has no prose to mention anything with.
+   *
+   * NOTHING READS THE KEYS IN ORDER, unlike the three indexes above, and the
+   * patcher spends exactly that — it adds and drops keys in place rather than
+   * rebuilding the map to keep an order nobody promised. The VALUES are ordered
+   * and promised so: a reader listing what refers to a node says them in the
+   * order the directory holds them.
+   */
+  readonly mentionedBy: ReadonlyMap<string, ReadonlyArray<Located>>
 }
 
 /**
@@ -245,20 +276,86 @@ export const nameInto = (
   }
 }
 
+/**
+ * Every `@word` this record WRITES, title first and then the note, in the order
+ * it wrote them — {@link targetsOf}'s shape for the prose half of a reference.
+ *
+ * A record mentioning nothing — which is nearly every record — allocates
+ * nothing, for {@link targetsOf}'s own reason: this is asked of every node in
+ * the directory to build a reverse index, and the guard is one `indexOf` per
+ * string. A mirror has no prose at all and answers the same empty list.
+ *
+ * A NOTE IS READ AS TEXT, and that is a decision rather than an omission. The
+ * note is markdown, and the browser that draws it declines to style a tag
+ * inside a code span or a link (`web/src/client/markdown/tags.ts`) — but this
+ * package is the floor the validator stands on and it holds no markdown
+ * parser, so deciding what a reference IS out of one would put a parser under
+ * the write gate. What the record SAYS is the honest answer here, and it is the
+ * answer `filter.ts`'s tag facet already gives about the same text.
+ */
+export const mentionsOf = (node: Node): ReadonlyArray<string> => {
+  if (isMirror(node)) return NOTHING_MENTIONED
+  const title = mentionsIn(node.title)
+  if (node.desc === undefined) return title
+  const note = mentionsIn(node.desc)
+  return note.length === 0 ? title : title.length === 0 ? note : [...title, ...note]
+}
+
+/** The answer for prose that mentions nothing: ONE list, shared. */
+const NOTHING_MENTIONED: ReadonlyArray<string> = []
+
+/** The `@` tags of one string, sigil dropped — {@link titleTagRe}'s own
+ *  alphabet, walked without building the text parts {@link titleParts} would,
+ *  because the text between the tags is not what this is asking about. */
+const mentionsIn = (text: string): ReadonlyArray<string> => {
+  // The cheap negative {@link mayHoldTag} is for a walk that wants both sigils;
+  // this one wants `@`, and a title full of `#topic` should not pay a regex to
+  // find that out.
+  if (!text.includes("@")) return NOTHING_MENTIONED
+  let found: Array<string> | undefined
+  for (const match of text.matchAll(titleTagRe())) {
+    if (match[0][0] === "@") (found ??= []).push(match[0].slice(1))
+  }
+  return found ?? NOTHING_MENTIONED
+}
+
+/**
+ * One record's mentions, filed into `mentionedBy` — the whole of how that index
+ * is built, in one place, for {@link nameInto}'s reason: the patcher runs this
+ * same fold over the records one changed file brought in
+ * ({@link ./patch.ts}), and a second spelling of the once-per-record rule is a
+ * second spelling free to drift from this one.
+ *
+ * The entry to leave alone is the LAST one, exactly as next door: entries are
+ * appended as the walk reaches each record, so an entry already filed by the
+ * record in hand can only be the one on the end.
+ */
+export const mentionInto = (
+  mentionedBy: Map<string, Array<Located>>,
+  located: Located,
+): void => {
+  for (const word of mentionsOf(located.node)) {
+    const held = mentionedBy.get(word)
+    if (held === undefined) mentionedBy.set(word, [located])
+    else if (held[held.length - 1] !== located) held.push(located)
+  }
+}
+
 export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   // `Map.groupBy` is the language's own group-by-key, and grouping by file is
   // exactly that — a hand-rolled accumulator here would be a second spelling
   // of a built-in (the same note #198 took). The three tables below are not
   // that shape: one keeps the FIRST claim rather than every one, one skips the
-  // records with no key at all, and one keys a record by every id it names —
-  // so they share one walk, since none of them reads what another builds and
-  // splitting them is three passes to ask three things about a record already
-  // in hand.
+  // records with no key at all, one keys a record by every id it names and one
+  // by every word its prose says — so they share one walk, since none of them
+  // reads what another builds and splitting them is four passes to ask four
+  // things about a record already in hand.
   const byFile = Map.groupBy(nodes, (located) => located.file)
 
   const byId = new Map<string, Located>()
   const children = new Map<string, Array<Located>>()
   const namedBy = new Map<string, Array<{ at: Located; fields: Array<TargetField> }>>()
+  const mentionedBy = new Map<string, Array<Located>>()
 
   for (const located of nodes) {
     if (!byId.has(located.node.id)) byId.set(located.node.id, located)
@@ -271,6 +368,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
     }
 
     nameInto(namedBy, located)
+    mentionInto(mentionedBy, located)
   }
 
   // Sorted rather than trusted: a set assembled file by file already arrives
@@ -295,6 +393,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
     mirrorsOf,
     edgesTo,
     namedBy,
+    mentionedBy,
   }
 }
 
@@ -303,6 +402,24 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
  *  patcher, which sorts ONE file's arriving records into the same promise
  *  rather than re-deciding what disk order is. */
 export const byLine = (a: Located, b: Located): number => a.line - b.line
+
+/**
+ * CORPUS ORDER, as a comparator: which file ({@link byPath}), then which line.
+ *
+ * The order `assemble` puts a set in, and the order every reverse index here
+ * promises its members in. It is one comparator rather than one per asker
+ * because three of them promise that order — {@link Derived.namedBy},
+ * {@link Derived.mentionedBy} and the reading over both
+ * ({@link ./backlinks.ts}) — and because reaching for the format's own path
+ * order rather than comparing two strings is what makes a file and the
+ * directory beside it come out where a rebuilt view puts them.
+ *
+ * Here rather than in {@link ./patch.ts}, where it was written: the patcher is
+ * an optimisation held to this module's answers, so an order the INDEXES
+ * promise belongs beside the indexes.
+ */
+export const byCorpus = (a: Located, b: Located): number =>
+  a.file === b.file ? a.line - b.line : byPath(a.file, b.file)
 
 /**
  * One file's records, in the order they are written.

@@ -236,6 +236,19 @@ export const AFTER_REFS = selector(TESTID.afterRefs);
 /** The `×` on one drawn reference — drop that target. `data-ref` is which. */
 export const REF_DROP = selector(TESTID.refDrop);
 
+// ── what refers to a node, read backwards ──────────────────────────────
+/** The `<details>` under a zoomed node's heading. `data-count` is how many
+ *  RECORDS refer to it; the element's own `open` says whether it is unfolded.
+ *  Absent on a node nothing refers to. */
+export const BACKLINKS = selector(TESTID.backlinks);
+/** Its summary — the count in words, and what a pointer presses to open it. */
+export const BACKLINKS_SUMMARY = selector(TESTID.backlinksSummary);
+/** The two rows inside it: the referrers whose `see` lands here, and the ones
+ *  whose title or note writes this node's `@id`. Each holds `NODE_REF` links
+ *  exactly as the forward rows do. */
+export const BACKLINK_SEE_REFS = selector(TESTID.backlinkSeeRefs);
+export const BACKLINK_MENTION_REFS = selector(TESTID.backlinkMentionRefs);
+
 // ── writing a node's edges ─────────────────────────────────────────────
 /** The panel that writes one relation of one node, in place under the row or
  *  under a zoomed node's heading. `data-relation` says which of `see` /

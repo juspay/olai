@@ -333,6 +333,16 @@ const rewrite = (file: string, records: ReadonlyArray<string>): void => {
   writeFileSync(`${VAULT}/${file}`, records.map((one) => `${one}\n`).join(""))
 }
 
+/** What a served outline holds NOW, line by line — {@link rewrite}'s read half,
+ *  for the section that adds a record rather than replacing a file, and with
+ *  the same refusal: without a `VAULT` the path would be the string
+ *  `undefined/…`, and an ENOENT naming that is a worse thing to debug than the
+ *  sentence. */
+const servedLines = (file: string): ReadonlyArray<string> => {
+  if (VAULT === undefined) throw new Error("no VAULT; run through evidence.sh")
+  return readFileSync(`${VAULT}/${file}`, "utf8").split("\n").filter((line) => line !== "")
+}
+
 // ── the filter over the page ───────────────────────────────────────────
 
 const FILTER_INPUT = '[data-testid="filter-input"]'
@@ -382,6 +392,14 @@ const said = async (page: Page, locator: string) =>
 // ── the same filter over the pages that are a query already ────────────
 
 const OUTLINE_TREE = '[data-testid="outline-tree"]'
+/** A zoomed node's heading — what a `/n/<id>` page is waited on by. */
+const ZOOM_TITLE = '[data-testid="zoom-title"]'
+/** What refers to that node, read backwards: the `<details>`, its summary, and
+ *  the two rows inside it (`client/backlinks/`). */
+const BACKLINKS = '[data-testid="backlinks"]'
+const BACKLINKS_SUMMARY = '[data-testid="backlinks-summary"]'
+const BACKLINK_SEE_REFS = '[data-testid="backlink-see-refs"]'
+const BACKLINK_MENTION_REFS = '[data-testid="backlink-mention-refs"]'
 const DAY_PAGE = '[data-testid="day-page"]'
 const AGENDA_PAGE = '[data-testid="agenda-page"]'
 const TRASH_PAGE = '[data-testid="trash-page"]'
@@ -1287,6 +1305,60 @@ const SECTIONS = {
     // where it lives, with its mark, its children and its own outline intact.
     await opened(page, "/o/garden.olai", OUTLINE_TREE)
     await shot(page, "the-node-stays")
+  },
+
+  /**
+   * WHAT REFERS TO THIS NODE, and what happens to it when somebody adds a
+   * reference from somewhere else.
+   *
+   * `herbs` is the one node in this corpus anything points at: `order`
+   * (house.olai) sees it. So the section opens holding one entry — and the
+   * second shot is the whole claim the pixels have to carry, because it is
+   * taken after a file THIS TAB NEVER TOUCHED gained a note naming `@herbs`.
+   * Nothing was reloaded and nothing was clicked between them: the section a
+   * reader had already opened grew a row.
+   *
+   * The write goes through {@link rewrite} — another hand, the same door
+   * `menu_verbs.feature`'s `I rewrite` uses — precisely because a reference
+   * added by the tab under the camera would prove the forward half over again
+   * rather than the reverse one.
+   */
+  "what-refers-to-this-node": async (page) => {
+    pinnedBy(
+      "backlinks.feature",
+      "A node that is pointed at says so, and starts shut",
+      "A reference written elsewhere arrives while the section is open",
+      "A placement is not a reference",
+    )
+    await opened(page, "/n/herbs", ZOOM_TITLE)
+    console.log(`  shut, it says:      ${await textOf(page, BACKLINKS_SUMMARY)}`)
+    await shot(page, "collapsed")
+
+    await page.locator(BACKLINKS_SUMMARY).first().click()
+    await page.waitForTimeout(DRAWN)
+    // The count is RECORDS and the row is what they say — printed because a
+    // screenshot cannot show that `kitchen-herbs`, a mirror of this very node,
+    // is deliberately not among them.
+    console.log(`  open, it draws:     ${await textOf(page, BACKLINK_SEE_REFS)}`)
+    console.log(`  and the mirror of it (\`kitchen-herbs\`) is not: ${
+      await page.locator(`${BACKLINKS} [data-ref="kitchen-herbs"]`).count()
+    } entries`)
+    await shot(page, "open-one-referrer")
+
+    // ANOTHER HAND, in a file this page has no editor open on: garden.olai
+    // gains a note that names the herb bed by its `@id`.
+    rewrite("garden.olai", [
+      ...servedLines("garden.olai"),
+      `{"id":"cuttings","ord":"z0","title":"take cuttings from @herbs before the frost"}`,
+    ])
+    await page.waitForTimeout(SETTLE)
+    console.log(`  after the write:    ${await textOf(page, BACKLINKS_SUMMARY)}`)
+    console.log(`  the new row says:   ${await textOf(page, BACKLINK_MENTION_REFS)}`)
+    console.log(`  still open:         ${
+      await page.locator(BACKLINKS).first().evaluate((el) => (el as HTMLDetailsElement).open)
+    }`)
+    shotSays("cuttings", "garden.olai")
+    await shot(page, "a-reference-arrives")
   },
 } satisfies Record<string, (page: Page) => Promise<void>>
 

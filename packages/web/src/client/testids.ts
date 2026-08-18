@@ -229,6 +229,21 @@ export const TESTID = {
   /** The `×` on one drawn reference: drop that target from the node's `see` /
    *  `after` list. `data-ref` is the target it would drop. */
   refDrop: "ref-drop",
+  /** What refers to a ZOOMED node, read backwards — the `<details>` itself,
+   *  absent on a node nothing refers to. `data-count` is how many RECORDS refer
+   *  to it (a record that both points at it and names it in prose is one), and
+   *  whether the section is open is the element's own `open`. */
+  backlinks: "backlinks",
+  /** Its summary line — the count in words, and the thing to press to open it. */
+  backlinksSummary: "backlinks-summary",
+  /** The referrers whose `see` lands on this node, and the ones whose title or
+   *  note writes its `@id`: two rows of the same shape every other relation
+   *  draws, so a link inside either is a `nodeRef` with `data-ref` on it. Two
+   *  names because they are two claims — an edge somebody wrote with a verb,
+   *  and a word in a sentence — and a scenario about one must not pass on the
+   *  other. */
+  backlinkSeeRefs: "backlink-see-refs",
+  backlinkMentionRefs: "backlink-mention-refs",
 
   // ── the edge panel ───────────────────────────────────────────────────
   /** One of the two edge verbs on a ZOOMED node's page — the door a heading

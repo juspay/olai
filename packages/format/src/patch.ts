@@ -50,6 +50,7 @@
 
 import {
   blockageAt,
+  byCorpus,
   byLine,
   byOrd,
   derive,
@@ -57,6 +58,8 @@ import {
   type Filing,
   follow,
   type InTheWay,
+  mentionInto,
+  mentionsOf,
   nameInto,
   type Naming,
   nodeNamed,
@@ -168,11 +171,24 @@ export const patched = (
   const byId = ids(edit, nodes, claimed)
   const children = containment(edit)
   const namedBy = namings(edit, nodes)
+  const mentionedBy = mentions(edit)
   const { status, mirrorsOf, dirty } = resolutions(edit, byId)
   const { after, edgesTo, rewritten } = orderings(edit, { byId, mirrorsOf, namedBy }, dirty)
   const blocked = blockage(edit, { byId, status, after, edgesTo }, dirty, rewritten)
 
-  return { nodes, byId, children, status, after, blocked, byFile, mirrorsOf, edgesTo, namedBy }
+  return {
+    nodes,
+    byId,
+    children,
+    status,
+    after,
+    blocked,
+    byFile,
+    mirrorsOf,
+    edgesTo,
+    namedBy,
+    mentionedBy,
+  }
 }
 
 /**
@@ -283,15 +299,6 @@ const recordsIn = (
  *  replaced and never the same objects. */
 const elsewhere = (one: Located | undefined, other: Located | undefined): boolean =>
   one?.file !== other?.file || one?.line !== other?.line
-
-/** Corpus order, as a comparator: which file ({@link byPath}), then which
- *  line. The order `assemble` puts a set in, and the order every index below
- *  files its members in — spelled once here because three of them promise it,
- *  and reaching for the format's own path order rather than comparing two
- *  strings, because a file and the directory beside it are exactly the pair the
- *  two answers differ on. */
-const byCorpus = (a: Located, b: Located): number =>
-  a.file === b.file ? a.line - b.line : byPath(a.file, b.file)
 
 /**
  * Sibling order, with the tie `derive` leaves to its input made explicit.
@@ -414,6 +421,42 @@ const namings = (
   const namedBy = new Map(edit.before.namedBy)
   for (const [key, own] of rewritten) namedBy.set(key, own)
   return namedBy
+}
+
+/**
+ * What prose says what — {@link Derived.mentionedBy} carried across the edit.
+ *
+ * The same shape as {@link namings} above with the rebuild taken OFF, and the
+ * missing half is the whole difference between the two indexes: nothing reads
+ * these keys in order, so a key that arrives at the end of the map or leaves a
+ * hole in it changes no answer, and there is nothing to rebuild the map to
+ * preserve. What IS promised is each key's members in corpus order, which is
+ * what the sort keeps.
+ *
+ * Every key this edit can move is a key it TOUCHED — a word the arriving
+ * records write, or one the departing records wrote — because a record in a
+ * file the delta never named cannot have changed its prose.
+ */
+const mentions = (edit: Edit): ReadonlyMap<string, ReadonlyArray<Located>> => {
+  const arriving = new Map<string, Array<Located>>()
+  for (const at of edit.incoming) mentionInto(arriving, at)
+
+  const keys = new Set<string>(arriving.keys())
+  for (const at of edit.outgoing) for (const word of mentionsOf(at.node)) keys.add(word)
+
+  const mentionedBy = new Map(edit.before.mentionedBy)
+  for (const key of keys) {
+    const own = [
+      ...(edit.before.mentionedBy.get(key) ?? []).filter((at) => !edit.touched.has(at.file)),
+      ...(arriving.get(key) ?? []),
+    ].sort(byCorpus)
+    // A word nothing says any more is a key that GOES AWAY, never an empty list
+    // stored where `derive` would have had no key at all — the oracle compares
+    // what the map holds, not only what it answers.
+    if (own.length === 0) mentionedBy.delete(key)
+    else mentionedBy.set(key, own)
+  }
+  return mentionedBy
 }
 
 /**
