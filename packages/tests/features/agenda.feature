@@ -177,6 +177,27 @@ Feature: The agenda — what is owed, on one line of time
     And there should be no page errors
 
   @scratch:agenda
+  Scenario: A day the filter takes out leaves ONE longer silence behind it
+    # The silences are not data and are not narrowed: how long a wait is, is a
+    # fact about the days still on the line. So taking the middle one out of
+    # three has to close the two waits either side of it into a single longer
+    # one — which is a thing only a recomputation can do.
+    Given I open the agenda
+    And I mark the page
+    When something is scheduled for tomorrow in "work.olai"
+    And something is scheduled 15 days from today in "work.olai"
+    And something is scheduled 29 days from today in "work.olai"
+    # A fortnight either side of the middle day.
+    Then the agenda notes "two quiet weeks"
+    When I filter the page by "due-soon OR due-in-29"
+    # The 2019 days matched nothing and left; the middle day left too, and the
+    # four weeks it stood in the middle of are ONE wait now.
+    Then the agenda spine runs "today, ahead, ahead"
+    And the agenda notes "four quiet weeks"
+    And the page has not reloaded
+    And there should be no page errors
+
+  @scratch:agenda
   Scenario: A late row's pill says HOW late, and a timed one says when
     # The two facts a day heading cannot give, and the only two a pill is kept
     # for on this page.

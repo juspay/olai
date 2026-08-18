@@ -19,10 +19,13 @@
  *
  *   - LATE — "Yesterday · Mon, Aug 17", alarm ink. The felt word LEADS because
  *     it is the news; the calendar day behind it is the detail.
- *   - TODAY — "TODAY · Tue, Aug 18", small caps accent, on a bigger dot with a
- *     paper ring — and drawn even with nothing under it (then one muted italic
- *     line saying so). Now is a place on the line, not a section that
- *     disappears when the day is clear.
+ *   - TODAY — "TODAY · Tue, Aug 18", accent, on a bigger dot with a paper ring
+ *     — and drawn even with nothing under it (then one muted italic line saying
+ *     so). Now is a place on the line, not a section that disappears when the
+ *     day is clear. THE SMALL CAPS ARE THE WORD'S and not the heading's: the
+ *     ruled example sets TODAY in caps and leaves the date in title case, so
+ *     today's date reads like every other date on the line rather than being
+ *     the one day that shouts its own.
  *   - AHEAD — "Mon, Aug 24" first and a muted "in 6 days" BESIDE it: the day is
  *     what a reader is looking for out here, and the distance is the gloss.
  *
@@ -65,8 +68,12 @@ import { inkOf, lineOf, NOW_RING, type Rung, rowsOn } from "./spine.ts"
  *  markup uses rather than a flag it branches on again, which is what keeps
  *  this a table instead of a state machine spelled in booleans. */
 interface Face {
-  /** How the day's own name is set. */
+  /** How the day's own name is set — size, weight and ink, for the whole of
+   *  it. */
   readonly heading: string
+  /** What the felt word takes ON TOP of that, where it leads: today's small
+   *  caps, which belong to the word and not to the date after it. */
+  readonly lead: string
   /** Which dot marks it (../agenda/gutter.ts). */
   readonly dot: string
   /** The ring around it, where it has one. */
@@ -81,19 +88,21 @@ interface Face {
 const FACE: Record<Standing, Face> = {
   late: {
     heading: "text-xs font-semibold text-alarm",
+    lead: "",
     dot: SPINE_DOT,
     ring: undefined,
     distance: "leads",
   },
   today: {
-    heading:
-      "text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-accent",
+    heading: "text-[0.6875rem] font-semibold text-accent",
+    lead: "uppercase tracking-[0.08em]",
     dot: SPINE_NOW,
     ring: NOW_RING,
     distance: "leads",
   },
   ahead: {
     heading: "text-xs font-semibold text-ink",
+    lead: "",
     dot: SPINE_DOT,
     ring: undefined,
     distance: "beside",
@@ -111,16 +120,13 @@ export function Day(props: {
   // whether the day has anything, once to draw it — and a plain accessor would
   // flatten the day's groups for each of them, every frame.
   const rows = createMemo(() => rowsOn(props.rung.day))
-  /** What a day CALLS itself: the felt word in front where it is the news, and
-   *  the calendar day alone otherwise — including for a day nothing could
-   *  count the distance to, where there is no word to put in front of it
-   *  (`@olai/format`'s `Felt`). */
-  const named = (): string => {
-    const distance = felt().distance
-    return face().distance === "leads" && distance !== undefined
-      ? `${distance} · ${felt().calendar}`
-      : felt().calendar
-  }
+  /** The felt word in FRONT of the day's name, where it is the news — absent
+   *  for a day whose distance goes beside the name instead, and for one nothing
+   *  could count the distance to, where there is no word to put in front of it
+   *  (`@olai/format`'s `Felt`). Its own element rather than a string joined to
+   *  the date, because the treatment it takes is the WORD's. */
+  const leads = (): string | undefined =>
+    face().distance === "leads" ? felt().distance : undefined
   /** The distance drawn BESIDE the name, where that is where it goes. */
   const gloss = (): string | undefined =>
     face().distance === "beside" ? felt().distance : undefined
@@ -179,7 +185,23 @@ export function Day(props: {
               route={{ kind: "day", date: props.rung.day.date }}
               class={`${CRUMB} ${face().heading}`}
             >
-              {named()}
+              {/* ONE inline box inside the link, and it is load-bearing: the
+                  crumb is an `inline-flex`, and a bare " · " beside the word
+                  would become a flex item of its own with its spaces trimmed
+                  off — which is what turned "Yesterday · Mon, Aug 17" into
+                  "Yesterday· Mon, Aug 17". Inside a normal inline box the
+                  separator keeps the spaces it was written with. */}
+              <span>
+                <Show when={leads()}>
+                  {(word) => (
+                    <>
+                      <span class={face().lead}>{word()}</span>
+                      {" · "}
+                    </>
+                  )}
+                </Show>
+                {felt().calendar}
+              </span>
             </Link>
             <Show when={gloss()}>
               {(distance) => (

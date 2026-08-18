@@ -216,7 +216,10 @@
   .dayname { font-size: 0.78rem; font-weight: 600; }
   .dayname .away { font-family: var(--mono); font-size: 0.7rem; font-weight: 400; color: var(--muted); margin-left: 0.45rem; }
   .day.gone .dayname { color: var(--alarm); }
-  .day.now .dayname { color: var(--accent); text-transform: uppercase; letter-spacing: 0.07em; font-size: 0.68rem; }
+  .day.now .dayname { color: var(--accent); font-size: 0.68rem; }
+  /* The small caps are the WORD's, not the heading's: TODAY in caps, the date
+     in title case, so today reads like every other day on the line. */
+  .day.now .dayname .lead { text-transform: uppercase; letter-spacing: 0.07em; }
   /* Whole entries recede with distance. */
   .day.far { opacity: 0.62; }
   /* A silence is CONTENT: named when it is long enough to notice, and the room
@@ -579,7 +582,7 @@ The corner unit is the **risky one** — see
 
           <div class="day now">
             <span class="dot"></span>
-            <p class="dayname">Today · Wed, Aug 12</p>
+            <p class="dayname"><span class="lead">Today</span> · Wed, Aug 12</p>
             <div class="row"><span class="box"></span><span class="t">Book the plumber</span></div>
             <p class="trail">Kitchen renovation</p>
             <div class="row"><span class="bullet">●</span><span class="t">Ferry tickets go on sale</span></div>

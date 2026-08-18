@@ -74,9 +74,15 @@ export const NOW_RING = `0 0 0 3px ${tokenValue("paper")}, ` +
 export interface Rung {
   readonly day: AgendaDay
   readonly felt: Felt
-  /** The wait since the day above. For the first rung it is the lead-in, which
-   *  is a length and not a silence: there is no earlier day for it to be
-   *  between, so it carries no label and no days. */
+  /** The room above this day, and what to call it.
+   *
+   *  For the FIRST rung it is the lead-in, and the degenerate `Quiet` is exact
+   *  rather than a stand-in: there is no earlier day for it to be between, so
+   *  nought days have been waited and there is nothing to call the wait — what
+   *  is left is the room, which is {@link LEAD}. A union naming the two cases
+   *  would say the same thing one type louder, and nothing reads them apart:
+   *  the label is drawn when there is one, and `days` reaches the page only
+   *  alongside a label. */
   readonly quiet: Quiet
   /** The tone the line is already wearing when it reaches this rung —
    *  `undefined` at the top of the page, where it fades in out of nothing. */
