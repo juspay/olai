@@ -12,6 +12,14 @@
  * files used to each grow their own copy of this; one copy is what keeps that
  * diagnostic worth reading.
  *
+ * IT SERVES THE BENCHES TOO, and that is one concept rather than two: a
+ * generated corpus, a seeded random source, a median and a clock are what makes
+ * a MEASUREMENT re-runnable, which is the same thing that makes a fixture one.
+ * The alternative was a second helper module beside this one, and the argument
+ * against it is the argument for this one — `seeded` was moved here in the
+ * first place because a test and a benchmark were about to hold byte-identical
+ * copies of it.
+ *
  * Nothing here has tests of its own — it is a helper module, not a suite, and
  * `bun test` collects only `*.test.ts`.
  */
@@ -208,3 +216,147 @@ const unparsable = (
     "as written:",
     ...contents.split("\n").map((line, index) => `  ${index + 1} | ${line}`),
   ].join("\n")
+
+/**
+ * A GENERATED VAULT: path → the file's JSONL, one directory's worth of
+ * outlines with the shapes a real one has.
+ *
+ * Here rather than in either benchmark for {@link seeded}'s own reason, and
+ * with a sharper edge on it: two benches quote figures about "the 1,000-file
+ * vault" — what a frame costs a tab (`@olai/web`'s `deriving.bench.ts`) and
+ * what a patch costs the patcher underneath it ({@link ./patch.bench.ts}) —
+ * and two numbers about two different generated corpora are two numbers nobody
+ * may compare. One generator is what makes them one vault.
+ *
+ * WHAT IT WRITES, and each of the shapes earns its place: a root per file with
+ * its records under it, marks on about a third of them so blockedness has
+ * something to answer, an `after` edge on a tenth so the ordering graph is not
+ * empty, and — every twentieth record — a MIRROR pointing into the file before
+ * this one, so a mark that flips reaches a file the delta never named and the
+ * dirty set is not always one record. Paths are mostly flat, some nested, and
+ * a few in a directory named after a file beside it: the pair the two readings
+ * of path order used to disagree about.
+ *
+ * SEEDED, so the corpus is a fixture rather than a lottery, and the seed is a
+ * parameter rather than a constant so a caller that wants a second, different
+ * vault of the same shape can have one.
+ */
+export const vaultOf = (
+  { files, records, seed = 20260817 }: {
+    readonly files: number
+    readonly records: number
+    readonly seed?: number
+  },
+): ReadonlyMap<string, string> => {
+  const random = seeded(seed)
+  const corpus = new Map<string, string>()
+  for (let at = 0; at < files; at++) {
+    const path = pathOf(random, at)
+    if (corpus.has(path)) continue
+    corpus.set(path, fileOf(random, at, records))
+  }
+  return corpus
+}
+
+/** Paths a directory really holds — see {@link vaultOf}. Drawn from the same
+ *  stream the records are, so the whole vault is one seed's answer. */
+const pathOf = (random: () => number, at: number): string => {
+  const roll = random()
+  if (roll < 0.2) return `area${at % 20}/note${at}.olai`
+  if (roll < 0.24) return `area${at % 20}.olai`
+  return `note${at}.olai`
+}
+
+/** One file's JSONL: a root and its children, some marked, a few naming each
+ *  other and a few standing for a record in the file before them. */
+const fileOf = (random: () => number, at: number, records: number): string => {
+  const lines: Array<string> = []
+  const root = `f${at}r`
+  lines.push(JSON.stringify({ id: root, ord: "a0", title: `file ${at}` }))
+  for (let which = 1; which < records; which++) {
+    const id = `f${at}n${which}`
+    const record: Record<string, unknown> = {
+      id,
+      parent: root,
+      ord: `a${which}`,
+      title: `record ${which} of file ${at}`,
+    }
+    if (random() < 0.3) record["todo"] = true
+    else if (random() < 0.15) record["done"] = true
+    if (which > 1 && random() < 0.1) record["after"] = [`f${at}n${which - 1}`]
+    // A placement pointing into the file before this one, so a mark that flips
+    // reaches a file the frame never named.
+    if (at > 0 && random() < 0.05) {
+      lines.push(
+        JSON.stringify({ id: `${id}m`, parent: root, ord: `b${which}`, mirror: `f${at - 1}n1` }),
+      )
+    }
+    lines.push(JSON.stringify(record))
+  }
+  return lines.join("\n")
+}
+
+/**
+ * One record of a {@link vaultOf} file, retitled to say it was edit `which` —
+ * the EDIT both benches make, spelled once beside the generator whose titles it
+ * has to match, and beside {@link retitledIn}, which is how it is read back.
+ *
+ * A benchmark's edit is not decoration: an arm that answered a frame it never
+ * recomputed reports a magnificent number, and what catches that is reading the
+ * new title back out of the arm's own answer. So the two halves — write it,
+ * find it — have to agree about what was written, which is why they are one
+ * pair here and not a regex in this module and a `startsWith` in each bench.
+ */
+export const retitled = (text: string, which: number): string => {
+  const written = text.replace(/"title":"record 1 of file \d+"/, `"title":"${EDITED}${which}"`)
+  // THROWN rather than handed back unchanged, like every other fixture in this
+  // module: a no-op here is a benchmark whose edit edits nothing, and the arm
+  // that catches it catches it one step later and blames the arm.
+  if (written === text) {
+    throw new Error(
+      `fixture: this is not a \`vaultOf\` file — it holds no record to retitle:\n` +
+        text.split("\n").slice(0, 3).map((line, index) => `  ${index + 1} | ${line}`).join("\n"),
+    )
+  }
+  return written
+}
+
+/** Which edit {@link retitled} last wrote into one file's records, or
+ *  `undefined` where an arm is still holding a revision that has not heard
+ *  about any. The `EDITED` mark never leaves this module: a bench asks "which
+ *  edit does this view say it is at" and compares that to the edit it made. */
+export const retitledIn = (nodes: ReadonlyArray<Located>): number | undefined => {
+  for (const at of nodes) {
+    const title = (at.node as { readonly title?: string }).title
+    if (title?.startsWith(EDITED) === true) return Number(title.slice(EDITED.length))
+  }
+  return undefined
+}
+
+/** What a retitled record's title starts with. Private, so the two halves above
+ *  are the only way to write one or find one. */
+const EDITED = "edited "
+
+/**
+ * The middle of a run's times, in milliseconds.
+ *
+ * Here for {@link seeded}'s reason once more, and this was the third copy about
+ * to be written: `just bench`'s three legs each measure something different and
+ * each read their times the same way. A MEDIAN rather than a mean or a minimum,
+ * which is a decision the three of them have to share — a mean is dragged by
+ * one scheduling hiccup, and a minimum is a number nobody else's machine
+ * reproduces.
+ */
+export const median = (times: ReadonlyArray<number>): number =>
+  [...times].sort((one, other) => one - other)[Math.floor(times.length / 2)] ?? 0
+
+/** What `run` took, in milliseconds — `Bun.nanoseconds` because it is monotonic
+ *  and because one clock across three legs is one fewer thing that can differ
+ *  between two numbers somebody is comparing. A body that has to hand something
+ *  back writes it to a binding it closes over; the clock stops before the
+ *  binding is read. */
+export const timed = (run: () => void): number => {
+  const at = Bun.nanoseconds()
+  run()
+  return (Bun.nanoseconds() - at) / 1e6
+}
