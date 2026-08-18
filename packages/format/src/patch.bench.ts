@@ -296,11 +296,13 @@ const walked = (views: ReadonlyArray<Derived>): ReadonlyArray<number> => {
  * are then compared whole, so an arm that got cheaper by answering differently
  * fails the run.
  *
- * It is the LEVER and not the whole patch: what a patch costs around it is the
- * `patch` arm above, and the clone's share of that is arithmetic on two numbers
- * this file prints. Timing the whole patch both ways would mean two patchers in
- * the tree, and a second one nothing runs is worse than a subtraction anybody
- * can check.
+ * IT IS THE STEP AND NOT THE WHOLE PATCH, which the `patch+clone` arm above
+ * already shows: this one isolates the line, so the two can be read against
+ * each other — the gap between those arms should be about what the `cloned`
+ * number here is, and when it is not, one of them is measuring something else.
+ * It also reaches the two things the arm above cannot: what the step costs when
+ * the edits are ONE FILE typed in rather than a walk across the directory, and
+ * WHICH EDIT the layer flattened at, if it did.
  */
 const layered: CopyOnWrite = (base, changes) => overlaid(base, changes)
 
