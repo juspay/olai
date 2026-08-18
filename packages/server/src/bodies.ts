@@ -42,15 +42,21 @@
  * until sixteen newer opens pushed it out. Both were the cost of not knowing
  * when a reader leaves. The wire says now.
  *
- * THE COUNTING IS NOT OURS. Two readers of one file are two holds and the first
- * to leave takes its own and nobody else's, which is what kolu's refcounted
- * watchers spell by hand (`refcounted-dir-watcher.ts`: first subscribe installs,
- * all consumers share, last unsubscribe tears down, and the unsubscribe is
- * idempotent) — and what `effect`'s `RcMap` already is, keyed and scope-tracked,
- * so what is written here is the RESOURCE (a path being shown) and not the
- * arithmetic. The teardown lesson from those watchers survives as a line of our
- * own: a path asked for and then released before the reader got to it is DROPPED
- * rather than read, so a page opened and closed in one frame costs no disk.
+ * TWO READERS OF ONE FILE ARE TWO HOLDS, and the first to leave takes its own
+ * and nobody else's — the shape kolu's refcounted watchers landed on
+ * (`refcounted-dir-watcher.ts`: first subscribe installs, all consumers share,
+ * last unsubscribe tears down, and the unsubscribe is idempotent). Here the
+ * idempotence is not written at all: a hold is an `acquireRelease` on the
+ * reader's own scope, and a scope does not run its finalizer twice. The teardown
+ * lesson from those watchers does survive as a line of our own: a path asked for
+ * and then released before the reader got to it is DROPPED rather than read, so
+ * a page opened and closed in one frame costs no disk.
+ *
+ * THE OTHER END OF THIS COUNT IS THE BROWSER'S, and it has always been there:
+ * `@olai/web`'s `documents.tsx` counts the components asking for each path so
+ * that one page's unmount cannot cancel another's subscription. The client knew
+ * when a reader arrived and left all along; what changed is that the server can
+ * hear it, and the two ends now keep the same kind of book.
  *
  * ONE failure is quieter than it used to be, and it is a trade rather than an
  * oversight: a `.html` that cannot be READ (not gone — unreadable) reaches the
@@ -63,7 +69,7 @@
  */
 
 import type { PlatformFailure } from "@olai/store"
-import { Effect, Queue, RcMap, type Scope } from "effect"
+import { Effect, Queue, type Scope } from "effect"
 
 export interface Bodies {
   /**
@@ -97,32 +103,24 @@ export const make = (
   options: Options,
 ): Effect.Effect<Bodies, never, Scope.Scope> =>
   Effect.gen(function*() {
-    /** The files somebody is showing, as a SET that can be read on the spot:
-     *  {@link Bodies.unread} is called from the middle of a revision and cannot
-     *  await an answer. It is written by the refcount below and by nothing else
-     *  — the first holder of a path puts it here and the last one out takes it
-     *  away — so it is a projection of that count rather than a second account
-     *  of it. */
-    const reading = new Set<string>()
-    /** The refcount itself, and it is the ecosystem's rather than ours: an
-     *  `RcMap` shares one entry per key across every caller's SCOPE and releases
-     *  it when the last of them closes — first reader in, last reader out, with
-     *  the idempotence a hand-rolled release has to remember (`idleTimeToLive`
-     *  defaults to zero, so the last release is immediate rather than deferred).
-     *  Its "resource" is the membership above and NOTHING else: no body is held
-     *  here, which is the whole memory claim. */
-    const holders = yield* RcMap.make({
-      lookup: (path: string) =>
-        Effect.acquireRelease(
-          Effect.sync(() => {
-            reading.add(path)
-          }),
-          () =>
-            Effect.sync(() => {
-              reading.delete(path)
-            }),
-        ),
-    })
+    /**
+     * How many readers are showing each path — the ONE representation of "who
+     * is reading", and a path with none is absent from it rather than zero, so
+     * this map IS the set of files somebody has open and there is nothing to
+     * keep in step with it.
+     *
+     * It has to be readable on the spot: {@link Bodies.unread} is called from
+     * the middle of a revision, and its other caller is the framework's
+     * `readOne`, which is a plain synchronous function. That is what decided
+     * this against `effect`'s `RcMap`, which is the ecosystem's own
+     * refcount-by-key and was tried here first: its count is private and its
+     * keys are read through an `Effect`, so it left a second set beside it to
+     * answer the synchronous question — two accounts of one fact, and a lookup
+     * whose "resource" was that second set rather than anything of its own.
+     * `RcMap` is for sharing a scoped resource that HAS a value (a connection,
+     * a session); what is shared here is the fact of being watched.
+     */
+    const holders = new Map<string, number>()
     /** What is on the queue and not yet taken, so a burst of asks about one
      *  file is one read. A path is forgotten the moment the reader TAKES it,
      *  which is what keeps a change arriving mid-read from being swallowed. */
@@ -147,7 +145,7 @@ export const make = (
         // disk read for a page nobody is showing, and publishing it would be a
         // frame to a subscription that has gone — the late callback kolu's
         // watchers clear their timers to prevent.
-        if (!reading.has(path)) return
+        if (!holders.has(path)) return
         const text = yield* Effect.catch(
           options.read(path),
           (failure: PlatformFailure) =>
@@ -166,9 +164,26 @@ export const make = (
     ).pipe(Effect.forkScoped)
 
     return {
-      held: (path) => Effect.asVoid(RcMap.get(holders, path)),
+      // The scope is the whole of the lifetime: acquiring counts this reader
+      // in and the finalizer counts it out, exactly once, whatever ends the
+      // subscription. That is where a release function's idempotence went — a
+      // scope cannot run its finalizer twice, so there is no flag to remember.
+      held: (path) =>
+        Effect.asVoid(
+          Effect.acquireRelease(
+            Effect.sync(() => {
+              holders.set(path, (holders.get(path) ?? 0) + 1)
+            }),
+            () =>
+              Effect.sync(() => {
+                const count = holders.get(path)
+                if (count !== undefined && count > 1) holders.set(path, count - 1)
+                else holders.delete(path)
+              }),
+          ),
+        ),
       unread: (paths) => {
-        for (const path of paths) if (reading.has(path)) ask(path)
+        for (const path of paths) if (holders.has(path)) ask(path)
       },
     }
   })
