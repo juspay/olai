@@ -4,11 +4,12 @@
  *
  * Two tests in this package cannot use the in-process `withServe`
  * (`./serve.testlib.ts`), because what they are about IS the process boundary:
- * `shutdown.test.ts` (a signal must actually exit it) and `lock.test.ts` (a
- * SECOND olai over one directory must refuse to boot). What they need of a
- * child is the same three answers — where did it bind, is it gone, and what did
- * it say — and they are here so two copies cannot drift onto different events,
- * which is the fix `stoppedWithin` already is for the first of the three.
+ * `shutdown.test.ts` (a signal must actually exit it, and name itself on
+ * stderr first) and `lock.test.ts` (a SECOND olai over one directory must
+ * refuse to boot). What they need of a child is the same three answers —
+ * where did it bind, is it gone, and what did it say — and they are here so
+ * two copies cannot drift onto different events, which is the fix
+ * `stoppedWithin` already is for the first of the three.
  *
  * "Did that process stop?" is a BOOLEAN with a deadline, and the caller asserts
  * on it — which is what puts "it did not stop" in the failure message instead

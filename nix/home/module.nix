@@ -66,7 +66,9 @@ in
           Restart = "on-failure";
           # Effect's runMain exits 130 when the main fiber is interrupted
           # (SIGTERM from systemctl stop / session teardown). Without this,
-          # every clean stop lands the unit in failed.
+          # every clean stop lands the unit in failed. The process writes
+          # `olai web: received SIGTERM` to stderr first, so a non-systemctl
+          # SIGTERM is still a successful unit but is not a silent one.
           SuccessExitStatus = 130;
         };
         Install = {

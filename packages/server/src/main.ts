@@ -14,6 +14,12 @@
  *
  * Loopback by default. The surface is unauthenticated, so binding anywhere
  * else is a decision the operator has to type out and gets warned about.
+ *
+ * Signals: `runMain` interrupts the fiber on SIGINT/SIGTERM and exits 130,
+ * silently — Effect treats an interrupt as a successful stop and writes
+ * nothing. Our own listeners write `olai web: received SIGTERM` (or SIGINT)
+ * to stderr first, so a journal can tell a signaled death from a deliberate
+ * stop. Node allows more than one listener; `runMain` still does the unwind.
  */
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
@@ -78,14 +84,26 @@ const olai = Command.make("olai").pipe(
   Command.withSubcommands([web]),
 )
 
-// `runMain` IS the signal handling, the keep-alive and the exit code, and it
-// is why waiting on one effect above is enough: interrupting on SIGINT or
-// SIGTERM runs the scope's finalizers — the listener's teardown — and only then
-// exits, and a surface fault arrives as a failure it reports and sets the code
-// for. Hand-rolling it dropped three things quietly, the one that mattered
-// being that the port stayed held long enough to break a harness starting a
-// dozen servers on it.
+// `runMain` IS the interrupt, the keep-alive and the exit code, and it is why
+// waiting on one effect above is enough: interrupting on SIGINT or SIGTERM
+// runs the scope's finalizers — the listener's teardown — and only then exits,
+// and a surface fault arrives as a failure it reports and sets the code for.
+// Hand-rolling it dropped three things quietly, the one that mattered being
+// that the port stayed held long enough to break a harness starting a dozen
+// servers on it.
 //
+// It is SILENT on an interrupt. Effect treats that as a successful stop, so
+// nothing reaches stdout or stderr, and a journal that already treats 130 as
+// success (`SuccessExitStatus` in the shipped unit) cannot tell a signaled
+// crash from `systemctl stop`. The listeners below write the one line; they
+// do not replace `runMain`. Registered first so the name is on the pipe
+// before the unwind starts.
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () => {
+    process.stderr.write(`olai web: received ${signal}\n`)
+  })
+}
+
 // The LOG LEVEL is not set here and there is no flag of ours for it: Effect's
 // CLI already carries `--log-level`, parses it, documents it in `--help` and
 // provides the minimum level to whichever subcommand runs. Quiet is its default
