@@ -215,6 +215,17 @@ const patching = (name: string, alsoCloned: boolean): ReadonlyArray<number> => {
   return times
 }
 
+// WARMED FIRST, both of them, and then measured. One of the two arms has to go
+// first, and going first means paying for a JIT the other one then finds warm —
+// which on this pair pushes the wrong way twice over: it inflates `patch`, the
+// arm that runs first, against the `patch+clone` it is supposed to be cheaper
+// than. A discarded round each is a tenth of a second and takes the question
+// away. (The two reconstructions {@link patching} names still stand, and they
+// push the other way: they make the clone arm slower than the code it stands
+// for. What is left is a figure with a stated bias in one direction rather than
+// two that cancel by luck.)
+patching("patch", false)
+patching("patch+clone", true)
 const patchedMs = patching("patch", false)
 const patchedCloneMs = patching("patch+clone", true)
 

@@ -5,13 +5,16 @@
  * on that file — and then paid for a whole `new Map(byId)` anyway, one clone of
  * an entry per record in the directory, so that the revision a reader is
  * holding could not move under them. On a 21,552-record vault that clone is
- * the largest single line in a patch — 0.4ms of one, which `patch.bench.ts`
- * prints as `patch+clone` against `patch` (1.35ms against 0.96ms, a 1.4×) and
- * again as the step on its own. This is the lever `docs/brainstorming/
+ * ABOUT HALF of a patch, which `patch.bench.ts` prints as `patch+clone`
+ * against `patch` — 1.23ms against 0.60ms, a 2.0× — and again as the step on
+ * its own, at 0.39ms of it. (The two do not have to agree: the step's own cost
+ * is what a clone takes to build, and the gap between the arms is that plus
+ * the garbage a 21,552-entry allocation leaves for later work to collect.)
+ * This is the lever `docs/brainstorming/
  * model-indices.md`'s open question 1 named: a LAYER over the map the last
  * patch left standing, holding the entries this one changed, so an edit costs
  * what it touched rather than what the directory holds. Layered, the same step
- * costs 0.01ms where the edits wander and 0.002ms where they are one file
+ * costs 0.009ms where the edits wander and 0.001ms where they are one file
  * typed in, which is the case a keystroke is.
  *
  * WHAT IT IS EQUAL TO is the whole of its contract, and it is one line:
