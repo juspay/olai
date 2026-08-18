@@ -7,6 +7,13 @@
  * agenda is the same dates read forward — what is owed. Neither is a thing on
  * disk, which is exactly why they are here rather than in the tree below them.
  *
+ * ABOVE BOTH sits the reader's own short list — the pinned shelf
+ * (./pins/Shelf.tsx), which is neither of the journal's questions and not a
+ * thing on disk that this column walks: it is a handful of doors somebody
+ * kept, and a short list that has to be scrolled past a corpus to reach is a
+ * list nobody keeps. It draws nothing when there are no pins, so a directory
+ * that has never used one has the column it always had.
+ *
  * Desktop: a resizable column when open, replaced by the icon rail when
  * minimized (./layout/Rail.tsx). Mobile: a slide-over drawer with scrim under
  * the header — not the old capped close-on-any-tap sheet. App chrome
@@ -99,6 +106,7 @@ import { openFolders, toggleFolder } from "./fold/folders.ts"
 import { LAYER, WITHIN } from "./layer.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
+import { Shelf } from "./pins/Shelf.tsx"
 import { Link, useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
@@ -276,6 +284,11 @@ export function Sidebar(props: {
           // open several without reopening the drawer each time.
           onClick={() => props.onClose()}
         >
+          {/* THE SHELF, above everything else in the column — the reader's own
+              short list, before the directory's answers about itself. It draws
+              nothing at all when the directory has no pins (`./pins/Shelf.tsx`),
+              so the ordinary column is exactly the column it always was. */}
+          <Shelf />
           <Agenda agenda={props.agenda} />
           {props.children}
 

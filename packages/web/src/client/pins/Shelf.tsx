@@ -1,0 +1,182 @@
+/**
+ * THE PINNED SHELF: the doors a reader keeps, at the top of the directory
+ * column.
+ *
+ * Above everything else in the column on purpose. What is under it — the
+ * agenda, the month, the file tree — is the DIRECTORY, answered afresh every
+ * time it is drawn; this is the reader's own short list, and a short list that
+ * has to be scrolled past a corpus to reach is a list nobody keeps.
+ *
+ * AN EMPTY SHELF DRAWS NOTHING — not an empty box, not a heading, not a hint.
+ * A directory with no pins is the ordinary state of every directory olai has
+ * ever served, and a permanent affordance for a feature nobody has used yet is
+ * chrome charged to everyone. Its presence is therefore the fact a scenario
+ * asserts.
+ *
+ * WHAT IT DRAWS IS THE DIRECTORY, never a local list. The pins come off the
+ * same indexes every page is drawn from (`./pins.ts`), so a pin an AGENT wrote
+ * — into `Pins.olai`, with `add_node`, from a terminal — is on the shelf on the
+ * frame the store publishes it, exactly like a row appearing in an outline.
+ * Nothing here is optimistic and nothing is echoed: a pin, an unpin and a
+ * reorder each go to the write gate and the shelf redraws when the file says
+ * so, which is the rule the whole editor is built on.
+ *
+ * ## The reorder
+ *
+ * The gesture is `../pointer.ts`'s — the shared one, which owns the window
+ * listeners, the teardown, the text-selection guard and the travel that tells a
+ * drag from a click on a row that is also a link. The arithmetic is
+ * `./reorder.ts`'s, pure and unit-tested. What is left here is the middle: the
+ * measurement taken once when the drag lifts, the gap the pointer is over, and
+ * the one `place` a release sends.
+ *
+ * The rows are measured ONCE, at the lift, for the tree drag's reason exactly:
+ * nothing on screen moves while a row is carried — the shelf redraws when the
+ * file says so, which is after the drop — so a re-measure per frame would be a
+ * forced layout for an answer that cannot have changed.
+ */
+
+import { createMemo, createSignal, For, onCleanup, Show } from "solid-js"
+
+import { useDerived } from "../derived.tsx"
+import { useUndo } from "../edit/undoing.ts"
+import { createDrags, TRAVEL_PX } from "../pointer.ts"
+import { useRouter } from "../router.tsx"
+import { hrefOf } from "../routes.ts"
+import { TESTID } from "../testids.ts"
+import { applying } from "../writes.ts"
+import { nameOf, narrowingOf } from "./name.ts"
+import { Pin } from "./Pin.tsx"
+import { sayPin } from "./pinning.ts"
+import { type Pin as Pinned, pinsOf } from "./pins.ts"
+import { gapAt, placing } from "./reorder.ts"
+
+/** Where each drawn row SITS, taken once when a drag lifts: the midpoint that
+ *  decides which gap the pointer is over (in page coordinates, so a scroll
+ *  during the drag does not move the answer), and the offset the drop line is
+ *  drawn at (inside the list, which is what it is positioned against). */
+interface Measured {
+  readonly middles: ReadonlyArray<number>
+  readonly gaps: ReadonlyArray<number>
+}
+
+export function Shelf() {
+  const derived = useDerived()
+  const router = useRouter()
+  const undo = useUndo()
+  const drags = createDrags()
+
+  const pins = createMemo(() => pinsOf(derived()))
+
+  // The row a press is on, the rows' places as they were at the lift, and the
+  // gap the pointer is over — three signals rather than one, because only the
+  // last of them changes per move.
+  const [carrying, setCarrying] = createSignal<number | undefined>(undefined)
+  const [gap, setGap] = createSignal<number | undefined>(undefined)
+  let measured: Measured | undefined
+  let travelled = false
+  const rows: Array<HTMLLIElement | undefined> = []
+  let list: HTMLUListElement | undefined
+
+  /** The rows' places, read off the DOM at the moment the drag lifts. */
+  const measure = (): Measured => {
+    const box = list?.getBoundingClientRect()
+    const middles: Array<number> = []
+    const gaps: Array<number> = []
+    for (const row of rows) {
+      if (row === undefined) continue
+      const at = row.getBoundingClientRect()
+      middles.push(at.top + at.height / 2 + window.scrollY)
+      gaps.push(at.top - (box?.top ?? 0))
+    }
+    const last = rows.at(-1)?.getBoundingClientRect()
+    gaps.push(last === undefined ? 0 : last.bottom - (box?.top ?? 0))
+    return { middles, gaps }
+  }
+
+  const grab = (at: number, event: PointerEvent) => {
+    travelled = false
+    drags.start(event, {
+      threshold: TRAVEL_PX,
+      onStart: () => {
+        travelled = true
+        measured = measure()
+        setCarrying(at)
+        setGap(at)
+      },
+      onPage: (_x, y) => {
+        if (measured !== undefined) setGap(gapAt(measured.middles, y))
+      },
+      onEnd: (ended) => {
+        const from = carrying()
+        const landing = gap()
+        setCarrying(undefined)
+        setGap(undefined)
+        measured = undefined
+        // A CANCELLED gesture is not a drop — the pointer was taken away
+        // rather than released — so nothing is written, which is the
+        // distinction `../pointer.ts` hands over and the one a caller must not
+        // read past.
+        if (ended === null || from === undefined || landing === undefined) return
+        const edit = placing(pins(), from, landing)
+        if (edit === undefined) return
+        void applying(edit, undo.record).then(sayPin)
+      },
+    })
+  }
+
+  const unpin = (pin: Pinned) => {
+    // The set's own removal, and the only one it has: the pin's row goes to the
+    // Trash keeping its id, so an unpin is undoable with ⌘Z and reversible from
+    // the Trash's own `Put back`. A second verb that erased it would be a
+    // removal only this face knew (`@olai/surface`'s `edit.ts`).
+    void applying({ verb: "archive", id: pin.id }, undo.record).then(sayPin)
+  }
+
+  const here = createMemo(() => hrefOf(router.route()))
+
+  return (
+    <Show when={pins().length > 0}>
+      <section class="relative mb-3" data-testid={TESTID.pinShelf}>
+        <ul class="m-0 list-none p-0" ref={list}>
+          <For each={pins()}>
+            {(pin, at) => (
+              <Pin
+                pin={pin}
+                name={pin.named ?? nameOf(pin.route, derived())}
+                narrowing={narrowingOf(pin.route)}
+                current={here() === hrefOf(pin.route)}
+                lifted={carrying() === at()}
+                onGrab={(event) => grab(at(), event)}
+                dragged={() => travelled}
+                onRemove={() => unpin(pin)}
+                ref={(element) => {
+                  rows[at()] = element
+                  onCleanup(() => {
+                    if (rows[at()] === element) rows[at()] = undefined
+                  })
+                }}
+              />
+            )}
+          </For>
+          {/* Where it would land. Drawn only while something is carried, and
+              positioned against the LIST rather than the page, so it does not
+              have to know where in the column the shelf sits. */}
+          {/* `gap() !== undefined` rather than `when={gap()}`, because zero is
+              a real answer — the gap ABOVE the first pin — and a truthiness
+              test would draw no line for the one landing a reader is most
+              likely to aim at. */}
+          <Show when={gap() !== undefined}>
+            <li
+              class="pointer-events-none absolute inset-x-1 h-0.5 rounded bg-accent"
+              data-testid={TESTID.pinDropLine}
+              data-gap={String(gap())}
+              aria-hidden="true"
+              style={{ top: `${measured?.gaps[gap() ?? 0] ?? 0}px` }}
+            />
+          </Show>
+        </ul>
+      </section>
+    </Show>
+  )
+}

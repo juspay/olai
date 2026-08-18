@@ -151,6 +151,10 @@ export {
   isMirror,
   Located,
   MARKS,
+  /** The shelf's own filename, and the walk that finds a directory's — the
+   *  pin convention, read the way the inbox one is (`./node.ts`). */
+  PINS,
+  pinsIn,
   /** A place in the loaded set — `{file, line}`, as a schema, so an error's
    *  site, a record in the set, a read's answer and a mirror's location are one
    *  derivation of "where" rather than four spellings of it. */

@@ -22,6 +22,7 @@ import {
   INBOX,
   type OpFailure,
   type OutlineSet,
+  PINS,
   type Reading,
 } from "@olai/format"
 import { readingOf, setOf } from "@olai/format/testlib"
@@ -147,6 +148,43 @@ test("a blank capture is left to the ops layer, which has the words for it", () 
   // agent gets, and a fence in this resolver would be a fence one face has.
   expect(asked({ verb: "capture", title: "   " }))
     .toEqual({ op: "create", file: INBOX, seed: { title: "   " } })
+})
+
+// ── the shelf's pin ────────────────────────────────────────────────────
+
+test("a pin into a directory with a shelf is an `add` into that file", () => {
+  const set = setOf({ "house.olai": HOUSE, [PINS]: "" })
+  expect(asked({ verb: "pin", at: "/n/order" }, reading(set)))
+    .toEqual({ op: "add", file: PINS, title: "/n/order" })
+})
+
+test("a pin into a directory with NO shelf mints one holding the address", () => {
+  // The capture's argument one convention over: ONE op, so a refused pin
+  // leaves no empty `Pins.olai` behind.
+  expect(asked({ verb: "pin", at: "/agenda?q=is%3Atodo" }))
+    .toEqual({ op: "create", file: PINS, seed: { title: "/agenda?q=is%3Atodo" } })
+})
+
+test("a shelf the directory already keeps somewhere else is the one used", () => {
+  const set = setOf({ "house.olai": HOUSE, "notes/pins.olai": "" })
+  expect(asked({ verb: "pin", at: "/today" }, reading(set)))
+    .toEqual({ op: "add", file: "notes/pins.olai", title: "/today" })
+})
+
+test("a pin names NO anchor, so it lands last on the shelf", () => {
+  // Where a new bookmark goes, and the ops layer's own default for an `add`
+  // that names no sibling. Where it goes afterwards is a drag's `place`.
+  const set = setOf({ "house.olai": HOUSE, [PINS]: `{"id":"p","ord":"a0","title":"/today"}` })
+  expect(asked({ verb: "pin", at: "/agenda" }, reading(set)))
+    .toEqual({ op: "add", file: PINS, title: "/agenda" })
+})
+
+test("the address is carried VERBATIM — nothing on the way parses one", () => {
+  // A date crosses as the ten characters that were picked; an address crosses
+  // as the characters this app minted. What reads it back is the browser, at
+  // view time, through the same bijection that wrote it.
+  expect(asked({ verb: "pin", at: "/o/a b.olai" }))
+    .toEqual({ op: "create", file: PINS, seed: { title: "/o/a b.olai" } })
 })
 
 // ── the four moves ─────────────────────────────────────────────────────
@@ -669,6 +707,21 @@ test("a capture is taken back the same way a new row is", () => {
       { verb: "capture", title: "buy milk" },
       "n7",
       reading(setOf({ "house.olai": HOUSE, [INBOX]: "" })),
+    ),
+  ).toEqual([{ verb: "remove", id: "n7" }])
+})
+
+test("a pin is taken back the same way a capture is", () => {
+  // Both are an `add` a person did not choose the place for, so both go by the
+  // same narrowed un-create — and a shelf this pin MINTED is left standing,
+  // for the reason a minted inbox is.
+  expect(inverse({ verb: "pin", at: "/n/order" }, "n7"))
+    .toEqual([{ verb: "remove", id: "n7" }])
+  expect(
+    inverse(
+      { verb: "pin", at: "/n/order" },
+      "n7",
+      reading(setOf({ "house.olai": HOUSE, [PINS]: "" })),
     ),
   ).toEqual([{ verb: "remove", id: "n7" }])
 })

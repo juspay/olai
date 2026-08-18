@@ -211,6 +211,31 @@ A `.md` file under the served directory is a **document**, and documents are par
 - A document may point at **pictures** beside itself: a relative `![](art/shot.png)` resolves against the document's own directory (a note's resolves against its outline's) and is served from `/media/`, restricted to picture extensions. A `..` is clamped at the served directory rather than escaping it, and nothing else is drawn at all — no remote host, no `data:`, no absolute path, no `.svg`, since an SVG is a document that can script. The same route serves a `.html` preview and the parts it draws with ([Hypertext](#hypertext)) — one answer to "which files may be fetched over HTTP", not two, and one traversal guard in front of it. What markdown may *name* is still a picture and nothing else: that is a rule about what markdown means, and it did not widen when the route did. Pictures are not part of the set: nothing loads them, and they exist only as the target of a relative link.
 - A document may **link** to another: a relative `[the deck](../projects/deck.md)` is rewritten at view time to that document's page (`/doc/…`). A relative link to a `.html` beside it is rewritten the same way, since that file has a page too. An `http:`/`https:` link is left as written and opens in a new tab. Everything else — a fragment, a path that is not a served file — goes where it says, in this tab. The same pipeline draws a node's note and what the agent says, so the rule is one.
 
+## Pins
+
+**A pin is an ordinary node, in an ordinary outline, whose title is an ADDRESS.** The sidebar draws a shelf of them above the file tree — one click back to a node, a document, or a page with the query it was narrowed by ([editing.md](editing.md#pinning-a-page-to-the-sidebar)). Nothing in this format is new for it: no field, no record shape, no op.
+
+**The file is `Pins.olai`, by NAME**, wherever in the directory it sits — the third filename that means something, read the way the [inbox](#days) and the archive are (case-insensitively, shallowest first, then path order; `@olai/format`'s `pinsIn`). A directory without one has an empty shelf, which draws nothing.
+
+**The top level of that file is the shelf, in `ord` order.** One node per pin. What is nested under a pin is that pin's own business — notes about it, a checklist — and is not a second row in the sidebar.
+
+**The title is the address this app would spell for that page**, and the addresses are the app's own ([architecture.md](architecture.md)): `/n/<id>` a node, `/doc/<path>` a document or a `.html`, `/o/<path>` an outline, `/d/<ISO>` a day, `/today`, `/agenda`, `/trash` — each optionally carrying `?q=<filter>`, which is how a **saved query** is a pin at all ([search.md](search.md)).
+
+```jsonl
+{"id":"p-herbs","ord":"a0","title":"/n/herbs"}
+{"id":"p-late","ord":"a1","title":"[What is late](/agenda?q=is%3Atodo)"}
+```
+
+**A bare address has no name stored beside it, and that is the point.** What the shelf draws for `/n/herbs` is that node's title *right now* — so a node renamed anywhere, by anyone, says its new name on the shelf, because there was never a second copy of it to go stale. That is the same argument [Two record shapes](#two-record-shapes) makes about a mirror. A file's pin is called by its own filename; the pages that are not files are called what a reader calls them.
+
+**A markdown link is a NAMED pin** — `[What is late](/agenda?q=…)`. A title is inline markdown in this format already ([Fields](#fields)), so `Pins.olai` opened as an outline draws it as an ordinary link. A name written there is somebody's, not a copy of anything, so nothing can disagree with it later; olai itself never writes one.
+
+**A row that is not an address is not a pin.** `Pins.olai` is an ordinary outline: a heading in it, a note, a title that merely begins with a slash — none of them is a door, and the shelf simply does not draw them. The test is the address bijection rather than a list of prefixes, so `/etc/passwd` reads as text.
+
+**A mirror in there is not a pin either.** A placement means *draw it here too*, so a shelf built out of mirrors would pull every pinned node's whole subtree into `Pins.olai`. A pin says *go there*, which is a different thing, and the difference is why this convention is titles rather than placements.
+
+**Both faces write it with the tools they already have.** An agent pins with `add_node` into `Pins.olai` (or `create_outline` when the directory has none), reorders with `move_node`, and unpins with `archive_node` — which is exactly what the browser's own gestures resolve to, one op each ([architecture.md](architecture.md)'s one write gate). The web has one verb of its own, `pin`, and all it saves a browser is the READING: which file the shelf is is a fact about the directory, so it is resolved where the write is judged, the same way a quick capture finds the inbox.
+
 ## Hypertext
 
 A `.html` file under the served directory is **hypertext**, and it is the third kind of file olai claims — the sidebar lists it under the folder it lives in with a glyph of its own, and it has a page at `/doc/<path>` like a document does. What is in a vault is not only outlines and notes: a saved article, a report a build wrote, an export from some other tool.

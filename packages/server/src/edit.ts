@@ -65,6 +65,8 @@ import {
   type LocatedRegular,
   nodeNamed,
   type OpFailure,
+  PINS,
+  pinsIn,
   type Reading,
   siblingsOf,
   type Status,
@@ -86,6 +88,8 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       return addRequest(at, edit)
     case "capture":
       return captureRequest(at, edit)
+    case "pin":
+      return pinRequest(at, edit)
     case "move":
       return moveRequest(at.derived, edit)
     // The FIFTH move, and the one that resolves NOTHING: the picker names the
@@ -360,6 +364,34 @@ const captureRequest = (
     inbox === undefined
       ? { op: "create", file: INBOX, seed: { title: edit.title } }
       : { op: "add", file: inbox, title: edit.title },
+  )
+}
+
+/**
+ * A PIN, resolved against the set: which file the shelf is, and whether there
+ * is one yet.
+ *
+ * {@link captureRequest} one convention over, and deliberately the same two
+ * lines: an existing shelf takes an `add`, a directory with none takes a
+ * `create` seeded with this very address. The reasoning is that arm's read
+ * again — where the file is is a fact about the SET, so it is read here rather
+ * than in a tab holding a file list some frames old, and one op is what keeps a
+ * refused pin from leaving an empty `Pins.olai` behind.
+ *
+ * NO ANCHOR, so a new pin lands LAST among the shelf's top-level rows — which
+ * is where a new bookmark goes, and is the ops layer's own default for an
+ * `add` that names no sibling. Where it goes AFTERWARDS is the drag's, and
+ * that is a `place` like every other reordering in this app.
+ */
+const pinRequest = (
+  at: Reading,
+  edit: Extract<Edit, { verb: "pin" }>,
+): Resolved => {
+  const shelf = pinsIn(at.set.files)
+  return Result.succeed(
+    shelf === undefined
+      ? { op: "create", file: PINS, seed: { title: edit.at } }
+      : { op: "add", file: shelf, title: edit.at },
   )
 }
 
@@ -706,6 +738,11 @@ export const inverseOf = (
     // empty outline in the sidebar, which is a thing a reader can see and
     // delete rather than a file quietly appearing and disappearing.
     case "capture":
+    // A pin is a capture onto the shelf, so ⌘Z is the same un-create: the pin's
+    // row goes and the reader's page does not move. A shelf this pin MINTED is
+    // left standing, exactly as a minted inbox is and for the reason written
+    // there — no face removes a file.
+    case "pin":
       return [{ verb: "remove", id: applied }]
     // Both are the same question — where does this row sit right now — asked
     // before the write that moves it. A `place` being undone is a `place`

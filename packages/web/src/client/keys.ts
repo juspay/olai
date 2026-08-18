@@ -43,6 +43,7 @@ export type KeyAction =
   | "undo"
   | "redo"
   | "closePane"
+  | "pin"
 
 export interface KeyMatch {
   readonly action: KeyAction
@@ -65,6 +66,7 @@ const wantsMeta = (): boolean => isApplePlatform()
  *   ⌘J / Ctrl+J   — toggle chat
  *   ⌘Z / Ctrl+Z   — undo the last edit this tab made
  *   ⌘⇧Z / Ctrl+⇧Z — redo it
+ *   ⌘⇧P / Ctrl+⇧P — pin the page to the sidebar, or unpin it
  *
  * ⌘J / Ctrl+J and Ctrl+K shadow browser chrome defaults (downloads / search
  * bar) — deliberate, so keyboard editing could not claim those combos later,
@@ -99,6 +101,17 @@ export const CHORDS: ReadonlyArray<
   { key: "j", action: "chat", whileEditing: false },
   { key: "z", action: "undo", whileEditing: false },
   { key: "z", action: "redo", whileEditing: false, shift: true },
+  // ⌘⇧P / Ctrl+⇧P — put the page on the shelf, or take it off (`pins/`). With
+  // Shift rather than bare, because bare ⌘P is Print and always will be.
+  //
+  // `whileEditing: true`, and the FILTER BOX is the whole argument: "pin this
+  // page, narrowed like this" is a thing a reader means the moment they have
+  // finished typing the query, and a chord that went dead in the box would be
+  // dead at exactly the moment the gesture is wanted. It claims nothing a text
+  // field means — unlike ⌘Z, which a draft has its own answer for — and what
+  // it writes is about the PAGE rather than about whatever the caret is in, so
+  // a row being typed is left where it is.
+  { key: "p", action: "pin", whileEditing: true, shift: true },
   // The browser owns bare ⌘W / Ctrl+W (close the tab). This is the
   // equivalent we can actually receive: the same letter, with Shift, so
   // a pane is not a tab. The close button and the palette row are the
@@ -510,6 +523,7 @@ export const SHORTCUTS: ReadonlyArray<{
       { keys: "⌘J / Ctrl+J", what: "show or hide the agent" },
       { keys: "⌘Z / Ctrl+Z", what: "take back your last edit on this outline" },
       { keys: "⌘⇧Z / Ctrl+⇧Z", what: "put it back" },
+      { keys: "⌘⇧P / Ctrl+⇧P", what: "pin this page to the sidebar, or unpin it" },
       { keys: "⌘⇧W / Ctrl+⇧W", what: "close the focused pane" },
     ],
   },

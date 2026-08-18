@@ -449,9 +449,49 @@ export const INBOX = `Inbox${OUTLINE_EXT}`
  * resolves through it (`@olai/server`'s `edit.ts`), and an agent capturing by
  * hand reads the same sentence rather than guessing at the browser's.
  *
- * The file is whichever outline is CALLED `Inbox.olai`, wherever it sits, so
- * a directory that already keeps its inbox under `notes/` captures into the
- * file it has rather than growing a second one at the root. Case-insensitively,
+ * HOW that file is found is {@link outlineCalled}'s, and it is that function
+ * rather than a walk here because the shelf below is found the same way.
+ */
+export const inboxIn = (files: ReadonlyArray<string>): string | undefined =>
+  outlineCalled(files, INBOX)
+
+/**
+ * The outline the PINNED SHELF is — every pin the directory holds, one node
+ * per pin, in the order they are drawn.
+ *
+ * The third filename in this file that means something, and it means it the
+ * way the other two do: BY ITS NAME, with no field on any record saying so.
+ * What is in it is ORDINARY NODES whose titles name an ADDRESS in this app —
+ * which is what a bookmark is — so an agent reads the shelf with
+ * `read_subtree`, adds to it with `add_node`, reorders it with `move_node`
+ * and takes something off it with `archive_node`. Pinning grew no verb on
+ * either face, which is the whole reason the shelf is a file of nodes rather
+ * than a field (docs/format.md's Pins).
+ *
+ * AT THE ROOT when olai mints one, for {@link INBOX}'s reason exactly: a shelf
+ * nobody has created yet is a promise the sidebar makes, and the file it mints
+ * has to be the file a person would have made themselves.
+ */
+export const PINS = `Pins${OUTLINE_EXT}`
+
+/** The directory's shelf, or `undefined` when it has none — {@link inboxIn}'s
+ *  question one convention over, answered by the same walk so that one
+ *  directory cannot have two answers depending on who asked. */
+export const pinsIn = (files: ReadonlyArray<string>): string | undefined =>
+  outlineCalled(files, PINS)
+
+/**
+ * The one outline a directory CALLS by a given name, or `undefined`.
+ *
+ * Two conventions are read this way — the inbox a capture lands in, the shelf a
+ * pin lands on — and they became one function the moment there were two of
+ * them: the rule is not "where the inbox is", it is "how this format finds the
+ * file a directory named", and a second copy of it would be two directories'
+ * worth of behaviour under one sentence in docs/format.md.
+ *
+ * The file is whichever outline is CALLED that, wherever it sits, so a
+ * directory that already keeps its inbox under `notes/` captures into the file
+ * it has rather than growing a second one at the root. Case-insensitively,
  * because it is a name a person typed and `inbox.olai` is the same intention.
  *
  * SHALLOWEST WINS, then path order — one answer, and a stable one, for the
@@ -462,9 +502,12 @@ export const INBOX = `Inbox${OUTLINE_EXT}`
  * first", and a second one would be a directory whose inbox depended on who
  * was asking.
  */
-export const inboxIn = (files: ReadonlyArray<string>): string | undefined =>
+const outlineCalled = (
+  files: ReadonlyArray<string>,
+  name: string,
+): string | undefined =>
   files
-    .filter((file) => basenameOf(file).toLowerCase() === INBOX.toLowerCase())
+    .filter((file) => basenameOf(file).toLowerCase() === name.toLowerCase())
     .sort((a, b) => depthOf(a) - depthOf(b) || byPath(a, b))
     .at(0)
 

@@ -64,7 +64,15 @@ export const opItems = (
   if (zoomed === undefined) return []
   const title = zoomed.shows.node.title
   return writeVerbs(subjectOfZoom(zoomed), derived).flatMap((verb) =>
-    verb.does.kind === "edit"
+    // AND THE SHELF'S VERB IS LEFT OUT, which is the one exclusion by NAME in
+    // this file and needs its own sentence because of that. The palette
+    // already carries a pin row, and that one is about the PAGE
+    // (`../pins/palette.ts`) — so on a zoomed node, where the page IS that
+    // node, keeping this one would put two rows in the list doing one thing,
+    // and the reader would have to know that one of them drops the `?q=`. The
+    // `•••` on a ROW is where a node is pinned from, and it goes on offering
+    // this verb from `../menu/verbs.ts` unchanged.
+    verb.id !== "pin" && verb.id !== "unpin" && verb.does.kind === "edit"
       ? [{
         // Prefixed, because the palette's ids are one namespace and a shell
         // item called `archive` would collide with this one the day somebody

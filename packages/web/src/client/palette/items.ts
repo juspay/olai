@@ -33,6 +33,15 @@ export type PaletteAction =
   | { readonly kind: "reset-widths" }
   | { readonly kind: "close-pane" }
   /**
+   * PIN THIS PAGE, or take it off the shelf — its own arm rather than an
+   * `edit`, because which of the two writes it is is a question about the
+   * DIRECTORY (does the shelf already hold this address) and the row is built
+   * where that is known (`../pins/palette.ts`). Carrying an `Edit` would mean
+   * deciding it at build time and sending it a keystroke later, against a
+   * shelf that may have moved.
+   */
+  | { readonly kind: "pin" }
+  /**
    * ONE OP, at the write gate every other write in this app goes through
    * (`../writes.ts`) — the row carries the {@link Edit} it will send, decided
    * when the list was built, exactly as a `•••` entry does.

@@ -96,6 +96,13 @@
  * is read on the server like `docDay`'s path, and it is still ONE op at the
  * gate.
  *
+ * ONE IS THE SIDEBAR'S, and it is the palette's verb read one convention over.
+ * `pin` says "put this page on the shelf" — an address and nothing else — and
+ * where the shelf IS is read on the server exactly as the inbox is. What it
+ * does NOT have is a twin: unpinning is `archive` of the pin's own node,
+ * because the shelf is a file of ordinary nodes and a removal it did not share
+ * with `archive_node` would be a verb only one face knew.
+ *
  * AND ONE IS BOTH THEIRS. `mark` names the mark a node should carry, which is
  * what a menu entry means ("this is doing now") and what an undo means ("it
  * carried `todo` before I ticked it off"). Two callers, one arm — a second
@@ -668,6 +675,54 @@ export const Edit = Schema.Union([
    * not have. What the browser is spared is the READING, not an op.
    */
   Schema.Struct({ verb: Schema.Literal("capture"), title: Schema.String }),
+
+  // ── the shelf's one ──────────────────────────────────────────────────
+
+  /**
+   * A PAGE, PINNED — the sidebar's shelf gains a door onto whatever is on
+   * screen: a node's own page, a document, or the page a reader has narrowed
+   * with a query.
+   *
+   * It carries an ADDRESS and nothing else, and that is the whole design
+   * argument. A pin is not a placement of a node — a mirror already means
+   * "draw it here too", and a shelf that drew every pinned node's subtree
+   * inside `Pins.olai` would be saying something nobody meant — and it is not
+   * a field on a record either, because half the things worth pinning (the
+   * agenda, a day, a filtered outline) are not nodes at all. What every one of
+   * them IS is an address, this app already has exactly one spelling of those
+   * (`web/src/client/routes.ts`'s bijection), and a node's title is text. So a
+   * pin is an ordinary node whose title is the address, in an ordinary outline
+   * — and an agent pins, reorders and unpins with `add_node`, `move_node` and
+   * `archive_node`, which is the consistency rule paid up front rather than
+   * closed later (HACKING.md).
+   *
+   * WHERE IT LANDS IS THE SERVER'S, exactly as {@link capture}'s inbox is and
+   * for the same argument: which file the shelf IS is a fact about the SET —
+   * the outline named `Pins.olai`, if the directory has one (`@olai/format`'s
+   * `pinsIn`) — so it is read against the reading the write is judged on
+   * rather than in a tab holding a file list some frames old. That is also
+   * what makes this ONE op rather than a sequence: an existing shelf takes an
+   * `add`, a directory with none takes a `create` seeded with this very
+   * address, and a seed that is refused leaves no file behind
+   * ({@link ../../server/src/edit.ts}).
+   *
+   * THERE IS NO `unpin`, deliberately: taking a pin off the shelf is
+   * {@link archive} of that pin's own node, which is the removal the set
+   * already has — reversible from the Trash, and undoable with ⌘Z like every
+   * other write here. A second verb would be `archive_node` under a name only
+   * one face knew.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("pin"),
+    /**
+     * The address, exactly as this app spells one — `/n/<id>`, `/doc/<path>`,
+     * `/agenda?q=…`. Verbatim: nothing between the affordance that minted it
+     * and the node's title parses it, for the reason a `date` crosses as the
+     * ten characters that were picked. What reads it back is the same
+     * bijection that wrote it, in the browser, at view time.
+     */
+    at: Schema.String,
+  }),
 
   // ── the documents' three ─────────────────────────────────────────────
 

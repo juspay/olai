@@ -55,6 +55,7 @@ Feature: The ••• menu writes
       | Expand all         |
       | Collapse all       |
       | Copy link to node  |
+      | Pin to sidebar     |
       | Mark todo          |
       | Complete           |
       | Clear mark         |

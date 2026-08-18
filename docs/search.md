@@ -85,6 +85,7 @@ Above every page that draws nodes there is a filter box. It is not the header's 
 - **The filter is in the address** — `?q=…` — so a narrowed page is a link you can send and the back button works. Typing REPLACES the history entry rather than pushing one, so Back leaves the filter rather than un-typing it. Zooming is a navigation and starts unfiltered; Back returns to the narrowed page.
 - **Folds are suspended while a filter is on.** A collapse is a claim about the tree you were reading, and honouring it inside a filtered one would hide the match you typed for. Nothing is written: clearing the filter brings every collapse back.
 - **Hiding finished work happens first.** The Prefs switch is a standing claim about the reader; the filter is a question about the page. So `is:done` under a done-hiding preference draws nothing — and the bar says how many matches are being held back, rather than leaving it a mystery.
+- **A narrowed page can be KEPT** — `⌘⇧P` puts it on the sidebar's shelf with its query, so a saved search is a pin rather than a fourth kind of thing ([editing.md](editing.md#pinning-a-page-to-the-sidebar), [format.md](format.md#pins)). The chord is live while the caret is in the box, which is where a hand is when the thought arrives.
 - The bar reports **"3 of 41"**: how many drawn rows are matches, of how many rows the page draws.
 
 ### Every row says why it is drawn

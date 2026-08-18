@@ -40,6 +40,30 @@ export const TESTID = {
   sidebarRail: "sidebar-rail",
   /** Drag handle on the open sidebar's right edge. */
   sidebarResize: "sidebar-resize",
+  // ── the shelf, above everything else in the column ───────────────────
+  /** The PINNED shelf. Drawn only when the directory has a pin — an empty
+   *  shelf is not an empty box, it is nothing at all — which is what makes
+   *  its presence the fact a scenario asserts. */
+  pinShelf: "pin-shelf",
+  /** One pin. `data-pin` is the pin NODE's own id (what an unpin archives and
+   *  a reorder moves), `data-at` is the address it opens — the two facts a
+   *  scenario needs and neither of which is readable off the words drawn. */
+  pin: "pin",
+  /** The link inside a pin — the door itself. Its own name because the row
+   *  also carries a control, and a click on "the pin" has to be able to mean
+   *  the one that navigates. */
+  pinLink: "pin-link",
+  /** The query a pinned page is narrowed by, drawn as its own chip. Absent on
+   *  a pin to a whole page, which is what says the shelf keeps the filter
+   *  rather than dropping it. */
+  pinFilter: "pin-filter",
+  /** Take this pin off the shelf. */
+  pinRemove: "pin-remove",
+  /** The line that says where a dragged pin would land. */
+  pinDropLine: "pin-drop-line",
+  /** The palette's pin row — one row with two labels, since pinning and
+   *  unpinning are one affordance over one address. */
+  pinToggle: "pin-toggle",
   /** Rail icon: jump to today. */
   railCalendar: "rail-calendar",
   /** Rail icon: open outlines / home. */

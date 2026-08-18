@@ -18,6 +18,7 @@ Click a title and the caret is in it. From there it is the outliner's loop on th
 | **Escape** | drop what you were typing |
 | **⌘Z** / **Ctrl+Z** | take back your last edit on this outline |
 | **⌘⇧Z** / **Ctrl+⇧Z** | put it back |
+| **⌘⇧P** / **Ctrl+⇧P** | pin this page to the sidebar, or unpin it |
 | **Alt+click** | open a link in the pane to the right |
 | **Alt+Shift+click** | open it in a new pane to the right |
 | **Alt+←** / **Alt+→** | move focus to the neighbouring pane |
@@ -287,6 +288,22 @@ Not every row in there is a thing you put away. Above each pile sit the **titles
 **Put back** is the one verb a Trash row has, and it is the whole reason the Trash is a trash. It sends the same `unarchive` op an agent's `unarchive_node` sends — the op both faces got in the same change, because neither face may do what the other cannot — and the subtree returns where the recorded chain says it came from, last among its new siblings, children and ids intact. A chain that no longer stands (retitled, or put away itself) is a refusal in the ops layer's own words under the row, never a guess; an agent can name a destination outright, and restoring the chain first is the way through for the mouse. ⌘Z after a Move to Trash puts the row back too — the undo knows the exact parent it sat under — and ⌘Z after a Put back is the archive again.
 
 Deliberately absent, and still the human’s to rule on: a delete key.
+
+## Pinning a page to the sidebar
+
+A **shelf of doors** at the top of the directory column: any node, any document, and the page you have narrowed with a query — one click back to it. An empty shelf draws nothing at all, so a directory that has never used one has the column it always had.
+
+**Three ways on, and they are one gesture over one address.** A row's `•••` offers **Pin to sidebar**, and offers **Unpin from sidebar** on a row already up there — one entry with two labels, because the shelf already knows which way this node's answer goes. `⌘⇧P` / `Ctrl+⇧P` does the same for the PAGE you are on, and it is live while you are typing a filter, which is exactly when "pin this, narrowed like this" is the thing you mean. `⌘K`'s **Pin this page** row is that chord for a hand on the mouse.
+
+**A pinned page keeps its query.** `/agenda` filtered to `is:todo` is pinned as that whole address, drawn with the query beside its name, and clicking it lands on the agenda WITH the filter in the box — which is what makes a pin the way a saved search is spelled here ([search.md](search.md)).
+
+**A pinned node says its name now, not the name it was pinned under.** Rename it from its own row, from another pane, from an agent, from vim — the shelf follows on the frame the file arrives, because there is no copy of the title stored beside the pin ([format.md](format.md#pins)).
+
+**Drag a pin to reorder the shelf**, exactly as a row is dragged in the tree: press, travel, and a line shows where it will land. What it sends is the same `place` a drop in an outline sends. A press that does not travel is the click it always was.
+
+**The `×` takes one off**, and so does the verb it was put up with. Unpinning is the set's own removal — the pin's row goes to the Trash keeping its id — so `⌘Z` takes it back and **Put back** is there if you find it later.
+
+**It is a file, and that is the feature.** The shelf is `Pins.olai` in the served directory, one ordinary node per pin, whose title is the address ([format.md](format.md#pins)). Open it like any outline and edit it; name a pin by making its title a markdown link (`[What is late](/agenda?q=is%3Atodo)`); commit it with everything else. An agent adds, reorders and removes pins with `add_node`, `move_node` and `archive_node` — the same three ops the gestures above resolve to — so what you keep on that shelf is something you can hand to one.
 
 ## From the ⌘K palette
 

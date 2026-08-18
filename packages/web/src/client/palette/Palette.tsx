@@ -78,6 +78,8 @@ import {
   SHELL_ITEMS,
 } from "./items.ts"
 import { opItems } from "./ops.ts"
+import { pinItem } from "../pins/palette.ts"
+import { sayPin, togglePin } from "../pins/pinning.ts"
 import { createCursor } from "../search/cursor.ts"
 import { createNodeSearch } from "../search/nodes.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
@@ -241,7 +243,11 @@ export function Palette(props: {
     // fold is a list nobody finds them in. What makes that safe is
     // {@link chosen}: an untouched palette has no row chosen, so being at the
     // top is not being one keystroke from a write.
-    const commands = [...opRows(), ...SHELL_ITEMS]
+    // THE SHELF'S ROW sits between them: it is about the page rather than
+    // about the zoomed node, so it belongs with the contextual half and not
+    // with the fixed commands — and it is the one door a document or a
+    // filtered page has that a reader can find by looking (../pins/palette.ts).
+    const commands = [...opRows(), pinItem(router.route(), derived()), ...SHELL_ITEMS]
     return [...filterItems(query(), commands), ...nodes.hits().map(nodeItem)]
   })
 
@@ -316,6 +322,15 @@ export function Palette(props: {
       prime(action.prefix)
       return
     }
+    if (action.kind === "pin") {
+      // The palette STAYS UP while this one is in flight, exactly as an op row
+      // does, because the answer belongs in the box the reader is looking at.
+      pin().then((line) => {
+        if (line === undefined) close()
+        else setSaid(line)
+      })
+      return
+    }
     if (action.kind === "route") props.go(action.route)
     else if (action.kind === "shortcuts") setKeys(true)
     else if (action.kind === "toggle-sidebar") props.toggleDirectory()
@@ -348,6 +363,19 @@ export function Palette(props: {
       setSaid(line)
     })
   }
+
+  /**
+   * THE PAGE, PINNED OR UNPINNED — the one gesture behind two doors: the ⌘⇧P
+   * chord below, and the palette row that names it.
+   *
+   * It is about `router.route()` — the FOCUSED pane's address, filter and all
+   * — because that is what "this page" means in a workspace that may be split,
+   * and it is the same reading the sidebar lights an entry from (`../App.tsx`).
+   * Which of the two writes it is is the shelf's answer rather than a state
+   * here (`../pins/pinning.ts`).
+   */
+  const pin = (): Promise<Said | undefined> =>
+    togglePin(router.route(), derived(), undo.record)
 
   /** The question answered: it goes, and the verb behind it does. */
   const answer = (question: Asking) => {
@@ -554,6 +582,11 @@ export function Palette(props: {
       if (match.action === "undo") undo.undo()
       if (match.action === "redo") undo.redo()
       if (match.action === "closePane") router.close()
+      // The shelf, from wherever the reader is standing. Its answer goes to
+      // the line under the header rather than to this component's, which is
+      // the one this palette can draw and is not on screen when the chord is
+      // pressed with the modal shut (`../pins/pinning.ts`).
+      if (match.action === "pin") void pin().then(sayPin)
     }
     window.addEventListener("keydown", onKey)
     onCleanup(() => window.removeEventListener("keydown", onKey))

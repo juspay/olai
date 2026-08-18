@@ -640,7 +640,118 @@ const wearTheme = async (page: Page, theme: string): Promise<void> => {
   await page.waitForTimeout(250)
 }
 
+// ── the pinned shelf ──────────────────────────────────────────────────
+
+/** The pinned shelf, and one row of it. */
+const SHELF = '[data-testid="pin-shelf"]'
+const PIN = '[data-testid="pin"]'
+
+/** What the shelf says, row by row: where each door GOES (its stored address),
+ *  the name it is drawing for that address RIGHT NOW — which for a node pin is
+ *  the node's own title, read off the set on this frame — and the query it
+ *  keeps, when it keeps one. */
+const shelved = async (page: Page) =>
+  (await page.locator(PIN).evaluateAll((rows) =>
+    rows.map((one) => {
+      const chip = one.querySelector('[data-testid="pin-filter"]')
+      const name = one.querySelector('[data-testid="pin-link"] span')?.textContent?.trim() ?? ""
+      return `${one.getAttribute("data-at")} → “${name}”${
+        chip === null ? "" : ` [${chip.textContent?.trim()}]`
+      }`
+    })
+  )).join(" · ")
+
+/** One record of an outline on disk, rewritten — the write an agent's
+ *  `set_title` makes, spelled as the file it produces, so what the shelf is
+ *  following is a CHANGED DIRECTORY rather than a gesture in this tab. */
+const retitle = (file: string, id: string, title: string): void =>
+  rewrite(
+    file,
+    recordsIn(file).map((record) =>
+      JSON.stringify(record["id"] === id ? { ...record, title } : record)
+    ),
+  )
+
 const SECTIONS = {
+  /**
+   * PIN TO SIDEBAR (`pin-to-sidebar`): the shelf holding one of each of the
+   * three things worth a door — a NODE, a DOCUMENT, and a page WITH the query
+   * it was narrowed by — and the two promises a still frame cannot make on its
+   * own.
+   *
+   * The three pins are WRITTEN INTO `Pins.olai` as the records they are,
+   * rather than clicked up, and that is the section's first claim: a shelf is
+   * stored in the directory as ordinary nodes, so an agent writes one with
+   * `add_node` and the sidebar draws whatever the file says. The gestures
+   * follow — a click that lands on the filtered page with its `?q=` intact, a
+   * rename made in the FILE that the shelf follows on the next frame, and the
+   * `•••` verb that puts a fourth door up.
+   *
+   * Two palettes, because every ink on the row is a theme token: the light one
+   * (the default, `chalk`) and the dark one (`pitch`).
+   */
+  "pin-to-sidebar": async (page) => {
+    rewrite("Pins.olai", [
+      `{"id":"p-kitchen","ord":"a0","title":"/n/kitchen"}`,
+      `{"id":"p-finishes","ord":"a1","title":"/doc/finishes.md"}`,
+      `{"id":"p-todo","ord":"a2","title":"/o/house.olai?q=is%3Atodo"}`,
+    ])
+    await page.goto(`${BASE}/o/house.olai`)
+    await page.locator(SHELF).waitFor()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the shelf reads:      ${await shelved(page)}`)
+    await shot(page, "the-shelf-chalk")
+
+    // The FILTERED pin, followed. What it has to land on is the page AND the
+    // query — a door that dropped the `?q=` would open a different page from
+    // the one that was pinned.
+    await page.locator(`${PIN}[data-at="/o/house.olai?q=is%3Atodo"] a`).first().click()
+    await page.locator('[data-testid="filter-bar"]').first().waitFor()
+    await page.waitForTimeout(DRAWN)
+    const landed = new URL(page.url())
+    console.log(`  the click landed on:  ${landed.pathname}${landed.search}`)
+    console.log(`  with the filter box:  ${
+      await page.locator('[data-testid="filter-input"]').first().inputValue()
+    }`)
+    console.log(`  and the rows it kept: ${(await order(page)) || "(none)"}`)
+    await shot(page, "the-filter-came-with-it-chalk")
+
+    // A RENAME made somewhere else entirely — the record rewritten on disk,
+    // which is what an agent's `set_title` produces. The shelf holds no copy
+    // of the title, so what it draws is simply the node's new name.
+    retitle("house.olai", "kitchen", "the kitchen, rebuilt #home")
+    await page.waitForFunction(
+      (name) =>
+        document.querySelector('[data-testid="pin"][data-at="/n/kitchen"]')
+          ?.textContent?.includes(name) === true,
+      "the kitchen, rebuilt",
+    )
+    console.log(`  after the rename:     ${await shelved(page)}`)
+    await shot(page, "a-rename-arrives-chalk")
+
+    // And the `•••`, which is where a NODE is pinned from.
+    await page.goto(`${BASE}/o/garden.olai`)
+    await page.locator(OUTLINE_TREE).first().waitFor()
+    await page.waitForTimeout(DRAWN)
+    await openMenu(page, "herbs")
+    await shot(page, "the-verb-on-a-row-chalk")
+    await page.locator('[data-testid="node-menu-panel"] >> text=Pin to sidebar').first().click()
+    await page.locator(`${PIN}[data-at="/n/herbs"]`).waitFor()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  after the verb:       ${await shelved(page)}`)
+    console.log(`  and Pins.olai says:   ${
+      recordsIn("Pins.olai").map((one) => String(one["title"])).join(" · ")
+    }`)
+    await shot(page, "a-fourth-door-chalk")
+
+    await wearTheme(page, "pitch")
+    await shot(page, "a-fourth-door-pitch-dark")
+    await page.goto(`${BASE}/o/house.olai?q=is%3Atodo`)
+    await page.locator(SHELF).waitFor()
+    await page.waitForTimeout(DRAWN)
+    await shot(page, "the-filter-came-with-it-pitch-dark")
+  },
+
   /**
    * THE AGENDA AS A SPINE OF TIME (`agenda-spine`, ruled 2026-08-18): one
    * continuous line with now marked on it, what has slipped above it and the

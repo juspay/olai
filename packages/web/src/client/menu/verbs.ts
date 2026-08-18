@@ -51,7 +51,9 @@ import type { Edit } from "@olai/surface"
 import { datePick } from "../date/pick.ts"
 import { repeatPick } from "../date/repeat.ts"
 import { type Relation, RELATIONS } from "../edges/relation.ts"
+import { pinAt } from "../pins/pinning.ts"
 import { customEntries } from "../props/drawer.ts"
+import { hrefOf } from "../routes.ts"
 import { archiveQuestion } from "../trash/question.ts"
 import { under } from "./subtree.ts"
 
@@ -194,6 +196,40 @@ export const writeVerbs = (
   const shown = subject.shows
 
   if (shown !== undefined) {
+    // THE SHELF, and it is FIRST among the writes for the reason the divider
+    // above them exists at all: the order of this list is a fence, and the
+    // entry a hand reaches for most often should not sit next to the one that
+    // takes a subtree away.
+    //
+    // ONE ENTRY WITH TWO LABELS, because pinning is a STATE rather than an
+    // event (`../pins/pinning.ts`): the shelf either holds this node's page or
+    // it does not, and a menu offering both at once would make a reader choose
+    // between two words while looking at a row that already knows which one
+    // applies.
+    //
+    // It names the node the row SHOWS rather than the record standing there —
+    // the rule a mark and a date already follow. A pin is a door to a PAGE,
+    // and a mirror's page is its target's; storing the placement's id instead
+    // would leave a pin that stops resolving the day somebody retires that
+    // placement, which is a write about a line and not about the shelf.
+    const pinned = pinAt(derived, { kind: "node", id: shown.node.id })
+    verbs.push(
+      pinned === undefined
+        ? {
+          id: "pin",
+          label: "Pin to sidebar",
+          does: sends({ verb: "pin", at: hrefOf({ kind: "node", id: shown.node.id }) }),
+        }
+        : {
+          id: "unpin",
+          label: "Unpin from sidebar",
+          // The pin's OWN node, which is the one thing on the shelf this verb
+          // is about — never the node it opens. Archived rather than erased:
+          // that is the removal the set has, and it is what makes an unpin
+          // undoable and reversible from the Trash.
+          does: sends({ verb: "archive", id: pinned.id }),
+        },
+    )
     // The mark it already carries is not offered again: putting it back is the
     // one mark request the ops layer refuses for asking about nothing
     // ("already done"), and an entry whose only outcome is that sentence is an

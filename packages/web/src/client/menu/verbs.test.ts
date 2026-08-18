@@ -62,10 +62,48 @@ const edit = (id: string, label: string) => {
   return does.edit
 }
 
+// ── the shelf ──────────────────────────────────────────────────────────
+
+test("a node not on the shelf is offered a pin, at its own page's address", () => {
+  expect(edit("install", "Pin to sidebar")).toEqual({ verb: "pin", at: "/n/install" })
+})
+
+test("a mirror pins the node it SHOWS, never the placement standing there", () => {
+  // A pin is a door to a PAGE, and a mirror's page is its target's. An address
+  // spelling the placement would stop resolving the day somebody retires it.
+  expect(edit("kitchen-herbs", "Pin to sidebar")).toEqual({ verb: "pin", at: "/n/herbs" })
+})
+
+test("a node the shelf already holds is offered the way OFF it instead", () => {
+  const withShelf = derive(
+    setOf({
+      "house.olai": HOUSE,
+      "garden.olai": GARDEN,
+      "Pins.olai": `{"id":"p-install","ord":"a0","title":"/n/install"}`,
+    }).nodes,
+  )
+  const shelved = rowsOf(withShelf, "house.olai")
+  const installed = flatten(shelved, new Set()).find((one) => one.at.node.id === "install")!
+  const offered = writeVerbs(subjectOfRow(installed), withShelf)
+  expect(offered.map((one) => one.label)).toContain("Unpin from sidebar")
+  expect(offered.map((one) => one.label)).not.toContain("Pin to sidebar")
+  // The PIN's own node — the row on the shelf — and archived rather than
+  // erased, which is what makes an unpin undoable.
+  expect(offered.find((one) => one.id === "unpin")?.does)
+    .toEqual({ kind: "edit", edit: { verb: "archive", id: "p-install" } })
+})
+
+test("the shelf's verb comes first among the writes", () => {
+  // The order of this list is a fence: the entry a hand reaches for most often
+  // does not sit beside the one that takes a subtree away.
+  expect(labels("install")[0]).toBe("Pin to sidebar")
+})
+
 // ── the mark section ───────────────────────────────────────────────────
 
 test("a node with no mark is offered the three, and nothing to clear", () => {
   expect(labels("install")).toEqual([
+    "Pin to sidebar",
     "Mark todo",
     "Mark doing",
     "Complete",
@@ -84,6 +122,7 @@ test("the mark a node already carries is not offered back to it", () => {
   // layer refuses for asking about nothing, and the row's own checkbox is
   // three pixels away from the menu that would have said so.
   expect(labels("kitchen")).toEqual([
+    "Pin to sidebar",
     "Mark todo",
     "Complete",
     "Clear mark",
@@ -355,6 +394,7 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
   // read off something else.
   expect(writeVerbs(subjectOfRow(row("kitchen")), undefined).map((verb) => verb.label))
     .toEqual([
+      "Pin to sidebar",
       "Mark todo",
       "Complete",
       "Clear mark",
