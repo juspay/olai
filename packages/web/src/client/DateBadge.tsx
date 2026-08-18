@@ -37,21 +37,17 @@
  *
  * Where a caller offers `onPick`, the pill is the way into the date picker —
  * the affordance the roadmap's `parity-date` asked for, on the thing the date
- * already is. It becomes a `<button>` and nothing else about it moves: same
- * box, same tone, same testid, same `data-` facts, so every assertion about a
- * date badge goes on being about the same element.
- *
- * WHERE it is offered is the caller's, and it is the rule a title's editability
- * already follows (`./NodeLine.tsx`): a tree row is editable, a day page and
- * the agenda are a QUERY over the set drawn read-only. `data-picks` carries
- * which of the two this pill is, so "the pill on a day page is not a control"
- * is a fact rather than an absence nobody wrote down.
+ * already is. That it becomes a `<button>` without anything else about it
+ * moving, and where a caller offers one at all, is {@link ./Pill.tsx}'s: the
+ * box a fact sits in beside a title, shared with the repeat rule's badge.
+ * What is THIS file's is the two things above — the words, verbatim, and the
+ * one thing they say in colour.
  */
 
 import type { Occasion } from "@olai/format"
 import { Show } from "solid-js"
-import { Dynamic } from "solid-js/web"
 
+import { Pill } from "./Pill.tsx"
 import { TESTID } from "./testids.ts"
 
 export function DateBadge(props: {
@@ -65,42 +61,26 @@ export function DateBadge(props: {
    *  inherit "not late" from having said nothing. */
   readonly overdue: boolean
   /** Open the date picker on this node. Absent wherever the row is drawn
-   *  read-only, and then the pill is a `<span>` again. */
+   *  read-only, and then the pill is a `<span>` again ({@link ./Pill.tsx}). */
   readonly onPick?: () => void
 }) {
   const occasion = (): Occasion => props.occasion ?? "date"
-  const picks = (): boolean => props.onPick !== undefined
 
   return (
-    // One element either way — a `<button>` when it opens something, a `<span>`
-    // when it says something — rather than two branches drawing the same pill.
-    <Dynamic
-      component={picks() ? "button" : "span"}
-      type={picks() ? "button" : undefined}
-      class="shrink-0 rounded-full border border-transparent px-2 text-xs"
+    <Pill
+      testid={TESTID.date}
       classList={{
         "bg-alarm/15 text-alarm": props.overdue,
         "bg-pill text-muted": !props.overdue,
-        "cursor-pointer hover:text-ink": picks(),
       }}
-      data-testid={TESTID.date}
-      data-occasion={occasion()}
-      data-overdue={String(props.overdue)}
-      data-picks={String(picks())}
-      title={picks() ? "change the date" : undefined}
-      onClick={picks()
-        ? (event: MouseEvent) => {
-          // The row's own line answers a click by opening the title editor,
-          // and this one is not about the title.
-          event.stopPropagation()
-          props.onPick?.()
-        }
-        : undefined}
+      attrs={{ "data-occasion": occasion(), "data-overdue": String(props.overdue) }}
+      onPick={props.onPick}
+      title={props.onPick === undefined ? undefined : "change the date"}
     >
       <Show when={occasion() !== "date"}>
         <span class="mr-1 opacity-70">{occasion()}</span>
       </Show>
       {props.date}
-    </Dynamic>
+    </Pill>
   )
 }

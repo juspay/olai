@@ -394,6 +394,28 @@ test("a date is the op's own field, clear and set alike", () => {
     .toEqual({ op: "date", id: "order", date: "2026-09-01" })
 })
 
+// The REPEAT RULE, the same shape one field along — and the same two doors: the
+// picker sends the rule, the menu's `Stop repeating` sends the `null`.
+test("a repeat rule is the op's own field, set and stopped alike", () => {
+  expect(asked({ verb: "repeat", id: "order", repeat: "every week on monday" }))
+    .toEqual({ op: "repeat", id: "order", repeat: "every week on monday" })
+  expect(asked({ verb: "repeat", id: "order", repeat: null }))
+    .toEqual({ op: "repeat", id: "order", repeat: null })
+})
+
+// The whole point of the spawn living in the PLANNER: `Complete` on a row is
+// `toggle`, which resolves to the same `done` request `set_done` sends — so
+// there is no web-side rule to keep in step with the agent's, and this test is
+// about the ABSENCE of one. The occurrence itself is the ops suite's.
+test("completing a repeating row asks for exactly what `set_done` asks for", () => {
+  const at = reading(setOf({
+    "chores.olai": `{"id":"bins","ord":"a0","title":"put the bins out",` +
+      `"todo":true,"date":"2026-08-17","repeat":"every week on monday"}`,
+  }))
+  expect(asked({ verb: "toggle", id: "bins", mark: "done" }, at))
+    .toEqual({ op: "done", id: "bins" })
+})
+
 test("retiring a placement names the row's own record", () => {
   expect(asked({ verb: "unmirror", id: "echo" }))
     .toEqual({ op: "unmirror", id: "echo" })
@@ -675,6 +697,20 @@ test("a date set over nothing is put back as nothing", () => {
 
 test("a MIRROR has no date of its own either", () => {
   expect(inverse({ verb: "date", id: "echo", date: null })).toEqual([])
+})
+
+test("a stopped recurrence is put back as the rule it stopped", () => {
+  const at = reading(setOf({
+    "chores.olai": `{"id":"bins","ord":"a0","title":"put the bins out",` +
+      `"todo":true,"date":"2026-08-17","repeat":"every week on monday"}`,
+  }))
+  expect(inverse({ verb: "repeat", id: "bins", repeat: null }, "minted", at))
+    .toEqual([{ verb: "repeat", id: "bins", repeat: "every week on monday" }])
+  // …and a rule set over nothing is put back as nothing, which is the same arm.
+  expect(inverse({ verb: "repeat", id: "install", repeat: "every day" }))
+    .toEqual([{ verb: "repeat", id: "install", repeat: null }])
+  // A placement carries no rule of its own, exactly as it carries no date.
+  expect(inverse({ verb: "repeat", id: "echo", repeat: null })).toEqual([])
 })
 
 test("a property is put back as the value it held, and a new one by removing it", () => {

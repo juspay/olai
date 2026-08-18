@@ -96,7 +96,13 @@ export function DayNode(props: {
         />
         {/* The date this row is HERE for, and which of the node's dates that
             is — not the `date` field, which for work finished on this day is
-            either another day's business or not written at all. */}
+            either another day's business or not written at all.
+
+            The repeat rule rides beside it for the reason the date does: this
+            is a row about a node, and a rule is a fact about the node. BOTH
+            are read-only here — a day and the agenda are a QUERY over the
+            whole set, so each pill says something rather than doing something
+            (`../RepeatBadge.tsx`'s `data-picks`, `../DateBadge.tsx`'s). */}
         <NodeLine
           title={node().title}
           from={props.dated.shows.file}
@@ -113,6 +119,7 @@ export function DayNode(props: {
           date={props.dated.date}
           occasion={props.dated.occasion}
           overdue={isOverdue(node(), today())}
+          repeat={node().repeat}
         />
       </div>
 

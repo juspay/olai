@@ -299,9 +299,15 @@ export {
   isoDate,
   isRealDay,
   monthOfDay,
+  comingWeekday,
   shiftDay,
   shiftDayByMonth,
   shiftMonth,
+  /** The seven names, in the order `weekdayOf` counts them. Beside the count
+   *  because they ARE that count named — the repeat grammar reads them here,
+   *  and the browser's month grid takes its headings and its capitals off the
+   *  same list rather than keeping a second Monday. */
+  WEEKDAYS,
   weekdayOf,
 } from "./calendar.ts"
 export {
@@ -313,6 +319,23 @@ export {
   owedOf,
 } from "./agenda.ts"
 export type { Agenda, AgendaDay, Owed } from "./agenda.ts"
+/**
+ * The repeat grammar (./repeat.ts): the small closed vocabulary a dated node
+ * says it comes back in, and the arithmetic that says when the next one is.
+ *
+ * FOUR NAMES, and they are exactly the four somebody outside this package
+ * asks — what a rule's words come to (`canonicalRepeat`, which answers both
+ * "is this a rule" and "spelled how", because those are one question),
+ * `REPEAT_GRAMMAR` for the refusal that quotes the vocabulary, the answer a
+ * completion needs (`nextOccurrence`), and the vocabulary itself for the one
+ * surface that offers it as a list (`REPEAT_RULES`). The module's insides — `parseRepeat`,
+ * `printRepeat`, `nextAfter`, the `Repeat` union — are how those four are
+ * built and are reached only by the tests beside them, which import the file
+ * rather than the package. This package's rule is that a spelling a rule
+ * happens to use is not contract, and a grammar with a parser on its surface
+ * is an invitation to a second reading of it.
+ */
+export { canonicalRepeat, nextOccurrence, REPEAT_GRAMMAR, REPEAT_RULES } from "./repeat.ts"
 export { stampOf } from "./stamp.ts"
 
 export { biggestOf, changesOf, Field, NodeChange, Sort } from "./changes.ts"
@@ -388,6 +411,7 @@ export {
   MoveRequest,
   NESTING,
   PropRequest,
+  RepeatRequest,
   SeeRequest,
   SplitRequest,
   TitleRequest,

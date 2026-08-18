@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { dayNumber, monthGrid, monthLabel, WEEKDAYS } from "./month.ts"
+import { dayNumber, monthGrid, monthLabel, WEEKDAY_HEADINGS } from "./month.ts"
 
 // The arithmetic these are drawn from is tested where it now lives
 // (`@olai/format`'s `calendar.test.ts`) — what is left here is the grid.
@@ -19,7 +19,7 @@ const lead = (month: string): number =>
 // however the month falls.
 test("a month is laid out as whole weeks", () => {
   for (const month of ["2026-01", "2026-02", "2026-08", "2027-02", "2028-02"]) {
-    expect(monthGrid(month).length % WEEKDAYS.length).toBe(0)
+    expect(monthGrid(month).length % WEEKDAY_HEADINGS.length).toBe(0)
   }
 })
 
@@ -61,8 +61,8 @@ test("text that names no month draws no grid", () => {
 // ── what a cell prints ─────────────────────────────────────────────────
 
 test("a heading is printed for each column of the week", () => {
-  expect(WEEKDAYS.length).toBe(7)
-  expect(WEEKDAYS[0]).toBe("Mo")
+  expect(WEEKDAY_HEADINGS.length).toBe(7)
+  expect(WEEKDAY_HEADINGS[0]).toBe("Mo")
 })
 
 test("a cell prints the day of the month, unpadded", () => {

@@ -11,7 +11,7 @@
  *
  * ## The line, left to right
  *
- *   title (ellipsized) · the note's pilcrow · the aside · the date
+ *   title (ellipsized) · the note's pilcrow · the aside · the date · the repeat rule
  *
  * THE TITLE ELLIPSIZES rather than wrapping (the quiet outline, human): a row is
  * a line, and a title that wrapped to three of them turned the column into
@@ -51,6 +51,7 @@ import { type JSX, Show } from "solid-js"
 
 import { DateBadge } from "./DateBadge.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
+import { RepeatBadge } from "./RepeatBadge.tsx"
 import { TESTID } from "./testids.ts"
 import { toneOf } from "./tone.ts"
 import { ROW_TITLE } from "./touch.ts"
@@ -107,9 +108,16 @@ export function NodeLine(props: {
    *  row as a thing to pick (`./Tree.tsx`, where that split is made). This file
    *  draws a line and decides none of it. */
   readonly onEdit?: (event: MouseEvent) => void
+  /** How the node COMES BACK, in the format's own words — drawn beside the
+   *  date, because a rule with no date is a record the format refuses. Absent
+   *  on nearly every node. */
+  readonly repeat?: string
   /** Clicking the DATE opens the picker on it — the same split as `onEdit`,
    *  one field along, and absent in the same places for the same reason. */
   readonly onPickDate?: () => void
+  /** Clicking the REPEAT pill opens that picker — `onPickDate` one field
+   *  along, absent in the same places for the same reason. */
+  readonly onPickRepeat?: () => void
 }) {
   return (
     <>
@@ -155,6 +163,12 @@ export function NodeLine(props: {
               onPick={props.onPickDate}
             />
           )}
+        </Show>
+        {/* And the RULE after it, in that order because that is the sentence:
+            the day it is on, then how often it comes back. Same rules as the
+            badge before it — shrink-0, dim, straight after the words. */}
+        <Show when={props.repeat}>
+          {(repeat) => <RepeatBadge repeat={repeat()} onPick={props.onPickRepeat} />}
         </Show>
         {/* The rest of the line, and it belongs to the title: a click anywhere
             along a row opens its editor, exactly as it did when the title span

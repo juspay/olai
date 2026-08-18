@@ -3,8 +3,8 @@
  *
  * The catalog of write verbs, pure over the SUBJECT it was asked about: which
  * entries a reader is offered, and the exact {@link Edit} each one sends — or,
- * for the three whose value a person still has to choose, which panel the row
- * opens ({@link Does}: the date picker, and the two edge panels). No socket,
+ * for the FOUR whose value a person still has to choose, which panel the row
+ * opens ({@link Does}: the two pickers, and the two edge panels). No socket,
  * no clipboard and no component —
  * those are `./actions.ts`'s — so the two decisions that live here are
  * decidable in a unit test:
@@ -49,6 +49,7 @@ import {
 import type { Edit } from "@olai/surface"
 
 import { datePick } from "../date/pick.ts"
+import { repeatPick } from "../date/repeat.ts"
 import { type Relation, RELATIONS } from "../edges/relation.ts"
 import { customEntries } from "../props/drawer.ts"
 import { archiveQuestion } from "../trash/question.ts"
@@ -99,12 +100,13 @@ export const subjectOfZoom = (zoomed: Situated): Subject => ({
  * has a question of its own to ask first.
  *
  * Almost all of them are an edit, known the moment the menu is drawn: the mark
- * to put on, the date to take off, the placement to retire. `Set date…` and the
- * two edge verbs are the exceptions, and none of them is an exception to the
- * SEAM — what each eventually sends is the same edit its other door sends,
- * through the same gate — only to the timing: a date and a target are values
- * somebody has to choose, and a menu entry cannot carry one. So each opens the
- * row's own panel ({@link ../date/DatePicker.tsx},
+ * to put on, the date to take off, the recurrence to stop, the placement to
+ * retire. `Set date…`, `Set repeat…` and the two edge verbs are the exceptions,
+ * and none of them is an exception to the SEAM — what each eventually sends is
+ * the same edit its other door sends, through the same gate — only to the
+ * timing: a date, a rule and a target are values somebody has to choose, and a
+ * menu entry cannot carry one. So each opens the row's own panel
+ * ({@link ../date/DatePicker.tsx}, {@link ../date/RepeatPicker.tsx},
  * {@link ../edges/EdgePanel.tsx}) and the write happens a gesture later.
  *
  * A tagged union rather than an optional `edit`, for the reason the wire's own
@@ -114,6 +116,11 @@ export const subjectOfZoom = (zoomed: Situated): Subject => ({
 export type Does =
   | { readonly kind: "edit"; readonly edit: Edit }
   | { readonly kind: "pick-date" }
+  /** The REPEAT RULE, and `pick-date`'s shape for `pick-date`'s reason: which
+   *  rule is a choice somebody has to make, and a menu entry cannot carry one.
+   *  What eventually goes is the same `repeat` edit the picker's own button
+   *  sends, through the same gate. */
+  | { readonly kind: "pick-repeat" }
   /** The two EDGE verbs, and they are `pick-date`'s shape for `pick-date`'s
    *  reason: a target is a node somebody has to find, and a menu entry cannot
    *  carry one. What eventually goes is the same `see` / `after` edit the `×`
@@ -231,6 +238,30 @@ export const writeVerbs = (
         label: "Clear date",
         does: sends(datePick(shown.node.id, "")),
       })
+      // THE REPEAT RULE, and it is offered ONLY on a dated row — which is the
+      // one place this menu fences a write rather than offering it and letting
+      // the ops layer answer. It is not a policy of the menu's: the format
+      // refuses a `repeat` with no `date` to repeat FROM, per line, so the
+      // entry over an undated row is an affordance whose only outcome is that
+      // refusal. `Set date…` is directly above it, which is the thing to do
+      // first and the thing this menu already offers.
+      //
+      // Two entries under it for the same reason the date has two: choosing a
+      // rule has to ask WHICH, so that entry opens the row's picker, and
+      // stopping is exact and writes on the spot — through the same
+      // constructor the picker's empty option sends (`../date/repeat.ts`).
+      verbs.push({
+        id: "set-repeat",
+        label: shown.node.repeat === undefined ? "Set repeat…" : "Change repeat…",
+        does: { kind: "pick-repeat" },
+      })
+      if (shown.node.repeat !== undefined) {
+        verbs.push({
+          id: "clear-repeat",
+          label: "Stop repeating",
+          does: sends(repeatPick(shown.node.id, "")),
+        })
+      }
     }
     // THE PROPERTIES: one entry that adds one, and a pair per property the node
     // already carries.

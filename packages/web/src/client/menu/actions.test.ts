@@ -62,6 +62,8 @@ const actionsFor = (
     // The lie: a setter answers with the new value, and this is what the
     // catalog does with it.
     pickDate: opens as () => void,
+    // …and for the repeat picker, which is the fourth.
+    pickRepeat: opens as () => void,
     // The same lie for the two edge verbs, which open the same kind of panel
     // — `setLinking("see")` answers with `"see"`, a perfectly truthy value the
     // panel would have drawn as a sentence.

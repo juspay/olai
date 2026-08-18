@@ -25,37 +25,40 @@
  * the edit it sends — is {@link ./pick.ts}, so those rules are answerable
  * without a browser.
  *
- * ## In place, under the row
+ * ## What this file is, and what it is not
  *
- * Not a popover. Everything else a row says about a write is drawn here — the
- * refusal under a title being typed, the note being written, the aside about a
- * mirror — and a panel floating over the tree would be the one editing surface
- * with geometry of its own to keep anchored while the page scrolls. It also
- * means the picker works the same at a badge, from the `•••` menu, and on a
- * phone, where a floating panel would land under the thumb.
+ * A CONTROL and the two rules about that control, inside the shell every panel
+ * a row opens shares ({@link ../edit/RowPanel.tsx}): drawn in place under the
+ * line rather than floating, Escape and Cancel as the ways out, one press at a
+ * time, a dead button where the gesture would write nothing, and the ops
+ * layer's own words kept on screen when a write does not happen. Each of those
+ * used to be written out here; the reasons for all of them are that file's now,
+ * and what is left in this one is the box.
  *
- * The ways out are Escape and Cancel, and a write that LANDED. Deliberately
- * NOT a click outside: the browser's own calendar popup is chrome outside the
+ * The one thing worth keeping HERE about the ways out: a click OUTSIDE is
+ * deliberately not one. The browser's own calendar popup is chrome outside the
  * document on every engine, so a dismissal listening for a pointer elsewhere
- * would be a picker that shuts the moment somebody reaches for a date in it.
- *
- * ## What it says when a write does not happen
- *
- * The panel stays open and quotes the ops layer, verbatim, in the same two
- * moods every other surface has ({@link ../edit/undoing.ts}'s `Said`) — a
- * refusal is why nothing happened, and a remark rides a write that did. Either
- * way there is something to read, so the panel keeps standing to be read in,
- * with the day still in the box. A picker that closed on a refusal would be a
- * write that vanished.
+ * would be a picker that shuts the moment somebody reaches for a date in it —
+ * which is a fact about THIS control rather than about panels.
  */
 
-import { createSignal, Show } from "solid-js"
+import { createSignal } from "solid-js"
 
-import { SaidLine } from "../edit/SaidLine.tsx"
+import type { Press } from "../edit/panel.ts"
+import { RowPanel } from "../edit/RowPanel.tsx"
 import type { Said } from "../edit/undoing.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
-import { noticeOf, type Press, pressOf, startsAt } from "./pick.ts"
+import { noticeOf, pressOf, startsAt } from "./pick.ts"
+
+/** This panel's identity, off the one table that declares it. */
+const IDS = {
+  panel: TESTID.datePicker,
+  set: TESTID.datePickerSet,
+  cancel: TESTID.datePickerCancel,
+  said: TESTID.datePickerSaid,
+  notice: TESTID.datePickerNotice,
+} as const
 
 export function DatePicker(props: {
   /** The date the node stores, or nothing — what the box starts on, and what
@@ -76,115 +79,40 @@ export function DatePicker(props: {
    *  that are about the RECORD rather than about the box: whether pressing
    *  would write anything, and what the button is called. */
   const [day, setDay] = createSignal(startsAt(props.date))
-  /** What the last press had to say, or `null` — the ops layer's own words,
-   *  never summarised. */
-  const [said, setSaid] = createSignal<Said | null>(null)
-  /** One press at a time: the gate is a round trip, and a second Enter while
-   *  the first is in flight is two writes for one intention. */
-  const [sending, setSending] = createSignal(false)
   /** The button, in the one state it has — what it says and whether it does
    *  anything, derived together ({@link ./pick.ts}) so they cannot disagree. */
   const press = (): Press => pressOf(props.date, day())
 
-  const send = async (): Promise<void> => {
-    if (sending() || !press().writes) return
-    setSending(true)
-    setSaid(null)
-    try {
-      const answer = await props.onPick(day())
-      if (answer !== undefined) {
-        setSaid(answer)
-        return
-      }
-      props.onClose()
-    } finally {
-      setSending(false)
-    }
-  }
-
   return (
-    <div
-      class="my-1"
-      data-testid={TESTID.datePicker}
-      onKeyDown={(event) => {
-        if (event.key !== "Escape") return
-        // Stop it here: the row's own editor and the palette both listen for
-        // Escape further up, and one key must not also close something else.
-        event.preventDefault()
-        event.stopPropagation()
-        props.onClose()
-      }}
+    <RowPanel
+      ids={IDS}
+      press={press}
+      send={() => props.onPick(day())}
+      onClose={props.onClose}
+      // A stored value the box cannot hold, said out loud with what a pick
+      // would do to it — see `./pick.ts`.
+      notice={noticeOf(props.date)}
     >
-      {/* A form, so Enter in the box submits — which is what a person who has
-          just typed a date expects, and what the button does with a click. */}
-      <form
-        class="flex flex-wrap items-center gap-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void send()
-        }}
-      >
-        {/* The label WRAPS the box rather than naming it by id: a row owns its
-            own picker, so two of them can be open at once and a fixed id would
-            be the same id twice in one document. */}
-        <label class="flex items-center gap-2 text-xs text-muted">
-          Scheduled for
-          <input
-            type="date"
-            class={`${TARGET} md:min-h-0 rounded border border-rule bg-paper px-2 py-1 text-sm text-ink`}
-            data-testid={TESTID.datePickerDay}
-            value={day()}
-            // The caret goes here as the panel attaches: it was opened to be
-            // typed in, and a picker that needed a second click to accept a
-            // keyboard would be a control the keyboard cannot reach.
-            // `queueMicrotask` for the reason the command palette uses one —
-            // the element is not in the document at the instant the signal
-            // flips.
-            ref={(element) => queueMicrotask(() => element.focus())}
-            onInput={(event) => setDay(event.currentTarget.value)}
-          />
-        </label>
-        <button
-          type="submit"
-          class={`${TARGET} md:min-h-0 cursor-pointer rounded border border-rule bg-transparent px-2 py-1 text-sm text-ink hover:bg-rule disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent`}
-          data-testid={TESTID.datePickerSet}
-          disabled={sending() || !press().writes}
-        >
-          {press().label}
-        </button>
-        <button
-          type="button"
-          class={`${TARGET} md:min-h-0 cursor-pointer rounded border-0 bg-transparent px-2 py-1 text-sm text-muted hover:text-ink`}
-          data-testid={TESTID.datePickerCancel}
-          onClick={() => props.onClose()}
-        >
-          Cancel
-        </button>
-      </form>
-
-      {/* A stored value the box cannot hold, said out loud with what a pick
-          would do to it — see `./pick.ts`. */}
-      <Show when={noticeOf(props.date)}>
-        {(notice) => (
-          <p class="mt-1 mb-0 text-xs leading-snug text-muted" data-testid={TESTID.datePickerNotice}>
-            {notice()}
-          </p>
-        )}
-      </Show>
-
-      <Show when={said()}>
-        {(message) => (
-          // The mood — its colour, its `data-tone`, and whether it interrupts
-          // a screen reader — is `../edit/SaidLine.tsx`'s for every surface
-          // that says something about a write. What is this picker's is where
-          // the line sits: under the box, in the panel it opened.
-          <SaidLine
-            said={message()}
-            class="mt-1 mb-0 text-[0.8125rem] leading-snug"
-            testid={TESTID.datePickerSaid}
-          />
-        )}
-      </Show>
-    </div>
+      {/* The label WRAPS the box rather than naming it by id: a row owns its
+          own picker, so two of them can be open at once and a fixed id would
+          be the same id twice in one document. */}
+      <label class="flex items-center gap-2 text-xs text-muted">
+        Scheduled for
+        <input
+          type="date"
+          class={`${TARGET} md:min-h-0 rounded border border-rule bg-paper px-2 py-1 text-sm text-ink`}
+          data-testid={TESTID.datePickerDay}
+          value={day()}
+          // The caret goes here as the panel attaches: it was opened to be
+          // typed in, and a picker that needed a second click to accept a
+          // keyboard would be a control the keyboard cannot reach.
+          // `queueMicrotask` for the reason the command palette uses one —
+          // the element is not in the document at the instant the signal
+          // flips.
+          ref={(element) => queueMicrotask(() => element.focus())}
+          onInput={(event) => setDay(event.currentTarget.value)}
+        />
+      </label>
+    </RowPanel>
   )
 }

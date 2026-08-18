@@ -32,6 +32,7 @@ In canonical order (writes always re-serialize the whole record in this order; a
 | `title` | regular nodes | Verbatim text. Inline tags live here and are extracted at view time — `#topic` and `@person`, two sigils over the same alphabet (`[A-Za-z0-9_/-]+`, so `#work/olai` is one tag) and two NAMESPACES: `#alice` and `@alice` are different tags. `@` is claimed only where a word starts, so `srid@srid.ca` is an address; `#` is claimed anywhere, unchanged since the format's first day. Rendered as **inline-only** markdown (bold, links, code — no block elements) through the same sanitised pipeline a note uses. |
 | `done` / `doing` / `todo` | no | The three MARKS: `true` or an ISO date/datetime string, which is WHEN that state was reached. At most ONE of the three — they are three answers to one question. Storable on ANY node, children or not. A node carrying none of them is not a task at all — see [Status](#status). A dated `done` also puts the node on that day; a dated `doing` or `todo` does not — see [Days](#days). |
 | `date` | no | ISO date/datetime: what the node is SCHEDULED for. A node with a `date` is a day node, and so is one carrying a dated `done` — see [Days](#days). |
+| `repeat` | no | How this node COMES BACK, written in the format's own small grammar — `every day`, `every week on monday`, `every month`, `every year`. Needs a `date` beside it, which is what it repeats FROM; a `repeat` without one is a `bad-repeat`, as is text this grammar cannot read. Carried by the occurrence that is NEXT and by no other — see [Repeating](#repeating). |
 | `desc` | no | The note: one string, embedded newlines. Markdown, rendered only at view time; stored verbatim. |
 | `doc` | no | Relative path to an attached `.md` document, resolved against the directory of the outline that names it. |
 | `after` / `blocks` / `see` | no | Arrays of target ids (any file in the set). Closed set of relations. `blocks` is sugar: `a blocks b` means `b after a`. `after` (with normalized `blocks`) must stay acyclic, and is what a node being **blocked** is derived from ([Status](#status)); `see` is a free cross-reference. Each is a **set**: a target named twice is named once. Nothing refuses the repeat — a `.olai` is plain text and a hand or a merge can write one — but `set_see` / `set_after` take a re-add as a no-op (and so does `add_node`'s `see` / `waitsOn`, which is those two verbs written at capture time), and a reading of the RELATION collapses it — the links a page draws, the derived blockedness — so a file saying the same thing three times says it once. The exemption is the reads that hand back the RECORD: `read_node` and `search_nodes` answer `see` / `after` **verbatim**, exactly the array the line on disk holds, because what those answer is the record a writer is about to edit rather than what the relation means. |
@@ -127,6 +128,45 @@ It is only ever the record being marked that is rewritten, so `true` and day-onl
 
 **Due dates are the same two fields read together, and there is no third one.** A `date` says WHEN; the mark says whether it is work — so a node carrying a `date` and no mark is an OCCURRENCE (a birthday, a delivery, a note pinned to a day) and a node carrying a `date` with `todo` or `doing` is DUE WORK. Only the second can be late: `overdue(n) ⇔ n carries todo or doing ∧ day(n.date) < today`, derived at view time and stored nowhere, the way [blocked](#status) is — a second fact about a node, never a replacement for its mark, and one `done` extinguishes by construction. A day passing is not a failure of a bullet, which is the crown rule of this format read once more, and a `due` field beside `date` would have been two dates answering one question. It is written down here because it is a claim about what these two fields MEAN together; the view that reads it, and the page that collects the answer — the agenda — are [architecture.md](architecture.md)'s.
 
+## Repeating
+
+A dated node may say how it **comes back**, and completing it makes the next occurrence.
+
+```jsonl
+{"id":"bins","ord":"a0","title":"put the bins out","todo":true,"date":"2026-08-17","repeat":"every week on monday"}
+```
+
+**The grammar is small, closed, and spelled in the file.** Four shapes and no fifth:
+
+| rule | the next occurrence |
+|---|---|
+| `every day` | the day after |
+| `every week on <weekday>` | the next `monday` … `sunday`, strictly after |
+| `every month` | the same day of the next month, clamped to one that exists (the 31st of January repeats on the 28th of February) |
+| `every year` | twelve months on, clamped the same way (the 29th of February repeats on the 28th) |
+
+Written as the words a person would write, because a `.olai` is read by people: `0 0 * * 1` says the same thing in a dialect that has to be learned, and the moment a dialect exists the pressure is to grow it. What is deliberately absent, each of them a real feature somebody will ask for: intervals (`every 2 weeks`), end dates, counts, several weekdays, days of the month. Reading is forgiving about SPELLING and strict about grammar — case is folded, runs of whitespace collapse, `mon` is `monday` and `every monday` is `every week on monday` — and **a write stores the canonical spelling**, whichever of them was typed. That asymmetry is the [Writing](#writing) section's rule about absence read once more: two files that mean the same thing must not differ byte for byte, because a conflict over which way somebody spelled Monday is a conflict about nothing. What is already ON DISK is left exactly as it was found until somebody writes that field — the rule a `done: true` keeps beside the instants olai now stamps.
+
+**A rule needs a `date`, which is what it repeats FROM.** The rule says how often and the date says when the next one is, so a `repeat` without a `date` answers nothing and is refused per line, beside "at most one mark". Both halves are `bad-repeat`: text this grammar cannot read, and a rule with nothing under it. Nothing else anywhere repeats that rule — `set_repeat` with a rule the grammar does not have, and `set_date` clearing the day out from under one, are both refused by the write gate in the validator's own words, because a write may not produce a file it cannot read back ([Validation](#validation)).
+
+**The rule rides the occurrence that is NEXT.** A recurrence is a chain of occurrences and exactly one of them is pending; the rule lives on that one. Completing an occurrence hands the rule forward to the occurrence it spawns, so a finished record is a plain dated node — it does not go on claiming to repeat, and the set never holds two live heads of one recurrence. Every other rule here falls out of that sentence.
+
+**Completing one stamps it AND captures the next**, as a FRESH node rather than by moving the date forward, so the journal keeps the honest history of each completion: eleven finished occurrences are eleven records on eleven days, where one row whose date kept moving could prove none of them. The new node is placed immediately after the one that was finished, among the same siblings, and carries:
+
+- the **title**, the **note** and the **rule** — the intent, which is what recurs;
+- the **date** the rule names, counted from the completed node's own date;
+- the mark `todo`, because it is work that has not started — and because an unmarked occurrence could never be [overdue](#days), so a recurring chore that spawned a bullet would be a thing that silently stopped being owed.
+
+It carries nothing else, and each omission names something particular to the occurrence that just ended: the **edges** (an `after` naming tasks already done would be a new task born blocked on history), the **children** (a subtree is where that occurrence's work was recorded), the **document** (`doc` is a path, and two nodes naming one file would both be editing the same text) and the **properties** (a `pr` or a `stage` is a fact about the occurrence that carried it). Anything a person wants carried forward they put there; nothing guesses.
+
+**The rhythm is the file's, never the clock's.** The next occurrence is one period after the node's OWN date, whatever day it is when somebody ticks it off — so a chore finished three weeks late spawns the occurrence that was genuinely next, which may itself be overdue. A catch-up rule that skipped to the first occurrence after *today* would need a clock inside a derivation, whose answer would change with the machine it ran on, and a second modifier in the grammar to choose between the two readings (org-mode's `+1w` against `.+1w`) — which is the dialect above arriving one character at a time. A backlog is cleared by completing those occurrences or by clearing them, and either way the file says what happened.
+
+**Un-doing a completion does not un-spawn, and re-doing makes no second occurrence.** The rule travelled, so the node that was completed has none left to spawn from: the churn is unrepresentable rather than policed, and there is no "have I already spawned this?" flag for anything to remember. What un-doing leaves is a recurrence with one live head — the occurrence that was made — and a node beside it that no longer repeats. Stopping either is `set_repeat` with `null` on whichever one was meant.
+
+**Where it is drawn.** Nowhere special: the next occurrence is a dated node like any other, so the agenda, the calendar and the day pages read it exactly as they read the one before it. What is drawn extra is the rule itself, as a badge beside the date on the row and on the node's own page.
+
+**Everything else is a mark and a date read as they always were.** No occurrence is expanded, no future dates are materialised, and nothing is derived from a rule but the one node the completion makes: a set with a hundred repeating chores holds a hundred records, not a hundred years of them.
+
 ## Documents
 
 A `.md` file under the served directory is a **document**, and documents are part of the loaded set — path and text — for the same reason the nodes are: `doc` points into them, so a reference the validator cannot see is one it cannot check, and a document read out of band would be a second read of the disk, at a different moment from the outline that named it.
@@ -167,10 +207,12 @@ One validator checks the loaded set — on load and after every write. Nothing i
 
 It runs in two stages, and the staging is part of the contract:
 
-1. **Per line.** Everything a single record answers on its own: JSON, the record shape (required fields present, no unknown field, a mirror carrying nothing but its four), the id's spelling, ISO dates, and the mark exclusion (all three of them, per the rules below).
+1. **Per line.** Everything a single record answers on its own: JSON, the record shape (required fields present, no unknown field, a mirror carrying nothing but its four), the id's spelling, ISO dates, the mark exclusion, and the repeat rule with the date it repeats from (all of them, per the rules below).
 2. **Per set.** Everything that needs to know what else exists: uniqueness, references, cycles, documents.
 
 A file is decoded whole or not at all. The set-wide rules then run over the outlines that did parse, and one that did not costs **that outline and nothing else**: if the survivors are clean, the set loads with the broken file's errors carried inside it, shown in that outline's place while the rest stay live. If anything else is wrong, the set is refused and the parse errors are reported alongside it.
+
+**That absorption is about LOADING, and a WRITE is refused instead.** The rule above exists so one hand-edited line cannot take a whole vault off the screen; applied to a file this software just produced it would mean the opposite — the caller told the write landed while the records left every page, and the repair somebody's text editor. So the write gate refuses any write whose own changed files will not decode ([architecture.md](architecture.md)), which is where every per-line rule reaches the ops layer at once: a `date` that is not a date, an `id` that is not a slug, two marks on one record, a `repeat` the grammar cannot read or one with no `date` under it. The refusal is a `validation` one carrying the validator's own rows — the code, the `file:line` and the message — so the rule has one wording however it was reached.
 
 Guesses are still not reported. "`kitchen` is not a known id" is a guess when the line declaring `kitchen` is the one that failed to parse, so an unresolved `mirror`/`after`/`blocks`/`see` target is withheld while any outline is unreadable — and withholding one is itself a reason to refuse the set rather than serve nodes whose targets cannot be resolved. Nothing else can be invented by an unreadable file: `parent` may not cross files, so an unresolved one is refused whichever file the id was going to be in, and a duplicate or a cycle can only be *hidden* by a missing file. A report containing any per-line error says so, and a second round is expected after fixing the first.
 
@@ -180,6 +222,7 @@ The rules:
 - References resolve: `parent` (same file, must be a regular node, no cycles), `mirror` targets, `after`/`blocks`/`see` targets (any file). Unknown targets get a did-you-mean suggestion.
 - `after` is acyclic (counting normalized `blocks`); mirror placement may not create a containment cycle — a mirror inside the subtree it shows would expand forever.
 - Dates (the marks and `date`) are valid ISO; the three marks are mutually exclusive, and a record carrying two is refused whichever two they are. Validated as text, because a writer must reproduce what it read: a date-only `2026-08-10` round-tripped through an instant would come back a datetime.
+- `repeat` is a rule the grammar holds, and the node carries a `date` for it to repeat from. Both are `bad-repeat`, and both are per-line for the reason the mark exclusion is: the whole question is on one line, and two branches that broke it between them would conflict in git rather than merging into a set nothing loads ([Repeating](#repeating)).
 - `doc` resolves, against the naming outline's own directory, to an `.md` file that is actually served.
 
 There is deliberately **no rule about a mark and the children under it**. There was one — no stored derived state, which refused any mark on a node with children — and it existed only to keep a computed status and a written one from contradicting each other. Nothing computes one now, so it has nothing to defend: it dissolved with derivation rather than needing an exception ([Status](#status)). What replaced it is a pair of write-time gates and a nudge ([Status](#status)), which are the ops layer's policy and never a reason a set fails to load: a merge can write a mark in one branch and a task under it in another and both land cleanly, so this file has to read that set, and the next write through the ops layer is what fixes it.

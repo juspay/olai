@@ -46,7 +46,7 @@ import { useRouter } from "../router.tsx"
 import { createStamped } from "../stamped.ts"
 import { TESTID, type TestId } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
-import { monthGrid, monthLabel, WEEKDAYS } from "./month.ts"
+import { monthGrid, monthLabel, WEEKDAY_HEADINGS } from "./month.ts"
 import { Day } from "./Day.tsx"
 
 export function Calendar(props: {
@@ -129,7 +129,7 @@ export function Calendar(props: {
       </header>
 
       <div class="grid grid-cols-7 gap-px">
-        <For each={WEEKDAYS}>
+        <For each={WEEKDAY_HEADINGS}>
           {(weekday) => (
             <div class="text-center text-[0.625rem] text-muted" aria-hidden="true">
               {weekday}

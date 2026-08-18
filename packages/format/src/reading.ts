@@ -274,6 +274,10 @@ export const Detail = Schema.Struct({
   ...Found.fields,
   ...STAMPED,
   date: RegularNode.fields.date,
+  /** The repeat rule, as the record spells it — the node's own text, handed
+   *  back for the writer that is about to change it. Present only on the
+   *  occurrence that is NEXT, which is where the rule lives (./repeat.ts). */
+  repeat: RegularNode.fields.repeat,
   desc: RegularNode.fields.desc,
   // `custom` arrives with {@link Found}'s fields above, where it moved when
   // hits were given it: one declaration, so a read of a node and a hit for the

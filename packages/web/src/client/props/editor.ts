@@ -7,6 +7,8 @@
  * what is left in the component is a form.
  */
 
+import type { Press } from "../edit/panel.ts"
+
 /**
  * What the editor was opened ON: a property that exists, or nothing.
  *
@@ -17,14 +19,6 @@
 export interface Editing {
   readonly key: string
   readonly value: string
-}
-
-/** The button, in the one state it has: what it says, and whether it does
- *  anything. Derived together so the two cannot disagree — `../date/pick.ts`'s
- *  rule, and it is the same button. */
-export interface Press {
-  readonly label: string
-  readonly writes: boolean
 }
 
 /**

@@ -31,7 +31,7 @@
  *   - **This is not the ops request vocabulary re-spelled.** It is smaller (no
  *     chosen ids, no `seed` on a created outline, no `blocks`) and, where it
  *     differs, it differs because something is resolved behind it. Where
- *     nothing is (`title`, `desc`, `date`, `archive`, `unarchive`, `unmirror`,
+ *     nothing is (`title`, `desc`, `date`, `repeat`, `archive`, `unarchive`, `unmirror`,
  *     `mirror`, `see`, `after`), it uses the ops layer's own word — and its own
  *     FIELDS — so a name that differs from an op's is a name with arithmetic
  *     behind it. Ops itself learns none of this — an op does not know it is
@@ -54,6 +54,12 @@
  * had it (`parity-unarchive`), so the op was born in the ops layer and both
  * faces got it in the same change — the Trash view's `Put back` sends it, and
  * `unarchive_node` is the same call.
+ *
+ * `repeat` IS THE FIFTH OF THAT GROUP, and it is `unarchive`'s case rather
+ * than `date`'s: nothing had it. A dated node that comes back is one op born in
+ * the ops layer, and both faces got it in the SAME change (`recurring-dates`) —
+ * `set_repeat` for an agent, the row's repeat picker for a person — so there
+ * was never a moment where one face could say a thing the other could not.
  *
  * TWO MORE ARE THE POINTER'S AND CLOSE THE SAME GAP OVER THE TWO EDGE FIELDS.
  * `see` and `after` are `set_see` and `set_after`, in the ops layer's own shape,
@@ -371,6 +377,28 @@ export const Edit = Schema.Union([
      * the gate at the far end, exactly as it is for an agent's `set_date`.
      */
     date: Schema.NullOr(Schema.String),
+  }),
+  /**
+   * The REPEAT RULE, set or cleared — `set_repeat`'s own reach, spelled exactly
+   * as the date above is, because it is the same kind of fact one field along:
+   * one optional field, one value, no condition, both directions in one arm so
+   * an undo can put back what a clear took.
+   *
+   * Both halves are a person's from the day it lands — the `•••` menu's `Set
+   * repeat…` opens the row's picker and the picker sends the rule; `Stop
+   * repeating` sends the `null` — so this verb arrives with no deviation to
+   * close, which is what the parity rule asks of a feature built at both doors
+   * in one change.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("repeat"),
+    id: Id,
+    /** `null` stops the recurrence. Anything else is the rule's own TEXT,
+     *  verbatim: the grammar is spelled in the file (docs/format.md), so a rule
+     *  chosen in a browser crosses as the words that were chosen and meets the
+     *  format's per-line check at the far end, exactly as an agent's
+     *  `set_repeat` does. Nothing on the way parses it. */
+    repeat: Schema.NullOr(Schema.String),
   }),
   /**
    * One CUSTOM property, set or taken off — `set_prop`'s own reach, spelled the

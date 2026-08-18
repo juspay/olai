@@ -98,10 +98,11 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
     }
     case "walk":
       return walkRequest(at.derived, edit)
-    // The five that resolve nothing, and are spelled like the ops they are —
-    // which is what makes the ones above legible as the ones that do. Three
-    // are the menu's: a date is a date, a placement is named by the row it is,
-    // and a subtree is what `archive` has always taken.
+    // The six that resolve nothing, and are spelled like the ops they are —
+    // which is what makes the ones above legible as the ones that do. Four
+    // are the menu's: a date is a date, a repeat rule is a repeat rule, a
+    // placement is named by the row it is, and a subtree is what `archive` has
+    // always taken.
     //
     // `was` travels WITH the request rather than being checked here, and that
     // is not tidiness: the write gate re-plans a request when the store moves
@@ -125,6 +126,11 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       })
     case "date":
       return Result.succeed({ op: "date", id: edit.id, date: edit.date })
+    // A rule resolves nothing either: it is TEXT the format itself reads, and
+    // what it may say is the per-line check at the write gate — refused there
+    // in the same words an agent's `set_repeat` meets, with `file:line`.
+    case "repeat":
+      return Result.succeed({ op: "repeat", id: edit.id, repeat: edit.repeat })
     // A property resolves nothing either: the key is the caller's and the value
     // is text. Which keys are refused is the ops layer's answer, said in its own
     // words at the one gate both faces go through.
@@ -715,6 +721,10 @@ export const inverseOf = (
     // overwrite — the ops layer's own `set_date` is what judges it either way.
     case "date":
       return dateOf(at.derived, edit.id)
+    // The RULE this write is about to replace — the date arm one field along,
+    // for the same reason and with the same shape.
+    case "repeat":
+      return repeatOf(at.derived, edit.id)
     // The VALUE this write is about to replace, under the key it names — the
     // date arm one map in. A property set where there was none is put back by
     // removing it, which is the `null` this hands back and what makes the
@@ -1019,6 +1029,24 @@ const dateOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
 }
 
 /**
+ * The REPEAT RULE a node carries, as the edit that would put it back —
+ * {@link dateOf} one field along, and the same three sentences apply to it
+ * word for word: nothing for an id this reading does not hold or for a mirror,
+ * and both directions in one arm, so a rule set over nothing is put back as
+ * nothing and `Stop repeating` is a thing a person can take back.
+ *
+ * It is a separate function rather than {@link dateOf} taught a field name,
+ * because the two answer about different fields of the record and a shared one
+ * would take a key to index by — which is the shape `propOf` has and this is
+ * deliberately not: a system field has a name at compile time.
+ */
+const repeatOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
+  const located = derived.byId.get(id)
+  if (located === undefined || isMirror(located.node)) return []
+  return [{ verb: "repeat", id, repeat: located.node.repeat ?? null }]
+}
+
+/**
  * What one custom property holds, as the edit that would put it back.
  *
  * {@link dateOf} with a key, and the resemblance is the point: both answer for
@@ -1076,6 +1104,16 @@ const propOf = (
  * that is read off the REQUEST rather than re-derived from the verb
  * ({@link inverseOf}) — the request is what is about to run, so it answers for
  * every mark verb there is and every one there will be.
+ *
+ * WHAT IT DOES NOT PUT BACK IS A RECURRENCE, and that is the feature's own
+ * ruling rather than a gap here. Completing a repeating node hands its rule to
+ * the occurrence it spawns (`@olai/ops`' `recurring`), so undoing the mark
+ * leaves a node with no rule and a fresh occurrence standing below it — which
+ * is a recurrence with exactly one live head, which is what a recurrence has.
+ * An undo that took the rule back would give it TWO, and one that also deleted
+ * the occurrence would be an undo reaching a node this write did not name.
+ * Stopping the new one, or the old one, is `Stop repeating` on whichever row
+ * the person meant (docs/format.md's Days).
  */
 const markOf = (
   derived: Derived,

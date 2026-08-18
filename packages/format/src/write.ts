@@ -79,6 +79,7 @@ const ORDER = [
   "doing",
   "todo",
   "date",
+  "repeat",
   "desc",
   "doc",
   "after",

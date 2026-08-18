@@ -455,6 +455,68 @@ const SECTIONS = {
     await shot(page, "menu-refused")
   },
 
+  /**
+   * A dated node that COMES BACK, end to end and in the order a person does
+   * it: choose the rule, complete the row, and find the occurrence the
+   * completion made — first under the row it came from, then on the agenda,
+   * where nothing knows it is an occurrence at all.
+   *
+   * The dates are the feature's own decision rather than the driver's: the row
+   * is put on a Monday in 2019 first, so the occurrence lands on the Monday
+   * after it and is overdue on every day this will ever be run. A shot of an
+   * agenda that depended on the week it was taken in would be a shot nobody
+   * could re-take.
+   */
+  "a-node-that-comes-back": async (page) => {
+    // A day in the past to repeat from, so the occurrence is owed whenever
+    // this runs. Through the pill, which is the control on a dated row.
+    await page.locator(`${row("order")} [data-testid="date"]`).first().click()
+    await page.locator('[data-testid="date-picker-day"]').first().waitFor()
+    await page.locator('[data-testid="date-picker-day"]').first().fill("2019-03-04")
+    await page.locator('[data-testid="date-picker-set"]').first().click()
+    await page.waitForTimeout(SETTLE)
+
+    // THE RULE, from the `•••` — the only door on a row that does not repeat
+    // yet, since there is no pill to press.
+    await openMenu(page, "order")
+    await page.locator('[data-testid="node-menu-panel"] >> text=Set repeat…').first().click()
+    await page.locator('[data-testid="repeat-picker"]').first().waitFor()
+    await page.waitForTimeout(200)
+    console.log(`  the rules it offers: ${
+      (await page.locator('[data-testid="repeat-picker-rule"] option').allInnerTexts()).join(" · ")
+    }`)
+    await shot(page, "picker-open")
+
+    await page.locator('[data-testid="repeat-picker-rule"]').first()
+      .selectOption("every week on monday")
+    await page.waitForTimeout(200)
+    await shot(page, "rule-chosen")
+    await page.locator('[data-testid="repeat-picker-set"]').first().click()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  the row now says:    ${await textOf(page, `${row("order")} [data-testid="repeat"]`)}`)
+    console.log(`  and the file says:   ${recordOf("order")}`)
+    await shot(page, "rule-on-the-row")
+
+    // COMPLETING it, which is what makes the next one.
+    await page.locator(title("order")).click()
+    await page.keyboard.press("Control+Enter")
+    await page.waitForTimeout(SETTLE)
+    // Out of the draft before the shot: a row being typed in draws an input
+    // where its title is, and the whole subject here is the two TITLES — the
+    // one that was finished, and the one the finishing made.
+    await page.keyboard.press("Escape")
+    await page.waitForTimeout(300)
+    console.log(`  after Ctrl+Enter, the outline reads:\n${await drawn(page)}`)
+    console.log(`  the completed record: ${recordOf("order")}`)
+    await shot(page, "completed-and-spawned")
+
+    // …and the occurrence on the AGENDA, which knows nothing about
+    // recurrence: it is a dated `todo` on a day that has gone.
+    await opened(page, "/agenda", AGENDA_PAGE)
+    console.log(`  the agenda draws:\n${await listed(page, AGENDA_PAGE)}`)
+    await shot(page, "agenda-shows-the-occurrence")
+  },
+
   "filter-keeps-ancestors": async (page) => {
     console.log(`  the whole outline:\n${await drawn(page)}`)
     await shot(page, "unfiltered")

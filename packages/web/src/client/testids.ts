@@ -87,6 +87,31 @@ export const TESTID = {
    *  `data-tone` is which mood — `alarm` for the ops layer's own refusal,
    *  `aside` for a remark on a write that landed. */
   datePickerSaid: "date-picker-said",
+
+  // ── the repeat rule ──────────────────────────────────────────────────
+  /** The pill beside a date saying how the node COMES BACK, in the format's
+   *  own words. `data-picks` says whether it is a control — a tree row's is,
+   *  a day page's and the agenda's are not, the same split the date pill has. */
+  repeat: "repeat",
+  /** The repeat picker, in place under the row it was opened on: from the pill
+   *  above, or from the `•••` menu's `Set repeat…`. Present only while it is
+   *  open. */
+  repeatPicker: "repeat-picker",
+  /** The rule itself — a `<select>` over the format's closed grammar, whose
+   *  value is the text the record will hold. The empty option is "does not
+   *  repeat". */
+  repeatPickerRule: "repeat-picker-rule",
+  /** The button that sends it. Its LABEL is the verb: `Set repeat`, or the
+   *  menu's own `Stop repeating` once the empty option is chosen. Disabled
+   *  when pressing it would ask for nothing. */
+  repeatPickerSet: "repeat-picker-set",
+  /** The way out that writes nothing. Escape is the other. */
+  repeatPickerCancel: "repeat-picker-cancel",
+  /** Said when the node stores a rule the list cannot show — quoted verbatim,
+   *  with what choosing one would do to it. */
+  repeatPickerNotice: "repeat-picker-notice",
+  /** What the last press had to say, keeping the panel open to say it. */
+  repeatPickerSaid: "repeat-picker-said",
   // ── the properties drawer ────────────────────────────────────────────
   /** The drawer under a node's note: the node's own facts, then the custom
    *  properties somebody added. Drawn on a ROW only when there is a custom one,

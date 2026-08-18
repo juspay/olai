@@ -249,6 +249,7 @@ const EVERY_REGULAR_FIELD: RegularNode = {
   doing: true,
   todo: true,
   date: "2026-08-11",
+  repeat: "every week on monday",
   desc: "a note",
   doc: "notes.md",
   after: ["x"],

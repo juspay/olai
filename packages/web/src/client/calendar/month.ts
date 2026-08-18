@@ -18,33 +18,38 @@
  * headings.
  */
 
-import { daysOf, isMonth, weekdayOf } from "@olai/format"
-
-/** The weekday headings, in this grid's column order. Two letters, the way a
- *  15rem column can afford. */
-export const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"] as const
-
-const WEEK = WEEKDAYS.length
+import { daysOf, isMonth, WEEKDAYS, weekdayOf } from "@olai/format"
 
 /**
- * The weekdays in full, in the order `@olai/format`'s `weekdayOf` counts them —
- * Monday first, exactly as {@link WEEKDAYS} abbreviates them.
+ * The weekdays in full, in the order `@olai/format`'s `weekdayOf` counts them
+ * — Monday first, capitalised, because these are WORDS ON A SCREEN.
+ *
+ * DERIVED from the floor's own list rather than written out, which is the
+ * comment this declaration used to carry made mechanical: "a second list would
+ * be a second Monday". The seven words moved down to `@olai/format`'s
+ * `calendar.ts` when the repeat grammar needed them one layer below a client
+ * that package may not import — the same journey the weekday ARITHMETIC made
+ * before them, and for the same reason. What stayed up here is the pair of
+ * decisions that are about drawing a week rather than about naming one: the
+ * capital letter, and {@link WEEKDAY_HEADINGS}' two.
  *
  * English, and the outline's rather than the locale's, for the reason
  * {@link monthLabel} gives: these words sit beside ISO dates written by hand,
  * so they are words rather than something that moves with a machine's
- * settings. Exported because the editor's `!` widget both reads them ("next
- * friday") and prints them, and a second list would be a second Monday.
+ * settings. Read by the editor's `!` widget, which both matches them ("next
+ * friday") and prints them.
  */
-export const WEEKDAY_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-] as const
+export const WEEKDAY_NAMES = WEEKDAYS.map(
+  (name) => `${name[0]?.toUpperCase() ?? ""}${name.slice(1)}`,
+)
+
+/** The weekday headings, in this grid's column order. Two letters, the way a
+ *  15rem column can afford — and the first two of the name above rather than a
+ *  third list, so a heading cannot come to disagree with the column it is
+ *  over. */
+export const WEEKDAY_HEADINGS = WEEKDAY_NAMES.map((name) => name.slice(0, 2))
+
+const WEEK = WEEKDAY_HEADINGS.length
 
 export const MONTH_NAMES = [
   "January",

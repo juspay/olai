@@ -1542,6 +1542,223 @@ describe("title, note and date", () => {
   })
 })
 
+// ── the repeat rule, and what completing one does ──────────────────────
+
+/**
+ * A recurrence is a CHAIN of occurrences with exactly one live head, and the
+ * rule rides the head. Every assertion below is that one sentence read from a
+ * different side — which is why the churn edge needs no flag to police it:
+ * completing hands the rule forward, so the node that was completed no longer
+ * has one to spawn from.
+ */
+describe("repeat", () => {
+  /** A weekly chore, dated on a Monday, under a parent that is not finished. */
+  const CHORES = [
+    `{"id":"chores","ord":"a0","title":"Chores"}`,
+    `{"id":"bins","parent":"chores","ord":"a0","title":"put the bins out",` +
+      `"todo":true,"date":"2026-08-17","repeat":"every week on monday","desc":"blue one"}`,
+    `{"id":"floor","parent":"chores","ord":"a1","title":"mop the floor","todo":true}`,
+  ].join("\n")
+
+  const chores = (): OutlineSet => setOf({ "chores.olai": CHORES })
+
+  /** The one record a completion added — the plan says which ids it minted, so
+   *  a test never has to guess at one. */
+  const spawnedBy = (result: Plan): RegularNode => {
+    const made = result.captured?.[0]
+    if (made === undefined) throw new Error("the plan captured nothing")
+    return record(fileOf(result, "chores.olai"), made.id)
+  }
+
+  test("a rule is set and cleared like the date it repeats from", () => {
+    const set = planned(chores(), { op: "repeat", id: "bins", repeat: "every month" })
+    expect(record(fileOf(set, "chores.olai"), "bins").repeat).toBe("every month")
+    expect(set.summary).toBe("repeat: put the bins out -> every month")
+
+    const cleared = planned(chores(), { op: "repeat", id: "bins", repeat: null })
+    expect("repeat" in record(fileOf(cleared, "chores.olai"), "bins")).toBe(false)
+    expect(cleared.summary).toBe("repeat: put the bins out -> (cleared)")
+  })
+
+  // Reading a rule is forgiving and writing one is not: `every monday` is the
+  // same rule as `every week on monday` with nothing to tell the two apart, so
+  // one of them reaches disk. What that buys is the format's own bet — two
+  // files meaning the same thing must not differ byte for byte, or a merge
+  // conflicts over which way somebody spelled Monday.
+  test("a rule is stored in the grammar's own spelling, however it was typed", () => {
+    for (const typed of ["every monday", "every week on MON", "  Every   Monday "]) {
+      expect(
+        record(
+          fileOf(planned(chores(), { op: "repeat", id: "bins", repeat: typed }), "chores.olai"),
+          "bins",
+        ).repeat,
+      ).toBe("every week on monday")
+    }
+  })
+
+  // …and text that is NOT a rule passes through untouched, so the refusal the
+  // gate then makes quotes what the caller actually sent.
+  test("text the grammar cannot read is written back verbatim, and refused as sent", () => {
+    expect(() => after(chores(), { op: "repeat", id: "bins", repeat: "every 2 weeks" }))
+      .toThrow("`every 2 weeks`")
+  })
+
+  // THE PLANNER JUDGES NEITHER HALF OF THE PAIR, and that is the whole of what
+  // this verb had to be taught: a rule the grammar cannot read, and a rule with
+  // no date under it, are per-line rules of the FORMAT's — so what refuses them
+  // is the write gate, over the bytes this plan would produce, in the
+  // validator's own words and whichever verb moved which half. `after` is that
+  // path (serialize the plan, parse it back), which is what makes these
+  // assertions the refusal rather than a description of it.
+  test("a rule the grammar does not have writes bytes the gate will not take", () => {
+    expect(() => after(chores(), { op: "repeat", id: "bins", repeat: "every 2 weeks" }))
+      .toThrow("every week on <weekday>")
+  })
+
+  test("a rule over a node with no date is refused, naming the field it needs", () => {
+    expect(() => after(house(), { op: "repeat", id: "order", repeat: "every month" }))
+      .toThrow("no `date` to repeat from")
+  })
+
+  test("completing a repeating node stamps it AND makes the next occurrence", () => {
+    const result = planned(chores(), { op: "done", id: "bins" })
+    const nodes = fileOf(result, "chores.olai")
+
+    // The completed record keeps its own day and its `done` instant, so the
+    // journal shows the work on the day it was finished.
+    const finished = record(nodes, "bins")
+    expect(finished.done).toBe(STAMP)
+    expect(finished.date).toBe("2026-08-17")
+
+    // …and the rule has moved on, which is what makes the churn edge below
+    // unrepresentable rather than policed.
+    expect("repeat" in finished).toBe(false)
+
+    const next = spawnedBy(result)
+    expect(next.title).toBe("put the bins out")
+    expect(next.date).toBe("2026-08-24")
+    expect(next.repeat).toBe("every week on monday")
+    expect(next.desc).toBe("blue one")
+    // Born `todo`, because it is work that has not started — and because an
+    // unmarked occurrence could never be overdue.
+    expect(next.todo).toBe(true)
+    expect("done" in next).toBe(false)
+    expect(next.created).toBe(STAMP)
+    // A sibling of the node that was finished, immediately after it.
+    expect(next.parent).toBe("chores")
+    expect(childOrder(nodes, "chores")).toEqual(["bins", next.id, "floor"])
+  })
+
+  test("the answer names the occurrence it made, and says which day it is on", () => {
+    const result = planned(chores(), { op: "done", id: "bins" })
+    expect(result.captured).toEqual([
+      { id: spawnedBy(result).id, title: "put the bins out" },
+    ])
+    expect(result.nudge).toContain("2026-08-24")
+    expect(result.summary).toContain("(next: 2026-08-24)")
+  })
+
+  // THE CHURN EDGE, and it is structural: the rule travelled, so there is
+  // nothing left on this node to spawn from.
+  test("un-doing leaves the occurrence, and re-doing makes no second one", () => {
+    const once = after(chores(), { op: "done", id: "bins" })
+    const undone = after(once, { op: "done", id: "bins", undo: true })
+    // The occurrence the completion made is still there — it is owed whatever
+    // anybody says about the one before it.
+    expect(nodesOf(derive(undone.nodes), "chores.olai").length).toBe(4)
+
+    const again = planned(undone, { op: "done", id: "bins" })
+    expect(again.captured).toBeUndefined()
+    expect(again.summary).toBe("done: put the bins out")
+    expect(nodesOf(derive(after(undone, { op: "done", id: "bins" }).nodes), "chores.olai").length)
+      .toBe(4)
+  })
+
+  test("a dated node with no rule is completed exactly as it always was", () => {
+    const result = planned(chores(), { op: "done", id: "floor" })
+    expect(result.captured).toBeUndefined()
+    expect(fileOf(result, "chores.olai").length).toBe(3)
+  })
+
+  // Door two, read once more: the occurrence is open work ARRIVING under
+  // whatever stands over the node that was just finished, so a `done` ancestor
+  // is re-opened. Without it, a finished branch would go on hiding the next
+  // occurrence of everything under it.
+  test("the occurrence re-opens a finished ancestor, and the answer says so", () => {
+    const set = setOf({
+      "chores.olai": CHORES
+        .replace(`{"id":"chores","ord":"a0","title":"Chores"}`, `{"id":"chores","ord":"a0","title":"Chores","done":"2026-08-01"}`)
+        .replace(`"title":"mop the floor","todo":true`, `"title":"mop the floor"`),
+    })
+    const result = planned(set, { op: "done", id: "bins" })
+    expect("done" in record(fileOf(result, "chores.olai"), "chores")).toBe(false)
+    expect(result.summary).toContain("reopened: Chores")
+    expect(result.nudge).toContain("marked done over work that is not finished")
+    // …and the recurrence's own news is still on the answer, behind it.
+    expect(result.nudge).toContain("2026-08-24")
+  })
+
+  // The rollup's remark reads the SNAPSHOT, which cannot see a record this
+  // write is about to make — so "every task under `Chores` is done now" would
+  // be a sentence the same write makes untrue.
+  test("no nudge claims the parent is finished when this write just filled it", () => {
+    const set = setOf({
+      "chores.olai": CHORES.replace(`"title":"mop the floor","todo":true`, `"title":"mop the floor"`),
+    })
+    const result = planned(set, { op: "done", id: "bins" })
+    expect(result.nudge).not.toContain("mark it done too")
+    expect(result.nudge).toContain("2026-08-24")
+  })
+
+  // The planner never has to ask whether a rule is readable, and this is why:
+  // a `repeat` the grammar cannot read, or one with no `date` beside it, is a
+  // `bad-repeat` per LINE, so the file never parses into a set at all. The
+  // fixture builder is the same parser, which is what makes this assertion the
+  // real one rather than a claim about it.
+  test("a set holding an unreadable rule does not parse, so no plan ever sees one", () => {
+    expect(() =>
+      setOf({ "chores.olai": CHORES.replace(`"every week on monday"`, `"every 2 weeks"`) })
+    ).toThrow("bad-repeat")
+  })
+
+  // The same pair, refused from the other side, by the same gate and in the
+  // same words — which is the point of it being the format's rule rather than
+  // one each verb carries a copy of.
+  test("clearing the date out from under a rule writes bytes the gate will not take", () => {
+    expect(() => after(chores(), { op: "date", id: "bins", date: null }))
+      .toThrow("no `date` to repeat from")
+    // …and changing it to another day is not: a recurrence is free to move.
+    expect(record(
+      fileOf(planned(chores(), { op: "date", id: "bins", date: "2026-08-31" }), "chores.olai"),
+      "bins",
+    ).date).toBe("2026-08-31")
+  })
+
+  // Stopping a recurrence and clearing the date is a perfectly sensible thing
+  // to say in one call, and it is the one place `update`'s fixed field order
+  // bends: removal before addition, so no step of the fold sees a rule with no
+  // date under it.
+  test("`update` can stop a recurrence and clear the date in one call", () => {
+    const result = planned(chores(), { op: "update", id: "bins", date: null, repeat: null })
+    const written = record(fileOf(result, "chores.olai"), "bins")
+    expect("date" in written).toBe(false)
+    expect("repeat" in written).toBe(false)
+  })
+
+  test("`update` writes the date and the rule in one call, in that order", () => {
+    const result = planned(house(), {
+      op: "update",
+      id: "order",
+      date: "2026-08-17",
+      repeat: "every month",
+    })
+    const written = record(fileOf(result, "house.olai"), "order")
+    expect(written.date).toBe("2026-08-17")
+    expect(written.repeat).toBe("every month")
+    expect(result.summary).toContain("date, repeat")
+  })
+})
+
 // ── prop ───────────────────────────────────────────────────────────────
 
 describe("prop", () => {

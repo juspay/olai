@@ -187,6 +187,37 @@ export const shiftMonth = (month: string, delta: number): string => {
  */
 const OFFSETS = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4] as const
 
+/**
+ * The weekdays, named, in the order {@link weekdayOf} counts them — so the
+ * index IS the count and there is no table pairing the two that could be off
+ * by one.
+ *
+ * HERE rather than in whichever surface draws a week, for the reason this
+ * whole module is here: the count and the names are one convention, and the
+ * paragraph above ("Monday is the week's first day, and this is the only
+ * place that says so") is a promise a second list would quietly break. It came
+ * down out of the browser, where it was `calendar/month.ts`'s `WEEKDAY_NAMES`
+ * with a comment saying a second list would be a second Monday — and then the
+ * repeat grammar (./repeat.ts) needed the same seven words one layer below a
+ * client this package may not import, which is exactly the journey the header
+ * describes the arithmetic itself making.
+ *
+ * LOWERCASE, because that is what the FORMAT holds: `every week on monday` is
+ * text in a record, and a record is not a heading. Casing and abbreviation are
+ * decisions about DRAWING a week, so they stay with whoever draws one —
+ * `@olai/web`'s month grid takes its two-letter headings and its capitalised
+ * names off this list rather than keeping either.
+ */
+export const WEEKDAYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const
+
 export const weekdayOf = (date: string): number | null => {
   const parsed = parseDay(date)
   if (parsed === null) return null
@@ -202,6 +233,30 @@ export const weekdayOf = (date: string): number | null => {
     7
   // Sakamoto counts from Sunday; everything here counts from Monday.
   return (sunday + 6) % 7
+}
+
+/**
+ * The next day that falls on `weekday`, STRICTLY after `date` — or `null` for
+ * text that names no day, which is the answer {@link weekdayOf} above gives
+ * about the same text.
+ *
+ * `|| 7` rather than `% 7`, and that is the whole decision: the same weekday as
+ * the day you are standing on is a week away, not today. It is the rule a
+ * weekly REPEAT is ("every week on monday", completed on a Monday, is the next
+ * Monday — ./repeat.ts) and the rule the browser's `!` widget already meant by
+ * "next friday", and the two used to be two: one written here as modular
+ * arithmetic and one as a seven-step scan over `shiftDay`, agreeing on the
+ * subtle half by luck.
+ *
+ * HERE for the reason the weekday NAMES came down: two layers ask it, and
+ * `@olai/format` may not import a client. One step of arithmetic rather than
+ * seven of string round-tripping, which is what the scan cost — up to fourteen
+ * `parseDay`s and seven ISO strings built to be thrown away.
+ */
+export const comingWeekday = (date: string, weekday: number): string | null => {
+  const standing = weekdayOf(date)
+  if (standing === null) return null
+  return shiftDay(date, (weekday - standing + 7) % 7 || 7)
 }
 
 /**

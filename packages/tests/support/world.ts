@@ -299,6 +299,21 @@ export const DATE_PICKER_CANCEL = selector(TESTID.datePickerCancel);
 /** Said when the node stores a value a day box cannot hold — a datetime,
  *  quoted verbatim, with what picking a day would do to it. */
 export const DATE_PICKER_NOTICE = selector(TESTID.datePickerNotice);
+/** The `↻` pill beside a date, saying how the node COMES BACK in the format's
+ *  own words — and, where the row is editable, the way into the picker below.
+ *  `data-picks` carries which of the two it is, exactly as the date pill's
+ *  does: a day page and the agenda draw a query, read-only. */
+export const REPEAT = selector(TESTID.repeat);
+/** The repeat picker, beside the date picker in every respect: in place under
+ *  the row, opened from the pill above or from the `•••` menu's `Set repeat…`.
+ *  Its control is a `<select>` over the format's CLOSED grammar, so what it
+ *  holds is the text the record will hold, and its button's LABEL is the verb
+ *  — `Stop repeating` being the menu's own words for the same edit once the
+ *  empty option is chosen. */
+export const REPEAT_PICKER = selector(TESTID.repeatPicker);
+export const REPEAT_PICKER_RULE = selector(TESTID.repeatPickerRule);
+export const REPEAT_PICKER_SET = selector(TESTID.repeatPickerSet);
+export const REPEAT_PICKER_CANCEL = selector(TESTID.repeatPickerCancel);
 /** The properties drawer under a node's note, and one `key value` line of it.
  *  A line carries `data-key`, and `data-system` on the read-only ones — the
  *  node's own facts, which have verbs of their own. */
