@@ -44,29 +44,8 @@
  * rather than compared; nothing here parses a date into an instant.
  */
 
-import { isRealDay, shiftDay, shiftDayByMonth, weekdayOf } from "./calendar.ts"
+import { shiftDay, shiftDayByMonth, WEEKDAYS, weekdayOf } from "./calendar.ts"
 import { dayOf } from "./dates.ts"
-
-/**
- * The weekdays, in the order ./calendar.ts's {@link weekdayOf} counts them —
- * MONDAY FIRST, which is that module's one convention and this one reads it
- * rather than declaring a second.
- *
- * The index IS the weekday number, so parsing is `indexOf` and printing is a
- * lookup, and there is no table pairing names to numbers that could be off by
- * one.
- */
-export const WEEKDAYS = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
-] as const
-
-export type Weekday = (typeof WEEKDAYS)[number]
 
 /**
  * A rule, taken apart.
@@ -192,25 +171,28 @@ export const isRepeat = (text: string): boolean => parseRepeat(text) !== undefin
  * TOTAL over what the validator approves: a `repeat` on disk has a `date`
  * beside it, and a `date` is ISO. Handed something else — a datetime, whose
  * time this drops the way every other reading of a date does, or text that is
- * no day at all — it answers the day it was given, which is ./calendar.ts's
- * own rule for text it cannot count with: shifting is a way to look around,
- * never a way to end up somewhere that is not a day.
+ * no day at all — it answers the day it was given, and it answers that by
+ * DELEGATION rather than by a guard of its own: ./calendar.ts's shifts hand
+ * back text they cannot count with, unchanged, which is that module's own rule
+ * ("shifting is a way to look around, never a way to end up somewhere that is
+ * not a day"). A `isRealDay` test here would be that rule written a second
+ * time, agreeing today and free to stop agreeing.
  */
 export const nextAfter = (rule: Repeat, date: string): string => {
   const day = dayOf(date)
-  if (!isRealDay(day)) return day
   switch (rule.every) {
     case "day":
       return shiftDay(day, 1)
     case "week": {
       // Strictly after, so the search starts tomorrow — `every week on monday`
-      // completed ON a Monday is the NEXT Monday and not the same one. Seven
-      // steps reach every weekday from any day, so the loop is bounded by the
-      // week rather than by a guard.
+      // completed ON a Monday is the NEXT Monday and not the same one.
       for (let ahead = 1; ahead <= 7; ahead++) {
         const candidate = shiftDay(day, ahead)
         if (weekdayOf(candidate) === rule.weekday) return candidate
       }
+      // Seven steps reach every weekday from any real day, so this line is
+      // reached only for text ./calendar.ts could not count with — and it is
+      // that module's own answer for such text, handed back unchanged.
       return shiftDay(day, 7)
     }
     case "month":

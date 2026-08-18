@@ -187,6 +187,39 @@ export const shiftMonth = (month: string, delta: number): string => {
  */
 const OFFSETS = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4] as const
 
+/**
+ * The weekdays, named, in the order {@link weekdayOf} counts them — so the
+ * index IS the count and there is no table pairing the two that could be off
+ * by one.
+ *
+ * HERE rather than in whichever surface draws a week, for the reason this
+ * whole module is here: the count and the names are one convention, and the
+ * paragraph above ("Monday is the week's first day, and this is the only
+ * place that says so") is a promise a second list would quietly break. It came
+ * down out of the browser, where it was `calendar/month.ts`'s `WEEKDAY_NAMES`
+ * with a comment saying a second list would be a second Monday — and then the
+ * repeat grammar (./repeat.ts) needed the same seven words one layer below a
+ * client this package may not import, which is exactly the journey the header
+ * describes the arithmetic itself making.
+ *
+ * LOWERCASE, because that is what the FORMAT holds: `every week on monday` is
+ * text in a record, and a record is not a heading. Casing and abbreviation are
+ * decisions about DRAWING a week, so they stay with whoever draws one —
+ * `@olai/web`'s month grid takes its two-letter headings and its capitalised
+ * names off this list rather than keeping either.
+ */
+export const WEEKDAYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const
+
+export type Weekday = (typeof WEEKDAYS)[number]
+
 export const weekdayOf = (date: string): number | null => {
   const parsed = parseDay(date)
   if (parsed === null) return null

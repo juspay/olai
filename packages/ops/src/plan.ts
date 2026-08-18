@@ -1328,12 +1328,13 @@ const planMark = (
 
   // WHAT COMES BACK ({@link recurring}): a `done` on a node that repeats hands
   // the rule to the occurrence it spawns, so `next` above stops carrying one.
+  // `undefined` is every other write, which is nearly every write.
   const again = recurring(scope, file, node, mark, undo)
-  if (again.spawned !== undefined) delete next.repeat
+  if (again !== undefined) delete next.repeat
 
   const summary = undo
     ? `${UNMARKED[mark]}: ${node.title}`
-    : again.spawned === undefined
+    : again === undefined
     ? `${mark}: ${node.title}`
     : `${mark}: ${node.title} (next: ${again.next})`
 
@@ -1343,8 +1344,9 @@ const planMark = (
   // being, so "every task under `chores` is done now" would be a sentence made
   // untrue by the very same write. What is said instead is {@link recurring}'s
   // own news, which is the thing a reader of this write actually wants.
-  const note = again.spawned === undefined ? nudged(scope, node, mark, undo) : undefined
-  const said = again.said ?? note
+  const said = again === undefined
+    ? nudged(scope, node, mark, undo)
+    : `\`${node.title}\` repeats ${node.repeat} — the next one is on ${again.next}.`
 
   const records = replacing(recordsOf(scope, file), node.id, touched(scope, next))
 
@@ -1360,41 +1362,43 @@ const planMark = (
   return Result.succeed(arriving(
     scope,
     { file, parent: node.parent },
-    () => !undo && (mark !== "done" || again.spawned !== undefined),
+    () => !undo && (mark !== "done" || again !== undefined),
     {
       files: [{
         file,
-        nodes: again.spawned === undefined
+        nodes: again === undefined
           ? records
-          : withOrds([...records, again.spawned], again.ords ?? []),
+          : withOrds([...records, again.spawned], again.ords),
       }],
       id: node.id,
       title: node.title,
       file,
       summary,
-      ...(again.spawned === undefined ? {} : { captured: mintedOf([again.spawned]) }),
+      ...(again === undefined ? {} : { captured: mintedOf([again.spawned]) }),
       ...(said === undefined ? {} : { nudge: said }),
     },
   ))
 }
 
-/** What a `done` on a repeating node produces: the occurrence that comes next,
- *  the day it landed on, the `ord`s its placement decided, and the sentence the
- *  answer carries. Every field absent is the ordinary write, which is nearly
- *  every write. */
+/**
+ * What a `done` on a repeating node produces: the occurrence that comes next,
+ * the day it landed on, and the `ord`s its placement decided.
+ *
+ * EVERY FIELD REQUIRED, and the absence is the whole value ({@link recurring}
+ * answers `undefined`) — which is the difference between a shape that can be
+ * half-true and one that cannot. Three optional fields was a product whose
+ * arms were held apart by reading order: `next` and `ords` mean nothing
+ * without `spawned`, so every reader had to test the one field that grounds
+ * the other two and trust itself to test the right one. One `undefined` is one
+ * question, asked once at the top of the caller.
+ */
 interface Recurrence {
-  readonly spawned?: RegularNode
+  readonly spawned: RegularNode
   /** The day it landed on — carried rather than read back off `spawned.date`,
    *  which the record type spells optional and this one never is. */
-  readonly next?: string
-  readonly ords?: ReadonlyArray<{ id: string; ord: string }>
-  /** What the answer says about the occurrence that was made. */
-  readonly said?: string
+  readonly next: string
+  readonly ords: ReadonlyArray<{ id: string; ord: string }>
 }
-
-/** Nothing came back: one value, shared, so the ordinary path allocates
- *  nothing and reads as the absence it is. */
-const NOT_RECURRING: Recurrence = {}
 
 /**
  * THE SPAWN, and the one place in this system that decides it.
@@ -1443,8 +1447,8 @@ const recurring = (
   node: RegularNode,
   mark: Status,
   undo: boolean,
-): Recurrence => {
-  if (undo || mark !== "done" || node.repeat === undefined) return NOT_RECURRING
+): Recurrence | undefined => {
+  if (undo || mark !== "done" || node.repeat === undefined) return undefined
   // THE RULE IS ALREADY KNOWN GOOD, and that is `@olai/format`'s doing rather
   // than a check skipped here: a `repeat` this grammar cannot read, or one
   // with no `date` to repeat from, is a `bad-repeat` per line — so the file
@@ -1469,10 +1473,14 @@ const recurring = (
   const id = freshId(scope, new Set())
   const ords = placed(siblingsOf(scope.derived, file, node.parent), id, { after: node.id })
   // {@link placed} refuses only an anchor that is not among the siblings, and
-  // the anchor here is the node those siblings were read from — so this cannot
-  // fail, and a spawn that swallowed a refusal would be the silent half this
-  // whole function is written against.
-  if (Result.isFailure(ords)) return NOT_RECURRING
+  // the anchor here is the node those siblings were read from — so this is the
+  // same unreachable defect the throw above names, thrown for the same reason.
+  if (Result.isFailure(ords)) {
+    throw new Error(
+      `the occurrence after \`${node.title}\` could not be placed beside it: ` +
+        ords.failure.message,
+    )
+  }
   const spawned: RegularNode = {
     id,
     ...(node.parent === undefined ? {} : { parent: node.parent }),
@@ -1486,12 +1494,7 @@ const recurring = (
     // this is the third way a node is born.
     created: scope.context.now(),
   }
-  return {
-    spawned,
-    next: nextDate,
-    ords: ords.success,
-    said: `\`${node.title}\` repeats ${node.repeat} — the next one is on ${nextDate}.`,
-  }
+  return { spawned, next: nextDate, ords: ords.success }
 }
 
 /**

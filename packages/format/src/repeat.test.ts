@@ -8,8 +8,8 @@ import {
   printRepeat,
   type Repeat,
   REPEAT_RULES,
-  WEEKDAYS,
 } from "./repeat.ts"
+import { WEEKDAYS } from "./calendar.ts"
 
 // The grammar, and the arithmetic it names. Two properties carry most of this
 // file: whatever `parseRepeat` reads, `printRepeat` writes back as the same
