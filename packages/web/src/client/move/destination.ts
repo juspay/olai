@@ -24,9 +24,9 @@
  * destination this module says nothing about can still be refused there — an
  * id that has since moved, a file that stopped parsing — and lands in the
  * panel's said line in the ops layer's own words. What it must never do is
- * refuse something the planner would allow, which is why the rules below are
- * the four that are facts about the SET as this tab is drawing it, and none of
- * them is a guess about the write.
+ * refuse something the planner would allow, which is why every rule below is a
+ * fact about the SET as this tab is drawing it, and none of them is a guess
+ * about the write.
  *
  * ## The current parent is ONE of them, and that was a decision
  *

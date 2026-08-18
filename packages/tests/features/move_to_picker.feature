@@ -172,6 +172,20 @@ Feature: Moving a row to a parent you search for
     When I search the move picker for "install the cabinets"
     Then the move picker refuses with "the row you are moving"
 
+  Scenario: The reason is about the row the cursor is ON, and moves with it
+    # What "at the aim" MEANS, in one list: `cabinets` finds two rows of this
+    # outline, one of which is the row being moved. The sentence is about
+    # whichever the cursor is on — walk off it and there is nothing to say,
+    # because that destination can take the row.
+    When I click the title of "install"
+    And I press "ControlOrMeta+Shift+m"
+    And I search the move picker for "cabinets"
+    And I point the move picker at "install the cabinets"
+    Then the move picker refuses with "the row you are moving"
+    When I point the move picker at "order the new cabinets"
+    Then the move picker refuses nothing
+    And there should be no page errors
+
   Scenario: The parent a row already has is offered, and refused as a reorder
     # THE RULING (docs/editing.md): the current parent is in the list, because
     # a reader who searches for a title they can see must find it — and it is

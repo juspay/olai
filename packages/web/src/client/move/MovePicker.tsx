@@ -58,7 +58,7 @@ import type { Edit } from "@olai/surface"
 import { useDerived } from "../derived.tsx"
 import { Shortlist, type ShortlistTestids } from "../search/Shortlist.tsx"
 import { TESTID } from "../testids.ts"
-import { TARGET } from "../touch.ts"
+import { PANEL_OUT } from "../pill.ts"
 import { type Moved, whyNot } from "./destination.ts"
 
 /** What this door calls the parts of its shortlist. */
@@ -120,7 +120,7 @@ export function MovePicker(props: {
       <div class="mt-1 flex items-center justify-end">
         <button
           type="button"
-          class={`${TARGET} md:min-h-0 cursor-pointer rounded border-0 bg-transparent px-2 py-1 text-sm text-muted hover:text-ink`}
+          class={PANEL_OUT}
           data-testid={TESTID.movePickerClose}
           onClick={() => props.onClose()}
         >

@@ -1,3 +1,5 @@
+import { TARGET } from "./touch.ts"
+
 /**
  * The quiet pill button: a bordered verb beside something louder.
  *
@@ -43,3 +45,22 @@ export const QUIET_PILL =
  */
 export const ALARM_PILL =
   "rounded border border-alarm bg-transparent px-2 py-1 text-xs text-alarm hover:bg-alarm/10"
+
+/**
+ * The way OUT of a panel a row opened — `Cancel` on the three panels that ask
+ * one thing (`edit/RowPanel.tsx`), `Done` on the two that search
+ * (`edges/EdgePanel.tsx`, `move/MovePicker.tsx`).
+ *
+ * A THIRD button vocabulary rather than either pill above, and the difference
+ * is what it sits next to: those two are chips beside something louder, and
+ * this one is the quiet half of a pair inside a panel — no border at all,
+ * reading-size text, and a finger's height under `md`, because these panels
+ * are drawn where a thumb reaches them. It was written out three times, which
+ * is the count `RowPanel.tsx` itself was extracted at; `claims.test.ts` sweeps
+ * for the spelling so a fourth copies the constant.
+ *
+ * The CURSOR is in the string, unlike {@link QUIET_PILL}'s: all three sites
+ * are panels rather than chrome, and a panel offers a pointer.
+ */
+export const PANEL_OUT =
+  `${TARGET} md:min-h-0 cursor-pointer rounded border-0 bg-transparent px-2 py-1 text-sm text-muted hover:text-ink`

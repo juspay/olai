@@ -59,6 +59,7 @@ import { createSignal, type JSX, Show } from "solid-js"
 import type { PanelIds, Press } from "./panel.ts"
 import { SaidLine } from "./SaidLine.tsx"
 import type { Said } from "./undoing.ts"
+import { PANEL_OUT } from "../pill.ts"
 import { TARGET } from "../touch.ts"
 
 export function RowPanel(props: {
@@ -148,7 +149,7 @@ export function RowPanel(props: {
         </button>
         <button
           type="button"
-          class={`${TARGET} md:min-h-0 cursor-pointer rounded border-0 bg-transparent px-2 py-1 text-sm text-muted hover:text-ink`}
+          class={PANEL_OUT}
           data-testid={props.ids.cancel}
           onClick={() => props.onClose()}
         >

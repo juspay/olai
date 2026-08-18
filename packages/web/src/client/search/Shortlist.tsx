@@ -63,9 +63,9 @@ import { Result, type RowTestids } from "./Result.tsx"
 /**
  * What one door calls the parts of its shortlist.
  *
- * One value rather than four props, which is `./Result.tsx`'s `RowTestids`
+ * One value rather than three props, which is `./Result.tsx`'s `RowTestids`
  * reasoning one level up: they are one surface's identity, named once at the
- * call site off `../testids.ts`, rather than four arguments a caller can pass
+ * call site off `../testids.ts`, rather than three arguments a caller can pass
  * in the wrong order — and a door that passed the box's name and forgot the
  * failure line's would draw a sentence no test could reach.
  */

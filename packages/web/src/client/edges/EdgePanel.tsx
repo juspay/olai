@@ -72,7 +72,7 @@ import { createMemo, For, Show } from "solid-js"
 import { useDerived } from "../derived.tsx"
 import { Shortlist, type ShortlistTestids } from "../search/Shortlist.tsx"
 import { TESTID } from "../testids.ts"
-import { TARGET } from "../touch.ts"
+import { PANEL_OUT } from "../pill.ts"
 import { DropRef } from "./DropRef.tsx"
 import { namedBy } from "./named.ts"
 import { linking, type Relation, relating, unlinking } from "./relation.ts"
@@ -159,7 +159,7 @@ export function EdgePanel(props: {
       <div class="mt-1 flex items-center justify-end">
         <button
           type="button"
-          class={`${TARGET} md:min-h-0 cursor-pointer rounded border-0 bg-transparent px-2 py-1 text-sm text-muted hover:text-ink`}
+          class={PANEL_OUT}
           data-testid={TESTID.edgePanelClose}
           onClick={() => props.onClose()}
         >
