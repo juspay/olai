@@ -21,6 +21,7 @@
 import {
   DEFAULT_THEME,
   type Palette,
+  type PaletteToken,
   PALETTE_TOKENS,
   PALETTES,
   THEME_ATTRIBUTE,
@@ -29,6 +30,15 @@ import {
 /** The custom property a token is read through — Tailwind's namespace, so that
  *  `text-ink` and `--color-ink` are one decision and not two. */
 export const customProperty = (token: string): string => `--color-${token}`
+
+/** The same token as a VALUE, for the one thing a utility class cannot be: a
+ *  colour computed at render time and written into a style attribute — a
+ *  gradient down the agenda's spine, the ring around now (`../agenda/spine.ts`).
+ *  Beside the property rather than at that site, because it is the same
+ *  namespace decision one step on, and a second `var(--color-…)` spelled
+ *  elsewhere is what would survive a rename of it. */
+export const tokenValue = (token: PaletteToken): string =>
+  `var(${customProperty(token)})`
 
 /** The selector a page in this theme matches. The default matches TWO: its own
  *  name, and the page that has picked nothing at all.

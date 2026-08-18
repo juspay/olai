@@ -555,15 +555,27 @@ export const TESTID = {
   /** The agenda, as a page: the same dates read forward. `data-date` is the
    *  day it was answered for, which `/agenda` does not spell. */
   agendaPage: "agenda-page",
-  /** One of its three sections. `data-section` is WHICH — `overdue`, `today`,
-   *  `upcoming` — never the words it is titled with, and a section with
-   *  nothing in it is not drawn at all rather than drawn empty. */
-  agendaSection: "agenda-section",
-  /** One day inside the Upcoming section; `data-date` is which. Its heading is
-   *  the link to that day's own page, where the note and the finished work the
-   *  agenda leaves out are read. */
+  /** THE LINE, drawn exactly when something is owed — so its absence is the
+   *  page's claim that there is nothing to draw one for, and never a layout
+   *  accident. It replaced `agenda-section`: the page has no boxes on it
+   *  (`agenda-spine`, 2026-08-18). */
+  agendaSpine: "agenda-spine",
+  /** ONE DAY on that line — every one of them now, where this used to name only
+   *  a day inside Upcoming. `data-date` is which day, and `data-when` is which
+   *  side of now it is on (`late`, `today`, `ahead`), which is a fact about the
+   *  day where `data-section` was a heading it had been filed under. Its own
+   *  heading is the link to that day's own page, where the note and the
+   *  finished work the agenda leaves out are read.
+   *
+   *  A day is drawn exactly when it owes something — except TODAY, which is
+   *  drawn whenever the line is, because now is a place on it. */
   agendaDay: "agenda-day",
-  /** Said in place of all three when nothing is late, on today, or coming. */
+  /** A SILENCE worth naming, beside the line: `data-days` is how long the wait
+   *  was, and the words are how long it FELT ("two quiet weeks"). Absent
+   *  wherever a gap is too short to be worth a word — the whitespace is still
+   *  there and still grows with the wait. */
+  agendaQuiet: "agenda-quiet",
+  /** Said in place of the line when nothing is late, on today, or coming. */
   agendaEmpty: "agenda-empty",
   /** The way to the agenda from the directory column, above the month — the
    *  journal's two questions, side by side. */

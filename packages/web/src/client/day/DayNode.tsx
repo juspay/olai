@@ -26,6 +26,27 @@
  * WHETHER IT IS LATE rides the same badge, and is asked of the node rather than
  * of the date drawn: a row that is here because it was finished today is
  * wearing its `done` instant, and finished work is late at nothing.
+ *
+ * ## Two surfaces, and the two things they disagree about
+ *
+ * They are still one row — same glyph, same line, same note, same `data-`
+ * facts — and exactly two decisions are the caller's, because exactly two
+ * depend on what the PAGE around the row has already said:
+ *
+ *   - WHERE THE ANCESTRY GOES. A day page heads each group with its outline, so
+ *     the trail sits above the row, under that heading. The agenda's spine cut
+ *     the file heading, and the trail became one muted line UNDER the row —
+ *     which is what a row on a line of time looks like when nothing is stacked
+ *     over it (`agenda-spine`, 2026-08-18).
+ *   - WHAT THE DATE PILL SAYS, or whether there is one. A day page draws the
+ *     stored date. A day on the spine has already said its own date in its
+ *     heading, so the pill is dropped there and kept only for what the heading
+ *     cannot say: how late the work is, and the time on a datetime
+ *     (`@olai/format`'s `owedFact`).
+ *
+ * Two props rather than one `surface` flag: what differs is named by what it
+ * is, so a third page that wants a trail under its rows says that rather than
+ * saying it is the agenda.
  */
 
 import { type DayEntry, isOverdue } from "@olai/format"
@@ -49,6 +70,10 @@ import { GUTTER_GAP, PAST_BULLET } from "../touch.ts"
 
 export function DayNode(props: {
   readonly dated: DayEntry
+  /** Where the ancestry line sits, relative to the row it is about. */
+  readonly trail: "over" | "under"
+  /** What the date pill says — absent draws none. See the header. */
+  readonly pill?: string
 }) {
   const node = () => props.dated.shows.node
   const note = createNoteExpand(() => startsOpen(density()))
@@ -61,6 +86,13 @@ export function DayNode(props: {
     const desc = node().desc
     return (desc !== undefined && desc !== "") || customEntries(node()).length > 0
   }
+  /** The ancestry, when there is any — a root has none, and an empty trail is
+   *  nothing to draw. Asked once and read by whichever of the two slots below
+   *  this row's caller chose. */
+  const ancestry = () =>
+    props.dated.trail.length > 0 ? props.dated.trail : undefined
+  const over = () => (props.trail === "over" ? ancestry() : undefined)
+  const under = () => (props.trail === "under" ? ancestry() : undefined)
 
   return (
     <li
@@ -80,10 +112,7 @@ export function DayNode(props: {
       // row already carries its ancestry in the crumb above it.
       data-match={matchedAttr(narrowed, node().id)}
     >
-      {/* A root has no ancestry, and an empty trail is nothing to draw. */}
-      <Show when={props.dated.trail.length > 0}>
-        <Breadcrumbs trail={props.dated.trail} />
-      </Show>
+      <Show when={over()}>{(trail) => <Breadcrumbs trail={trail()} />}</Show>
 
       <div
         class={`flex items-baseline ${GUTTER_GAP} ${WAITING_DIM(props.dated.blocked)}`}
@@ -116,12 +145,23 @@ export function DayNode(props: {
               <NoteMark open={note.expanded()} onToggle={note.toggle} ref={note.setTrigger} />
             </Show>
           }
-          date={props.dated.date}
+          says={props.pill}
           occasion={props.dated.occasion}
           overdue={isOverdue(node(), today())}
           repeat={node().repeat}
         />
       </div>
+
+      {/* The trail UNDER the row, where the page over it has no heading of its
+          own: indented past the bullet like the note is, so the row and what it
+          says about itself hang off one column. */}
+      <Show when={under()}>
+        {(trail) => (
+          <div class={`${PAST_BULLET} ${WAITING_DIM(props.dated.blocked)}`}>
+            <Breadcrumbs trail={trail()} />
+          </div>
+        )}
+      </Show>
 
       {/* Past the bullet and the checkbox — ../touch.ts, so this indent and
           those two controls cannot drift apart. */}

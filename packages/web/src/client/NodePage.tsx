@@ -116,7 +116,7 @@ function Zoom(props: {
             <Show when={props.zoomed.shows.node.date}>
               {(date) => (
                 <DateBadge
-                  date={date()}
+                  says={date()}
                   overdue={isOverdue(props.zoomed.shows.node, today())}
                 />
               )}

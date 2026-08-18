@@ -1,11 +1,13 @@
 import { expect, test } from "bun:test"
 
 import {
+  daysBetween,
   daysOf,
   isMonth,
   isoDate,
   isRealDay,
   monthOfDay,
+  MONTHS,
   shiftDay,
   shiftDayByMonth,
   shiftMonth,
@@ -135,4 +137,51 @@ test("a month step keeps the day, or the last one the month has", () => {
   expect(shiftDayByMonth("2026-01-31", 1)).toBe("2026-02-28")
   expect(shiftDayByMonth("2026-12-15", 1)).toBe("2027-01-15")
   expect(shiftDayByMonth("2026-01-15", -1)).toBe("2025-12-15")
+})
+
+// ── the days between two days ──────────────────────────────────────────
+
+test("a span is a subtraction, and it counts the same both ways round", () => {
+  expect(daysBetween("2026-08-12", "2026-08-14")).toBe(2)
+  expect(daysBetween("2026-08-14", "2026-08-12")).toBe(-2)
+  expect(daysBetween("2026-08-12", "2026-08-12")).toBe(0)
+})
+
+test("a span crosses months, years and the leap rule without a table", () => {
+  expect(daysBetween("2026-08-31", "2026-09-01")).toBe(1)
+  expect(daysBetween("2026-12-31", "2027-01-01")).toBe(1)
+  // 2028 is a leap year, 2100 is not, 2000 was — the Gregorian rule, all three
+  // arms of it, over spans a walk of month lengths would take a thousand steps
+  // to answer.
+  expect(daysBetween("2028-02-28", "2028-03-01")).toBe(2)
+  expect(daysBetween("2100-02-28", "2100-03-01")).toBe(1)
+  expect(daysBetween("2000-02-28", "2000-03-01")).toBe(2)
+  expect(daysBetween("2026-08-12", "2027-08-12")).toBe(365)
+  expect(daysBetween("2027-08-12", "2028-08-12")).toBe(366)
+})
+
+test("a span agrees with the step, which is the other way of counting one", () => {
+  // Two implementations of the calendar meet here: `shiftDay` walks month
+  // lengths and this subtracts serial numbers, so a disagreement between them
+  // is a bug in one of them.
+  for (const delta of [1, 29, 400, -1, -366]) {
+    expect(daysBetween("2026-01-01", shiftDay("2026-01-01", delta))).toBe(delta)
+  }
+})
+
+test("a span over text that names no day is no span at all", () => {
+  // `null` rather than a zero: "these are the same day" is a different answer
+  // from "one of these is not a day", and a page saying "in 0 days" about a
+  // typo would be the arithmetic guessing.
+  expect(daysBetween("hello", "2026-08-12")).toBeNull()
+  expect(daysBetween("2026-08-12", "2026-02-30")).toBeNull()
+})
+
+// ── the names ──────────────────────────────────────────────────────────
+
+test("the months are twelve, in the order an ISO value numbers them", () => {
+  expect(MONTHS.length).toBe(12)
+  expect(MONTHS[0]).toBe("January")
+  expect(MONTHS[Number("2026-08-12".slice(5, 7)) - 1]).toBe("August")
+  expect(MONTHS.at(-1)).toBe("December")
 })

@@ -28,7 +28,7 @@ Feature: What is put away is on the Trash and nowhere else
     # `order` is doing, dated the 10th, and nothing has finished it: the one
     # thing this vault is late on.
     Given I open the agenda
-    Then the "overdue" section lists "order"
+    Then the spine's "late" rows are "order"
     And the agenda entry is on fire with 1 late
     When I open the outline "house.olai"
     And I open the node menu of "order"

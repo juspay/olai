@@ -167,8 +167,8 @@ Feature: A dated node that comes back
     When I click the title of "order"
     And I press "Control+Enter"
     And I open the agenda
-    Then the "overdue" section shows a node titled "order the new cabinets" dated "2019-03-11"
-    And the "overdue" section shows a node repeating "every week on monday"
+    Then the "late" days show a node titled "order the new cabinets" on "2019-03-11"
+    And the "late" days show a node repeating "every week on monday"
     # …and the node that was finished is on none of it: what happened is a day
     # page's answer, not this one's.
     And the agenda does not list "order"

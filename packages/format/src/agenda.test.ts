@@ -1,12 +1,17 @@
 import { expect, test } from "bun:test"
 
 import {
+  type AgendaDay,
   agendaOf,
+  type Felt,
+  feltOn,
   isOverdue,
   keepingOwed,
   nothingDue,
+  owedFact,
   owedIn,
   owedOf,
+  quietBetween,
   UPCOMING_DAYS,
 } from "./agenda.ts"
 import { derive, type Derived } from "./derive.ts"
@@ -64,12 +69,17 @@ const SET = derive(
   }),
 )
 
-/** The ids a section lists, across its groups and in the order it lists them —
- *  the membership and the order are one promise. */
+/** The ids a run of day groups lists, in the order it lists them — the
+ *  membership and the order are one promise. */
 const listed = (
   groups: ReadonlyArray<{ readonly nodes: ReadonlyArray<{ readonly shows: Located }> }>,
 ): ReadonlyArray<string> =>
   groups.flatMap((group) => group.nodes.map((entry) => entry.shows.node.id))
+
+/** The same, over a run of DAYS — what the two halves of the line hold, read
+ *  end to end, which is the order the page draws them in. */
+const across = (days: ReadonlyArray<AgendaDay>): ReadonlyArray<string> =>
+  days.flatMap((day) => listed(day.groups))
 
 /** One record, parsed the way every fixture in this package is — the predicate
  *  takes a node rather than a set, so this is all it needs. */
@@ -148,10 +158,29 @@ test("a task with no date is not late — it has no WHEN to be late against", ()
 
 // ── the page ───────────────────────────────────────────────────────────
 
-test("Overdue is every slipped task in the set, oldest first, grouped by outline", () => {
+test("what slipped arrives as DAYS, oldest first, each grouped by outline", () => {
   const agenda = agendaOf(SET, TODAY)
-  expect(agenda.overdue.map((group) => group.file)).toEqual(["work.olai"])
-  expect(listed(agenda.overdue)).toEqual(["permit", "posts"])
+  // A day is where a node goes on the line, so late work brings the day it was
+  // owed on with it — one day per date, ascending, and the outline grouping
+  // kept INSIDE each of them (the page flattens it; the reading does not).
+  expect(agenda.overdue.map((day) => day.date)).toEqual(["2026-08-03", "2026-08-10"])
+  expect(agenda.overdue.map((day) => day.groups.map((group) => group.file)))
+    .toEqual([["work.olai"], ["work.olai"]])
+  expect(across(agenda.overdue)).toEqual(["permit", "posts"])
+})
+
+test("late days are unbounded, where the days ahead stop at seven", () => {
+  // A horizon on what is LATE would be the page quietly dropping the one answer
+  // no day page can give. Ten slipped days, ten dots on the line.
+  const slipped = derive(
+    nodesOfFiles({
+      "work.olai": Array.from({ length: 10 }, (_, index) => {
+        const day = String(1 + index).padStart(2, "0")
+        return `{"id":"d${day}","ord":"a${index}","title":"day ${day}","todo":true,"date":"2026-08-${day}"}`
+      }).join("\n"),
+    }),
+  )
+  expect(agendaOf(slipped, TODAY).overdue.length).toBe(10)
 })
 
 test("Today is the day page's answer, minus what is finished", () => {
@@ -182,9 +211,9 @@ test("a day whose only work is already done is not upcoming at all", () => {
 test("undated work is absent from the whole page", () => {
   const agenda = agendaOf(SET, TODAY)
   const everywhere = [
-    ...listed(agenda.overdue),
+    ...across(agenda.overdue),
     ...listed(agenda.today),
-    ...agenda.upcoming.flatMap((day) => listed(day.groups)),
+    ...across(agenda.upcoming),
   ]
   // `paint` is work nobody scheduled and `filed` is work whose only date is on
   // its mark. Neither has a WHEN, and inventing one is what this refuses to do.
@@ -200,14 +229,14 @@ test("an occurrence whose day has passed simply leaves", () => {
   // `delivery` was the 4th and carries no mark. It is not overdue, and its day
   // is behind us, so it is on no section of the agenda — while it is still on
   // the 4th's own page, where a reader can go and find it.
-  expect(listed(agendaOf(SET, TODAY).overdue)).not.toContain("delivery")
+  expect(across(agendaOf(SET, TODAY).overdue)).not.toContain("delivery")
 })
 
 test("every entry arrives situated, the way a day page's does", () => {
   // A title torn out of its outline says nothing, and the agenda collects from
   // all over the set — so the ancestry, the mark and what is in the way ride
   // along, computed by the same `situate` a day uses.
-  const [permit] = agendaOf(SET, TODAY).overdue[0]!.nodes
+  const [permit] = agendaOf(SET, TODAY).overdue[0]!.groups[0]!.nodes
   expect(permit!.trail.map((crumb) => crumb.node.id)).toEqual(["deck"])
   expect(permit!.status).toBe("doing")
   expect(permit!.occasion).toBe("date")
@@ -226,9 +255,27 @@ test("a blocked task keeps both answers, and stays on the agenda", () => {
       ].join("\n"),
     }),
   )
-  const [wire] = agendaOf(blocked, TODAY).overdue[0]!.nodes
+  const [wire] = agendaOf(blocked, TODAY).overdue[0]!.groups[0]!.nodes
   expect(wire!.shows.node.id).toBe("wire")
   expect(wire!.blocked.map((one) => one.at.node.id)).toEqual(["trench"])
+})
+
+test("one row per node, even where a day holds both of its dates", () => {
+  // A node scheduled for a past day and finished on another past day is on
+  // neither: `done` extinguishes overdue. The half worth pinning is the shape —
+  // what is behind us is built from the same bucketed walk, so a node can only
+  // ever reach it through its `date`.
+  const both = derive(
+    nodesOfFiles({
+      "work.olai": [
+        `{"id":"open","ord":"a0","title":"still open","todo":true,"date":"2026-08-04"}`,
+        `{"id":"shut","ord":"a1","title":"finished late","done":"2026-08-09T09:00:00-04:00","date":"2026-08-04"}`,
+      ].join("\n"),
+    }),
+  )
+  const [day, ...rest] = agendaOf(both, TODAY).overdue
+  expect(rest).toEqual([])
+  expect(listed(day!.groups)).toEqual(["open"])
 })
 
 test("a mirror is a placement, so late work is late once", () => {
@@ -240,7 +287,7 @@ test("a mirror is a placement, so late work is late once", () => {
       "now.olai": `{"id":"posts-now","ord":"a0","mirror":"posts"}`,
     }),
   )
-  expect(listed(agendaOf(mirrored, TODAY).overdue)).toEqual(["posts"])
+  expect(across(agendaOf(mirrored, TODAY).overdue)).toEqual(["posts"])
 })
 
 test("an agenda with nothing due says so, and says it once", () => {
@@ -287,7 +334,7 @@ test("the counts are the rows the page draws, across every outline", () => {
   expect(owed).toEqual({ overdue: 2, today: 2 })
 })
 
-test("a count is of NODES, and never of the outlines they are grouped under", () => {
+test("a count is of NODES, and never of the days or outlines holding them", () => {
   // The same two late tasks, one per file: a mark saying "2" means two things
   // are late, and a group-count would have said the same number for the wrong
   // reason — so they are split here on purpose.
@@ -300,6 +347,15 @@ test("a count is of NODES, and never of the outlines they are grouped under", ()
   const agenda = agendaOf(spread, TODAY)
   expect(agenda.overdue.length).toBe(2)
   expect(owedOf(agenda).overdue).toBe(2)
+  // Two files on two days here; a set with both on ONE day is still two.
+  const together = derive(
+    nodesOfFiles({
+      "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-09"}`,
+      "life.olai": `{"id":"visas","ord":"a0","title":"send the visa forms","todo":true,"date":"2026-08-09"}`,
+    }),
+  )
+  expect(agendaOf(together, TODAY).overdue.length).toBe(1)
+  expect(owedOf(agendaOf(together, TODAY)).overdue).toBe(2)
 })
 
 test("what is COMING is not owed: Upcoming is no part of the counts", () => {
@@ -362,9 +418,9 @@ const selecting = (text: string): ReadonlySet<string> =>
     matching(SET, parseFilter(text, TODAY)).map(({ at }) => at.node.id),
   )
 
-test("every section narrows, and one left with nothing stops being a section", () => {
+test("every stretch of the line narrows, and a day left with nothing leaves it", () => {
   const agenda = agendaOf(SET, TODAY)
-  expect(listed(agenda.overdue)).toEqual(["permit", "posts"])
+  expect(across(agenda.overdue)).toEqual(["permit", "posts"])
   expect(listed(agenda.today)).toEqual(["birthday", "ferry"])
 
   const ferry = keepingOwed(agenda, selecting("ferry"))
@@ -393,9 +449,173 @@ test("a day in Upcoming with nothing left leaves it, heading and all", () => {
 /** How many rows the PAGE draws, which is the second number in the filter
  *  bar's "1 of 6" — Upcoming included, where `owedOf` leaves it out because a
  *  task due next Tuesday is not news today. */
-test("what an agenda draws is every row of all three sections", () => {
+test("what an agenda draws is every row of the whole line", () => {
   const agenda = agendaOf(SET, TODAY)
   expect(owedIn(agenda)).toBe(6)
   expect(owedIn(keepingOwed(agenda, selecting("ferry")))).toBe(1)
   expect(owedIn({ overdue: [], today: [], upcoming: [] })).toBe(0)
+})
+
+// ── the spine: where a day sits, and how far away it feels ─────────────
+
+test("a day says which side of now it is on, whatever shape its value is", () => {
+  expect(feltOn("2026-08-10", TODAY).standing).toBe("late")
+  expect(feltOn(TODAY, TODAY).standing).toBe("today")
+  expect(feltOn("2026-08-14", TODAY).standing).toBe("ahead")
+  // A datetime counts for its day at either end of it, exactly as `isOverdue`
+  // reads one: the standing is a comparison of days, not of instants.
+  expect(feltOn(`${TODAY}T09:00`, TODAY).standing).toBe("today")
+  expect(feltOn("2026-08-11T23:50", TODAY).standing).toBe("late")
+})
+
+test("the distance is counted in days, and negative behind us", () => {
+  expect(feltOn("2026-08-14", TODAY).days).toBe(2)
+  expect(feltOn("2026-08-03", TODAY).days).toBe(-9)
+  // Across a month, a year and a leap day, because a subtraction that walked
+  // month lengths is exactly where those go wrong.
+  expect(feltOn("2026-09-01", "2026-08-12").days).toBe(20)
+  expect(feltOn("2028-03-01", "2028-02-28").days).toBe(2)
+  expect(feltOn("2027-08-12", "2026-08-12").days).toBe(365)
+})
+
+test("the three days either side of now are NAMED, not counted", () => {
+  const distance = (date: string): string | undefined =>
+    feltOn(date, TODAY).distance
+  expect(distance(TODAY)).toBe("Today")
+  expect(distance("2026-08-13")).toBe("Tomorrow")
+  expect(distance("2026-08-11")).toBe("Yesterday")
+})
+
+test("felt distance: days under a fortnight, then weeks, then months", () => {
+  // The design's own examples, read back off the arithmetic: "in 6 days",
+  // "in 3 weeks", "in 2½ months" (roadmap `agenda-spine`, 2026-08-18).
+  const distance = (date: string): string | undefined =>
+    feltOn(date, "2026-08-18").distance
+  expect(distance("2026-08-24")).toBe("in 6 days")
+  expect(distance("2026-09-06")).toBe("in 3 weeks")
+  expect(distance("2026-09-08")).toBe("in 3 weeks")
+  expect(distance("2026-10-30")).toBe("in 2½ months")
+  // Behind us, the same magnitudes in the past tense.
+  expect(distance("2026-08-15")).toBe("3 days ago")
+  expect(distance("2026-06-18")).toBe("2 months ago")
+  // And a band past the design's, because this suite's own fixtures are dated
+  // in 2019: "2478 days ago" is a number, not a distance. Halves carry all the
+  // way out, which is what keeps the last band from flattening seven years and
+  // six and a half into one word.
+  expect(distance("2019-11-05")).toBe("7 years ago")
+  expect(distance("2020-02-18")).toBe("6½ years ago")
+})
+
+test("a day says itself in words: weekday, month, number", () => {
+  expect(feltOn("2026-08-24", "2026-08-18").calendar).toBe("Mon, Aug 24")
+  expect(feltOn("2026-08-18", "2026-08-18").calendar).toBe("Tue, Aug 18")
+  expect(feltOn("2026-10-30", "2026-08-18").calendar).toBe("Fri, Oct 30")
+  // A datetime is drawn as its day; the time is the pill's business.
+  expect(feltOn("2026-09-08T14:00", "2026-08-18").calendar).toBe("Tue, Sep 8")
+})
+
+test("the future recedes: a fade and an ink that ramp with distance", () => {
+  const felt = (date: string): Felt => feltOn(date, "2026-08-18")
+  // Everything behind now and everything inside a week is at full strength —
+  // a week is the horizon a person plans against.
+  expect(felt("2026-08-17")).toMatchObject({ fade: 1, tone: "alarm" })
+  expect(felt("2026-08-18")).toMatchObject({ fade: 1, tone: "accent" })
+  expect(felt("2026-08-24")).toMatchObject({ fade: 1, tone: "ink" })
+  // Then it rolls off, and the four values the design named are this ramp
+  // sampled: ~1 → 0.78 → 0.74 → 0.5.
+  expect(felt("2026-09-06")).toMatchObject({ fade: 0.8, tone: "muted" })
+  expect(felt("2026-09-08")).toMatchObject({ fade: 0.78, tone: "muted" })
+  expect(felt("2026-10-30")).toMatchObject({ fade: 0.53, tone: "rule" })
+  // And it has a FLOOR: a row nobody can read is a row not worth drawing.
+  expect(felt("2036-10-30").fade).toBe(0.5)
+})
+
+test("a value that names no calendar day is COMPARED, and never counted", () => {
+  // `2026-02-30` is day-SHAPED and is not a day — and the format's own parser
+  // refuses it (./parse.ts checks calendar reality), so nothing on a page ever
+  // reaches here like this. What the shape promises is that this function is
+  // total: the standing is still answerable by comparison, and the distance
+  // says NOTHING rather than the "0 days ago" a zero would have printed under
+  // a heading that had just said the day was late.
+  const felt = feltOn("2026-02-30", TODAY)
+  expect(felt.standing).toBe("late")
+  expect(felt.days).toBeUndefined()
+  expect(felt.distance).toBeUndefined()
+  expect(felt.calendar).toBe("2026-02-30")
+  // And it is drawn at the near end of the ramp rather than faded out of sight.
+  expect(felt.fade).toBe(1)
+  expect(felt.tone).toBe("alarm")
+})
+
+// ── the silences between days ──────────────────────────────────────────
+
+test("a wait under a fortnight is whitespace and says nothing", () => {
+  expect(quietBetween("2026-08-18", "2026-08-20").label).toBeUndefined()
+  expect(quietBetween("2026-08-18", "2026-08-24").label).toBeUndefined()
+})
+
+test("a wait worth noticing is CALLED what it is, in words", () => {
+  // The design's own two labels, off the arithmetic.
+  expect(quietBetween("2026-08-24", "2026-09-06").label).toBe("two quiet weeks")
+  expect(quietBetween("2026-09-08", "2026-10-30").label).toBe("seven quiet weeks")
+  // Past two months it counts in months, and past eighteen in years — with the
+  // numeral rather than a word once it carries a half.
+  expect(quietBetween("2026-01-01", "2026-05-01").label).toBe("four quiet months")
+  expect(quietBetween("2019-11-05", "2026-08-18").label).toBe("seven quiet years")
+  expect(quietBetween("2020-02-18", "2026-08-18").label).toBe("6½ quiet years")
+})
+
+test("a thirteen-day silence is two weeks where a thirteen-day distance is days", () => {
+  // The one place the two bandings differ, and it is deliberate: a distance is
+  // counted from now and somebody is planning against it, a wait is counted
+  // between two things and nobody is.
+  expect(quietBetween("2026-08-18", "2026-08-31").label).toBe("two quiet weeks")
+  expect(feltOn("2026-08-31", "2026-08-18").distance).toBe("in 13 days")
+})
+
+test("the room a wait takes grows log-ish, and is clamped at both ends", () => {
+  const space = (from: string, to: string): number => quietBetween(from, to).space
+  const two = space("2026-08-18", "2026-08-20")
+  const thirteen = space("2026-08-18", "2026-08-31")
+  const fifty = space("2026-08-18", "2026-10-07")
+  expect(two).toBeLessThan(thirteen)
+  expect(thirteen).toBeLessThan(fifty)
+  // Never linear: fifty days is not twenty-five times two days.
+  expect(fifty).toBeLessThan(two * 4)
+  // A day either way is the floor, and seven years is the ceiling — a silence
+  // has to read as longer without costing a screen.
+  expect(space("2026-08-18", "2026-08-18")).toBe(1)
+  expect(space("2019-11-05", "2026-08-18")).toBe(5)
+})
+
+// ── what a row's pill still has to say ─────────────────────────────────
+
+/** The day a row sits under, felt from today — which is what the pill is
+ *  handed, because every row of a day is late by exactly that day's distance. */
+const dayFelt = (date: string, today: string): Felt => feltOn(date, today)
+
+test("a late row says HOW late, and that is the pill's whole content", () => {
+  const fact = (date: string): string | undefined =>
+    owedFact(date, true, dayFelt(date, "2026-08-18"))
+  expect(fact("2026-08-17")).toBe("1 day late")
+  expect(fact("2026-08-15")).toBe("3 days late")
+  expect(fact("2019-11-05")).toBe("7 years late")
+})
+
+test("a row ahead says nothing, unless it names a TIME", () => {
+  // The day it is under has already said the date; a pill repeating it is the
+  // chrome this page was redrawn to be rid of.
+  const fact = (date: string): string | undefined =>
+    owedFact(date, false, dayFelt(date, "2026-08-18"))
+  expect(fact("2026-08-24")).toBeUndefined()
+  expect(fact("2026-09-08T14:00")).toBe("14:00")
+  // Seconds and an offset are past the time of day and are not printed.
+  expect(fact("2026-09-08T14:00:00-04:00")).toBe("14:00")
+})
+
+test("lateness is asked of the MARK, never of the date alone", () => {
+  // An occurrence in the past is not late work, and nothing here may decide
+  // otherwise: the row has already asked `isOverdue` of the node.
+  expect(owedFact("2026-08-17", false, dayFelt("2026-08-17", "2026-08-18")))
+    .toBeUndefined()
 })

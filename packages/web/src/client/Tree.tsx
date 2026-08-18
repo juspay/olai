@@ -601,7 +601,7 @@ function Branch(props: {
                     <NoteMark open={note.expanded()} onToggle={note.toggle} ref={note.setTrigger} />
                   </Show>
                 }
-                date={shows().node.date}
+                says={shows().node.date}
                 repeat={shows().node.repeat}
                 overdue={isOverdue(shows().node, today())}
                 onEdit={clickTitle}

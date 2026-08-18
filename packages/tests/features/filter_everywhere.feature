@@ -96,13 +96,17 @@ Feature: The filter reaches every page that draws nodes
     Then the address is exactly "/n/deck"
 
   @corpus:agenda
-  Scenario: The agenda narrows section by section
+  Scenario: The agenda narrows day by day, and the silences close up
     When I open the agenda
-    Then the "overdue" section lists "visas, permit, posts"
+    Then the spine's "late" rows are "permit, visas, posts"
+    And the spine's "late" days are "2019-10-30, 2019-11-03, 2019-11-05"
     When I filter the page by "posts"
-    Then the agenda has the sections "overdue"
-    And the "overdue" section lists "posts"
-    And the "overdue" section groups are "work.olai"
+    # Two of the three days had nothing left on them, so they left the line —
+    # a dot over no rows would be the page promising a day the query found
+    # nothing on.
+    Then the agenda spine runs "late, today"
+    And the spine's "late" rows are "posts"
+    And the spine's "late" days are "2019-11-05"
     And the filter found "1 of 3"
     And there should be no page errors
 
@@ -115,7 +119,7 @@ Feature: The filter reaches every page that draws nodes
     When I open the agenda
     Then the agenda entry is on fire with 3 late
     When I filter the page by "posts"
-    Then the "overdue" section lists "posts"
+    Then the spine's "late" rows are "posts"
     And the agenda entry is on fire with 3 late
 
   @corpus:agenda
@@ -125,15 +129,17 @@ Feature: The filter reaches every page that draws nodes
     # collects it.
     When I open the agenda
     When I filter the page by "is:blocked"
-    Then the "overdue" section lists "visas"
+    Then the spine's "late" rows are "visas"
     And the filter found "1 of 3"
     And the node "visas" is blocked by "photos"
 
   @corpus:agenda
-  Scenario: A section left with nothing is not a heading over no rows
+  Scenario: A line with nothing left on it is not drawn at all
     When I open the agenda
     When I filter the page by "nothing-is-called-this"
-    Then the agenda has no sections
+    # Not even the today dot: now is a place on a line, and a line with one dot
+    # and nothing either side of it is a diagram of nothing.
+    Then the agenda draws no spine
     And the filter found "no matches"
     # ...and the page does not claim the agenda is empty, which is a different
     # thing and would be untrue.

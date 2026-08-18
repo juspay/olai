@@ -93,6 +93,25 @@ export const dayOf = (value: string): string => value.slice(0, DAY)
 export const monthOf = (value: string): string => value.slice(0, MONTH)
 
 /**
+ * The TIME a datetime names, `HH:MM`, or nothing for a plain day.
+ *
+ * The same reading as the two above and written the same way: a slice, never a
+ * parse. `2026-09-08T14:00` is a day and a time joined by a `T`, the format
+ * validated it as ISO before it was stored, and the five characters after that
+ * separator are the ones somebody wrote down. Seconds and an offset are past
+ * them and are not a time of day a page has any business printing.
+ *
+ * It exists because the agenda's spine drops the date pill on a future row —
+ * the day it is under has already said the date — and keeps it for the one
+ * thing the heading cannot say, which is that this one is at two o'clock
+ * (./agenda.ts's `owedFact`).
+ */
+export const timeOf = (value: string): string | undefined =>
+  value.length > DAY && value[DAY] === "T"
+    ? value.slice(DAY + 1, DAY + 1 + "HH:MM".length)
+    : undefined
+
+/**
  * WHY a node is on a day: which of its two dates put it there.
  *
  * `date` is what the node is scheduled FOR; `done` is when the work was

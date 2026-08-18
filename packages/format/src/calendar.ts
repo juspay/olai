@@ -28,8 +28,15 @@
  * down here would be two answers to "which day does this week start on" — the
  * exact drift one matcher for four doors exists to make impossible. So the
  * arithmetic came down to the floor both stand on, and what stayed up there is
- * everything that is about DRAWING a month: the column headings, the English
- * month names, the grid's padding.
+ * everything that is about DRAWING a month: the column headings, the grid's
+ * padding.
+ *
+ * THE NAMES followed the arithmetic down, the weekdays first ({@link WEEKDAYS})
+ * and the months after them ({@link MONTHS}), and each time for the same reason
+ * and on the same journey: a second layer needed the same twelve words — the
+ * agenda's spine says "Mon, Aug 24" one floor below a client — and two lists
+ * would be two spellings of August. What a surface still owns is what it does
+ * to a name: a heading's two letters, a spine's three.
  *
  * Pure, and unit-tested directly: a grid is exactly the kind of thing that is
  * off by one for four months of the year and right for the rest.
@@ -218,6 +225,37 @@ export const WEEKDAYS = [
   "sunday",
 ] as const
 
+/**
+ * The months, named, in the order an ISO value numbers them — so the index is
+ * `month - 1` and there is no table pairing the two.
+ *
+ * Capitalised, where {@link WEEKDAYS} is lower case, and the difference is not
+ * an inconsistency: a weekday is a WORD THE FORMAT HOLDS (`every week on
+ * monday` is text in a record), and a month is not — nothing in this format
+ * writes "August", so there is no stored spelling for these to have to match.
+ * They are simply the English names, and a surface that wants three letters of
+ * one takes three.
+ *
+ * English, and deliberately not the machine's locale: these words sit beside
+ * ISO dates somebody typed by hand, so they are words rather than something
+ * that moves with a setting (`@olai/web`'s `monthLabel` argued it first, and
+ * this is that argument one floor down).
+ */
+export const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const
+
 export const weekdayOf = (date: string): number | null => {
   const parsed = parseDay(date)
   if (parsed === null) return null
@@ -293,4 +331,52 @@ export const shiftDayByMonth = (date: string, delta: number): string => {
   if (parsed === null) return date
   const shifted = stepMonth(parsed, delta)
   return isoDate(shifted.year, shifted.month, Math.min(parsed.day, daysIn(shifted)))
+}
+
+/**
+ * How many whole days lie between two days — negative when `to` has already
+ * gone, `null` when either text names no day.
+ *
+ * The third question this module exists for, and it arrived with the agenda's
+ * spine (roadmap `agenda-spine`, ruled 2026-08-18): a page that says "in 6
+ * days" and "1 day late" is COUNTING, and the counting has to happen where the
+ * calendar is rather than in a component holding a `Date`. It is the same
+ * stance the other two are written in — integers throughout, nothing parsed
+ * into an instant — so a reader west of Greenwich and one east of it count the
+ * same six days.
+ *
+ * Days are compared through a SERIAL NUMBER rather than by walking months
+ * (which is what {@link shiftDay} does, and rightly, for one step): a span here
+ * can be seven years wide, and eighty-four passes over a table of month lengths
+ * to learn one number is a loop where a subtraction will do.
+ */
+export const daysBetween = (from: string, to: string): number | null => {
+  const start = parseDay(from)
+  const end = parseDay(to)
+  if (start === null || end === null) return null
+  return serialOf(end) - serialOf(start)
+}
+
+/**
+ * A day as a plain count of days, from a fixed point nobody names.
+ *
+ * Howard Hinnant's `days_from_civil`, in integers: March is taken as the first
+ * month so that the leap day is the LAST day of the year and the Gregorian
+ * rule collapses into the three divisions below, and days are counted in
+ * 400-year eras of 146097 days each — a cycle whose length is exact, which is
+ * the whole reason the calendar has one.
+ *
+ * The origin is arbitrary and deliberately unexported: nothing here is a
+ * timestamp, and the only thing anybody may do with two of these is subtract
+ * them ({@link daysBetween}).
+ */
+const serialOf = ({ year, month, day }: Day): number => {
+  // March-based year: January and February belong to the year before.
+  const shifted = year - (month <= 2 ? 1 : 0)
+  const era = Math.floor(shifted / 400)
+  const yearOfEra = shifted - era * 400
+  const dayOfYear = Math.floor((153 * (month + (month > 2 ? -3 : 9)) + 2) / 5) + day - 1
+  const dayOfEra = yearOfEra * 365 + Math.floor(yearOfEra / 4) -
+    Math.floor(yearOfEra / 100) + dayOfYear
+  return era * 146097 + dayOfEra
 }
