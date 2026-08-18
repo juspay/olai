@@ -1583,6 +1583,15 @@ const replay = (): void => {
       content: { type: "text", text: "we decided to order the cabinets." },
     },
   })
+  // `an older conversation` is the one a scenario picks, so it has to overflow
+  // the pane — otherwise "scrolled to the newest line" is true of a short
+  // transcript by construction and says nothing. The two lines above stay so
+  // every other stored-session claim still has the words it already asserts.
+  if (sessionId === "fake-stored-old") {
+    for (let line = 0; line < 40; line++) {
+      say(`line ${line} — ${"the quick brown fox jumps over the lazy dog. ".repeat(3)}\n\n`)
+    }
+  }
 }
 
 /** The steering extension's method name, as the real adapter spells it. */

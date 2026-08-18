@@ -44,9 +44,22 @@
  * Leaving a reader alone when they have scrolled away is the part worth
  * keeping: being yanked to the newest token while reading what the agent did
  * two turns ago is worse than a panel that never scrolled at all.
+ *
+ * OPENING A CONVERSATION is not that question. The session id is the
+ * conversation's identity; when it changes (or first appears) the reader has
+ * just opened this chat, and the newest line is where they start. following is
+ * reset so a scroll-away in the previous conversation cannot leave this one
+ * stuck at the top. The jump is instant — assigning `scrollTop`, no animation
+ * — because an open is a place, not a motion.
+ *
+ * The jump itself is not a reader scroll. Assigning `scrollTop` fires the same
+ * event a wheel does, and if anything has grown between the assignment and the
+ * handler — the markdown chunk landing on a restored transcript is the usual
+ * case — `atBottom()` would come back false and following would drop at the
+ * moment there is something to follow. A flag keeps that event from counting.
  */
 
-import { createMemo, For, onCleanup, onMount, Show } from "solid-js"
+import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "solid-js"
 
 import { useShowNode } from "../focus.ts"
 import { TESTID } from "../testids.ts"
@@ -70,23 +83,51 @@ export function Transcript(props: { readonly chat: Chat }) {
   /** Should new text pull the view down with it? True until the reader scrolls
    *  away from the bottom, and true again the moment they come back. */
   let following = true
+  /** True while we are assigning `scrollTop` ourselves, so the scroll event
+   *  that assignment fires is not read as the reader leaving the bottom. */
+  let jumping = false
 
   const atBottom = (): boolean =>
     pane !== undefined &&
     pane.scrollHeight - pane.scrollTop - pane.clientHeight < NEAR
+
+  const jump = (): void => {
+    if (pane === undefined) return
+    // The assignment fires `scroll` synchronously. Hold the flag only
+    // across that event — a frame later would also swallow a reader who
+    // left the bottom in the same turn, and the follow-observer would
+    // pull them back.
+    jumping = true
+    pane.scrollTop = pane.scrollHeight
+    jumping = false
+  }
 
   onMount(() => {
     if (content === undefined) return
     // Content growing does NOT move `scrollTop`, so the browser fires no scroll
     // event for it — which is what makes this safe: every scroll event this
     // component sees is one the reader caused, or the one our own jump below
-    // causes, and that one lands at the bottom and agrees.
+    // causes (and that one is ignored, see `jumping`).
     const grown = new ResizeObserver(() => {
-      if (following && pane !== undefined) pane.scrollTop = pane.scrollHeight
+      if (following) jump()
     })
     grown.observe(content)
     onCleanup(() => grown.disconnect())
   })
+
+  // Opening a conversation is not "new text arrived while reading". The
+  // session id is the conversation's identity; when it changes, the newest
+  // line is where the reader starts — even if they had scrolled away in the
+  // conversation they just left.
+  createEffect(
+    on(
+      () => props.chat.state().session?.id,
+      () => {
+        following = true
+        jump()
+      },
+    ),
+  )
 
   /** An id the agent named, pressed — shown, or nothing when the press landed
    *  on the words around one.
@@ -154,6 +195,7 @@ export function Transcript(props: { readonly chat: Chat }) {
       data-testid={TESTID.chatTranscript}
       ref={pane}
       onScroll={() => {
+        if (jumping) return
         following = atBottom()
       }}
       onClick={(event) => {
