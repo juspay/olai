@@ -2,10 +2,11 @@
  * What a READ of the set asks, and what it says back.
  *
  * Data, and nothing but: there is no index in this file and nothing here walks
- * anything. It DOES reach `./derive.ts` and `./node.ts`, for four shapes each
- * of them declares beside the thing that produces it — {@link Progress},
- * {@link Status}, the record's own mark fields, and {@link Site}, the
- * `{file, line}` every answer here is situated by — which is the same
+ * anything. It DOES reach `./derive.ts`, `./node.ts` and `./backlinks.ts`, for
+ * five shapes each of them declares beside the thing that produces it —
+ * {@link Progress}, {@link Status}, the record's own mark fields, {@link Site},
+ * the `{file, line}` every answer here is situated by, and {@link Way}, the two
+ * ways one record can refer to another — which is the same
  * borrowing `./committing.ts` does from `@olai/git/state`: the shape travels,
  * so it is declared once at its source rather than copied to the module that
  * carries it.
@@ -72,6 +73,7 @@
 
 import { Schema } from "effect"
 
+import { Way } from "./backlinks.ts"
 import { Progress } from "./derive.ts"
 import { RegularNode, Site, STAMPED, Status } from "./node.ts"
 
@@ -269,13 +271,16 @@ export type Placed = typeof Placed.Type
  * list of referrers wants to know what they ARE — their titles, where they sit,
  * whether they are finished — and a list of ids is a list of second reads.
  *
- * `ways` is a closed list because the format owns it: `see` is the edge field,
- * `mention` is the `@id` in a title or a note. Two entries for one record would
- * be one record said twice, so a record doing both says both here.
+ * `ways` is `./backlinks.ts`'s own {@link Way}, imported rather than respelled:
+ * that module is where the list is CLOSED — the argument that a `see` counts
+ * and a placement does not is its header — and a `Schema.Literals` here would
+ * be that closure written where nothing argues it. The same arrangement
+ * {@link Progress} has with `./derive.ts`. Two entries for one record would be
+ * one record said twice, so a record doing both says both in one entry.
  */
 export const Reference = Schema.Struct({
   ...Found.fields,
-  ways: Schema.Array(Schema.Literals(["see", "mention"])),
+  ways: Schema.Array(Way),
 })
 export type Reference = typeof Reference.Type
 

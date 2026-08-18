@@ -57,13 +57,30 @@
  * say otherwise at this door, because a section is not a query.
  */
 
-import { byCorpus, type Derived } from "./derive.ts"
-import { isArchived, type Located, type LocatedRegular } from "./node.ts"
+import { Schema } from "effect"
 
-/** How one record refers to another. Two ways, because there are two forward
- *  spellings and a reader may reasonably want to know which one they are
- *  looking at: an edge somebody wrote with `set_see`, or a word in a sentence. */
-export type Way = "see" | "mention"
+import { byCorpus, type Derived } from "./derive.ts"
+import { isArchived, isRegular, type Located, type LocatedRegular } from "./node.ts"
+
+/**
+ * How one record refers to another: an edge somebody wrote with `set_see`, or a
+ * word in a sentence.
+ *
+ * IN THE ORDER A REFERRER SAYS THEM — the edge first, because it is the claim
+ * somebody made on purpose with a verb, and the prose after it — so two
+ * referrers doing the same two things say them the same way round. One list, so
+ * the order and the closure cannot be two facts.
+ *
+ * A SCHEMA beside it, and the wire vocabulary READS that one ({@link
+ * ./reading.ts}'s `Reference`) — the arrangement `Progress` already has with
+ * that module. The list is closed by the rulings in this file's header, so it
+ * belongs beside them; a second `Schema.Literals(["see", "mention"])` on the
+ * answer would be that closure respelled where nothing argues it, free to gain
+ * a third member on one side only.
+ */
+export const WAYS = ["see", "mention"] as const
+export const Way = Schema.Literals(WAYS)
+export type Way = typeof Way.Type
 
 /**
  * One record that refers to a node, and the ways it does.
@@ -73,8 +90,7 @@ export type Way = "see" | "mention"
  * reason: what asks this wants to know which records to draw.
  *
  * The ways come in {@link WAYS} order rather than in the order they were
- * discovered, so two referrers doing the same two things say them the same way
- * round.
+ * discovered.
  */
 export interface Backlink {
   /** The referring record — always a REGULAR node, since a mirror can carry
@@ -82,10 +98,6 @@ export interface Backlink {
   readonly at: LocatedRegular
   readonly ways: ReadonlyArray<Way>
 }
-
-/** The order a referrer's ways are said in: the edge first, because it is the
- *  claim somebody made on purpose with a verb, and the prose after it. */
-const WAYS: ReadonlyArray<Way> = ["see", "mention"]
 
 /** The answer for a node nobody talks about, which is most of them: ONE list,
  *  shared, for {@link targetsOf}'s reason — a page asks this per frame. */
@@ -112,9 +124,14 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
     // talking about the page it is on, and a `see` onto one of its own
     // placements is the same sentence through a mirror.
     if (at.node.id === id || isArchived(at.file)) return
-    const regular = at as LocatedRegular
-    const ways = found.get(regular)
-    if (ways === undefined) found.set(regular, new Set([way]))
+    // A REFERRER IS A REGULAR NODE, asked rather than asserted — through the
+    // format’s own guard (`isRegular`), so this narrows the way every other
+    // consumer does. Both indexes answer it already (a mirror carries no edge
+    // fields and no prose), so it can never drop anything; a cast leaning on
+    // that would be a claim about two other modules held in a comment.
+    if (!isRegular(at)) return
+    const ways = found.get(at)
+    if (ways === undefined) found.set(at, new Set([way]))
     else ways.add(way)
   }
 

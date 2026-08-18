@@ -245,9 +245,11 @@ export type { Zoomed } from "./zoom.ts"
  *  titles that write its `@id`, out of the two reverse indexes `derive` keeps.
  *  The reading rather than the indexes, because every question about what a
  *  reference MEANS — whether a placement is one, whether the archive counts, and
- *  which ids this node answers to — is asked there. */
-export { backlinksOf } from "./backlinks.ts"
-export type { Backlink, Way } from "./backlinks.ts"
+ *  which ids this node answers to — is asked there. `Way` is the closed list of
+ *  how one record can refer to another, and it is exported as the SCHEMA the
+ *  answer vocabulary carries (`Reference`) rather than as a second union. */
+export { backlinksOf, Way } from "./backlinks.ts"
+export type { Backlink } from "./backlinks.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it
  *  selects, `ranked` puts them in the order a door shows them in, `keeping` and
  *  `matchedIn` are what a TREE narrowed to them looks like and how many rows of

@@ -15,6 +15,17 @@
  * FIELD holds ids; this list is already records, so the title and the file are
  * read straight off them and there is nothing here that could disagree with the
  * page a link opens.
+ *
+ * AND WHAT MAKES THE KEY HONEST is named rather than inherited, because it is
+ * the promise `../NodeRefs.tsx` demands and the one that took a page down when
+ * a neighbouring row broke it (PR #202): a refs row draws a link per target
+ * KEYED BY THE TARGET'S ID, and a key names a row only while each target
+ * appears once. Here that is `backlinksOf`'s own once-per-record rule — it
+ * collects into a map keyed by the referring RECORD, so a node that both points
+ * at this one and names it in prose is one entry with two ways rather than two
+ * entries — and each row below keeps whichever of those entries claims its way.
+ * The rule is the format's (`backlinks.test.ts` pins it); what is said here is
+ * that this row is spending it.
  */
 
 import { type Backlink, backlinksOf, type Derived, type Way } from "@olai/format"
