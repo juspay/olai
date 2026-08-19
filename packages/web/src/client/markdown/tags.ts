@@ -94,10 +94,25 @@ export const TAG_CLASS =
  * SPLIT off under it — a `#` in a URL fragment is still not a tag, and a `#`
  * in code is still code.
  *
- * Off for the whole subtree rather than for one element of it: a `<code>`
- * inside an `<a>` is as literal as either, which is the `&&` below.
+ * How that reaches a subtree rather than one element is {@link tagsIn}.
  */
 const NO_TAGS_IN = new Set(["code", "a"])
+
+/**
+ * Whether a `#…` written in this element's text is a tag.
+ *
+ * `outer` is the answer for the text AROUND it, and the `&&` is the whole of
+ * why {@link NO_TAGS_IN} covers a SUBTREE: literalness only ever accumulates
+ * on the way down, so a `<code>` inside an `<a>` is as literal as either and
+ * nothing below one can win its tags back.
+ *
+ * Its own function, and not the traversal's business: this is a question about
+ * markup — asked of one element and the answer it inherited — and the walk
+ * below is a question about a tree. Sharing a line was how the two got
+ * confused in the first place.
+ */
+const tagsIn = (element: Element, outer: boolean): boolean =>
+  outer && !NO_TAGS_IN.has(element.tagName)
 
 /**
  * Walk text nodes and turn `#tags` into styled spans — and, where the page is
@@ -112,12 +127,12 @@ export const styleTags = (
   parent: Root | Element,
   needles: ReadonlyArray<string> = NO_NEEDLES,
 ): void => {
-  split(parent, needles, true)
+  walk(parent, needles, true)
 }
 
-/** The walk, carrying down the one thing that varies along it: whether a `#…`
- *  in here is a tag ({@link NO_TAGS_IN}). Lighting does not vary. */
-const split = (
+/** The tree half: every text node, once, carrying down the one thing that
+ *  varies along the way ({@link tagsIn}). Lighting does not vary. */
+const walk = (
   parent: Root | Element,
   needles: ReadonlyArray<string>,
   tags: boolean,
@@ -129,7 +144,7 @@ const split = (
       continue
     }
     if (child.type === "element") {
-      split(child, needles, tags && !NO_TAGS_IN.has(child.tagName))
+      walk(child, needles, tagsIn(child, tags))
       next.push(child)
       continue
     }
