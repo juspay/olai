@@ -26,7 +26,7 @@
 import { Result } from "effect"
 
 import { derive, type Derived, drawnFrom } from "./derive.ts"
-import { type Document, documentsIn, resolveRelative } from "./documents.ts"
+import { resolveRelative } from "./documents.ts"
 import {
   chainOf,
   compareErrors,
@@ -37,7 +37,7 @@ import { isMirror, type Located, type Site } from "./node.ts"
 import { patch, type SetDelta } from "./patch.ts"
 import { byPath } from "./paths.ts"
 import { didYouMean } from "./suggest.ts"
-import type { OutlineSet } from "./set.ts"
+import { markdownIn, type OutlineSet, outlinesIn } from "./set.ts"
 
 /**
  * A set, and the view it was JUDGED against.
@@ -102,12 +102,18 @@ export const validate = (
   // that publishes what this approves has no second corpus to walk.
   const derived = viewOf(set, previous)
 
-  reportDuplicateIds(set.nodes, derived, errors)
-  checkParents(set.nodes, derived, errors)
+  // THE RECORDS ARE THE VIEW'S, which is the same array the set holds one
+  // level down (`viewOf` flattens the outlines to build it, and hands the set's
+  // own list back when the two agree). Asking the derivation is what keeps this
+  // from being a second flattening beside the one every rule below is run
+  // against — and the identity the duplicate-id rule turns on is exactly that
+  // these are the set's records rather than copies of them.
+  reportDuplicateIds(derived.nodes, derived, errors)
+  checkParents(derived.nodes, derived, errors)
   checkTargets(derived, errors)
-  checkAfterAcyclic(set.nodes, derived, errors)
-  checkMirrorContainment(set.nodes, derived, errors)
-  checkDocs(set.nodes, set.documents, errors)
+  checkAfterAcyclic(derived.nodes, derived, errors)
+  checkMirrorContainment(derived.nodes, derived, errors)
+  checkDocs(derived.nodes, set, errors)
 
   const unreadable = set.broken.flatMap((file) => [...file.errors])
   // A file that did not parse contributes no ids, so a reference resolving to
@@ -184,14 +190,31 @@ export const reading = (set: OutlineSet, previous?: Previous): Reading => ({
   derived: viewOf(set, previous),
 })
 
+/**
+ * THE ONE FLATTENING. Every rule below reads the records as a list, the
+ * derivation is built from one, and this is where the set's outlines become
+ * it — once per validation, over the same records in the same order, which is
+ * the cost `./set.ts` names for serving documents rather than a `nodes`
+ * collection beside them.
+ *
+ * It is here rather than exported because of what would happen if it were:
+ * a `nodesOf(set)` on the set's own surface is a node-only list to import, and
+ * the whole of PR 2 is that there is none. The derivation is what a reader
+ * that wants every record asks — and it carries its own indexes, so what it
+ * hands back cannot be paired with another revision's.
+ */
+const recordsIn = (set: OutlineSet): ReadonlyArray<Located> =>
+  outlinesIn(set).flatMap((outline) => outline.nodes)
+
 const viewOf = (set: OutlineSet, previous: Previous | undefined): Derived => {
-  if (previous === undefined) return derive(set.nodes)
+  const nodes = recordsIn(set)
+  if (previous === undefined) return derive(nodes)
   const view = patch(previous.read.derived, previous.delta)
   // The set's own list, once the two are known to hold the same records in the
   // same places: a `Reading` whose view and set share one array is what a
   // rebuilt one has always been, and one difference between the two paths is
   // one thing a reader could come to depend on without meaning to.
-  return isSet(view.nodes, set.nodes) ? { ...view, nodes: set.nodes } : derive(set.nodes)
+  return isSet(view.nodes, nodes) ? { ...view, nodes } : derive(nodes)
 }
 
 const isSet = (
@@ -389,15 +412,15 @@ const checkMirrorContainment = (
  *  surfaces that draw an attachment cannot draw (a reference under a row is one
  *  line of markdown, and a zoomed node draws the whole document through the
  *  markdown pipeline; neither is a sealed frame). So the kind is asked —
- *  through `documentsIn`, the one function that answers it for the validator,
+ *  through `markdownIn`, the one narrowing that answers it for the validator,
  *  the planner and both document reads alike — and the message below stays
  *  true. */
 const checkDocs = (
   all: ReadonlyArray<Located>,
-  documents: ReadonlyArray<Document>,
+  set: OutlineSet,
   errors: Array<OutlineError>,
 ): void => {
-  const known = new Set(documentsIn(documents).map((document) => document.file))
+  const known = new Set<string>(markdownIn(set).map((document) => document.path))
   for (const located of all) {
     const { file, node } = located
     if (isMirror(node) || node.doc === undefined) continue

@@ -40,14 +40,14 @@
 import { expect, test } from "bun:test"
 
 import { derive, type Derived } from "./derive.ts"
-import { FIXTURE_FILE, nodesOf, seeded, setOf } from "./fixtures.testlib.ts"
+import { FIXTURE_FILE, nodesOf, recordsOf, seeded, setOf } from "./fixtures.testlib.ts"
 import { patch, patched, type SetDelta } from "./patch.ts"
 import { nearestId } from "./suggest.ts"
 
 /** A corpus as a fixture writes one: path → the file's JSONL. */
 type Corpus = Record<string, string>
 
-const viewOf = (corpus: Corpus): Derived => derive(setOf(corpus).nodes)
+const viewOf = (corpus: Corpus): Derived => derive(recordsOf(setOf(corpus)))
 
 /** What moved between two corpora, in the frame the wire already speaks: a
  *  file whose text changed is an upsert, a file that went away is a remove. */

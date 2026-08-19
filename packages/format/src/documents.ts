@@ -33,55 +33,24 @@
  *     point at: another file of this directory that has a page.
  */
 
-import { Schema } from "effect"
-
+import { type Address, addressOf, printAddress } from "./address.ts"
 import { bodyKind, fileKind } from "./kinds.ts"
 import { isMirror, type Located } from "./node.ts"
 
 /**
- * One BODIED file of the set: its path, and its text.
+ * WHAT WAS HERE, and where it went: a `Document` of `{file, text}` — the whole
+ * of what the set knew about a `.md` or a `.html`, and the reason no feature
+ * could name anything inside one. It is `./document.ts`'s sum now, with a face
+ * on every arm, and the set serves that as its one collection; the two lookups
+ * that stood beside it (`documentsIn`, `documentIn`, each a `.filter` over the
+ * bodied half) are narrowings of that collection (`./set.ts`).
  *
- * A `.md`, or a `.html` beside it — one shape for both, because what the set
- * knows about either is the same two facts, and WHICH it is, is the name's own
- * answer (`./kinds.ts`) rather than a tag here that could disagree with it. The
- * type keeps the name `Document` because it is the wire's: it is the schema of
- * the `documents` collection an MCP client already addresses by URI, and a
- * rename would break an external contract to relabel a field.
- *
- * A DOCUMENT's text is part of the SET, and that is the decision this field
- * records. It is read by the same probe, cached against the same stamp and
- * published in the same revision as every outline, so an edit reaches an open
- * page through the machinery that was already there — no second read path and
- * no fetch to invalidate — and there is exactly one answer to "what does this
- * directory say right now".
- *
- * HYPERTEXT's is `null`, and that is the other decision it records: the set
- * keeps the path and not the body (`./kinds.ts`'s `kept`, which owns the
- * argument). A `.html` is the one file olai only shows — nothing validates it,
- * no op writes it — so the set never needed its bytes, while a vault of saved
- * pages made them the largest thing in the process. The body is read when a
- * reader opens the file and is kept by nobody.
- *
- * `null` is therefore a STATE and not an absence, the way the manifest's is
- * (`@olai/surface`): "this file is served, and its body is not here". An
- * unreadable file is a different answer again — it is in `broken`, and
- * `writable` (`@olai/ops`) refuses to write over what the set could not read.
- *
- * What none of that decides is when a body crosses a wire. A transport serving
- * a directory of thousands of files cannot put every one of them in a
- * first frame, and olai's does not: `@olai/surface` publishes the documents as
- * a collection read one key at a time. This type is what the validator and the
- * view are handed, which is the whole loaded set, because a `doc` reference has
- * to be checkable against what is actually served — and checking one needs the
- * PATHS, which is the half of this the set still holds for every bodied file.
+ * What stays in this module is the ARITHMETIC — where a `doc` lands, where a
+ * relative `![](…)` and `[…](…)` land, what a page may fetch, what a body's
+ * first line says. Those are statements about what a document may POINT AT and
+ * what can be read off one without parsing it, which is this file's subject
+ * and not the sum's.
  */
-export const Document = Schema.Struct({
-  file: Schema.String,
-  /** Verbatim, exactly as on disk — or `null` for a body the set does not keep
-   *  (see above). Markdown is interpreted at view time. */
-  text: Schema.NullOr(Schema.String),
-})
-export type Document = typeof Document.Type
 
 /** The document this node attaches, as a path relative to the served
  *  directory — or `undefined` for a node that attaches none. A mirror never
@@ -271,45 +240,6 @@ export const isAsset = (path: string): boolean =>
   fileKind(path) === "hypertext" || isPicture(path) || suffixed(path, ASSET_EXTENSIONS)
 
 /**
- * WHICH of the set's bodied files are DOCUMENTS.
- *
- * The set carries one list for every file it keeps a body for, because what it
- * knows about either kind is the same two facts ({@link Document}) — and every
- * consumer of that list then wants the `.md` half of it, because a `.html` is
- * the one file olai only shows: nothing validates it, no op writes it, and the
- * set keeps its path without its bytes.
- *
- * FOUR CALLERS ASKED THIS, each with its own `.filter`: the validator deciding
- * what a node's `doc` may point at, the planner refusing a `write_document`,
- * and both document reads. Four spellings of one rule is four places for it to
- * come to disagree — and the failure mode is not a crash but a quiet
- * disagreement about what a served directory contains, which is exactly the
- * class of bug `kinds.ts` was centralised to end. It is here rather than
- * beside any of them because it is a statement about what a document IS, which
- * is this module's whole subject.
- */
-export const documentsIn = (
-  bodied: ReadonlyArray<Document>,
-): ReadonlyArray<Document> => bodied.filter((entry) => fileKind(entry.file) === "document")
-
-/**
- * ONE of them, by the path a caller named — or `undefined` for a path the set
- * does not serve as a document, whether because nothing is there or because
- * what is there is a `.html`.
- *
- * The KIND is asked of the requested path FIRST, so the walk over the set only
- * happens for a path that could be one. That is not a micro-optimisation kept
- * for its own sake: it is what makes the two callers — a write's refusal and a
- * read's — walk the list on the same terms, which is the property that lets
- * them answer one typo with one sentence.
- */
-export const documentIn = (
-  bodied: ReadonlyArray<Document>,
-  file: string,
-): Document | undefined =>
-  fileKind(file) === "document" ? bodied.find((entry) => entry.file === file) : undefined
-
-/**
  * A document, in one line: its first line with anything on it, heading marks
  * off.
  *
@@ -394,3 +324,79 @@ const UTF8 = new TextEncoder()
  * O(documents) and delete the question.
  */
 export const bytesOf = (text: string): number => UTF8.encode(text).length
+
+/**
+ * EVERY ADDRESS A PIECE OF PROSE POINTS AT, in the order it writes them and
+ * never twice.
+ *
+ * `from` is the file the markdown was WRITTEN in — a document for its own
+ * body, the defining outline for a node's note — because that is what a
+ * relative link is relative to, exactly as {@link docOf} and {@link pictureOf}
+ * already are. One rule for both, which is the point: a `[…](…)` in a note and
+ * a `[…](…)` in a document mean the same thing, and a face that read one of
+ * them differently would be the parity hole this round exists to close.
+ *
+ * The three things a link here can name are the three the address grammar has:
+ *
+ *   - `../projects/deck.md` — another document of this directory, resolved
+ *     beside the file the link was written in ({@link bodiedOf}, whose refusals
+ *     are this function's refusals).
+ *   - `notes/README.md#install` — a heading inside one. The fragment is cut off
+ *     BEFORE the path is resolved, because `#` is the grammar's punctuation and
+ *     `README.md#install` is not a filename.
+ *   - `#a1b2c3` — a node, wherever it lives. It is the one link with no
+ *     document half, and {@link bodiedOf} refuses it (there is no file there to
+ *     resolve), so it is read straight as the address it is.
+ *
+ * A SCAN, NOT A PARSE, and the boundary is worth naming: this package holds no
+ * markdown parser and deliberately does not gain one here (`./derive.ts` makes
+ * the same refusal about tags, for the same reason — it is the floor the write
+ * gate stands on). So a `[…](…)` inside a fenced code block is a link to this
+ * function and is drawn as text by the browser. That direction is the safe one:
+ * the cost is a backlink nobody wrote, never a page that will not render.
+ *
+ * NEVER TWICE, and the container says so: a note that links the same document
+ * three times points at it once. What reads this wants the EDGES.
+ */
+export const linksIn = (from: string, text: string): ReadonlyArray<Address> => {
+  // The cheap negative first: nearly every note in a directory holds no link
+  // at all, and this is asked of every record and every body of the set.
+  if (!text.includes("](")) return NO_LINKS
+  let found: Array<Address> | undefined
+  let seen: Set<string> | undefined
+  for (const match of text.matchAll(LINK)) {
+    const address = linkTo(from, match[1]!)
+    if (address === null) continue
+    const written = printAddress(address)
+    if ((seen ??= new Set()).has(written)) continue
+    seen.add(written)
+    ;(found ??= []).push(address)
+  }
+  return found ?? NO_LINKS
+}
+
+/** The answer for prose that points nowhere, which is most of it: ONE list,
+ *  shared, as `./derive.ts` shares its own. */
+const NO_LINKS: ReadonlyArray<Address> = []
+
+/**
+ * An inline markdown link, as far as a scan can tell: a bracketed label, then
+ * a parenthesised address and the optional title markdown allows after it.
+ *
+ * The label may not hold a `]` and the address may hold no whitespace, which
+ * is what keeps this from running away across a paragraph. A link whose target
+ * is written in angle brackets (`[x](<a b.md>)`) is not read — it is the
+ * spelling for a filename with a space in it, and a scan that unwrapped them
+ * would be a scan pretending to be a parser.
+ */
+const LINK = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g
+
+/** What one written link names, or `null` — the grammar's three arms, told
+ *  apart by where the `#` is. */
+const linkTo = (from: string, href: string): Address | null => {
+  const cut = href.indexOf("#")
+  if (cut === 0) return addressOf(null, href.slice(1))
+  const path = cut === -1 ? href : href.slice(0, cut)
+  const resolved = bodiedOf(from, path)
+  return resolved === null ? null : addressOf(resolved, cut === -1 ? null : href.slice(cut + 1))
+}

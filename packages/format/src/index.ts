@@ -86,7 +86,19 @@ export type { Previous } from "./validate.ts"
  *  below). */
 export { reading } from "./validate.ts"
 
-export { apart, assemble, BrokenFile, brokenBy, brokenIn, nodesIn, OutlineSet } from "./set.ts"
+export {
+  apart,
+  assemble,
+  BrokenFile,
+  brokenBy,
+  brokenIn,
+  documentAt,
+  markdownIn,
+  nodesIn,
+  OutlineSet,
+  outlinePaths,
+  outlinesIn,
+} from "./set.ts"
 /** WHICH FILE COMES FIRST — the order a directory is read in, and the one
  *  spelling of it: the set is assembled in it, the patcher places an arriving
  *  file by it, and the browser folds and draws in it. Exported because the
@@ -98,7 +110,26 @@ export {
   basenameOf,
   byPath,
 } from "./paths.ts"
-export type { DecodedFile, Outline } from "./set.ts"
+/** THE SUM the set serves, and the whole world of it: the three arms, their
+ *  shared face, the constructors a decode calls and the narrowings a reader
+ *  asks for. `Document` is what a served file IS
+ *  (docs/brainstorming/first-class-documents.md, PR 2); the nodes are the
+ *  substructure of one arm rather than a collection beside it. */
+export {
+  bodiedDocument,
+  bodyOf,
+  Document,
+  Hypertext,
+  isOutline,
+  Markdown,
+  Outline,
+  outlineDocument,
+} from "./document.ts"
+/** A heading's derived id, and the headings of a body — the element half of
+ *  the address grammar. Exported because the BROWSER assigns the same ids as
+ *  it renders (`/web`'s `markdown/slugs.ts`), and a slug spelled twice is
+ *  an address this app writes and cannot open. */
+export { claim, headingsIn, slugOf, slugsIn } from "./slug.ts"
 /** The view PATCHED rather than rebuilt, and what a delta says: files upserted,
  *  files gone — Surface's own collection-delta frame, which is the vocabulary
  *  "what changed" already travels this system in.
@@ -163,12 +194,10 @@ export {
   bodiedOf,
   bytesOf,
   docOf,
-  Document,
-  documentIn,
-  documentsIn,
   firstLine,
   isAsset,
   isPicture,
+  linksIn,
   PICTURE_EXTENSIONS,
   pictureOf,
 } from "./documents.ts"

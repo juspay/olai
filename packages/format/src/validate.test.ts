@@ -2,8 +2,8 @@ import { expect, test } from "bun:test"
 import { Result } from "effect"
 
 import { isCrossFile, type OutlineError } from "./errors.ts"
-import { setOf } from "./fixtures.testlib.ts"
-import type { OutlineSet } from "./set.ts"
+import { recordsOf, setOf } from "./fixtures.testlib.ts"
+import { type OutlineSet, outlinePaths } from "./set.ts"
 import { validate } from "./validate.ts"
 
 const errorsOf = (
@@ -32,8 +32,16 @@ const expectValid = (
   // reshape, so what the browser subscribes to is what the reader found. What
   // is added is the derivation the rules were run over, paired with it.
   expect(result.success.set).toBe(set)
-  expect(result.success.derived.nodes).toBe(set.nodes)
-  expect(result.success.set.files.length).toBe(
+  // The derivation holds the SET'S OWN records — flattened out of the
+  // outlines, one list, each entry the same object the set carries. Identity
+  // is what the rules turn on (a duplicate id is "the record `byId` kept is
+  // not THIS record"), so it is identity that is checked.
+  const records = recordsOf(set)
+  expect(result.success.derived.nodes.length).toBe(records.length)
+  expect(result.success.derived.nodes.every((at, index) => at === records[index])).toBe(
+    true,
+  )
+  expect(outlinePaths(result.success.set).length).toBe(
     Object.keys(files).length + Object.keys(broken).length,
   )
   return result.success.set
@@ -99,10 +107,13 @@ test("a view that is not about this set is not the view the rules run over", () 
       `expected the set in hand to be judged: ${answer.failure.map((e) => e.code).join(", ")}`,
     )
   }
-  // The view is the set's own, whichever way it was reached — same records, in
-  // the same list.
-  expect(answer.success.derived.nodes).toBe(after.nodes)
-  expect(answer.success.derived.byId.get("x")).toBe(after.nodes[0])
+  // The view is the set's own, whichever way it was reached — the same
+  // records, in the same order, as objects and not as copies.
+  const records = recordsOf(after)
+  expect(answer.success.derived.nodes.every((at, index) => at === records[index])).toBe(
+    true,
+  )
+  expect(answer.success.derived.byId.get("x")).toBe(records[0])
 })
 
 // The set is flat: `files` is the list found on disk and the nodes are one

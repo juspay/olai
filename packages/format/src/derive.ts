@@ -341,10 +341,10 @@ export const nameInto = (
  * narrower thing than the truth twice before `./backlinks.test.ts` pinned every
  * row of it (docs/format.md's References carries the table).
  */
-export const writtenTags = (node: Node): ReadonlyArray<string> => {
+export const writtenTags = (node: Node): ReadonlyArray<Tag> => {
   if (isMirror(node)) return NO_TAGS
-  const title = writtenTagsIn(node.title)
-  const note = node.desc === undefined ? NO_TAGS : writtenTagsIn(node.desc)
+  const title = tagsIn(node.title)
+  const note = node.desc === undefined ? NO_TAGS : tagsIn(node.desc)
   // Three answers rather than one concat, and each shares a list the caller
   // does not own: most records say nothing at all, and of the ones that do,
   // most say it in one of the two places. Statements rather than a nested
@@ -359,6 +359,12 @@ const NO_TAGS: ReadonlyArray<Tag> = []
 
 /**
  * The tags of one string, as written — {@link titleParts}, kept.
+ *
+ * EXPORTED since PR 2, and for one caller: a markdown BODY is prose the same
+ * way a note is, so a document's face is tagged by this rather than by a
+ * second walk of the same alphabet (`./document.ts`). The name lost its
+ * `written` because nothing else here answers "the tags of a string" — the
+ * record-shaped question next door keeps it.
  *
  * THROUGH THAT WALK rather than through a second one over {@link titleTagRe},
  * which is what this was: where a tag starts and stops is one function's
@@ -384,7 +390,7 @@ const NO_TAGS: ReadonlyArray<Tag> = []
  * wants both sigils — and this one does, since the index behind it is the
  * whole of what prose tagged rather than one namespace of it.
  */
-const writtenTagsIn = (text: string): ReadonlyArray<Tag> => {
+export const tagsIn = (text: string): ReadonlyArray<Tag> => {
   if (!mayHoldTag(text)) return NO_TAGS
   let found: Array<Tag> | undefined
   for (const part of titleParts(text)) {
@@ -1443,7 +1449,7 @@ export const tagPart = (written: string): TitleTag => ({
  * guard every walk of {@link titleParts} takes first.
  *
  * That call runs a global regex and allocates a part per segment, and most
- * prose holds no tag at all; this file's own fold ({@link writtenTagsIn}), the
+ * prose holds no tag at all; this file's own fold ({@link tagsIn}), the
  * search index and the client's two renderings of a pill all want the same
  * cheap negative. It was written three times before this existed, and the first
  * two had already drifted (one asked about `#` only). The browser's tag
@@ -1511,7 +1517,7 @@ export const tagOpensAt = (text: string, at: number): boolean =>
  *
  * The pair is a LEG rather than a sentence, for this package's standing reason:
  * `patch.bench.ts`'s `walks` times the corpus's prose as this function is, as
- * it was, and in the shape {@link writtenTagsIn} declines — roughly 12ms
+ * it was, and in the shape {@link tagsIn} declines — roughly 12ms
  * against 16ms against 9ms on the bench vault, all three checked to find the
  * same tags before any of them is timed.
  */
