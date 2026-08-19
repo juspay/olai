@@ -4,8 +4,8 @@
  *
  * Two surfaces draw it and they are the reason it is a component rather than a
  * string: the sidebar's pinned shelf, where every row is an address
- * (`../pins/Pin.tsx`), and an ORDINARY OUTLINE ROW whose title is nothing but
- * one (`../NodeTitle.tsx`). The second arrived from the maintainer opening
+ * (`../pins/Pin.tsx`), and an ORDINARY OUTLINE ROW whose title is one
+ * (`../NodeTitle.tsx`). The second arrived from the maintainer opening
  * `Pins.olai` — which the design invites, since the shelf is an ordinary file —
  * and finding a bullet reading `/doc/orchestrator/instructions.md`. The shelf
  * resolved its rows and the page did not, which is one title with two answers.
@@ -13,46 +13,91 @@
  * SO THE RESOLUTION IS NOT A PROPERTY OF THE PAGE. It is a property of the
  * TITLE, and both callers hand this the same two facts — the route, and the
  * name somebody wrote on it if they wrote one — and get the same three things
- * back: the mark, the live name, and the query when there is one.
+ * back: the mark, the name, and the query when there is one.
  *
- * NOT A LINK, deliberately, and it is the one thing this does not do. A title
- * is where the caret goes: a click on it opens the row's editor, which shows
- * the SOURCE — the address as it is stored — exactly as it does for markdown.
- * An anchor here would take that click away and make the pin the one row in
- * the outline that cannot be edited. It also could not be drawn at all in a
- * breadcrumb or a `see` reference, both of which draw a title INSIDE an anchor
- * already. Where a face IS a door, the door is the row around it (the shelf's
- * `<Link>`), which is the same division `../file/icons.tsx` keeps.
+ * ## The name: written, or read off the set
+ *
+ * A title spelled as a bare address has no name in it, so the set is asked and
+ * the answer is live: rename the node anywhere and every face drawn from that
+ * address says the new name on the next frame, because nothing stored a copy.
+ * A title spelled as one markdown link carries a name somebody CHOSE, and that
+ * one wins — it is authored rather than derived, so nothing can disagree with
+ * it later (human, 2026-08-19: renaming a pin is editing the row's text, and
+ * that is the whole of the feature — no op, no field).
+ *
+ * IT IS DRAWN AS THE WORDS THEY CHOSE, and that is the decision behind the
+ * plainest line of code here: the label is text, not markdown. A `#home` in it
+ * stays the characters `#home` rather than becoming a tag pill, because the
+ * label is a NAME for a door and not prose the tag vocabulary indexes — the
+ * human chose those words, and a face that restyled part of them would be
+ * making a claim about the directory out of somebody's punctuation.
+ *
+ * THE QUERY IS DRAWN EITHER WAY, which is the other half of that answer: a
+ * name renames the PIN and never the destination, and a door onto a narrowed
+ * page that did not say so would be promising something it does not open. So
+ * `[Overdue](/agenda?q=is%3Atodo)` reads *Overdue* with `is:todo` beside it.
+ *
+ * ## Pressable only where it was written as a link
+ *
+ * A face is an anchor exactly when the title was a LINK and the caller allows
+ * one. The ruling is that pressing a named pin opens its address, and a link is
+ * what somebody wrote — so it goes on being one. A BARE address is left as it
+ * was: not a link, so a click there is the row's own (which opens the editor,
+ * where the address is what you see and edit). That split is also what keeps
+ * a title editable at all — a face that swallowed every click would make a pin
+ * the one row in an outline nobody could rename.
+ *
+ * `pressable` is the CALLER's, because two of them may not hold an anchor at
+ * all: the shelf's row is already a `<Link>`, and a breadcrumb or a `see`
+ * reference draws a title inside one — which is the same fact `NodeTitle`'s
+ * `links` prop has always carried for markdown.
  */
 
 import { Show } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
-import { filterOf, type Route } from "../routes.ts"
+import { filterOf, hrefOf, type Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { nameOf } from "./address.ts"
 
 export function Face(props: {
   readonly route: Route
   /** The name somebody GAVE this address, or `undefined` for the bare form —
-   *  in which case the set is asked. A name that was written is somebody's and
-   *  wins; a name that is derived cannot go stale. */
+   *  in which case the set is asked. */
   readonly named?: string | undefined
+  /** May this draw an anchor? Only a NAMED face ever does; a caller that is
+   *  already inside a link says no whatever the title said. */
+  readonly pressable?: boolean
 }) {
   const derived = useDerived()
   const name = () => props.named ?? nameOf(props.route, derived())
+  const press = () => props.named !== undefined && props.pressable === true
 
   return (
     <>
       <Mark />
-      <span class="min-w-0 flex-1 truncate" data-testid={TESTID.addressName}>
-        {name()}
-      </span>
+      <Show
+        when={press()}
+        fallback={
+          <span class="min-w-0 flex-1 truncate" data-testid={TESTID.addressName}>
+            {name()}
+          </span>
+        }
+      >
+        {/* A plain `<a>` rather than a `<Link>`: the press is answered by the
+            pane's delegated listener, which is what already turns a written
+            link into a navigation and gives Alt+click its split for free
+            (`../router.tsx`'s `followed`, `../pane/PageView.tsx`). A `<Link>`
+            here would be a second answer to the same click. */}
+        <a
+          href={hrefOf(props.route)}
+          class="min-w-0 flex-1 truncate underline decoration-rule underline-offset-2 hover:decoration-accent"
+          data-testid={TESTID.addressName}
+        >
+          {name()}
+        </a>
+      </Show>
       <Show when={filterOf(props.route) !== ""}>
-        {/* The query, as its own chip: an address that carries one opens a page
-            WITH it, and a face that drew only the page's name would be
-            promising something it does not open. Mono, because it is a query
-            rather than prose. */}
         <span
           class="shrink-0 rounded bg-rule/60 px-1 font-mono text-[0.65rem] text-muted"
           data-testid={TESTID.addressFilter}

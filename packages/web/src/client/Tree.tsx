@@ -110,7 +110,7 @@ import { NodeLine } from "./NodeLine.tsx"
 import { nodeMenuActions } from "./menu/actions.ts"
 import { createMenuDoor } from "./menu/door.ts"
 import { NodeMenu } from "./menu/NodeMenu.tsx"
-import { useGo } from "./router.tsx"
+import { followed, followedSplit, useGo } from "./router.tsx"
 import { density, showsPreview, startsOpen } from "./settings/density.ts"
 import { TESTID } from "./testids.ts"
 import { useToday } from "./today.tsx"
@@ -383,6 +383,15 @@ function Branch(props: {
     // tag.ts`). Without this the same press would ALSO drop a caret in the
     // line, because Solid runs a descendant's handler before an ancestor's.
     if (onATag(event)) return
+    // …and a press on a LINK somebody wrote in the title belongs to the link,
+    // for exactly that reason one word along. A title may be written as one
+    // markdown link — which is how a pin carries a name somebody chose — and
+    // the ruling is that pressing it opens the ADDRESS (human, 2026-08-19).
+    // Without this the press would open the editor AND navigate, since the
+    // pane's delegated listener answers the same click (`./pane/PageView.tsx`
+    // through `./router.tsx`'s `followed`). The caret is still one press away
+    // — anywhere else on the line — which is how the label gets edited.
+    if (followed(event) !== null || followedSplit(event) !== null) return
     if (event.shiftKey) {
       selection.extend(props.row.key)
       return

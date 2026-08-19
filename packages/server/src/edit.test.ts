@@ -20,6 +20,7 @@
 
 import {
   INBOX,
+  mintedInto,
   type OpFailure,
   type OutlineSet,
   PINS,
@@ -158,11 +159,28 @@ test("a pin into a directory with a shelf is an `add` into that file", () => {
     .toEqual({ op: "add", file: PINS, title: "/n/order" })
 })
 
-test("a pin into a directory with NO shelf mints one holding the address", () => {
+test("a pin into a directory with NO shelf mints one under `_olai/`", () => {
   // The capture's argument one convention over: ONE op, so a refused pin
-  // leaves no empty `Pins.olai` behind.
+  // leaves no empty shelf behind. WHERE it is minted is the human's ruling of
+  // 2026-08-19 — a file olai made because somebody pressed something is not one
+  // of the reader's own, and the top level of a served directory is theirs.
   expect(asked({ verb: "pin", at: "/agenda?q=is%3Atodo" }))
-    .toEqual({ op: "create", file: PINS, seed: { title: "/agenda?q=is%3Atodo" } })
+    .toEqual({
+      op: "create",
+      file: mintedInto(PINS),
+      seed: { title: "/agenda?q=is%3Atodo" },
+    })
+  expect(mintedInto(PINS)).toBe("_olai/Pins.olai")
+})
+
+test("…and a shelf the directory already has is found wherever it sits", () => {
+  // The MINT moved and the READING did not, which is what keeps every existing
+  // vault pinning into the file it already has — at the root, or anywhere else.
+  for (const held of [PINS, "notes/pins.olai", "_olai/Pins.olai"]) {
+    const set = setOf({ "house.olai": HOUSE, [held]: "" })
+    expect(asked({ verb: "pin", at: "/today" }, reading(set)))
+      .toEqual({ op: "add", file: held, title: "/today" })
+  }
 })
 
 test("a shelf the directory already keeps somewhere else is the one used", () => {
@@ -184,7 +202,7 @@ test("the address is carried VERBATIM — nothing on the way parses one", () => 
   // as the characters this app minted. What reads it back is the browser, at
   // view time, through the same bijection that wrote it.
   expect(asked({ verb: "pin", at: "/o/a b.olai" }))
-    .toEqual({ op: "create", file: PINS, seed: { title: "/o/a b.olai" } })
+    .toEqual({ op: "create", file: mintedInto(PINS), seed: { title: "/o/a b.olai" } })
 })
 
 // ── the four moves ─────────────────────────────────────────────────────

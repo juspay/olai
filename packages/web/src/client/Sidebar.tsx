@@ -7,12 +7,16 @@
  * agenda is the same dates read forward — what is owed. Neither is a thing on
  * disk, which is exactly why they are here rather than in the tree below them.
  *
- * ABOVE BOTH sits the reader's own short list — the pinned shelf
- * (./pins/Shelf.tsx), which is neither of the journal's questions and not a
- * thing on disk that this column walks: it is a handful of doors somebody
- * kept, and a short list that has to be scrolled past a corpus to reach is a
- * list nobody keeps. It draws nothing when there are no pins, so a directory
- * that has never used one has the column it always had.
+ * BELOW BOTH, and directly above the files, sits the reader's own short list —
+ * the pinned shelf (./pins/Shelf.tsx). It is neither of the journal's questions
+ * and not a thing on disk that this column walks: it is a handful of doors
+ * somebody kept. It went above the agenda first and was moved here (human,
+ * 2026-08-19), and the order is the argument: the journal's two questions are
+ * what the directory has to SAY, and a shelf in front of them puts a reader's
+ * own bookmarks ahead of the news. Beside the tree it is what it actually is —
+ * a shortcut INTO the files, a hand's width from the list it shortcuts. It
+ * draws nothing when there are no pins, so a directory that has never used one
+ * has the column it always had.
  *
  * Desktop: a resizable column when open, replaced by the icon rail when
  * minimized (./layout/Rail.tsx). Mobile: a slide-over drawer with scrim under
@@ -253,13 +257,18 @@ export function Sidebar(props: {
           // open several without reopening the drawer each time.
           onClick={() => props.onClose()}
         >
-          {/* THE SHELF, above everything else in the column — the reader's own
-              short list, before the directory's answers about itself. It draws
-              nothing at all when the directory has no pins (`./pins/Shelf.tsx`),
-              so the ordinary column is exactly the column it always was. */}
-          <Shelf />
           <Agenda agenda={props.agenda} />
           {props.children}
+
+          {/* THE SHELF, between the journal's two questions and the files —
+              which is where a reader's own short list belongs (human,
+              2026-08-19). Above the agenda it sat in front of the news; here it
+              is the last thing said about the DIRECTORY before the directory
+              itself, and a pinned outline is a hand's width from the outline
+              list it is a shortcut into. It draws nothing at all when there are
+              no pins (`./pins/Shelf.tsx`), so the ordinary column is exactly
+              the column it always was. */}
+          <Shelf />
 
           <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
             <Key each={tree()} by="key">

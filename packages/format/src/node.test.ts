@@ -4,12 +4,15 @@ import { nodesOf } from "./fixtures.testlib.ts"
 import { OUTLINE_EXT } from "./kinds.ts"
 import {
   ARCHIVE,
+  archiveBeside,
   ID_SHAPE,
   INBOX,
   inboxIn,
   isMirror,
+  mintedInto,
   MirrorNode,
   type Node,
+  OLAI_DIR,
   PINS,
   pinsIn,
   RegularNode,
@@ -104,6 +107,27 @@ test("a directory's shelf is whichever outline is called that, wherever it sits"
   // Shallowest first, then path order — the inbox's rule, because it is the
   // same walk.
   expect(pinsIn(["deep/down/Pins.olai", PINS, "a/Pins.olai"])).toBe(PINS)
+})
+
+// WHERE OLAI MINTS ONE is a different question from where it FINDS one, and
+// only the first moved (human, 2026-08-19). A dot-directory would not do:
+// `@olai/store`'s walk prunes those, so a shelf under one would never be read
+// back.
+test("olai mints its own files under _olai/, and finds them anywhere", () => {
+  expect(OLAI_DIR).toBe("_olai")
+  expect(mintedInto(PINS)).toBe("_olai/Pins.olai")
+  expect(OLAI_DIR.startsWith(".")).toBe(false)
+  // The reading is untouched: a shelf already at the root, or under `notes/`,
+  // or in the mint directory is the one that answers.
+  expect(pinsIn(["_olai/Pins.olai"])).toBe("_olai/Pins.olai")
+  expect(pinsIn([PINS, "_olai/Pins.olai"])).toBe(PINS)
+})
+
+// The ARCHIVE and the INBOX deliberately have NOT moved: each is its own
+// change, with its own history and its own migration (human, 2026-08-19).
+test("the archive and the inbox are minted where they always were", () => {
+  expect(archiveBeside("notes/house.olai")).toBe("notes/Archive.olai")
+  expect(INBOX).toBe("Inbox.olai")
 })
 
 // The two conventions are two files and never one, which is what a directory

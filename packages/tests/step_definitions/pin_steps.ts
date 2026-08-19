@@ -207,7 +207,11 @@ Then(
   async function (this: OlaiWorld, id: string, expected: string) {
     const title = this.nodeTitle(id);
     await this.waitUntil(
-      async () => (await title.innerText()).trim() === expected,
+      // Whitespace COLLAPSED: a resolved title is a row of parts — the mark,
+      // the name, the query chip — and `innerText` puts a newline between
+      // them. What a reader sees is the words in order, which is what a
+      // scenario should be able to say.
+      async () => (await title.innerText()).replace(/\s+/g, " ").trim() === expected,
       `the row ${JSON.stringify(id)} to read ${JSON.stringify(expected)}`,
     );
   },
@@ -229,6 +233,32 @@ Then(
     assert.strictEqual(await editor.inputValue(), text);
   },
 );
+
+/** The query a pinned page carries, drawn beside its name — the half of a
+ *  named pin that is about the DESTINATION rather than about the name. */
+Then(
+  "the pin {string} carries the query {string}",
+  async function (this: OlaiWorld, address: string, query: string) {
+    await this.showSidebar();
+    const chip = pinAt(this, address).locator(selector(TESTID.addressFilter));
+    await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual((await chip.innerText()).trim(), query);
+  },
+);
+
+/** The NAME of a resolved title, pressed — which for a title written as a link
+ *  is the link somebody wrote, and is the press the ruling is about. */
+When(
+  "I press the name of {string}",
+  async function (this: OlaiWorld, id: string) {
+    await this.within(id, selector(TESTID.addressName)).first().click();
+  },
+);
+
+/** …and no part of it became a tag. */
+Then("the node {string} draws no tag", async function (this: OlaiWorld, id: string) {
+  assert.strictEqual(await this.within(id, selector(TESTID.tag)).count(), 0);
+});
 
 Then("the pinned shelf is not drawn", async function (this: OlaiWorld) {
   await this.showSidebar();
@@ -266,7 +296,10 @@ Then(
   "the pin {string} is named {string}",
   async function (this: OlaiWorld, address: string, name: string) {
     await this.showSidebar();
-    const row = pinAt(this, address).locator(PIN_LINK);
+    // The NAME element rather than the whole row: a pin that carries a query
+    // draws a chip beside its name, and reading the row would ask this step to
+    // know about that too.
+    const row = pinAt(this, address).locator(selector(TESTID.addressName));
     await this.waitUntil(
       async () => (await row.innerText()).trim() === name,
       `the pin at ${JSON.stringify(address)} to be named ${JSON.stringify(name)}`,

@@ -205,30 +205,40 @@ export const fileNamed = (route: Route): string | undefined =>
  * The route a link on the page names, or `null` for an address this app should
  * let the browser have.
  *
- * STRICTER than {@link routeOf} on purpose, and the difference is who is
+ * STRICTER THAN {@link routeOf} on purpose, and the difference is who is
  * asking. `routeOf` reads the address bar, where an unrecognised path is a
  * reader who typed something and the kindest answer is the app's front page.
  * This reads an `href` inside RENDERED MARKDOWN — a link somebody wrote in a
  * file — and there the same fallback would mean every link this app has no
  * page for silently opening the default outline instead of going where it says.
  *
- * So exactly one shape is claimed: a document's own page, which is the one this
- * app mints into rendered markdown (`markdown/rewrite.ts`). A FRAGMENT is not
- * claimed either — `/doc/x.md#beds` is left to the browser, because what a
- * fragment names on a rendered page is an id this app mints per block, and
- * pretending to answer an anchor it will not land on is worse than a plain
- * navigation that visibly does not.
+ * SO THE TEST IS THE BIJECTION, which is the same test a title that NAMES a
+ * place is read by (`./address/address.ts`): an address this app would mint
+ * reads back as itself, and anything else — `/etc/passwd`, a relative path, a
+ * malformed escape — reads back as something else and is left to the browser.
+ * It used to claim exactly one shape, `/doc/…`, and widening it is the human's
+ * ruling about pins read at its own altitude (2026-08-19): a pin may be written
+ * as a markdown link whose label is the name and whose href is the address, and
+ * *pressing it opens the address*. A link that only worked for one of the six
+ * kinds of page would be a rule about pins hidden inside a rule about links, so
+ * what changed is what a WRITTEN LINK means — in a title, in a note, in a
+ * document — and pins get it by being written in that vocabulary.
+ *
+ * A FRAGMENT IS STILL NOT CLAIMED. `/doc/x.md#beds` is left to the browser,
+ * because what a fragment names on a rendered page is an id this app mints per
+ * block, and pretending to answer an anchor it will not land on is worse than a
+ * plain navigation that visibly does not.
  */
 export const routeIn = (href: string): Route | null => {
-  if (!href.startsWith(DOCUMENT_PREFIX) || href.includes("#")) return null
+  if (!href.startsWith("/") || href.includes("#")) return null
   const route = routeOf(href)
-  // …and the ANSWER is checked, not just the prefix. Since `spelled`, an
-  // address this parser cannot READ falls back to the front page — which is
-  // the right kindness in the address bar and is exactly the silent
-  // substitution the paragraph above refuses here. A `/doc/` link written with
-  // a malformed escape is therefore left to the browser, like every other link
-  // this app has no page for.
-  return route.kind === "document" ? route : null
+  // The ANSWER is checked, not the prefix. Since `spelled`, an address this
+  // parser cannot READ falls back to the front page — the right kindness in the
+  // address bar and exactly the silent substitution this function refuses — and
+  // the same comparison turns away every path that is not one of ours.
+  return splitAddress(hrefOf(route)).pathname === splitAddress(href).pathname
+    ? route
+    : null
 }
 
 /**

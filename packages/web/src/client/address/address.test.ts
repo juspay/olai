@@ -14,7 +14,7 @@ import { setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { hrefOf } from "../routes.ts"
-import { addressIn, bareAddressIn, labelIn, nameOf } from "./address.ts"
+import { addressIn, labelIn, nameOf } from "./address.ts"
 
 // ── what is an address ─────────────────────────────────────────────────
 
@@ -81,16 +81,12 @@ test("prose either side of a link is a sentence, not a pin", () => {
 
 // ── and what the outline draws a face for ──────────────────────────────
 
-test("a BARE address is a face; a markdown link is left to the markdown", () => {
-  // A link already draws as a link with the label its author wrote — taking it
-  // over would swap a clickable link for a mark. The bare form has no such
-  // rendering, and the raw text is the plumbing this exists to stop showing.
-  expect(bareAddressIn("/n/herbs")).toEqual({ kind: "node", id: "herbs" })
-  expect(bareAddressIn("[the herb bed](/n/herbs)")).toBeUndefined()
-  expect(bareAddressIn("buy milk")).toBeUndefined()
-  // …while the SHELF reads both, because it is drawing doors rather than
-  // titles.
+test("both spellings name the same place — the label is the only difference", () => {
+  // One rule for both, because the difference between them is a NAME rather
+  // than a destination (human, 2026-08-19).
+  expect(addressIn("/n/herbs")).toEqual({ kind: "node", id: "herbs" })
   expect(addressIn("[the herb bed](/n/herbs)")).toEqual({ kind: "node", id: "herbs" })
+  expect(addressIn("buy milk")).toBeUndefined()
 })
 
 test("the label somebody wrote is a name; a blank one is not", () => {

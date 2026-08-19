@@ -64,6 +64,7 @@ import {
   isMirror,
   type Located,
   type LocatedRegular,
+  mintedInto,
   nodeNamed,
   nodesOf,
   type OpFailure,
@@ -389,6 +390,13 @@ const captureRequest = (
  * than in a tab holding a file list some frames old, and one op is what keeps a
  * refused pin from leaving an empty `Pins.olai` behind.
  *
+ * WHERE ONE IS MINTED is `_olai/Pins.olai` and not the root (`mintedInto`,
+ * human 2026-08-19): a file olai made because somebody pressed something is not
+ * one of the reader's own, and the top level of a served directory is theirs.
+ * The READING is untouched — a directory that already keeps a `Pins.olai`
+ * anywhere goes on pinning into the file it has, which is what makes this a
+ * change to the mint alone.
+ *
  * NO ANCHOR, so a new pin lands LAST among the shelf's top-level rows — which
  * is where a new bookmark goes, and is the ops layer's own default for an
  * `add` that names no sibling. Where it goes AFTERWARDS is the drag's, and
@@ -401,7 +409,7 @@ const pinRequest = (
   const shelf = pinsIn(at.set.files)
   return Result.succeed(
     shelf === undefined
-      ? { op: "create", file: PINS, seed: { title: edit.at } }
+      ? { op: "create", file: mintedInto(PINS), seed: { title: edit.at } }
       : { op: "add", file: shelf, title: edit.at },
   )
 }

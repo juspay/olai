@@ -79,25 +79,6 @@ export const addressIn = (title: string): Route | undefined => {
     : undefined
 }
 
-/**
- * The same question, narrowed to a title that is NOTHING BUT an address — what
- * the outline draws a resolved face for.
- *
- * The narrowing is the whole difference between the two readers, and it is a
- * fact about what has already been drawn rather than a second rule. A markdown
- * link is drawn by the markdown pipeline as a link, with the label its author
- * wrote: that title never leaked anything, and taking it over would swap a
- * clickable link for a face and lose a feature titles have had all along. A
- * BARE address has no such rendering — it is the raw text, and the raw text is
- * the plumbing the maintainer saw.
- *
- * The shelf reads {@link addressIn} instead, because it is drawing doors rather
- * than titles: both spellings are pins there, and the label of a linked one is
- * the name somebody gave it ({@link labelIn}).
- */
-export const bareAddressIn = (title: string): Route | undefined =>
-  LINKED.test(title.trim()) ? undefined : addressIn(title)
-
 /** The name written INTO a title, for the address somebody named — `undefined`
  *  for the bare form, which is what this app writes and what {@link nameOf}
  *  answers for. An empty label (`[](/n/herbs)`) is no name: a door with a blank

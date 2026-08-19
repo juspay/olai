@@ -13,7 +13,8 @@
  */
 import { fileKind, shiftDay } from "@olai/format"
 import { ROW_DIM } from "@olai/web/src/client/blocked.ts"
-import { readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { dirname } from "node:path"
 import { type Browser, chromium, type Locator, type Page } from "playwright"
 
 import { isoDayOf } from "@olai/web/src/client/clock.ts"
@@ -555,6 +556,9 @@ const shotSays = (id: string, file: string | undefined): void => {
  */
 const rewrite = (file: string, records: ReadonlyArray<string>): void => {
   if (VAULT === undefined) throw new Error("no VAULT; run through evidence.sh")
+  // The directory it goes in may not exist yet — `_olai/` is minted by the app
+  // and a section that writes a shelf outright is standing in for that write.
+  mkdirSync(dirname(`${VAULT}/${file}`), { recursive: true })
   writeFileSync(`${VAULT}/${file}`, records.map((one) => `${one}\n`).join(""))
 }
 
@@ -757,10 +761,13 @@ const SECTIONS = {
    * (the default, `chalk`) and the dark one (`pitch`).
    */
   "pin-to-sidebar": async (page) => {
-    rewrite("Pins.olai", [
+    rewrite("_olai/Pins.olai", [
       `{"id":"p-kitchen","ord":"a0","title":"/n/kitchen"}`,
       `{"id":"p-finishes","ord":"a1","title":"/doc/finishes.md"}`,
-      `{"id":"p-todo","ord":"a2","title":"/o/house.olai?q=is%3Atodo"}`,
+      // …and one written as a LINK, which is how a pin carries a name somebody
+      // chose: the label is drawn, the query beside it, and pressing it opens
+      // the address (human, 2026-08-19).
+      `{"id":"p-todo","ord":"a2","title":"[What is left to do](/o/house.olai?q=is%3Atodo)"}`,
     ])
     await page.goto(`${BASE}/o/house.olai`)
     await page.locator(SHELF).waitFor()
@@ -771,7 +778,7 @@ const SECTIONS = {
     // The FILTERED pin, followed. What it has to land on is the page AND the
     // query — a door that dropped the `?q=` would open a different page from
     // the one that was pinned.
-    await page.locator(`${PIN}[data-at="/o/house.olai?q=is%3Atodo"] a`).first().click()
+    await page.locator(`${PIN}[data-at="/o/house.olai?q=is%3Atodo"]`).first().click()
     await page.locator('[data-testid="filter-bar"]').first().waitFor()
     await page.waitForTimeout(DRAWN)
     const landed = new URL(page.url())
@@ -806,7 +813,7 @@ const SECTIONS = {
     await page.waitForTimeout(DRAWN)
     console.log(`  after the verb:       ${await shelved(page)}`)
     console.log(`  and Pins.olai says:   ${
-      recordsIn("Pins.olai").map((one) => String(one["title"])).join(" · ")
+      recordsIn("_olai/Pins.olai").map((one) => String(one["title"])).join(" · ")
     }`)
     await shot(page, "a-fourth-door-chalk")
 
@@ -815,12 +822,12 @@ const SECTIONS = {
     // titles that are addresses, and a page that drew them raw showed the
     // plumbing. Each is drawn as the page it names, by the same resolver the
     // shelf reads (`web/src/client/address/`).
-    await page.goto(`${BASE}/o/Pins.olai`)
+    await page.goto(`${BASE}/o/_olai/Pins.olai`)
     await page.locator(OUTLINE_TREE).first().waitFor()
     await page.waitForTimeout(DRAWN)
     console.log(`  Pins.olai draws:      ${(await titles(page)).join(" · ")}`)
     console.log(`  …over the titles:     ${
-      recordsIn("Pins.olai").map((one) => String(one["title"])).join(" · ")
+      recordsIn("_olai/Pins.olai").map((one) => String(one["title"])).join(" · ")
     }`)
     await shot(page, "the-shelf-as-an-outline-chalk")
 

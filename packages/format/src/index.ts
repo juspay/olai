@@ -160,6 +160,11 @@ export {
   isMirror,
   Located,
   MARKS,
+  /** Where olai mints a file it named itself, and the directory it puts them
+   *  in — a MINT rather than a home: what a directory already has is found
+   *  where it sits (`./node.ts`). */
+  mintedInto,
+  OLAI_DIR,
   /** The shelf's own filename, and the walk that finds a directory's — the
    *  pin convention, read the way the inbox one is (`./node.ts`). */
   PINS,

@@ -471,11 +471,52 @@ export const inboxIn = (files: ReadonlyArray<string>): string | undefined =>
  * READING of which file the shelf is, never an op (`@olai/surface`'s
  * `edit.ts`, where quick capture makes the identical trade).
  *
- * AT THE ROOT when olai mints one, for {@link INBOX}'s reason exactly: a shelf
- * nobody has created yet is a promise the sidebar makes, and the file it mints
- * has to be the file a person would have made themselves.
+ * WHERE ONE IS MINTED is {@link mintedInto}'s and not this constant's, and the
+ * two questions are deliberately apart: this is the NAME a directory's shelf is
+ * found by, wherever it sits, and a directory that already keeps a `Pins.olai`
+ * at its root goes on using it. What olai CREATES, when there is none, is
+ * `_olai/Pins.olai` — a file olai made rather than one a person did, so it
+ * goes where those go (human, 2026-08-19).
  */
 export const PINS = `Pins${OUTLINE_EXT}`
+
+/**
+ * THE DIRECTORY OLAI MINTS ITS OWN FILES INTO.
+ *
+ * A served directory is somebody's — their outlines, their notes, their names,
+ * at the top level where they put them. A file OLAI made because a person
+ * pressed something is a different kind of thing, and it does not belong in
+ * that list: the shelf is the first of them, and there will be more (human,
+ * 2026-08-19).
+ *
+ * `_` rather than `.`, and that is load-bearing rather than a style: a
+ * dot-directory is not WALKED at all (`@olai/store`'s `disk.ts` prunes them,
+ * because whoever put one there did not mean it as content), so a shelf under
+ * one would never be read back. An underscore is an ordinary directory that
+ * sorts to the top and reads as machine-owned to a person looking at `ls`.
+ *
+ * IT IS A MINT AND NOT A HOME, which is the whole distinction this file keeps
+ * between the two questions a convention asks. {@link pinsIn} goes on finding
+ * whichever outline is CALLED `Pins.olai`, wherever it sits — a directory that
+ * already keeps one at the root, or under `notes/`, keeps using the file it
+ * has and nothing moves. This says only where olai puts one when the directory
+ * has none.
+ */
+export const OLAI_DIR = "_olai"
+
+/**
+ * Where olai mints a file it names itself — one spelling, so the day the
+ * ARCHIVE and the INBOX move here too it is one call each rather than a path
+ * assembled at three sites.
+ *
+ * They deliberately have NOT moved (human, 2026-08-19: pins first, the other
+ * two are their own change). `archiveBeside` still puts an `Archive.olai`
+ * beside the file it is emptying, and a capture still mints `Inbox.olai` at the
+ * root; each is a decision with its own history and its own migration, and
+ * moving them under cover of this one would be three conventions changing in a
+ * PR about one.
+ */
+export const mintedInto = (name: string): string => `${OLAI_DIR}/${name}`
 
 /** The directory's shelf, or `undefined` when it has none — {@link inboxIn}'s
  *  question one convention over, answered by the same walk so that one

@@ -226,18 +226,32 @@ test("an unrecognised path is the default outline", () => {
 // A link inside rendered markdown gets the STRICT reading, and the difference
 // is the fallback: `routeOf` answers an unknown path with the front page, which
 // as an answer to a link somebody wrote in a file would mean every address this
-// app has no page for silently opening the default outline.
-test("a link on the page is a route only when it names a document's page", () => {
+// app has no page for silently opening the default outline. What decides is the
+// BIJECTION — an address this app would mint reads back as itself — which is
+// the same test a title that NAMES a place is read by.
+test("a link on the page is a route when it names a page of this app", () => {
   expect(routeIn("/doc/notes/plan.md")).toEqual({
     kind: "document",
     file: "notes/plan.md",
   })
+  // Every kind of page, because a pin may be written as a link and pressing one
+  // opens the address (human, 2026-08-19). It claimed `/doc/` alone until then,
+  // and a link that worked for one of the six would have been a rule about pins
+  // hiding inside a rule about links.
+  expect(routeIn("/n/herbs")).toEqual({ kind: "node", id: "herbs" })
+  expect(routeIn("/o/house.olai")).toEqual({ kind: "outline", file: "house.olai" })
+  expect(routeIn("/d/2026-08-10")).toEqual({ kind: "day", date: "2026-08-10" })
+  expect(routeIn("/agenda?q=is%3Atodo")).toEqual({ kind: "agenda", filter: "is:todo" })
+  expect(routeIn("/today")).toEqual({ kind: "today" })
   for (
     const href of [
       "https://example.com",
-      "/o/house.olai",
-      "/d/2026-08-10",
+      // Not a page of this app: the round trip answers `/`, which is the
+      // front-page kindness the address bar gets and this refuses.
       "/somewhere/else",
+      "/etc/passwd",
+      // …nor one written with an escape nothing can read.
+      "/n/%",
       "#md-1a2b-beds",
       "",
     ]

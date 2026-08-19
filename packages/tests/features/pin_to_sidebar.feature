@@ -29,7 +29,9 @@ Feature: Pinning a page to the sidebar
     When I open the node menu of "order"
     And I choose "Pin to sidebar" from the node menu
     Then the pinned shelf holds "/n/order"
-    And "Pins.olai" holds a node titled "/n/order"
+    # Minted where olai puts the files it names itself, not at the top level of
+    # somebody else’s directory.
+    And "_olai/Pins.olai" holds a node titled "/n/order"
     And the pin "/n/order" is named "order the new cabinets"
     And there should be no page errors
 
@@ -63,13 +65,17 @@ Feature: Pinning a page to the sidebar
     Then the pinned shelf holds "/doc/finishes.md"
     And the pin "/doc/finishes.md" is named "finishes.md"
 
-  Scenario: The chord is a toggle over one address
+  Scenario: The chord is a toggle over one address, and mints the shelf under _olai/
     When I pin the page
     Then the pinned shelf holds "/o/house.olai"
+    # WHERE a shelf is minted: a file olai made because somebody pressed
+    # something is not one of the reader's own, and the top level of a served
+    # directory is theirs.
+    And "_olai/Pins.olai" holds a node titled "/o/house.olai"
     When I pin the page
     Then the pinned shelf is not drawn
     # Unpinning is the set's own removal, so it is reversible rather than gone.
-    And "Archive.olai" holds a node titled "/o/house.olai"
+    And "_olai/Archive.olai" holds a node titled "/o/house.olai"
 
   Scenario: A pin is taken off the shelf from the shelf
     When I pin the page
@@ -102,6 +108,38 @@ Feature: Pinning a page to the sidebar
     When I click the title of "p1"
     Then the editor holds "/n/order"
     And there should be no page errors
+
+  Scenario: A pin written as a link draws its NAME, and pressing it opens the address
+    # Renaming a pin is editing the row's text — no op, no field. The label is
+    # what somebody chose, so it is drawn as the words they chose; the query is
+    # drawn beside it either way, because a name renames the PIN and never the
+    # destination.
+    Given the directory has the pins:
+      | [Kitchen project](/n/order)          |
+      | [What is late](/agenda?q=is%3Atodo)  |
+    Then the pin "/n/order" is named "Kitchen project"
+    And the pin "/agenda?q=is%3Atodo" is named "What is late"
+    And the pin "/agenda?q=is%3Atodo" carries the query "is:todo"
+    When I open the outline "Pins.olai"
+    # Marked HERE: opening an outline is a real navigation, so the claim below
+    # is about the LABEL press and nothing before it.
+    And I mark the page
+    Then the node "p0" reads "Kitchen project"
+    And the node "p1" reads "What is late is:todo"
+    When I press the name of "p0"
+    Then the address is "/n/order"
+    And the page has not reloaded
+
+  Scenario: A label is the words somebody chose, not markup
+    # A hash-tag in a label stays those characters: the label names a door, and
+    # a face that restyled part of it would be making a claim about the
+    # directory out of somebody's punctuation.
+    Given the directory has the pins:
+      | [Kitchen #home](/n/order) |
+    Then the pin "/n/order" is named "Kitchen #home"
+    When I open the outline "Pins.olai"
+    Then the node "p0" reads "Kitchen #home"
+    And the node "p0" draws no tag
 
   Scenario: A title that names a place says so wherever it is written
     # Not a rule about Pins.olai — a rule about titles. The same row in an
