@@ -61,6 +61,7 @@ import { createCursor } from "./cursor.ts"
 import { createSearch } from "./nodes.ts"
 import { Result, type RowTestids } from "./Result.tsx"
 import { type HitRow, hitRow } from "./row.ts"
+import { HOME_ROUTE } from "../routes.ts"
 
 /**
  * What one door calls the parts of its shortlist.
@@ -299,4 +300,4 @@ export function Shortlist(props: {
 
 /** A row for a position nothing is at — one value, since it is only ever
  *  read and never held. */
-const NO_ROW: HitRow = { id: "", label: "", place: "", props: [] , route: { kind: "outline", file: null } }
+const NO_ROW: HitRow = { id: "", label: "", place: "", props: [] , route: HOME_ROUTE }

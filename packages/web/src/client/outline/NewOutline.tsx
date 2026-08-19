@@ -30,6 +30,7 @@ import { MAKING_OUTLINE } from "../file/making.ts"
 import { NewFile } from "../file/NewFile.tsx"
 import { useRouter } from "../router.tsx"
 import { applied } from "../writes.ts"
+import { atFile } from "../routes.ts"
 
 export function NewOutline() {
   const undo = useUndo()
@@ -44,7 +45,7 @@ export function NewOutline() {
         // WHERE it landed is the ANSWER's, not the box's: the ops layer says
         // which file the write produced, and reading it back off what was typed
         // would be a second spelling of a path (`../document/minted.ts`'s rule).
-        router.go({ kind: "outline", file: outcome.success.file })
+        router.go(atFile(outcome.success.file))
         return null
       }}
     />

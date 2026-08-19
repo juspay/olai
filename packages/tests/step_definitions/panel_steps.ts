@@ -273,7 +273,7 @@ Then(
     // name and the id is its whole path. One reading, two doors — this step and
     // the palette's are the same assertion about the same block of rows.
     await this.page
-      .locator(`${HEADER_SEARCH_ITEM}${attr("data-id", `doc-${file}`)}`)
+      .locator(`${HEADER_SEARCH_ITEM}${attr("data-id", `hit-${file}`)}`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );

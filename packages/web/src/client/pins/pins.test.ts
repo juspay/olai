@@ -12,6 +12,7 @@ import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { pinnedAt, pinsOf } from "./pins.ts"
+import { atNode } from "../routes.ts"
 
 const PINS = [
   `{"id":"p-herbs","ord":"a0","title":"/#herbs"}`,
@@ -82,11 +83,11 @@ test("a mirror on the shelf is not a pin — a placement is not a door", () => {
 
 test("a page is pinned when the shelf holds its address, however either is spelled", () => {
   const set = setWith(PINS)
-  expect(pinnedAt(set, { kind: "node", id: "herbs" })?.id).toBe("p-herbs")
+  expect(pinnedAt(set, atNode("herbs"))?.id).toBe("p-herbs")
   expect(pinnedAt(set, { kind: "agenda", filter: "is:todo" })?.id).toBe("p-late")
   // The SAME page without its query is a different page, and a different pin.
   expect(pinnedAt(set, { kind: "agenda" })).toBeUndefined()
-  expect(pinnedAt(set, { kind: "node", id: "kitchen" })).toBeUndefined()
+  expect(pinnedAt(set, atNode("kitchen"))).toBeUndefined()
   // And a directory with no shelf at all has nothing pinned, rather than a
   // caller having to ask whether there is one first.
   expect(pinnedAt(undefined, { kind: "agenda" })).toBeUndefined()

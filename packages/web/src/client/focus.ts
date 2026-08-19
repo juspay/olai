@@ -42,6 +42,7 @@ import { type Accessor, createSignal } from "solid-js"
 
 import { useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
+import { atNode } from "./routes.ts"
 
 const [focused, setFocused] = createSignal<string | null>(null)
 
@@ -105,5 +106,5 @@ const focusNode = (id: string, elsewhere: () => void): void => {
  */
 export const useShowNode = (): ((id: string) => void) => {
   const router = useRouter()
-  return (id) => focusNode(id, () => router.go({ kind: "node", id }))
+  return (id) => focusNode(id, () => router.go(atNode(id)))
 }

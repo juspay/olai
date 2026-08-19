@@ -3,6 +3,7 @@ import { expect, test } from "bun:test"
 import { DocumentPath, NodeId } from "@olai/format"
 import type { NodeHit } from "@olai/surface"
 
+import { atFile, atNode } from "../routes.ts"
 import { filterItems, hitItem, modeOf, SHELL_ITEMS } from "./items.ts"
 
 /** A hit on a record, with the address every hit carries. */
@@ -38,7 +39,7 @@ test("a document hit becomes a row that opens the document", () => {
   expect(item.of).toBe("document")
   expect(item.action).toEqual({
     kind: "route",
-    route: { kind: "document", file: "notes/cabinets.md" },
+    route: atFile("notes/cabinets.md"),
   })
 })
 
@@ -56,7 +57,7 @@ test("a search hit becomes a row that jumps to the node", () => {
   // is somebody's prose, and beside the title it starved it to one word per
   // line and scrolled the palette sideways.
   expect(item.hint).toBeUndefined()
-  expect(item.action).toEqual({ kind: "route", route: { kind: "node", id: "hinges" } })
+  expect(item.action).toEqual({ kind: "route", route: atNode("hinges") })
 })
 
 test("the place reads NEAREST ancestor first, so a truncation keeps what situates the node", () => {

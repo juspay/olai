@@ -31,6 +31,7 @@
 import {
   ancestorTitles,
   backlinksOf,
+  bodiedIn,
   brokenBy,
   brokenIn,
   bytesOf,
@@ -261,7 +262,7 @@ export const search = (
   // `matchingDocuments`' own rule and the hole frontmatter fills.
   const documents = query.kind === "node"
     ? []
-    : matchingDocuments(markdownIn(at.set), filter, scope)
+    : matchingDocuments(bodiedIn(at.set), filter, scope)
   const limit = query.limit ?? DEFAULT_SEARCH_LIMIT
   const hits = rankedTogether(at.derived, nodes, documents)
     .slice(0, limit)

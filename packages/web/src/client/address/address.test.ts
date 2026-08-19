@@ -13,7 +13,7 @@ import { derive } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { hrefOf } from "../routes.ts"
+import { atFile, atNode, HOME_ROUTE, hrefOf } from "../routes.ts"
 import { addressIn, labelIn, nameOf } from "./address.ts"
 
 // ── what is an address ─────────────────────────────────────────────────
@@ -70,7 +70,7 @@ test("ordinary prose is not a pin", () => {
 test("a markdown link is a NAMED pin; a blank label is no name", () => {
   const named = "[What is late](/agenda?q=is%3Atodo)"
   expect(hrefOf(addressIn(named)!)).toBe("/agenda?q=is%3Atodo")
-  expect(addressIn("[](/#herbs)")).toEqual({ kind: "node", id: "herbs" })
+  expect(addressIn("[](/#herbs)")).toEqual(atNode("herbs"))
 })
 
 test("prose either side of a link is a sentence, not a pin", () => {
@@ -84,8 +84,8 @@ test("prose either side of a link is a sentence, not a pin", () => {
 test("both spellings name the same place — the label is the only difference", () => {
   // One rule for both, because the difference between them is a NAME rather
   // than a destination (human, 2026-08-19).
-  expect(addressIn("/#herbs")).toEqual({ kind: "node", id: "herbs" })
-  expect(addressIn("[the herb bed](/#herbs)")).toEqual({ kind: "node", id: "herbs" })
+  expect(addressIn("/#herbs")).toEqual(atNode("herbs"))
+  expect(addressIn("[the herb bed](/#herbs)")).toEqual(atNode("herbs"))
   expect(addressIn("buy milk")).toBeUndefined()
 })
 
@@ -101,15 +101,15 @@ const named = (title: string) =>
   derive(recordsOf(setOf({ "garden.olai": `{"id":"herbs","ord":"a0","title":"${title}"}` })))
 
 test("a node address is called whatever that node is called right now", () => {
-  expect(nameOf({ kind: "node", id: "herbs" }, named("the herb bed"))).toBe("the herb bed")
+  expect(nameOf(atNode("herbs"), named("the herb bed"))).toBe("the herb bed")
   // The same address, after somebody renamed the node somewhere else entirely.
-  expect(nameOf({ kind: "node", id: "herbs" }, named("the herb spiral")))
+  expect(nameOf(atNode("herbs"), named("the herb spiral")))
     .toBe("the herb spiral")
 })
 
 test("an address at an id nothing declares says the address rather than a blank", () => {
-  expect(nameOf({ kind: "node", id: "gone" }, named("the herb bed"))).toBe("/#gone")
-  expect(nameOf({ kind: "node", id: "herbs" }, undefined)).toBe("/#herbs")
+  expect(nameOf(atNode("gone"), named("the herb bed"))).toBe("/#gone")
+  expect(nameOf(atNode("herbs"), undefined)).toBe("/#herbs")
 })
 
 test("a mirror's id resolves to the node it stands for", () => {
@@ -119,18 +119,18 @@ test("a mirror's id resolves to the node it stands for", () => {
       "house.olai": `{"id":"here","ord":"a0","mirror":"herbs"}`,
     })),
   )
-  expect(nameOf({ kind: "node", id: "here" }, set)).toBe("the herb bed")
+  expect(nameOf(atNode("here"), set)).toBe("the herb bed")
 })
 
 test("a file is called by its own name, not by its path", () => {
   const set = named("the herb bed")
-  expect(nameOf({ kind: "document", file: "notes/finishes.md" }, set)).toBe("finishes.md")
-  expect(nameOf({ kind: "outline", file: "a/b/garden.olai" }, set)).toBe("garden.olai")
+  expect(nameOf(atFile("notes/finishes.md"), set)).toBe("finishes.md")
+  expect(nameOf(atFile("a/b/garden.olai"), set)).toBe("garden.olai")
 })
 
 test("the pages that are not files are called what a reader calls them", () => {
   const set = named("the herb bed")
-  expect(nameOf({ kind: "outline", file: null }, set)).toBe("Home")
+  expect(nameOf(HOME_ROUTE, set)).toBe("Home")
   expect(nameOf({ kind: "day", date: "2026-08-18" }, set)).toBe("2026-08-18")
   expect(nameOf({ kind: "today" }, set)).toBe("Today")
   expect(nameOf({ kind: "agenda" }, set)).toBe("Agenda")

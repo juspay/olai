@@ -378,6 +378,7 @@ export {
 export type {
   DocumentField,
   DocumentMatch,
+  Bodied,
   Filter,
   Lit,
   Match,

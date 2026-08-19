@@ -35,7 +35,7 @@ import { type Address, DocumentPath, type Face, referrersTo } from "@olai/format
 import { createMemo, createSignal, For, Show } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
-import { hrefOf } from "../routes.ts"
+import { atFile, atNode, hrefOf } from "../routes.ts"
 import { useFaces } from "../served.tsx"
 import { TESTID } from "../testids.ts"
 
@@ -104,8 +104,8 @@ function Section(props: {
                   class="text-sm text-accent no-underline hover:underline"
                   data-testid={TESTID.documentReferrer}
                   href={one.at === undefined
-                    ? hrefOf({ kind: "document", file: one.face.path })
-                    : hrefOf({ kind: "node", id: one.at.node.id })}
+                    ? hrefOf(atFile(one.face.path))
+                    : hrefOf(atNode(one.at.node.id))}
                 >
                   {one.at === undefined ? one.face.title : one.at.node.title}
                 </a>

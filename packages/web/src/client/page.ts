@@ -47,7 +47,7 @@ import {
   zoom,
 } from "@olai/format"
 
-import type { Route } from "./routes.ts"
+import { atElement, type Route } from "./routes.ts"
 
 export type Page =
   | { readonly kind: "outline"; readonly file: string }
@@ -152,25 +152,35 @@ export const pageOf = (
    *  redirect that would put yesterday in someone's history. */
   today: string,
 ): Page => {
-  if (route.kind === "node") return { kind: "node", zoomed: zoom(derived, route.id) }
+  const address = route.kind === "at" ? route.address : null
 
-  if (route.kind === "document") {
-    // The place inside the page is NOT carried here, and that is the model's
-    // own rule kept: an arm holds what its screen needs. What the screen needs
-    // is the LANDING, which is an act rather than a fact — it happens once, on
-    // arrival, and never again on a re-render — so it comes from the router
-    // that caused the navigation (`./router.tsx`'s `landing`) rather than from
-    // a fragment this would hand out afresh every frame.
-    return bodyKind(route.file) !== null && faceAt(found, route.file) !== undefined
-      ? { kind: "document", file: route.file }
-      // Asked of `bodyKind` rather than `fileKind`, and the fallback is what
-      // is left of an older worry: an address whose suffix says outline never
-      // reaches this arm any more (the parser reads the suffix and picks the
-      // page, `./routes.ts`), and a suffix the registry claims at all is
-      // exactly what makes a path an address. So the sentence names the kind
-      // the reader asked for, and the `?? "document"` is the unreachable arm
-      // kept honest rather than a case this can be handed.
-      : { kind: "nothing", sought: bodyKind(route.file) ?? "document", requested: route.file }
+  if (address?.kind === "node") {
+    return { kind: "node", zoomed: zoom(derived, address.id) }
+  }
+
+  // WHICH PAGE AN ADDRESS OPENS IS DECIDED HERE, and nowhere else — which is
+  // what the route's arms collapsing bought. A `#` after a path is a heading
+  // and a heading is in a BODY, and a path with no element is whatever its
+  // suffix says: an outline is a tree of rows, everything else with a body is
+  // drawn whole. Nothing upstream stored that answer, so nothing upstream can
+  // disagree with it.
+  //
+  // The place INSIDE the page is not carried onto the arm, and that is the
+  // model's own rule kept: an arm holds what its screen needs. What the screen
+  // needs is the LANDING, which is an act rather than a fact — it happens once,
+  // on arrival, and never again on a re-render — so it comes from the router
+  // that caused the navigation (`./router.tsx`'s `landing`) rather than from a
+  // fragment this would hand out afresh every frame.
+  if (address !== null && (address.kind === "heading" || bodyKind(address.path) !== null)) {
+    const file = address.path
+    return faceAt(found, file) !== undefined
+      ? { kind: "document", file }
+      // The kind the reader ASKED FOR, off the name the address spelled — so
+      // "no such document" and "no such saved page" send them to two different
+      // places. `?? "document"` is unreachable (a suffix the registry claims is
+      // what makes a path an address at all) and is kept honest rather than
+      // asserted away.
+      : { kind: "nothing", sought: bodyKind(file) ?? "document", requested: file }
   }
 
   if (route.kind === "agenda") return { kind: "agenda", date: today }
@@ -196,16 +206,17 @@ export const pageOf = (
   // served, and naming an archive opens the trash: an archive is not a place
   // you edit, so the address a sidebar used to link goes where the entry went.
   const outlines = outlinesIn(found)
-  const file = route.file === null
+  const named = address === null ? null : address.path
+  const file = named === null
     ? outlines.find((candidate) => !isArchived(candidate))
-    : outlines.includes(route.file)
-    ? route.file
+    : outlines.includes(named)
+    ? named
     : undefined
   if (file === undefined) {
     return {
       kind: "nothing",
       sought: "outline",
-      requested: outlines.length === 0 ? null : route.file,
+      requested: outlines.length === 0 ? null : named,
     }
   }
   if (isArchived(file)) return trashOf(found)
@@ -256,12 +267,8 @@ export const opensAt = (
   found: Found,
   path: string,
   at?: string,
-): Route | undefined => {
-  if (faceAt(found, path) === undefined) return undefined
-  return bodyKind(path) !== null
-    ? { kind: "document", file: path, ...(at === undefined ? {} : { at }) }
-    : { kind: "outline", file: path }
-}
+): Route | undefined =>
+  faceAt(found, path) === undefined ? undefined : atElement(path, at ?? null)
 
 /** The file the open page belongs to — the sidebar entry to light up, in
  *  whichever of its two lists. A zoomed node belongs to the file its CANONICAL

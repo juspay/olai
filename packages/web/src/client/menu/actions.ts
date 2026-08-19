@@ -41,7 +41,7 @@ import type { Said, Undo } from "../edit/undoing.ts"
 import { setFolded } from "../fold/memory.ts"
 import { type Fold, foldIdOf, foldOf } from "../fold/rows.ts"
 import { setChatOpen } from "../layout/prefs.ts"
-import { hrefOf, type Route } from "../routes.ts"
+import { atNode, hrefOf, type Route } from "../routes.ts"
 import { asText } from "./subtree.ts"
 import type { MenuAction } from "./action.ts"
 import { subjectOfRow, writeVerbs } from "./verbs.ts"
@@ -126,7 +126,7 @@ export const nodeMenuActions = (args: {
     {
       id: "zoom",
       label: "Zoom in",
-      run: () => args.go({ kind: "node", id }),
+      run: () => args.go(atNode(id)),
     },
     {
       // The composer, armed with this node — a READ, and it sits among the
@@ -186,7 +186,7 @@ export const nodeMenuActions = (args: {
     // then to say WHICH, since the clipboard is somewhere the page cannot
     // show ({@link copied}).
     run: async () => {
-      const url = new URL(hrefOf({ kind: "node", id }), location.href).href
+      const url = new URL(hrefOf(atNode(id)), location.href).href
       await navigator.clipboard.writeText(url)
       return copied("link")
     },

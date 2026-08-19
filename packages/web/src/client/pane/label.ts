@@ -22,9 +22,11 @@
 import type { Route } from "../routes.ts"
 
 export const labelOf = (route: Route): string => {
-  if (route.kind === "outline") return route.file ?? "outline"
-  if (route.kind === "document") return route.file
-  if (route.kind === "node") return route.id
+  if (route.kind === "at") {
+    const address = route.address
+    if (address === null) return "outline"
+    return address.kind === "node" ? address.id : address.path
+  }
   if (route.kind === "day") return route.date
   if (route.kind === "today") return "today"
   if (route.kind === "agenda") return "agenda"

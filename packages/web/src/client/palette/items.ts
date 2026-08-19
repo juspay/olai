@@ -25,7 +25,7 @@
 import type { BodyKind } from "@olai/format"
 import type { Edit, SearchHit } from "@olai/surface"
 
-import type { Route } from "../routes.ts"
+import { HOME_ROUTE, type Route } from "../routes.ts"
 import type { NodeProp } from "../search/props.ts"
 import { hitRow } from "../search/row.ts"
 
@@ -130,7 +130,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     id: "nav-home",
     label: "Go home",
     hint: "open the first outline",
-    action: { kind: "route", route: { kind: "outline", file: null } },
+    action: { kind: "route", route: HOME_ROUTE },
     search: "go home outline first",
   },
   {

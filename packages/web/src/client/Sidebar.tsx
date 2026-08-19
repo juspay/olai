@@ -103,7 +103,7 @@ import {
 import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
 import { NewOutline } from "./outline/NewOutline.tsx"
-import { ROW_TESTID, routeTo } from "./file/kinds.ts"
+import { ROW_TESTID } from "./file/kinds.ts"
 import { Glyph } from "./file/icons.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
@@ -115,6 +115,7 @@ import { Shelf } from "./pins/Shelf.tsx"
 import { Link, useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
+import { atFile } from "./routes.ts"
 
 /** One file entry. Workflowy-quiet: soft hover, a wash when current.
  *
@@ -495,7 +496,7 @@ function File(props: {
   return (
     <li class="mb-1">
       <Link
-        route={routeTo(props.row.of, props.row.file)}
+        route={atFile(props.row.file)}
         class={ENTRY}
         testid={ROW_TESTID[props.row.of]}
         current={props.view.isActive(props.row.file)}

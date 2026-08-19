@@ -38,6 +38,7 @@ import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { Tip } from "./Tip.tsx"
 import { CONTROL } from "./touch.ts"
+import { atNode } from "./routes.ts"
 
 export function Glyph(props: {
   readonly id: string
@@ -70,7 +71,7 @@ export function Glyph(props: {
   // what a waiting row waits on. Each arm builds its own.
   const Cell = () => (
     <Link
-      route={{ kind: "node", id: props.id }}
+      route={atNode(props.id)}
       // Sized from ./touch.ts, which is where the gutter's one exception to
       // the 44px rule is argued and where everything that moves with it lives.
       class={`${CONTROL} group/glyph relative select-none text-center no-underline ${tone()}`}

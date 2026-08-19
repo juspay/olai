@@ -8,6 +8,7 @@ import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { pinItem } from "./palette.ts"
+import { atFile, atNode } from "../routes.ts"
 
 const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed"}`
 
@@ -28,6 +29,6 @@ test("a page the shelf holds — WITH its query — is offered the way OFF", () 
 })
 
 test("the row says WHICH page, because a palette is opened from anywhere", () => {
-  expect(pinItem({ kind: "node", id: "herbs" }, derived("")).place).toBe("the herb bed")
-  expect(pinItem({ kind: "document", file: "notes/x.md" }, derived("")).place).toBe("x.md")
+  expect(pinItem(atNode("herbs"), derived("")).place).toBe("the herb bed")
+  expect(pinItem(atFile("notes/x.md"), derived("")).place).toBe("x.md")
 })

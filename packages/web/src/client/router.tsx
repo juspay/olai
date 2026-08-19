@@ -109,8 +109,13 @@ const nameHere = (): string => {
 const here = (): string =>
   location.pathname + location.search + location.hash
 
+/** Where inside a page an arrival LANDS — a heading's own slug, and nothing
+ *  for an address that names a whole place. It is read off the address, which
+ *  is the only thing that says it: a `#` after a body is a heading, and after
+ *  an outline it is a node (`@olai/format`'s `address.ts`), so the grammar has
+ *  already decided which of the two this is. */
 const landingIn = (route: Route): string | undefined =>
-  route.kind === "document" ? route.at : undefined
+  route.kind === "at" && route.address?.kind === "heading" ? route.address.slug : undefined
 
 const landingOf = (index: number, route: Route): Landing | undefined => {
   const at = landingIn(route)

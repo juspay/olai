@@ -35,6 +35,7 @@ import { useDocument } from "../document/documents.tsx"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
+import { atFile } from "../routes.ts"
 
 export function DayNote(props: { readonly file: string }) {
   // The body is asked for by the page SHOWING it, exactly as a `doc` reference
@@ -46,7 +47,7 @@ export function DayNote(props: { readonly file: string }) {
     <section class="mb-6" data-testid={TESTID.dayNote} data-file={props.file}>
       <h2 class="m-0 mb-2 font-mono text-xs text-muted">
         <Link
-          route={{ kind: "document", file: props.file }}
+          route={atFile(props.file)}
           class="text-muted no-underline hover:text-ink hover:underline"
           testid={TESTID.dayNoteLink}
           title="open this document"

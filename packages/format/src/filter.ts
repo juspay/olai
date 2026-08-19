@@ -47,7 +47,7 @@ import {
   tagText,
   titleParts,
 } from "./derive.ts"
-import type { Markdown } from "./document.ts"
+import type { Hypertext, Markdown } from "./document.ts"
 import { customOf } from "./custom.ts"
 import { shiftDay, shiftMonth, weekdayOf } from "./calendar.ts"
 import { type DayGroup, datesOf, dayOf, monthOf } from "./dates.ts"
@@ -1777,9 +1777,23 @@ export interface DocumentMatch {
 /** One document the query selected, with why — {@link Matched}'s twin over the
  *  other arm of the set. */
 export interface MatchedDocument {
-  readonly at: Markdown
+  readonly at: Bodied
   readonly match: DocumentMatch
 }
+
+/**
+ * WHAT A QUERY LOOKS THROUGH on the other arm: every file the directory keeps
+ * a body SLOT for, which is a `.md` and a `.html` alike.
+ *
+ * BOTH, and the `.html` is the one worth arguing. The set keeps a saved page's
+ * path and not its bytes (`./kinds.ts`'s `kept`), so its `body` is empty here
+ * and a word in its prose finds nothing — but it has a NAME and a path, and a
+ * door that left it out would be the one place in this app where a saved page
+ * in somebody's vault is not a thing you can find. That was the ⌘K palette's
+ * own ruling while it matched paths for itself, and it is kept now that this
+ * index answers instead.
+ */
+export type Bodied = Markdown | Hypertext
 
 /**
  * ONE THING A QUERY SELECTED, whichever kind it is — what a ranked answer is a
@@ -1793,7 +1807,7 @@ export interface MatchedDocument {
  */
 export type Ranked =
   | { readonly kind: "node"; readonly at: LocatedRegular; readonly match: Match }
-  | { readonly kind: "document"; readonly at: Markdown; readonly match: DocumentMatch }
+  | { readonly kind: "document"; readonly at: Bodied; readonly match: DocumentMatch }
 
 /**
  * BOTH KINDS, in one order — what a search answers with.
@@ -1850,10 +1864,10 @@ export const rankedTogether = (
  * the process after a saved page, and folding every one of them per keystroke
  * is what a search box over a vault would otherwise cost.
  */
-const foldedDocuments = new WeakMap<Markdown, Record<DocumentField, ReadonlyArray<string>>>()
+const foldedDocuments = new WeakMap<Bodied, Record<DocumentField, ReadonlyArray<string>>>()
 
 const documentHay = (
-  document: Markdown,
+  document: Bodied,
 ): Record<DocumentField, ReadonlyArray<string>> => {
   const before = foldedDocuments.get(document)
   if (before !== undefined) return before
@@ -1874,7 +1888,10 @@ const documentHay = (
       const written = tag.toLowerCase()
       return [written.slice(1), written]
     }),
-    body: [document.body.toLowerCase()],
+    // A file whose body the set does not keep has no prose to look through,
+    // which is a different sentence from "it holds none" — nothing here has
+    // read it (`./document.ts`'s `Hypertext`).
+    body: document.kind === "document" ? [document.body.toLowerCase()] : [],
   }
   foldedDocuments.set(document, now)
   return now
@@ -1911,7 +1928,7 @@ const documentHay = (
  * any other.
  */
 export const matchingDocuments = (
-  documents: ReadonlyArray<Markdown>,
+  documents: ReadonlyArray<Bodied>,
   filter: Filter,
   scope: Scope = {},
 ): ReadonlyArray<MatchedDocument> => {
@@ -1934,7 +1951,7 @@ export const matchingDocuments = (
  * looked for in.
  */
 const documentMatchOf = (
-  document: Markdown,
+  document: Bodied,
   filter: Extract<Filter, { kind: "asking" }>,
 ): MatchedDocument["match"] | null => {
   let score = 0

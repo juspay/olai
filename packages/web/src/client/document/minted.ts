@@ -27,6 +27,7 @@ import { Result } from "effect"
 import type { Undo } from "../edit/undoing.ts"
 import type { Router } from "../router.tsx"
 import { applied } from "../writes.ts"
+import { atFile } from "../routes.ts"
 
 let minted: string | null = null
 
@@ -71,6 +72,6 @@ export const mintAndOpen = async (
   if (Result.isFailure(outcome)) return outcome.failure.message
   const file = outcome.success.id
   mintedDocument(file)
-  go({ kind: "document", file })
+  go(atFile(file))
   return null
 }

@@ -21,18 +21,18 @@
  * reader is learning the directory twice.
  */
 
-import { type BodyKind, bodyKind, isNodeHit, type SearchHit } from "@olai/format"
+import { type BodyKind, bodyKind, isNodeHit, printAddress, type SearchHit } from "@olai/format"
 
-import { routeTo } from "../file/kinds.ts"
 import type { NodeProp } from "./props.ts"
 import { nodeProps } from "./props.ts"
 import { nodePlace } from "./place.ts"
-import type { Route } from "../routes.ts"
+import { atFile, atNode, type Route } from "../routes.ts"
 
 export interface HitRow {
-  /** What identifies the row to a test and to a keyed list — an id for a
-   *  record, a path for a document, and never the same string for two rows
-   *  because no node id is a served path. */
+  /** What identifies the row: its ADDRESS, written. A node's is `#a1b2c3` and
+   *  a document's is its path, so no two rows share one and the string itself
+   *  says which kind it is — which is the grammar earning its keep rather than
+   *  a prefix picked here. */
   readonly id: string
   readonly label: string
   /** The directory's glyph, for a row that is a FILE — absent for a record,
@@ -51,20 +51,20 @@ export interface HitRow {
 export const hitRow = (hit: SearchHit): HitRow => {
   if (isNodeHit(hit)) {
     return {
-      id: hit.id,
+      id: printAddress(hit.at),
       label: hit.title,
       place: nodePlace(hit),
       props: nodeProps(hit),
-      route: { kind: "node", id: hit.id },
+      route: atNode(hit.id),
     }
   }
   const path = hit.at.path
-  // The suffix is what says which page a path opens, which is the whole reason
-  // the address grammar needs one (`@olai/format`'s `address.ts`) — so the
-  // route is the registry's answer rather than a second reading of the name.
+  // The GLYPH is the only thing here that asks which kind of file this is: the
+  // route is the address and nothing more, and which page it opens is the page
+  // model's one question (`../page.ts`).
   const of: BodyKind = bodyKind(path) ?? "document"
   return {
-    id: path,
+    id: printAddress(hit.at),
     label: hit.title,
     of,
     // THE PATH, because that is where a document is. A node's place is the
@@ -72,6 +72,6 @@ export const hitRow = (hit: SearchHit): HitRow => {
     // answer to "where is this" is the file it is.
     place: path,
     props: [],
-    route: routeTo(of, path),
+    route: atFile(path),
   }
 }
