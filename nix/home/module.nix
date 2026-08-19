@@ -46,7 +46,11 @@ in
     port = lib.mkOption {
       type = lib.types.port;
       default = 7714;
-      description = "Port to listen on. 7714 is olai's own default (\"olai\" on a phone keypad).";
+      description = ''
+        Port to listen on. 7714 is olai's production/deploy port ("olai" on a
+        phone keypad). The CLI itself binds port 0 unless --port is given;
+        this module always passes --port, so a user service does not wander.
+      '';
     };
   };
 

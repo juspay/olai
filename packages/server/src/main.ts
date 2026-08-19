@@ -42,13 +42,19 @@ const directory = Argument.directory("directory", { mustExist: true }).pipe(
  *  doors this face actually has. */
 const webCommits = commitFlags("web")
 
-/** No registered port, and memorable: 7714 is "olai" on a phone keypad. */
-const DEFAULT_PORT = 7714
+/** 0 is the OS's to pick. A fixed port is a deploy's explicit `--port` —
+ *  7714 ("olai" on a phone keypad) is what the home-manager module passes.
+ *  The default used to be 7714 itself, which is how a `just run` in a
+ *  worktree squatted the production instance and the orchestrator's MCP
+ *  spent an evening reading the wrong vault. */
+const DEFAULT_PORT = 0
 
 const web = Command.make("web", {
   directory,
   port: Flag.integer("port").pipe(
-    Flag.withDescription("TCP port to listen on"),
+    Flag.withDescription(
+      "TCP port to listen on; 0 (the default) asks the OS for one",
+    ),
     Flag.withDefault(DEFAULT_PORT),
   ),
   host: Flag.string("host").pipe(

@@ -119,10 +119,10 @@ Depends on `chat`, `format`, `log`, `ops`, `store` and `surface`, strictly downw
 
 ```sh
 just serve docs              # build the client, serve this repo's own roadmap
-just run                     # the one brain, on the port `.mcp.json` names
+just run                     # a worktree's own server, on an OS-assigned port
 ```
 
-The first is the web edit loop: two `bun --watch` processes (client bundler and server), so a validator rule you change is live on the next reload. `just run` is the one brain — `olai web` on this repo's docs, on the justfile `port` — with the server alone under `bun --watch`. `just nix` is the packaged path: the binary, built from tracked files only, which is what CI and `just e2e` prove.
+The first is the web edit loop: two `bun --watch` processes (client bundler and server), so a validator rule you change is live on the next reload. `just run` is a worktree's own `olai web` on this repo's docs, on a port the OS picks — written to `.olai-dev/url`, so two checkouts cannot share one address and neither can squat the production `.mcp.json` at `7714` — with the server alone under `bun --watch`. `just nix` is the packaged path: the binary, built from tracked files only, which is what CI and `just e2e` prove.
 
 `/mcp` is JSON-RPC over HTTP, one message per POST, which makes it curl-able — the fastest way to see what an agent is actually offered:
 

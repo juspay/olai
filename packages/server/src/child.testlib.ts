@@ -78,10 +78,10 @@ export interface WebChild {
    *  gap between the two and no second listener to attach. */
   readonly said: () => string
   /** The `url=` field of the `serving` line — read off the child because that
-   *  IS the interface: the port was asked for as `0`, so the process is the
-   *  only thing that knows which one it got. Read as a FIELD, through the
-   *  decoder belonging to the package that owns the format, rather than through
-   *  a regex this file would be alone in maintaining.
+   *  IS the interface: the default port is `0`, so the process is the only
+   *  thing that knows which one it got. Read as a FIELD, through the decoder
+   *  belonging to the package that owns the format, rather than through a
+   *  regex this file would be alone in maintaining.
    *
    *  Rejects if the child exits first, or after {@link BOOT_TIMEOUT} — with
    *  everything it said, because "never bound" and "would not boot, and here is
@@ -93,8 +93,10 @@ export interface WebChild {
 }
 
 /**
- * `olai web <root> --port 0 …`, spawned the way a person's shell does — the
- * packaged artefact's own entry point, not this package's modules.
+ * `olai web <root> …`, spawned the way a person's shell does — the packaged
+ * artefact's own entry point, not this package's modules. No `--port`: the
+ * process default is 0 (OS-assigned), and that is a fact these callers
+ * rely on rather than re-spell. Pass `--port N` in `extra` to pin one.
  *
  * `--no-commit` is the default extra because most callers are not about git.
  * Pass `extra: []` to take the process default (`manual`), which is the one
@@ -106,25 +108,30 @@ export const startWeb = (options: {
    *  meet somewhere the environment decides they do — said explicitly rather
    *  than left to what this process happens to have inherited. */
   readonly env?: NodeJS.ProcessEnv
-  /** Argv after `--port 0`. Unset includes `--no-commit`. */
+  /** Argv after `web <root>`. Unset includes `--no-commit`. */
   readonly extra?: ReadonlyArray<string>
 }): WebChild => {
   const extra = options.extra ?? ["--no-commit"]
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    OLAI_DIST_DIR: clientDist(),
+    // No agent: none of these tests is about the chat panel, and a real one
+    // would make them depend on a model and a network.
+    OLAI_ACP_AGENT: "",
+    // The address is read as logfmt; do not inherit a developer's
+    // OLAI_LOG=pretty.
+    OLAI_LOG: "logfmt",
+    ...options.env,
+  }
+  // A worktree's `just run` writes OLAI_PORT_FILE; a child that inherited
+  // it would try to rebind that address. An explicit `env.OLAI_PORT_FILE`
+  // still wins, because that is a test of the file itself.
+  if (options.env?.OLAI_PORT_FILE === undefined) delete env.OLAI_PORT_FILE
   const child = spawn(
     process.execPath,
-    [MAIN, "web", options.root, "--port", "0", ...extra],
+    [MAIN, "web", options.root, ...extra],
     {
-      env: {
-        ...process.env,
-        OLAI_DIST_DIR: clientDist(),
-        // No agent: none of these tests is about the chat panel, and a real one
-        // would make them depend on a model and a network.
-        OLAI_ACP_AGENT: "",
-        // The address is read as logfmt; do not inherit a developer's
-        // OLAI_LOG=pretty.
-        OLAI_LOG: "logfmt",
-        ...options.env,
-      },
+      env,
       stdio: ["ignore", "pipe", "pipe"],
     },
   )
