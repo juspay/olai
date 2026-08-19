@@ -41,3 +41,36 @@ Feature: Inline markdown in titles
     And the node "kitchen" has the title "not a heading"
     And the node "demo" has the title "nor a list item"
     And there should be no page errors
+
+  Scenario: A filter lights its word inside a code span and inside a link
+    # The dark corner of `filter_in_place.feature`'s "every row says why it is
+    # drawn": these rows were already SELECTED — the matcher reads a title as
+    # the text somebody typed, backticks and brackets and all — and they drew
+    # nothing lit, because the highlight rode the walk that deliberately does
+    # not re-read code or a link for `#tags` and turned back at the same door.
+    # The tag rule is a rule about tags; the highlight goes everywhere.
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"run `just check` before pushing"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"see the [cabinet spec](https://example.com/spec#home) first"}
+      """
+    # 1. INSIDE THE CODE SPAN — and inside it, not merely somewhere in the row.
+    When I filter the page by "check"
+    Then the node "demo" is a match
+    And the node "demo" lights "check"
+    And the node "demo" lights "check" inside its code span
+    # 2. INSIDE THE LINK'S TEXT, which stays a link: a highlight is drawn in
+    #    text and never in an attribute.
+    When I filter the page by "spec"
+    Then the node "order" is a match
+    And the node "order" lights "spec"
+    And the node "order" lights "spec" inside its link
+    And the title of "order" links to "https://example.com/spec#home"
+    # 3. AND THE PROTECTION THE WALK WAS TURNING BACK FOR IS UNTOUCHED: the
+    #    `#home` in that URL fragment is not a tag, the `#home` in the row above
+    #    it is — one page, both readings, which is the whole point of the rule
+    #    being about tags rather than about where the walk may go.
+    And the title of "order" styles no tags
+    And the title of "kitchen" styles the tag "home"
+    And there should be no page errors

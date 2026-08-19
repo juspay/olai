@@ -160,6 +160,46 @@ Then(
   },
 );
 
+/**
+ * ...and WHERE IN THE TITLE'S MARKUP it landed, for the two rendered pieces
+ * the tag split deliberately leaves alone (`markdown/tags.ts`).
+ *
+ * The highlight used to leave them alone with it, so the step above is not
+ * enough here: a row that lit the same word somewhere else in its title would
+ * go green on a claim it is not making.
+ */
+const litInside = async (
+  world: OlaiWorld,
+  id: string,
+  piece: string,
+  said: string,
+): Promise<void> => {
+  const inside = world.nodeTitle(id).locator(`${piece} ${HIT}`);
+  await world.waitUntil(
+    async () => (await inside.allInnerTexts()).join(" ") === said,
+    `node \`${id}\` lights ${JSON.stringify(said)} inside its \`${piece}\``,
+  ).catch(() => undefined);
+  assert.strictEqual(
+    (await inside.allInnerTexts()).join(" "),
+    said,
+    `node \`${id}\` does not light ${JSON.stringify(said)} inside its \`${piece}\``,
+  );
+};
+
+Then(
+  "the node {string} lights {string} inside its code span",
+  async function (this: OlaiWorld, id: string, said: string) {
+    await litInside(this, id, "code", said);
+  },
+);
+
+Then(
+  "the node {string} lights {string} inside its link",
+  async function (this: OlaiWorld, id: string, said: string) {
+    await litInside(this, id, "a", said);
+  },
+);
+
 /** ...and the other half, which is the one that would go unnoticed: a row
  *  whose title holds nothing of the query lights nothing, whether it is the
  *  ancestry leading to a match or a match found behind its ¶. */
