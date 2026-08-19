@@ -38,7 +38,7 @@
  * FIRST. It is a standing claim about the reader ("I do not want to look at
  * finished work"); the filter is a question about the page. So the filter reads
  * what the preference left, and `is:done` under a done-hiding preference draws
- * nothing — which is said out loud ({@link Narrowing.hiddenAsDone}) rather than
+ * nothing — which is said out loud ({@link Counts.hiddenAsDone}) rather than
  * special-cased away. Letting an explicit `is:done` override the preference
  * would make the preference mean two things depending on what else was typed.
  */
@@ -61,6 +61,7 @@ import {
 import { type Accessor, createMemo } from "solid-js"
 
 import type { Drawn, TrashGroup } from "../page.ts"
+import { type Counts, NOTHING_COUNTED } from "./count.ts"
 
 /** What an unfiltered page has selected — ONE value, shared by every reading of
  *  it. A fresh `new Map()` per read would be a new value every frame, and every
@@ -99,29 +100,17 @@ export interface Narrowing {
   /** What the page actually draws: done-hidden first, then narrowed. */
   readonly drawn: Accessor<Drawn>
   /**
-   * How many drawn rows are matches — "3" of "3 of 41". PLACES, like the two
-   * numbers below it: a node drawn twice is two rows, and the reader is
-   * counting rows.
-   */
-  readonly shown: Accessor<number>
-  /**
-   * How many rows the page HOLDS — every place it could draw, before this
-   * reader's preferences take anything off it. The denominator, and the set
-   * both other counts are counted inside.
+   * What this query found, in the three numbers the bar says it in — matched
+   * and drawn, held by the page, held back as done (`./count.ts` owns the
+   * shape, and the sentence made of it).
    *
-   * MEASURED AGAINST `all()`, WHICH IS THE FIX this reading was revisited for.
-   * It used to be measured against what was LEFT after finished work was
-   * hidden, which made "8 of 57 — 17 matches hidden as done" two numbers out of
-   * two different sets: the 17 were held back precisely because they were not
-   * among the 57 (docs/brainstorming/filter-in-place.md filed it). Counted over
-   * what the page holds, every part of the sentence is a part of one whole —
-   * matches drawn, plus matches held back, plus rows that did not match.
+   * ONE VALUE rather than three accessors, because they are one fact and are
+   * never read apart: the sentence needs all three or none, and three memos
+   * were three chances to pair a numerator with a denominator from a different
+   * frame. Every number is a PLACE — a node drawn twice is two rows, and the
+   * reader is counting rows.
    */
-  readonly held: Accessor<number>
-  /** Matches the done-preference is holding back — inside {@link held}, and
-   *  never drawn. Zero unless finished work is hidden, and the reason `is:done`
-   *  looking empty is a sentence rather than a mystery. */
-  readonly hiddenAsDone: Accessor<number>
+  readonly counts: Accessor<Counts>
 }
 
 /**
@@ -159,7 +148,7 @@ export const createNarrowing = (source: {
   // asked of what was LEFT, this would answer "no archive here", the matcher
   // would leave the whole archive out, and the bar would say "0 of 0" with
   // nothing about the matches being held back. That sentence
-  // ({@link Narrowing.hiddenAsDone}) is measured against `all()`, so what
+  // ({@link Counts.hiddenAsDone}) is measured against `all()`, so what
   // decides its candidate set is measured against `all()` too. Which pages draw
   // archived rows is a fact about the PAGE; what a reader hides is not.
   //
@@ -189,11 +178,6 @@ export const createNarrowing = (source: {
     active() ? narrowed(source.visible(), matched()) : source.visible()
   )
 
-  // Guarded like the count beside it, and for the same reason: an unfiltered
-  // page would otherwise walk everything it draws, on every revision the store
-  // publishes, to arrive at a zero the bar is not drawing.
-  const shown = createMemo(() => (active() ? matchesIn(drawn(), matched()) : 0))
-
   return {
     text: source.text,
     active,
@@ -207,37 +191,50 @@ export const createNarrowing = (source: {
     }),
     matched,
     drawn,
-    shown,
-    // OVER `all()`, never over what was left of it: the two numbers beside this
-    // one count matches inside the page's whole set, and a denominator counted
-    // over a smaller one is the mixed arithmetic this reading was revisited to
-    // stop ({@link Narrowing.held}).
-    //
-    // Only ever READ beside the count, which is drawn only while a filter is
-    // on — so an unfiltered page does not pay a walk of everything it draws, on
-    // every revision the store publishes, for a number nobody is looking at.
-    held: createMemo(() => (active() ? placesIn(source.all()) : 0)),
-    // The difference between what the query selects on this page and what
-    // survived the preference. Measured over the page's own rows rather than
-    // over the set, because "4 done matches are hidden" is a claim about what
-    // is not on this screen.
-    //
-    // The identity check is exact rather than an optimisation that hopes: the
-    // preference hands back THE SAME VALUE when this reader is not hiding
-    // anything at all, and for every page it does not reach
-    // (`../settings/done.ts` is exact about which case that is), so two
-    // identical readings cannot differ by a match. A reader who IS hiding
-    // finished work gets a fresh value whether or not anything was hidden, and
-    // then this does the subtraction it exists to do.
-    //
-    // Guarded like the two counts above, and for their reason: the sentence
-    // this feeds is only ever drawn beside an active filter, and a memo is a
-    // computation whether or not anybody reads it.
-    hiddenAsDone: createMemo(() =>
-      !active() || source.all() === source.visible()
-        ? 0
-        : matchesIn(source.all(), matched()) - shown()
-    ),
+    /**
+     * THE THREE NUMBERS AS ONE VALUE, because they are one fact — what this
+     * query found on this page — and nothing ever asks for one of them alone.
+     * Three memos handed out separately were three places to put the same
+     * `active()` guard, and a caller free to pair a denominator from one frame
+     * with a numerator from the next; `./count.ts` takes the record, so a
+     * sentence about a page is a sentence about ONE reading of it.
+     *
+     * WHAT THE PAGE HOLDS is `all()`, never what was left of it: a denominator
+     * counted over the smaller set is the mixed arithmetic this reading was
+     * revisited to stop ({@link Counts.held}).
+     *
+     * WHAT IS HELD BACK is the difference between what the query selects on
+     * this page and what survived the preference — measured over the page's own
+     * rows rather than over the set, because "2 matches are hidden" is a claim
+     * about what is not on this screen.
+     *
+     * The identity check is exact rather than an optimisation that hopes: the
+     * preference hands back THE SAME VALUE when this reader is not hiding
+     * anything at all, and for every page it does not reach
+     * (`../settings/done.ts` is exact about which case that is), so two
+     * identical readings cannot differ by a match. A reader who IS hiding
+     * finished work gets a fresh value whether or not anything was hidden, and
+     * then this does the subtraction it exists to do.
+     *
+     * GUARDED, and it is the guard that pays for the whole record: the line is
+     * only ever drawn beside an active filter, and a memo is a computation
+     * whether or not anybody reads it — so an unfiltered page does not walk
+     * everything it draws, on every revision the store publishes, for three
+     * zeroes nobody is looking at. {@link NOTHING_COUNTED} is one value for the
+     * reason `NOTHING_MATCHED` is: a fresh record per frame is a fresh value
+     * per frame, and this one is read through a memo.
+     */
+    counts: createMemo(() => {
+      if (!active()) return NOTHING_COUNTED
+      const shown = matchesIn(drawn(), matched())
+      return {
+        shown,
+        held: placesIn(source.all()),
+        hiddenAsDone: source.all() === source.visible()
+          ? 0
+          : matchesIn(source.all(), matched()) - shown,
+      }
+    }),
   }
 }
 
@@ -335,7 +332,7 @@ const keepingArchives = (
   })
 
 /** How many PLACES a page is made of — asked of what it HOLDS, which is the
- *  second number in "3 of 41" ({@link Narrowing.held}). */
+ *  second number in "3 of 41" ({@link Counts.held}). */
 const placesIn = (drawn: Drawn): number => {
   switch (drawn.kind) {
     case "tree":

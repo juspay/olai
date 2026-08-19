@@ -44,6 +44,12 @@ export interface Counts {
   readonly hiddenAsDone: number
 }
 
+/** What an unfiltered page has found — ONE value, shared, for the reason
+ *  `./narrowing.ts`'s `NOTHING_MATCHED` is one: a page with no filter on it
+ *  produces this on every revision the store publishes, and a fresh record per
+ *  frame is a fresh value per frame for whatever memoises against it. */
+export const NOTHING_COUNTED: Counts = { shown: 0, held: 0, hiddenAsDone: 0 }
+
 /**
  * The sentence — "8 of 57", plus the clause a hider earns.
  *

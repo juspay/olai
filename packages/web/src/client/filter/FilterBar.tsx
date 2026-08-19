@@ -99,11 +99,7 @@ export function FilterBar(props: {
           // worth.
           aria-live="polite"
         >
-          {countLine({
-            shown: props.narrowing.shown(),
-            held: props.narrowing.held(),
-            hiddenAsDone: props.narrowing.hiddenAsDone(),
-          })}
+          {countLine(props.narrowing.counts())}
         </p>
       </Show>
 

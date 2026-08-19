@@ -91,20 +91,20 @@ test("an empty box is not a filter, and the page is the page", () => {
   expect(treeRows(reading)).toHaveLength(1)
   // The counts are only ever drawn beside an active filter, so an unfiltered
   // page does not walk its own tree to produce them.
-  expect(reading.held()).toBe(0)
-  expect(reading.shown()).toBe(0)
+  expect(reading.counts().held).toBe(0)
+  expect(reading.counts().shown).toBe(0)
 })
 
 test("a filtered page counts the rows it draws, of the rows it holds", () => {
   const reading = page("hinges")
-  expect(reading.shown()).toBe(1)
-  expect(reading.held()).toBe(5)
+  expect(reading.counts().shown).toBe(1)
+  expect(reading.counts().held).toBe(5)
 })
 
 test("a query keeps its matches and the ancestors that lead to them", () => {
   const reading = page("hinges")
   expect(reading.active()).toBe(true)
-  expect(reading.shown()).toBe(1)
+  expect(reading.counts().shown).toBe(1)
   // `kitchen` → `install` → `hinges`: one match, two ancestors kept as the
   // context that makes a bare title mean something.
   expect(flat(treeRows(reading))).toEqual(["kitchen", "install", "hinges"])
@@ -115,13 +115,13 @@ test("a query keeps its matches and the ancestors that lead to them", () => {
 // rather than special-cased.
 test("finished work is hidden before the query is asked, and the difference is reported", () => {
   const showing = page("#home")
-  expect(showing.shown()).toBe(3)
-  expect(showing.hiddenAsDone()).toBe(0)
+  expect(showing.counts().shown).toBe(3)
+  expect(showing.counts().hiddenAsDone).toBe(0)
 
   // `demo` carries `#home` and is done: it is not on the page to be matched.
   const hiding = page("#home", true)
-  expect(hiding.shown()).toBe(2)
-  expect(hiding.hiddenAsDone()).toBe(1)
+  expect(hiding.counts().shown).toBe(2)
+  expect(hiding.counts().hiddenAsDone).toBe(1)
 })
 
 /**
@@ -136,25 +136,26 @@ test("finished work is hidden before the query is asked, and the difference is r
  * reader who adds them up is not lied to.
  */
 test("the denominator does not move when finished work is hidden", () => {
-  expect(page("#home").held()).toBe(5)
-  expect(page("#home", true).held()).toBe(5)
+  expect(page("#home").counts().held).toBe(5)
 
   const hiding = page("#home", true)
+  const counted = hiding.counts()
+  expect(counted.held).toBe(5)
   // Two drawn and one held back, inside the five the page holds. The tree
-  // itself is down to four rows, and that is exactly the number this must not
-  // be measured against.
-  expect(hiding.shown() + hiding.hiddenAsDone()).toBeLessThanOrEqual(hiding.held())
+  // itself is down to four rows, and that is exactly the number the
+  // denominator must not be measured against.
+  expect(counted.shown + counted.hiddenAsDone).toBeLessThanOrEqual(counted.held)
   expect(rowsIn(treeRows(hiding))).toBe(4)
 })
 
 test("`is:done` under a reader who hides finished work says why it found nothing", () => {
   const hiding = page("is:done", true)
   expect(treeRows(hiding)).toEqual([])
-  expect(hiding.shown()).toBe(0)
-  expect(hiding.hiddenAsDone()).toBe(1)
+  expect(hiding.counts().shown).toBe(0)
+  expect(hiding.counts().hiddenAsDone).toBe(1)
   // Nothing drawn, and still the honest denominator: the page holds five rows,
   // and the query is what emptied it.
-  expect(hiding.held()).toBe(5)
+  expect(hiding.counts().held).toBe(5)
 })
 
 // The one door that parses for itself gets the relative words from the same
@@ -163,7 +164,7 @@ test("`is:done` under a reader who hides finished work says why it found nothing
 // finished on the 3rd of August, the month the page is being read in.
 test("a relative date is counted from the day the page is being read on", () => {
   const reading = page("date:this-month")
-  expect(reading.shown()).toBe(3)
+  expect(reading.counts().shown).toBe(3)
   expect(flat(treeRows(reading)))
     .toEqual(["kitchen", "demo", "order", "install", "hinges"])
   // Nothing on this page is dated in the week of the 17th.
@@ -200,8 +201,8 @@ test("a day keeps the rows that matched, and drops the outline that has none", (
   expect(datedIds(whole)).toEqual(["order", "hinges"])
 
   const reading = narrowing(whole, "hinges")
-  expect(reading.shown()).toBe(1)
-  expect(reading.held()).toBe(2)
+  expect(reading.counts().shown).toBe(1)
+  expect(reading.counts().held).toBe(2)
   expect(datedIds(reading.drawn())).toEqual(["hinges"])
 
   // Nothing on the day matched, so the outline that held both rows goes with
@@ -209,8 +210,8 @@ test("a day keeps the rows that matched, and drops the outline that has none", (
   // this day.
   const none = narrowing(whole, "bathroom")
   expect(groupsIn(none.drawn())).toEqual([])
-  expect(none.shown()).toBe(0)
-  expect(none.held()).toBe(2)
+  expect(none.counts().shown).toBe(0)
+  expect(none.counts().held).toBe(2)
 })
 
 /**
@@ -226,11 +227,11 @@ test("a day keeps the rows that matched, and drops the outline that has none", (
 test("a day draws no archived row, so no query finds one on it", () => {
   const whole = dayOf("2026-08-14")
   const sought = narrowing(whole, "shims")
-  expect(sought.shown()).toBe(0)
+  expect(sought.counts().shown).toBe(0)
   expect(datedIds(sought.drawn())).toEqual([])
   // The operator says the same thing from either side: nothing to select, and
   // nothing for its negation to take away.
-  expect(narrowing(whole, "is:archived").shown()).toBe(0)
+  expect(narrowing(whole, "is:archived").counts().shown).toBe(0)
   expect(datedIds(narrowing(whole, "-is:archived").drawn()))
     .toEqual(["order", "hinges"])
 })
@@ -239,8 +240,8 @@ test("the agenda answers the same way, over the dates read forward", () => {
   const forward: Drawn = { kind: "agenda", agenda: agendaOf(derived, TODAY) }
   expect(datedIds(forward)).toEqual(["order", "hinges"])
 
-  expect(narrowing(forward, "shims").shown()).toBe(0)
-  expect(narrowing(forward, "is:archived").shown()).toBe(0)
+  expect(narrowing(forward, "shims").counts().shown).toBe(0)
+  expect(narrowing(forward, "is:archived").counts().shown).toBe(0)
   expect(datedIds(narrowing(forward, "-is:archived").drawn()))
     .toEqual(["order", "hinges"])
 })
@@ -254,7 +255,7 @@ test("the agenda answers the same way, over the dates read forward", () => {
 // `true` would leave it green. The observable half is the zoom below, which
 // fails without the arm.
 test("an outline draws no archived row, whatever is typed", () => {
-  expect(page("shims").shown()).toBe(0)
+  expect(page("shims").counts().shown).toBe(0)
   expect(treeRows(page("shims"))).toEqual([])
 })
 
@@ -279,8 +280,8 @@ test("the agenda narrows day by day, and counts every row it draws", () => {
   expect(datedIds(owed)).toEqual(["order", "hinges"])
 
   const reading = narrowing(owed, "is:todo")
-  expect(reading.held()).toBe(2)
-  expect(reading.shown()).toBe(1)
+  expect(reading.counts().held).toBe(2)
+  expect(reading.counts().shown).toBe(1)
   const drawn = reading.drawn()
   // One late DAY left, narrowed to the row that says `todo` — `order` is
   // `doing`, and the archive is not here to be a second anything.
@@ -301,8 +302,8 @@ const trash: Drawn = {
 // plain word searches what is in front of the reader rather than nothing.
 test("a word typed on the trash searches what was put away", () => {
   const reading = narrowing(trash, "grout")
-  expect(reading.shown()).toBe(1)
-  expect(reading.held()).toBe(4)
+  expect(reading.counts().shown).toBe(1)
+  expect(reading.counts().held).toBe(4)
   // The pile's own scaffold is kept as the context that says where it came
   // from — the tree rule, on a tree of archives.
   expect(flat(archiveRows(reading.drawn()))).toEqual(["old-kitchen", "grout"])
@@ -311,14 +312,14 @@ test("a word typed on the trash searches what was put away", () => {
 test("an archive with nothing left is not drawn at all", () => {
   const reading = narrowing(trash, "bathroom")
   expect(archiveRows(reading.drawn())).toEqual([])
-  expect(reading.shown()).toBe(0)
+  expect(reading.counts().shown).toBe(0)
 })
 
 // The operator still means what it means: on the page that is the archive,
 // `is:archived` selects everything and its negation selects nothing.
 test("`is:archived` and its negation still say what they say here", () => {
-  expect(narrowing(trash, "is:archived").shown()).toBe(4)
-  expect(narrowing(trash, "-is:archived").shown()).toBe(0)
+  expect(narrowing(trash, "is:archived").counts().shown).toBe(4)
+  expect(narrowing(trash, "-is:archived").counts().shown).toBe(0)
 })
 
 // ...and `is:archived` typed on an outline draws nothing, which is the prune
@@ -327,7 +328,7 @@ test("`is:archived` and its negation still say what they say here", () => {
 test("`is:archived` on an outline still draws that outline's nothing", () => {
   const reading = page("is:archived")
   expect(treeRows(reading)).toEqual([])
-  expect(reading.shown()).toBe(0)
+  expect(reading.counts().shown).toBe(0)
 })
 
 // The OTHER tree, and the reason that arm survived the ruling: `/n/<id>` on a
@@ -347,8 +348,8 @@ test("a zoom onto an archived node is searched like the pile it is in", () => {
   }
   const reading = narrowing(inArchive, "grout")
   expect(flat(treeRows(reading))).toEqual(["grout"])
-  expect(reading.shown()).toBe(1)
-  expect(narrowing(inArchive, "is:archived").shown()).toBe(3)
+  expect(reading.counts().shown).toBe(1)
+  expect(narrowing(inArchive, "is:archived").counts().shown).toBe(3)
 })
 
 // ── a page a filter has nothing to narrow ──────────────────────────────
@@ -356,8 +357,8 @@ test("a zoom onto an archived node is searched like the pile it is in", () => {
 test("a page with nothing to narrow counts nothing and stays itself", () => {
   const reading = narrowing({ kind: "none" }, "hinges")
   expect(reading.drawn()).toEqual({ kind: "none" })
-  expect(reading.shown()).toBe(0)
-  expect(reading.held()).toBe(0)
+  expect(reading.counts().shown).toBe(0)
+  expect(reading.counts().held).toBe(0)
 })
 
 const treeRows = (reading: Narrowing): ReadonlyArray<Row> =>
@@ -428,8 +429,8 @@ test("hiding finished work does not take the archive out of a zoom's scope", () 
     })
   )
   expect(treeRows(reading)).toEqual([])
-  expect(reading.shown()).toBe(0)
-  expect(reading.hiddenAsDone()).toBe(2)
+  expect(reading.counts().shown).toBe(0)
+  expect(reading.counts().hiddenAsDone).toBe(2)
 })
 
 /**
@@ -461,11 +462,11 @@ const putAwayOnADay = (): DayGroup => {
 test("a day handed an archived row still does not widen the scope", () => {
   const drawn: Drawn = { kind: "day", groups: [putAwayOnADay()], notes: [] }
   const reading = narrowing(drawn, "shims")
-  expect(reading.shown()).toBe(0)
+  expect(reading.counts().shown).toBe(0)
   expect(datedIds(reading.drawn())).toEqual([])
   // The operator is the door that still opens: it names the archive, so it does
   // not need the page's permission.
-  expect(narrowing(drawn, "is:archived").shown()).toBe(1)
+  expect(narrowing(drawn, "is:archived").counts().shown).toBe(1)
 })
 
 test("the agenda handed one does not either, anywhere on its line", () => {
@@ -477,7 +478,7 @@ test("the agenda handed one does not either, anywhere on its line", () => {
   ]
   for (const agenda of stretches) {
     const reading = narrowing({ kind: "agenda", agenda }, "shims")
-    expect(reading.shown()).toBe(0)
+    expect(reading.counts().shown).toBe(0)
     expect(datedIds(reading.drawn())).toEqual([])
   }
 })
