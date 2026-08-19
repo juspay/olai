@@ -55,7 +55,7 @@ One line per event, `key=value`, quoted only where it has to be:
 
 ```
 timestamp=2026-08-10T17:45:36.770Z level=INFO fiber=#5 message=serving serve=12ms root=/home/you/outlines url=http://127.0.0.1:7714
-timestamp=2026-08-10T17:45:36.812Z level=Warn fiber=#8 message="the agent is running a model its picker does not offer" serve=54ms root=/home/you/outlines agent=claude-code-acp model=opus-5
+timestamp=2026-08-10T17:45:36.812Z level=WARN fiber=#8 message="the agent is running a model its picker does not offer" serve=54ms root=/home/you/outlines agent=claude-code-acp model=opus-5
 ```
 
 The message is a short, stable sentence; every value that varies is an annotation. That is what makes a line greppable by field rather than by substring — `url=` is the address, wherever the message went — and it is why a relayed multi-line agent message is still ONE line: the value is escaped, not wrapped.

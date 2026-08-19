@@ -84,8 +84,8 @@ test("a partial trailing line is not a match", () => {
   expect(findLogfmt("timestamp=… level=INFO fiber=#2 message=serv", "serving"))
     .toBeUndefined()
 
-  const cut = `timestamp=… level=Warn message="the agent could not`
+  const cut = `timestamp=… level=WARN message="the agent could not`
   expect(findLogfmt(cut, "the agent could not open a session")).toBeUndefined()
-  expect(readLogfmt(cut).level).toBe("Warn")
+  expect(readLogfmt(cut).level).toBe("WARN")
   expect(readLogfmt(cut).message).toBeUndefined()
 })
