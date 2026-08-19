@@ -43,7 +43,7 @@ import { TARGET } from "../touch.ts"
 
 export function Fault(props: { readonly text: string }) {
   return (
-    <main class="olai-sheet min-h-dvh max-w-none px-8 py-10" data-testid={TESTID.fault}>
+    <main class="min-h-dvh max-w-none bg-paper px-8 py-10" data-testid={TESTID.fault}>
       <h1 class={`${PAGE_TITLE} mb-2 text-alarm`}>This page broke</h1>
       <Lede>
         Not the outlines — olai itself. Something in this page threw while it was

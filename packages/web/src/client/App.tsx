@@ -182,7 +182,7 @@ export default function App() {
             "min-h-0": split(),
           }}
         >
-          <Switch fallback={<p class="olai-sheet min-h-[calc(100dvh-var(--height-header,4rem))] p-8 text-muted">Reading…</p>}>
+          <Switch fallback={<p class="min-h-[calc(100dvh-var(--height-header,4rem))] bg-paper p-8 text-muted">Reading…</p>}>
           <Match when={outlines.manifest() === null}>
             <ErrorPage errors={problems()} />
           </Match>

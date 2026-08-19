@@ -50,7 +50,7 @@ export function Panes(props: {
 
   return (
     <div
-      class="olai-sheet flex min-w-0 flex-col"
+      class="flex min-w-0 flex-col bg-paper"
       classList={{
         [SHELL_SPLIT]: split(),
         [SHELL_LONE]: !split(),

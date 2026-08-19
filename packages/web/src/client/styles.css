@@ -177,13 +177,6 @@ html {
   }
 }
 
-/* THE SHEET the outline is written on. Square to the spine and the
- * header: a single rounded corner under a straight rule was a bite of
- * ink with the resize handle sitting in it. */
-.olai-sheet {
-  background-color: var(--color-paper);
-}
-
 /* A palette is a redefinition of the same eleven custom properties, not a
  * `dark:` variant on every utility: every one of them already reads
  * `var(--color-…)`, so one block re-answers all of them at once. Those blocks
