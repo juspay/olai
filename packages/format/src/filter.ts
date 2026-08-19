@@ -184,8 +184,13 @@ type IsValue = (typeof IS_VALUES)[number]
  *  reader might select on; `has:children` and `has:mirror` are deliberately
  *  absent, being questions about the SET rather than about the record.
  *
- *  `date` is the one row that is not a plain field test — see {@link holds}. */
-const HAS_FIELDS = ["desc", "date", "see", "after", "doc"] as const
+ *  `date` is the one row that is not a plain field test — see {@link holds}.
+ *
+ *  `repeat` is a plain one, and what it asks after is the RULE rather than the
+ *  day: a repeating node carries a `date` to repeat FROM (./parse.ts refuses
+ *  one without), so what `has:repeat` selects sits inside what `has:date`
+ *  does, and `has:date -has:repeat` is everything dated once. */
+const HAS_FIELDS = ["desc", "date", "see", "after", "doc", "repeat"] as const
 type HasField = (typeof HAS_FIELDS)[number]
 
 /** The four operator names. A colon after anything else is a colon in a word

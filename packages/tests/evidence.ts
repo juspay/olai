@@ -808,6 +808,57 @@ const SECTIONS = {
     await shot(page, "agenda-shows-the-occurrence")
   },
 
+  /**
+   * FINDING WHAT COMES BACK — `has:repeat`, over a page that mixes the two
+   * kinds of row, in both halves of the palette table.
+   *
+   * The rule is a field the record carries, so the facet is spelled, parsed
+   * and evaluated exactly where `has:desc` is and there is no new machinery to
+   * photograph. What a picture adds is the PAGE it makes: one row that comes
+   * back, drawn with the ancestry that says what it is about — and the same
+   * query negated, which is every row that is dated once or not at all.
+   *
+   * The rule is put on first, because nothing in the served fixture repeats:
+   * a shot of this facet over a directory with no rule in it would be a shot
+   * of the empty answer.
+   */
+  "finding-what-comes-back": async (page) => {
+    pinnedBy(
+      "recurring_dates.feature",
+      "`has:repeat` narrows the page to the rows that come back",
+      "The rule reaches the header's box in the same words",
+    )
+    await openMenu(page, "order")
+    await page.locator('[data-testid="node-menu-panel"] >> text=Set repeat…').first().click()
+    await page.locator('[data-testid="repeat-picker"]').first().waitFor()
+    await page.locator('[data-testid="repeat-picker-rule"]').first()
+      .selectOption("every week on monday")
+    await page.locator('[data-testid="repeat-picker-set"]').first().click()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  the record now says: ${recordOf("order")}`)
+    // The MIX, before anything is asked of it: ten rows, one of which wears a
+    // rule. What the facet does is only legible against this.
+    await shot(page, "the-page-that-mixes-both")
+
+    await narrow(page, "has:repeat")
+    console.log(`  has:repeat  ${await said(page, FILTER_COUNT)}`)
+    console.log(`  the rows say: ${await whyDrawn(page)}`)
+    await shot(page, "has-repeat-light")
+    await inTheDark(page)
+    await shot(page, "has-repeat-dark")
+
+    // ...and the same facet with the dash every other token takes, which is
+    // the whole of this grammar's negation story.
+    await page.evaluate(() => localStorage.setItem("olai.theme", "chalk"))
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await narrow(page, "-has:repeat")
+    console.log(`  -has:repeat ${await said(page, FILTER_COUNT)}`)
+    console.log(`  the rows say: ${await whyDrawn(page)}`)
+    await shot(page, "not-has-repeat-light")
+    await inTheDark(page)
+    await shot(page, "not-has-repeat-dark")
+  },
+
   "filter-keeps-ancestors": async (page) => {
     console.log(`  the whole outline:\n${await drawn(page)}`)
     await shot(page, "unfiltered")

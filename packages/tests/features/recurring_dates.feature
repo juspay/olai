@@ -173,3 +173,40 @@ Feature: A dated node that comes back
     # page's answer, not this one's.
     And the agenda does not list "order"
     And there should be no page errors
+
+  # ── finding one ────────────────────────────────────────────────────
+
+  Scenario: `has:repeat` narrows the page to the rows that come back
+    # The rule is a field the record carries, so it is a facet of the one
+    # grammar rather than a second reading beside it — spelled, parsed and
+    # evaluated exactly where `has:desc` and `has:doc` are, and costing what
+    # they cost (`format/filter.test.ts` holds what it selects). This page is
+    # the mix it needs: one row that comes back, and nine that are dated once
+    # or not at all.
+    Given I open the node menu of "order"
+    And I choose "Set repeat…" from the node menu
+    And I pick the repeat rule "every week on monday"
+    When I filter the page by "has:repeat"
+    Then the node "order" is a match
+    And the node "kitchen" is context
+    And the node "install" is not shown
+    And the filter found "1 of 10"
+    # ...and negated with the dash every other token in this grammar takes —
+    # there is no second spelling for a facet. `order` is still drawn, because
+    # a matching row keeps its whole subtree, and it is drawn as CONTEXT.
+    When I filter the page by "-has:repeat"
+    Then the node "install" is a match
+    And the node "order" is context
+    And the filter found "9 of 10"
+    And there should be no page errors
+
+  Scenario: The rule reaches the header's box in the same words
+    # One grammar, and the doors that ASK the server are the half that has to
+    # travel: the filter above parses in the browser, this one is answered by
+    # `search_nodes`' own matcher, and a facet that reached one and not the
+    # other would be the drift the shared grammar exists to refuse.
+    Given I open the node menu of "order"
+    And I choose "Set repeat…" from the node menu
+    And I pick the repeat rule "every week on monday"
+    When I search the header for "has:repeat"
+    Then the header search lists the node "order the new cabinets"

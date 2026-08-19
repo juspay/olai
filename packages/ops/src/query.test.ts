@@ -427,6 +427,10 @@ describe("a query is words and operators", () => {
         `{"id":"pack","parent":"trip","ord":"a1","title":"pack","todo":true,"desc":"the small case"}`,
         `{"id":"house","ord":"a1","title":"the house"}`,
         `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","done":"2026-08-09"}`,
+        // The one node here that COMES BACK, dated well clear of every span
+        // the relative words below resolve to, so it is the repeat rule this
+        // fixture is carrying rather than a second date to reason about.
+        `{"id":"bins","parent":"house","ord":"a1","title":"put out bins","todo":true,"date":"2026-09-07","repeat":"every week on monday"}`,
       ].join("\n"),
       "Archive.olai": `{"id":"old","ord":"a0","title":"an old trip","done":"2026-01-01"}`,
     })
@@ -443,6 +447,11 @@ describe("a query is words and operators", () => {
     expect(ids({ text: "the is:done" })).toEqual(["book", "paint"])
     expect(ids({ text: "the -is:done" })).toEqual(["trip", "house", "pack"])
     expect(ids({ text: "has:desc" })).toEqual(["pack"])
+    // The same seam for the facet that asks after a repeat RULE: an agent
+    // typing it gets the reading the browser's filter gets, and the pair is
+    // what says the two questions are different ones.
+    expect(ids({ text: "has:repeat" })).toEqual(["bins"])
+    expect(ids({ text: "has:date -has:repeat" })).toEqual(["book", "paint"])
     expect(ids({ text: "date:2026-08-09" })).toEqual(["paint"])
   })
 
