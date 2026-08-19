@@ -50,7 +50,7 @@ export function Panes(props: {
 
   return (
     <div
-      class="olai-sheet flex min-w-0 flex-col md:rounded-tl-[1.75rem]"
+      class="olai-sheet flex min-w-0 flex-col"
       classList={{
         [SHELL_SPLIT]: split(),
         [SHELL_LONE]: !split(),
