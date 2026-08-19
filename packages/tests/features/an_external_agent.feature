@@ -297,7 +297,11 @@ Feature: An agent olai did not start
     When the terminal agent searches for '"the new cabinets"'
     Then the terminal agent found exactly "#order"
     When the terminal agent searches for "counters OR cabinets"
-    Then the terminal agent found exactly "notes/cabinets.md, #order, #install, #demo"
+    # AND `finishes.md` LAST, which is the roadmap item closed in one line:
+    # "counters" is in its PROSE and in no title, so it is the weakest kind of
+    # hit there is — and until now it was no hit at all, because nothing walked
+    # a body.
+    Then the terminal agent found exactly "notes/cabinets.md, #order, #install, #demo, finishes.md"
     # A group takes a CLAUSE as readily as a word, including the one whose value
     # is a word for a day — counted from the server's own clock, the one a
     # `done` is stamped with. Every date in this fixture is in the past and
