@@ -127,6 +127,7 @@ export {
   Markdown,
   Outline,
   outlineDocument,
+  recordLinks,
 } from "./document.ts"
 /** A heading's derived id, and the headings of a body — the element half of
  *  the address grammar. Exported because the BROWSER assigns the same ids as
@@ -330,8 +331,8 @@ export type { Zoomed } from "./zoom.ts"
  *  `Way` is the SCHEMA read off it — which is what the answer vocabulary
  *  carries (`Reference`) and what a browser keys its rows by, rather than
  *  either of them being a second spelling of the list. */
-export { backlinksOf, Way, WAYS } from "./backlinks.ts"
-export type { Backlink } from "./backlinks.ts"
+export { backlinksOf, referrersTo, Way, WAYS } from "./backlinks.ts"
+export type { Backlink, Referrer } from "./backlinks.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it
  *  selects, `ranked` puts them in the order a door shows them in, `keeping` and
  *  `matchedIn` are what a TREE narrowed to them looks like and how many rows of

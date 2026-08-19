@@ -41,7 +41,7 @@
  * holds the fold and says how the delta is worked out).
  */
 
-import type { BrokenFile, Derived } from "@olai/format"
+import type { BrokenFile, Derived, Face } from "@olai/format"
 import type { Manifest } from "@olai/surface"
 import { type Accessor, createMemo } from "solid-js"
 
@@ -55,6 +55,12 @@ export interface Outlines {
   readonly manifest: Accessor<Manifest | undefined>
   /** Every outline file, in path order. */
   readonly files: Accessor<ReadonlyArray<string>>
+  /** Every outline as its FACE, in path order — what the file is called, the
+   *  addresses its records point at, the tags they write
+   *  (`@olai/format`'s `Face`). It rides on each entry rather than being
+   *  derived here, because deriving it is a walk of every title and every note
+   *  of the corpus and the server did it once when the bytes changed. */
+  readonly faces: Accessor<ReadonlyArray<Face>>
   /** The files that did not parse, by path — the sidebar marks them and the
    *  main pane draws one of them instead of a tree. */
   readonly broken: Accessor<ReadonlyMap<string, BrokenFile>>
@@ -95,6 +101,12 @@ export const createOutlines = (): Outlines => {
   return {
     manifest: manifest.value,
     files,
+    faces: createMemo(() =>
+      files().flatMap((file) => {
+        const face = entries.byKey(file)?.()?.face
+        return face === undefined ? [] : [face]
+      })
+    ),
     broken: createMemo(() => {
       const found = new Map<string, BrokenFile>()
       for (const file of files()) {

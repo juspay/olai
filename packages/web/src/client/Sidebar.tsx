@@ -143,8 +143,9 @@ interface TreeView {
 }
 
 export function Sidebar(props: {
+  /** Every served file, in the directory's own order — one list, because a
+   *  tree of a directory is one tree (`./fileTree.ts`). */
   readonly files: ReadonlyArray<string>
-  readonly documents: ReadonlyArray<string>
   readonly active: string | undefined
   readonly broken: ReadonlyMap<string, BrokenFile>
   /** What is owed as of today — the app's ONE reading of it (../App.tsx), the
@@ -175,9 +176,7 @@ export function Sidebar(props: {
   // reader opens and edits, and the Trash entry below the tree is its one
   // door. Filtered here rather than upstream because every other reader of
   // `files` — the page model, the trash itself — wants the whole list.
-  const tree = createMemo(() =>
-    fileTree([...props.files.filter((file) => !isArchived(file)), ...props.documents])
-  )
+  const tree = createMemo(() => fileTree(props.files.filter((file) => !isArchived(file))))
 
   // Folding a folder is remembered, and the write drops folders that are not in
   // the directory any more (./fold/folders.ts). Which those are is read off the

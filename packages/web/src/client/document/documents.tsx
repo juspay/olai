@@ -71,6 +71,7 @@
  * the same reason the router is a context.
  */
 
+import type { Face } from "@olai/format"
 import type { DocumentEntry } from "@olai/surface"
 import {
   type Accessor,
@@ -115,6 +116,15 @@ export interface Documents {
    *  page model only asks whether a path is in here, so an order imposed on a
    *  corpus-sized list every time one file arrives would be work nobody reads. */
   readonly paths: Accessor<ReadonlyArray<string>>
+  /** The same files as their FACES — what each is called, the addresses it
+   *  points at, the tags its prose writes (`@olai/format`'s `Face`).
+   *
+   *  ON THE HEADS, which is the member that carries a file's key without its
+   *  body, and it is the only way a tab can have this at all: a body is
+   *  fetched by whoever is showing one, so a browser holding only the key set
+   *  knew a document's PATH and nothing else about it. In arrival order, like
+   *  {@link Documents.paths} and for the same reason. */
+  readonly faces: Accessor<ReadonlyArray<Face>>
   /** Which revision of the directory one file is at, or `undefined` for a path
    *  this directory does not hold (and for every path before the first frame).
    *  It MOVES when the file does and stays put when it does not, which is the
@@ -175,6 +185,12 @@ export const createDocuments = (): Documents => {
 
   return {
     paths,
+    faces: createMemo(() =>
+      paths().flatMap((path) => {
+        const face = heads.byKey(path)?.()?.face
+        return face === undefined ? [] : [face]
+      })
+    ),
     head: (file) => () => heads.byKey(file())?.()?.rev,
     read: (file) => {
       // An EFFECT, so the interest follows a component whose `file` moves (a

@@ -25,5 +25,9 @@
 import { byPath } from "@olai/format"
 
 /** Paths in that order. */
+export const byFacePath = <T extends { readonly path: string }>(
+  faces: ReadonlyArray<T>,
+): ReadonlyArray<T> => [...faces].sort((one, other) => byPath(one.path, other.path))
+
 export const sortByPath = (paths: Iterable<string>): ReadonlyArray<string> =>
   [...paths].sort(byPath)

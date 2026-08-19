@@ -248,21 +248,8 @@ export const outlineDocument = (
     links.push(address)
   }
   for (const located of nodes) {
-    // A `doc` is an attachment, which is a link a record MADE rather than one
-    // it wrote: the node says which file hangs off it, and where that lands is
-    // the format's own arithmetic (`./documents.ts`).
-    add(pathAddress(docOf(located)))
+    for (const address of recordLinks(located)) add(address)
     if (isMirror(located.node)) continue
-    // `see` is the format's free cross-reference — the one edge no derivation
-    // reads — so the forward half of it belongs in a list of what this file
-    // points at. `after` and `blocks` do NOT: they are the ORDERING graph, and
-    // saying an ordering edge here would put one fact under a word that means
-    // something else (`./backlinks.ts` makes the same ruling backwards).
-    for (const id of located.node.see ?? []) add(addressOf(null, id))
-    for (const address of linksIn(located.file, located.node.title)) add(address)
-    if (located.node.desc !== undefined) {
-      for (const address of linksIn(located.file, located.node.desc)) add(address)
-    }
     for (const tag of writtenTags(located.node)) {
       if (written.has(tag)) continue
       written.add(tag)
@@ -335,6 +322,55 @@ export const bodyOf = (document: Document): string | null =>
  *  wanted (`isMirror`, `./node.ts`, is the same move one level down). */
 export const isOutline = (document: Document): document is Outline =>
   document.kind === "outline"
+
+/**
+ * EVERY ADDRESS ONE RECORD POINTS AT, in the order it writes them.
+ *
+ * The forward half of a reference, per record — and it is a function of its own
+ * because it is read BOTH WAYS: {@link outlineDocument} folds it into an
+ * outline's face, and `./backlinks.ts` reads it backwards to say which record
+ * of a file the reference was written in. Two walks of the same fields would be
+ * two answers to "does this node point there", and the page would draw one of
+ * them while the face claimed the other.
+ *
+ * Four things a record can point at, and one it deliberately cannot:
+ *
+ *   - a `doc` ATTACHMENT, which is a link a record MADE rather than one it
+ *     wrote — the node says which file hangs off it, and where that lands is
+ *     the format's own arithmetic ({@link ./documents.ts}).
+ *   - a `see`, the format's free cross-reference and the one edge no
+ *     derivation reads, so the forward half of it belongs in a list of what
+ *     this record points at.
+ *   - a `[…](…)` in its TITLE, and one in its NOTE — the same rule a
+ *     document's body is read by, so a link means the same thing wherever it
+ *     is written ({@link ./documents.ts}'s `linksIn`).
+ *
+ * `after` and `blocks` are NOT here: they are the ORDERING graph, and saying
+ * an ordering edge under the word "points at" would put one fact under a name
+ * that means something else — the ruling `./backlinks.ts` already makes from
+ * the other end.
+ *
+ * A MIRROR points at nothing of its own. It is a second placement of a node,
+ * carrying no prose and no edge fields; what it shows is the node's, and the
+ * node is where the reference is written.
+ */
+export const recordLinks = (located: Located): ReadonlyArray<Address> => {
+  const attached = pathAddress(docOf(located))
+  if (isMirror(located.node)) return attached === null ? NO_LINKS : [attached]
+  const found: Array<Address> = attached === null ? [] : [attached]
+  for (const id of located.node.see ?? []) {
+    const address = addressOf(null, id)
+    if (address !== null) found.push(address)
+  }
+  found.push(...linksIn(located.file, located.node.title))
+  if (located.node.desc !== undefined) {
+    found.push(...linksIn(located.file, located.node.desc))
+  }
+  return found
+}
+
+/** A record that points nowhere, which is most of them: ONE list, shared. */
+const NO_LINKS: ReadonlyArray<Address> = []
 
 /** The path, BRANDED — a value this module has judged by the one thing that
  *  makes a path nameable, which is the registry claiming its suffix. Every

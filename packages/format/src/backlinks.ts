@@ -65,7 +65,9 @@
 
 import { Schema } from "effect"
 
+import { type Address, printAddress } from "./address.ts"
 import { byCorpus, type Derived, tagText } from "./derive.ts"
+import { type Face, recordLinks } from "./document.ts"
 import { isArchived, isRegular, type Located, type LocatedRegular } from "./node.ts"
 
 /**
@@ -169,4 +171,85 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
     // own, but this reads up to two of them per placement and the union of
     // several ordered lists is not one. A referrer count is a handful.
     .sort((one, other) => byCorpus(one.at, other.at))
+}
+
+// ── what points at an address ──────────────────────────────────────────
+
+/**
+ * ONE PLACE A REFERENCE WAS WRITTEN — a whole document, or one record inside
+ * one.
+ *
+ * The two arms are the two kinds of thing that can hold a link, and the
+ * difference is real rather than a convenience: a `.md` writes a link in its
+ * prose and has no record to attribute it to, while an outline's link is
+ * always SOME record's — the node that attached the document, wrote the `see`,
+ * or put the link in its note. Saying "house.olai points here" where the honest
+ * answer is "the node `kitchen` attaches it" would be the coarser answer
+ * offered because it was the easier one.
+ */
+export interface Referrer {
+  /** The document the reference is written in — what it is called and where it
+   *  is, which is what a row draws. */
+  readonly face: Face
+  /** The RECORD that wrote it, for an outline. Absent for a document's body,
+   *  which has no records. */
+  readonly at?: LocatedRegular
+}
+
+/**
+ * WHO POINTS AT AN ADDRESS — every document's forward `links`, read backwards.
+ *
+ * This is the half of the design that made a document's page possible to write
+ * at all. A `doc` attachment, a `see`, a link in a note and a link in a body
+ * all point ONE WAY on disk, so "what is talking about this document?" was a
+ * question nothing could answer without walking the whole directory, and
+ * nothing asked it. The faces answer it now, because every document carries the
+ * addresses it points at and a face is small enough to travel
+ * ({@link ./document.ts}).
+ *
+ * A LOOKUP OVER THE FACES and then a walk of ONE FILE: a face says whether its
+ * document points here at all, and only for the outlines that do are the
+ * records asked which of them wrote it — through {@link recordLinks}, the same
+ * function that built the face, so the two cannot come to disagree about
+ * whether a record points somewhere.
+ *
+ * WHAT IS PUT AWAY IS ON THE TRASH AND NOWHERE ELSE (#226), which is this
+ * module's standing rule read once more: a referrer written in an
+ * `Archive.olai` is left out, the same way it is left out of search, of the
+ * agenda and of blockedness.
+ *
+ * A DOCUMENT DOES NOT REFER TO ITSELF, and that is one line rather than a
+ * caller's job: a `.md` whose own body links a heading of itself is talking
+ * about the page it is on.
+ */
+export const referrersTo = (
+  address: Address,
+  faces: ReadonlyArray<Face>,
+  /** The records, for attributing an outline's link to the one that wrote it.
+   *  `byFile` is the index that makes it a lookup rather than a corpus walk. */
+  derived: Pick<Derived, "byFile">,
+): ReadonlyArray<Referrer> => {
+  // WRITTEN and compared, because a canonical spelling is what the grammar
+  // promises: two addresses that name one place print one string, so nothing
+  // here has to know how the arms are shaped.
+  const wanted = printAddress(address)
+  const here = address.kind === "node" ? null : address.path
+  const found: Array<Referrer> = []
+  for (const face of faces) {
+    if (face.path === here || isArchived(face.path)) continue
+    if (!face.links.some((link) => printAddress(link) === wanted)) continue
+    const records = derived.byFile.get(face.path)
+    // A face with no records behind it is a BODY — the link is the document's
+    // own, and there is nothing finer to name.
+    if (records === undefined) {
+      found.push({ face })
+      continue
+    }
+    for (const located of records) {
+      if (!isRegular(located)) continue
+      if (!recordLinks(located).some((link) => printAddress(link) === wanted)) continue
+      found.push({ face, at: located })
+    }
+  }
+  return found
 }

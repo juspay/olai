@@ -1,5 +1,5 @@
-import type { BrokenFile } from "@olai/format"
-import { agendaOf, derive, type Located } from "@olai/format"
+import type { BrokenFile, Face } from "@olai/format"
+import { agendaOf, derive, DocumentPath, type Located } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { only } from "./narrow.ts"
@@ -40,6 +40,17 @@ const NODES: ReadonlyArray<Located> = [
   }),
 ]
 const SET = derive(NODES)
+/** The served directory, as one collection of faces — the shape the app hands
+ *  the page model (`./page.ts`'s `Found`). A face's title, links and tags are
+ *  no business of this model, so the fixtures below say only what a path is. */
+const facesOf = (paths: ReadonlyArray<string>): ReadonlyArray<Face> =>
+  paths.map((path) => ({
+    path: DocumentPath.make(path),
+    title: path,
+    links: [],
+    tags: [],
+  }))
+
 const FILES = ["garden.olai", "house.olai"]
 /** The paths, the way the app holds them: a document's TEXT travels to the tab
  *  that opens one, so it is no business of the page model.
@@ -65,7 +76,7 @@ const pageAt = (
   route: Route,
   files = FILES,
   broken = READABLE,
-): Page => pageOf(SET, { files, documents: DOCUMENTS, broken }, route, TODAY)
+): Page => pageOf(SET, { documents: facesOf([...files, ...DOCUMENTS]), broken }, route, TODAY)
 
 /** The ids a page's rows start from — what its screen would show. */
 const roots = (page: Page): ReadonlyArray<string> =>
@@ -301,7 +312,11 @@ test("a page with nothing to draw has no rows", () => {
 const OWED = agendaOf(SET, TODAY)
 
 const drawnAt = (route: Route, files = FILES, set = SET): Drawn =>
-  drawnBy(set, pageOf(set, { files, documents: DOCUMENTS, broken: READABLE }, route, TODAY), OWED)
+  drawnBy(
+    set,
+    pageOf(set, { documents: facesOf([...files, ...DOCUMENTS]), broken: READABLE }, route, TODAY),
+    OWED,
+  )
 
 test("an outline and a zoomed node are one shape: the tree they draw", () => {
   const outline = drawnAt({ kind: "outline", file: "house.olai" })
