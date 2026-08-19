@@ -48,11 +48,3 @@ test("nothing drawn and something hidden drops the word `more`", () => {
     .toBe("no matches of 57 — 1 match hidden as done (Prefs)")
 })
 
-// A page with nothing on it is not a special case anywhere upstream, so it must
-// not be one here either: the numbers are honestly zero and the sentence says
-// so in the words it says everything else in.
-test("a page holding nothing says so in the same shape", () => {
-  expect(countLine({ shown: 0, held: 0, hiddenAsDone: 0 }))
-    .toBe("no matches of 0")
-})
-

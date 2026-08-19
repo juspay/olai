@@ -59,6 +59,15 @@ export const visible = (rows: ReadonlyArray<Row>): ReadonlyArray<Row> =>
  * held-back matches reads as its zero, and a fresh wrapper per frame would make
  * it walk the page twice to prove the answer was nothing.
  *
+ * ANYTHING ELSE SUBTRACTED HERE HAS TO GO AND SAY SO, and this is the sentence
+ * that says which file: the filter's count line reports the matches this
+ * function took away as "hidden as done" (`../filter/count.ts`), and it arrives
+ * at that number as the difference between the page and what comes back from
+ * here. The LABEL is true only because that difference is finished work and
+ * nothing else. A second reason to drop a row, added here, would quietly be
+ * reported under the first one's name — so it belongs there as its own clause,
+ * not inside this subtraction.
+ *
  * IT IS THE PREFERENCE AND NOT THE ROWS that the identity is about, which is
  * worth being exact on: `withoutDone` is a `flatMap` and mints a new list
  * whichever way it goes, so a reader who IS hiding finished work gets a fresh

@@ -166,6 +166,27 @@ export const createNarrowing = (source: {
     active() ? narrowed(source.visible(), matched()) : source.visible()
   )
 
+  /**
+   * The denominator — how many places the page HOLDS, which is `all()` and
+   * never what was left of it: a denominator counted over the smaller set is
+   * the mixed arithmetic this reading was revisited to stop
+   * ({@link Counts.held}).
+   *
+   * A MEMO OF ITS OWN rather than a line inside the record below, and the
+   * reason is what it must NOT depend on. This walks every row of the unpruned
+   * page, and its answer is a fact about the PAGE — it cannot change because
+   * somebody typed a letter. Computed inside the record it would have taken
+   * that record's dependencies, which include the query, and re-walked the
+   * whole page per keystroke to arrive at the number it had already arrived
+   * at. Solid updates a graph in one pass, so the record still reads one
+   * frame's value of this.
+   *
+   * Guarded like the record, and for its reason: the line this feeds is only
+   * ever drawn beside an active filter, and a memo is a computation whether or
+   * not anybody reads it.
+   */
+  const held = createMemo(() => (active() ? placesIn(source.all()) : 0))
+
   return {
     text: source.text,
     active,
@@ -182,14 +203,10 @@ export const createNarrowing = (source: {
     /**
      * THE THREE NUMBERS AS ONE VALUE, because they are one fact — what this
      * query found on this page — and nothing ever asks for one of them alone.
-     * Three memos handed out separately were three places to put the same
-     * `active()` guard, and a caller free to pair a denominator from one frame
-     * with a numerator from the next; `./count.ts` takes the record, so a
-     * sentence about a page is a sentence about ONE reading of it.
-     *
-     * WHAT THE PAGE HOLDS is `all()`, never what was left of it: a denominator
-     * counted over the smaller set is the mixed arithmetic this reading was
-     * revisited to stop ({@link Counts.held}).
+     * Three accessors handed out separately were three places to put the same
+     * `active()` guard, and a caller free to read a denominator now and a
+     * numerator later; `./count.ts` takes the record, so a sentence about a
+     * page is a sentence about ONE reading of it.
      *
      * WHAT IS HELD BACK is the difference between what the query selects on
      * this page and what survived the preference — measured over the page's own
@@ -204,24 +221,26 @@ export const createNarrowing = (source: {
      * finished work gets a fresh value whether or not anything was hidden, and
      * then this does the subtraction it exists to do.
      *
-     * GUARDED, and it is the guard that pays for the whole record: the line is
-     * only ever drawn beside an active filter, and a memo is a computation
-     * whether or not anybody reads it — so an unfiltered page does not walk
-     * everything it draws, on every revision the store publishes, for three
-     * zeroes nobody is looking at. {@link NOTHING_COUNTED} is one value for the
-     * reason `NOTHING_MATCHED` is: a fresh record per frame is a fresh value
-     * per frame, and this one is read through a memo.
+     * BY VALUE rather than by identity, because everything upstream of it is a
+     * fresh value on every revision the store publishes: without this the
+     * sentence would be rebuilt on every one of them to say what it already
+     * said. The three numbers ARE the value — there is nothing else in the
+     * record to compare.
      */
     counts: createMemo(() => {
       if (!active()) return NOTHING_COUNTED
       const shown = matchesIn(drawn(), matched())
       return {
         shown,
-        held: placesIn(source.all()),
+        held: held(),
         hiddenAsDone: source.all() === source.visible()
           ? 0
           : matchesIn(source.all(), matched()) - shown,
       }
+    }, NOTHING_COUNTED, {
+      equals: (was, is) =>
+        was.shown === is.shown && was.held === is.held &&
+        was.hiddenAsDone === is.hiddenAsDone,
     }),
   }
 }

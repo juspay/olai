@@ -139,12 +139,12 @@ test("the denominator does not move when finished work is hidden", () => {
   expect(page("#home").counts().held).toBe(5)
 
   const hiding = page("#home", true)
-  const counted = hiding.counts()
-  expect(counted.held).toBe(5)
-  // Two drawn and one held back, inside the five the page holds. The tree
-  // itself is down to four rows, and that is exactly the number the
-  // denominator must not be measured against.
-  expect(counted.shown + counted.hiddenAsDone).toBeLessThanOrEqual(counted.held)
+  // Two drawn and one held back, inside the five the page holds — the whole
+  // record at once, because the claim is about how the three numbers sit
+  // together and asserting them one at a time is what let them drift apart.
+  expect(hiding.counts()).toEqual({ shown: 2, held: 5, hiddenAsDone: 1 })
+  // The tree itself is down to four rows, and four is exactly the number the
+  // denominator used to be and must not be again.
   expect(rowsIn(treeRows(hiding))).toBe(4)
 })
 

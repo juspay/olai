@@ -124,12 +124,12 @@ Feature: Filtering the outline in place
     And the filter found "2 of 10"
 
   Scenario: The count line is measured against what the page holds, not what a preference left
-    # THE ARITHMETIC. The second number is every row this page could draw — so
-    # it does not move when a preference takes rows off the screen, and the
-    # matches being held back are counted INSIDE it rather than beside it.
-    # It used to be the rows that were LEFT, which put the two numbers of "1 of
-    # 8 — 2 more matches hidden as done" in two different sets: the 2 were held
-    # back precisely because they were not among the 8.
+    # THE DENOMINATOR, on the page where NOTHING is being held back — which is
+    # the case the scenario below cannot show. `hinges` matches one open row,
+    # so there is no held-back clause to read the second number against: the
+    # page draws eight rows, the line says ten, and ten is what the page HOLDS.
+    # It used to be the rows that were left, which is where the arithmetic
+    # broke the moment a match was held back as well.
     Given I open the outline "house.olai"
     Then the outline has 10 rows
     When I hide the done nodes
