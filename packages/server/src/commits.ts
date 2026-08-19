@@ -75,6 +75,12 @@ export const commitFlags = (face: CommitFace) => ({
   ),
   noCommit: Flag.boolean("no-commit").pipe(
     Flag.withDescription("the same as --commit=off"),
+    // Omission is false. Effect 4's boolean flags refuse to parse without a
+    // fallback ("Omission fails unless the flag is made optional or given a
+    // fallback"), and `--no-commit` is an opt-out: a person who wanted the
+    // default, and the e2e git scenarios that start a server so it WILL
+    // commit, pass nothing. `--no-commit` present is still `true`.
+    Flag.withDefault(false),
   ),
 })
 
