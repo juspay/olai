@@ -237,6 +237,28 @@ const pickerOn = async (page: Page, id: string) => {
   await page.locator(MOVE_PICKER).first().waitFor()
 }
 
+// ── the row editor's completions ───────────────────────────────────────
+
+const COMPLETIONS = '[data-testid="completions"]'
+const COMPLETION_ITEM = '[data-testid="completion-item"]'
+
+/** The shortlist as a reader sees it, top to bottom — the LABELS alone, which
+ *  for a tag is the name as it will be written. `innerText` and its first line,
+ *  which is the same reading `step_definitions/completion_steps.ts` takes of
+ *  the same row: the count beside a label is laid out inline and is a separate
+ *  question ({@link hintOf}). */
+const labels = async (page: Page): Promise<string> =>
+  (await page.locator(COMPLETION_ITEM).evaluateAll((rows) =>
+    rows.map((one) => (one as HTMLElement).innerText.split("\n")[0]?.trim() ?? "")
+  )).join(", ") || "(nothing)"
+
+/** ...and what one row says BESIDE its label, which for a tag is how many nodes
+ *  carry it. */
+const hintOf = async (page: Page, label: string): Promise<string> =>
+  oneLine(
+    await page.locator(COMPLETION_ITEM).filter({ hasText: label }).first().innerText(),
+  )
+
 /** One line out of however many the markup wrapped it over — what a console
  *  line can hold, spelled once for every reader here that prints something the
  *  page drew. */
@@ -1874,6 +1896,55 @@ const SECTIONS = {
     }`)
     shotSays("cuttings", "garden.olai")
     await shot(page, "a-reference-arrives")
+  },
+
+  /**
+   * THE TAG COMPLETION, READ OFF THE INDEX (`mentions-index-one-sigil`): what
+   * `#` offers, where those names come from and what the number beside each
+   * one now counts.
+   *
+   * The set is written here so the shot holds the three things at once — a tag
+   * on two rows, a tag on one, and a tag written ONLY IN A NOTE, which is the
+   * behaviour that changed: the list is `Derived.taggedBy`'s keys, and that
+   * index files a record under every tag its title or its note writes. The old
+   * walk looked at titles alone, so `#hob` was a word this set used and never
+   * offered back.
+   *
+   * `#home` is written TWICE by one row on purpose. The count says how many
+   * NODES carry a name — which is what the widget always claimed — so the row
+   * saying it twice must still be one vote, and a picture is the only place a
+   * reader sees the claim and the number together.
+   */
+  "a-tag-completion-reads-the-index": async (page) => {
+    pinnedBy(
+      "input_widgets.feature",
+      "A tag written in a NOTE is vocabulary too",
+      "A tag is counted once per node, however often that node writes it",
+    )
+    rewrite("house.olai", [
+      `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home #home","doing":"2026-08-01"}`,
+      `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets #home","desc":"ask the #hob people about the cut-out first"}`,
+      `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets #handover"}`,
+      `{"id":"knobs","parent":"install","ord":"a0","title":"pick the knobs"}`,
+    ])
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await page.locator(title("knobs")).first().click()
+    await page.locator('[data-testid="title-editor"]').first().waitFor()
+    await page.keyboard.type(" #")
+    await page.locator(COMPLETIONS).first().waitFor()
+    await page.waitForTimeout(DRAWN)
+    // Printed rather than only photographed: that `#hob` is on the list at all
+    // is the whole claim, and it is a row in a shot like any other.
+    console.log(`  a bare \`#\` offers: ${await labels(page)}`)
+    console.log(`  and \`#home\`, which one row writes twice, says: ${
+      await hintOf(page, "#home")
+    }`)
+    await shot(page, "a-bare-hash")
+
+    await page.keyboard.type("ho")
+    await page.waitForTimeout(DRAWN)
+    console.log(`  narrowed to \`#ho\`:  ${await labels(page)}`)
+    await shot(page, "narrowed")
   },
 } satisfies Record<string, (page: Page) => Promise<void>>
 
