@@ -55,7 +55,7 @@ import { isLone } from "./workspace.ts"
 export default function App() {
   const outlines = createOutlines(
     olai.collections.outlines.use(),
-    olai.cells.manifest.use(),
+    olai.cells.manifest.use().value,
   )
   /** Every editable page on screen, for the one gesture that is about more
    *  than the page it began in: a row dragged out of one pane and dropped in

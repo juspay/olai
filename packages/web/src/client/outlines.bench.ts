@@ -68,10 +68,10 @@ import { useCollectionDeltas } from "@kolu/surface/solid"
 import { derive, type Derived, faceOf, matching, parseFilter, patch } from "@olai/format"
 import { median, outlineOf, retitled, retitledIn, timesSaid, vaultOf } from "@olai/format/testlib"
 import { LOADED, type Manifest, OutlineEntry } from "@olai/surface"
-import { Schema, Stream } from "effect"
+import { Effect, Queue, Schema, Stream } from "effect"
 import { createEffect, createRoot } from "solid-js"
 
-import { createOutlines, type ManifestCell, type OutlineEntries } from "./outlines.ts"
+import { createOutlines, type OutlineEntries } from "./outlines.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 21)
@@ -102,35 +102,21 @@ const outlines = collection({
 })
 
 /**
- * A stream somebody pushes frames into.
+ * A stream somebody pushes frames into — Effect's own queue, read as a stream.
  *
- * Here rather than imported because `@kolu/surface`'s own `controllableStream`
- * is a testlib and the package does not export one — and only the half a bench
- * uses is written: frames go in, and the stream never ends, because an arm that
- * has stopped receiving is not a shape anything below measures.
+ * `@kolu/surface` has one of these (`controllableStream`) and it is a testlib
+ * the package does not export, so this is the same idea reached through the
+ * dependency both of them already stand on rather than hand-rolled a second
+ * time: an unbounded queue is the buffering, and `Stream.fromQueue` is the
+ * reading. What a bench needs of it is the half that pushes; it never ends,
+ * because an arm that has stopped receiving is not a shape anything below
+ * measures.
  */
-const controllable = (): { source: Stream.Stream<Frame, unknown>; push: (frame: Frame) => void } => {
-  const queue: Array<Frame> = []
-  let waiting: ((result: IteratorResult<Frame>) => void) | null = null
-  const iterable: AsyncIterable<Frame> = {
-    [Symbol.asyncIterator]: () => ({
-      next: (): Promise<IteratorResult<Frame>> => {
-        const queued = queue.shift()
-        if (queued !== undefined) return Promise.resolve({ value: queued, done: false })
-        return new Promise((resolve) => {
-          waiting = resolve
-        })
-      },
-    }),
-  }
+const controllable = (): { source: Stream.Stream<Frame>; push: (frame: Frame) => void } => {
+  const queue = Effect.runSync(Queue.unbounded<Frame>())
   return {
-    source: Stream.fromAsyncIterable<Frame, unknown>(iterable, (error) => error),
-    push: (frame) => {
-      if (waiting === null) return void queue.push(frame)
-      const resolve = waiting
-      waiting = null
-      resolve({ value: frame, done: false })
-    },
+    source: Stream.fromQueue(queue),
+    push: (frame) => void Effect.runSync(Queue.offer(queue, frame)),
   }
 }
 
@@ -172,7 +158,7 @@ const editOf = (which: number): Frame => {
 
 /** The manifest, as a directory that has loaded. A constant: this leg is about
  *  the collection, and a cell that moved would be a second thing changing. */
-const loaded: ManifestCell = { value: (): Manifest | undefined => LOADED }
+const loaded = (): Manifest => LOADED
 
 // ── the frame: three arms ──────────────────────────────────────────────
 

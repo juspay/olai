@@ -96,13 +96,6 @@ export interface OutlineEntries extends UseCollectionResult<string, OutlineEntry
   readonly fold: CollectionFold<string, OutlineEntry>
 }
 
-/** The manifest cell, reduced to the one thing this composition asks of it.
- *  Structural rather than the framework's own result type because a cell's
- *  `error` and `pending` belong to whoever draws the connection, and naming
- *  them here would be this module claiming a reader it does not have. */
-export interface ManifestCell {
-  readonly value: Accessor<Manifest | undefined>
-}
 
 /**
  * The composition, over the two members rather than over the wire.
@@ -119,7 +112,7 @@ export interface ManifestCell {
  */
 export const createOutlines = (
   entries: OutlineEntries,
-  manifest: ManifestCell,
+  manifest: Accessor<Manifest | undefined>,
 ): Outlines => {
   const files = createMemo(() => sortByPath(entries.keys()))
 
@@ -205,7 +198,7 @@ export const createOutlines = (
    * is a number somebody can produce rather than a thing to guess at.
    */
   return {
-    manifest: manifest.value,
+    manifest,
     files,
     faces: createMemo(() => facesOf(files(), (file) => entries.byKey(file)?.()?.face)),
     broken: createMemo(() => {
@@ -236,7 +229,7 @@ export const createOutlines = (
      * absent was always a coincidence of where the state was kept.
      */
     derived: createMemo(() => {
-      const loaded = manifest.value()
+      const loaded = manifest()
       if (loaded === undefined || loaded === null) return undefined
       return view()
     }),
