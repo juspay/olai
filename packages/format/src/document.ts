@@ -36,11 +36,23 @@
  *
  * ## Three arms, because the registry claims three kinds
  *
- * Discriminated on `kind`, which is `./kinds.ts`'s own word for the file
- * — read off the suffix, never stored beside it where the two could disagree.
- * A fourth kind added to that table is a compile error at every `Record` and
+ * Discriminated on `kind`, which is `./kinds.ts`'s own word for the file. A
+ * fourth kind added to that table is a compile error at every `Record` and
  * every exhaustive match in the tree, which is the enforcement this replaces a
  * review comment with.
+ *
+ * THE TAG IS THE SUFFIX SAID TWICE, and that is a decision reversed rather
+ * than an oversight. What this replaced carried no tag at all, on the argument
+ * that "`fileKind` already answers that from the path, and `decode` branched
+ * on that same answer to produce this — so a tag would be a second answer that
+ * could disagree with the name" (`./set.ts`, before PR 2). That argument is
+ * still true and it is outweighed: a union told apart by which FIELDS it
+ * happens to carry is not exhaustively checkable — a reader writes `"nodes" in
+ * document` and the compiler has nothing to say about the case they forgot,
+ * which is precisely how a feature came to handle records and skip everything
+ * else. What keeps the two from disagreeing is that a caller never picks the
+ * arm: both constructors below read the registry, so the tag is
+ * `fileKind`'s answer carried on the value rather than a second one.
  *
  * The names of the arms are the MODEL's and the discriminants are the
  * REGISTRY's, and that is worth saying once because they do not match:

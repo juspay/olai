@@ -325,7 +325,7 @@ test("each tool carries its title and its description", async () => {
     // model choosing the tool, the title for the human reading a host's list.
     // Both come off the ops table, which is the single place a tool is
     // described — `title` survived migration because kolu#2155 added the field.
-    expect(search?.title).toBe("Search nodes")
+    expect(search?.title).toBe("Search the directory")
     expect(search?.description).toContain("Find nodes by title")
   })
 })

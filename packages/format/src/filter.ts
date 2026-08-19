@@ -51,6 +51,7 @@ import type { Hypertext, Markdown } from "./document.ts"
 import { customOf } from "./custom.ts"
 import { shiftDay, shiftMonth, weekdayOf } from "./calendar.ts"
 import { type DayGroup, datesOf, dayOf, monthOf } from "./dates.ts"
+import { basenameOf } from "./paths.ts"
 import { nothing } from "./write.ts"
 import {
   isArchived,
@@ -1877,10 +1878,10 @@ const documentHay = (
     // folded twice: `cabinets` should find `notes/cabinets.md` with the full
     // start-of-field bonus rather than be demoted by the folder in front of it,
     // and `notes/` should still find everything under it.
-    path: [
-      document.path.toLowerCase(),
-      document.path.slice(document.path.lastIndexOf("/") + 1).toLowerCase(),
-    ],
+    // Through `./paths.ts`'s own spelling of "the last segment of a path"
+    // rather than a slice written again here, for `foldOf`'s reason one door
+    // over: a name is a name wherever this app takes one off a path.
+    path: [document.path.toLowerCase(), basenameOf(document.path).toLowerCase()],
     // Bare AND as written, exactly as a record's tags are folded, so `alice`
     // finds `@alice` with the start-of-field bonus and `@alice` finds only the
     // one that carries that sigil.

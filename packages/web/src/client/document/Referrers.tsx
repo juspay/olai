@@ -23,6 +23,11 @@
  * attaches it" would be the coarser answer offered because it was the easier
  * one.
  *
+ * THE WHOLE FILE is what it asks about, never one heading of it: what points
+ * at `README.md#install` is pointing at this document, and a section that
+ * split the two would answer half the question twice (`referrersTo` reads it
+ * that way round).
+ *
  * COLLAPSED, and the collapse is the browser's — a `<details>`, the shape
  * `./Toc.tsx` and the node's own backlinks already use — for that section's
  * reason exactly: a reference is context rather than content, and a document
@@ -31,7 +36,7 @@
  * element alone does not give.
  */
 
-import { type Address, DocumentPath, type Face, referrersTo } from "@olai/format"
+import { addressOf, type Referrer, referrersTo } from "@olai/format"
 import { createMemo, createSignal, For, Show } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
@@ -44,10 +49,14 @@ export function Referrers(props: { readonly file: string }) {
   const faces = useFaces()
   const found = createMemo(() => {
     const indexes = derived()
+    const here = addressOf(props.file, null)
     // A first frame has no indexes yet and nothing that needs them is drawn
-    // (`../derived.tsx`), so this answers empty rather than waiting.
-    if (indexes === undefined) return []
-    return referrersTo(at(props.file), faces(), indexes)
+    // (`../derived.tsx`), so this answers empty rather than waiting. `here` is
+    // `null` only for a path the grammar cannot name, which a page model let
+    // through cannot be — asked rather than asserted, so the rule stays the
+    // grammar's.
+    if (indexes === undefined || here === null) return []
+    return referrersTo(here, faces(), indexes)
   })
 
   // KEYED ON THE FILE, for the reason the node's section is keyed on its node:
@@ -61,23 +70,12 @@ export function Referrers(props: { readonly file: string }) {
   )
 }
 
-/** The address a document's page IS — its own, whole. A page is never landed
- *  at a heading for this purpose: what points at `README.md#install` is
- *  pointing at this file, and a section that split the two would answer half
- *  the question twice. */
-const at = (file: string): Address => ({
-  kind: "document",
-  path: DocumentPath.make(file),
-})
-
 /**
  * The section itself, its own component so the open state is MINTED WITH IT: a
  * signal one level up would outlive the keyed block and carry one document's
  * answer onto the next, which is what the key is for.
  */
-function Section(props: {
-  readonly found: ReadonlyArray<{ readonly face: Face; readonly at?: { readonly node: { readonly id: string; readonly title: string } } }>
-}) {
+function Section(props: { readonly found: ReadonlyArray<Referrer> }) {
   const [open, setOpen] = createSignal(false)
   return (
     <details

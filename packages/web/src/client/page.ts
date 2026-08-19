@@ -140,7 +140,7 @@ const faceAt = (found: Found, path: string): Face | undefined =>
 /** The OUTLINES' paths, in path order — what the trash reads and what the
  *  front page picks its first file from. A narrowing of the one collection
  *  rather than a list beside it: asking says which files are being left out. */
-const outlinesIn = (found: Found): ReadonlyArray<string> =>
+const outlinesOf = (found: Found): ReadonlyArray<string> =>
   found.documents.flatMap((face) => (fileKind(face.path) === "outline" ? [face.path] : []))
 
 export const pageOf = (
@@ -152,26 +152,44 @@ export const pageOf = (
    *  redirect that would put yesterday in someone's history. */
   today: string,
 ): Page => {
-  const address = route.kind === "at" ? route.address : null
+  // THE PAGES THIS APP CLAIMED BY NAME FIRST, and then the grammar — the same
+  // reading order the parser uses (`./routes.ts`'s `routeNamed`), because it
+  // is the same precedence: a computed page is a word this app took, and an
+  // address is everything else. They cannot collide, so the order is a reading
+  // order rather than a rule.
+  if (route.kind === "agenda") return { kind: "agenda", date: today }
+  if (route.kind === "trash") return trashOf(found)
+  if (route.kind === "day" || route.kind === "today") {
+    const date = route.kind === "today" ? today : route.date
+    return {
+      kind: "day",
+      date,
+      groups: datedOn(derived, date),
+      // A day's note is found by the NAME of a file rather than by anything in
+      // the set, which is why this arm reads the directory for something other
+      // than existence.
+      notes: dailyNotesOn(found.documents.map((face) => face.path), date),
+    }
+  }
 
+  // WHICH PAGE AN ADDRESS OPENS IS DECIDED HERE, and nowhere else — which is
+  // what the route's arms collapsing bought (`./routes.ts`). Three questions,
+  // in the order the grammar asks them: a node is an element with no document;
+  // a heading is in a BODY by construction; and a path with no element is
+  // whatever its suffix says — an outline is a tree of rows, everything else
+  // with a body is drawn whole. Nothing upstream stored that answer, so
+  // nothing upstream can disagree with it.
+  const address = route.address
   if (address?.kind === "node") {
     return { kind: "node", zoomed: zoom(derived, address.id) }
   }
 
-  // WHICH PAGE AN ADDRESS OPENS IS DECIDED HERE, and nowhere else — which is
-  // what the route's arms collapsing bought. A `#` after a path is a heading
-  // and a heading is in a BODY, and a path with no element is whatever its
-  // suffix says: an outline is a tree of rows, everything else with a body is
-  // drawn whole. Nothing upstream stored that answer, so nothing upstream can
-  // disagree with it.
-  //
-  // The place INSIDE the page is not carried onto the arm, and that is the
-  // model's own rule kept: an arm holds what its screen needs. What the screen
-  // needs is the LANDING, which is an act rather than a fact — it happens once,
-  // on arrival, and never again on a re-render — so it comes from the router
-  // that caused the navigation (`./router.tsx`'s `landing`) rather than from a
-  // fragment this would hand out afresh every frame.
   if (address !== null && (address.kind === "heading" || bodyKind(address.path) !== null)) {
+    // The place INSIDE the page is not carried onto the arm, and that is the
+    // model's own rule kept: an arm holds what its screen needs. What the
+    // screen needs is the LANDING, which is an act rather than a fact — it
+    // happens once, on arrival, and never again on a re-render — so it comes
+    // from the router that caused the navigation (`./router.tsx`'s `landing`).
     const file = address.path
     return faceAt(found, file) !== undefined
       ? { kind: "document", file }
@@ -183,29 +201,12 @@ export const pageOf = (
       : { kind: "nothing", sought: bodyKind(file) ?? "document", requested: file }
   }
 
-  if (route.kind === "agenda") return { kind: "agenda", date: today }
-
-  if (route.kind === "trash") return trashOf(found)
-
-  if (route.kind === "day" || route.kind === "today") {
-    const date = route.kind === "today" ? today : route.date
-    return {
-      kind: "day",
-      date,
-      groups: datedOn(derived, date),
-      // The PATHS the directory has, which is the same list this function
-      // already asks "is that a document" of below. A day's note is found by
-      // the name of a file rather than by anything in the set, so it is the
-      // one arm that reads `found` for something other than existence.
-      notes: dailyNotesOn(found.documents.map((face) => face.path), date),
-    }
-  }
-
-  // `/` is whichever outline was found first — skipping the archives, which
-  // are the trash's to show and nobody's front page. A named one has to be
-  // served, and naming an archive opens the trash: an archive is not a place
-  // you edit, so the address a sidebar used to link goes where the entry went.
-  const outlines = outlinesIn(found)
+  // What is left is an OUTLINE, or the front page — which is whichever outline
+  // was found first, skipping the archives, since those are the trash's to show
+  // and nobody's front page. A named one has to be served, and naming an
+  // archive opens the trash: an archive is not a place you edit, so the address
+  // a sidebar used to link goes where the entry went.
+  const outlines = outlinesOf(found)
   const named = address === null ? null : address.path
   const file = named === null
     ? outlines.find((candidate) => !isArchived(candidate))
@@ -231,7 +232,7 @@ export const pageOf = (
  *  address, so the two doors cannot show two different trashes. */
 const trashOf = (found: Found): Page => ({
   kind: "trash",
-  files: outlinesIn(found).filter(isArchived),
+  files: outlinesOf(found).filter(isArchived),
 })
 
 /**
