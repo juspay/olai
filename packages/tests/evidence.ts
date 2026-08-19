@@ -246,15 +246,16 @@ const COMPLETION_ITEM = '[data-testid="completion-item"]'
  *  for a tag is the name as it will be written. `innerText` and its first line,
  *  which is the same reading `step_definitions/completion_steps.ts` takes of
  *  the same row: the count beside a label is laid out inline and is a separate
- *  question ({@link hintOf}). */
+ *  question ({@link rowSaying}). */
 const labels = async (page: Page): Promise<string> =>
   (await page.locator(COMPLETION_ITEM).evaluateAll((rows) =>
     rows.map((one) => (one as HTMLElement).innerText.split("\n")[0]?.trim() ?? "")
   )).join(", ") || "(nothing)"
 
-/** ...and what one row says BESIDE its label, which for a tag is how many nodes
- *  carry it. */
-const hintOf = async (page: Page, label: string): Promise<string> =>
+/** ...and ONE ROW WHOLE, label and the count beside it, which is what a reader
+ *  of the shot sees on that line. Named for what it answers rather than for the
+ *  half of it a caller happens to be about to quote. */
+const rowSaying = async (page: Page, label: string): Promise<string> =>
   oneLine(
     await page.locator(COMPLETION_ITEM).filter({ hasText: label }).first().innerText(),
   )
@@ -1937,7 +1938,7 @@ const SECTIONS = {
     // is the whole claim, and it is a row in a shot like any other.
     console.log(`  a bare \`#\` offers: ${await labels(page)}`)
     console.log(`  and \`#home\`, which one row writes twice, says: ${
-      await hintOf(page, "#home")
+      await rowSaying(page, "#home")
     }`)
     await shot(page, "a-bare-hash")
 

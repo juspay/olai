@@ -62,8 +62,17 @@
  */
 
 import { derive, type Derived, tagInto, titleParts } from "./derive.ts"
-import { median, nodesOf, retitled, retitledIn, timed, vaultOf } from "./fixtures.testlib.ts"
-import { isMirror, type Located, type LocatedRegular } from "./node.ts"
+import {
+  alternating,
+  median,
+  nodesOf,
+  retitled,
+  retitledIn,
+  timed,
+  timesSaid,
+  vaultOf,
+} from "./fixtures.testlib.ts"
+import { isRegular, type Located, type LocatedRegular } from "./node.ts"
 import { overlaid } from "./overlay.ts"
 import { patched, type SetDelta } from "./patch.ts"
 import { byPath } from "./paths.ts"
@@ -420,17 +429,7 @@ const beside = (): readonly [byId: number, others: number] => {
       for (const map of others) new Map(map)
     },
   ] as const
-  for (const arm of arms) timed(arm)
-  const rounds = Array.from({ length: 9 }, (_, round) => {
-    const order = round % 2 === 0 ? [0, 1] : [1, 0]
-    const times: Array<number> = []
-    for (const which of order) times[which] = timed(arms[which as 0 | 1])
-    return times
-  })
-  return [
-    median(rounds.map((round) => round[0] as number)),
-    median(rounds.map((round) => round[1] as number)),
-  ]
+  return alternating(arms)
 }
 
 // ── what the tag index's WIDTH costs ───────────────────────────────────
@@ -468,24 +467,15 @@ const folds = (): readonly [narrow: number, wide: number] => {
   ] as const
   // The wide arm files every key the narrow one does, and more; an arm that
   // had quietly stopped filing anything would report a magnificent number.
-  const [narrow, wide] = arms.map((arm) => arm())
-  if ((narrow as Map<string, unknown>).size === 0) {
+  const narrow = arms[0]()
+  const wide = arms[1]()
+  if (narrow.size === 0) {
     throw new Error("the vault holds no `@` prose — the narrow arm measures nothing")
   }
-  if ((wide as Map<string, unknown>).size <= (narrow as Map<string, unknown>).size) {
+  if (wide.size <= narrow.size) {
     throw new Error("the wide arm files no more keys than the narrow one — check the vault")
   }
-  for (const arm of arms) timed(arm)
-  const rounds = Array.from({ length: 9 }, (_, round) => {
-    const order = round % 2 === 0 ? [0, 1] : [1, 0]
-    const times: Array<number> = []
-    for (const which of order) times[which] = timed(arms[which as 0 | 1])
-    return times
-  })
-  return [
-    median(rounds.map((round) => round[0] as number)),
-    median(rounds.map((round) => round[1] as number)),
-  ]
+  return alternating(arms)
 }
 
 /**
@@ -493,35 +483,45 @@ const folds = (): readonly [narrow: number, wide: number] => {
  * expression the arm above is the before of.
  *
  * A private copy, and it may not be shared with the module it stands for: that
- * module now has one fold and this is the one it replaced. It is held to the
- * same shape ({@link tagInto}: mirrors out, one entry per record, title then
- * note) so the two arms differ in exactly one thing, which is how many sigils
- * the walk claims.
+ * module now has one fold and this is the one it replaced.
+ *
+ * HELD TO THE SHAPE OF THE ONE IT STANDS FOR, down to what it allocates, so
+ * that the two arms differ in exactly one thing — how many sigils the walk
+ * claims. That is not a tidiness rule here, it is the measurement: the first
+ * spelling of this looped over `[title, desc ?? ""]`, which is an array per
+ * record that {@link tagInto} does not build and an empty string walked for
+ * every record with no note. It made the BEFORE arm slower and so made the
+ * second sigil look cheaper than it is. Two statements now, as next door, and
+ * a note is not read when there is none.
  */
 const mentionOnlyInto = (
   index: Map<string, Array<LocatedRegular>>,
   located: Located,
 ): void => {
-  if (isMirror(located.node)) return
-  const regular = located as LocatedRegular
-  for (const text of [regular.node.title, regular.node.desc ?? ""]) {
-    if (!text.includes("@")) continue
-    for (const part of titleParts(text)) {
-      if (part.kind !== "tag" || part.sigil !== "@") continue
-      const held = index.get(part.tag)
-      if (held === undefined) index.set(part.tag, [regular])
-      else if (held[held.length - 1] !== regular) held.push(regular)
-    }
+  if (!isRegular(located)) return
+  mentionsFrom(index, located, located.node.title)
+  if (located.node.desc !== undefined) mentionsFrom(index, located, located.node.desc)
+}
+
+/** One string of one record's prose, filed under every `@word` it holds —
+ *  {@link mentionOnlyInto}'s inner half, which is one function here because the
+ *  fold it stands for asks it of a title and of a note. */
+const mentionsFrom = (
+  index: Map<string, Array<LocatedRegular>>,
+  regular: LocatedRegular,
+  text: string,
+): void => {
+  if (!text.includes("@")) return
+  for (const part of titleParts(text)) {
+    if (part.kind !== "tag" || part.sigil !== "@") continue
+    const held = index.get(part.tag)
+    if (held === undefined) index.set(part.tag, [regular])
+    else if (held[held.length - 1] !== regular) held.push(regular)
   }
 }
 
 const say = (name: string, times: ReadonlyArray<number>): void => {
-  const ms = (at: number) => `${at.toFixed(2)}ms`
-  console.log(
-    `${name.padEnd(12)} median ${ms(median(times))}` +
-      `, mean ${ms(times.reduce((one, other) => one + other, 0) / times.length)}` +
-      `, min ${ms(Math.min(...times))}, max ${ms(Math.max(...times))}`,
-  )
+  console.log(timesSaid(name, times, 12))
 }
 
 console.log(

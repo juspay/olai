@@ -1411,10 +1411,13 @@ export const tagText = (part: TitleTag): string => `${part.sigil}${part.tag}`
  * The inverse of {@link tagText}, beside it, because {@link Derived.taggedBy}'s
  * keys are written tags and a reader that wants the namespace and the name has
  * to take one apart. Doing that at the call site is a second, private claim
- * about where the sigil is — the thing this pair exists to keep to one place.
+ * about where the sigil is — the thing this pair exists to keep to one place,
+ * which is also why {@link titleParts} splits its own matches through this
+ * rather than beside it.
  *
  * It TRUSTS its argument, which is why it takes no failure: the only strings
- * this is asked about are keys that {@link tagText} wrote.
+ * this is asked about are a {@link titleTagRe} match and a key that
+ * {@link tagText} wrote, and both are a sigil followed by a name.
  */
 export const tagPart = (written: string): TitleTag => ({
   sigil: written[0] as TagSigil,
@@ -1426,10 +1429,13 @@ export const tagPart = (written: string): TitleTag => ({
  * guard every walk of {@link titleParts} takes first.
  *
  * That call runs a global regex and allocates a part per segment, and most
- * titles hold no tag at all; the search index, the client's two renderings of a
- * pill and its tag completion all want the same cheap negative. It was written
- * three times before this existed, and the first two had already drifted (one
- * asked about `#` only).
+ * prose holds no tag at all; this file's own fold ({@link writtenTagsIn}), the
+ * search index and the client's two renderings of a pill all want the same
+ * cheap negative. It was written three times before this existed, and the first
+ * two had already drifted (one asked about `#` only). The browser's tag
+ * COMPLETION used to be a fourth caller and is not one any more — it reads
+ * {@link Derived.taggedBy} rather than walking the corpus for itself, which is
+ * this guard's argument taken all the way.
  */
 export const mayHoldTag = (text: string): boolean =>
   text.includes("#") || text.includes("@")
@@ -1477,17 +1483,32 @@ export const isTagName = (text: string): boolean => /^[A-Za-z0-9_/-]*$/.test(tex
 export const tagOpensAt = (text: string, at: number): boolean =>
   at === 0 || /[\s([{]/.test(text[at - 1] as string)
 
+/**
+ * A title, split into what to print and what to style.
+ *
+ * `exec` IN A LOOP rather than `matchAll`, over the same fresh
+ * {@link titleTagRe} — the same walk, the same matches, and no second reader of
+ * the alphabet: what changes is only that a `/g` regex is stepped rather than
+ * asked for an iterator. `matchAll` clones the regex and allocates an iterator
+ * per call, and this is called once per string of prose in the directory — for
+ * the tag index's fold, for the search matcher's per-record fold, and per drawn
+ * row in the browser. Measured over the bench vault's corpus-wide fold: 22.9ms
+ * against 15.5ms, which is a third of what the widened index pays per rebuild.
+ * (The rejected shape is a private `titleTagRe` loop somewhere ELSE — see
+ * {@link writtenTagsIn}. This is this function's own internals.)
+ */
 export const titleParts = (title: string): ReadonlyArray<TitlePart> => {
   const parts: Array<TitlePart> = []
+  const tags = titleTagRe()
   let at = 0
-  for (const match of title.matchAll(titleTagRe())) {
+  let match: RegExpExecArray | null
+  while ((match = tags.exec(title)) !== null) {
     const start = match.index
     if (start > at) parts.push({ kind: "text", text: title.slice(at, start) })
-    parts.push({
-      kind: "tag",
-      sigil: match[0][0] as TagSigil,
-      tag: match[0].slice(1),
-    })
+    // Split by {@link tagPart}, which is where this file says the sigil sits.
+    // A match IS a written tag, so the walk that finds one and the reader that
+    // takes one apart cannot come to disagree about which character it is.
+    parts.push({ kind: "tag", ...tagPart(match[0]) })
     at = start + match[0].length
   }
   if (at < title.length) parts.push({ kind: "text", text: title.slice(at) })

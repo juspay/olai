@@ -4,7 +4,7 @@
  *
  * `fixtures.testlib.ts`'s own header says it has no tests — it is a helper
  * module rather than a suite — and this file is the one exception, minted for a
- * reason worth writing down. `vaultOf` gained prose so that the mention index
+ * reason worth writing down. `vaultOf` gained prose so that the tag index
  * would stop being an empty map in `patch.bench.ts` and `deriving.bench.ts`;
  * the first spelling of that used `which % 25 === 0` inside a loop that runs
  * `which` from 1 to 20, so it **never fired**. The vault had 3,920 notes and
@@ -23,7 +23,7 @@
 
 import { expect, test } from "bun:test"
 
-import { derive } from "./derive.ts"
+import { derive, tagPart, type TagSigil, tagText, type TitleTag } from "./derive.ts"
 import { setOf, vaultOf } from "./fixtures.testlib.ts"
 import { isMirror } from "./node.ts"
 
@@ -62,23 +62,27 @@ test("the prose is really there, and really names records", () => {
   expect(mentions.length).toBeLessThan(noted.length)
   // ...and the words they write are ids the corpus really holds, so the READING
   // over this index answers with referrers rather than with dead keys.
-  const mentioned = [...view.taggedBy.keys()].filter((tag) => tag.startsWith("@"))
+  const mentioned = written("@")
   expect(mentioned.length).toBeGreaterThan(0)
-  expect(mentioned.filter((tag) => view.byId.has(tag.slice(1))).length).toBe(mentioned.length)
+  expect(mentioned.filter((tag) => view.byId.has(tag.tag)).length).toBe(mentioned.length)
 })
+
+/** The index's keys under one sigil, taken apart the way the format takes one
+ *  apart ({@link tagPart}) — a fence that split a written key by hand would be
+ *  the one file that cannot notice the encoding moving. */
+const written = (sigil: TagSigil): ReadonlyArray<TitleTag> =>
+  [...view.taggedBy.keys()].map(tagPart).filter((tag) => tag.sigil === sigil)
 
 // BOTH SIGILS, because the index files both and a vault that wrote only the
 // rarer one would print the fold's cheap negative as the cost of its walk —
 // this file's own reason for existing, one namespace over. The `#` half is what
 // the completion this index feeds is nearly all made of.
 test("the titles really carry `#tags`, and the notes carry some too", () => {
-  const topics = [...view.taggedBy.keys()].filter((tag) => tag.startsWith("#"))
-  expect(topics.length).toBeGreaterThan(20)
+  expect(written("#").length).toBeGreaterThan(20)
   // More records write a `#` than an `@`: the shape a real directory has, and
   // the one the completion's ordering is measured against.
-  const entries = (of: string): number =>
-    [...view.taggedBy].filter(([tag]) => tag.startsWith(of))
-      .reduce((total, [, own]) => total + own.length, 0)
+  const entries = (sigil: TagSigil): number =>
+    written(sigil).reduce((total, tag) => total + (view.taggedBy.get(tagText(tag))?.length ?? 0), 0)
   expect(entries("#")).toBeGreaterThan(entries("@"))
   // ...and a tag written in a NOTE is filed, which is the half of the fold a
   // title-only vault would leave unmeasured.

@@ -123,7 +123,7 @@ test("the referrers come in corpus order, whichever index found them", () => {
 
 // ── a note is markdown, and this reading is not ────────────────────────
 //
-// The decision is `./derive.ts`'s `mentionsOf`: this package holds no markdown
+// The decision is `./derive.ts`'s `writtenTags`: this package holds no markdown
 // parser, and deciding what a reference IS out of one would put a parser under
 // the write gate — so what the record SAYS is the answer. What that costs is a
 // disagreement with the browser, which DOES parse before it styles a tag

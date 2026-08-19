@@ -1,44 +1,58 @@
 /**
  * What the tag completion costs per derivation: the index read against the
- * corpus walk it replaced.
+ * corpus walks it replaced.
  *
  * IT IS A LEG, NOT A CLAIM (`just bench`), and this one is the whole reason the
  * roadmap item behind it (`mentions-index-one-sigil`, filed at PR #237) was
  * DEFERRED rather than taken there: the payoff was a different feature's
  * performance, unmeasured, against a wider index on the derive hot path. A
  * number nobody can re-run is a number nobody can check, so the before and the
- * after are two arms of one run rather than two paragraphs.
+ * after are arms of one run rather than two paragraphs.
  *
- * TWO ARMS over one generated vault (`@olai/format/testlib`'s `vaultOf`, the
+ * THREE ARMS over one generated vault (`@olai/format/testlib`'s `vaultOf`, the
  * SAME corpus `deriving.bench.ts` and `packages/format/src/patch.bench.ts` run
  * on, so all three legs' numbers are about one directory):
  *
- *   - `walk` — the vocabulary derived from the corpus, which is what this file
- *     did before the index: every node of the set, `titleParts` over the prose
- *     of each. It is kept HERE, as a reconstruction, for the reason
- *     `patch.bench.ts` keeps the id-map clone it replaced — a before/after the
- *     harness cannot print is exactly the unreproducible laptop sample these
- *     legs exist to retire.
  *   - `index` — {@link tagsOf}, which reads `Derived.taggedBy`: the keys of a
- *     map and the length of each entry, with the archive taken off.
+ *     map and the length of each entry, with the archive taken off;
+ *   - `walk` — the SAME ANSWER derived from the corpus instead: every node of
+ *     the set, `titleParts` over its title and its note, one vote per record.
+ *     This is the honest A/B, because two arms that answer different lists are
+ *     two numbers nobody may divide;
+ *   - `titles` — the walk AS IT LITERALLY STOOD before this branch: titles
+ *     only, a vote per tag PART. It is here because `walk` is not what the file
+ *     said, and a ratio quoted against a reconstruction that does more work
+ *     than the code it stands for is a flattering ratio. It answers a
+ *     DIFFERENT, smaller list — the count it found is printed beside it so
+ *     nobody reads the three numbers as three ways to the same answer.
  *
- * THE TWO ARMS MUST ANSWER THE SAME VALUE, and that is asserted before either
- * is timed. It is what stops this being a benchmark of an arm that answers
- * nothing: the fast one here could "win" by returning an empty list, and the
- * comparison would still print. So the walk is written to the index's own
- * rules — a record's title AND its note, one vote per record, mirrors out,
- * archive out — and the two answers are compared whole.
+ * THE FIRST TWO MUST ANSWER THE SAME VALUE, and that is asserted before
+ * anything is timed. It is what stops this being a benchmark of an arm that
+ * answers nothing: the fast one could "win" by returning an empty list and the
+ * comparison would still print. `titles` is deliberately outside that guard,
+ * and is the one arm whose answer is checked for being SMALLER instead.
+ *
+ * The reconstructions live here for the reason `patch.bench.ts` keeps the
+ * id-map clone it replaced: a before/after the harness cannot print is exactly
+ * the unreproducible laptop sample these legs exist to retire.
  *
  * A FRESH DERIVED PER MEASUREMENT, because `tagsOf` holds one answer per
  * derivation in a `WeakMap` and the question is what a NEW frame costs. A
- * shallow copy of the view is a new key with the same indexes, which is exactly
+ * shallow copy of the view is a new key over the same indexes, which is exactly
  * what the tab is handed when one file moves.
  */
 
-import { derive, type Derived, isArchived, isMirror, mayHoldTag, titleParts } from "@olai/format"
-import { median, nodesOf, timed, vaultOf } from "@olai/format/testlib"
+import {
+  derive,
+  type Derived,
+  isArchived,
+  isMirror,
+  mayHoldTag,
+  tagText,
+  titleParts,
+} from "@olai/format"
+import { median, setOf, timed, timesSaid, vaultOf } from "@olai/format/testlib"
 
-import { sortByPath } from "../paths.ts"
 import { type Tag, tagsOf } from "./tags.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
@@ -46,96 +60,155 @@ const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 21)
 /** How many times each arm is asked, each on a view it has not seen. */
 const ROUNDS = Number(process.env["OLAI_BENCH_ROUNDS"] ?? 20)
 
-const corpus = vaultOf({ files: FILES, records: RECORDS })
-const view = derive(
-  sortByPath(corpus.keys()).flatMap((file) => nodesOf(corpus.get(file) as string, file)),
-)
+/** The vault, through the REAL assembly (`setOf`) rather than a flatten written
+ *  here: path order is a promise of the format's own, and a bench that spells
+ *  it again is a bench that can come to measure a corpus in an order no app
+ *  holds. */
+const view = derive(setOf(Object.fromEntries(vaultOf({ files: FILES, records: RECORDS }))).nodes)
+
+/** One row of the widget's list, built the way both walks below build one —
+ *  they differ in what they walk, never in what they answer with. */
+const rowFor = (sigil: Tag["sigil"], name: string, count: number): Tag => ({
+  sigil,
+  name,
+  folded: name.toLowerCase(),
+  count,
+})
+
+const ranked = (counts: ReadonlyMap<string, Tag>): ReadonlyArray<Tag> =>
+  [...counts.values()].sort((one, other) =>
+    other.count - one.count || one.name.localeCompare(other.name)
+  )
 
 /**
- * The vocabulary walked out of the corpus — this module as it was, held to the
- * index's rules so the two arms are comparable.
+ * The vocabulary walked out of the corpus, held to the INDEX's rules so that
+ * this arm and the index arm are two ways to one answer.
  *
- * ONE VOTE PER RECORD, which the old walk did not spell (it counted a title's
- * parts, so a title writing one tag twice counted twice) — the index files a
- * record once and the widget's own docs always said "how many nodes carry it",
- * so the walk is written to the answer both are supposed to give.
+ * A record's title AND its note, and one vote per record — neither of which the
+ * walk on master spelled ({@link titlesOnly} is that one). This is the arm the
+ * published ratio is against, because a comparison is only a comparison when
+ * both sides answer the same question.
  */
 const walked = (derived: Derived): ReadonlyArray<Tag> => {
   const counts = new Map<string, Tag>()
   for (const located of derived.nodes) {
     if (isMirror(located.node) || isArchived(located.file)) continue
     const voted = new Set<string>()
-    for (const text of [located.node.title, located.node.desc ?? ""]) {
+    for (const text of [located.node.title, located.node.desc]) {
       // The format's own cheap negative first, exactly as the walk had it:
       // `titleParts` runs a global regex and most prose holds no sigil at all.
-      if (!mayHoldTag(text)) continue
+      if (text === undefined || !mayHoldTag(text)) continue
       for (const part of titleParts(text)) {
         if (part.kind !== "tag") continue
-        const key = `${part.sigil}${part.tag}`
+        const key = tagText(part)
         if (voted.has(key)) continue
         voted.add(key)
         const before = counts.get(key)
-        counts.set(
-          key,
-          before === undefined
-            ? { sigil: part.sigil, name: part.tag, folded: part.tag.toLowerCase(), count: 1 }
-            : { ...before, count: before.count + 1 },
-        )
+        counts.set(key, before === undefined ? rowFor(part.sigil, part.tag, 1) : {
+          ...before,
+          count: before.count + 1,
+        })
       }
     }
   }
-  return [...counts.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+  return ranked(counts)
+}
+
+/**
+ * ...and the walk as the file ACTUALLY held it before this branch: titles only,
+ * a vote per tag part rather than per record.
+ *
+ * It answers a smaller list than either arm above — a tag written only in a
+ * note was not in the vocabulary at all — so it is timed beside them and
+ * compared with neither. What it is for is the one thing {@link walked} cannot
+ * say: how much of the saving is the index, and how much is that the arm
+ * standing in for the old code was asked to do more than the old code did.
+ */
+const titlesOnly = (derived: Derived): ReadonlyArray<Tag> => {
+  const counts = new Map<string, Tag>()
+  for (const located of derived.nodes) {
+    if (isMirror(located.node) || isArchived(located.file)) continue
+    if (!mayHoldTag(located.node.title)) continue
+    for (const part of titleParts(located.node.title)) {
+      if (part.kind !== "tag") continue
+      const key = tagText(part)
+      const before = counts.get(key)
+      counts.set(key, before === undefined ? rowFor(part.sigil, part.tag, 1) : {
+        ...before,
+        count: before.count + 1,
+      })
+    }
+  }
+  return ranked(counts)
 }
 
 /** A view the arm under test has never been handed: the same indexes under a
  *  new identity, which is what `tagsOf`'s per-derivation memo keys on. */
 const fresh = (): Derived => ({ ...view })
 
-const arms = {
-  walk: (derived: Derived) => walked(derived),
-  index: (derived: Derived) => tagsOf(derived),
-} as const
+const arms = { index: tagsOf, walk: walked, titles: titlesOnly } as const
 
-// THE SAME ANSWER, asserted before anything is timed — see the header. A
-// benchmark whose fast arm answers a shorter list is not a benchmark.
+// THE SAME ANSWER for the two that must have one, asserted before anything is
+// timed — see the header. A benchmark whose fast arm answers a shorter list is
+// not a benchmark.
 const spelling = (tags: ReadonlyArray<Tag>): string =>
   tags.map((tag) => `${tag.sigil}${tag.name} ${tag.count}`).join("\n")
-const walkSaid = spelling(arms.walk(fresh()))
-const indexSaid = spelling(arms.index(fresh()))
-if (walkSaid !== indexSaid) {
+const found = spelling(arms.index(fresh()))
+const walkFound = spelling(arms.walk(fresh()))
+if (found !== walkFound) {
   throw new Error(
-    "the two arms disagree about the set's tags, so neither number means anything:\n" +
-      `  walk:  ${walkSaid.split("\n").length} tags\n  index: ${indexSaid.split("\n").length}`,
+    "the index and the equivalent walk disagree about the set's tags, so neither" +
+      ` number means anything:\n  index: ${found.split("\n").length} tags` +
+      `\n  walk:  ${walkFound.split("\n").length}`,
   )
 }
-const tags = indexSaid.split("\n").length
+const tags = view.taggedBy.size
 if (tags < 2) throw new Error(`the vault holds ${tags} tags — this measures nothing`)
+/** What the arm outside the guard answers, which must be SMALLER — a
+ *  title-only reading of a corpus whose notes hold tags cannot be the whole
+ *  vocabulary, and if it ever is, this vault stopped saying what it is for
+ *  (`@olai/format`'s `vault.test.ts` is the fence for that). */
+const titlesFound = arms.titles(fresh()).length
+if (titlesFound >= tags) {
+  throw new Error(
+    `the title-only arm found ${titlesFound} of ${tags} tags — it is supposed to` +
+      ` miss the ones only a note writes`,
+  )
+}
 
-const run = (name: keyof typeof arms): void => {
+const run = (name: keyof typeof arms): ReadonlyArray<number> => {
   const arm = arms[name]
-  // Warmed, then measured, for `patch.bench.ts`'s reason: one of two arms has
-  // to go first, and going first means paying for a JIT the other finds warm.
+  // Warmed, then measured, for `patch.bench.ts`'s reason: one of three arms has
+  // to go first, and going first means paying for a JIT the others find warm.
   for (let round = 0; round < 3; round++) arm(fresh())
-  const times = Array.from({ length: ROUNDS }, () => {
+  return Array.from({ length: ROUNDS }, () => {
     const derived = fresh()
     return timed(() => {
       arm(derived)
     })
   })
-  const say = (ms: number) => `${ms.toFixed(2)}ms`
-  console.log(
-    `${name.padEnd(6)} median ${say(median(times))}` +
-      `, mean ${say(times.reduce((one, other) => one + other, 0) / times.length)}` +
-      `, min ${say(Math.min(...times))}, max ${say(Math.max(...times))}`,
-  )
 }
 
 console.log(
-  `vault: ${corpus.size} files, ${view.nodes.length} records, ${tags} tags,` +
-    ` ${view.taggedBy.size} keys in the index — the completion asked ${ROUNDS} times\n` +
+  `vault: ${view.byFile.size} files, ${view.nodes.length} records, ${tags} tags` +
+    ` in the index — the completion asked ${ROUNDS} times\n` +
     `runtime: ${
       process.versions.bun !== undefined ? `bun ${process.versions.bun}` : `node ${process.version}`
     }\n`,
 )
-run("walk")
-run("index")
+const timings = new Map(
+  (["index", "walk", "titles"] as const).map((name) => [name, run(name)]),
+)
+for (const [name, times] of timings) console.log(timesSaid(name, times, 7))
+console.log(
+  `\nthe index against the walk that answers the same ${tags} tags:` +
+    ` ${
+      (median(timings.get("walk") as ReadonlyArray<number>) /
+        median(timings.get("index") as ReadonlyArray<number>)).toFixed(1)
+    }×` +
+    ` — and against the title-only walk this replaced, which answered ${titlesFound}:` +
+    ` ${
+      (median(timings.get("titles") as ReadonlyArray<number>) /
+        median(timings.get("index") as ReadonlyArray<number>)).toFixed(1)
+    }×`,
+)

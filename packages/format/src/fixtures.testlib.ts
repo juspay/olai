@@ -422,3 +422,60 @@ export const timed = (run: () => void): number => {
   run()
   return (Bun.nanoseconds() - at) / 1e6
 }
+
+/**
+ * TWO ARMS OF ONE COMPARISON, warmed and then timed in alternating order —
+ * the middle of every A/B `just bench` prints, spelled once.
+ *
+ * The alternation is the measurement rather than a flourish: two arms run one
+ * after the other are two arms of a machine in two moods, and going second in a
+ * round is worth more than some of the differences these legs are asked to see.
+ * Warming first is the other half — one arm has to go first overall, and going
+ * first means paying for a JIT the other one then finds warm.
+ *
+ * Here for {@link median}'s reason, at the moment it became true again: the
+ * `taggedBy` branch added a third copy of these twelve lines to one file
+ * ({@link ./patch.bench.ts}'s `beside` and `folds`), which is three places to
+ * fix if what "compared fairly" means ever changes.
+ *
+ * `rounds` is the caller's, because how many a leg can afford is a fact about
+ * what it is timing — a corpus-wide fold is not a map clone.
+ */
+export const alternating = (
+  arms: readonly [() => unknown, () => unknown],
+  rounds = 9,
+): readonly [number, number] => {
+  for (const arm of arms) timed(arm)
+  const runs = Array.from({ length: rounds }, (_, round) => {
+    const order = round % 2 === 0 ? [0, 1] : [1, 0]
+    const times: Array<number> = []
+    for (const which of order) times[which] = timed(arms[which as 0 | 1])
+    return times
+  })
+  return [
+    median(runs.map((round) => round[0] as number)),
+    median(runs.map((round) => round[1] as number)),
+  ]
+}
+
+/**
+ * One arm's times, as the line every leg prints: median, mean, min and max.
+ *
+ * The third copy of this was about to be written too ({@link alternating}'s
+ * note), and this one is worse to have three of: it is the SHAPE of every
+ * number `just bench` reports and the READMEs quote, so a fourth column added
+ * in one leg is a table that stops lining up with the others.
+ *
+ * `width` is the caller's because a leg's arm names are its own, and columns
+ * that line up are the whole point of padding them.
+ */
+export const timesSaid = (
+  name: string,
+  times: ReadonlyArray<number>,
+  width = 8,
+): string => {
+  const ms = (at: number) => `${at.toFixed(2)}ms`
+  return `${name.padEnd(width)} median ${ms(median(times))}` +
+    `, mean ${ms(times.reduce((one, other) => one + other, 0) / times.length)}` +
+    `, min ${ms(Math.min(...times))}, max ${ms(Math.max(...times))}`
+}

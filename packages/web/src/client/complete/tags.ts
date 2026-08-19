@@ -14,7 +14,20 @@
  * derivation), and the roadmap item that changed it — `mentions-index-one-sigil`
  * — is on the PR with its numbers. The index was already being built for the
  * `@` half; what it cost to file the other sigil too, against what this walk
- * cost, is the trade the branch was asked to measure rather than assume.
+ * cost, is the trade the branch was asked to measure rather than assume, and
+ * `./tags.bench.ts` prints both halves — including the walk AS IT STOOD, which
+ * answered a smaller list than either arm of the A/B and is timed beside them
+ * so the ratio cannot flatter itself.
+ *
+ * THE COUNTING STAYS HERE rather than moving beside `backlinksOf`, which is
+ * where `@olai/format` keeps its other reading over these indexes, and the
+ * reason is the one this file already gives one paragraph down: population is
+ * ONE. What a format-side `vocabularyOf` would answer is `{sigil, name, count}`
+ * — and this widget wants a fourth field on every row (`folded`, for matching
+ * per keystroke), so the browser would map over the answer and allocate a
+ * second object per tag per derivation, on the exact path the index was built
+ * to make cheap. When a second face asks for this list, that map becomes the
+ * caller and pays for itself; today it would buy a layer and cost a pass.
  *
  * ## Why this is not asked of the server, when node search is
  *
@@ -43,7 +56,13 @@
  * index keeps them apart for the same reason, in its keys.
  */
 
-import { type Derived, isArchived, type TagSigil, tagPart } from "@olai/format"
+import {
+  type Derived,
+  isArchived,
+  type LocatedRegular,
+  type TagSigil,
+  tagPart,
+} from "@olai/format"
 
 /** One tag of the set, and how much of it there is. */
 export interface Tag {
@@ -84,8 +103,10 @@ const LIMIT = 8
  * and would go on offering a tag whose every user is put away. The tag stays
  * WRITABLE, exactly as any word is — this list is what the set has used, never
  * what a title may say. The index keeps the archive (nothing about storage
- * belongs in a fold over prose), so the skipping is here, over the entries of
- * one tag rather than over every node of the corpus.
+ * belongs in a fold over prose), so the skipping is here — over the index's
+ * entries rather than over every node of the corpus, and against a set of
+ * archived PATHS judged once ({@link archives}) rather than a rule asked per
+ * entry.
  *
  * THE OTHER COMPLETION IN THIS APP GOES THE OTHER WAY ON PURPOSE, and the two
  * are cross-referenced so that neither is "harmonized" into the other by
@@ -116,9 +137,12 @@ export const tagsOf = (derived: Derived | undefined): ReadonlyArray<Tag> => {
 }
 
 const counting = (derived: Derived): ReadonlyArray<Tag> => {
+  const away = archives(derived)
   const tags: Array<Tag> = []
   for (const [written, records] of derived.taggedBy) {
-    const live = alive(records)
+    // A DIRECTORY WITH NOTHING PUT AWAY pays nothing per entry, which is nearly
+    // every directory: the count is then the entries themselves.
+    const live = away.size === 0 ? records.length : alive(records, away)
     if (live === 0) continue
     const { sigil, tag } = tagPart(written)
     tags.push({ sigil, name: tag, folded: tag.toLowerCase(), count: live })
@@ -128,12 +152,35 @@ const counting = (derived: Derived): ReadonlyArray<Tag> => {
   )
 }
 
+/**
+ * Which of the served files are archives — judged ONCE per derivation, off the
+ * file index, rather than per index entry.
+ *
+ * `isArchived` is a question about a PATH, and `@olai/format`'s own note beside
+ * it says it is meant to be asked once per file per probe. This reading has an
+ * entry per (record, tag) pair to get through — more entries than the directory
+ * has files, by a lot, on a set where a name is written on a thousand rows — so
+ * asking it there would put a string comparison where the whole point of the
+ * index is that there is no walk left. The saving is measured: 0.63ms → 0.34ms
+ * per derivation on the bench vault (`./tags.bench.ts`).
+ *
+ * WHAT IS LEFT is one map lookup per entry, and the honest word for the shape
+ * of this reading is not "a handful": it is one pass over every (record, tag)
+ * pair the directory holds. What the index bought is not fewer entries — it is
+ * that none of them costs a regex.
+ */
+const archives = (derived: Derived): ReadonlySet<string> => {
+  const away = new Set<string>()
+  for (const file of derived.byFile.keys()) if (isArchived(file)) away.add(file)
+  return away
+}
+
 /** How many of one tag's records are not put away — the archive rule, taken off
- *  the COUNT rather than off the corpus. It is a walk of the entries of one tag,
- *  which is a handful, where the walk this replaced was every node of the set. */
-const alive = (records: ReadonlyArray<{ readonly file: string }>): number => {
+ *  the COUNT rather than off the corpus, so the tag itself stays offerable and
+ *  only the rows only the trash draws stop being counted. */
+const alive = (records: ReadonlyArray<LocatedRegular>, away: ReadonlySet<string>): number => {
   let live = 0
-  for (const at of records) if (!isArchived(at.file)) live++
+  for (const at of records) if (!away.has(at.file)) live++
   return live
 }
 
