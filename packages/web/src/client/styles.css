@@ -48,7 +48,7 @@
    * must be the DEFAULT's rather than any palette's, and why
    * `theme/css.test.ts` holds them to that row.
    *
-   * The other fourteen palettes are generated from the table into blocks
+   * The other palettes are generated from the table into blocks
    * appended to this sheet at build time (`src/client/theme/`,
    * `src/build.ts`). */
   --color-ink: #15180F;

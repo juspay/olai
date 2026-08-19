@@ -8,15 +8,16 @@
  * the same eleven lines copied fifteen times, and one place per theme for a new
  * token to be forgotten.
  *
- * The values are the racket implementation's, ported hex for hex from
- * `olai/web/theme.rkt` on the `master-racket` branch. Four of the fifteen are
+ * The first fifteen values are the racket implementation's, ported hex for hex
+ * from `olai/web/theme.rkt` on the `master-racket` branch. Four of those are
  * that implementation's own (leaf, manuscript, chalk, pitch); the other eleven
  * are the WorkFlowy desktop themes' colour VALUES, and they were re-read off
  * those themes' own stylesheets rather than trusted second-hand — every row
  * below was checked against the `._theme-*` block it comes from, `var()` chains
  * resolved. Nothing else came across: their app draws a different app, and none
  * of its rules, names or markup are ours to keep. A hex is a fact about a
- * colour.
+ * colour. Two rows after that — reef, aurora — are ours, and are not a port
+ * of anything.
  *
  * Four of their themes are not here, and it is the same reason for all four:
  * `wood`, `steel` and `glass` are a photograph or a pane of glass over the
@@ -391,6 +392,47 @@ const TABLE = [
       done: "#4ED8A3",
       doing: "#DFE361",
       alarm: "#E8393F",
+    },
+  },
+
+  // ── ours, after the port ────────────────────────────────────────────
+  //
+  // The table used to end where the racket implementation ended. These two
+  // are not ports. They exist because a palette table that only remembers
+  // other people's rooms has no room that is ours to be in on purpose: reef
+  // is the lagoon under the palm, aurora is pitch with a sky.
+  {
+    name: "reef",
+    scheme: "light",
+    colors: {
+      paper: "#D7F0E8",
+      desk: "#C5E6DC",
+      panel: "#E8F7F2",
+      pill: "#B5DDD2",
+      ink: "#14352F",
+      muted: "#4E7A71",
+      rule: "#9CC9BE",
+      accent: "#C44E24",
+      done: "#1F7A58",
+      doing: "#C48418",
+      alarm: "#C13B4E",
+    },
+  },
+  {
+    name: "aurora",
+    scheme: "dark",
+    colors: {
+      paper: "#0A1220",
+      desk: "#121C30",
+      panel: "#1A2742",
+      pill: "#243352",
+      ink: "#D5E8F5",
+      muted: "#7A93B0",
+      rule: "#2A3C58",
+      accent: "#4EE0C8",
+      done: "#7EE0A8",
+      doing: "#F0C04A",
+      alarm: "#F07090",
     },
   },
 ] as const satisfies ReadonlyArray<Palette>
