@@ -50,16 +50,9 @@
  * #2187).
  */
 
-import {
-  type BrokenFile,
-  derive,
-  type Derived,
-  type Face,
-  patch,
-  type SetDelta,
-} from "@olai/format"
+import { type BrokenFile, derive, type Derived, type Face, patch } from "@olai/format"
 import type { Manifest, OutlineEntry } from "@olai/surface"
-import type { CollectionFold, UseCollectionResult } from "@kolu/surface/solid"
+import type { ReadOnlyBoundDeltasCollectionResult } from "@kolu/surface/solid"
 import { type Accessor, createMemo, untrack } from "solid-js"
 import { unwrap } from "solid-js/store"
 
@@ -86,16 +79,13 @@ export interface Outlines {
   readonly derived: Accessor<Derived | undefined>
 }
 
-/** The outlines collection, reduced to what this composition asks of it: the
- *  keys, one entry per key, and the FRAME SOCKET. Spelled structurally rather
- *  than as one of the framework's four result types, because those differ by
- *  what a caller reached them through — a bound `.use()` carries no `stream` of
- *  its own, an un-enrolled `useCollectionDeltas` does — and this module has no
- *  opinion about which door the frames came in by. */
-export interface OutlineEntries extends UseCollectionResult<string, OutlineEntry> {
-  readonly fold: CollectionFold<string, OutlineEntry>
-}
-
+/** The outlines collection as this composition asks for it: the keys, one entry
+ *  per key, and the FRAME SOCKET. The framework's own name for exactly that
+ *  shape — deliberately without the batched stream's health, which under a
+ *  `.use()` belongs to `client.health()` — so a caller may hand this either the
+ *  bound member or a raw `useCollectionDeltas`, and there is no second spelling
+ *  of somebody else's contract to keep in step at the next pin. */
+export type OutlineEntries = ReadOnlyBoundDeltasCollectionResult<string, OutlineEntry>
 
 /**
  * The composition, over the two members rather than over the wire.
@@ -167,12 +157,21 @@ export const createOutlines = (
    * the framework does not have (the snapshot is applied to the store before
    * any fold is seeded) and is written as a total function rather than as an
    * assertion about somebody else's ordering. `untrack` because a seed is not a
-   * READ: `init` also runs at registration time, and a dependency taken there
-   * would belong to whichever computation happened to call this function.
+   * READ: `init` also runs at registration time, in whatever scope called
+   * `createOutlines`, and a dependency taken there would belong to that
+   * computation rather than to this fold. It is here and not on
+   * `./chat/order.ts`'s fold because this is the only `init` in the tree that
+   * reads anything reactive at all — that one answers out of the entries it is
+   * handed.
    */
   const view = entries.fold({
     init: (all) =>
-      untrack(() => patch(EMPTY, seedOf(all, (file) => unwrap(entries.byKey(file)?.())))),
+      untrack(() =>
+        patch(EMPTY, {
+          upserts: seedOf(all, (file) => unwrap(entries.byKey(file)?.())),
+          removes: [],
+        })
+      ),
     step: patch,
   })
 
@@ -250,6 +249,16 @@ export const createOutlines = (
  * hand every record in the directory a new identity and cool every per-record
  * cache keyed by one.
  *
+ * IT IS A STOPGAP AND SAYS SO. The framework has this function already —
+ * `syntheticSnapshot`, which rebuilds a full-set frame out of the held store
+ * and is what a fold registered MID-STREAM is seeded from — and does not use it
+ * on the wire-snapshot path, so which of the two answers a fold gets depends on
+ * when it registered. That is one line upstream (`slot.seed(syntheticSnapshot())`)
+ * and it would be strictly cheaper than this, since the framework reads its raw
+ * dictionary where a consumer can only go through `byKey`. When it lands, THIS
+ * FUNCTION, its test, and `./outlines.bench.ts`'s `wire` arm are all deleted
+ * together.
+ *
  * A pure function of the frame and a lookup, because that is the whole of the
  * rule and because it is the one shape of this a test can hold: the fold around
  * it needs a reactive runtime the unit suite does not have (`bun test` resolves
@@ -263,10 +272,8 @@ export const createOutlines = (
 export const seedOf = (
   all: ReadonlyArray<readonly [file: string, entry: OutlineEntry]>,
   held: (file: string) => OutlineEntry | undefined,
-): SetDelta => ({
-  upserts: all.map(([file, arrived]) => [file, held(file) ?? arrived] as const),
-  removes: [],
-})
+): ReadonlyArray<readonly [file: string, entry: OutlineEntry]> =>
+  all.map(([file, arrived]) => [file, held(file) ?? arrived] as const)
 
 /** The view of a directory with nothing in it — what a full-set frame is patched
  *  onto, so the first frame and a reconnect are one arm rather than two. Minted

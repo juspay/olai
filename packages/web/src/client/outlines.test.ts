@@ -42,8 +42,8 @@ test("the seed takes the entry the store holds, not the one the frame carried", 
   const decoded = entryOf("a.olai", "one")
   expect(decoded).not.toBe(stored)
   const seed = seedOf([["a.olai", decoded]], () => stored)
-  expect(seed.upserts.map(([file]) => file)).toEqual(["a.olai"])
-  expect(seed.upserts[0]?.[1]).toBe(stored)
+  expect(seed.map(([file]) => file)).toEqual(["a.olai"])
+  expect(seed[0]?.[1]).toBe(stored)
 })
 
 test("the seed falls back to the frame's own entry where the store answers nothing", () => {
@@ -53,7 +53,7 @@ test("the seed falls back to the frame's own entry where the store answers nothi
   // somebody else's ordering.
   const decoded = entryOf("b.olai", "two")
   const seed = seedOf([["b.olai", decoded]], () => undefined)
-  expect(seed.upserts[0]?.[1]).toBe(decoded)
+  expect(seed[0]?.[1]).toBe(decoded)
 })
 
 test("the seed names every key the frame did, in the order the frame did", () => {
@@ -64,9 +64,5 @@ test("the seed names every key the frame did, in the order the frame did", () =>
     ["b.olai", entryOf("b.olai", "two")],
     ["a.olai", entryOf("a.olai", "one")],
   ] as const
-  const seed = seedOf(frame, () => undefined)
-  expect(seed.upserts.map(([file]) => file)).toEqual(["b.olai", "a.olai"])
-  // And nothing is removed: a snapshot is patched onto the empty view, so there
-  // is nothing standing for a remove to name.
-  expect(seed.removes).toEqual([])
+  expect(seedOf(frame, () => undefined).map(([file]) => file)).toEqual(["b.olai", "a.olai"])
 })

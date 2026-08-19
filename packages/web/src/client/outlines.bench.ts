@@ -71,6 +71,7 @@ import {
   outlineOf,
   retitled,
   retitledIn,
+  runtimeSaid,
   timed,
   timesSaid,
   vaultOf,
@@ -128,6 +129,19 @@ const controllable = (): { source: Stream.Stream<Frame>; push: Push } => {
   }
 }
 
+/**
+ * The same lanes, starting one further along.
+ *
+ * ALTERNATION, which is the measurement rather than a flourish: two arms run
+ * one after the other are two arms of a machine in two moods, and going last
+ * in a round is worth more than some of the differences this leg is asked to
+ * see. `@olai/format/testlib`'s `alternating` makes that argument for the
+ * synchronous legs and cannot serve here — it takes exactly two thunks and
+ * awaits nothing — so the rotation is written out, once, for both sections.
+ */
+const rotated = <T>(lanes: ReadonlyArray<T>, by: number): ReadonlyArray<T> =>
+  lanes.map((_, at) => lanes[(at + by) % lanes.length] as T)
+
 /** Let a pushed frame cross the stream's fiber and land: `setImmediate` runs
  *  after the microtask queue, which is where a frame's whole journey — the
  *  fiber, the store write, the folds, and the effects that observe them —
@@ -146,9 +160,9 @@ const entryOf = (file: string, text: string, rev: number): OutlineEntry => {
  *  snapshot. Called again per flap on purpose: a reconnect re-serializes the
  *  same content into NEW objects, and that is the thing the second section is
  *  about. */
-const snapshotOf = (rev = 1): Frame => ({
+const snapshotOf = (): Frame => ({
   kind: "snapshot",
-  entries: paths.map((file) => [file, entryOf(file, corpus.get(file) as string, rev)]),
+  entries: paths.map((file) => [file, entryOf(file, corpus.get(file) as string, 1)]),
 })
 
 /** Which file edit `which` rewrites — asked by the edit and by the guard that
@@ -257,41 +271,40 @@ const frameCost = async (push: Push, frame: Frame): Promise<number> => {
  * rotation is written out here).
  */
 const theFrame = async (): Promise<void> => {
-  const arms = [
-    ["frame", frameOnly()] as const,
-    ["view", viewOnly()] as const,
-    ["tab", wholeTab()] as const,
+  // Each lane carries its own samples, so what is timed and what is reported
+  // are one object rather than a name looked up in a table beside it.
+  const lanes = [
+    { name: "frame", end: frameOnly(), first: 0, times: [] as Array<number> },
+    { name: "view", end: viewOnly(), first: 0, times: [] as Array<number> },
+    { name: "tab", end: wholeTab(), first: 0, times: [] as Array<number> },
   ]
-  const first = new Map<string, number>()
-  for (const [name, end] of arms) {
-    first.set(name, await frameCost(end.push, snapshotOf()))
-    const said = end.said(fileFor(0))
+  // ONE snapshot for all three, like every frame below: the arms must be fed
+  // the same objects or they are not answering about one directory.
+  const snapshot = snapshotOf()
+  for (const lane of lanes) {
+    lane.first = await frameCost(lane.end.push, snapshot)
+    const said = lane.end.said(fileFor(0))
     if (said !== undefined) {
-      throw new Error(`${name} says it is at edit ${said} before any edit was made`)
+      throw new Error(`${lane.name} says it is at edit ${said} before any edit was made`)
     }
   }
-  const times = new Map(arms.map(([name]) => [name, [] as Array<number>]))
   for (let which = 0; which < EDITS; which++) {
     const frame = editOf(which)
-    // The SAME frame object reaches all three, and the rotation is what stops
-    // one of them always going first.
-    const order = arms.map((_, at) => arms[(at + which) % arms.length] as (typeof arms)[number])
-    for (const [name, end] of order) {
-      ;(times.get(name) as Array<number>).push(await frameCost(end.push, frame))
-      const said = end.said(fileFor(which))
+    for (const lane of rotated(lanes, which)) {
+      lane.times.push(await frameCost(lane.end.push, frame))
+      const said = lane.end.said(fileFor(which))
       if (said !== which) {
         throw new Error(
-          `${name} is at edit ${said ?? "none"} after edit ${which}` +
+          `${lane.name} is at edit ${said ?? "none"} after edit ${which}` +
             ` — the arm answered a frame it never recomputed`,
         )
       }
     }
   }
   console.log(`\nONE FILE EDITED, over ${EDITS} frames — what the tab pays for it`)
-  for (const [name] of arms) {
+  for (const lane of lanes) {
     console.log(
-      `  ${timesSaid(name, times.get(name) as Array<number>, 6)}` +
-        `   (first frame ${(first.get(name) as number).toFixed(2)}ms)`,
+      `  ${timesSaid(lane.name, lane.times, 6)}   (first frame ${lane.first.toFixed(2)}ms)`,
     )
   }
 }
@@ -316,7 +329,12 @@ const TYPED = "#topic7"
  *  January. */
 const TODAY = "2026-08-13"
 
-const searched = (view: Derived): number => matching(view, parseFilter(TYPED, TODAY)).length
+/** The query, parsed ONCE — out of the timed window, because parsing is not
+ *  searching and the column below says "one search". It is the same work in
+ *  both arms, so the gap was never wrong; the absolute number was. */
+const FILTER = parseFilter(TYPED, TODAY)
+
+const searched = (view: Derived): number => matching(view, FILTER).length
 
 /** An arm of the second section: a hook of its own, and a view seeded one of
  *  the two ways. */
@@ -358,64 +376,57 @@ const seededFromTheStore = (entries: OutlineEntries): (() => Derived | undefined
 }
 
 const theReconnect = async (): Promise<void> => {
-  const arms = [
-    ["wire", flapArm(seededFromTheWire)] as const,
-    ["held", flapArm(seededFromTheStore)] as const,
+  const lanes = [
+    { name: "wire", end: flapArm(seededFromTheWire), snapshots: [] as Array<number>, searches: [] as Array<number> },
+    { name: "held", end: flapArm(seededFromTheStore), snapshots: [] as Array<number>, searches: [] as Array<number> },
   ]
   // ONE SNAPSHOT for both, so both start out holding the same record objects —
   // and one search each, so both start WARM. What the flap does to that warmth
   // is the whole measurement.
   const first = snapshotOf()
-  for (const [, end] of arms) end.push(first)
+  for (const lane of lanes) lane.end.push(first)
   await settled()
-  const hits = new Set(arms.map(([, end]) => searched(end.view())))
-  if (hits.size !== 1 || (hits.values().next().value ?? 0) === 0) {
+  const hits = new Set(lanes.map((lane) => searched(lane.end.view())))
+  const expected = hits.values().next().value ?? 0
+  if (hits.size !== 1 || expected === 0) {
     throw new Error(
       `the two arms answer different searches (${[...hits].join(", ")})` +
         " — there is nothing to compare",
     )
   }
 
-  const times = new Map(arms.map(([name]) => [name, [] as Array<number>]))
-  const rebuilds = new Map(arms.map(([name]) => [name, [] as Array<number>]))
   for (let flap = 0; flap < FLAPS; flap++) {
     // A RECONNECT: the same content, re-serialized into fresh objects, which is
     // what the retry fence turns a transport drop into. Fresh per flap so the
     // cold arm cannot be warmed by its own previous answer.
     const again = snapshotOf()
-    const order = arms.map((_, at) => arms[(at + flap) % arms.length] as (typeof arms)[number])
-    for (const [name, end] of order) {
-      const rebuilt = await frameCost(end.push, again)
+    for (const lane of rotated(lanes, flap)) {
+      const rebuilt = await frameCost(lane.end.push, again)
       // The search itself is synchronous, so it is timed with the testlib's own
       // clock — the one every other `just bench` leg reports from.
       let answered = 0
       const cost = timed(() => {
-        answered = searched(end.view())
+        answered = searched(lane.end.view())
       })
-      if (answered !== hits.values().next().value) {
-        throw new Error(`${name} answered ${answered} hits after the flap, not ${
-          hits.values().next().value
-        } — the arm is not measuring what it says`)
+      if (answered !== expected) {
+        throw new Error(
+          `${lane.name} answered ${answered} hits after the flap, not ${expected}` +
+            " — the arm is not measuring what it says",
+        )
       }
-      ;(rebuilds.get(name) as Array<number>).push(rebuilt)
-      ;(times.get(name) as Array<number>).push(cost)
+      lane.snapshots.push(rebuilt)
+      lane.searches.push(cost)
     }
   }
   console.log(`\nA LINK FLAP, over ${FLAPS} reconnects — the snapshot, then one search`)
-  for (const [name] of arms) {
+  for (const lane of lanes) {
     console.log(
-      `  ${name.padEnd(6)} snapshot ${
-        median(rebuilds.get(name) as Array<number>).toFixed(2)
-      }ms   then one search ${median(times.get(name) as Array<number>).toFixed(2)}ms`,
+      `  ${lane.name.padEnd(6)} snapshot ${median(lane.snapshots).toFixed(2)}ms` +
+        `   then one search ${median(lane.searches).toFixed(2)}ms`,
     )
   }
 }
 
-console.log(
-  `vault: ${corpus.size} files, ${records} records\n` +
-    `runtime: ${
-      process.versions.bun !== undefined ? `bun ${process.versions.bun}` : `node ${process.version}`
-    }`,
-)
+console.log(`vault: ${corpus.size} files, ${records} records\n${runtimeSaid()}`)
 await theFrame()
 await theReconnect()

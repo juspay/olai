@@ -20,7 +20,7 @@
  * array it answered with last time.
  *
  * THAT IDENTITY IS THE SECOND HALF, and it is worth as much as the sort:
- * `<For>` diffs its list, and `../chat/Transcript.tsx`'s `previousOf` — the
+ * `<For>` diffs its list, and `./Transcript.tsx`'s `previousOf` — the
  * map from each row to the one drawn above it — is a memo over it. A fresh
  * array per frame woke both on every token the agent streamed; the same array
  * wakes neither, which is what that memo's own docstring already claimed and
@@ -57,9 +57,14 @@ export interface Ordered {
 /** The list in `seq` order, out of the working map. Ties fall to the order the
  *  keys were first seen, because `sort` is stable over a map's own insertion
  *  order — which is the same tie-break the per-frame sort had, since it sorted
- *  the collection's arrival-ordered key list. */
+ *  the collection's arrival-ordered key list.
+ *
+ *  It sorts the ENTRIES and drops the numbers afterwards rather than sorting
+ *  the keys and looking each one up again: the iterator materialises the pairs
+ *  either way, and a comparator that asks the map costs two lookups per
+ *  comparison in the one module whose whole argument is what a frame costs. */
 const ordered = (seq: Map<string, number>): ReadonlyArray<string> =>
-  [...seq.keys()].sort((one, other) => (seq.get(one) ?? 0) - (seq.get(other) ?? 0))
+  [...seq].sort(([, one], [, other]) => one - other).map(([key]) => key)
 
 /**
  * The fold: seed from a full-set frame, and step one delta.
@@ -116,7 +121,7 @@ const NO_ROWS: ReadonlyArray<string> = []
  * and the framework declares a fold's accessor `equals: false` — it cannot know
  * whether a consumer's accumulator is a value — so that sameness has to be
  * COMPARED somewhere or it buys nothing. A memo is where: it compares with
- * `===`, so `<For>` and `../chat/Transcript.tsx`'s `previousOf` re-run when a
+ * `===`, so `<For>` and `./Transcript.tsx`'s `previousOf` re-run when a
  * row arrives or leaves and on none of the frames that merely grow one. Split
  * across two modules, the claim and the thing that cashes it were an unenforced
  * rule; here they are one function.
