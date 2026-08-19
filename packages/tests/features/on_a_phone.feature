@@ -95,7 +95,7 @@ Feature: On a phone
     And I mark the page
     When I tap the bullet of "kitchen"
     Then the zoomed node is "kitchen"
-    And the address is "/n/kitchen"
+    And the address is "/#kitchen"
     And the page has not reloaded
 
   @corpus:good @phone
@@ -174,7 +174,7 @@ Feature: On a phone
     Then the node menu is open
     When I tap "Move to Trash" in the node menu
     Then the node menu asks "Move “kitchen remodel #home” and the 7 rows under it to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back."
-    And the address is "/o/house.olai"
+    And the address is "/house.olai"
     And the page has not reloaded
 
   @corpus:good @phone
@@ -226,7 +226,7 @@ Feature: On a phone
     When I let the finger go
     Then no row is in the air
     # The click a lift synthesises, eaten: under this finger is an `<a href>`.
-    And the address is "/o/house.olai"
+    And the address is "/house.olai"
     And the page has not reloaded
     # ...and only that one. A plain tap is still the navigation it always was.
     When I tap the bullet of "kitchen"
@@ -242,7 +242,7 @@ Feature: On a phone
     And the drop line would put it first
     When I let the finger go
     Then the node "knobs" comes before "handles"
-    And the address is "/o/house.olai"
+    And the address is "/house.olai"
     And there should be no page errors
 
   @corpus:good @phone
@@ -265,7 +265,7 @@ Feature: On a phone
     Given I open the outline "house.olai"
     When I tap the burger
     And I tap the outline "garden.olai"
-    Then the address is "/o/garden.olai"
+    Then the address is "/garden.olai"
     And the node "herbs" is shown
 
   @corpus:journal @phone

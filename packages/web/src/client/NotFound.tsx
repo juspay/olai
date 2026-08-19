@@ -1,7 +1,7 @@
 /**
  * A permalink that no longer names a page.
  *
- * Ids survive renames and moves, so a `/n/<id>` that stops working is real
+ * Ids survive renames and moves, so a `/#<id>` that stops working is real
  * news: the node was deleted, or the outline holding it is no longer served.
  * The page says which of the three things happened — nothing declares the id,
  * a mirror chain from it dies on a missing target, or the chain closes on

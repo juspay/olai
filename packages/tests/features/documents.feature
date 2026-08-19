@@ -20,7 +20,7 @@ Feature: Documents
     Given I mark the page
     When I click the document "notes/palette.md"
     Then the document open is "notes/palette.md"
-    And the address is "/doc/notes/palette.md"
+    And the address is "/notes/palette.md"
     # A route, not a reload: the page answered in place.
     And the page has not reloaded
     And there should be no page errors
@@ -43,7 +43,7 @@ Feature: Documents
     Then the palette lists the document "notes/palette.md"
     When I pick the palette item "palette.md"
     Then the document open is "notes/palette.md"
-    And the address is "/doc/notes/palette.md"
+    And the address is "/notes/palette.md"
     # A route, not a reload: the same page the sidebar's row opens.
     And the page has not reloaded
     And there should be no page errors
@@ -58,12 +58,12 @@ Feature: Documents
     Then the header search lists the document "notes/palette.md"
     When I press the header search result "palette.md"
     Then the document open is "notes/palette.md"
-    And the address is "/doc/notes/palette.md"
+    And the address is "/notes/palette.md"
     And there should be no page errors
 
   # A folder is a way in, and an outline is not a document: the rows are the
-  # files a `/doc/` address opens, which is the registry's answer rather than a
-  # list of suffixes written out here.
+  # files whose address opens a BODY, which is the registry's answer rather
+  # than a list of suffixes written out here.
   @corpus:good
   Scenario: The palette's document rows are the bodied files, matched by path
     Given I open the outline "house.olai"
@@ -255,7 +255,7 @@ Feature: Documents
     And I mark the page
     When I follow the document link on "install"
     Then the document open is "finishes.md"
-    And the address is "/doc/finishes.md"
+    And the address is "/finishes.md"
     And the page has not reloaded
 
   @corpus:good

@@ -9,10 +9,12 @@
  * column that holds a row, is a local change to the codec and the
  * projection rather than a rewrite of every reader.
  *
- * The address of a one-level row is the address this app has always
- * written for a split (`/s/` + encoded hrefs, optional `?w=` and `?f=`).
- * Axis and nesting have a place to grow (`?a=`, `?t=`) that a one-level
- * row does not write, so existing links stay byte-for-byte.
+ * The address of a one-level row is a `/s/` list of encoded hrefs, with
+ * optional `?w=` and `?f=`. Axis and nesting have a place to grow (`?a=`,
+ * `?t=`) that a one-level row does not write, so the flat shape stays the
+ * flat shape. What each SEGMENT spells is one page's own address, whatever
+ * that is — the segments changed when the addresses did (`./routes.ts`), and
+ * this codec did not, which is the division it was built for.
  *
  * Pure: parsing and printing live beside each other, as `./routes.ts`
  * does, and the test that says so is the only thing standing between a

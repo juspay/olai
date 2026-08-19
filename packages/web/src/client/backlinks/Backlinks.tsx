@@ -31,7 +31,7 @@
  * SUMMARY needs only the count, which is a length.
  *
  * KEYED ON THE NODE, for the reason the contents is: `open` is an attribute the
- * browser then owns, so a page reused from `/n/a` to `/n/b` would carry the
+ * browser then owns, so a page reused from `/#a` to `/#b` would carry the
  * reader's answer about the first node onto the second. A different node is a
  * different element by construction — and the signal is reset with it, since it
  * is created inside the keyed block. It is NOT keyed on the count: the section
@@ -65,7 +65,7 @@ export function Backlinks(props: {
     // ONE `<Show>`, keyed on the node while there is anything to say about it.
     // It carries both rules at once: a node nobody refers to draws NOTHING (the
     // absence is the answer, as it is for every relation row on this page), and
-    // a page reused from `/n/a` to `/n/b` gets a NEW element rather than the
+    // a page reused from `/#a` to `/#b` gets a NEW element rather than the
     // reader's answer about the first node. Two nested `Show`s said the same
     // thing in two places and left the second free to stop keying.
     <Show when={found().length > 0 ? props.id : undefined} keyed>

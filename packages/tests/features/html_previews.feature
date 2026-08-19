@@ -33,7 +33,7 @@ Feature: A `.html` in the vault
     Given I mark the page
     When I click the page "report.html"
     Then the document open is "report.html"
-    And the address is "/doc/report.html"
+    And the address is "/report.html"
     # A route, not a reload: the page answered in place, exactly as a document's
     # link does.
     And the page has not reloaded
@@ -97,7 +97,7 @@ Feature: A `.html` in the vault
     # tried to write into, and the address it tried to take the tab to.
     And the app's storage is untouched by the preview
     And the app's page is untouched by the preview
-    And the address is "/doc/report.html"
+    And the address is "/report.html"
     # The browser's own account, from the other side: it refused the addresses
     # and the base, said so, and nothing else went wrong — and nothing in there
     # complains about a script, because a script running is what is supposed to
@@ -203,7 +203,7 @@ Feature: A `.html` in the vault
     # one navigation, because the complaint about what #206 shipped was that the
     # frame moved and none of these did.
     Then the document open is "notes/second.html"
-    And the address is "/doc/notes/second.html"
+    And the address is "/notes/second.html"
     And the sidebar marks the page "notes/second.html" as the one open
     # …and nothing was said, because nothing went wrong: the refusal below is
     # drawn for a click this app could not answer, never for one it could.
@@ -220,8 +220,8 @@ Feature: A `.html` in the vault
   Scenario: A link to an outline beside the page opens the outline
     # THE THIRD KIND, and the one that goes to a different page shape. A vault
     # is outlines as well as prose, so a saved page sitting in one can link at
-    # `house.olai` beside it — and an outline is not read at `/doc/` like the
-    # other two, it is a TREE at `/o/`. Which page a path opens at is not a
+    # `house.olai` beside it — and an outline is not drawn as a body like the
+    # other two, it is a TREE. Which page a path opens at is not a
     # question the frame can answer or needs to: the seal claims the click
     # because the registry claims the suffix, and the app looks the path up in
     # whichever list holds it (`page.ts`'s `opensAt`).
@@ -240,7 +240,7 @@ Feature: A `.html` in the vault
     And I click the page "atlas.html"
     Then the preview shows the heading "Atlas"
     When I click "#tree" inside the preview
-    Then the address is "/o/house.olai"
+    Then the address is "/house.olai"
     And the outline list is shown
     # A route, not a reload — the same in-place navigation the sidebar's own
     # click on that outline makes.
@@ -268,13 +268,13 @@ Feature: A `.html` in the vault
     Then the preview shows the heading "Index"
     When I click "#note" inside the preview
     Then the document open is "notes/palette.md"
-    And the address is "/doc/notes/palette.md"
+    And the address is "/notes/palette.md"
 
   @scratch:good
   Scenario: A link carrying a fragment opens the page AND lands on the section
     # THE CARVE-OUT IS GONE, and this is what replaced it. `other.html#beds`
     # names two things — a file olai has a page for, and a place inside it — and
-    # until the `/doc/` page could land on a section the honest answer was to
+    # until the document page could land on a section the honest answer was to
     # leave the whole click to the frame. It can now, so the link carries: the
     # app opens the neighbour's page AND arrives at the section.
     #
@@ -303,8 +303,7 @@ Feature: A `.html` in the vault
     # is what makes the section a thing a reader can copy out of the bar and
     # send, rather than a scroll position this tab happens to be at.
     Then the document open is "notes/second.html"
-    And the address is "/doc/notes/second.html"
-    And the address carries the anchor "#beds"
+    And the address is "/notes/second.html#beds"
     And the page has not reloaded
     # …and the page landed there. For a `.html` that is the frame's own URL
     # carrying the fragment, so the browser does the scrolling — the same thing
@@ -418,7 +417,7 @@ Feature: A `.html` in the vault
     # The frame jumped inside itself…
     Then the preview is at the anchor "#end"
     # …and the app did not move at all: no navigation, no history, no address.
-    And the address is "/doc/notes/long.html"
+    And the address is "/notes/long.html"
     And the document open is "notes/long.html"
     And the page has not reloaded
 
@@ -574,8 +573,7 @@ Feature: A `.html` in the vault
     Then the preview shows the heading "Index"
     When I click "#slats" inside the preview
     Then the document open is "notes/beds.md"
-    And the address is "/doc/notes/beds.md"
-    And the address carries the anchor "#slats"
+    And the address is "/notes/beds.md#slats"
     # The section the link named is the one the reader is looking at — read as
     # the page's own scroll rather than as the address, since the address is
     # what the two lines above already say.
@@ -793,7 +791,7 @@ Feature: A `.html` in the vault
     And the preview stays on the heading "Second"
     # The app never moved. This was the FRAME's navigation, not a click handed
     # out, and nothing about it is the app's to answer.
-    And the address is "/doc/notes/sender.html"
+    And the address is "/notes/sender.html"
     And the document open is "notes/sender.html"
     And the page has not reloaded
 
@@ -835,7 +833,7 @@ Feature: A `.html` in the vault
     # The page's own handler ran…
     Then the preview says "this page answered it"
     # …and neither the app nor the frame moved: the press was the page's.
-    And the address is "/doc/notes/spa.html"
+    And the address is "/notes/spa.html"
     And the page has not reloaded
     And the preview shows the heading "Spa"
 
@@ -867,7 +865,7 @@ Feature: A `.html` in the vault
     And I click the page "notes/first.html"
     Then the preview shows the heading "First"
     When I meta-click "#next" inside the preview
-    Then the address is "/doc/notes/first.html"
+    Then the address is "/notes/first.html"
     And the document open is "notes/first.html"
     And the page has not reloaded
 
@@ -891,7 +889,7 @@ Feature: A `.html` in the vault
     Then the preview shows the heading "Gallery"
     When I click "#shot" inside the preview
     # The app did not move — this was never its click…
-    Then the address is "/doc/gallery.html"
+    Then the address is "/gallery.html"
     And the page has not reloaded
     # …and the frame went, found something that does not greet, and was brought
     # home to the file, which is where the reader can see it.
@@ -908,7 +906,7 @@ Feature: A `.html` in the vault
     # file is servable and unlistable at once, and the click is claimed and then
     # dropped.
     #
-    # Nothing became unreachable: `/doc/` refuses that path too, so olai has no
+    # Nothing became unreachable: the app refuses that path too, so olai has no
     # page for it either. What is lost is the FRAME drawing it, which is what
     # #206 did — and losing it silently is why this scenario exists. Both halves
     # are read, because "the click did nothing" alone would also be true of a
@@ -935,7 +933,7 @@ Feature: A `.html` in the vault
     When I click "#vendored" inside the preview
     # The click was claimed by the seal — so the frame did not follow it — and
     # then dropped by the app, which holds no page for that path.
-    Then the address is "/doc/vendor.html"
+    Then the address is "/vendor.html"
     And the page has not reloaded
     And the preview shows the heading "Vendor"
     # …and the reader is TOLD, which is the half a dropped click owes them:
@@ -975,13 +973,13 @@ Feature: A `.html` in the vault
     # ONE entry, for the reader's own click on the sidebar — and none at all for
     # the twelve the page asked for.
     And the history has grown by 1
-    Then the address is "/doc/itself.html"
+    Then the address is "/itself.html"
     And the document open is "itself.html"
     And the page has not reloaded
     # …and the reader's half: a plain click at a link to this very page.
     When I click "#again" inside the preview
     Then the history has grown by 1
-    And the address is "/doc/itself.html"
+    And the address is "/itself.html"
     And the preview shows the heading "Itself"
     # NOTHING IS SAID about it, and that is the one place this parts company
     # with a click the app could not answer. A miss is owed its reason; a
@@ -1011,15 +1009,15 @@ Feature: A `.html` in the vault
     When I rewrite "forger.html" as a page that posts forged addresses at the app
     And I click the page "forger.html"
     Then the preview shows the heading "Forger"
-    And the address is "/doc/forger.html"
+    And the address is "/forger.html"
     And the document open is "forger.html"
     # …and neither does a well-formed message from something that is not the
     # frame: the sender is identified by IDENTITY, since every sandboxed frame
     # on the internet posts from the same opaque origin.
     When something other than the preview asks the app to open "finishes.md"
-    Then the address is "/doc/forger.html"
+    Then the address is "/forger.html"
     When I click "#honest" inside the preview
-    Then the address is "/doc/finishes.md"
+    Then the address is "/finishes.md"
     And the document open is "finishes.md"
 
   @corpus:good
@@ -1346,7 +1344,7 @@ Feature: A `.html` in the vault
     # risk and is asserted anyway, because that is what a probe is for.
     And the app's storage is untouched by the preview
     And the app's page is untouched by the preview
-    And the address is "/doc/runaway.html"
+    And the address is "/runaway.html"
 
   @scratch:good
   Scenario: A link out of a preview comes home to the sealed document
@@ -1476,5 +1474,5 @@ Feature: A `.html` in the vault
     And I mark the page
     When I follow the link "the quote" in the rendered markdown
     Then the document open is "report.html"
-    And the address is "/doc/report.html"
+    And the address is "/report.html"
     And the page has not reloaded

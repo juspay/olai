@@ -474,8 +474,8 @@ const MEASURE = `(function () {
  *     walk-off scenarios;
  *   - a file olai has a PAGE for, by suffix ({@link FILE_EXTS} — every kind the
  *     registry claims: a `.html`, a `.md`, and an outline beside them). WHICH
- *     page is not asked here and could not be: a `.md` and a `.html` are read at
- *     `/doc/` and an outline is a tree at `/o/`, and the app routes the path to
+ *     page is not asked here and could not be: a `.md` and a `.html` are drawn as
+ *     bodies and an outline as a tree, and the app routes the path to
  *     whichever list holds it. Everything else under the route is a part a page
  *     draws ITSELF with — a picture, a stylesheet, a font — and a link to one is
  *     a link to a file, which the frame goes on following exactly as it did.
@@ -485,7 +485,7 @@ const MEASURE = `(function () {
  *     already looking at, and there is nothing for the app to do with one: the
  *     frame keeps it, because a page scrolling itself is not a navigation.
  *     `other.html#beds` IS one — it names another file and a place inside it —
- *     and it is claimed, fragment and all, because the `/doc/` page can land on
+ *     and it is claimed, fragment and all, because the document page can land on
  *     a section now (`@olai/web`'s `routes.ts` carries it, and the two faces do
  *     the landing by two different mechanisms). Same document is the whole
  *     test, which is why it is a comparison against `location.pathname` rather

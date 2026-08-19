@@ -113,15 +113,15 @@ One place a matched row still lights nothing, named so it is not mistaken for a 
 
 | page | what a filter takes away | what stays |
 |---|---|---|
-| `/o/<file>`, `/n/<id>` | every row that did not match | the matches, their subtrees, and the ancestors that lead to one |
+| `/<file>.olai`, `/#<id>` | every row that did not match | the matches, their subtrees, and the ancestors that lead to one |
 | `/d/<date>`, `/today` | every row that did not match, and an outline heading left with none | the matches — and their ancestry, which was never a row |
 | `/agenda` | the same, per day of the spine; a day left with nothing leaves the line, and the silences either side of it close up into one longer wait | the matches, under the days that still hold one — and no line at all when none do |
 | `/trash` | the same as a tree, per archive; an archive left with nothing goes | the matches, their subtrees, and the scaffold that says where the pile came from |
-| `/doc/<file>` | — no box, and no `?q=` in the address | — |
+| `/<file>.md` | — no box, and no `?q=` in the address | — |
 
 **A day and the agenda keep no context, and that is not a shortcut.** Their rows are flat and every one already arrives with the crumb that says what it is about, which is what those pages are FOR. So "matches keep their ancestors" is true of every row before a query touches it, and what is left after one is exactly what matched.
 
-**A day's note leaves while a filter is on.** It is a document — prose, which is exactly why `/doc/` is the one address with no `?q=` — so it can never be a match, and a day answering a query with somebody's prose plus no rows would be answering something nobody asked. Clearing the box brings the day back whole.
+**A day's note leaves while a filter is on.** It is a document — prose, which is exactly why a document is the one page with no `?q=` on its address — so it can never be a match, and a day answering a query with somebody's prose plus no rows would be answering something nobody asked. Clearing the box brings the day back whole.
 
 **The trash searches WITHIN what it shows.** Archived nodes are out of every other reading unless the query says `is:archived` (below) — because those doors are searching the directory. This one is not: it tests the rows in front of you, and the trash IS the archive, so a word typed there finds what was put away. Read-only is a fact about the page's one verb, Put back; it was never a claim that a pile cannot be looked through.
 
@@ -129,7 +129,7 @@ One place a matched row still lights nothing, named so it is not mistaken for a 
 
 **And it is the only page that shows them.** *(Ruled 2026-08-17, reversing what shipped a day earlier.)* **What is archived is drawn on the Trash and nowhere else** — not on a day, not on the agenda, not in the calendar's dots, not on any page but the one that is the archive. A day used to collect every dated node wherever it was filed, and the agenda read those same dates forward, so work put away after somebody scheduled it went on being owed; what that meant in front of a reader is that putting something away did not take it off the page they had put it away from. Archiving is somebody saying they are done looking at a thing, and the Trash is where it is looked at again.
 
-**Reachability is untouched, and that is the other half of the rule.** `is:archived` still selects archived nodes at every door — the agent's `search_nodes`, the ⌘K palette, the header box, and the filter on whatever page you are standing on — and `is:archived date:2026-08-11` still answers with the archived work of that day. What the ruling took away is the DEFAULT presence, never the way to ask. Clicking such a hit opens `/n/<id>` on the archived node, and the filter searches that page the way it searches the pile it came out of.
+**Reachability is untouched, and that is the other half of the rule.** `is:archived` still selects archived nodes at every door — the agent's `search_nodes`, the ⌘K palette, the header box, and the filter on whatever page you are standing on — and `is:archived date:2026-08-11` still answers with the archived work of that day. What the ruling took away is the DEFAULT presence, never the way to ask. Clicking such a hit opens `/#<id>` on the archived node, and the filter searches that page the way it searches the pile it came out of.
 
 **What the rule is about is a page's own reading of the set.** Two things still name an archived node on a live page, and both are a reference somebody TYPED rather than a page collecting rows: a **mirror** placed before (or after) the node was put away goes on resolving to it — the archive is one set with the outlines beside it, which is why nothing that pointed at a subtree breaks when it is archived ([the ops layer's own rule](../packages/ops/README.md)) — and a `see` / `after` pill draws its target's title wherever the edge was declared. Whether archiving should retire those too is a ruling about the SET, not about a view, and it is filed with the other one ([brainstorming/editing-web.md](brainstorming/editing-web.md)'s Open) rather than decided by the page that would draw it. Blockedness already answers half of it: an archived target holds nothing up.
 

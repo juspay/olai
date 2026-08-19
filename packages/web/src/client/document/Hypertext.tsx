@@ -362,7 +362,7 @@ export function Hypertext(props: { readonly file: string }) {
    * What arrives is a path from a document running somebody else's JavaScript,
    * so it is a LOOKUP KEY and nothing else: it is handed to the page model
    * (`../opens.tsx`, `../page.ts`'s `opensAt`), which answers with the route
-   * that draws that file — its `/doc/` page for a `.md` or a `.html`, its `/o/`
+   * that draws that file — the body page for a `.md` or a `.html`, the tree
    * page for an outline — or with nothing, and nothing moves nothing.
    *
    * THAT MEMBERSHIP IS THE WHOLE GUARANTEE — one question, asked by the module
@@ -375,7 +375,7 @@ export function Hypertext(props: { readonly file: string }) {
    *
    * WHICH PAGE is deliberately not decided here either. This component knows
    * that a path either opens somewhere or does not; that a `.md` is read at
-   * `/doc/` while an outline is a tree at `/o/` is the page model's, and a
+   * a body while an outline is a tree is the page model's, and a
    * preview frame is the last place that should hold a second copy of it.
    *
    * A MISS MOVES NOTHING, deliberately, and the tempting alternative is worth

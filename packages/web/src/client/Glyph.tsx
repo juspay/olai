@@ -9,7 +9,7 @@
  * does not, and the hourglass when it cannot start yet. `./marks.tsx` draws each
  * face and argues the tones; this file is the cell, its link and its states.
  *
- * ONE PROMISE KEPT FROM THE BULLET: pressing it goes to `/n/<id>`, wherever the
+ * ONE PROMISE KEPT FROM THE BULLET: pressing it goes to `/#<id>`, wherever the
  * node is drawn — a row in a tree, an entry on a day. That is now true of the
  * MARK as well, which is a widening worth naming and not a promise this app did
  * not already make: the blocked face was a link before this, for the same

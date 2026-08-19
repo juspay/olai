@@ -28,18 +28,18 @@ Feature: Pinning a page to the sidebar
   Scenario: A node pinned from the row menu appears on the shelf, and in the file
     When I open the node menu of "order"
     And I choose "Pin to sidebar" from the node menu
-    Then the pinned shelf holds "/n/order"
+    Then the pinned shelf holds "/#order"
     # Minted where olai puts the files it names itself, not at the top level of
     # somebody else’s directory.
-    And "_olai/Pins.olai" holds a node titled "/n/order"
-    And the pin "/n/order" is named "order the new cabinets"
+    And "_olai/Pins.olai" holds a node titled "/#order"
+    And the pin "/#order" is named "order the new cabinets"
     And there should be no page errors
 
   Scenario: The shelf says the node's name RIGHT NOW, not the one it was pinned under
     When I open the node menu of "order"
     And I choose "Pin to sidebar" from the node menu
     And the file "house.olai" renames "order" to "order the walnut ones"
-    Then the pin "/n/order" is named "order the walnut ones"
+    Then the pin "/#order" is named "order the walnut ones"
 
   Scenario: A pinned node is offered the way off the shelf instead
     When I open the node menu of "order"
@@ -51,45 +51,45 @@ Feature: Pinning a page to the sidebar
   Scenario: The page a reader has narrowed is pinned WITH its query, and opens with it
     When I filter the page by "is:todo"
     And I pin the page
-    Then the pinned shelf holds "/o/house.olai?q=is%3Atodo"
+    Then the pinned shelf holds "/house.olai?q=is%3Atodo"
     When I open the outline "garden.olai"
-    And I follow the pin "/o/house.olai?q=is%3Atodo"
+    And I follow the pin "/house.olai?q=is%3Atodo"
     # The WHOLE bar, not the path: a door that dropped the query would pass a
     # step that only read the path, and would open a different page.
-    Then the address is exactly "/o/house.olai?q=is%3Atodo"
+    Then the address is exactly "/house.olai?q=is%3Atodo"
     And the filter box holds "is:todo"
 
   Scenario: A document is a door like any other
     When I open the document "finishes.md"
     And I pin the page
-    Then the pinned shelf holds "/doc/finishes.md"
-    And the pin "/doc/finishes.md" is named "finishes.md"
+    Then the pinned shelf holds "/finishes.md"
+    And the pin "/finishes.md" is named "finishes.md"
 
   Scenario: The chord is a toggle over one address, and mints the shelf under _olai/
     When I pin the page
-    Then the pinned shelf holds "/o/house.olai"
+    Then the pinned shelf holds "/house.olai"
     # WHERE a shelf is minted: a file olai made because somebody pressed
     # something is not one of the reader's own, and the top level of a served
     # directory is theirs.
-    And "_olai/Pins.olai" holds a node titled "/o/house.olai"
+    And "_olai/Pins.olai" holds a node titled "/house.olai"
     When I pin the page
     Then the pinned shelf is not drawn
     # Unpinning is the set's own removal, so it is reversible rather than gone.
-    And "_olai/Archive.olai" holds a node titled "/o/house.olai"
+    And "_olai/Archive.olai" holds a node titled "/house.olai"
 
   Scenario: A pin is taken off the shelf from the shelf
     When I pin the page
-    And I unpin "/o/house.olai"
+    And I unpin "/house.olai"
     Then the pinned shelf is not drawn
 
   Scenario: Pins are ordered by the file, and a drag reorders them
     Given the directory has the pins:
-      | /n/order  |
-      | /n/demo   |
+      | /#order  |
+      | /#demo   |
       | /agenda   |
-    Then the pinned shelf reads "/n/order /n/demo /agenda"
-    When I drag the pin "/agenda" above "/n/order"
-    Then the pinned shelf reads "/agenda /n/order /n/demo"
+    Then the pinned shelf reads "/#order /#demo /agenda"
+    When I drag the pin "/agenda" above "/#order"
+    Then the pinned shelf reads "/agenda /#order /#demo"
     And there should be no page errors
 
   Scenario: Pins.olai opened as an outline reads like an outline
@@ -98,15 +98,15 @@ Feature: Pinning a page to the sidebar
     # NOTHING BUT an address is drawn as the page it names, wherever it is
     # drawn, which is one resolver rather than a case per page.
     Given the directory has the pins:
-      | /doc/finishes.md |
-      | /n/order         |
+      | /finishes.md |
+      | /#order         |
     When I open the outline "Pins.olai"
     Then the node "p0" reads "finishes.md"
     And the node "p1" reads "order the new cabinets"
     # …and it is still the address underneath: what the editor opens is the
     # source, exactly as it is for a markdown title.
     When I click the title of "p1"
-    Then the editor holds "/n/order"
+    Then the editor holds "/#order"
     And there should be no page errors
 
   Scenario: A pin written as a link draws its NAME, and pressing it opens the address
@@ -115,9 +115,9 @@ Feature: Pinning a page to the sidebar
     # drawn beside it either way, because a name renames the PIN and never the
     # destination.
     Given the directory has the pins:
-      | [Kitchen project](/n/order)          |
+      | [Kitchen project](/#order)          |
       | [What is late](/agenda?q=is%3Atodo)  |
-    Then the pin "/n/order" is named "Kitchen project"
+    Then the pin "/#order" is named "Kitchen project"
     And the pin "/agenda?q=is%3Atodo" is named "What is late"
     And the pin "/agenda?q=is%3Atodo" carries the query "is:todo"
     When I open the outline "Pins.olai"
@@ -127,7 +127,7 @@ Feature: Pinning a page to the sidebar
     Then the node "p0" reads "Kitchen project"
     And the node "p1" reads "What is late is:todo"
     When I press the name of "p0"
-    Then the address is "/n/order"
+    Then the address is "/#order"
     And the page has not reloaded
 
   Scenario: A label is the words somebody chose, not markup
@@ -135,8 +135,8 @@ Feature: Pinning a page to the sidebar
     # a face that restyled part of it would be making a claim about the
     # directory out of somebody's punctuation.
     Given the directory has the pins:
-      | [Kitchen #home](/n/order) |
-    Then the pin "/n/order" is named "Kitchen #home"
+      | [Kitchen #home](/#order) |
+    Then the pin "/#order" is named "Kitchen #home"
     When I open the outline "Pins.olai"
     Then the node "p0" reads "Kitchen #home"
     And the node "p0" draws no tag
@@ -155,12 +155,12 @@ Feature: Pinning a page to the sidebar
     # MID-DRAG here, which is what the window-edge autoscroll used to do on the
     # reader's behalf.
     Given the directory has the pins:
-      | /n/order  |
-      | /n/demo   |
+      | /#order  |
+      | /#demo   |
       | /agenda   |
     When I open the document "kitchen-sink.md"
-    And I drag the pin "/agenda" above "/n/order" while the page scrolls
-    Then the pinned shelf reads "/agenda /n/order /n/demo"
+    And I drag the pin "/agenda" above "/#order" while the page scrolls
+    Then the pinned shelf reads "/agenda /#order /#demo"
     And there should be no page errors
 
   Scenario: A title spelled with an escape nothing can read takes nothing down
@@ -168,9 +168,9 @@ Feature: Pinning a page to the sidebar
     # `decodeURIComponent("%")` throws — which during render is the whole
     # sidebar, not one skipped row.
     Given the directory has the pins:
-      | /n/%     |
-      | /n/order |
-    Then the pinned shelf reads "/n/order"
+      | /#%     |
+      | /#order |
+    Then the pinned shelf reads "/#order"
     And the outline list links to "house.olai"
     And there should be no page errors
 
@@ -178,10 +178,10 @@ Feature: Pinning a page to the sidebar
     # `Pins.olai` is an ordinary outline: a heading or a note in it is a thing
     # somebody may write, and a title that merely begins with a slash is text.
     Given the directory has the pins:
-      | /n/order          |
+      | /#order          |
       | the ones I keep   |
       | /etc/passwd       |
-    Then the pinned shelf reads "/n/order"
+    Then the pinned shelf reads "/#order"
 
   Scenario: A pin an agent wrote arrives without a reload
     When the directory grows a pin to "/agenda"

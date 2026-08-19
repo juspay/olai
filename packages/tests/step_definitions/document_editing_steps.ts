@@ -136,7 +136,7 @@ Given(
   "a second tab opens the document {string}",
   async function (this: OlaiWorld, file: string) {
     other = await this.context.newPage();
-    await other.goto(`${this.baseUrl}/doc/${file}`);
+    await other.goto(`${this.baseUrl}/${file}`);
     await other
       .locator(DOCUMENT_EDITOR)
       .waitFor({ state: "detached", timeout: HYDRATION_TIMEOUT });

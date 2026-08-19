@@ -59,7 +59,7 @@ Feature: The outline and the chat point at each other
     # zoomed page draws that node too, with the same attribute on it, so a
     # press that always navigated would satisfy every other line here. The
     # address is what tells the two apart.
-    And the address is "/o/house.olai"
+    And the address is "/house.olai"
 
   @scratch:chat
   Scenario: An id the agent named in its own prose is a reference, and nothing else is
@@ -70,7 +70,7 @@ Feature: The outline and the chat point at each other
     Then the agent's answer names the node "order"
     When I press the node "order" in the answer
     Then the node "order" is focused
-    And the address is "/o/house.olai"
+    And the address is "/house.olai"
     # ...and the same backticks around something the set does not declare stay
     # what they are. An agent writes them around file names and flags all day.
     When I ask the agent "edit"
@@ -103,7 +103,7 @@ Feature: The outline and the chat point at each other
     Then the agent's answer names the node "order"
     When I press the node "order" in the answer
     Then the node "order" is focused
-    And the address is "/o/house.olai"
+    And the address is "/house.olai"
 
   @scratch:chat
   Scenario: An armed node that has gone refuses the send rather than losing the subject
@@ -136,5 +136,5 @@ Feature: The outline and the chat point at each other
     When I collapse the node "kitchen"
     And I ask the agent "done order"
     And I press the node "order" in the write
-    Then the address is "/n/order"
+    Then the address is "/#order"
     And the zoomed node is "order"

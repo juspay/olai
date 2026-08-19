@@ -128,7 +128,7 @@ const REF =
  */
 export function NodeRefLink(props: {
   /** The node this link opens. NOT named `ref`: Solid reserves that prop for
-   *  element refs and would swallow it, which it did — a link to `/n/undefined`
+   *  element refs and would swallow it, which it did — a link to `/#undefined`
    *  with no `data-ref` on it. */
   readonly to: NodeRef
   readonly class: string

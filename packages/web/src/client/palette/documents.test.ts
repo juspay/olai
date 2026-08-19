@@ -44,7 +44,7 @@ test("...and by the folder it sits in, which is a way in a reader can predict", 
   expect(ids("notes/")).toEqual(["doc-notes/cabinets.md", "doc-notes/palette.md"])
 })
 
-test("a saved page is a document row too — every file a `/doc/` address opens", () => {
+test("a saved page is a document row too — every file drawn as a body", () => {
   // `bodyKind`'s answer and not a hand-written list of suffixes: the registry
   // says which files are drawn as a body, and the sidebar, the router and this
   // list all ask it rather than each other.

@@ -326,7 +326,7 @@ Feature: It stays live
     And there should be no page errors
 
   Scenario: A zoomed node's own page is as live as its outline
-    # `/n/<id>` draws from the same store as a whole outline, so "it stays
+    # `/#<id>` draws from the same store as a whole outline, so "it stays
     # live" has to mean the same thing there. Zooming is a route change and not
     # a load, which is why the mark planted in the Background is still valid.
     When I zoom into the node "herbs"

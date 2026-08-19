@@ -38,7 +38,7 @@
  *
  * THE NOTE GOES while a filter is on, and it has gone before it reaches here:
  * a note is a DOCUMENT — prose this grammar has nothing to say about, which is
- * why `/doc/` is the one address that takes no `?q=` (`../routes.ts`) — so it
+ * why a document is the one page whose address takes no `?q=` (`../routes.ts`) — so it
  * can never be a match, and what a narrowed page draws is one switch's answer
  * (`../filter/narrowing.ts`) rather than a rule each page keeps for itself.
  * What is left is the answer and only the answer; clearing the box brings the

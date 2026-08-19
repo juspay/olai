@@ -612,7 +612,7 @@ const said = async (page: Page, locator: string) =>
 // ── the same filter over the pages that are a query already ────────────
 
 const OUTLINE_TREE = '[data-testid="outline-tree"]'
-/** A zoomed node's heading — what a `/n/<id>` page is waited on by. */
+/** A zoomed node's heading — what a `/#<id>` page is waited on by. */
 const ZOOM_TITLE = '[data-testid="zoom-title"]'
 /** What refers to that node, read backwards: the `<details>`, its summary, and
  *  the two rows inside it (`client/backlinks/`). */
@@ -762,14 +762,14 @@ const SECTIONS = {
    */
   "pin-to-sidebar": async (page) => {
     rewrite("_olai/Pins.olai", [
-      `{"id":"p-kitchen","ord":"a0","title":"/n/kitchen"}`,
-      `{"id":"p-finishes","ord":"a1","title":"/doc/finishes.md"}`,
+      `{"id":"p-kitchen","ord":"a0","title":"/#kitchen"}`,
+      `{"id":"p-finishes","ord":"a1","title":"/finishes.md"}`,
       // …and one written as a LINK, which is how a pin carries a name somebody
       // chose: the label is drawn, the query beside it, and pressing it opens
       // the address (human, 2026-08-19).
-      `{"id":"p-todo","ord":"a2","title":"[What is left to do](/o/house.olai?q=is%3Atodo)"}`,
+      `{"id":"p-todo","ord":"a2","title":"[What is left to do](/house.olai?q=is%3Atodo)"}`,
     ])
-    await page.goto(`${BASE}/o/house.olai`)
+    await page.goto(`${BASE}/house.olai`)
     await page.locator(SHELF).waitFor()
     await page.waitForTimeout(DRAWN)
     console.log(`  the shelf reads:      ${await shelved(page)}`)
@@ -778,7 +778,7 @@ const SECTIONS = {
     // The FILTERED pin, followed. What it has to land on is the page AND the
     // query — a door that dropped the `?q=` would open a different page from
     // the one that was pinned.
-    await page.locator(`${PIN}[data-at="/o/house.olai?q=is%3Atodo"]`).first().click()
+    await page.locator(`${PIN}[data-at="/house.olai?q=is%3Atodo"]`).first().click()
     await page.locator('[data-testid="filter-bar"]').first().waitFor()
     await page.waitForTimeout(DRAWN)
     const landed = new URL(page.url())
@@ -795,7 +795,7 @@ const SECTIONS = {
     retitle("house.olai", "kitchen", "the kitchen, rebuilt #home")
     await page.waitForFunction(
       (name) =>
-        document.querySelector('[data-testid="pin"][data-at="/n/kitchen"]')
+        document.querySelector('[data-testid="pin"][data-at="/#kitchen"]')
           ?.textContent?.includes(name) === true,
       "the kitchen, rebuilt",
     )
@@ -803,13 +803,13 @@ const SECTIONS = {
     await shot(page, "a-rename-arrives-chalk")
 
     // And the `•••`, which is where a NODE is pinned from.
-    await page.goto(`${BASE}/o/garden.olai`)
+    await page.goto(`${BASE}/garden.olai`)
     await page.locator(OUTLINE_TREE).first().waitFor()
     await page.waitForTimeout(DRAWN)
     await openMenu(page, "herbs")
     await shot(page, "the-verb-on-a-row-chalk")
     await page.locator('[data-testid="node-menu-panel"] >> text=Pin to sidebar').first().click()
-    await page.locator(`${PIN}[data-at="/n/herbs"]`).waitFor()
+    await page.locator(`${PIN}[data-at="/#herbs"]`).waitFor()
     await page.waitForTimeout(DRAWN)
     console.log(`  after the verb:       ${await shelved(page)}`)
     console.log(`  and Pins.olai says:   ${
@@ -822,7 +822,7 @@ const SECTIONS = {
     // titles that are addresses, and a page that drew them raw showed the
     // plumbing. Each is drawn as the page it names, by the same resolver the
     // shelf reads (`web/src/client/address/`).
-    await page.goto(`${BASE}/o/_olai/Pins.olai`)
+    await page.goto(`${BASE}/_olai/Pins.olai`)
     await page.locator(OUTLINE_TREE).first().waitFor()
     await page.waitForTimeout(DRAWN)
     console.log(`  Pins.olai draws:      ${(await titles(page)).join(" · ")}`)
@@ -837,7 +837,7 @@ const SECTIONS = {
     // undifferentiated list, and every one of those is below the fold at the
     // window the other shots use.
     await page.setViewportSize({ width: WIDE, height: 1000 })
-    await page.goto(`${BASE}/o/garden.olai`)
+    await page.goto(`${BASE}/garden.olai`)
     await page.locator(OUTLINE_TREE).first().waitFor()
     await page.waitForTimeout(DRAWN)
     console.log(`  the column's regions: ${
@@ -852,15 +852,15 @@ const SECTIONS = {
       clip: { x: 0, y: 0, width: 260, height: 1000 },
     })
     await page.setViewportSize({ width: WIDE, height: 720 })
-    await page.goto(`${BASE}/o/_olai/Pins.olai`)
+    await page.goto(`${BASE}/_olai/Pins.olai`)
     await page.locator(OUTLINE_TREE).first().waitFor()
     await page.waitForTimeout(DRAWN)
     await shot(page, "the-shelf-as-an-outline-pitch-dark")
-    await page.goto(`${BASE}/o/garden.olai`)
+    await page.goto(`${BASE}/garden.olai`)
     await page.locator(OUTLINE_TREE).first().waitFor()
     await page.waitForTimeout(DRAWN)
     await shot(page, "a-fourth-door-pitch-dark")
-    await page.goto(`${BASE}/o/house.olai?q=is%3Atodo`)
+    await page.goto(`${BASE}/house.olai?q=is%3Atodo`)
     await page.locator(SHELF).waitFor()
     await page.waitForTimeout(DRAWN)
     await shot(page, "the-filter-came-with-it-pitch-dark")
@@ -1199,7 +1199,7 @@ const SECTIONS = {
 
     // The trash needs something in it first — and it is the page the archive
     // rule had to except: a query normally leaves what was put away alone.
-    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await opened(page, "/house.olai", OUTLINE_TREE)
     await putAway(page, "install")
     await opened(page, "/trash", TRASH_PAGE)
     console.log(`  what was put away:\n${await piled(page)}`)
@@ -1238,7 +1238,7 @@ const SECTIONS = {
     // names how many rows go with it. Spelled out rather than through
     // `putAway`, for the one thing that helper cannot do — photograph the
     // question between the two presses.
-    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await opened(page, "/house.olai", OUTLINE_TREE)
     await openMenu(page, "order")
     await page.locator(TRASH_VERB).first().click()
     await shot(page, "the-confirm-names-what-goes")
@@ -1397,7 +1397,7 @@ const SECTIONS = {
    * the line is drawn over the OTHER column, promising a landing there.
    */
   "drag-across-panes": async (page) => {
-    await splitOn(page, "/s/o%2Fhouse.olai/o%2Fhouse.olai")
+    await splitOn(page, "/s/house.olai/house.olai")
     console.log(`  two panes, one file. before: ${await order(page)}`)
     await shot(page, "two-panes-on-one-file")
 
@@ -1430,7 +1430,7 @@ const SECTIONS = {
    * there is no drop line beside it offering a landing it could not keep.
    */
   "a-drop-into-another-file-is-refused": async (page) => {
-    await splitOn(page, "/s/o%2Fhouse.olai/o%2Fgarden.olai")
+    await splitOn(page, "/s/house.olai/garden.olai")
     await shot(page, "two-panes-two-files")
 
     const over = await boxOf(page.locator(titleIn(1, "mint")))
@@ -1697,7 +1697,7 @@ const SECTIONS = {
     await shot(page, "declared")
 
     // The refusal, verbatim: `order` already comes after `install`.
-    await page.goto(`${BASE}/n/order`)
+    await page.goto(`${BASE}/#order`)
     await page.locator('[data-testid="zoom-title"]').waitFor()
     await page.locator(`${EDGE_VERB}[data-relation="after"]`).click()
     await page.locator(EDGE_SEARCH).fill("install the cabinets")
@@ -1714,7 +1714,7 @@ const SECTIONS = {
     // `hinges` DECLARES two and is IN THE WAY of one — `handles` carries no
     // mark, so it is not work and never blocks. Two rows, two claims, and only
     // the declared one carries an `×`.
-    await page.goto(`${BASE}/n/hinges`)
+    await page.goto(`${BASE}/#hinges`)
     await page.locator('[data-testid="zoom-title"]').waitFor()
     await page.waitForTimeout(600)
     console.log(`  blocked by: ${await textOf(page, '[data-testid="blocked"]')}`)
@@ -1808,7 +1808,7 @@ const SECTIONS = {
       `{"id":"install","parent":"kitchen","ord":"a0","title":"install the cabinets"}`,
       `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles"}`,
     ])
-    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await opened(page, "/house.olai", OUTLINE_TREE)
     await pickerOn(page, "now")
     await page.locator(MOVE_SEARCH).fill("install the cabinets")
     await page.locator(MOVE_HIT).first().waitFor()
@@ -1847,7 +1847,7 @@ const SECTIONS = {
     )
     const pass = async (dark: boolean) => {
       const suffix = dark ? "-dark" : ""
-      await opened(page, "/o/house.olai", OUTLINE_TREE)
+      await opened(page, "/house.olai", OUTLINE_TREE)
 
       // THE PALETTE, on a query that is the start of a file's NAME rather than
       // of its path: `notes/palette.md` is what `pal` means to a person.
@@ -1889,7 +1889,7 @@ const SECTIONS = {
     // and inside `quarter.html`, and the two are drawn with the two glyphs the
     // sidebar gives them. Once, in the light pass — the pair above is what has
     // to be checked in either palette; this is a fact about the SET.
-    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await opened(page, "/house.olai", OUTLINE_TREE)
     await page.keyboard.press("ControlOrMeta+k")
     await page.locator(PALETTE_INPUT).waitFor()
     await page.locator(PALETTE_INPUT).fill("a")
@@ -2048,7 +2048,7 @@ const SECTIONS = {
 
     const pass = async (dark: boolean, id: string) => {
       const suffix = dark ? "-dark" : ""
-      await opened(page, "/o/house.olai", OUTLINE_TREE)
+      await opened(page, "/house.olai", OUTLINE_TREE)
       await putAway(page, id)
       // The pile is real before anything is photographed — the guard every
       // section that writes carries ({@link shotSays}).
@@ -2192,14 +2192,14 @@ const SECTIONS = {
     // The way through: that `see` re-pointed at `herbs`, the node the
     // placement shows — through the panel, which is the same door the refusal
     // named.
-    await opened(page, "/n/order", '[data-testid="zoom-title"]')
+    await opened(page, "/#order", '[data-testid="zoom-title"]')
     await page.locator(`${EDGE_VERB}[data-relation="see"]`).click()
     await page.locator(EDGE_PANEL).first().waitFor()
     await page.locator(`${EDGE_DROP}[data-ref="kitchen-herbs"]`).first().click()
     await page.waitForTimeout(SETTLE)
     console.log(`  re-pointed: ${recordOf("order")}`)
 
-    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await opened(page, "/house.olai", OUTLINE_TREE)
     await openMenu(page, "kitchen-herbs")
     await page.locator(PLACEMENT_VERB).first().click()
     await page.waitForTimeout(SETTLE)
@@ -2213,7 +2213,7 @@ const SECTIONS = {
     // …and the other half of what "retire a placement" means, which the shot
     // above cannot carry on its own: the node the line was drawing is exactly
     // where it lives, with its mark, its children and its own outline intact.
-    await opened(page, "/o/garden.olai", OUTLINE_TREE)
+    await opened(page, "/garden.olai", OUTLINE_TREE)
     await shot(page, "the-node-stays")
   },
 
@@ -2255,7 +2255,7 @@ const SECTIONS = {
       "A row found by its title needs no second line saying so",
       "A pressed tag lights up on the rows that carry it",
     )
-    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await opened(page, "/house.olai", OUTLINE_TREE)
     await shot(page, "before-the-query")
 
     await narrow(page, "alcove OR hinges")
@@ -2272,7 +2272,7 @@ const SECTIONS = {
 
     // ...and the tag, pressed rather than typed, on the outline that wears one.
     await page.evaluate(() => localStorage.setItem("olai.theme", "chalk"))
-    await opened(page, "/o/garden.olai", OUTLINE_TREE)
+    await opened(page, "/garden.olai", OUTLINE_TREE)
     await page.locator('[data-testid="tag"]').first().click()
     await page.waitForTimeout(DRAWN)
     console.log(`  the address is now: ${await page.evaluate(() => location.search)}`)
@@ -2290,7 +2290,7 @@ const SECTIONS = {
       "A reference written elsewhere arrives while the section is open",
       "A placement is not a reference",
     )
-    await opened(page, "/n/herbs", ZOOM_TITLE)
+    await opened(page, "/#herbs", ZOOM_TITLE)
     console.log(`  shut, it says:      ${await textOf(page, BACKLINKS_SUMMARY)}`)
     await shot(page, "collapsed")
 
@@ -2350,7 +2350,7 @@ const SECTIONS = {
       `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets #handover"}`,
       `{"id":"knobs","parent":"install","ord":"a0","title":"pick the knobs"}`,
     ])
-    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await opened(page, "/house.olai", OUTLINE_TREE)
     await page.locator(title("knobs")).first().click()
     await page.locator('[data-testid="title-editor"]').first().waitFor()
     await page.keyboard.type(" #")
@@ -2394,7 +2394,7 @@ const SECTIONS = {
     )
     // THE PLAIN CASE first, and what it is here to show is an ABSENCE: nothing
     // is being held back, so nothing is said about holding anything back.
-    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await opened(page, "/house.olai", OUTLINE_TREE)
     await narrow(page, "cabinets")
     console.log(`  nothing hidden, the bar says: ${await textOf(page, FILTER_COUNT)}`)
     await shot(page, "plain-light")
@@ -2410,7 +2410,7 @@ const SECTIONS = {
       localStorage.setItem("olai.theme", "chalk")
       localStorage.setItem("olai.done.hidden", "true")
     })
-    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await opened(page, "/house.olai", OUTLINE_TREE)
     console.log(`  hiding finished work, the page draws ${
       await page.locator(`${OUTLINE_TREE} [data-testid="node"]`).count()
     } rows`)
@@ -2515,7 +2515,7 @@ const main = async () => {
   )
   const page = await context.newPage()
   page.on("pageerror", (error) => console.error("PAGE ERROR", error))
-  await page.goto(`${BASE}/o/house.olai`)
+  await page.goto(`${BASE}/house.olai`)
   await page.locator(OUTLINE_TREE).first().waitFor()
   await page.waitForTimeout(600)
   await SECTIONS[name](page)

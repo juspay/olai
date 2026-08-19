@@ -88,7 +88,7 @@ Feature: Toggleable & resizable panels
     When I search the header for "hinges"
     Then the header search lists the node "pick the hinges"
     When I press the header search result "pick the hinges"
-    Then the address is "/n/hinges"
+    Then the address is "/#hinges"
     And the zoomed node is "hinges"
 
   @corpus:good
@@ -101,7 +101,7 @@ Feature: Toggleable & resizable panels
     And I type "hinges" into the palette
     Then the palette lists the node "pick the hinges"
     When I pick the palette item "pick the hinges"
-    Then the address is "/n/hinges"
+    Then the address is "/#hinges"
     And the zoomed node is "hinges"
 
   @corpus:good

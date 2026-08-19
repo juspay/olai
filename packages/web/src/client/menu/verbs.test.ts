@@ -65,13 +65,13 @@ const edit = (id: string, label: string) => {
 // ── the shelf ──────────────────────────────────────────────────────────
 
 test("a node not on the shelf is offered a pin, at its own page's address", () => {
-  expect(edit("install", "Pin to sidebar")).toEqual({ verb: "pin", at: "/n/install" })
+  expect(edit("install", "Pin to sidebar")).toEqual({ verb: "pin", at: "/#install" })
 })
 
 test("a mirror pins the node it SHOWS, never the placement standing there", () => {
   // A pin is a door to a PAGE, and a mirror's page is its target's. An address
   // spelling the placement would stop resolving the day somebody retires it.
-  expect(edit("kitchen-herbs", "Pin to sidebar")).toEqual({ verb: "pin", at: "/n/herbs" })
+  expect(edit("kitchen-herbs", "Pin to sidebar")).toEqual({ verb: "pin", at: "/#herbs" })
 })
 
 test("a node the shelf already holds is offered the way OFF it instead", () => {
@@ -79,7 +79,7 @@ test("a node the shelf already holds is offered the way OFF it instead", () => {
     setOf({
       "house.olai": HOUSE,
       "garden.olai": GARDEN,
-      "Pins.olai": `{"id":"p-install","ord":"a0","title":"/n/install"}`,
+      "Pins.olai": `{"id":"p-install","ord":"a0","title":"/#install"}`,
     }).nodes,
   )
   const shelved = rowsOf(withShelf, "house.olai")

@@ -7,7 +7,7 @@
  * (`../pins/Pin.tsx`), and an ORDINARY OUTLINE ROW whose title is one
  * (`../NodeTitle.tsx`). The second arrived from the maintainer opening
  * `Pins.olai` — which the design invites, since the shelf is an ordinary file —
- * and finding a bullet reading `/doc/orchestrator/instructions.md`. The shelf
+ * and finding a bullet reading `/orchestrator/instructions.md`. The shelf
  * resolved its rows and the page did not, which is one title with two answers.
  *
  * SO THE RESOLUTION IS NOT A PROPERTY OF THE PAGE. It is a property of the

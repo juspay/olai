@@ -138,6 +138,27 @@ export {
   unkept,
 } from "./kinds.ts"
 export type { BodyKind, FileKind } from "./kinds.ts"
+/** WHAT A PLACE IS CALLED — `[document]#[element]`, the one grammar every
+ *  feature that has to name something trades in
+ *  (docs/brainstorming/first-class-documents.md). Exported whole, primitives
+ *  included, because the point of it is that a consumer does not re-derive
+ *  what an address is: the browser's URLs are `/` plus one of these, a pin
+ *  holds one, and the parse and the print are a bijection with a test standing
+ *  over it. */
+export {
+  Address,
+  AtDocument,
+  AtHeading,
+  AtNode,
+  addressOf,
+  DocumentPath,
+  NodeId,
+  parseAddress,
+  printAddress,
+  Slug,
+  Tag,
+  writtenAddress,
+} from "./address.ts"
 export {
   bodiedOf,
   bytesOf,

@@ -50,6 +50,30 @@ import { attr } from "./selectors.ts";
 
 /** Per-step budget for interaction polls against a settled UI — a click
  *  landing, an attribute flipping, a subtree appearing. */
+/**
+ * WHAT A READER WOULD COPY OUT OF THE BAR, as two readings of one URL — the
+ * PLACE (everything but the query) and the whole ADDRESS.
+ *
+ * Functions over a `URL` rather than methods on the world, because both are
+ * asked twice per assertion and from two sides: a step WAITS for the bar to
+ * say something (Playwright hands its predicate a `URL`) and then ASSERTS what
+ * it says (the world's accessors, below). Written out at each of those, they
+ * are one expression maintained in four places — and the wait and the assert
+ * drifting apart is the shape where a step passes on the way past: a race
+ * where the pathname has landed and the fragment has not.
+ *
+ * The FRAGMENT is part of both, and that is not a detail: a node's address is
+ * `/#<id>` and nothing else (`@olai/format`'s `address.ts`), so a reading that
+ * took the pathname alone would answer `/` for every zoomed page — the front
+ * page, and an assertion quietly passing for the wrong screen.
+ */
+export const placeOf = (url: URL): string => url.pathname + url.hash;
+
+/** The place AND the query, in the URL's own order — which is why a narrowed
+ *  node page is `/?q=…#<id>`. */
+export const addressOf = (url: URL): string =>
+  url.pathname + url.search + url.hash;
+
 export const POLL_TIMEOUT = 15_000;
 
 /** How much longer than the client's own deadline a held finger stays down.
@@ -207,7 +231,7 @@ export const HYPERTEXT_LINK = selector(TESTID.hypertextLink);
  *  only element of that page this app owns. */
 export const HYPERTEXT_PREVIEW = selector(TESTID.hypertextPreview);
 export const HYPERTEXT_SAID = selector(TESTID.hypertextSaid);
-/** One document, as a page: `/doc/<file>`. */
+/** One document, as a page: `/<file>`. */
 export const DOCUMENT_PAGE = selector(TESTID.documentPage);
 /** The rendered markdown of a document — on its own page, or inline under the
  *  node that attaches it. */
@@ -610,7 +634,7 @@ export const TRASH_LINK = selector(TESTID.trashLink);
 export const DAY_NOTE = selector(TESTID.dayNote);
 /** Its heading — the way from the day to the document's own page. */
 export const DAY_NOTE_LINK = selector(TESTID.dayNoteLink);
-/** Shown in the main pane when `/n/<id>` names no node. The sidebar stays. */
+/** Shown in the main pane when `/#<id>` names no node. The sidebar stays. */
 export const NOT_FOUND = selector(TESTID.notFound);
 /** Shown INSTEAD of the sidebar and the tree when a set has never validated. */
 export const ERROR_VIEW = selector(TESTID.errorView);
@@ -1280,10 +1304,10 @@ export class OlaiWorld extends World {
   }
 
   /** Open a node's own page COLD — the permalink, in a fresh document, with
-   *  no click history behind it. That is the whole promise of `/n/<id>`, and
+   *  no click history behind it. That is the whole promise of `/#<id>`, and
    *  navigating there in-app instead would never test it. */
   async openNode(id: string): Promise<void> {
-    await this.open(`/n/${encodeURIComponent(id)}`);
+    await this.open(`/#${encodeURIComponent(id)}`);
   }
 
   /** One day's own page COLD — `/d/<date>` in a fresh document, which is what
@@ -1300,7 +1324,7 @@ export class OlaiWorld extends World {
 
   /** One document's own page COLD, the way a link someone sent would arrive. */
   async openDocument(file: string): Promise<void> {
-    await this.open(`/doc/${file.split("/").map(encodeURIComponent).join("/")}`);
+    await this.open(`/${file.split("/").map(encodeURIComponent).join("/")}`);
   }
 
   /**
@@ -1417,20 +1441,18 @@ export class OlaiWorld extends World {
     return this.page.locator(daySelector(date));
   }
 
-  /** The path the browser is actually at — what a reader would copy out of
-   *  the URL bar, without the origin the harness picked at random. */
-  pathname(): string {
-    return new URL(this.page.url()).pathname;
+  /** The PLACE the browser is at — {@link placeOf} of the bar, minus the
+   *  origin the harness picked at random. */
+  place(): string {
+    return placeOf(new URL(this.page.url()));
   }
 
-  /** The path AND the query — what a reader would copy out of the bar when the
-   *  page is narrowed. Its own accessor beside {@link pathname} because the
-   *  filter is part of the address (`routes.ts`) and every other assertion in
-   *  this suite is about a path: a step asserting "/o/house.olai" must not
-   *  start passing for a page that is also filtered. */
+  /** The place AND the query — {@link addressOf} of the bar. Its own accessor
+   *  beside {@link place} because most assertions in this suite are about the
+   *  place alone: a step asserting "/house.olai" must not start passing for a
+   *  page that is also filtered. */
   address(): string {
-    const url = new URL(this.page.url());
-    return url.pathname + url.search;
+    return addressOf(new URL(this.page.url()));
   }
 
   /** One sidebar entry, by the relative path it stands for. */

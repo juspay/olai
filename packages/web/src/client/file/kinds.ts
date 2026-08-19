@@ -31,10 +31,9 @@ import { TESTID } from "../testids.ts"
  * The page a file of this kind opens.
  *
  * A `.olai` is a tree with rows to zoom into and a filter to narrow by;
- * everything else is a body drawn for reading, and `/doc/` is the one address
- * for that. Which of the two a kind gets is `holds` and nothing else — see
- * `../routes.ts` for why the suffix already in the address, rather than a third
- * prefix, is what tells the two bodied kinds apart.
+ * everything else is a body drawn for reading. Which of the two a kind gets is
+ * `holds` and nothing else — see `../routes.ts` for why the suffix already in
+ * the path, rather than a prefix in front of it, is what tells the kinds apart.
  */
 export const routeTo = (of: FileKind, file: string): Route =>
   holdsText(of) ? { kind: "document", file } : { kind: "outline", file }

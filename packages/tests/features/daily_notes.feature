@@ -42,7 +42,7 @@ Feature: Daily notes
     And I mark the page
     When I follow the note's heading
     Then the document open is "Daily/2019/11/2019-11-05.md"
-    And the address is "/doc/Daily/2019/11/2019-11-05.md"
+    And the address is "/Daily/2019/11/2019-11-05.md"
     # A route, not a reload: the page answered in place.
     And the page has not reloaded
 
@@ -56,7 +56,7 @@ Feature: Daily notes
     And I mark the page
     When I follow the link "the ferry timetable" in the rendered markdown
     Then the document open is "notes/ferry.md"
-    And the address is "/doc/notes/ferry.md"
+    And the address is "/notes/ferry.md"
     And the page has not reloaded
     And there should be no page errors
 

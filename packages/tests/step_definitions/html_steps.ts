@@ -713,10 +713,16 @@ Then(
   },
 );
 
-/** The place inside the page THE APP'S OWN ADDRESS names — the half of a
- *  fragment that makes a section a thing a reader can copy out of the bar and
- *  send. Read separately from the path, because `the address is` compares
- *  pathnames and would pass over a fragment that never arrived. */
+/** The place inside the page THE APP'S OWN ADDRESS names, on its own.
+ *
+ *  It used to be the only way to see a fragment at all — `the address is`
+ *  compared pathnames, and a fragment that never arrived passed it. Since a
+ *  `#` became part of the address (`@olai/format`'s `address.ts`), that step
+ *  reads the fragment too, and the two scenarios that asserted both were
+ *  asserting a contradiction that only passed by racing the hash. What is left
+ *  here is the case this step is actually for: the fragment WITHOUT a claim
+ *  about the path, where the scenario's subject is that the anchor survived
+ *  something else (a scroll restored, a page kept). */
 Then(
   "the address carries the anchor {string}",
   async function (this: OlaiWorld, anchor: string) {
@@ -1003,7 +1009,7 @@ const FORGERIES: ReadonlyArray<string> = [
   `${FORGED_PREFIX}${mediaHref("nowhere.html")}`,
   `${FORGED_PREFIX}${MEDIA_PREFIX}../../etc/hostname`,
   `${FORGED_PREFIX}${MEDIA_PREFIX}notes/../../secrets.md`,
-  `${FORGED_PREFIX}/doc/finishes.md`,
+  `${FORGED_PREFIX}/finishes.md`,
   `${FORGED_PREFIX}finishes.md`,
   `${FORGED_PREFIX}${mediaHref("Daily/nothing.md")}`,
 ];

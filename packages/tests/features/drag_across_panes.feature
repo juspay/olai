@@ -24,7 +24,7 @@ Feature: Dragging a row from one pane into the other
     # one gap in this outline whose depth the pointer cannot get wrong: the row
     # above is `kitchen` and the row below is its first child, so "one inside
     # the row above" and "level with the row below" are the same answer.
-    When I open the address "/s/o%2Fhouse.olai/o%2Fhouse.olai"
+    When I open the address "/s/house.olai/house.olai"
     And I mark the page
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 1
     Then the drop line would put it under "kitchen"
@@ -52,7 +52,7 @@ Feature: Dragging a row from one pane into the other
     # apart, and neither can the file. What separates them is where the line is
     # DRAWN, which is why this scenario exists and why the one below asserts the
     # same thing from the other side (review, opencode + grok, 2026-08-18).
-    When I open the address "/s/o%2Fhouse.olai/o%2Fhouse.olai"
+    When I open the address "/s/house.olai/house.olai"
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 1
     Then the drop line is drawn over pane 1
     When I let go
@@ -64,7 +64,7 @@ Feature: Dragging a row from one pane into the other
     # of ITS page, so two panes showing one file draw two sets of lines wearing
     # the SAME keys. Measured across the document, pane 0's gesture would be
     # planned against pane 1's boxes and promise its landing over there.
-    When I open the address "/s/o%2Fhouse.olai/o%2Fhouse.olai"
+    When I open the address "/s/house.olai/house.olai"
     And I mark the page
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 0
     Then the drop line is drawn over pane 0
@@ -76,7 +76,7 @@ Feature: Dragging a row from one pane into the other
   # ── two different files ──────────────────────────────────────────────
 
   Scenario: A row held over another file's pane is refused there, in words, before the drop
-    When I open the address "/s/o%2Fhouse.olai/o%2Fgarden.olai"
+    When I open the address "/s/house.olai/garden.olai"
     And I mark the page
     And I pick up the bullet of "knobs" in pane 0 and hold it over the title of "mint" in pane 1
     Then the drop is refused by "garden.olai"
@@ -94,7 +94,7 @@ Feature: Dragging a row from one pane into the other
   Scenario: The pane the drag began in is unaffected by the one that refuses
     # One pointer, one pane, one answer — the refusal is about where the hand
     # IS, not about the split being open.
-    When I open the address "/s/o%2Fhouse.olai/o%2Fgarden.olai"
+    When I open the address "/s/house.olai/garden.olai"
     And I mark the page
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 0
     Then no drop is refused
@@ -117,7 +117,7 @@ Feature: Dragging a row from one pane into the other
     # Delete that early-out and this scenario fails rather than argues: pane 1's
     # three children become candidates, and the line offers to put `install`
     # inside itself — the loop the ops layer would then have to refuse.
-    When I open the address "/s/o%2Fhouse.olai/n%2Finstall"
+    When I open the address "/s/house.olai/%23install"
     And I mark the page
     And I pick up the bullet of "install" in pane 0 and hold it over the title of "handles" in pane 1
     Then the drop is refused by "house.olai"

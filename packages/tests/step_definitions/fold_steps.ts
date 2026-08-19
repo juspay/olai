@@ -84,7 +84,7 @@ When(
   "a second tab collapses the node {string}",
   async function (this: OlaiWorld, id: string) {
     const other = await this.context.newPage();
-    await other.goto(this.pathname());
+    await other.goto(this.place());
     // `nodeSelector`, not a bare `data-node-id`: a zoomed page puts that
     // attribute on its heading as well as on its rows, so the unscoped
     // spelling would match two things and quietly press whichever came first.

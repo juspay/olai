@@ -134,7 +134,7 @@ test("the open outline is the one the page is of", () => {
   expect(fileOf(pageAt({ kind: "outline", file: "house.olai" }))).toBe("house.olai")
 })
 
-// The point of asking the model rather than the URL: `/n/herbs-here` is a
+// The point of asking the model rather than the URL: `/#herbs-here` is a
 // mirror living in house.olai, and the page it opens is in garden.olai.
 test("a zoomed node lights up the file its CANONICAL record is in", () => {
   expect(fileOf(pageAt({ kind: "node", id: "herbs-here" }))).toBe("garden.olai")

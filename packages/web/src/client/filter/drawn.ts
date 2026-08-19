@@ -77,7 +77,7 @@ export const narrowed = (drawn: Drawn, matched: Selected): Drawn => {
  * TWO PAGES CAN BE, and after the 2026-08-17 ruling that is the whole list. The
  * TRASH is the archive, every group of it — so the answer is its kind and not a
  * scan, because a trash drawing no archived row is a trash drawing no row. And
- * a TREE can be one node's: `/n/<id>` on a node somebody put away, which is
+ * a TREE can be one node's: `/#<id>` on a node somebody put away, which is
  * exactly where an `is:archived` hit lands when it is clicked (docs/search.md —
  * the ruling took away the default presence, not the reachability). An
  * outline's own tree is a live file, since an archive's address opens the trash
