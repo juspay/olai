@@ -24,13 +24,12 @@ nix_files := "$(git ls-files '*.nix')"
 # writes its own copy inside its sandbox.
 dist := justfile_directory() + "/packages/web/dist"
 
-# The port `just run` (and `just serve`) bind. `.mcp.json` names the same
-# number so a clone can point an agent at this repo's server without editing
-# either file. 7714 is "olai" on a phone keypad — the same default `olai web`
-# uses. Override per-invocation with `--port` on the recipe's extra args
-# only if something else already holds this one; a changed default here
-# must move `.mcp.json` with it.
-port := "7714"
+# Where this worktree's `just run` / `just serve` write the URL they actually
+# bound. Per-worktree on purpose: `/tmp/olai-dev` is a path every checkout
+# shares, and two e2e lanes used to dial one tree through it. The server
+# reads the same file back on a `bun --watch` restart so the address stays
+# put; `.mcp.json` names production (7714), not this.
+dev_url := justfile_directory() + "/.olai-dev/url"
 
 # The e2e shell is the dev shell plus Playwright's browsers, which cost ~600ms
 # of cold `nix develop` that every other leg would pay for nothing. Keyed on
@@ -112,21 +111,23 @@ serve dir="docs" *args: build-client
     # watching a tree nobody is serving is a confusing thing to leave behind.
     trap 'kill 0' EXIT INT TERM
     {{ nix_shell }} bun --watch packages/web/src/build.ts {{ dist }} &
-    OLAI_DIST_DIR={{ dist }} \
-      {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} --port {{ port }} {{ args }}
+    OLAI_DIST_DIR={{ dist }} OLAI_PORT_FILE={{ dev_url }} \
+      {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
 
-# The one brain: `olai web` on this repo's docs, on the `port` above, so a
-# `.mcp.json` URL holds. Distinct from `serve`: that one is the web edit
-# loop (client bundler watch + server watch); this one watches only the
-# server. Extra args after the directory reach the binary (`--commit=manual`,
-# `--host`, …). Defaults to the same pinned agent `just serve` and the
-# packaged binary do: no documented way of starting olai may land in the
-# no-agent state by accident.
+# The one brain: `olai web` on this repo's docs, on an OS-assigned port.
+# Distinct from `serve`: that one is the web edit loop (client bundler
+# watch + server watch); this one watches only the server. Extra args after
+# the directory reach the binary (`--commit=manual`, `--host`, …). Defaults
+# to the same pinned agent `just serve` and the packaged binary do: no
+# documented way of starting olai may land in the no-agent state by accident.
+# The bound URL is written to `.olai-dev/url` (see `dev_url`); a fixed
+# `--port` is a deploy's word, not this recipe's.
 run dir="docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
-    OLAI_DIST_DIR={{ dist }} {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} --port {{ port }} {{ args }}
+    OLAI_DIST_DIR={{ dist }} OLAI_PORT_FILE={{ dev_url }} \
+      {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
 
 # Build the binary with nix, then run it. Both halves earn their place: the
 # build is where the hydrated @kolu/* sources and the bun.nix-derived
@@ -212,6 +213,19 @@ bench: install
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
     {{ nix_shell }} bun packages/web/src/client/complete/tags.bench.ts
+
+# A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
+# instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees
+# used to drive one tree; this file lives in THIS worktree.
+dev-bin:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dir="{{ justfile_directory() }}/.olai-dev"
+    mkdir -p "$dir"
+    printf '#!/usr/bin/env bash\nexec bun %s/packages/server/src/main.ts "$@"\n' \
+      "{{ justfile_directory() }}" > "$dir/bin"
+    chmod +x "$dir/bin"
+    echo "$dir/bin"
 
 # The browser tests: Cucumber features driven through Playwright against the
 # nix-built binary, which is what a user actually runs. `nix` is a dependency

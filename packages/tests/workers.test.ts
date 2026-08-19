@@ -1,25 +1,20 @@
 /**
  * Pins on how the suite occupies the machine. Each test is a sabotage
- * target: if the default goes back to 1, if two workers share a port
- * band, if a spawned server still sees the host's padi or cache, the
+ * target: if the default goes back to 1, if a held restart port is still
+ * bindable, if a spawned server still sees the host's padi or cache, the
  * named assertion is what goes red.
  */
 
 import { expect, test } from "bun:test";
 import * as fs from "node:fs";
+import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 
 import {
-  BANDS,
   defaultWorkers,
-  freePortIn,
-  heldBand,
   holdPort,
   isolateEnv,
-  PORT_BASE,
-  PORTS_PER_WORKER,
-  portRange,
   releasePort,
   WORKER_CAP,
   workerCount,
@@ -55,57 +50,41 @@ test("a non-integer CUCUMBER_PARALLEL is refused, not silently serial", () => {
   expect(() => workerCount({ CUCUMBER_PARALLEL: "no" })).toThrow(/positive integer/);
 });
 
-test("PIN (worker id): unset is band 0; Cucumber's CUCUMBER_WORKER_ID is honoured", () => {
+test("PIN (worker id): unset is 0; Cucumber's CUCUMBER_WORKER_ID is honoured", () => {
   expect(workerId({})).toBe(0);
   expect(workerId({ CUCUMBER_WORKER_ID: "3" })).toBe(3);
 });
 
-test("PIN (port bands): two workers' ranges do not overlap", () => {
-  const a = portRange(0);
-  const b = portRange(1);
-  expect(a.hi).toBe(b.lo);
-  expect(a.hi - a.lo).toBe(PORTS_PER_WORKER);
-  expect(a.lo).toBe(PORT_BASE);
-  // A port in B cannot be in A.
-  expect(b.lo >= a.hi).toBe(true);
-  // And the LAST band still ends below the kernel's ephemeral range, which is
-  // what keeps a `listen(0)` anywhere on the box out of every one of them.
-  // Raising BANDS past this is the mistake this line is here to catch.
-  expect(portRange(BANDS - 1).hi).toBeLessThanOrEqual(32_768);
-});
+/** A free loopback port, borrowed for the length of the hold test. */
+const ephemeral = (): Promise<number> =>
+  new Promise((resolve, reject) => {
+    const probe = net.createServer();
+    probe.unref();
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const address = probe.address();
+      if (address === null || typeof address === "string") {
+        probe.close();
+        reject(new Error("could not read a port from the probe socket"));
+        return;
+      }
+      const port = address.port;
+      probe.close(() => resolve(port));
+    });
+  });
 
-test("PIN (a band is CLAIMED): the marker below it is bound, and asking again is the same band", async () => {
-  // The whole of what makes a band this process's rather than this run's: not
-  // arithmetic on a worker id — every run numbers its workers from zero — but
-  // a socket the kernel will not hand to a second asker. Deliberately makes no
-  // claim about WHICH band comes back: `just check` runs this leg beside the
-  // e2e one, and a test that pinned band 0 would be a test that failed
-  // whenever the thing it is about was working.
-  const band = await heldBand();
-  expect(band.lo).toBeGreaterThan(PORT_BASE - 1);
-  expect(band.hi).toBeLessThanOrEqual(PORT_BASE + BANDS * PORTS_PER_WORKER);
-  // The marker is the band's first port and is NOT served from, which is the
-  // one port of the two hundred this arithmetic can see.
-  expect(band.hi - band.lo).toBe(PORTS_PER_WORKER - 1);
-  let took = false;
-  try {
-    await releasePort(await holdPort(band.lo - 1));
-    took = true;
-  } catch {
-    // What is supposed to happen: we are holding it.
-  }
-  expect(took).toBe(false);
-  // Held for the life of the process: asking again is the same band, not a
-  // second claim walking on to the next one.
-  expect(await heldBand()).toEqual(band);
-});
-
-test("PIN (port hold): a held port is not handed out as free", async () => {
-  const range = portRange(0);
-  const port = await freePortIn(range);
+test("PIN (port hold): a held port is not bindable by someone else", async () => {
+  const port = await ephemeral();
   const holder = await holdPort(port);
   try {
-    expect(await freePortIn(range)).not.toBe(port);
+    let took = false;
+    try {
+      await releasePort(await holdPort(port));
+      took = true;
+    } catch {
+      // What is supposed to happen: we are holding it.
+    }
+    expect(took).toBe(false);
   } finally {
     await releasePort(holder);
   }
@@ -123,12 +102,14 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
   try {
     const env = isolateEnv(root, {
       PADI_SOCKET: "/run/user/1000/padi.sock",
+      OLAI_PORT_FILE: "/tmp/olai-dev/url",
       GIT_DIR: "/home/someone/notes/.git",
       GIT_WORK_TREE: "/home/someone/notes",
       XDG_CACHE_HOME: "/tmp/host-cache",
       XDG_STATE_HOME: "/tmp/host-state",
     });
     expect(env.PADI_SOCKET).toBeUndefined();
+    expect(env.OLAI_PORT_FILE).toBeUndefined();
     expect(env.GIT_DIR).toBeUndefined();
     expect(env.GIT_WORK_TREE).toBeUndefined();
     expect(env.XDG_CACHE_HOME).toBe(path.join(root, "cache"));

@@ -13,6 +13,11 @@ node_modules
 # Throwaway scripts used while working; never part of a commit.
 /.probe
 
+# Bound URL of this worktree's `just run` / `just serve`, and the optional
+# OLAI_BIN wrapper from `just dev-bin`. Per-worktree on purpose — a shared
+# /tmp/olai-dev is how two worktrees used to dial each other.
+/.olai-dev
+
 # Screenshots taken to show a reviewer that a change looks right. They are
 # evidence for a pull request, not part of the tree — the features are what
 # holds the behaviour, and a PNG in git is a claim nobody can re-run.

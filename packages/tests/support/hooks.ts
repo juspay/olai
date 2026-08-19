@@ -48,8 +48,6 @@ import { SCENARIO_SETUP_TIMEOUT, SERVER_START_TIMEOUT } from "./world.ts";
 import type { GitMode } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
 import {
-  freePortIn,
-  heldBand,
   holdPort,
   isolateEnv,
   releasePort,
@@ -272,9 +270,10 @@ const readMode = (): Mode => {
   if (url) return { kind: "reuse", baseUrl: url };
   throw new Error(
     "neither OLAI_BIN nor OLAI_URL is set. Set OLAI_BIN to the olai " +
-      "executable (spawned as `<bin> web <dir> --port <port> --host " +
-      "127.0.0.1`, one server per corpus — this is what `just e2e` does), or " +
-      "set OLAI_URL to the base URL of a server you are already running.",
+      "executable (spawned as `<bin> web <dir> --host 127.0.0.1`, one " +
+      "server per corpus on an OS-assigned port — this is what `just e2e` " +
+      "does), or set OLAI_URL to the base URL of a server you are already " +
+      "running.",
   );
 };
 
@@ -330,7 +329,9 @@ const servingUrl = (out: string): string | null =>
 
 /** Spawn the server against one fixture directory and wait until it says it is
  *  listening. The contract is that line, not a sleep and not a health poll: it
- *  is both the readiness signal and the address.
+ *  is both the readiness signal and the address. No `--port` unless the caller
+ *  pins one: the process default is 0, so two worktrees cannot pick the same
+ *  number and cannot squat production.
  *
  *  `fixedPort` is for the ONE caller that cannot take whatever port is free: a
  *  scenario restarting the server under an open page needs the SAME address,
@@ -379,7 +380,6 @@ const startServerChild = async (
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (stopped) throw new Error(shuttingDown(label));
-    const port = fixedPort ?? (await freePortIn(await heldBand()));
     // `--no-commit` unless the scenario is ABOUT git: a scratch directory is a
     // temp copy, and committing to whatever repository happens to contain the
     // temp dir is not the suite's business. A `@git:` scenario is the exception
@@ -388,10 +388,9 @@ const startServerChild = async (
     const argv = [
       "web",
       dir,
-      "--port",
-      String(port),
       "--host",
       "127.0.0.1",
+      ...(fixedPort === undefined ? [] : ["--port", String(fixedPort)]),
       ...(spawnOptions.git === undefined ? ["--no-commit"] : []),
     ];
     const child = spawn(bin, argv, {
@@ -531,11 +530,10 @@ export const stopOwnServer = async (world: OlaiWorld): Promise<void> => {
   live.delete(child);
   world.ownServer = undefined;
   // Bind the port ourselves until startOwnServer releases it, so nothing on
-  // the box can take the address the page is still pointed at. The band is
-  // this process's alone (`workers.ts`'s `heldBand`), which is what closed the
-  // hole this hold could not: another RUN's `freePortIn` used to walk this
-  // band, and it walked it in the window between the release and the child's
-  // own listen, where a hold has already been given up.
+  // the box can take the address the page is still pointed at. The hold is
+  // what closed the hole a `listen(0)` elsewhere used to walk into: the
+  // window between the kill and the child's own listen, where a hold has
+  // already been given up.
   world.portHold = await holdPort(port);
 };
 
