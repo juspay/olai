@@ -50,7 +50,14 @@
  * #2187).
  */
 
-import { type BrokenFile, derive, type Derived, type Face, patch } from "@olai/format"
+import {
+  type BrokenFile,
+  derive,
+  type Derived,
+  type Face,
+  patch,
+  type SetDelta,
+} from "@olai/format"
 import type { Manifest, OutlineEntry } from "@olai/surface"
 import type { CollectionFold, UseCollectionResult } from "@kolu/surface/solid"
 import { type Accessor, createMemo, untrack } from "solid-js"
@@ -172,14 +179,7 @@ export const createOutlines = (
    */
   const view = entries.fold({
     init: (all) =>
-      untrack(() =>
-        patch(EMPTY, {
-          upserts: all.map(([file, arrived]) =>
-            [file, unwrap(entries.byKey(file)?.() ?? arrived)] as const
-          ),
-          removes: [],
-        })
-      ),
+      untrack(() => patch(EMPTY, seedOf(all, (file) => unwrap(entries.byKey(file)?.())))),
     step: patch,
   })
 
@@ -242,6 +242,38 @@ export const createOutlines = (
     }),
   }
 }
+
+/**
+ * THE SEED a full-set frame is patched onto: every key the frame names, each
+ * carrying the entry the STORE holds for it rather than the one the frame
+ * arrived with.
+ *
+ * This module's half of the reconnect rule, and the only half that is its own —
+ * the framework's half is that the store keeps the object it already had when a
+ * re-serialized entry is value-equal to it, which is pinned upstream
+ * (`collectionDeltasStore.test.ts`, "re-serialized-but-equal entries do not
+ * re-notify"). What is decided HERE is which of the two objects the derivation
+ * is built out of, and the answer is the held one, so that a link flap does not
+ * hand every record in the directory a new identity and cool every per-record
+ * cache keyed by one.
+ *
+ * A pure function of the frame and a lookup, because that is the whole of the
+ * rule and because it is the one shape of this a test can hold: the fold around
+ * it needs a reactive runtime the unit suite does not have (`bun test` resolves
+ * SolidJS's server build, where a memo is computed once and never invalidated).
+ *
+ * TOTAL over a lookup that answers nothing, which the framework's own ordering
+ * says cannot happen — a snapshot is applied to the store before any fold is
+ * seeded — and is written as a fallback rather than as an assertion about
+ * somebody else's ordering.
+ */
+export const seedOf = (
+  all: ReadonlyArray<readonly [file: string, entry: OutlineEntry]>,
+  held: (file: string) => OutlineEntry | undefined,
+): SetDelta => ({
+  upserts: all.map(([file, arrived]) => [file, held(file) ?? arrived] as const),
+  removes: [],
+})
 
 /** The view of a directory with nothing in it — what a full-set frame is patched
  *  onto, so the first frame and a reconnect are one arm rather than two. Minted
