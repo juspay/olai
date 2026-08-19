@@ -108,10 +108,11 @@ export function createSearch(
 ): Search<NodeHit>
 export function createSearch(text: Accessor<string | null>): Search
 /**
- * ASKED FOR ONE KIND, ANSWERED IN ONE KIND — the overload is the narrowing,
- * so a door that can only take a record does not filter an answer it already
- * scoped. The cast below is what an overload always is: a promise this module
- * keeps, and the request three lines down is where it is kept.
+ * ASKED FOR ONE KIND, ANSWERED IN ONE KIND — the overload is the narrowing, so
+ * a door that can only take a record does not filter an answer it already
+ * scoped. Like every overload it is a PROMISE rather than a proof, and the one
+ * line that keeps it is the `kind` on the request below: the server answers
+ * what it was asked for.
  */
 export function createSearch(
   text: Accessor<string | null>,

@@ -73,8 +73,6 @@ import { useDerived } from "../derived.tsx"
 import { nodePlace } from "../search/place.ts"
 import { type NodeProp, nodeProps } from "../search/props.ts"
 import { createCursor } from "../search/cursor.ts"
-import { isNodeHit } from "@olai/surface"
-
 import { createSearch } from "../search/nodes.ts"
 import { useToday } from "../today.tsx"
 import { dayLabel, naturalDays } from "../date/natural.ts"
@@ -237,10 +235,10 @@ export const createCompletion = (field: {
           },
         }))
       case "mirror":
-        // RECORDS, and the filter is the type asking: what this widget writes
-        // is a mirror, which names a node id. The narrowing costs no rows —
-        // the request already asked for records alone (`../search/nodes.ts`).
-        return nodes.hits().filter(isNodeHit).map((hit) => ({
+        // RECORDS, asked for on the request and answered in the type
+        // (`../search/nodes.ts`): what this widget writes is a mirror, which
+        // names a node id.
+        return nodes.hits().map((hit) => ({
           id: hit.id,
           label: hit.title,
           place: nodePlace(hit),
