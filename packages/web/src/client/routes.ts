@@ -160,14 +160,57 @@ export type Route =
    *  mean something different the day a subdirectory gets its own. */
   | { readonly kind: "trash"; readonly filter?: string }
 
-const DAY_PREFIX = "/d/"
-const TODAY = "/today"
-const AGENDA = "/agenda"
-const TRASH = "/trash"
-
 /** The front page: the address that names no place at all, and what every
  *  string this cannot read comes back as. */
 const HOME = "/"
+
+/**
+ * THE PAGES THIS APP CLAIMS BY NAME, as ONE table read in both directions.
+ *
+ * They were three constants printed in {@link hrefOf} and compared again in
+ * {@link routeNamed} — two lists of the same fact, which is the shape where a
+ * page can end up printed and not parsed: a link the app writes, that loads as
+ * the front page. Nothing fails when they disagree, which is why it is worth
+ * making impossible rather than watching for.
+ *
+ * It is a table because this is the VOLATILE half of the URL space. What an
+ * address is has settled — it is the format's grammar now, and a statement
+ * about the directory — while this list has grown three times in as many
+ * releases (the trash, the agenda, today) and will grow again the day another
+ * question about the set is worth a bookmark. The `satisfies` is the socket:
+ * a kind named in {@link Named} and missing here is a compile error at the one
+ * place the app says which words it has taken.
+ *
+ * NOT its own module, though it is the volatile part: the seam that matters is
+ * this table, it has exactly one consumer, and a file per twenty lines is
+ * decomposition by size rather than by what changes together.
+ */
+type Named = Extract<Route, { readonly kind: "today" | "agenda" | "trash" }>["kind"]
+
+const NAMED = {
+  today: "/today",
+  agenda: "/agenda",
+  trash: "/trash",
+} as const satisfies { readonly [K in Named]: `/${string}` }
+
+/** The same table read backwards — spelling to page — built once rather than
+ *  per parse. */
+const NAMED_AT = new Map<string, Named>(
+  Object.entries(NAMED).map(([kind, at]) => [at, kind as Named]),
+)
+
+/** What a route SPELLS, for the pages that spell a word — `undefined` for
+ *  every other kind. The one widening in this file, so the lookup is total
+ *  over `Route` without the three kinds being written out a second time. */
+const spelledAs = (route: Route): string | undefined =>
+  (NAMED as Partial<Record<Route["kind"], string>>)[route.kind]
+
+/**
+ * The one computed page that carries a VALUE, so it is a prefix rather than a
+ * row of the table above: a day is named by its date, and reading one back
+ * needs the totality rule a bare word does not ({@link spelled}).
+ */
+const DAY_PREFIX = "/d/"
 
 /**
  * The query key the FILTER rides in — the one thing in an address here that is
@@ -224,12 +267,11 @@ const addressNamed = (route: Route): Address | null => {
  */
 export const hrefOf = (route: Route): string => {
   const narrowed = narrowing(filterOf(route))
+  const word = spelledAs(route)
+  if (word !== undefined) return word + narrowed
   if (route.kind === "day") {
     return DAY_PREFIX + encodeURIComponent(route.date) + narrowed
   }
-  if (route.kind === "today") return TODAY + narrowed
-  if (route.kind === "agenda") return AGENDA + narrowed
-  if (route.kind === "trash") return TRASH + narrowed
   const address = addressNamed(route)
   if (address === null) return HOME + narrowed
   const { path, element } = writtenAddress(address)
@@ -245,23 +287,37 @@ const narrowing = (filter: string | undefined): string =>
     ? ""
     : `?${new URLSearchParams({ [FILTER_KEY]: filter }).toString()}`
 
-/** The filter an address carries, or `undefined` — one reading, so the parser
- *  below and anything that later wants it cannot disagree about a blank one. */
-const filterIn = (search: string): string | undefined => {
+/**
+ * What a query NARROWS a route by, as the fields to spread onto one — `{}` for
+ * a query that narrows nothing.
+ *
+ * The spread rather than the string, because every caller wanted the same two
+ * lines around it and a blank filter has to be ABSENT rather than empty: two
+ * routes for one unfiltered page would be two strings in the bar and two
+ * entries in the history. One reading, so the parser, the front-page fallback
+ * and anything that later wants it cannot disagree about a blank one.
+ */
+const narrowedBy = (search: string): { readonly filter?: string } => {
   const value = new URLSearchParams(search).get(FILTER_KEY)
-  return value === null || value.trim() === "" ? undefined : value
+  return value === null || value.trim() === "" ? {} : { filter: value }
 }
 
-/** The file a route names, for the two that name one — what a link publishes
- *  as `data-file`, and the sidebar's own answer to "is this entry the page I
- *  am on". Read off the route rather than passed beside it: the two could
- *  disagree, and the route is the one a click follows. */
-export const fileNamed = (route: Route): string | undefined =>
-  route.kind === "document"
-    ? route.file
-    : route.kind === "outline"
-    ? route.file ?? undefined
-    : undefined
+/**
+ * The file a route names, for the routes that name one — what a link publishes
+ * as `data-file`, and the sidebar's own answer to "is this entry the page I
+ * am on".
+ *
+ * Read off the ROUTE rather than passed beside it (the two could disagree, and
+ * the route is the one a click follows) — and read off its ADDRESS rather than
+ * its arm, which is the same fact one step further back. "Which routes name a
+ * file" was written here as a second little switch over the arms, and it is
+ * already the answer {@link addressNamed} gives: a node names no document, and
+ * everything else that has an address names its path.
+ */
+export const fileNamed = (route: Route): string | undefined => {
+  const address = addressNamed(route)
+  return address === null || address.kind === "node" ? undefined : address.path
+}
 
 /**
  * The route a link on the page names, or `null` for an address this app should
@@ -374,8 +430,7 @@ export const routeOf = (address: string): Route => {
    *  somebody typed something, and the app they wanted is the one at `/`. It
    *  keeps whatever the address was NARROWED by, because a query is read by
    *  `URLSearchParams`, which is lenient where a path is not. */
-  const filter = filterIn(splitAddress(address).search)
-  return { kind: "outline", file: null, ...(filter === undefined ? {} : { filter }) }
+  return { kind: "outline", file: null, ...narrowedBy(splitAddress(address).search) }
 }
 
 /**
@@ -395,16 +450,14 @@ export const routeOf = (address: string): Route => {
  */
 const routeNamed = (address: string): Route | null => {
   const { pathname, search, fragment } = splitAddress(address)
-  const filter = search === "" ? undefined : filterIn(search)
-  const narrowed = filter === undefined ? {} : { filter }
+  const narrowed = narrowedBy(search)
 
+  const word = NAMED_AT.get(pathname)
+  if (word !== undefined) return { kind: word, ...narrowed }
   if (pathname.startsWith(DAY_PREFIX)) {
     const date = spelled(pathname.slice(DAY_PREFIX.length))
     return date === undefined ? null : { kind: "day", date, ...narrowed }
   }
-  if (pathname === TODAY) return { kind: "today", ...narrowed }
-  if (pathname === AGENDA) return { kind: "agenda", ...narrowed }
-  if (pathname === TRASH) return { kind: "trash", ...narrowed }
   if (!pathname.startsWith(HOME)) return null
   // The front page names no file — "whichever outline was found first" — which
   // is a page of this app and not a fallback, so a link may be written to it.
