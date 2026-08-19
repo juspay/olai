@@ -25,6 +25,12 @@
  * markdown in them. So the needles ride through both walks and are wrapped by
  * one split (`../filter/lit.ts`) — text and tags alike, since a `#tag` typed
  * into the box is exactly the hit a reader most needs to see.
+ *
+ * ONLY ONE OF THE TWO CARRIES {@link NO_TAGS_IN}, and that is not an asymmetry
+ * to fix. A code span or a link is markdown, and ./plain.ts refuses every
+ * title holding a backtick or a bracket — so the HTML path cannot meet either
+ * and needs no rule about them. If that ever stops being true, the fast path
+ * has widened, and ./plain.test.ts's sweep is what says so.
  */
 
 import { litBy, type Lit, mayHoldTag, tagText, titleParts } from "@olai/format"
@@ -93,8 +99,15 @@ export const TAG_CLASS =
  */
 const NO_TAGS_IN = new Set(["code", "a"])
 
-/** Walk text nodes and turn `#tags` into styled spans — and, where the page
- *  is filtered, the query's words into marks (../filter/lit.ts). */
+/**
+ * Walk text nodes and turn `#tags` into styled spans — and, where the page is
+ * filtered, the query's words into marks (../filter/lit.ts).
+ *
+ * The seed is `true` and is not a parameter: a title's own text is prose, and
+ * literalness is something the markup UNDER it can only take away. A caller
+ * that could ask for a whole title to be read as code would be a second answer
+ * to a question the markdown has already answered.
+ */
 export const styleTags = (
   parent: Root | Element,
   needles: ReadonlyArray<string> = NO_NEEDLES,
@@ -138,17 +151,28 @@ const split = (
  * matched with nothing lit (grok, #240). `titleParts` tiles its input exactly,
  * so the running offset below is the part's place in this text.
  *
- * `tags` false is a stretch where a `#…` is not a tag ({@link NO_TAGS_IN}).
- * The words are still lit, and that is the whole of the difference — the same
- * one line a text with no sigil in it already took.
+ * TWO WAYS OUT WITH THE SAME ANSWER, and they are written as two because they
+ * are two different facts. One is about WHERE this text is — literal markup,
+ * where a `#…` is not a tag ({@link NO_TAGS_IN}) — and the other is about what
+ * is IN it. Folding them into one `||` would be this file making, one line
+ * further down, exactly the mistake it was rewritten to stop making: a claim
+ * about tags and a claim about the walk travelling as one condition, with only
+ * one of them argued for anywhere.
  */
 const splitTags = (
   text: string,
   needles: ReadonlyArray<string>,
-  tags = true,
+  tags: boolean,
 ): ElementContent[] => {
   const landed = litBy(text, needles)
-  if (!tags || !mayHoldTag(text)) return marked(text, landed, 0, text.length)
+
+  // Literal markup. The query's words are still lit — that is the whole of
+  // what this stretch gives up, and it gives up nothing else.
+  if (!tags) return marked(text, landed, 0, text.length)
+
+  // Prose with no sigil anywhere in it, which is most text nodes there are.
+  if (!mayHoldTag(text)) return marked(text, landed, 0, text.length)
+
   const out: ElementContent[] = []
   let at = 0
   for (const part of titleParts(text)) {
