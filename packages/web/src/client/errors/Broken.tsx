@@ -23,7 +23,7 @@ export function Broken(props: { readonly file: BrokenFile }) {
 
   return (
     <section class="max-w-4xl" data-testid={TESTID.outlineFailure} data-file={props.file.file}>
-      <h1 class={`${PAGE_TITLE} mb-2 text-xl text-alarm`}>
+      <h1 class={`${PAGE_TITLE} mb-2 italic text-alarm`}>
         {count()} {count() === 1 ? "error" : "errors"} in this file
       </h1>
       <Lede>

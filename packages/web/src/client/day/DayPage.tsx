@@ -77,7 +77,7 @@ export function DayPage(props: {
           {/* Printed verbatim, like every other date in this app: the format
               stores what was written and a heading is no reason to be the first
               place that parses one. */}
-          <h1 class={`${PAGE_TITLE} tabular-nums not-italic`}>{props.date}</h1>
+          <h1 class={`${PAGE_TITLE} tabular-nums`}>{props.date}</h1>
           <Show when={props.date === props.today}>
             <span class="text-sm text-accent">today</span>
           </Show>

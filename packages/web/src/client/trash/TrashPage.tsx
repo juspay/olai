@@ -84,7 +84,7 @@ export function TrashPage(props: {
   return (
     <div data-testid={TESTID.trashPage}>
       <header class="mb-8">
-        <h1 class={`${PAGE_TITLE} text-ink`}>Trash</h1>
+        <h1 class={`${PAGE_TITLE} italic text-ink`}>Trash</h1>
         <p class="m-0 mt-1 text-sm text-muted">
           What was archived, kept whole. Put a row back and it returns where it
           came from, everything under it included.

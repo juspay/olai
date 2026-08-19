@@ -22,7 +22,7 @@ import { TESTID } from "./testids.ts"
 export function NotFound(props: { readonly zoomed: Zoomed }) {
   return (
     <section data-testid={TESTID.notFound} data-reason={props.zoomed.kind}>
-      <h1 class={`${PAGE_TITLE} mb-2 text-alarm`}>No such node</h1>
+      <h1 class={`${PAGE_TITLE} mb-2 italic text-alarm`}>No such node</h1>
       <Switch>
         <Match when={only(props.zoomed, "unknown")}>
           {(zoomed) => (

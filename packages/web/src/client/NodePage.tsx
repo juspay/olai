@@ -101,7 +101,7 @@ function Zoom(props: {
         >
           <div class="flex items-baseline gap-3">
             <h1
-              class={`flex-1 ${PAGE_TITLE} ${toneOf(props.zoomed.status)}`}
+              class={`flex-1 ${PAGE_TITLE} italic ${toneOf(props.zoomed.status)}`}
               data-testid={TESTID.zoomTitle}
               data-node-id={props.zoomed.shows.node.id}
               data-status={props.zoomed.status}
