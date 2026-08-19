@@ -50,6 +50,30 @@ import { attr } from "./selectors.ts";
 
 /** Per-step budget for interaction polls against a settled UI — a click
  *  landing, an attribute flipping, a subtree appearing. */
+/**
+ * WHAT A READER WOULD COPY OUT OF THE BAR, as two readings of one URL — the
+ * PLACE (everything but the query) and the whole ADDRESS.
+ *
+ * Functions over a `URL` rather than methods on the world, because both are
+ * asked twice per assertion and from two sides: a step WAITS for the bar to
+ * say something (Playwright hands its predicate a `URL`) and then ASSERTS what
+ * it says (the world's accessors, below). Written out at each of those, they
+ * are one expression maintained in four places — and the wait and the assert
+ * drifting apart is the shape where a step passes on the way past: a race
+ * where the pathname has landed and the fragment has not.
+ *
+ * The FRAGMENT is part of both, and that is not a detail: a node's address is
+ * `/#<id>` and nothing else (`@olai/format`'s `address.ts`), so a reading that
+ * took the pathname alone would answer `/` for every zoomed page — the front
+ * page, and an assertion quietly passing for the wrong screen.
+ */
+export const placeOf = (url: URL): string => url.pathname + url.hash;
+
+/** The place AND the query, in the URL's own order — which is why a narrowed
+ *  node page is `/?q=…#<id>`. */
+export const addressOf = (url: URL): string =>
+  url.pathname + url.search + url.hash;
+
 export const POLL_TIMEOUT = 15_000;
 
 /** How much longer than the client's own deadline a held finger stays down.
@@ -1417,29 +1441,18 @@ export class OlaiWorld extends World {
     return this.page.locator(daySelector(date));
   }
 
-  /** The PLACE the browser is at — what a reader would copy out of the URL
-   *  bar minus the query, and minus the origin the harness picked at random.
-   *
-   *  The FRAGMENT is part of it, and that is not a detail: a node's address is
-   *  `/#<id>` and nothing else (`@olai/format`'s `address.ts`), so a reading
-   *  that took the pathname alone would answer `/` for every zoomed page —
-   *  which is the front page, and an assertion that quietly passes for the
-   *  wrong screen. */
+  /** The PLACE the browser is at — {@link placeOf} of the bar, minus the
+   *  origin the harness picked at random. */
   place(): string {
-    const url = new URL(this.page.url());
-    return url.pathname + url.hash;
+    return placeOf(new URL(this.page.url()));
   }
 
-  /** The place AND the query — the whole of what a reader would copy out of
-   *  the bar when the page is narrowed. Its own accessor beside
-   *  {@link place} because the filter is part of the address (`routes.ts`)
-   *  and most assertions in this suite are about the place alone: a step
-   *  asserting "/house.olai" must not start passing for a page that is also
-   *  filtered. In the URL's own order — a query comes before a fragment, which
-   *  is why a narrowed node page is `/?q=…#<id>`. */
+  /** The place AND the query — {@link addressOf} of the bar. Its own accessor
+   *  beside {@link place} because most assertions in this suite are about the
+   *  place alone: a step asserting "/house.olai" must not start passing for a
+   *  page that is also filtered. */
   address(): string {
-    const url = new URL(this.page.url());
-    return url.pathname + url.search + url.hash;
+    return addressOf(new URL(this.page.url()));
   }
 
   /** One sidebar entry, by the relative path it stands for. */

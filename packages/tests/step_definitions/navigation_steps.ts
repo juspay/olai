@@ -22,6 +22,7 @@ import {
   SEE_REFS,
   TIP,
   EMPTY_UNDER,
+  placeOf,
   ZOOM,
   ZOOM_TITLE,
 } from "../support/world.ts";
@@ -73,7 +74,7 @@ Then("the address is {string}", async function (this: OlaiWorld, path: string) {
   // frame, and reading the URL immediately races the pushState that produced
   // the page being looked at.
   await this.page
-    .waitForURL((url) => url.pathname + url.hash === path, { timeout: POLL_TIMEOUT })
+    .waitForURL((url) => placeOf(url) === path, { timeout: POLL_TIMEOUT })
     .catch(() => undefined);
   assert.strictEqual(this.place(), path);
 });

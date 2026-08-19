@@ -63,17 +63,26 @@
 
 import { Schema } from "effect"
 
-import { fileKind } from "./kinds.ts"
+import { fileKind, holdsText } from "./kinds.ts"
 
 /**
  * A path that names a file the directory SERVES — `Tasks.olai`,
  * `notes/README.md`, relative to the served root.
  *
- * The refinement is the registry's ({@link fileKind}): a suffix no kind claims
- * is not a document, so `notes` and `photo.png` are not paths this grammar can
- * name. That is not tidiness — it is the fact the whole grammar rests on, since
- * the suffix is what says whether a `#` after it is a heading or a node, and
- * what keeps an address apart from a computed page that spells no file.
+ * The rule is the registry's ({@link fileKind}): a suffix no kind claims is not
+ * a document, so `notes` and `photo.png` are not paths this grammar can name.
+ * That is not tidiness — it is the fact the whole grammar rests on, since the
+ * suffix is what says whether a `#` after it is a heading or a node, and what
+ * keeps an address apart from a computed page that spells no file.
+ *
+ * WHERE THAT RULE IS ENFORCED is {@link addressOf}, which is the only way to
+ * make one: effect's `brand` is NOMINAL — it narrows the type and adds no
+ * runtime check — so the brand is a promise about where a value came from
+ * rather than a parse of one. That is the right trade while these are made in
+ * the browser's hot path (a URL per drawn row) and read back by one parser;
+ * the day an `Address` is DECODED off a wire — the design's edges, PR 2 — the
+ * rule wants to move into the schema as a filter, so a decode is judged by the
+ * same sentence a construction is.
  */
 export const DocumentPath = Schema.String.pipe(Schema.brand("DocumentPath"))
 export type DocumentPath = typeof DocumentPath.Type
@@ -139,6 +148,21 @@ export const Address = Schema.Union([AtDocument, AtNode, AtHeading])
 export type Address = typeof Address.Type
 
 /**
+ * The three halves, NAMED — a value this module has just judged, wearing the
+ * brand that says so.
+ *
+ * A cast rather than the schemas' own `make`, and that is a decision rather
+ * than a shortcut: `make` runs the parser, and the parser has nothing to check
+ * (the brands are nominal, and the rule they stand for is {@link addressOf}'s
+ * guard three lines up). What it does have is a cost — two schema parses per
+ * printed URL, on a path that runs once per drawn row of the tree — for a
+ * verdict the caller has already reached.
+ */
+const documentPath = (path: string): DocumentPath => path as DocumentPath
+const nodeId = (id: string): NodeId => id as NodeId
+const slug = (text: string): Slug => text as Slug
+
+/**
  * The address of a place, from the two halves somebody named — or `null` for a
  * pair that names none.
  *
@@ -162,15 +186,20 @@ export const addressOf = (
 ): Address | null => {
   const named = element === null || element === "" ? null : element
   if (document === null || document === "") {
-    return named === null ? null : { kind: "node", id: NodeId.make(named) }
+    return named === null ? null : { kind: "node", id: nodeId(named) }
   }
   const kind = fileKind(document)
   if (kind === null || !relative(document)) return null
-  const path = DocumentPath.make(document)
+  const path = documentPath(document)
   if (named === null) return { kind: "document", path }
-  return kind === "outline"
-    ? { kind: "node", id: NodeId.make(named) }
-    : { kind: "heading", path, slug: Slug.make(named) }
+  // WHICH KIND OF ELEMENT is the registry's `holds` column and not a list of
+  // suffixes read again here: a file whose content is a BODY has headings in
+  // it, and one whose content is records has nodes. A fourth kind that held
+  // records would be a node address by that rule rather than by falling
+  // through the last arm of a ternary (`./kinds.ts`).
+  return holdsText(kind)
+    ? { kind: "heading", path, slug: slug(named) }
+    : { kind: "node", id: nodeId(named) }
 }
 
 /**
@@ -224,7 +253,6 @@ export const parseAddress = (text: string): Address | null => {
   const cut = text.indexOf("#")
   const document = cut === -1 ? text : text.slice(0, cut)
   const element = cut === -1 ? "" : spelled(text.slice(cut + 1))
-  if (document === "") return addressOf(null, element)
   const path = readPath(document)
   return path === null ? null : addressOf(path, element)
 }
@@ -244,14 +272,36 @@ export const parseAddress = (text: string): Address | null => {
 const relative = (path: string): boolean =>
   path.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..")
 
-/** Encoded per segment, so a path with a directory in it stays readable rather
- *  than turning into a run of `%2F`. */
+/**
+ * Encoded per segment, so a path with a directory in it stays readable rather
+ * than turning into a run of `%2F`.
+ *
+ * The test first, and it is not a micro-optimisation looking for a home: this
+ * runs once per link the browser draws, per frame, and nearly every filename
+ * in a vault is already the characters a URL takes verbatim. The walk is what
+ * the answer IS; the test is what says the answer is the argument.
+ */
 const spellPath = (path: string): string =>
-  path.split("/").map(encodeURIComponent).join("/")
+  PLAIN.test(path) ? path : path.split("/").map(encodeURIComponent).join("/")
 
-/** The other end of {@link spellPath} — `null` when any segment was written
- *  with an escape nothing can read. */
+/** EXACTLY the characters `encodeURIComponent` leaves alone, plus the
+ *  separator {@link spellPath} keeps. Written as that list and not as a wider
+ *  one a URL would also tolerate: the point is that a path matching this IS
+ *  its own encoding, so the test can stand in for the walk without the two
+ *  ever printing different strings for one address. */
+const PLAIN = /^[A-Za-z0-9\-_.!~*'()/]*$/
+
+/**
+ * The other end of {@link spellPath} — `null` when any segment was written
+ * with an escape nothing can read.
+ *
+ * Per SEGMENT because `%2F` is a slash in somebody's filename rather than a
+ * separator, and a whole-string decode would turn one into the other. A path
+ * with no `%` in it can hold neither, so it is its own reading — which is
+ * every path a person types and every one this module prints.
+ */
 const readPath = (text: string): string | null => {
+  if (!text.includes("%")) return text
   const segments = text.split("/").map(spelled)
   return segments.includes(null) ? null : segments.join("/")
 }

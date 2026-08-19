@@ -31,6 +31,7 @@ import {
   nodeSelector,
   OUTLINE_TREE,
   POLL_TIMEOUT,
+  addressOf,
   SEARCH_REFUSAL,
   TAG,
 } from "../support/world.ts";
@@ -323,7 +324,7 @@ Then(
   "the address is exactly {string}",
   async function (this: OlaiWorld, address: string) {
     await this.page
-      .waitForURL((url) => url.pathname + url.search + url.hash === address, {
+      .waitForURL((url) => addressOf(url) === address, {
         timeout: POLL_TIMEOUT,
       })
       .catch(() => undefined);

@@ -129,6 +129,8 @@ import {
   writtenAddress,
 } from "@olai/format"
 
+import { routeTo } from "./file/kinds.ts"
+
 export type Route =
   /** One outline. `null` is "whichever was found first" — the bare `/`. */
   | { readonly kind: "outline"; readonly file: string | null; readonly filter?: string }
@@ -199,11 +201,10 @@ const NAMED_AT = new Map<string, Named>(
   Object.entries(NAMED).map(([kind, at]) => [at, kind as Named]),
 )
 
-/** What a route SPELLS, for the pages that spell a word — `undefined` for
- *  every other kind. The one widening in this file, so the lookup is total
- *  over `Route` without the three kinds being written out a second time. */
-const spelledAs = (route: Route): string | undefined =>
-  (NAMED as Partial<Record<Route["kind"], string>>)[route.kind]
+/** Whether a route is one of the pages that spell a word — asked of the table
+ *  itself, so the three kinds are not written out a second time and the answer
+ *  narrows the type rather than casting it away. */
+const isNamed = (kind: Route["kind"]): kind is Named => Object.hasOwn(NAMED, kind)
 
 /**
  * The one computed page that carries a VALUE, so it is a prefix rather than a
@@ -267,8 +268,7 @@ const addressNamed = (route: Route): Address | null => {
  */
 export const hrefOf = (route: Route): string => {
   const narrowed = narrowing(filterOf(route))
-  const word = spelledAs(route)
-  if (word !== undefined) return word + narrowed
+  if (isNamed(route.kind)) return NAMED[route.kind] + narrowed
   if (route.kind === "day") {
     return DAY_PREFIX + encodeURIComponent(route.date) + narrowed
   }
@@ -298,26 +298,39 @@ const narrowing = (filter: string | undefined): string =>
  * and anything that later wants it cannot disagree about a blank one.
  */
 const narrowedBy = (search: string): { readonly filter?: string } => {
+  // The common address carries no query at all — every title-borne address,
+  // every link in a note — and `URLSearchParams` is a parser to build for a
+  // string that has nothing in it.
+  if (search === "") return UNNARROWED
   const value = new URLSearchParams(search).get(FILTER_KEY)
-  return value === null || value.trim() === "" ? {} : { filter: value }
+  return value === null || value.trim() === "" ? UNNARROWED : { filter: value }
 }
 
+/** The narrowing of a page nothing narrows — one object, since it is only ever
+ *  spread and never held. */
+const UNNARROWED: { readonly filter?: string } = {}
+
 /**
- * The file a route names, for the routes that name one — what a link publishes
- * as `data-file`, and the sidebar's own answer to "is this entry the page I
- * am on".
+ * The file a route names, for the two that name one — what a link publishes as
+ * `data-file`, and the sidebar's own answer to "is this entry the page I am
+ * on". Read off the route rather than passed beside it: the two could disagree,
+ * and the route is the one a click follows.
  *
- * Read off the ROUTE rather than passed beside it (the two could disagree, and
- * the route is the one a click follows) — and read off its ADDRESS rather than
- * its arm, which is the same fact one step further back. "Which routes name a
- * file" was written here as a second little switch over the arms, and it is
- * already the answer {@link addressNamed} gives: a node names no document, and
- * everything else that has an address names its path.
+ * IT READS THE ARM rather than the address, and that is a measured decision
+ * rather than the lazy one. Asking {@link addressNamed} is the same answer one
+ * step further back and reads better — but it walks the path, mints an
+ * `Address` and hands back a field the route was already holding, and this is
+ * called once per `<Link>` per frame (`./router.tsx`, `data-file`). A
+ * derivation that allocates per drawn row is not the same trade as a
+ * derivation in a parser. The two cannot disagree — the address's document
+ * half IS this file — and `routes.test.ts` is where that is held.
  */
-export const fileNamed = (route: Route): string | undefined => {
-  const address = addressNamed(route)
-  return address === null || address.kind === "node" ? undefined : address.path
-}
+export const fileNamed = (route: Route): string | undefined =>
+  route.kind === "document"
+    ? route.file
+    : route.kind === "outline"
+    ? route.file ?? undefined
+    : undefined
 
 /**
  * The route a link on the page names, or `null` for an address this app should
@@ -349,7 +362,7 @@ export const fileNamed = (route: Route): string | undefined => {
  * and an app address always starts with a slash.
  */
 export const routeIn = (href: string): Route | null =>
-  href.startsWith("/") ? routeNamed(href) : null
+  href.startsWith("/") ? routeNamed(splitAddress(href)) : null
 
 /**
  * Path, query and fragment of an address, cut the way this app writes them.
@@ -366,13 +379,15 @@ export const routeIn = (href: string): Route | null =>
  * about a name, and re-joining a decoded half to a written one is how a `#`
  * inside somebody's heading becomes a second cut.
  */
-export const splitAddress = (
-  address: string,
-): {
+/** An address cut into the three things a URL keeps apart. Named, because the
+ *  parser is now handed one rather than a string to cut again. */
+export interface Split {
   readonly pathname: string
   readonly search: string
   readonly fragment: string | undefined
-} => {
+}
+
+export const splitAddress = (address: string): Split => {
   const hash = address.indexOf("#")
   const whole = hash === -1 ? address : address.slice(0, hash)
   const fragment = hash === -1 ? undefined : address.slice(hash + 1)
@@ -381,30 +396,6 @@ export const splitAddress = (
     pathname: cut === -1 ? whole : whole.slice(0, cut),
     search: cut === -1 ? "" : whole.slice(cut + 1),
     fragment,
-  }
-}
-
-/**
- * The text a path segment SPELLS, or `undefined` for an escape no address
- * could have been written with.
- *
- * `decodeURIComponent` THROWS on a malformed escape (`%`, `%ZZ`, `%2`), and a
- * parser that throws is a parser a caller cannot use: this one reads the
- * address BAR, where somebody types, and it reads a title out of `Pins.olai`,
- * which the format invites a hand and an agent to edit (docs/format.md's
- * Pins). A `URIError` out of either of those is not a bad address — it is a
- * blank app, because a throw during render takes the tree that was rendering
- * with it, and this client mounts no error boundary.
- *
- * It is left here for the DAY, which is the one address of this app that is
- * not a `@olai/format` address: a date is not a place in the directory, so
- * nothing over there reads it and the same totality has to be kept here.
- */
-const spelled = (text: string): string | undefined => {
-  try {
-    return decodeURIComponent(text)
-  } catch {
-    return undefined
   }
 }
 
@@ -423,14 +414,15 @@ const spelled = (text: string): string | undefined => {
  * here rather than baked into it.
  */
 export const routeOf = (address: string): Route => {
-  const named = routeNamed(address)
+  const parts = splitAddress(address)
+  const named = routeNamed(parts)
   if (named !== null) return named
   /** What an address this does not recognise means, and — since {@link spelled}
    *  — what one it cannot READ means too. The kindness is the same either way:
    *  somebody typed something, and the app they wanted is the one at `/`. It
    *  keeps whatever the address was NARROWED by, because a query is read by
    *  `URLSearchParams`, which is lenient where a path is not. */
-  return { kind: "outline", file: null, ...narrowedBy(splitAddress(address).search) }
+  return { kind: "outline", file: null, ...narrowedBy(parts.search) }
 }
 
 /**
@@ -448,15 +440,26 @@ export const routeOf = (address: string): Route => {
  * collide with a file — a served file carries a suffix the registry claims and
  * these spell none — so the order is a reading order and not a rule.
  */
-const routeNamed = (address: string): Route | null => {
-  const { pathname, search, fragment } = splitAddress(address)
+const routeNamed = (parts: Split): Route | null => {
+  const { pathname, search, fragment } = parts
   const narrowed = narrowedBy(search)
 
   const word = NAMED_AT.get(pathname)
   if (word !== undefined) return { kind: word, ...narrowed }
   if (pathname.startsWith(DAY_PREFIX)) {
-    const date = spelled(pathname.slice(DAY_PREFIX.length))
-    return date === undefined ? null : { kind: "day", date, ...narrowed }
+    // TOTAL, for the reason the grammar's own reading is (`@olai/format`'s
+    // `parseAddress`): `decodeURIComponent` throws on a malformed escape, and
+    // a throw during render is a blank app rather than a bad address. Written
+    // here rather than borrowed, because a DATE is not a place in the
+    // directory and nothing over there reads one — and inline rather than
+    // behind a helper, because it is the only address of this app that is not
+    // the format's.
+    try {
+      const date = decodeURIComponent(pathname.slice(DAY_PREFIX.length))
+      return { kind: "day", date, ...narrowed }
+    } catch {
+      return null
+    }
   }
   if (!pathname.startsWith(HOME)) return null
   // The front page names no file — "whichever outline was found first" — which
@@ -473,13 +476,20 @@ const routeNamed = (address: string): Route | null => {
   if (named.kind === "heading") {
     return { kind: "document", file: named.path, at: named.slug }
   }
-  // WHICH PAGE a document opens is the suffix's answer and not the address's:
-  // an outline is a tree of rows to zoom into and narrow, everything else is a
-  // body drawn whole. The registry is asked rather than a second list here,
-  // for the reason it exists (`@olai/format`'s `kinds.ts`).
-  return fileKind(named.path) === "outline"
-    ? { kind: "outline", file: named.path, ...narrowed }
-    : { kind: "document", file: named.path }
+  // WHICH PAGE a served file opens is one question with one answer in this
+  // client (`./file/kinds.ts`'s `routeTo`, which the sidebar's rows already
+  // go through): an outline is a tree of rows to zoom into and narrow, and
+  // everything whose content is a body is drawn whole. Asking it there rather
+  // than re-deciding it here is what stops an address and a sidebar click
+  // opening two different pages for one file.
+  //
+  // The `null` cannot happen — a `DocumentPath` carries a suffix the registry
+  // claims — and is asked rather than asserted, so the claim stays the
+  // registry's.
+  const kind = fileKind(named.path)
+  if (kind === null) return null
+  const page = routeTo(kind, named.path)
+  return narrowable(page) ? { ...page, ...narrowed } : page
 }
 
 /**

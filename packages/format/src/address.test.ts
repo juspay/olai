@@ -134,3 +134,35 @@ test("parsing answers for any string at all, and never throws", () => {
   expect(parseAddress("README.md#a%23b")).toEqual(heading("README.md", "a#b"))
   expect(printAddress(node("a#b"))).toBe("#a%23b")
 })
+
+// The printer takes a fast path for a name that is already the characters a
+// URL carries verbatim, and the fast path has to BE the walk: a class one
+// character too wide is an address printed two ways depending on which branch
+// ran. Checked against `encodeURIComponent` itself, over every code point a
+// name is likely to hold.
+test("the plain-path fast path prints what the walk would have printed", () => {
+  const walked = (path: string): string =>
+    path.split("/").map(encodeURIComponent).join("/")
+  const names = [
+    "Tasks.olai",
+    "notes/README.md",
+    "a file with spaces.olai",
+    "a-'file_(2)~!*.md",
+    "wing/kitchen.olai",
+    "100% done.md",
+    "a&b.md",
+    "a$b.md",
+    "a+b.md",
+    "a,b.md",
+    "a;b=c.md",
+    "a:b@c.md",
+    "a?b.md",
+    "a#b.md",
+    "🌱.md",
+  ]
+  for (const name of names) {
+    const address = addressOf(name, null)
+    if (address === null) continue
+    expect(printAddress(address)).toBe(walked(name))
+  }
+})

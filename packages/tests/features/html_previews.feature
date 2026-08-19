@@ -303,8 +303,7 @@ Feature: A `.html` in the vault
     # is what makes the section a thing a reader can copy out of the bar and
     # send, rather than a scroll position this tab happens to be at.
     Then the document open is "notes/second.html"
-    And the address is "/notes/second.html"
-    And the address carries the anchor "#beds"
+    And the address is "/notes/second.html#beds"
     And the page has not reloaded
     # …and the page landed there. For a `.html` that is the frame's own URL
     # carrying the fragment, so the browser does the scrolling — the same thing
@@ -574,8 +573,7 @@ Feature: A `.html` in the vault
     Then the preview shows the heading "Index"
     When I click "#slats" inside the preview
     Then the document open is "notes/beds.md"
-    And the address is "/notes/beds.md"
-    And the address carries the anchor "#slats"
+    And the address is "/notes/beds.md#slats"
     # The section the link named is the one the reader is looking at — read as
     # the page's own scroll rather than as the address, since the address is
     # what the two lines above already say.
