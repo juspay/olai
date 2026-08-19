@@ -221,14 +221,22 @@ type IsValue = (typeof IS_VALUES)[number]
  *
  * WHAT EACH ONE READS is {@link dayWithin}, which is the one place a record
  * is read as days at all.
+ *
+ * THE `satisfies` PINS THE THREE TO THE RECORD, which is the volatility this
+ * list sits on: two of them are field names, {@link dayWithin} reaches a stamp
+ * as `node[of]`, and a format that renamed one would otherwise leave a
+ * grammar quietly asking for a key nothing writes. Now it is an error here,
+ * at the list, in ./node.ts's own idiom for the same worry.
  */
-const DAY_READINGS = ["date", "created", "changed"] as const
+const DAY_READINGS = ["date", "created", "changed"] as const satisfies
+  ReadonlyArray<keyof RegularNode>
 type DayReading = (typeof DAY_READINGS)[number]
 
 /** Is this `has:` row one of them — the rows that are an unbounded day
  *  question rather than a field test? A type guard for {@link isOperator}'s
- *  reason: it narrows {@link HasField} to the complement below, so the field
- *  test's callee can refuse the three by type rather than by a comment. */
+ *  reason: {@link hasClause} splits the vocabulary on it ONCE, at the parse,
+ *  and what comes out the other side is two clause kinds the matcher can no
+ *  longer confuse. */
 const isDayReading = (field: HasField): field is DayReading =>
   (DAY_READINGS as ReadonlyArray<string>).includes(field)
 
@@ -236,11 +244,14 @@ const isDayReading = (field: HasField): field is DayReading =>
  *  reader might select on; `has:children` is deliberately absent, being a
  *  question about the SET rather than about the record.
  *
- *  THE THREE {@link DAY_READINGS} are the rows that are not a plain field test:
- *  each is its own operator asked with NO BOUNDS, which is what keeps the pair
- *  from disagreeing — a reader who finds a node with `created:2026-08-19` and
- *  then cannot find it with `has:created` has met two answers to one word. See
- *  {@link holds}.
+ *  THE THREE {@link DAY_READINGS} are the rows that are not a plain field
+ *  test: each is its own operator asked with NO BOUNDS, which is what keeps
+ *  the pair from disagreeing — a reader who finds a node with
+ *  `created:2026-08-19` and then cannot find it with `has:created` has met two
+ *  answers to one word. This list is the VOCABULARY `has:` takes, which is a
+ *  different thing from the clause it produces: {@link hasClause} turns those
+ *  three into an unbounded span and the rest into a field test, so nothing
+ *  downstream has both to tell apart.
  *
  *  `repeat` could have looked like a fourth exception and is not. A rule needs
  *  a `date` to repeat FROM (./parse.ts refuses one without), so this row and
@@ -250,6 +261,24 @@ const isDayReading = (field: HasField): field is DayReading =>
  *  query is docs/search.md's to say. */
 const HAS_FIELDS = ["desc", ...DAY_READINGS, "see", "after", "doc", "repeat"] as const
 type HasField = (typeof HAS_FIELDS)[number]
+
+/** Is this word one of them? The guard {@link hasClause} reads, and the reason
+ *  the cast that used to stand there is gone. */
+const isHasField = (value: string): value is HasField =>
+  (HAS_FIELDS as ReadonlyArray<string>).includes(value)
+
+/**
+ * The rows of {@link HAS_FIELDS} that ARE a plain field test — every one but
+ * the three {@link DAY_READINGS}, which {@link hasClause} has already turned
+ * into an unbounded span by the time a clause exists.
+ *
+ * A TYPE rather than a sentence, and it claims only what it delivers: nobody
+ * can call `carries(node, "date")`, which would answer about the `date` FIELD
+ * where the grammar answers about the journal's two dates. Since the split
+ * happens at the parse it is no longer a rule {@link holds} has to keep — the
+ * clause it receives cannot name one of the three, because none is ever built.
+ */
+type CarriedField = Exclude<HasField, DayReading>
 
 /** The operator names. A colon after anything else is a colon in a word — see
  *  {@link parseFilter}. A QUOTED token is never one of these, whatever it
@@ -270,7 +299,10 @@ const isOperator = (name: string): name is Operator =>
 
 type Clause =
   | { readonly kind: "is"; readonly value: IsValue }
-  | { readonly kind: "has"; readonly field: HasField }
+  /** A field the record carries, and never one of the {@link DAY_READINGS}:
+   *  `has:created` is a `days` clause with no bounds by the time it is one of
+   *  these ({@link hasClause}). */
+  | { readonly kind: "has"; readonly field: CarriedField }
   /**
    * An inclusive span of DAYS, as text, and WHICH of a node's days it is asked
    * of ({@link DAY_READINGS}). `null` on either side is "unbounded that way",
@@ -761,9 +793,7 @@ const clauseOf = (name: Operator, value: string, now: string): Clause | null => 
         ? { kind: "is", value: value as IsValue }
         : null
     case "has":
-      return (HAS_FIELDS as ReadonlyArray<string>).includes(value)
-        ? { kind: "has", field: value as HasField }
-        : null
+      return hasClause(value)
     // The three that take a span of days, told apart by nothing but which
     // days they read — so the value is parsed once here and the operator's own
     // name is what the clause carries away.
@@ -774,6 +804,31 @@ const clauseOf = (name: Operator, value: string, now: string): Clause | null => 
     case "prop":
       return propClause(value)
   }
+}
+
+/**
+ * `has:` — a field the record carries, or one of the three day readings asked
+ * with NO BOUNDS.
+ *
+ * THE SPLIT IS HERE, ONCE PER QUERY, and that is the whole of what this
+ * function is for. "`has:created` means `created:` with the bounds left off"
+ * is a fact about the GRAMMAR — about which word the reader typed — and it was
+ * being re-decided at the gate, per node, per clause, over the whole
+ * directory. It is the argument {@link Filter}'s `namedProps` and
+ * {@link inCostOrder} each make one shape over: a fact about the query is
+ * answered where the query is read.
+ *
+ * What it buys downstream is that the two are no longer one thing to tell
+ * apart. A `has` clause names a {@link CarriedField} and nothing else, so
+ * {@link holds} has one branch where it had a branch and a test, and a `days`
+ * clause is the only thing that ever reads a record as days — whether the
+ * reader wrote `created:last-week` or `has:created`.
+ */
+const hasClause = (value: string): Clause | null => {
+  if (!isHasField(value)) return null
+  return isDayReading(value)
+    ? { kind: "days", of: value, from: null, to: null }
+    : { kind: "has", field: value }
 }
 
 /**
@@ -1459,7 +1514,7 @@ const sourceOffsets = (
 
 /**
  * What `is:` asks of one node — a SWITCH over the value's own type, for the
- * reason {@link clauseOf} is one: three of these six are answered by three
+ * reason {@link clauseOf} is one: four of these seven are answered by four
  * different things, and the chain of `if`s this replaced ended in a comparison
  * against the stored mark. So a value added to {@link IS_VALUES} that is not a
  * mark fell through to `mark === "whatever"` and quietly selected nothing —
@@ -1508,21 +1563,15 @@ const being = (derived: Derived, at: LocatedRegular, value: IsValue): boolean =>
 
 const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean => {
   if (clause.kind === "is") return being(derived, at, clause.value)
-  // `has:date` is `date:` WITH NO BOUNDS rather than a test of the `date`
-  // field, and the three exceptions in the table are deliberate: a reader who
-  // can find a node with `date:2026-08-03` and then not find it with
-  // `has:date` has met two answers to one word. So both sides go through
-  // {@link dayWithin} — the per-RECORD rule, and pointedly not the walk above
-  // it, which is where the archive comes out: a day clause answers about a node
-  // wherever it was filed, which is what makes `is:archived date:2026-08-11` a
-  // question with an answer (docs/search.md).
-  if (clause.kind === "has") {
-    // The unbounded span, which is what that row MEANS — see {@link dayWithin}.
-    return isDayReading(clause.field)
-      ? dayWithin(at.node, clause.field, null, null)
-      : carries(at.node, clause.field)
-  }
+  if (clause.kind === "has") return carries(at.node, clause.field)
   if (clause.kind === "prop") return propKeyOf(at.node, clause) !== null
+  // Every day question of every spelling arrives here, `has:date` included —
+  // {@link hasClause} made it an unbounded span at the parse — which is what
+  // keeps a reader from meeting two answers to one word. The per-RECORD rule,
+  // and pointedly not the walk above it, which is where the archive comes out:
+  // a day clause answers about a node wherever it was filed, and that is what
+  // makes `is:archived date:2026-08-11` a question with an answer
+  // (docs/search.md).
   return dayWithin(at.node, clause.of, clause.from, clause.to)
 }
 
@@ -1620,19 +1669,6 @@ const propKeyOf = (
   }
   return null
 }
-
-/**
- * The rows of {@link HAS_FIELDS} that ARE a plain field test — every one but
- * the three {@link DAY_READINGS}, which are their own operator asked with no
- * bounds and go through {@link dayWithin} instead ({@link holds}).
- *
- * A TYPE rather than a sentence, and it claims only what it delivers: nobody
- * can call `carries(node, "date")`, which would answer about the `date` FIELD
- * where the grammar answers about the journal's two dates. What still has to
- * be got right by hand is {@link holds}' branch — this narrows the callee, it
- * does not decide the table.
- */
-type CarriedField = Exclude<HasField, DayReading>
 
 /** Whether a record carries a field — the WRITER's own rule for absence
  *  (./write.ts's `nothing`), asked as a question rather than restated. The four
