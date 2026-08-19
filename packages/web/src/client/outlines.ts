@@ -29,23 +29,31 @@
  * out in the design doc's cross-file consistency paragraph; what it costs THIS
  * module is nothing, because everything below is derived from whatever the
  * entries currently say rather than from a claim about which revision they are
- * all at. The numbers themselves are now READ, mind — they are how the fold
- * below tells which files moved (`./deriving.ts`) — but they are read one file
- * at a time, which is what they mean, and never compared across two.
+ * all at. The numbers are not read here at all any more: what moved is what the
+ * FRAME says moved.
  *
  * Nothing here writes to what the wire hands it — see App.tsx's note on
  * `reconcile` — and nothing here interprets it either: the entries go into
  * `@olai/format`'s own derivation, the same call the validator makes — and
  * since slice 4 of `model-indices` they go into the same PATCH of it, so a
- * keystroke costs the file it touched rather than the directory (`./deriving.ts`
- * holds the fold and says how the delta is worked out).
+ * keystroke costs the file it touched rather than the directory.
+ *
+ * WHAT MOVED IS NO LONGER WORKED OUT HERE, and that is this module's whole
+ * share of the two vaults that landed upstream. `@kolu/surface`'s collection
+ * `fold` hands a consumer the wire's own `{upserts, removes}` frame, and the
+ * patcher takes that frame as it stands — its `SetDelta` IS that frame's shape
+ * and its docstring says so. What stood between the two until now was a
+ * reconstruction (a view keyed by each entry's `rev`, a file whose number moved
+ * read back as an upsert): the client library folded the frames into a keyed
+ * store and handed a reader `{keys, byKey}`, so the frame itself reached
+ * nobody. It reaches this module now, and the reconstruction is deleted (kolu
+ * #2187).
  */
 
-import type { BrokenFile, Derived, Face } from "@olai/format"
+import { type BrokenFile, derive, type Derived, type Face, patch } from "@olai/format"
 import type { Manifest } from "@olai/surface"
 import { type Accessor, createMemo } from "solid-js"
 
-import { type View, viewOf } from "./deriving.ts"
 import { facesOf, sortByPath } from "./paths.ts"
 import { olai } from "./wire.ts"
 
@@ -77,26 +85,30 @@ export const createOutlines = (): Outlines => {
   const files = createMemo(() => sortByPath(entries.keys()))
 
   /**
-   * THE ONE DERIVATION, folded rather than rebuilt.
+   * THE ONE DERIVATION, folded rather than rebuilt — over the wire's own frames.
    *
-   * What it READS is a revision per file, which is what makes it cheap and what
-   * makes it correct: reading `rev` off each entry is the dependency this memo
-   * wants (a file that moved says so in one number), and it is what
-   * `./deriving.ts` turns into the delta the format's patcher takes. A memo
-   * that read every record instead — the flatten this replaces — woke on the
-   * same frames and then paid for the whole corpus to answer for one file.
+   * TWO ARMS and nothing else, because the frame is the unit of update and the
+   * patcher already takes one. A full-set frame — the wire's first, every
+   * reconnect snapshot, and the synthetic one a late fold is seeded with — has
+   * nothing standing to patch onto, so the patcher declines it and rebuilds;
+   * going through `patch` anyway is what keeps that arm honest, since WHERE a
+   * file's records land in the flat list is `assemble`'s rule and a browser
+   * that spelled it again here would be a second answer about what corpus this
+   * is. Every frame after it is the held view patched with what the frame
+   * named, which is the whole of what a keystroke costs this tab.
    *
-   * A set that has never loaded has nothing to derive FROM, and the page it
-   * gets is the error report rather than an empty tree — so the `undefined`
-   * here is the manifest's two absent states and not a third one. Dropping back
-   * to it also drops the held view, which is right: what comes after a
-   * never-loaded directory is a first frame, and a first frame is a derivation.
+   * A REMOVE OF A KEY THIS FOLD NEVER SAW is a no-op in the patcher
+   * (`byFile.delete` on an absent file), which is exactly what the socket asks
+   * of a `step`: the server's tick coalescer resolves an upsert-then-remove
+   * inside one producer tick to a bare remove, so a remove that was never
+   * preceded by an upsert is a real frame rather than a hypothetical one. It
+   * costs one wasted wake — such a file lands in `touched`, so a frame carrying
+   * only it answers with a fresh `Derived` identity — and nothing else.
    */
-  const view = createMemo((held: View | undefined) => {
-    const loaded = manifest.value()
-    if (loaded === undefined || loaded === null) return undefined
-    return viewOf(held, entries.keys(), (file) => entries.byKey(file)?.())
-  }, undefined)
+  const view = entries.fold({
+    init: (all) => patch(EMPTY, { upserts: all, removes: [] }),
+    step: (held, { upserts, removes }) => patch(held, { upserts, removes }),
+  })
 
   return {
     manifest: manifest.value,
@@ -110,6 +122,23 @@ export const createOutlines = (): Outlines => {
       }
       return found
     }),
-    derived: createMemo(() => view()?.derived),
+    /**
+     * The gate, and now the only thing between the fold and a reader: a set that
+     * has NEVER loaded has nothing to show derived, and the page it gets is the
+     * error report rather than an empty tree. So the `undefined` here is the
+     * manifest's two absent states and the fold's own one — no snapshot yet —
+     * and not a third one this module invented.
+     */
+    derived: createMemo(() => {
+      const loaded = manifest.value()
+      if (loaded === undefined || loaded === null) return undefined
+      return view()
+    }),
   }
 }
+
+/** The view of a directory with nothing in it — what a full-set frame is patched
+ *  onto, so the first frame and a reconnect are one arm rather than two. Minted
+ *  once: it holds no records, so every snapshot of every tab can be handed the
+ *  same one. */
+const EMPTY: Derived = derive([])
