@@ -382,7 +382,7 @@
   };
   "@redis/time-series@6.2.1" = fetchurl {
     url = "https://registry.npmjs.org/@redis/time-series/-/time-series-6.2.1.tgz";
-    hash = "sha512-kiYniph04dJOole+L359B6C9E+jYS2uDP7hca6Onj0xF38ZIpyxARO0Iq0W4ZRn1e8Q6vqW00WFzVSMRA/2Ijw==";
+    hash = "sha512-kiYniph04dJOole+L359B6C9E+jYS2uDP7hca6Onj0xF38ZIpyxARO0Iq0W4ZRn1e8Q6vqW00QFZVSMRA/2Ijw==";
   };
   "@solid-primitives/event-listener@2.4.6" = fetchurl {
     url = "https://registry.npmjs.org/@solid-primitives/event-listener/-/event-listener-2.4.6.tgz";
