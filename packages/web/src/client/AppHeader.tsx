@@ -145,7 +145,7 @@ export function AppHeader(props: {
 }) {
   return (
     <header
-      class={`sticky top-0 ${LAYER.header} flex h-16 shrink-0 items-center gap-2 border-b-2 border-accent bg-ink px-4 font-sans text-paper md:px-6`}
+      class={`sticky top-0 ${LAYER.header} flex h-16 shrink-0 items-center gap-2 border-b-2 border-accent bg-ink px-3 font-sans text-paper md:px-6`}
       data-testid={TESTID.appHeader}
       data-layout={props.docked ? "docked" : "chrome-only"}
     >
@@ -166,7 +166,7 @@ export function AppHeader(props: {
           )}
         </Show>
         <h1 class={WORDMARK}>
-          <Leaf class="size-5 text-accent" />
+          <Leaf class="size-4 text-accent md:size-5" />
           olai
         </h1>
       </div>

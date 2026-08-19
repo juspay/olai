@@ -21,4 +21,4 @@ export const PAGE_COL = "mx-auto w-full max-w-3xl"
 /** The word in the bar. Colour is the header's (`text-paper` on ink);
  *  this is only the face. */
 export const WORDMARK =
-  "m-0 flex items-center gap-2.5 font-serif text-[1.375rem] font-medium italic leading-none tracking-tight"
+  "m-0 flex items-center gap-2 font-serif text-[1.125rem] font-medium italic leading-none tracking-tight md:gap-2.5 md:text-[1.375rem]"

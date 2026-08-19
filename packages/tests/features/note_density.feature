@@ -46,7 +46,7 @@ Feature: A row is its title, and the pilcrow opens the rest
     # (`client/dismiss.ts`), which is the same fix a portalled trigger gets.
     When I fold the note of "order"
     Then the row "order" is folded
-    And the node "order" draws nothing under its title
+    And the description of "order" is a preview of "Two ways to go:"
 
   Scenario: Space opens a focused pilcrow, and closes it again
     # A `<button>` answers Space without this app claiming the key, which is
