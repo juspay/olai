@@ -158,9 +158,12 @@ export function Transcript(props: { readonly chat: Chat }) {
    * into the list by position. That is the cheaper shape as well as the
    * honester one: `<For>` only keeps a signal per row for the index when the
    * mapper asks for one, and every conversation would pay for that whether or
-   * not an agent was ever spawned. This rebuilds on exactly the ticks the sort
-   * already runs on — a row arriving or leaving — and on none of the frames
-   * that merely grow a row.
+   * not an agent was ever spawned. This rebuilds on exactly the ticks the
+   * ORDER moves on — a row arriving or leaving — and on none of the frames
+   * that merely grow a row, which is a fact about {@link ./order.ts}'s fold
+   * rather than a hope about this memo: the list it hands back on a frame that
+   * moved nothing is the very array it handed back last time, so nothing here
+   * wakes.
    */
   const previousOf = createMemo(() => {
     const order = props.chat.rows()

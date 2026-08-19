@@ -16,7 +16,8 @@
  * opened halfway through a turn shows the whole conversation: its first frame is
  * the snapshot. Rows are sorted by their own `seq` rather than by the order the
  * keys arrived, because arrival order is a delivery detail and the conversation
- * has an order of its own.
+ * has an order of its own — and that sort is a FOLD over the frames rather than
+ * a pass over the whole transcript per frame ({@link ./order.ts}).
  *
  * **`rows` is KEYS, and each row reads its own value.** `<For>` diffs its list
  * by identity, so what is IN that list decides whether a change patches a row
@@ -53,11 +54,12 @@ import {
   type SessionInfo,
   UsageFailure,
 } from "@olai/surface"
-import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
+import { type Accessor, createEffect, createSignal, on } from "solid-js"
 
 import { olai } from "../wire.ts"
 import { type Call, run } from "../run.ts"
 import { attaching } from "./attach.ts"
+import { createRows } from "./order.ts"
 import { forget, remember } from "./previews.ts"
 
 /**
@@ -209,16 +211,11 @@ export const createChat = (): Chat => {
   const entry = (key: string): Accessor<ChatEntry | undefined> => () =>
     transcript.byKey(key)?.()
 
-  // Reading `seq` to sort means this memo re-runs on every frame — which is
-  // fine and is what the framework's own example does. What matters is that
-  // what comes OUT is strings: `<For>` compares them with `===`, finds the
-  // same list, and leaves every row's DOM alone.
-  const rows = createMemo<ReadonlyArray<string>>(() =>
-    transcript
-      .keys()
-      .filter((key) => transcript.byKey(key)?.() !== undefined)
-      .sort((a, b) => (entry(a)()?.seq ?? 0) - (entry(b)()?.seq ?? 0))
-  )
+  // THE ORDER, FOLDED — the wire's own frames accumulated into a key list
+  // instead of the whole transcript being re-read and re-sorted per frame.
+  // {@link ./order.ts} is where that shape is argued and where the reader's
+  // half of it lives with it.
+  const rows = createRows(transcript.fold)
 
   /** Every verb the same way: clear the last refusal, run, and keep whatever
    *  this one refuses with. A verb that SUCCEEDS says nothing — the transcript
