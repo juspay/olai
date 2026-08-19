@@ -246,6 +246,63 @@ describe("questions", () => {
     expect(rows(transcript)[0]?.streaming).toBeUndefined()
   })
 
+  test("a subagent's question lands in that subagent's lane", () => {
+    // The row a person is about to act on. Drawn in the main column it says
+    // the MAIN agent is asking, which is the one thing about a permission form
+    // that cannot be wrong — and it names the `Agent` frame's own key, the
+    // same shape a tool call the subagent made names it by, so the panel looks
+    // one row up rather than mapping an id onto one.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { title: "explore the outline" })
+    transcript.ask("ask:1", "Allow `Bash`?", fields, "toolu_01AGENT")
+
+    expect(rows(transcript)[1]).toMatchObject({
+      kind: "ask",
+      parent: "tool:toolu_01AGENT",
+    })
+    expect(transcript.entries().get("tool:toolu_01AGENT")).toBeDefined()
+  })
+
+  test("the main agent's own questions are in nobody's lane", () => {
+    const transcript = new Transcript()
+    transcript.ask("ask:1", "Shall I?", fields)
+    expect(rows(transcript)[0]?.parent).toBeUndefined()
+  })
+
+  test("answering a subagent's question leaves it in that subagent's lane", () => {
+    // The row is REWRITTEN when it settles rather than patched, so this is the
+    // one place the attribution could be dropped — and it would be dropped at
+    // the moment the row becomes the record of a decision somebody made.
+    const transcript = new Transcript()
+    transcript.ask("ask:1", "Allow `Bash`?", fields, "toolu_01AGENT")
+    transcript.settleAsk("ask:1", {
+      how: "answered",
+      answers: [{ key: "question_0", values: ["yes"] }],
+    })
+
+    expect(rows(transcript)[0]).toMatchObject({ parent: "tool:toolu_01AGENT" })
+  })
+
+  test("a subagent's question does not break the run of its own work", () => {
+    // THE VISIBLE HALF of the same bug. An unattributed form landing between
+    // two of one subagent's calls is a row in no lane, which ENDS the stretch
+    // — so the lane re-opens and introduces itself again underneath the form,
+    // saying a second agent started where there was only ever one. The
+    // transcript's half of that is that all three rows name the same lane;
+    // what the panel then draws is `lanes.ts`'s.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { title: "explore the outline" })
+    transcript.tool("call-1", { title: "Grep", parent: "toolu_01AGENT" })
+    transcript.ask("ask:1", "Allow `Bash`?", fields, "toolu_01AGENT")
+    transcript.tool("call-2", { title: "Bash", parent: "toolu_01AGENT" })
+
+    expect(rows(transcript).slice(1).map((entry) => entry.parent)).toEqual([
+      "tool:toolu_01AGENT",
+      "tool:toolu_01AGENT",
+      "tool:toolu_01AGENT",
+    ])
+  })
+
   test("settling one that is no longer there says nothing", () => {
     // A session replaced under a pending question empties the transcript before
     // the withdrawal arrives; minting a row here would put a dead question at

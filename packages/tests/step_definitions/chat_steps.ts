@@ -1436,6 +1436,75 @@ Then(
   },
 );
 
+/** The lane a QUESTION is drawn in. `:has()` rather than a walk up the tree,
+ *  because what is being claimed is containment: the form is INSIDE the lane's
+ *  own box, which is what makes the rail run past it and the indent apply to
+ *  it. A form drawn beside a lane would satisfy neither. */
+const askLane = (world: OlaiWorld) =>
+  world.page.locator(`${CHAT_LANE}:has(${CHAT_ASK})`).first();
+
+Then(
+  "the question is drawn in the lane of the agent that asked it",
+  async function (this: OlaiWorld) {
+    const lane = askLane(this);
+    await lane.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const parent = await lane.getAttribute("data-lane");
+    assert.ok(
+      parent !== null && parent !== "",
+      "the form is drawn in the main column, which says the agent you are " +
+        "talking to is the one asking — and a permission form is the row " +
+        "where believing that changes what somebody decides",
+    );
+    // The same geometry a subagent's tool call owes, measured the same way:
+    // the attribution is a claim, and the indent is what a reader sees.
+    await insetBelow(this, parent ?? "", lane.locator(CHAT_ASK), "the question");
+  },
+);
+
+Then(
+  "the question's lane names itself, as {string}",
+  async function (this: OlaiWorld, named: string) {
+    // A form is pointed at from the composer and the header, so a reader
+    // arrives at it rather than scrolling down to it — the rail alone says
+    // "somebody else" and refuses to say who, at the one row where that is
+    // the question.
+    const label = askLane(this).locator(CHAT_LANE_LABEL).first();
+    await label.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const said = oneLine(await label.innerText());
+    assert.ok(
+      said.includes(named),
+      `the form's lane says "${said}" rather than naming "${named}"`,
+    );
+  },
+);
+
+Then(
+  "the lane under the question does not introduce itself again",
+  async function (this: OlaiWorld) {
+    // THE VISIBLE HALF of the same bug, and it is asserted as a PLACE rather
+    // than as a count: a form in no lane ends the stretch, so the lane opened
+    // again and introduced itself UNDER the form — one name on screen either
+    // way, on the wrong row. What has to be true is that the name above the
+    // form is the only one, so the run reads as the one agent it is.
+    const labels = this.page.locator(CHAT_LANE_LABEL);
+    assert.strictEqual(
+      await labels.count(),
+      1,
+      "the lane says whose it is more than once — a subagent's own run reads " +
+        "as several agents",
+    );
+    const form = await askLane(this).locator(CHAT_ASK).boundingBox();
+    const named = await labels.first().boundingBox();
+    assert.ok(form !== null && named !== null, "the form or its lane's name is not drawn");
+    assert.ok(
+      named.y < form.y,
+      `a lane introduces itself at ${named.y}, below the form at ${form.y} — ` +
+        "the form broke the run, so the same agent's next call opens a lane " +
+        "of its own and one subagent reads as two",
+    );
+  },
+);
+
 // ── the completion over the box ────────────────────────────────────────
 //
 // ONE set of steps for both lists — the agent's commands under a `/` and what

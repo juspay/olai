@@ -180,6 +180,24 @@ describe("a question, as a form", () => {
     expect((refused as Refused).reason).toContain("_something-new")
   })
 
+  test("the form says which call it was asked from", () => {
+    // `askUserQuestionsToCreateRequest` scopes an `AskUserQuestion` to the
+    // tool use it came out of, and that call is the only thread back to WHICH
+    // agent asked: unlike a permission request, the elicitation carries no
+    // attribution of its own.
+    expect(formIn(oneQuestion).toolCall).toBe("call-1")
+  })
+
+  test("a question scoped to no call says so rather than inventing one", () => {
+    // A form elicitation may be scoped to a REQUEST instead of a session, and
+    // an MCP server's may name no call. `null` is the honest answer, and it is
+    // what stops a caller joining this to somebody else's row.
+    const { toolCallId: _scoped, ...unscoped } = oneQuestion as
+      & CreateElicitationRequest
+      & { toolCallId?: string }
+    expect(formIn(unscoped as CreateElicitationRequest).toolCall).toBeNull()
+  })
+
   test("a url elicitation is undrawable rather than half-drawn", () => {
     expect(formOf({
       mode: "url",
@@ -230,6 +248,14 @@ describe("a permission request, as the same form", () => {
       { value: "default", label: "Yes, and manually approve edits", hint: null },
       { value: "plan", label: "No, keep planning", hint: null },
     ])
+  })
+
+  test("the form says which call it is about", () => {
+    // The whole of what this package can honestly say about WHO is asking.
+    // Which agent made `call-9` is an agent-specific `_meta` reading and lives
+    // where the rest of them do; the call itself is the protocol's own word
+    // and is the handle a caller joins the two by.
+    expect(permissionFormOf(exitPlanMode).toolCall).toBe("call-9")
   })
 
   test("the order is the agent's own — nothing is sorted or preselected", () => {

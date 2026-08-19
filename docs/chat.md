@@ -186,6 +186,22 @@ Three things are on that row and every one of them comes off the wire:
 
 Then the calls arrive in the lane that is already open under it, and when the agent reports back the row completes and its answer is in the fold. Nothing about the rest of the drawing changes — the same rail, the same names, in the same places.
 
+### When it is a subagent that asks
+
+A spawned agent can stop and ask — permission for a tool nothing recognises, or a question with options to pick from — and the form lands **in that agent's lane**, indented behind the same rail its calls are, with the lane naming who is asking:
+
+```
+· explore the outline                    ↳ Explore
+│ ↳ explore the outline
+│ ┌ Allow `rg --files`?
+│ │  [ Allow Once ]  [ Deny ]
+│ grep for worktops
+```
+
+That name is drawn on a form wherever it sits, which is the one place the *once per stretch* rule above does not apply. The reason is where you come to a form from: a blocked question is announced in the composer, in the header and on the app's agent toggle, so you arrive at the form rather than scrolling down to it — and there is no row above you have read to tell you whose it is. It is also the row where being wrong about that changes what you press.
+
+Before this, the form was drawn in the ordinary column and read as the agent you are talking to. The second half was louder: a row in nobody's lane, landing between two of one subagent's calls, **ends the stretch** — so the lane opened again and introduced itself a second time under the form, and one agent's run read as two.
+
 **What is deliberately not drawn is the subagent's own prose.** The agent olai ships with does not send it: a spawned agent's text and thinking are stripped from the feed unless a client asks for a nested transcript, and olai does not ask. So a running subagent is its calls and its status here, and the one place its own words appear is the report it hands back at the end. That is a floor rather than a preference — but it also means the main agent's voice in this panel is only ever the main agent's, which is worth having.
 
 ## Attachments

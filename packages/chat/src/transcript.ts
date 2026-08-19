@@ -340,11 +340,32 @@ export class Transcript {
    *
    * It closes the open prose entry too. The agent said something and then
    * stopped to ask, so whatever it says next is a new paragraph.
+   *
+   * WHO IS ASKING travels the same way a tool call's does — as the `Agent`
+   * frame's own key, minted from the id the question arrived attributed with.
+   * A question is a row of the conversation like any other, so it belongs in
+   * the lane the agent that asked it is drawn in; a form drawn in the main
+   * column while a subagent waits on it is the panel saying the main agent
+   * asked, and saying it at the one moment a person is about to decide
+   * something. It also BREAKS THE RUN — a row with no lane between two of a
+   * subagent's own is a stretch ending and another one opening, so the lane
+   * re-introduces itself underneath the form. That is the visible half of the
+   * same bug, and it goes with the same field.
    */
-  ask(id: string, message: string, fields: ReadonlyArray<AskField>): Change {
+  ask(
+    id: string,
+    message: string,
+    fields: ReadonlyArray<AskField>,
+    parent?: string,
+  ): Change {
     return both(
       this.#close(),
-      this.#put(id, { kind: "ask", text: message, ask: { fields, outcome: null } }),
+      this.#put(id, {
+        kind: "ask",
+        text: message,
+        ask: { fields, outcome: null },
+        ...(parent === undefined ? {} : { parent: toolKey(parent) }),
+      }),
     )
   }
 
@@ -362,6 +383,11 @@ export class Transcript {
       kind: "ask",
       text: current.text,
       ask: { fields: current.ask.fields, outcome },
+      // The row is REWRITTEN rather than patched, so whose question it was has
+      // to be carried across by hand: an answered form that stepped out of its
+      // lane would leave the reader looking at the record of a decision with
+      // the wrong agent's name over it.
+      ...(current.parent === undefined ? {} : { parent: current.parent }),
     })
   }
 

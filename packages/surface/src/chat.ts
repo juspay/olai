@@ -288,7 +288,9 @@ export type Delivery = typeof Delivery.Type
  *     ({@link Spawned}).
  *   - `ask` — a question the agent asked, as a form to answer: the options it
  *     offered, the boxes it left, and — once it has been answered — what was
- *     chosen. The turn is blocked on it while `ask.outcome` is `null`.
+ *     chosen. The turn is blocked on it while `ask.outcome` is `null`. Carries
+ *     which `Agent` call ASKED it when a subagent did, the same way a tool
+ *     call carries which one made it.
  *   - `refusal` — a write the ops layer said no to, with the structured detail
  *     the refusal carried. This is the one entry olai mints on its own behalf:
  *     the agent gets the same detail in its tool result, and a person watching
@@ -345,9 +347,9 @@ export const ChatEntry = Schema.Struct({
    *  The protocol's follow-along locations, which is what lets a reader see
    *  WHERE an agent is without unfolding anything. */
   locations: Schema.optionalKey(Schema.Array(Schema.String)),
-  /** `tool` only: the row of the `Agent` call this one was made INSIDE, when a
-   *  subagent made it — by that row's own key, so the panel looks the frame up
-   *  rather than mapping an id onto one.
+  /** `tool` and `ask`: the row of the `Agent` call this one was made INSIDE,
+   *  when a subagent made it — by that row's own key, so the panel looks the
+   *  frame up rather than mapping an id onto one.
    *
    *  It is what makes a turn with several agents in it READABLE. A subagent's
    *  tool calls reach olai on the same flat feed as the main agent's, so
@@ -355,7 +357,15 @@ export const ChatEntry = Schema.Struct({
    *  reader had no way to know that three agents had been spawned at all — let
    *  alone which of them was the one grepping. The panel draws a row that has
    *  it in a lane, indented behind a rail, under the frame it names. Absent for
-   *  the main agent's own calls, which are most of them. */
+   *  the main agent's own calls and questions, which are most of them.
+   *
+   *  A QUESTION carries it for the same reason and one sharper one. A
+   *  subagent's permission form is a decision a person is about to make, and a
+   *  form drawn in the main column says the main agent is the one asking — the
+   *  one row in this collection where being wrong about who is speaking
+   *  changes what somebody does. It is also the row that BREAKS A RUN: a form
+   *  with no lane, landing between two of a subagent's own calls, ends the
+   *  stretch, and the lane re-opens and names itself again underneath it. */
   parent: Schema.optionalKey(Schema.String),
   /** `tool` only: this call SPAWNED an agent — see {@link Spawned}. The other
    *  end of `parent`, and the end that can be known at the moment an agent is

@@ -9,8 +9,10 @@
  *
  * A row that names the `Agent` call it was made inside (`ChatEntry.parent`) is
  * drawn in a LANE — indented behind a rail, under the frame it belongs to.
- * Which rows those are is the transcript's answer and not this file's; what is
- * decided here is the other half, the one only the LIST can answer:
+ * Which rows those are is the transcript's answer and not this file's, and it
+ * is not only tool calls: a subagent can stop and ASK, and its form belongs in
+ * its lane for the same reason its greps do. What is decided here is the other
+ * half, the one only the LIST can answer:
  *
  *   **when the lane has to name itself.** A rail is enough while it is
  *   obvious whose it is — the `Agent` frame is right above it, or the row
@@ -22,6 +24,12 @@
  * So the label is drawn on the row that OPENS a run and on no other: once per
  * stretch of one agent's work rather than once per call, which is what keeps a
  * subagent's ten `Read`s from being ten copies of its name down the panel.
+ *
+ * ... AND ON EVERY QUESTION, which is the one exception and is about what a
+ * row IS rather than about where it sits. A form blocks the turn and is
+ * pointed at from outside the list, so a reader meets it without having read
+ * the row above; and a permission form answered in the wrong agent's name is
+ * the one row here where being misread changes a decision. See {@link silent}.
  *
  * WHAT CHANGES BEHIND THIS, and the reason it is a module rather than an
  * expression in the row that draws it: **how much a lane has to say to be
@@ -92,7 +100,8 @@ export const laneOf = (
   above: ChatEntry | undefined,
   nameOf: (key: string) => string | undefined,
 ): Lane | null => {
-  const parent = row?.parent
+  if (row === undefined) return null
+  const parent = row.parent
   if (parent === undefined) return null
   // Two ways for the lane to be established already, and they are the two
   // shapes a reader actually sees: the `Agent` frame itself is the row above
@@ -102,8 +111,28 @@ export const laneOf = (
   // An `Agent` frame the panel was never sent still gets a lane and still gets
   // a name — the bare fact, because "a subagent did this" is the half of the
   // sentence worth saying even when the other half is missing.
-  return { parent, label: established ? null : nameOf(parent) ?? SOMEBODY }
+  return { parent, label: silent(row, established) ? null : nameOf(parent) ?? SOMEBODY }
 }
+
+/**
+ * Whether the rail can carry this row on its own.
+ *
+ * "The lane is already established" is the rule for WORK, and it is enough for
+ * work because a reader who wants to know whose grep this was reads upwards
+ * and finds out. A QUESTION is not work: it is a control, it blocks the turn,
+ * and the panel sends people to it from somewhere else entirely — the
+ * composer, the header and the app's agent toggle all say a question is
+ * waiting ({@link ../../../../chat/README.md}), so a reader arrives at the
+ * form rather than scrolling down to it and has no row above to have read.
+ *
+ * So an ask names its lane wherever it is drawn. It costs one line under a
+ * form that is already several, and what it buys is that the question a
+ * subagent asked cannot be answered in the belief that the main agent asked
+ * it. The stretch itself is unaffected — the row below is still one of the
+ * same agent's, so the lane does not open again under the form.
+ */
+const silent = (row: ChatEntry, established: boolean): boolean =>
+  established && row.kind !== "ask"
 
 /** What a lane is called when the frame that spawned it is not on screen. */
 const SOMEBODY = "a subagent"

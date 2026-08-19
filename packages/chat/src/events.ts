@@ -123,6 +123,21 @@ export type AgentEvent =
     /** What the agent said it needs. */
     readonly message: string
     readonly fields: ReadonlyArray<AskField>
+    /**
+     * WHICH agent is asking: the `Agent` call the question came out of, by
+     * that call's own id — or `undefined` for one the main agent asked itself.
+     *
+     * The same field a `tool` event carries and answered the same way, because
+     * it is the same question about a different frame. It has to be here for
+     * the reason it has to be there: a subagent's question reaches olai on the
+     * one feed everything else does, so a form drawn without it is drawn in
+     * the main agent's voice — and a permission form is the one row where
+     * being wrong about who is asking changes what a person decides.
+     *
+     * Unlike its sibling this is never "unchanged": a question is asked once,
+     * by one agent, and the row is written from this event alone.
+     */
+    readonly parent: string | undefined
   }
   /** ... and it stopped waiting: somebody answered it, somebody dismissed it,
    *  or the agent took it back. */
