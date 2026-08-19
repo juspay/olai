@@ -1468,12 +1468,11 @@ const propKeyOf = (
  * `date`, which is the unbounded `date:` and reads ./dates.ts instead
  * ({@link holds}).
  *
- * A TYPE rather than a sentence, and the difference is what a growing table
- * costs: `carries(node, "date")` would answer about the `date` FIELD where the
- * grammar answers about the journal's two dates, and two answers to one word
- * is precisely what the exception exists to prevent. Spelled as an exclusion
- * so a row added to that table is a field test by default and has to argue to
- * be anything else.
+ * A TYPE rather than a sentence, and it claims only what it delivers: nobody
+ * can call `carries(node, "date")`, which would answer about the `date` FIELD
+ * where the grammar answers about the journal's two dates. What still has to
+ * be got right by hand is {@link holds}' branch — this narrows the callee, it
+ * does not decide the table.
  */
 type CarriedField = Exclude<HasField, "date">
 

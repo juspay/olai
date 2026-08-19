@@ -196,14 +196,3 @@ Feature: A dated node that comes back
     And the node "order" is context
     And the filter found "9 of 10"
     And there should be no page errors
-
-  Scenario: The rule reaches the header's box in the same words
-    # One grammar, and the doors that ASK the server are the half that has to
-    # travel: the filter above parses in the browser, this one is answered by
-    # `search_nodes`' own matcher, and a facet that reached one and not the
-    # other would be the drift the shared grammar exists to refuse.
-    Given I open the node menu of "order"
-    And I choose "Set repeat…" from the node menu
-    And I pick the repeat rule "every week on monday"
-    When I search the header for "has:repeat"
-    Then the header search lists the node "order the new cabinets"

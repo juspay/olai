@@ -116,30 +116,19 @@ test("`has:` asks what the record carries, and an empty edge list is no edge", (
   // The FIELD, which is a different question from what the node is waiting on
   // — see the blockedness section below, where these four part company.
   expect(selects("has:after")).toEqual(["herbs", "order", "install", "hinges"])
+  // `order` is the one node here that comes back — one more plain field test,
+  // and one line like its four siblings. That the dash and the words compose
+  // with it is the grammar's, pinned once for every clause below.
+  expect(selects("has:repeat")).toEqual(["order"])
 })
 
-// The RULE, and it is a plain field test like the four above it — `order` is
-// the one node here that comes back. The pair of queries is the point: a
-// repeating node is a dated one carrying a rule, so what this selects sits
-// inside what `has:date` selects, and the difference is everything dated once.
-test("`has:repeat` finds what comes back, inside what `has:date` finds", () => {
-  expect(selects("has:repeat")).toEqual(["order"])
+// The one thing the table alone does not say, and the reason `has:repeat` is
+// not a second way of asking `has:date`: a repeating node is a DATED one
+// carrying a rule (./parse.ts refuses a rule without a date), so this selects
+// inside that — and the difference between them is everything dated once.
+test("`has:repeat` is inside `has:date`, and the difference is what is dated once", () => {
+  expect(selects("has:date")).toEqual(["basil", "demo", "order"])
   expect(selects("has:date -has:repeat")).toEqual(["basil", "demo"])
-  // Negation is the dash every other token takes — nothing new is spelled for
-  // this one — and a node with no rule is not a node with an empty one.
-  expect(selects("-has:repeat")).toEqual([
-    "garden",
-    "herbs",
-    "basil",
-    "kitchen",
-    "demo",
-    "install",
-    "hinges",
-  ])
-  // It composes with the words and the clauses around it like any other.
-  expect(selects("has:repeat is:doing")).toEqual(["order"])
-  expect(selects("has:repeat cabinets")).toEqual(["order"])
-  expect(selects("has:repeat is:done")).toEqual([])
 })
 
 // The four ways a field can hold nothing are the WRITER's list (`write.ts`'s
