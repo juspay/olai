@@ -1,6 +1,6 @@
 /**
- * The ways around the DIRECTORY: the agenda, the month, and the directory as a
- * TREE.
+ * The ways around the DIRECTORY: the agenda, the month, the directory as a
+ * TREE — and, at the foot, the two readings that belong to no file in it.
  *
  * The first two are the journal's two questions and they sit together, above
  * the files: a month is what HAPPENED, read backward a day at a time, and the
@@ -93,6 +93,7 @@ import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
 import { NewOutline } from "./outline/NewOutline.tsx"
 import { ROW_TESTID, routeTo } from "./file/kinds.ts"
+import { WHOLE_GRAPH, WHOLE_GRAPH_ROUTE } from "./graph/door.ts"
 import { Glyph } from "./file/icons.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
@@ -100,6 +101,7 @@ import { LAYER, WITHIN } from "./layer.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
 import { Link, useRouter } from "./router.tsx"
+import { type Route, samePage } from "./routes.ts"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
 
@@ -294,9 +296,21 @@ export function Sidebar(props: {
           <NewOutline />
           <NewDocument />
 
-          {/* And below both, the way OUT of the directory rather than into it:
-              what has been put away. */}
-          <Trash />
+          {/* And below both, the two readings that are about the set rather
+              than about a file in it: the SHAPE of what it says (every
+              reference, drawn), and what has been put away. */}
+          <Standalone
+            route={WHOLE_GRAPH_ROUTE}
+            testid={TESTID.graphLink}
+            label={WHOLE_GRAPH}
+            class="mt-4"
+          />
+          <Standalone
+            route={{ kind: "trash" }}
+            testid={TESTID.trashLink}
+            label="Trash"
+            class="mt-1"
+          />
         </div>
       </nav>
     </>
@@ -371,26 +385,43 @@ function Agenda(props: { readonly agenda: Agenda | undefined }) {
   )
 }
 
-/** The way to what was put away, at the foot of the column — below the file
- *  tree because that is where a trash sits, and OUTSIDE it because an archive
- *  is not an outline to open and edit ({@link fileTree} never sees one).
- *  Always drawn, like the agenda: an empty trash is a fact a reader may want,
- *  not a control to hide until it would say something.
+/**
+ * The two entries at the foot of the column: the readings that belong to no
+ * FILE.
  *
- *  Whether it is the page being read is asked of the ROUTE, exactly as the
- *  agenda asks: the trash belongs to no one file — it is every archive under
- *  the directory — so `active` has nothing to say about it. */
-function Trash() {
+ * They sit below the tree because neither is an outline to open and edit — the
+ * trash is every archive under the directory, and the graph is every reference
+ * in it — and they are ONE component because they were two copies of the same
+ * six lines: a link, the muted entry ink, a testid and a word. The pair even
+ * had to be edited together once already, to make room for the second.
+ *
+ * Whether one is the page being read is asked of the ADDRESS rather than of the
+ * open file, exactly as the agenda's entry asks: neither belongs to a file, so
+ * `active` has nothing to say about them. Through the route BIJECTION rather
+ * than through `kind`, because `graph` is a family of addresses and only one of
+ * them is this entry's: a neighbourhood is reached from a node, and lighting
+ * the directory's own entry for it would point a reader at a page they are not
+ * on. `samePage` is what ignores a filter, which is a narrowing of the page
+ * rather than a different one.
+ */
+function Standalone(props: {
+  readonly route: Route
+  readonly testid: string
+  readonly label: string
+  /** The gap above it — the first of the pair opens the group, the second
+   *  follows its neighbour. */
+  readonly class: string
+}) {
   const router = useRouter()
 
   return (
     <Link
-      route={{ kind: "trash" }}
-      class={`${ENTRY} mt-4 text-muted`}
-      testid={TESTID.trashLink}
-      current={router.route().kind === "trash"}
+      route={props.route}
+      class={`${ENTRY} ${props.class} text-muted`}
+      testid={props.testid}
+      current={samePage(router.route(), props.route)}
     >
-      Trash
+      {props.label}
     </Link>
   )
 }

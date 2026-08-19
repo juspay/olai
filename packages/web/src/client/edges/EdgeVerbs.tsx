@@ -25,6 +25,24 @@ import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 import { type Relation, RELATIONS } from "./relation.ts"
 
+/**
+ * The strip these sit in, and the look of one quiet verb in it.
+ *
+ * EXPORTED because a zoomed node's header draws a SECOND one ten lines down —
+ * the door to that node's reference graph (`../graph/GraphLink.tsx`) — and the
+ * two are meant to read as one row of quiet words under the node's own lines.
+ * They were two copies of these strings, so a change to the padding, the size
+ * or the hover ink moved one and left the other, with nothing failing. Same
+ * arrangement `../Breadcrumbs.tsx` has with `CRUMB`, for the same reason.
+ *
+ * What each caller keeps is its own ELEMENT RESET — a `<button>` needs
+ * `border-0 bg-transparent cursor-pointer`, an `<a>` needs `no-underline` —
+ * because that is a fact about the tag rather than about the look.
+ */
+export const VERB_STRIP = "mt-1 flex flex-wrap items-center gap-1"
+export const QUIET_VERB =
+  `${TARGET} md:min-h-0 inline-flex items-center rounded px-1.5 py-0.5 text-xs text-muted hover:bg-rule/50 hover:text-ink`
+
 export function EdgeVerbs(props: {
   readonly open: (relation: Relation) => void
   /** Which panel is open, so the control that opened it can say so. `null` is
@@ -32,12 +50,12 @@ export function EdgeVerbs(props: {
   readonly openFor: Relation | null
 }) {
   return (
-    <div class="mt-1 flex flex-wrap items-center gap-1">
+    <div class={VERB_STRIP}>
       <For each={RELATIONS}>
         {(one) => (
           <button
             type="button"
-            class={`${TARGET} md:min-h-0 cursor-pointer rounded border-0 bg-transparent px-1.5 py-0.5 text-xs text-muted hover:bg-rule/50 hover:text-ink`}
+            class={`${QUIET_VERB} cursor-pointer border-0 bg-transparent`}
             data-testid={TESTID.edgeVerb}
             data-relation={one.relation}
             // `aria-expanded` and nothing beside it: whether this panel is up

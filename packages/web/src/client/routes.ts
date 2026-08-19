@@ -1,7 +1,7 @@
 /**
  * What a URL means, and nothing else.
  *
- * Five addresses, and the difference between them is what each one is a
+ * Eight addresses, and the difference between them is what each one is a
  * property OF. `/o/<file>` names a file on disk, so it spells the path.
  * `/n/<id>` names a node, and an id is all it may spell: ids are unique across
  * the loaded set and survive renames and moves across files, so the permalink
@@ -42,16 +42,27 @@
  * outline path), and what such an address opens is the trash view, because an
  * archive is not a place you edit (`page.ts` decides that, not this parser).
  *
- * Most of them carry a QUERY as well as a path, and only one thing rides in it:
- * `?q=<filter>`, which is what the page is narrowed by. That is an address
- * rather than a signal for the same reason the pages are — a filtered page is a
- * link somebody can send, and Back is the browser's own history. See
- * {@link FILTER_KEY}.
+ * `/graph/<id>` names a NEIGHBOURHOOD — the reference graph around one node —
+ * and `/graph` alone names the whole of it. It spells an id for `/n/`'s reason
+ * and it is a prefix of its own for `/doc/`'s: a shape with edges in it is a
+ * different kind of page from a node's heading and children, and the address
+ * says which before the set is in hand.
+ *
+ * Most of them carry a QUERY as well as a path, and what rides in it is an
+ * address rather than a signal for the same reason the pages are — a filtered
+ * page, or a neighbourhood read two hops out, is a link somebody can send, and
+ * Back is the browser's own history. `?q=<filter>` is what the page is narrowed
+ * by and rides on every address but a document's ({@link FILTER_KEY});
+ * `?hops=<n>` is how far a graph reaches and rides on that one address alone
+ * ({@link HOPS_KEY}). Both spell nothing at their default, so an address that
+ * asks for neither is exactly the address it was before either existed.
  *
  * Pure, and parsing and printing live beside each other on purpose: they are
  * one bijection, and the test that says so (`routes.test.ts`) is the only
  * thing standing between a link the app writes and a link it cannot read back.
  */
+
+import { type Hops, HOPS, HOPS_DEFAULT } from "@olai/format"
 
 export type Route =
   /** One outline. `null` is "whichever was found first" — the bare `/`. */
@@ -84,6 +95,32 @@ export type Route =
    *  archives exist is the set's answer, and an address that named one would
    *  mean something different the day a subdirectory gets its own. */
   | { readonly kind: "trash"; readonly filter?: string }
+  /**
+   * THE REFERENCE GRAPH, around one node or over the whole directory.
+   *
+   * `focus` is a NODE ID and `null` is the corpus-wide reading — the same
+   * `null` the outline route uses for "whichever was found first", and the same
+   * kind of thing: an address that names no one subject. An id is all this may
+   * spell, for `/n/`'s reason exactly — ids survive renames and moves across
+   * files, so a link to a neighbourhood outlives every edit short of a delete.
+   *
+   * It is a SECOND prefix rather than a mood of `/n/`, because a graph is a
+   * different KIND of page: a shape with edges in it, against a node's own
+   * heading, note and children. The address says which before the set is in
+   * hand, which is the argument `/doc/` already makes about the same file.
+   *
+   * `hops` is how far out it reaches, and it is in the address for the reason
+   * the filter is: what a reader is looking at is a link somebody can send. It
+   * is ABSENT for the default horizon, so the ordinary address is exactly the
+   * address it would otherwise have been — the same rule `?q=` follows, and
+   * what keeps `/graph/herbs` a clean permalink.
+   */
+  | {
+    readonly kind: "graph"
+    readonly focus: string | null
+    readonly hops?: Hops
+    readonly filter?: string
+  }
 
 const OUTLINE_PREFIX = "/o/"
 const DOCUMENT_PREFIX = "/doc/"
@@ -92,10 +129,12 @@ const DAY_PREFIX = "/d/"
 const TODAY = "/today"
 const AGENDA = "/agenda"
 const TRASH = "/trash"
+const GRAPH = "/graph"
+const GRAPH_PREFIX = `${GRAPH}/`
 
 /**
- * The query key the FILTER rides in — the one thing in an address here that is
- * not a path.
+ * The query key the FILTER rides in — the first of the two things in an address
+ * here that are not a path, and the only one on every page.
  *
  * It is in the address for the reason everything else is: a narrowed outline is
  * a link somebody can send, and the back button is the browser's history rather
@@ -115,6 +154,18 @@ const TRASH = "/trash"
  */
 const FILTER_KEY = "q"
 
+/**
+ * The horizon a graph is drawn to — the SECOND thing that rides in a query
+ * here, and the only one that is not on every page.
+ *
+ * It is in the address for the filter's own reason: a neighbourhood read two
+ * hops out is a link somebody can send, and Back is the browser's history. What
+ * keeps the pair from becoming a habit is that it rides on ONE route and is
+ * omitted at its default, so no address that existed before this gains a
+ * character.
+ */
+const HOPS_KEY = "hops"
+
 /** Encoded per segment, so a path with a directory in it stays readable in the
  *  URL bar rather than turning into a run of `%2F`. */
 export const hrefOf = (route: Route): string => {
@@ -127,6 +178,15 @@ export const hrefOf = (route: Route): string => {
   if (route.kind === "today") return TODAY + narrowing(route.filter)
   if (route.kind === "agenda") return AGENDA + narrowing(route.filter)
   if (route.kind === "trash") return TRASH + narrowing(route.filter)
+  if (route.kind === "graph") {
+    const path = route.focus === null
+      ? GRAPH
+      : GRAPH_PREFIX + encodeURIComponent(route.focus)
+    return path + spelt([
+      ...(reachable(route) ? horizon(route.hops) : []),
+      ...narrowedBy(route.filter),
+    ])
+  }
   if (route.kind === "document") {
     return DOCUMENT_PREFIX + spell(route.file) + landing(route.at)
   }
@@ -151,10 +211,44 @@ const landing = (at: string | undefined): string =>
  *  one, so the ordinary address is exactly the address it always was. Whitespace
  *  becomes `+` through `URLSearchParams`, which reads better in the bar than
  *  `%20` and decodes back identically. */
-const narrowing = (filter: string | undefined): string =>
-  filter === undefined || filter.trim() === ""
+const narrowing = (filter: string | undefined): string => spelt(narrowedBy(filter))
+
+/**
+ * The whole query, from however many things ride in it — `""` when nothing
+ * does, which is what keeps every address that carries neither exactly the
+ * address it was.
+ *
+ * A LIST OF PAIRS rather than a string per key, because the day a second thing
+ * rode in one (the graph's horizon) two `?`-prefixed fragments could not be
+ * concatenated: `?hops=2` + `?q=x` is not an address. One printer, and the
+ * order of the pairs is the order they were handed over.
+ */
+const spelt = (entries: ReadonlyArray<readonly [string, string]>): string =>
+  entries.length === 0
     ? ""
-    : `?${new URLSearchParams({ [FILTER_KEY]: filter }).toString()}`
+    : `?${new URLSearchParams(entries.map(([key, value]) => [key, value])).toString()}`
+
+/** What a filter puts in the query, or nothing at all. */
+const narrowedBy = (
+  filter: string | undefined,
+): ReadonlyArray<readonly [string, string]> =>
+  filter === undefined || filter.trim() === "" ? [] : [[FILTER_KEY, filter] as const]
+
+/** ...and what a graph's horizon does. The DEFAULT spells nothing, so
+ *  `/graph/herbs` is the address it would have been without this key. */
+const horizon = (
+  hops: Hops | undefined,
+): ReadonlyArray<readonly [string, string]> =>
+  hops === undefined || hops === HOPS_DEFAULT ? [] : [[HOPS_KEY, String(hops)] as const]
+
+/** The horizon an address asks for, or `undefined` for the default — including
+ *  for a value outside the closed list, which is a link nobody could have
+ *  written here and is answered with the reading every other `/graph` gives
+ *  rather than with a page that says nothing. */
+const horizonIn = (search: string): Hops | undefined => {
+  const said = new URLSearchParams(search).get(HOPS_KEY)
+  return HOPS.find((hops) => String(hops) === said && hops !== HOPS_DEFAULT)
+}
 
 /** The place inside a page an address names, or `undefined` for one that names
  *  none — the other end of {@link landing}. A malformed escape is a fragment
@@ -178,6 +272,14 @@ const filterIn = (search: string): string | undefined => {
 
 const spell = (file: string): string =>
   file.split("/").map(encodeURIComponent).join("/")
+
+/** The node a `/graph…` address is centred on, or `null` for the corpus-wide
+ *  reading — which a bare `/graph` and a bare `/graph/` both are, since a
+ *  trailing slash naming an empty id is a link nobody meant to write. */
+const focused = (pathname: string): string | null => {
+  const named = pathname.slice(GRAPH_PREFIX.length)
+  return named === "" ? null : decodeURIComponent(named)
+}
 
 /** The file a route names, for the two that name one — what a link publishes
  *  as `data-file`, and the sidebar's own answer to "is this entry the page I
@@ -275,6 +377,8 @@ export const routeOf = (address: string): Route => {
     ? { kind: "agenda", ...narrowed }
     : pathname === TRASH
     ? { kind: "trash", ...narrowed }
+    : pathname === GRAPH || pathname.startsWith(GRAPH_PREFIX)
+    ? graphAt(focused(pathname), search, narrowed)
     : pathname.startsWith(OUTLINE_PREFIX)
     ? {
       kind: "outline",
@@ -283,6 +387,44 @@ export const routeOf = (address: string): Route => {
     }
     : { kind: "outline", file: null, ...narrowed }
 }
+
+/**
+ * A graph address, with the horizon dropped where there is no centre to measure
+ * one from — and the query read for one only where it can carry one, which is
+ * why the raw `search` comes in here rather than a horizon parsed for every
+ * address in the app.
+ *
+ * The exclusion is {@link reachable}'s, asked once, exactly as the filter's is
+ * {@link narrowable}'s: a query key that means nothing on a page is left OFF
+ * the route, so {@link hrefOf} has nothing to drop and the two stay one
+ * bijection.
+ */
+const graphAt = (
+  focus: string | null,
+  search: string,
+  narrowed: { readonly filter?: string },
+): Route => {
+  const bare = { kind: "graph", focus, ...narrowed } as const
+  if (!reachable(bare)) return bare
+  const hops = search === "" ? undefined : horizonIn(search)
+  return hops === undefined ? bare : { ...bare, hops }
+}
+
+/**
+ * Which addresses may carry a HORIZON — the graph's, and only where it names a
+ * node for the horizon to be measured from.
+ *
+ * {@link narrowable}'s sibling, and here for the reason that one is here: the
+ * rule was written three times — the arm that carries `hops`, {@link hrefOf}'s
+ * graph branch and {@link reachingTo}'s guard — and this file has already paid
+ * for that shape once. Its own words, one screen down: "Three spellings of the
+ * same list is three edits the day another page grows a filter, and two of them
+ * are easy to miss because nothing fails when they disagree."
+ */
+export const reachable = (
+  route: Route,
+): route is Extract<Route, { kind: "graph" }> & { focus: string } =>
+  route.kind === "graph" && route.focus !== null
 
 /**
  * Which addresses may be narrowed — every one but a document's, and the one
@@ -314,6 +456,18 @@ export const narrowedTo = (route: Route, filter: string): Route => {
   if (!narrowable(route)) return route
   return { ...route, filter: filter.trim() === "" ? undefined : filter }
 }
+
+/**
+ * The same graph, read further out — and any other page, untouched.
+ *
+ * {@link narrowedTo}'s sibling, and here for its reason: a horizon means
+ * nothing on a page that is not a graph — nor on the corpus-wide graph, which
+ * has no centre to measure one from — and a caller spreading one onto either
+ * would mint an address {@link hrefOf} silently drops and {@link routeOf}
+ * never returns.
+ */
+export const reachingTo = (route: Route, hops: Hops): Route =>
+  reachable(route) ? { ...route, hops } : route
 
 /** What a page is narrowed BY, for the one component that draws it and the
  *  memo that parses it. Read off the route for the reason `fileNamed` is: the

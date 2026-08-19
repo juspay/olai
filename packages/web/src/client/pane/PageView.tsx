@@ -12,7 +12,7 @@
 
 import { createMemo, Match, Show, Switch } from "solid-js"
 
-import type { Agenda, Derived } from "@olai/format"
+import type { Agenda, Derived, Hops } from "@olai/format"
 
 import { AgendaPage } from "../agenda/AgendaPage.tsx"
 import { CLEARANCE } from "../connection/Indicator.tsx"
@@ -20,6 +20,7 @@ import { DayPage } from "../day/DayPage.tsx"
 import { DocumentPage } from "../document/DocumentPage.tsx"
 import { Broken } from "../errors/Broken.tsx"
 import { FilterBar } from "../filter/FilterBar.tsx"
+import { GraphPage } from "../graph/GraphPage.tsx"
 import { NarrowedProvider } from "../filter/narrowed.tsx"
 import { createNarrowing } from "../filter/narrowing.ts"
 import { tagPressed } from "../filter/tag.ts"
@@ -31,7 +32,14 @@ import { Nothing } from "../Nothing.tsx"
 import { drawnBy, type Found, NOTHING_DRAWN, pageOf } from "../page.ts"
 import { OutlinePage } from "../OutlinePage.tsx"
 import { followed, followedSplit, useGo, useHere, useRouter } from "../router.tsx"
-import { filterOf, hrefOf, narrowable, narrowedTo, samePage } from "../routes.ts"
+import {
+  filterOf,
+  hrefOf,
+  narrowable,
+  narrowedTo,
+  reachingTo,
+  samePage,
+} from "../routes.ts"
 import { panesOf } from "../workspace.ts"
 import { visibleIn } from "../settings/done.ts"
 import { TESTID } from "../testids.ts"
@@ -77,16 +85,42 @@ export function PageView(props: {
   const day = () => only(narrowing.drawn(), "day")
   const owed = () => only(narrowing.drawn(), "agenda")?.agenda
   const trash = () => only(narrowing.drawn(), "trash")
+  const shape = () => only(narrowing.drawn(), "graph")
+  /** The graph this reader can SEE before any query narrows it — the page's own
+   *  reading with finished work taken out where they have asked for that
+   *  (`../settings/done.ts`). It is what the picture is PLACED from, so hiding
+   *  what is done re-settles the shape rather than leaving holes in it, while a
+   *  filter goes on taking dots off a drawing that stays put. */
+  const held = () => only(shownDrawn(), "graph")
+
+  /**
+   * Does the open page want the whole strip under the header?
+   *
+   * ONE page does, and it is the one whose content IS a drawing: a graph in a
+   * box of its own height leaves a screenful of nothing under it, which is what
+   * the human saw. Every other page here is as tall as what it holds, and a
+   * min-height on those would be invisible — but it would also be a claim
+   * nothing needs, so it is asked rather than applied.
+   */
+  const fills = (): boolean => page()?.kind === "graph"
 
   const narrow = (text: string): void => {
     router.replaceIn(here(), narrowedTo(route(), text))
+  }
+
+  /** A PUSH where the filter replaces, and the difference is the gesture: a
+   *  query is typed one character at a time and would fill the history with
+   *  prefixes, while a horizon is one deliberate press — so Back takes a reader
+   *  from two hops to the one they were reading. */
+  const reach = (hops: Hops): void => {
+    router.goIn(here(), reachingTo(route(), hops))
   }
 
   return (
     <main
       class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12 ${
         !desktop() && !chatOpen() ? "pb-16" : ""
-      }`}
+      } ${fills() ? "min-h-[calc(100dvh-var(--height-header,3rem))]" : ""}`}
       data-testid={TESTID.pane}
       data-pane={String(here())}
       data-pane-focused={here() === router.workspace().focus ? "true" : undefined}
@@ -157,6 +191,16 @@ export function PageView(props: {
                   files={trash()?.files ?? []}
                   groups={trash()?.groups ?? []}
                 />
+              </Match>
+              <Match when={only(open(), "graph")}>
+                {(open) => (
+                  <GraphPage
+                    around={open().around}
+                    page={held()?.graph ?? open().graph}
+                    drawn={shape()?.graph ?? open().graph}
+                    onHorizon={reach}
+                  />
+                )}
               </Match>
               <Match when={only(open(), "nothing")}>
                 {(nothing) => (

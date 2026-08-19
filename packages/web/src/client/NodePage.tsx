@@ -28,6 +28,7 @@ import { DateBadge } from "./DateBadge.tsx"
 import { EdgeRefs } from "./edges/EdgeRefs.tsx"
 import { createEdgeEditing } from "./edges/editing.tsx"
 import { EdgeVerbs } from "./edges/EdgeVerbs.tsx"
+import { GraphLink } from "./graph/GraphLink.tsx"
 import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
 import { useNarrowed } from "./filter/narrowed.tsx"
@@ -169,6 +170,12 @@ function Zoom(props: {
               records — everything above says what this node IS
               (./backlinks/Backlinks.tsx). */}
           <Backlinks id={props.zoomed.shows.node.id} />
+
+          {/* ...and the door to the same relations drawn as a SHAPE — both
+              directions at once, one hop out (./graph/GraphPage.tsx). Under the
+              section that reads them backwards, because that is the reading a
+              person is holding when they want the picture. */}
+          <GraphLink id={props.zoomed.shows.node.id} />
         </div>
       </header>
 

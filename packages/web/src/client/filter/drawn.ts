@@ -11,7 +11,7 @@
  * `../page.ts`'s {@link Drawn}, and testable by handing it a page.
  *
  * WHY THE SPLIT IS WORTH A FILE. Every function here is a `switch` over the
- * five shapes a page can be, and each is one line per shape; the reading is
+ * shapes a page can be, and each is one line per shape; the reading is
  * five memos and about as many paragraphs of argument. Read together, the
  * shapes-per-question table was invisible — and it is the thing that has to
  * grow an arm the day a sixth page kind draws nodes. HACKING.md's rule, and
@@ -31,9 +31,12 @@ import {
   isArchived,
   keeping,
   keepingDated,
+  keepingGraph,
   keepingOwed,
   matchedIn,
+  matchedInGraph,
   owedIn,
+  placesInGraph,
   rowsIn,
   shownRecord,
 } from "@olai/format"
@@ -66,6 +69,14 @@ export const narrowed = (drawn: Drawn, matched: Selected): Drawn => {
       return { kind: "agenda", agenda: keepingOwed(drawn.agenda, matched) }
     case "trash":
       return { ...drawn, groups: keepingArchives(drawn.groups, matched) }
+    // THE CENTRE STAYS, whether or not it matched, and the arrows a prune
+    // orphaned go with the nodes they pointed at (`@olai/format`'s
+    // `keepingGraph`). It is the day page's rule read on a shape: a day
+    // narrowed to nothing is still that day, and a neighbourhood narrowed to
+    // nothing is still that node's — with the answer being that nothing around
+    // it matches, which is a thing worth being able to see.
+    case "graph":
+      return { ...drawn, graph: keepingGraph(drawn.graph, matched, drawn.focus) }
     case "none":
       return drawn
   }
@@ -119,6 +130,10 @@ export const showsArchived = (drawn: Drawn): boolean => {
       return drawn.rows.some((row) => isArchived(shownRecord(row).file))
     case "day":
     case "agenda":
+    // A GRAPH answers no by construction, the way a day does: the walk it is
+    // built from never steps into an archive and refuses an archived centre
+    // (`@olai/format`'s `graphOf`), so there is nothing on it for this to find.
+    case "graph":
     case "none":
       return false
   }
@@ -145,6 +160,10 @@ export const placesIn = (drawn: Drawn): number => {
       return owedIn(drawn.agenda)
     case "trash":
       return drawn.groups.reduce((total, group) => total + rowsIn(group.rows), 0)
+    // A node is drawn once on a graph — there is no placement to draw a second
+    // dot for — so the two numbers are over the same walk the format defines.
+    case "graph":
+      return placesInGraph(drawn.graph)
     case "none":
       return 0
   }
@@ -176,6 +195,11 @@ export const matchesIn = (drawn: Drawn, matched: Selected): number => {
         (total, group) => total + matchedIn(group.rows, matched),
         0,
       )
+    // The CENTRE is counted like any other node: it is a match when the query
+    // selected it and context when the query merely kept it, which is the same
+    // distinction a kept ancestor draws on a tree.
+    case "graph":
+      return matchedInGraph(drawn.graph, matched)
     case "none":
       return 0
   }

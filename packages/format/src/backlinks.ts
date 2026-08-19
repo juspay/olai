@@ -14,6 +14,16 @@
  * is about MEANING rather than about storage is asked, and there are four of
  * them.
  *
+ * IT READS THEM FROM EITHER END. {@link backlinksOf} answers "what refers to
+ * this node", which is what a page and `read_node` ask; {@link referencesOf}
+ * answers "what does this record refer to", which the reference GRAPH needs and
+ * no index can be asked for. The two are here together because the rulings
+ * below are what CHANGES — a fourth way, a fifth thing that is deliberately not
+ * a reference — and a second module holding half of them is a module that goes
+ * stale silently. `backlinks.test.ts` holds the pair to each other over a whole
+ * corpus, in both directions, which is the only statement of "these agree" that
+ * survives somebody editing one of them.
+ *
  * ## What counts, and what deliberately does not
  *
  * **A `see` counts.** It is the format's own free cross-reference — the one
@@ -65,8 +75,21 @@
 
 import { Schema } from "effect"
 
-import { byCorpus, type Derived, tagText } from "./derive.ts"
-import { isArchived, isRegular, type Located, type LocatedRegular } from "./node.ts"
+import {
+  byCorpus,
+  type Derived,
+  nodeNamed,
+  tagPart,
+  tagText,
+  writtenTags,
+} from "./derive.ts"
+import {
+  isArchived,
+  isRegular,
+  type Located,
+  type LocatedRegular,
+  targetsOf,
+} from "./node.ts"
 
 /**
  * How one record refers to another: an edge somebody wrote with `set_see`, or a
@@ -109,11 +132,40 @@ export interface Backlink {
  *  shared, for {@link targetsOf}'s reason — a page asks this per frame. */
 const NOTHING_REFERS: ReadonlyArray<Backlink> = []
 
+/** One node a record refers to, and how — {@link Backlink} read the other way
+ *  round: that one names the REFERRER, this one names the target. */
+export interface Outgoing {
+  readonly to: string
+  readonly ways: ReadonlyArray<Way>
+}
+
+/** The answer for a record that refers to nothing, which is most of them. */
+const REFERS_TO_NOTHING: ReadonlyArray<Outgoing> = []
+
+/** The ways one thing refers, said in {@link WAYS} order — the ONE place that
+ *  order becomes an answer's order, spent by both directions below. */
+const inOrder = (found: ReadonlySet<Way>): ReadonlyArray<Way> =>
+  WAYS.filter((way) => found.has(way))
+
+/** The SIGIL prose names a node with. One namespace of the two the format has,
+ *  and the whole of what makes a tag a reference rather than a topic. */
+const NAMES_A_NODE = "@"
+
 /** How prose NAMES the node called `id` — the key {@link Derived.taggedBy}
  *  files that under, spelled through the format's own {@link tagText} so this
  *  reading cannot come to disagree with the fold about what an `@` tag looks
  *  like written down. */
-const mentioned = (id: string): string => tagText({ sigil: "@", tag: id })
+const mentioned = (id: string): string => tagText({ sigil: NAMES_A_NODE, tag: id })
+
+/** ...and the same rule read the other way: the node one WRITTEN tag names, or
+ *  nothing for a `#topic`, which is a word about a subject rather than a
+ *  sentence about a node. {@link tagPart} is {@link tagText}'s own inverse, so
+ *  the forward reading and the backward one cannot come to disagree about which
+ *  half of the index is a reference. */
+const namesInProse = (written: string): string | undefined => {
+  const part = tagPart(written)
+  return part.sigil === NAMES_A_NODE ? part.tag : undefined
+}
 
 /**
  * Everything that refers to `id`, in corpus order.
@@ -164,9 +216,64 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
 
   if (found.size === 0) return NOTHING_REFERS
   return [...found]
-    .map(([at, ways]): Backlink => ({ at, ways: WAYS.filter((way) => ways.has(way)) }))
+    .map(([at, ways]): Backlink => ({ at, ways: inOrder(ways) }))
     // Sorted rather than merged: both indexes promise corpus order on their
     // own, but this reads up to two of them per placement and the union of
     // several ordered lists is not one. A referrer count is a handful.
     .sort((one, other) => byCorpus(one.at, other.at))
+}
+
+/**
+ * ...and everything `at` refers TO — {@link backlinksOf} read forwards, under
+ * every ruling in this file's header.
+ *
+ * It reads the RECORD rather than an index, which is what makes it the one
+ * reading no reverse table can answer, and it is not a second opinion for the
+ * same reason both are in this file: the rulings are stated once above and
+ * spent twice below.
+ *
+ * CANONICAL AT THE FAR END: a `see` or an `@id` naming a placement is a
+ * reference to the node standing at it ({@link nodeNamed}), which is how the
+ * reverse reading files it — so the two answers are about the same pairs.
+ *
+ * A record never refers to ITSELF and an id nothing claims is not a reference,
+ * both of which are the reverse reading's rules read forwards. A target in an
+ * ARCHIVE is left out, which is #226 asked at the other end of the arrow: the
+ * reverse reading drops an archived REFERRER, and this drops an archived
+ * referent, so nothing either of them answers reaches into the Trash.
+ *
+ * A `#topic` IS NOT ONE, whatever it spells, and this reads that rule off the
+ * same place the reverse reading does: the tags a record writes come back AS
+ * WRITTEN ({@link writtenTags}), and {@link namesInProse} keeps the half whose
+ * sigil names a node. Stripping the sigil here and asking the index for the
+ * word would be the ambiguity the re-key (#249) exists to have decided.
+ *
+ * The `see` list comes through {@link targetsOf} rather than off the field, so
+ * the one table saying which fields point at ids is the one table this reads —
+ * the same reason the reverse reading asks the index rather than the record.
+ */
+export const referencesOf = (
+  derived: Derived,
+  at: LocatedRegular,
+): ReadonlyArray<Outgoing> => {
+  const found = new Map<string, Set<Way>>()
+  const file = (named: string, way: Way): void => {
+    const target = nodeNamed(derived, named)
+    if (target === undefined) return
+    if (target.node.id === at.node.id || isArchived(target.file)) return
+    const ways = found.get(target.node.id)
+    if (ways === undefined) found.set(target.node.id, new Set([way]))
+    else ways.add(way)
+  }
+
+  for (const [field, named] of targetsOf(at.node)) {
+    if (field === "see") file(named, "see")
+  }
+  for (const written of writtenTags(at.node)) {
+    const named = namesInProse(written)
+    if (named !== undefined) file(named, "mention")
+  }
+
+  if (found.size === 0) return REFERS_TO_NOTHING
+  return [...found].map(([to, ways]): Outgoing => ({ to, ways: inOrder(ways) }))
 }

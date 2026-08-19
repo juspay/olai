@@ -4,6 +4,7 @@ import {
   filterOf,
   hrefOf,
   narrowedTo,
+  reachingTo,
   type Route,
   routeIn,
   routeOf,
@@ -26,6 +27,10 @@ const ROUTES: ReadonlyArray<Route> = [
   { kind: "today" },
   { kind: "agenda" },
   { kind: "trash" },
+  { kind: "graph", focus: null },
+  { kind: "graph", focus: "kitchen" },
+  { kind: "graph", focus: "a-minted_id9", hops: 2 },
+  { kind: "graph", focus: "kitchen", hops: 2, filter: "is:todo" },
   // ...and the same pages, narrowed. The filter is part of the address, so it
   // is part of the round trip: a query the app writes into the bar and cannot
   // read back is a page that loses its filter on reload.
@@ -68,6 +73,8 @@ test("the addresses are the documented ones", () => {
   expect(hrefOf({ kind: "today" })).toBe("/today")
   expect(hrefOf({ kind: "agenda" })).toBe("/agenda")
   expect(hrefOf({ kind: "trash" })).toBe("/trash")
+  expect(hrefOf({ kind: "graph", focus: null })).toBe("/graph")
+  expect(hrefOf({ kind: "graph", focus: "herbs" })).toBe("/graph/herbs")
 })
 
 // ── the filter, which is the one thing that is not a path ──────────────
@@ -281,4 +288,93 @@ test("a fragment and a filter are read as themselves", () => {
 // would answer a broken permalink by silently showing something else.
 test("a node route with an empty id is still a node route", () => {
   expect(routeOf("/n/")).toEqual({ kind: "node", id: "" })
+})
+
+// ── the graph, and the second thing that is not a path ────────────────
+
+// A neighbourhood is an id like any other permalink, and a bare `/graph` names
+// no node at all — the corpus-wide reading, which is the one thing this page
+// can be about that is not one subject.
+test("a graph names a node, or names none at all", () => {
+  expect(hrefOf({ kind: "graph", focus: null })).toBe("/graph")
+  expect(hrefOf({ kind: "graph", focus: "herbs" })).toBe("/graph/herbs")
+  expect(routeOf("/graph")).toEqual({ kind: "graph", focus: null })
+  expect(routeOf("/graph/herbs")).toEqual({ kind: "graph", focus: "herbs" })
+  // A trailing slash names an empty id, which is a link nobody meant to write:
+  // it is the corpus rather than a page about a node with no name.
+  expect(routeOf("/graph/")).toEqual({ kind: "graph", focus: null })
+})
+
+// The DEFAULT horizon spells nothing, which is what keeps `/graph/herbs` the
+// address it would have been if this key had never existed — the same rule the
+// filter follows, and the reason both can ride in one query without either
+// address growing a character it does not need.
+test("a graph's horizon rides in the query, and only when it is not the default", () => {
+  expect(hrefOf({ kind: "graph", focus: "herbs", hops: 1 })).toBe("/graph/herbs")
+  expect(hrefOf({ kind: "graph", focus: "herbs", hops: 2 })).toBe("/graph/herbs?hops=2")
+  expect(routeOf("/graph/herbs?hops=2")).toEqual({
+    kind: "graph",
+    focus: "herbs",
+    hops: 2,
+  })
+  expect(routeOf("/graph/herbs?hops=1")).toEqual({ kind: "graph", focus: "herbs" })
+  // A horizon outside the closed list is a link nobody could have written here,
+  // so it reads as the ordinary page rather than as nothing at all.
+  expect(routeOf("/graph/herbs?hops=9")).toEqual({ kind: "graph", focus: "herbs" })
+  expect(routeOf("/graph/herbs?hops=")).toEqual({ kind: "graph", focus: "herbs" })
+})
+
+// ...and the corpus-wide reading takes NO horizon at all, which is the same
+// exclusion a document has from the filter: a query key that means nothing on a
+// page is left off the route, so nothing is written that cannot be read back.
+test("a graph with no centre has no horizon to be a horizon of", () => {
+  expect(hrefOf({ kind: "graph", focus: null })).toBe("/graph")
+  expect(routeOf("/graph?hops=2")).toEqual({ kind: "graph", focus: null })
+  expect(reachingTo({ kind: "graph", focus: null }, 2)).toEqual({
+    kind: "graph",
+    focus: null,
+  })
+})
+
+test("a graph carries both keys at once, in one query", () => {
+  expect(
+    hrefOf({ kind: "graph", focus: "herbs", hops: 2, filter: "is:todo" }),
+  ).toBe("/graph/herbs?hops=2&q=is%3Atodo")
+  expect(routeOf("/graph/herbs?hops=2&q=is%3Atodo")).toEqual({
+    kind: "graph",
+    focus: "herbs",
+    hops: 2,
+    filter: "is:todo",
+  })
+})
+
+// Two horizons are two pages, not one page read differently: `samePage` is what
+// decides whether the reading downstream of "which page is open" is redone, and
+// a graph drawn one hop out is a different set of nodes from the same graph
+// drawn two.
+test("the horizon is part of which page is open; the filter is not", () => {
+  const near: Route = { kind: "graph", focus: "herbs" }
+  const far: Route = { kind: "graph", focus: "herbs", hops: 2 }
+  expect(samePage(near, { ...near, filter: "is:todo" })).toBe(true)
+  expect(samePage(near, far)).toBe(false)
+})
+
+// `narrowedTo`'s sibling, and the same rule: a horizon means nothing on a page
+// that is not a graph, so it is refused there rather than minted into an
+// address nothing can read back.
+test("a horizon is set on a graph and on nothing else", () => {
+  expect(reachingTo({ kind: "graph", focus: "herbs" }, 2)).toEqual({
+    kind: "graph",
+    focus: "herbs",
+    hops: 2,
+  })
+  expect(reachingTo({ kind: "graph", focus: "herbs", hops: 2 }, 1)).toEqual({
+    kind: "graph",
+    focus: "herbs",
+    hops: 1,
+  })
+  expect(reachingTo({ kind: "outline", file: "house.olai" }, 2)).toEqual({
+    kind: "outline",
+    file: "house.olai",
+  })
 })

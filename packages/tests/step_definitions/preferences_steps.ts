@@ -255,7 +255,7 @@ Then("the preferences panel opens downward, clear of the bar", async function (t
  * Press one segment of one row, and wait for the panel to say it took.
  *
  * ONE spelling for every segmented row there is — Done, Notes, Size — because
- * they are one control (`client/settings/Segmented.tsx`) and the wait is the
+ * they are one control (`client/Segmented.tsx`) and the wait is the
  * subtle half: pressing and carrying on races the render, and each row having
  * its own copy of that wait is how the third one gets it slightly wrong.
  */

@@ -605,6 +605,43 @@ export const TRASH_EMPTY_CANCEL = selector(TESTID.trashEmptyCancel);
 export const TRASH_PAGE_SAID = selector(TESTID.trashPageSaid);
 /** The way to it, at the foot of the directory column. */
 export const TRASH_LINK = selector(TESTID.trashLink);
+
+// ── the reference graph ────────────────────────────────────────────────
+/** The page. `data-focus` is the node it is centred on — absent for the
+ *  corpus-wide reading — and `data-hops` is how far out it reaches. */
+export const GRAPH_PAGE = selector(TESTID.graphPage);
+/** The drawing itself — the box the dots and the arrows are in, and the one
+ *  the camera's gestures are bound to. `data-scale` is how far the reader has
+ *  zoomed, and `1.00` is fitted. */
+export const GRAPH_CANVAS = selector(TESTID.graphCanvas);
+/** One dot and its label, which is a link to the node. `data-node-id` is
+ *  which, `data-hops` how far from the centre, `data-focus` marks the centre,
+ *  and `data-labelled` says whether its words fit from where the reader is
+ *  looking — a dot is always drawn, its label is not. */
+export const GRAPH_NODE = selector(TESTID.graphNode);
+/** One arrow. `data-from` / `data-to` are its ends and `data-ways` is HOW that
+ *  record refers — the format's own list joined with `+`, so a scenario tells a
+ *  `see` from a mention without reading a colour off a pixel. */
+export const GRAPH_EDGE = selector(TESTID.graphEdge);
+/** A file's name, written under the nodes that landed together. */
+export const GRAPH_FILE = selector(TESTID.graphFile);
+/** The line under the drawing: the ancestry of whatever is being pointed at. */
+export const GRAPH_CAPTION = selector(TESTID.graphCaption);
+/** How far the reading reaches, as one segment per value of the app's one
+ *  segmented strip: `data-value` is which and `aria-pressed` says which is in
+ *  force. */
+export const GRAPH_HORIZON = selector(TESTID.graphHorizon);
+/** Said in the drawing's place when there is nothing to draw. */
+export const GRAPH_EMPTY = selector(TESTID.graphEmpty);
+/** The way to the whole graph, in the directory column. */
+export const GRAPH_LINK = selector(TESTID.graphLink);
+/** ...and the way to ONE node's, on that node's own page. */
+export const NODE_GRAPH_LINK = selector(TESTID.nodeGraphLink);
+/** The camera's three controls: closer, further away, and back to the whole
+ *  graph — which is a RESET, because the layout already fits the frame. */
+export const GRAPH_CLOSER = selector(TESTID.graphCloser);
+export const GRAPH_FURTHER = selector(TESTID.graphFurther);
+export const GRAPH_FIT = selector(TESTID.graphFit);
 /** THE day's note, above those groups: a document named for the date itself.
  *  `data-file` is which. */
 export const DAY_NOTE = selector(TESTID.dayNote);
@@ -1296,6 +1333,17 @@ export class OlaiWorld extends World {
    *  bookmark rather than a page you can only click to. */
   async openAgenda(): Promise<void> {
     await this.open("/agenda");
+  }
+
+  /** ONE node's neighbourhood in the reference graph, COLD — an id and nothing
+   *  else, which is what makes a neighbourhood a link somebody can send. */
+  async openGraph(id: string): Promise<void> {
+    await this.open(`/graph/${encodeURIComponent(id)}`);
+  }
+
+  /** ...and the whole of it, which names no node at all. */
+  async openWholeGraph(): Promise<void> {
+    await this.open("/graph");
   }
 
   /** One document's own page COLD, the way a link someone sent would arrive. */

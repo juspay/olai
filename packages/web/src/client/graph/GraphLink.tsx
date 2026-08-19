@@ -1,0 +1,44 @@
+/**
+ * The way from a node to its own neighbourhood.
+ *
+ * A control of its own on the zoomed page, for `../edges/EdgeVerbs.tsx`'s
+ * reason: a zoom is a PAGE and the `•••` menu hangs off a ROW, so a heading has
+ * nowhere to put a verb. The row's menu carries the same door
+ * (`../menu/actions.ts`), which is the arrangement every other thing a row and
+ * a page can both do already has.
+ *
+ * It sits under the `Referenced by …` section deliberately: that section is the
+ * one place this app reads a reference BACKWARDS, and the graph is the same
+ * relations read both ways at once. Reading one and then asking for the picture
+ * is the gesture, so the door is where the reading ends.
+ *
+ * QUIET, and always drawn — like the edge verbs beside it, and unlike the
+ * menu's list, where a verb that would change nothing is left out. There is
+ * nothing to decide: every node has a neighbourhood, and one with nothing in it
+ * is an answer the page gives in words (`./GraphPage.tsx`).
+ *
+ * "Like the edge verbs" is spent rather than described: the strip and the verb's
+ * own look are `../edges/EdgeVerbs.tsx`' (`VERB_STRIP`, `QUIET_VERB`), which is
+ * where they were written first, and all this keeps of its own is the reset an
+ * `<a>` needs where a `<button>` needs a different one.
+ */
+
+import { QUIET_VERB, VERB_STRIP } from "../edges/EdgeVerbs.tsx"
+import { Link } from "../router.tsx"
+import { TESTID } from "../testids.ts"
+import { GRAPH_AROUND, graphAround } from "./door.ts"
+
+export function GraphLink(props: { readonly id: string }) {
+  return (
+    <div class={VERB_STRIP}>
+      <Link
+        route={graphAround(props.id)}
+        class={`${QUIET_VERB} no-underline`}
+        testid={TESTID.nodeGraphLink}
+        label="draw the reference graph around this node"
+      >
+        {GRAPH_AROUND}
+      </Link>
+    </div>
+  )
+}

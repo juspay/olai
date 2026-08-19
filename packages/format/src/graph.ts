@@ -1,0 +1,353 @@
+/**
+ * The reference graph — the same edges {@link ./backlinks.ts} reads backwards,
+ * read as a shape rather than as a list.
+ *
+ * A node's page answers "what points at this" one node at a time. That is the
+ * right answer for a page ABOUT a node and the wrong one for the question
+ * behind it: which nodes are talking to each other, and where does this one sit
+ * among them. Nothing in this format could answer that without walking the
+ * directory and drawing the answer by hand, so nobody asked it.
+ *
+ * ## What an edge IS is not decided here
+ *
+ * Every ruling about what counts as a reference is {@link ./backlinks.ts}'s,
+ * and this module inherits every one of them rather than restating any:
+ *
+ *   - a `see` counts, and an `@id` in prose counts exactly when the word names
+ *     a node;
+ *   - a MIRROR does not — a placement is a view of a node, not a claim about
+ *     one — and neither does an `after` or a `blocks`, which are the ordering
+ *     graph and are drawn both ways on the node's own page;
+ *   - a reference to a PLACEMENT of a node is a reference to that node, so both
+ *     ends of every edge here are canonical;
+ *   - what is put away is on the Trash and nowhere else (#226), so an archived
+ *     record is at neither end.
+ *
+ * The FORWARD reading this needs — what does one record refer to, which
+ * `backlinksOf` cannot be asked — lives THERE too, as `referencesOf`. It was
+ * here for one release and that was the same axis encapsulated twice: the
+ * rulings are what change (a fourth way, a fifth thing that is not a
+ * reference), and a module holding half of them is a module that goes stale
+ * silently. What is left here is the other axis entirely — how far a picture
+ * of those references reaches, and what a corpus-wide one is.
+ *
+ * ## Scoped, because a corpus-wide picture answers nothing
+ *
+ * A graph of ten thousand nodes is a hairball, and a hairball is a picture of
+ * the fact that a directory is large. So the reading takes a FOCUS and a
+ * horizon ({@link Hops}): the node, what refers to it and what it refers to,
+ * and optionally the ring beyond that. The corpus-wide reading is the same
+ * function with the focus left out, and it is deliberately not "every node" —
+ * it is every node that is IN the reference graph, since a node nothing refers
+ * to and which refers to nothing is not part of the shape being drawn.
+ *
+ * ## A lookup, like the section it generalises
+ *
+ * A focused reading costs the walk it draws — the records it reaches, once
+ * each — and nothing scans the corpus. The corpus-wide one asks every record
+ * what it refers to, which means the tag regex over every title and every note
+ * in the directory; that is what "every node that is in the graph" costs and it
+ * is why that reading is one you have to ask for by name. It could be assembled
+ * from `derive`'s reverse indexes instead and is deliberately not: the two
+ * readings would then be built from two different things, which is the
+ * divergence `./backlinks.ts` holds its pair together to prevent.
+ */
+
+import { backlinksOf, type Outgoing, referencesOf, type Way } from "./backlinks.ts"
+import { byCorpus, type Derived } from "./derive.ts"
+import type { Status } from "./node.ts"
+import { isArchived, isRegular, type LocatedRegular } from "./node.ts"
+import type { Selected } from "./filter.ts"
+
+/**
+ * How far from the focus a reading reaches, as the closed list both the address
+ * and the control read.
+ *
+ * TWO VALUES and not a number, because there is no third that is a different
+ * KIND of answer: one hop is "what is this node's own conversation", two is
+ * "…and who those nodes are talking to", and past that every graph in a real
+ * directory is the corpus with extra steps. A free integer in the address
+ * would be a horizon nobody could draw and a link that meant something else on
+ * a bigger vault.
+ */
+export const HOPS = [1, 2] as const
+export type Hops = (typeof HOPS)[number]
+
+/** The default horizon: the node's own neighbourhood. The wider one is a thing
+ *  a reader asks for, so the plain address stays the plain reading. */
+export const HOPS_DEFAULT: Hops = 1
+
+/** One node this graph draws, and how far out it is: `0` is the focus, and `0`
+ *  for every node of a corpus-wide reading, where there is no centre to be far
+ *  from. */
+export interface GraphNode {
+  readonly at: LocatedRegular
+  readonly hops: number
+  /**
+   * The mark it stores, or nothing — {@link Derived.status} read once, HERE,
+   * rather than by whoever draws the dot.
+   *
+   * It is on the node because two readers need it and neither should have to
+   * hold the derivation to ask: the drawing tones a finished dot the way a row
+   * is toned, and {@link withoutDoneGraph} takes finished work off the picture
+   * for a reader who has said they do not want to look at it. The second of
+   * those is a pure transform over a graph — it has no indexes and should need
+   * none.
+   */
+  readonly status: Status | undefined
+}
+
+/**
+ * One edge, in the direction it was written: `from` is the record that made the
+ * reference and `to` is the node it named.
+ *
+ * IDS AND NOT RECORDS, unlike {@link GraphNode}: an edge is a pair of ends, the
+ * records are already in `nodes`, and a second copy of a record on every edge
+ * touching it is a shape whose two halves can disagree about the same node.
+ *
+ * ONE ENTRY PER PAIR, with the ways it refers, in {@link WAYS} order — the same
+ * rule {@link ./backlinks.ts}'s `Backlink` keeps and for the same reader: a
+ * record that both points at a node and names it in prose is one relationship,
+ * drawn once.
+ */
+export interface GraphEdge {
+  readonly from: string
+  readonly to: string
+  readonly ways: ReadonlyArray<Way>
+}
+
+/**
+ * The reading: the nodes, in corpus order, and every edge with BOTH ends among
+ * them.
+ *
+ * The edge rule is what makes the picture honest rather than merely small: an
+ * edge is drawn only where the reader can see what is at each end of it, so
+ * there are no arrows into the dark at the horizon.
+ */
+export interface Graph {
+  readonly nodes: ReadonlyArray<GraphNode>
+  readonly edges: ReadonlyArray<GraphEdge>
+}
+
+/** A reading with nothing in it — ONE value, shared, for the frames and the
+ *  addresses that produce one. */
+export const NOTHING_DRAWN_GRAPH: Graph = { nodes: [], edges: [] }
+
+/**
+ * What a reading was asked for — TWO readings and not one with an optional
+ * field, because a horizon means nothing without a centre to be far from.
+ *
+ * `{focus: undefined, hops: 2}` was spellable while this was one struct, and it
+ * said nothing: a value a caller can write and a reader cannot interpret. The
+ * discrimination is what makes the pair the two questions they are.
+ */
+export type Asked =
+  /**
+   * One node's neighbourhood. The centre is CANONICAL, since a page resolves a
+   * mirror's chain before it asks — and an id nothing claims draws nothing,
+   * which is the same answer an empty directory gives.
+   *
+   * AN ARCHIVED ID DRAWS NOTHING EITHER, and that is #226 rather than a gap: a
+   * record that was put away is drawn on the Trash and nowhere else, so it is
+   * at no end of any edge here — the centre included. The alternative was a
+   * centre the walk would then have to reach two different ways, since the
+   * forward reading leaves an archived TARGET out and the backward one does
+   * not: a picture whose arrows pointed one way only, about a node the ruling
+   * says is not on this page at all.
+   */
+  | { readonly kind: "around"; readonly focus: string; readonly hops: Hops }
+  /** ...and the whole reference graph, which is about no one node and so has
+   *  no horizon to be given. */
+  | { readonly kind: "whole" }
+
+/**
+ * WHAT A WALK FOUND: how far out each node is, and — for the ones it expanded —
+ * what they refer to.
+ *
+ * The second half is the walk handing on work it has already done rather than a
+ * cache: asking a record what it refers to means running the tag regex over its
+ * title and its whole note ({@link mentionsOf}), and the edge pass below needs
+ * exactly the answers the walk just threw away. What is missing from it is the
+ * OUTER RING, which a neighbourhood reaches and never expands, so the pass asks
+ * for those and only those.
+ */
+interface Reached {
+  readonly hops: ReadonlyMap<string, number>
+  readonly refers: ReadonlyMap<string, ReadonlyArray<Outgoing>>
+}
+
+export const graphOf = (derived: Derived, asked: Asked): Graph => {
+  const reached = asked.kind === "whole"
+    ? everythingReferring(derived)
+    : neighbourhoodOf(derived, asked.focus, asked.hops)
+  if (reached.hops.size === 0) return NOTHING_DRAWN_GRAPH
+
+  const nodes: Array<GraphNode> = []
+  for (const [id, hops] of reached.hops) {
+    const at = derived.byId.get(id)
+    if (at !== undefined && isRegular(at)) {
+      nodes.push({ at, hops, status: derived.status.get(id) })
+    }
+  }
+  nodes.sort((one, other) => byCorpus(one.at, other.at))
+
+  // ONE pass, and it is the FORWARD reading for every node — which is what
+  // makes each edge appear exactly once without a dedup step, and what makes
+  // the arrows agree with the records that wrote them. The far end is kept only
+  // when it is drawn: an arrow into the dark says less than no arrow.
+  const edges: Array<GraphEdge> = []
+  for (const node of nodes) {
+    const refers = reached.refers.get(node.at.node.id) ??
+      referencesOf(derived, node.at)
+    for (const { to, ways } of refers) {
+      if (reached.hops.has(to)) edges.push({ from: node.at.node.id, to, ways })
+    }
+  }
+  return { nodes, edges }
+}
+
+/**
+ * The nodes within `hops` of the focus, each against how far out it is.
+ *
+ * BOTH DIRECTIONS at every step, because "this node's neighbourhood" is not a
+ * question about who wrote the arrow: a note somebody else wrote about this
+ * node is as much its context as one it wrote about them. The focus is always
+ * in the answer, even when nothing refers to it — the page is about it, and a
+ * page that drew nothing would be saying the node is not there.
+ */
+const neighbourhoodOf = (derived: Derived, focus: string, hops: Hops): Reached => {
+  const found = new Map<string, number>()
+  const refers = new Map<string, ReadonlyArray<Outgoing>>()
+  const at = derived.byId.get(focus)
+  if (at === undefined || !isRegular(at) || isArchived(at.file)) {
+    return { hops: found, refers }
+  }
+  found.set(focus, 0)
+
+  let frontier: ReadonlyArray<string> = [focus]
+  for (let hop = 1; hop <= hops && frontier.length > 0; hop += 1) {
+    const next: Array<string> = []
+    // ONE spelling of "this id is `hop` out", spent by both directions: which
+    // end of an arrow reached a node is not a fact about how far away it is.
+    const reach = (other: string): void => {
+      if (found.has(other)) return
+      found.set(other, hop)
+      next.push(other)
+    }
+    for (const id of frontier) {
+      const here = derived.byId.get(id)
+      if (here === undefined || !isRegular(here)) continue
+      const outgoing = referencesOf(derived, here)
+      refers.set(id, outgoing)
+      for (const { to } of outgoing) reach(to)
+      for (const back of backlinksOf(derived, id)) reach(back.at.node.id)
+    }
+    frontier = next
+  }
+  return { hops: found, refers }
+}
+
+/**
+ * Every node that is IN the reference graph — the corpus-wide reading.
+ *
+ * NOT every node in the directory, and that is the decision: a graph of a vault
+ * is mostly nodes nobody has connected to anything, and drawing them is drawing
+ * the size of the directory rather than the shape of what is in it. So a node
+ * is here when it refers to something or something refers to it, and a corpus
+ * with no references at all draws nothing rather than a field of dots.
+ *
+ * Everything is at hop `0`: there is no centre for anything to be far from, and
+ * a distance measured from an arbitrary node would be a fact about the walk
+ * rather than about the set.
+ */
+const everythingReferring = (derived: Derived): Reached => {
+  const found = new Map<string, number>()
+  const refers = new Map<string, ReadonlyArray<Outgoing>>()
+  for (const at of derived.nodes) {
+    if (!isRegular(at) || isArchived(at.file)) continue
+    const outgoing = referencesOf(derived, at)
+    if (outgoing.length === 0) continue
+    refers.set(at.node.id, outgoing)
+    found.set(at.node.id, 0)
+    for (const { to } of outgoing) found.set(to, 0)
+  }
+  return { hops: found, refers }
+}
+
+/**
+ * The same graph narrowed to what a query selected — {@link keeping} for the
+ * page that is a SHAPE rather than a tree.
+ *
+ * `keep` is the focus, and it survives whether or not it matched: the page is
+ * about that node, exactly as a day page goes on being about its date when
+ * nothing on it matches. Filtering it out would leave a neighbourhood with no
+ * centre, which is a picture of nothing.
+ *
+ * AN EDGE NEEDS BOTH ENDS, which is {@link Graph}'s own rule applied to what is
+ * left: an arrow to a node the query took away is an arrow into the dark.
+ */
+export const keepingGraph = (
+  graph: Graph,
+  matched: Selected,
+  keep: string | undefined,
+): Graph => {
+  const nodes = graph.nodes.filter(
+    (node) => node.at.node.id === keep || matched.has(node.at.node.id),
+  )
+  if (nodes.length === graph.nodes.length) return graph
+  const drawn = new Set(nodes.map((node) => node.at.node.id))
+  return {
+    nodes,
+    edges: graph.edges.filter((edge) => drawn.has(edge.from) && drawn.has(edge.to)),
+  }
+}
+
+/**
+ * The same graph with finished work left out — {@link withoutDone} for the page
+ * that is a SHAPE rather than a tree.
+ *
+ * It is the DONE PREFERENCE reaching one more page, and the argument is the
+ * preference's own: "I do not want to look at finished work" is a claim about
+ * the READER, so it applies wherever nodes are drawn. What kept it to trees
+ * until now was that the other pages are RECORDS — a day is what happened, and
+ * half of what happened is work that got finished, so hiding it there would be
+ * the switch answering a question the page was not asked. A graph is not a
+ * record of anything: it is what the directory says RIGHT NOW about what refers
+ * to what, which is exactly the reading a tree is.
+ *
+ * NO SUBTREE SWEEP, and that is the difference from {@link withoutDone}: a
+ * graph has no under. A tree hides a done branch entire because a mark on a
+ * parent is somebody's claim about everything below it; nothing here hangs
+ * below anything, so what goes is the finished node and the arrows that had it
+ * at one end — an arrow to a dot nobody can see is the arrow into the dark
+ * {@link Graph} already refuses.
+ *
+ * The centre survives for {@link keepingGraph}'s reason: the page is about that
+ * node, and a neighbourhood with no centre is a picture of nothing. A reader
+ * who has hidden finished work and then opens a finished node's graph is asking
+ * about THAT node.
+ */
+export const withoutDoneGraph = (graph: Graph, keep: string | undefined): Graph => {
+  const nodes = graph.nodes.filter(
+    (node) => node.status !== "done" || node.at.node.id === keep,
+  )
+  if (nodes.length === graph.nodes.length) return graph
+  const drawn = new Set(nodes.map((node) => node.at.node.id))
+  return {
+    nodes,
+    edges: graph.edges.filter((edge) => drawn.has(edge.from) && drawn.has(edge.to)),
+  }
+}
+
+/** How many places this graph draws — a node appears once, so this is the node
+ *  count, and it is a function rather than a `.length` at the call site for
+ *  {@link rowsIn}'s reason: one walk decides what a place is, and both numbers
+ *  of "3 of 41" are asked of it. */
+export const placesInGraph = (graph: Graph): number => graph.nodes.length
+
+/** How many of those places the query selected — the first number. */
+export const matchedInGraph = (graph: Graph, matched: Selected): number =>
+  graph.nodes.reduce(
+    (total, node) => total + (matched.has(node.at.node.id) ? 1 : 0),
+    0,
+  )

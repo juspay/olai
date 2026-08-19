@@ -36,6 +36,7 @@
 import type { Derived, Row } from "@olai/format"
 
 import { armNode } from "../chat/armed.ts"
+import { GRAPH_AROUND, graphAround } from "../graph/door.ts"
 import type { Relation } from "../edges/relation.ts"
 import type { Said, Undo } from "../edit/undoing.ts"
 import { setFolded } from "../fold/memory.ts"
@@ -127,6 +128,16 @@ export const nodeMenuActions = (args: {
       id: "zoom",
       label: "Zoom in",
       run: () => args.go({ kind: "node", id }),
+    },
+    {
+      // This node's neighbourhood in the reference graph — a READ like the zoom
+      // above it, and the row's half of a door the zoomed page draws for itself
+      // (`../graph/GraphLink.tsx`). Where it goes and what it is CALLED are the
+      // door's own (`../graph/door.ts`), because two surfaces offer it and a
+      // label spelled at each is a rename that leaves one of them behind.
+      id: "graph",
+      label: GRAPH_AROUND,
+      run: () => args.go(graphAround(id)),
     },
     {
       // The composer, armed with this node — a READ, and it sits among the

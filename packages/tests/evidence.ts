@@ -670,6 +670,67 @@ const piled = async (page: Page) =>
     '[data-testid="node-title"]',
   )) || "  (nothing)"
 
+// ── the reference graph ────────────────────────────────────────────────
+
+const GRAPH_CANVAS = '[data-testid="graph-canvas"]'
+const GRAPH_NODE = '[data-testid="graph-node"]'
+const GRAPH_EDGE = '[data-testid="graph-edge"]'
+const GRAPH_FILE = '[data-testid="graph-file"]'
+const GRAPH_CAPTION = '[data-testid="graph-caption"]'
+const GRAPH_HORIZON = '[data-testid="graph-horizon"]'
+const GRAPH_CLOSER = '[data-testid="graph-closer"]'
+
+/** The DONE preference, picked in the panel it is set in — the same door a
+ *  reader uses, rather than a write into storage, because what this section is
+ *  photographing is the switch reaching one more page. */
+const pickDone = async (page: Page, value: "hidden" | "visible"): Promise<void> => {
+  const panel = page.locator('[data-testid="prefs-panel"]')
+  if (!(await panel.isVisible().catch(() => false))) {
+    await page.locator('[data-testid="prefs-trigger"]').first().click()
+    await panel.waitFor()
+  }
+  await page.locator(`[data-testid="prefs-choice"][data-value="${value}"]`).first().click()
+  await page.keyboard.press("Escape")
+  await page.waitForTimeout(250)
+}
+const GRAPH_FIT = '[data-testid="graph-fit"]'
+const GRAPH_LABELLED = '[data-testid="graph-node"][data-labelled="true"]'
+
+/** What the camera is doing and how much of the picture it leaves readable —
+ *  the two numbers a shot of a crowded graph has to be checked against, since
+ *  "the labels declutter" is exactly the claim a screenshot alone cannot make. */
+const graphCamera = async (page: Page): Promise<string> => {
+  const box = await page.locator(GRAPH_CANVAS).first().boundingBox()
+  return `canvas ${Math.round(box?.width ?? 0)}×${Math.round(box?.height ?? 0)}, ` +
+    `scale ${await page.locator(GRAPH_CANVAS).first().getAttribute("data-scale")}, ` +
+    `${await page.locator(GRAPH_LABELLED).count()} of ` +
+    `${await page.locator(GRAPH_NODE).count()} dots named`
+}
+
+/** What the drawing is OF, printed beside the shot — a picture cannot be read
+ *  back as data, and these three lines are what a reviewer checks the pixels
+ *  against. Ids rather than titles: an id is what an arrow's ends are. */
+const graphNodes = async (page: Page): Promise<string> =>
+  (await page.locator(GRAPH_NODE).evaluateAll((found) =>
+    found.map((one) => one.getAttribute("data-node-id"))
+  )).join(", ")
+
+/** ...and every arrow as the claim it makes: the record that wrote it, HOW it
+ *  refers, and the node it named. */
+const graphArrows = async (page: Page): Promise<string> =>
+  (await page.locator(GRAPH_EDGE).evaluateAll((found) =>
+    found.map((one) =>
+      `${one.getAttribute("data-from")} -${one.getAttribute("data-ways")}-> ${
+        one.getAttribute("data-to")
+      }`
+    )
+  )).join(" · ")
+
+const graphFiles = async (page: Page): Promise<string> =>
+  (await page.locator(GRAPH_FILE).evaluateAll((found) =>
+    found.map((one) => one.getAttribute("data-file"))
+  )).join(", ")
+
 /** The day the run started — read ONCE, so every date in a section is counted
  *  from the same day even if the run crosses midnight. The client's own reading
  *  of the local day, like the browser tests', rather than a second one. */
@@ -2115,6 +2176,192 @@ const SECTIONS = {
 
     await inTheDark(page)
     await shot(page, "a-pressed-tag-lights-up-dark")
+  },
+
+  /**
+   * THE REFERENCE GRAPH — what a directory's references look like as a shape,
+   * which is the one claim no transcript and no `✔` can carry.
+   *
+   * The corpus is WRITTEN first, because `good/` holds exactly one reference
+   * (`order` sees `herbs`) and a picture of one arrow says nothing about the
+   * two kinds of arrow there are. What is added is the smallest set that puts
+   * both on one screen — a mention from another outline, a record that does
+   * BOTH, and a second-hop referrer that is invisible at one hop and arrives at
+   * two — through {@link rewrite}, the same door another hand writes with.
+   *
+   * Five shots, and each is a different promise:
+   *
+   *   1. the neighbourhood, with both edge kinds and the file names under the
+   *      groups they belong to — light, and then
+   *   2. the same page in the dark half of the palette table, because every
+   *      line, dot and label here is drawn in theme tokens and a colour written
+   *      in hex would be right in one palette out of fifteen;
+   *   3. a HOVER: the ancestry of the dot under the pointer, said in the line
+   *      under the drawing, with everything the dot is not talking to gone
+   *      quiet — light and dark, since the quiet is an opacity over tokens;
+   *   4. the horizon moved to two hops, which reaches the ring beyond and
+   *      writes the address;
+   *   5. the CLICK-THROUGH: the same dot pressed, and the node's own page —
+   *      which is where the `Referenced by …` section and the door back to this
+   *      drawing both are.
+   */
+  "the-reference-graph": async (page) => {
+    pinnedBy(
+      "reference_graph.feature",
+      "A node's neighbourhood draws both kinds of reference",
+      "One record doing both is one arrow carrying both ways",
+      "A dot is a link to the node",
+      "Pointing at a dot says where that node sits",
+      "A second hop reaches the ring beyond, and the address says so",
+    )
+    rewrite("garden.olai", [
+      ...servedLines("garden.olai"),
+      `{"id":"cuttings","parent":"garden","ord":"z0","title":"take cuttings from @herbs before the frost"}`,
+      `{"id":"labels","parent":"garden","ord":"z1","title":"write the plant labels","see":["cuttings"]}`,
+    ])
+    rewrite("house.olai", [
+      ...servedLines("house.olai"),
+      `{"id":"worktop","parent":"kitchen","ord":"z0","title":"seal the worktop like @herbs","see":["herbs"]}`,
+    ])
+
+    await opened(page, "/graph/herbs", GRAPH_CANVAS)
+    console.log(`  the dots are:   ${await graphNodes(page)}`)
+    console.log(`  the arrows are: ${await graphArrows(page)}`)
+    console.log(`  the files under them: ${await graphFiles(page)}`)
+    console.log(`  the caption says: ${await textOf(page, GRAPH_CAPTION)}`)
+    await shot(page, "neighbourhood-light")
+
+    await wearTheme(page, "pitch")
+    await shot(page, "neighbourhood-dark")
+
+    // THE HOVER, in both halves of the table: the line under the drawing names
+    // where the pointed-at node sits, and the rest of the picture recedes.
+    await wearTheme(page, "chalk")
+    await page.locator(`${GRAPH_NODE}[data-node-id="worktop"] a`).first().hover()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  pointing at \`worktop\`, the caption says: ${
+      await textOf(page, GRAPH_CAPTION)
+    }`)
+    await shot(page, "hover-ancestry-light")
+
+    await wearTheme(page, "pitch")
+    await page.locator(`${GRAPH_NODE}[data-node-id="worktop"] a`).first().hover()
+    await page.waitForTimeout(DRAWN)
+    await shot(page, "hover-ancestry-dark")
+
+    // TWO HOPS: `labels` sees `cuttings`, which mentions `herbs` — so it is one
+    // ring further out and is not on the picture above at all.
+    await wearTheme(page, "chalk")
+    await page.locator(`${GRAPH_HORIZON}[data-value="2"]`).first().click()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  two hops out:   ${await graphNodes(page)}`)
+    console.log(`  the address is: ${await page.evaluate(() => location.pathname + location.search)}`)
+    await shot(page, "two-hops")
+
+    // ...and the click-through, which is what a dot IS.
+    await page.locator(`${GRAPH_NODE}[data-node-id="worktop"] a`).first().click()
+    await page.locator(ZOOM_TITLE).first().waitFor()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the dot opened: ${await textOf(page, ZOOM_TITLE)}`)
+    // ...and the way back is on it: the same door every node's page carries,
+    // which is how this drawing is reached in the first place.
+    console.log(`  the door back is on that page: ${
+      await page.locator('[data-testid="node-graph-link"]').count()
+    }`)
+    shotSays("worktop", "house.olai")
+    await shot(page, "click-through-light")
+
+    await wearTheme(page, "pitch")
+    await shot(page, "click-through-dark")
+  },
+
+  /**
+   * THE CAMERA, over the reading that needs one: every reference in the
+   * directory at once.
+   *
+   * The corpus-wide graph is the secondary face and the one the scoped default
+   * exists to spare a reader — and it is exactly where a fitted picture has more
+   * labels than frame. So this section is the crowded case: a corpus WRITTEN for
+   * it (twenty-eight records, four outlines, two hubs and a chain), photographed
+   * fitted, then zoomed in, then panned, and fitted again.
+   *
+   * What the shots have to show is one claim in two halves: every DOT is drawn
+   * at every scale, and only the LABELS that fit are written — the centre and
+   * the hubs first, the rest as the reader comes closer. The numbers printed
+   * beside each shot are what makes that checkable rather than a matter of
+   * opinion about a picture.
+   */
+  "the-graph-has-a-camera": async (page) => {
+    pinnedBy(
+      "reference_graph.feature",
+      "A page opens fitted, and the controls move the camera",
+      "A dot still opens its node once the camera has moved",
+      "A crowded graph draws every dot and only the labels that fit",
+      "...and pointing at a dot names it, whichever labels fit",
+    )
+    // Two hubs, a chain between them, and a crowd around each — the shape a
+    // directory takes once anything has been cross-referenced for a while.
+    rewrite("plans.olai", [
+      `{"id":"plans","ord":"a0","title":"the plans"}`,
+      `{"id":"kitchen-plan","parent":"plans","ord":"a1","title":"the kitchen plan everything hangs off"}`,
+      `{"id":"garden-plan","parent":"plans","ord":"a2","title":"the garden plan everything hangs off","see":["kitchen-plan"]}`,
+      ...Array.from({ length: 9 }, (_, at) =>
+        `{"id":"kp${at}","parent":"plans","ord":"b${at}","title":"kitchen step ${
+          at + 1
+        }: measure, order and fit",${
+          at % 2 === 0 ? `"done":"2026-08-0${(at % 8) + 1}",` : `"todo":true,`
+        }"see":["kitchen-plan"]}`),
+      ...Array.from({ length: 9 }, (_, at) =>
+        `{"id":"gp${at}","parent":"plans","ord":"c${at}","title":"garden step ${
+          at + 1
+        }: dig, plant and water",${
+          at % 3 === 0 ? `"done":"2026-08-0${(at % 8) + 1}",` : ""
+        }"see":["garden-plan"]}`),
+    ])
+    rewrite("notes.olai", [
+      `{"id":"notes","ord":"a0","title":"loose notes"}`,
+      ...Array.from({ length: 7 }, (_, at) =>
+        `{"id":"n${at}","parent":"notes","ord":"b${at}","title":"a note that mentions @kitchen-plan in passing (${
+          at + 1
+        })"}`),
+    ])
+
+    await opened(page, "/graph", GRAPH_CANVAS)
+    console.log(`  fitted:      ${await graphCamera(page)}`)
+    await shot(page, "crowded-fitted-light")
+
+    await wearTheme(page, "pitch")
+    await shot(page, "crowded-fitted-dark")
+
+    // CLOSER, three steps: the same picture with more of it written out.
+    await wearTheme(page, "chalk")
+    for (let step = 0; step < 3; step += 1) {
+      await page.locator(GRAPH_CLOSER).first().click()
+    }
+    await page.waitForTimeout(DRAWN)
+    console.log(`  three closer: ${await graphCamera(page)}`)
+    await shot(page, "zoomed-in-light")
+
+    await wearTheme(page, "pitch")
+    await shot(page, "zoomed-in-dark")
+
+    // ...and back, which is a reset rather than a measurement: the layout
+    // already fits the frame, so the whole graph is the camera doing nothing.
+    await wearTheme(page, "chalk")
+    await page.locator(GRAPH_FIT).first().click()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  fitted again: ${await graphCamera(page)}`)
+    await shot(page, "fitted-again")
+
+    // ...and FINISHED WORK taken off it, through the one switch this app has
+    // for that claim. Two shots, because what the pixels have to show is that
+    // the arrows went with the dots and the shape re-settled around what is
+    // left rather than keeping holes where the done nodes were.
+    await pickDone(page, "hidden")
+    await page.waitForTimeout(SETTLE)
+    console.log(`  done hidden:  ${await graphCamera(page)}`)
+    await shot(page, "done-hidden")
+    await pickDone(page, "visible")
   },
 
   "what-refers-to-this-node": async (page) => {
