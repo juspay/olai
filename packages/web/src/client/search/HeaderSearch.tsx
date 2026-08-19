@@ -93,19 +93,23 @@ export function HeaderSearch(props: {
   const [at, setAt] = createSignal<Anchor | null>(null)
   let box: HTMLInputElement | undefined
 
-  const nodes = createNodeSearch(() => (caret() ? query() : null))
+  /** WHAT THIS BOX IS ASKING — the query, or `null` while nobody has the caret
+   *  in it. One accessor for both lists below, exactly as the palette keeps one
+   *  (`../palette/Palette.tsx`): a box that stopped asking is a box neither
+   *  list may still be answering, and gated per list that is a rule each of
+   *  them could stop keeping on its own. */
+  const asked = () => (caret() ? query() : null)
+
+  const nodes = createNodeSearch(asked)
   /**
    * The directory's documents over the same query, above the node hits — the
    * palette's own block (`../palette/documents.ts`), in the palette's own
    * order, because this box is the OTHER DOOR to one reading and a door that
    * found a file the other one did not would be exactly the drift this whole
    * seam exists against.
-   *
-   * Gated on the caret for the same reason the search is: a box nobody is
-   * typing in has no query, and the panel it would open hangs over the page.
    */
   const items = createMemo(() => [
-    ...documentItems(served(), caret() ? query() : ""),
+    ...documentItems(served(), asked()),
     ...nodes.hits().map(nodeItem),
   ])
   // The panel is up when there is anything to say — rows, a refused call, or a

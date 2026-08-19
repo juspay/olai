@@ -222,14 +222,24 @@ export function Palette(props: {
   const mode = createMemo(() => modeOf(query()))
   const listing = () => mode().kind === "filter"
 
+  /**
+   * WHAT THIS BOX IS ASKING — the query, or `null` while it is asking nothing:
+   * the palette is shut, or the line carries a prefix. Neither `>` nor `+` is a
+   * lookup, and asking for one would spend a round trip per keystroke on a
+   * sentence nobody is looking things up with.
+   *
+   * ONE accessor, because two lists are answered from it — the nodes over the
+   * wire and the documents in this tab — and "when is this box asking" is a
+   * different question from "what does that list do with the answer". Spelled
+   * per consumer, the two would be free to gate differently: a prefix that took
+   * the node search away and left the file rows standing is a list answering a
+   * line nobody is searching with.
+   */
+  const asked = () => (paletteOpen() && listing() ? query() : null)
+
   // The nodes, from the server — one primitive, its own failure, and no
-  // request bookkeeping in this component ({@link ./search.ts}). It is asked
-  // only while the palette is open and the box is not carrying a prefix:
-  // neither `>` nor `+` is a search, and asking for one would spend a round
-  // trip per keystroke on a sentence nobody is looking things up with.
-  const nodes = createNodeSearch(() =>
-    paletteOpen() && listing() ? query() : null
-  )
+  // request bookkeeping in this component ({@link ../search/nodes.ts}).
+  const nodes = createNodeSearch(asked)
 
   /**
    * The zoomed node's verbs — its OWN memo, and guarded on the palette being
@@ -263,7 +273,7 @@ export function Palette(props: {
     // above it and the list only ever grows at the bottom.
     return [
       ...filterItems(query(), commands),
-      ...documentItems(served(), query()),
+      ...documentItems(served(), asked()),
       ...nodes.hits().map(nodeItem),
     ]
   })

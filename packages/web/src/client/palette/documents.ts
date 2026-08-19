@@ -134,8 +134,8 @@ const documentItem = (document: Document): PaletteItem => {
 }
 
 /**
- * The document rows for `query`, best first — and NONE at all for an empty
- * box.
+ * The document rows for `query`, best first — and NONE at all for a box that
+ * is not asking.
  *
  * That last part is the one rule this list has of its own, and it is about
  * what the palette IS. A bare `@` in a message completes to the whole
@@ -143,13 +143,20 @@ const documentItem = (document: Document): PaletteItem => {
  * is a list of commands, and pouring every `.md` in the vault into it would
  * bury the rows a reader opened it for behind a directory listing they did not
  * ask for. The first character typed is what asks.
+ *
+ * `null` is the door saying it is asking NOTHING — shut, or carrying a prefix,
+ * or without the caret — and it is admitted here rather than mapped to `""` at
+ * each door, which is `../search/nodes.ts`'s own vocabulary for the same fact.
+ * For this list the two really are one answer (no rows), and saying so once in
+ * the module beats two call sites each translating a state into a string it is
+ * not.
  */
 export const documentItems = (
   paths: ReadonlyArray<string>,
-  query: string,
+  query: string | null,
   limit: number = LIMIT,
 ): ReadonlyArray<PaletteItem> => {
-  const wanted = query.trim()
+  const wanted = query?.trim() ?? ""
   if (wanted === "") return []
   return matchFiles(documentsIn(paths), wanted, limit).map(documentItem)
 }

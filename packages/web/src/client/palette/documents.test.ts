@@ -114,3 +114,11 @@ test("the fold is kept per version of the directory, not per keystroke", () => {
   expect(ids("cab")).toEqual(["doc-notes/cabinets.md"])
   expect(ids("cab")).toEqual(["doc-notes/cabinets.md"])
 })
+
+test("a box that is not asking is not an empty query, and neither draws a row", () => {
+  // `null` is the door's own word for "asking nothing" — shut, prefixed, or
+  // without the caret (`../search/nodes.ts`'s vocabulary). Admitted here so a
+  // door hands over what it has rather than translating a state into a string
+  // it is not.
+  expect(documentItems(DIRECTORY, null)).toEqual([])
+})
