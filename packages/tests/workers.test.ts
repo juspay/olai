@@ -6,6 +6,7 @@
  */
 
 import { expect, test } from "bun:test";
+import type { EventEmitter } from "node:events";
 import * as fs from "node:fs";
 import * as net from "node:net";
 import * as os from "node:os";
@@ -55,12 +56,17 @@ test("PIN (worker id): unset is 0; Cucumber's CUCUMBER_WORKER_ID is honoured", (
   expect(workerId({ CUCUMBER_WORKER_ID: "3" })).toBe(3);
 });
 
+/** `bun-types`' `node:net` is missing EventEmitter's methods — same gap
+ *  `workers.ts` names. */
+const events = (source: object): EventEmitter =>
+  source as unknown as EventEmitter;
+
 /** A free loopback port, borrowed for the length of the hold test. */
 const ephemeral = (): Promise<number> =>
   new Promise((resolve, reject) => {
     const probe = net.createServer();
     probe.unref();
-    probe.once("error", reject);
+    events(probe).once("error", reject);
     probe.listen(0, "127.0.0.1", () => {
       const address = probe.address();
       if (address === null || typeof address === "string") {
