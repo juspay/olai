@@ -3058,7 +3058,7 @@ describe("empty", () => {
   test("naming no archive at all is refused in terms of the list", () => {
     const failure = refused(filled(), { op: "empty", files: [] })
     expect(failure._tag).toBe("UsageFailure")
-    expect(failure.message).toContain("name at least one archive")
+    expect(failure.message).toContain("name at least one trash")
   })
 
   test("`was` refuses a trash that has moved, and never a trash that has not", () => {

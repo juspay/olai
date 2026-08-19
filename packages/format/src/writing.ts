@@ -733,12 +733,12 @@ export const EmptyRequest = Schema.Struct({
     }),
   ).annotate({
     description:
-      "Every archive this write empties, named together — root-relative paths, exactly as `list_outlines` spells them. Every record in each goes, the scaffold of ancestor titles included, and the files stay behind empty. NAME THEM ALL IN ONE CALL when you mean to empty more than one: what may still point into them is judged against the UNION, so a `see` from one of these piles into another is a record this write deletes rather than a holder, and splitting the same emptying across two calls (or two `apply` entries) refuses on edges that would have been fine. Refused for an outline that is not an archive, for one the set does not hold, for a list that is empty or holds nothing at all, and while anything outside EVERY archive named still points into one — naming what to re-point first.",
+      "The trash this write empties — `_olai/Trash.olai`, root-relative, exactly as `list_outlines` spells it. Every record in it goes, the source-file signposts and ancestor-title scaffold included, and the file stays behind empty. A leftover `Archive.olai` is not the trash and is refused. What may still point into the named files is judged against their UNION, so a `see` from one pile into another is a record this write deletes rather than a holder. Refused for an outline that is not the trash, for one the set does not hold, for a list that is empty or holds nothing at all, and while anything outside the named files still points into one — naming what to re-point first.",
   }),
   was: Schema.optionalKey(
     Schema.Int.annotate({
       description:
-        "How many records these archives are expected to hold RIGHT NOW, together. Absent empties whatever is there, which is what a sweep means. Supply it when a number was shown to somebody — the web's confirm names one — and the write is refused, naming both counts, if a record arrived in the meantime: the alternative is deleting something nobody agreed to and reporting the count they read.",
+        "How many records the named trash is expected to hold RIGHT NOW. Absent empties whatever is there, which is what a sweep means. Supply it when a number was shown to somebody — the web's confirm names one — and the write is refused, naming both counts, if a record arrived in the meantime: the alternative is deleting something nobody agreed to and reporting the count they read.",
     }),
   ),
 })

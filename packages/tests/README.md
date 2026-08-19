@@ -229,8 +229,8 @@ The names are not written down twice. `support/world.ts` imports the client's ow
 | `[data-testid="toggle"]` | the collapse/expand control on an outline node (hover-reveal on a pointer device; always drawn on a phone) |
 | `[data-testid="node-menu"]` | the `•••` menu trigger left of the triangle — pointer devices only (not laid out on a phone, where a long press on the row opens the same menu) |
 | `[data-testid="node-menu-panel"]` | the open menu panel (`absolute` under the trigger, or under the row itself on a phone) |
-| `[data-testid="node-menu-item"][data-action]` | one verb in that panel: the reads (zoom, expand/collapse, expand/collapse all, copy link), then the writes it applies to (the marks, clear date, remove placement, archive) and `Copy as text`. The two buttons of a confirm are items too (`data-action="cancel"` is the way out) |
-| `[data-testid="node-menu-confirm"]` | the question that panel asks before `Archive`, naming the row and how many rows go with it — present only while it is asking |
+| `[data-testid="node-menu-item"][data-action]` | one verb in that panel: the reads (zoom, expand/collapse, expand/collapse all, copy link), then the writes it applies to (the marks, clear date, remove placement, trash) and `Copy as text`. The two buttons of a confirm are items too (`data-action="cancel"` is the way out) |
+| `[data-testid="node-menu-confirm"]` | the question that panel asks before `Move to Trash`, naming the row and how many rows go with it — present only while it is asking |
 | `[data-testid="node-menu-said"][data-tone]` | what the last verb said, beside the `•••`: `alarm` for a refusal (the ops layer's own words, or a clipboard the browser refused), `aside` for news about something that happened — a nudge from a write that landed, or a copy confirming it reached the clipboard (`link copied` / `text copied`), which is the one case where the page itself shows nothing |
 | `[data-testid="file-dir"][data-path]` | one folder in the sidebar file tree; `data-collapsed` says whether its children are hidden |
 | `[data-testid="file-dir-toggle"]` | the fold control on that folder |

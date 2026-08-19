@@ -3365,7 +3365,7 @@ const planEmpty = (
     return Result.fail(
       new UsageFailure({
         reason:
-          "name at least one archive to empty — `list_outlines` says which files " +
+          "name at least one trash to empty — `list_outlines` says which files " +
           "are `_olai/Trash.olai`, and every one you mean goes in `files` together",
       }),
     )

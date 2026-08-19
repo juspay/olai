@@ -654,7 +654,7 @@ test("the count the confirm showed travels, and is never re-derived here", () =>
 test("an empty trash is refused HERE, in terms of the trash", () => {
   // The button is not drawn over an empty trash, so what reaches this is a
   // stale tab — and a stale tab deserves the true sentence rather than
-  // `empty`'s "name at least one archive", which teaches a reader about the
+  // `empty`'s "name at least one trash", which teaches a reader about the
   // wrong thing entirely.
   const failure = refused({ verb: "emptyTrash" }, reading())
   expect(failure._tag).toBe("UsageFailure")
