@@ -809,19 +809,24 @@ The corner unit is the **risky one** — see
         node yourself — by key, or by key and value. <code>-</code> in front of
         any of them takes it back out.</p>
         <p><strong>And two ask what olai did, rather than what you
-        said.</strong> Every node carries the instant it was captured and the
-        instant olai last wrote to it, put on by the tool and by no verb you
-        can type. <code>created:</code> and <code>changed:</code> read those,
+        said.</strong> When olai captures a node it stamps the instant; when it
+        writes to one afterwards it re-stamps another. Both are put on by the
+        tool and by no verb you can type — so a node has a
+        <code>created</code> from the moment olai made it, a
+        <code>changed</code> only once something has been written to it since,
+        and a node older than the stamps has neither.
+        <code>created:</code> and <code>changed:</code> read those,
         and they take every value <code>date:</code> takes — so
         <code>changed:today</code> is what you touched today,
         <code>created:last-week</code> is what arrived, and
         <code>-changed:last-month</code> is what has gone quiet. They are not
         the same question as <code>date:</code>: one node can be scheduled for
         the 10th, captured on the 1st and last written this morning.
-        <strong>A node older than the stamps has neither, and nothing invents
-        one for it</strong> — no span reaches it, however wide, because a
-        ledger does not make up a past it did not see. <code>git log</code> is
-        the tool for those.</p>
+        <strong>And nothing invents a past for the ones that have
+        none</strong> — no span reaches an unstamped node, however wide,
+        because a ledger does not make up a past it did not see. What finds
+        them is the negation, <code>-has:created</code>; what says when they
+        were really written is <code>git log</code>.</p>
         <p><strong>Quote a phrase, or say <code>OR</code>.</strong>
         <code>"kitchen remodel"</code> is one substring where two words are
         two, so quoting is how the order of the words gets into a query — and a
