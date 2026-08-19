@@ -316,14 +316,14 @@ Then("there is no filter bar", async function (this: OlaiWorld) {
 
 // ── the address, query and all ─────────────────────────────────────────
 
-/** Not `the address is` — that step reads the PATH, and every scenario using
+/** Not `the address is` — that step reads the PLACE, and every scenario using
  *  it would go on passing over a page that is also filtered. This is the whole
  *  bar, which is what a filtered page's link actually is. */
 Then(
   "the address is exactly {string}",
   async function (this: OlaiWorld, address: string) {
     await this.page
-      .waitForURL((url) => url.pathname + url.search === address, {
+      .waitForURL((url) => url.pathname + url.search + url.hash === address, {
         timeout: POLL_TIMEOUT,
       })
       .catch(() => undefined);

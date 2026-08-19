@@ -1417,20 +1417,29 @@ export class OlaiWorld extends World {
     return this.page.locator(daySelector(date));
   }
 
-  /** The path the browser is actually at — what a reader would copy out of
-   *  the URL bar, without the origin the harness picked at random. */
-  pathname(): string {
-    return new URL(this.page.url()).pathname;
+  /** The PLACE the browser is at — what a reader would copy out of the URL
+   *  bar minus the query, and minus the origin the harness picked at random.
+   *
+   *  The FRAGMENT is part of it, and that is not a detail: a node's address is
+   *  `/#<id>` and nothing else (`@olai/format`'s `address.ts`), so a reading
+   *  that took the pathname alone would answer `/` for every zoomed page —
+   *  which is the front page, and an assertion that quietly passes for the
+   *  wrong screen. */
+  place(): string {
+    const url = new URL(this.page.url());
+    return url.pathname + url.hash;
   }
 
-  /** The path AND the query — what a reader would copy out of the bar when the
-   *  page is narrowed. Its own accessor beside {@link pathname} because the
-   *  filter is part of the address (`routes.ts`) and every other assertion in
-   *  this suite is about a path: a step asserting "/house.olai" must not
-   *  start passing for a page that is also filtered. */
+  /** The place AND the query — the whole of what a reader would copy out of
+   *  the bar when the page is narrowed. Its own accessor beside
+   *  {@link place} because the filter is part of the address (`routes.ts`)
+   *  and most assertions in this suite are about the place alone: a step
+   *  asserting "/house.olai" must not start passing for a page that is also
+   *  filtered. In the URL's own order — a query comes before a fragment, which
+   *  is why a narrowed node page is `/?q=…#<id>`. */
   address(): string {
     const url = new URL(this.page.url());
-    return url.pathname + url.search;
+    return url.pathname + url.search + url.hash;
   }
 
   /** One sidebar entry, by the relative path it stands for. */

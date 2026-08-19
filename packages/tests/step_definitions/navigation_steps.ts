@@ -73,9 +73,9 @@ Then("the address is {string}", async function (this: OlaiWorld, path: string) {
   // frame, and reading the URL immediately races the pushState that produced
   // the page being looked at.
   await this.page
-    .waitForURL((url) => url.pathname === path, { timeout: POLL_TIMEOUT })
+    .waitForURL((url) => url.pathname + url.hash === path, { timeout: POLL_TIMEOUT })
     .catch(() => undefined);
-  assert.strictEqual(this.pathname(), path);
+  assert.strictEqual(this.place(), path);
 });
 
 // ── breadcrumbs ────────────────────────────────────────────────────────
