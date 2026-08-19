@@ -28,6 +28,7 @@ One matcher was never quite the whole of it, because the question and the answer
 | `is:archived` | what was put away — see below |
 | `has:desc` `has:see` `has:after` `has:doc` | a field the record carries (an empty edge list is no edge) |
 | `has:date` | on any day at all — the unbounded `date:`, so the two cannot disagree |
+| `has:repeat` | what COMES BACK: the node carries a repeat rule — see below |
 | `date:2026-08-10` `date:2026-08` `date:2026` | a day, a month, a year |
 | `date:today` `date:yesterday` `date:tomorrow` | the day the query is asked on, and the two beside it |
 | `date:this-week` `date:last-month` `date:next-year` | `this-` / `last-` / `next-`, with `week`, `month` or `year` |
@@ -37,6 +38,8 @@ One matcher was never quite the whole of it, because the question and the answer
 | `-anything` | takes that word or operator back out — ONE leading dash. A second one is a character, not a second negation: `--force` is a word people write, so `--is:done` looks for that text and finds it wherever somebody typed it |
 
 `date:` reads the two dates a journal reads — what the node is scheduled for, and when it was finished. A dated `doing` or `todo` is on no day here, exactly as on the day page ([format.md](format.md)).
+
+**`has:repeat` asks after the RULE, not the day it repeats from.** A repeating node is a dated one carrying a `repeat` — the format refuses a rule with no date to repeat from ([format.md](format.md)) — so what this selects sits *inside* what `has:date` selects, and the two compose into the question worth asking: `has:date -has:repeat` is everything dated once. Only the occurrence that is NEXT carries the rule: completing one hands it to the occurrence it spawns, so `has:repeat` is the live head of every recurrence and never the eleven finished records behind it.
 
 **The relative words are twelve, and they are a spelling of a value rather than a second operator.** Three for a day — `today`, `yesterday`, `tomorrow`, because that is the shape English already has — and `this-`, `last-`, `next-` in front of `week`, `month` and `year`. Each resolves to the span it names and is then the same two string comparisons a written date is, which is why they compose with a range wherever one takes a date: `date:last-week..` is everything since Monday week, `date:..today` everything up to tonight, `date:last-month..yesterday` the span between. A month and a year resolve to exactly what their written forms do, so `date:this-month` and `date:2026-08` are one answer in August.
 

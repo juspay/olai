@@ -440,6 +440,27 @@ const putAway = async (page: Page, id: string) => {
   await page.waitForTimeout(SETTLE)
 }
 
+/** The `•••` verb that opens the repeat picker, and the picker's three parts.
+ *  NAMED for {@link putAway}'s reason: two sections drive them, and a test id
+ *  or a verb renamed in one copy would leave the other clicking nothing. */
+const REPEAT_VERB = '[data-testid="node-menu-panel"] >> text=Set repeat…'
+const REPEAT_PICKER = '[data-testid="repeat-picker"]'
+const REPEAT_RULE = '[data-testid="repeat-picker-rule"]'
+const REPEAT_SET = '[data-testid="repeat-picker-set"]'
+
+/** Put a repeat rule on a row, through the menu and the picker — for the
+ *  section whose subject is what a rule makes possible AFTERWARDS. The section
+ *  about the picker ITSELF drives the same four locators one at a time,
+ *  because what it photographs is what sits between them. */
+const repeatsEvery = async (page: Page, id: string, rule: string) => {
+  await openMenu(page, id)
+  await page.locator(REPEAT_VERB).first().click()
+  await page.locator(REPEAT_PICKER).first().waitFor()
+  await page.locator(REPEAT_RULE).first().selectOption(rule)
+  await page.locator(REPEAT_SET).first().click()
+  await page.waitForTimeout(SETTLE)
+}
+
 /** How long a freshly opened page is given to draw before it is read or
  *  photographed — a render and a subscription's first frame, not a write
  *  ({@link SETTLE} is that one). */
@@ -770,19 +791,18 @@ const SECTIONS = {
     // THE RULE, from the `•••` — the only door on a row that does not repeat
     // yet, since there is no pill to press.
     await openMenu(page, "order")
-    await page.locator('[data-testid="node-menu-panel"] >> text=Set repeat…').first().click()
-    await page.locator('[data-testid="repeat-picker"]').first().waitFor()
+    await page.locator(REPEAT_VERB).first().click()
+    await page.locator(REPEAT_PICKER).first().waitFor()
     await page.waitForTimeout(200)
     console.log(`  the rules it offers: ${
-      (await page.locator('[data-testid="repeat-picker-rule"] option').allInnerTexts()).join(" · ")
+      (await page.locator(`${REPEAT_RULE} option`).allInnerTexts()).join(" · ")
     }`)
     await shot(page, "picker-open")
 
-    await page.locator('[data-testid="repeat-picker-rule"]').first()
-      .selectOption("every week on monday")
+    await page.locator(REPEAT_RULE).first().selectOption("every week on monday")
     await page.waitForTimeout(200)
     await shot(page, "rule-chosen")
-    await page.locator('[data-testid="repeat-picker-set"]').first().click()
+    await page.locator(REPEAT_SET).first().click()
     await page.waitForTimeout(SETTLE)
     console.log(`  the row now says:    ${await textOf(page, `${row("order")} [data-testid="repeat"]`)}`)
     console.log(`  and the file says:   ${recordOf("order")}`)
@@ -806,6 +826,53 @@ const SECTIONS = {
     await opened(page, "/agenda", AGENDA_PAGE)
     console.log(`  the agenda draws:\n${await listed(page, AGENDA_PAGE)}`)
     await shot(page, "agenda-shows-the-occurrence")
+  },
+
+  /**
+   * FINDING WHAT COMES BACK — `has:repeat`, over a page that mixes the two
+   * kinds of row, in both halves of the palette table.
+   *
+   * The rule is a field the record carries, so the facet is spelled, parsed
+   * and evaluated exactly where `has:desc` is and there is no new machinery to
+   * photograph. What a picture adds is the PAGE it makes: one row that comes
+   * back, drawn with the ancestry that says what it is about — and the same
+   * query negated, which is every row that is dated once or not at all.
+   *
+   * The rule is put on first, because nothing in the served fixture repeats:
+   * a shot of this facet over a directory with no rule in it would be a shot
+   * of the empty answer.
+   */
+  "finding-what-comes-back": async (page) => {
+    pinnedBy(
+      "recurring_dates.feature",
+      "`has:repeat` narrows the page to the rows that come back",
+    )
+    await repeatsEvery(page, "order", "every week on monday")
+    console.log(`  the record now says: ${recordOf("order")}`)
+    // The MIX, before anything is asked of it: ten rows, one of which wears a
+    // rule. What the facet does is only legible against this.
+    await shot(page, "the-page-that-mixes-both")
+
+    // BOTH QUERIES in one palette, then both again in the other — rather than
+    // a theme flipped per query. The filter is in the address and the theme is
+    // a reload, so the second order pays two page loads for the picture the
+    // first gets in one.
+    const both = async (dark: boolean) => {
+      const half = dark ? "-dark" : "-light"
+      await narrow(page, "has:repeat")
+      console.log(`  has:repeat${half.padEnd(7)} ${await said(page, FILTER_COUNT)}`)
+      console.log(`  the rows say: ${await whyDrawn(page)}`)
+      await shot(page, `has-repeat${half}`)
+      // ...and the same facet with the dash every other token takes, which is
+      // the whole of this grammar's negation story.
+      await narrow(page, "-has:repeat")
+      console.log(`  -has:repeat${half.padEnd(6)} ${await said(page, FILTER_COUNT)}`)
+      console.log(`  the rows say: ${await whyDrawn(page)}`)
+      await shot(page, `not-has-repeat${half}`)
+    }
+    await both(false)
+    await inTheDark(page)
+    await both(true)
   },
 
   "filter-keeps-ancestors": async (page) => {
