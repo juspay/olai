@@ -39,9 +39,9 @@ import {
   derive,
   type Derived,
   didYouMean,
+  documentIn,
   drawingPath,
   DOCUMENT_EXT,
-  fileKind,
   isMirror,
   type Located,
   type LocatedRegular,
@@ -74,6 +74,7 @@ import {
   type Capture,
   type Minted,
   NESTING,
+  noSuchDocument,
   type WriteRequest as Request,
 } from "@olai/format"
 import { Result } from "effect"
@@ -4234,27 +4235,18 @@ const planWriteDocument = (
   scope: Scope,
   request: Extract<Request, { op: "doc" }>,
 ): Planned => {
-  // The kind is asked of the REQUESTED path rather than of every entry: a
-  // `.html` is refused by its own name, and the walk over the set is then only
-  // what the near-miss list below needs — which is the failure path.
-  const document = fileKind(request.file) === "document"
-    ? scope.set.documents.find((entry) => entry.file === request.file)
-    : undefined
+  // Both halves are the FLOOR's — which of the set's bodied files are
+  // documents, and what a path that is not one is told. This verb and
+  // `read_document` refuse the same miss, and the only thing they say
+  // differently is where to go instead.
+  const document = documentIn(scope.set.documents, request.file)
   if (document === undefined) {
-    const near = didYouMean(
-      request.file,
-      scope.set.documents
-        .filter((entry) => fileKind(entry.file) === "document")
-        .map((entry) => entry.file),
-    )
     return Result.fail(
-      new NotFoundFailure({
-        reason: near === ""
-          ? `\`${request.file}\` is not a document under the served directory — ` +
-            `\`create_document\` is what starts one`
-          : `\`${request.file}\` is not a document under the served directory${near}`,
-        named: request.file,
-      }),
+      noSuchDocument(
+        scope.set.documents,
+        request.file,
+        "\`create_document\` is what starts one",
+      ),
     )
   }
 

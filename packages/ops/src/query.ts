@@ -31,16 +31,17 @@
 import {
   ancestorTitles,
   backlinksOf,
+  bytesOf,
   countedChildren,
   DEFAULT_SEARCH_LIMIT,
   DEFAULT_SUBTREE_DEPTH,
   type Derived,
   type Detail,
-  didYouMean,
   type DocumentBody,
+  documentIn,
+  documentsIn,
   type DocumentSummary,
   errorLine,
-  fileKind,
   firstLine,
   follow,
   type Found,
@@ -50,7 +51,7 @@ import {
   MARKS,
   matching,
   nodesOf,
-  NotFoundFailure,
+  noSuchDocument,
   nothing,
   type OpFailure,
   type OutlineSet,
@@ -494,15 +495,12 @@ export const outlines = (
  * Every document the directory serves, summarised — {@link outlines}' twin
  * over the other kind of file.
  *
- * `.md` ONLY, and the filter is the whole of what makes this honest. The set's
- * `documents` list is every BODIED file, which is every `.md` and every
- * `.html` — one list because what the set knows about either is the same two
- * facts — but a `.html`'s body is not kept (`@olai/format`'s `kinds.ts`, its
- * `kept` flag owns the argument), so a listing that named one would be
- * offering a read that cannot be answered and a size that was never measured.
- * "Document" here is the word the two write verbs already use, and this is the
- * listing they are read against: what `list_documents` names is what
- * `write_document` takes.
+ * WHAT COUNTS AS A DOCUMENT is not decided here: `documentsIn` is the floor's
+ * one answer, shared with the validator that checks a `doc` reference and the
+ * planner that refuses a `write_document`, so what this lists and what those
+ * two accept cannot come apart. A `.html` is out of all three — the set keeps
+ * its path and not its bytes — and a listing that named one would be offering
+ * a read that cannot be answered and a size nobody measured.
  *
  * The broken map is built once for the whole answer, exactly as {@link
  * outlines} builds its own: a document that did not READ is in `documents`
@@ -514,41 +512,17 @@ export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
   const broken = new Map(set.broken.map((entry) => [entry.file, entry.errors]))
   // ANNOTATED for {@link outlines}' reason: a field dropped from
   // `DocumentSummary` fails HERE rather than only at the table-driven decode.
-  return set.documents
-    .filter((entry) => fileKind(entry.file) === "document")
-    .map((entry): DocumentSummary => {
-      const errors = broken.get(entry.file)
-      // The empty title and the zero are what a file that could not be read
-      // gets, and {@link DocumentSummary} says why that is held rather than
-      // settled — it is `OutlineSummary`'s convention, matched on purpose.
-      if (errors !== undefined) {
-        return { file: entry.file, title: "", bytes: 0, unreadable: errors.map(errorLine) }
-      }
-      const text = entry.text ?? ""
-      return { file: entry.file, title: firstLine(text), bytes: bytesOf(text) }
-    })
-}
-
-/** How many BYTES a document's text is, as UTF-8 — what it weighs on disk,
- *  rather than how many UTF-16 units JavaScript happens to hold it in. Counted
- *  rather than encoded: `TextEncoder` would allocate a copy of every document
- *  in the directory to throw all of them away, on a call whose whole point is
- *  to be cheaper than reading them. */
-const bytesOf = (text: string): number => {
-  let bytes = 0
-  for (let at = 0; at < text.length; at++) {
-    const code = text.charCodeAt(at)
-    if (code < 0x80) bytes += 1
-    else if (code < 0x800) bytes += 2
-    // A surrogate PAIR is one code point in four bytes, and the high half is
-    // what says so — a lone surrogate is not text and is counted as the three
-    // bytes its replacement would take.
-    else if (code >= 0xd800 && code <= 0xdbff && at + 1 < text.length) {
-      bytes += 4
-      at++
-    } else bytes += 3
-  }
-  return bytes
+  return documentsIn(set.documents).map((entry): DocumentSummary => {
+    const errors = broken.get(entry.file)
+    // The empty title and the zero are what a file that could not be read
+    // gets, and {@link DocumentSummary} says why that is held rather than
+    // settled — it is `OutlineSummary`'s convention, matched on purpose.
+    if (errors !== undefined) {
+      return { file: entry.file, title: "", bytes: 0, unreadable: errors.map(errorLine) }
+    }
+    const text = entry.text ?? ""
+    return { file: entry.file, title: firstLine(text), bytes: bytesOf(text) }
+  })
 }
 
 /**
@@ -572,22 +546,10 @@ export const document = (
   set: OutlineSet,
   file: string,
 ): Result.Result<DocumentBody, OpFailure> => {
-  const entry = fileKind(file) === "document"
-    ? set.documents.find((held) => held.file === file)
-    : undefined
+  const entry = documentIn(set.documents, file)
   if (entry === undefined) {
-    const near = didYouMean(
-      file,
-      set.documents.filter((held) => fileKind(held.file) === "document").map((held) => held.file),
-    )
     return Result.fail(
-      new NotFoundFailure({
-        reason: near === ""
-          ? `\`${file}\` is not a document under the served directory — ` +
-            `\`list_documents\` says what is`
-          : `\`${file}\` is not a document under the served directory${near}`,
-        named: file,
-      }),
+      noSuchDocument(set.documents, file, "\`list_documents\` says what is"),
     )
   }
   const errors = set.broken.find((entry) => entry.file === file)
@@ -602,3 +564,4 @@ export const document = (
   }
   return Result.succeed({ file, text: entry.text ?? "" })
 }
+

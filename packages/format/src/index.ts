@@ -135,11 +135,15 @@ export {
 export type { BodyKind, FileKind } from "./kinds.ts"
 export {
   bodiedOf,
+  bytesOf,
   docOf,
   Document,
+  documentIn,
+  documentsIn,
   firstLine,
   isAsset,
   isPicture,
+  noSuchDocument,
   PICTURE_EXTENSIONS,
   pictureOf,
 } from "./documents.ts"

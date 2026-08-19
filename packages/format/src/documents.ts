@@ -35,8 +35,10 @@
 
 import { Schema } from "effect"
 
+import { NotFoundFailure } from "./failure.ts"
 import { bodyKind, fileKind } from "./kinds.ts"
 import { isMirror, type Located } from "./node.ts"
+import { didYouMean } from "./suggest.ts"
 
 /**
  * One BODIED file of the set: its path, and its text.
@@ -271,6 +273,80 @@ export const isAsset = (path: string): boolean =>
   fileKind(path) === "hypertext" || isPicture(path) || suffixed(path, ASSET_EXTENSIONS)
 
 /**
+ * WHICH of the set's bodied files are DOCUMENTS.
+ *
+ * The set carries one list for every file it keeps a body for, because what it
+ * knows about either kind is the same two facts ({@link Document}) — and every
+ * consumer of that list then wants the `.md` half of it, because a `.html` is
+ * the one file olai only shows: nothing validates it, no op writes it, and the
+ * set keeps its path without its bytes.
+ *
+ * FOUR CALLERS ASKED THIS, each with its own `.filter`: the validator deciding
+ * what a node's `doc` may point at, the planner refusing a `write_document`,
+ * and both document reads. Four spellings of one rule is four places for it to
+ * come to disagree — and the failure mode is not a crash but a quiet
+ * disagreement about what a served directory contains, which is exactly the
+ * class of bug `kinds.ts` was centralised to end. It is here rather than
+ * beside any of them because it is a statement about what a document IS, which
+ * is this module's whole subject.
+ */
+export const documentsIn = (
+  bodied: ReadonlyArray<Document>,
+): ReadonlyArray<Document> => bodied.filter((entry) => fileKind(entry.file) === "document")
+
+/**
+ * ONE of them, by the path a caller named — or `undefined` for a path the set
+ * does not serve as a document, whether because nothing is there or because
+ * what is there is a `.html`.
+ *
+ * The KIND is asked of the requested path FIRST, so the walk over the set only
+ * happens for a path that could be one. That is not a micro-optimisation kept
+ * for its own sake: it is what makes the two callers — a write's refusal and a
+ * read's — walk the list on the same terms, which is the property that lets
+ * them answer one typo with one sentence.
+ */
+export const documentIn = (
+  bodied: ReadonlyArray<Document>,
+  file: string,
+): Document | undefined =>
+  fileKind(file) === "document" ? bodied.find((entry) => entry.file === file) : undefined
+
+/**
+ * WHAT A PATH THAT IS NOT A DOCUMENT IS TOLD — one sentence, for every verb
+ * that can be handed one.
+ *
+ * `read_document` and `write_document` refuse the same miss, and each built
+ * the same near-miss list out of the same set and then wrote the same sentence
+ * before this was one function. A caller who mistypes a path once should not
+ * learn two different things about it depending on which verb the typo landed
+ * at — and the near miss (`didYouMean` over the documents the set actually
+ * serves, the same function an unknown node id gets) is the whole value of the
+ * answer.
+ *
+ * WHAT EACH CALLER KEEPS is the clause for a set with no near miss at all,
+ * because there the useful thing to say genuinely differs: a read is pointed
+ * at the listing, a write at the verb that starts a document. That is the one
+ * per-verb part, so it is the one part passed in.
+ *
+ * It takes the BODIED LIST rather than the set, which is not a detail: `set.ts`
+ * imports this module for {@link Document}, so a signature naming an
+ * `OutlineSet` would be a cycle. Every caller has the list.
+ */
+export const noSuchDocument = (
+  bodied: ReadonlyArray<Document>,
+  file: string,
+  instead: string,
+): NotFoundFailure => {
+  const near = didYouMean(file, documentsIn(bodied).map((entry) => entry.file))
+  return new NotFoundFailure({
+    reason: near === ""
+      ? `\`${file}\` is not a document under the served directory — ${instead}`
+      : `\`${file}\` is not a document under the served directory${near}`,
+    named: file,
+  })
+}
+
+/**
  * A document, in one line: its first line with anything on it, heading marks
  * off.
  *
@@ -313,4 +389,38 @@ export const firstLine = (text: string): string => {
     at = end + 1
   }
   return ""
+}
+
+/**
+ * What a document's text WEIGHS, in bytes, as UTF-8 on disk.
+ *
+ * Beside {@link firstLine} because it is the same kind of fact — the two things
+ * that can be said about a document without reading it, and the two a listing
+ * carries. What a caller does with it is decide whether to ask for the whole
+ * of it.
+ *
+ * COUNTED, not encoded. `new TextEncoder().encode(text).length` is the obvious
+ * spelling and it allocates a copy of every document in the directory to throw
+ * all of them away — on the call whose whole purpose is to be cheaper than
+ * reading them. `Buffer.byteLength` is not available to this package, which
+ * runs in a browser as readily as in a server.
+ *
+ * BYTES rather than `text.length`, which is UTF-16 units and would report a
+ * different size than every other tool a person has for the same file.
+ */
+export const bytesOf = (text: string): number => {
+  let bytes = 0
+  for (let at = 0; at < text.length; at++) {
+    const code = text.charCodeAt(at)
+    if (code < 0x80) bytes += 1
+    else if (code < 0x800) bytes += 2
+    // A surrogate PAIR is one code point in four bytes, and the high half is
+    // what says so — a lone surrogate is not text and is counted as the three
+    // bytes its replacement character would take.
+    else if (code >= 0xd800 && code <= 0xdbff && at + 1 < text.length) {
+      bytes += 4
+      at++
+    } else bytes += 3
+  }
+  return bytes
 }
