@@ -34,7 +34,7 @@ import { PaneProvider } from "./context.tsx"
 import { PANE_RAIL_PX, snap } from "./geometry.ts"
 import { labelOf } from "./label.ts"
 import { PageView } from "./PageView.tsx"
-import { SHELL_LONE, SHELL_SPLIT } from "./shell.ts"
+import { SHELL_LONE, SHELL_SPLIT } from "../layout/sheet.ts"
 
 export { PANE_MIN_PX, PANE_RAIL_PX } from "./geometry.ts"
 
@@ -50,6 +50,10 @@ export function Panes(props: {
 
   return (
     <div
+      // `bg-paper` because this is a PAGE and the frame around it is ink — the
+      // rule every branch of ../App.tsx's Switch keeps, written down in
+      // ../layout/sheet.ts. Not `SHEET`: this one is a column in the grid and
+      // takes its height from the pair below, not from a lone page's.
       class="flex min-w-0 flex-col bg-paper"
       classList={{
         [SHELL_SPLIT]: split(),

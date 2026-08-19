@@ -17,6 +17,7 @@
 import { type OutlineError, reportStage } from "@olai/format"
 import { Show } from "solid-js"
 
+import { SHEET } from "../layout/sheet.ts"
 import { PAGE_TITLE } from "../look.ts"
 import { TESTID } from "../testids.ts"
 import { Lede } from "./Lede.tsx"
@@ -24,7 +25,7 @@ import { Report } from "./Report.tsx"
 
 export function Page(props: { readonly errors: ReadonlyArray<OutlineError> }) {
   return (
-    <main class="min-h-[calc(100dvh-var(--height-header))] max-w-none bg-paper px-8 py-10" data-testid={TESTID.errorView}>
+    <main class={`${SHEET} max-w-none px-8 py-10`} data-testid={TESTID.errorView}>
       <h1 class={`${PAGE_TITLE} mb-2 text-alarm`}>
         {props.errors.length === 0
           ? "Broken outlines"

@@ -42,7 +42,7 @@ import { fileOf, opensAt, pageOf } from "./page.ts"
 import { Palette } from "./palette/Palette.tsx"
 import { pinSaid } from "./pins/pinning.ts"
 import { Panes } from "./pane/Panes.tsx"
-import { SHELL_LONE, SHELL_SPLIT } from "./pane/shell.ts"
+import { SHEET, SHELL_LONE, SHELL_SPLIT } from "./layout/sheet.ts"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
 import { ServedProvider } from "./served.tsx"
@@ -182,7 +182,7 @@ export default function App() {
             "min-h-0": split(),
           }}
         >
-          <Switch fallback={<p class="min-h-[calc(100dvh-var(--height-header))] bg-paper p-8 text-muted">Reading…</p>}>
+          <Switch fallback={<p class={`${SHEET} p-8 text-muted`}>Reading…</p>}>
           <Match when={outlines.manifest() === null}>
             <ErrorPage errors={problems()} />
           </Match>
