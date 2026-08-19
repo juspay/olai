@@ -341,6 +341,7 @@ export type { Backlink } from "./backlinks.ts"
  *  stays inside: a consumer reaching for one of them would be re-implementing
  *  the rule this module exists to be the only copy of. */
 export {
+  DOCUMENT_FIELDS,
   keeping,
   keepingDated,
   /** Where a query's words LAND in a piece of text, in the fold the matcher
@@ -349,10 +350,15 @@ export {
   litBy,
   matchedIn,
   matching,
+  /** The other arm: which DOCUMENTS a query selects, and both kinds put in one
+   *  order. A body is text the way a note is, and a query that could only ask
+   *  about records is the shape this arc replaced. */
+  matchingDocuments,
   /** The words a query looks for, folded and deduped — {@link litBy}'s other
    *  half, and the only thing a view needs off a parsed query. */
   needlesOf,
   parseFilter,
+  rankedTogether,
   /** Both halves of "3 of 41" over a tree: {@link matchedIn} counts the rows a
    *  query selected and `rowsIn` counts the rows there are, so the two cannot
    *  come to disagree about what a row is — the pairing the flat pages have in
@@ -368,7 +374,19 @@ export {
   ranked,
   shownRecord,
 } from "./filter.ts"
-export type { Filter, Lit, Match, Matched, Scope, SearchField, Selected } from "./filter.ts"
+export type {
+  DocumentField,
+  DocumentMatch,
+  Filter,
+  Lit,
+  Match,
+  Matched,
+  MatchedDocument,
+  Ranked,
+  Scope,
+  SearchField,
+  Selected,
+} from "./filter.ts"
 export {
   dailyNoteDays,
   dailyNotePathFor,
@@ -567,6 +585,9 @@ export {
  *  fact about the QUERY. The matcher stays where the matcher is. */
 export {
   DEFAULT_SEARCH_LIMIT,
+  DocumentHit,
+  isNodeHit,
+  NodeHit,
   SearchAnswer,
   SearchHit,
   SearchRequest,

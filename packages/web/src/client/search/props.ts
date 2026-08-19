@@ -16,7 +16,7 @@
  *
  * ALL FOUR DOORS reach it, and that took a correction: the ⌘K palette and the
  * header box had it while the `((` widget and the edge panel did not, over the
- * same `createNodeSearch` answers. A row that says different things in
+ * same `createSearch` answers. A row that says different things in
  * different doors is the drift the one-reading doctrine exists to refuse, and
  * it is drift the shared component cannot prevent on its own — only what each
  * door passes can.
@@ -51,7 +51,7 @@
  * highlighted it would be drawing a lie the matcher never told.
  */
 
-import type { SearchHit } from "@olai/surface"
+import type { NodeHit } from "@olai/surface"
 
 import { customEntries } from "../props/drawer.ts"
 
@@ -65,7 +65,7 @@ export interface NodeProp {
   readonly matched: boolean
 }
 
-export const nodeProps = (hit: SearchHit): ReadonlyArray<NodeProp> => {
+export const nodeProps = (hit: NodeHit): ReadonlyArray<NodeProp> => {
   const matched = hit.matchedProps ?? []
   const entries = customEntries(hit).map((entry) => ({
     key: entry.key,

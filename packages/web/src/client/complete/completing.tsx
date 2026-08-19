@@ -73,7 +73,9 @@ import { useDerived } from "../derived.tsx"
 import { nodePlace } from "../search/place.ts"
 import { type NodeProp, nodeProps } from "../search/props.ts"
 import { createCursor } from "../search/cursor.ts"
-import { createNodeSearch } from "../search/nodes.ts"
+import { isNodeHit } from "@olai/surface"
+
+import { createSearch } from "../search/nodes.ts"
 import { useToday } from "../today.tsx"
 import { dayLabel, naturalDays } from "../date/natural.ts"
 import { matchTags, tagsOf } from "./tags.ts"
@@ -181,11 +183,12 @@ export const createCompletion = (field: {
   const tokenOf = (found: Trigger): string => `${found.kind}:${found.from}`
 
   // The server's search, asked only while `((` is what is armed — the same
-  // primitive, the same debounce and the same minimum the palette uses.
-  const nodes = createNodeSearch(() => {
+  // primitive, the same debounce and the same minimum the palette uses. RECORDS
+  // ONLY: what this widget writes is a mirror, which names a node id.
+  const nodes = createSearch(() => {
     const found = trigger()
     return found !== null && found.kind === "mirror" ? found.query : null
-  })
+  }, "node")
 
   /** Replace the trigger's span with `insert`, in the field and in the draft.
    *  Empty takes the span out, which is what the two op widgets do. */
@@ -234,7 +237,10 @@ export const createCompletion = (field: {
           },
         }))
       case "mirror":
-        return nodes.hits().map((hit) => ({
+        // RECORDS, and the filter is the type asking: what this widget writes
+        // is a mirror, which names a node id. The narrowing costs no rows —
+        // the request already asked for records alone (`../search/nodes.ts`).
+        return nodes.hits().filter(isNodeHit).map((hit) => ({
           id: hit.id,
           label: hit.title,
           place: nodePlace(hit),

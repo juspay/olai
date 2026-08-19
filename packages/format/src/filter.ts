@@ -1738,16 +1738,21 @@ export const keepingDated = (
 /**
  * WHERE A WORD IS LOOKED FOR IN A DOCUMENT.
  *
- * A `.md` has no id and no `desc`; it has a name, the tags its prose writes and
- * the prose itself. So this is not {@link SEARCH_FIELDS} with two entries
- * crossed out — it is the other vocabulary, three places long, and the two
- * meet at {@link wordHit}, which is the rule they share.
+ * FOUR, and they line up with a record's one for one rather than being
+ * {@link SEARCH_FIELDS} with entries crossed out: what a thing is CALLED
+ * (`title`), what it is NAMED (an id there, a path here — the identity
+ * somebody types when they know exactly which one they mean), the tags its
+ * prose writes, and the prose (a `desc` there, the `body` here).
  *
  * `body` is the one that closes the roadmap's `search-document-bodies`: a
  * document's prose is text the way a node's note is, and it was invisible to
  * every search this app had because nothing walked it.
+ *
+ * `path` is what the ⌘K palette used to answer with a matcher of its own over
+ * the served file names — one door, one index, and a reader typing
+ * `2026-08-12` still finds the day's note whose prose never says the date.
  */
-export const DOCUMENT_FIELDS = ["title", "tag", "body"] as const
+export const DOCUMENT_FIELDS = ["title", "path", "tag", "body"] as const
 export type DocumentField = (typeof DOCUMENT_FIELDS)[number]
 
 /** What each is worth, on {@link FIELD_WEIGHT}'s own scale and for its reason:
@@ -1757,15 +1762,81 @@ export type DocumentField = (typeof DOCUMENT_FIELDS)[number]
  *  blocks that only looked interleaved. */
 const DOCUMENT_WEIGHT: Record<DocumentField, number> = {
   title: FIELD_WEIGHT.title,
+  path: FIELD_WEIGHT.id,
   tag: FIELD_WEIGHT.tag,
   body: FIELD_WEIGHT.desc,
 }
 
 /** One document the query selected, with why — {@link Matched}'s twin over the
  *  other arm of the set. */
+export interface DocumentMatch {
+  readonly field: DocumentField | null
+  readonly score: number
+}
+
+/** One document the query selected, with why — {@link Matched}'s twin over the
+ *  other arm of the set. */
 export interface MatchedDocument {
   readonly at: Markdown
-  readonly match: { readonly field: DocumentField | null; readonly score: number }
+  readonly match: DocumentMatch
+}
+
+/**
+ * ONE THING A QUERY SELECTED, whichever kind it is — what a ranked answer is a
+ * list of.
+ *
+ * A sum, and it carries a `kind` where {@link ./searching.ts}'s hit carries an
+ * address, because the two are about different moments: this is the matcher's
+ * own value, a record or a document IN HAND, and a caller of {@link
+ * rankedTogether} is about to read fields off it. The hit is what a caller
+ * BUILDS out of one, for somebody who was not here.
+ */
+export type Ranked =
+  | { readonly kind: "node"; readonly at: LocatedRegular; readonly match: Match }
+  | { readonly kind: "document"; readonly at: Markdown; readonly match: DocumentMatch }
+
+/**
+ * BOTH KINDS, in one order — what a search answers with.
+ *
+ * ONE LIST rather than a block of records followed by a block of documents,
+ * which is the whole reason the two weights tables share a scale
+ * ({@link DOCUMENT_WEIGHT}): a document whose TITLE holds the word outranks a
+ * node that only mentions it in a note, and a reader typing three letters
+ * should see whichever thing is most likely to be what they meant. Two lists
+ * stapled together would have made the kind of a thing matter more than how
+ * well it matched, which is the parity hole one layer up.
+ *
+ * The done penalty is {@link ranked}'s and is spent here on the records alone.
+ * A document is not marked at all — the mark fields are a record's, and what a
+ * document lacks it is not penalised for.
+ *
+ * A TIE goes to the record, since the records are laid out first and the sort
+ * is stable. That is a coin toss given a name rather than a ruling: nothing
+ * here can say which of two equally-matching things a reader meant, and the
+ * only property worth promising is that the same query answers in the same
+ * order twice.
+ */
+export const rankedTogether = (
+  derived: Pick<Derived, "status">,
+  nodes: ReadonlyArray<Matched>,
+  documents: ReadonlyArray<MatchedDocument>,
+): ReadonlyArray<Ranked> => {
+  const scored: Array<{ readonly entry: Ranked; readonly score: number }> = [
+    // Read ONCE PER NODE rather than once per comparison, for {@link ranked}'s
+    // reason: a sort is n log n comparisons and this is n lookups.
+    ...nodes.map((one) => ({
+      entry: { kind: "node", at: one.at, match: one.match } as const,
+      score: derived.status.get(one.at.node.id) === "done"
+        ? one.match.score - DONE_PENALTY
+        : one.match.score,
+    })),
+    ...documents.map((one) => ({
+      entry: { kind: "document", at: one.at, match: one.match } as const,
+      score: one.match.score,
+    })),
+  ]
+  scored.sort((a, b) => b.score - a.score)
+  return scored.map((one) => one.entry)
 }
 
 /**
@@ -1788,6 +1859,14 @@ const documentHay = (
   if (before !== undefined) return before
   const now: Record<DocumentField, ReadonlyArray<string>> = {
     title: [document.title.toLowerCase()],
+    // The PATH twice, whole and by its name alone, for the reason a tag is
+    // folded twice: `cabinets` should find `notes/cabinets.md` with the full
+    // start-of-field bonus rather than be demoted by the folder in front of it,
+    // and `notes/` should still find everything under it.
+    path: [
+      document.path.toLowerCase(),
+      document.path.slice(document.path.lastIndexOf("/") + 1).toLowerCase(),
+    ],
     // Bare AND as written, exactly as a record's tags are folded, so `alice`
     // finds `@alice` with the start-of-field bonus and `@alice` finds only the
     // one that carries that sigil.

@@ -53,7 +53,7 @@ const MIN_LENGTH = 3
  *  (a modal, a box in the header, a panel under a row), not a report. */
 const LIMIT = 8
 
-export interface NodeSearch {
+export interface Search {
   readonly hits: Accessor<ReadonlyArray<SearchHit>>
   /** A refusal from the server, in its own words — `null` when there is none.
    *  Never silently dropped (`../run.ts` forbids a silent handler). */
@@ -102,7 +102,16 @@ export interface NodeSearch {
  * or the query is an ask, or it is too short to mean anything — and answers
  * with no hits rather than with the list from before.
  */
-export const createNodeSearch = (text: Accessor<string | null>): NodeSearch => {
+export const createSearch = (
+  text: Accessor<string | null>,
+  /** ONE KIND, for a door that can only use one — the edge panel writing a
+   *  `see`, the move picker, the composer's `@` list. It rides on the REQUEST
+   *  rather than being filtered out of the answer, because the cap is applied
+   *  server-side: a door that filtered afterwards would run short exactly when
+   *  a query matched enough documents to fill it (`@olai/format`'s
+   *  `SearchRequest`). Absent is both, which is what a reading door wants. */
+  kind?: "node" | "document",
+): Search => {
   const [failure, setFailure] = createSignal<string | null>(null)
   /** What has actually been asked for: the query, once it stopped moving. */
   const [asked, setAsked] = createSignal<string | null>(null)
@@ -124,7 +133,11 @@ export const createNodeSearch = (text: Accessor<string | null>): NodeSearch => {
 
   const [answer] = createResource(asked, async (query: string) => {
     const outcome = await runAsync(
-      olai.procedures.search.nodes({ text: query, limit: LIMIT }),
+      olai.procedures.search.nodes({
+        text: query,
+        limit: LIMIT,
+        ...(kind === undefined ? {} : { kind }),
+      }),
     )
     if (Result.isFailure(outcome)) {
       setFailure(outcome.failure.message)

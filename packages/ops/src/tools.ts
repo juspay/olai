@@ -248,7 +248,7 @@ export const asking = (
         request.id,
         request.depth === undefined ? {} : { depth: request.depth },
       ) ?? { missing: request.id }),
-  search: (request) => Effect.map(read, (at) => Query.search(at.derived, request, now())),
+  search: (request) => Effect.map(read, (at) => Query.search(at, request, now())),
   documents: Effect.map(read, (at) => ({ documents: Query.documents(at.set) })),
   // THE ONE READ THAT CAN REFUSE FROM THE WALK ITSELF. Five of the six answer
   // from the snapshot alone, so their envelope is a `map` and the failure

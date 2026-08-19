@@ -50,7 +50,7 @@
  * refused in the other direction.
  */
 
-import type { SearchHit } from "@olai/surface"
+import { isNodeHit, type NodeHit } from "@olai/surface"
 import { createMemo, createSignal, Index, Show } from "solid-js"
 
 import { listKey } from "../keys.ts"
@@ -58,10 +58,9 @@ import { Refused } from "../Refused.tsx"
 import type { TestId } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 import { createCursor } from "./cursor.ts"
-import { createNodeSearch } from "./nodes.ts"
-import { nodePlace } from "./place.ts"
-import { nodeProps } from "./props.ts"
+import { createSearch } from "./nodes.ts"
 import { Result, type RowTestids } from "./Result.tsx"
+import { type HitRow, hitRow } from "./row.ts"
 
 /**
  * What one door calls the parts of its shortlist.
@@ -87,7 +86,7 @@ export function Shortlist(props: {
   readonly testids: ShortlistTestids
   /** Take this hit. The door knows what a take MEANS — a reference written, a
    *  row carried — and this knows only which row was chosen. */
-  readonly onTake: (hit: SearchHit) => void
+  readonly onTake: (hit: NodeHit) => void
   /**
    * WHICH HITS THIS DOOR WILL NOT TAKE, and where it says so — absent for a
    * door that takes any of them (the edge panel: the node itself is in the
@@ -105,13 +104,20 @@ export function Shortlist(props: {
    * is already on screen.
    */
   readonly refusing?: {
-    readonly why: (hit: SearchHit) => string | null
+    readonly why: (hit: NodeHit) => string | null
     readonly testid: TestId
   }
 }) {
   const [query, setQuery] = createSignal("")
-  const found = createNodeSearch(() => query())
-  const cursor = createCursor(() => found.hits().length)
+  const found = createSearch(() => query(), "node")
+  /**
+   * THE RECORDS, which is every hit this list will get: the request asked for
+   * records alone, so the filter drops nothing — it is the TYPE asking, and
+   * what it buys is that `onTake` below can promise a door a node rather than
+   * something it would have to check for itself.
+   */
+  const hits = createMemo(() => found.hits().filter(isNodeHit))
+  const cursor = createCursor(() => hits().length)
 
   /**
    * The verdict on every hit, in the order they are drawn — all `null` where
@@ -123,9 +129,23 @@ export function Shortlist(props: {
    * answer, they cannot disagree — and walking the list with the arrows
    * re-derives nothing, because the cursor is an index into this.
    */
+  /**
+   * Every hit as the row it draws as, once per answer — `./row.ts`, which is
+   * where a hit becomes a row for all four doors that draw this list.
+   *
+   * A MEMO rather than a call per binding, for {@link verdicts}' reason one
+   * block down: the four lines of a row each want it, and `<Index>` re-runs a
+   * binding rather than the row around it.
+   */
+  const rows = createMemo(() => hits().map(hitRow))
+
+  /** The row at `index` — a blank one for a position nothing is at, which is
+   *  the frame between an answer shrinking and the list re-rendering. */
+  const row = (index: number): HitRow => rows()[index] ?? NO_ROW
+
   const verdicts = createMemo<ReadonlyArray<string | null>>(() => {
     const judge = props.refusing
-    return found.hits().map((hit) => (judge === undefined ? null : judge.why(hit)))
+    return hits().map((hit) => (judge === undefined ? null : judge.why(hit)))
   })
 
   /** Why the hit under the cursor cannot be taken — `null` when it can, and
@@ -149,7 +169,7 @@ export function Shortlist(props: {
    * list would be a key that does nothing.
    */
   const take = (index: number): boolean => {
-    const hit = found.hits()[index]
+    const hit = hits()[index]
     if (hit === undefined) return false
     cursor.to(index)
     if (verdicts()[index] !== null) return true
@@ -231,7 +251,7 @@ export function Shortlist(props: {
       <ul class="m-0 max-h-56 list-none overflow-x-hidden overflow-y-auto p-0">
         {/* `<Index>` rather than `<For>`: the rows are positional, there are at
             most eight, and every keystroke mints fresh hits. */}
-        <Index each={found.hits()}>
+        <Index each={hits()}>
           {(hit, index) => (
             // The verdict is a fact about the ROW rather than a tone: a hit
             // that cannot be taken is dimmed so a reader scanning the list can
@@ -242,12 +262,13 @@ export function Shortlist(props: {
               classList={{ "opacity-60": verdicts()[index] !== null }}
             >
               <Result
-                label={hit().title}
-                place={nodePlace(hit())}
-                props={nodeProps(hit())}
+                label={row(index).label}
+                of={row(index).of}
+                place={row(index).place}
+                props={row(index).props}
                 active={index === cursor.at()}
                 testids={props.testids.row}
-                id={hit().id}
+                id={row(index).id}
                 onHover={() => cursor.to(index)}
                 onSelect={() => void take(index)}
               />
@@ -275,3 +296,7 @@ export function Shortlist(props: {
     </div>
   )
 }
+
+/** A row for a position nothing is at — one value, since it is only ever
+ *  read and never held. */
+const NO_ROW: HitRow = { id: "", label: "", place: "", props: [] , route: { kind: "outline", file: null } }

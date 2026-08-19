@@ -220,5 +220,24 @@ export const SearchRequest = Schema.Struct({
         "Only this node and everything beneath it, by id — the same scoping a person gets by filtering a zoomed page.",
     }),
   ),
+  /**
+   * ONE KIND OF THING, for a caller that can only use one.
+   *
+   * The third scope, and the one the sum made necessary: a search answers with
+   * records AND documents, and a door PICKING A RECORD to point at — the edge
+   * panel writing a `see`, the composer's `@` list, the move picker — cannot
+   * take a document, because a `see` names a node id and nothing else. Such a
+   * door filtering the answer itself would be a door whose list runs short
+   * exactly when a query matches enough documents to fill the limit, so the
+   * narrowing is on the REQUEST, where the cap is applied.
+   *
+   * Absent is both, which is what every reading door wants.
+   */
+  kind: Schema.optionalKey(
+    Schema.Literals(["node", "document"]).annotate({
+      description:
+        "Only records (`node`) or only documents (`document`). Both when it is not given.",
+    }),
+  ),
 })
 export type SearchRequest = typeof SearchRequest.Type

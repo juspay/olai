@@ -7,7 +7,7 @@
  * this app keeps what is true about the app rather than about the page, and a
  * box you can see is the difference between a feature and a feature somebody
  * told you about. What it must NOT be is a second implementation: it asks
- * `createNodeSearch` (`./nodes.ts`) exactly as the palette does, draws
+ * `createSearch` (`./nodes.ts`) exactly as the palette does, draws
  * `./Result.tsx` exactly as the palette does, and presses a result the same
  * way — so the two doors cannot answer differently, in the same sense that
  * the browser and an agent cannot (HACKING.md's consistency rule, one layer
@@ -15,7 +15,7 @@
  *
  * That rule is why the DOCUMENT ROWS are here too. They are the palette's
  * block, built by the palette's own module over the served list
- * (`../palette/documents.ts`), in the same order and drawn with the same
+ * (`../palette/items.ts`), in the same order and drawn with the same
  * glyph: a box that found `finishes.md` while the chord next to it did not
  * would be the drift above, inside one client, with nothing to blame it on but
  * which surface somebody happened to think about.
@@ -57,8 +57,7 @@ import { Portal } from "solid-js/web"
 
 import { type Anchor, anchoredTo, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
-import { documentItems } from "../palette/documents.ts"
-import { nodeItem } from "../palette/items.ts"
+import { hitItem } from "../palette/items.ts"
 import { setPaletteOpen } from "../palette/open.ts"
 import { useServed } from "../served.tsx"
 import type { Route } from "../routes.ts"
@@ -66,7 +65,7 @@ import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
 import { createCursor } from "./cursor.ts"
-import { createNodeSearch } from "./nodes.ts"
+import { createSearch } from "./nodes.ts"
 import { Result, type RowTestids } from "./Result.tsx"
 
 /** What this door calls its rows (`./Result.tsx`'s `RowTestids`). */
@@ -100,30 +99,24 @@ export function HeaderSearch(props: {
    *  them could stop keeping on its own. */
   const asked = () => (caret() ? query() : null)
 
-  const nodes = createNodeSearch(asked)
+  const nodes = createSearch(asked)
   /**
-   * The directory's documents over the same query, above the node hits — the
-   * palette's own block (`../palette/documents.ts`), in the palette's own
-   * order, because this box is the OTHER DOOR to one reading and a door that
-   * found a file the other one did not would be exactly the drift this whole
-   * seam exists against.
-   */
-  const documents = createMemo(() => {
-    const asking = asked()
-    return asking === null ? [] : documentItems(served(), asking)
-  })
-  /**
-   * A MEMO EACH, and then the list — because the two blocks move at different
-   * speeds and `<For>` keys a row by reference.
+   * The rows, minted from the hits — ONE BLOCK, because there is one reading.
    *
-   * The node hits answer a debounced round trip, so `hits()` holds still while
-   * somebody types; the documents answer the keystroke itself. Minted together
-   * in one memo, every character re-made all eight node rows from the same
-   * unchanged hits, and every answer that landed re-made the file rows — each
-   * of them a teardown and a redraw of rows nothing had happened to.
+   * There were two: the documents were matched in this tab off the served
+   * paths, above the node hits, "because this box is the OTHER DOOR to one
+   * reading and a door that found a file the other one did not would be exactly
+   * the drift this whole seam exists against". The drift is closed from the
+   * other end now — a search answers with both kinds
+   * (`@olai/format`'s `matchingDocuments`) — so the two doors share an index
+   * rather than a matcher each, and a document is found by what its prose says
+   * as well as by what it is called.
+   *
+   * A MEMO of its own, because `<For>` keys a row by reference and the hits
+   * hold still while somebody types: re-mapping them per keystroke would be a
+   * teardown and a redraw of rows nothing had happened to.
    */
-  const hits = createMemo(() => nodes.hits().map(nodeItem))
-  const items = createMemo(() => [...documents(), ...hits()])
+  const items = createMemo(() => nodes.hits().map(hitItem))
   // The panel is up when there is anything to say — rows, a refused call, or a
   // query the grammar could not read. That last one is why a typo in an
   // operator opens the panel at all rather than looking like an empty
@@ -157,9 +150,9 @@ export function HeaderSearch(props: {
     const item = items()[index]
     if (item === undefined) return
     const action = item.action
-    // Every row this box draws is a route by construction — a node hit
-    // (`nodeItem`) or a document (`../palette/documents.ts`); the guard is
-    // what keeps that true rather than assumed.
+    // Every row this box draws is a route by construction — every hit is
+    // somewhere to go (`../palette/items.ts`'s `hitItem`); the guard is what
+    // keeps that true rather than assumed.
     if (action.kind !== "route") return
     props.go(action.route)
     setQuery("")

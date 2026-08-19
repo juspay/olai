@@ -49,6 +49,8 @@ import {
   type LocatedRegular,
   markdownIn,
   MARKS,
+  matchingDocuments,
+  NodeId,
   matching,
   nodesOf,
   nothing,
@@ -57,9 +59,11 @@ import {
   outlinePaths,
   type OutlineSummary,
   parseFilter,
+  rankedTogether,
   type Placed,
   type Placement,
   progressOf,
+  type Reading,
   type Reference,
   ranked,
   type SearchAnswer,
@@ -221,7 +225,11 @@ const carriedOf = (
  * line. Ranking asks only for the score and the mark, and both are in hand.
  */
 export const search = (
-  derived: Derived,
+  /** BOTH HALVES of the reading, because a query answers with both kinds of
+   *  thing now: the derivation is what the records are matched against, and the
+   *  set is where the documents are. It used to take the derivation alone,
+   *  which was the whole of what a search could see. */
+  at: Reading,
   query: SearchRequest,
   /** When the question is being asked — what the grammar's relative words count
    *  from (`date:yesterday`). A day, or an instant on one: the grammar cuts it
@@ -243,12 +251,32 @@ export const search = (
   }
   if (filter.kind === "nothing") return { hits: [], total: 0 }
 
-  const matched = matching(derived, filter, { file: query.file, under: query.under })
+  const scope = { file: query.file, under: query.under }
+  // ASKED FOR, and the request is where that lives: a door picking a record to
+  // point at cannot take a document, and one filtering the answer itself would
+  // run short exactly when a query matched enough documents to fill the cap.
+  const nodes = query.kind === "document" ? [] : matching(at.derived, filter, scope)
+  // The other arm of the set, asked the same question. What a document cannot
+  // answer — a mark, a date, a property — selects none of them, which is
+  // `matchingDocuments`' own rule and the hole frontmatter fills.
+  const documents = query.kind === "node"
+    ? []
+    : matchingDocuments(markdownIn(at.set), filter, scope)
   const limit = query.limit ?? DEFAULT_SEARCH_LIMIT
-  const hits = ranked(derived, matched)
+  const hits = rankedTogether(at.derived, nodes, documents)
     .slice(0, limit)
-    .map(({ at, match }): SearchHit => {
-      const found = foundOf(derived, at)
+    .map((selected): SearchHit => {
+      if (selected.kind === "document") {
+        return {
+          // WHERE TO GO, which is what a hit is for: the document's own
+          // address, minted by the grammar rather than assembled here.
+          at: { kind: "document", path: selected.at.path },
+          title: selected.at.title,
+          ...(selected.match.field === null ? {} : { matched: selected.match.field }),
+        }
+      }
+      const { at: located, match } = selected
+      const found = foundOf(at.derived, located)
       // ANNOTATED, never asserted. It was `as Hit` for as long as this function
       // has existed, and an assertion is exactly the thing that stops checking
       // when the declaration moves: a required field added to `SearchHit` and to
@@ -258,6 +286,11 @@ export const search = (
       // buying was nothing, at the one place in this file that produces a shape
       // the wire carries.
       return {
+        // The BARE id, which is what a node address is: it outlives every move
+        // and every rename, so a hit is still right about where the node is
+        // after the file it sits in has been renamed (`@olai/format`'s
+        // `address.ts`).
+        at: { kind: "node", id: NodeId.make(located.node.id) },
         ...found,
         // Omitted for a query that named no words — `is:done` on its own is
         // carried by no field, and answering "title" would be inventing a
@@ -271,8 +304,8 @@ export const search = (
     })
 
   // The TOTAL is what matched, never what was kept, so "twelve of ninety" is
-  // sayable — the one number that has to be read off the uncapped list.
-  return { hits, total: matched.length }
+  // sayable — the one number that has to be read off the uncapped lists.
+  return { hits, total: nodes.length + documents.length }
 }
 
 // ── one node, and what is under it ─────────────────────────────────────
