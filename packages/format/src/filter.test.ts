@@ -156,6 +156,47 @@ test("a field holding nothing is a field the record does not carry", () => {
   expect(selectsIn(hollow, "has:after")).toEqual([])
 })
 
+/**
+ * ...AND A HOLLOW STAMP IS THE SAME ANSWER, which needs its own test because
+ * it is not the same CODE: `desc` and the edge lists go through `carries`,
+ * which asks the writer's `nothing`, while the two stamps go through
+ * `stampWithin`. "The writer's list, asked as a question rather than restated"
+ * is therefore a claim about two functions, and this pins the second one.
+ * Without it `dayOf("")` is `""`, an unbounded span holds of every day
+ * including that one, and `has:created` selects a record `has:desc` calls
+ * empty — two answers to one word, from the one grammar that keeps refusing
+ * them.
+ *
+ * THE FIXTURE CANNOT BE JSONL, and that is the honest scope of this row rather
+ * than a wrinkle in writing it. `created` is validated ISO per line
+ * (./parse.ts, the same loop that checks the marks and `date`), so
+ * `{"created":""}` is a `bad-date` and never reaches a reader through a parsed
+ * file — `nodesOfFiles` refuses it outright, which is how this test first
+ * failed. So the record is built here by hand, and what it pins is the matcher
+ * answering over A SET THE VALIDATOR HAS ALREADY CONDEMNED — a case this file
+ * meets elsewhere on purpose (a mirror chain that closes a loop, a parent that
+ * is missing) and answers rather than assumes away. A hand-edited outline,
+ * a bad merge, and a half-written line are all how one arrives.
+ */
+test("a hollow stamp is a stamp the record does not carry", () => {
+  const at = (id: string, created: string, line: number) => ({
+    file: "a.olai",
+    line,
+    node: { id, ord: `a${line}`, title: id, created },
+  })
+  const condemned = derive([
+    at("blank", "", 1),
+    at("real", "2026-08-01T09:00:00-04:00", 2),
+  ])
+  expect(selectsIn(condemned, "has:created")).toEqual(["real"])
+  // ...and the negation answers with it, which is the absent-stamp law reading
+  // a field that is present and hollow exactly as it reads one that is gone.
+  expect(selectsIn(condemned, "-has:created")).toEqual(["blank"])
+  // The BOUNDED form never disagreed — `"" >= "2000-01-01"` is false — so what
+  // this pins is the unbounded reading, against both of its spellings.
+  expect(selectsIn(condemned, "created:2000..2100")).toEqual(["real"])
+})
+
 test("`date:` reads the two dates a journal reads — scheduled, and finished", () => {
   // `order` is scheduled for the 10th; `demo` was finished on the 3rd.
   expect(selects("date:2026-08-10")).toEqual(["order"])
