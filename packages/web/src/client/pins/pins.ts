@@ -1,6 +1,5 @@
 /**
- * WHAT IS ON THE SHELF, read off the directory — and the one rule that decides
- * whether a row in `Pins.olai` is a pin at all.
+ * WHAT IS ON THE SHELF, read off the directory.
  *
  * ## A pin is an ADDRESS, and that is the whole storage design
  *
@@ -42,11 +41,11 @@
  * ## And a pin may be NAMED
  *
  * A bare address is the ordinary case and the only one this app writes, because
- * every address already has a name somebody can derive from the set (`./name.ts`)
- * — a node's own live title, a file's name, the word *Agenda*. A copy of that
- * name stored beside the address would be the second answer the format spends
- * its whole mirror argument avoiding: rename the node and the shelf would go on
- * saying what it said.
+ * every address already has a name somebody can derive from the set
+ * (`../address/address.ts`) — a node's own live title, a file's name, the word
+ * *Agenda*. A copy of that name stored beside the address would be the second
+ * answer the format spends its whole mirror argument avoiding: rename the node
+ * and the shelf would go on saying what it said.
  *
  * A markdown link — `[Overdue](/agenda?q=is%3Atodo)` — is the other case, and
  * it is a NAME rather than a copy: somebody wrote it, nothing derived it, and
@@ -54,13 +53,24 @@
  * format already (docs/format.md's Fields), so `Pins.olai` opened as an
  * ordinary outline draws it as an ordinary link.
  *
+ * ## WHAT COUNTS AS A DOOR IS NOT THIS MODULE'S ANY MORE
+ *
+ * `../address/address.ts` owns it, and the move is the maintainer's finding
+ * read structurally: the shelf resolved its rows and `Pins.olai`'s own page
+ * drew the raw address, which is one title with two answers. The rule was the
+ * shelf's while the shelf was its only reader; the outline is the second, so
+ * the rule moved to where both can read it and this module kept what is
+ * genuinely about a SHELF — which file it is, which rows of it are pins, and
+ * whether a given page is already on it.
+ *
  * Everything here is pure over the indexes, so what counts as a pin is decided
  * in a unit test rather than in a sidebar.
  */
 
 import { type Derived, isMirror, type Node, pinsIn, siblingsOf } from "@olai/format"
 
-import { hrefOf, type Route, routeOf, splitAddress } from "../routes.ts"
+import { addressIn, labelIn } from "../address/address.ts"
+import { hrefOf, type Route } from "../routes.ts"
 
 /** One door on the shelf: the node that IS the pin, and where it goes. */
 export interface Pin {
@@ -76,70 +86,6 @@ export interface Pin {
   readonly named: string | undefined
 }
 
-/**
- * A title written as one markdown link, cut into its two halves.
- *
- * Deliberately narrow: exactly one link and nothing around it. A title with
- * prose either side of a link is a sentence somebody wrote in the outline, not
- * a pin with a name — and reading it as one would make a row on the shelf out
- * of a note. What this must NOT become is a markdown parser: the shelf decides
- * whether a row is a door, and `../markdown/` decides what a title looks like.
- */
-const LINKED = /^\[([^\]]*)\]\(([^()\s]+)\)$/
-
-/**
- * The address a title names, or `undefined` — the one rule that says whether a
- * row of `Pins.olai` is a pin.
- *
- * THE TEST IS THE BIJECTION, and it is the reason this is three lines rather
- * than a list of prefixes: `routeOf` answers the DEFAULT OUTLINE for anything
- * it does not recognise, which is the right kindness for somebody who typed
- * into the address bar and exactly wrong here — every title beginning with a
- * slash would become a door to the front page. So the route is printed back
- * and the PATHS are compared: an address this app would mint reads back as
- * itself, and `/etc/passwd` reads back as `/` and is a title.
- *
- * The paths and not the whole address, because the query is re-encoded on the
- * way out (`?q=is:todo` prints as `?q=is%3Atodo`, which is the same filter
- * spelled the way `URLSearchParams` spells it). Comparing the strings whole
- * would refuse a pin somebody wrote by hand for being punctuated differently
- * from the way a browser punctuates.
- *
- * AND IT IS TOTAL over any string, which is a promise it can only make because
- * `routeOf` makes it first. A title spelled with an escape nothing can read —
- * `/n/%`, `/doc/%ZZ` — used to throw a `URIError` out of the parse, and a
- * throw here is not a skipped row: it happens during render, so it takes the
- * whole sidebar with it, on a file the format invites a hand and an agent to
- * edit (found in review, 2026-08-18). Such a title reads as what it is now —
- * an address nothing could have written, so not an address, so not a door —
- * and lands with prose and `/etc/passwd` rather than on the shelf.
- *
- * That is a different answer from a WELL-FORMED address whose target is gone:
- * `/n/deleted-id` is a door this app can read, so it is drawn, labelled with
- * its own address (`./name.ts`) — the honest dead row. What is refused here is
- * text that is not an address at all.
- */
-export const addressIn = (title: string): Route | undefined => {
-  const text = title.trim()
-  const linked = LINKED.exec(text)
-  const address = linked === null ? text : (linked[2] ?? "")
-  if (!address.startsWith("/") || /\s/.test(address)) return undefined
-  const route = routeOf(address)
-  return splitAddress(hrefOf(route)).pathname === splitAddress(address).pathname
-    ? route
-    : undefined
-}
-
-/** The name written INTO a title, for the pin somebody named — `undefined`
- *  for the bare address, which is what this app writes and what `./name.ts`
- *  answers for. An empty label (`[](/n/herbs)`) is no name: a door with a
- *  blank on it is worse than one the set can name. */
-const nameIn = (title: string): string | undefined => {
-  const linked = LINKED.exec(title.trim())
-  const label = linked?.[1]?.trim()
-  return label === undefined || label === "" ? undefined : label
-}
-
 /** One record of the shelf as a pin, or `undefined` when it is not one — a
  *  mirror (which carries no title at all), or a row whose title says something
  *  other than a place. Such a row is left alone rather than drawn: `Pins.olai`
@@ -150,7 +96,7 @@ const pinOf = (node: Node): Pin | undefined => {
   const route = addressIn(node.title)
   return route === undefined
     ? undefined
-    : { id: node.id, route, named: nameIn(node.title) }
+    : { id: node.id, route, named: labelIn(node.title) }
 }
 
 /**

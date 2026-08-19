@@ -18,6 +18,7 @@
 
 import { Show } from "solid-js"
 
+import { Face } from "../address/Face.tsx"
 import { ENTRY_SHAPE, ROW_GAP } from "../layout/entry.ts"
 import { LAYER } from "../layer.ts"
 import { Link } from "../router.tsx"
@@ -37,11 +38,9 @@ const ROW = `group/pin relative ${ENTRY_SHAPE} ${ROW_GAP} w-full text-ink`
 
 export function Pin(props: {
   readonly pin: Pin
-  /** What this pin is CALLED — read off the set by the shelf, which already
-   *  holds the indexes, rather than re-read per row. */
+  /** What this pin is CALLED, for the row's own `title` and the unpin's
+   *  label — the same answer the face draws, through the same resolver. */
   readonly name: string
-  /** The query the pinned page is narrowed by, or `""`. */
-  readonly narrowing: string
   readonly current: boolean
   /** True while this row is the one being carried. */
   readonly lifted: boolean
@@ -94,20 +93,11 @@ export function Pin(props: {
         current={props.current}
         title={props.name}
       >
-        <PinGlyph />
-        <span class="min-w-0 flex-1 truncate">{props.name}</span>
-        <Show when={props.narrowing !== ""}>
-          {/* The filter, as its own chip: a pinned page keeps the query it was
-              pinned with, and a row that drew only the page's name would be a
-              door promising something it does not open. Mono, because it is a
-              query rather than prose. */}
-          <span
-            class="shrink-0 rounded bg-rule/60 px-1 font-mono text-[0.65rem] text-muted"
-            data-testid={TESTID.pinFilter}
-          >
-            {props.narrowing}
-          </span>
-        </Show>
+        {/* The address, drawn as the page it names — the SAME face an outline
+            row draws when its title is one (`../address/Face.tsx`). The shelf
+            resolving its rows while the file's own page drew the raw address
+            was one title with two answers (maintainer, 2026-08-18). */}
+        <Face route={props.pin.route} named={props.pin.named} />
       </Link>
       {/* OUTSIDE the link, because a control inside an anchor is a control
           whose activation is also a navigation. It sits on top of the row's
@@ -134,23 +124,5 @@ export function Pin(props: {
         ×
       </button>
     </li>
-  )
-}
-
-/** The mark a pinned row wears — a pin, which is the one drawing in this
- *  column that is about the SHELF rather than about a kind of file, so it is
- *  here rather than in `../file/icons.tsx`'s table of directory kinds. Ours,
- *  drawn to that table's metrics (a 16-box, `currentColor`, the row's own ink)
- *  so the two columns read as one. */
-function PinGlyph() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      class="size-3.5 shrink-0"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path d="M9.53 1.47a.75.75 0 0 0-1.28.53v.94L4.9 6.16a2.75 2.75 0 0 0-2.2.78.75.75 0 0 0 0 1.06l2.3 2.3-3.28 3.28a.75.75 0 1 0 1.06 1.06l3.28-3.28 2.3 2.3a.75.75 0 0 0 1.06 0 2.75 2.75 0 0 0 .78-2.2l3.22-3.35h.94a.75.75 0 0 0 .53-1.28l-5.46-5.46z" />
-    </svg>
   )
 }

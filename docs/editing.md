@@ -303,6 +303,8 @@ A **shelf of doors** at the top of the directory column: any node, any document,
 
 **The `×` takes one off**, and so does the verb it was put up with. Unpinning is the set's own removal — the pin's row goes to the Trash keeping its id — so `⌘Z` takes it back and **Put back** is there if you find it later.
 
+**And the file reads like an outline.** Open `Pins.olai` and its rows are the same faces the shelf draws — the pin mark, the live name, the query — because a title that is nothing but an address is drawn as the page it names wherever it appears, not just in the sidebar. Click one and the editor shows the address it really is, which is the same thing every markdown title does.
+
 **It is a file, and that is the feature.** The shelf is `Pins.olai` in the served directory, one ordinary node per pin, whose title is the address ([format.md](format.md#pins)). Open it like any outline and edit it; name a pin by making its title a markdown link (`[What is late](/agenda?q=is%3Atodo)`); commit it with everything else. An agent adds, reorders and removes pins with `add_node`, `move_node` and `archive_node` — the same three ops the gestures above resolve to — so what you keep on that shelf is something you can hand to one.
 
 ## From the ⌘K palette

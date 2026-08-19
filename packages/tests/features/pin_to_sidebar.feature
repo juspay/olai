@@ -86,6 +86,29 @@ Feature: Pinning a page to the sidebar
     Then the pinned shelf reads "/agenda /n/order /n/demo"
     And there should be no page errors
 
+  Scenario: Pins.olai opened as an outline reads like an outline
+    # The shelf is an ordinary file you are invited to browse and edit — so the
+    # page must not show the plumbing the shelf resolves. A title that is
+    # NOTHING BUT an address is drawn as the page it names, wherever it is
+    # drawn, which is one resolver rather than a case per page.
+    Given the directory has the pins:
+      | /doc/finishes.md |
+      | /n/order         |
+    When I open the outline "Pins.olai"
+    Then the node "p0" reads "finishes.md"
+    And the node "p1" reads "order the new cabinets"
+    # …and it is still the address underneath: what the editor opens is the
+    # source, exactly as it is for a markdown title.
+    When I click the title of "p1"
+    Then the editor holds "/n/order"
+    And there should be no page errors
+
+  Scenario: A title that names a place says so wherever it is written
+    # Not a rule about Pins.olai — a rule about titles. The same row in an
+    # ordinary outline reads the same way.
+    When the directory grows a node titled "/agenda" in "house.olai"
+    Then the node "written-by-hand" reads "Agenda"
+
   Scenario: A reorder lands where the pointer is, though the page moved under it
     # The shelf is in a STICKY column: its rows do not move when the document
     # does. Answered in document coordinates, a drag freezes its midpoints at

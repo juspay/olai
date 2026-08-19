@@ -20,7 +20,7 @@ import { DataTable, Given, Then, When } from "@cucumber/cucumber";
 import { selector, TESTID } from "@olai/web/src/client/testids.ts";
 
 import { attr } from "../support/selectors.ts";
-import { POLL_TIMEOUT } from "../support/world.ts";
+import { POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 const SHELF = selector(TESTID.pinShelf);
@@ -78,6 +78,16 @@ When(
       return;
     }
     this.appendServed(PINS_FILE, { id: "pn", ord: "z0", title: address });
+  },
+);
+
+/** One node written into an outline by another writer — for the claim that
+ *  resolving an address is a fact about TITLES rather than about the shelf's
+ *  own file. */
+When(
+  "the directory grows a node titled {string} in {string}",
+  async function (this: OlaiWorld, title: string, file: string) {
+    this.appendServed(file, { id: "written-by-hand", ord: "z0", title });
   },
 );
 
@@ -179,6 +189,44 @@ When(
     await this.page.mouse.move(onto.x + onto.width / 2, onto.y + 2, { steps: 10 });
     await this.page.mouse.up();
     await this.waitForFrame();
+  },
+);
+
+/**
+ * What an outline ROW draws for its title — the maintainer's own gesture
+ * (2026-08-18): pin something, then open `Pins.olai` as the ordinary outline
+ * it is. The shelf resolved its rows and the file's page drew the raw address,
+ * which is one title with two answers.
+ *
+ * Read as TEXT rather than as the resolved face's testid, deliberately: the
+ * claim is what a reader SEES on that row, and a step that asked for the face
+ * would pass over a row drawing both.
+ */
+Then(
+  "the node {string} reads {string}",
+  async function (this: OlaiWorld, id: string, expected: string) {
+    const title = this.nodeTitle(id);
+    await this.waitUntil(
+      async () => (await title.innerText()).trim() === expected,
+      `the row ${JSON.stringify(id)} to read ${JSON.stringify(expected)}`,
+    );
+  },
+);
+
+/**
+ * What the ROW EDITOR holds — the other half of the resolved face.
+ *
+ * A title is drawn as the page it names and EDITED as what it is, which is the
+ * trade every markdown title in this app already makes. A face nobody could
+ * edit back into an address would be a row this file's own docs promise you
+ * can change by hand.
+ */
+Then(
+  "the editor holds {string}",
+  async function (this: OlaiWorld, text: string) {
+    const editor = this.page.locator(TITLE_EDITOR).first();
+    await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await editor.inputValue(), text);
   },
 );
 

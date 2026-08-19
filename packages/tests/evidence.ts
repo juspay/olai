@@ -653,13 +653,20 @@ const PIN = '[data-testid="pin"]'
 const shelved = async (page: Page) =>
   (await page.locator(PIN).evaluateAll((rows) =>
     rows.map((one) => {
-      const chip = one.querySelector('[data-testid="pin-filter"]')
-      const name = one.querySelector('[data-testid="pin-link"] span')?.textContent?.trim() ?? ""
+      const chip = one.querySelector('[data-testid="address-filter"]')
+      const name = one.querySelector('[data-testid="address-name"]')?.textContent?.trim() ?? ""
       return `${one.getAttribute("data-at")} → “${name}”${
         chip === null ? "" : ` [${chip.textContent?.trim()}]`
       }`
     })
   )).join(" · ")
+
+/** Every row's title as the page DRAWS it — which for a row whose title is an
+ *  address is the page it names, not the address. */
+const titles = async (page: Page) =>
+  (await page.locator('[data-testid="node-title"]').allInnerTexts())
+    .map((one) => one.replace(/\s+/g, " ").trim())
+    .filter((one) => one !== "")
 
 /** One record of an outline on disk, rewritten — the write an agent's
  *  `set_title` makes, spelled as the file it produces, so what the shelf is
@@ -744,7 +751,25 @@ const SECTIONS = {
     }`)
     await shot(page, "a-fourth-door-chalk")
 
+    // AND THE SHELF'S OWN FILE, opened as the ordinary outline it is — the
+    // maintainer's gesture, and the one that found the leak: the rows are
+    // titles that are addresses, and a page that drew them raw showed the
+    // plumbing. Each is drawn as the page it names, by the same resolver the
+    // shelf reads (`web/src/client/address/`).
+    await page.goto(`${BASE}/o/Pins.olai`)
+    await page.locator(OUTLINE_TREE).first().waitFor()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  Pins.olai draws:      ${(await titles(page)).join(" · ")}`)
+    console.log(`  …over the titles:     ${
+      recordsIn("Pins.olai").map((one) => String(one["title"])).join(" · ")
+    }`)
+    await shot(page, "the-shelf-as-an-outline-chalk")
+
     await wearTheme(page, "pitch")
+    await shot(page, "the-shelf-as-an-outline-pitch-dark")
+    await page.goto(`${BASE}/o/garden.olai`)
+    await page.locator(OUTLINE_TREE).first().waitFor()
+    await page.waitForTimeout(DRAWN)
     await shot(page, "a-fourth-door-pitch-dark")
     await page.goto(`${BASE}/o/house.olai?q=is%3Atodo`)
     await page.locator(SHELF).waitFor()

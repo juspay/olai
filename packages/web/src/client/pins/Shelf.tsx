@@ -42,10 +42,10 @@ import { useDerived } from "../derived.tsx"
 import { useUndo } from "../edit/undoing.ts"
 import { createDrags, TRAVEL_PX } from "../pointer.ts"
 import { useRouter } from "../router.tsx"
-import { filterOf, hrefOf } from "../routes.ts"
+import { hrefOf } from "../routes.ts"
 import { selector, TESTID } from "../testids.ts"
 import { applying } from "../writes.ts"
-import { shelfName } from "./name.ts"
+import { nameOf } from "../address/address.ts"
 import { Pin } from "./Pin.tsx"
 import { sayPin } from "./pinning.ts"
 import { type Pin as Pinned, pinsOf } from "./pins.ts"
@@ -209,11 +209,10 @@ export function Shelf() {
             {(pin, at) => (
               <Pin
                 pin={pin}
-                name={shelfName(pin, derived())}
-                // What the page is NARROWED by, read off the route through the
-                // one function that answers it (`../routes.ts`), so the shelf
-                // cannot disagree with the filter bar about it.
-                narrowing={filterOf(pin.route)}
+                // The row's own sentence — its tooltip, and the unpin's label.
+                // What is DRAWN is the face's (`../address/Face.tsx`), through
+                // the same resolver, so the two cannot disagree.
+                name={pin.named ?? nameOf(pin.route, derived())}
                 current={isHere(hrefOf(pin.route))}
                 lifted={carrying()?.from === at()}
                 onGrab={(event) => grab(at(), event)}

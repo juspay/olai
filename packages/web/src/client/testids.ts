@@ -53,10 +53,15 @@ export const TESTID = {
    *  also carries a control, and a click on "the pin" has to be able to mean
    *  the one that navigates. */
   pinLink: "pin-link",
-  /** The query a pinned page is narrowed by, drawn as its own chip. Absent on
-   *  a pin to a whole page, which is what says the shelf keeps the filter
-   *  rather than dropping it. */
-  pinFilter: "pin-filter",
+  /** What an ADDRESS is called, wherever one is drawn as the page it names —
+   *  a shelf row, and an outline row whose title is nothing but an address
+   *  (`client/address/Face.tsx`). One name for one face, so a scenario asking
+   *  "what does this resolve to" does not have to know which page it is on. */
+  addressName: "address-name",
+  /** The query an address carries, drawn as its own chip. Absent on an address
+   *  to a whole page, which is what says the face keeps the filter rather than
+   *  dropping it. */
+  addressFilter: "address-filter",
   /** Take this pin off the shelf. */
   pinRemove: "pin-remove",
   /** The line that says where a dragged pin would land. */

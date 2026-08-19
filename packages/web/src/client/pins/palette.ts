@@ -18,7 +18,7 @@ import type { Derived } from "@olai/format"
 
 import type { PaletteItem } from "../palette/items.ts"
 import type { Route } from "../routes.ts"
-import { nameOf } from "./name.ts"
+import { nameOf } from "../address/address.ts"
 import { pinnedAt } from "./pins.ts"
 
 export const pinItem = (
