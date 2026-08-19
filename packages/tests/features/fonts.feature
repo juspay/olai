@@ -6,9 +6,10 @@ Feature: The typeface is a pick, and it is yours
   and `--font-mono` — so one attribute sets the page, the chrome and the
   furniture that has to be tabular.
 
-  The default is Atkinson Hyperlegible — one voice. The Olai row is the
-  one that keeps the three jobs distinct. Generics download nothing; a
-  hosted face is fetched only once the pick names it.
+  The default is Olai — titles in Literata, chrome in iA Writer Quattro,
+  code in iA Writer Mono. Atkinson Hyperlegible remains a pick, for a
+  page that wants one voice. Generics download nothing; a hosted face is
+  fetched only once the pick names it.
 
   The panel STAYS OPEN on a pick: a face is judged by looking at the page
   it sets. What the row promises — it NAMES the face in force — is kept by

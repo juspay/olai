@@ -112,7 +112,7 @@ export function Calendar(props: {
     <section
       // No horizontal pad below md: `p-3` plus the drawer's `p-4` left
       // 41px cells on a 390pt phone, under the 44px finger rule.
-      class="olai-card mb-1 rounded-xl bg-panel py-3 md:p-3"
+      class="olai-card mb-2 rounded-3xl bg-paper py-3 shadow-none md:p-3.5"
       data-testid={TESTID.calendar}
       data-month={month()}
     >
@@ -120,7 +120,7 @@ export function Calendar(props: {
         <Step label="the month before" testid={TESTID.calendarPrev} onStep={() => page(-1)}>
           ‹
         </Step>
-        <h2 class="m-0 text-xs font-semibold tracking-wide text-ink">
+        <h2 class="m-0 font-serif text-base font-medium italic tracking-tight text-ink">
           {monthLabel(month())}
         </h2>
         <Step label="the month after" testid={TESTID.calendarNext} onStep={() => page(1)}>

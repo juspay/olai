@@ -94,6 +94,8 @@ Feature: The journal, and the month in the sidebar
     # here exactly as it reaches the tree (note_density.feature).
     And the node "posts" has status "doing"
     And the node "posts" shows a pilcrow
+    When I read the outline with Notes on "compact"
+    Then the node "posts" shows a pilcrow
     And the node "posts" draws nothing under its title
     When I open the note of "posts"
     Then the description of "posts" renders bold text "before"

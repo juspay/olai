@@ -22,8 +22,8 @@
 import { TARGET } from "../touch.ts"
 
 export const ENTRY_SHAPE =
-  `flex ${TARGET} items-center break-all rounded-md px-2 py-0.5 text-[0.8125rem] leading-snug ` +
-  "no-underline hover:bg-rule/50 aria-[current=page]:bg-accent/15 " +
+  `flex ${TARGET} items-center break-all rounded-xl px-2.5 py-1 text-[0.875rem] leading-snug ` +
+  "no-underline hover:bg-paper/10 aria-[current=page]:bg-accent/30 " +
   "aria-[current=page]:text-accent aria-[current=page]:font-semibold md:min-h-0"
 
 /** The space between the things ON a row — a glyph, a name, and whatever the
@@ -61,7 +61,7 @@ export const ROW_GAP = "gap-1.5"
  * the month's heading is the name of the month a reader is looking at, and
  * these are names for lists that already say what they hold.
  */
-export const REGION = "mt-3 border-t border-rule/60 pt-2"
+export const REGION = "mt-3 border-t border-paper/15 pt-2"
 
 /**
  * WHAT IT MAY NOT COST is the tree's place on a short screen, and that is a
@@ -83,4 +83,4 @@ export const REGION = "mt-3 border-t border-rule/60 pt-2"
  *  the rows under it — an entry's own padding — rather than hanging a couple of
  *  pixels outside the column of names ({@link ENTRY_SHAPE}). */
 export const REGION_LABEL =
-  "m-0 mb-1 px-2 text-[0.625rem] font-semibold uppercase tracking-wide text-muted"
+  "m-0 mb-1 px-2.5 font-serif text-[0.75rem] italic tracking-tight text-muted"

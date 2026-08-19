@@ -34,6 +34,7 @@ import { followed, followedSplit, useGo, useHere, useRouter } from "../router.ts
 import { filterOf, hrefOf, narrowable, narrowedTo, samePage } from "../routes.ts"
 import { panesOf } from "../workspace.ts"
 import { visibleIn } from "../settings/done.ts"
+import { PAGE_COL } from "../look.ts"
 import { TESTID } from "../testids.ts"
 import { TrashPage } from "../trash/TrashPage.tsx"
 
@@ -84,7 +85,7 @@ export function PageView(props: {
 
   return (
     <main
-      class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12 ${
+      class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 ${CLEARANCE} md:px-10 md:py-10 ${
         !desktop() && !chatOpen() ? "pb-16" : ""
       }`}
       data-testid={TESTID.pane}
@@ -112,6 +113,7 @@ export function PageView(props: {
         go(next)
       }}
     >
+      <div class={PAGE_COL}>
       <NarrowedProvider narrowed={narrowing}>
         <Show when={narrowing.drawn().kind !== "none"}>
           <FilterBar narrowing={narrowing} onType={narrow} />
@@ -170,6 +172,7 @@ export function PageView(props: {
           )}
         </Show>
       </NarrowedProvider>
+      </div>
     </main>
   )
 }

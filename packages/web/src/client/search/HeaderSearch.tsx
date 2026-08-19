@@ -174,7 +174,7 @@ export function HeaderSearch(props: {
         <input
           ref={box}
           type="search"
-          class="w-full min-w-0 rounded border border-rule/70 bg-panel px-2 py-1 font-mono text-xs text-ink outline-none placeholder:text-muted focus:border-rule"
+          class="w-full min-w-0 rounded-full border-0 bg-paper/15 px-3 py-1.5 font-mono text-xs text-paper outline-none placeholder:text-paper/50 ring-1 ring-paper/20 focus:bg-paper/25 focus:ring-accent/70"
           data-testid={TESTID.headerSearch}
           placeholder="search"
           aria-label="search the directory"
@@ -211,7 +211,7 @@ export function HeaderSearch(props: {
           a phone has. */}
       <button
         type="button"
-        class={`${TARGET_BOX} inline-flex items-center justify-center rounded text-muted hover:text-ink md:hidden`}
+        class={`${TARGET_BOX} inline-flex items-center justify-center rounded text-paper/70 hover:text-paper md:hidden`}
         data-testid={TESTID.headerSearchOpen}
         aria-label="search the directory"
         onClick={() => setPaletteOpen(true)}
@@ -223,7 +223,7 @@ export function HeaderSearch(props: {
         {(box_) => (
           <Portal>
             <div
-              class={`fixed ${LAYER.over} overflow-hidden rounded-lg border border-rule/70 bg-panel shadow-lg`}
+              class={`fixed ${LAYER.over} overflow-hidden rounded-2xl border-0 bg-panel shadow-xl ring-1 ring-rule/40`}
               data-testid={TESTID.headerSearchResults}
               // `styleOf` rather than a style object of this file's own: a
               // COMPUTED key (`[at.side]`) compiles away silently in Solid and

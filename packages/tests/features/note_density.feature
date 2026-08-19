@@ -7,8 +7,8 @@ Feature: A row is its title, and the pilcrow opens the rest
 
   What an UNTOUCHED row starts as is a view-wide preference with three answers
   (`client/settings/density.ts`), set in the preferences panel and stored in
-  this browser: Compact is the title alone and is the default, Cozy keeps the
-  dim clamped line every row used to have, Open starts every row open. It is a
+  this browser: Cozy is the default — the title and one dim clamped line of
+  the note. Compact is the title alone. Open starts every row open. It is a
   DEFAULT and never a lock — the pilcrow works at all three.
 
   The OPEN state is three inline layers and no grid: the title line says it is
@@ -19,12 +19,12 @@ Feature: A row is its title, and the pilcrow opens the rest
   Background:
     Given I open the outline "house.olai"
 
-  Scenario: By default a row is its title
-    # `order` stores a multi-line markdown note. None of it is on the page
-    # until somebody asks for it; the pilcrow is the whole of what says it is
-    # there.
+  Scenario: By default a row shows the first line of its note
+    # Cozy: the title, and one clamped line. The rest of a multi-line note
+    # stays behind the pilcrow until somebody asks for it.
     Then the node "order" shows a pilcrow
-    And the node "order" draws nothing under its title
+    And the description of "order" is a preview of "Two ways to go:"
+    And the description of "order" is clamped to one line
     And the row "order" is folded
 
   Scenario: A node with nothing under it wears no pilcrow
@@ -112,7 +112,7 @@ Feature: A row is its title, and the pilcrow opens the rest
     When I fold the note of "order"
     Then the row "order" is folded
 
-  Scenario: Compact is the default, and the switch comes back to it
+  Scenario: Compact is a pick, and the switch comes back to it
     When I read the outline with Notes on "open"
     Then the row "order" is open
     When I read the outline with Notes on "compact"

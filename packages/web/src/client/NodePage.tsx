@@ -38,6 +38,7 @@ import { NotFound } from "./NotFound.tsx"
 import { ProgressBadge } from "./ProgressBadge.tsx"
 import { RepeatBadge } from "./RepeatBadge.tsx"
 import { doneHidden } from "./settings/done.ts"
+import { PAGE_TITLE } from "./look.ts"
 import { TESTID } from "./testids.ts"
 import { useToday } from "./today.tsx"
 import { toneOf } from "./tone.ts"
@@ -83,7 +84,7 @@ function Zoom(props: {
       // they start at this page's own roots (`./drag/fields.ts`).
       within={[...props.zoomed.trail.map((crumb) => crumb.node.id), props.zoomed.shows.node.id]}
     >
-      <header class="mb-4">
+      <header class="mb-8">
         <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
 
         {/* The subject is a node too — same testid a row uses — so "the
@@ -100,7 +101,7 @@ function Zoom(props: {
         >
           <div class="flex items-baseline gap-3">
             <h1
-              class={`m-0 flex-1 text-2xl font-bold ${toneOf(props.zoomed.status)}`}
+              class={`flex-1 ${PAGE_TITLE} ${toneOf(props.zoomed.status)}`}
               data-testid={TESTID.zoomTitle}
               data-node-id={props.zoomed.shows.node.id}
               data-status={props.zoomed.status}

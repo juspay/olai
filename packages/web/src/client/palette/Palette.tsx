@@ -672,12 +672,12 @@ export function Palette(props: {
           }}
         />
         <div
-          class={`relative ${WITHIN.raised} w-full max-w-lg overflow-hidden rounded-lg border border-rule/70 bg-panel shadow-lg`}
+          class={`relative ${WITHIN.raised} w-full max-w-lg overflow-hidden rounded-2xl border-0 bg-panel shadow-xl ring-1 ring-rule/40`}
         >
           <input
             ref={input}
             type="text"
-            class="w-full border-b border-rule bg-transparent px-4 py-3 font-mono text-sm text-ink outline-none placeholder:text-muted"
+            class="w-full border-b border-rule bg-transparent px-5 py-4 font-serif text-lg italic text-ink outline-none placeholder:text-muted"
             data-testid={TESTID.paletteInput}
             placeholder="Jump, toggle, > ask the agent, + capture a line…"
             value={query()}

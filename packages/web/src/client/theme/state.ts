@@ -6,9 +6,9 @@
  * copy of it that could disagree. That matters because the attribute is
  * written before this module exists — the shell's inline boot script puts the
  * stored pick on `<html>` while the document is still parsing (`index.html`),
- * which is the whole reason a reload does not flash chalk at somebody who
- * chose pitch. Everything on the page is deferred; a theme restored from here
- * would land after the first paint.
+ * which is the whole reason a reload does not flash the default at somebody
+ * who chose pitch. Everything on the page is deferred; a theme restored from
+ * here would land after the first paint.
  *
  * Nothing about any of this reaches the server: a pick is a preference of this
  * browser's (`../preference.ts`), like the agent drawer's open state.
@@ -62,8 +62,8 @@ const show = (palette: Palette | undefined): void => {
  *
  *  Picking the DEFAULT is a pick like any other and is remembered as one: the
  *  alternative — storing nothing, so that the page falls back — would make
- *  "chalk" mean two different things, and a later change of default would
- *  silently move everybody who had chosen the old one. */
+ *  the default's name mean two different things, and a later change of
+ *  default would silently move everybody who had chosen the old one. */
 export const pickTheme = (palette: Palette): void => {
   show(palette)
   writePreference(THEME_STORAGE_KEY, palette.name)

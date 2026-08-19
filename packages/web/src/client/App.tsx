@@ -162,7 +162,7 @@ export default function App() {
           next ⌘Z — so "the newer of the two" is what this reads as in
           practice, and the older one is still there when it goes. */}
       <UndoSaid said={pinSaid() ?? undo.said()} />
-      <div class="flex min-h-dvh flex-col">
+      <div class="flex min-h-dvh flex-col bg-ink">
         <AppHeader
           docked={docked()}
           go={(route) => router.go(route)}
@@ -182,7 +182,7 @@ export default function App() {
             "min-h-0": split(),
           }}
         >
-          <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
+          <Switch fallback={<p class="olai-sheet min-h-[calc(100dvh-var(--height-header,4rem))] p-8 text-muted md:rounded-tl-[1.75rem]">Reading…</p>}>
           <Match when={outlines.manifest() === null}>
             <ErrorPage errors={problems()} />
           </Match>

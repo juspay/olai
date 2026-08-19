@@ -21,8 +21,9 @@ Feature: The theme is a pick, and it is yours
   There is no "system" chip. The OS's preference used to choose the palette,
   which meant two ways to be dark that could disagree, and a page that changed
   under a reader who had already said what they wanted. A page that has picked
-  nothing reads in the default — `chalk`, the one palette that promises AA — so
-  the page nobody chose for is the legible one.
+  nothing reads in the default — `reef`, the lagoon — so the page nobody
+  chose for is the one that is ours. `chalk` is still a pick, and still the
+  one palette that promises AA.
 
   The scenario about parsing is the one that catches the regression that
   matters. Everything on this page is deferred; a theme restored by the bundle
@@ -58,9 +59,9 @@ Feature: The theme is a pick, and it is yours
     And the lit theme chip is "pitch"
 
   Scenario: Picking the default is a pick like any other
-    # Stored explicitly rather than by falling back to it: otherwise "chalk"
-    # would mean two different things, and a later change of default would
-    # silently move everybody who had chosen the old one.
+    # Stored explicitly rather than by falling back to it: otherwise the
+    # default's name would mean two different things, and a later change of
+    # default would silently move everybody who had chosen the old one.
     When I open the app
     And I pick the theme "pitch"
     And I pick the default theme

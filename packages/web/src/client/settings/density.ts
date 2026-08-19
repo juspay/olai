@@ -10,10 +10,9 @@
  * (`../note/expand.ts` is where those two meet).
  *
  *   - `compact` — a row is its title. A node carrying a note says so with the
- *     pilcrow beside it (`../note/Mark.tsx`) and nothing else; this is the
- *     default, and it is the whole point of the quiet outline.
+ *     pilcrow beside it (`../note/Mark.tsx`) and nothing else.
  *   - `cozy` — the title, and one dim clamped line of the note under it. The
- *     shape every row had before this preference existed.
+ *     default, and the shape every row had before the compact switch existed.
  *   - `open` — every row starts OPEN: title, properties run, note in full. The
  *     always-shown note, kept, for a reader who was never asking for less.
  *
@@ -32,17 +31,17 @@ export const DENSITY_KEY = "olai.notes.density"
  *  stored word nothing draws. */
 export type Density = "compact" | "cozy" | "open"
 
-/** What a browser that has never been asked reads: the title alone. The
- *  decluttering ruling is that a tree is a list of titles until somebody asks
- *  it for more (human, the quiet outline). */
-export const DEFAULT_DENSITY: Density = "compact"
+/** What a browser that has never been asked reads: the title, and one line
+ *  of the note under it. Compact is still a pick — a tree of titles only —
+ *  but the default is the shape you can actually read. */
+export const DEFAULT_DENSITY: Density = "cozy"
 
 const DENSITIES: ReadonlyArray<Density> = ["compact", "cozy", "open"]
 
 /** The whole of this file's say in how it is stored. A word this app did not
  *  write — an older olai, something typed into a console — is the default
  *  rather than an error, which is `../preference.ts`'s rule for every key; the
- *  default PRINTS as itself rather than as `null`, because "compact" is a pick
+ *  default PRINTS as itself rather than as `null`, because "cozy" is a pick
  *  a reader may have made on purpose after trying the other two. */
 const codec: PreferenceCodec<Density> = {
   parse: (raw) =>

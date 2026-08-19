@@ -54,7 +54,7 @@ export function Preferences() {
         // beside it wears too — including the 44px a finger needs. The BORDER
         // is this button's own: it says whether the panel is up.
         class={`${ICON_BUTTON} border ${
-          open() ? "border-accent text-ink" : "border-rule text-muted"
+          open() ? "border-accent text-paper" : "border-paper/25"
         }`}
         data-testid={TESTID.prefsTrigger}
         aria-expanded={open()}

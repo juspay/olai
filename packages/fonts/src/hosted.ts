@@ -52,7 +52,7 @@ const styleOf = (value: string, file: string): HostedFile["style"] => {
 
 /** Every file this app hosts, flattened out of the per-source groups. Deduped
  *  by construction: a family used by two picks (Olai and Literata, Atkinson
- *  the default and Atkinson the pick) is listed once. */
+ *  the pick and Atkinson-as-a-pick) is listed once. */
 export const HOSTED_FILES: ReadonlyArray<HostedFile> = SOURCES.flatMap(
   (source) =>
     source.faces.map((face) => ({

@@ -16,7 +16,7 @@ Two entry points, one per reader. `@olai/fonts` is what a PAGE reads — the pic
 
 `--font-sans` is the chrome (header, sidebar, notes, chat). `--font-serif` is the page (outline titles, a document). `--font-mono` is the furniture that has to be tabular (a SHA, a diff, a breadcrumb). A row answers all three, so picking a font is one decision and not three.
 
-The default is **Atkinson Hyperlegible Next** — one voice, the way Workflowy's list is. The **Olai** row is the one that keeps the three jobs distinct (Literata / iA Writer Quattro / iA Writer Mono). Generics (System, Sans-serif, Terminal, …) name only what a browser already has and download nothing.
+The default is **Olai** — titles in Literata, chrome in iA Writer Quattro, code in iA Writer Mono. **Atkinson Hyperlegible Next** remains a pick, for a page that wants one voice. Generics (System, Sans-serif, Terminal, …) name only what a browser already has and download nothing.
 
 ## Adding a typeface
 

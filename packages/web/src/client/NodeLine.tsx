@@ -59,7 +59,7 @@ import { ROW_TITLE } from "./touch.ts"
 /** A TOP-LEVEL row is a section, and its name carries the weight of one
  *  (./Tree.tsx says the rest of what a section is). Exported so the tree names
  *  the same thing it asks for. */
-export const SECTION_TITLE = "font-semibold"
+export const SECTION_TITLE = "font-serif text-[1.3125rem] font-semibold tracking-tight"
 
 /** The first of the open state's three layers: the TITLE LINE says the row is
  *  open. What it does is brighten the `#tags` inside it (`./styles.css` — a tag

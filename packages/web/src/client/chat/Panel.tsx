@@ -101,8 +101,8 @@ export function Toggle() {
         working()
           ? "animate-pulse border-doing text-doing"
           : open()
-          ? "border-accent text-ink"
-          : "border-rule text-muted"
+          ? "border-accent text-paper"
+          : "border-paper/25"
       }`}
       data-testid={TESTID.chatToggle}
       data-busy={working()}
@@ -179,7 +179,7 @@ function DesktopDock() {
 
   return (
     <aside
-      class={`fixed right-0 top-[var(--height-header,3rem)] ${LAYER.page} flex h-[calc(var(--visible-h,100dvh)-var(--height-header,3rem))] max-w-full min-w-0 flex-col border-l border-rule/70 bg-desk`}
+      class={`fixed right-0 top-[var(--height-header,4rem)] ${LAYER.page} flex h-[calc(var(--visible-h,100dvh)-var(--height-header,4rem))] max-w-full min-w-0 flex-col border-l border-rule/70 bg-desk`}
       style={{ width: `${chatWidth()}px` }}
       data-testid={TESTID.chatPanel}
       data-status={chat.state().status}
@@ -224,7 +224,7 @@ function MobileSheet() {
       typeof window !== "undefined"
         ? window.visualViewport?.height ?? window.innerHeight
         : 800
-    const header = 48 // --height-header 3rem; good enough for gesture math
+    const header = 64 // --height-header 4rem; good enough for gesture math
     const usable = Math.max(1, visible - header)
 
     const onMove = (e: PointerEvent) => {
@@ -249,7 +249,7 @@ function MobileSheet() {
 
   return (
     <div
-      class={`fixed inset-x-0 bottom-0 top-[var(--height-header,3rem)] ${LAYER.chrome} md:hidden`}
+      class={`fixed inset-x-0 bottom-0 top-[var(--height-header,4rem)] ${LAYER.chrome} md:hidden`}
       data-testid={TESTID.chatSheet}
     >
       <button

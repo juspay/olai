@@ -17,7 +17,7 @@
  * (burger, then footer) — which is why the phone e2e no longer opens the sheet
  * to reach it.
  *
- * The bar is a fixed `h-12` and the right-hand group is `flex-nowrap`: wrapping
+ * The bar is a fixed `h-16` and the right-hand group is `flex-nowrap`: wrapping
  * inside a fixed height centred the second row off the top of the viewport on a
  * 390pt phone in every connection state longer than `live`.
  *
@@ -64,10 +64,12 @@
  * here. That is pre-existing and intentional — a broken client has no chrome
  * to trust — and is the sole exception to "the header is on every screen".
  *
- * Styled like the rest of the chrome: sans, a rule under it, desk.
- * Height is `h-12` (3rem) and the static `--height-header` token in
- * `styles.css` — the chat drawer subtracts the same token so it sits under
- * this bar, not over it.
+ * The bar is INK, the same ground as the directory spine: header and sidebar
+ * are one forest frame, and the outline is a paper sheet sitting in it. Height
+ * is `h-16` (4rem) and the static `--height-header` token in `styles.css` —
+ * the chat drawer subtracts the same token so it sits under this bar, not
+ * over it. A coral rule along the bottom is the one loud mark the chrome
+ * allows itself.
  *
  * ## It STICKS, and that is what makes the rest of the chrome true
  *
@@ -110,6 +112,8 @@
 import { Show } from "solid-js"
 
 import { Toggle as ChatToggle } from "./chat/Panel.tsx"
+import { Leaf } from "./Leaf.tsx"
+import { WORDMARK } from "./look.ts"
 import { Commit } from "./commit/Commit.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
 import { LAYER } from "./layer.ts"
@@ -141,7 +145,7 @@ export function AppHeader(props: {
 }) {
   return (
     <header
-      class={`sticky top-0 ${LAYER.header} flex h-12 shrink-0 items-center gap-2 border-b border-rule/70 bg-desk px-3 font-sans md:px-4`}
+      class={`sticky top-0 ${LAYER.header} flex h-16 shrink-0 items-center gap-2 border-b-2 border-accent bg-ink px-4 font-sans text-paper md:px-6`}
       data-testid={TESTID.appHeader}
       data-layout={props.docked ? "docked" : "chrome-only"}
     >
@@ -150,7 +154,7 @@ export function AppHeader(props: {
           {(menu) => (
             <button
               type="button"
-              class={`${TARGET_BOX} -ml-2 inline-flex items-center justify-center rounded text-muted hover:text-ink md:hidden`}
+              class={`${TARGET_BOX} -ml-2 inline-flex items-center justify-center rounded text-paper/70 hover:text-paper md:hidden`}
               data-testid={TESTID.sidebarToggle}
               data-open={menu().open}
               aria-expanded={menu().open}
@@ -161,26 +165,8 @@ export function AppHeader(props: {
             </button>
           )}
         </Show>
-        <h1 class="m-0 flex items-center gap-2 text-[0.8125rem] font-semibold uppercase tracking-[0.14em] text-ink">
-          <svg
-            viewBox="0 0 24 24"
-            class="size-4"
-            aria-hidden="true"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.7"
-            stroke-linecap="round"
-          >
-            <path d="M12 20V4" />
-            <path d="M12 6C9 5 6.4 4.7 4.4 5.3" />
-            <path d="M12 6C15 5 17.6 4.7 19.6 5.3" />
-            <path d="M12 10C8.6 8.6 5.6 8.2 3.4 9" />
-            <path d="M12 10C15.4 8.6 18.4 8.2 20.6 9" />
-            <path d="M12 14.5C8.8 13.2 6 12.9 3.8 13.8" />
-            <path d="M12 14.5C15.2 13.2 18 12.9 20.2 13.8" />
-            <path d="M12 18.2C10 17.4 8.2 17.3 6.8 18" />
-            <path d="M12 18.2C14 17.4 15.8 17.3 17.2 18" />
-          </svg>
+        <h1 class={WORDMARK}>
+          <Leaf class="size-5 text-accent" />
           olai
         </h1>
       </div>

@@ -11,11 +11,12 @@
  * Three jobs, one pick. `--font-serif` is the page (outline titles, a
  * document). `--font-sans` is the chrome (header, sidebar, notes, chat).
  * `--font-mono` is the furniture that has to be tabular (a SHA, a diff, a
- * breadcrumb). The default is Atkinson Hyperlegible — one voice, the way
- * Workflowy's list is. The Olai row is the one that keeps the three jobs
- * distinct (Literata / iA Writer Quattro / iA Writer Mono). Pick Inter and
- * the page speaks Inter; pick Fira Code and it speaks Fira Code, chrome
- * included.
+ * breadcrumb). The default is Olai — titles in Literata, chrome in iA Writer
+ * Quattro, code in iA Writer Mono — because a product that names a face
+ * after itself and then reads in somebody else's is a product that has not
+ * decided what it looks like. Atkinson Hyperlegible remains a pick, for a
+ * page that wants one voice. Pick Inter and the page speaks Inter; pick
+ * Fira Code and it speaks Fira Code, chrome included.
  *
  * What a row names is a FAMILY, never a file. The files those families need
  * are `./hosted.ts` — from nixpkgs, converted to woff2 once by this package's
@@ -305,7 +306,7 @@ export const TYPEFACES: ReadonlyArray<Typeface> = TABLE
 
 export const FONT_NAMES: ReadonlyArray<FontName> = TABLE.map((face) => face.name)
 
-export const DEFAULT_FONT: FontName = "atkinson"
+export const DEFAULT_FONT: FontName = "olai"
 
 export const FONT_ATTRIBUTE = "data-font"
 

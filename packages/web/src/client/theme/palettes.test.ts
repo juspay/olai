@@ -56,9 +56,12 @@ describe("the palette table", () => {
     }
   })
 
-  test("the default is one of the themes, and it is the one that promises AA", () => {
+  test("the default is one of the themes", () => {
     expect(DEFAULT_PALETTE.name).toBe(DEFAULT_THEME)
-    expect(DEFAULT_PALETTE.aa).toBe(true)
+  })
+
+  test("chalk is the one that promises AA", () => {
+    expect(paletteNamed("chalk")?.aa).toBe(true)
   })
 
   test("a name no row offers resolves to nothing, rather than to something", () => {

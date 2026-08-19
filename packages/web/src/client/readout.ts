@@ -37,8 +37,8 @@ export interface Look {
  *  by construction — a border, paper and muted text — because chrome that
  *  competes with the outline is chrome a reader learns to skip. */
 export const PILL =
-  "flex min-w-0 items-center gap-1.5 truncate rounded-full border border-transparent " +
-  "bg-pill px-2 py-1.5 text-xs text-muted sm:gap-2 sm:px-3"
+  "flex min-w-0 items-center gap-1.5 truncate rounded-full border border-paper/20 " +
+  "bg-paper/10 px-2 py-1.5 text-xs text-paper/80 sm:gap-2 sm:px-3"
 
 /** The dot itself, which the state's own `dot` utility colours. */
 export const DOT = "inline-block size-2 shrink-0 rounded-full"
@@ -56,5 +56,5 @@ export const DOT = "inline-block size-2 shrink-0 rounded-full"
  */
 export const ICON_BUTTON =
   "inline-flex shrink-0 items-center justify-center gap-1 rounded-full " +
-  "bg-pill px-2 py-1.5 font-mono text-xs hover:text-ink sm:px-3 " +
+  "border border-paper/20 bg-paper/10 px-2 py-1.5 font-mono text-xs text-paper/80 hover:text-paper sm:px-3 " +
   "min-h-11 min-w-11 md:min-h-0 md:min-w-0"

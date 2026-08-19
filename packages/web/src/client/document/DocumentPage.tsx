@@ -118,8 +118,8 @@ function OneDocument(props: { readonly file: string }) {
 
   return (
     <section data-testid={TESTID.documentPage} data-file={props.file}>
-      <header class="mb-4 flex items-baseline justify-between gap-2">
-        <h1 class="m-0 font-mono text-sm text-muted">{props.file}</h1>
+      <header class="mb-8 flex items-baseline justify-between gap-2">
+        <h1 class="m-0 font-mono text-sm tracking-tight text-muted">{props.file}</h1>
         {/* The control and the draft it opens read ONE value, so a page cannot
             offer an editor it has nothing to open: `served()` is both the
             condition here and the baseline below. */}

@@ -54,7 +54,7 @@ export function Rail(props: {
 
   return (
     <div
-      class="sticky top-[var(--height-header,3rem)] hidden h-[calc(100dvh-var(--height-header,3rem))] w-[var(--width-rail,3rem)] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-rule/70 bg-desk py-2 md:flex"
+      class="olai-dir sticky top-[var(--height-header,4rem)] hidden h-[calc(100dvh-var(--height-header,4rem))] w-[var(--width-rail,3rem)] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r py-2 md:flex"
       data-testid={TESTID.sidebarRail}
       aria-label="directory rail"
     >
@@ -157,7 +157,7 @@ function RailButton(props: {
       // `relative`: the agenda's dot is absolute against this box, and the
       // containing block is declared once, here, rather than by whichever child
       // happens to need one.
-      class={`${TARGET_BOX} relative inline-flex items-center justify-center rounded text-muted hover:bg-rule/60 hover:text-ink md:min-h-9 md:min-w-9`}
+      class={`${TARGET_BOX} relative inline-flex items-center justify-center rounded-xl text-muted hover:bg-paper/10 hover:text-ink md:min-h-9 md:min-w-9`}
       data-testid={props.testid}
       data-owed={props.owed}
       aria-label={props.label}

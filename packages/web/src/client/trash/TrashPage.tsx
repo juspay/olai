@@ -58,7 +58,9 @@ import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
+import { Empty } from "../Empty.tsx"
 import { useNarrowed } from "../filter/narrowed.tsx"
+import { PAGE_TITLE } from "../look.ts"
 import { CONTEXT_DIM, lighting, matchedAttr, unfiltered } from "../filter/why.ts"
 import { EmptyTrash } from "./EmptyTrash.tsx"
 import { NodeTitle } from "../NodeTitle.tsx"
@@ -81,8 +83,8 @@ export function TrashPage(props: {
 
   return (
     <div data-testid={TESTID.trashPage} class="mx-auto max-w-3xl">
-      <header class="mb-4">
-        <h1 class="m-0 text-xl font-semibold text-ink">Trash</h1>
+      <header class="mb-8">
+        <h1 class={`${PAGE_TITLE} text-ink`}>Trash</h1>
         <p class="m-0 mt-1 text-sm text-muted">
           What was archived, kept whole. Put a row back and it returns where it
           came from, everything under it included.
@@ -102,9 +104,7 @@ export function TrashPage(props: {
           // found none of it is a claim about the query, and the bar makes
           // that one (`../filter/narrowed.tsx` holds the division).
           <Show when={unfiltered(narrowed)}>
-            <p class="text-muted" data-testid={TESTID.trashEmpty}>
-              The Trash is empty.
-            </p>
+            <Empty testid={TESTID.trashEmpty} line="The Trash is empty." />
           </Show>
         }
       >

@@ -55,8 +55,10 @@
 import { type Agenda, nothingDue } from "@olai/format"
 import { Show } from "solid-js"
 
+import { Empty } from "../Empty.tsx"
 import { useNarrowed } from "../filter/narrowed.tsx"
 import { unfiltered } from "../filter/why.ts"
+import { PAGE_TITLE } from "../look.ts"
 import { TESTID } from "../testids.ts"
 import { Spine } from "./Spine.tsx"
 
@@ -73,8 +75,8 @@ export function AgendaPage(props: {
 
   return (
     <section data-testid={TESTID.agendaPage} data-date={props.today}>
-      <header class="mb-6 flex items-baseline gap-2">
-        <h1 class="m-0 text-2xl font-bold">Agenda</h1>
+      <header class="mb-10 flex items-baseline gap-3">
+        <h1 class={PAGE_TITLE}>Agenda</h1>
         <span class="text-sm text-muted tabular-nums">{props.today}</span>
       </header>
 
@@ -84,9 +86,7 @@ export function AgendaPage(props: {
           reading every page with a sentence like this is drawn on
           (`../filter/narrowed.tsx`). */}
       <Show when={unfiltered(narrowed) && nothing()}>
-        <p class="text-muted" data-testid={TESTID.agendaEmpty}>
-          Nothing is due.
-        </p>
+        <Empty testid={TESTID.agendaEmpty} line="Nothing is due." />
       </Show>
 
       <Show when={!nothing()}>

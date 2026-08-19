@@ -1,0 +1,24 @@
+/**
+ * The voices a page heading and the wordmark share.
+ *
+ * One pair of classes, so Agenda, a zoomed node, a day, the Trash and the
+ * wordmark cannot drift into four different ideas of "this is the name".
+ * Serif and italic because the default typeface keeps jobs distinct
+ * (`@olai/fonts`: Literata on the page, Quattro on the chrome) — a heading
+ * that stayed sans-bold would be chrome shouting over the outline.
+ */
+
+/** A page's own name: Agenda, a date, a zoomed title. Display size: a
+ *  heading is the first thing on the sheet, not a label over a list. */
+export const PAGE_TITLE =
+  "m-0 font-serif text-4xl font-medium italic tracking-tight md:text-5xl"
+
+/** The column a lone page is set in — a reading measure, centred in the
+ *  sheet. Split panes still each get one; a row that ellipsizes is a line,
+ *  and a line that has a measure is a line that can be read. */
+export const PAGE_COL = "mx-auto w-full max-w-3xl"
+
+/** The word in the bar. Colour is the header's (`text-paper` on ink);
+ *  this is only the face. */
+export const WORDMARK =
+  "m-0 flex items-center gap-2.5 font-serif text-[1.375rem] font-medium italic leading-none tracking-tight"

@@ -55,6 +55,7 @@ import { For, Show } from "solid-js"
 
 import { useNarrowed } from "../filter/narrowed.tsx"
 import { unfiltered } from "../filter/why.ts"
+import { PAGE_TITLE } from "../look.ts"
 import { TESTID } from "../testids.ts"
 import { DayGroups } from "./DayGroups.tsx"
 import { DayNote } from "./DayNote.tsx"
@@ -71,12 +72,12 @@ export function DayPage(props: {
   const narrowed = useNarrowed()
   return (
     <section data-testid={TESTID.dayPage} data-date={props.date}>
-      <header class="mb-4 flex items-baseline justify-between gap-4">
+      <header class="mb-8 flex items-baseline justify-between gap-4">
         <div class="flex items-baseline gap-2">
           {/* Printed verbatim, like every other date in this app: the format
               stores what was written and a heading is no reason to be the first
               place that parses one. */}
-          <h1 class="m-0 text-2xl font-bold tabular-nums">{props.date}</h1>
+          <h1 class={`${PAGE_TITLE} tabular-nums not-italic`}>{props.date}</h1>
           <Show when={props.date === props.today}>
             <span class="text-sm text-accent">today</span>
           </Show>
