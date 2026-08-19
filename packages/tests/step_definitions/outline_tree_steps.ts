@@ -25,6 +25,7 @@ import {
   NODE_GUTTER,
   NODE_MENU,
   NODE_REF,
+  NODE_TITLE,
   nodeSelector,
   NOTE_MARK,
   PROGRESS,
@@ -646,15 +647,16 @@ Then(
 
 /** A link in a title, read by where it POINTS — the half of it a highlight
  *  must never reach, since a mark inside an attribute is a broken link rather
- *  than a loud one. */
+ *  than a loud one. Through `expectAttribute`, so a failure says the href it
+ *  found and not only the one it wanted. */
 Then(
   "the title of {string} links to {string}",
   async function (this: OlaiWorld, id: string, href: string) {
-    const title = this.nodeTitle(id);
-    await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await this.waitUntil(
-      async () => (await title.locator("a").first().getAttribute("href")) === href,
-      `the title of "${id}" to link to ${JSON.stringify(href)}`,
+    await this.expectAttribute(
+      `${nodeSelector(id)} ${NODE_TITLE} a`,
+      "href",
+      href,
+      `the link in the title of "${id}"`,
     );
   },
 );

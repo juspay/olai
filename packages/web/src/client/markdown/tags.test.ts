@@ -78,8 +78,9 @@ test("a needle inside a code span nested in a link is lit too", () => {
 // ── the half that is protected, and stays protected ────────────────────
 
 test("a `#…` inside a code span is code, not a tag", () => {
+  // The whole HTML rather than a `not.toContain("data-tag")`: there is nowhere
+  // for a pill to hide in a string this short, and what is written is the claim.
   expect(lit("a `#home` in code")).toBe("a <code>#home</code> in code")
-  expect(lit("a `#home` in code")).not.toContain("data-tag")
 })
 
 test("a `#…` in a link is not a tag — a URL fragment is the sharpest case", () => {
@@ -93,7 +94,6 @@ test("...and lighting one does not turn it into a tag either", () => {
   expect(html).toBe(
     `a <code><mark class="olai-hit" data-testid="hit">#home</mark></code> in code`,
   )
-  expect(html).not.toContain("data-tag")
   expect(lit("the [#home](https://x.test/a#home) link", "#home"))
     .not.toContain("data-tag")
 })
