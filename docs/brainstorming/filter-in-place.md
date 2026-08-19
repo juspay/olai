@@ -227,7 +227,27 @@ The fix is three things, all view-time — nothing is stored, nothing is re-matc
 
 **What review found (grok, opencode, 2026-08-18), and where it landed.** Both do-not-object; three things changed. A needle covering only PART of a multi-unit fold character mapped to an empty source span — `İ` folds to `i` plus a combining dot, so a query of `i` was a real hit that drew a highlight of nothing beside a letter the reader can see; a run now rounds out to whole source characters, and an empty run is unrepresentable rather than elided downstream. The query is looked for ONCE per title rather than once per part, which is one fold instead of several and is also what lets a phrase light across a tag boundary (`"remodel #home"` was inside neither piece it crossed). Two shapes are named rather than fixed: a needle living only inside a title's `code` span or link lights nothing (that subtree is the one this app refuses to re-read, since a `#` in a URL fragment is not a tag), and a phrase spanning two pieces of rendered markdown lights neither.
 
-**Out of scope, filed separately if wanted:** the count line's mixed denominators ("8 of 57 — 17 more matches hidden as done" reads as 8+17≠57; the 57 is page rows, the 17 is matches).
+~~**Out of scope, filed separately if wanted:** the count line's mixed denominators ("8 of 57 — 17 more matches hidden as done" reads as 8+17≠57; the 57 is page rows, the 17 is matches).~~ — **landed**, and the section below is what it turned out to be.
+
+## The count line says three truths, in one set (2026-08-18)
+
+The deferral above, taken. The line was never wrong about any single number and was still not honest, because the numbers were counted in two different universes: the denominator was the rows the page had LEFT after the done preference took finished work off it, and the held-back matches were held back precisely because they were not among those rows. A reader who added them up got a total larger than the whole.
+
+So the denominator is now what the page **holds** — every place it could draw, before any preference of this reader's takes something off the screen — and everything else is counted inside it. Three truths, and each said only where it applies:
+
+1. how many rows MATCHED and are drawn;
+2. of how many the page HOLDS;
+3. how many matched rows are NOT drawn, and WHY — done-hiding being the one hider there is.
+
+**A part that is zero is not said.** A page with nothing held back says nothing about holding anything back; a page with nothing found still says the denominator, because "no matches of 57" and a directory with nothing in it are two different pieces of news and used to read identically.
+
+**"More" is dropped when nothing is drawn.** `is:done` typed by somebody who hides finished work is the page this line exists for, and "no matches of 57 — 3 more matches hidden" contradicts itself in eight words.
+
+**The counts come off the same three readings the page is drawn from** (`filter/narrowing.ts`: what the page holds, what the preference left, what the query left of that) — never a recount over the set, which is free to disagree with the very prune it is counting. The one number that moved is the denominator, from `visible()` to `all()`, and it is one line with the argument beside it.
+
+**The wording is a function** (`filter/count.ts`), taking three numbers and returning the sentence, because a sentence assembled in a JSX binding is a sentence no test can ask about. The plural, the dropped word and the unsaid zeroes are `count.test.ts`; that the three numbers are the page's own is `narrowing.test.ts`; that a reader looking at a real page sees it is `filter_in_place.feature`.
+
+**Still silent, and named rather than fixed:** the ⌘K palette and the header's box draw at most eight hits and say nothing about a ninth. That is the same defect one door over — `SearchAnswer.total` has ridden the wire uncounted since the matcher was split out, so "8 of 90" is sayable today — but it is a different surface, a different denominator (the directory, not a page), and a different hider (a cap, not a preference), so it is deferred rather than smuggled in here.
 
 ## Deferred, named
 
@@ -237,3 +257,4 @@ The fix is three things, all view-time — nothing is stored, nothing is re-matc
 - ~~Filtering the day, agenda and trash pages.~~ — **landed** (`search-everywhere`), struck rather than removed so the list still says what this design deferred; what it cost, and which of the two reasons for deferring it were wrong, is under "Where the filter lives: the address" above.
 - Starred / saved searches and named shortcuts (viewing-web.md's own Open list).
 - A keyboard chord that focuses the filter box.
+- The count line on the two doors that ASK THE SERVER (the ⌘K palette, the header's box): eight hits drawn out of however many matched, with nothing said about the rest. `SearchAnswer.total` is already on the wire and drawn nowhere.

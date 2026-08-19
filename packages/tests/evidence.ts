@@ -1875,6 +1875,58 @@ const SECTIONS = {
     shotSays("cuttings", "garden.olai")
     await shot(page, "a-reference-arrives")
   },
+
+  /**
+   * THE COUNT LINE ADDS UP — the plain page, and the one the sentence exists
+   * for, in both halves of the palette table.
+   *
+   * The line used to put two numbers out of two different sets beside each
+   * other: "1 of 8 — 2 more matches hidden as done" counted the rows LEFT
+   * after finished work was taken off, next to matches that had been taken off
+   * with it. The denominator is now what the page HOLDS, so the parts are parts
+   * of one whole — which is a claim about arithmetic, and therefore the one
+   * kind of claim a screenshot can carry: the same page, one preference apart,
+   * with the second number unmoved.
+   *
+   * `hinges OR is:done` is the query that draws all three truths at once on
+   * this fixture: one open match drawn, and two finished ones (`demo`, and
+   * `basil` under the MIRROR of the herb bed) held back.
+   */
+  "the-count-line-adds-up": async (page) => {
+    pinnedBy(
+      "filter_in_place.feature",
+      "The count line is measured against what the page holds, not what a preference left",
+      "Matches held back by the done preference are counted, and the reason is named",
+    )
+    // THE PLAIN CASE first, and what it is here to show is an ABSENCE: nothing
+    // is being held back, so nothing is said about holding anything back.
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await narrow(page, "cabinets")
+    console.log(`  nothing hidden, the bar says: ${await textOf(page, FILTER_COUNT)}`)
+    await shot(page, "plain-light")
+
+    await inTheDark(page)
+    await shot(page, "plain-dark")
+
+    // ...and the same page under a reader who hides finished work. The stored
+    // value rather than the Prefs panel, exactly as the theme above is set:
+    // the panel is portalled over the page this section is photographing, and
+    // that switch has its own scenarios (`preferences.feature`).
+    await page.evaluate(() => {
+      localStorage.setItem("olai.theme", "chalk")
+      localStorage.setItem("olai.done.hidden", "true")
+    })
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    console.log(`  hiding finished work, the page draws ${
+      await page.locator(`${OUTLINE_TREE} [data-testid="node"]`).count()
+    } rows`)
+    await narrow(page, "hinges OR is:done")
+    console.log(`  and the bar says: ${await textOf(page, FILTER_COUNT)}`)
+    await shot(page, "hidden-light")
+
+    await inTheDark(page)
+    await shot(page, "hidden-dark")
+  },
 } satisfies Record<string, (page: Page) => Promise<void>>
 
 /**
