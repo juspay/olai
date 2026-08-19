@@ -3,7 +3,10 @@
  * and the shape a NODE takes when search answers with one.
  *
  * The OP rows are next door (`./ops.ts`), because what a verb is and which of
- * them apply is the `•••` menu's answer and not a second list. Node hits
+ * them apply is the `•••` menu's answer and not a second list; the DOCUMENT
+ * rows are next door the other way (`./documents.ts`), because which files the
+ * directory serves is the served list's answer and not a second list either.
+ * Node hits
  * arrive from the server's search procedure (Palette.tsx asks it as you type)
  * rather than from a matcher of this file's own: the browser holds every node
  * and could grep them, and deliberately does not, because the palette and an
@@ -19,6 +22,7 @@
  * per prefix.
  */
 
+import type { BodyKind } from "@olai/format"
 import type { Edit, SearchHit } from "@olai/surface"
 
 import type { Route } from "../routes.ts"
@@ -82,6 +86,17 @@ export interface PaletteItem {
    *  (`../search/props.ts`). Only a node row has any; a shell command has
    *  nothing to say about itself that its label does not already say. */
   readonly props?: ReadonlyArray<NodeProp>
+  /**
+   * WHICH KIND of served file this row opens, drawn as that kind's own glyph
+   * in front of the label (`../file/icons.tsx`) — the face the sidebar's tree
+   * has used since a `.md`, a `.olai` and a folder stopped being four
+   * characters of extension apart.
+   *
+   * Only a document row carries one (`./documents.ts`). A command is not a
+   * file, and a node hit is a row INSIDE one — the file it lives in is already
+   * said, in words, on its place line.
+   */
+  readonly of?: BodyKind
   readonly action: PaletteAction
   /** Lowercase haystack for simple substring filter. */
   readonly search: string

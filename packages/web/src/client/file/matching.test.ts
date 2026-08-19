@@ -1,15 +1,17 @@
 /**
- * Which files an `@` query means — `./files.ts`'s whole rule, over a directory
+ * Which files a query means — `./matching.ts`'s whole rule, over a directory
  * spelled out here rather than served.
  *
- * The order is the assertion, not just the membership: what makes a completion
+ * The order is the assertion, not just the membership: what makes a shortlist
  * usable is that the file somebody is typing towards is the one Enter would
- * take, and that is a property of the buckets rather than of the filter.
+ * take, and that is a property of the buckets rather than of the filter. Both
+ * doors over this rule inherit that — the composer's `@` list and the
+ * palette's document rows (`../palette/documents.ts`).
  */
 
 import { expect, test } from "bun:test"
 
-import { dirOf, folded, matchFiles, nameOf } from "./files.ts"
+import { dirOf, folded, matchFiles, nameOf } from "./matching.ts"
 
 /** The cap the composer passes when the node half of the list has nothing to
  *  offer — the whole of it (`./naming.ts` divides it). */

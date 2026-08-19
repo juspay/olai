@@ -13,6 +13,13 @@
  * the browser and an agent cannot (HACKING.md's consistency rule, one layer
  * in).
  *
+ * That rule is why the DOCUMENT ROWS are here too. They are the palette's
+ * block, built by the palette's own module over the served list
+ * (`../palette/documents.ts`), in the same order and drawn with the same
+ * glyph: a box that found `finishes.md` while the chord next to it did not
+ * would be the drift above, inside one client, with nothing to blame it on but
+ * which surface somebody happened to think about.
+ *
  * ## Where it sits, and what gives way
  *
  * In the right-hand cluster, FIRST, before the pills. The bar's documented
@@ -50,8 +57,10 @@ import { Portal } from "solid-js/web"
 
 import { type Anchor, anchoredTo, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
+import { documentItems } from "../palette/documents.ts"
 import { nodeItem } from "../palette/items.ts"
 import { setPaletteOpen } from "../palette/open.ts"
+import { useServed } from "../served.tsx"
 import type { Route } from "../routes.ts"
 import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
@@ -72,6 +81,9 @@ export function HeaderSearch(props: {
 }) {
   const [query, setQuery] = createSignal("")
   const [caret, setCaret] = createSignal(false)
+  /** Every path the directory serves (`../served.tsx`) — what the document
+   *  rows below are matched against. */
+  const served = useServed()
   // WHICH row Enter takes — the one cursor every shortlist in this client
   // shares (`./cursor.ts`), so the arrows here, in the ⌘K palette and in the
   // row editor's completions cannot disagree about what the bottom of a list
@@ -82,7 +94,20 @@ export function HeaderSearch(props: {
   let box: HTMLInputElement | undefined
 
   const nodes = createNodeSearch(() => (caret() ? query() : null))
-  const items = createMemo(() => nodes.hits().map(nodeItem))
+  /**
+   * The directory's documents over the same query, above the node hits — the
+   * palette's own block (`../palette/documents.ts`), in the palette's own
+   * order, because this box is the OTHER DOOR to one reading and a door that
+   * found a file the other one did not would be exactly the drift this whole
+   * seam exists against.
+   *
+   * Gated on the caret for the same reason the search is: a box nobody is
+   * typing in has no query, and the panel it would open hangs over the page.
+   */
+  const items = createMemo(() => [
+    ...documentItems(served(), caret() ? query() : ""),
+    ...nodes.hits().map(nodeItem),
+  ])
   // The panel is up when there is anything to say — rows, a refused call, or a
   // query the grammar could not read. That last one is why a typo in an
   // operator opens the panel at all rather than looking like an empty
@@ -116,7 +141,8 @@ export function HeaderSearch(props: {
     const item = items()[index]
     if (item === undefined) return
     const action = item.action
-    // Every node row is a route by construction (`nodeItem`); the guard is
+    // Every row this box draws is a route by construction — a node hit
+    // (`nodeItem`) or a document (`../palette/documents.ts`); the guard is
     // what keeps that true rather than assumed.
     if (action.kind !== "route") return
     props.go(action.route)
@@ -135,7 +161,7 @@ export function HeaderSearch(props: {
           class="w-full min-w-0 rounded border border-rule/70 bg-panel px-2 py-1 font-mono text-xs text-ink outline-none placeholder:text-muted focus:border-rule"
           data-testid={TESTID.headerSearch}
           placeholder="search"
-          aria-label="search the outlines"
+          aria-label="search the directory"
           value={query()}
           onInput={(event) => {
             setQuery(event.currentTarget.value)
@@ -171,7 +197,7 @@ export function HeaderSearch(props: {
         type="button"
         class={`${TARGET_BOX} inline-flex items-center justify-center rounded text-muted hover:text-ink md:hidden`}
         data-testid={TESTID.headerSearchOpen}
-        aria-label="search the outlines"
+        aria-label="search the directory"
         onClick={() => setPaletteOpen(true)}
       >
         <span aria-hidden="true" class="text-base leading-none">⌕</span>
@@ -225,6 +251,7 @@ export function HeaderSearch(props: {
                     <li>
                       <Result
                         label={item.label}
+                        of={item.of}
                         place={item.place}
                         props={item.props}
                         active={index() === cursor.at()}

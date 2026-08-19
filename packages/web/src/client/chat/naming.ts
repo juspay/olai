@@ -2,15 +2,16 @@
  * WHAT AN `@` OFFERS: the directory's files, and the directory's nodes, in one
  * list of eight.
  *
- * Two halves with a matcher each ({@link ./files.ts}, {@link ./nodes.ts}) and
- * one rule here about how they share a popup — which is the whole of what this
- * file is, and the reason it is not two lists on screen.
+ * Two halves with a matcher each ({@link ../file/matching.ts},
+ * {@link ./nodes.ts}) and one rule here about how they share a popup — which
+ * is the whole of what this file is, and the reason it is not two lists on
+ * screen.
  *
  * ## Two blocks, never interleaved
  *
  * A file's rank is three buckets — the name first, the path second, a substring
- * last — and `./files.ts` says out loud that this "is not a score". A node's
- * rank IS a score, the format's own (title 1000, id 750, tag 500, note 250,
+ * last — and `../file/matching.ts` says out loud that this "is not a score".
+ * A node's rank IS a score, the format's own (title 1000, id 750, tag 500, note 250,
  * with a bonus for starting the field and a penalty for being finished). To mix
  * them into one order somebody has to say what bucket two is worth in points,
  * and that number would be the only ranking rule in this codebase with nothing
@@ -36,19 +37,19 @@
  * full of matching rows can never bury the file somebody types every day.
  *
  * Both halves are asked for the WHOLE cap and trimmed here, which is not the
- * same as asking each for its share: `./files.ts` stops walking the directory
- * once its best bucket is full, so a file half asked for three rows could not
- * grow back to eight when the node half came back empty. Ask for eight, keep
- * what fits.
+ * same as asking each for its share: `../file/matching.ts` stops walking the
+ * directory once its best bucket is full, so a file half asked for three rows
+ * could not grow back to eight when the node half came back empty. Ask for
+ * eight, keep what fits.
  */
 
 import type { Derived } from "@olai/format"
 
-import { dirOf, folded, matchFiles, nameOf } from "./files.ts"
+import { dirOf, folded, matchFiles, nameOf } from "../file/matching.ts"
 import { matchNodes, type NodeMatch } from "./nodes.ts"
 
 /** How many rows the list offers — the eight every shortlist in this app shows
- *  (`../complete/tags.ts`, `./files.ts`). */
+ *  (`../complete/tags.ts`, `../file/matching.ts`). */
 const LIMIT = 8
 
 /** ...and how many of them belong to a kind that has rows, whatever the other

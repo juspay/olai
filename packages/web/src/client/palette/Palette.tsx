@@ -9,6 +9,12 @@
  * and what an agent finds cannot drift (items.ts says why there is no local
  * matcher).
  *
+ * Between the two: the DIRECTORY'S DOCUMENTS (`./documents.ts`), matched by
+ * name and path against the served list this tab already holds, drawn with the
+ * sidebar's own glyph, and opening the `/doc/` address the router has served
+ * all along. They are keyed on the NAME and nowhere near a body — the grammar
+ * above still selects nodes, and a document is prose.
+ *
  * ## The two things it writes
  *
  * **OP ROWS**, about the node the reader has ZOOMED (`./ops.ts`): the same
@@ -77,7 +83,9 @@ import {
   type PaletteItem,
   SHELL_ITEMS,
 } from "./items.ts"
+import { documentItems } from "./documents.ts"
 import { opItems } from "./ops.ts"
+import { useServed } from "../served.tsx"
 import { createCursor } from "../search/cursor.ts"
 import { createNodeSearch } from "../search/nodes.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
@@ -141,6 +149,11 @@ export function Palette(props: {
   const undo = useUndo()
   const derived = useDerived()
   const router = useRouter()
+  /** Every path the directory serves, from the one list this tab already holds
+   *  (`../served.tsx`) — where the document rows come from. Reached rather than
+   *  handed down for the reason the derivation above is: a directory gains and
+   *  loses files while a tab is open. */
+  const served = useServed()
   const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
   // WHICH row Enter takes, and the arrows that walk it — the one cursor every
@@ -242,7 +255,17 @@ export function Palette(props: {
     // {@link chosen}: an untouched palette has no row chosen, so being at the
     // top is not being one keystroke from a write.
     const commands = [...opRows(), ...SHELL_ITEMS]
-    return [...filterItems(query(), commands), ...nodes.hits().map(nodeItem)]
+    // THEN THE FILES, THEN THE NODES, which is the order they can be ANSWERED
+    // in: the commands and the documents are matched in this tab off lists it
+    // already holds, and a node hit is a debounce and a round trip away. A
+    // block that arrives late must not push the rows a reader is already
+    // walking down the list under their cursor, so the two local blocks sit
+    // above it and the list only ever grows at the bottom.
+    return [
+      ...filterItems(query(), commands),
+      ...documentItems(served(), query()),
+      ...nodes.hits().map(nodeItem),
+    ]
   })
 
   /** Everything this modal is holding, put down — one spelling, because the
@@ -703,6 +726,7 @@ export function Palette(props: {
                     <li>
                       <Result
                         label={item.label}
+                        of={item.of}
                         hint={item.hint}
                         place={item.place}
                         props={item.props}

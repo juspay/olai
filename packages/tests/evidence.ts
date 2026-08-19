@@ -604,6 +604,14 @@ const TRASH_PAGE = '[data-testid="trash-page"]'
  *  apart (the browser tests read the same pair). */
 const PALETTE_INPUT = '[data-testid="palette-input"]'
 const PALETTE_HIT = '[data-testid="palette-item"][data-id^="node-"]'
+/** …and the rows of it that are DOCUMENTS, told apart the same way: a served
+ *  file's row carries its whole path in `data-id`, so a shot can print WHICH
+ *  file it matched rather than the name a folder may repeat. The header's box
+ *  draws the identical row (`web/src/client/palette/documents.ts`), which is
+ *  why the pair is spelled here together. */
+const PALETTE_DOC = '[data-testid="palette-item"][data-id^="doc-"]'
+const HEADER_DOC = '[data-testid="header-search-item"][data-id^="doc-"]'
+const DOCUMENT_PAGE = '[data-testid="document-page"]'
 
 /** The rows of a day or of the agenda, under the file each was found in — flat
  *  rows that carry their own ancestry, which is why a filtered one keeps
@@ -1574,6 +1582,94 @@ const SECTIONS = {
     await page.locator(MOVE_HIT).first().waitFor()
     await page.waitForTimeout(300)
     await shot(page, "drawn-inside-refused")
+  },
+
+  /**
+   * A DOCUMENT IS A ROW IN THE BOX — the ⌘K row of the `.olai`/`.md` parity
+   * table, which said "zero document rows: no open, no create, no capture".
+   *
+   * Photographed at BOTH DOORS, because that is the claim: the ⌘K palette and
+   * the header's box are one reading, and a file found in one and not the
+   * other would be the drift they are one reading against. And in BOTH
+   * PALETTES, light and dark, because the row draws a glyph in the theme's own
+   * ink beside a place line in its muted one — a face that reads in exactly one
+   * of them is a face nobody checked.
+   *
+   * What is NOT here is as much of the point: no create row (the palette has
+   * never had one, for an outline either), and nothing matched out of a body —
+   * the query is `pal`, which is what the FILE is called.
+   */
+  "documents-in-the-palette": async (page) => {
+    pinnedBy(
+      "documents.feature",
+      "The ⌘K palette opens a document by name",
+      "The header's box finds the same document, drawn the same way",
+    )
+    const pass = async (dark: boolean) => {
+      const suffix = dark ? "-dark" : ""
+      await opened(page, "/o/house.olai", OUTLINE_TREE)
+
+      // THE PALETTE, on a query that is the start of a file's NAME rather than
+      // of its path: `notes/palette.md` is what `pal` means to a person.
+      await page.keyboard.press("ControlOrMeta+k")
+      await page.locator(PALETTE_INPUT).waitFor()
+      await page.locator(PALETTE_INPUT).fill("pal")
+      await page.locator(PALETTE_DOC).first().waitFor()
+      await page.waitForTimeout(400)
+      console.log(`  documents drawn:    ${await page.locator(PALETTE_DOC).count()}`)
+      console.log(
+        `  the first one:      ${await page.locator(PALETTE_DOC).first().getAttribute("data-id")}`,
+      )
+      await shot(page, `the-palette-matches-a-document${suffix}`)
+
+      // …and the row OPENS it: the same page the sidebar's row opens, at the
+      // address the router has served all along.
+      await page.locator(PALETTE_DOC).first().click()
+      await page.locator(DOCUMENT_PAGE).first().waitFor()
+      await page.waitForTimeout(SETTLE)
+      console.log(`  the address:        ${new URL(page.url()).pathname}`)
+      await shot(page, `the-document-opens${suffix}`)
+
+      // THE OTHER DOOR, over the same query and drawing the same row.
+      const box = page.locator('[data-testid="header-search"]')
+      await box.click()
+      await box.fill("pal")
+      await page.locator(HEADER_DOC).first().waitFor()
+      await page.waitForTimeout(400)
+      console.log(
+        `  the header box too: ${await page.locator(HEADER_DOC).first().getAttribute("data-id")}`,
+      )
+      await shot(page, `the-header-box-matches${suffix}`)
+    }
+
+    await pass(false)
+
+    // BOTH BODIED KINDS in one list, which is the row set being the registry's
+    // answer rather than a suffix somebody typed: `a` is inside `palette.md`
+    // and inside `quarter.html`, and the two are drawn with the two glyphs the
+    // sidebar gives them. Once, in the light pass — the pair above is what has
+    // to be checked in either palette; this is a fact about the SET.
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await page.keyboard.press("ControlOrMeta+k")
+    await page.locator(PALETTE_INPUT).waitFor()
+    await page.locator(PALETTE_INPUT).fill("a")
+    await page.locator(PALETTE_DOC).first().waitFor()
+    // `a` is a broad query, so the commands it also matches fill the box above
+    // them — which is the block ORDER working, and means the shot has to be
+    // taken where the block is. The list scrolls under a fixed input, so this
+    // is a picture of the same palette a little further down.
+    await page.locator(PALETTE_DOC).last().scrollIntoViewIfNeeded()
+    await page.waitForTimeout(400)
+    const matched = await page.locator(PALETTE_DOC).evaluateAll((rows) =>
+      rows.map((row) => row.getAttribute("data-id"))
+    )
+    console.log(`  “a” matches:        ${matched.join(", ")}`)
+    await shot(page, "a-document-and-a-saved-page")
+    await page.keyboard.press("Escape")
+
+    await wearTheme(page, "pitch")
+    await pass(true)
+    await wearTheme(page, "chalk")
   },
 
   "new-outline": async (page) => {

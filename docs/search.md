@@ -147,11 +147,21 @@ They are two lines rather than one because a place is somebody's prose. Side by 
 
 ## Where searching happens on each face
 
-- **Header box** — desktop and up. It sits first in the right-hand cluster and is the one control there that may shrink to nothing, so the connection and commit pills never lose a character to it. Type, arrow up and down, Enter to open, Escape to clear.
+- **Header box** — desktop and up. It sits first in the right-hand cluster and is the one control there that may shrink to nothing, so the connection and commit pills never lose a character to it. Type, arrow up and down, Enter to open, Escape to clear. Documents match here too (below).
 - **Phone** — a magnifier in the same place, opening the `⌘K` palette, which is a full-width modal built for exactly this. The bar at 390pt has no room for a box and a phone has no chord to press.
-- **`⌘K` palette** — the shell's commands, node results underneath them, and the two things it WRITES: the zoomed node's own verbs, and quick capture on a `+` prefix ([editing.md](editing.md)). Neither is a search — a query carrying `>` or `+` is a line being typed rather than a lookup, and nothing is asked of the server for it.
+- **`⌘K` palette** — the shell's commands, then the directory's documents, then node results, and the two things it WRITES: the zoomed node's own verbs, and quick capture on a `+` prefix ([editing.md](editing.md)). Neither is a search — a query carrying `>` or `+` is a line being typed rather than a lookup, and nothing is asked of the server for it.
 - **A panel under a row** — where searching is how you answer a question the row asked. Three of them, each drawing the same rows over the same procedure: the `((` widget in a title (place a mirror of what you find), the edge panel's box (`see` / `after` — what this node points at), and the move-to picker's (⌘⇧M — which node this row goes under, [editing.md](editing.md)). The last one is the one that draws a REFUSAL beside its hits: a destination is not merely a node, so most of the set is somewhere a given row cannot go, and it says which as you walk the list.
 - **`search_nodes`** — the same answer for an agent, over MCP.
+
+## Documents, by name
+
+**The two doors that list hits also list DOCUMENTS** — every `.md` and every saved `.html` the directory serves. Type into the `⌘K` palette or the header box and a file whose name you are spelling is a row, drawn with the same glyph the sidebar's tree gives it, with the folder it sits in on the line underneath; Enter opens its page. A block of its own, above the node hits and below the commands, because the two answers come from different places: the files are matched in your own tab off the list it already holds, the nodes are a question asked of the server.
+
+**They are matched on the NAME and the PATH, and on nothing else.** `pal` finds `notes/palette.md` because that is what the file is called; `notes/` finds everything under that folder. What is INSIDE a document is not searched here, and that is the ruling rather than an omission — a document is prose, and this grammar selects nodes. So `is:done`, `#home` and `prop:` say nothing about a `.md`, the same way `?q=` narrows every page but a document's. Finding a note by what it SAYS is the parked item above, and this is deliberately not half of it.
+
+**One rule, matched the way `@` is matched in a message**: the name first, the path second, a substring last, no fuzzy scoring — the same buckets the chat composer completes a path with ([chat.md](chat.md)), so the file that comes first is the file you have started spelling, whichever surface you are typing in. An empty ⌘K lists no documents at all: it is a list of commands until you type, and a bare `@` in a message is the door that exists for browsing the directory.
+
+**There is no way to MAKE a document from the palette**, and none to make an outline either. `+ New document` and `+ New outline` live in the sidebar ([editing.md](editing.md)); the palette has never carried a create row for either, and giving one to documents alone would be the old imbalance the other way up.
 
 ## Not yet: finding a note you cannot name
 

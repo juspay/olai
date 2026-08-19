@@ -1,13 +1,33 @@
 /**
- * WHICH of the served directory's files an `@` query means.
+ * WHICH of the served directory's files a query means.
+ *
+ * ## One matcher, two callers
+ *
+ * The chat composer's `@` list, where a word after the sigil names a file to
+ * put in a message (`../chat/naming.ts`), and the DOCUMENT ROWS the ⌘K palette
+ * and the header box draw (`../palette/documents.ts`). Both are asking one
+ * question — which served paths is somebody typing towards — and a second
+ * spelling of it would be two answers to it: a prefix rule at one door and a
+ * fuzzy score at the other, with a reader left to learn which door they are
+ * standing in. It lives under `file/` rather than inside either caller for the
+ * reason `../search/nodes.ts` lives in `search/` rather than in `palette/`:
+ * this directory is where the client keeps what is true of a served FILE — the
+ * page each kind opens (`./kinds.ts`), the glyph it is drawn with
+ * (`./icons.tsx`), the two a person can make (`./making.ts`) — and a matcher
+ * over paths is one more of those.
+ *
+ * WHICH paths are offered stays the caller's, because it is a different
+ * question with a different answer per door: the `@` list passes every served
+ * path (the section below says why the archives are among them), and the
+ * palette passes the bodied ones, since a row there is a page to open.
  *
  * ## Nothing is walked here, and no walk was added anywhere else
  *
  * The paths are the ones this tab is ALREADY holding: the `outlines`
  * collection's keys and the `documents` collection's key set, which is exactly
  * what the sidebar's file tree draws (`../served.tsx` assembles the two). So
- * the completion offers what the server serves, with the server's own rules
- * about what that is already applied — the store's walk prunes dot-directories
+ * a caller offers what the server serves, with the server's own rules about
+ * what that is already applied — the store's walk prunes dot-directories
  * and `node_modules` (`@olai/store`'s `pruned`) and admits only the kinds the
  * format claims (`@olai/format`'s registry). A second enumeration in the
  * browser, or a new procedure on the wire to ask "what files are there", would
@@ -25,11 +45,11 @@
  * per file per keystroke, which on a thousand-file vault is exactly the shape
  * that makes a completion feel slow. So the fold is kept in a `WeakMap` keyed
  * on the path list itself — `../complete/tags.ts`'s arrangement, for its
- * reason: asking here, only while an `@` is being typed, costs nothing at all
- * on a session that never types one, and the answer for a list nothing holds
- * any more is collectable with the list. A memo in the composer would instead
- * re-fold the whole vault every time a file changed, whether or not anybody
- * ever completes a path.
+ * reason: asking here, only while somebody is typing a query, costs nothing at
+ * all on a session that never types one, and the answer for a list nothing
+ * holds any more is collectable with the list. A memo in the composer would
+ * instead re-fold the whole vault every time a file changed, whether or not
+ * anybody ever completes a path.
  *
  * Keyed on the list means once per LIST, which is once per version of the
  * directory only because the list is made to work that way: `../served.tsx`
@@ -37,24 +57,25 @@
  * re-sent the same paths does not mint one. Without that this would be once
  * per frame, which is a cache that misses exactly when it is asked.
  *
- * ## The archives ARE offered, and that is a decision — not an oversight
+ * ## The archives ARE in the `@` list, and that is a decision — not an oversight
  *
- * An `Archive.olai` is a file the directory serves, so it is in this list; the
- * sidebar hides it behind the Trash and this does not (docs/chat.md). What a
- * message may NAME is a different question from what a reader opens, and "what
- * did we put away last month" is a fair thing to ask an agent.
+ * An `Archive.olai` is a file the directory serves, so it is in the list the
+ * composer passes; the sidebar hides it behind the Trash and that does not
+ * (docs/chat.md). What a message may NAME is a different question from what a
+ * reader opens, and "what did we put away last month" is a fair thing to ask an
+ * agent.
  *
  * It is worth saying out loud because the other two lists over the same set go
  * the other way, and the three are one `grep` apart: the tag vocabulary
  * (`../complete/tags.ts`) stopped counting archived nodes under the 2026-08-17
- * ruling, and the NODE half of this very list (`./nodes.ts`) offers none unless
- * the query says `is:archived`. None of the three should be "harmonized" into
- * the others. The tag list ranks the vocabulary of the set a reader is LOOKING
- * at; the node list names a row of a reading, where what was put away is drawn
- * on the Trash and nowhere else; and this one completes a PATH somebody is
- * about to name in a sentence — a file is bytes an agent will open, an archive
- * is a file, and a path half-remembered reaches the agent as a file that is not
- * there.
+ * ruling, and the NODE half of the `@` list (`../chat/nodes.ts`) offers none
+ * unless the query says `is:archived`. None of the three should be
+ * "harmonized" into the others. The tag list ranks the vocabulary of the set a
+ * reader is LOOKING at; the node list names a row of a reading, where what was
+ * put away is drawn on the Trash and nowhere else; and this one completes a
+ * PATH somebody is about to name in a sentence — a file is bytes an agent will
+ * open, an archive is a file, and a path half-remembered reaches the agent as a
+ * file that is not there.
  *
  * ## A prefix first and a substring second, which is not a score
  *
@@ -66,15 +87,17 @@
  * no fuzzy subsequence match and no weighting: what a query means has to be
  * something a person can predict from the query alone.
  *
- * An EMPTY query answers with the whole directory (capped), which is what
- * makes a bare `@` a way of seeing what this vault even holds.
+ * An EMPTY query answers with the whole list (capped), which is what makes a
+ * bare `@` a way of seeing what this vault even holds. A door with nothing to
+ * show for an empty box does not ask (`../palette/documents.ts`).
  */
 
 /** One served path, ready to be matched: its own spelling, and the two folded
  *  forms the buckets below ask about. Both are computed once, when the
  *  directory changes, rather than per keystroke. */
 export interface Folded {
-  /** Root-relative, `/`-spelled — what a chosen row writes into the message. */
+  /** Root-relative, `/`-spelled — what a chosen row writes into a message, and
+   *  what a document row opens. */
   readonly path: string
   /** The whole path, folded for case. */
   readonly whole: string
@@ -103,12 +126,15 @@ export const folded = (paths: ReadonlyArray<string>): ReadonlyArray<Folded> => {
  * fill the list: a query typed towards a real file finds its answer without
  * reading the rest of the vault.
  *
- * THE CAP IS THE CALLER'S because the list is shared now: this half and the
- * node half divide eight rows between them ({@link ./naming.ts}), and a cap
- * kept here would be a second opinion about a number that has to be one. It is
- * asked for the WHOLE list rather than for this half's share — the early exit
- * above is why: a pass that stopped at three could not be asked for eight
- * afterwards, when the other half turned out to have nothing to offer.
+ * THE CAP IS THE CALLER'S because the list this fills is not the same list at
+ * every door: in the `@` popup this half and the node half divide eight rows
+ * between them ({@link ../chat/naming.ts}), and in the palette the document
+ * rows are a block of their own under the commands
+ * ({@link ../palette/documents.ts}). A cap kept here would be a second opinion
+ * about a number each of those already owns. The `@` half is asked for the
+ * WHOLE list rather than for its share — the early exit above is why: a pass
+ * that stopped at three could not be asked for eight afterwards, when the
+ * other half turned out to have nothing to offer.
  */
 export const matchFiles = (
   files: ReadonlyArray<Folded>,

@@ -25,6 +25,54 @@ Feature: Documents
     And the page has not reloaded
     And there should be no page errors
 
+  # The ⌘K row of the `.olai`/`.md` parity table. The palette streamed node
+  # hits and captured a line to the inbox, and offered no way to a document at
+  # all: a reader who knew the file existed had to leave the modal, find the
+  # sidebar and open the folder it lives in.
+  #
+  # What a row is keyed on is the whole of the promise, and it is deliberately
+  # narrow: the file's NAME and the folder it sits in. Nothing here reads a
+  # body — searching what is INSIDE a document is a different question with an
+  # item of its own, and the grammar in this box still selects nodes.
+  @corpus:good
+  Scenario: The ⌘K palette opens a document by name
+    Given I open the outline "house.olai"
+    And I mark the page
+    When I press the palette shortcut
+    And I type "palette" into the palette
+    Then the palette lists the document "notes/palette.md"
+    When I pick the palette item "palette.md"
+    Then the document open is "notes/palette.md"
+    And the address is "/doc/notes/palette.md"
+    # A route, not a reload: the same page the sidebar's row opens.
+    And the page has not reloaded
+    And there should be no page errors
+
+  # One reading, two doors — the rule the node hits already keep. A box that
+  # found a document while the chord beside it did not would be the same drift
+  # inside one client.
+  @corpus:good
+  Scenario: The header's box finds the same document, drawn the same way
+    Given I open the outline "house.olai"
+    When I search the header for "palette"
+    Then the header search lists the document "notes/palette.md"
+    When I press the header search result "palette.md"
+    Then the document open is "notes/palette.md"
+    And the address is "/doc/notes/palette.md"
+    And there should be no page errors
+
+  # A folder is a way in, and an outline is not a document: the rows are the
+  # files a `/doc/` address opens, which is the registry's answer rather than a
+  # list of suffixes written out here.
+  @corpus:good
+  Scenario: The palette's document rows are the bodied files, matched by path
+    Given I open the outline "house.olai"
+    When I press the palette shortcut
+    And I type "notes/" into the palette
+    Then the palette lists the document "notes/palette.md"
+    When I type "garden" into the palette
+    Then the palette lists no document "garden.olai"
+
   @corpus:good
   Scenario: A document is a page of its own, at its own address
     When I open the document "finishes.md"
