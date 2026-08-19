@@ -259,7 +259,7 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
     // write is judged on, so a pile that arrived since the tab last drew the
     // page goes with the rest instead of being quietly left behind.
     case "emptyTrash":
-      return emptyTrashRequest(at)
+      return emptyTrashRequest(at, edit)
   }
 }
 
@@ -378,8 +378,7 @@ const captureRequest = (
 
 /**
  * EVERY ARCHIVE THAT HOLDS ANYTHING, emptied in ONE write — the resolution the
- * `Empty trash` button asks for and the one place in this file that turns one
- * gesture into a BATCH.
+ * `Empty trash` button asks for.
  *
  * The reading is the whole of the work, and it is here for the reason every
  * placement in this file is here: which files the directory serves, which of
@@ -389,34 +388,46 @@ const captureRequest = (
  * failure mode is not a refusal, it is a pile arriving between the draw and the
  * click and quietly surviving a gesture that said "everything".
  *
- * ONE OP OR A BATCH, decided by how many piles there are, and both are things
- * an agent sends: `empty_trash` names one archive, and `apply` runs a list of
- * them as one plan, one validation and one rename. The batch is not an
- * optimisation — it is the only honest way to run N deletions. Half an emptied
- * trash is a state nobody asked for and nothing puts back, so a loop of calls
- * that stopped in the middle would leave a directory nobody can reason about.
+ * ONE OP NAMING THEM ALL, never a batch of one-per-archive — and that is a
+ * correctness decision rather than a tidier spelling. `empty` judges what may
+ * still point into an archive against the UNION of the archives it is emptying;
+ * `apply` plans each op against the set the one before it left, so a `see` from
+ * one pile into another reads as a holder of whichever pile is planned first.
+ * The same two archives then refuse in path order, plan in the reverse, and
+ * refuse both ways round when the two piles name each other — an emptying that
+ * could never land, over records the write was going to delete anyway. Grok
+ * found it against this resolver's own output (#250); the op's own field
+ * argues it where it is declared.
  *
- * AN EMPTY TRASH IS REFUSED HERE rather than sent as a batch of nothing, and
+ * THE COUNT IS THE CALLER'S and is passed straight through. It is the number
+ * the confirm put in front of somebody, and re-deriving it here would be
+ * exactly the second reading the paragraph above rules out — this reading is
+ * newer than the one they read, so a count taken here would always agree with
+ * itself and could never refuse. What it guards against is the write widening
+ * under a retry, and that is checked in the planner, on every attempt.
+ *
+ * AN EMPTY TRASH IS REFUSED HERE rather than sent as an op with no files, and
  * the sentence is this resolver's own for the reason `docDay`'s day-shape check
- * is: an `apply` with no ops is refused by the planner in terms of `apply`
- * ("give at least one op"), which teaches a reader about the wrong thing. The
- * button is not drawn over an empty trash, so nothing a person can press
- * reaches this — what does is a stale tab, and a stale tab deserves the true
- * sentence.
+ * is: an `empty` with an empty list is refused in terms of the list ("name at
+ * least one archive"), which teaches a reader about the wrong thing. The button
+ * is not drawn over an empty trash, so nothing a person can press reaches this
+ * — what does is a stale tab, and a stale tab deserves the true sentence.
  */
-const emptyTrashRequest = (at: Reading): Resolved => {
+const emptyTrashRequest = (
+  at: Reading,
+  edit: Extract<Edit, { verb: "emptyTrash" }>,
+): Resolved => {
   const piles = at.set.files.filter(
     (file) => isArchived(file) && nodesOf(at.derived, file).length > 0,
   )
-  const [only, ...rest] = piles
-  if (only === undefined) {
+  if (piles.length === 0) {
     return Result.fail(refusal("the Trash is empty, so there is nothing to delete"))
   }
-  return Result.succeed(
-    rest.length === 0
-      ? { op: "empty", file: only }
-      : { op: "apply", ops: piles.map((file) => ({ op: "empty", file } as const)) },
-  )
+  return Result.succeed({
+    op: "empty",
+    files: piles,
+    ...(edit.was === undefined ? {} : { was: edit.was }),
+  })
 }
 
 // ── the four moves ─────────────────────────────────────────────────────

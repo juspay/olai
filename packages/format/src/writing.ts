@@ -666,52 +666,81 @@ export const UnarchiveRequest = Schema.Struct({
 })
 
 /**
- * EVERYTHING IN ONE ARCHIVE, GONE — the one write in this vocabulary that
- * destroys rather than moves, and the only one the trash has ever had.
+ * THE TRASH, EMPTIED — the one write in this vocabulary that destroys rather
+ * than moves, and the only one the trash has ever had.
  *
  * `archive` made a trash rather than a shredder, and `unarchive` made it one
  * you can reach back into; what neither of them gave anybody is a way to stop
  * carrying what was put away. This is that way, and it is deliberately the
- * SMALLEST shape that can be: one archive named outright, every record in it
- * removed, the file left behind holding nothing. There is no `id` here and
+ * SMALLEST shape that can be: archives named outright, every record in them
+ * removed, the files left behind holding nothing. There is no `id` here and
  * there never will be — deleting ONE node out of the trash is a shredder aimed
  * at a row, which is the gesture #109's deferral is about and is still the
  * human's to rule on. What this op can say is "stop keeping the pile", which
  * is what emptying a bin means.
  *
- * `file` IS REQUIRED, and that is the same decision `create_outline`'s path is:
- * an op whose subject is a file names one. A directory can hold several
- * archives — one beside each outline's own directory — so a wordless "empty
- * the trash" would be one op with an unbounded and unnamed blast radius, and
- * an answer (`WriteResult`'s `file`) that could not say which pile it meant.
- * The whole trash is therefore an `apply` of these, one per archive, which is
- * ONE plan, ONE validation and ONE rename exactly as a single op is — and it is
- * what both faces send: the Trash page's `Empty trash` resolves to it
- * (`@olai/server`'s `edit.ts`), and an agent writes the same batch.
+ * **`files` IS A LIST, AND THAT IS THE WHOLE OF THE OP'S SHAPE.** It was one
+ * path — a file op names a file, `create_outline`'s decision — with the whole
+ * trash spelled as an `apply` of one `empty` per archive. That shape has a hole
+ * in it, and the hole is the refusal below rather than the write: each op in a
+ * batch is planned against the set the op before it left, so an archive's
+ * holders are judged against ONE pile while the emptying is about several. A
+ * `see` from `garden/Archive.olai` into `Archive.olai` then reads as a holder —
+ * it is outside the pile in hand — and the same two ops refuse in path order,
+ * succeed in the reverse, and refuse BOTH ways round when the two piles name
+ * each other. Every one of those is a record the write deletes, and the set it
+ * would leave is one the validator accepts.
+ *
+ * A sort does not fix it and neither does a rule inside the fold: what is
+ * wrong is that the op's SUBJECT was one file when the thing being emptied is
+ * several. Named together, the union is the going set by construction, the
+ * cycle is not a special case, and the order of the list means nothing. It
+ * also takes `apply` off the browser's path entirely — the Trash page's
+ * `Empty trash` is one op now, not a batch — which is the difference between
+ * answering the ordering question and not having one.
  *
  * **WHAT IT IS REFUSED FOR is the rule `remove_mirror` already keeps**, read
- * over a set instead of over one record: a record that is still NAMED by
+ * over that union instead of over one record: a record that is still NAMED by
  * something staying behind — a mirror placed in a live outline, a `see`, an
  * `after` — is not deletable, because the set it would leave is one the
  * validator condemns (`unknown-target`). So the call is refused naming what
  * still points in, and the way through is to re-point or retire those first.
- * References BETWEEN records in the same emptying are not dependents: they go
- * when they go.
+ * References BETWEEN records in the same emptying are not dependents, whichever
+ * of the named archives each one lives in: they go when they go.
  *
- * **AND IT DESTROYS EXACTLY AS MUCH AS IT SAYS.** The `.olai` is rewritten with
- * no records in it, through the same gate, in the same all-or-none rename, and
- * the write is committed by whichever door commits every other write — so the
- * bytes are recoverable from git to exactly the extent git had already recorded
- * them, and no further. A `doc` an archived node named is a FILE and is not
- * touched: a document is not a node, nothing here names bytes, and a `.md`
- * left without a referrer is a file a person can see and remove.
+ * **AND {@link EmptyRequest.was} IS THE OTHER HALF OF THAT HONESTY.** A write
+ * is re-planned against a newer snapshot when the store moves under it, and a
+ * re-plan of this one silently widens: a record archived in between is a record
+ * the retry deletes, and nobody agreed to it. The field is the count — the very
+ * number the web's confirm puts in front of somebody — checked on every attempt
+ * against the snapshot that attempt is judged on, which is where `set_title`'s
+ * own `was` learned to live. Optional, because an agent sweeping a directory
+ * means "whatever is there" and a caller that showed a number means the number.
+ *
+ * **AND IT DESTROYS EXACTLY AS MUCH AS IT SAYS.** Each `.olai` is rewritten
+ * with no records in it, through the same gate, in the same all-or-none rename,
+ * and the write is committed by whichever door commits every other write — so
+ * the bytes are recoverable from git to exactly the extent git had already
+ * recorded them, and no further. A `doc` an archived node named is a FILE and
+ * is not touched: a document is not a node, nothing here names bytes, and a
+ * `.md` left without a referrer is a file a person can see and remove.
  */
 export const EmptyRequest = Schema.Struct({
   op: Schema.Literal("empty"),
-  file: Schema.String.annotate({
+  files: Schema.Array(
+    Schema.String.annotate({
+      description: "An `Archive.olai` the served directory holds, root-relative.",
+    }),
+  ).annotate({
     description:
-      "The archive to empty — an `Archive.olai` the served directory holds, root-relative, exactly as `list_outlines` spells it. Every record in it goes, the scaffold of ancestor titles included, and the file stays behind empty. Refused for an outline that is not an archive, for one the set does not hold, for one that is already empty, and while anything OUTSIDE it still names a record in it (a mirror, a `see`, an `after`) — naming what to re-point first.",
+      "Every archive this write empties, named together — root-relative paths, exactly as `list_outlines` spells them. Every record in each goes, the scaffold of ancestor titles included, and the files stay behind empty. NAME THEM ALL IN ONE CALL when you mean to empty more than one: what may still point into them is judged against the UNION, so a `see` from one of these piles into another is a record this write deletes rather than a holder, and splitting the same emptying across two calls (or two `apply` entries) refuses on edges that would have been fine. Refused for an outline that is not an archive, for one the set does not hold, for a list that is empty or holds nothing at all, and while anything outside EVERY archive named still points into one — naming what to re-point first.",
   }),
+  was: Schema.optionalKey(
+    Schema.Int.annotate({
+      description:
+        "How many records these archives are expected to hold RIGHT NOW, together. Absent empties whatever is there, which is what a sweep means. Supply it when a number was shown to somebody — the web's confirm names one — and the write is refused, naming both counts, if a record arrived in the meantime: the alternative is deleting something nobody agreed to and reporting the count they read.",
+    }),
+  ),
 })
 
 /**
@@ -1089,15 +1118,21 @@ const arm = <F extends Schema.Struct.Fields>(schema: Schema.Struct<F>): Schema.S
  * shape "reconcile these five lanes" actually has.
  *
  * AND `empty` IS IN, which is the one entry that has to argue against the
- * paragraph above rather than with it: it NAMES a file. What that sentence is
+ * paragraph above rather than with it: it NAMES files. What that sentence is
  * really about is a write whose subject is a file's EXISTENCE — a path that may
  * be mistyped into somebody else's transaction — and this one has no such
- * subject: the archive it names must already be in the loaded set, it is left
- * standing afterwards, and what the op is about is the RECORDS in it. The batch
- * also buys it the thing the other three have no use for. A directory can hold
- * several archives, so "empty the trash" is N of these, and the only honest way
- * to run N deletions is all or none — half an emptied trash is a state nobody
- * asked for and nothing puts back.
+ * subject: every archive it names must already be in the loaded set, they are
+ * left standing afterwards, and what the op is about is the RECORDS in them. A
+ * batch is genuinely useful over it — emptying the trash and marking the lane
+ * that finished with it is one write — which the other three have no use for.
+ *
+ * WHAT A BATCH IS NOT is a way to spell ONE emptying as several. `empty` takes
+ * every archive it means in its own `files`, and its holder check is over that
+ * union; two `empty` entries in one batch are two emptyings, each judged
+ * against its own union and the second against the set the first left. That is
+ * `apply`'s documented sequencing working exactly as it should, and it is the
+ * wrong tool for a single gesture over several piles — which is why the browser
+ * sends one op and the tool's own description says to name them together.
  */
 const BATCHED = [
   arm(AddRequest),

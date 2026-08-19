@@ -172,7 +172,7 @@ Feature: The trash can be seen into, taken out of, and emptied
     Then "house.olai" no longer holds the node "install"
     When I open the Trash
     And I press Empty trash
-    And I press Empty trash
+    And I confirm emptying the Trash
     Then "Archive.olai" holds nothing
     And the Trash is empty
     And the Trash does not offer Empty trash
@@ -193,7 +193,46 @@ Feature: The trash can be seen into, taken out of, and emptied
     Then "Archive.olai" holds the node "order"
     When I open the Trash
     And I press Empty trash
-    And I press Empty trash
+    And I confirm emptying the Trash
     Then the Trash says "`Archive.olai` still has records pointed INTO it from outside: `install` (`after`, house.olai:3), `hinges` (`after`, house.olai:5). Deleting what those name would leave them pointing at nothing, so nothing was written — re-point or retire them first, or `unarchive_node` what they name back out."
     And "Archive.olai" holds the node "order"
+    And there should be no page errors
+
+  Scenario: Two piles are one emptying, and an edge BETWEEN them is not a holder
+    # Grok's objection on #250, driven from the button. `catch-up` lives in
+    # `Daily/2026-08.olai`, so it archives into `Daily/Archive.olai` while
+    # `knobs` archives into the root `Archive.olai` — two piles, and a `see`
+    # written from one to the other before either is put away.
+    #
+    # The edge is a record THIS WRITE DELETES, so it is not a reason to refuse.
+    # It used to be one: the button sent an `apply` of one `empty` per archive,
+    # each judged against one pile, so the same two archives refused in path
+    # order and landed in the reverse — and refused both ways round when the
+    # two piles named each other. One op naming both is what fixed it.
+    When I open the outline "Daily/2026-08.olai"
+    And I open the node menu of "catch-up"
+    And I choose "Link to a node…" from the node menu
+    Then the see panel is open on "catch-up"
+    When I search the edge panel for "knobs"
+    And I choose "pick the knobs" from the edge panel
+    Then "Daily/2026-08.olai" holds the node "catch-up" seeing "knobs"
+    When I open the node menu of "catch-up"
+    And I choose "Move to Trash" from the node menu
+    And I choose "Move to Trash" from the node menu
+    Then "Daily/Archive.olai" holds the node "catch-up"
+    When I open the outline "house.olai"
+    And I open the node menu of "knobs"
+    And I choose "Move to Trash" from the node menu
+    And I choose "Move to Trash" from the node menu
+    Then "Archive.olai" holds the node "knobs"
+    When I open the Trash
+    # Five: two signpost titles above `knobs`, one above `catch-up`, and the
+    # two rows themselves — counted over both piles, which is the union the
+    # write is about.
+    And I press Empty trash
+    Then the Trash asks "Permanently delete all 5 rows in the Trash? Nothing in olai puts them back — the records leave the archive the way every other write does, so what survives is whatever git has already recorded."
+    When I confirm emptying the Trash
+    Then "Archive.olai" holds nothing
+    And "Daily/Archive.olai" holds nothing
+    And the Trash is empty
     And there should be no page errors

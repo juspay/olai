@@ -548,38 +548,61 @@ test("a merge names the row and nothing else — the sibling above is the set's"
 
 // ── the trash, emptied ─────────────────────────────────────────────────
 
-/** A house with an archive beside it, and optionally a second pile in a
- *  subdirectory — the two shapes the button has to resolve differently. */
+/** A house with an archive beside it, and a second pile in a subdirectory —
+ *  the shape that makes "empty the trash" more than one file. */
 const ARCHIVED = [
   `{"id":"sc1","ord":"a0","title":"Kitchen remodel"}`,
   `{"id":"knobs","parent":"sc1","ord":"a0","title":"pick the knobs"}`,
 ].join("\n")
 
-test("one pile resolves to one `empty`, naming the archive the SET holds", () => {
-  const at = reading(setOf({ "house.olai": HOUSE, "Archive.olai": ARCHIVED }))
-  expect(asked({ verb: "emptyTrash" }, at)).toEqual({ op: "empty", file: "Archive.olai" })
-})
-
-test("several piles resolve to ONE batch, because half an emptied trash is not a state", () => {
-  const at = reading(setOf({
+/** Two piles, and whatever the second one's record points at — the parameter
+ *  is the cross-pile edge grok's objection is about (#250). */
+const twoPiles = (points = ""): Reading =>
+  reading(setOf({
     "house.olai": HOUSE,
     "Archive.olai": ARCHIVED,
     "garden/plot.olai": `{"id":"beds","ord":"a0","title":"the beds"}`,
-    "garden/Archive.olai": `{"id":"sc2","ord":"a0","title":"the beds"}`,
+    "garden/Archive.olai": [
+      `{"id":"sc2","ord":"a0","title":"the beds"}`,
+      `{"id":"quote","parent":"sc2","ord":"a0","title":"a quote"${points}}`,
+    ].join("\n"),
   }))
-  expect(asked({ verb: "emptyTrash" }, at)).toEqual({
-    op: "apply",
-    ops: [
-      { op: "empty", file: "Archive.olai" },
-      { op: "empty", file: "garden/Archive.olai" },
-    ],
+
+test("one pile resolves to one `empty`, naming the archive the SET holds", () => {
+  const at = reading(setOf({ "house.olai": HOUSE, "Archive.olai": ARCHIVED }))
+  expect(asked({ verb: "emptyTrash" }, at))
+    .toEqual({ op: "empty", files: ["Archive.olai"] })
+})
+
+test("several piles resolve to ONE op naming them all, never a batch of one each", () => {
+  // THE FIX FOR #250, at the seam that produced the bug. A batch plans each op
+  // against the set the one before it left, so a `see` from one pile into
+  // another reads as a holder of whichever pile is planned first: the same two
+  // archives refused in path order, planned in the reverse, and refused both
+  // ways round when they named each other. One op naming both makes the going
+  // set the union by construction, so the order of the list means nothing.
+  expect(asked({ verb: "emptyTrash" }, twoPiles())).toEqual({
+    op: "empty",
+    files: ["Archive.olai", "garden/Archive.olai"],
   })
 })
 
-test("an archive that holds nothing is not in the batch at all", () => {
+test("the cross-pile edge is inside the same request, which is the whole point", () => {
+  // Grok's topology at this seam: `quote`, bound for `garden/Archive.olai`,
+  // names `knobs` in `Archive.olai`. The resolver puts BOTH archives in one
+  // request, so the planner judges that edge against the union and it is a
+  // record the write deletes rather than a holder that refuses it
+  // (`@olai/ops`' `plan.test.ts` holds the planning half).
+  expect(asked({ verb: "emptyTrash" }, twoPiles(`,"see":["knobs"]`))).toEqual({
+    op: "empty",
+    files: ["Archive.olai", "garden/Archive.olai"],
+  })
+})
+
+test("an archive that holds nothing is not in the list at all", () => {
   // An emptied archive is a file the directory still serves — `unarchive`
   // tidies its scaffold away and leaves it standing — so the resolution has to
-  // skip it rather than send an op the planner is about to refuse.
+  // skip it rather than send a path the planner is about to refuse.
   const at = reading(setOf({
     "house.olai": HOUSE,
     "Archive.olai": "",
@@ -587,14 +610,24 @@ test("an archive that holds nothing is not in the batch at all", () => {
     "garden/Archive.olai": `{"id":"sc2","ord":"a0","title":"the beds"}`,
   }))
   expect(asked({ verb: "emptyTrash" }, at))
-    .toEqual({ op: "empty", file: "garden/Archive.olai" })
+    .toEqual({ op: "empty", files: ["garden/Archive.olai"] })
+})
+
+test("the count the confirm showed travels, and is never re-derived here", () => {
+  // Re-deriving it would be the second reading this whole file exists to
+  // avoid — and a useless guard besides, since a count taken from THIS reading
+  // would always agree with itself. What it guards is the retry, which the
+  // planner checks on every attempt.
+  const at = reading(setOf({ "house.olai": HOUSE, "Archive.olai": ARCHIVED }))
+  expect(asked({ verb: "emptyTrash", was: 9 }, at))
+    .toEqual({ op: "empty", files: ["Archive.olai"], was: 9 })
 })
 
 test("an empty trash is refused HERE, in terms of the trash", () => {
   // The button is not drawn over an empty trash, so what reaches this is a
   // stale tab — and a stale tab deserves the true sentence rather than
-  // `apply`'s "give at least one op", which teaches a reader about the wrong
-  // thing entirely.
+  // `empty`'s "name at least one archive", which teaches a reader about the
+  // wrong thing entirely.
   const failure = refused({ verb: "emptyTrash" }, reading())
   expect(failure._tag).toBe("UsageFailure")
   expect(failure.message).toBe("the Trash is empty, so there is nothing to delete")

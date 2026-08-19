@@ -74,10 +74,19 @@ export function EmptyTrash(props: {
 
   const empty = async () => {
     confirm.begin()
-    // The answer, handed straight through: a refusal is the ops layer's own
+    // THE COUNT TRAVELS WITH THE WRITE, and it is read here rather than
+    // remembered from when the question went up — which is the same value,
+    // because a count that moved took the question down with it
+    // (`../confirming.ts`). What it buys is the frames AFTER this: a write is
+    // re-planned against a newer snapshot when the store moves under it, so
+    // without the number a record archived in between is one the retry deletes
+    // under a sentence that named a smaller one. The ops layer checks it on
+    // every attempt.
+    //
+    // The answer is handed straight through: a refusal is the ops layer's own
     // sentence and a landed write may have a nudge, and `say` reads
     // `undefined` as "nothing to report" rather than as a sentence.
-    const answer = await applying({ verb: "emptyTrash" }, undo.record)
+    const answer = await applying({ verb: "emptyTrash", was: going() }, undo.record)
     confirm.done()
     say(answer)
   }

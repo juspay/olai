@@ -209,14 +209,36 @@ Then(
 
 // ── emptying it ────────────────────────────────────────────────────────
 
-/** The page's own verb — one control, three states (offered, asking, gone),
- *  which is why every step below reaches it by the same selector rather than
- *  by the words on it. */
-When("I press Empty trash", async function (this: OlaiWorld) {
-  await this.page
+/** The page's own verb, pressed. ONE control in three states — offered,
+ *  asking, working — so every step here reaches it by the same selector rather
+ *  than by the words on it, which is the same fact its testid records. */
+const pressEmptyTrash = async (world: OlaiWorld): Promise<void> => {
+  await world.page
     .locator(TRASH_EMPTY_VERB)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await this.page.locator(TRASH_EMPTY_VERB).click();
+  await world.page.locator(TRASH_EMPTY_VERB).click();
+};
+
+/** The FIRST press: it raises the question and writes nothing. */
+When("I press Empty trash", async function (this: OlaiWorld) {
+  await pressEmptyTrash(this);
+  await this.page
+    .locator(TRASH_EMPTY_CONFIRM)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/** …and the SECOND, which is the one that deletes. Its own sentence rather
+ *  than the same one twice: the two presses reach the same control and mean
+ *  entirely different things, and a scenario that says so cannot be misread by
+ *  whoever copies the pattern next. It waits for the confirm to be UP first,
+ *  so a step that lands before the question is drawn fails as a missing
+ *  question rather than by quietly arming one. */
+When("I confirm emptying the Trash", async function (this: OlaiWorld) {
+  await this.page
+    .locator(TRASH_EMPTY_CONFIRM)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await pressEmptyTrash(this);
+  await this.waitForFrame();
 });
 
 When("I cancel emptying the Trash", async function (this: OlaiWorld) {

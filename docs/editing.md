@@ -290,7 +290,7 @@ Not every row in there is a thing you put away. Above each pile sit the **titles
 
 **Empty trash**, beside the heading on the Trash page, is the one thing in olai that permanently deletes. Everything in every archive the directory holds goes — the subtrees you put away and the signpost titles above them — and it goes for good: there is no second bin behind this one, no ⌘Z, and no put-back.
 
-It asks first, and the question **names how many rows go**, counted over what the archives actually hold rather than over what the page is drawing. Filter the Trash down to one row and press it, and the sentence still says all of them, because that is what the write moves. **Cancel** writes nothing at all.
+It asks first, and the question **names how many rows go**, counted over what the archives actually hold rather than over what the page is drawing. Filter the Trash down to one row and press it, and the sentence still says all of them, because that is what the write moves. **Cancel** writes nothing at all. That number travels with the write, too: if something is archived between the moment you read the sentence and the moment it lands, the write is refused naming both counts rather than quietly taking the newcomer with it.
 
 **What survives is whatever git has already recorded**, which is what the question says and all it says. The records leave the archive through the same gate every other write goes through, and the emptying is committed by whichever door commits everything else ([git.md](git.md)) — so a directory that is a repository can find them in its history, one served `--no-commit` cannot, and neither can one whose archive has been sitting uncommitted since you put the row away. Nothing here reaches into git on your behalf; recovering a deleted record is `git log`, `git show` and a paste, in a terminal.
 
@@ -298,7 +298,7 @@ It asks first, and the question **names how many rows go**, counted over what th
 
 **An empty Trash does not offer the verb at all**, which is the same rule the page's own "The Trash is empty." keeps: whether there is anything to delete is a fact about the archives, and a filter that matched nothing is a fact about the query.
 
-An agent's `empty_trash` is the same op, one archive at a time; a directory keeping several piles is emptied as one batch, so half an emptied trash is not a state either face can reach.
+An agent's `empty_trash` is the same op: it takes the archives to empty as a list, and a directory keeping several piles is emptied by naming them all in one call — so half an emptied trash is not a state either face can reach, and a `see` from one pile into another is a record the write deletes rather than a reason it refuses.
 
 Deliberately absent, and still the human’s to rule on: a delete key. Emptying the Trash is not one — it names no node, reaches no live outline, and can only take rows you have already put away and can still see.
 

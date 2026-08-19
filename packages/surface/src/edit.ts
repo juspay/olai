@@ -652,7 +652,7 @@ export const Edit = Schema.Union([
    * EMPTY THE TRASH — permanently delete everything in it, and the ONE write
    * on this surface that destroys.
    *
-   * It carries NOTHING, and that is the whole shape of it. Which archives the
+   * IT NAMES NO ARCHIVE, and that is the shape of it. Which archives the
    * directory holds, and which of them have anything in them, are facts about
    * the SET — so they are read where the write is judged
    * ({@link ../../server/src/edit.ts}), exactly as the inbox `capture` lands in
@@ -662,12 +662,20 @@ export const Edit = Schema.Union([
    * disagreement would surface as a pile quietly left behind rather than as a
    * refusal.
    *
-   * IT RESOLVES TO `empty_trash`, one per archive, batched with `apply` when
-   * there is more than one. Nothing an agent cannot send: the op names a file,
-   * the batch is the ops layer's own, and an agent emptying a whole directory
-   * makes the same two moves by hand (`list_outlines`, then the batch). What
-   * the browser is spared is the READING, not an op — quick capture's sentence,
-   * a page over.
+   * IT RESOLVES TO ONE `empty_trash` NAMING EVERY PILE, which is the op's own
+   * shape rather than a convenience: what may still point into an archive is
+   * judged against the UNION of every archive the write empties, so a `see`
+   * from one pile into another is a record that goes rather than a holder that
+   * refuses. Spelled as a batch of one-per-archive — which it was — the same
+   * two piles refuse in one order and plan in the other, and refuse both ways
+   * round when they name each other. Nothing an agent cannot send: the op takes
+   * the list, and an agent emptying a whole directory makes the same two moves
+   * by hand (`list_outlines`, then the call). What the browser is spared is the
+   * READING, not an op — quick capture's sentence, a page over.
+   *
+   * WHAT IT DOES CARRY is the number the confirm showed, and only that
+   * ({@link was} below): a count nobody is asked to compute, checked where
+   * every other condition is checked.
    *
    * **THIS IS THE DELETE, AND IT IS NOT THE DELETE THE DEFERRAL IS ABOUT.**
    * The header above has said since #124 that no key erases a branch, and that
@@ -690,7 +698,31 @@ export const Edit = Schema.Union([
    * this schema enforced would be a rule an agent's `empty_trash` does not
    * have.
    */
-  Schema.Struct({ verb: Schema.Literal("emptyTrash") }),
+  Schema.Struct({
+    verb: Schema.Literal("emptyTrash"),
+    /**
+     * How many rows the CONFIRM named — the number a person read and agreed
+     * to, carried so the write can be refused if the trash has moved since.
+     *
+     * The one field on this verb, and it is here for the reason {@link Was} is
+     * on the two text verbs: a write is re-planned against a newer snapshot
+     * when the store moves under it, and a re-plan of this one silently
+     * WIDENS. A record archived between the frame somebody read and the write
+     * landing is a record the retry deletes, under a sentence that named a
+     * smaller number. So the number travels, and the ops layer checks it on
+     * every attempt against the snapshot that attempt is judged on — never
+     * here, which is the TOCTOU the undo's `was` was found to have.
+     *
+     * It is a COUNT rather than the ids, because a count is what the sentence
+     * says. The ids would refuse for a re-archive that left the same total,
+     * which is a different promise from the one a person was shown.
+     *
+     * Optional on the wire, because `empty_trash` is optional for an agent:
+     * a sweep that shows nobody a number means "whatever is there". Every
+     * caller in this client sends it.
+     */
+    was: Schema.optionalKey(Schema.Int),
+  }),
 
   // ── the palette's one ────────────────────────────────────────────────
 
