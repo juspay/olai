@@ -203,8 +203,8 @@ hm-module:
 # completion asks of the view it leaves are numbers about one directory; the
 # matcher generates a corpus of its own, sized for keystrokes rather than for a
 # directory. What a FRAME costs the tab is not timed here any
-# more: the merge is the framework's, and kolu's own
-# `packages/surface/src/solid/collectionDeltas.bench.ts` measures it end to end.
+# more: the merge is the framework's, and `@kolu/surface`'s own
+# `src/solid/collectionDeltas.bench.ts` measures it end to end.
 # Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS / OLAI_BENCH_EDITS —
 # and turning the last one up to 900 is what makes the first leg's layer grow
 # past half the id map and flatten, which it prints the edit of.

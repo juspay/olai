@@ -154,8 +154,20 @@ export const createOutlines = (): Outlines => {
      * The gate, and now the only thing between the fold and a reader: a set that
      * has NEVER loaded has nothing to show derived, and the page it gets is the
      * error report rather than an empty tree. So the `undefined` here is the
-     * manifest's two absent states and the fold's own one — no snapshot yet —
-     * and not a third one this module invented.
+     * manifest's two absent states and the fold's own — no snapshot yet, or a
+     * throw the framework contained, reported and will re-seed on the next one
+     * — and not a state this module invented.
+     *
+     * IT GATES AND NO LONGER RESETS, which is the one behaviour this module
+     * traded away and is worth saying rather than discovering. The memo it
+     * replaces held the view itself, so a manifest falling back to `null` threw
+     * the view away and the next frame was rebuilt from scratch. The
+     * accumulator is the fold's now, and what re-initialises it is the WIRE's
+     * own snapshot boundary — first connect, and every reconnect. That is the
+     * more honest of the two: the collection and the cell are separate members,
+     * a directory that goes never-loaded empties the collection through frames
+     * this fold applies, and a view rebuilt because a NEIGHBOURING cell went
+     * absent was always a coincidence of where the state was kept.
      */
     derived: createMemo(() => {
       const loaded = manifest.value()

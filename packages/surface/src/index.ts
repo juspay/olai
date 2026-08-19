@@ -155,8 +155,9 @@ import { SearchAnswer, SearchRequest } from "./search.ts"
  * and a server that does not recognise itself retires the tab
  * (`packages/tests/features/the_connection.feature` restarts a server under a
  * live tab and asserts exactly that, plus the reload that recovers it). So a
- * reader folding on these numbers is always folding within the run that minted
- * them.
+ * reader COMPARING these numbers — a write against the base it read, a page
+ * against the revision it last saw — is always comparing within the run that
+ * minted them.
  */
 export const OutlineEntry = Schema.Struct({
   rev: Schema.Int,
