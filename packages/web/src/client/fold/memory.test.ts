@@ -12,7 +12,7 @@
  */
 
 import { derive } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import {
@@ -217,13 +217,13 @@ test("a write starts from the ENTRY: a sibling tab's fold this tab never saw sur
 
 test("what a file declares is read off the set the browser is holding", () => {
   const derived = derive(
-    setOf({
+    recordsOf(setOf({
       "house.olai": `{"id":"kitchen","ord":"a0","title":"kitchen"}`,
       "garden.olai": [
         `{"id":"garden","ord":"a0","title":"garden"}`,
         `{"id":"herbs","parent":"garden","ord":"a0","title":"herbs"}`,
       ].join("\n"),
-    }).nodes,
+    })),
   )
   expect(idsByFile(derived)).toEqual(
     new Map([

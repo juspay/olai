@@ -3,8 +3,9 @@
  *
  * A long document — an architecture note runs to hundreds of lines — has no
  * way to be surveyed or jumped around. This is the half of the answer that
- * lives in the pipeline: `rehype-slug` gives every heading an `id` made from
- * its own text, and `rehype-autolink-headings` puts a small link beside it
+ * lives in the pipeline: ./slugs.ts gives every heading an `id` made from its
+ * own text — by the FORMAT's rule, so the id on the page is the one a document's
+ * face says it has, and `rehype-autolink-headings` puts a small link beside it
  * pointing at that id. ./outline.ts is the other half, which reads those same
  * ids back out as a heading tree, and `document/Toc.tsx` draws it.
  *

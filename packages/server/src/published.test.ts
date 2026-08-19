@@ -10,7 +10,7 @@
  */
 
 import type { OutlineSet, Reading } from "@olai/format"
-import { readingOf, setOf } from "@olai/format/testlib"
+import { readingOf, recordsOf, setOf } from "@olai/format/testlib"
 import type { Snapshot } from "@olai/store"
 import { expect, test } from "bun:test"
 
@@ -31,7 +31,7 @@ const revision = (
   // The pair the store publishes: a snapshot carries the set AND the view the
   // validator judged it against, and this projection reads both halves.
   value: readingOf(value),
-  changed: moved.changed ?? [...value.files, ...value.documents.map((d) => d.file)],
+  changed: moved.changed ?? value.documents.map((document) => document.path),
   removed: moved.removed ?? [],
 })
 
@@ -49,13 +49,20 @@ test("every file the set lists gets an entry, at the set's revision", () => {
   )
 
   expect([...outlines.entries.keys()]).toEqual(["empty.olai", "house.olai"])
-  expect(outlines.entries.get("house.olai")).toEqual({
+  expect(outlines.entries.get("house.olai")).toMatchObject({
     rev: 7,
-    nodes: setOf({ "house.olai": HOUSE }).nodes,
+    nodes: recordsOf(setOf({ "house.olai": HOUSE })),
     broken: null,
   })
+  // AND WHAT THE FILE IS, beside what it holds: the face the decode built,
+  // cut from the same document the records were (`@olai/format`'s `Face`).
+  expect(outlines.entries.get("house.olai")?.face.title).toBe("house")
   // A file that holds nothing is still an outline somebody can open.
-  expect(outlines.entries.get("empty.olai")).toEqual({ rev: 7, nodes: [], broken: null })
+  expect(outlines.entries.get("empty.olai")).toMatchObject({
+    rev: 7,
+    nodes: [],
+    broken: null,
+  })
   // A document is not an outline: it is a key of its own collection.
   expect(outlines.entries.has("notes.md")).toBe(false)
 })
@@ -308,8 +315,11 @@ test("every bodied file has a head, and it is that file's revision alone", () =>
   )
 
   expect([...heads.entries.keys()]).toEqual([...documents.entries.keys()])
-  expect(heads.entries.get("notes.md")).toEqual({ rev: 4 })
-  expect(heads.entries.get("report.html")).toEqual({ rev: 4 })
+  expect(heads.entries.get("notes.md")).toMatchObject({ rev: 4 })
+  expect(heads.entries.get("report.html")).toMatchObject({ rev: 4 })
+  // The head carries the face, which is the whole of what a browser knows
+  // about a document it has not opened.
+  expect(heads.entries.get("notes.md")?.face.title).toBe("hello")
   // An outline is not a bodied file: it has an entry of its own, with its own
   // revision on it.
   expect(heads.entries.has("house.olai")).toBe(false)
@@ -339,10 +349,11 @@ test("a `.html` that changed is upserted here even though its body is not", () =
     first,
   )
   expect(second.documents.upserts).toEqual([])
-  expect(second.heads.upserts).toEqual([["report.html", { rev: 2 }]])
+  expect(second.heads.upserts.map(([path, head]) => [path, head.rev]))
+    .toEqual([["report.html", 2]])
   // …and the file NOBODY touched keeps the number it was published with, so a
   // reader watching it is not woken by the directory's clock.
-  expect(second.heads.entries.get("notes.md")).toEqual({ rev: 1 })
+  expect(second.heads.entries.get("notes.md")?.rev).toBe(1)
 
   const gone = publishedOf(
     revision(

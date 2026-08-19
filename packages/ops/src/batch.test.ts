@@ -22,10 +22,12 @@ import {
   derive,
   nodesOf,
   type OutlineSet,
+  outlinePaths,
   serializeOutline,
   WriteRequest,
   type WriteRequest as Request,
 } from "@olai/format"
+import { recordsOf } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
@@ -52,10 +54,10 @@ const batch = (...ops: ReadonlyArray<BatchedRequest>): Request => ({ op: "apply"
  *  less is a comparison against a set the batch was never judged on. */
 const after = (set: OutlineSet, request: Request): OutlineSet => {
   const texts = Object.fromEntries(
-    set.files.map((file) => [
+    outlinePaths(set).map((file) => [
       file,
       serializeOutline(
-        nodesOf(derive(set.nodes), file).map((located) => located.node),
+        nodesOf(derive(recordsOf(set)), file).map((located) => located.node),
       ),
     ]),
   )

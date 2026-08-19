@@ -164,7 +164,7 @@ export const renderToTree = (
  * translation between an address's fragment and the DOM.
  *
  * They are not the same string, and the difference is this module's own doing:
- * `rehype-slug` gives `## Beds` the id `beds`, and then {@link rewrite}'s `mint`
+ * ./slugs.ts gives `## Beds` the id `beds`, and then {@link rewrite}'s `mint`
  * moves every id into the block's namespace, so what is on the page is
  * `md-1f2e3d-beds`. That is not decoration — a page can hold a document, a note
  * per row and a day's own notes, and two of them opening `## Shape` would

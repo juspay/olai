@@ -16,8 +16,9 @@
 
 import {
   assemble,
+  bodiedDocument,
   bodyKind,
-  type DecodedFile,
+  type Document,
   fileKind,
   nodesIn,
   type OutlineError,
@@ -29,7 +30,7 @@ import {
 import type { Codec } from "@olai/store"
 import { Result } from "effect"
 
-export const codec: Codec<DecodedFile, Reading, ReadonlyArray<OutlineError>> = {
+export const codec: Codec<Document, Reading, ReadonlyArray<OutlineError>> = {
   match: (path) => fileKind(path) !== null,
 
   /** A file whose content the set does not KEEP decodes to its path and
@@ -42,7 +43,7 @@ export const codec: Codec<DecodedFile, Reading, ReadonlyArray<OutlineError>> = {
    *  OPENS one gets is a body read then and there and kept by nobody
    *  (`@olai/server`'s `bodies.ts`); what the SET gets is the path, which is
    *  all a `doc` reference was ever checked against. */
-  byName: (path) => unkept(path) ? Result.succeed({ file: path, text: null }) : null,
+  byName: (path) => unkept(path) ? Result.succeed(bodiedDocument(path, null)) : null,
 
   /** A BODIED file decodes to its text, verbatim: what it says is interpreted
    *  at view time, so there is nothing to parse here and nothing that can fail.
@@ -58,7 +59,7 @@ export const codec: Codec<DecodedFile, Reading, ReadonlyArray<OutlineError>> = {
    *  as records. */
   decode: (path, contents) =>
     bodyKind(path) !== null
-      ? Result.succeed({ file: path, text: contents })
+      ? Result.succeed(bodiedDocument(path, contents))
       : parseOutline(path, contents),
 
   /** Failures included: whether an unreadable file is a hole the rest of the

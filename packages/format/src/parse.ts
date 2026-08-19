@@ -23,6 +23,7 @@
 import { Result, Schema } from "effect"
 import * as SchemaIssue from "effect/SchemaIssue"
 
+import { type Outline, outlineDocument } from "./document.ts"
 import type { OutlineError } from "./errors.ts"
 import {
   ID_SHAPE,
@@ -34,7 +35,6 @@ import {
   RegularNode,
 } from "./node.ts"
 import { canonicalRepeat, REPEAT_GRAMMAR } from "./repeat.ts"
-import type { Outline } from "./set.ts"
 
 const options = {
   // Every issue, not the first: a record with three wrong fields should cost
@@ -86,9 +86,14 @@ export const parseOutline = (
     nodes.push(located)
   })
 
+  // The FACE is built here rather than at the assembly, which is the whole of
+  // where PR 2 put that walk: a decode is what the store caches per file per
+  // change, so what a file SAYS — its title, the addresses it points at, the
+  // tags it writes — is read once when its bytes are, and never again for a
+  // keystroke in some other file (`./document.ts`).
   return errors.length > 0
     ? Result.fail(errors)
-    : Result.succeed({ file, nodes })
+    : Result.succeed(outlineDocument(file, nodes))
 }
 
 /** JSON, then shape. */

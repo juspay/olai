@@ -24,13 +24,13 @@
 import { expect, test } from "bun:test"
 
 import { derive, tagPart, type TagSigil, tagText, type TitleTag } from "./derive.ts"
-import { setOf, vaultOf } from "./fixtures.testlib.ts"
+import { recordsOf, setOf, vaultOf } from "./fixtures.testlib.ts"
 import { isMirror } from "./node.ts"
 
 /** The benches' own defaults (`patch.bench.ts`'s `OLAI_BENCH_FILES` /
  *  `OLAI_BENCH_RECORDS`), which is the only size a claim about "the 1,000-file
  *  vault" can be checked at. */
-const view = derive(setOf(Object.fromEntries(vaultOf({ files: 1000, records: 21 }))).nodes)
+const view = derive(recordsOf(setOf(Object.fromEntries(vaultOf({ files: 1000, records: 21 })))))
 
 test("the vault is the directory the published numbers name", () => {
   expect(view.byFile.size).toBe(980)

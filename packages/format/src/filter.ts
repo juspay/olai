@@ -48,9 +48,11 @@ import {
   tagText,
   titleParts,
 } from "./derive.ts"
+import type { Hypertext, Markdown } from "./document.ts"
 import { customOf } from "./custom.ts"
 import { shiftDay, shiftMonth, weekdayOf } from "./calendar.ts"
 import { type DayGroup, datesOf, dayOf, monthOf } from "./dates.ts"
+import { basenameOf } from "./paths.ts"
 import { nothing } from "./write.ts"
 import {
   isArchived,
@@ -1269,26 +1271,75 @@ const matchOf = (
   // and never for a query that names none. `is:done` on its own is exactly that
   // query, and the groups that hold no word are tested first ({@link
   // inCostOrder}), so a node it rejects is rejected before this is reached.
-  let hay: Record<SearchField, ReadonlyArray<string>> | null = null
+  const found = matchedBy(
+    filter.groups,
+    (clause) => holds(derived, at, clause),
+    // The four fields as text, folded — four allocations and up to three folds
+    // of a whole note, so they are minted at the first WORD this node is asked
+    // about and never for a query that names none.
+    () => haystacksOf(at.node),
+    SEARCH_FIELDS,
+    FIELD_WEIGHT,
+  )
+  if (found === null) return null
+
+  // Collected only for a node that has already matched, so the map is walked
+  // for the few nodes a query selects rather than for every node it considers.
+  return { ...found, props: propsOf(at.node, filter) }
+}
+
+/**
+ * WHETHER A THING MATCHES, AND HOW WELL — the algorithm, over whatever
+ * vocabulary that kind of thing has.
+ *
+ * ONE function for the two kinds a query selects, and the split is the point:
+ * what is SHARED is the shape of a query (every group must hold, a group holds
+ * when any alternative in it does, a group is worth its best word, the
+ * highest-weighted field names the hit); what DIFFERS is what a clause means
+ * and where a word is looked for. Those two arrive as arguments, and the rest
+ * of it cannot come to differ between a record and a document — which it would
+ * have, written twice, the first time somebody fixed the scoring on one of
+ * them.
+ *
+ * A CLAUSE IS ASKED AS A PLAIN QUESTION and the negation is applied here, which
+ * is what lets a document answer the whole family in one line: it holds no
+ * clause at all, so a positive one selects none of them and a negated one is
+ * satisfied. There is nowhere on a `.md` to write a mark, a date or a
+ * property — the hole [frontmatter] is the named next step for.
+ *
+ * THE HAY IS A THUNK, not a value, and that is the same laziness this had when
+ * it was inline: folding a whole note (or a whole body) is the expensive part,
+ * so it happens at the first WORD the thing is asked about and never for a
+ * query that names none. `is:done` on its own is exactly that query, and the
+ * groups that hold no word are tested first ({@link inCostOrder}).
+ */
+const matchedBy = <F extends string>(
+  groups: ReadonlyArray<Group>,
+  holdsClause: (clause: Clause) => boolean,
+  hayOf: () => Record<F, ReadonlyArray<string>>,
+  fields: ReadonlyArray<F>,
+  weights: Record<F, number>,
+): { readonly field: F | null; readonly score: number } | null => {
+  let hay: Record<F, ReadonlyArray<string>> | null = null
   let score = 0
-  let field: SearchField | null = null
+  let field: F | null = null
   let weight = -1
 
-  for (const group of filter.groups) {
+  for (const group of groups) {
     // Every alternative is asked, rather than stopping at the first that holds,
     // and the reason is the SCORE: a group is worth its best word, so which
     // alternative the reader happened to type first must not decide how high
     // the hit ranks. The cost is the same scan the conjunction did when these
     // were separate tokens.
     let holding = false
-    let best: { readonly field: SearchField; readonly score: number } | null = null
+    let best: { readonly field: F; readonly score: number } | null = null
     for (const one of group) {
       if (one.kind === "clause") {
-        if (holds(derived, at, one.clause) !== one.negated) holding = true
+        if (holdsClause(one.clause) !== one.negated) holding = true
         continue
       }
-      hay ??= haystacksOf(at.node)
-      const hit = wordHit(hay, one.word)
+      hay ??= hayOf()
+      const hit = wordHit(hay, one.word, fields, weights)
       if (one.negated) {
         if (hit === null) holding = true
         continue
@@ -1297,20 +1348,17 @@ const matchOf = (
       holding = true
       if (best === null || hit.score > best.score) best = hit
     }
-    // Every group, in the same node. One that nothing satisfied and the node is
-    // not a hit.
+    // Every group, in the same thing. One that nothing satisfied and it is not
+    // a hit.
     if (!holding) return null
     if (best === null) continue
     score += best.score
-    if (FIELD_WEIGHT[best.field] > weight) {
-      weight = FIELD_WEIGHT[best.field]
+    if (weights[best.field] > weight) {
+      weight = weights[best.field]
       field = best.field
     }
   }
-
-  // Collected only for a node that has already matched, so the map is walked
-  // for the few nodes a query selects rather than for every node it considers.
-  return { field, score, props: propsOf(at.node, filter) }
+  return { field, score }
 }
 
 /**
@@ -1348,21 +1396,28 @@ const propsOf = (node: RegularNode, filter: Extract<Filter, { kind: "asking" }>)
 
 /** The best a single word does across the four fields: the score it earns, and
  *  the highest-weighted field that held it. */
-const wordHit = (
-  hay: Record<SearchField, ReadonlyArray<string>>,
+const wordHit = <F extends string>(
+  hay: Record<F, ReadonlyArray<string>>,
   word: string,
-): { readonly field: SearchField; readonly score: number } | null => {
+  /** Which places to look, and what each is worth. A PARAMETER since PR 2,
+   *  because there are two vocabularies now and one walk: a record's four
+   *  fields, and the three a document has. What the two share is the rule —
+   *  best score wins, highest-weighted field names the hit — and that rule is
+   *  what a second copy of this loop would have been free to drift on. */
+  fields: ReadonlyArray<F>,
+  weights: Record<F, number>,
+): { readonly field: F; readonly score: number } | null => {
   let score = -1
-  let field: SearchField | null = null
+  let field: F | null = null
   let weight = -1
-  for (const name of SEARCH_FIELDS) {
+  for (const name of fields) {
     for (const haystack of hay[name]) {
       const bonus = positionBonus(haystack, word)
       if (bonus === -1) continue
-      const value = FIELD_WEIGHT[name] + bonus
+      const value = weights[name] + bonus
       if (value > score) score = value
-      if (FIELD_WEIGHT[name] > weight) {
-        weight = FIELD_WEIGHT[name]
+      if (weights[name] > weight) {
+        weight = weights[name]
         field = name
       }
     }
@@ -1977,3 +2032,237 @@ export const keepingDated = (
     const nodes = group.nodes.filter((entry) => matched.has(entry.shows.node.id))
     return nodes.length === 0 ? [] : [{ ...group, nodes }]
   })
+
+// ── the other kind of thing a query selects ────────────────────────────
+
+/**
+ * WHERE A WORD IS LOOKED FOR IN A DOCUMENT.
+ *
+ * FOUR, and they line up with a record's one for one rather than being
+ * {@link SEARCH_FIELDS} with entries crossed out: what a thing is CALLED
+ * (`title`), what it is NAMED (an id there, a path here — the identity
+ * somebody types when they know exactly which one they mean), the tags its
+ * prose writes, and the prose (a `desc` there, the `body` here).
+ *
+ * `body` is the one that closes the roadmap's `search-document-bodies`: a
+ * document's prose is text the way a node's note is, and it was invisible to
+ * every search this app had because nothing walked it.
+ *
+ * `path` is what the ⌘K palette used to answer with a matcher of its own over
+ * the served file names — one door, one index, and a reader typing
+ * `2026-08-12` still finds the day's note whose prose never says the date.
+ */
+export const DOCUMENT_FIELDS = ["title", "path", "tag", "body"] as const
+export type DocumentField = (typeof DOCUMENT_FIELDS)[number]
+
+/** What each is worth, on {@link FIELD_WEIGHT}'s own scale and for its reason:
+ *  the closer a hit is to what a document CALLS itself, the higher it goes. The
+ *  numbers are shared with the records' table on purpose — one query answers
+ *  with both kinds in one ranked list, and two scales would sort them into two
+ *  blocks that only looked interleaved. */
+const DOCUMENT_WEIGHT: Record<DocumentField, number> = {
+  title: FIELD_WEIGHT.title,
+  path: FIELD_WEIGHT.id,
+  tag: FIELD_WEIGHT.tag,
+  body: FIELD_WEIGHT.desc,
+}
+
+/** One document the query selected, with why — {@link Matched}'s twin over the
+ *  other arm of the set. */
+export interface DocumentMatch {
+  readonly field: DocumentField | null
+  readonly score: number
+}
+
+/** One document the query selected, with why — {@link Matched}'s twin over the
+ *  other arm of the set. */
+export interface MatchedDocument {
+  readonly at: Bodied
+  readonly match: DocumentMatch
+}
+
+/**
+ * WHAT A QUERY LOOKS THROUGH on the other arm: every file the directory keeps
+ * a body SLOT for, which is a `.md` and a `.html` alike.
+ *
+ * BOTH, and the `.html` is the one worth arguing. The set keeps a saved page's
+ * path and not its bytes (`./kinds.ts`'s `kept`), so its `body` is empty here
+ * and a word in its prose finds nothing — but it has a NAME and a path, and a
+ * door that left it out would be the one place in this app where a saved page
+ * in somebody's vault is not a thing you can find. That was the ⌘K palette's
+ * own ruling while it matched paths for itself, and it is kept now that this
+ * index answers instead.
+ */
+export type Bodied = Markdown | Hypertext
+
+/**
+ * ONE THING A QUERY SELECTED, whichever kind it is — what a ranked answer is a
+ * list of.
+ *
+ * A sum, and it carries a `kind` where {@link ./searching.ts}'s hit carries an
+ * address, because the two are about different moments: this is the matcher's
+ * own value, a record or a document IN HAND, and a caller of {@link
+ * rankedTogether} is about to read fields off it. The hit is what a caller
+ * BUILDS out of one, for somebody who was not here.
+ */
+export type Ranked =
+  | { readonly kind: "node"; readonly at: LocatedRegular; readonly match: Match }
+  | { readonly kind: "document"; readonly at: Bodied; readonly match: DocumentMatch }
+
+/**
+ * BOTH KINDS, in one order — what a search answers with.
+ *
+ * ONE LIST rather than a block of records followed by a block of documents,
+ * which is the whole reason the two weights tables share a scale
+ * ({@link DOCUMENT_WEIGHT}): a document whose TITLE holds the word outranks a
+ * node that only mentions it in a note, and a reader typing three letters
+ * should see whichever thing is most likely to be what they meant. Two lists
+ * stapled together would have made the kind of a thing matter more than how
+ * well it matched, which is the parity hole one layer up.
+ *
+ * The done penalty is {@link ranked}'s and is spent here on the records alone.
+ * A document is not marked at all — the mark fields are a record's, and what a
+ * document lacks it is not penalised for.
+ *
+ * A TIE goes to the record, since the records are laid out first and the sort
+ * is stable. That is a coin toss given a name rather than a ruling: nothing
+ * here can say which of two equally-matching things a reader meant, and the
+ * only property worth promising is that the same query answers in the same
+ * order twice.
+ */
+export const rankedTogether = (
+  derived: Pick<Derived, "status">,
+  nodes: ReadonlyArray<Matched>,
+  documents: ReadonlyArray<MatchedDocument>,
+): ReadonlyArray<Ranked> => {
+  const scored: Array<{ readonly entry: Ranked; readonly score: number }> = [
+    // Read ONCE PER NODE rather than once per comparison, for {@link ranked}'s
+    // reason: a sort is n log n comparisons and this is n lookups.
+    ...nodes.map((one) => ({
+      entry: { kind: "node", at: one.at, match: one.match } as const,
+      score: derived.status.get(one.at.node.id) === "done"
+        ? one.match.score - DONE_PENALTY
+        : one.match.score,
+    })),
+    ...documents.map((one) => ({
+      entry: { kind: "document", at: one.at, match: one.match } as const,
+      score: one.match.score,
+    })),
+  ]
+  scored.sort((a, b) => b.score - a.score)
+  return scored.map((one) => one.entry)
+}
+
+/**
+ * The folded text of a DOCUMENT, kept for as long as the document is —
+ * {@link folded} next door, on the other kind of value, and correct for the
+ * identical reason: a document is a value here, a file that changes is decoded
+ * into a NEW one, so a fold that is still reachable is a fold of text that has
+ * not changed.
+ *
+ * It matters more here than there, if anything: a body is the largest string in
+ * the process after a saved page, and folding every one of them per keystroke
+ * is what a search box over a vault would otherwise cost.
+ */
+const foldedDocuments = new WeakMap<Bodied, Record<DocumentField, ReadonlyArray<string>>>()
+
+const documentHay = (
+  document: Bodied,
+): Record<DocumentField, ReadonlyArray<string>> => {
+  const before = foldedDocuments.get(document)
+  if (before !== undefined) return before
+  const now: Record<DocumentField, ReadonlyArray<string>> = {
+    title: [document.title.toLowerCase()],
+    // The PATH twice, whole and by its name alone, for the reason a tag is
+    // folded twice: `cabinets` should find `notes/cabinets.md` with the full
+    // start-of-field bonus rather than be demoted by the folder in front of it,
+    // and `notes/` should still find everything under it.
+    // Through `./paths.ts`'s own spelling of "the last segment of a path"
+    // rather than a slice written again here, for `foldOf`'s reason one door
+    // over: a name is a name wherever this app takes one off a path.
+    path: [document.path.toLowerCase(), basenameOf(document.path).toLowerCase()],
+    // Bare AND as written, exactly as a record's tags are folded, so `alice`
+    // finds `@alice` with the start-of-field bonus and `@alice` finds only the
+    // one that carries that sigil.
+    tag: document.tags.flatMap((tag) => {
+      const written = tag.toLowerCase()
+      return [written.slice(1), written]
+    }),
+    // A file whose body the set does not keep has no prose to look through,
+    // which is a different sentence from "it holds none" — nothing here has
+    // read it (`./document.ts`'s `Hypertext`).
+    body: document.kind === "document" ? [document.body.toLowerCase()] : [],
+  }
+  foldedDocuments.set(document, now)
+  return now
+}
+
+/**
+ * Which documents a query selects, and why — {@link matching}'s twin.
+ *
+ * ## What a document cannot answer, and what that means
+ *
+ * A clause (`is:done`, `has:date`, `date:today`, `prop:pr`) asks about a FIELD,
+ * and a document has none: there is nothing on a `.md` for a mark, a date or a
+ * property to be written on. So a positive clause selects NO document — not
+ * because documents are second-class here, but because the honest answer to
+ * "which documents are done" is none of them. That is the hole frontmatter
+ * fills, and it is named in the design as the next step rather than patched
+ * here.
+ *
+ * A NEGATED clause is satisfied, and by the same sentence read the other way:
+ * `-is:done` asks for what is not finished, and a document is not. Dropping
+ * documents there too would be answering a question nobody asked — it would
+ * make `#kitchen -is:done` narrower than `#kitchen`, which no reader expects of
+ * a negation.
+ *
+ * ## What a SCOPE means
+ *
+ * `file` is one outline and `under` is one node's subtree, and a document is in
+ * neither: both are questions about where a RECORD sits in a tree. A scoped
+ * query therefore selects no documents at all, which is what the browser's
+ * filter over an open outline page wants and what a `search` with `file` means.
+ *
+ * The archive rule does not reach here either. What is put away is an
+ * `Archive.olai`, which is an outline; a `.md` beside one is a document like
+ * any other.
+ */
+export const matchingDocuments = (
+  documents: ReadonlyArray<Bodied>,
+  filter: Filter,
+  scope: Scope = {},
+): ReadonlyArray<MatchedDocument> => {
+  if (filter.kind !== "asking") return []
+  if (scope.file !== undefined || scope.under !== undefined) return []
+  const out: Array<MatchedDocument> = []
+  for (const document of documents) {
+    const match = documentMatchOf(document, filter)
+    if (match !== null) out.push({ at: document, match })
+  }
+  return out
+}
+
+/**
+ * Does this document match, and why — or `null`.
+ *
+ * {@link matchedBy}, over this kind's own two answers: a document HOLDS NO
+ * CLAUSE, and its words are looked for in {@link DOCUMENT_FIELDS}. Every other
+ * sentence about what a query means — the conjunction, the alternatives, the
+ * scoring — is the shared one, which is the whole reason that function has
+ * arguments rather than a second copy of itself.
+ */
+const documentMatchOf = (
+  document: Bodied,
+  filter: Extract<Filter, { kind: "asking" }>,
+): DocumentMatch | null =>
+  matchedBy(
+    filter.groups,
+    NO_CLAUSE_HOLDS,
+    () => documentHay(document),
+    DOCUMENT_FIELDS,
+    DOCUMENT_WEIGHT,
+  )
+
+/** A document's answer to every clause in the grammar: no. One function, since
+ *  it closes over nothing and is handed to every document of every query. */
+const NO_CLAUSE_HOLDS = (): boolean => false

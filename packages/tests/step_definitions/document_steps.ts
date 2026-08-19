@@ -19,6 +19,9 @@ import {
   DOCUMENT_BODY,
   DOCUMENT_LINK,
   DOCUMENT_PAGE,
+  DOCUMENT_REFERRER,
+  DOCUMENT_REFERRERS,
+  DOCUMENT_REFERRERS_SUMMARY,
   HYDRATION_TIMEOUT,
   oneLine,
   POLL_TIMEOUT,
@@ -315,6 +318,68 @@ Then(
       await reference.locator(DOCUMENT_BODY).count(),
       0,
       `the reference on "${id}" draws the whole document on a page that is not its own`,
+    );
+  },
+);
+
+// ── what points at a document, read backwards ──────────────────────────
+
+// The section is COLLAPSED, exactly as a node's backlinks are, so opening it
+// is part of the question rather than a setup step somebody could forget: a
+// `<details>` renders its children whether or not it is open, and the rows are
+// deliberately not built while it is shut.
+When(
+  "I open what points at the document",
+  async function (this: OlaiWorld) {
+    await this.page
+      .locator(DOCUMENT_REFERRERS_SUMMARY)
+      .click({ timeout: HYDRATION_TIMEOUT });
+  },
+);
+
+// By the words a READER sees on the row — the record's title, or the
+// document's own — because that is what the section is for: telling somebody
+// what is talking about the file they are reading.
+Then(
+  "what points at the document is {string}",
+  async function (this: OlaiWorld, expected: string) {
+    const wanted = expected.split(",").map((one) => one.trim());
+    const rows = this.page.locator(DOCUMENT_REFERRER);
+    await this.waitUntil(
+      async () => (await rows.count()) === wanted.length,
+      `${wanted.length} referrer(s)`,
+    );
+    assert.deepStrictEqual(
+      (await rows.allTextContents()).map((text) => oneLine(text)),
+      wanted,
+    );
+  },
+);
+
+// Asked of the COUNT rather than of the rows, because that is the whole of
+// what a shut section says — and it is the number a reader sees before they
+// decide to open it.
+Then(
+  "the document is pointed at by {int} thing(s)",
+  async function (this: OlaiWorld, total: number) {
+    await this.expectAttribute(
+      DOCUMENT_REFERRERS,
+      "data-count",
+      String(total),
+      "what points at the document",
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then(
+  "nothing points at the document",
+  async function (this: OlaiWorld) {
+    await this.waitForFrame();
+    assert.strictEqual(
+      await this.page.locator(DOCUMENT_REFERRERS).count(),
+      0,
+      "the document draws a referrers section",
     );
   },
 );

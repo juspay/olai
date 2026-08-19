@@ -103,7 +103,8 @@ import {
 import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
 import { NewOutline } from "./outline/NewOutline.tsx"
-import { ROW_TESTID, routeTo } from "./file/kinds.ts"
+import { ROW_TESTID } from "./file/kinds.ts"
+import { useServed } from "./served.tsx"
 import { Glyph } from "./file/icons.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
@@ -115,6 +116,7 @@ import { Shelf } from "./pins/Shelf.tsx"
 import { Link, useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
+import { atFile } from "./routes.ts"
 
 /** One file entry. Workflowy-quiet: soft hover, a wash when current.
  *
@@ -143,8 +145,6 @@ interface TreeView {
 }
 
 export function Sidebar(props: {
-  readonly files: ReadonlyArray<string>
-  readonly documents: ReadonlyArray<string>
   readonly active: string | undefined
   readonly broken: ReadonlyMap<string, BrokenFile>
   /** What is owed as of today — the app's ONE reading of it (../App.tsx), the
@@ -175,9 +175,13 @@ export function Sidebar(props: {
   // reader opens and edits, and the Trash entry below the tree is its one
   // door. Filtered here rather than upstream because every other reader of
   // `files` — the page model, the trash itself — wants the whole list.
-  const tree = createMemo(() =>
-    fileTree([...props.files.filter((file) => !isArchived(file)), ...props.documents])
-  )
+  // THE PATHS, out of the context that holds them under a MEMBERSHIP equality
+  // (`./served.tsx`) — not off the faces, and that is the difference between a
+  // tree rebuilt when a file arrives and one rebuilt on every keystroke
+  // anywhere in the directory. A face changes when its file's content does;
+  // this tree is a function of the NAMES.
+  const served = useServed()
+  const tree = createMemo(() => fileTree(served().filter((file) => !isArchived(file))))
 
   // Folding a folder is remembered, and the write drops folders that are not in
   // the directory any more (./fold/folders.ts). Which those are is read off the
@@ -496,7 +500,7 @@ function File(props: {
   return (
     <li class="mb-1">
       <Link
-        route={routeTo(props.row.of, props.row.file)}
+        route={atFile(props.row.file)}
         class={ENTRY}
         testid={ROW_TESTID[props.row.of]}
         current={props.view.isActive(props.row.file)}

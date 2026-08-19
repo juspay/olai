@@ -90,6 +90,7 @@ import {
   BrokenFile,
   CommitRequest,
   CommitResult,
+  Face,
   GIT_OFF,
   GitState,
   Located,
@@ -164,6 +165,16 @@ export const OutlineEntry = Schema.Struct({
    *  parse, and empty for one that holds nothing — the difference is `broken`. */
   nodes: Schema.Array(Located),
   broken: Schema.NullOr(BrokenFile),
+  /** What this file IS, apart from what it holds: its title, the addresses it
+   *  points at, the tags its records write (`@olai/format`'s `Face`).
+   *
+   *  It rides here rather than being derived on arrival, and that is a cost
+   *  decision rather than a doctrinal one: a browser CAN build an outline's
+   *  face — it holds the records and the format's own constructor — but doing
+   *  so is a walk of every title and every note of the corpus per revision,
+   *  where the server built this once when the file's bytes changed. The
+   *  face is small; the walk is not. */
+  face: Face,
 })
 export type OutlineEntry = typeof OutlineEntry.Type
 
@@ -256,6 +267,29 @@ export type DocumentEntry = typeof DocumentEntry.Type
  */
 export const Head = Schema.Struct({
   rev: Schema.Int,
+  /** What the file IS, apart from what it says: its path, its title, the
+   *  addresses it points at, the tags it writes (`@olai/format`'s `Face`).
+   *
+   *  IT CARRIES ITS OWN PATH, and the paragraph above forbids exactly that of
+   *  the entry — so the difference is worth naming. A `file` FIELD beside the
+   *  key would be one fact spelled twice by two hands; a face is one VALUE the
+   *  format made, whose identity is its path, cut from the same document in the
+   *  same function as the key it arrives under (`@olai/server`'s
+   *  `published.ts`). What the browser then holds is a list of faces
+   *  (`@olai/web`'s `page.ts`), where a key is not in hand — taking the path
+   *  off here would mean re-attaching it on arrival, which is the second hand.
+   *
+   *  THE ONE FACT THAT MAY JOIN `rev` HERE, and it is worth saying why, since
+   *  the paragraph above forbids a second answer to a question `rev` already
+   *  has. A size, a modified time or a hash would each be one of those. A face
+   *  is not: it is what the file SAYS, which is the question this member could
+   *  not be asked before — and a browser cannot derive it the way it can an
+   *  outline's, because the body it would read is the one thing this collection
+   *  exists to keep off the wire. Without it a document is a PATH to every tab
+   *  in the app, which is the position the whole first-class-documents arc is
+   *  about. It moves when `rev` moves and by the same act, since both are cut
+   *  from one document in one function (`@olai/server`'s `published.ts`). */
+  face: Face,
 })
 export type Head = typeof Head.Type
 
@@ -708,7 +742,15 @@ export {
 } from "./seal.ts"
 
 /** What a search asks and answers on the wire — see {@link ./search.ts}. */
-export { Refusal, SearchAnswer, SearchHit, SearchRequest } from "./search.ts"
+export {
+  DocumentHit,
+  isNodeHit,
+  NodeHit,
+  Refusal,
+  SearchAnswer,
+  SearchHit,
+  SearchRequest,
+} from "./search.ts"
 
 /** What an attachment may BE — the policy the browser gates on before encoding
  *  and the server gates on before writing. One module, for the same reason the

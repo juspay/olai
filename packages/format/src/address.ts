@@ -63,7 +63,7 @@
 
 import { Schema } from "effect"
 
-import { fileKind, holdsText } from "./kinds.ts"
+import { type FileKind, fileKind, holdsText } from "./kinds.ts"
 
 /**
  * A path that names a file the directory SERVES — `Tasks.olai`,
@@ -75,16 +75,27 @@ import { fileKind, holdsText } from "./kinds.ts"
  * suffix is what says whether a `#` after it is a heading or a node, and what
  * keeps an address apart from a computed page that spells no file.
  *
- * WHERE THAT RULE IS ENFORCED is {@link addressOf}, which is the only way to
- * make one: effect's `brand` is NOMINAL — it narrows the type and adds no
- * runtime check — so the brand is a promise about where a value came from
- * rather than a parse of one. That is the right trade while these are made in
- * the browser's hot path (a URL per drawn row) and read back by one parser;
- * the day an `Address` is DECODED off a wire — the design's edges, PR 2 — the
- * rule wants to move into the schema as a filter, so a decode is judged by the
- * same sentence a construction is.
+ * WHERE THAT RULE LIVES is {@link claimedKind}, and it is spent TWICE — as a
+ * check on this schema, so a decoded path is judged by it, and as
+ * {@link addressOf}'s guard, so a minted one is judged by the same sentence.
+ * Both, rather than either, and PR 2 is what made it both: effect's `brand` is
+ * NOMINAL — it narrows the type and adds no runtime check — so while the only
+ * addresses in the process were minted in the browser's hot path (a URL per
+ * drawn row) and read back by one parser, the guard was the whole rule and the
+ * schema was a promise about where a value came from. An `Address` DECODES off
+ * a wire now (a search hit carries one, `./searching.ts`), and a decode that
+ * did not ask this question would be a path the grammar cannot finish reading,
+ * arriving as one it can.
+ *
+ * The CONSTRUCTION side still does not go through the parser, and that is
+ * unchanged and deliberate: `make` would run the check a second time for a
+ * verdict {@link addressOf} has already reached, once per printed URL.
  */
-export const DocumentPath = Schema.String.pipe(Schema.brand("DocumentPath"))
+export const DocumentPath = Schema.String.check(
+  Schema.makeFilter((path: string) => claimedKind(path) !== null, {
+    expected: "a relative path to a file some kind of the registry claims",
+  }),
+).pipe(Schema.brand("DocumentPath"))
 export type DocumentPath = typeof DocumentPath.Type
 
 /** The id of one node, unique across the loaded set — what a node address is
@@ -188,8 +199,8 @@ export const addressOf = (
   if (document === null || document === "") {
     return named === null ? null : { kind: "node", id: nodeId(named) }
   }
-  const kind = fileKind(document)
-  if (kind === null || !relative(document)) return null
+  const kind = claimedKind(document)
+  if (kind === null) return null
   const path = documentPath(document)
   if (named === null) return { kind: "document", path }
   // WHICH KIND OF ELEMENT is the registry's `holds` column and not a list of
@@ -258,8 +269,21 @@ export const parseAddress = (text: string): Address | null => {
 }
 
 /**
- * Whether a path is one the served directory could actually hold: a relative
- * path, with every segment a real name.
+ * WHICH KIND of file a path names — `null` for a path this grammar cannot
+ * name at all.
+ *
+ * The whole of {@link DocumentPath}'s rule, in one function, spent by the
+ * schema's check and by {@link addressOf}'s guard — one reading rather than
+ * two, which is the point of moving it out of the guard at all. It answers
+ * with the KIND rather than with a yes, because the one caller that passes it
+ * needs that answer next anyway: which of the two things a `#` after this path
+ * would name.
+ *
+ * The SUFFIX half is the grammar's foundation: it is what says whether a `#`
+ * after a path is a heading or a node, and what keeps an address apart from a
+ * computed page that spells no file.
+ *
+ * The PLACE half is a relative path with every segment a real name.
  *
  * A leading `/` and a `..` are the two that matter and they matter for
  * different reasons. `..` is somebody naming a place OUTSIDE the directory,
@@ -269,8 +293,12 @@ export const parseAddress = (text: string): Address | null => {
  * as a URL on ANOTHER HOST, and an address that can leave the site is not an
  * address this may mint.
  */
-const relative = (path: string): boolean =>
-  path.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..")
+const claimedKind = (path: string): FileKind | null =>
+  path.split("/").every((segment) =>
+      segment !== "" && segment !== "." && segment !== ".."
+    )
+    ? fileKind(path)
+    : null
 
 /**
  * Encoded per segment, so a path with a directory in it stays readable rather

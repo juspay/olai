@@ -1,6 +1,16 @@
 import { expect, test } from "bun:test"
 
-import { filterItems, modeOf, nodeItem, SHELL_ITEMS } from "./items.ts"
+import { DocumentPath, NodeId } from "@olai/format"
+import type { NodeHit } from "@olai/surface"
+
+import { atFile, atNode } from "../routes.ts"
+import { filterItems, hitItem, modeOf, SHELL_ITEMS } from "./items.ts"
+
+/** A hit on a record, with the address every hit carries. */
+const node = (fields: Omit<NodeHit, "at">): NodeHit => ({
+  at: { kind: "node", id: NodeId.make(fields.id) },
+  ...fields,
+})
 
 test("empty query returns every shell item", () => {
   expect(filterItems("").length).toBe(SHELL_ITEMS.length)
@@ -14,46 +24,65 @@ test("filter matches label and search haystack", () => {
   expect(filterItems("agent").map((i) => i.id)).toEqual(["panel-chat"])
 })
 
+/** A hit on a DOCUMENT is the same row with a different half of it filled in:
+ *  its own face's title, the path it is at, and the glyph the sidebar draws
+ *  that kind of file with. There is no place line invented for it — a document
+ *  hangs under nothing, so the path IS where it is. */
+test("a document hit becomes a row that opens the document", () => {
+  const item = hitItem({
+    at: { kind: "document", path: DocumentPath.make("notes/cabinets.md") },
+    title: "Cabinets",
+    matched: "body",
+  })
+  expect(item.label).toBe("Cabinets")
+  expect(item.place).toBe("notes/cabinets.md")
+  expect(item.of).toBe("document")
+  expect(item.action).toEqual({
+    kind: "route",
+    route: atFile("notes/cabinets.md"),
+  })
+})
+
 test("a search hit becomes a row that jumps to the node", () => {
-  const item = nodeItem({
+  const item = hitItem(node({
     id: "hinges",
     title: "pick the hinges",
     file: "house.olai",
     line: 6,
     path: ["kitchen remodel #home", "install the cabinets"],
     matched: "title",
-  })
+  }))
   expect(item.label).toBe("pick the hinges")
   // The place is a LINE OF ITS OWN, never an inline hint: an ancestor title
   // is somebody's prose, and beside the title it starved it to one word per
   // line and scrolled the palette sideways.
   expect(item.hint).toBeUndefined()
-  expect(item.action).toEqual({ kind: "route", route: { kind: "node", id: "hinges" } })
+  expect(item.action).toEqual({ kind: "route", route: atNode("hinges") })
 })
 
 test("the place reads NEAREST ancestor first, so a truncation keeps what situates the node", () => {
   // `path` is outermost-first; a line ellipsized from the end would lose the
   // immediate parent — the one crumb that answers "which `pick the hinges`?".
-  const item = nodeItem({
+  const item = hitItem(node({
     id: "hinges",
     title: "pick the hinges",
     file: "house.olai",
     line: 6,
     path: ["kitchen remodel #home", "install the cabinets"],
     matched: "title",
-  })
+  }))
   expect(item.place).toBe("install the cabinets · kitchen remodel #home")
 })
 
 test("a node at the top level is placed by its file", () => {
-  const top = nodeItem({
+  const top = hitItem(node({
     id: "buy",
     title: "Buy groceries",
     file: "errands.olai",
     line: 1,
     path: [],
     matched: "title",
-  })
+  }))
   expect(top.place).toBe("errands.olai")
 })
 

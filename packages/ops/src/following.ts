@@ -57,7 +57,8 @@
 import {
   apart,
   assemble,
-  type DecodedFile,
+  bodiedDocument,
+  type Document,
   type OpFailure,
   type OutlineError,
   parseOutline,
@@ -73,7 +74,7 @@ import type { Plan } from "./plan.ts"
 
 /** One decoded file, as `assemble` takes it. Spelled once because the map this
  *  module carries between ops is a map of them. */
-type Decoded = Result.Result<DecodedFile, ReadonlyArray<OutlineError>>
+type Decoded = Result.Result<Document, ReadonlyArray<OutlineError>>
 
 /**
  * The fold over the planner: the reading each op is judged against, carried
@@ -124,7 +125,7 @@ export const folding = (from: Reading): Folding => {
       upserts.push([planned.file, { nodes: read.success.nodes }])
     }
     for (const document of made.documents ?? []) {
-      files.set(document.file, Result.succeed({ file: document.file, text: document.text }))
+      files.set(document.file, Result.succeed(bodiedDocument(document.file, document.text)))
     }
 
     // The view PATCHED rather than derived — reached through `reading`, which

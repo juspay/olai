@@ -27,7 +27,7 @@ import { createMemo, Show } from "solid-js"
 
 import { type Face, markOf, unchanged } from "../agenda/owed.ts"
 import { Glyph } from "../file/icons.tsx"
-import type { Route } from "../routes.ts"
+import { HOME_ROUTE, type Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
 import { setSidebarOpen } from "./prefs.ts"
@@ -116,7 +116,7 @@ export function Rail(props: {
         title="outlines"
         onClick={() => {
           setSidebarOpen(true)
-          props.go({ kind: "outline", file: null })
+          props.go(HOME_ROUTE)
         }}
       >
         {/* The tree's own outline glyph (../file/icons.tsx), at the rail's

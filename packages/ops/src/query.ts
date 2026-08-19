@@ -31,6 +31,7 @@
 import {
   ancestorTitles,
   backlinksOf,
+  bodiedIn,
   brokenBy,
   brokenIn,
   bytesOf,
@@ -40,27 +41,31 @@ import {
   type Derived,
   type Detail,
   type DocumentBody,
-  documentIn,
-  documentsIn,
   type DocumentSummary,
   errorLine,
-  firstLine,
   follow,
   type Found,
   heldCustom,
   isMirror,
   type LocatedRegular,
+  markdownAt,
+  markdownIn,
   MARKS,
+  matchingDocuments,
+  NodeId,
   matching,
   nodesOf,
   nothing,
   type OpFailure,
   type OutlineSet,
+  outlinePaths,
   type OutlineSummary,
   parseFilter,
+  rankedTogether,
   type Placed,
   type Placement,
   progressOf,
+  type Reading,
   type Reference,
   ranked,
   type SearchAnswer,
@@ -116,7 +121,8 @@ import { noSuchDocument } from "./plan.ts"
 // is what `validate` answers with and what {@link ./deps.ts}'s store holds), so
 // the derivation arrives with the snapshot and the memo has nothing left to
 // save. A caller holding a bare set and no derivation is a test fixture, and it
-// says `derive(set.nodes)`.
+// reaches the records through the outlines they are written in — there is no
+// node-only list on the set to ask for (`@olai/format`'s `set.ts`).
 
 /**
  * One node, situated — the shape every read here answers with.
@@ -223,7 +229,11 @@ const carriedOf = (
  * line. Ranking asks only for the score and the mark, and both are in hand.
  */
 export const search = (
-  derived: Derived,
+  /** BOTH HALVES of the reading, because a query answers with both kinds of
+   *  thing now: the derivation is what the records are matched against, and the
+   *  set is where the documents are. It used to take the derivation alone,
+   *  which was the whole of what a search could see. */
+  at: Reading,
   query: SearchRequest,
   /** When the question is being asked — what the grammar's relative words count
    *  from (`date:yesterday`). A day, or an instant on one: the grammar cuts it
@@ -245,12 +255,32 @@ export const search = (
   }
   if (filter.kind === "nothing") return { hits: [], total: 0 }
 
-  const matched = matching(derived, filter, { file: query.file, under: query.under })
+  const scope = { file: query.file, under: query.under }
+  // ASKED FOR, and the request is where that lives: a door picking a record to
+  // point at cannot take a document, and one filtering the answer itself would
+  // run short exactly when a query matched enough documents to fill the cap.
+  const nodes = query.kind === "document" ? [] : matching(at.derived, filter, scope)
+  // The other arm of the set, asked the same question. What a document cannot
+  // answer — a mark, a date, a property — selects none of them, which is
+  // `matchingDocuments`' own rule and the hole frontmatter fills.
+  const documents = query.kind === "node"
+    ? []
+    : matchingDocuments(bodiedIn(at.set), filter, scope)
   const limit = query.limit ?? DEFAULT_SEARCH_LIMIT
-  const hits = ranked(derived, matched)
+  const hits = rankedTogether(at.derived, nodes, documents)
     .slice(0, limit)
-    .map(({ at, match }): SearchHit => {
-      const found = foundOf(derived, at)
+    .map((selected): SearchHit => {
+      if (selected.kind === "document") {
+        return {
+          // WHERE TO GO, which is what a hit is for: the document's own
+          // address, minted by the grammar rather than assembled here.
+          at: { kind: "document", path: selected.at.path },
+          title: selected.at.title,
+          ...(selected.match.field === null ? {} : { matched: selected.match.field }),
+        }
+      }
+      const { at: located, match } = selected
+      const found = foundOf(at.derived, located)
       // ANNOTATED, never asserted. It was `as Hit` for as long as this function
       // has existed, and an assertion is exactly the thing that stops checking
       // when the declaration moves: a required field added to `SearchHit` and to
@@ -260,6 +290,11 @@ export const search = (
       // buying was nothing, at the one place in this file that produces a shape
       // the wire carries.
       return {
+        // The BARE id, which is what a node address is: it outlives every move
+        // and every rename, so a hit is still right about where the node is
+        // after the file it sits in has been renamed (`@olai/format`'s
+        // `address.ts`).
+        at: { kind: "node", id: NodeId.make(located.node.id) },
         ...found,
         // Omitted for a query that named no words — `is:done` on its own is
         // carried by no field, and answering "title" would be inventing a
@@ -273,8 +308,8 @@ export const search = (
     })
 
   // The TOTAL is what matched, never what was kept, so "twelve of ninety" is
-  // sayable — the one number that has to be read off the uncapped list.
-  return { hits, total: matched.length }
+  // sayable — the one number that has to be read off the uncapped lists.
+  return { hits, total: nodes.length + documents.length }
 }
 
 // ── one node, and what is under it ─────────────────────────────────────
@@ -477,7 +512,7 @@ export const outlines = (
   // field dropped from `OutlineSummary` fails HERE rather than only at the
   // table-driven decode. That is independent of what the rows hold, which is
   // why it survives the revert of the two-arm shape.
-  return set.files.map((file): OutlineSummary => {
+  return outlinePaths(set).map((file): OutlineSummary => {
     const errors = broken.get(file)
     // The zero and the empty list are what a file that did not parse gets, and
     // {@link OutlineSummary} says why that is held rather than settled.
@@ -508,7 +543,7 @@ export const outlines = (
  * Every document the directory serves, summarised — {@link outlines}' twin
  * over the other kind of file.
  *
- * WHAT COUNTS AS A DOCUMENT is not decided here: `documentsIn` is the floor's
+ * WHAT COUNTS AS A DOCUMENT is not decided here: `markdownIn` is the floor's
  * one answer, shared with the validator that checks a `doc` reference and the
  * planner that refuses a `write_document`, so what this lists and what those
  * two accept cannot come apart. A `.html` is out of all three — the set keeps
@@ -516,24 +551,27 @@ export const outlines = (
  * a read that cannot be answered and a size nobody measured.
  *
  * The broken map is taken once for the whole answer, exactly as {@link
- * outlines} takes its own: a document that did not READ is in `documents`
- * with an empty text AND in `broken` (`@olai/format`'s `assemble`), so the
+ * outlines} takes its own: a document that did not READ is in the collection
+ * with an empty body AND in `broken` (`@olai/format`'s `assemble`), so the
  * empty text has to be told apart from an empty file.
  */
 export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
   const broken = brokenBy(set)
   // ANNOTATED for {@link outlines}' reason: a field dropped from
   // `DocumentSummary` fails HERE rather than only at the table-driven decode.
-  return documentsIn(set.documents).map((entry): DocumentSummary => {
-    const errors = broken.get(entry.file)
+  return markdownIn(set).map((entry): DocumentSummary => {
+    const errors = broken.get(entry.path)
     // The empty title and the zero are what a file that could not be read
     // gets, and {@link DocumentSummary} says why that is held rather than
     // settled — it is `OutlineSummary`'s convention, matched on purpose.
     if (errors !== undefined) {
-      return { file: entry.file, title: "", bytes: 0, unreadable: errors.map(errorLine) }
+      return { file: entry.path, title: "", bytes: 0, unreadable: errors.map(errorLine) }
     }
-    const text = entry.text ?? ""
-    return { file: entry.file, title: firstLine(text), bytes: bytesOf(text) }
+    // The TITLE is the document's own now rather than this listing's reading of
+    // its text: it is a field of the face the decode built (`@olai/format`'s
+    // `Document`), which is the same title the browser draws and the same one a
+    // hit carries.
+    return { file: entry.path, title: entry.title, bytes: bytesOf(entry.body) }
   })
 }
 
@@ -559,10 +597,10 @@ export const document = (
   set: OutlineSet,
   file: string,
 ): Result.Result<DocumentBody, OpFailure> => {
-  const entry = documentIn(set.documents, file)
+  const entry = markdownAt(set, file)
   if (entry === undefined) {
     return Result.fail(
-      noSuchDocument(set.documents, file, "`list_documents` says what is"),
+      noSuchDocument(set, file, "`list_documents` says what is"),
     )
   }
   const broken = brokenIn(set, file)
@@ -575,6 +613,6 @@ export const document = (
       }),
     )
   }
-  return Result.succeed({ file, text: entry.text ?? "" })
+  return Result.succeed({ file, text: entry.body })
 }
 

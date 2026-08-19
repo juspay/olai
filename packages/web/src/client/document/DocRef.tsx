@@ -37,6 +37,7 @@ import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 import { useDocument } from "./documents.tsx"
+import { atFile } from "../routes.ts"
 
 export function DocRef(props: {
   /** The document's path, resolved against the outline that named it. */
@@ -74,7 +75,7 @@ export function DocRef(props: {
     >
       <div class="flex items-baseline gap-2 text-sm">
         <Link
-          route={{ kind: "document", file: props.file }}
+          route={atFile(props.file)}
           // A target where a finger is what taps it, a line of text where the
           // pointer is a mouse (../touch.ts).
           class={`inline-flex ${TARGET} items-center font-mono text-[0.8125rem] text-accent no-underline hover:underline md:min-h-0`}

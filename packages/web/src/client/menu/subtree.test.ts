@@ -8,7 +8,7 @@
  */
 
 import { derive, rowsOf, type Row, withoutDone } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { flatten } from "../edit/order.ts"
@@ -29,7 +29,7 @@ const GARDEN = [
   `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil"}`,
 ].join("\n")
 
-const derived = derive(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN }).nodes)
+const derived = derive(recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
 const rows = rowsOf(derived, "house.olai")
 
 /** One row of the fixture, by id. `flatten` with nothing folded is "every row

@@ -6,7 +6,7 @@
  * usable is that the file somebody is typing towards is the one Enter would
  * take, and that is a property of the buckets rather than of the filter. Both
  * doors over this rule inherit that — the composer's `@` list and the
- * palette's document rows (`../palette/documents.ts`).
+ * palette's document rows, while the palette matched paths for itself.
  */
 
 import { expect, test } from "bun:test"

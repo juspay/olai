@@ -93,7 +93,30 @@ Title hits outrank id, tag and note; a field that starts with the word beats one
 
 **The values travel whole** — not cut at a length, not reduced to their keys. A cut value is one no reader can tell from a short one, and the first thing it would cut is the half of a URL that makes it a link; keys alone would hand back the question instead of the answer, and would make `custom` a list on a hit and a map on a read, under one name. The dial on an answer's size is `limit` on the request, and that one is exact — a hit already carries `title` and `path`, which are unbounded prose somebody typed, and a property is a named fact smaller than either.
 
-`search_nodes` also takes a SCOPE: `file` is one outline, `under` is a node and everything beneath it. Those are the two scopes a page can be, so an agent can ask exactly the question a person asks by filtering one.
+`search_nodes` also takes a SCOPE: `file` is one outline, `under` is a node and everything beneath it. Those are the two scopes a page can be, so an agent can ask exactly the question a person asks by filtering one. And a KIND — `node` or `document` — for a caller that can only use one of the two things an answer holds; see below.
+
+## …and documents
+
+**A document's prose is text the way a node's note is.** A search reaches both kinds of thing the directory holds: the records, and the `.md` files beside them. Until the [first-class documents](brainstorming/first-class-documents.md) work, a body was invisible to every search this app had, because nothing walked it — which is the same hole that kept a document off the graph and out of the backlinks.
+
+**A document is looked for in four places, and they line up with a record's one for one:**
+
+| a record | a document |
+|---|---|
+| `title` — what it calls itself | `title` — its first non-empty line, heading marks off, or its filename when the body has none |
+| `id` — what somebody types when they know exactly which one | `path` — the same, for a file. Folded twice, whole and by its name alone, so `cabinets` finds `notes/cabinets.md` without the folder in front of it demoting the hit |
+| `tag` — the `#topic` and `@person` in its prose | the same, read by the same walk |
+| `desc` — its note | `body` — the prose itself |
+
+The weights are the SAME numbers, which is what puts both kinds in one ranked list rather than two blocks that only look interleaved: a document whose title holds the word outranks a node that only mentions it in a note.
+
+**An operator over a field a document does not have selects no document.** There is nowhere on a `.md` to write a mark, a date or a property, and it carries neither stamp — a document is a file, and when a file was written is the filesystem's answer rather than something this format records. So the honest answer to "which documents are done", and to `created:last-week`, is none of them — and that is the hole [frontmatter](brainstorming/first-class-documents.md) is the named next step for, rather than something patched per operator. A NEGATED one is satisfied, by the same sentence read the other way: `-is:done` asks for what is not finished, and a document is not.
+
+**A scoped query selects no documents at all.** `file` is one outline and `under` is one node's subtree, and a document is in neither — both are questions about where a RECORD sits in a tree.
+
+**A saved page is found by its name.** The set keeps a `.html`'s path and not its bytes ([format.md](format.md)), so a word in a saved page's prose finds nothing — but it has a name, and a door that left it out would be the one place in this app where a page in your vault is not a thing you can find.
+
+**Every hit carries an ADDRESS** — `#a1b2c3` for a record, `notes/plan.md` for a document — which is what a hit is FOR once an answer holds two kinds of thing: somewhere to go. It is also what tells the two apart, so nothing says which kind twice. A door that can only use a record — the edge panel writing a `see`, the move picker, the composer's `@` list — asks for `kind: node` on the REQUEST rather than filtering the answer, because the cap is applied before the answer is sent and a door that filtered afterwards would run short exactly when a query matched enough documents to fill it.
 
 ## Filtering the page in place
 

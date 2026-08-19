@@ -33,6 +33,7 @@ import type { NodeRef } from "./ref.ts"
 import { Link } from "./router.tsx"
 import { type TestId, TESTID } from "./testids.ts"
 import { TARGET } from "./touch.ts"
+import { atNode } from "./routes.ts"
 
 export function NodeRefs(props: {
   /** What the relation is called, in the reader's words: `see`, `blocked by`. */
@@ -143,7 +144,7 @@ export function NodeRefLink(props: {
 }) {
   return (
     <Link
-      route={{ kind: "node", id: props.to.id }}
+      route={atNode(props.to.id)}
       class={props.class}
       testid={props.testid}
       title={props.title ?? `open ${props.to.title}`}

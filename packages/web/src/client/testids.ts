@@ -278,6 +278,15 @@ export const TESTID = {
   backlinks: "backlinks",
   /** Its summary line — the count in words, and the thing to press to open it. */
   backlinksSummary: "backlinks-summary",
+  /** What points AT a document, under its heading — the `<details>` itself,
+   *  absent on a document nothing points at. `data-count` is how many things
+   *  do: a record that attaches or links it, or another document whose body
+   *  links it. */
+  documentReferrers: "document-referrers",
+  /** Its summary line — the count in words, and the thing to press to open it. */
+  documentReferrersSummary: "document-referrers-summary",
+  /** One row of that list: the record or the document that points here. */
+  documentReferrer: "document-referrer",
   /** The referrers whose `see` lands on this node, and the ones whose title or
    *  note writes its `@id`: two rows of the same shape every other relation
    *  draws, so a link inside either is a `nodeRef` with `data-ref` on it. Two

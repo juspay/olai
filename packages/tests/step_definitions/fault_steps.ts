@@ -16,6 +16,12 @@
  * dependency's module initialisation, or the fault card itself, and the
  * scenario would be proving something else.
  *
+ * Effect rc.110 is that dependency: `Encoding.ts` fills a 256-entry hex table
+ * at import with `i.toString(16).padStart(2, "0")`. That runs before there is
+ * a tree to replace, so throwing on the first `(2, "0")` is a white tab for a
+ * reason this scenario is not about. Those 256 are skipped; what throws is the
+ * next `(2, "0")`, which is the client's own date pad, during a render.
+ *
  * The coupling that buys is real and is answered rather than hidden: if that
  * call ever stops happening, the app draws itself perfectly and the step below
  * fails saying exactly that, in a second, instead of timing out with nothing
@@ -45,13 +51,19 @@ Given(
   async function (this: OlaiWorld) {
     await this.page.addInitScript((message: string) => {
       const padStart = String.prototype.padStart;
+      // Effect's hex table at import: one pad per byte, before any render.
+      let hexTable = 256;
       String.prototype.padStart = function (
         this: string,
         length: number,
         fill?: string,
       ): string {
-        // `(2, "0")` is the client's own call and nobody else's plausible one.
-        if (length === 2 && fill === "0") throw new Error(message);
+        // `(2, "0")` is the client's date pad — after the hex table, not
+        // instead of it. See the file header.
+        if (length === 2 && fill === "0") {
+          if (hexTable > 0) hexTable -= 1;
+          else throw new Error(message);
+        }
         return padStart.call(this, length, fill);
       };
     }, THROWN);

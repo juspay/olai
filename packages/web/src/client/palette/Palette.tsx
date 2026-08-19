@@ -9,7 +9,7 @@
  * and what an agent finds cannot drift (items.ts says why there is no local
  * matcher).
  *
- * Between the two: the DIRECTORY'S DOCUMENTS (`./documents.ts`), matched by
+ * Between the two: the directory's documents, which arrive as hits like
  * name and path against the served list this tab already holds, drawn with the
  * sidebar's own glyph, and opening the document's address the router has served
  * all along. They are keyed on the NAME and nowhere near a body — the grammar
@@ -79,17 +79,15 @@ import {
   CAPTURE_PREFIX,
   filterItems,
   modeOf,
-  nodeItem,
+  hitItem,
   type PaletteItem,
   SHELL_ITEMS,
 } from "./items.ts"
-import { documentItems } from "./documents.ts"
 import { opItems } from "./ops.ts"
 import { pinItem } from "../pins/palette.ts"
 import { sayPin, togglePin } from "../pins/pinning.ts"
-import { useServed } from "../served.tsx"
 import { createCursor } from "../search/cursor.ts"
-import { createNodeSearch } from "../search/nodes.ts"
+import { createSearch } from "../search/nodes.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
 import { paletteOpen, setPaletteOpen } from "./open.ts"
 import { type Said, useUndo } from "../edit/undoing.ts"
@@ -151,11 +149,6 @@ export function Palette(props: {
   const undo = useUndo()
   const derived = useDerived()
   const router = useRouter()
-  /** Every path the directory serves, from the one list this tab already holds
-   *  (`../served.tsx`) — where the document rows come from. Reached rather than
-   *  handed down for the reason the derivation above is: a directory gains and
-   *  loses files while a tab is open. */
-  const served = useServed()
   const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
   // WHICH row Enter takes, and the arrows that walk it — the one cursor every
@@ -241,7 +234,7 @@ export function Palette(props: {
 
   // The nodes, from the server — one primitive, its own failure, and no
   // request bookkeeping in this component ({@link ../search/nodes.ts}).
-  const nodes = createNodeSearch(asked)
+  const nodes = createSearch(asked)
 
   /**
    * The zoomed node's verbs — its OWN memo, and guarded on the palette being
@@ -259,24 +252,6 @@ export function Palette(props: {
     paletteOpen() ? opItems(props.zoomed, derived()) : []
   )
 
-  /**
-   * The document rows — their OWN memo, and the served list is read only from
-   * inside it.
-   *
-   * Both halves of that are the reason. Beside the node hits in one memo, the
-   * block was re-derived every time an answer landed from the server, and
-   * `<For>` keys a row by REFERENCE — so a round trip that had nothing to do
-   * with these files tore them down and drew them again, under the cursor of
-   * somebody walking the list. That is the churn the ordering below exists to
-   * prevent, arriving by the other road. And reading `served()` after the
-   * gate means a directory that gains a file does not re-run this while the
-   * palette is shut, which is `opRows`' own guard one block up.
-   */
-  const documents = createMemo(() => {
-    const query = asked()
-    return query === null ? [] : documentItems(served(), query)
-  })
-
   const items = createMemo(() => {
     if (!listing()) return [] as ReadonlyArray<PaletteItem>
     // THE OP ROWS FIRST, because they are the only rows that are about what
@@ -289,17 +264,21 @@ export function Palette(props: {
     // with the fixed ones — and it is the one door a document or a filtered
     // page has that a reader can find by looking (../pins/palette.ts).
     const commands = [...opRows(), pinItem(router.route(), derived()), ...SHELL_ITEMS]
-    // THEN THE FILES, THEN THE NODES, which is the order they can be ANSWERED
-    // in: the commands and the documents are matched in this tab off lists it
-    // already holds, and a node hit is a debounce and a round trip away. A
-    // block that arrives late must not push the rows a reader is already
-    // walking down the list under their cursor, so the two local blocks sit
-    // above it and the list only ever grows at the bottom.
-    return [
-      ...filterItems(query(), commands),
-      ...documents(),
-      ...nodes.hits().map(nodeItem),
-    ]
+    // THEN THE HITS, which is the order they can be ANSWERED in: the commands
+    // are matched in this tab off a list it already holds, and a hit is a
+    // debounce and a round trip away. A block that arrives late must not push
+    // the rows a reader is already walking down the list under their cursor,
+    // so the local block sits above it and the list only ever grows at the
+    // bottom.
+    //
+    // THE FILES ARE IN THAT SECOND BLOCK NOW. They were a third, matched here
+    // over the served paths by a matcher of this palette's own — which was the
+    // right shape while a search could not see a document at all, and is a
+    // second index the day one can (`@olai/format`'s `matchingDocuments`). One
+    // reading answers both kinds, so a row is drawn from the same hit whichever
+    // it is, and typing a word that is in a document's PROSE finds it here
+    // exactly as it does in the header's box.
+    return [...filterItems(query(), commands), ...nodes.hits().map(hitItem)]
   })
 
   /** Everything this modal is holding, put down — one spelling, because the

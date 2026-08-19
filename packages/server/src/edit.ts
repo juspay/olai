@@ -64,10 +64,13 @@ import {
   isMirror,
   type Located,
   type LocatedRegular,
+  markdownAt,
+  markdownIn,
   mintedInto,
   nodeNamed,
   nodesOf,
   type OpFailure,
+  outlinePaths,
   PINS,
   pinsIn,
   type Reading,
@@ -251,7 +254,7 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       // the reading this write is judged against, exactly as every other
       // placement is, and an agent makes the same two moves by hand.
       const file = dailyNotePathFor(
-        at.set.documents.map((document) => document.file),
+        markdownIn(at.set).map((document) => document.path),
         edit.date,
       )
       return Result.succeed({ op: "create-doc", file })
@@ -371,7 +374,7 @@ const captureRequest = (
   at: Reading,
   edit: Extract<Edit, { verb: "capture" }>,
 ): Resolved => {
-  const inbox = inboxIn(at.set.files)
+  const inbox = inboxIn(outlinePaths(at.set))
   return Result.succeed(
     inbox === undefined
       ? { op: "create", file: INBOX, seed: { title: edit.title } }
@@ -406,7 +409,7 @@ const pinRequest = (
   at: Reading,
   edit: Extract<Edit, { verb: "pin" }>,
 ): Resolved => {
-  const shelf = pinsIn(at.set.files)
+  const shelf = pinsIn(outlinePaths(at.set))
   return Result.succeed(
     shelf === undefined
       ? { op: "create", file: mintedInto(PINS), seed: { title: edit.at } }
@@ -457,7 +460,7 @@ const emptyTrashRequest = (
   at: Reading,
   edit: Extract<Edit, { verb: "emptyTrash" }>,
 ): Resolved => {
-  const piles = at.set.files.filter(
+  const piles = outlinePaths(at.set).filter(
     (file) => isArchived(file) && nodesOf(at.derived, file).length > 0,
   )
   if (piles.length === 0) {
@@ -1048,9 +1051,9 @@ const documentTextOf = (
   at: Reading,
   edit: Extract<Edit, { verb: "doc" }>,
 ): ReadonlyArray<Edit> => {
-  const document = at.set.documents.find((entry) => entry.file === edit.file)
-  if (document === undefined || document.text === null) return []
-  return [{ verb: "doc", file: edit.file, text: document.text, was: edit.text }]
+  const document = markdownAt(at.set, edit.file)
+  if (document === undefined) return []
+  return [{ verb: "doc", file: edit.file, text: document.body, was: edit.text }]
 }
 
 /** Where a row about to be archived sits, as the unarchive that would bring it

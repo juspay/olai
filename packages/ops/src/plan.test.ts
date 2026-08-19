@@ -15,11 +15,13 @@ import {
   type OpFailure,
   type OutlineSet,
   type RegularNode,
+  outlinePaths,
   serializeOutline,
   standingBefore,
   AddRequest,
   type WriteRequest as Request,
 } from "@olai/format"
+import { recordsOf } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 import { Result, Schema } from "effect"
 
@@ -55,9 +57,9 @@ const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
  *  can legally mint a contradiction inside the archive. */
 const after = (set: OutlineSet, request: Request): OutlineSet => {
   const texts = Object.fromEntries(
-    set.files.map((file) => [
+    outlinePaths(set).map((file) => [
       file,
-      serializeOutline(nodesOf(derive(set.nodes), file).map((located) => located.node)),
+      serializeOutline(nodesOf(derive(recordsOf(set)), file).map((located) => located.node)),
     ]),
   )
   for (const file of planned(set, request).files) {
@@ -116,7 +118,7 @@ describe("add", () => {
     )
     for (const id of ["demo", "order", "install"]) {
       expect(record(nodes, id).ord).toBe(
-        (derive(before.nodes).byId.get(id)?.node as RegularNode).ord,
+        (derive(recordsOf(before)).byId.get(id)?.node as RegularNode).ord,
       )
     }
   })
@@ -833,7 +835,7 @@ describe("starting what is blocked", () => {
     // The edge the write just added IS what the gate would have refused, had
     // this been a start — so the two verbs are looking at one graph.
     expect(
-      standingBefore(derive(setOf({ "house.olai": serializeOutline(fileOf(result, "house.olai")) }).nodes), "install")
+      standingBefore(derive(recordsOf(setOf({ "house.olai": serializeOutline(fileOf(result, "house.olai")) }))), "install")
         .map((one) => one.at.node.id),
     ).toEqual(["order"])
   })
@@ -872,7 +874,7 @@ describe("starting what is blocked", () => {
     // Said the other way, over the derivation the gate reads: born `doing`,
     // waiting on nothing, however unfinished the row it was anchored after.
     expect(
-      standingBefore(derive(setOf({ "house.olai": serializeOutline(nodes) }).nodes), "n1"),
+      standingBefore(derive(recordsOf(setOf({ "house.olai": serializeOutline(nodes) }))), "n1"),
     ).toEqual([])
   })
 
@@ -1665,12 +1667,12 @@ describe("repeat", () => {
     const undone = after(once, { op: "done", id: "bins", undo: true })
     // The occurrence the completion made is still there — it is owed whatever
     // anybody says about the one before it.
-    expect(nodesOf(derive(undone.nodes), "chores.olai").length).toBe(4)
+    expect(nodesOf(derive(recordsOf(undone)), "chores.olai").length).toBe(4)
 
     const again = planned(undone, { op: "done", id: "bins" })
     expect(again.captured).toBeUndefined()
     expect(again.summary).toBe("done: put the bins out")
-    expect(nodesOf(derive(after(undone, { op: "done", id: "bins" }).nodes), "chores.olai").length)
+    expect(nodesOf(derive(recordsOf(after(undone, { op: "done", id: "bins" }))), "chores.olai").length)
       .toBe(4)
   })
 
@@ -2487,7 +2489,7 @@ describe("merge", () => {
         return rest as Node
       }))
     expect(unstamped(fileOf(back, "house.olai")))
-      .toBe(unstamped(nodesOf(derive(before.nodes), "house.olai").map((at) => at.node)))
+      .toBe(unstamped(nodesOf(derive(recordsOf(before)), "house.olai").map((at) => at.node)))
     expect(record(fileOf(back, "house.olai"), "order").changed).toBe(STAMP)
   })
 })
@@ -2748,7 +2750,7 @@ describe("unarchive", () => {
    */
   /** One archive's records, read off the set the plan produced. */
   const archived = (set: OutlineSet): ReadonlyArray<Node> =>
-    nodesOf(derive(set.nodes), "Archive.olai").map((located) => located.node)
+    nodesOf(derive(recordsOf(set)), "Archive.olai").map((located) => located.node)
 
   test("the signpost the archive minted above a node is not restorable", () => {
     const set = after(house(), { op: "archive", id: "order" })
@@ -2866,7 +2868,7 @@ describe("empty", () => {
     const set = filled()
     // What is being deleted, counted off the set the plan is judged against:
     // two subtrees plus the one scaffold title they share.
-    expect(nodesOf(derive(set.nodes), "Archive.olai")).toHaveLength(3)
+    expect(nodesOf(derive(recordsOf(set)), "Archive.olai")).toHaveLength(3)
 
     const result = planned(set, { op: "empty", files: ["Archive.olai"] })
     expect(fileOf(result, "Archive.olai")).toEqual([])
@@ -2887,7 +2889,7 @@ describe("empty", () => {
       after(house(), { op: "archive", id: "order" }),
       { op: "unarchive", id: "order" },
     )
-    expect(nodesOf(derive(set.nodes), "Archive.olai")).toEqual([])
+    expect(nodesOf(derive(recordsOf(set)), "Archive.olai")).toEqual([])
     const failure = refused(set, { op: "empty", files: ["Archive.olai"] })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("already empty")
@@ -3812,7 +3814,7 @@ describe("duplicate", () => {
     set: OutlineSet,
     nodes: ReadonlyArray<Node>,
   ): ReadonlyArray<Node> => {
-    const before = new Set(set.nodes.map((located) => located.node.id))
+    const before = new Set(recordsOf(set).map((located) => located.node.id))
     return nodes.filter((node) => !before.has(node.id))
   }
 
@@ -4027,7 +4029,7 @@ test("an edge pointing INTO the subtree stays on the original", () => {
   test("the original is untouched — every record it had, unchanged", () => {
     const before = house()
     const { nodes } = copied(before, "kitchen")
-    for (const located of before.nodes) {
+    for (const located of recordsOf(before)) {
       expect(nodes.find((node) => node.id === located.node.id)).toEqual(located.node)
     }
   })

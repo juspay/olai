@@ -1,25 +1,34 @@
 /**
  * WHICH of the served directory's files a query means.
  *
- * ## One matcher, two callers
+ * ## One matcher, one caller left
  *
  * The chat composer's `@` list, where a word after the sigil names a file to
- * put in a message (`../chat/naming.ts`), and the DOCUMENT ROWS the ⌘K palette
- * and the header box draw (`../palette/documents.ts`). Both are asking one
- * question — which served paths is somebody typing towards — and a second
- * spelling of it would be two answers to it: a prefix rule at one door and a
- * fuzzy score at the other, with a reader left to learn which door they are
- * standing in. It lives under `file/` rather than inside either caller for the
- * reason `../search/nodes.ts` lives in `search/` rather than in `palette/`:
- * this directory is where the client keeps what is true of a served FILE — the
- * page each kind opens (`./kinds.ts`), the glyph it is drawn with
- * (`./icons.tsx`), the two a person can make (`./making.ts`) — and a matcher
- * over paths is one more of those.
+ * put in a message (`../chat/naming.ts`). It had a second — the DOCUMENT ROWS
+ * the ⌘K palette and the header box drew — and that one left when a search
+ * started answering with documents (`@olai/format`'s `matchingDocuments`): the
+ * two doors ride the server's one index now, which matches a document's title,
+ * path, tags and PROSE where this matches a path.
  *
- * WHICH paths are offered stays the caller's, because it is a different
- * question with a different answer per door: the `@` list passes every served
- * path (the section below says why the archives are among them), and the
- * palette passes the bodied ones, since a row there is a page to open.
+ * WHAT IS LEFT is a live question about that split, and it is written down
+ * rather than left to be discovered. The `@` list still answers "which served
+ * paths is somebody typing towards" with a prefix rule where the palette
+ * answers it with a weighted score, which is exactly the two-answers-to-one-
+ * question this header used to forbid. It is not fixed here because fixing it
+ * is a behaviour change with a real cost: this list is instant and offline
+ * (the tab already holds the paths), and the index is a debounce and a round
+ * trip away — and it would need the index to answer about OUTLINES too, which
+ * is a ruling the design has not made (docs/brainstorming/
+ * first-class-documents.md).
+ *
+ * It lives under `file/` rather than inside its caller for the reason
+ * `../search/nodes.ts` lives in `search/` rather than in `palette/`: this
+ * directory is where the client keeps what is true of a served FILE — the
+ * glyph it is drawn with (`./icons.tsx`), the two a person can make
+ * (`./making.ts`) — and a matcher over paths is one more of those.
+ *
+ * WHICH paths are offered stays the caller's: the `@` list passes every served
+ * path (the section below says why the archives are among them).
  *
  * ## Nothing is walked here, and no walk was added anywhere else
  *
@@ -89,7 +98,7 @@
  *
  * An EMPTY query answers with the whole list (capped), which is what makes a
  * bare `@` a way of seeing what this vault even holds. A door with nothing to
- * show for an empty box does not ask (`../palette/documents.ts`).
+ * show for an empty box does not ask.
  */
 
 /** One served path, ready to be matched: its own spelling, and the two folded
@@ -129,7 +138,7 @@ export const folded = (paths: ReadonlyArray<string>): ReadonlyArray<Folded> => {
  * IT SELECTS, and does not project: what comes back is the entries handed in,
  * not their paths, so a caller that folded something ALONGSIDE the path keeps
  * it — the palette folds each document's KIND in, which is what its row's
- * glyph is (`../palette/documents.ts`), and the `@` list reads `.path` and
+ * glyph is, and the `@` list reads `.path` and
  * ignores the rest. Answering with paths cost that caller the kind on every
  * keystroke and gave it back only as a re-derivation with an impossible
  * `null` to guard: a fact this pass already knew, thrown away and looked up
@@ -139,7 +148,8 @@ export const folded = (paths: ReadonlyArray<string>): ReadonlyArray<Folded> => {
  * every door: in the `@` popup this half and the node half divide eight rows
  * between them ({@link ../chat/naming.ts}), and in the palette the document
  * rows are a block of their own under the commands
- * ({@link ../palette/documents.ts}). A cap kept here would be a second opinion
+ * (the palette had one, while it matched paths for itself). A cap kept here
+ * would be a second opinion
  * about a number each of those already owns. The `@` half is asked for the
  * WHOLE list rather than for its share — the early exit above is why: a pass
  * that stopped at three could not be asked for eight afterwards, when the

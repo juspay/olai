@@ -31,21 +31,23 @@ import type {
   BrokenFile,
   DayGroup,
   Derived,
+  Face,
   FileKind,
   Row,
   Zoomed,
 } from "@olai/format"
 import {
-  dailyNotesOn,
   bodyKind,
+  dailyNotesOn,
   datedOn,
+  fileKind,
   isArchived,
   rowsOf,
   rowsUnder,
   zoom,
 } from "@olai/format"
 
-import type { Route } from "./routes.ts"
+import { atElement, type Route } from "./routes.ts"
 
 export type Page =
   | { readonly kind: "outline"; readonly file: string }
@@ -106,19 +108,42 @@ export type Page =
     readonly requested: string | null
   }
 
-/** The set, as the page model reads it: what was found, and what could not be
- *  read. One argument rather than three, because they are one snapshot and a
- *  caller cannot hand over half of it. */
+/**
+ * The set, as the page model reads it: what was found, and what could not be
+ * read. One argument rather than two, because they are one snapshot and a
+ * caller cannot hand over half of it.
+ *
+ * ONE COLLECTION, which is the arc's own ruling arriving in the browser: this
+ * was `files` (the outlines) beside `documents` (the bodied ones), two lists
+ * of paths, and every question below picked whichever it happened to be
+ * thinking about. A FACE says what a file is — its path, its title, the
+ * addresses it points at, the tags it writes (`@olai/format`) — and which KIND
+ * it is, is the suffix's answer, asked where it is needed rather than stored
+ * as a second list.
+ *
+ * They arrive on two collections and always will: an outline's records travel
+ * with it and a document's body does not (`@olai/surface`). That is a fact
+ * about COST, and it stops here — what the pages are asked is one list.
+ */
 export interface Found {
-  readonly files: ReadonlyArray<string>
-  /** The BODIED files' paths — every `.md` and every `.html` the directory
-   *  holds, in the order the sidebar draws them. The same shape `files` has,
-   *  and asked the same question: does the directory hold the file this address
-   *  names. Named for the collection they arrive on, which is the wire's own
-   *  name for "a file whose body is read one at a time". */
-  readonly documents: ReadonlyArray<string>
+  /** Every served file, as its face, in path order. */
+  readonly documents: ReadonlyArray<Face>
   readonly broken: ReadonlyMap<string, BrokenFile>
 }
+
+/** Whether the directory holds this path at all — the membership question
+ *  every arm below asks, and the whole of what any of them wants: what the
+ *  page then DRAWS is the file's own business. */
+const serves = (found: Found, path: string): boolean =>
+  found.documents.some((face) => face.path === path)
+
+/** The OUTLINES' paths, in path order — what the trash reads and what the
+ *  front page picks its first file from. A narrowing of the one collection
+ *  rather than a list beside it: asking says which files are being left out. */
+const outlinesOf = (found: Found): ReadonlyArray<string> =>
+  found.documents
+    .filter((face) => fileKind(face.path) === "outline")
+    .map((face) => face.path)
 
 export const pageOf = (
   derived: Derived,
@@ -129,59 +154,72 @@ export const pageOf = (
    *  redirect that would put yesterday in someone's history. */
   today: string,
 ): Page => {
-  if (route.kind === "node") return { kind: "node", zoomed: zoom(derived, route.id) }
-
-  if (route.kind === "document") {
-    // The place inside the page is NOT carried here, and that is the model's
-    // own rule kept: an arm holds what its screen needs. What the screen needs
-    // is the LANDING, which is an act rather than a fact — it happens once, on
-    // arrival, and never again on a re-render — so it comes from the router
-    // that caused the navigation (`./router.tsx`'s `landing`) rather than from
-    // a fragment this would hand out afresh every frame.
-    return found.documents.includes(route.file)
-      ? { kind: "document", file: route.file }
-      // Asked of `bodyKind` rather than `fileKind`, and the fallback is what
-      // is left of an older worry: an address whose suffix says outline never
-      // reaches this arm any more (the parser reads the suffix and picks the
-      // page, `./routes.ts`), and a suffix the registry claims at all is
-      // exactly what makes a path an address. So the sentence names the kind
-      // the reader asked for, and the `?? "document"` is the unreachable arm
-      // kept honest rather than a case this can be handed.
-      : { kind: "nothing", sought: bodyKind(route.file) ?? "document", requested: route.file }
-  }
-
+  // THE PAGES THIS APP CLAIMED BY NAME FIRST, and then the grammar — the same
+  // reading order the parser uses (`./routes.ts`'s `routeNamed`), because it
+  // is the same precedence: a computed page is a word this app took, and an
+  // address is everything else. They cannot collide, so the order is a reading
+  // order rather than a rule.
   if (route.kind === "agenda") return { kind: "agenda", date: today }
-
   if (route.kind === "trash") return trashOf(found)
-
   if (route.kind === "day" || route.kind === "today") {
     const date = route.kind === "today" ? today : route.date
     return {
       kind: "day",
       date,
       groups: datedOn(derived, date),
-      // The PATHS the directory has, which is the same list this function
-      // already asks "is that a document" of below. A day's note is found by
-      // the name of a file rather than by anything in the set, so it is the
-      // one arm that reads `found` for something other than existence.
-      notes: dailyNotesOn(found.documents, date),
+      // A day's note is found by the NAME of a file rather than by anything in
+      // the set, which is why this arm reads the directory for something other
+      // than existence.
+      notes: dailyNotesOn(found.documents.map((face) => face.path), date),
     }
   }
 
-  // `/` is whichever outline was found first — skipping the archives, which
-  // are the trash's to show and nobody's front page. A named one has to be
-  // served, and naming an archive opens the trash: an archive is not a place
-  // you edit, so the address a sidebar used to link goes where the entry went.
-  const file = route.file === null
-    ? found.files.find((candidate) => !isArchived(candidate))
-    : found.files.includes(route.file)
-    ? route.file
+  // WHICH PAGE AN ADDRESS OPENS IS DECIDED HERE, and nowhere else — which is
+  // what the route's arms collapsing bought (`./routes.ts`). Three questions,
+  // in the order the grammar asks them: a node is an element with no document;
+  // a heading is in a BODY by construction; and a path with no element is
+  // whatever its suffix says — an outline is a tree of rows, everything else
+  // with a body is drawn whole. Nothing upstream stored that answer, so
+  // nothing upstream can disagree with it.
+  const address = route.address
+  if (address?.kind === "node") {
+    return { kind: "node", zoomed: zoom(derived, address.id) }
+  }
+
+  if (address !== null && (address.kind === "heading" || bodyKind(address.path) !== null)) {
+    // The place INSIDE the page is not carried onto the arm, and that is the
+    // model's own rule kept: an arm holds what its screen needs. What the
+    // screen needs is the LANDING, which is an act rather than a fact — it
+    // happens once, on arrival, and never again on a re-render — so it comes
+    // from the router that caused the navigation (`./router.tsx`'s `landing`).
+    const file = address.path
+    return serves(found, file)
+      ? { kind: "document", file }
+      // The kind the reader ASKED FOR, off the name the address spelled — so
+      // "no such document" and "no such saved page" send them to two different
+      // places. `?? "document"` is unreachable (a suffix the registry claims is
+      // what makes a path an address at all) and is kept honest rather than
+      // asserted away.
+      : { kind: "nothing", sought: bodyKind(file) ?? "document", requested: file }
+  }
+
+  // What is left is an OUTLINE, or the front page — which is whichever outline
+  // was found first, skipping the archives, since those are the trash's to show
+  // and nobody's front page. A named one has to be served, and naming an
+  // archive opens the trash: an archive is not a place you edit, so the address
+  // a sidebar used to link goes where the entry went.
+  const outlines = outlinesOf(found)
+  const named = address === null ? null : address.path
+  const file = named === null
+    ? outlines.find((candidate) => !isArchived(candidate))
+    : outlines.includes(named)
+    ? named
     : undefined
   if (file === undefined) {
     return {
       kind: "nothing",
       sought: "outline",
-      requested: found.files.length === 0 ? null : route.file,
+      requested: outlines.length === 0 ? null : named,
     }
   }
   if (isArchived(file)) return trashOf(found)
@@ -196,7 +234,7 @@ export const pageOf = (
  *  address, so the two doors cannot show two different trashes. */
 const trashOf = (found: Found): Page => ({
   kind: "trash",
-  files: found.files.filter(isArchived),
+  files: outlinesOf(found).filter(isArchived),
 })
 
 /**
@@ -213,10 +251,9 @@ const trashOf = (found: Found): Page => ({
  * address, and a second answer beside the frame would be free to disagree with
  * the one the page model then applies to the route it produced.
  *
- * TWO LISTS, in the order a path can only be in one of: `documents` is every
- * bodied file and `files` is every outline, and no path is in both — the suffix
- * decides which, and the registry gives each kind exactly one. So the order is
- * not a precedence, it is a spelling.
+ * ONE LIST and one question asked of the SUFFIX, which is what says which page
+ * a path opens: the registry gives each kind exactly one suffix, so nothing
+ * here is a precedence between two lists that could both hold a path.
  *
  * A FRAGMENT rides only on the document arm, and its absence on the outline arm
  * is a fact about outlines rather than an omission: a document page draws a
@@ -234,11 +271,7 @@ export const opensAt = (
   path: string,
   at?: string,
 ): Route | undefined =>
-  found.documents.includes(path)
-    ? { kind: "document", file: path, ...(at === undefined ? {} : { at }) }
-    : found.files.includes(path)
-    ? { kind: "outline", file: path }
-    : undefined
+  serves(found, path) ? atElement(path, at ?? null) : undefined
 
 /** The file the open page belongs to — the sidebar entry to light up, in
  *  whichever of its two lists. A zoomed node belongs to the file its CANONICAL

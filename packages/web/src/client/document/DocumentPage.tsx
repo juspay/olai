@@ -41,6 +41,12 @@
  * pass and nothing on the wire. It arrives when the BODY does, for the same
  * reason the body does — there is nothing to make a contents out of until then.
  *
+ * WHAT POINTS AT IT rides under the body (./Referrers.tsx), which is the half
+ * of a page a document has not had: every reference on disk points one way, so
+ * "what is talking about this file?" was a question nothing could answer until
+ * a document travelled with the addresses it points AT and every other one did
+ * too (`@olai/format`'s `Face`).
+ *
  * AND IT BECOMES WRITABLE, by a declared mode rather than a click in the
  * prose: the body is rendered markdown full of links a reader is entitled to
  * follow, so a click that went to a caret would delete the reading surface to
@@ -59,6 +65,7 @@ import { Dynamic } from "solid-js/web"
 
 import { TESTID } from "../testids.ts"
 import { DocEditor } from "./DocEditor.tsx"
+import { Referrers } from "./Referrers.tsx"
 import { useDocument } from "./documents.tsx"
 import { FACES } from "./faces.tsx"
 import { consumeMinted } from "./minted.ts"
@@ -159,6 +166,14 @@ function OneDocument(props: { readonly file: string }) {
           />
         )}
       </Show>
+      {/* WHO POINTS AT THIS FILE, under the body — the reverse reading a
+          document could not have until it had a face (./Referrers.tsx). It is
+          drawn whether the body has arrived or not, because it is a fact about
+          the DIRECTORY rather than about what this file says: the faces are in
+          hand from the first frame, and a section that waited on a body would
+          be blank on exactly the saved page whose bytes never cross the
+          wire. */}
+      <Referrers file={props.file} />
     </section>
   )
 }

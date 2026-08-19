@@ -23,6 +23,7 @@
 
 import type { Axis } from "./pane/geometry.ts"
 import {
+  HOME_ROUTE,
   hrefOf,
   type Route,
   routeOf,
@@ -102,7 +103,7 @@ export const panesOf = (workspace: Workspace): readonly Pane[] => {
 /** The focused pane's route. */
 export const focusedRoute = (workspace: Workspace): Route => {
   const leaves = leavesOf(workspace.layout)
-  if (leaves.length === 0) return { kind: "outline", file: null }
+  if (leaves.length === 0) return HOME_ROUTE
   return leaves[clampFocus(workspace.focus, leaves.length)]!
 }
 
@@ -130,7 +131,7 @@ export const hrefOfWorkspace = (workspace: Workspace): string => {
   const layout = workspace.layout
   if (layout.kind === "leaf") return hrefOf(layout.route)
   const routes = leavesOf(layout)
-  if (routes.length === 0) return hrefOf({ kind: "outline", file: null })
+  if (routes.length === 0) return hrefOf(HOME_ROUTE)
   const path = WORKSPACE_PREFIX + routes.map(encodePane).join("/")
   const query = workspaceQuery(workspace)
   return query === "" ? path : `${path}?${query}`
@@ -146,7 +147,7 @@ export const workspaceOf = (address: string): Workspace => {
   const routes = segments
     .map(decodePane)
     .filter((route): route is Route => route !== undefined)
-  if (routes.length === 0) return lone({ kind: "outline", file: null })
+  if (routes.length === 0) return lone(HOME_ROUTE)
   const params = new URLSearchParams(search)
   const focus = clampFocus(intIn(params.get(FOCUS_KEY), 0), routes.length)
   const tree = params.get(TREE_KEY)
@@ -255,7 +256,7 @@ const layoutFrom = (
   w: string | null,
 ): Layout => {
   let taken = 0
-  const take = (): Route => routes[taken++] ?? { kind: "outline", file: null }
+  const take = (): Route => routes[taken++] ?? HOME_ROUTE
   const wTree = parseWTree(w)
   const build = (node: Shape, weights: WNode | undefined): Layout => {
     if (node.kind === "leaf") return { kind: "leaf", route: take() }

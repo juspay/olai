@@ -23,6 +23,7 @@ import { NodeTitle } from "./NodeTitle.tsx"
 import { Link } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { TARGET } from "./touch.ts"
+import { atFile, atNode } from "./routes.ts"
 
 /** A crumb is a link a finger taps, so it is a target below 48rem like every
  *  other one (./touch.ts) — inline-flex rather than a block, because the trail
@@ -50,7 +51,7 @@ export function Breadcrumbs(props: {
       <Show when={props.file}>
         {(file) => (
           <Link
-            route={{ kind: "outline", file: file() }}
+            route={atFile(file())}
             class={`${CRUMB} font-mono`}
             testid={TESTID.crumb}
           >
@@ -67,7 +68,7 @@ export function Breadcrumbs(props: {
               <Separator />
             </Show>
             <Link
-              route={{ kind: "node", id: crumb.node.id }}
+              route={atNode(crumb.node.id)}
               class={CRUMB}
               testid={TESTID.crumb}
             >

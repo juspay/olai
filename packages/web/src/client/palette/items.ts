@@ -25,9 +25,9 @@
 import type { BodyKind } from "@olai/format"
 import type { Edit, SearchHit } from "@olai/surface"
 
-import type { Route } from "../routes.ts"
-import { nodePlace } from "../search/place.ts"
-import { type NodeProp, nodeProps } from "../search/props.ts"
+import { HOME_ROUTE, type Route } from "../routes.ts"
+import type { NodeProp } from "../search/props.ts"
+import { hitRow } from "../search/row.ts"
 
 export type PaletteAction =
   | { readonly kind: "route"; readonly route: Route }
@@ -130,7 +130,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     id: "nav-home",
     label: "Go home",
     hint: "open the first outline",
-    action: { kind: "route", route: { kind: "outline", file: null } },
+    action: { kind: "route", route: HOME_ROUTE },
     search: "go home outline first",
   },
   {
@@ -202,19 +202,28 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
   },
 ]
 
-/** One search hit as a palette row: choosing it jumps to the node's page. The
- *  place line — where the node SITS, because a bare title in a list of
- *  strangers means nothing — is `nodePlace`'s, beside the row every door draws
- *  (`../search/place.ts`), and it says why it is written the way it is. */
-export const nodeItem = (hit: SearchHit): PaletteItem => ({
-  id: `node-${hit.id}`,
-  label: hit.title,
-  place: nodePlace(hit),
-  props: nodeProps(hit),
-  action: { kind: "route", route: { kind: "node", id: hit.id } },
-  // Never filtered locally: the server already decided these match.
-  search: "",
-})
+/**
+ * One search hit as a palette row: choosing it opens whatever it names.
+ *
+ * WHATEVER, and that is the change: a hit is a record or a document
+ * (`@olai/format`'s `SearchHit`), and the row is the same row either way —
+ * label, place, and a route to take. What each of those IS per kind is
+ * `../search/row.ts`'s answer, shared with the three other doors that draw the
+ * identical list, so the palette cannot grow a glyph the header box lacks.
+ */
+export const hitItem = (hit: SearchHit): PaletteItem => {
+  const row = hitRow(hit)
+  return {
+    id: `hit-${row.id}`,
+    label: row.label,
+    ...(row.of === undefined ? {} : { of: row.of }),
+    place: row.place,
+    props: row.props,
+    action: { kind: "route", route: row.route },
+    // Never filtered locally: the server already decided these match.
+    search: "",
+  }
+}
 
 /** Filter the command rows by a free-text query — never reached while the
  *  box carries a prefix, which takes it out of the list entirely. */

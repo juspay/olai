@@ -7,17 +7,19 @@
  * panel actually sees.
  */
 
-import type { SearchHit } from "@olai/surface"
+import { NodeId } from "@olai/format"
+import type { NodeHit } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import { nodeProps } from "./props.ts"
 
 /** A hit carrying whatever the case under test needs. The fields a row does not
- *  read are still here because a `SearchHit` has them. */
+ *  read are still here because a `NodeHit` has them. */
 const hitOf = (
   custom: Record<string, string | ReadonlyArray<string>> | undefined,
   matchedProps?: ReadonlyArray<string>,
-): SearchHit => ({
+): NodeHit => ({
+  at: { kind: "node", id: NodeId.make("lane") },
   id: "lane",
   title: "a lane",
   file: "roadmap.olai",

@@ -27,12 +27,11 @@
  * {@link hrefOf} reads as *place, then narrowing, then the element half* and
  * {@link routeNamed} reads as *the words this app claimed, then the grammar*.
  *
- * {@link Route} is not yet spelled that way — a filter is a field on each arm,
- * and the three content arms carry a place each — and that is a deliberate
- * hold rather than an oversight: which page an address opens is a fact this
- * module derives (from the suffix) and every consumer of `Route` reads off the
- * arm, so collapsing the arms belongs with the change that makes the SET serve
- * one collection of documents (the design's PR 2), not with the grammar.
+ * {@link Route} IS spelled that way since PR 2 of the design: one content arm
+ * carrying an address, and a filter beside it. The three arms it replaced —
+ * an outline, a document, a node — stored a thing this module derives, which
+ * is which PAGE an address opens; that is asked once now, where the page is
+ * picked (`./page.ts`).
  *
  * ## No prefixes, and why the old three had to go
  *
@@ -129,27 +128,27 @@ import {
   writtenAddress,
 } from "@olai/format"
 
-import { routeTo } from "./file/kinds.ts"
-
 export type Route =
-  /** One outline. `null` is "whichever was found first" — the bare `/`. */
-  | { readonly kind: "outline"; readonly file: string | null; readonly filter?: string }
   /**
-   * One document, by its path — and optionally by a place INSIDE it.
+   * A PLACE in the served directory — one address, and `null` for the front
+   * page, which names none ("whichever outline was found first", the bare
+   * `/`).
    *
-   * `at` is a heading's own id, which is what a `#` after a document has
-   * always meant, and it is on this arm alone because it is the only page made
-   * of prose: a `.md` renders headings that `rehype-slug` gives ids to, and a
-   * `.html` is a document with whatever ids its author wrote. An outline's
-   * elements are NODES, and the grammar reads a `#` after a `.olai` as one —
-   * which is why the node arm below carries no file.
+   * ONE ARM, where there were three: an outline, a document and a node. That
+   * was three spellings of what the address grammar already has three
+   * constructors for, and it stored a thing this module can DERIVE — which
+   * PAGE an address opens is the suffix's answer (`@olai/format`'s
+   * `fileKind`), asked where the page is picked (`./page.ts`) rather than
+   * frozen into the route by whoever built it. Two answers to that question is
+   * a link that opens a different page from the sidebar row beside it, which
+   * is exactly the class of bug the addresses PR removed the prefixes for
+   * (PR #256's deferral, taken here).
    *
-   * WITHOUT the `#`, because that character is the address's punctuation
-   * rather than part of the name: {@link hrefOf} writes it and {@link routeOf}
-   * strips it, the same division `filter` gets with `?q=`.
+   * A HEADING rides in the address like everything else: `README.md#install`
+   * is one `AtHeading`, and it used to be a `file` with an `at` beside it on
+   * the document arm alone.
    */
-  | { readonly kind: "document"; readonly file: string; readonly at?: string }
-  | { readonly kind: "node"; readonly id: string; readonly filter?: string }
+  | { readonly kind: "at"; readonly address: Address | null; readonly filter?: string }
   /** One day of the journal, by its ISO date. */
   | { readonly kind: "day"; readonly date: string; readonly filter?: string }
   /** Whichever day it is when this is read. */
@@ -238,23 +237,42 @@ const FILTER_KEY = "q"
 /**
  * The address a route names, or `null` for one that names no place.
  *
- * The three CONTENT routes are the address grammar's three arms, and this is
- * the whole of the correspondence: an outline and a document are both a
- * document (which of the two a page draws is the suffix's answer, not the
- * address's), a place inside a document is its element, and a node is an
- * element with no document at all.
- *
- * `null` is what the front page is — an outline route naming no file — and
- * what a route naming a path this directory could not serve is. The second is
- * the print-side twin of {@link routeOf}'s kindness: a route that names
- * nothing is written as the address that names nothing.
+ * A FIELD READ rather than a correspondence to maintain, which is what the arm
+ * collapse bought: a content route IS an address, so there is nothing here to
+ * get wrong and nothing that could disagree with the grammar. The computed
+ * pages name no place at all, and neither does the front page.
  */
-const addressNamed = (route: Route): Address | null => {
-  if (route.kind === "node") return addressOf(null, route.id)
-  if (route.kind === "document") return addressOf(route.file, route.at ?? null)
-  if (route.kind === "outline") return addressOf(route.file, null)
-  return null
-}
+const addressNamed = (route: Route): Address | null =>
+  route.kind === "at" ? route.address : null
+
+/** The front page: the address that names no place. One value, since it is
+ *  only ever read. */
+export const HOME_ROUTE: Route = { kind: "at", address: null }
+
+/**
+ * WHERE AN ADDRESS OPENS.
+ *
+ * The one constructor for a content route, so that no caller assembles the arm
+ * itself — which is what makes "the page kind is derived" true rather than
+ * merely intended. `null` is the front page, and it is what an unnameable
+ * pair falls back to, on {@link routeOf}'s own kindness: a route that names
+ * nothing is the page that names nothing.
+ */
+const atAddress = (address: Address | null): Route => ({ kind: "at", address })
+
+/** The page a served FILE opens — an outline drawn as a tree, a body drawn
+ *  whole, and which of those is nobody's decision here (`./page.ts` asks the
+ *  registry when it picks the page). */
+export const atFile = (file: string): Route => atAddress(addressOf(file, null))
+
+/** One node's page, by the id that is the whole of its address: bare, global,
+ *  and right about where the node lives after every move short of a delete. */
+export const atNode = (id: string): Route => atAddress(addressOf(null, id))
+
+/** A place INSIDE a file — a heading of a body, or a node of an outline, which
+ *  is the grammar's own reading of what a `#` after a path means. */
+export const atElement = (file: string, element: string | null): Route =>
+  atAddress(addressOf(file, element))
 
 /**
  * The URL a route is at: a PLACE, and what it is NARROWED by.
@@ -316,21 +334,17 @@ const UNNARROWED: { readonly filter?: string } = {}
  * on". Read off the route rather than passed beside it: the two could disagree,
  * and the route is the one a click follows.
  *
- * IT READS THE ARM rather than the address, and that is a measured decision
- * rather than the lazy one. Asking {@link addressNamed} is the same answer one
- * step further back and reads better — but it walks the path, mints an
- * `Address` and hands back a field the route was already holding, and this is
- * called once per `<Link>` per frame (`./router.tsx`, `data-file`). A
- * derivation that allocates per drawn row is not the same trade as a
- * derivation in a parser. The two cannot disagree — the address's document
- * half IS this file — and `routes.test.ts` is where that is held.
+ * IT READS THE ADDRESS, which is now a field read rather than a walk: the
+ * route HOLDS the address since the arms collapsed, so this costs a property
+ * access on a path called once per `<Link>` per frame (`./router.tsx`,
+ * `data-file`). The measured objection to asking the grammar — that it walked
+ * the path and minted an `Address` to hand back a field the route already had
+ * — is gone with the field it was about.
  */
-export const fileNamed = (route: Route): string | undefined =>
-  route.kind === "document"
-    ? route.file
-    : route.kind === "outline"
-    ? route.file ?? undefined
-    : undefined
+export const fileNamed = (route: Route): string | undefined => {
+  const address = addressNamed(route)
+  return address === null || address.kind === "node" ? undefined : address.path
+}
 
 /**
  * The route a link on the page names, or `null` for an address this app should
@@ -422,7 +436,7 @@ export const routeOf = (address: string): Route => {
    *  somebody typed something, and the app they wanted is the one at `/`. It
    *  keeps whatever the address was NARROWED by, because a query is read by
    *  `URLSearchParams`, which is lenient where a path is not. */
-  return { kind: "outline", file: null, ...narrowedBy(parts.search) }
+  return { ...HOME_ROUTE, ...narrowedBy(parts.search) }
 }
 
 /**
@@ -464,32 +478,19 @@ const routeNamed = (parts: Split): Route | null => {
   if (!pathname.startsWith(HOME)) return null
   // The front page names no file — "whichever outline was found first" — which
   // is a page of this app and not a fallback, so a link may be written to it.
-  if (pathname === HOME && fragment === undefined) {
-    return { kind: "outline", file: null, ...narrowed }
-  }
+  if (pathname === HOME && fragment === undefined) return { ...HOME_ROUTE, ...narrowed }
 
   const named = parseAddress(
     pathname.slice(HOME.length) + (fragment === undefined ? "" : `#${fragment}`),
   )
   if (named === null) return null
-  if (named.kind === "node") return { kind: "node", id: named.id, ...narrowed }
-  if (named.kind === "heading") {
-    return { kind: "document", file: named.path, at: named.slug }
-  }
-  // WHICH PAGE a served file opens is one question with one answer in this
-  // client (`./file/kinds.ts`'s `routeTo`, which the sidebar's rows already
-  // go through): an outline is a tree of rows to zoom into and narrow, and
-  // everything whose content is a body is drawn whole. Asking it there rather
-  // than re-deciding it here is what stops an address and a sidebar click
-  // opening two different pages for one file.
-  //
-  // The `null` cannot happen — a `DocumentPath` carries a suffix the registry
-  // claims — and is asked rather than asserted, so the claim stays the
-  // registry's.
-  const kind = fileKind(named.path)
-  if (kind === null) return null
-  const page = routeTo(kind, named.path)
-  return narrowable(page) ? { ...page, ...narrowed } : page
+  // WHICH PAGE it opens is not decided here and is not stored: an address is a
+  // place, and what is drawn at that place is the suffix's answer, asked once
+  // where the page is picked (`./page.ts`). That is the whole of the arm
+  // collapse — an address and a sidebar click cannot open two different pages
+  // for one file, because neither of them says which page.
+  const route = atAddress(named)
+  return narrowable(route) ? { ...route, ...narrowed } : route
 }
 
 /**
@@ -506,9 +507,20 @@ const routeNamed = (parts: Split): Route | null => {
  * Written as the ONE EXCLUSION rather than as a list of five, because that is
  * the shape of the rule now: a filter selects nodes, and a document is the one
  * page here that is not made of them.
+ *
+ * IT IS A DERIVATION SINCE THE ARMS COLLAPSED, and that is the same move the
+ * page kind made: which page an address opens is the registry's answer, so
+ * "does this page hold nodes" is too. It used to be an arm that had no
+ * `filter` field, which was the rule spelled in the TYPE — a stronger promise,
+ * and one the type could only make while the route stored what it drew. What
+ * replaces it is that nothing can build a document route with a filter without
+ * going through {@link narrowedTo}, which asks this.
  */
-export const narrowable = (route: Route): route is Extract<Route, { filter?: string }> =>
-  route.kind !== "document"
+export const narrowable = (route: Route): boolean => {
+  const address = addressNamed(route)
+  return address === null || address.kind === "node" ||
+    fileKind(address.path) === "outline"
+}
 
 /**
  * The same page, narrowed — or not, when `filter` is blank.

@@ -16,7 +16,7 @@
  */
 
 import { derive } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { type Destination, type Moved, whyNot } from "./destination.ts"
@@ -54,11 +54,11 @@ const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed"}`
 const AWAY = `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`
 
 const derived = derive(
-  setOf({
+  recordsOf(setOf({
     "house.olai": HOUSE,
     "garden.olai": GARDEN,
     "notes/Archive.olai": AWAY,
-  }).nodes,
+  })),
 )
 
 /** A node the search offered, as the three fields a verdict reads — off the

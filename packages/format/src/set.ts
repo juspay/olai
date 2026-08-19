@@ -2,22 +2,42 @@
  * The loaded set: what one served directory amounts to once it is read and
  * found valid.
  *
- * It is FLAT. Every `Located` already carries the file it came from, so
- * grouping the nodes by file as well would be the same fact twice — and every
- * consumer that tried it ended up flattening the groups back out and
- * re-filtering by `located.file` anyway. `files` is the list the sidebar
- * shows; the nodes are one list, the way every rule and every walk wants them.
+ * ONE COLLECTION. A served directory is a list of DOCUMENTS — outlines,
+ * markdown, hypertext — and the nodes are the substructure of one of those
+ * arms ({@link ./document.ts}). It was two lists until PR 2 of the
+ * first-class-documents arc: this module built the union of what each file
+ * decoded to and then tore it apart into a `nodes` collection beside a
+ * `documents` one, and every feature written since imported the `nodes` half.
+ * That is the habit the arc is about, and the enforcement is structural rather
+ * than reviewed-for: there is no node-only list here to import, so treating
+ * both kinds evenly is what the type hands you and treating them unevenly is
+ * work.
  *
- * These are Schemas rather than plain interfaces because the set is what the
- * browser subscribes to — it travels the wire verbatim. Nothing is projected
- * or re-shaped on the way out: the client renders the same records the
- * validator approved, and derives everything else with the same functions the
- * validator used ({@link ./derive.ts}).
+ * WHAT IT COSTS, said plainly, because the old shape was flat on purpose: a
+ * walk that wants every record of the directory now walks the outlines and
+ * their nodes rather than one array. That is the same records in the same
+ * order, one level of nesting deeper, and it is paid once per validation
+ * ({@link ./validate.ts} flattens for the derivation, which is the one reader
+ * that needs a list). What it BUYS is that no other reader can ask for that
+ * list without saying which documents it is skipping.
+ *
+ * These are Schemas rather than plain interfaces because the records inside
+ * them are: a set is assembled out of the same values the validator approves,
+ * and the client renders those verbatim and derives everything else with the
+ * same functions the validator used ({@link ./derive.ts}).
  */
 
 import { Result, Schema } from "effect"
 
-import { Document } from "./documents.ts"
+import {
+  bodiedDocument,
+  Document,
+  type Hypertext,
+  isOutline,
+  type Markdown,
+  type Outline,
+  outlineDocument,
+} from "./document.ts"
 import { OutlineError } from "./errors.ts"
 import { bodyKind } from "./kinds.ts"
 import { Located } from "./node.ts"
@@ -41,53 +61,27 @@ export const BrokenFile = Schema.Struct({
 export type BrokenFile = typeof BrokenFile.Type
 
 export const OutlineSet = Schema.Struct({
-  /** Every `.olai` found, in path order — put there by {@link assemble} rather
-   *  than inherited from whoever handed the files over, so the order is the
-   *  same whichever caller assembled the set. Including any that hold no nodes
-   *  and any that did not parse, which is why this is not derived from
-   *  `nodes`. */
-  files: Schema.Array(Schema.String),
-  nodes: Schema.Array(Located),
-  /** Every BODIED file found — each `.md` and each `.html` — with its text, or
-   *  with `null` for a body the set does not keep ({@link ./documents.ts}).
-   *  Every one of them is HERE, whichever it is, because `doc` points into
-   *  them: a reference the validator cannot see is one it cannot check, and
-   *  what checking one needs is the path. A document's text rides along beside
-   *  it because it is the same kind of thing a note is — content of the
-   *  directory, read by the same probe and published in the same revision. The
-   *  field keeps the name it has on the wire. */
+  /**
+   * EVERY served file, as the document it decoded to, in path order — put
+   * there by {@link assemble} rather than inherited from whoever handed the
+   * files over, so the order is the same whichever caller assembled the set.
+   *
+   * Including the files that did not parse: one keeps its place here with
+   * nothing in it (no nodes, or an empty body) and its errors go to
+   * {@link OutlineSet.broken}. That is what makes a directory with one bad file
+   * a directory the sidebar still lists in full.
+   */
   documents: Schema.Array(Document),
-  /** The files above that did not parse. Their nodes are absent from `nodes`,
-   *  which is exactly what makes the rest of the set renderable. */
+  /** The files above that could not be read. Their content is absent from the
+   *  document that holds their place, which is exactly what makes the rest of
+   *  the set renderable. */
   broken: Schema.Array(BrokenFile),
 })
 export type OutlineSet = typeof OutlineSet.Type
 
-/** One file's worth of nodes, in file order — the codec's per-file unit, which
- *  the store caches and re-decodes independently. It is not what the browser
- *  receives; {@link OutlineSet} is. */
-export interface Outline {
-  readonly file: string
-  readonly nodes: ReadonlyArray<Located>
-}
-
-/** What one file decoded to: an outline's nodes, or a document's text.
- *
- *  It carries no tag saying which it is. `fileKind` already answers that from
- *  the path, and `decode` branched on that same answer to produce this — so a
- *  tag would be a second answer that could disagree with the name. */
-export type DecodedFile = Outline | Document
-
-/** Which arm a decoded file is — named, like this package's other two-shape
- *  decision (`isMirror`, {@link ./node.ts}), rather than spelled as a field
- *  test wherever it is wanted. It reads BACK what `fileKind` already decided:
- *  `decode` branched on the path to produce this value, so the shape is that
- *  answer in another form and not a second one. */
-const isDocument = (decoded: DecodedFile): decoded is Document => "text" in decoded
-
 /**
  * What one decoded file contributes to the set's records — nothing for a
- * document, and nothing for a file that did not parse.
+ * document that holds no records, and nothing for a file that did not parse.
  *
  * {@link assemble}'s per-file answer, asked one file at a time, and here rather
  * than at the asker for that reason: which files hold records is this module's
@@ -101,30 +95,44 @@ const isDocument = (decoded: DecodedFile): decoded is Document => "text" in deco
  * contributes no records, which is what the delta means by a file with none.
  */
 export const nodesIn = <E>(
-  decoded: Result.Result<DecodedFile, E> | undefined,
+  decoded: Result.Result<Document, E> | undefined,
 ): ReadonlyArray<Located> =>
-  decoded === undefined || Result.isFailure(decoded) || isDocument(decoded.success)
-    ? []
+  decoded === undefined || Result.isFailure(decoded) || !isOutline(decoded.success)
+    ? NO_NODES
     : decoded.success.nodes
+
+/** A file with no records in it: ONE list, shared, since most of the calls
+ *  above are about a file that has none. */
+const NO_NODES: ReadonlyArray<Located> = []
 
 /**
  * Decoded files into the set the validator judges.
  *
- * The assembly is a statement about the format — which files are outlines,
- * where their nodes go, what counts as a document — so it lives beside the
- * rules rather than in whatever read the directory. A caller supplies bytes
- * and gets back the one shape everything above it renders.
+ * The assembly is a statement about the format — which files are served, what
+ * order they are in, what a file that would not decode still leaves sayable —
+ * so it lives beside the rules rather than in whatever read the directory. A
+ * caller supplies bytes and gets back the one shape everything above it
+ * renders.
  *
- * A file that FAILED to decode is still a file that was found: it keeps its
- * place in `files` (the sidebar lists it; a fix will fill it in) or in
- * `documents`, and its errors go to `broken`. Only its nodes are missing, and
- * that is the whole of what one unreadable file costs the set.
+ * IT IS NOW A COLLECT rather than a sort, and that is the sum paying for
+ * itself. This function used to answer four questions per file — which list it
+ * belongs to, what it holds, where its records go, what an unreadable one
+ * leaves behind — out of two different places, because the value's shape and
+ * the file's name each knew half of it. A decode hands over a {@link Document}
+ * now: the arm IS the answer, and the face is already built (at the decode,
+ * once per file per change, which is where a walk of somebody's prose belongs
+ * — `./document.ts` says why not here).
+ *
+ * A file that FAILED to decode is still a file that was found. It keeps its
+ * place in `documents` as an EMPTY one of its kind — an outline with no
+ * records, a document with no text — and its errors go to `broken`. That is
+ * the whole of what one unreadable file costs the set, and it is what lets the
+ * sidebar go on listing a file whose lines somebody is in the middle of fixing.
  *
  * IN PATH ORDER ({@link ./paths.ts}'s `byPath`), and it sorts for itself rather
- * than inheriting that from whoever built the map. {@link OutlineSet.files}
- * promises it, `nodes` follows it file by file, and every reader spends it:
- * `list_outlines` answers in it,
- * a search tie breaks on it, the sidebar draws it. Until #208 the promise held
+ * than inheriting that from whoever built the map. {@link OutlineSet.documents}
+ * promises it and every reader spends it: `list_outlines` answers in it, a
+ * search tie breaks on it, the sidebar draws it. Until #208 the promise held
  * only because the one caller in the tree walks a directory in sorted order —
  * so a caller that built its map any other way got a set that broke the
  * promise silently, and the write gate was exactly such a caller: it assembles
@@ -142,41 +150,21 @@ export const nodesIn = <E>(
  * client's own sort came to disagree about ({@link ./paths.ts}).
  */
 export const assemble = (
-  files: ReadonlyMap<string, Result.Result<DecodedFile, ReadonlyArray<OutlineError>>>,
+  files: ReadonlyMap<string, Result.Result<Document, ReadonlyArray<OutlineError>>>,
 ): OutlineSet => {
-  const outlines: Array<string> = []
-  const nodes: Array<Located> = []
   const documents: Array<Document> = []
   const broken: Array<BrokenFile> = []
 
-  // Two questions per file, and they are answered from two different places
-  // because two different things know them. WHICH LIST a file belongs to is its
-  // NAME's answer — a file that would not decode has no value to ask, and it
-  // still has to keep its place. WHAT IT HOLDS is the VALUE's answer, and the
-  // value is the only thing that has it.
-  //
-  // The paths are put in order FIRST, so every list below comes out in it and
-  // none of them has to be sorted afterwards — `nodes` in particular could not
-  // be, since its order is file order and then line order within a file.
+  // The paths are put in order FIRST, so the list below comes out in it and
+  // does not have to be sorted afterwards.
   for (const path of [...files.keys()].sort(byPath)) {
     const decoded = files.get(path)!
     if (Result.isFailure(decoded)) {
       broken.push({ file: path, errors: decoded.failure })
-      if (bodyKind(path) !== null) documents.push({ file: path, text: "" })
-      else outlines.push(path)
-      continue
-    }
-    const value = decoded.success
-    // The path is the caller's listing rather than the value's idea of itself:
-    // one of them is where the file was found, and that is the one every other
-    // list here is built from.
-    if (isDocument(value)) documents.push({ file: path, text: value.text })
-    else {
-      outlines.push(path)
-      nodes.push(...value.nodes)
-    }
+      documents.push(emptyDocument(path))
+    } else documents.push(decoded.success)
   }
-  return { files: outlines, nodes, documents, broken }
+  return { documents, broken }
 }
 
 /**
@@ -188,7 +176,7 @@ export const assemble = (
  * missing is a NAME, because the fact it establishes is subtle and both
  * callers turn on it: a file in `broken` is one the set holds a PLACE for and
  * no content — an outline whose lines did not parse contributes no records, a
- * document whose read failed contributes an empty text ({@link assemble}) —
+ * document whose read failed contributes an empty body ({@link assemble}) —
  * and neither of those absences means the file is empty.
  *
  * The two callers then say different things about it, correctly, and that is
@@ -212,22 +200,100 @@ export const brokenBy = (
   new Map(set.broken.map((entry) => [entry.file, entry.errors]))
 
 /**
+ * ONE DOCUMENT, by the path a caller named — or `undefined` for a path this
+ * directory does not serve.
+ *
+ * The point lookup every "is that file there" was, and there were a dozen of
+ * them, each `.includes` over whichever of the two old lists the caller
+ * happened to be thinking about — which is precisely how a feature came to
+ * work for one kind and not the other. There is one list now, so there is one
+ * question, and the ANSWER carries the kind: a caller that only draws outlines
+ * has to say so, in a line a reader can see.
+ */
+export const documentAt = (set: OutlineSet, path: string): Document | undefined =>
+  set.documents.find((document) => document.path === path)
+
+/**
+ * The OUTLINES of the set, in path order.
+ *
+ * A narrowing of the one collection rather than a second collection, and the
+ * difference is the whole of what this arc changed: nobody is HANDED this, it
+ * is asked for by name, and asking says out loud which documents the caller is
+ * leaving out. What reads it is what is genuinely about records — the tree the
+ * sidebar draws, the files an op may write, the derivation's input.
+ */
+export const outlinesIn = (set: OutlineSet): ReadonlyArray<Outline> =>
+  set.documents.filter(isOutline)
+
+/** The same narrowing to their PATHS, for the callers that want the names —
+ *  a listing, a refusal that says which files there are, a membership test. */
+export const outlinePaths = (set: OutlineSet): ReadonlyArray<string> =>
+  outlinesIn(set).map((outline) => outline.path)
+
+/**
+ * ONE MARKDOWN DOCUMENT, by the path a caller named — or `undefined` for a
+ * path this directory does not serve AS ONE, whether because nothing is there
+ * or because what is there is an outline or a saved page.
+ *
+ * {@link documentAt} narrowed by the question three callers actually ask —
+ * `read_document`, `write_document`'s refusal and the editor's undo — and it
+ * is here rather than at each of them because they were spelling it as a
+ * `.filter` of the whole collection followed by a `.find`, which allocates a
+ * copy of every served document to look one up. One walk, no copy, and one
+ * place that says which arm counts.
+ */
+export const markdownAt = (set: OutlineSet, path: string): Markdown | undefined => {
+  const document = documentAt(set, path)
+  return document?.kind === "document" ? document : undefined
+}
+
+/**
+ * The MARKDOWN documents of the set, in path order — a `.md` and never a
+ * `.html`.
+ *
+ * The other narrowing anybody asks for, and it is a different question from
+ * "which files have a body": a `.html` is the one file olai only SHOWS —
+ * nothing validates it, no op writes it, and the set keeps its path without its
+ * bytes — so the validator deciding what a `doc` may point at, the planner
+ * refusing a `write_document` and both document reads all mean this list. Four
+ * callers asked it with four `.filter`s before it had a name.
+ */
+export const markdownIn = (set: OutlineSet): ReadonlyArray<Markdown> =>
+  set.documents.filter((document): document is Markdown => document.kind === "document")
+
+/**
+ * The BODIED documents of the set, in path order — every file the set keeps a
+ * body SLOT for, whether or not it keeps the bytes.
+ *
+ * The third narrowing, and the one that is about STORAGE rather than about
+ * meaning: a `.md` and a `.html` are the files a reader opens as a rendered
+ * page, they are published as one collection read a key at a time
+ * (`@olai/server`), and the browser knows them as a key set. {@link markdownIn}
+ * above is the narrower question — what a `doc` may point at, what an op may
+ * write — and the two are not the same list, which is exactly why both have a
+ * name.
+ */
+export const bodiedIn = (set: OutlineSet): ReadonlyArray<Markdown | Hypertext> =>
+  set.documents.filter((document): document is Markdown | Hypertext =>
+    document.kind !== "outline"
+  )
+
+/**
  * A set taken back APART into the map {@link assemble} puts together — the
  * inverse, declared beside what it inverts.
  *
  * It is here rather than at its caller because it is a statement about
- * `assemble`'s own invariants, and every one of them is easy to get subtly
- * wrong from outside: a file that did not decode keeps its place in `files` or
- * in `documents` AND is listed in `broken`, so the broken paths have to be read
- * FIRST and the two lists below have to skip whatever they already answered.
- * Getting that backwards turns an unreadable outline into an empty one,
- * silently. `./set.test.ts` holds the pair to a round trip rather than to a
- * memory of one.
+ * `assemble`'s own invariants, and they are easy to get subtly wrong from
+ * outside: a file that did not decode keeps its PLACE in `documents` and is
+ * listed in `broken`, so the broken paths have to be read FIRST and the walk
+ * below has to skip whatever they already answered. Getting that backwards
+ * turns an unreadable outline into an empty one, silently. `./set.test.ts`
+ * holds the pair to a round trip rather than to a memory of one.
  *
- * WHAT IT CANNOT RECOVER, and does not pretend to: the errors of a file that
- * decoded as a document, which `assemble` replaces with an empty text. That is
- * a document the set holds no content for either way, and nothing above reads
- * the difference. Every outline round-trips exactly.
+ * WHAT IT CANNOT RECOVER, and does not pretend to: the errors of a file whose
+ * place is held by an empty document, which is every broken file's — they are
+ * in `broken`, and this hands them back as the failure that put them there.
+ * Every readable document round-trips exactly, as the value it decoded to.
  *
  * Its one caller is `@olai/ops`' batch fold, which plans op two against the set
  * op one would leave — so it needs the map back to swap one file's records into
@@ -236,25 +302,25 @@ export const brokenBy = (
  */
 export const apart = (
   set: OutlineSet,
-): Map<string, Result.Result<DecodedFile, ReadonlyArray<OutlineError>>> => {
-  const files = new Map<string, Result.Result<DecodedFile, ReadonlyArray<OutlineError>>>()
+): Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>> => {
+  const files = new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>()
   for (const broken of set.broken) files.set(broken.file, Result.fail(broken.errors))
-  // Regrouped by the file each record already names, which is why this is a
-  // regrouping rather than a guess — and the order within a file is the set's
-  // own, since `assemble` laid the nodes out file by file and line by line.
-  const nodes = new Map<string, Array<Located>>()
-  for (const located of set.nodes) {
-    const held = nodes.get(located.file)
-    if (held === undefined) nodes.set(located.file, [located])
-    else held.push(located)
-  }
-  for (const file of set.files) {
-    if (files.has(file)) continue
-    files.set(file, Result.succeed({ file, nodes: nodes.get(file) ?? [] }))
-  }
   for (const document of set.documents) {
-    if (files.has(document.file)) continue
-    files.set(document.file, Result.succeed(document))
+    if (files.has(document.path)) continue
+    files.set(document.path, Result.succeed(document))
   }
   return files
 }
+
+/**
+ * The empty document that holds an unreadable file's PLACE — an outline with
+ * no records, or a body with no text.
+ *
+ * Which of the two is the registry's answer ({@link ./kinds.ts}), asked of the
+ * NAME, because a file that would not decode has no value to ask. That is the
+ * one thing {@link assemble} still reads off a path rather than off an arm,
+ * and it is the one thing it must: the whole point of the entry is that there
+ * was nothing to decode.
+ */
+const emptyDocument = (file: string): Document =>
+  bodyKind(file) === null ? outlineDocument(file, []) : bodiedDocument(file, "")

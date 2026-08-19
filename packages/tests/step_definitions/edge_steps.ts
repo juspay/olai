@@ -136,7 +136,7 @@ When(
 );
 
 /** The third line, in the door that is NOT the palette. Four surfaces draw
- *  `Result.tsx` over one `createNodeSearch`, and the properties reached one of
+ *  `Result.tsx` over one `createSearch`, and the properties reached one of
  *  them first; this is the fence that keeps them reaching all of them. */
 Then(
   "the edge panel hit {string} shows the property {string} holding {string}",
