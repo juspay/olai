@@ -85,7 +85,7 @@ Above every page that draws nodes there is a filter box. It is not the header's 
 - **The filter is in the address** — `?q=…` — so a narrowed page is a link you can send and the back button works. Typing REPLACES the history entry rather than pushing one, so Back leaves the filter rather than un-typing it. Zooming is a navigation and starts unfiltered; Back returns to the narrowed page.
 - **Folds are suspended while a filter is on.** A collapse is a claim about the tree you were reading, and honouring it inside a filtered one would hide the match you typed for. Nothing is written: clearing the filter brings every collapse back.
 - **Hiding finished work happens first.** The Prefs switch is a standing claim about the reader; the filter is a question about the page. So `is:done` under a done-hiding preference draws nothing — and the bar says how many matches are being held back, rather than leaving it a mystery.
-- The bar reports **"3 of 41"**: how many drawn rows are matches, of how many rows the page draws.
+- The bar reports **"3 of 41"**: how many drawn rows are matches, of how many rows the page HOLDS — every row it could draw, whether or not a preference of yours is taking some of them off the screen. So the second number does not move when you hide finished work, and the matches held back are counted inside it: **"3 of 41 — 2 more matches hidden as done (Prefs)"** is 5 matches on a page of 41 rows, and adds up. Found nothing? The denominator stays, because "no matches of 41" and an empty directory are two different pieces of news. A part that is zero is not said.
 
 ### Every row says why it is drawn
 
