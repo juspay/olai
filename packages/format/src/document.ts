@@ -102,7 +102,7 @@ import { Schema } from "effect"
 import { Address, addressOf, DocumentPath, printAddress, Slug, Tag } from "./address.ts"
 import { tagsIn, writtenTags } from "./derive.ts"
 import { firstLine, linksIn, recordLinks } from "./documents.ts"
-import { stemOf, unkept } from "./kinds.ts"
+import { fileKind, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
 import { slugsIn } from "./slug.ts"
 
@@ -299,11 +299,13 @@ export const outlineDocument = (
  */
 export const bodiedDocument = (file: string, text: string | null): Markdown | Hypertext => {
   const path = pathOf(file)
-  // THE `kept` COLUMN, which is the registry's own reader of "does the set hold
-  // this file's bytes" (`./kinds.ts`'s `unkept`) — not a kind named here. A
-  // fourth bodied kind whose body the set does not keep lands on the right arm
-  // by that rule rather than by being added to a list in this file.
-  if (unkept(file)) {
+  // THE KIND, and not `unkept` beside it, which a review proposed and this
+  // line answers: the arms here are ONE PER KIND, so which arm a file lands on
+  // is the kind's own question. `unkept` asks a different one — does the set
+  // keep this file's BYTES — and they agree today only because the one bodyless
+  // kind is this one. A fourth unkept kind would need an arm of its own, and
+  // branching on `kept` would have quietly filed it under this one's name.
+  if (fileKind(file) === "hypertext") {
     return { kind: "hypertext", path, title: stemOf(file), links: [], tags: [] }
   }
   const body = text ?? ""
