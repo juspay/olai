@@ -28,7 +28,7 @@ export const CHAT_SNAP_KEY = "olai.chat.snap"
 /** Fixed face of a minimized desktop sidebar. Matches `--width-rail`. */
 export const RAIL_WIDTH_PX = 48
 
-export const SIDEBAR_DEFAULT_PX = 256
+export const SIDEBAR_DEFAULT_PX = 320
 export const SIDEBAR_MIN_PX = 180
 export const SIDEBAR_MAX_PX = 480
 

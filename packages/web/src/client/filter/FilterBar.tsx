@@ -47,8 +47,8 @@ export function FilterBar(props: {
   readonly onType: (text: string) => void
 }) {
   return (
-    <div class="mb-3" data-testid={TESTID.filterBar}>
-      <div class="flex max-w-md items-center gap-1">
+    <div class="mb-6" data-testid={TESTID.filterBar}>
+      <div class="flex max-w-xl items-center gap-1">
         {/* `text`, not `search`: a `type="search"` input draws the browser's
             own clear cross, and this bar already has one of its own — two
             crosses side by side, one of which no scenario can press
@@ -56,7 +56,7 @@ export function FilterBar(props: {
             no cross of its own to collide with. */}
         <input
           type="text"
-          class="min-w-0 flex-1 rounded border border-rule/70 bg-panel px-2 py-1 font-mono text-xs text-ink outline-none placeholder:text-muted focus:border-rule"
+          class="min-w-0 flex-1 rounded-full border-0 bg-desk/70 px-4 py-2 font-mono text-xs text-ink outline-none placeholder:text-muted ring-1 ring-rule/40 focus:ring-2 focus:ring-accent/40"
           data-testid={TESTID.filterInput}
           placeholder={PLACEHOLDER}
           aria-label="filter this page"

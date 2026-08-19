@@ -13,18 +13,25 @@
  * THE INK IS SPLIT OUT, and that is the part to keep: the agenda's entry
  * changes it (`../agenda/owed.ts`), and two utilities setting one property are
  * settled by the order Tailwind emitted its rules in rather than by the order
- * they were written — appending `text-alarm` to a class that already says
- * `text-ink` is a coin toss, which is the trap `../calendar/Day.tsx` composes
- * per-property to avoid. So every user of this names an ink, and exactly one
- * of them names something other than the ordinary one.
+ * they were written. The ordinary row inherits paper from the spine
+ * (`.olai-frame`); the alarm names its own. The trap `../calendar/Day.tsx`
+ * composes per-property to avoid.
+ *
+ * THE CURRENT-PAGE ROW READS IN PAPER, not in the accent, and the accent is
+ * the WASH behind it. Accent-on-accent-wash is the same hue at two strengths:
+ * 2.27:1 in reef, 1.19:1 in aurora — every palette in the table fails AA on
+ * it, and it is the one row whose whole job is saying which page you are
+ * standing on. Paper on that wash clears AA in all fifteen (4.78:1 at the
+ * worst, moon). The coral still marks the row; it just no longer has to be
+ * legible as type at the same time.
  */
 
 import { TARGET } from "../touch.ts"
 
 export const ENTRY_SHAPE =
-  `flex ${TARGET} items-center break-all rounded-md px-2 py-0.5 text-[0.8125rem] leading-snug ` +
-  "no-underline hover:bg-rule/50 aria-[current=page]:bg-accent/15 " +
-  "aria-[current=page]:text-accent aria-[current=page]:font-semibold md:min-h-0"
+  `flex ${TARGET} items-center break-all rounded-xl px-2.5 py-1 text-[0.875rem] leading-snug ` +
+  "no-underline hover:bg-paper/10 aria-[current=page]:bg-accent/30 " +
+  "aria-[current=page]:text-paper aria-[current=page]:font-semibold md:min-h-0"
 
 /** The space between the things ON a row — a glyph, a name, and whatever the
  *  row has to say after it.
@@ -61,26 +68,36 @@ export const ROW_GAP = "gap-1.5"
  * the month's heading is the name of the month a reader is looking at, and
  * these are names for lists that already say what they hold.
  */
-export const REGION = "mt-3 border-t border-rule/60 pt-2"
+export const REGION = "mt-2 border-t border-paper/15 pt-2"
 
 /**
  * WHAT IT MAY NOT COST is the tree's place on a short screen, and that is a
  * promise with a test behind it: the column is sticky and exactly one screen
  * tall, and `features/the_sidebar_sticks.feature` holds that the FILE TREE
  * still reaches the visible strip at the bottom of a long page — it is what a
- * reader came back to the column for. The month above it is ~300px of a 400px
- * window, so everything between the two is a budget rather than a free choice:
- * the first draft of these regions spent 45px on a rule, a margin and a label
- * over the tree, and pushed it 28px under the fold (caught by that scenario,
- * 2026-08-19). Hence the tighter spacing here, the month's own bottom margin
- * giving way to it (`../calendar/Calendar.tsx`), and exactly ONE label below
- * the month — the shelf's, because a list that is new to a reader is the one
- * that needs naming. The tree is what the column IS; a rule above it says
- * where it starts.
+ * reader came back to the column for. The month above it is ~240px of the
+ * 328px the column has on a 400px window, so everything between the two is a
+ * budget rather than a free choice:
+ *
+ *   - the first draft of these regions spent 45px on a rule, a margin and a
+ *     label over the tree, and pushed it 28px under the fold (caught by that
+ *     scenario, 2026-08-19);
+ *   - the redesign spent it again, from four directions at once — a bar 1rem
+ *     taller, a month with more padding and a bigger heading, a roomier row —
+ *     and put the tree 29px under the fold on all four page kinds. Reclaimed
+ *     the same way it was spent: a size off the month's day cells and its
+ *     heading, and a step off four paddings. The tree now clears the fold by
+ *     21px, which is the margin this note exists to keep.
+ *
+ * Hence the tighter spacing here, the month's own bottom margin giving way to
+ * it (`../calendar/Calendar.tsx`), and exactly ONE label below the month —
+ * the shelf's, because a list that is new to a reader is the one that needs
+ * naming. The tree is what the column IS; a rule above it says where it
+ * starts.
  */
 
 /** …and the words over it. `px-2` so the label sits on the same left edge as
  *  the rows under it — an entry's own padding — rather than hanging a couple of
  *  pixels outside the column of names ({@link ENTRY_SHAPE}). */
 export const REGION_LABEL =
-  "m-0 mb-1 px-2 text-[0.625rem] font-semibold uppercase tracking-wide text-muted"
+  "m-0 mb-1 px-2.5 font-serif text-[0.75rem] italic tracking-tight text-paper/55"

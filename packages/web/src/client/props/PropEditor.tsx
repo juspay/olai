@@ -73,9 +73,14 @@ export function PropEditor(props: {
           // form sits past the row's gutter on a 390pt screen, every width in
           // it is a `rem`, and the type size is now a reader's choice
           // (`../theme/sizes.ts`) — so at `Larger` a fixed 8rem key box put
-          // the value box a point off the edge. 6rem is what the old 8rem was
-          // in pixels at the size this app used to be nailed to.
-          class={`${TARGET} md:min-h-0 w-24 md:w-32 rounded border border-rule bg-paper px-2 py-1 font-mono text-xs text-ink read-only:text-muted`}
+          // the value box a point off the edge. 6rem was what the old 8rem was
+          // in pixels at the size this app used to be nailed to; 5rem is what
+          // 6rem became when the default face did. iA Writer Quattro is wider
+          // per character than Atkinson was, so the two WORDS in this form —
+          // "Property" and "holds", which are type and not boxes — grew, and
+          // took the difference out of the value box until it ran 10pt past
+          // the edge of a 390pt screen (properties.feature's thumb scenario).
+          class={`${TARGET} md:min-h-0 w-20 md:w-32 rounded border border-rule bg-paper px-2 py-1 font-mono text-xs text-ink read-only:text-muted`}
           data-testid={TESTID.propEditorKey}
           placeholder="key"
           autocomplete="off"

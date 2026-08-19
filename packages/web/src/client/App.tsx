@@ -43,7 +43,7 @@ import { fileOf, opensAt, pageOf } from "./page.ts"
 import { Palette } from "./palette/Palette.tsx"
 import { pinSaid } from "./pins/pinning.ts"
 import { Panes } from "./pane/Panes.tsx"
-import { SHELL_LONE, SHELL_SPLIT } from "./pane/shell.ts"
+import { SHEET, SHELL_LONE, SHELL_SPLIT } from "./layout/sheet.ts"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
 import { ServedProvider } from "./served.tsx"
@@ -171,6 +171,9 @@ export default function App() {
           next ⌘Z — so "the newer of the two" is what this reads as in
           practice, and the older one is still there when it goes. */}
       <UndoSaid said={pinSaid() ?? undo.said()} />
+      {/* No ground of its own: `html` is already ink (./styles.css), and what
+          shows through here — the strip under a sticky spine on a page taller
+          than the viewport — is that same forest either way. */}
       <div class="flex min-h-dvh flex-col">
         <AppHeader
           docked={docked()}
@@ -191,7 +194,7 @@ export default function App() {
             "min-h-0": split(),
           }}
         >
-          <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
+          <Switch fallback={<p class={`${SHEET} p-8 text-muted`}>Reading…</p>}>
           <Match when={outlines.manifest() === null}>
             <ErrorPage errors={problems()} />
           </Match>

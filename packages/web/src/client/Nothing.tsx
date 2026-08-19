@@ -13,6 +13,8 @@
 
 import { type FileKind } from "@olai/format"
 
+import { Empty } from "./Empty.tsx"
+
 /** What a reader calls each kind of file, in a sentence. The registry names
  *  kinds for the code that branches on them; this is the same set of things
  *  said the way somebody looking at their own directory would say it — which is
@@ -36,10 +38,12 @@ export function Nothing(props: {
   readonly requested: string | null
 }) {
   return (
-    <p class="text-muted">
-      {props.requested === null
-        ? "No .olai outlines under the served directory."
-        : `No ${NOUN[props.sought]} named ${props.requested} under the served directory.`}
-    </p>
+    <Empty
+      line={
+        props.requested === null
+          ? "No .olai outlines under the served directory."
+          : `No ${NOUN[props.sought]} named ${props.requested} under the served directory.`
+      }
+    />
   )
 }

@@ -13,6 +13,7 @@
 
 import type { BrokenFile } from "@olai/format"
 
+import { PAGE_TITLE } from "../look.ts"
 import { TESTID } from "../testids.ts"
 import { Lede } from "./Lede.tsx"
 import { Rows } from "./Report.tsx"
@@ -22,7 +23,7 @@ export function Broken(props: { readonly file: BrokenFile }) {
 
   return (
     <section class="max-w-4xl" data-testid={TESTID.outlineFailure} data-file={props.file.file}>
-      <h1 class="m-0 mb-2 text-xl font-bold text-alarm">
+      <h1 class={`${PAGE_TITLE} mb-2 italic text-alarm`}>
         {count()} {count() === 1 ? "error" : "errors"} in this file
       </h1>
       <Lede>

@@ -103,10 +103,10 @@ Feature: See the outline
     And the node "demo" shows no date
 
   Scenario: A row is its title, and a pilcrow says there is more
-    # The quiet outline's default: nothing under the title, and the mark beside
-    # it is the door. What the open state holds, and the two other densities,
-    # are note_density.feature's; here the outline only promises the shape a
-    # reader lands on.
+    # Compact: nothing under the title, and the mark beside it is the door.
+    # What the open state holds, and the other densities, are
+    # note_density.feature's; here the outline only promises that shape.
+    When I read the outline with Notes on "compact"
     Then the node "order" shows a pilcrow
     And the node "order" draws nothing under its title
 

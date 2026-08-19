@@ -30,18 +30,18 @@
  * match the default row; `theme/fonts.test.ts` holds them. */
 
 @theme {
-  --font-sans: "Atkinson Hyperlegible Next", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-serif: "Atkinson Hyperlegible Next", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: "iA Writer Quattro", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: Literata, ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+  --font-mono: "iA Writer Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Named for their job, not their hue, so a palette is the same eleven names
    * with different values and no utility has to know which one is in force.
    *
-   * These eleven are the DEFAULT palette's — `chalk` — and they are the one
+   * These eleven are the DEFAULT palette's — `reef` — and they are the one
    * place the table is spelled twice. Tailwind needs the NAMES here or it will
    * not emit `text-muted` at all; what it does with the VALUES is bake the
    * literal fallback beside every opacity utility (`.bg-alarm/5` gets both
-   * `#8e33480d` and, inside `@supports (color-mix…)`, the theme-aware form).
+   * `#c13b4e0d` and, inside `@supports (color-mix…)`, the theme-aware form).
    * So on any browser this app runs in they are inert — the generated
    * unlayered `:root` block always wins — and on one too old for `color-mix`
    * they are what an opacity utility falls back to. Which is exactly why they
@@ -51,17 +51,17 @@
    * The other palettes are generated from the table into blocks
    * appended to this sheet at build time (`src/client/theme/`,
    * `src/build.ts`). */
-  --color-ink: #15180F;
-  --color-paper: #FAFAF6;
-  --color-desk: #F2F2EC;
-  --color-panel: #F5F5F0;
-  --color-pill: #EDEFE6;
-  --color-muted: #555E4C;
-  --color-rule: #C9CDBF;
-  --color-accent: #134F75;
-  --color-done: #2A6626;
-  --color-doing: #8F5200;
-  --color-alarm: #8E3348;
+  --color-ink: #14352F;
+  --color-paper: #D7F0E8;
+  --color-desk: #C5E6DC;
+  --color-panel: #E8F7F2;
+  --color-pill: #B5DDD2;
+  --color-muted: #4E7A71;
+  --color-rule: #9CC9BE;
+  --color-accent: #C44E24;
+  --color-done: #1F7A58;
+  --color-doing: #C48418;
+  --color-alarm: #C13B4E;
 
   /* Panel widths. Defaults match the pre-rework constants (16rem sidebar,
    * 26rem chat). The reader owns the live values: layout/css.ts writes pixel
@@ -70,14 +70,19 @@
    * cannot drift. The rail is not a preference — it is the fixed collapsed
    * face of the sidebar. */
   --width-chat: 26rem;
-  --width-sidebar: 16rem;
+  --width-sidebar: 20rem;
   --width-rail: 3rem;
 
-  /* The app header's height. The chat dock sits UNDER the bar (chat/Panel.tsx),
-   * so its `top` and its height both subtract this; the header itself is
-   * `h-12` (3rem). Static on `:root` — the bar does not paint it; a `3rem`
-   * fallback on the dock only fires if this sheet failed to load. */
-  --height-header: 3rem;
+  /* The app header's height, and the ONLY spelling of it. The bar WEARS this
+   * (`h-[var(--height-header)]`); everything that sits under the bar subtracts
+   * it — the chat dock's `top` and height, the sidebar column, the rail, a
+   * sticky section row, the page sheet. No consumer carries a fallback
+   * literal: a `4rem` beside every `var()` is a second spelling of this line,
+   * and it can only fire on a page where this sheet failed to load, which has
+   * no styling for it to save. (`--visible-h` and friends DO keep fallbacks —
+   * those are written by JS at runtime, so the fallback is what the first
+   * paint reads.) */
+  --height-header: 4rem;
 }
 
 /* Where a jump has to STOP, now that the bar it would land under is sticky
@@ -94,6 +99,63 @@
  * Not inside `@theme`: that block declares TOKENS, and this is a rule. */
 :root {
   scroll-padding-top: var(--height-header);
+}
+
+/* The FRAME is ink; the PAGE is a paper sheet sitting in it. Unstyled
+ * flash is the same forest as the spine, so a load does not blink cream. */
+html {
+  background-color: var(--color-ink);
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--color-accent) 38%, transparent);
+}
+
+/* THE FRAME. Ink ground, paper words — inherited, not remapped. The header,
+ * the directory spine and the collapsed rail are ONE surround, and this is
+ * the one place that says what it is made of; a page is the paper sheet
+ * sitting in it (`layout/sheet.ts`). The month is a paper CARD on the spine
+ * (`.olai-card`) and paints its own ink. Palettes invert with their ink: reef
+ * is a forest column beside a lagoon page; aurora is a pale sky beside
+ * midnight paper.
+ *
+ * GROUND ONLY — no `border-color`. Everything in this file is unlayered and
+ * Tailwind's utilities are not, so a `border-color` here would outrank every
+ * `border-*` a consumer wrote on the same element: it is exactly what stopped
+ * the header, whose bottom rule is coral, from wearing this class. The rules
+ * are the consumers' own, named where they are drawn. */
+.olai-frame {
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+}
+
+/* ONE overflow bar: thin, currentColour, gutter reserved on desktop so
+ * a classic scrollbar cannot steal a strip (the month's 7 cells, a
+ * conversation). Thumb follows the surface — paper on the spine, ink
+ * on the desk — rather than a second pair of hexes. Phone leaves the
+ * gutter: the drawer's 44px day cells already spend the width. */
+.olai-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, currentColor 34%, transparent) transparent;
+}
+
+.olai-scroll::-webkit-scrollbar {
+  width: 0.5rem;
+}
+
+.olai-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.olai-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, currentColor 34%, transparent);
+  border-radius: 999px;
+}
+
+@media (min-width: 48rem) {
+  .olai-scroll {
+    scrollbar-gutter: stable;
+  }
 }
 
 /* A palette is a redefinition of the same eleven custom properties, not a
@@ -194,8 +256,8 @@ mark.olai-hit {
  * the workbench. Ink-tinted so it follows every palette rather than a gray. */
 .olai-card {
   box-shadow:
-    0 1px 0 color-mix(in srgb, var(--color-ink) 6%, transparent),
-    0 8px 20px -14px color-mix(in srgb, var(--color-ink) 22%, transparent);
+    0 1px 0 color-mix(in srgb, var(--color-ink) 8%, transparent),
+    0 18px 40px -24px color-mix(in srgb, var(--color-ink) 28%, transparent);
 }
 
 /* The open state on a tree/day row. A short fade when motion is OK; none under

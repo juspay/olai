@@ -70,7 +70,7 @@ export function Shortcuts(props: {
           onClick={() => props.onClose()}
         />
         <div
-          class={`relative ${WITHIN.raised} max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-lg border border-rule/70 bg-panel p-4 shadow-lg`}
+          class={`relative ${WITHIN.raised} max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-2xl border-0 bg-panel p-4 shadow-xl ring-1 ring-rule/40`}
         >
           <For each={[...SHORTCUTS]}>
             {(group) => (

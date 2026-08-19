@@ -142,9 +142,9 @@ const TABLE = [
       alarm: "#9E4444",
     },
   },
-  // Near-white, high contrast: every pair this client paints clears AA. THE
-  // DEFAULT — what a page reads in before anyone picks — because the one
-  // nobody chose should be the one that is legible on any screen.
+  // Near-white, high contrast: every pair this client paints clears AA. Kept
+  // as a pick, not the default — a page that wants the quietest reading still
+  // has it, and contrast.ts still holds the promise.
   {
     name: "chalk",
     scheme: "light",
@@ -458,10 +458,11 @@ export const THEME_NAMES: ReadonlyArray<ThemeName> = TABLE.map(
  *
  * The OS does not vote. `prefers-color-scheme` used to choose this, and it
  * meant two ways to be dark that could disagree; a theme is a PICK, and an
- * unpicked page reads in the default — which is the one palette that promises
- * AA, so the page nobody has chosen for is the legible one.
+ * unpicked page reads in the default. That used to be `chalk` because it
+ * promised AA. The default is now `reef` — the lagoon, which is ours — and
+ * `chalk` stays a pick for a page that wants the quietest reading.
  */
-export const DEFAULT_THEME: ThemeName = "chalk"
+export const DEFAULT_THEME: ThemeName = "reef"
 
 /** How a page says which theme it is in: one attribute, keyed on by the sheet,
  *  written by the picker and by the shell's boot script, spelled here. */

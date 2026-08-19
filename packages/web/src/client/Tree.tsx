@@ -455,7 +455,7 @@ function Branch(props: {
         // its triangle (./touch.ts's arithmetic). `HELD` is the other half of
         // what the long press below does about the browser's own gesture, for
         // the platform that raises it without an event to prevent.
-        class={`group/row relative flex items-center ${HELD} ${GUTTER_GAP} ${
+        class={`group/row relative flex items-center py-1 ${HELD} ${GUTTER_GAP} ${
           WAITING_DIM(props.row.blocked)
         } ${CONTEXT_DIM(narrowed, shownId())}`}
         // The phone's door to the `•••` menu: hold a finger on the row. Touch
@@ -490,7 +490,7 @@ function Branch(props: {
           // title-cell completions) portal out of this context — a heading
           // left at the same layer as an in-tree menu is the heading that
           // paints through it (`menu-under-headers`).
-          [`sticky top-[var(--height-header,3rem)] py-1 ${LAYER.row}`]: section(),
+          [`sticky top-[var(--height-header)] py-1 ${LAYER.row}`]: section(),
           // ...and an opaque backdrop, or the rows would read through it. NOT
           // when this row is the caret's or is picked: those wear a wash of
           // their own, and two backgrounds on one element is a race between two

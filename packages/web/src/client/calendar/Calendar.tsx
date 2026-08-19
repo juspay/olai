@@ -110,9 +110,15 @@ export function Calendar(props: {
 
   return (
     <section
-      // No horizontal pad below md: `p-3` plus the drawer's `p-4` left
+      // No horizontal pad below md: `p-3` plus the drawer's `p-3` left
       // 41px cells on a 390pt phone, under the 44px finger rule.
-      class="olai-card mb-1 rounded-xl bg-panel py-3 md:p-3"
+      //
+      // THE MONTH IS THE COLUMN'S BIGGEST SPENDER — ~240px of the 328px a
+      // 400px window leaves under the bar — and the file tree has to clear
+      // the fold below it (`../layout/entry.ts`, and the scenario it names).
+      // So the padding here, the heading's size and the day cell's `md:min-h`
+      // are a budget: grow any of them and re-read that note first.
+      class="olai-card mb-1 rounded-3xl bg-paper py-3 shadow-none md:p-3"
       data-testid={TESTID.calendar}
       data-month={month()}
     >
@@ -120,7 +126,7 @@ export function Calendar(props: {
         <Step label="the month before" testid={TESTID.calendarPrev} onStep={() => page(-1)}>
           ‹
         </Step>
-        <h2 class="m-0 text-xs font-semibold tracking-wide text-ink">
+        <h2 class="m-0 font-serif text-sm font-medium italic tracking-tight text-ink">
           {monthLabel(month())}
         </h2>
         <Step label="the month after" testid={TESTID.calendarNext} onStep={() => page(1)}>

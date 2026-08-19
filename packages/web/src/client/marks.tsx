@@ -55,7 +55,7 @@ export const FACE: Record<
   Status,
   { readonly face: Exclude<MarkFace, "waiting" | "bullet">; readonly hint: string; readonly tone: string }
 > = {
-  done: { face: "checked", hint: "done", tone: "text-muted" },
+  done: { face: "checked", hint: "done", tone: "text-done" },
   doing: { face: "doing", hint: "doing", tone: "text-accent" },
   todo: { face: "empty", hint: "not started", tone: "text-muted" },
 }
@@ -84,11 +84,11 @@ export const faceOf = (
 /** The dot itself, at the one size a bullet is. Exported because a row that
  *  does not exist yet draws the same dot HOLLOW (`./edit/NewRow.tsx`), and two
  *  spellings of a bullet's size would be two things to change when it moves. */
-export const DOT = "block h-[0.375rem] w-[0.375rem] rounded-full"
+export const DOT = "block h-[0.45rem] w-[0.45rem] rounded-full"
 
 /** Shared box geometry: Workflowy-weight square, sized to the title's cap. */
 const BOX =
-  "inline-block h-[0.75rem] w-[0.75rem] shrink-0 rounded-[0.1rem] border-[1.5px] border-current box-border"
+  "inline-block h-[0.8125rem] w-[0.8125rem] shrink-0 rounded-[0.2rem] border-[1.5px] border-current box-border"
 
 export function Face(props: { readonly face: MarkFace }) {
   return (

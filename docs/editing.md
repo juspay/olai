@@ -34,8 +34,8 @@ An outline is a column of titles, so that is what it draws. Everything else a no
 
 **How much a row starts as is yours**, in *prefs → Notes*:
 
-- **Compact** — the title alone. This is the default.
-- **Cozy** — the title and the first line of the note under it, clamped. This is the shape every row had before the switch existed, so it is the setting to pick if the fold is not what you wanted.
+- **Compact** — the title alone.
+- **Cozy** — the title and the first line of the note under it, clamped. This is the default, and the shape every row had before the compact switch existed.
 - **Open** — every note you have not folded yourself is already open: the node's properties, then the note in full.
 
 It is a default and not a lock. The ¶ works at all three, and only rows you have not touched follow the setting — fold one at Open and it stays folded, open one at Compact and it stays open. Like every preference it belongs to this browser, reaches every tab of it, and is never sent anywhere: two machines reading the same vault are entitled to disagree about it, and it is one setting for the whole app rather than one per outline, because "I read a tree as a list of titles" is a fact about you and not about any one file.

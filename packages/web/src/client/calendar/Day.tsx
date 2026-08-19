@@ -56,8 +56,8 @@ import { dayNumber } from "./month.ts"
  *  48rem (../touch.ts), the compact 1.75rem row above it. A day is the
  *  smallest target in this app and the one a finger is likeliest to miss into
  *  the day beside it. */
-const BOX = `flex ${TARGET} relative items-center justify-center rounded border ` +
-  "text-xs tabular-nums no-underline md:min-h-7"
+const BOX = `flex ${TARGET} relative items-center justify-center rounded-lg border ` +
+  "text-xs tabular-nums no-underline md:min-h-6"
 
 /** The dot, as the pseudo-element it has to be — it sits UNDER the number
  *  rather than beside it, and `currentColor` is what makes it follow the cell

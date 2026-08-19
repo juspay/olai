@@ -15,13 +15,14 @@ import type { Zoomed } from "@olai/format"
 import { Match, Switch } from "solid-js"
 
 import { Lede } from "./errors/Lede.tsx"
+import { PAGE_TITLE } from "./look.ts"
 import { only } from "./narrow.ts"
 import { TESTID } from "./testids.ts"
 
 export function NotFound(props: { readonly zoomed: Zoomed }) {
   return (
     <section data-testid={TESTID.notFound} data-reason={props.zoomed.kind}>
-      <h1 class="m-0 mb-2 text-2xl font-bold text-alarm">No such node</h1>
+      <h1 class={`${PAGE_TITLE} mb-2 italic text-alarm`}>No such node</h1>
       <Switch>
         <Match when={only(props.zoomed, "unknown")}>
           {(zoomed) => (

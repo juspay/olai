@@ -124,12 +124,12 @@ import { atFile } from "./routes.ts"
  *  that have more than one thing on them. The agenda's entry is the same
  *  SHAPE and not this, so nothing about that row moves; `Trash` borrows this
  *  one and has a single child, where a gap is inert. */
-const ENTRY = `${ENTRY_SHAPE} ${ROW_GAP} text-ink`
+const ENTRY = `${ENTRY_SHAPE} ${ROW_GAP}`
 
 /** A directory row: folds, does not navigate. */
 const DIR =
-  `flex ${TARGET} items-center ${ROW_GAP} rounded-sm px-1 py-0.5 text-[0.8125rem] ` +
-  "leading-snug text-muted hover:bg-rule/60 hover:text-ink md:min-h-0"
+  `flex ${TARGET} items-center ${ROW_GAP} rounded-xl px-1 py-1 text-[0.875rem] ` +
+  "leading-snug text-paper/65 hover:bg-paper/10 hover:text-paper md:min-h-0"
 
 interface TreeView {
   readonly isActive: (file: string) => boolean
@@ -206,7 +206,7 @@ export function Sidebar(props: {
       <Show when={props.open}>
         <button
           type="button"
-          class={`fixed inset-x-0 bottom-0 top-[var(--height-header,3rem)] ${LAYER.page} bg-ink/40 md:hidden`}
+          class={`fixed inset-x-0 bottom-0 top-[var(--height-header)] ${LAYER.page} bg-ink/40 md:hidden`}
           data-testid={TESTID.sidebarScrim}
           aria-label="close the directory"
           onClick={() => props.onClose()}
@@ -221,16 +221,16 @@ export function Sidebar(props: {
           // the drawer into flow offsets). Desktop: a STICKY column, pinned
           // under the header (see the note above).
           (props.open ? "flex " : "hidden ") +
-          `${LAYER.chrome} flex-col border-r border-rule/70 bg-desk ` +
+          `${LAYER.chrome} olai-frame flex-col border-r border-paper/20 ` +
           // Wide enough that the month's 7 day cells still hit 44×44.
-          "fixed bottom-0 left-0 top-[var(--height-header,3rem)] w-[min(22rem,92vw)] " +
+          "fixed bottom-0 left-0 top-[var(--height-header)] w-[min(22rem,92vw)] " +
           // `top-` above is BOTH positions' offset — the drawer's inset and
           // this column's sticky threshold are the same seam, so they read the
           // same token. `bottom`/`left` are the drawer's alone and must not
           // survive here: an inset on a sticky box is a constraint against the
           // scrollport, not a place to sit.
           "md:sticky md:bottom-auto md:left-auto md:flex " +
-          "md:h-[calc(100dvh-var(--height-header,3rem))] md:w-full md:translate-x-0"
+          "md:h-[calc(100dvh-var(--height-header))] md:w-full md:translate-x-0"
         }
         data-testid={TESTID.sidebar}
         data-open={props.open ? "true" : "false"}
@@ -239,7 +239,7 @@ export function Sidebar(props: {
             cover the calendar's month-step chevrons (top-right of the body). */}
         <button
           type="button"
-          class={`absolute bottom-2 right-2 ${WITHIN.raised} hidden ${TARGET_BOX} items-center justify-center rounded border border-rule/70 bg-panel text-muted hover:bg-rule/60 hover:text-ink md:inline-flex md:min-h-8 md:min-w-8`}
+          class={`absolute bottom-2 right-2 ${WITHIN.raised} hidden ${TARGET_BOX} items-center justify-center rounded-full border border-paper/20 bg-ink text-paper/65 hover:bg-paper/10 hover:text-paper md:inline-flex md:min-h-8 md:min-w-8`}
           data-testid={TESTID.sidebarCollapse}
           aria-label="collapse the sidebar to the icon rail"
           title="collapse sidebar"
@@ -254,7 +254,7 @@ export function Sidebar(props: {
         </div>
 
         <div
-          class="min-h-0 flex-1 overflow-y-auto p-4"
+          class="olai-scroll min-h-0 flex-1 overflow-y-auto p-3"
           data-testid={TESTID.sidebarBody}
           // Any navigation (day, outline, document) bubbles here and puts the
           // mobile drawer away. Folder folds stop propagation so a reader can
@@ -303,7 +303,7 @@ export function Sidebar(props: {
                 looking for "how do I make one" looks at the end of the list of
                 them — and what they needed was to stop reading as two more
                 files, which is what a rule and a gap say. */}
-            <div class="mt-2 border-t border-rule/40 pt-2">
+            <div class="mt-2 border-t border-paper/15 pt-2">
               <NewOutline />
               <NewDocument />
             </div>
@@ -356,7 +356,7 @@ function Agenda(props: { readonly agenda: Agenda | undefined }) {
 
   return (
     <div
-      class="mb-2"
+      class="mb-1"
       data-testid={TESTID.agendaOwed}
       data-owed={mark().face}
       data-overdue={String(mark().owed.overdue)}
@@ -404,7 +404,7 @@ function Trash() {
   return (
     <Link
       route={{ kind: "trash" }}
-      class={`${ENTRY} text-muted`}
+      class={`${ENTRY} text-paper/65`}
       testid={TESTID.trashLink}
       current={router.route().kind === "trash"}
     >
@@ -461,7 +461,7 @@ function Dir(props: {
         }}
       >
         <span
-          class={`${CONTROL} text-[0.55rem] leading-none text-muted`}
+          class={`${CONTROL} text-[0.55rem] leading-none text-paper/55`}
           aria-hidden="true"
         >
           <span
@@ -478,7 +478,7 @@ function Dir(props: {
         <span class="break-all">{props.row.name}</span>
       </button>
       <Show when={!folded()}>
-        <ul class="m-0 ml-2 list-none border-l border-rule/70 p-0 pl-2">
+        <ul class="m-0 ml-2 list-none border-l border-paper/20 p-0 pl-2">
           <Key each={props.row.children} by="key">
             {(child) => <Entry row={child()} view={props.view} />}
           </Key>

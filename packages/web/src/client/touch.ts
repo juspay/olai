@@ -166,7 +166,7 @@ export const PAST_CONTROLS = "ml-16 md:ml-15"
  * by a pixel when the caret arrived would be this file's kind of bug, and
  * three literals were three chances for one of them to miss a change.
  */
-export const ROW_TITLE = "font-serif text-[0.9375rem] leading-snug"
+export const ROW_TITLE = "font-serif text-[1.125rem] leading-snug"
 
 /**
  * A row's NOTE, as type: what the clamped line, the rendered note and the
@@ -175,7 +175,7 @@ export const ROW_TITLE = "font-serif text-[0.9375rem] leading-snug"
  * size or colour when the caret arrived would be a different thing appearing
  * rather than the same thing becoming editable.
  */
-export const ROW_NOTE = "text-[0.875rem] leading-snug text-muted"
+export const ROW_NOTE = "text-[0.9375rem] leading-snug text-muted"
 
 /**
  * THERE IS NO MEASURE, and its absence is a ruling rather than an omission.

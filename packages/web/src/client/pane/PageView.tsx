@@ -84,7 +84,7 @@ export function PageView(props: {
 
   return (
     <main
-      class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12 ${
+      class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 ${CLEARANCE} md:px-10 md:py-10 ${
         !desktop() && !chatOpen() ? "pb-16" : ""
       }`}
       data-testid={TESTID.pane}

@@ -16,7 +16,7 @@ test("starting open is open's alone", () => {
   expect(ALL.filter(startsOpen)).toEqual(["open"])
 })
 
-test("compact is a row's title and nothing under it", () => {
-  expect(showsPreview(DEFAULT_DENSITY)).toBe(false)
+test("cozy is the default: the title and one line of the note", () => {
+  expect(showsPreview(DEFAULT_DENSITY)).toBe(true)
   expect(startsOpen(DEFAULT_DENSITY)).toBe(false)
 })

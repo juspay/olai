@@ -34,7 +34,7 @@ import type { Pin } from "./pins.ts"
  * this row has and the tree's rows do not: a positioned box, because it carries
  * a control over its right edge.
  */
-const ROW = `group/pin relative ${ENTRY_SHAPE} ${ROW_GAP} w-full text-ink`
+const ROW = `group/pin relative ${ENTRY_SHAPE} ${ROW_GAP} w-full`
 
 export function Pin(props: {
   readonly pin: Pin
@@ -107,7 +107,7 @@ export function Pin(props: {
         type="button"
         class={`absolute right-1 top-1/2 -translate-y-1/2 ${LAYER.row} ${CONTROL} ` +
           "cursor-pointer rounded border-0 bg-transparent p-0 text-xs leading-none " +
-          "text-muted opacity-0 transition-opacity hover:text-alarm " +
+          "text-paper/55 opacity-0 transition-opacity hover:text-alarm " +
           "focus-visible:opacity-100 group-hover/pin:opacity-100"}
         data-testid={TESTID.pinRemove}
         aria-label={`unpin ${props.name}`}

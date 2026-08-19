@@ -25,7 +25,7 @@
  * so a stale path here would 200 rather than 404, and only the content type
  * would say otherwise.
  *
- * The colours are the DEFAULT palette's paper — `chalk`, which is what a page
+ * The colours are the DEFAULT palette's paper — `reef`, which is what a page
  * that has picked no theme reads in — because they are the chrome around the
  * window before it opens, and there is nothing else this file could know: a
  * theme is a pick stored in one browser, and a manifest is read once by an
@@ -42,8 +42,8 @@ import type { ManifestOptions } from "@kolu/surface-app/server"
 export const MANIFEST: ManifestOptions = {
   name: "olai",
   description: "Self-hosted outliner: your files, your agent, a live web view.",
-  themeColor: "#FAFAF6",
-  backgroundColor: "#FAFAF6",
+  themeColor: "#D7F0E8",
+  backgroundColor: "#D7F0E8",
   lang: "en",
   categories: ["productivity", "utilities"],
   icons: [

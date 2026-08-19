@@ -367,8 +367,19 @@ Given("the window is shorter than the outline", async function (this: OlaiWorld)
 
 /** A laptop with an outline taller than it. Wide enough that the sidebar is
  *  still a column and the gutter still has its `•••`, so nothing but the height
- *  is different from every other desktop scenario. */
-const SHORT_WINDOW = { width: 1_100, height: 260 };
+ *  is different from every other desktop scenario.
+ *
+ *  THE HEIGHT IS A DEVICE, and it is the knob this feature says to turn: "the
+ *  window is made short rather than the fixtures long ... a corpus grown until
+ *  it happened to overflow is a scenario that stops testing anything the day a
+ *  margin changes". A margin changed. At 260 the app's own chrome — a 4rem bar,
+ *  the filter, a display-size page heading — reached y≈250, so the first row a
+ *  sweep can start beside was 10px off the bottom edge and the gesture had 2px
+ *  of travel where `pointer.ts`'s TRAVEL_PX asks for 4: the sweep never armed
+ *  and the page never moved. 400 restores the room the device needs and keeps
+ *  every claim it makes — this outline is ~704px, so the window is still far
+ *  shorter than the page it has to scroll. */
+const SHORT_WINDOW = { width: 1_100, height: 400 };
 
 /**
  * The bottom of the window, at the same x the gesture started at — and held
