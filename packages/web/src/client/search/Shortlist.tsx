@@ -50,7 +50,7 @@
  * refused in the other direction.
  */
 
-import { isNodeHit, type NodeHit } from "@olai/surface"
+import type { NodeHit } from "@olai/surface"
 import { createMemo, createSignal, Index, Show } from "solid-js"
 
 import { listKey } from "../keys.ts"
@@ -61,7 +61,6 @@ import { createCursor } from "./cursor.ts"
 import { createSearch } from "./nodes.ts"
 import { Result, type RowTestids } from "./Result.tsx"
 import { type HitRow, hitRow } from "./row.ts"
-import { HOME_ROUTE } from "../routes.ts"
 
 /**
  * What one door calls the parts of its shortlist.
@@ -110,14 +109,11 @@ export function Shortlist(props: {
   }
 }) {
   const [query, setQuery] = createSignal("")
+  // RECORDS ALONE, asked for on the REQUEST and answered in the type
+  // (`./nodes.ts`): every door that draws this list is picking a node to point
+  // at, and none of them could take a document.
   const found = createSearch(() => query(), "node")
-  /**
-   * THE RECORDS, which is every hit this list will get: the request asked for
-   * records alone, so the filter drops nothing — it is the TYPE asking, and
-   * what it buys is that `onTake` below can promise a door a node rather than
-   * something it would have to check for itself.
-   */
-  const hits = createMemo(() => found.hits().filter(isNodeHit))
+  const hits = found.hits
   const cursor = createCursor(() => hits().length)
 
   /**
@@ -140,9 +136,9 @@ export function Shortlist(props: {
    */
   const rows = createMemo(() => hits().map(hitRow))
 
-  /** The row at `index` — a blank one for a position nothing is at, which is
-   *  the frame between an answer shrinking and the list re-rendering. */
-  const row = (index: number): HitRow => rows()[index] ?? NO_ROW
+  /** The row at `index`. `<Index>` walks the same list this is built from, so
+   *  there is always one; the `!` is that, said. */
+  const row = (index: number): HitRow => rows()[index]!
 
   const verdicts = createMemo<ReadonlyArray<string | null>>(() => {
     const judge = props.refusing
@@ -297,7 +293,3 @@ export function Shortlist(props: {
     </div>
   )
 }
-
-/** A row for a position nothing is at — one value, since it is only ever
- *  read and never held. */
-const NO_ROW: HitRow = { id: "", label: "", place: "", props: [] , route: HOME_ROUTE }

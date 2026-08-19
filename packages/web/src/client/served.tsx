@@ -6,8 +6,8 @@
  * which draws them as a tree (`./fileTree.ts`); the chat composer, which
  * completes a path into a message when somebody types `@`; and the two search
  * doors, whose document rows are the bodied ones matched by name
- * (`./palette/documents.ts`). The last two ask through one matcher
- * (`./file/matching.ts`). The sidebar is handed them as props because it is
+ * (`./search/nodes.ts`, over one index on the server). The composer asks
+ * through `./file/matching.ts`. The sidebar is handed them as props because it is
  * drawn one level under the app; the composer is five levels under it, inside
  * whichever of the two chat shells this viewport uses, so it is a context for
  * the reason `./derived.tsx` is one: threading a list through `Panel` → `Face`

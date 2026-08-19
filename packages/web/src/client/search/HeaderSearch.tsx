@@ -59,7 +59,6 @@ import { type Anchor, anchoredTo, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
 import { hitItem } from "../palette/items.ts"
 import { setPaletteOpen } from "../palette/open.ts"
-import { useServed } from "../served.tsx"
 import type { Route } from "../routes.ts"
 import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
@@ -80,9 +79,6 @@ export function HeaderSearch(props: {
 }) {
   const [query, setQuery] = createSignal("")
   const [caret, setCaret] = createSignal(false)
-  /** Every path the directory serves (`../served.tsx`) — what the document
-   *  rows below are matched against. */
-  const served = useServed()
   // WHICH row Enter takes — the one cursor every shortlist in this client
   // shares (`./cursor.ts`), so the arrows here, in the ⌘K palette and in the
   // row editor's completions cannot disagree about what the bottom of a list

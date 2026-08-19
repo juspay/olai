@@ -48,6 +48,7 @@ import {
   type LocatedRegular,
   MARKS,
   type MirrorNode,
+  markdownAt,
   markdownIn,
   type Node,
   nodeNamed,
@@ -4464,7 +4465,7 @@ const planWriteDocument = (
   // documents, and what a path that is not one is told. This verb and
   // `read_document` refuse the same miss, and the only thing they say
   // differently is where to go instead.
-  const document = markdownIn(scope.set).find((entry) => entry.path === request.file)
+  const document = markdownAt(scope.set, request.file)
   if (document === undefined) {
     return Result.fail(
       noSuchDocument(

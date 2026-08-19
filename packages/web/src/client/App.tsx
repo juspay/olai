@@ -15,7 +15,6 @@
  * that sits outside every pane.
  */
 
-import type { Face } from "@olai/format"
 import { agendaOf, dailyNoteDays, datedDays } from "@olai/format"
 import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from "solid-js"
 
@@ -211,7 +210,6 @@ export default function App() {
                     </Show>
                     <Show when={desktop() ? sidebarOpen() : true}>
                       <Sidebar
-                        files={found().documents.map((face: Face) => face.path)}
                         active={fileOf(open())}
                         broken={outlines.broken()}
                         agenda={agenda()}

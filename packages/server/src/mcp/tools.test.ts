@@ -648,7 +648,7 @@ test("read_document refuses a path the set does not hold, with the closest one",
     expect(hypertext.structured).toMatchObject({ kind: "not-found" })
 
     // AND THE SHAPES A PATH ARGUMENT IS ATTACKED WITH. True by construction —
-    // this read never opens a path: `documentIn` asks the suffix and then
+    // this read never opens a path: `markdownAt` asks the suffix and then
     // matches the set's own keys EXACTLY, so there is no join, no `realpath`
     // and no traversal to defeat. Pinned anyway, because "by construction" is
     // a property of the current construction: the day somebody resolves a path

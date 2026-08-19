@@ -210,11 +210,14 @@ const viewOf = (set: OutlineSet, previous: Previous | undefined): Derived => {
   const nodes = recordsIn(set)
   if (previous === undefined) return derive(nodes)
   const view = patch(previous.read.derived, previous.delta)
-  // The set's own list, once the two are known to hold the same records in the
-  // same places: a `Reading` whose view and set share one array is what a
-  // rebuilt one has always been, and one difference between the two paths is
-  // one thing a reader could come to depend on without meaning to.
-  return isSet(view.nodes, nodes) ? { ...view, nodes } : derive(nodes)
+  // THE PATCHED VIEW ITSELF, once the two are known to hold the same records in
+  // the same places. It used to hand back `{...view, nodes}` — the SET's own
+  // array swapped in, so a rebuilt reading and a patched one shared one list
+  // with the set. Neither array is the set's any more (the flattening above is
+  // this call's), so that spread would rebuild the view to hold an array equal
+  // to the one it already had, and throw away the one identity worth keeping:
+  // the patched list is stable across revisions that touched nothing.
+  return isSet(view.nodes, nodes) ? view : derive(nodes)
 }
 
 const isSet = (

@@ -100,7 +100,7 @@ export const slugsIn = (body: string): ReadonlyArray<Slug> =>
  * `## Notes`, `## Notes` and `## Notes 1`) keeps counting rather than
  * colliding.
  */
-export const deduped = (slugs: ReadonlyArray<Slug>): ReadonlyArray<Slug> => {
+const deduped = (slugs: ReadonlyArray<Slug>): ReadonlyArray<Slug> => {
   const seen = new Map<string, number>()
   const given: Array<Slug> = []
   for (const slug of slugs) {
@@ -159,8 +159,15 @@ export const headingsIn = (body: string): ReadonlyArray<string> => {
   const found: Array<string> = []
   let fence: string | null = null
   let previous: string | null = null
-  for (const raw of body.split("\n")) {
-    const line = raw.trim()
+  // SCANNED rather than split, which is `./documents.ts`'s own refusal one
+  // door over: this runs at the decode of every `.md` in a served directory,
+  // and `split("\n")` allocates a string per line of every one of them to
+  // throw nearly all of them away.
+  let at = 0
+  while (at <= body.length) {
+    const end = body.indexOf("\n", at)
+    const line = (end === -1 ? body.slice(at) : body.slice(at, end)).trim()
+    at = end === -1 ? body.length + 1 : end + 1
     if (fence !== null) {
       if (closes(line, fence)) fence = null
       previous = null

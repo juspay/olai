@@ -27,12 +27,11 @@
  * {@link hrefOf} reads as *place, then narrowing, then the element half* and
  * {@link routeNamed} reads as *the words this app claimed, then the grammar*.
  *
- * {@link Route} is not yet spelled that way — a filter is a field on each arm,
- * and the three content arms carry a place each — and that is a deliberate
- * hold rather than an oversight: which page an address opens is a fact this
- * module derives (from the suffix) and every consumer of `Route` reads off the
- * arm, so collapsing the arms belongs with the change that makes the SET serve
- * one collection of documents (the design's PR 2), not with the grammar.
+ * {@link Route} IS spelled that way since PR 2 of the design: one content arm
+ * carrying an address, and a filter beside it. The three arms it replaced —
+ * an outline, a document, a node — stored a thing this module derives, which
+ * is which PAGE an address opens; that is asked once now, where the page is
+ * picked (`./page.ts`).
  *
  * ## No prefixes, and why the old three had to go
  *
@@ -259,7 +258,7 @@ export const HOME_ROUTE: Route = { kind: "at", address: null }
  * pair falls back to, on {@link routeOf}'s own kindness: a route that names
  * nothing is the page that names nothing.
  */
-export const atAddress = (address: Address | null): Route => ({ kind: "at", address })
+const atAddress = (address: Address | null): Route => ({ kind: "at", address })
 
 /** The page a served FILE opens — an outline drawn as a tree, a body drawn
  *  whole, and which of those is nobody's decision here (`./page.ts` asks the

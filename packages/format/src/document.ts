@@ -102,7 +102,7 @@ import { Schema } from "effect"
 import { Address, addressOf, DocumentPath, printAddress, Slug, Tag } from "./address.ts"
 import { tagsIn, writtenTags } from "./derive.ts"
 import { firstLine, linksIn, recordLinks } from "./documents.ts"
-import { fileKind, stemOf } from "./kinds.ts"
+import { stemOf, unkept } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
 import { slugsIn } from "./slug.ts"
 
@@ -299,7 +299,11 @@ export const outlineDocument = (
  */
 export const bodiedDocument = (file: string, text: string | null): Markdown | Hypertext => {
   const path = pathOf(file)
-  if (fileKind(file) === "hypertext") {
+  // THE `kept` COLUMN, which is the registry's own reader of "does the set hold
+  // this file's bytes" (`./kinds.ts`'s `unkept`) — not a kind named here. A
+  // fourth bodied kind whose body the set does not keep lands on the right arm
+  // by that rule rather than by being added to a list in this file.
+  if (unkept(file)) {
     return { kind: "hypertext", path, title: stemOf(file), links: [], tags: [] }
   }
   const body = text ?? ""

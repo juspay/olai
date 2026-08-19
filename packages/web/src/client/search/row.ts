@@ -2,11 +2,18 @@
  * ONE HIT, as the row a door draws it as.
  *
  * A search answers with two kinds of thing now — a record and a document
- * (`@olai/format`'s `SearchHit`) — and four surfaces draw the answer: the ⌘K
- * palette, the header's box, the `((` widget in a row's title and the edge
- * panel. This is where a hit becomes a row, ONCE, for the reason `./Result.tsx`
- * is one component: two spellings of "what does a document hit look like" is
- * the day the palette grows a glyph the header box does not have.
+ * (`@olai/format`'s `SearchHit`) — and this is where a hit becomes a row,
+ * ONCE, for the reason `./Result.tsx` is one component: two spellings of "what
+ * does a document hit look like" is the day the palette grows a glyph the
+ * header box does not have.
+ *
+ * THREE DOORS of the four, and the fourth is named rather than left out. The ⌘K
+ * palette, the header's box and the shortlist every node-picking panel is built
+ * from all come through here. The composer's `((` widget does not, and cannot:
+ * what it writes is a MIRROR, so what it needs off a hit is the raw node id,
+ * where a row's id is its printed ADDRESS. It draws the same label, place and
+ * properties through the same two functions this does (`./place.ts`,
+ * `./props.ts`), which is the half that could drift.
  *
  * WHAT A ROW NEEDS is small and the same for both kinds — a label, somewhere it
  * is, and where taking it goes — and what differs is where each of those comes

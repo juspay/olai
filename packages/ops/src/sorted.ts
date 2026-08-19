@@ -43,7 +43,7 @@ import {
   biggestOf,
   changesOf,
   type Derived,
-  markdownIn,
+  markdownAt,
   type Node,
   nodesOf,
   type OutlineSet,
@@ -103,7 +103,7 @@ export const sortOfWrite = (
   // that, and `about` is its path).
   const doc = documents[0]
   if (doc !== undefined) {
-    const prior = markdownIn(before).find((entry) => entry.path === doc.file)
+    const prior = markdownAt(before, doc.file)
     if (prior === undefined) return "created"
     return prior.body === doc.text ? undefined : "edited"
   }

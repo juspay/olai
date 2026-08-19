@@ -65,7 +65,7 @@
 
 import { Schema } from "effect"
 
-import { type Address, printAddress } from "./address.ts"
+import type { Address } from "./address.ts"
 import { byCorpus, type Derived, tagText } from "./derive.ts"
 import type { Face } from "./document.ts"
 import { recordLinks } from "./documents.ts"
@@ -240,11 +240,20 @@ export const referrersTo = (
   // WRITTEN and compared, because a canonical spelling is what the grammar
   // promises: two addresses that name one place print one string, so nothing
   // here has to know how the arms are shaped.
-  const wanted = printAddress(address)
+  // NO STRING IS BUILT for a document or a heading, and that is the difference
+  // between a lookup and a walk: this is applied to every link of every face in
+  // the directory, on every frame a document's page is open, and
+  // `printAddress` allocates. A path IS the comparison for those two arms —
+  // and it is the arm a page asks about.
   const here = address.kind === "node" ? null : address.path
-  const points = (link: Address): boolean =>
-    printAddress(link) === wanted ||
-    (address.kind === "document" && link.kind === "heading" && link.path === address.path)
+  const points = (link: Address): boolean => {
+    if (address.kind === "node") return link.kind === "node" && link.id === address.id
+    if (link.kind === "node" || link.path !== address.path) return false
+    // A LINK ONTO A HEADING POINTS AT THE DOCUMENT (below); asking about the
+    // heading is asking about the heading.
+    return address.kind === "document" || link.kind === "heading" &&
+      link.slug === address.slug
+  }
   const found: Array<Referrer> = []
   for (const face of faces) {
     if (face.path === here || isArchived(face.path)) continue

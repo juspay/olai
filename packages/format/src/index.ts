@@ -94,6 +94,7 @@ export {
   bodiedIn,
   brokenIn,
   documentAt,
+  markdownAt,
   markdownIn,
   nodesIn,
   OutlineSet,
@@ -132,7 +133,7 @@ export {
  *  the address grammar. Exported because the BROWSER assigns the same ids as
  *  it renders (`/web`'s `markdown/slugs.ts`), and a slug spelled twice is
  *  an address this app writes and cannot open. */
-export { claim, headingsIn, slugOf, slugsIn } from "./slug.ts"
+export { claim, slugOf, slugsIn } from "./slug.ts"
 /** The view PATCHED rather than rebuilt, and what a delta says: files upserted,
  *  files gone — Surface's own collection-delta frame, which is the vocabulary
  *  "what changed" already travels this system in.
@@ -200,10 +201,8 @@ export {
   firstLine,
   isAsset,
   isPicture,
-  linksIn,
   PICTURE_EXTENSIONS,
   pictureOf,
-  recordLinks,
 } from "./documents.ts"
 export {
   ARCHIVE,
@@ -342,7 +341,6 @@ export type { Backlink, Referrer } from "./backlinks.ts"
  *  stays inside: a consumer reaching for one of them would be re-implementing
  *  the rule this module exists to be the only copy of. */
 export {
-  DOCUMENT_FIELDS,
   keeping,
   keepingDated,
   /** Where a query's words LAND in a piece of text, in the fold the matcher
@@ -375,20 +373,7 @@ export {
   ranked,
   shownRecord,
 } from "./filter.ts"
-export type {
-  DocumentField,
-  DocumentMatch,
-  Bodied,
-  Filter,
-  Lit,
-  Match,
-  Matched,
-  MatchedDocument,
-  Ranked,
-  Scope,
-  SearchField,
-  Selected,
-} from "./filter.ts"
+export type { Filter, Lit, Match, Matched, Scope, SearchField, Selected } from "./filter.ts"
 export {
   dailyNoteDays,
   dailyNotePathFor,

@@ -131,17 +131,19 @@ export interface Found {
   readonly broken: ReadonlyMap<string, BrokenFile>
 }
 
-/** The face of one served path, or `undefined` for a path this directory does
- *  not hold — the membership question every arm below asks, in the form that
- *  hands back what it then wants to know. */
-const faceAt = (found: Found, path: string): Face | undefined =>
-  found.documents.find((face) => face.path === path)
+/** Whether the directory holds this path at all — the membership question
+ *  every arm below asks, and the whole of what any of them wants: what the
+ *  page then DRAWS is the file's own business. */
+const serves = (found: Found, path: string): boolean =>
+  found.documents.some((face) => face.path === path)
 
 /** The OUTLINES' paths, in path order — what the trash reads and what the
  *  front page picks its first file from. A narrowing of the one collection
  *  rather than a list beside it: asking says which files are being left out. */
 const outlinesOf = (found: Found): ReadonlyArray<string> =>
-  found.documents.flatMap((face) => (fileKind(face.path) === "outline" ? [face.path] : []))
+  found.documents
+    .filter((face) => fileKind(face.path) === "outline")
+    .map((face) => face.path)
 
 export const pageOf = (
   derived: Derived,
@@ -191,7 +193,7 @@ export const pageOf = (
     // happens once, on arrival, and never again on a re-render — so it comes
     // from the router that caused the navigation (`./router.tsx`'s `landing`).
     const file = address.path
-    return faceAt(found, file) !== undefined
+    return serves(found, file)
       ? { kind: "document", file }
       // The kind the reader ASKED FOR, off the name the address spelled — so
       // "no such document" and "no such saved page" send them to two different
@@ -269,7 +271,7 @@ export const opensAt = (
   path: string,
   at?: string,
 ): Route | undefined =>
-  faceAt(found, path) === undefined ? undefined : atElement(path, at ?? null)
+  serves(found, path) ? atElement(path, at ?? null) : undefined
 
 /** The file the open page belongs to — the sidebar entry to light up, in
  *  whichever of its two lists. A zoomed node belongs to the file its CANONICAL

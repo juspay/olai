@@ -84,6 +84,7 @@ import {
   useContext,
 } from "solid-js"
 
+import { facesOf } from "../paths.ts"
 import { olai } from "../wire.ts"
 
 /**
@@ -185,12 +186,7 @@ export const createDocuments = (): Documents => {
 
   return {
     paths,
-    faces: createMemo(() =>
-      paths().flatMap((path) => {
-        const face = heads.byKey(path)?.()?.face
-        return face === undefined ? [] : [face]
-      })
-    ),
+    faces: createMemo(() => facesOf(paths(), (path) => heads.byKey(path)?.()?.face)),
     head: (file) => () => heads.byKey(file())?.()?.rev,
     read: (file) => {
       // An EFFECT, so the interest follows a component whose `file` moves (a

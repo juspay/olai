@@ -267,8 +267,17 @@ export type DocumentEntry = typeof DocumentEntry.Type
  */
 export const Head = Schema.Struct({
   rev: Schema.Int,
-  /** What the file IS, apart from what it says: its title, the addresses it
-   *  points at, the tags it writes (`@olai/format`'s `Face`).
+  /** What the file IS, apart from what it says: its path, its title, the
+   *  addresses it points at, the tags it writes (`@olai/format`'s `Face`).
+   *
+   *  IT CARRIES ITS OWN PATH, and the paragraph above forbids exactly that of
+   *  the entry — so the difference is worth naming. A `file` FIELD beside the
+   *  key would be one fact spelled twice by two hands; a face is one VALUE the
+   *  format made, whose identity is its path, cut from the same document in the
+   *  same function as the key it arrives under (`@olai/server`'s
+   *  `published.ts`). What the browser then holds is a list of faces
+   *  (`@olai/web`'s `page.ts`), where a key is not in hand — taking the path
+   *  off here would mean re-attaching it on arrival, which is the second hand.
    *
    *  THE ONE FACT THAT MAY JOIN `rev` HERE, and it is worth saying why, since
    *  the paragraph above forbids a second answer to a question `rev` already

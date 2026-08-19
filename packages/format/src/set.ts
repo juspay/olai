@@ -231,6 +231,23 @@ export const outlinePaths = (set: OutlineSet): ReadonlyArray<string> =>
   outlinesIn(set).map((outline) => outline.path)
 
 /**
+ * ONE MARKDOWN DOCUMENT, by the path a caller named — or `undefined` for a
+ * path this directory does not serve AS ONE, whether because nothing is there
+ * or because what is there is an outline or a saved page.
+ *
+ * {@link documentAt} narrowed by the question three callers actually ask —
+ * `read_document`, `write_document`'s refusal and the editor's undo — and it
+ * is here rather than at each of them because they were spelling it as a
+ * `.filter` of the whole collection followed by a `.find`, which allocates a
+ * copy of every served document to look one up. One walk, no copy, and one
+ * place that says which arm counts.
+ */
+export const markdownAt = (set: OutlineSet, path: string): Markdown | undefined => {
+  const document = documentAt(set, path)
+  return document?.kind === "document" ? document : undefined
+}
+
+/**
  * The MARKDOWN documents of the set, in path order — a `.md` and never a
  * `.html`.
  *

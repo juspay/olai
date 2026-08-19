@@ -48,6 +48,7 @@ import {
   heldCustom,
   isMirror,
   type LocatedRegular,
+  markdownAt,
   markdownIn,
   MARKS,
   matchingDocuments,
@@ -594,7 +595,7 @@ export const document = (
   set: OutlineSet,
   file: string,
 ): Result.Result<DocumentBody, OpFailure> => {
-  const entry = markdownIn(set).find((document) => document.path === file)
+  const entry = markdownAt(set, file)
   if (entry === undefined) {
     return Result.fail(
       noSuchDocument(set, file, "`list_documents` says what is"),

@@ -46,7 +46,7 @@ import type { Manifest } from "@olai/surface"
 import { type Accessor, createMemo } from "solid-js"
 
 import { type View, viewOf } from "./deriving.ts"
-import { sortByPath } from "./paths.ts"
+import { facesOf, sortByPath } from "./paths.ts"
 import { olai } from "./wire.ts"
 
 export interface Outlines {
@@ -101,12 +101,7 @@ export const createOutlines = (): Outlines => {
   return {
     manifest: manifest.value,
     files,
-    faces: createMemo(() =>
-      files().flatMap((file) => {
-        const face = entries.byKey(file)?.()?.face
-        return face === undefined ? [] : [face]
-      })
-    ),
+    faces: createMemo(() => facesOf(files(), (file) => entries.byKey(file)?.()?.face)),
     broken: createMemo(() => {
       const found = new Map<string, BrokenFile>()
       for (const file of files()) {

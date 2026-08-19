@@ -32,7 +32,7 @@ import { type Accessor, createEffect, createResource, createSignal } from "solid
 import { debounce } from "@solid-primitives/scheduled"
 import { Result } from "effect"
 
-import type { Refusal, SearchHit } from "@olai/surface"
+import type { NodeHit, Refusal, SearchHit } from "@olai/surface"
 
 import { runAsync } from "../run.ts"
 import { olai } from "../wire.ts"
@@ -53,8 +53,8 @@ const MIN_LENGTH = 3
  *  (a modal, a box in the header, a panel under a row), not a report. */
 const LIMIT = 8
 
-export interface Search {
-  readonly hits: Accessor<ReadonlyArray<SearchHit>>
+export interface Search<H extends SearchHit = SearchHit> {
+  readonly hits: Accessor<ReadonlyArray<H>>
   /** A refusal from the server, in its own words — `null` when there is none.
    *  Never silently dropped (`../run.ts` forbids a silent handler). */
   readonly failure: Accessor<string | null>
@@ -102,7 +102,18 @@ export interface Search {
  * or the query is an ask, or it is too short to mean anything — and answers
  * with no hits rather than with the list from before.
  */
-export const createSearch = (
+export function createSearch(
+  text: Accessor<string | null>,
+  kind: "node",
+): Search<NodeHit>
+export function createSearch(text: Accessor<string | null>): Search
+/**
+ * ASKED FOR ONE KIND, ANSWERED IN ONE KIND — the overload is the narrowing,
+ * so a door that can only take a record does not filter an answer it already
+ * scoped. The cast below is what an overload always is: a promise this module
+ * keeps, and the request three lines down is where it is kept.
+ */
+export function createSearch(
   text: Accessor<string | null>,
   /** ONE KIND, for a door that can only use one — the edge panel writing a
    *  `see`, the move picker, the composer's `@` list. It rides on the REQUEST
@@ -111,7 +122,7 @@ export const createSearch = (
    *  a query matched enough documents to fill it (`@olai/format`'s
    *  `SearchRequest`). Absent is both, which is what a reading door wants. */
   kind?: "node" | "document",
-): Search => {
+): Search {
   const [failure, setFailure] = createSignal<string | null>(null)
   /** What has actually been asked for: the query, once it stopped moving. */
   const [asked, setAsked] = createSignal<string | null>(null)

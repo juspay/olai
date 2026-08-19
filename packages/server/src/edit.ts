@@ -64,6 +64,7 @@ import {
   isMirror,
   type Located,
   type LocatedRegular,
+  markdownAt,
   markdownIn,
   mintedInto,
   nodeNamed,
@@ -1050,7 +1051,7 @@ const documentTextOf = (
   at: Reading,
   edit: Extract<Edit, { verb: "doc" }>,
 ): ReadonlyArray<Edit> => {
-  const document = markdownIn(at.set).find((entry) => entry.path === edit.file)
+  const document = markdownAt(at.set, edit.file)
   if (document === undefined) return []
   return [{ verb: "doc", file: edit.file, text: document.body, was: edit.text }]
 }

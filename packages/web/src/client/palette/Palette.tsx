@@ -86,7 +86,6 @@ import {
 import { opItems } from "./ops.ts"
 import { pinItem } from "../pins/palette.ts"
 import { sayPin, togglePin } from "../pins/pinning.ts"
-import { useServed } from "../served.tsx"
 import { createCursor } from "../search/cursor.ts"
 import { createSearch } from "../search/nodes.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
@@ -150,11 +149,6 @@ export function Palette(props: {
   const undo = useUndo()
   const derived = useDerived()
   const router = useRouter()
-  /** Every path the directory serves, from the one list this tab already holds
-   *  (`../served.tsx`) — where the document rows come from. Reached rather than
-   *  handed down for the reason the derivation above is: a directory gains and
-   *  loses files while a tab is open. */
-  const served = useServed()
   const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
   // WHICH row Enter takes, and the arrows that walk it — the one cursor every
@@ -258,19 +252,6 @@ export function Palette(props: {
     paletteOpen() ? opItems(props.zoomed, derived()) : []
   )
 
-  /**
-   * The document rows — their OWN memo, and the served list is read only from
-   * inside it.
-   *
-   * Both halves of that are the reason. Beside the node hits in one memo, the
-   * block was re-derived every time an answer landed from the server, and
-   * `<For>` keys a row by REFERENCE — so a round trip that had nothing to do
-   * with these files tore them down and drew them again, under the cursor of
-   * somebody walking the list. That is the churn the ordering below exists to
-   * prevent, arriving by the other road. And reading `served()` after the
-   * gate means a directory that gains a file does not re-run this while the
-   * palette is shut, which is `opRows`' own guard one block up.
-   */
   const items = createMemo(() => {
     if (!listing()) return [] as ReadonlyArray<PaletteItem>
     // THE OP ROWS FIRST, because they are the only rows that are about what

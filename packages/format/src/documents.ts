@@ -44,7 +44,8 @@ import { headingText } from "./slug.ts"
  * could name anything inside one. It is `./document.ts`'s sum now, with a face
  * on every arm, and the set serves that as its one collection; the two lookups
  * that stood beside it (`documentsIn`, `documentIn`, each a `.filter` over the
- * bodied half) are narrowings of that collection (`./set.ts`).
+ * bodied half) are `markdownIn` and `markdownAt` over that collection
+ * (`./set.ts`).
  *
  * What stays in this module is WHERE A REFERENCE LANDS, and it is one subject
  * read at three grains: the arithmetic (where a `doc`, a relative `![](…)` and
@@ -433,8 +434,8 @@ const writtenLinks = (text: string): ReadonlyArray<string> => {
  *  the search is one pass over the characters between the parentheses. */
 const SPACE = /\s/
 
-/** The answer for prose that points nowhere, which is most of it: ONE list,
- *  shared, as `./derive.ts` shares its own. */
+/** The answer for prose that points nowhere and for a record that does — which
+ *  is most of both: ONE list, shared, as `./derive.ts` shares its own. */
 const NO_LINKS: ReadonlyArray<Address> = []
 
 /**
@@ -470,7 +471,7 @@ const NO_LINKS: ReadonlyArray<Address> = []
  */
 export const recordLinks = (located: Located): ReadonlyArray<Address> => {
   const attached = pathAddress(docOf(located))
-  if (isMirror(located.node)) return attached === null ? NO_RECORD_LINKS : [attached]
+  if (isMirror(located.node)) return attached === null ? NO_LINKS : [attached]
   const found: Array<Address> = attached === null ? [] : [attached]
   for (const id of located.node.see ?? []) {
     const address = addressOf(null, id)
@@ -482,9 +483,6 @@ export const recordLinks = (located: Located): ReadonlyArray<Address> => {
   }
   return found
 }
-
-/** A record that points nowhere, which is most of them: ONE list, shared. */
-const NO_RECORD_LINKS: ReadonlyArray<Address> = []
 
 /** A whole-document address, for a path that may be absent — `doc` is the one
  *  field of a record that names a file, and most records name none. */
