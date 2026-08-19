@@ -72,6 +72,11 @@ export const TESTID = {
   railOutlines: "rail-outlines",
   /** Rail icon: open the directory (documents). */
   railDocs: "rail-docs",
+  /** The DIRECTORY region of the sidebar: the tree, and the two ways to add
+   *  to it, under one label. Its own name because the column reads as REGIONS
+   *  now — pinned, directory, trash — and a scenario asserting that has to be
+   *  able to name one. */
+  sidebarFiles: "sidebar-files",
   /** The sidebar's file tree: every outline and document under the folders
    *  they live in. Still named `outline-list` because that is the contract the
    *  browser tests already assert on for "the directory is listed", and a

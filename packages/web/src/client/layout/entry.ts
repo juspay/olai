@@ -37,3 +37,50 @@ export const ENTRY_SHAPE =
  *  `GUTTER_GAP` rather than repeating it down the row: a gap that is written
  *  twice is a rule, and a rule is what nothing enforces. */
 export const ROW_GAP = "gap-1.5"
+
+/**
+ * ONE REGION of the directory column, and the label over it.
+ *
+ * The column below the month was one undifferentiated run of rows — the pins,
+ * the tree, the two ways to make a file, and the Trash all drawn as the same
+ * entry, one after another (human, 2026-08-19, on a screenshot: *why does the
+ * sidebar look like mush?*). Each of those is a different KIND of thing: what
+ * a reader kept, what the directory holds, what makes a new one, and the way
+ * out. The glyph on a row says what one row IS; it cannot say where one list
+ * ends.
+ *
+ * NOTHING NEW IS INVENTED HERE. The two pieces are the ones this app already
+ * groups lists with: a hairline (`border-t border-rule`, the `•••` menu's own
+ * separator between its reads and its writes, and the preferences panel's
+ * footer) and a quiet uppercase label (`../palette/Shortcuts.tsx` over each
+ * group of keys, `../chat/CompletionMenu.tsx` over each kind of completion,
+ * `../commit/Panel.tsx` over its sections). The month above is the third: a
+ * card with a heading, which is the same idea with a border round it.
+ *
+ * The label is MUTED and small, because it is chrome rather than content —
+ * the month's heading is the name of the month a reader is looking at, and
+ * these are names for lists that already say what they hold.
+ */
+export const REGION = "mt-3 border-t border-rule/60 pt-2"
+
+/**
+ * WHAT IT MAY NOT COST is the tree's place on a short screen, and that is a
+ * promise with a test behind it: the column is sticky and exactly one screen
+ * tall, and `features/the_sidebar_sticks.feature` holds that the FILE TREE
+ * still reaches the visible strip at the bottom of a long page — it is what a
+ * reader came back to the column for. The month above it is ~300px of a 400px
+ * window, so everything between the two is a budget rather than a free choice:
+ * the first draft of these regions spent 45px on a rule, a margin and a label
+ * over the tree, and pushed it 28px under the fold (caught by that scenario,
+ * 2026-08-19). Hence the tighter spacing here, the month's own bottom margin
+ * giving way to it (`../calendar/Calendar.tsx`), and exactly ONE label below
+ * the month — the shelf's, because a list that is new to a reader is the one
+ * that needs naming. The tree is what the column IS; a rule above it says
+ * where it starts.
+ */
+
+/** …and the words over it. `px-2` so the label sits on the same left edge as
+ *  the rows under it — an entry's own padding — rather than hanging a couple of
+ *  pixels outside the column of names ({@link ENTRY_SHAPE}). */
+export const REGION_LABEL =
+  "m-0 mb-1 px-2 text-[0.625rem] font-semibold uppercase tracking-wide text-muted"

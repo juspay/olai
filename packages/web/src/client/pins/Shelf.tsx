@@ -40,6 +40,7 @@ import { createMemo, createSelector, createSignal, For, Show } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
 import { useUndo } from "../edit/undoing.ts"
+import { REGION, REGION_LABEL } from "../layout/entry.ts"
 import { createDrags, TRAVEL_PX } from "../pointer.ts"
 import { useRouter } from "../router.tsx"
 import { hrefOf } from "../routes.ts"
@@ -203,7 +204,13 @@ export function Shelf() {
 
   return (
     <Show when={pins().length > 0}>
-      <section class="relative mb-3" data-testid={TESTID.pinShelf}>
+      <section class={`relative ${REGION}`} data-testid={TESTID.pinShelf}>
+        {/* What this list IS, in the words and the treatment every other
+            grouped list in this app uses (`../layout/entry.ts`). A pin glyph
+            says what one ROW is; over a column of a dozen entries it cannot say
+            where one list ends and the next begins, which is what a reader
+            looking at the whole column actually needs (human, 2026-08-19). */}
+        <h2 class={REGION_LABEL}>Pinned</h2>
         <ul class="m-0 list-none p-0" ref={list}>
           <For each={pins()}>
             {(pin, at) => (

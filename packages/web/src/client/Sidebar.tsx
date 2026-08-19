@@ -108,7 +108,7 @@ import { Glyph } from "./file/icons.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
 import { LAYER, WITHIN } from "./layer.ts"
-import { ENTRY_SHAPE, ROW_GAP } from "./layout/entry.ts"
+import { ENTRY_SHAPE, REGION, ROW_GAP } from "./layout/entry.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
 import { Shelf } from "./pins/Shelf.tsx"
@@ -270,24 +270,47 @@ export function Sidebar(props: {
               the column it always was. */}
           <Shelf />
 
-          <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
-            <Key each={tree()} by="key">
-              {(row) => <Entry row={row()} view={view} />}
-            </Key>
-          </ul>
-          {/* Directly under the tree, because the tree is what it adds to: the
-              two ways to a FILE that does not exist yet — an outline
-              (./outline/NewOutline.tsx) and a document
-              (./document/NewDocument.tsx), both drawing the one path box
-              (./file/NewFile.tsx). The outline first, because the tree
-              above it is mostly outlines and because that is the file this app
-              is about. */}
-          <NewOutline />
-          <NewDocument />
+          {/* THE DIRECTORY ITSELF — the tree, and the two ways to add to it,
+              in one region because the second is about the first.
 
-          {/* And below both, the way OUT of the directory rather than into it:
-              what has been put away. */}
-          <Trash />
+              NO LABEL over it, where the shelf has one, and the reason is a
+              budget rather than a preference: this column is one screen tall
+              and the month above is most of it, so every line of chrome here
+              is a line the TREE loses on a short screen — which a scenario
+              holds ("the file tree is still on screen"). What needed naming
+              was the list that is new to a reader; the tree is what the column
+              IS, and the rule above it says where it starts. */}
+          <section class={REGION} data-testid={TESTID.sidebarFiles}>
+            <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
+              <Key each={tree()} by="key">
+                {(row) => <Entry row={row()} view={view} />}
+              </Key>
+            </ul>
+            {/* Directly under the tree, because the tree is what it adds to:
+                the two ways to a FILE that does not exist yet — an outline
+                (./outline/NewOutline.tsx) and a document
+                (./document/NewDocument.tsx), both drawing the one path box
+                (./file/NewFile.tsx). The outline first, because the tree above
+                it is mostly outlines and because that is the file this app is
+                about.
+
+                Set off by a hairline of their own INSIDE the region rather than
+                made a region of their own: they belong to the tree — a reader
+                looking for "how do I make one" looks at the end of the list of
+                them — and what they needed was to stop reading as two more
+                files, which is what a rule and a gap say. */}
+            <div class="mt-2 border-t border-rule/40 pt-2">
+              <NewOutline />
+              <NewDocument />
+            </div>
+          </section>
+
+          {/* And below all of it, the way OUT of the directory rather than into
+              it: what has been put away. Its own region, because it is the one
+              row here that is not about the files above it. */}
+          <div class={REGION}>
+            <Trash />
+          </div>
         </div>
       </nav>
     </>
@@ -377,7 +400,7 @@ function Trash() {
   return (
     <Link
       route={{ kind: "trash" }}
-      class={`${ENTRY} mt-4 text-muted`}
+      class={`${ENTRY} text-muted`}
       testid={TESTID.trashLink}
       current={router.route().kind === "trash"}
     >

@@ -831,7 +831,30 @@ const SECTIONS = {
     }`)
     await shot(page, "the-shelf-as-an-outline-chalk")
 
+    // THE WHOLE COLUMN, in a window tall enough to hold it — which is the shot
+    // the grouping is actually about: the complaint was that the pins, the
+    // tree, the two ways to make a file and the Trash ran together into one
+    // undifferentiated list, and every one of those is below the fold at the
+    // window the other shots use.
+    await page.setViewportSize({ width: WIDE, height: 1000 })
+    await page.goto(`${BASE}/o/garden.olai`)
+    await page.locator(OUTLINE_TREE).first().waitFor()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the column's regions: ${
+      (await page.locator('[data-testid="sidebar-body"] h2').allInnerTexts()).join(" · ")
+    }`)
+    await shot(page, "the-whole-column-chalk", {
+      clip: { x: 0, y: 0, width: 260, height: 1000 },
+    })
+
     await wearTheme(page, "pitch")
+    await shot(page, "the-whole-column-pitch-dark", {
+      clip: { x: 0, y: 0, width: 260, height: 1000 },
+    })
+    await page.setViewportSize({ width: WIDE, height: 720 })
+    await page.goto(`${BASE}/o/_olai/Pins.olai`)
+    await page.locator(OUTLINE_TREE).first().waitFor()
+    await page.waitForTimeout(DRAWN)
     await shot(page, "the-shelf-as-an-outline-pitch-dark")
     await page.goto(`${BASE}/o/garden.olai`)
     await page.locator(OUTLINE_TREE).first().waitFor()
