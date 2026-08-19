@@ -35,8 +35,8 @@
 
 import { type Address, addressOf, printAddress } from "./address.ts"
 import { bodyKind, fileKind } from "./kinds.ts"
-import { headingText } from "./slug.ts"
 import { isMirror, type Located } from "./node.ts"
+import { headingText } from "./slug.ts"
 
 /**
  * WHAT WAS HERE, and where it went: a `Document` of `{file, text}` — the whole
@@ -46,11 +46,19 @@ import { isMirror, type Located } from "./node.ts"
  * that stood beside it (`documentsIn`, `documentIn`, each a `.filter` over the
  * bodied half) are narrowings of that collection (`./set.ts`).
  *
- * What stays in this module is the ARITHMETIC — where a `doc` lands, where a
- * relative `![](…)` and `[…](…)` land, what a page may fetch, what a body's
- * first line says. Those are statements about what a document may POINT AT and
- * what can be read off one without parsing it, which is this file's subject
- * and not the sum's.
+ * What stays in this module is WHERE A REFERENCE LANDS, and it is one subject
+ * read at three grains: the arithmetic (where a `doc`, a relative `![](…)` and
+ * a relative `[…](…)` resolve to), the refusals (what a page may fetch at all),
+ * and the two readings built out of those — {@link linksIn}, every address a
+ * piece of PROSE points at, and {@link recordLinks}, every address one RECORD
+ * points at.
+ *
+ * THOSE TWO SIT TOGETHER on purpose, and it is the one thing this file gained
+ * when the sum arrived. `./document.ts` is the TYPE and its constructors; what
+ * points at what is this file's question, asked of a body and of a record with
+ * the same rule underneath, and read forwards to build a face and backwards to
+ * say who points at a document (`./backlinks.ts`). Split across the two
+ * modules they would have been two answers to one question.
  */
 
 /** The document this node attaches, as a path relative to the served
@@ -428,6 +436,60 @@ const SPACE = /\s/
 /** The answer for prose that points nowhere, which is most of it: ONE list,
  *  shared, as `./derive.ts` shares its own. */
 const NO_LINKS: ReadonlyArray<Address> = []
+
+/**
+ * EVERY ADDRESS ONE RECORD POINTS AT, in the order it writes them.
+ *
+ * The forward half of a reference, per record — and it is a function of its own
+ * because it is read BOTH WAYS: {@link outlineDocument} folds it into an
+ * outline's face, and `./backlinks.ts` reads it backwards to say which record
+ * of a file the reference was written in. Two walks of the same fields would be
+ * two answers to "does this node point there", and the page would draw one of
+ * them while the face claimed the other.
+ *
+ * Four things a record can point at, and one it deliberately cannot:
+ *
+ *   - a `doc` ATTACHMENT, which is a link a record MADE rather than one it
+ *     wrote — the node says which file hangs off it, and where that lands is
+ *     the format's own arithmetic ({@link resolveRelative}).
+ *   - a `see`, the format's free cross-reference and the one edge no
+ *     derivation reads, so the forward half of it belongs in a list of what
+ *     this record points at.
+ *   - a `[…](…)` in its TITLE, and one in its NOTE — the same rule a
+ *     document's body is read by, so a link means the same thing wherever it
+ *     is written ({@link ./documents.ts}'s `linksIn`).
+ *
+ * `after` and `blocks` are NOT here: they are the ORDERING graph, and saying
+ * an ordering edge under the word "points at" would put one fact under a name
+ * that means something else — the ruling `./backlinks.ts` already makes from
+ * the other end.
+ *
+ * A MIRROR points at nothing of its own. It is a second placement of a node,
+ * carrying no prose and no edge fields; what it shows is the node's, and the
+ * node is where the reference is written.
+ */
+export const recordLinks = (located: Located): ReadonlyArray<Address> => {
+  const attached = pathAddress(docOf(located))
+  if (isMirror(located.node)) return attached === null ? NO_RECORD_LINKS : [attached]
+  const found: Array<Address> = attached === null ? [] : [attached]
+  for (const id of located.node.see ?? []) {
+    const address = addressOf(null, id)
+    if (address !== null) found.push(address)
+  }
+  found.push(...linksIn(located.file, located.node.title))
+  if (located.node.desc !== undefined) {
+    found.push(...linksIn(located.file, located.node.desc))
+  }
+  return found
+}
+
+/** A record that points nowhere, which is most of them: ONE list, shared. */
+const NO_RECORD_LINKS: ReadonlyArray<Address> = []
+
+/** A whole-document address, for a path that may be absent — `doc` is the one
+ *  field of a record that names a file, and most records name none. */
+const pathAddress = (path: string | undefined): Address | null =>
+  path === undefined ? null : addressOf(path, null)
 
 /** What one written link names, or `null` — the grammar's three arms, told
  *  apart by where the `#` is. */

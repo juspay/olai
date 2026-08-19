@@ -127,7 +127,6 @@ export {
   Markdown,
   Outline,
   outlineDocument,
-  recordLinks,
 } from "./document.ts"
 /** A heading's derived id, and the headings of a body — the element half of
  *  the address grammar. Exported because the BROWSER assigns the same ids as
@@ -204,6 +203,7 @@ export {
   linksIn,
   PICTURE_EXTENSIONS,
   pictureOf,
+  recordLinks,
 } from "./documents.ts"
 export {
   ARCHIVE,

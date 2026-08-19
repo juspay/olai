@@ -67,7 +67,8 @@ import { Schema } from "effect"
 
 import { type Address, printAddress } from "./address.ts"
 import { byCorpus, type Derived, tagText } from "./derive.ts"
-import { type Face, recordLinks } from "./document.ts"
+import type { Face } from "./document.ts"
+import { recordLinks } from "./documents.ts"
 import { isArchived, isRegular, type Located, type LocatedRegular } from "./node.ts"
 
 /**

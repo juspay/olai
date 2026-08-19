@@ -101,7 +101,7 @@ import { Schema } from "effect"
 
 import { Address, addressOf, DocumentPath, printAddress, Slug, Tag } from "./address.ts"
 import { tagsIn, writtenTags } from "./derive.ts"
-import { docOf, firstLine, linksIn } from "./documents.ts"
+import { firstLine, linksIn, recordLinks } from "./documents.ts"
 import { fileKind, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
 import { slugsIn } from "./slug.ts"
@@ -335,63 +335,9 @@ export const bodyOf = (document: Document): string | null =>
 export const isOutline = (document: Document): document is Outline =>
   document.kind === "outline"
 
-/**
- * EVERY ADDRESS ONE RECORD POINTS AT, in the order it writes them.
- *
- * The forward half of a reference, per record — and it is a function of its own
- * because it is read BOTH WAYS: {@link outlineDocument} folds it into an
- * outline's face, and `./backlinks.ts` reads it backwards to say which record
- * of a file the reference was written in. Two walks of the same fields would be
- * two answers to "does this node point there", and the page would draw one of
- * them while the face claimed the other.
- *
- * Four things a record can point at, and one it deliberately cannot:
- *
- *   - a `doc` ATTACHMENT, which is a link a record MADE rather than one it
- *     wrote — the node says which file hangs off it, and where that lands is
- *     the format's own arithmetic ({@link ./documents.ts}).
- *   - a `see`, the format's free cross-reference and the one edge no
- *     derivation reads, so the forward half of it belongs in a list of what
- *     this record points at.
- *   - a `[…](…)` in its TITLE, and one in its NOTE — the same rule a
- *     document's body is read by, so a link means the same thing wherever it
- *     is written ({@link ./documents.ts}'s `linksIn`).
- *
- * `after` and `blocks` are NOT here: they are the ORDERING graph, and saying
- * an ordering edge under the word "points at" would put one fact under a name
- * that means something else — the ruling `./backlinks.ts` already makes from
- * the other end.
- *
- * A MIRROR points at nothing of its own. It is a second placement of a node,
- * carrying no prose and no edge fields; what it shows is the node's, and the
- * node is where the reference is written.
- */
-export const recordLinks = (located: Located): ReadonlyArray<Address> => {
-  const attached = pathAddress(docOf(located))
-  if (isMirror(located.node)) return attached === null ? NO_LINKS : [attached]
-  const found: Array<Address> = attached === null ? [] : [attached]
-  for (const id of located.node.see ?? []) {
-    const address = addressOf(null, id)
-    if (address !== null) found.push(address)
-  }
-  found.push(...linksIn(located.file, located.node.title))
-  if (located.node.desc !== undefined) {
-    found.push(...linksIn(located.file, located.node.desc))
-  }
-  return found
-}
-
-/** A record that points nowhere, which is most of them: ONE list, shared. */
-const NO_LINKS: ReadonlyArray<Address> = []
-
 /** The path, BRANDED — a value this module has judged by the one thing that
  *  makes a path nameable, which is the registry claiming its suffix. Every
  *  caller here got its `file` from a directory walk that matched on exactly
  *  that (`@olai/ops`' codec's `match`), so this is the verdict already reached
  *  said in the type. */
 const pathOf = (file: string): DocumentPath => file as DocumentPath
-
-/** A whole-document address, for a path that may be absent — `doc` is the one
- *  field of a record that names a file, and most records name none. */
-const pathAddress = (path: string | undefined): Address | null =>
-  path === undefined ? null : addressOf(path, null)

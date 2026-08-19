@@ -1112,26 +1112,75 @@ const matchOf = (
   // and never for a query that names none. `is:done` on its own is exactly that
   // query, and the groups that hold no word are tested first ({@link
   // inCostOrder}), so a node it rejects is rejected before this is reached.
-  let hay: Record<SearchField, ReadonlyArray<string>> | null = null
+  const found = matchedBy(
+    filter.groups,
+    (clause) => holds(derived, at, clause),
+    // The four fields as text, folded — four allocations and up to three folds
+    // of a whole note, so they are minted at the first WORD this node is asked
+    // about and never for a query that names none.
+    () => haystacksOf(at.node),
+    SEARCH_FIELDS,
+    FIELD_WEIGHT,
+  )
+  if (found === null) return null
+
+  // Collected only for a node that has already matched, so the map is walked
+  // for the few nodes a query selects rather than for every node it considers.
+  return { ...found, props: propsOf(at.node, filter) }
+}
+
+/**
+ * WHETHER A THING MATCHES, AND HOW WELL — the algorithm, over whatever
+ * vocabulary that kind of thing has.
+ *
+ * ONE function for the two kinds a query selects, and the split is the point:
+ * what is SHARED is the shape of a query (every group must hold, a group holds
+ * when any alternative in it does, a group is worth its best word, the
+ * highest-weighted field names the hit); what DIFFERS is what a clause means
+ * and where a word is looked for. Those two arrive as arguments, and the rest
+ * of it cannot come to differ between a record and a document — which it would
+ * have, written twice, the first time somebody fixed the scoring on one of
+ * them.
+ *
+ * A CLAUSE IS ASKED AS A PLAIN QUESTION and the negation is applied here, which
+ * is what lets a document answer the whole family in one line: it holds no
+ * clause at all, so a positive one selects none of them and a negated one is
+ * satisfied. There is nowhere on a `.md` to write a mark, a date or a
+ * property — the hole [frontmatter] is the named next step for.
+ *
+ * THE HAY IS A THUNK, not a value, and that is the same laziness this had when
+ * it was inline: folding a whole note (or a whole body) is the expensive part,
+ * so it happens at the first WORD the thing is asked about and never for a
+ * query that names none. `is:done` on its own is exactly that query, and the
+ * groups that hold no word are tested first ({@link inCostOrder}).
+ */
+const matchedBy = <F extends string>(
+  groups: ReadonlyArray<Group>,
+  holdsClause: (clause: Clause) => boolean,
+  hayOf: () => Record<F, ReadonlyArray<string>>,
+  fields: ReadonlyArray<F>,
+  weights: Record<F, number>,
+): { readonly field: F | null; readonly score: number } | null => {
+  let hay: Record<F, ReadonlyArray<string>> | null = null
   let score = 0
-  let field: SearchField | null = null
+  let field: F | null = null
   let weight = -1
 
-  for (const group of filter.groups) {
+  for (const group of groups) {
     // Every alternative is asked, rather than stopping at the first that holds,
     // and the reason is the SCORE: a group is worth its best word, so which
     // alternative the reader happened to type first must not decide how high
     // the hit ranks. The cost is the same scan the conjunction did when these
     // were separate tokens.
     let holding = false
-    let best: { readonly field: SearchField; readonly score: number } | null = null
+    let best: { readonly field: F; readonly score: number } | null = null
     for (const one of group) {
       if (one.kind === "clause") {
-        if (holds(derived, at, one.clause) !== one.negated) holding = true
+        if (holdsClause(one.clause) !== one.negated) holding = true
         continue
       }
-      hay ??= haystacksOf(at.node)
-      const hit = wordHit(hay, one.word, SEARCH_FIELDS, FIELD_WEIGHT)
+      hay ??= hayOf()
+      const hit = wordHit(hay, one.word, fields, weights)
       if (one.negated) {
         if (hit === null) holding = true
         continue
@@ -1140,20 +1189,17 @@ const matchOf = (
       holding = true
       if (best === null || hit.score > best.score) best = hit
     }
-    // Every group, in the same node. One that nothing satisfied and the node is
-    // not a hit.
+    // Every group, in the same thing. One that nothing satisfied and it is not
+    // a hit.
     if (!holding) return null
     if (best === null) continue
     score += best.score
-    if (FIELD_WEIGHT[best.field] > weight) {
-      weight = FIELD_WEIGHT[best.field]
+    if (weights[best.field] > weight) {
+      weight = weights[best.field]
       field = best.field
     }
   }
-
-  // Collected only for a node that has already matched, so the map is walked
-  // for the few nodes a query selects rather than for every node it considers.
-  return { field, score, props: propsOf(at.node, filter) }
+  return { field, score }
 }
 
 /**
@@ -1946,45 +1992,24 @@ export const matchingDocuments = (
 /**
  * Does this document match, and why — or `null`.
  *
- * {@link matchOf}'s shape, group by group: every group must hold, and a group
- * holds when any alternative in it does. What differs is the two lines above —
- * a clause is answered by its negation alone — and the vocabulary the words are
- * looked for in.
+ * {@link matchedBy}, over this kind's own two answers: a document HOLDS NO
+ * CLAUSE, and its words are looked for in {@link DOCUMENT_FIELDS}. Every other
+ * sentence about what a query means — the conjunction, the alternatives, the
+ * scoring — is the shared one, which is the whole reason that function has
+ * arguments rather than a second copy of itself.
  */
 const documentMatchOf = (
   document: Bodied,
   filter: Extract<Filter, { kind: "asking" }>,
-): MatchedDocument["match"] | null => {
-  let score = 0
-  let field: DocumentField | null = null
-  let weight = -1
-  let hay: Record<DocumentField, ReadonlyArray<string>> | undefined
+): DocumentMatch | null =>
+  matchedBy(
+    filter.groups,
+    NO_CLAUSE_HOLDS,
+    () => documentHay(document),
+    DOCUMENT_FIELDS,
+    DOCUMENT_WEIGHT,
+  )
 
-  for (const group of filter.groups) {
-    let holding = false
-    let best: { readonly field: DocumentField; readonly score: number } | null = null
-    for (const one of group) {
-      if (one.kind === "clause") {
-        if (one.negated) holding = true
-        continue
-      }
-      hay ??= documentHay(document)
-      const hit = wordHit(hay, one.word, DOCUMENT_FIELDS, DOCUMENT_WEIGHT)
-      if (one.negated) {
-        if (hit === null) holding = true
-        continue
-      }
-      if (hit === null) continue
-      holding = true
-      if (best === null || hit.score > best.score) best = hit
-    }
-    if (!holding) return null
-    if (best === null) continue
-    score += best.score
-    if (DOCUMENT_WEIGHT[best.field] > weight) {
-      weight = DOCUMENT_WEIGHT[best.field]
-      field = best.field
-    }
-  }
-  return { field, score }
-}
+/** A document's answer to every clause in the grammar: no. One function, since
+ *  it closes over nothing and is handed to every document of every query. */
+const NO_CLAUSE_HOLDS = (): boolean => false
