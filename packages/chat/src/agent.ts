@@ -99,6 +99,7 @@ import { emitter, reasonOf } from "@olai/log"
 import type { AskAnswer } from "@olai/surface"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
+import { Calls } from "./calls.ts"
 import { sameDirectory } from "./directory.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import {
@@ -119,7 +120,6 @@ import {
   STEER_TIMEOUT,
   STEER_WHEN_IDLE,
   steerTaken,
-  toolNameIn,
 } from "./interpret.ts"
 import * as Kolu from "./kolu.ts"
 import type { Held, Memory, MemoryFailure } from "./memory.ts"
@@ -304,22 +304,6 @@ interface Live {
   readonly canLoad: boolean
 }
 
-/**
- * What a call's own announcement said about it — the two agent-specific
- * readings, remembered together because they are answered by one frame.
- *
- * Both are OPTIONAL because a frame carries either, both or neither: a
- * subagent's terminal output arrives with only the parent, a plan exit's with
- * only the name, and a completion with neither. Absent means "nothing has said
- * yet", which is what makes the merge in `remember` sticky per field.
- */
-interface Announced {
-  /** Which tool it is, programmatically — never the display title. */
-  readonly name?: string
-  /** The `Agent` call it was made inside, by the id it arrived as. */
-  readonly parent?: string
-}
-
 export const make = (options: Options): Effect.Effect<Agent, never, never> =>
   Effect.gen(function*() {
     // Everything this module has to say happens in a protocol callback or on a
@@ -374,71 +358,37 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      */
     let given: ReadonlyArray<string> = []
 
-    /**
-     * What each call id's own `tool_call` frame said about it — WHICH TOOL it
-     * is, and WHICH AGENT made it.
-     *
-     * Two readings of one `_meta` ({@link ./interpret.ts}) kept in one map,
-     * because they are answered by one frame and consulted for one reason: a
-     * question the agent asks names a call, and the call's announcement is the
-     * only place either fact was said. The adapter guarantees that
-     * announcement goes out BEFORE it asks (`ensureToolCallEmitted`), and a
-     * notification and a request travel the same pipe in order, so by the time
-     * a question arrives its call is in here.
-     *
-     * The NAME is what stops this panel approving its own permissions: a
-     * permission request carries a DISPLAY title — for a plan exit it reads
-     * "Ready to code?" — and never the programmatic name. A miss is a name we
-     * do not know, which is answered by ASKING; nothing here guesses.
-     *
-     * The PARENT is what makes a subagent's question say whose it is. It rides
-     * the request itself where the adapter puts it there, and this is the
-     * other door — the one an `elicitation/create` has to come through, since
-     * that request carries the call id and no attribution of its own.
-     *
-     * Sticky per field, for the reason the transcript's own fields are: the
-     * facts arrive across frames and each frame carries what it knows. A
-     * completion that says only "this finished" must not take an attribution
-     * back off a call.
-     *
-     * Emptied with the conversation ({@link leaving}), because a call id is only
-     * ever looked up inside the session that minted it — otherwise this would be
-     * every tool call the process had ever seen, kept for the life of a server
-     * that is meant to run for weeks.
-     */
-    const announcedCalls = new Map<string, Announced>()
+    /** What has been said about each of this conversation's tool calls — which
+     *  tool it is, and which agent made it ({@link ./calls.ts}). Per session,
+     *  because a call id is only ever looked up inside the session that minted
+     *  it. */
+    const calls = new Calls()
 
     /** The conversation is over — replaced, reloaded, or dead. Everything keyed
-     *  to it goes: the questions nobody is going to answer now, the tool names
-     *  they were keyed alongside, and which model the CLI said it was running.
-     *  One function, because "this session is finished" is one fact and four
-     *  call sites remembering three things each is how one of them ends up
-     *  remembering two. */
+     *  to it goes: the questions nobody is going to answer now, what was said
+     *  about the calls they named, and which model the CLI said it was
+     *  running. One function, because "this session is finished" is one fact
+     *  and four call sites remembering three things each is how one of them
+     *  ends up remembering two. */
     const leaving = (): void => {
       questions.withdrawAll()
-      announcedCalls.clear()
+      calls.forget()
       forgetModel()
     }
 
     /**
-     * WHO is asking — the `Agent` call the question came out of, or `null` for
-     * one the main agent asked itself.
+     * WHO is asking — the `Agent` call the question came out of, or
+     * `undefined` for one the main agent asked itself.
      *
-     * Two doors to one answer, in the order of how directly it was said. The
-     * request's own `_meta` is the adapter stamping the attribution on the ask
-     * itself, which is what a permission request for a subagent's tool carries.
-     * An `elicitation/create` carries no such stamp — it names the CALL, and
-     * the call's announcement is where the attribution was said
-     * ({@link announcedCalls}). One function, so both kinds of question are drawn
-     * by one rule rather than by two that could come to differ.
+     * The form is the argument rather than the call id it carries, so the
+     * question a lane is drawn for is the same question that was put in front
+     * of somebody: two arguments, a form and an id, would be a pair nothing
+     * enforced and each half honest alone.
      */
     const askerOf = (
       form: Form,
       meta: { readonly [key: string]: unknown } | null | undefined,
-    ): string | undefined =>
-      parentToolUseIn(meta) ??
-        (form.toolCall === null ? undefined : announcedCalls.get(form.toolCall)?.parent) ??
-        undefined
+    ): string | undefined => calls.about(form.toolCall, meta).parent
 
     /** Put a form in front of a person and wait for it — the registry holds the
      *  promise, and this is the one place the row it draws is announced. The
@@ -489,13 +439,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       return { action: "accept", content: settled.content }
     }
 
-    /** Which tool a permission request is about, or `null` when nothing said.
-     *  The request's own `_meta` carries the name for a subagent's call; every
-     *  other call was announced first, and the announcement did. */
+    /** Which tool a permission request is about, or `null` when nothing said —
+     *  which is answered by ASKING, never by guessing. Its sibling above reads
+     *  the other field of the same answer. */
     const toolOf = (request: RequestPermissionRequest): string | null =>
-      toolNameIn(request.toolCall._meta) ??
-        announcedCalls.get(request.toolCall.toolCallId)?.name ??
-        null
+      calls.about(request.toolCall.toolCallId, request.toolCall._meta).name ?? null
 
     const onPermission = async (
       params: RequestPermissionRequest,
@@ -521,20 +469,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         : { outcome: { outcome: "selected", optionId: picked } }
     }
 
-    const remember = (
-      toolCallId: string,
-      meta: { readonly [key: string]: unknown } | null | undefined,
-    ): void => {
-      const name = toolNameIn(meta)
-      const parent = parentToolUseIn(meta)
-      if (name === null && parent === null) return
-      announcedCalls.set(toolCallId, {
-        ...announcedCalls.get(toolCallId),
-        ...(name === null ? {} : { name }),
-        ...(parent === null ? {} : { parent }),
-      })
-    }
-
     const onUpdate = (notification: SessionNotification): void => {
       const update = notification.update
       switch (update.sessionUpdate) {
@@ -554,10 +488,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // the same thing with either.
         case "tool_call":
         case "tool_call_update":
-          // Not drawn, and not an event: the NAME of the tool is what the
-          // permission handler needs and the permission request does not
-          // carry — see `toolNames`.
-          remember(update.toolCallId, update._meta)
+          // Not drawn, and not an event: what this frame said about its call —
+          // which tool it is, and which agent made it — is what the two
+          // handlers above need and what neither question they answer carries
+          // ({@link ./calls.ts}).
+          calls.heard(update.toolCallId, update._meta)
           emit({
             _tag: "tool",
             id: update.toolCallId,
