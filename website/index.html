@@ -765,7 +765,10 @@ The corner unit is the **risky one** — see
     <p class="lead">One query language, four doors: the box in the header, the
     ⌘K palette, an agent’s <code>search_nodes</code>, and the filter that
     narrows the page in front of you. The first three list what they found;
-    the fourth takes rows away and leaves the rest standing where they live.</p>
+    the fourth takes rows away and leaves the rest standing where they live.
+    The two that list also open <strong>documents</strong>: a <code>.md</code>
+    or a saved page is a row of its own, matched by its name and the folder it
+    sits in — its prose stays prose, and the query language selects nodes.</p>
     <div class="cols">
       <div class="panel">
         <div class="file">/o/house.olai?q=%23home+OR+alcove</div>
@@ -940,7 +943,7 @@ The corner unit is the **risky one** — see
     as tab-indented plain text. Those go on the same undo stack, so ⌘Z takes a
     menu edit back too — all but the retire, which has no ⌘Z at all, and
     <code>((</code> is how that line comes back instead.
-    There is no delete: the Trash keeps the subtree whole,
+    Nothing you put away is deleted by putting it away: the Trash keeps the subtree whole,
     ids and all — on disk it is an <code>Archive.olai</code> beside the outline
     it left, which is why nothing that pointed at it breaks — and the sidebar’s
     Trash is where you read it, with <em>Put back</em> on the rows that were put
@@ -955,6 +958,23 @@ The corner unit is the **risky one** — see
     same operation an agent would
     perform, which is a rule olai holds itself to: both faces can do the same
     things to a directory.</p>
+    <p><strong>And the Trash can be emptied — the one thing in olai that
+    permanently deletes.</strong> <em>Empty trash</em> sits beside the heading
+    on that page and takes every record in every archive, subtrees and
+    signposts alike. It asks first, and the question says how many rows go —
+    counted over what the archives hold rather than over what the page happens
+    to be drawing, so narrowing the Trash with the filter box does not narrow
+    what you are agreeing to — and it says outright that nothing in olai puts
+    them back and that what survives is whatever git has already recorded.
+    It is refused while anything outside the Trash still points into it, since
+    ids come along when a subtree is put away and deleting those records would
+    leave live rows naming nothing; the refusal names each of them. An empty
+    Trash does not offer the verb at all. There is still no delete key: this
+    one names no node, reaches no live outline, and can only take rows you
+    already put away and can still see. And if something is put away between
+    the moment you read that sentence and the moment you press it, the write
+    is refused naming both counts rather than taking the newcomer with it.
+    <code>empty_trash</code> is the same operation for an agent.</p>
     <p><strong>A node can point at other nodes, and that is writable from
     either end now.</strong> The menu’s <em>Link to a node…</em> and <em>Wait
     for a node…</em> each open a panel under the row: what this node says now,
@@ -1144,8 +1164,12 @@ The corner unit is the **risky one** — see
     a subagent that reads ten files gets one name and ten rows. The name comes
     back whenever the thread is picked up again, which is what makes two agents
     running at once readable: their calls interleave, and each stretch says
-    which of them it was. A turn that spawned nobody looks exactly as it always
-    did.</p>
+    which of them it was. A question a subagent stops to ask — permission for a
+    tool, or options to pick from — is a row like its calls, so the form is
+    drawn in that agent’s lane and the lane <strong>names who is asking</strong>
+    wherever it sits: you are sent to a blocked form from the composer and the
+    header rather than scrolling down to it, so there is no row above you have
+    read. A turn that spawned nobody looks exactly as it always did.</p>
     <p>A row can hand the agent the node it stands for. <em>Ask agent</em> in
     the row menu arms the box with that node — a chip above what you type,
     removable until you send — and the turn is then about <strong>that

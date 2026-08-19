@@ -67,7 +67,7 @@ Feature: The filter reaches every page that draws nodes
     When I filter the page by "bathroom"
     Then the node "rails" is not shown
     And the node "ferry" is not shown
-    And the filter found "no matches"
+    And the filter found "no matches of 3"
     And the day does not say it is empty
 
   @corpus:journal
@@ -140,7 +140,7 @@ Feature: The filter reaches every page that draws nodes
     # Not even the today dot: now is a place on a line, and a line with one dot
     # and nothing either side of it is a diagram of nothing.
     Then the agenda draws no spine
-    And the filter found "no matches"
+    And the filter found "no matches of 3"
     # ...and the page does not claim the agenda is empty, which is a different
     # thing and would be untrue.
     And the agenda does not say it is empty
@@ -184,7 +184,7 @@ Feature: The filter reaches every page that draws nodes
     # rather than an empty page with no reason.
     When I filter the page by "-is:archived"
     Then the Trash does not list the node "hinges"
-    And the filter found "no matches"
+    And the filter found "no matches of 5"
     # An archive narrowed to nothing is not "the Trash is empty" — that is a
     # claim about the archive, and this is a claim about the query.
     And the Trash does not say it is empty

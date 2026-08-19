@@ -3,7 +3,10 @@
  * and the shape a NODE takes when search answers with one.
  *
  * The OP rows are next door (`./ops.ts`), because what a verb is and which of
- * them apply is the `•••` menu's answer and not a second list. Node hits
+ * them apply is the `•••` menu's answer and not a second list; the DOCUMENT
+ * rows are next door the other way (`./documents.ts`), because which files the
+ * directory serves is the served list's answer and not a second list either.
+ * Node hits
  * arrive from the server's search procedure (Palette.tsx asks it as you type)
  * rather than from a matcher of this file's own: the browser holds every node
  * and could grep them, and deliberately does not, because the palette and an
@@ -19,6 +22,7 @@
  * per prefix.
  */
 
+import type { BodyKind } from "@olai/format"
 import type { Edit, SearchHit } from "@olai/surface"
 import { WHOLE_GRAPH, WHOLE_GRAPH_ROUTE } from "../graph/door.ts"
 
@@ -61,6 +65,12 @@ export type PaletteAction =
   | { readonly kind: "prefix"; readonly prefix: string }
 
 export interface PaletteItem {
+  /** Unique in the list, and — for the rows that are not commands — PREFIXED
+   *  by what the row is about: `node-<id>` for a search hit, `doc-<path>` for
+   *  a served file (`./documents.ts`). That prefix is a contract with a
+   *  package that does not import this one: it is how a scenario tells a hit
+   *  from a shell command that happens to share a word, in both doors
+   *  (`packages/tests`' palette and header steps). */
   readonly id: string
   readonly label: string
   /** A short word about the row, drawn INLINE at the right: a chord, a
@@ -83,6 +93,17 @@ export interface PaletteItem {
    *  (`../search/props.ts`). Only a node row has any; a shell command has
    *  nothing to say about itself that its label does not already say. */
   readonly props?: ReadonlyArray<NodeProp>
+  /**
+   * WHICH KIND of served file this row opens, drawn as that kind's own glyph
+   * in front of the label (`../file/icons.tsx`) — the face the sidebar's tree
+   * has used since a `.md`, a `.olai` and a folder stopped being four
+   * characters of extension apart.
+   *
+   * Only a document row carries one (`./documents.ts`). A command is not a
+   * file, and a node hit is a row INSIDE one — the file it lives in is already
+   * said, in words, on its place line.
+   */
+  readonly of?: BodyKind
   readonly action: PaletteAction
   /** Lowercase haystack for simple substring filter. */
   readonly search: string

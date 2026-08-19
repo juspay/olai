@@ -1,8 +1,8 @@
 /**
  * WHICH of the directory's nodes an `@` query means — the other half of the
- * list `./files.ts` starts.
+ * list `../file/matching.ts` starts.
  *
- * ## No second matcher, for `./files.ts`'s reason with a better answer
+ * ## No second matcher, for `../file/matching.ts`'s reason with a better answer
  *
  * The file half had to invent a matcher, because nothing else in olai matches
  * a PATH. A node is the opposite case: the matcher exists, it is the one every

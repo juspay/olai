@@ -24,7 +24,7 @@ const choice: AskField = {
   attachedTo: null,
 }
 
-const form: Form = { message: "Which cabinets?", fields: [choice] }
+const form: Form = { message: "Which cabinets?", fields: [choice], toolCall: null }
 
 /** A registry, plus what it reported settling — the two are always read
  *  together, because a settle nobody was told about is the failure mode. */

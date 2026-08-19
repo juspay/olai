@@ -63,6 +63,25 @@ test("`@word` is a reference exactly when a record claims the word", () => {
   expect(said(claimed, "alice")).toEqual(["note mention"])
 })
 
+// THE HALF OF THE INDEX THIS READING TAKES, asserted here because nothing else
+// can assert it. `taggedBy` files both sigils under keys that keep them, and a
+// reading that looked up the bare word — or looked up both spellings — would
+// draw `#herbs` as a referrer of the node called `herbs`. The oracle next door
+// cannot catch that: `derive` and `patch` would agree about a key either way,
+// and the widget's own tests are about the vocabulary rather than about who
+// refers to what. So the pair is pinned at the door that decides it.
+test("a `#topic` spelled like an id is not a reference, and the `@` beside it is", () => {
+  const view = viewOf({
+    "garden.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+    "house.olai": `{"id":"ask","ord":"a","title":"ask @herbs about the pots"}\n` +
+      `{"id":"topic","ord":"b","title":"seed order","desc":"filed under #herbs"}`,
+  })
+  // Both keys are really there, so this is the READING choosing between them
+  // rather than an index that never filed the topic.
+  expect([...view.taggedBy.keys()].sort()).toEqual(["#herbs", "@herbs"])
+  expect(said(view, "herbs")).toEqual(["ask mention"])
+})
+
 test("a mention that arrives with the node it names is a reference at once", () => {
   // The other half of the rule above, and the reason the index is not filtered
   // by existence: the word was already written, and nothing rewrote it.
@@ -131,11 +150,11 @@ test("the referrers come in corpus order, whichever index found them", () => {
 
 // ── a note is markdown, and this reading is not ────────────────────────
 //
-// The decision is `./derive.ts`'s `mentionsOf`: this package holds no markdown
+// The decision is `./derive.ts`'s `writtenTags`: this package holds no markdown
 // parser, and deciding what a reference IS out of one would put a parser under
 // the write gate — so what the record SAYS is the answer. What that costs is a
 // disagreement with the browser, which DOES parse before it styles a tag
-// (`web/src/client/markdown/tags.ts`, whose `SKIP_TAGS` is `code` and `a`).
+// (`web/src/client/markdown/tags.ts`, which reads no tag inside `code` or `a`).
 //
 // THE DISAGREEMENT GOES BOTH WAYS, and these tests are the enumeration. Two
 // reviewers of #237 each found the prose one case short of the truth — it said
@@ -185,7 +204,7 @@ test("and the divergence runs the OTHER way too: emphasis is styled and is not a
   // The half that is easy to miss, and the reason "the bias is toward showing
   // more" is not a safe thing to say: `*` and `_` are not in the opening
   // alphabet, so this reading skips them — while the client's tag styling walks
-  // into `em` and `strong` (they are not in `SKIP_TAGS`) and draws the pill.
+  // into `em` and `strong` (they are not in `NO_TAGS_IN`) and draws the pill.
   // So a reader can see `@herbs` styled as a tag on a record's own page and not
   // find that record in the herb bed's referenced-by section.
   const view = viewOf({
@@ -219,6 +238,7 @@ const BOTH_WAYS = {
     `{"id":"frames","parent":"garden","ord":"a1","title":"the cold frames","see":["basil"]}`,
     `{"id":"itself","parent":"garden","ord":"a2","title":"@itself and @nobody","see":["itself"]}`,
     `{"id":"shed","parent":"garden","ord":"a3","title":"the shed","see":["retired"]}`,
+    `{"id":"topic","parent":"garden","ord":"a4","title":"seed order #herbs","desc":"also filed under #herbs"}`,
   ].join("\n"),
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
@@ -282,4 +302,14 @@ test("the forward reading and the backward one are about the same pairs", () => 
   // point into the archive, and the forward reading does not have it.
   expect(backlinksOf(view, "retired").map((back) => back.at.node.id)).toEqual(["shed"])
   expect([...forward].some((pair) => pair.endsWith(" retired"))).toBe(false)
+
+  // AND SO IS THE SIGIL RULE, which the two readings reach from opposite sides:
+  // the backward one asks the index for the `@` key alone, the forward one
+  // reads a record's written tags and keeps the `@` half. `topic` writes
+  // `#herbs` twice and `@herbs` never, so an agreement that dropped it on both
+  // sides for two different wrong reasons is what this rules out — the index
+  // filed the topic, and neither reading calls it a reference.
+  expect([...view.taggedBy.keys()]).toContain("#herbs")
+  expect([...forward].some((pair) => pair.startsWith("topic "))).toBe(false)
+  expect(backlinksOf(view, "herbs").map((back) => back.at.node.id)).not.toContain("topic")
 })

@@ -23,7 +23,7 @@ import { FilterBar } from "../filter/FilterBar.tsx"
 import { GraphPage } from "../graph/GraphPage.tsx"
 import { NarrowedProvider } from "../filter/narrowed.tsx"
 import { createNarrowing } from "../filter/narrowing.ts"
-import { taggedBy } from "../filter/tag.ts"
+import { tagPressed } from "../filter/tag.ts"
 import { desktop } from "../layout/media.ts"
 import { chatOpen } from "../layout/prefs.ts"
 import { only } from "../narrow.ts"
@@ -111,7 +111,7 @@ export function PageView(props: {
       data-narrowable={narrowable(route()) ? "true" : undefined}
       onPointerDown={() => router.focus(here())}
       onClick={(event) => {
-        const tag = narrowable(route()) ? taggedBy(event) : null
+        const tag = narrowable(route()) ? tagPressed(event) : null
         if (tag !== null) {
           event.preventDefault()
           narrow(tag)

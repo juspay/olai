@@ -86,7 +86,7 @@ The button says **send** the whole time, because that is what it does the whole 
 
 ## What it can touch
 
-**Olai hands the agent no filesystem.** What olai itself gives it is a closed list of tools that can only name nodes — search, read a subtree, create an outline, add, mark, retitle, note, schedule, move, archive, place a mirror, retire one, and wire what a node waits on, plus the two that do several of those as ONE write (`update` for several fields of one node, `apply` for a list of ops over many) — so the edits it can ask *olai* for are the edits the format can be, and a malformed outline is not something that path can produce. When a write is refused, the validator's own rows come back, pinned to the lines they are about; when a write lands but is worth a second look, the answer says so — advice about something that happened, never a refusal.
+**Olai hands the agent no filesystem.** What olai itself gives it is a closed list of tools that name a NODE, a whole DOCUMENT or a whole ARCHIVE, and nothing smaller than any of them — search, read a subtree, create an outline, add, mark, retitle, note, schedule, move, archive, place a mirror, retire one, wire what a node waits on, and empty the trash, plus the two that do several of those as ONE write (`update` for several fields of one node, `apply` for a list of ops over many) — so the edits it can ask *olai* for are the edits the format can be, and a malformed outline is not something that path can produce. The documents beside the outlines have four verbs of their own — `list_documents` and `read_document` to find one and read it whole, `create_document` and `write_document` to mint one and replace its text — and they are still not file access: the listing is this directory's own set rather than a disk, and neither end of a document call names an offset or a range, because a `.md` is one text. The one verb on that list that DELETES is `empty_trash`, which names `Archive.olai` files and empties them whole — every record in the archives it names or none, nothing put back by anything in olai, and refused while a live row still points into one. When a write is refused, the validator's own rows come back, pinned to the lines they are about; when a write lands but is worth a second look, the answer says so — advice about something that happened, never a refusal.
 
 **What the agent brings with it is its own.** The default agent is a coding assistant, and a coding assistant edits files: ask it to fix a typo in a `.md` and it will, with its own tools, on its own authority — the same authority it has in a terminal, over the directory it was started in. Olai neither grants that nor pretends it away; what it does is SHOW it, which is the section below. The one thing worth knowing is that an agent editing a `.olai` by hand is writing the format without the validator in front of it — the outlines are plain text and nothing stops that — so if you want an outline changed, ask for the change rather than for the edit, and it goes through the tools.
 
@@ -185,6 +185,22 @@ Three things are on that row and every one of them comes off the wire:
 - **that it is running** — the rail, which says *working…* and **goes away the moment the call stops**. One word, and it was briefly two: a *starting…* that became *working…* at the agent's first heartbeat. That read as more precise and was less true — every tool call is announced *pending* whether or not it has got going, the subagent is dispatched at once, and a heartbeat can be half a minute away, so a subagent whose work was already listed in the lane below went on being described as starting while you watched it. A face that outlived the agent would say a fan-out was running after the turn was over, which is the same lie in the other direction — so it also goes when the CONVERSATION stops, which is what covers the way this actually goes wrong: an agent that died between sending somebody out and reporting on it leaves a row that will never say it finished, and the rows a dead agent left are deliberately still on screen to read.
 
 Then the calls arrive in the lane that is already open under it, and when the agent reports back the row completes and its answer is in the fold. Nothing about the rest of the drawing changes — the same rail, the same names, in the same places.
+
+### When it is a subagent that asks
+
+A spawned agent can stop and ask — permission for a tool nothing recognises, or a question with options to pick from — and the form lands **in that agent's lane**, indented behind the same rail its calls are, with the lane naming who is asking:
+
+```
+· explore the outline                    ↳ Explore
+│ ↳ explore the outline
+│ ┌ Allow `rg --files`?
+│ │  [ Allow Once ]  [ Deny ]
+│ grep for worktops
+```
+
+That name is drawn on a form wherever it sits, which is the one place the *once per stretch* rule above does not apply. The reason is what a form is: the one row here where being wrong about who is speaking changes what you press. And you rarely meet it by reading down to it — a blocked question is announced in the composer, in the header and on the app's agent toggle, so you come looking for a form that may be anywhere, including scrolled off the top of a long turn with nothing above it you have read.
+
+Before this, the form was drawn in the ordinary column and read as the agent you are talking to. The second half was louder: a row in nobody's lane, landing between two of one subagent's calls, **ends the stretch** — so the lane opened again and introduced itself a second time under the form, and one agent's run read as two.
 
 **What is deliberately not drawn is the subagent's own prose.** The agent olai ships with does not send it: a spawned agent's text and thinking are stripped from the feed unless a client asks for a nested transcript, and olai does not ask. So a running subagent is its calls and its status here, and the one place its own words appear is the report it hands back at the end. That is a floor rather than a preference — but it also means the main agent's voice in this panel is only ever the main agent's, which is worth having.
 

@@ -10,12 +10,13 @@
  * every update and only the text inside it moves.
  *
  * SUBAGENT LANES are the one thing this file decides about a row rather than
- * delegating. A tool call a spawned agent made carries the `Agent` frame it
- * belongs to ({@link ../../../../surface/src/chat.ts}'s `ChatEntry.parent`),
- * and it is drawn indented behind a rail under that frame — but whether the
- * lane has to NAME itself depends on the row above, which is a fact about the
- * list and about nothing else. {@link ./lanes.ts} is that rule; this file is
- * where the only reader of it lives.
+ * delegating. A row a spawned agent produced carries the `Agent` frame it
+ * belongs to ({@link ../../../../surface/src/chat.ts}'s `ChatEntry.parent`) —
+ * a tool call it made, or a question it stopped to ask — and it is drawn
+ * indented behind a rail under that frame. Whether the lane has to NAME itself
+ * is {@link ./lanes.ts}'s rule; this file is where the only reader of it
+ * lives, and the lane is a WRAPPER around whatever the row turns out to be, so
+ * a kind of row learning it belongs to a subagent needs nothing here.
  *
  * A LANE ALSO OPENS WITH NOTHING IN IT, and that is the same drawing decided
  * from the other end. Every rail above is hung off work a subagent has already

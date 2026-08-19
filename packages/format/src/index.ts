@@ -86,7 +86,7 @@ export type { Previous } from "./validate.ts"
  *  below). */
 export { reading } from "./validate.ts"
 
-export { apart, assemble, BrokenFile, nodesIn, OutlineSet } from "./set.ts"
+export { apart, assemble, BrokenFile, brokenBy, brokenIn, nodesIn, OutlineSet } from "./set.ts"
 /** WHICH FILE COMES FIRST — the order a directory is read in, and the one
  *  spelling of it: the set is assembled in it, the patcher places an arriving
  *  file by it, and the browser folds and draws in it. Exported because the
@@ -135,8 +135,12 @@ export {
 export type { BodyKind, FileKind } from "./kinds.ts"
 export {
   bodiedOf,
+  bytesOf,
   docOf,
   Document,
+  documentIn,
+  documentsIn,
+  firstLine,
   isAsset,
   isPicture,
   PICTURE_EXTENSIONS,
@@ -229,6 +233,7 @@ export {
   storedMarker,
   TAG_SIGILS,
   tagOpensAt,
+  tagPart,
   tagText,
   titleParts,
   titleTagRe,
@@ -245,6 +250,7 @@ export type {
   Situated,
   TagSigil,
   TitlePart,
+  TitleTag,
 } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
@@ -441,13 +447,20 @@ export {
 
 /** What a READ of the set asks and what it says back — see `./reading.ts`,
  *  which is `./committing.ts`'s argument applied to the vocabulary every query
- *  answer is built out of. `Found` is the atom of all four reads; the other
- *  three are the directory, one node, and a node with everything under it. The
+ *  answer is built out of. `Found` is the atom of the four NODE reads; the
+ *  other three are the directory, one node, and a node with everything under
+ *  it. The two DOCUMENT reads are the same division over the other kind of
+ *  file — the listing and one body — and share no atom with them, because a
+ *  document has no identity below the file to be found by. The
  *  ops layer produces these, the wire spec may carry them, a browser and an
  *  agent read the identical value; the walks stay where the walks are. */
 export {
   DEFAULT_SUBTREE_DEPTH,
   Detail,
+  DocumentAnswer,
+  DocumentBody,
+  DocumentRequest,
+  DocumentSummary,
   Found,
   NodeAnswer,
   NodeRequest,
@@ -482,6 +495,7 @@ export {
   DateRequest,
   DescRequest,
   DuplicateRequest,
+  EmptyRequest,
   MarkRequest,
   MergeRequest,
   Minted,

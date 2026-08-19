@@ -58,12 +58,12 @@ import {
   type Filing,
   follow,
   type InTheWay,
-  mentionInto,
-  mentionsOf,
   nameInto,
   type Naming,
   nodeNamed,
   storedMarker,
+  tagInto,
+  writtenTags,
 } from "./derive.ts"
 import { isMirror, type Located, type LocatedRegular, type Status, targetsOf } from "./node.ts"
 import { overlaid } from "./overlay.ts"
@@ -171,7 +171,7 @@ export const patched = (
   const byId = ids(edit, nodes, claimed)
   const children = containment(edit)
   const namedBy = namings(edit, nodes)
-  const mentionedBy = mentions(edit)
+  const taggedBy = taggings(edit)
   const { status, mirrorsOf, dirty } = resolutions(edit, byId)
   const { after, edgesTo, rewritten } = orderings(edit, { byId, mirrorsOf, namedBy }, dirty)
   const blocked = blockage(edit, { byId, status, after, edgesTo }, dirty, rewritten)
@@ -187,7 +187,7 @@ export const patched = (
     mirrorsOf,
     edgesTo,
     namedBy,
-    mentionedBy,
+    taggedBy,
   }
 }
 
@@ -424,7 +424,7 @@ const namings = (
 }
 
 /**
- * What prose says what — {@link Derived.mentionedBy} carried across the edit.
+ * What prose tagged what — {@link Derived.taggedBy} carried across the edit.
  *
  * The same shape as {@link namings} above with the rebuild taken OFF, and the
  * missing half is the whole difference between the two indexes: nothing reads
@@ -433,37 +433,36 @@ const namings = (
  * preserve. What IS promised is each key's members in corpus order, which is
  * what the sort keeps.
  *
- * Every key this edit can move is a key it TOUCHED — a word the arriving
- * records write, or one the departing records wrote — because a record in a
- * file the delta never named cannot have changed its prose.
+ * Every key this edit can move is a key it TOUCHED — a tag the arriving records
+ * write, or one the departing records wrote — because a record in a file the
+ * delta never named cannot have changed its prose.
  */
-const mentions = (edit: Edit): ReadonlyMap<string, ReadonlyArray<LocatedRegular>> => {
+const taggings = (edit: Edit): ReadonlyMap<string, ReadonlyArray<LocatedRegular>> => {
   const arriving = new Map<string, Array<LocatedRegular>>()
-  for (const at of edit.incoming) mentionInto(arriving, at)
+  for (const at of edit.incoming) tagInto(arriving, at)
 
   const keys = new Set<string>(arriving.keys())
-  for (const at of edit.outgoing) for (const word of mentionsOf(at.node)) keys.add(word)
-  // NOTHING SAID A WORD, which is what nearly every keystroke in nearly every
-  // file is — so the map that stood IS the answer, and the clone below is not
-  // paid at all. Without this line the ninth corpus-adjacent copy in a function
-  // whose whole claim is that an edit costs what it touched ran on every edit
-  // in the vault to change nothing ({@link ./overlay.ts} argues the same trade
-  // for the one index that is corpus-SIZED).
-  if (keys.size === 0) return edit.before.mentionedBy
+  for (const at of edit.outgoing) for (const tag of writtenTags(at.node)) keys.add(tag)
+  // NOTHING WROTE A TAG, so the map that stood IS the answer and the clone
+  // below is not paid at all. It fires on a file whose records tag nothing —
+  // rarer since this index gained `#`, which is the sigil people actually
+  // write, and the reason the clone's cost is a number this branch had to
+  // measure rather than assume ({@link ./patch.bench.ts}).
+  if (keys.size === 0) return edit.before.taggedBy
 
-  const mentionedBy = new Map(edit.before.mentionedBy)
+  const taggedBy = new Map(edit.before.taggedBy)
   for (const key of keys) {
     const own = [
-      ...(edit.before.mentionedBy.get(key) ?? []).filter((at) => !edit.touched.has(at.file)),
+      ...(edit.before.taggedBy.get(key) ?? []).filter((at) => !edit.touched.has(at.file)),
       ...(arriving.get(key) ?? []),
     ].sort(byCorpus)
-    // A word nothing says any more is a key that GOES AWAY, never an empty list
-    // stored where `derive` would have had no key at all — the oracle compares
-    // what the map holds, not only what it answers.
-    if (own.length === 0) mentionedBy.delete(key)
-    else mentionedBy.set(key, own)
+    // A tag nothing writes any more is a key that GOES AWAY, never an empty
+    // list stored where `derive` would have had no key at all — the oracle
+    // compares what the map holds, not only what it answers.
+    if (own.length === 0) taggedBy.delete(key)
+    else taggedBy.set(key, own)
   }
-  return mentionedBy
+  return taggedBy
 }
 
 /**

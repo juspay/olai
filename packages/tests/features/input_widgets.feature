@@ -134,6 +134,39 @@ Feature: The three input widgets
     And I type " #home now"
     Then no completions are open
 
+  Scenario: A tag written in a NOTE is vocabulary too
+    # The list is read off the derivation's own tag index (`Derived.taggedBy`),
+    # which files a record under every tag its title OR its note writes — so a
+    # word somebody has only ever used in prose under a row is offered back to
+    # them. It used to be invisible here, by accident of a walk that looked at
+    # titles only.
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","desc":"ask the #hob people about the cut-out"}
+      {"id":"knobs","parent":"kitchen","ord":"a2","title":"pick the knobs"}
+      """
+    Then the node "handles" is not shown
+    When I click the title of "knobs"
+    And I type " #h"
+    Then the tag completions are open
+    And the completions list "#hob, #home"
+
+  Scenario: A tag is counted once per node, however often that node writes it
+    # The number beside a name is how many NODES carry it, which is what the
+    # widget has always claimed and what one entry per record in the index now
+    # makes true of a row that says the word twice.
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home #home","desc":"and again #home"}
+      {"id":"knobs","parent":"kitchen","ord":"a1","title":"pick the knobs"}
+      """
+    Then the node "handles" is not shown
+    When I click the title of "knobs"
+    And I type " #ho"
+    Then the completions list "#home"
+    And the completion "#home" says "1"
+
   Scenario: `@` is the other namespace, and it offers only its own
     # `#alice` and `@alice` are different tags. A widget that offered one under
     # the other's sigil would be inventing tags the set does not hold.

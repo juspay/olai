@@ -235,9 +235,12 @@ const unparsable = (
  * this one, so a mark that flips reaches a file the delta never named and the
  * dirty set is not always one record; a NOTE on every fifth record, with every
  * TENTH of them naming another record by its `@id`, so the derivation has prose
- * to read and the mention index is not an empty map both benches report nothing
+ * to read and the tag index is not an empty map both benches report nothing
  * about — which `./vault.test.ts` asserts of the size the benches run, because
- * the first spelling of this used a modulo that never fired. Paths are mostly flat, some nested, and a few in a
+ * the first spelling of this used a modulo that never fired; and `#tags` in the
+ * titles ({@link titleTags}), because the index files BOTH sigils and a vault
+ * whose titles hold none of the commoner one would measure the half nobody
+ * writes. Paths are mostly flat, some nested, and a few in a
  * directory named after a file beside it: the pair the two readings of path
  * order used to disagree about.
  *
@@ -283,7 +286,7 @@ const fileOf = (random: () => number, at: number, records: number): string => {
       id,
       parent: root,
       ord: `a${which}`,
-      title: `record ${which} of file ${at}`,
+      title: `record ${which} of file ${at}${titleTags(at, which)}`,
     }
     if (random() < 0.3) record["todo"] = true
     else if (random() < 0.15) record["done"] = true
@@ -312,7 +315,7 @@ const fileOf = (random: () => number, at: number, records: number): string => {
     if (which % 5 === 0) {
       record["desc"] = which % 10 === 0
         ? `a note about @f${at}n1 and what it is for`
-        : "a note about what this is for"
+        : `a note about #upkeep${at % 12} and what this is for`
     }
     // A placement pointing into the file before this one, so a mark that flips
     // reaches a file the frame never named.
@@ -325,6 +328,35 @@ const fileOf = (random: () => number, at: number, records: number): string => {
   }
   return lines.join("\n")
 }
+
+/**
+ * The `#tags` one record's title carries — a broad one on every third record
+ * and a narrower one on every fifth, so a title sometimes holds two and most
+ * hold one.
+ *
+ * WHY A VAULT NEEDS THEM: the index the benches print numbers about files what
+ * prose says under BOTH sigils, and `#` is the one people write. A vault whose
+ * titles hold only `@` measures the fold's cheap negative
+ * (`derive.ts`'s `mayHoldTag`) rather than its walk, and would print a
+ * corpus-wide tag walk as costing nothing — the same *was never asked*
+ * `./vault.test.ts` was minted over. The shape is asserted there, at the size
+ * the benches run.
+ *
+ * TWO VOCABULARIES rather than one, because a completion reading this index
+ * ranks by how many records write a name: `#area0`..`#area19` are the names a
+ * whole directory shares and `#topic0`..`#topic39` the ones a corner of it
+ * does, so the ordering has something to order.
+ *
+ * COUNTED rather than DRAWN, exactly as the note above is and for its reason:
+ * a `random()` call here would shift the rest of the seeded stream and rename
+ * every figure the docs quote. Record 1 is deliberately left bare — it is the
+ * one {@link retitled} rewrites, and a tag in it would make the benches' edit
+ * an edit to the tag index as well as to a title.
+ */
+const titleTags = (at: number, which: number): string =>
+  `${which % 3 === 0 ? ` #area${at % 20}` : ""}${
+    which % 5 === 0 ? ` #topic${(at + which) % 40}` : ""
+  }`
 
 /**
  * One record of a {@link vaultOf} file, retitled to say it was edit `which` —
@@ -371,7 +403,7 @@ const EDITED = "edited "
  * The middle of a run's times, in milliseconds.
  *
  * Here for {@link seeded}'s reason once more, and this was the third copy about
- * to be written: `just bench`'s three legs each measure something different and
+ * to be written: `just bench`'s four legs each measure something different and
  * each read their times the same way. A MEDIAN rather than a mean or a minimum,
  * which is a decision the three of them have to share — a mean is dragged by
  * one scheduling hiccup, and a minimum is a number nobody else's machine
@@ -381,7 +413,7 @@ export const median = (times: ReadonlyArray<number>): number =>
   [...times].sort((one, other) => one - other)[Math.floor(times.length / 2)] ?? 0
 
 /** What `run` took, in milliseconds — `Bun.nanoseconds` because it is monotonic
- *  and because one clock across three legs is one fewer thing that can differ
+ *  and because one clock across four legs is one fewer thing that can differ
  *  between two numbers somebody is comparing. A body that has to hand something
  *  back writes it to a binding it closes over; the clock stops before the
  *  binding is read. */
@@ -389,4 +421,61 @@ export const timed = (run: () => void): number => {
   const at = Bun.nanoseconds()
   run()
   return (Bun.nanoseconds() - at) / 1e6
+}
+
+/**
+ * TWO ARMS OF ONE COMPARISON, warmed and then timed in alternating order —
+ * the middle of every A/B `just bench` prints, spelled once.
+ *
+ * The alternation is the measurement rather than a flourish: two arms run one
+ * after the other are two arms of a machine in two moods, and going second in a
+ * round is worth more than some of the differences these legs are asked to see.
+ * Warming first is the other half — one arm has to go first overall, and going
+ * first means paying for a JIT the other one then finds warm.
+ *
+ * Here for {@link median}'s reason, at the moment it became true again: the
+ * `taggedBy` branch added a third copy of these twelve lines to one file
+ * ({@link ./patch.bench.ts}'s `beside` and `folds`), which is three places to
+ * fix if what "compared fairly" means ever changes.
+ *
+ * `rounds` is the caller's, because how many a leg can afford is a fact about
+ * what it is timing — a corpus-wide fold is not a map clone.
+ */
+export const alternating = (
+  arms: readonly [() => unknown, () => unknown],
+  rounds = 9,
+): readonly [number, number] => {
+  for (const arm of arms) timed(arm)
+  const runs = Array.from({ length: rounds }, (_, round) => {
+    const order = round % 2 === 0 ? [0, 1] : [1, 0]
+    const times: Array<number> = []
+    for (const which of order) times[which] = timed(arms[which as 0 | 1])
+    return times
+  })
+  return [
+    median(runs.map((round) => round[0] as number)),
+    median(runs.map((round) => round[1] as number)),
+  ]
+}
+
+/**
+ * One arm's times, as the line every leg prints: median, mean, min and max.
+ *
+ * The third copy of this was about to be written too ({@link alternating}'s
+ * note), and this one is worse to have three of: it is the SHAPE of every
+ * number `just bench` reports and the READMEs quote, so a fourth column added
+ * in one leg is a table that stops lining up with the others.
+ *
+ * `width` is the caller's because a leg's arm names are its own, and columns
+ * that line up are the whole point of padding them.
+ */
+export const timesSaid = (
+  name: string,
+  times: ReadonlyArray<number>,
+  width = 8,
+): string => {
+  const ms = (at: number) => `${at.toFixed(2)}ms`
+  return `${name.padEnd(width)} median ${ms(median(times))}` +
+    `, mean ${ms(times.reduce((one, other) => one + other, 0) / times.length)}` +
+    `, min ${ms(Math.min(...times))}, max ${ms(Math.max(...times))}`
 }

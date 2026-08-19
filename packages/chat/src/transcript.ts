@@ -340,11 +340,39 @@ export class Transcript {
    *
    * It closes the open prose entry too. The agent said something and then
    * stopped to ask, so whatever it says next is a new paragraph.
+   *
+   * WHO IS ASKING travels the same way a tool call's does — as the `Agent`
+   * frame's own key, minted from the id the question arrived attributed with.
+   * A question is a row of the conversation like any other, so it belongs in
+   * the lane the agent that asked it is drawn in; a form drawn in the main
+   * column while a subagent waits on it is the panel saying the main agent
+   * asked, and saying it at the one moment a person is about to decide
+   * something. It also BREAKS THE RUN — a row with no lane between two of a
+   * subagent's own is a stretch ending and another one opening, so the lane
+   * re-introduces itself underneath the form. That is the visible half of the
+   * same bug, and it goes with the same field.
    */
-  ask(id: string, message: string, fields: ReadonlyArray<AskField>): Change {
+  ask(
+    id: string,
+    message: string,
+    fields: ReadonlyArray<AskField>,
+    // REQUIRED, and `undefined` for the main agent's own — not optional, which
+    // would spell what `tool`'s `move.parent` spells forty lines up while
+    // meaning the opposite. There, absent is "this report said nothing"; here
+    // there is nothing to say later, because a question is asked once by one
+    // agent. A caller that could leave it off is a caller that can mint an
+    // unattributed form without a type error, which is the bug this argument
+    // exists to close ({@link ./events.ts} draws the same line one layer up).
+    parent: string | undefined,
+  ): Change {
     return both(
       this.#close(),
-      this.#put(id, { kind: "ask", text: message, ask: { fields, outcome: null } }),
+      this.#put(id, {
+        kind: "ask",
+        text: message,
+        ask: { fields, outcome: null },
+        ...(parent === undefined ? {} : { parent: toolKey(parent) }),
+      }),
     )
   }
 
@@ -358,9 +386,16 @@ export class Transcript {
     // the withdrawal reaches us; there is nothing left to settle, and minting a
     // row here would put a dead question into a fresh conversation.
     if (current?.ask === undefined) return EMPTY
+    // THE ROW AS IT STANDS, with the outcome written into it — rather than
+    // three of its fields named again here. This used to be the second, and
+    // the day an ask row gained a field it did not name (`parent`, whose whole
+    // point is that a subagent's form says whose it is) the answer would have
+    // been drawn under the wrong agent's name at the moment it became the
+    // record of a decision. `contentOf` is the file's own answer to exactly
+    // that — its header says so about the writer that split off before this
+    // one — so the class is unrepresentable rather than documented.
     return this.#put(id, {
-      kind: "ask",
-      text: current.text,
+      ...contentOf(current),
       ask: { fields: current.ask.fields, outcome },
     })
   }

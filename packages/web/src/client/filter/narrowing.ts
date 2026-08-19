@@ -28,42 +28,29 @@
  * the TRASH is the page that draws what was put away — applying the default
  * there would take away every row and leave the reader nothing to read the
  * absence by — and so is a TREE that is a zoom onto an archived node, which is
- * where an `is:archived` hit lands when it is clicked ({@link showsArchived}
- * names both, and the mirror case it cannot rule out). A day and the agenda
- * were two more until 2026-08-17, when the human ruled that what is put away is
- * drawn on the trash and nowhere else (`@olai/format`'s `dates.ts` is where
- * they stopped drawing it), and the question here narrowed with them.
+ * where an `is:archived` hit lands when it is clicked (`./drawn.ts`'s
+ * {@link showsArchived} names both, and the mirror case it cannot rule out).
+ * A day and the agenda were two more until 2026-08-17, when the human ruled
+ * that what is put away is drawn on the trash and nowhere else
+ * (`@olai/format`'s `dates.ts` is where they stopped drawing it), and the
+ * question here narrowed with them.
  *
  * The ORDER of the two prunings is the decision worth naming: done-hidden goes
  * FIRST. It is a standing claim about the reader ("I do not want to look at
  * finished work"); the filter is a question about the page. So the filter reads
  * what the preference left, and `is:done` under a done-hiding preference draws
- * nothing — which is said out loud ({@link Narrowing.hiddenAsDone}) rather than
+ * nothing — which is said out loud ({@link Counts.hiddenAsDone}) rather than
  * special-cased away. Letting an explicit `is:done` override the preference
  * would make the preference mean two things depending on what else was typed.
  */
 
-import type { Derived, Match, Refusal, Selected } from "@olai/format"
-import {
-  datedIn,
-  isArchived,
-  keepingGraph,
-  matchedInGraph,
-  placesInGraph,
-  keeping,
-  keepingDated,
-  keepingOwed,
-  matchedIn,
-  matching,
-  needlesOf,
-  owedIn,
-  parseFilter,
-  rowsIn,
-  shownRecord,
-} from "@olai/format"
+import type { Derived, Match, Refusal } from "@olai/format"
+import { matching, needlesOf, parseFilter } from "@olai/format"
 import { type Accessor, createMemo } from "solid-js"
 
-import type { Drawn, TrashGroup } from "../page.ts"
+import type { Drawn } from "../page.ts"
+import { type Counts, NOTHING_COUNTED } from "./count.ts"
+import { matchesIn, narrowed, placesIn, showsArchived } from "./drawn.ts"
 
 /** What an unfiltered page has selected — ONE value, shared by every reading of
  *  it. A fresh `new Map()` per read would be a new value every frame, and every
@@ -101,15 +88,18 @@ export interface Narrowing {
   readonly needles: Accessor<ReadonlyArray<string>>
   /** What the page actually draws: done-hidden first, then narrowed. */
   readonly drawn: Accessor<Drawn>
-  /** How many drawn rows are matches, and how many rows there are in all —
-   *  "3 of 41", the honest version. Both are PLACES: a node drawn twice is two
-   *  rows, and the reader is counting rows. */
-  readonly shown: Accessor<number>
-  readonly total: Accessor<number>
-  /** Matches the done-preference is holding back. Zero unless finished work is
-   *  hidden, and the reason `is:done` looking empty is a sentence rather than a
-   *  mystery. */
-  readonly hiddenAsDone: Accessor<number>
+  /**
+   * What this query found, in the three numbers the bar says it in — matched
+   * and drawn, held by the page, held back as done (`./count.ts` owns the
+   * shape, and the sentence made of it).
+   *
+   * ONE VALUE rather than three accessors, because they are one fact and are
+   * never read apart: the sentence needs all three or none, and three memos
+   * were three chances to pair a numerator with a denominator from a different
+   * frame. Every number is a PLACE — a node drawn twice is two rows, and the
+   * reader is counting rows.
+   */
+  readonly counts: Accessor<Counts>
 }
 
 /**
@@ -147,7 +137,7 @@ export const createNarrowing = (source: {
   // asked of what was LEFT, this would answer "no archive here", the matcher
   // would leave the whole archive out, and the bar would say "0 of 0" with
   // nothing about the matches being held back. That sentence
-  // ({@link Narrowing.hiddenAsDone}) is measured against `all()`, so what
+  // ({@link Counts.hiddenAsDone}) is measured against `all()`, so what
   // decides its candidate set is measured against `all()` too. Which pages draw
   // archived rows is a fact about the PAGE; what a reader hides is not.
   //
@@ -155,9 +145,8 @@ export const createNarrowing = (source: {
   // draws is a fresh value on every revision the store publishes and on every
   // navigation — and the whole of what this reading takes from it is a boolean
   // that is constant for four of the five shapes — only a tree is scanned
-  // ({@link showsArchived}). Read
-  // inline, every one of those frames re-ran the matcher over the entire set to
-  // arrive at the same answer.
+  // (`./drawn.ts`'s {@link showsArchived}). Read inline, every one of those
+  // frames re-ran the matcher over the entire set to arrive at the same answer.
   const archived = createMemo(() => showsArchived(source.all()))
 
   const matched = createMemo(() => {
@@ -177,10 +166,26 @@ export const createNarrowing = (source: {
     active() ? narrowed(source.visible(), matched()) : source.visible()
   )
 
-  // Guarded like the count beside it, and for the same reason: an unfiltered
-  // page would otherwise walk everything it draws, on every revision the store
-  // publishes, to arrive at a zero the bar is not drawing.
-  const shown = createMemo(() => (active() ? matchesIn(drawn(), matched()) : 0))
+  /**
+   * The denominator — how many places the page HOLDS, which is `all()` and
+   * never what was left of it: a denominator counted over the smaller set is
+   * the mixed arithmetic this reading was revisited to stop
+   * ({@link Counts.held}).
+   *
+   * A MEMO OF ITS OWN rather than a line inside the record below, and the
+   * reason is what it must NOT depend on. This walks every row of the unpruned
+   * page, and its answer is a fact about the PAGE — it cannot change because
+   * somebody typed a letter. Computed inside the record it would have taken
+   * that record's dependencies, which include the query, and re-walked the
+   * whole page per keystroke to arrive at the number it had already arrived
+   * at. Solid updates a graph in one pass, so the record still reads one
+   * frame's value of this.
+   *
+   * Guarded like the record, and for its reason: the line this feeds is only
+   * ever drawn beside an active filter, and a memo is a computation whether or
+   * not anybody reads it.
+   */
+  const held = createMemo(() => (active() ? placesIn(source.all()) : 0))
 
   return {
     text: source.text,
@@ -195,192 +200,47 @@ export const createNarrowing = (source: {
     }),
     matched,
     drawn,
-    shown,
-    // Only ever READ beside the count, which is drawn only while a filter is
-    // on — so an unfiltered page does not pay a walk of everything it draws, on
-    // every revision the store publishes, for a number nobody is looking at.
-    total: createMemo(() => (active() ? placesIn(source.visible()) : 0)),
-    // The difference between what the query selects on this page and what
-    // survived the preference. Measured over the page's own rows rather than
-    // over the set, because "4 done matches are hidden" is a claim about what
-    // is not on this screen.
-    //
-    // The identity check is exact rather than an optimisation that hopes: the
-    // preference hands back THE SAME VALUE when this reader is not hiding
-    // anything at all, and for every page it does not reach
-    // (`../settings/done.ts` is exact about which case that is), so two
-    // identical readings cannot differ by a match. A reader who IS hiding
-    // finished work gets a fresh value whether or not anything was hidden, and
-    // then this does the subtraction it exists to do.
-    //
-    // Guarded like the two counts above, and for their reason: the sentence
-    // this feeds is only ever drawn beside an active filter, and a memo is a
-    // computation whether or not anybody reads it.
-    hiddenAsDone: createMemo(() =>
-      !active() || source.all() === source.visible()
-        ? 0
-        : matchesIn(source.all(), matched()) - shown()
-    ),
-  }
-}
-
-/**
- * The same page with everything that did not match taken out of it — one arm
- * per shape, and each arm is the format's own prune rather than a rule invented
- * here (`keeping`, `keepingDated`, `keepingOwed`).
- *
- * The trash is the one composition: an archive is a tree, so its rows are
- * `keeping`'s, and an archive left with nothing goes the way a day's group does
- * — a heading over no rows would say that archive holds something the query
- * did not find.
- */
-const narrowed = (drawn: Drawn, matched: Selected): Drawn => {
-  switch (drawn.kind) {
-    case "tree":
-      return { kind: "tree", rows: keeping(drawn.rows, matched) }
-    // THE NOTE GOES WITH THE ROWS THAT DID NOT MATCH, and it is decided here
-    // rather than in the page for the reason everything else about a narrowed
-    // page is: a note is a DOCUMENT — prose, which is exactly the page kind
-    // that takes no filter (`../routes.ts`) — so it can never be a match, and
-    // a day answering a query with somebody's prose plus no rows would be
-    // answering something nobody asked.
-    case "day":
-      return { kind: "day", groups: keepingDated(drawn.groups, matched), notes: [] }
-    case "agenda":
-      return { kind: "agenda", agenda: keepingOwed(drawn.agenda, matched) }
-    case "trash":
-      return { ...drawn, groups: keepingArchives(drawn.groups, matched) }
-    // THE CENTRE STAYS, whether or not it matched, and the arrows a prune
-    // orphaned go with the nodes they pointed at (`@olai/format`'s
-    // `keepingGraph`). It is the day page's rule read on a shape: a day
-    // narrowed to nothing is still that day, and a neighbourhood narrowed to
-    // nothing is still that node's — with the answer being that nothing around
-    // it matches, which is a thing worth being able to see.
-    case "graph":
-      return { ...drawn, graph: keepingGraph(drawn.graph, matched, drawn.focus) }
-    case "none":
-      return drawn
-  }
-}
-
-/**
- * Is the page in front of the reader drawing anything that was PUT AWAY?
- *
- * TWO PAGES CAN BE, and after the 2026-08-17 ruling that is the whole list. The
- * TRASH is the archive, every group of it — so the answer is its kind and not a
- * scan, because a trash drawing no archived row is a trash drawing no row. And
- * a TREE can be one node's: `/n/<id>` on a node somebody put away, which is
- * exactly where an `is:archived` hit lands when it is clicked (docs/search.md —
- * the ruling took away the default presence, not the reachability). An
- * outline's own tree is a live file, since an archive's address opens the trash
- * instead (`../page.ts`) — with one gap that is not this file's to close: a
- * MIRROR still resolves to a node that was archived after it was placed
- * (`@olai/format`'s `follow`, which the ops layer keeps resolving on purpose),
- * so a placement can draw an archived row on a live page. What that row should
- * be is a ruling about the SET rather than about a filter, and it is filed as
- * one (docs/search.md, docs/brainstorming/editing-web.md's Open).
- *
- * A DAY AND THE AGENDA ANSWER NO, and they answer it by construction rather
- * than by a rule kept here: the walk those pages are built from leaves archived
- * nodes out (`@olai/format`'s `dates.ts`), so there is nothing on either of
- * them for this to find. Left as arms of the switch rather than folded into a
- * default, because a page kind that starts drawing archived rows should have to
- * come back here and say so.
- *
- * The tree arm reads the ROOTS, never a walk: a row shows a record that names a
- * file, and a zoom is inside one file the whole way down. That is the honest
- * bound — this runs per keystroke, and what it feeds is a default rather than a
- * permission.
- *
- * WHAT IT DECIDES IS THE CANDIDATE SET, AND THE COST IS WHOLE-ARCHIVE, which is
- * worth stating rather than leaving to be discovered. `true` puts every
- * archived node in the directory in front of the matcher — not only the ones
- * this page could draw — and the rows that match somewhere else are then
- * dropped by the prune. That is not a leak in this reading, it is how the door
- * already works for every other node: it matches over the SET and narrows by
- * the PAGE ({@link narrowed}), which is what lets a mirror of a node in another
- * file stay drawn where it is placed. What asking buys is the pages that draw
- * NONE — every outline, which is the page somebody types on all day — paying
- * nothing for a file that only ever grows.
- */
-const showsArchived = (drawn: Drawn): boolean => {
-  switch (drawn.kind) {
-    case "trash":
-      return true
-    case "tree":
-      return drawn.rows.some((row) => isArchived(shownRecord(row).file))
-    case "day":
-    case "agenda":
-    // A GRAPH answers no by construction, the way a day does: the walk it is
-    // built from never steps into an archive and refuses an archived centre
-    // (`@olai/format`'s `graphOf`), so there is nothing on it for this to find.
-    case "graph":
-    case "none":
-      return false
-  }
-}
-
-const keepingArchives = (
-  groups: ReadonlyArray<TrashGroup>,
-  matched: Selected,
-): ReadonlyArray<TrashGroup> =>
-  groups.flatMap((group) => {
-    const rows = keeping(group.rows, matched)
-    return rows.length === 0 ? [] : [{ ...group, rows }]
-  })
-
-/** How many PLACES a page draws — the second number in "3 of 41". */
-const placesIn = (drawn: Drawn): number => {
-  switch (drawn.kind) {
-    case "tree":
-      return rowsIn(drawn.rows)
-    case "day":
-      return datedIn(drawn.groups)
-    case "agenda":
-      return owedIn(drawn.agenda)
-    case "trash":
-      return drawn.groups.reduce((total, group) => total + rowsIn(group.rows), 0)
-    // A node is drawn once on a graph — there is no placement to draw a second
-    // dot for — so the two numbers are over the same walk the format defines.
-    case "graph":
-      return placesInGraph(drawn.graph)
-    case "none":
-      return 0
-  }
-}
-
-/**
- * How many of those places the query SELECTED — the first number.
- *
- * Asked of the pruned page it is the count of what is on screen, and asked of
- * the unpruned one it is what the done preference held back; the membership
- * test is what lets one function answer both. On a tree the two numbers differ
- * for a third reason — a kept ancestor is drawn and is not a match — which is
- * the distinction the whole feature is made of.
- */
-const matchesIn = (drawn: Drawn, matched: Selected): number => {
-  switch (drawn.kind) {
-    case "tree":
-      return matchedIn(drawn.rows, matched)
-    // The prune, counted — never a second reading of which rows a set of ids
-    // selects. A count written here would be free to disagree with the very
-    // pruning it is counting, which is the drift `datedIn` was moved down to
-    // `@olai/format` to prevent one layer lower.
-    case "day":
-      return datedIn(keepingDated(drawn.groups, matched))
-    case "agenda":
-      return owedIn(keepingOwed(drawn.agenda, matched))
-    case "trash":
-      return drawn.groups.reduce(
-        (total, group) => total + matchedIn(group.rows, matched),
-        0,
-      )
-    // The CENTRE is counted like any other node: it is a match when the query
-    // selected it and context when the query merely kept it, which is the same
-    // distinction a kept ancestor draws on a tree.
-    case "graph":
-      return matchedInGraph(drawn.graph, matched)
-    case "none":
-      return 0
+    /**
+     * THE THREE NUMBERS AS ONE VALUE, because they are one fact — what this
+     * query found on this page — and nothing ever asks for one of them alone.
+     * Three accessors handed out separately were three places to put the same
+     * `active()` guard, and a caller free to read a denominator now and a
+     * numerator later; `./count.ts` takes the record, so a sentence about a
+     * page is a sentence about ONE reading of it.
+     *
+     * WHAT IS HELD BACK is the difference between what the query selects on
+     * this page and what survived the preference — measured over the page's own
+     * rows rather than over the set, because "2 matches are hidden" is a claim
+     * about what is not on this screen.
+     *
+     * The identity check is exact rather than an optimisation that hopes: the
+     * preference hands back THE SAME VALUE when this reader is not hiding
+     * anything at all, and for every page it does not reach
+     * (`../settings/done.ts` is exact about which case that is), so two
+     * identical readings cannot differ by a match. A reader who IS hiding
+     * finished work gets a fresh value whether or not anything was hidden, and
+     * then this does the subtraction it exists to do.
+     *
+     * BY VALUE rather than by identity, because everything upstream of it is a
+     * fresh value on every revision the store publishes: without this the
+     * sentence would be rebuilt on every one of them to say what it already
+     * said. The three numbers ARE the value — there is nothing else in the
+     * record to compare.
+     */
+    counts: createMemo(() => {
+      if (!active()) return NOTHING_COUNTED
+      const shown = matchesIn(drawn(), matched())
+      return {
+        shown,
+        held: held(),
+        hiddenAsDone: source.all() === source.visible()
+          ? 0
+          : matchesIn(source.all(), matched()) - shown,
+      }
+    }, NOTHING_COUNTED, {
+      equals: (was, is) =>
+        was.shown === is.shown && was.held === is.held &&
+        was.hiddenAsDone === is.hiddenAsDone,
+    }),
   }
 }

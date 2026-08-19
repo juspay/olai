@@ -21,9 +21,11 @@
  *
  *   1. **inline markdown first** — same pipeline a note uses, forced to
  *      phrasing content (`renderToTree` + `toInline`).
- *   2. **then `#tags`** — walk the finished HAST and style tags in text nodes,
- *      skipping `code` and `a` so a tag inside code stays code and a URL
- *      fragment is not mistaken for a tag (./tags.ts).
+ *   2. **then `#tags`** — walk the finished HAST and style tags in text nodes.
+ *      The walk enters everything, including `code` and `a`; what is off under
+ *      those two is the TAG SPLIT alone, so a tag inside code stays code and a
+ *      URL fragment is not mistaken for a tag, while a filtered page still
+ *      lights the query's words wherever they sit (./tags.ts).
  *
  * Peeling tags *before* markdown would split constructs across two parser runs
  * (`**urgent #home**` loses its bold; `[spec](…#home)` shreds the link). Tags

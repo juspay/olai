@@ -9,7 +9,7 @@
  *
  * The two reverse indexes {@link ./derive.ts} keeps are what makes it a lookup:
  * {@link Derived.namedBy} carries what records SAY with their fields (`see`
- * among them) and {@link Derived.mentionedBy} carries what their prose says.
+ * among them) and {@link Derived.taggedBy} carries what their prose tagged.
  * This module is the READING over the pair — which is where every question that
  * is about MEANING rather than about storage is asked, and there are four of
  * them.
@@ -36,7 +36,13 @@
  * What turns a tag into a reference is the id existing, and that question is
  * asked HERE rather than in the index, so that minting a node does not have to
  * re-read every note in the directory to find the mentions that just became
- * references ({@link Derived.mentionedBy}).
+ * references ({@link Derived.taggedBy}).
+ *
+ * **A `#topic` never counts, whatever it spells.** The index behind this reads
+ * both sigils, under keys that keep them, so a set with a node called `herbs`
+ * and a `#herbs` topic written across a dozen titles has two things there and
+ * this section draws one of them. Sigil-stripped keys would have made that
+ * ambiguity unreachable rather than decided.
  *
  * **A MIRROR DOES NOT COUNT, and that is the ruling this file was asked to
  * make.** A placement is a VIEW of a node, not a reference to one: the record
@@ -69,7 +75,14 @@
 
 import { Schema } from "effect"
 
-import { byCorpus, type Derived, mentionsOf, nodeNamed } from "./derive.ts"
+import {
+  byCorpus,
+  type Derived,
+  nodeNamed,
+  tagPart,
+  tagText,
+  writtenTags,
+} from "./derive.ts"
 import {
   isArchived,
   isRegular,
@@ -134,6 +147,26 @@ const REFERS_TO_NOTHING: ReadonlyArray<Outgoing> = []
 const inOrder = (found: ReadonlySet<Way>): ReadonlyArray<Way> =>
   WAYS.filter((way) => found.has(way))
 
+/** The SIGIL prose names a node with. One namespace of the two the format has,
+ *  and the whole of what makes a tag a reference rather than a topic. */
+const NAMES_A_NODE = "@"
+
+/** How prose NAMES the node called `id` — the key {@link Derived.taggedBy}
+ *  files that under, spelled through the format's own {@link tagText} so this
+ *  reading cannot come to disagree with the fold about what an `@` tag looks
+ *  like written down. */
+const mentioned = (id: string): string => tagText({ sigil: NAMES_A_NODE, tag: id })
+
+/** ...and the same rule read the other way: the node one WRITTEN tag names, or
+ *  nothing for a `#topic`, which is a word about a subject rather than a
+ *  sentence about a node. {@link tagPart} is {@link tagText}'s own inverse, so
+ *  the forward reading and the backward one cannot come to disagree about which
+ *  half of the index is a reference. */
+const namesInProse = (written: string): string | undefined => {
+  const part = tagPart(written)
+  return part.sigil === NAMES_A_NODE ? part.tag : undefined
+}
+
 /**
  * Everything that refers to `id`, in corpus order.
  *
@@ -142,10 +175,16 @@ const inOrder = (found: ReadonlySet<Way>): ReadonlyArray<Way> =>
  * corpus, which is what lets a page ask it on every frame the store publishes.
  *
  * AN ID NOTHING CLAIMS HAS NO REFERRERS, and that line is the whole of where
- * the existence question is asked. `@alice` files under `alice` whether or not
- * anybody is called that ({@link Derived.mentionedBy}), so without this the
- * word would be a reference to a node that is not there — and a caller asking
- * about a node it has in hand pays one map read for it.
+ * the existence question is asked. `@alice` files under `@alice` whether or not
+ * anybody is called that ({@link Derived.taggedBy}), so without this the tag
+ * would be a reference to a node that is not there — and a caller asking about
+ * a node it has in hand pays one map read for it.
+ *
+ * THE `@` HALF OF THAT INDEX AND NOTHING ELSE, which is what {@link mentioned}
+ * spells: the index files both sigils under keys that carry them, and a
+ * `#herbs` is a topic somebody wrote rather than a sentence about the node
+ * called `herbs`. Prose refers to a node by NAMING it, and `@` is how this
+ * format names one.
  */
 export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlink> => {
   if (!derived.byId.has(id)) return NOTHING_REFERS
@@ -155,7 +194,7 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
     // talking about the page it is on, and a `see` onto one of its own
     // placements is the same sentence through a mirror.
     if (at.node.id === id || isArchived(at.file)) return
-    // A REFERRER IS A REGULAR NODE. `mentionedBy` says so in its TYPE, so this
+    // A REFERRER IS A REGULAR NODE. `taggedBy` says so in its TYPE, so this
     // is asked only of the naming side, where `Located` is honest because
     // `mirror` is one of the fields that index files — and asked through the
     // format’s own guard, so this narrows the way every other consumer does.
@@ -172,7 +211,7 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
     for (const naming of derived.namedBy.get(named) ?? []) {
       if (naming.fields.includes("see")) file(naming.at, "see")
     }
-    for (const at of derived.mentionedBy.get(named) ?? []) file(at, "mention")
+    for (const at of derived.taggedBy.get(mentioned(named)) ?? []) file(at, "mention")
   }
 
   if (found.size === 0) return NOTHING_REFERS
@@ -203,6 +242,12 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
  * reverse reading drops an archived REFERRER, and this drops an archived
  * referent, so nothing either of them answers reaches into the Trash.
  *
+ * A `#topic` IS NOT ONE, whatever it spells, and this reads that rule off the
+ * same place the reverse reading does: the tags a record writes come back AS
+ * WRITTEN ({@link writtenTags}), and {@link namesInProse} keeps the half whose
+ * sigil names a node. Stripping the sigil here and asking the index for the
+ * word would be the ambiguity the re-key (#249) exists to have decided.
+ *
  * The `see` list comes through {@link targetsOf} rather than off the field, so
  * the one table saying which fields point at ids is the one table this reads —
  * the same reason the reverse reading asks the index rather than the record.
@@ -224,7 +269,10 @@ export const referencesOf = (
   for (const [field, named] of targetsOf(at.node)) {
     if (field === "see") file(named, "see")
   }
-  for (const word of mentionsOf(at.node)) file(word, "mention")
+  for (const written of writtenTags(at.node)) {
+    const named = namesInProse(written)
+    if (named !== undefined) file(named, "mention")
+  }
 
   if (found.size === 0) return REFERS_TO_NOTHING
   return [...found].map(([to, ways]): Outgoing => ({ to, ways: inOrder(ways) }))

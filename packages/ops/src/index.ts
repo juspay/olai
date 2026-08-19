@@ -39,7 +39,7 @@ export { make, type Ops, type Options } from "./ops.ts"
  *  set does not declare, and one that names a PLACEMENT rather than a node.
  *  Exported so the keystroke resolver and the chat context resolver in
  *  `@olai/server` say what a tool call says. */
-export { notANode, notFound } from "./plan.ts"
+export { notANode, notFound, noSuchDocument } from "./plan.ts"
 /** What a `merge` WOULD DO — which row it joins, which branch that row adopts,
  *  and the two texts it ends up with. The keystroke resolver needs all three to
  *  say what would take a merge BACK, and one spelling is what keeps an undo from

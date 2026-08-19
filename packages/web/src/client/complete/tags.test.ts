@@ -37,6 +37,38 @@ test("a tag is counted once per node that writes it, mirrors excluded", () => {
   expect(home?.count).toBe(2)
 })
 
+// ONE VOTE PER RECORD, whichever prose said it and however often — the index's
+// own rule (`Derived.taggedBy`), which this list inherits rather than restates.
+test("a record writing one tag twice is one vote for it", () => {
+  const twice = set(`{"id":"a","ord":"a0","title":"#home and #home","desc":"still #home"}`)
+  expect(tagsOf(twice).find((tag) => tag.name === "home")?.count).toBe(1)
+})
+
+// A NOTE IS VOCABULARY TOO. This is what changed when the walk became an index
+// read: the old walk looked at titles only, so a tag somebody had written in a
+// note was not offered back to them.
+test("a tag written in a note is offered, and counted", () => {
+  const noted = set(
+    `{"id":"a","ord":"a0","title":"the kitchen"}\n` +
+      `{"id":"b","ord":"a1","title":"the shed","desc":"see the #hob about this"}`,
+  )
+  expect(written(tagsOf(noted))).toEqual(["#hob"])
+  expect(tagsOf(noted)[0]?.count).toBe(1)
+})
+
+// The re-key the index was rebuilt for: two namespaces that a sigil-stripped
+// index would have offered as one name under both sigils.
+test("a name written with both sigils is two tags, each counted its own way", () => {
+  const both = set(
+    `{"id":"a","ord":"a0","title":"ask @herbs"}\n` +
+      `{"id":"b","ord":"a1","title":"filed under #herbs"}\n` +
+      `{"id":"c","ord":"a2","title":"also #herbs"}`,
+  )
+  expect(written(tagsOf(both))).toEqual(["#herbs", "@herbs"])
+  expect(tagsOf(both).map((tag) => tag.count)).toEqual([2, 1])
+  expect(written(matchTags(tagsOf(both), "@", "her"))).toEqual(["@herbs"])
+})
+
 // What was put away is out of the vocabulary AND out of the count (ruled
 // 2026-08-17: archived nodes are drawn on the trash page and nowhere else). The
 // number beside a name is a promise about rows, and pressing the name filters a

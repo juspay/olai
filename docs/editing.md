@@ -284,9 +284,23 @@ The `•••` menu's **Move to Trash** puts a row and everything under it away
 
 Not every row in there is a thing you put away. Above each pile sit the **titles the archive wrote down to remember where it hung** — so the tree still reads years later — and those are signposts rather than nodes: the ones they name never left. Pressing **Put back** on a signpost says so, and names the live row that still carries the title. What comes back is what went in.
 
-**Put back** is the one verb a Trash row has, and it is the whole reason the Trash is a trash. It sends the same `unarchive` op an agent's `unarchive_node` sends — the op both faces got in the same change, because neither face may do what the other cannot — and the subtree returns where the recorded chain says it came from, last among its new siblings, children and ids intact. A chain that no longer stands (retitled, or put away itself) is a refusal in the ops layer's own words under the row, never a guess; an agent can name a destination outright, and restoring the chain first is the way through for the mouse. ⌘Z after a Move to Trash puts the row back too — the undo knows the exact parent it sat under — and ⌘Z after a Put back is the archive again.
+**Put back** is the one verb a Trash ROW has, and it is the whole reason the Trash is a trash. It sends the same `unarchive` op an agent's `unarchive_node` sends — the op both faces got in the same change, because neither face may do what the other cannot — and the subtree returns where the recorded chain says it came from, last among its new siblings, children and ids intact. A chain that no longer stands (retitled, or put away itself) is a refusal in the ops layer's own words under the row, never a guess; an agent can name a destination outright, and restoring the chain first is the way through for the mouse. ⌘Z after a Move to Trash puts the row back too — the undo knows the exact parent it sat under — and ⌘Z after a Put back is the archive again.
 
-Deliberately absent, and still the human’s to rule on: a delete key.
+### Emptying it
+
+**Empty trash**, beside the heading on the Trash page, is the one thing in olai that permanently deletes. Everything in every archive the directory holds goes — the subtrees you put away and the signpost titles above them — and it goes for good: there is no second bin behind this one, no ⌘Z, and no put-back.
+
+It asks first, and the question **names how many rows go**, counted over what the archives actually hold rather than over what the page is drawing. Filter the Trash down to one row and press it, and the sentence still says all of them, because that is what the write moves. **Cancel** writes nothing at all. That number travels with the write, too: if something is archived between the moment you read the sentence and the moment it lands, the write is refused naming both counts rather than quietly taking the newcomer with it.
+
+**What survives is whatever git has already recorded**, which is what the question says and all it says. The records leave the archive through the same gate every other write goes through, and the emptying is committed by whichever door commits everything else ([git.md](git.md)) — so a directory that is a repository can find them in its history, one served `--no-commit` cannot, and neither can one whose archive has been sitting uncommitted since you put the row away. Nothing here reaches into git on your behalf; recovering a deleted record is `git log`, `git show` and a paste, in a terminal.
+
+**It is refused while anything outside the Trash still points into it.** Ids come along when a subtree is archived — that is what makes a mirror, a `see` or an `after` naming what you put away go on resolving — so deleting those records would leave live rows naming ids nothing declares. The refusal is the ops layer's own sentence on the page, naming each row and the field it points with; re-point or retire them, or **Put back** what they name, and press again.
+
+**An empty Trash does not offer the verb at all**, which is the same rule the page's own "The Trash is empty." keeps: whether there is anything to delete is a fact about the archives, and a filter that matched nothing is a fact about the query.
+
+An agent's `empty_trash` is the same op: it takes the archives to empty as a list, and a directory keeping several piles is emptied by naming them all in one call — so half an emptied trash is not a state either face can reach, and a `see` from one pile into another is a record the write deletes rather than a reason it refuses.
+
+Deliberately absent, and still the human’s to rule on: a delete key. Emptying the Trash is not one — it names no node, reaches no live outline, and can only take rows you have already put away and can still see.
 
 ## From the ⌘K palette
 

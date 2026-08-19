@@ -95,7 +95,7 @@ const FIELD_WEIGHT = { title: 1000, id: 750, tag: 500, desc: 250 } as const
  * revision and no clearing.
  *
  * The two completions in the browser each keep a fold of their own for the same
- * reason (`chat/files.ts` over the served paths, `complete/tags.ts` over the
+ * reason (`web/src/client/file/matching.ts` over the served paths, `complete/tags.ts` over the
  * set's tags). This one is HERE rather than beside them because the text it
  * folds is this file's own question, and a cache in a caller would be a second
  * answer for the four other doors to miss.
@@ -184,8 +184,15 @@ type IsValue = (typeof IS_VALUES)[number]
  *  reader might select on; `has:children` and `has:mirror` are deliberately
  *  absent, being questions about the SET rather than about the record.
  *
- *  `date` is the one row that is not a plain field test — see {@link holds}. */
-const HAS_FIELDS = ["desc", "date", "see", "after", "doc"] as const
+ *  `date` is the one row that is not a plain field test — see {@link holds}.
+ *
+ *  `repeat` could have looked like a second exception and is not. A rule needs
+ *  a `date` to repeat FROM (./parse.ts refuses one without), so this row and
+ *  that one answer about overlapping nodes from opposite ends — the rule is a
+ *  field of the RECORD, the days are the JOURNAL's — and the field test is the
+ *  honest reading of the rule. What the overlap means to somebody writing a
+ *  query is docs/search.md's to say. */
+const HAS_FIELDS = ["desc", "date", "see", "after", "doc", "repeat"] as const
 type HasField = (typeof HAS_FIELDS)[number]
 
 /** The four operator names. A colon after anything else is a colon in a word
@@ -1456,12 +1463,25 @@ const propKeyOf = (
   return null
 }
 
+/**
+ * The rows of {@link HAS_FIELDS} that ARE a plain field test — every one but
+ * `date`, which is the unbounded `date:` and reads ./dates.ts instead
+ * ({@link holds}).
+ *
+ * A TYPE rather than a sentence, and it claims only what it delivers: nobody
+ * can call `carries(node, "date")`, which would answer about the `date` FIELD
+ * where the grammar answers about the journal's two dates. What still has to
+ * be got right by hand is {@link holds}' branch — this narrows the callee, it
+ * does not decide the table.
+ */
+type CarriedField = Exclude<HasField, "date">
+
 /** Whether a record carries a field — the WRITER's own rule for absence
  *  (./write.ts's `nothing`), asked as a question rather than restated. The four
  *  ways a field can hold nothing (`undefined`, `null`, `[]`, `""`) all say the
  *  same thing about the node, and a second list of them here is how `desc: ""`
  *  becomes a note to search for and no note to write. */
-const carries = (node: RegularNode, field: HasField): boolean =>
+const carries = (node: RegularNode, field: CarriedField): boolean =>
   !nothing(node[field])
 
 const within = (day: string, clause: Extract<Clause, { kind: "date" }>): boolean =>

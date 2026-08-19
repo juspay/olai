@@ -68,21 +68,36 @@ Then(
   },
 );
 
+/**
+ * THE WHOLE COUNT LINE, exactly — not a substring of it.
+ *
+ * The suite's one reader (`support/said.ts`) matches a substring, and it is
+ * right to: most of the sentences it reads are a phrase inside a paragraph
+ * somebody wrote. This element is not one of those. It holds the count line and
+ * nothing else (`client/filter/count.ts` is the only thing that writes it), so
+ * a substring here buys nothing and costs the two things this feature is made
+ * of: `"1 of 10"` is inside `"1 of 100"`, and — the one that matters —
+ * `"1 of 10"` is inside `"1 of 10 — 2 more matches hidden as done (Prefs)"`,
+ * so the scenario that exists to prove NO clause is said could not see one
+ * appear (found by both reviewers of #248).
+ *
+ * The count settles a frame after the query, so the equality is WAITED for
+ * rather than read once; what a failure prints is what the bar actually says.
+ */
 Then(
   "the filter found {string}",
   async function (this: OlaiWorld, said: string) {
-    // The count settles a frame after the query. Waited for here because a
-    // sentence that CHANGES is not a selector; read and reported by the
-    // suite's one reader (`support/said.ts`), so a failure says what the bar
-    // actually says.
+    const line = this.page.locator(FILTER_COUNT).first();
+    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(
-      async () =>
-        (await this.page.locator(FILTER_COUNT).innerText().catch(() => "")).includes(
-          said,
-        ),
-      `the filter says ${JSON.stringify(said)}`,
+      async () => (await line.innerText().catch(() => "")).trim() === said,
+      `the filter says exactly ${JSON.stringify(said)}`,
     ).catch(() => undefined);
-    await saysThat(this, FILTER_COUNT, said, "filter count");
+    assert.strictEqual(
+      (await line.innerText()).trim(),
+      said,
+      `the filter count reads ${JSON.stringify((await line.innerText()).trim())}`,
+    );
   },
 );
 
@@ -120,28 +135,76 @@ Then(
 // waited for rather than read once: they follow a keystroke that re-renders
 // the whole tree.
 
-/** A node's OWN title, never a descendant's — nodes nest, and a parent's scope
- *  holds every title under it. `.first()` is its own because a title is
- *  rendered before the children (`world.nodeTitle`'s rule, one level down). */
-const lit = (world: OlaiWorld, id: string) =>
-  world.nodeTitle(id).locator(HIT);
+/**
+ * A node's OWN title, never a descendant's — nodes nest, and a parent's scope
+ * holds every title under it. `.first()` is its own because a title is
+ * rendered before the children (`world.nodeTitle`'s rule, one level down).
+ *
+ * `piece` narrows to one rendered piece of the title's markdown — a `code`
+ * span, a link — for the steps that ask WHERE in the markup the query landed.
+ * Empty is the whole title, which is what most of them ask.
+ */
+const lit = (world: OlaiWorld, id: string, piece = "") =>
+  world.nodeTitle(id).locator(piece === "" ? HIT : `${piece} ${HIT}`);
 
-/** WHERE the query landed in this row's title — the highlight, read as the
- *  text it wraps. A page that draws the row and lights nothing in it is the
- *  page this whole feature is against: every number correct, and no row saying
- *  why it is in front of the reader. */
+/**
+ * WHERE the query landed in this row's title — the highlight, read as the text
+ * it wraps. A page that draws the row and lights nothing in it is the page this
+ * whole feature is against: every number correct, and no row saying why it is
+ * in front of the reader.
+ *
+ * ONE reading for every step below, narrowed or not. The wait and the assert
+ * read the same locator twice on purpose (the file's header says why), and two
+ * copies of that contract is exactly the drift it warns about.
+ */
+const expectLit = async (
+  world: OlaiWorld,
+  id: string,
+  said: string,
+  piece = "",
+): Promise<void> => {
+  const where = piece === "" ? "" : ` inside its \`${piece}\``;
+  const read = async () =>
+    (await lit(world, id, piece).allInnerTexts()).join(" ");
+  await world.waitUntil(
+    async () => (await read()) === said,
+    `node \`${id}\` lights ${JSON.stringify(said)}${where}`,
+  ).catch(() => undefined);
+  assert.strictEqual(
+    await read(),
+    said,
+    `node \`${id}\` does not light ${JSON.stringify(said)}${where}`,
+  );
+};
+
 Then(
   "the node {string} lights {string}",
   async function (this: OlaiWorld, id: string, said: string) {
-    await this.waitUntil(
-      async () => (await lit(this, id).allInnerTexts()).join(" ") === said,
-      `node \`${id}\` lights ${JSON.stringify(said)}`,
-    ).catch(() => undefined);
-    assert.strictEqual(
-      (await lit(this, id).allInnerTexts()).join(" "),
-      said,
-      `node \`${id}\` does not light ${JSON.stringify(said)}`,
-    );
+    await expectLit(this, id, said);
+  },
+);
+
+/**
+ * ...and the same reading narrowed to the two rendered pieces the tag split
+ * deliberately leaves alone (`markdown/tags.ts`).
+ *
+ * The highlight used to leave them alone with it, so the step above is not
+ * enough here: a row that lit the same word somewhere else in its title would
+ * go green on a claim it is not making. Two steps rather than one taking the
+ * piece as a `{string}`, so the Gherkin reads as a sentence instead of
+ * carrying quotes around a tag name.
+ */
+Then(
+  "the node {string} lights {string} inside its code span",
+  async function (this: OlaiWorld, id: string, said: string) {
+    await expectLit(this, id, said, "code");
+  },
+);
+
+Then(
+  "the node {string} lights {string} inside its link",
+  async function (this: OlaiWorld, id: string, said: string) {
+    await expectLit(this, id, said, "a");
   },
 );
 
