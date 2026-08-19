@@ -124,13 +124,10 @@ directory rather than over one kind of file. The nodes above them are what
 level in: a row with ancestors, a row found by something a reader cannot see on
 it, and two rows nothing but their place tells apart.
 
-The archive is at `_olai/Trash.olai` rather than at the root, and the reason
-is worth knowing before moving it: `list_outlines` answers in path order and the
-scripted agent's `add` verb writes into the FIRST outline it is told about, so a
-root archive would have it capturing into the trash — and a row written there is
-drawn on no page (#226). A nested archive is an ordinary archive to every rule
-that reads one (`isArchived` is `_olai/Trash.olai` or `/_olai/Trash.olai`), so nothing
-about what it tests is weaker for sitting in a folder.
+The trash is `_olai/Trash.olai` — the one trash, same as every other corpus.
+`list_outlines` answers in path order and that file sorts first, so the
+scripted agent's `add` verb skips it: capturing into the trash is not a
+capture, and a row written there is drawn on no page (#226).
 
 The third child is the model in one line: `order` carries no mark, so it is a
 bullet rather than a task nobody has started, and the nudge above does **not**

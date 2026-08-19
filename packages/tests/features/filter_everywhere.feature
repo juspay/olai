@@ -15,7 +15,7 @@ Feature: The filter reaches every page that draws nodes
     - a day's NOTE is a document, which this grammar says nothing about, so a
       filtered day is the answer and not the answer plus somebody's prose;
     - the trash is the ARCHIVE, which every other door leaves alone unless the
-      query says `is:archived` — here the page has already decided, and a word
+      query says `is:trashed` — here the page has already decided, and a word
       typed into the box searches what is in front of the reader.
 
   @corpus:journal
@@ -147,7 +147,7 @@ Feature: The filter reaches every page that draws nodes
 
   @scratch:good
   Scenario: The trash is searched WITHIN, which is the rule it had to except
-    # Archived nodes are out of every reading unless a query says `is:archived`
+    # Archived nodes are out of every reading unless a query says `is:trashed`
     # — because those doors are searching the directory. This page IS the
     # archive: a matcher applying that rule here would take away every row and
     # leave the reader nothing to read the absence by.
@@ -161,7 +161,7 @@ Feature: The filter reaches every page that draws nodes
     When I filter the page by "hinges"
     Then the Trash lists the node "hinges"
     And the Trash does not list the node "handles"
-    And the filter found "1 of 5"
+    And the filter found "1 of 6"
     # A pile is a TREE, so the scaffold above a match is kept as the context
     # that says where the pile came from — the outline page's rule, on the page
     # that is made of archives.
@@ -177,14 +177,14 @@ Feature: The filter reaches every page that draws nodes
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
     And I open the Trash
-    When I filter the page by "is:archived"
+    When I filter the page by "is:trashed"
     Then the Trash lists the node "hinges"
-    And the filter found "5 of 5"
+    And the filter found "6 of 6"
     # ...and its negation selects nothing here, which is the honest answer
     # rather than an empty page with no reason.
-    When I filter the page by "-is:archived"
+    When I filter the page by "-is:trashed"
     Then the Trash does not list the node "hinges"
-    And the filter found "no matches of 5"
+    And the filter found "no matches of 6"
     # An archive narrowed to nothing is not "the Trash is empty" — that is a
     # claim about the archive, and this is a claim about the query.
     And the Trash does not say it is empty

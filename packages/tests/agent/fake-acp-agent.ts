@@ -1581,7 +1581,9 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     const listed = (outlines["structuredContent"] as
       | { outlines?: ReadonlyArray<{ file: string }> }
       | undefined)?.outlines ?? []
-    const file = listed[0]?.file
+    // `_olai/Trash.olai` sorts first, and capturing into the trash is not
+    // a capture — the tree would never show the row (#226).
+    const file = listed.find((one) => one.file !== "_olai/Trash.olai")?.file
     await useTool("add_node", { file, title: argument })
     say(`added \`${argument}\`.`)
     respond(id, { stopReason: "end_turn" })

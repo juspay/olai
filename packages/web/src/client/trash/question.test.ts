@@ -43,7 +43,7 @@ test("a pick of ONE is still a pick, and the agreement follows what the write mo
 test("emptying names the count and says outright that nothing puts it back", () => {
   expect(emptyQuestion(12)).toBe(
     "Permanently delete all 12 rows in the Trash? Nothing in olai puts them " +
-      "back — the records leave the archive the way every other write does, so " +
+      "back — the records leave the trash the way every other write does, so " +
       "what survives is whatever git has already recorded.",
   )
 })
@@ -53,7 +53,7 @@ test("one row is the singular all the way through, and is still counted", () => 
   // the last thing in their trash should not read like a template.
   expect(emptyQuestion(1)).toBe(
     "Permanently delete the one row in the Trash? Nothing in olai puts it " +
-      "back — the record leaves the archive the way every other write does, so " +
+      "back — the record leaves the trash the way every other write does, so " +
       "what survives is whatever git has already recorded.",
   )
 })

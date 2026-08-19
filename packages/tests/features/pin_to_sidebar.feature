@@ -7,7 +7,7 @@ Feature: Pinning a page to the sidebar
   browser-local — `Pins.olai`, one ordinary node per pin, whose title is the
   ADDRESS the pin opens. That is what makes the shelf something an agent can
   read and write with the tools it already has (`add_node`, `move_node`,
-  `archive_node`), and it is why these scenarios assert on the FILE as often as
+  `trash_node`), and it is why these scenarios assert on the FILE as often as
   on the column.
 
   Two promises a screenshot cannot make are here as scenarios: a click lands on

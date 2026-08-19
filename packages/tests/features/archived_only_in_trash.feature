@@ -81,7 +81,7 @@ Feature: What is put away is on the Trash and nowhere else
     And there should be no page errors
 
   @scratch:good
-  Scenario: The Trash is where it went, and `is:archived` still reaches it
+  Scenario: The Trash is where it went, and `is:trashed` still reaches it
     # The other half of the ruling: what went is the DEFAULT presence, never the
     # way to ask. How the Trash lists a pile is `trash.feature`'s, and how a
     # query searches within it is `filter_everywhere.feature`'s — what is this
@@ -97,10 +97,10 @@ Feature: What is put away is on the Trash and nowhere else
     Then the day lists "catch-up"
     # On the day itself there is nothing archived to find — the page draws none
     # of it, and a filter narrows the page rather than re-asking its question.
-    When I filter the page by "is:archived"
+    When I filter the page by "is:trashed"
     Then the filter found "no matches of 1"
     When I clear the filter
     And I press the palette shortcut
-    And I type "is:archived" into the palette
+    And I type "is:trashed" into the palette
     Then the palette lists the node "order the new cabinets"
     And there should be no page errors

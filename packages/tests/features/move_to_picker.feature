@@ -282,7 +282,7 @@ Feature: Moving a row to a parent you search for
   Scenario: Something put away says so, rather than that it is another file
     # Both are true — an archive is another outline by construction — and only
     # one of them is the news. The Trash is reached from the picker only by
-    # asking for it (`is:archived`), since the matcher leaves archived nodes out
+    # asking for it (`is:trashed`), since the matcher leaves archived nodes out
     # of every other answer.
     When I open the node menu of "hinges"
     And I choose "Move to Trash" from the node menu
@@ -290,7 +290,7 @@ Feature: Moving a row to a parent you search for
     Then the node "hinges" is not shown
     When I click the title of "knobs"
     And I press "ControlOrMeta+Shift+m"
-    And I search the move picker for "is:archived pick the hinges"
+    And I search the move picker for "is:trashed pick the hinges"
     Then the move picker offers "pick the hinges"
     And the move picker refuses with "put away"
 
