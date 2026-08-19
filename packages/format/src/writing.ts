@@ -666,6 +666,55 @@ export const UnarchiveRequest = Schema.Struct({
 })
 
 /**
+ * EVERYTHING IN ONE ARCHIVE, GONE — the one write in this vocabulary that
+ * destroys rather than moves, and the only one the trash has ever had.
+ *
+ * `archive` made a trash rather than a shredder, and `unarchive` made it one
+ * you can reach back into; what neither of them gave anybody is a way to stop
+ * carrying what was put away. This is that way, and it is deliberately the
+ * SMALLEST shape that can be: one archive named outright, every record in it
+ * removed, the file left behind holding nothing. There is no `id` here and
+ * there never will be — deleting ONE node out of the trash is a shredder aimed
+ * at a row, which is the gesture #109's deferral is about and is still the
+ * human's to rule on. What this op can say is "stop keeping the pile", which
+ * is what emptying a bin means.
+ *
+ * `file` IS REQUIRED, and that is the same decision `create_outline`'s path is:
+ * an op whose subject is a file names one. A directory can hold several
+ * archives — one beside each outline's own directory — so a wordless "empty
+ * the trash" would be one op with an unbounded and unnamed blast radius, and
+ * an answer (`WriteResult`'s `file`) that could not say which pile it meant.
+ * The whole trash is therefore an `apply` of these, one per archive, which is
+ * ONE plan, ONE validation and ONE rename exactly as a single op is — and it is
+ * what both faces send: the Trash page's `Empty trash` resolves to it
+ * (`@olai/server`'s `edit.ts`), and an agent writes the same batch.
+ *
+ * **WHAT IT IS REFUSED FOR is the rule `remove_mirror` already keeps**, read
+ * over a set instead of over one record: a record that is still NAMED by
+ * something staying behind — a mirror placed in a live outline, a `see`, an
+ * `after` — is not deletable, because the set it would leave is one the
+ * validator condemns (`unknown-target`). So the call is refused naming what
+ * still points in, and the way through is to re-point or retire those first.
+ * References BETWEEN records in the same emptying are not dependents: they go
+ * when they go.
+ *
+ * **AND IT DESTROYS EXACTLY AS MUCH AS IT SAYS.** The `.olai` is rewritten with
+ * no records in it, through the same gate, in the same all-or-none rename, and
+ * the write is committed by whichever door commits every other write — so the
+ * bytes are recoverable from git to exactly the extent git had already recorded
+ * them, and no further. A `doc` an archived node named is a FILE and is not
+ * touched: a document is not a node, nothing here names bytes, and a `.md`
+ * left without a referrer is a file a person can see and remove.
+ */
+export const EmptyRequest = Schema.Struct({
+  op: Schema.Literal("empty"),
+  file: Schema.String.annotate({
+    description:
+      "The archive to empty — an `Archive.olai` the served directory holds, root-relative, exactly as `list_outlines` spells it. Every record in it goes, the scaffold of ancestor titles included, and the file stays behind empty. Refused for an outline that is not an archive, for one the set does not hold, for one that is already empty, and while anything OUTSIDE it still names a record in it (a mirror, a `see`, an `after`) — naming what to re-point first.",
+  }),
+})
+
+/**
  * What a brand-new outline is born holding: a capture, exactly as `add_node`
  * takes one — the same fields, the same `children`, the same depth.
  *
@@ -998,8 +1047,8 @@ export const UpdateRequest = Schema.Struct({
  * One batched arm: a request schema with its TOP-LEVEL prose taken off.
  *
  * {@link stripped} over a whole request rather than over one field table, and
- * paid for by a measurement: the sixteen request schemas of {@link BATCHED},
- * inside one array schema, are sixteen more copies of every field sentence they
+ * paid for by a measurement: the nineteen request schemas of {@link BATCHED},
+ * inside one array schema, are nineteen more copies of every field sentence they
  * carry in the FIRST frame of every agent
  * session, and every one of those sentences is already in that frame — on the
  * tool that takes the request, where the agent reads it. On this repo's own
@@ -1022,7 +1071,7 @@ const arm = <F extends Schema.Struct.Fields>(schema: Schema.Struct<F>): Schema.S
  * above already carries the `op` literal that names it, so a batched
  * `set_done` and a called `set_done` decode against one declaration. A parallel
  * list of "batch forms" is the drift this whole file is arranged to prevent —
- * it would be sixteen shapes free to fall behind the sixteen they mirror (sixteen SCHEMAS, carrying eighteen verbs — the three marks share one request, as they do everywhere else). What
+ * it would be nineteen shapes free to fall behind the nineteen they mirror (nineteen SCHEMAS, carrying twenty-one verbs — the three marks share one request, as they do everywhere else). What
  * {@link arm} takes off is the PROSE and nothing else, so the two still decode
  * identically and are still one declaration.
  *
@@ -1038,6 +1087,17 @@ const arm = <F extends Schema.Struct.Fields>(schema: Schema.Struct<F>): Schema.S
  *
  * `update` IS in, and that is the pair working: a batch of `update`s is the
  * shape "reconcile these five lanes" actually has.
+ *
+ * AND `empty` IS IN, which is the one entry that has to argue against the
+ * paragraph above rather than with it: it NAMES a file. What that sentence is
+ * really about is a write whose subject is a file's EXISTENCE — a path that may
+ * be mistyped into somebody else's transaction — and this one has no such
+ * subject: the archive it names must already be in the loaded set, it is left
+ * standing afterwards, and what the op is about is the RECORDS in it. The batch
+ * also buys it the thing the other three have no use for. A directory can hold
+ * several archives, so "empty the trash" is N of these, and the only honest way
+ * to run N deletions is all or none — half an emptied trash is a state nobody
+ * asked for and nothing puts back.
  */
 const BATCHED = [
   arm(AddRequest),
@@ -1054,6 +1114,7 @@ const BATCHED = [
   arm(ArchiveRequest),
   arm(DuplicateRequest),
   arm(UnarchiveRequest),
+  arm(EmptyRequest),
   arm(SeeRequest),
   arm(MirrorRequest),
   arm(UnmirrorRequest),
@@ -1137,6 +1198,7 @@ export const WriteRequest = Schema.Union([
   ArchiveRequest,
   DuplicateRequest,
   UnarchiveRequest,
+  EmptyRequest,
   CreateRequest,
   SeeRequest,
   MirrorRequest,

@@ -239,6 +239,8 @@ export const plan = (
       return planDuplicate(scope, request)
     case "unarchive":
       return planUnarchive(scope, request)
+    case "empty":
+      return planEmpty(scope, request)
     case "create":
       return planCreate(scope, request)
     case "see":
@@ -3221,6 +3223,140 @@ const bareScaffold = (node: Node): boolean => {
   if (isMirror(node)) return false
   const { id: _id, parent: _parent, ord: _ord, title: _title, ...rest } = node
   return Object.keys(rest).length === 0
+}
+
+
+// ── empty the trash ────────────────────────────────────────────────────
+
+/**
+ * ONE ARCHIVE, EMPTIED — the first write in this planner that DESTROYS.
+ *
+ * Everything else here moves records between files or rewrites their fields;
+ * `archive` was named a trash rather than a shredder precisely because nothing
+ * in olai ever took a record out of the set. This one does, and the whole of
+ * its design is about being the smallest thing that can:
+ *
+ *   - it names an ARCHIVE and no node. There is no way to spell "delete this
+ *     one row", which is the shredder-aimed-at-a-row that #109's deferral is
+ *     about and is still the human's to rule on. Emptying a bin is a different
+ *     gesture from picking something out of one and burning it;
+ *   - it writes that file with NO RECORDS and touches nothing else. The file
+ *     itself stays — an archive that vanished and re-appeared on the next
+ *     put-away would be a file blinking in the sidebar — and the whole trash is
+ *     an `apply` of these, one per archive, so N archives are still one plan,
+ *     one validation and one rename;
+ *   - and it destroys no more than it says. The records leave through the same
+ *     gate every other write goes through and are committed by whichever door
+ *     commits everything else, so what git holds afterwards is exactly what git
+ *     had already recorded — no more, and no less. A `doc` an archived node
+ *     named is a FILE and stays: a document is not a node, nothing in this
+ *     vocabulary names bytes, and a `.md` nobody points at is a thing a person
+ *     can see.
+ *
+ * FOUR REFUSALS, and three of them are about which file this is. An outline the
+ * set does not hold, and an outline that is not an archive, are both "you are
+ * pointing at the wrong file" and say so in the archive's own terms. An archive
+ * with nothing in it is refused rather than written as a no-op, which is the
+ * rule `set_see` already keeps for a call that would change nothing — and it is
+ * what makes "the trash is already empty" a sentence somebody reads rather than
+ * a commit with no diff in it.
+ *
+ * THE FOURTH IS THE ONE THAT MATTERS, and it is {@link planUnmirror}'s rule
+ * read over a set instead of over one record. Ids move with a node when it is
+ * archived — that is `archive`'s own promise, and it is why a mirror or an
+ * `after` naming something you put away goes on resolving — so deleting those
+ * records can leave live outlines naming ids nothing declares, which is a set
+ * the validator condemns (`unknown-target`). The write gate would catch it and
+ * refuse with the validator's rows; this refuses FIRST, in the vocabulary of
+ * the thing somebody actually has to do, naming what still points in. What
+ * points in from INSIDE the same emptying is not a dependent: those records go
+ * when they go.
+ */
+const planEmpty = (
+  scope: Scope,
+  request: Extract<Request, { op: "empty" }>,
+): Planned => {
+  const file = request.file
+  if (!scope.set.files.includes(file)) {
+    return Result.fail(
+      new NotFoundFailure({
+        reason: `\`${file}\` is not one of the outlines under the served directory: ` +
+          `${scope.set.files.join(", ") || "there are none"}`,
+        named: file,
+      }),
+    )
+  }
+  if (!isArchived(file)) {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          `\`${file}\` is not an archive, and \`empty_trash\` empties the TRASH — ` +
+          `an \`${ARCHIVE}\` beside an outline, which is where \`archive_node\` puts ` +
+          `things. Nothing here deletes out of a live outline; \`archive_node\` is ` +
+          `how a node leaves one.`,
+      }),
+    )
+  }
+
+  const may = writable(scope, file)
+  if (Result.isFailure(may)) return Result.fail(may.failure)
+
+  const records = recordsOf(scope, file)
+  if (records.length === 0) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `\`${file}\` is already empty, so there is nothing to delete`,
+      }),
+    )
+  }
+
+  const going = new Set(records.map((record) => record.id))
+  // Every record STAYING that names one that is going — asked of the same
+  // index `remove_mirror` asks ({@link dependents}), once per id being
+  // deleted, so a relation the format grows later still cannot slip past it.
+  // Collected as a map keyed by the naming record so a live row pointing at
+  // three of these is one entry rather than three.
+  const held = new Map<string, string>()
+  for (const id of going) {
+    for (const naming of scope.derived.namedBy.get(id) ?? []) {
+      if (going.has(naming.at.node.id)) continue
+      held.set(
+        naming.at.node.id,
+        `\`${naming.at.node.id}\` (${
+          naming.fields.map((field) => `\`${field}\``).join(", ")
+        }, ${naming.at.file}:${naming.at.line})`,
+      )
+    }
+  }
+  if (held.size > 0) {
+    const names = [...held.values()]
+    const one = names.length === 1
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          `\`${file}\` still has ${one ? "a record" : "records"} pointed INTO it from ` +
+          `outside: ${capped(names, (naming) => naming)}. Deleting what ${
+            one ? "that names" : "those name"
+          } would leave ${one ? "it" : "them"} pointing at nothing, so nothing was ` +
+          `written — re-point or retire ${one ? "it" : "them"} first, or ` +
+          `\`unarchive_node\` what ${one ? "it names" : "they name"} back out.`,
+      }),
+    )
+  }
+
+  return Result.succeed({
+    files: [{ file, nodes: [] }],
+    // A file op answers with its PATH where a node op answers with an id and a
+    // title, which is `create_outline`'s own shape and for its reason: there is
+    // no node here for either field to be about, and inventing one would be a
+    // reply naming a record this write has just deleted.
+    id: file,
+    title: file,
+    file,
+    summary: `empty: ${file} (${records.length} ${
+      records.length === 1 ? "record" : "records"
+    })`,
+  })
 }
 
 // ── duplicate ──────────────────────────────────────────────────────────

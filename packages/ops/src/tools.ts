@@ -43,6 +43,7 @@ import {
   ApplyRequest,
   ArchiveRequest,
   DuplicateRequest,
+  EmptyRequest,
   CommitRequest,
   type CommitResult,
   CreateDocumentRequest,
@@ -590,6 +591,13 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "Take a node and everything under it back OUT of an `Archive.olai` — the inverse of `archive_node`. The subtree comes back intact with its ids, and it lands LAST among its new siblings (the archive does not record where in a row a node sat). Where it lands: by default the chain of ancestor titles the archive recorded above the node is matched against the live outlines beside the archive, and the call is refused — naming what it found — when that chain matches nowhere or more than one place; give `parent` (it goes under that node) or `file` (top level of that outline) to decide instead. An ancestor the removal leaves empty in the archive is tidied away, provided it is the bare title scaffold `archive_node` wrote and nothing still names it. Work in an archive is over, so nothing in one is unfinished — and that exemption ends HERE, in both directions. A subtree holding a `todo` or `doing` that comes back under a `done` ancestor takes that ancestor's mark off; and any `done` INSIDE what comes back, standing over unfinished work in it, comes off too — those marks were true while the branch was over and are false the moment it is live again. The answer's `nudge` names every one of them. Nothing is refused: the trash is not a place you can edit a mark, so a refusal would strand the subtree there.",
     UnarchiveRequest,
     { op: "unarchive" },
+  ),
+  write(
+    "empty_trash",
+    "Empty an archive",
+    "PERMANENTLY DELETE every record in one `Archive.olai`. This is the only write in this whole surface that destroys rather than moves, and it is the only one nothing puts back: `archive_node` is a trash and `unarchive_node` is the way out of it, and this is what stops carrying the pile. What survives is whatever git had already recorded — the file is rewritten with no records in it, through the same gate and the same commit door as every other write — so a directory with no history, or one whose archive was never committed, keeps nothing.\n\nIT NAMES A FILE AND NEVER A NODE. There is no way here to delete ONE row out of the trash; the unit is the archive, exactly as a bin is emptied rather than picked through. A directory can hold several archives (one beside each outline's directory, `list_outlines` names them all), and \"empty the whole trash\" is therefore an `apply` carrying one of these per archive — one plan, one validation, one rename, all or nothing. The web's `Empty trash` sends exactly that.\n\nREFUSED four ways, and the fourth is the one to plan around: an outline the set does not hold, an outline that is not an archive (nothing here deletes out of a live outline — `archive_node` is how a node leaves one), an archive that is already empty, and — the important one — an archive something OUTSIDE it still points into. Ids move with a node when it is archived, so a mirror, a `see` or an `after` written in a live outline goes on resolving at what was put away; deleting those records would leave it naming ids nothing declares. The refusal names each such record with its `file:line` and the field it points with. Re-point or retire them, or `unarchive_node` what they name back out, and call again. The `.md` a `doc` field named is a FILE and is never touched.",
+    EmptyRequest,
+    { op: "empty" },
   ),
   write(
     "set_see",

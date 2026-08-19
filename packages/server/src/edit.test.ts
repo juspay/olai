@@ -546,6 +546,60 @@ test("a merge names the row and nothing else — the sibling above is the set's"
   expect(asked({ verb: "merge", id: "install" })).toEqual({ op: "merge", id: "install" })
 })
 
+// ── the trash, emptied ─────────────────────────────────────────────────
+
+/** A house with an archive beside it, and optionally a second pile in a
+ *  subdirectory — the two shapes the button has to resolve differently. */
+const ARCHIVED = [
+  `{"id":"sc1","ord":"a0","title":"Kitchen remodel"}`,
+  `{"id":"knobs","parent":"sc1","ord":"a0","title":"pick the knobs"}`,
+].join("\n")
+
+test("one pile resolves to one `empty`, naming the archive the SET holds", () => {
+  const at = reading(setOf({ "house.olai": HOUSE, "Archive.olai": ARCHIVED }))
+  expect(asked({ verb: "emptyTrash" }, at)).toEqual({ op: "empty", file: "Archive.olai" })
+})
+
+test("several piles resolve to ONE batch, because half an emptied trash is not a state", () => {
+  const at = reading(setOf({
+    "house.olai": HOUSE,
+    "Archive.olai": ARCHIVED,
+    "garden/plot.olai": `{"id":"beds","ord":"a0","title":"the beds"}`,
+    "garden/Archive.olai": `{"id":"sc2","ord":"a0","title":"the beds"}`,
+  }))
+  expect(asked({ verb: "emptyTrash" }, at)).toEqual({
+    op: "apply",
+    ops: [
+      { op: "empty", file: "Archive.olai" },
+      { op: "empty", file: "garden/Archive.olai" },
+    ],
+  })
+})
+
+test("an archive that holds nothing is not in the batch at all", () => {
+  // An emptied archive is a file the directory still serves — `unarchive`
+  // tidies its scaffold away and leaves it standing — so the resolution has to
+  // skip it rather than send an op the planner is about to refuse.
+  const at = reading(setOf({
+    "house.olai": HOUSE,
+    "Archive.olai": "",
+    "garden/plot.olai": `{"id":"beds","ord":"a0","title":"the beds"}`,
+    "garden/Archive.olai": `{"id":"sc2","ord":"a0","title":"the beds"}`,
+  }))
+  expect(asked({ verb: "emptyTrash" }, at))
+    .toEqual({ op: "empty", file: "garden/Archive.olai" })
+})
+
+test("an empty trash is refused HERE, in terms of the trash", () => {
+  // The button is not drawn over an empty trash, so what reaches this is a
+  // stale tab — and a stale tab deserves the true sentence rather than
+  // `apply`'s "give at least one op", which teaches a reader about the wrong
+  // thing entirely.
+  const failure = refused({ verb: "emptyTrash" }, reading())
+  expect(failure._tag).toBe("UsageFailure")
+  expect(failure.message).toBe("the Trash is empty, so there is nothing to delete")
+})
+
 // ── what would take a write back ───────────────────────────────────────
 
 /** The inverse of an edit over the house, with the id an `add` would have
@@ -1014,4 +1068,14 @@ test("a new outline names its path outright, and the op judges it", () => {
 test("nothing takes a minted outline back either", () => {
   expect(inverse({ verb: "outlineNew", file: "plans.olai" }, "plans.olai"))
     .toEqual([])
+})
+
+/** The one write on this surface that nothing anywhere undoes — said by
+ *  answering nothing, rather than by leaving a ⌘Z that quietly does the wrong
+ *  thing. `unmirror` is the other silent arm and its silence is about a shape
+ *  this surface cannot spell; this one is about records that have left the set,
+ *  which no op reaches. */
+test("nothing takes an emptied trash back, and it says so by answering nothing", () => {
+  const at = reading(setOf({ "house.olai": HOUSE, "Archive.olai": ARCHIVED }))
+  expect(inverse({ verb: "emptyTrash" }, "Archive.olai", at)).toEqual([])
 })

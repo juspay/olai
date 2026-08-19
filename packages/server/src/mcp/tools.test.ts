@@ -198,6 +198,7 @@ test("the tool list is reads and writes, and no file access at all", async () =>
       "create_document",
       "create_outline",
       "duplicate_node",
+      "empty_trash",
       "list_outlines",
       "merge_node",
       "move_node",
@@ -1154,6 +1155,73 @@ test("a done mark minted in the archive is re-opened when the subtree comes back
   })
 })
 
+/**
+ * The trash's THIRD verb on the agent's face, and the only destructive one in
+ * this whole surface: `empty_trash`.
+ *
+ * Driven end to end because that is where the two things worth pinning are —
+ * that a no-`op` argument list reaches the planner as the right request, and
+ * that what is refused is refused BEFORE anything is written. The refusal here
+ * is the one that matters: `order` is archived while a live `see` names it, so
+ * deleting it would leave that edge pointing at nothing, and the archive is
+ * still on disk afterwards, byte for byte.
+ */
+test("empty_trash deletes the pile, and refuses while something still points into it", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
+    // A live row that names what is about to be put away. Ids move with a node
+    // when it is archived, so this edge goes on resolving INTO the archive —
+    // which is exactly what makes the pile undeletable.
+    const linked = await call(client, "set_see", { id: "demo", add: ["order"] })
+    expect(linked.isError).toBe(false)
+    const away = await call(client, "archive_node", { id: "order" })
+    expect(away.isError).toBe(false)
+    const filled = read("Archive.olai")
+    expect(filled).toContain(`"id":"order"`)
+
+    const held = await call(client, "empty_trash", { file: "Archive.olai" })
+    expect(held.isError).toBe(true)
+    expect(held.structured["kind"]).toBe("usage")
+    expect(String(held.structured["reason"])).toContain("`demo`")
+    expect(String(held.structured["reason"])).toContain("`see`")
+    // Nothing was written: the gate plans before it renames.
+    expect(read("Archive.olai")).toBe(filled)
+    expect(refusals).toEqual(["empty: UsageFailure"])
+
+    // Re-point the edge and the pile deletes — the way through the refusal
+    // named, taken.
+    const freed = await call(client, "set_see", { id: "demo", remove: ["order"] })
+    expect(freed.isError).toBe(false)
+    const gone = await call(client, "empty_trash", { file: "Archive.olai" })
+    expect(gone.isError).toBe(false)
+    expect(gone.structured).toMatchObject({
+      summary: "empty: Archive.olai (2 records)",
+      file: "Archive.olai",
+      did: "empty_trash",
+    })
+    expect(read("Archive.olai")).toBe("")
+    // …and the live outline is untouched: the blast radius is one file.
+    expect(read("house.olai")).toContain(`"id":"kitchen"`)
+  })
+})
+
+test("empty_trash refuses a live outline, and an archive with nothing in it", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
+    const live = await call(client, "empty_trash", { file: "house.olai" })
+    expect(live.isError).toBe(true)
+    expect(String(live.structured["reason"])).toContain("is not an archive")
+    expect(read("house.olai")).toBe(HOUSE)
+
+    // The state a put-back leaves: the file stands, holding nothing. Emptying
+    // it is refused rather than committed as a diff-less write.
+    await call(client, "archive_node", { id: "order" })
+    await call(client, "unarchive_node", { id: "order" })
+    expect(read("Archive.olai")).toBe("")
+    const twice = await call(client, "empty_trash", { file: "Archive.olai" })
+    expect(twice.isError).toBe(true)
+    expect(String(twice.structured["reason"])).toContain("already empty")
+  })
+})
+
 /** The other half of ledger-complete: a dependency, written from the node that
  *  waits, read back off the node, and refused when it would close a loop. */
 test("set_after writes a dependency, and a loop is refused naming it", async () => {
@@ -1350,6 +1418,7 @@ test("`apply` and `update` advertise finite schemas with no $ref", async () => {
       "doing",
       "done",
       "duplicate",
+      "empty",
       "merge",
       "mirror",
       "move",

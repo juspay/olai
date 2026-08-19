@@ -2809,6 +2809,148 @@ describe("unarchive", () => {
   })
 })
 
+// ── empty the trash ────────────────────────────────────────────────────
+
+describe("empty", () => {
+  /** A house with two things put away — the archive as `archive` actually
+   *  writes it, scaffold and all, rather than a hand-typed fixture that could
+   *  drift from what the op produces. */
+  const filled = (): OutlineSet =>
+    after(after(house(), { op: "archive", id: "order" }), { op: "archive", id: "install" })
+
+  test("every record in the archive goes, and the file stays behind empty", () => {
+    const set = filled()
+    // What is being deleted, counted off the set the plan is judged against:
+    // two subtrees plus the one scaffold title they share.
+    expect(nodesOf(derive(set.nodes), "Archive.olai")).toHaveLength(3)
+
+    const result = planned(set, { op: "empty", file: "Archive.olai" })
+    expect(fileOf(result, "Archive.olai")).toEqual([])
+    // ONE file, which is the whole blast radius: the live outline is not in
+    // the plan at all, so nothing outside the archive can be touched.
+    expect(result.files.map((entry) => entry.file)).toEqual(["Archive.olai"])
+    expect(result.summary).toBe("empty: Archive.olai (3 records)")
+    // A file op answers with its PATH, `create_outline`'s own shape — there is
+    // no node left for an id to name.
+    expect(result.id).toBe("Archive.olai")
+    expect(result.file).toBe("Archive.olai")
+  })
+
+  test("an archive that holds nothing is refused rather than written as a no-op", () => {
+    // The put-away and the put-back, so the file exists and is empty — which
+    // is the state `unarchive`'s scaffold tidying leaves behind.
+    const set = after(
+      after(house(), { op: "archive", id: "order" }),
+      { op: "unarchive", id: "order" },
+    )
+    expect(nodesOf(derive(set.nodes), "Archive.olai")).toEqual([])
+    const failure = refused(set, { op: "empty", file: "Archive.olai" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("already empty")
+  })
+
+  test("a live outline is not deletable, and the refusal points at the put-away", () => {
+    const failure = refused(filled(), { op: "empty", file: "house.olai" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("is not an archive")
+    expect(failure.message).toContain("archive_node")
+  })
+
+  test("a file the set does not hold is a miss, naming what there is", () => {
+    const failure = refused(filled(), { op: "empty", file: "notes/Archive.olai" })
+    expect(failure._tag).toBe("NotFoundFailure")
+    expect(failure.message).toContain("house.olai")
+  })
+
+  test("a live `see` pointed into the archive refuses it, naming the record", () => {
+    // The edge is written FIRST and the node archived after, which is the real
+    // sequence: ids move with a node, so the reference goes on resolving into
+    // the archive and is exactly what deleting would break.
+    const set = after(
+      after(house(), { op: "see", id: "loose", add: ["order"] }),
+      { op: "archive", id: "order" },
+    )
+    const failure = refused(set, { op: "empty", file: "Archive.olai" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("`loose`")
+    expect(failure.message).toContain("`see`")
+    // The way through is said, in the vocabulary of the thing to do.
+    expect(failure.message).toContain("unarchive_node")
+  })
+
+  test("an `after` edge and a mirror hold it just as a `see` does", () => {
+    const held = (request: Request): string =>
+      refused(
+        after(after(house(), request), { op: "archive", id: "order" }),
+        { op: "empty", file: "Archive.olai" },
+      ).message
+    expect(held({ op: "after", id: "loose", add: ["order"] })).toContain("`after`")
+    expect(held({ op: "mirror", target: "order", parent: "loose" })).toContain("`mirror`")
+  })
+
+  test("references BETWEEN records in the same archive are not dependents", () => {
+    // `quote` waits on `sign`, and both go in together. Nothing is left
+    // pointing at anything, so the pile deletes.
+    const start = setOf({
+      "house.olai": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order"}`,
+        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote","after":["sign"]}`,
+        `{"id":"sign","parent":"order","ord":"a1","title":"sign it"}`,
+      ].join("\n"),
+    })
+    const set = after(start, { op: "archive", id: "order" })
+    expect(fileOf(planned(set, { op: "empty", file: "Archive.olai" }), "Archive.olai"))
+      .toEqual([])
+  })
+
+  test("a record naming ITSELF is not its own dependent", () => {
+    // A `see` inside the subtree pointing at the subtree's own root: it goes
+    // when it goes, exactly as `remove_mirror` reads the same index.
+    const set = after(
+      after(house(), { op: "see", id: "install", add: ["install"] }),
+      { op: "archive", id: "install" },
+    )
+    expect(fileOf(planned(set, { op: "empty", file: "Archive.olai" }), "Archive.olai"))
+      .toEqual([])
+  })
+
+  test("two archives are emptied as ONE write, or not at all", () => {
+    // The shape the Trash page's own button sends when a directory keeps more
+    // than one pile (`@olai/server`'s `edit.ts` resolves it): a batch, so half
+    // an emptied trash is not a state anything can reach.
+    const start = setOf({
+      "house.olai": KITCHEN,
+      "garden/plot.olai": `{"id":"beds","ord":"a0","title":"the beds"}`,
+    })
+    const set = after(
+      after(start, { op: "archive", id: "order" }),
+      { op: "archive", id: "beds" },
+    )
+    const result = planned(set, {
+      op: "apply",
+      ops: [
+        { op: "empty", file: "Archive.olai" },
+        { op: "empty", file: "garden/Archive.olai" },
+      ],
+    })
+    expect(fileOf(result, "Archive.olai")).toEqual([])
+    expect(fileOf(result, "garden/Archive.olai")).toEqual([])
+
+    // …and the all-or-nothing half, which is the reason it is a batch: the
+    // second op refusing leaves the FIRST archive untouched.
+    const stopped = refused(set, {
+      op: "apply",
+      ops: [
+        { op: "empty", file: "Archive.olai" },
+        { op: "empty", file: "garden/plot.olai" },
+      ],
+    })
+    expect(stopped.message).toContain("`ops[1]` (`empty`)")
+    expect(stopped.message).toContain("is not an archive")
+  })
+})
+
 // ── see ────────────────────────────────────────────────────────────────
 
 describe("see", () => {

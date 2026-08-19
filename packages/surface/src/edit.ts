@@ -109,17 +109,25 @@
  * only overwrite what IT wrote, so somebody else's words are refused rather
  * than replaced.
  *
- * WHAT IS STILL DELIBERATELY ABSENT IS A DELETE, and neither removal here is
- * one. `remove` is the un-create — the inverse of an `add`, bound to no key,
- * narrowed by the resolver to a node with nothing under it, which is a rule
- * about what an UNDO is entitled to. `archive` is the ops layer's own put-away,
- * which the human ruled may take a subtree WITH a confirm naming what goes
- * (2026-08-12); the ids come along, so a mirror or an `after` that named any of
- * it goes on resolving. Both are `archive_node` underneath and neither erases
- * anything. A key that erases a branch is still not spellable here, and the
- * deferral #109 recorded (human, 2026-08-11) is still the human's to close.
- * Multi-select and drag-drop are their own items, so neither is expressible
- * here.
+ * THERE IS EXACTLY ONE DELETE, AND IT IS NOT AIMED AT A ROW. `emptyTrash` is
+ * it: everything in the Trash, gone for good, behind a confirm that names how
+ * many rows go and says plainly that nothing puts them back. It names no node,
+ * reaches no live outline, and can only touch records somebody already moved to
+ * the Trash and can still see — a bin being emptied rather than a branch being
+ * erased.
+ *
+ * NEITHER REMOVAL BESIDE IT IS ONE. `remove` is the un-create — the inverse of
+ * an `add`, bound to no key, narrowed by the resolver to a node with nothing
+ * under it, which is a rule about what an UNDO is entitled to. `archive` is the
+ * ops layer's own put-away, which the human ruled may take a subtree WITH a
+ * confirm naming what goes (2026-08-12); the ids come along, so a mirror or an
+ * `after` that named any of it goes on resolving. Both are `archive_node`
+ * underneath and neither erases anything. A KEY that erases a branch is still
+ * not spellable here, and the deferral #109 recorded (human, 2026-08-11) is
+ * still the human's to close — what it is about is work leaving an outline
+ * without going anywhere, which is a different gesture from stopping carrying
+ * what was already put away. Multi-select and drag-drop are their own items, so
+ * neither is expressible here.
  *
  * AND TWO ARE COMPOUND, WHICH IS WHY THEY ARE OPS RATHER THAN SEQUENCES.
  * `split` and `merge` each do several things to an outline at once — a retitle
@@ -640,6 +648,49 @@ export const Edit = Schema.Union([
      *  Ignored when `parent` is present. */
     file: Schema.optionalKey(Schema.String),
   }),
+  /**
+   * EMPTY THE TRASH — permanently delete everything in it, and the ONE write
+   * on this surface that destroys.
+   *
+   * It carries NOTHING, and that is the whole shape of it. Which archives the
+   * directory holds, and which of them have anything in them, are facts about
+   * the SET — so they are read where the write is judged
+   * ({@link ../../server/src/edit.ts}), exactly as the inbox `capture` lands in
+   * is and for the identical argument. What the browser sends is the gesture; a
+   * tab that listed the archives itself would be a second reading of the
+   * directory, some frames old, free to disagree with the one on disk — and the
+   * disagreement would surface as a pile quietly left behind rather than as a
+   * refusal.
+   *
+   * IT RESOLVES TO `empty_trash`, one per archive, batched with `apply` when
+   * there is more than one. Nothing an agent cannot send: the op names a file,
+   * the batch is the ops layer's own, and an agent emptying a whole directory
+   * makes the same two moves by hand (`list_outlines`, then the batch). What
+   * the browser is spared is the READING, not an op — quick capture's sentence,
+   * a page over.
+   *
+   * **THIS IS THE DELETE, AND IT IS NOT THE DELETE THE DEFERRAL IS ABOUT.**
+   * The header above has said since #124 that no key erases a branch, and that
+   * is still true: nothing here names a node, nothing here reaches a live
+   * outline, and the only rows it can touch are ones somebody already moved to
+   * the Trash and can still see. #109's deferral is about a key that takes work
+   * out of an outline, and it stays the human's to close. What this closes is
+   * the other half of a trash — a bin nothing could ever be emptied from is a
+   * bin that only fills up.
+   *
+   * It answers with NO INVERSE, which is the honest half. `unmirror` is the
+   * other write that answers that way, and it does so because the surface
+   * cannot spell the placement back; this one does so because there is nothing
+   * anywhere that can. What the records are recoverable from is git, to exactly
+   * the extent git had already recorded them — which is a thing a person does
+   * in a terminal, and never something ⌘Z should pretend to do. So the FENCE is
+   * the confirm the Trash page asks first, naming how many rows go and saying
+   * plainly that this is not undoable (`web/src/client/trash/question.ts`) —
+   * and the fence is not on the wire, for the reason `archive`'s is not: a rule
+   * this schema enforced would be a rule an agent's `empty_trash` does not
+   * have.
+   */
+  Schema.Struct({ verb: Schema.Literal("emptyTrash") }),
 
   // ── the palette's one ────────────────────────────────────────────────
 

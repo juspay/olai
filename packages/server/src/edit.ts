@@ -59,11 +59,13 @@ import {
   type Derived,
   INBOX,
   inboxIn,
+  isArchived,
   isDay,
   isMirror,
   type Located,
   type LocatedRegular,
   nodeNamed,
+  nodesOf,
   type OpFailure,
   type Reading,
   siblingsOf,
@@ -249,6 +251,15 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       )
       return Result.succeed({ op: "create-doc", file })
     }
+    // THE ONE DELETE, and the one that resolves the MOST: what the browser
+    // sends is "empty the Trash" and nothing else, because which archives this
+    // directory holds — and which of them have anything in them — are facts
+    // about the SET (`../../surface/src/edit.ts` argues it, and it is quick
+    // capture's argument one page over). Read here, against the reading the
+    // write is judged on, so a pile that arrived since the tab last drew the
+    // page goes with the rest instead of being quietly left behind.
+    case "emptyTrash":
+      return emptyTrashRequest(at)
   }
 }
 
@@ -360,6 +371,51 @@ const captureRequest = (
     inbox === undefined
       ? { op: "create", file: INBOX, seed: { title: edit.title } }
       : { op: "add", file: inbox, title: edit.title },
+  )
+}
+
+// ── the trash, emptied ─────────────────────────────────────────────────
+
+/**
+ * EVERY ARCHIVE THAT HOLDS ANYTHING, emptied in ONE write — the resolution the
+ * `Empty trash` button asks for and the one place in this file that turns one
+ * gesture into a BATCH.
+ *
+ * The reading is the whole of the work, and it is here for the reason every
+ * placement in this file is here: which files the directory serves, which of
+ * them are archives, and which of those have records in them are facts about
+ * the SET, and the set this write is judged against is this one. A tab that
+ * listed them for itself would be reading a manifest some frames old — and the
+ * failure mode is not a refusal, it is a pile arriving between the draw and the
+ * click and quietly surviving a gesture that said "everything".
+ *
+ * ONE OP OR A BATCH, decided by how many piles there are, and both are things
+ * an agent sends: `empty_trash` names one archive, and `apply` runs a list of
+ * them as one plan, one validation and one rename. The batch is not an
+ * optimisation — it is the only honest way to run N deletions. Half an emptied
+ * trash is a state nobody asked for and nothing puts back, so a loop of calls
+ * that stopped in the middle would leave a directory nobody can reason about.
+ *
+ * AN EMPTY TRASH IS REFUSED HERE rather than sent as a batch of nothing, and
+ * the sentence is this resolver's own for the reason `docDay`'s day-shape check
+ * is: an `apply` with no ops is refused by the planner in terms of `apply`
+ * ("give at least one op"), which teaches a reader about the wrong thing. The
+ * button is not drawn over an empty trash, so nothing a person can press
+ * reaches this — what does is a stale tab, and a stale tab deserves the true
+ * sentence.
+ */
+const emptyTrashRequest = (at: Reading): Resolved => {
+  const piles = at.set.files.filter(
+    (file) => isArchived(file) && nodesOf(at.derived, file).length > 0,
+  )
+  const [only, ...rest] = piles
+  if (only === undefined) {
+    return Result.fail(refusal("the Trash is empty, so there is nothing to delete"))
+  }
+  return Result.succeed(
+    rest.length === 0
+      ? { op: "empty", file: only }
+      : { op: "apply", ops: piles.map((file) => ({ op: "empty", file } as const)) },
   )
 }
 
@@ -834,6 +890,18 @@ export const inverseOf = (
     // stays the one write here that cannot be taken back, said by answering
     // nothing rather than by leaving a ⌘Z that quietly does the wrong thing.
     case "unmirror":
+      return []
+    // NOTHING TAKES AN EMPTIED TRASH BACK, and this is the only entry here
+    // that answers so because the WORLD has no inverse rather than because
+    // this surface cannot spell one. `unmirror` above is the other silent
+    // arm, and its silence is about the shape of a placement verb; this one
+    // is about the records being gone from the set. What still has them is
+    // git, to exactly the extent git had already recorded them, and that is a
+    // thing somebody does in a terminal — a ⌘Z that quietly re-read a commit
+    // would be inventing a restore this app does not have. The fence is the
+    // confirm the Trash page asks before the write, which says so in as many
+    // words.
+    case "emptyTrash":
       return []
     // A document commit is the text verbs' shape at file size: the inverse is
     // the text it replaced, guarded by what this write wrote, so ⌘Z can only
