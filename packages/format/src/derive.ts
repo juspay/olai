@@ -34,6 +34,7 @@
 
 import { Schema } from "effect"
 
+import { Tag } from "./address.ts"
 import {
   isArchived,
   isMirror,
@@ -354,7 +355,7 @@ export const writtenTags = (node: Node): ReadonlyArray<string> => {
 }
 
 /** The answer for prose that tags nothing: ONE list, shared. */
-const NO_TAGS: ReadonlyArray<string> = []
+const NO_TAGS: ReadonlyArray<Tag> = []
 
 /**
  * The tags of one string, as written — {@link titleParts}, kept.
@@ -383,9 +384,9 @@ const NO_TAGS: ReadonlyArray<string> = []
  * wants both sigils — and this one does, since the index behind it is the
  * whole of what prose tagged rather than one namespace of it.
  */
-const writtenTagsIn = (text: string): ReadonlyArray<string> => {
+const writtenTagsIn = (text: string): ReadonlyArray<Tag> => {
   if (!mayHoldTag(text)) return NO_TAGS
-  let found: Array<string> | undefined
+  let found: Array<Tag> | undefined
   for (const part of titleParts(text)) {
     if (part.kind === "tag") (found ??= []).push(tagText(part))
   }
@@ -1410,8 +1411,13 @@ export type TitlePart =
 /** The written form of a tag — the characters the title actually holds. One
  *  spelling, because every consumer that draws a tag or indexes one needs it
  *  and three of them re-assembling it is three chances to drop the `@`. It is
- *  also what {@link Derived.taggedBy} is keyed by. */
-export const tagText = (part: TitleTag): string => `${part.sigil}${part.tag}`
+ *  also what {@link Derived.taggedBy} is keyed by.
+ *
+ *  A {@link Tag}, which is the vocabulary's word for exactly this — a name in
+ *  the same sense a document's path and a node's id are (`./address.ts`) — so
+ *  what this walk hands back says what it is rather than being one more
+ *  string. */
+export const tagText = (part: TitleTag): Tag => Tag.make(`${part.sigil}${part.tag}`)
 
 /**
  * ...and the same reading backwards: a written tag split into its two halves.
