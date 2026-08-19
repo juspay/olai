@@ -12,7 +12,7 @@
  */
 
 import { derive } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { namedBy } from "./named.ts"
@@ -29,7 +29,7 @@ const HOUSE = [
 
 const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`
 
-const derived = derive(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN }).nodes)
+const derived = derive(recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
 
 /** One node's field, resolved — the indexes always here, which is the frame
  *  every one of these claims is about. The absent-indexes frame is its own

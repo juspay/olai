@@ -23,13 +23,16 @@ import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
 import {
+  bodyOf,
   isMirror,
   type OutlineError,
   type OutlineSet,
+  outlinePaths,
   parseOutline,
   type WriteRequest as Request,
   type WriteResult as Applied,
 } from "@olai/format"
+import { recordsOf } from "@olai/format/testlib"
 import * as Store from "@olai/store"
 import { describe, expect, test } from "bun:test"
 import { Effect, Result, SubscriptionRef } from "effect"
@@ -170,10 +173,12 @@ test("a `.html` joins the set as a path; a `.md` brings its text", () =>
     (fixture) =>
       Effect.gen(function*() {
         const set = yield* fixture.set()
-        expect(set.documents).toEqual([
-          { file: "notes.md", text: "# cabinets\n" },
-          { file: "report.html", text: null },
-        ])
+        expect(set.documents.map((one) => [String(one.path), one.kind, bodyOf(one)]))
+          .toEqual([
+            ["house.olai", "outline", null],
+            ["notes.md", "document", "# cabinets\n"],
+            ["report.html", "hypertext", null],
+          ])
         // The set loaded, which is what says the `doc` above resolved against
         // the documents found: a reference is checked against PATHS, and those
         // are the half this keeps for every bodied file.
@@ -203,7 +208,7 @@ test("a mark lands on disk as bytes the parser reads back", () =>
 
       // And the browser sees it: the snapshot moved, without anyone probing.
       const set = yield* fixture.set()
-      const order = set.nodes.find((located) => located.node.id === "order")
+      const order = recordsOf(set).find((located) => located.node.id === "order")
       expect(order?.node).toMatchObject({ done: STAMP })
     })))
 
@@ -257,7 +262,7 @@ test("marking done with no clock handed in stamps the current instant", () =>
       yield* run(fixture, { op: "done", id: "order" })
 
       const set = yield* fixture.set()
-      const order = set.nodes.find((located) => located.node.id === "order")?.node
+      const order = recordsOf(set).find((located) => located.node.id === "order")?.node
       const done = order === undefined || isMirror(order) ? undefined : order.done
       expect(done).toMatch(STAMP_SHAPE)
 
@@ -286,8 +291,8 @@ test("creating an outline lands a new file the set and the disk both see", () =>
       expect(text.endsWith("\n")).toBe(true)
 
       const set = yield* fixture.set()
-      expect([...set.files].sort()).toEqual(["house.olai", "notes/ideas.olai"])
-      expect(set.nodes.some((located) => located.node.id === applied.id)).toBe(true)
+      expect([...outlinePaths(set)].sort()).toEqual(["house.olai", "notes/ideas.olai"])
+      expect(recordsOf(set).some((located) => located.node.id === applied.id)).toBe(true)
     })))
 
 /**
@@ -316,7 +321,7 @@ test("a new outline arrives holding its whole tree, or does not arrive", () =>
       expect(failure._tag).toBe("UsageFailure")
       // Not an empty outline, not a partial one: no file.
       expect(fixture.read("shed.olai")).toBeNull()
-      expect((yield* fixture.set()).files).toEqual(["house.olai"])
+      expect(outlinePaths(yield* fixture.set())).toEqual(["house.olai"])
       expect(gitLog(fixture.root)).toEqual(["fixtures"])
       // And the outline that WAS there is untouched, byte for byte.
       expect(fixture.read("house.olai")).toBe(HOUSE)
@@ -348,7 +353,7 @@ test("creating an empty outline is a zero-byte file the sidebar can list", () =>
       const applied = yield* run(fixture, { op: "create", file: "empty.olai" })
       expect(applied.summary).toBe("create: empty.olai")
       expect(fixture.read("empty.olai")).toBe("")
-      expect((yield* fixture.set()).files).toContain("empty.olai")
+      expect(outlinePaths(yield* fixture.set())).toContain("empty.olai")
     })))
 
 // The published set is in LISTING order, which is path order — what
@@ -362,12 +367,13 @@ test("a created file sorting before an existing one is published in path order",
   withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       yield* run(fixture, { op: "create", file: "Archive.olai" })
-      expect((yield* fixture.set()).files).toEqual(["Archive.olai", "house.olai"])
+      expect(outlinePaths(yield* fixture.set())).toEqual(["Archive.olai", "house.olai"])
       // And the flat node list follows the same order, which is what a search
       // tie reads: every record of the earlier file comes first.
       const set = yield* fixture.set()
-      expect(set.nodes.map((located) => located.file)).toEqual(
-        [...set.nodes].sort((one, two) => one.file.localeCompare(two.file)).map((
+      const records = recordsOf(set)
+      expect(records.map((located) => located.file)).toEqual(
+        [...records].sort((one, two) => one.file.localeCompare(two.file)).map((
           located,
         ) => located.file),
       )
@@ -387,7 +393,7 @@ test("archiving writes both files, and the set stays valid across them", () =>
       // One revision for the pair, not two — the gate renamed both or neither.
       expect(applied.rev).toBe(2)
       const set = yield* fixture.set()
-      expect([...set.files].sort()).toEqual(["Archive.olai", "house.olai"])
+      expect([...outlinePaths(set)].sort()).toEqual(["Archive.olai", "house.olai"])
     })))
 
 /**
@@ -432,7 +438,7 @@ test("a subtree captured in one call is one revision and one commit", () =>
       // The ids in the answer are the ids in the set, which is what makes a
       // second call under one of them possible without a search.
       const set = yield* fixture.set()
-      const byId = new Map(set.nodes.map((located) => [located.node.id, located.node]))
+      const byId = new Map(recordsOf(set).map((located) => [located.node.id, located.node]))
       for (const node of applied.captured ?? []) expect(byId.has(node.id)).toBe(true)
       expect(byId.get(applied.captured?.[3]?.id ?? "")).toMatchObject({ done: STAMP })
 
@@ -511,9 +517,9 @@ test("an edit that arrives mid-write is absorbed, not lost", () =>
 
       const applied = yield* run(fixture, { op: "done", id: "order" })
       const set = yield* fixture.set()
-      expect([...set.files].sort()).toEqual(["house.olai", "notes.olai"])
+      expect([...outlinePaths(set)].sort()).toEqual(["house.olai", "notes.olai"])
       expect(
-        set.nodes.find((located) => located.node.id === "order")?.node,
+        recordsOf(set).find((located) => located.node.id === "order")?.node,
       ).toMatchObject({ done: STAMP })
       // The pulled file is still there: the write re-derived rather than
       // re-sending bytes computed from a set that no longer existed.
@@ -574,7 +580,7 @@ test("concurrent ops all land, each re-derived from the set the last one left", 
       )
 
       const set = yield* fixture.set()
-      const byId = new Map(set.nodes.map((located) => [located.node.id, located.node]))
+      const byId = new Map(recordsOf(set).map((located) => [located.node.id, located.node]))
       expect(byId.get("order")).toMatchObject({ done: STAMP })
       expect(byId.get("install")).toMatchObject({ title: "install the cabinets" })
       expect([...byId.values()].some((node) => "title" in node && node.title === "paint"))

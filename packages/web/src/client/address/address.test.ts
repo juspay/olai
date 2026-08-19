@@ -10,7 +10,7 @@
  */
 
 import { derive } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { hrefOf } from "../routes.ts"
@@ -98,7 +98,7 @@ test("the label somebody wrote is a name; a blank one is not", () => {
 // ── what a place is called ─────────────────────────────────────────────
 
 const named = (title: string) =>
-  derive(setOf({ "garden.olai": `{"id":"herbs","ord":"a0","title":"${title}"}` }).nodes)
+  derive(recordsOf(setOf({ "garden.olai": `{"id":"herbs","ord":"a0","title":"${title}"}` })))
 
 test("a node address is called whatever that node is called right now", () => {
   expect(nameOf({ kind: "node", id: "herbs" }, named("the herb bed"))).toBe("the herb bed")
@@ -114,10 +114,10 @@ test("an address at an id nothing declares says the address rather than a blank"
 
 test("a mirror's id resolves to the node it stands for", () => {
   const set = derive(
-    setOf({
+    recordsOf(setOf({
       "garden.olai": `{"id":"herbs","ord":"a0","title":"the herb bed"}`,
       "house.olai": `{"id":"here","ord":"a0","mirror":"herbs"}`,
-    }).nodes,
+    })),
   )
   expect(nameOf({ kind: "node", id: "here" }, set)).toBe("the herb bed")
 })

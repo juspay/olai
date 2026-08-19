@@ -40,9 +40,7 @@ import {
   derive,
   type Derived,
   didYouMean,
-  type Document,
-  documentIn,
-  documentsIn,
+  documentAt,
   drawingPath,
   DOCUMENT_EXT,
   isMirror,
@@ -50,6 +48,7 @@ import {
   type LocatedRegular,
   MARKS,
   type MirrorNode,
+  markdownIn,
   type Node,
   nodeNamed,
   type Status,
@@ -60,6 +59,8 @@ import {
   nothing,
   type OpFailure,
   ordBetween,
+  type OutlineSet,
+  outlinePaths,
   OUTLINE_EXT,
   shadowFor,
   siblingsOf,
@@ -435,18 +436,18 @@ export const notANode = (id: string, target: string): OpFailure =>
  * format declares what a refusal IS ({@link ../../format/src/failure.ts}) and
  * this layer is the only one that raises one — a package that started
  * composing agent-facing prose would be a second voice for the same "no".
- * `documentsIn` and `didYouMean` are down there, and they are the two FACTS
+ * `markdownIn` and `didYouMean` are down there, and they are the two FACTS
  * this sentence is made of.
  *
- * It takes the BODIED LIST rather than a scope: {@link ./query.ts} calls it
- * over a bare set, which is what a read has.
+ * It takes the SET rather than a scope: {@link ./query.ts} calls it over a bare
+ * one, which is what a read has.
  */
 export const noSuchDocument = (
-  bodied: ReadonlyArray<Document>,
+  set: OutlineSet,
   file: string,
   instead: string,
 ): OpFailure => {
-  const near = didYouMean(file, documentsIn(bodied).map((entry) => entry.file))
+  const near = didYouMean(file, markdownIn(set).map((entry) => entry.path))
   return new NotFoundFailure({
     reason: near === ""
       ? `\`${file}\` is not a document under the served directory — ${instead}`
@@ -542,11 +543,11 @@ const landsIn = (
       }),
     )
   }
-  if (!scope.set.files.includes(file)) {
+  if (documentAt(scope.set, file)?.kind !== "outline") {
     return Result.fail(
       new NotFoundFailure({
         reason: `\`${file}\` is not one of the outlines under the served directory: ` +
-          `${scope.set.files.join(", ") || "there are none"}`,
+          `${outlinePaths(scope.set).join(", ") || "there are none"}`,
         named: file,
       }),
     )
@@ -2639,7 +2640,7 @@ const planCreate = (
     )
   }
 
-  if (scope.set.files.includes(file)) {
+  if (documentAt(scope.set, file)?.kind === "outline") {
     return Result.fail(
       new UsageFailure({
         reason:
@@ -3150,7 +3151,7 @@ const unarchiveLanding = (
     return named
   }
 
-  const beside = scope.set.files.filter((candidate) =>
+  const beside = outlinePaths(scope.set).filter((candidate) =>
     !isArchived(candidate) && archiveBeside(candidate) === archive
   )
   const chain = ancestorsOf(scope.derived, node.id).map((crumb) => crumb.node.title)
@@ -4463,11 +4464,11 @@ const planWriteDocument = (
   // documents, and what a path that is not one is told. This verb and
   // `read_document` refuse the same miss, and the only thing they say
   // differently is where to go instead.
-  const document = documentIn(scope.set.documents, request.file)
+  const document = markdownIn(scope.set).find((entry) => entry.path === request.file)
   if (document === undefined) {
     return Result.fail(
       noSuchDocument(
-        scope.set.documents,
+        scope.set,
         request.file,
         "`create_document` is what starts one",
       ),
@@ -4485,7 +4486,7 @@ const planWriteDocument = (
   // and the callers differ only in the sentence a reader gets.
   const conflict = stale(
     request.was,
-    document.text,
+    document.body,
     `\`${request.file}\` has changed since it was read — the text on disk is ` +
       `not what this write expected to replace, so nothing was written. Read the ` +
       `document again and re-derive your edit from what it says now.`,
@@ -4529,7 +4530,7 @@ const planCreateDocument = (
     )
   }
 
-  if (scope.set.documents.some((entry) => entry.file === file)) {
+  if (documentAt(scope.set, file) !== undefined) {
     return Result.fail(
       new UsageFailure({
         reason:

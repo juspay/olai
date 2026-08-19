@@ -59,6 +59,7 @@ import {
   nodesOf,
   NOTHING_PENDING,
   type Other,
+  outlinePaths,
   parseOutline,
   type Pending,
   type PushResult,
@@ -527,7 +528,7 @@ export const make = (options: Options): Committing => {
       // sweep. Slice 2 made it a lookup, and a cache for two sets of file names
       // is machinery outliving its reason.
       const served: Pick<Derived, "byFile"> = at?.derived ?? { byFile: new Map() }
-      const known = new Set(at?.set.files ?? [])
+      const known = new Set(at === undefined || at === null ? [] : outlinePaths(at.set))
       const broken = new Set((at?.set.broken ?? []).map((entry) => entry.file))
 
       // A file that cannot be read on ONE side is dropped from BOTH, and that

@@ -4,7 +4,7 @@
  */
 
 import { derive } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { pinItem } from "./palette.ts"
@@ -12,7 +12,7 @@ import { pinItem } from "./palette.ts"
 const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed"}`
 
 const derived = (pins: string) =>
-  derive(setOf({ "garden.olai": GARDEN, "Pins.olai": pins }).nodes)
+  derive(recordsOf(setOf({ "garden.olai": GARDEN, "Pins.olai": pins })))
 
 test("a page the shelf does not hold is offered the way ON", () => {
   const item = pinItem({ kind: "agenda", filter: "is:todo" }, derived(""))

@@ -43,9 +43,11 @@ import {
   biggestOf,
   changesOf,
   type Derived,
+  markdownIn,
   type Node,
   nodesOf,
   type OutlineSet,
+  outlinePaths,
   type Sort,
 } from "@olai/format"
 
@@ -101,9 +103,9 @@ export const sortOfWrite = (
   // that, and `about` is its path).
   const doc = documents[0]
   if (doc !== undefined) {
-    const prior = before.documents.find((entry) => entry.file === doc.file)
+    const prior = markdownIn(before).find((entry) => entry.path === doc.file)
     if (prior === undefined) return "created"
-    return prior.text === doc.text ? undefined : "edited"
+    return prior.body === doc.text ? undefined : "edited"
   }
   const was = new Map<string, ReadonlyArray<Node>>(
     files.map((planned) => [
@@ -121,6 +123,6 @@ export const sortOfWrite = (
   // just brought a file into being is a lie the panel would draw, so the
   // arrival of the FILE is the change, in the word the format already has for
   // a thing that was not there before.
-  const known = new Set(before.files)
+  const known = new Set(outlinePaths(before))
   return files.some((planned) => !known.has(planned.file)) ? "created" : undefined
 }

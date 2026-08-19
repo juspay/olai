@@ -8,7 +8,7 @@
  */
 
 import { derive } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { pinnedAt, pinsOf } from "./pins.ts"
@@ -24,7 +24,7 @@ const PINS = [
 const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed"}`
 
 const setWith = (pins: string) =>
-  derive(setOf({ "Pins.olai": pins, "garden.olai": GARDEN }).nodes)
+  derive(recordsOf(setOf({ "Pins.olai": pins, "garden.olai": GARDEN })))
 
 // ── the shelf ──────────────────────────────────────────────────────────
 
@@ -47,33 +47,33 @@ test("a named pin keeps its name; a bare address has none", () => {
 // down rather than skipping a row (review, 2026-08-18).
 test("…and the shelf drawn over one is the shelf without it", () => {
   const shelf = derive(
-    setOf({
+    recordsOf(setOf({
       "Pins.olai": [
         `{"id":"p-bad","ord":"a0","title":"/%"}`,
         `{"id":"p-good","ord":"a1","title":"/agenda"}`,
       ].join("\n"),
       "garden.olai": GARDEN,
-    }).nodes,
+    })),
   )
   expect(pinsOf(shelf).map((pin) => pin.id)).toEqual(["p-good"])
 })
 
 test("a directory with no shelf, and one whose shelf holds nothing, both draw none", () => {
-  expect(pinsOf(derive(setOf({ "garden.olai": GARDEN }).nodes))).toEqual([])
+  expect(pinsOf(derive(recordsOf(setOf({ "garden.olai": GARDEN }))))).toEqual([])
   expect(pinsOf(undefined)).toEqual([])
 })
 
 test("the shelf is found by NAME, wherever the directory keeps it", () => {
-  const nested = derive(setOf({ "notes/pins.olai": `{"id":"p","ord":"a0","title":"/agenda"}` }).nodes)
+  const nested = derive(recordsOf(setOf({ "notes/pins.olai": `{"id":"p","ord":"a0","title":"/agenda"}` })))
   expect(pinsOf(nested).map((pin) => pin.id)).toEqual(["p"])
 })
 
 test("a mirror on the shelf is not a pin — a placement is not a door", () => {
   const withMirror = derive(
-    setOf({
+    recordsOf(setOf({
       "Pins.olai": `{"id":"p-mirror","ord":"a0","mirror":"herbs"}`,
       "garden.olai": GARDEN,
-    }).nodes,
+    })),
   )
   expect(pinsOf(withMirror)).toEqual([])
 })

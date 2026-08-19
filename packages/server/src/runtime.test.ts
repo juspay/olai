@@ -151,7 +151,8 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
         )
         expect([...keys]).toEqual([["report.html"]])
         const set = yield* SubscriptionRef.get(store.snapshot)
-        expect(set?.value.set.documents).toEqual([{ file: "report.html", text: null }])
+        expect(set?.value.set.documents.map((one) => [String(one.path), one.kind]))
+          .toEqual([["a.olai", "outline"], ["report.html", "hypertext"]])
       }),
   ))
 

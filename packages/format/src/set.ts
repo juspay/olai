@@ -32,6 +32,7 @@ import { Result, Schema } from "effect"
 import {
   bodiedDocument,
   Document,
+  type Hypertext,
   isOutline,
   type Markdown,
   type Outline,
@@ -242,6 +243,23 @@ export const outlinePaths = (set: OutlineSet): ReadonlyArray<string> =>
  */
 export const markdownIn = (set: OutlineSet): ReadonlyArray<Markdown> =>
   set.documents.filter((document): document is Markdown => document.kind === "document")
+
+/**
+ * The BODIED documents of the set, in path order — every file the set keeps a
+ * body SLOT for, whether or not it keeps the bytes.
+ *
+ * The third narrowing, and the one that is about STORAGE rather than about
+ * meaning: a `.md` and a `.html` are the files a reader opens as a rendered
+ * page, they are published as one collection read a key at a time
+ * (`@olai/server`), and the browser knows them as a key set. {@link markdownIn}
+ * above is the narrower question — what a `doc` may point at, what an op may
+ * write — and the two are not the same list, which is exactly why both have a
+ * name.
+ */
+export const bodiedIn = (set: OutlineSet): ReadonlyArray<Markdown | Hypertext> =>
+  set.documents.filter((document): document is Markdown | Hypertext =>
+    document.kind !== "outline"
+  )
 
 /**
  * A set taken back APART into the map {@link assemble} puts together — the

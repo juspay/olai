@@ -13,7 +13,7 @@
  */
 
 import { derive, nodeNamed } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 
 import { nodeNamedBy } from "./refs.ts"
@@ -35,7 +35,7 @@ const HOUSE = [
   `{"id":"nowhere","ord":"a2","mirror":"gone"}`,
 ].join("\n")
 
-const indexes = derive(setOf({ "house.olai": HOUSE }).nodes)
+const indexes = derive(recordsOf(setOf({ "house.olai": HOUSE })))
 
 /** What `./Entry.tsx` passes: the format's own rule for what an id names. */
 const resolve = (id: string): string | null =>

@@ -91,6 +91,7 @@ export {
   assemble,
   BrokenFile,
   brokenBy,
+  bodiedIn,
   brokenIn,
   documentAt,
   markdownIn,

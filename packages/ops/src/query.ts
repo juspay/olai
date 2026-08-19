@@ -40,22 +40,21 @@ import {
   type Derived,
   type Detail,
   type DocumentBody,
-  documentIn,
-  documentsIn,
   type DocumentSummary,
   errorLine,
-  firstLine,
   follow,
   type Found,
   heldCustom,
   isMirror,
   type LocatedRegular,
+  markdownIn,
   MARKS,
   matching,
   nodesOf,
   nothing,
   type OpFailure,
   type OutlineSet,
+  outlinePaths,
   type OutlineSummary,
   parseFilter,
   type Placed,
@@ -476,7 +475,7 @@ export const outlines = (
   // field dropped from `OutlineSummary` fails HERE rather than only at the
   // table-driven decode. That is independent of what the rows hold, which is
   // why it survives the revert of the two-arm shape.
-  return set.files.map((file): OutlineSummary => {
+  return outlinePaths(set).map((file): OutlineSummary => {
     const errors = broken.get(file)
     // The zero and the empty list are what a file that did not parse gets, and
     // {@link OutlineSummary} says why that is held rather than settled.
@@ -507,7 +506,7 @@ export const outlines = (
  * Every document the directory serves, summarised — {@link outlines}' twin
  * over the other kind of file.
  *
- * WHAT COUNTS AS A DOCUMENT is not decided here: `documentsIn` is the floor's
+ * WHAT COUNTS AS A DOCUMENT is not decided here: `markdownIn` is the floor's
  * one answer, shared with the validator that checks a `doc` reference and the
  * planner that refuses a `write_document`, so what this lists and what those
  * two accept cannot come apart. A `.html` is out of all three — the set keeps
@@ -515,24 +514,27 @@ export const outlines = (
  * a read that cannot be answered and a size nobody measured.
  *
  * The broken map is taken once for the whole answer, exactly as {@link
- * outlines} takes its own: a document that did not READ is in `documents`
- * with an empty text AND in `broken` (`@olai/format`'s `assemble`), so the
+ * outlines} takes its own: a document that did not READ is in the collection
+ * with an empty body AND in `broken` (`@olai/format`'s `assemble`), so the
  * empty text has to be told apart from an empty file.
  */
 export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
   const broken = brokenBy(set)
   // ANNOTATED for {@link outlines}' reason: a field dropped from
   // `DocumentSummary` fails HERE rather than only at the table-driven decode.
-  return documentsIn(set.documents).map((entry): DocumentSummary => {
-    const errors = broken.get(entry.file)
+  return markdownIn(set).map((entry): DocumentSummary => {
+    const errors = broken.get(entry.path)
     // The empty title and the zero are what a file that could not be read
     // gets, and {@link DocumentSummary} says why that is held rather than
     // settled — it is `OutlineSummary`'s convention, matched on purpose.
     if (errors !== undefined) {
-      return { file: entry.file, title: "", bytes: 0, unreadable: errors.map(errorLine) }
+      return { file: entry.path, title: "", bytes: 0, unreadable: errors.map(errorLine) }
     }
-    const text = entry.text ?? ""
-    return { file: entry.file, title: firstLine(text), bytes: bytesOf(text) }
+    // The TITLE is the document's own now rather than this listing's reading of
+    // its text: it is a field of the face the decode built (`@olai/format`'s
+    // `Document`), which is the same title the browser draws and the same one a
+    // hit carries.
+    return { file: entry.path, title: entry.title, bytes: bytesOf(entry.body) }
   })
 }
 
@@ -558,10 +560,10 @@ export const document = (
   set: OutlineSet,
   file: string,
 ): Result.Result<DocumentBody, OpFailure> => {
-  const entry = documentIn(set.documents, file)
+  const entry = markdownIn(set).find((document) => document.path === file)
   if (entry === undefined) {
     return Result.fail(
-      noSuchDocument(set.documents, file, "`list_documents` says what is"),
+      noSuchDocument(set, file, "`list_documents` says what is"),
     )
   }
   const broken = brokenIn(set, file)
@@ -574,6 +576,6 @@ export const document = (
       }),
     )
   }
-  return Result.succeed({ file, text: entry.text ?? "" })
+  return Result.succeed({ file, text: entry.body })
 }
 

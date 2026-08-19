@@ -35,7 +35,7 @@
  * (`runtime.ts`) and needs no projection.
  */
 
-import { nodesOf, type Reading } from "@olai/format"
+import { bodiedIn, bodyOf, nodesOf, outlinePaths, type Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import type { DocumentEntry, Head, OutlineEntry } from "@olai/surface"
 
@@ -135,12 +135,14 @@ const documentsOf = (
   snapshot: Snapshot<Reading>,
   held: Published | null,
 ): Pick<Published, "documents" | "heads" | "unread"> => {
-  const documents = snapshot.value.set.documents
-  const keyOf = (document: (typeof documents)[number]) => document.file
+  // The BODIED half of the one collection: this member is what a reader opens
+  // as a page, and an outline is published as its records next door.
+  const documents = bodiedIn(snapshot.value.set)
+  const keyOf = (document: (typeof documents)[number]) => document.path
   const change = changeOf(
     documents,
     keyOf,
-    (document) => ({ rev: snapshot.rev, text: document.text }),
+    (document) => ({ rev: snapshot.rev, text: bodyOf(document) }),
     snapshot,
     held?.documents,
   )
@@ -240,7 +242,7 @@ export const publishedOf = (
 
   return {
     outlines: changeOf(
-      set.files,
+      outlinePaths(set),
       (file) => file,
       (file) => ({
         rev: snapshot.rev,

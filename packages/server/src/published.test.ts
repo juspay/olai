@@ -10,7 +10,7 @@
  */
 
 import type { OutlineSet, Reading } from "@olai/format"
-import { readingOf, setOf } from "@olai/format/testlib"
+import { readingOf, recordsOf, setOf } from "@olai/format/testlib"
 import type { Snapshot } from "@olai/store"
 import { expect, test } from "bun:test"
 
@@ -31,7 +31,7 @@ const revision = (
   // The pair the store publishes: a snapshot carries the set AND the view the
   // validator judged it against, and this projection reads both halves.
   value: readingOf(value),
-  changed: moved.changed ?? [...value.files, ...value.documents.map((d) => d.file)],
+  changed: moved.changed ?? value.documents.map((document) => document.path),
   removed: moved.removed ?? [],
 })
 
@@ -51,7 +51,7 @@ test("every file the set lists gets an entry, at the set's revision", () => {
   expect([...outlines.entries.keys()]).toEqual(["empty.olai", "house.olai"])
   expect(outlines.entries.get("house.olai")).toEqual({
     rev: 7,
-    nodes: setOf({ "house.olai": HOUSE }).nodes,
+    nodes: recordsOf(setOf({ "house.olai": HOUSE })),
     broken: null,
   })
   // A file that holds nothing is still an outline somebody can open.
