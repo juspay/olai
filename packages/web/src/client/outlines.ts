@@ -118,6 +118,26 @@ export const createOutlines = (): Outlines => {
     step: patch,
   })
 
+  /**
+   * WHAT IS LEFT WALKING THE DIRECTORY, named now that the two O(N) passes
+   * above it are gone and this is what a frame's cost is made of.
+   *
+   * `faces` and `broken` each read one field off EVERY key and rebuild their
+   * whole answer, so a frame that moved one file still costs a pass over the
+   * file list in each. That was true before this change and is unchanged by it
+   * — what changed is the company it keeps: the framework no longer copies the
+   * dict and reconciles the copy, and the derivation no longer rebuilds, so
+   * these two are now the only per-frame walks in this module.
+   *
+   * They are cheap walks — a `Face` object and a `broken` field per file,
+   * never a record — and they are NOT folded here, deliberately: a second and
+   * third accumulator over the same frames would be three things to keep in
+   * step with one wire, where the socket's own argument is that a consumer
+   * should hold ONE. If a directory large enough to feel this turns up, the
+   * honest first move is to measure a frame end to end in a browser — which
+   * nothing in this tree does any more, and which is this PR's own standing
+   * deferral rather than a claim that it would not matter.
+   */
   return {
     manifest: manifest.value,
     files,
