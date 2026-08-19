@@ -375,6 +375,14 @@ const UTF8 = new TextEncoder()
  * `Buffer.byteLength` is the other one-liner and is not available to this
  * package, which runs in a browser as readily as in a server.
  *
+ * IT MEASURES THE TEXT, not the file, and those part company for a `.md`
+ * that is not valid UTF-8: the store decodes leniently, so bytes it could not
+ * read are already replacement characters by the time this counts them, and
+ * the answer can exceed the file's size on disk. That is the RIGHT number for
+ * what this field is for — it matches the text `read_document` hands over and
+ * the text `write_document`'s `was` is compared against — and it is the same
+ * deferral as below: the store knows the real one and throws it away.
+ *
  * WHAT IT COSTS, stated because this package argues about wire cost
  * everywhere else: a listing is O(the bytes of every served `.md`), where
  * {@link ./set.ts}'s outline listing is O(nodes). That is a cost class up, and

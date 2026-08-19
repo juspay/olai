@@ -249,7 +249,12 @@ export const DocumentSummary = Schema.Struct({
    *  space a listing has. Empty for a document holding nothing. */
   title: Schema.String,
   /** Its text's size in bytes, as UTF-8 — what a caller decides with before
-   *  asking for the whole of it. */
+   *  asking for the whole of it. It is the size of the text `read_document`
+   *  would answer with, which is the file's own size for a file that is valid
+   *  UTF-8 and every `.md` anything here wrote. A file that is NOT can read
+   *  larger than it is on disk, because the bytes the decoder could not read
+   *  became replacement characters before this counted them — the number stays
+   *  true to the text you will be handed, which is the one this field is for. */
   bytes: Schema.Int,
   /** Present, and the whole of what can be said about it, when the file could
    *  not be read: its text is not loaded, so it has neither a line to be named

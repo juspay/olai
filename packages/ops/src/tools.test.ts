@@ -361,3 +361,41 @@ test("what a tool says twice has to agree with its own schema", () => {
     (asking) => asking.node({ id: "paint" }),
   )
 })
+
+/**
+ * WHAT AN AGENT ACTUALLY READS — over the whole table, because the way this
+ * breaks is per-description and silent.
+ *
+ * `list_documents` and `read_document` shipped to review with `\\n\\n` in
+ * their descriptions: two characters, a backslash and an `n`, where every
+ * other entry has a real paragraph break. Nothing catches that. It compiles,
+ * the prose assertions elsewhere in this suite still pass (they look for
+ * words, not shape), and the only reader who ever sees it is the model reading
+ * `tools/list` — which gets `lists it.\n\nREAD BEFORE YOU WRITE` run together
+ * with a stray escape in the middle of it. The tool descriptions here are long
+ * and structured, so the breaks are load-bearing: they are what separates
+ * "what this answers" from "what it refuses".
+ *
+ * A BACKSLASH-N IS NEVER RIGHT in one of these. There is no case for writing
+ * the two characters into prose an agent reads, so this is a flat ban rather
+ * than a count — and it covers a description written next year as readily as
+ * the two that provoked it. Titles too, which have no business holding a
+ * newline of either kind.
+ */
+test("no tool describes itself with an escaped newline", () => {
+  const escaped = TOOLS
+    .filter((tool) => tool.description.includes("\\n") || tool.title.includes("\\n"))
+    .map((tool) => tool.name)
+  expect(escaped).toEqual([])
+
+  // And the paragraph breaks are really there in the ones that mean to have
+  // them — the other half of the same claim, since a description with neither
+  // spelling would pass the ban above by saying nothing.
+  const paragraphs = (name: string) =>
+    (TOOLS.find((tool) => tool.name === name)?.description.match(/\n\n/g) ?? []).length
+  expect(paragraphs("list_documents")).toBeGreaterThan(0)
+  expect(paragraphs("read_document")).toBeGreaterThan(0)
+  // The tool the two were written against, so the assertion is "the same shape
+  // the table already had" rather than a number somebody chose.
+  expect(paragraphs("list_outlines")).toBeGreaterThan(0)
+})

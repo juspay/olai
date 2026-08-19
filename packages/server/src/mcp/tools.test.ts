@@ -12,7 +12,10 @@
  * enough to have their own tests:
  *
  *   - the tool list is closed, and what is missing from it is the design — no
- *     file read, no file write, no shell, no grep;
+ *     shell, no grep, no directory walk, and no read or write that names a
+ *     byte. It is NOT "no file access": the document verbs name files, which
+ *     is why the charter test below pins that retired sentence against the
+ *     list rather than for it;
  *   - the field a tool's NAME already decides never reaches the agent;
  *   - a refusal is an ANSWER: `isError`, with the structured detail beside the
  *     prose, so "which node?" is data rather than a sentence to parse.
@@ -31,7 +34,7 @@ import { STAMP, steady } from "@olai/ops/testlib"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, test } from "bun:test"
-import { Effect, SubscriptionRef } from "effect"
+import { Effect, Result, SubscriptionRef } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -72,11 +75,26 @@ interface Fixture {
   readonly refusals: ReadonlyArray<string>
 }
 
-/** The whole face over a fresh directory: store, ops, surface, tools, and an
- *  MCP client on the other end of a linked transport pair. */
+/**
+ * The whole face over a fresh directory: store, ops, surface, tools, and an
+ * MCP client on the other end of a linked transport pair.
+ *
+ * `unreadable` is the one seam a caller may replace, and it is here because
+ * one arm of the contract cannot be reached any other way. A bodied file's
+ * `decode` CANNOT fail in production — `@olai/ops`' codec answers
+ * `Result.succeed({ file, text })` for every `.md` — so a document lands in
+ * `set.broken` only when the store hands over a failed read, which on the disk
+ * store fails the whole probe rather than one file. The refusal that arm
+ * produces is still real, still reachable through a socket, and still what
+ * `write_document`'s own `writable` gate has always done; naming these paths
+ * fails their decode and leaves EVERYTHING above the codec — store, set,
+ * surface, adapter, client — exactly as it is. What is injected is one
+ * `Result`, at the one place production would have injected it.
+ */
 const withTools = <A>(
   files: Readonly<Record<string, string>>,
   use: (fixture: Fixture) => Promise<A>,
+  unreadable: ReadonlySet<string> = new Set(),
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-tools-")))
   for (const [file, contents] of Object.entries(files)) {
@@ -87,7 +105,21 @@ const withTools = <A>(
   return Effect.gen(function*() {
     const store: OutlineStore = yield* Store.make({
       root,
-      codec,
+      codec: unreadable.size === 0 ? codec : {
+        ...codec,
+        decode: (file: string, contents: string) =>
+          unreadable.has(file)
+            // `unreadable-directory` with a `line` of 0 is what the store's own
+            // `codec.unreadable` raises for a path it could not read — the
+            // closest legal code, rather than one invented for a test.
+            ? Result.fail([{
+              file,
+              line: 0,
+              code: "unreadable-directory" as const,
+              message: `${file} could not be read`,
+            }])
+            : codec.decode(file, contents),
+      },
       watch: false,
       settle: "10 millis",
     })
@@ -180,7 +212,7 @@ const call = async (
 
 // ── what the agent is offered ──────────────────────────────────────────
 
-test("the tool list is reads and writes, and no file access at all", async () => {
+test("the tool list is reads and writes, and nothing that names a byte", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     const { tools } = await client.listTools()
 
@@ -594,7 +626,71 @@ test("read_document refuses a path the set does not hold, with the closest one",
     const hypertext = await call(client, "read_document", { file: "saved/page.html" })
     expect(hypertext.isError).toBe(true)
     expect(hypertext.structured).toMatchObject({ kind: "not-found" })
+
+    // AND THE SHAPES A PATH ARGUMENT IS ATTACKED WITH. True by construction —
+    // this read never opens a path: `documentIn` asks the suffix and then
+    // matches the set's own keys EXACTLY, so there is no join, no `realpath`
+    // and no traversal to defeat. Pinned anyway, because "by construction" is
+    // a property of the current construction: the day somebody resolves a path
+    // here to be helpful, this is what says no.
+    for (const file of ["../finishes.md", "/etc/passwd.md", "notes/../finishes.md", "./finishes.md"]) {
+      const refused = await call(client, "read_document", { file })
+      expect({ file, isError: refused.isError }).toEqual({ file, isError: true })
+      expect({ file, kind: refused.structured["kind"] }).toEqual({ file, kind: "not-found" })
+    }
   })
+})
+
+/**
+ * A DOCUMENT THE SET COULD NOT READ refuses with the validator's rows — over
+ * the wire, which is where the PR body claims it.
+ *
+ * The listing's half of this is pinned in `@olai/ops`' table walk (the torn
+ * row carries `unreadable` beside an empty title and a zero). The READ's half
+ * could only be asserted at the walk before now, because that walk answers a
+ * `Result` and the table test discharges it with an `orDie` — a refusal there
+ * is a throw, not an answer. This is the arm as an agent meets it: `isError`
+ * with the kind as data and the file's own rows beside it, rather than the
+ * empty text the set is carrying for that path.
+ *
+ * WHAT IS INJECTED and what is real: one `Result.fail` at the codec, because a
+ * bodied file's decode cannot fail in production (see {@link withTools}).
+ * Everything above it is the running system — the store assembles the set with
+ * the file in `broken`, the ops layer refuses out of that set, and the answer
+ * comes back through the adapter to a real `Client`.
+ */
+test("a document the set could not read is refused, not answered empty", async () => {
+  await withTools(
+    { ...VAULT, "torn.md": "whatever the bytes were" },
+    async ({ client }) => {
+      // It is LISTED — the directory serves it — carrying its errors beside the
+      // empty title and the zero that say nobody read it.
+      const listed = (await call(client, "list_documents", {})).structured["documents"] as
+        ReadonlyArray<Record<string, unknown>>
+      expect(listed.find((one) => one["file"] === "torn.md")).toEqual({
+        file: "torn.md",
+        title: "",
+        bytes: 0,
+        unreadable: [expect.any(String)],
+      })
+
+      // And reading it refuses. The empty text is what the SET carries for a
+      // file it could not read; handing that back as a body would be a lie an
+      // agent then writes its edit against — which is exactly what
+      // `write_document`'s own gate refuses for the same file.
+      const refused = await call(client, "read_document", { file: "torn.md" })
+      expect(refused.isError).toBe(true)
+      expect(refused.structured).toMatchObject({ kind: "validation" })
+      expect(refused.structured["errors"]).toBeArrayOfSize(1)
+
+      // The same file at the write verb, refused by the same rule — one fact,
+      // two verbs, and neither of them touching a file nobody read.
+      const write = await call(client, "write_document", { file: "torn.md", text: "x" })
+      expect(write.isError).toBe(true)
+      expect(write.structured).toMatchObject({ kind: "validation" })
+    },
+    new Set(["torn.md"]),
+  )
 })
 
 // ── writing ────────────────────────────────────────────────────────────
