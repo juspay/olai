@@ -1297,21 +1297,43 @@ const insetBelow = async (
   );
 };
 
+/**
+ * A LANE IS BOTH HALVES, asserted together: it NAMES an agent (`data-lane`,
+ * pointing at a row the panel actually drew) and it is drawn INSET under that
+ * row. Either alone passes a build that lost the other — an indent that
+ * attributes nothing, or an attribution nobody can see — which is why
+ * {@link insetBelow} was extracted, and this is the four lines around it,
+ * now that a third caller asks the same question about a different kind of
+ * row.
+ *
+ * @param lane the lane's own box
+ * @param inner what inside it should be inset — the row, or the form
+ * @param what a name for it, for the failure to read as a sentence
+ * @param anonymous what to say when the lane names nobody at all
+ */
+const drawnInALane = async (
+  world: OlaiWorld,
+  lane: Locator,
+  inner: Locator,
+  what: string,
+  anonymous: string,
+): Promise<void> => {
+  await lane.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const parent = await lane.getAttribute("data-lane");
+  assert.ok(parent !== null && parent !== "", anonymous);
+  await insetBelow(world, parent ?? "", inner, what);
+};
+
 Then(
   "the chat draws a subagent's tool call under the call that spawned it",
   async function (this: OlaiWorld) {
     const lane = firstLane(this);
-    await lane.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    const parent = await lane.getAttribute("data-lane");
-    assert.ok(
-      parent !== null && parent !== "",
-      "a lane that names no agent is an indent, not an attribution",
-    );
-    await insetBelow(
+    await drawnInALane(
       this,
-      parent ?? "",
+      lane,
       lane.locator(CHAT_ENTRY).first(),
       "the subagent's row",
+      "a lane that names no agent is an indent, not an attribution",
     );
   },
 );
@@ -1446,28 +1468,29 @@ const askLane = (world: OlaiWorld) =>
 Then(
   "the question is drawn in the lane of the agent that asked it",
   async function (this: OlaiWorld) {
+    // The same two halves a subagent's tool call owes, of the same lane, so
+    // "the form is in the lane" is one claim rather than a second spelling of
+    // one — see `drawnInALane`.
     const lane = askLane(this);
-    await lane.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    const parent = await lane.getAttribute("data-lane");
-    assert.ok(
-      parent !== null && parent !== "",
+    await drawnInALane(
+      this,
+      lane,
+      lane.locator(CHAT_ASK),
+      "the question",
       "the form is drawn in the main column, which says the agent you are " +
         "talking to is the one asking — and a permission form is the row " +
         "where believing that changes what somebody decides",
     );
-    // The same geometry a subagent's tool call owes, measured the same way:
-    // the attribution is a claim, and the indent is what a reader sees.
-    await insetBelow(this, parent ?? "", lane.locator(CHAT_ASK), "the question");
   },
 );
 
 Then(
   "the question's lane names itself, as {string}",
   async function (this: OlaiWorld, named: string) {
-    // A form is pointed at from the composer and the header, so a reader
-    // arrives at it rather than scrolling down to it — the rail alone says
-    // "somebody else" and refuses to say who, at the one row where that is
-    // the question.
+    // WHICH LANE the name belongs to, which is the half the count-and-text
+    // step above ("exactly one lane names itself") cannot say: it is the
+    // FORM's lane that has to carry it, because that is the row a reader
+    // arrives at from the composer or the header with nothing above it read.
     const label = askLane(this).locator(CHAT_LANE_LABEL).first();
     await label.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     const said = oneLine(await label.innerText());
@@ -1479,22 +1502,14 @@ Then(
 );
 
 Then(
-  "the lane under the question does not introduce itself again",
+  "no lane introduces itself under the question",
   async function (this: OlaiWorld) {
-    // THE VISIBLE HALF of the same bug, and it is asserted as a PLACE rather
-    // than as a count: a form in no lane ends the stretch, so the lane opened
-    // again and introduced itself UNDER the form — one name on screen either
-    // way, on the wrong row. What has to be true is that the name above the
-    // form is the only one, so the run reads as the one agent it is.
-    const labels = this.page.locator(CHAT_LANE_LABEL);
-    assert.strictEqual(
-      await labels.count(),
-      1,
-      "the lane says whose it is more than once — a subagent's own run reads " +
-        "as several agents",
-    );
+    // THE VISIBLE HALF of the same bug, and a PLACE rather than a count — the
+    // count is the existing step's, run beside this one. A form in no lane
+    // ends the stretch, so the lane opened again and introduced itself UNDER
+    // the form: one name on screen either way, on the wrong row.
     const form = await askLane(this).locator(CHAT_ASK).boundingBox();
-    const named = await labels.first().boundingBox();
+    const named = await this.page.locator(CHAT_LANE_LABEL).first().boundingBox();
     assert.ok(form !== null && named !== null, "the form or its lane's name is not drawn");
     assert.ok(
       named.y < form.y,

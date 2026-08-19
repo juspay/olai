@@ -20,19 +20,21 @@
  * already been said on a frame. One frame answers both, so one thing
  * remembers both.
  *
- * TWO RULES, and they are the same rule at two scales, which is why both are
- * a spread:
+ * ONE RULE: **a frame refines, never retracts.** The facts arrive across
+ * frames and each carries what it knows — a subagent's terminal output arrives
+ * with only the parent, a plan exit's with only the name, and a completion
+ * with neither. A row that read a completion's silence as "no agent now" would
+ * step out of its lane at the moment the call finished, which is the moment
+ * somebody looks. So a merge is a spread, and an absent field is "nothing has
+ * said yet" rather than "nobody will".
  *
- *   - **a frame refines, never retracts.** The facts arrive across frames and
- *     each carries what it knows: a subagent's terminal output arrives with
- *     only the parent, a plan exit's with only the name, and a completion with
- *     neither. A row that read a completion's silence as "no agent now" would
- *     step out of its lane at the moment the call finished, which is the
- *     moment somebody looks.
- *   - **a request's own words win.** Where the adapter stamps the answer onto
- *     the question itself — which it does for a permission request and not for
- *     an elicitation — that is the most direct thing anybody said, and the
- *     remembered frame is the fallback rather than the other way round.
+ * A QUESTION WITH WORDS OF ITS OWN is not a second rule. A permission request
+ * carries the adapter's stamp on the tool call it is about, in the shape every
+ * frame carries it — so it is FOLDED IN like one, and reading it is the
+ * ordinary lookup. Precedence falls out (the last frame in wins, and the
+ * request is the last) rather than being a second thing a caller has to
+ * apply in the right order; and what the request said stays known, for the
+ * next question about the same call.
  *
  * Its own module for the reason {@link ./questions.ts} is: this is a small
  * state machine about a conversation rather than a fact about the protocol,
@@ -64,55 +66,63 @@ export interface Said {
   readonly parent?: string
 }
 
+/** Nothing said, which is what a frame with no adapter corner in it and a call
+ *  nobody has mentioned both come to. Frozen and SHARED, because it is the
+ *  answer for most frames a conversation carries: the ordinary tool call says
+ *  neither of these things, and {@link heard} runs on every one of them. */
+const NOTHING: Said = Object.freeze({})
+
 /** Everything one `_meta` says about the call it rode in on. The two readings
  *  in one value, so a frame and a request contribute the same shape and the
  *  merges below are one operation rather than a field-by-field `??` per
- *  caller. */
+ *  caller — and {@link NOTHING} rather than a fresh empty when it says
+ *  neither, so a frame nothing is read from costs nothing to read. */
 const saidIn = (
   meta: { readonly [key: string]: unknown } | null | undefined,
 ): Said => {
   const name = toolNameIn(meta)
   const parent = parentToolUseIn(meta)
+  if (name === null && parent === null) return NOTHING
   return {
     ...(name === null ? {} : { name }),
     ...(parent === null ? {} : { parent }),
   }
 }
 
-/** Nothing said, which is what an unknown call and a bare `_meta` both come
- *  to. Frozen and shared: {@link Calls.about} answers one of these for most of
- *  the calls a conversation makes. */
-const NOTHING: Said = Object.freeze({})
-
 export class Calls {
   #said = new Map<string, Said>()
 
   /** A frame went past. What it said about its call is folded in; a frame that
-   *  said nothing costs nothing and leaves no entry, so a conversation of
-   *  ordinary calls keeps an empty map. */
+   *  said nothing leaves no entry and allocates nothing, so a conversation of
+   *  ordinary calls keeps an empty map — which is nearly every conversation,
+   *  and this runs on every frame of all of them. */
   heard(
     id: string,
     meta: { readonly [key: string]: unknown } | null | undefined,
   ): void {
     const said = saidIn(meta)
-    if (said.name === undefined && said.parent === undefined) return
+    if (said === NOTHING) return
     this.#said.set(id, { ...this.#said.get(id), ...said })
   }
 
   /**
-   * Everything known about the call a REQUEST is about — its own words over
-   * the remembered ones.
+   * Everything said about one call so far.
    *
-   * The `_meta` is the request's, not a frame's, and the call may be `null`:
-   * an elicitation scoped to a request rather than a session names none, and
-   * asking about no call is answered rather than refused, because a question
-   * that named nothing is an ordinary question the main agent asked.
+   * A LOOKUP and nothing else. A question that arrives with words of its own
+   * about its call — which a permission request does — hands them to
+   * {@link heard} first, because they are another frame about that call and
+   * not a second kind of source; so there is one rule here rather than a
+   * precedence a caller could get backwards, and what a request said is
+   * remembered for the next question about the same call instead of being
+   * thrown away.
+   *
+   * The call may be `null`: a form elicitation may be scoped to a REQUEST
+   * rather than to a session, and one an MCP server sends may name no call.
+   * That is answered rather than refused — a question that named nothing is an
+   * ordinary question the main agent asked.
    */
-  about(
-    id: string | null,
-    meta: { readonly [key: string]: unknown } | null | undefined,
-  ): Said {
-    return { ...(id === null ? NOTHING : this.#said.get(id)), ...saidIn(meta) }
+  about(id: string | null): Said {
+    return (id === null ? undefined : this.#said.get(id)) ?? NOTHING
   }
 
   /** The conversation is over. A call id is only ever looked up inside the

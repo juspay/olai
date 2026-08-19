@@ -125,11 +125,11 @@ export const formOf = (request: CreateElicitationRequest): Form | Refused => {
 
 /** Which call a session-scoped elicitation was asked from. A cast because the
  *  field belongs to one arm of the request's union and a form elicitation may
- *  be scoped to a request instead, which names none. */
-const toolCallOf = (request: CreateElicitationRequest): string | null => {
-  const scoped = (request as { readonly toolCallId?: unknown }).toolCallId
-  return typeof scoped === "string" && scoped !== "" ? scoped : null
-}
+ *  be scoped to a request instead, which names none — and `textOr` below for
+ *  the rest, since "a string that is actually there" is one rule this file
+ *  already owns and spells four other times. */
+const toolCallOf = (request: CreateElicitationRequest): string | null =>
+  textOr((request as { readonly toolCallId?: unknown }).toolCallId, null)
 
 const fieldsOf = (
   schema: ElicitationSchema | undefined,

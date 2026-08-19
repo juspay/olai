@@ -380,31 +380,24 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * Put a form in front of a person and wait for it — the registry holds the
      * promise, and this is the one place the row it draws is announced.
      *
-     * WHO IS ASKING is worked out here rather than handed in, and the third
-     * argument is the REQUEST'S `_meta` for that reason. An asker is only ever
-     * true of one form, so a caller passing both would be pairing two things
-     * nothing enforces — each honest alone, and wrong together the first time
-     * two questions are in flight. What a caller genuinely holds that this
-     * cannot reach is the envelope the question arrived in, and the two kinds
-     * of question keep it in different places: a permission request stamps the
-     * attribution on the tool call it is about, and an elicitation carries no
-     * stamp and names the call instead ({@link ./calls.ts}).
+     * WHO IS ASKING is worked out here rather than handed in. An asker is only
+     * ever true of one form, so a caller passing both would be pairing two
+     * things nothing enforces — each honest alone, and wrong together the
+     * first time two questions are in flight. The form names the call it was
+     * asked from and the call is what has been heard about
+     * ({@link ./calls.ts}), so there is nothing left for a caller to supply.
      *
      * A form drawn in nobody's name is drawn as the main agent's, which is the
      * one thing a subagent's question must not say.
      */
-    const put = (
-      form: Form,
-      signal: AbortSignal,
-      meta: { readonly [key: string]: unknown } | null | undefined,
-    ): Promise<Questions.Settled> =>
+    const put = (form: Form, signal: AbortSignal): Promise<Questions.Settled> =>
       questions.ask(form, signal, (id) => {
         emit({
           _tag: "asked",
           id,
           message: form.message,
           fields: form.fields,
-          parent: calls.about(form.toolCall, meta).parent,
+          parent: calls.about(form.toolCall).parent,
         })
       })
 
@@ -424,7 +417,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         undrawable(form.reason)
         return { action: "decline" }
       }
-      const settled = await put(form, signal, params._meta)
+      const settled = await put(form, signal)
       // A dismissal is a DECLINE and a withdrawal is a CANCEL, and the adapter
       // reads them differently: decline tells the model the person skipped and
       // lets the turn go on, cancel aborts the tool use. Saying "cancel" for a
@@ -438,15 +431,22 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }
 
     /** Which tool a permission request is about, or `null` when nothing said —
-     *  which is answered by ASKING, never by guessing. Its sibling above reads
-     *  the other field of the same answer. */
+     *  which is answered by ASKING, never by guessing. `put` above reads the
+     *  other field of the same answer, and both are a lookup because the
+     *  request's own words went in through the same door every frame does. */
     const toolOf = (request: RequestPermissionRequest): string | null =>
-      calls.about(request.toolCall.toolCallId, request.toolCall._meta).name ?? null
+      calls.about(request.toolCall.toolCallId).name ?? null
 
     const onPermission = async (
       params: RequestPermissionRequest,
       signal: AbortSignal,
     ): Promise<RequestPermissionResponse> => {
+      // A REQUEST'S TOOL CALL IS A FRAME ABOUT THAT CALL — the adapter builds
+      // its `_meta` the same way it builds an announcement's, with the tool
+      // name and, for a subagent's call, whose it is — so it goes in through
+      // the same door rather than being read as a second kind of source. Both
+      // questions below are then a lookup.
+      calls.heard(params.toolCall.toolCallId, params.toolCall._meta)
       // The tools olai handed this conversation are answered here and now —
       // already mediated, already validated — and everything else is put in
       // front of a person. Which is which is `allowedWithoutAsking`, and it is
@@ -456,8 +456,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       if (allowed !== null) {
         return { outcome: { outcome: "selected", optionId: allowed } }
       }
-      const form = permissionFormOf(params)
-      const settled = await put(form, signal, params.toolCall._meta)
+      const settled = await put(permissionFormOf(params), signal)
       const picked = settled.content[PERMISSION_FIELD]
       // Dismissed, withdrawn, or — impossible, since the field is required, but
       // said in one place rather than assumed in two — nothing chosen. All

@@ -30,7 +30,7 @@
  * pointed at from outside the list, so a reader meets it without having read
  * the row above; and a permission form answered in the wrong agent's name is
  * the one row here where being misread changes a decision. See
- * {@link railSaysIt}.
+ * {@link namesItself}.
  *
  * WHAT CHANGES BEHIND THIS, and the reason it is a module rather than an
  * expression in the row that draws it: **how much a lane has to say to be
@@ -107,40 +107,56 @@ export const laneOf = (
   // An `Agent` frame the panel was never sent still gets a lane and still gets
   // a name — the bare fact, because "a subagent did this" is the half of the
   // sentence worth saying even when the other half is missing.
-  return { parent, label: railSaysIt(row, above) ? null : nameOf(parent) ?? SOMEBODY }
+  return { parent, label: owedAName(row, above) ? nameOf(parent) ?? SOMEBODY : null }
 }
 
+/** Whether the lane this row sits in has to say whose it is.
+ *
+ *  TWO RULES, kept apart because they are answered by different things and
+ *  each has already been re-decided on its own: WHERE the row sits, and WHAT
+ *  it is. Spelled as one predicate they would share a name that is true of
+ *  one of them — a form directly under its own `Agent` frame IS established,
+ *  and still owes its name. */
+const owedAName = (row: ChatEntry, above: ChatEntry | undefined): boolean =>
+  namesItself(row) || !established(row, above)
+
 /**
- * Whether the rail alone already says whose row this is.
+ * Whether the row above already put the reader in this lane.
  *
- * OVER THE TWO ROWS, like {@link laneOf} itself and for its reason: "the lane
- * is established" is a fact about this pair and about no single value in it,
- * so taking it as a computed boolean beside the row would be a pair nothing
- * enforces — each argument honest alone, and the two able to describe
- * different places in the list.
+ * OVER THE TWO ROWS, like {@link laneOf} itself and for its reason: this is a
+ * fact about the PAIR and about no single value in it, so taking it as a
+ * computed boolean beside a row would be a pair nothing enforces — each
+ * argument honest alone, and the two able to describe different places in the
+ * list.
  *
- * Two ways for the lane to be established already, and they are the two shapes
- * a reader actually sees: the `Agent` frame itself is the row above (the
- * ordinary case — a subagent's first call lands directly under the call that
- * spawned it), or the row above is another call by the same agent.
- *
- * That is the rule for WORK, and it is enough for work because a reader who
- * wants to know whose grep this was reads upwards and finds out. A QUESTION is
- * not work: it is a control, it blocks the turn, and the panel sends people to
- * it from somewhere else entirely — the composer, the header and the app's
- * agent toggle all say a question is waiting
- * ({@link ../../../../chat/README.md}) — so a reader ARRIVES at a form rather
- * than scrolling down to it, and has no row above to have read.
- *
- * So an ask names its lane wherever it is drawn. It costs one line under a
- * form that is already several, and what it buys is that a question a subagent
- * asked cannot be answered in the belief that the main agent asked it. The
- * stretch itself is unaffected — the row below the form is still one of the
- * same agent's, so the lane does not open again underneath it.
+ * Two ways to be established, and they are the two shapes a reader actually
+ * sees: the `Agent` frame itself is the row above (the ordinary case — a
+ * subagent's first call lands directly under the call that spawned it), or the
+ * row above is another call by the same agent.
  */
-const railSaysIt = (row: ChatEntry, above: ChatEntry | undefined): boolean =>
-  row.kind !== "ask" &&
-  (above?.id === row.parent || above?.parent === row.parent)
+const established = (row: ChatEntry, above: ChatEntry | undefined): boolean =>
+  above?.id === row.parent || above?.parent === row.parent
+
+/**
+ * ... and whether this KIND of row names its lane regardless of where it sits.
+ *
+ * Position is enough for WORK, because a reader who wants to know whose grep
+ * this was reads upwards and finds out. A QUESTION is not work: it is a
+ * control, it blocks the turn, and a reader is told one is waiting from
+ * outside the list entirely — the composer, the header and the app's agent
+ * toggle all say so ({@link ../../../../chat/README.md}) — so the form they
+ * then go looking for may be anywhere, including scrolled off the top of a
+ * long transcript with nothing above it they have read.
+ *
+ * The load-bearing half is simpler and stands alone: a permission form
+ * answered in the wrong agent's name is a decision made on a false premise,
+ * and this is the one row in the panel where that is possible. It costs one
+ * line above a form that is already several.
+ *
+ * The stretch is unaffected either way — the row below a form is still one of
+ * the same agent's, so the lane does not open again underneath it.
+ */
+const namesItself = (row: ChatEntry): boolean => row.kind === "ask"
 
 /** What a lane is called when the frame that spawned it is not on screen. */
 const SOMEBODY = "a subagent"

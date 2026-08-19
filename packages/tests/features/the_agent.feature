@@ -1101,7 +1101,8 @@ Feature: Talking to the agent
     And I answer the question
     Then the agent's answer mentions "permission: allow"
     And the question is drawn in the lane of the agent that asked it
-    And the lane under the question does not introduce itself again
+    And exactly one lane names itself, as "explore the outline"
+    And no lane introduces itself under the question
 
   @scratch:chat
   Scenario: A question a subagent asked is drawn in the subagent's lane too
@@ -1117,7 +1118,8 @@ Feature: Talking to the agent
     When I choose "oak"
     And I answer the question
     Then the agent's answer mentions "oak"
-    And the lane under the question does not introduce itself again
+    And exactly one lane names itself, as "explore the outline"
+    And no lane introduces itself under the question
 
   @scratch:chat
   Scenario: An answered question is still there after a reload

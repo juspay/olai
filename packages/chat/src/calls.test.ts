@@ -21,7 +21,7 @@ const meta = (claudeCode: Record<string, unknown>) => ({ claudeCode })
 
 describe("what a frame said about its call", () => {
   test("a call nothing said anything about is known by nothing", () => {
-    expect(new Calls().about("call-1", undefined)).toEqual({})
+    expect(new Calls().about("call-1")).toEqual({})
   })
 
   test("an announcement's name is what a later question is answered with", () => {
@@ -30,16 +30,13 @@ describe("what a frame said about its call", () => {
     // whether a person is asked at all.
     const calls = new Calls()
     calls.heard("call-1", meta({ toolName: "Bash" }))
-    expect(calls.about("call-1", undefined).name).toBe("Bash")
+    expect(calls.about("call-1").name).toBe("Bash")
   })
 
   test("an announcement's agent is what a later question is attributed to", () => {
     const calls = new Calls()
     calls.heard("call-1", meta({ toolName: "Bash", parentToolUseId: "agent-1" }))
-    expect(calls.about("call-1", undefined)).toEqual({
-      name: "Bash",
-      parent: "agent-1",
-    })
+    expect(calls.about("call-1")).toEqual({ name: "Bash", parent: "agent-1" })
   })
 
   test("a frame that says half of it does not take the other half back", () => {
@@ -48,10 +45,7 @@ describe("what a frame said about its call", () => {
     const calls = new Calls()
     calls.heard("call-1", meta({ toolName: "Bash" }))
     calls.heard("call-1", meta({ parentToolUseId: "agent-1" }))
-    expect(calls.about("call-1", undefined)).toEqual({
-      name: "Bash",
-      parent: "agent-1",
-    })
+    expect(calls.about("call-1")).toEqual({ name: "Bash", parent: "agent-1" })
   })
 
   test("a completion that says nothing leaves everything where it was", () => {
@@ -62,29 +56,35 @@ describe("what a frame said about its call", () => {
     calls.heard("call-1", meta({ toolName: "Bash", parentToolUseId: "agent-1" }))
     calls.heard("call-1", undefined)
     calls.heard("call-1", meta({}))
-    expect(calls.about("call-1", undefined)).toEqual({
-      name: "Bash",
-      parent: "agent-1",
-    })
+    expect(calls.about("call-1")).toEqual({ name: "Bash", parent: "agent-1" })
+  })
+
+  test("what one call was is never what another was", () => {
+    const calls = new Calls()
+    calls.heard("call-1", meta({ toolName: "Bash", parentToolUseId: "agent-1" }))
+    calls.heard("call-2", meta({ toolName: "Edit" }))
+    expect(calls.about("call-2")).toEqual({ name: "Edit" })
   })
 })
 
-describe("what the request itself said", () => {
-  test("the request's own words win over the remembered ones", () => {
-    // A permission request for a subagent's tool is stamped with both, and
-    // that is the most direct thing anybody said about it.
+describe("a question with words of its own", () => {
+  test("a request's tool call is a frame, so the last word is its own", () => {
+    // A permission request carries the adapter's stamp on the tool call it is
+    // about, in the shape every frame carries it. It goes in the same door —
+    // so precedence falls out of the order rather than being a second rule.
     const calls = new Calls()
     calls.heard("call-1", meta({ toolName: "Bash", parentToolUseId: "agent-1" }))
-    expect(calls.about("call-1", meta({ toolName: "Edit", parentToolUseId: "agent-2" })))
-      .toEqual({ name: "Edit", parent: "agent-2" })
+    calls.heard("call-1", meta({ toolName: "Edit", parentToolUseId: "agent-2" }))
+    expect(calls.about("call-1")).toEqual({ name: "Edit", parent: "agent-2" })
   })
 
-  test("a request that says nothing falls through to the frame that did", () => {
-    // The elicitation's whole path: `elicitation/create` carries no
-    // attribution at all, only the call it was asked from.
+  test("and what it said stays known for the next question about that call", () => {
+    // The reason this is a fold rather than a precedence applied at each read:
+    // an `elicitation/create` names a call and carries no attribution at all,
+    // so what an earlier request said about that call is the answer it gets.
     const calls = new Calls()
-    calls.heard("call-1", meta({ toolName: "AskUserQuestion", parentToolUseId: "agent-1" }))
-    expect(calls.about("call-1", meta({})).parent).toBe("agent-1")
+    calls.heard("call-1", meta({ parentToolUseId: "agent-1" }))
+    expect(calls.about("call-1").parent).toBe("agent-1")
   })
 
   test("a question that names no call is answered rather than refused", () => {
@@ -93,8 +93,7 @@ describe("what the request itself said", () => {
     // asked, which is what an empty answer says.
     const calls = new Calls()
     calls.heard("call-1", meta({ parentToolUseId: "agent-1" }))
-    expect(calls.about(null, undefined)).toEqual({})
-    expect(calls.about(null, meta({ parentToolUseId: "agent-2" })).parent).toBe("agent-2")
+    expect(calls.about(null)).toEqual({})
   })
 })
 
@@ -106,7 +105,7 @@ describe("the conversation ending", () => {
     const calls = new Calls()
     calls.heard("call-1", meta({ toolName: "Bash" }))
     calls.forget()
-    expect(calls.about("call-1", undefined)).toEqual({})
+    expect(calls.about("call-1")).toEqual({})
   })
 })
 
@@ -117,6 +116,6 @@ describe("what nothing here reads", () => {
     // about by name rather than approved by accident.
     const calls = new Calls()
     calls.heard("call-1", { toolName: "Bash", parentToolUseId: "agent-1" })
-    expect(calls.about("call-1", { toolName: "Bash" })).toEqual({})
+    expect(calls.about("call-1")).toEqual({})
   })
 })

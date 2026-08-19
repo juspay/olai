@@ -356,7 +356,14 @@ export class Transcript {
     id: string,
     message: string,
     fields: ReadonlyArray<AskField>,
-    parent?: string,
+    // REQUIRED, and `undefined` for the main agent's own — not optional, which
+    // would spell what `tool`'s `move.parent` spells forty lines up while
+    // meaning the opposite. There, absent is "this report said nothing"; here
+    // there is nothing to say later, because a question is asked once by one
+    // agent. A caller that could leave it off is a caller that can mint an
+    // unattributed form without a type error, which is the bug this argument
+    // exists to close ({@link ./events.ts} draws the same line one layer up).
+    parent: string | undefined,
   ): Change {
     return both(
       this.#close(),
@@ -379,15 +386,17 @@ export class Transcript {
     // the withdrawal reaches us; there is nothing left to settle, and minting a
     // row here would put a dead question into a fresh conversation.
     if (current?.ask === undefined) return EMPTY
+    // THE ROW AS IT STANDS, with the outcome written into it — rather than
+    // three of its fields named again here. This used to be the second, and
+    // the day an ask row gained a field it did not name (`parent`, whose whole
+    // point is that a subagent's form says whose it is) the answer would have
+    // been drawn under the wrong agent's name at the moment it became the
+    // record of a decision. `contentOf` is the file's own answer to exactly
+    // that — its header says so about the writer that split off before this
+    // one — so the class is unrepresentable rather than documented.
     return this.#put(id, {
-      kind: "ask",
-      text: current.text,
+      ...contentOf(current),
       ask: { fields: current.ask.fields, outcome },
-      // The row is REWRITTEN rather than patched, so whose question it was has
-      // to be carried across by hand: an answered form that stepped out of its
-      // lane would leave the reader looking at the record of a decision with
-      // the wrong agent's name over it.
-      ...(current.parent === undefined ? {} : { parent: current.parent }),
     })
   }
 

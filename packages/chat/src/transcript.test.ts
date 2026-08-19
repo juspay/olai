@@ -222,7 +222,7 @@ describe("questions", () => {
     // The form and its answer are one thing that happened. A second row would
     // leave an answer with nothing above it saying what was asked.
     const transcript = new Transcript()
-    transcript.ask("ask:1", "Shall I?", fields)
+    transcript.ask("ask:1", "Shall I?", fields, undefined)
     const settled = transcript.settleAsk("ask:1", {
       how: "answered",
       answers: [{ key: "question_0", values: ["yes"] }],
@@ -240,7 +240,7 @@ describe("questions", () => {
   test("a question closes the paragraph the agent was writing", () => {
     const transcript = new Transcript()
     transcript.say("I need to know something")
-    const change = transcript.ask("ask:1", "Shall I?", fields)
+    const change = transcript.ask("ask:1", "Shall I?", fields, undefined)
 
     expect(touched(change)).toEqual(["agent:1", "ask:1"])
     expect(rows(transcript)[0]?.streaming).toBeUndefined()
@@ -265,7 +265,7 @@ describe("questions", () => {
 
   test("the main agent's own questions are in nobody's lane", () => {
     const transcript = new Transcript()
-    transcript.ask("ask:1", "Shall I?", fields)
+    transcript.ask("ask:1", "Shall I?", fields, undefined)
     expect(rows(transcript)[0]?.parent).toBeUndefined()
   })
 
@@ -308,7 +308,7 @@ describe("questions", () => {
     // the withdrawal arrives; minting a row here would put a dead question at
     // the top of a fresh conversation.
     const transcript = new Transcript()
-    transcript.ask("ask:1", "Shall I?", fields)
+    transcript.ask("ask:1", "Shall I?", fields, undefined)
     transcript.clear()
 
     expect(transcript.settleAsk("ask:1", { how: "withdrawn", answers: [] }))
