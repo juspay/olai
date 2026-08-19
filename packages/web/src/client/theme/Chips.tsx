@@ -1,5 +1,5 @@
 /**
- * The fifteen palettes, as chips: every chip is a theme, wearing the theme it
+ * The named palettes, as chips: every chip is a theme, wearing the theme it
  * offers, and pressing one picks it.
  *
  * It draws the strip and nothing else — no popover, no trigger. It used to own

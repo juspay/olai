@@ -34,7 +34,7 @@
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
 
-  /* all fifteen, ported from packages/web/src/client/theme/palettes.ts — one row per
+  /* the table, ported from packages/web/src/client/theme/palettes.ts — one row per
      theme, because a theme IS eight colours with a name. A mock wears one by
      carrying `data-theme`, the attribute the app writes on <html>, so nothing
      below has to know a hex to be repainted. chalk is here as well as above
@@ -60,6 +60,8 @@
   [data-theme="neo"]        { --paper:#141414; --ink:#DCDBDB; --muted:#9EA1A2; --rule:#242424; --accent:#76A9FA; --done:#8DBD6A; --doing:#F1C068; --alarm:#CF4653; }
   [data-theme="one-dark"]   { --paper:#282C33; --ink:#C8CCD4; --muted:#5D636F; --rule:#3B4048; --accent:#73ADE9; --done:#A1C181; --doing:#DFC184; --alarm:#D07277; }
   [data-theme="robot"]      { --paper:#000000; --ink:#FEA143; --muted:#7A8A8A; --rule:#E8393F; --accent:#3580D3; --done:#4ED8A3; --doing:#DFE361; --alarm:#E8393F; }
+  [data-theme="reef"]       { --paper:#D7F0E8; --ink:#14352F; --muted:#4E7A71; --rule:#9CC9BE; --accent:#C44E24; --done:#1F7A58; --doing:#C48418; --alarm:#C13B4E; }
+  [data-theme="aurora"]     { --paper:#0A1220; --ink:#D5E8F5; --muted:#7A93B0; --rule:#2A3C58; --accent:#4EE0C8; --done:#7EE0A8; --doing:#F0C04A; --alarm:#F07090; }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; }
@@ -1042,7 +1044,7 @@ The corner unit is the **risky one** — see
 
 <section id="prefs">
   <div class="wrap">
-    <h2>Preferences, and fifteen palettes</h2>
+    <h2>Preferences, and the palettes</h2>
     <p class="lead">One door in the app header, and three rows behind it: the
     theme, the typeface, and what a page does with finished work. All three
     are this browser’s, which is the panel’s own first claim about itself:
@@ -1069,6 +1071,8 @@ The corner unit is the **risky one** — see
             <span class="chip" data-theme="neo">neo</span>
             <span class="chip" data-theme="one-dark">one-dark</span>
             <span class="chip" data-theme="robot">robot</span>
+            <span class="chip" data-theme="reef">reef</span>
+            <span class="chip" data-theme="aurora">aurora</span>
           </div>
           <p class="hint">chalk is in force. Every colour on the page is this
           one table, so a pick repaints all of them at once.</p>
@@ -1101,7 +1105,7 @@ The corner unit is the **risky one** — see
           <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
           <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
         </div>
-        <p class="caption">The same rows, in two of the fifteen. A palette is
+        <p class="caption">The same rows, in two of the palettes. A palette is
         eight colours with a name; picking one writes <code>data-theme</code> on
         <code>&lt;html&gt;</code>, and the stored pick lands there before the
         first paint, so a reload never flashes the wrong one.</p>
@@ -1109,7 +1113,7 @@ The corner unit is the **risky one** — see
     </div>
     <div class="cols">
       <div>
-        <p><strong>Seven of the fifteen are dark grounds.</strong> There is no
+        <p><strong>Eight of the seventeen are dark grounds.</strong> There is no
         <em>system</em> chip and no auto: the operating system’s preference is
         not consulted at all, because two ways to be dark are two answers that
         can disagree — with each other, and with the reader who already said
