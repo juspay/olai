@@ -90,6 +90,7 @@ import {
   BrokenFile,
   CommitRequest,
   CommitResult,
+  Face,
   GIT_OFF,
   GitState,
   Located,
@@ -164,6 +165,16 @@ export const OutlineEntry = Schema.Struct({
    *  parse, and empty for one that holds nothing — the difference is `broken`. */
   nodes: Schema.Array(Located),
   broken: Schema.NullOr(BrokenFile),
+  /** What this file IS, apart from what it holds: its title, the addresses it
+   *  points at, the tags its records write (`@olai/format`'s `Face`).
+   *
+   *  It rides here rather than being derived on arrival, and that is a cost
+   *  decision rather than a doctrinal one: a browser CAN build an outline's
+   *  face — it holds the records and the format's own constructor — but doing
+   *  so is a walk of every title and every note of the corpus per revision,
+   *  where the server built this once when the file's bytes changed. The
+   *  face is small; the walk is not. */
+  face: Face,
 })
 export type OutlineEntry = typeof OutlineEntry.Type
 
@@ -256,6 +267,20 @@ export type DocumentEntry = typeof DocumentEntry.Type
  */
 export const Head = Schema.Struct({
   rev: Schema.Int,
+  /** What the file IS, apart from what it says: its title, the addresses it
+   *  points at, the tags it writes (`@olai/format`'s `Face`).
+   *
+   *  THE ONE FACT THAT MAY JOIN `rev` HERE, and it is worth saying why, since
+   *  the paragraph above forbids a second answer to a question `rev` already
+   *  has. A size, a modified time or a hash would each be one of those. A face
+   *  is not: it is what the file SAYS, which is the question this member could
+   *  not be asked before — and a browser cannot derive it the way it can an
+   *  outline's, because the body it would read is the one thing this collection
+   *  exists to keep off the wire. Without it a document is a PATH to every tab
+   *  in the app, which is the position the whole first-class-documents arc is
+   *  about. It moves when `rev` moves and by the same act, since both are cut
+   *  from one document in one function (`@olai/server`'s `published.ts`). */
+  face: Face,
 })
 export type Head = typeof Head.Type
 

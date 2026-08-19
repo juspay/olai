@@ -187,8 +187,13 @@ test("a reader watching a head is told the file moved, and no body is read", () 
         yield* store.refresh
 
         const frames = [...yield* Fiber.join(watching)]
-        // A head and nothing else — no `text` key at all, not even a `null`.
-        expect(frames.map((frame) => Object.keys(frame))).toEqual([["rev"], ["rev"]])
+        // A revision and a face, and NO BODY — no `text` key at all, not even a
+        // `null`. That is the whole of what this member is for: what the file
+        // is and when it moved, without the megabytes of a saved page.
+        expect(frames.map((frame) => Object.keys(frame))).toEqual([
+          ["rev", "face"],
+          ["rev", "face"],
+        ])
         expect(frames[0]?.rev).toBeLessThan(frames[1]?.rev ?? 0)
 
         // THE POINT. The file changed under a reader who is watching it, and

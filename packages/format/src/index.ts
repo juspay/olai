@@ -120,6 +120,8 @@ export {
   bodiedDocument,
   bodyOf,
   Document,
+  Face,
+  faceOf,
   Hypertext,
   isOutline,
   Markdown,

@@ -35,7 +35,7 @@
  * (`runtime.ts`) and needs no projection.
  */
 
-import { bodiedIn, bodyOf, nodesOf, outlinePaths, type Reading } from "@olai/format"
+import { bodiedIn, bodyOf, faceOf, nodesOf, outlinesIn, type Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import type { DocumentEntry, Head, OutlineEntry } from "@olai/surface"
 
@@ -155,7 +155,12 @@ const documentsOf = (
   const heads = changeOf(
     documents,
     keyOf,
-    () => ({ rev: snapshot.rev }),
+    // The FACE rides here — the cheap half of a document, cut from the same
+    // value the body was cut from, one line up. That is what makes the two
+    // slices one fact rather than two: a head whose face disagreed with the
+    // body beside it would be a title the palette draws for prose the page
+    // does not have.
+    (document) => ({ rev: snapshot.rev, face: faceOf(document) }),
     snapshot,
     held?.heads,
   )
@@ -242,12 +247,13 @@ export const publishedOf = (
 
   return {
     outlines: changeOf(
-      outlinePaths(set),
-      (file) => file,
-      (file) => ({
+      outlinesIn(set),
+      (outline) => outline.path,
+      (outline) => ({
         rev: snapshot.rev,
-        nodes: nodesOf(derived, file),
-        broken: broken.get(file) ?? null,
+        nodes: nodesOf(derived, outline.path),
+        broken: broken.get(outline.path) ?? null,
+        face: faceOf(outline),
       }),
       snapshot,
       published?.outlines,

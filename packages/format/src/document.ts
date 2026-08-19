@@ -109,7 +109,7 @@ import { slugsIn } from "./slug.ts"
  * front of a question the model does not have, which is which half of a
  * document a fact is about.
  */
-const Face = {
+export const Face = Schema.Struct({
   /** Its identity: where it is, relative to the served root. The one thing
    *  every kind has had all along, and the only thing hypertext has. */
   path: DocumentPath,
@@ -126,7 +126,34 @@ const Face = {
   /** The tags its prose writes, as written — both sigils, `#topic` and
    *  `@person`, which are two namespaces over one alphabet (`./derive.ts`). */
   tags: Schema.Array(Tag),
-}
+})
+export type Face = typeof Face.Type
+
+/**
+ * A document's face, on its own — what is known about a file once its CONTENT
+ * is set aside.
+ *
+ * It exists for the WIRE, and for one reason that is worth stating rather than
+ * inferring: a body does not travel with the set. A directory of thousands of
+ * `.md` files publishes its bodies one key at a time, read by whoever is
+ * showing one (`@olai/surface`), so a browser that had only the collection
+ * would know a document's PATH and nothing else about it — which is exactly the
+ * position every feature was in before this arc, one layer out. The face is the
+ * cheap half: a title, the addresses it points at, the tags it writes. It rides
+ * on the entries that already travel per file, and it is what lets a palette row
+ * carry a name and a document's page say who points at it without fetching a
+ * word of prose.
+ *
+ * A PROJECTION and not a second type: every arm below IS one of these plus its
+ * content, so what crosses the wire is a value this module made and not a shape
+ * somebody assembled to match it.
+ */
+export const faceOf = ({ path, title, links, tags }: Document): Face => ({
+  path,
+  title,
+  links,
+  tags,
+})
 
 /**
  * A `.olai`: the records this app is about, and the face they add up to.
@@ -140,7 +167,7 @@ const Face = {
  */
 export const Outline = Schema.Struct({
   kind: Schema.Literal("outline"),
-  ...Face,
+  ...Face.fields,
   nodes: Schema.Array(Located),
 })
 export type Outline = typeof Outline.Type
@@ -162,7 +189,7 @@ export type Outline = typeof Outline.Type
  */
 export const Markdown = Schema.Struct({
   kind: Schema.Literal("document"),
-  ...Face,
+  ...Face.fields,
   body: Schema.String,
   headings: Schema.Array(Slug),
 })
@@ -186,7 +213,7 @@ export type Markdown = typeof Markdown.Type
  */
 export const Hypertext = Schema.Struct({
   kind: Schema.Literal("hypertext"),
-  ...Face,
+  ...Face.fields,
 })
 export type Hypertext = typeof Hypertext.Type
 
