@@ -317,7 +317,7 @@ A **shelf of doors** in the directory column, between the calendar and the file 
 
 **The `×` takes one off**, and so does the verb it was put up with. Unpinning is the set's own removal — the pin's row goes to the Trash keeping its id — so `⌘Z` takes it back and **Put back** is there if you find it later.
 
-**A pin can be NAMED, and naming one is typing.** Make the row's title a markdown link — `[Kitchen project](/n/abc123)` — and the shelf draws *Kitchen project*, pressing it opens the address, and the query it carries is still drawn beside it. There is no rename verb and no field: a pin's name is that row's text, so you change it the way you change any other row. A bare address takes its name from whatever it points at, live.
+**A pin can be NAMED, and naming one is typing.** Make the row's title a markdown link — `[Kitchen project](/#abc123)` — and the shelf draws *Kitchen project*, pressing it opens the address, and the query it carries is still drawn beside it. There is no rename verb and no field: a pin's name is that row's text, so you change it the way you change any other row. A bare address takes its name from whatever it points at, live.
 
 **And the file reads like an outline.** Open `Pins.olai` and its rows are the same faces the shelf draws — the pin mark, the name, the query — because a title that names a place is drawn as that place wherever it appears, not just in the sidebar. On a named pin the label is the link; click anywhere else on the line and the editor shows the title as it really is, which is the same thing every markdown title does.
 
@@ -329,7 +329,7 @@ The palette goes places and asks the agent ([search.md](search.md)); it writes t
 
 **An untouched palette has nothing chosen.** The rows a node can take are listed first, where you can see them, and that is only safe because the highlight is where the arrows START rather than a choice you made: press ⌘K and Enter and nothing happens. The first character you type is the choice, and it lights the best match; ↓ is the other way in.
 
-**The verbs of the node you have ZOOMED.** On `/n/<id>`, the palette lists what that node can take — `Mark todo`, `Complete`, `Clear mark`, `Clear date`, `Duplicate`, `Move to Trash` — the entries of the row's ••• menu that need no second gesture, decided by the same rule (a verb that would change nothing is not drawn), naming the same ids, and refused in the same words. Each row says which node it is about on its second line, because a palette is opened from anywhere. This is the affordance the zoomed node never had: the ••• hangs off a row, and a zoom is a page.
+**The verbs of the node you have ZOOMED.** On `/#<id>`, the palette lists what that node can take — `Mark todo`, `Complete`, `Clear mark`, `Clear date`, `Duplicate`, `Move to Trash` — the entries of the row's ••• menu that need no second gesture, decided by the same rule (a verb that would change nothing is not drawn), naming the same ids, and refused in the same words. Each row says which node it is about on its second line, because a palette is opened from anywhere. This is the affordance the zoomed node never had: the ••• hangs off a row, and a zoom is a page.
 
 On any other page there are none of them. A command read out of context must not be aimed at a node you cannot see, and what the address says you are looking at is a fact you and the palette can both see.
 

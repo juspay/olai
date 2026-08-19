@@ -18,7 +18,7 @@
  *   - **a link to a `.md` is a link to that document's page.** `[the deck](
  *     ../projects/deck.md)` is how a vault of Markdown files points at itself,
  *     and the browser would resolve it against whatever ROUTE the page is at —
- *     which is the document's own directory on `/doc/…` by luck, and the wrong
+ *     which is the document's own directory by luck, and the wrong
  *     place on `/d/<date>`, where a note is drawn under an address that is not
  *     a file at all. So it is resolved beside the file the link was WRITTEN in
  *     (`@olai/format`'s `bodiedOf`) and spelled as this app's own document
@@ -75,7 +75,7 @@ const walk = (parent: Root | Element, options: Rewrite, headings: Heading[]): vo
     if (child.type !== "element") continue
     if (child.tagName === "img") resolvePicture(child, options.from)
     if (child.tagName === "a") {
-      // Document first: a relative `.md` becomes `/doc/…` and must not then
+      // Document first: a relative `.md` becomes a page address and must not then
       // be treated as something that leaves the app.
       resolveDocument(child, options.from)
       openExternal(child)
@@ -160,7 +160,7 @@ const resolvePicture = (element: Element, from: string): void => {
  * that is not a document is not this app's to reinterpret.
  *
  * Whether the directory HOLDS the document is not asked, for the same reason
- * `/doc/<anything>` is an address a person may type: the page model already has
+ * `/<anything>.md` is an address a person may type: the page model already has
  * a screen that names a document it does not have, and a link quietly left
  * relative would send the reader somewhere with nothing to say at all.
  */
@@ -183,14 +183,14 @@ const resolveDocument = (element: Element, from: string): void => {
  *
  * A click on one of these used to navigate the olai tab away: the href is a
  * real address the browser is happy to follow, and `../router.tsx`'s
- * `followed` correctly declines it (`routeIn` claims only a `/doc/…` page).
+ * `followed` correctly declines it (`routeIn` claims only this app's pages).
  * The address is still the address — this pass does not rewrite it — but the
  * click must not be able to throw the app away. `noopener noreferrer` is the
  * pair that keeps the new tab from holding `window.opener` back at us.
  *
  * Written here, after the sanitiser, so a note cannot carry a `target` of its
  * own choosing and so a relative `.md` that {@link resolveDocument} has just
- * pointed at `/doc/…` is not stamped. Everything else — a fragment, a path
+ * pointed at its own page is not stamped. Everything else — a fragment, a path
  * that is not a document, an app `<Link>` this walk never sees — is untouched.
  */
 const openExternal = (element: Element): void => {

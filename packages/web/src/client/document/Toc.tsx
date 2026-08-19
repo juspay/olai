@@ -30,7 +30,7 @@
  *
  * Which is also the one thing that has to be said out loud about it. `open` is
  * an attribute the BROWSER then owns: shutting it mutates the element and
- * nothing re-runs. A page reused from `/doc/a` to `/doc/b` would therefore
+ * nothing re-runs. A page reused from `/a.md` to `/b.md` would therefore
  * carry the reader's answer about the first document onto the second, and
  * "open by default" would quietly mean "open until you ever shut one".
  *

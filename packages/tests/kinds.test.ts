@@ -92,7 +92,7 @@ test("no code outside the registry decides by spelling a suffix", () => {
  * Every surface that draws a kind, and which union it draws over.
  *
  * `FileKind` is every kind there is; `BodyKind` is the ones whose content is a
- * body, which is what a `/doc/…` address opens. A table over the second must
+ * body, which is what a bodied address opens. A table over the second must
  * NOT have an outline in it — that is not a page with a body, and an entry
  * there would be a face nothing can reach.
  *

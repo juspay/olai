@@ -57,7 +57,7 @@ Feature: The outline remembers how you left it
     And there should be no page errors
 
   Scenario: A node folded on its own page is folded on the outline
-    # The same claim from the other end, and cold: `/n/<id>` is a permalink
+    # The same claim from the other end, and cold: `/#<id>` is a permalink
     # somebody can arrive at with no history behind it.
     Given I open the node "kitchen"
     When I collapse the node "install"

@@ -20,7 +20,7 @@ Feature: Starting a new outline from the sidebar
 
   Scenario: A new outline is created and opened, and the sidebar lists it
     When I create the outline "plans/next.olai" from the sidebar
-    Then the address is "/o/plans/next.olai"
+    Then the address is "/plans/next.olai"
     And the outline list links to "plans/next.olai"
     And the page has not reloaded
     And there should be no page errors
@@ -39,7 +39,7 @@ Feature: Starting a new outline from the sidebar
   Scenario: A path the set already holds is refused in the op's own words
     When I create the outline "house.olai" from the sidebar
     Then the outline creation is refused saying "is already an outline"
-    And the address is "/o/house.olai"
+    And the address is "/house.olai"
 
   Scenario: So is a path that is not a relative `.olai`
     # Three rules, one sentence, and it is the planner's — a browser that

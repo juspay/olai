@@ -14,11 +14,11 @@ import { expect, test } from "bun:test"
 import { pinnedAt, pinsOf } from "./pins.ts"
 
 const PINS = [
-  `{"id":"p-herbs","ord":"a0","title":"/n/herbs"}`,
-  `{"id":"p-doc","ord":"a1","title":"/doc/notes/finishes.md"}`,
+  `{"id":"p-herbs","ord":"a0","title":"/#herbs"}`,
+  `{"id":"p-doc","ord":"a1","title":"/notes/finishes.md"}`,
   `{"id":"p-late","ord":"a2","title":"[What is late](/agenda?q=is%3Atodo)"}`,
   `{"id":"p-note","ord":"a3","title":"the ones I keep coming back to"}`,
-  `{"id":"p-under","parent":"p-herbs","ord":"a0","title":"/n/kitchen"}`,
+  `{"id":"p-under","parent":"p-herbs","ord":"a0","title":"/#kitchen"}`,
 ].join("\n")
 
 const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed"}`
@@ -49,7 +49,7 @@ test("…and the shelf drawn over one is the shelf without it", () => {
   const shelf = derive(
     setOf({
       "Pins.olai": [
-        `{"id":"p-bad","ord":"a0","title":"/n/%"}`,
+        `{"id":"p-bad","ord":"a0","title":"/%"}`,
         `{"id":"p-good","ord":"a1","title":"/agenda"}`,
       ].join("\n"),
       "garden.olai": GARDEN,

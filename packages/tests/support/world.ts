@@ -207,7 +207,7 @@ export const HYPERTEXT_LINK = selector(TESTID.hypertextLink);
  *  only element of that page this app owns. */
 export const HYPERTEXT_PREVIEW = selector(TESTID.hypertextPreview);
 export const HYPERTEXT_SAID = selector(TESTID.hypertextSaid);
-/** One document, as a page: `/doc/<file>`. */
+/** One document, as a page: `/<file>`. */
 export const DOCUMENT_PAGE = selector(TESTID.documentPage);
 /** The rendered markdown of a document — on its own page, or inline under the
  *  node that attaches it. */
@@ -610,7 +610,7 @@ export const TRASH_LINK = selector(TESTID.trashLink);
 export const DAY_NOTE = selector(TESTID.dayNote);
 /** Its heading — the way from the day to the document's own page. */
 export const DAY_NOTE_LINK = selector(TESTID.dayNoteLink);
-/** Shown in the main pane when `/n/<id>` names no node. The sidebar stays. */
+/** Shown in the main pane when `/#<id>` names no node. The sidebar stays. */
 export const NOT_FOUND = selector(TESTID.notFound);
 /** Shown INSTEAD of the sidebar and the tree when a set has never validated. */
 export const ERROR_VIEW = selector(TESTID.errorView);
@@ -1280,10 +1280,10 @@ export class OlaiWorld extends World {
   }
 
   /** Open a node's own page COLD — the permalink, in a fresh document, with
-   *  no click history behind it. That is the whole promise of `/n/<id>`, and
+   *  no click history behind it. That is the whole promise of `/#<id>`, and
    *  navigating there in-app instead would never test it. */
   async openNode(id: string): Promise<void> {
-    await this.open(`/n/${encodeURIComponent(id)}`);
+    await this.open(`/#${encodeURIComponent(id)}`);
   }
 
   /** One day's own page COLD — `/d/<date>` in a fresh document, which is what
@@ -1300,7 +1300,7 @@ export class OlaiWorld extends World {
 
   /** One document's own page COLD, the way a link someone sent would arrive. */
   async openDocument(file: string): Promise<void> {
-    await this.open(`/doc/${file.split("/").map(encodeURIComponent).join("/")}`);
+    await this.open(`/${file.split("/").map(encodeURIComponent).join("/")}`);
   }
 
   /**
@@ -1426,7 +1426,7 @@ export class OlaiWorld extends World {
   /** The path AND the query — what a reader would copy out of the bar when the
    *  page is narrowed. Its own accessor beside {@link pathname} because the
    *  filter is part of the address (`routes.ts`) and every other assertion in
-   *  this suite is about a path: a step asserting "/o/house.olai" must not
+   *  this suite is about a path: a step asserting "/house.olai" must not
    *  start passing for a page that is also filtered. */
   address(): string {
     const url = new URL(this.page.url());

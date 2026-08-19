@@ -45,8 +45,8 @@ Feature: The filter reaches every page that draws nodes
 
   @corpus:journal
   Scenario: A day's note is not part of the answer
-    # A note is a DOCUMENT — prose, which is why `/doc/` is the one address that
-    # takes no `?q=`. It can never be a match, so a filtered day draws the query's
+    # A note is a DOCUMENT — prose, which is why a document is the one page whose
+    # address takes no `?q=`. It can never be a match, so a filtered day draws the query's
     # answer and nothing else; clearing the box brings the day back whole.
     Given I open the day "2019-11-05"
     Then the day shows the note "Daily/2019/11/2019-11-05.md"
@@ -93,7 +93,7 @@ Feature: The filter reaches every page that draws nodes
     # the pill inside it might have suggested.
     Given I open the day "2019-11-05"
     When I press the tag "#home"
-    Then the address is exactly "/n/deck"
+    Then the address is exactly "/#deck"
 
   @corpus:agenda
   Scenario: The agenda narrows day by day, and the silences close up

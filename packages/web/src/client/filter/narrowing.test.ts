@@ -331,7 +331,7 @@ test("`is:archived` on an outline still draws that outline's nothing", () => {
   expect(reading.counts().shown).toBe(0)
 })
 
-// The OTHER tree, and the reason that arm survived the ruling: `/n/<id>` on a
+// The OTHER tree, and the reason that arm survived the ruling: `/#<id>` on a
 // node somebody put away is a tree whose rows are archived, and it is exactly
 // where an `is:archived` hit lands when a reader clicks it (docs/search.md —
 // what was taken away is the default presence, never the reachability). A

@@ -416,7 +416,7 @@ test("anything else a frame could say is not a page to open", () => {
       `${OPEN}/media/`,
       // Not this route's URL space at all — the app's own addresses included,
       // which is the shape a page would reach for to name a page directly.
-      `${OPEN}/doc/second.html`,
+      `${OPEN}/second.html`,
       `${OPEN}second.html`,
       `${OPEN}https://olai.test/media/second.html`,
       // The climbs, refused by the one decoder rather than by a second one.

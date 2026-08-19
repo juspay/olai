@@ -11,7 +11,7 @@
  *
  * Between the two: the DIRECTORY'S DOCUMENTS (`./documents.ts`), matched by
  * name and path against the served list this tab already holds, drawn with the
- * sidebar's own glyph, and opening the `/doc/` address the router has served
+ * sidebar's own glyph, and opening the document's address the router has served
  * all along. They are keyed on the NAME and nowhere near a body — the grammar
  * above still selects nodes, and a document is prose.
  *

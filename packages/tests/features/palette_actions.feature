@@ -282,7 +282,7 @@ Feature: The ⌘K palette writes
     And I capture "buy the walnut stain" from the palette
     Then the command palette is open
     And the palette box holds "+ "
-    And the address is "/n/install"
+    And the address is "/#install"
     When I capture "and a tin of oil" from the palette
     Then "Inbox.olai" holds a node titled "and a tin of oil"
     And "Inbox.olai" holds a node titled "buy the walnut stain"

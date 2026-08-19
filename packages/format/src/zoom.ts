@@ -1,7 +1,7 @@
 /**
  * One node, as a page.
  *
- * An id is the whole address (`/n/<id>` in the browser): ids are unique across
+ * An id is the whole address (`/#<id>` in the browser): ids are unique across
  * the loaded set and survive renames and moves, so a link to a node outlives
  * every edit short of deleting it. Which file the node lives in and where it
  * sits in the tree are DERIVED here, not carried in the address — the outline
@@ -28,7 +28,7 @@ import {
   situate,
 } from "./derive.ts"
 
-/** What `/n/<id>` shows: a node, or the reason it cannot. */
+/** What `/#<id>` shows: a node, or the reason it cannot. */
 export type Zoomed =
   | (Situated & {
     readonly kind: "node"

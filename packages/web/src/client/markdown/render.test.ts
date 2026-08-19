@@ -156,16 +156,16 @@ test("a picture whose address never reached us still says so", () => {
 //
 // A vault of Markdown points at itself with plain relative paths, and the
 // browser would resolve one against whatever ROUTE the page is at — the
-// document's own directory on `/doc/…` by luck, and the wrong place on
+// document's own directory on the document page by luck, and the wrong place on
 // `/d/<date>`, where a day's note is drawn under an address that is not a file.
 // So the link is resolved beside the file it was WRITTEN in, and spelled as
 // this app's document route.
 
 test("a relative link to a document points at that document's page", () => {
   expect(renderMarkdown("[the deck](../projects/deck.md)", "Daily/2026-08-12.md"))
-    .toContain(`href="/doc/projects/deck.md"`)
+    .toContain(`href="/projects/deck.md"`)
   expect(renderMarkdown("[palette](notes/palette.md)", "finishes.md"))
-    .toContain(`href="/doc/notes/palette.md"`)
+    .toContain(`href="/notes/palette.md"`)
 })
 
 // The base is the FILE, never the route. This is the same source rendered from
@@ -174,16 +174,16 @@ test("a relative link to a document points at that document's page", () => {
 test("a link in a note resolves beside the note, not beside the page", () => {
   const source = "[palette](palette.md)"
   expect(renderMarkdown(source, "notes/2026-08-12.md"))
-    .toContain(`href="/doc/notes/palette.md"`)
+    .toContain(`href="/notes/palette.md"`)
   // The same link written in an OUTLINE resolves beside the outline.
-  expect(renderMarkdown(source, "house.olai")).toContain(`href="/doc/palette.md"`)
+  expect(renderMarkdown(source, "house.olai")).toContain(`href="/palette.md"`)
 })
 
 // A fragment is two questions — which file, and where in it — so the path is
 // resolved and the anchor is carried through exactly as written.
 test("a document link keeps the fragment it was written with", () => {
   expect(renderMarkdown("[beds](garden.md#beds)", NOTE))
-    .toContain(`href="/doc/garden.md#beds"`)
+    .toContain(`href="/garden.md#beds"`)
 })
 
 // Everything else goes where it says. There is no allowlist widened here and
@@ -200,7 +200,7 @@ test("a link that is not a relative document is left exactly as written", () => 
 // An http(s) address is still the address — the test above pins that — but
 // the click must not be able to throw this tab away. Stamped here, after the
 // sanitiser, so a note cannot carry a target of its own and a relative `.md`
-// that just became `/doc/…` is not treated as something that leaves the app.
+// that just became a page address is not treated as something that leaves the app.
 test("an external http(s) link opens in a new tab", () => {
   for (const href of ["https://example.com/x.md", "http://example.com/x.md"]) {
     const html = renderMarkdown(`[a](${href})`, NOTE)
@@ -212,7 +212,7 @@ test("an external http(s) link opens in a new tab", () => {
 
 test("a document link is not sent to a new tab", () => {
   const html = renderMarkdown("[the deck](../projects/deck.md)", "Daily/2026-08-12.md")
-  expect(html).toContain(`href="/doc/projects/deck.md"`)
+  expect(html).toContain(`href="/projects/deck.md"`)
   expect(html).not.toContain("target=")
   expect(html).not.toContain("rel=")
 })
@@ -230,7 +230,7 @@ test("a fragment-only link is not sent to a new tab", () => {
 test("a fragment-only link is still minted, not routed", () => {
   const html = renderMarkdown("[up](#top)\n\n# top\n", NOTE)
   expect(html).toMatch(/href="#md-[a-z0-9]+-top"/)
-  expect(html).not.toContain("/doc/")
+  expect(html).not.toContain("/projects/")
 })
 
 // ── heading anchors, and the contents derived from them ──────────────────

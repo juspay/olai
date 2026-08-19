@@ -106,7 +106,7 @@ test("a path is decoded and guarded whether or not the route would answer it", (
       "/media/notes.md%00.olai",
       "/media/%zz.md",
       "/media/",
-      "/doc/notes.md",
+      "/notes.md",
       "",
     ]
   ) {
@@ -115,7 +115,7 @@ test("a path is decoded and guarded whether or not the route would answer it", (
 })
 
 test("a request that is not this route's is not this route's", () => {
-  expect(mediaTarget("/n/kitchen")).toBeNull()
+  expect(mediaTarget("/#kitchen")).toBeNull()
   expect(mediaTarget("/mediashot.png")).toBeNull()
 })
 

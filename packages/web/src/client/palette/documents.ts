@@ -5,7 +5,7 @@
  * The palette streamed node hits and captured a line to the inbox, and a
  * document was reachable from it by no row of any kind: not by name, not by
  * path, not by the address the router has served all along
- * (`../routes.ts`'s `/doc/`). A reader who knew a file existed had to leave
+ * (`../routes.ts`). A reader who knew a file existed had to leave
  * the modal, find the sidebar, open the folder it lives in and click it —
  * which is the `md-second-class` table's ⌘K row, and the one line of it that
  * was unargued rather than decided.
@@ -28,7 +28,7 @@
  * with. Two doors, one answer, for `../search/nodes.ts`'s reason one kind of
  * hit over.
  *
- * ## Every file a `/doc/` address opens, which is the registry's answer
+ * ## Every file drawn as a body, which is the registry's answer
  *
  * A `.md` and a `.html`, because that is what "the pages made of a body" IS
  * (`@olai/format`'s `bodyKind`) — the same question the sidebar's tree asks to

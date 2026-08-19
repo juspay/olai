@@ -15,7 +15,7 @@
  *
  * ## AND A TITLE THAT IS NOTHING BUT AN ADDRESS IS DRAWN AS THE PAGE IT NAMES
  *
- * `/doc/orchestrator/instructions.md` is a title this app WRITES: it is how a
+ * `/orchestrator/instructions.md` is a title this app WRITES: it is how a
  * pin is spelled, because storing a name beside the address would be storing a
  * copy of a fact the set already holds (docs/format.md's Pins). The sidebar's
  * shelf resolved those rows from the first day and the FILE's own page did
@@ -29,8 +29,8 @@
  * it is an ordinary outline, and it now reads like one.
  *
  * A TITLE WRITTEN AS ONE MARKDOWN LINK to an address is the same face with a
- * name in it (human, 2026-08-19): `[Kitchen project](/n/abc123)` draws
- * *Kitchen project* and pressing it opens `/n/abc123`. That is how a pin
+ * name in it (human, 2026-08-19): `[Kitchen project](/#abc123)` draws
+ * *Kitchen project* and pressing it opens `/#abc123`. That is how a pin
  * carries a name somebody chose — renaming one is editing this row's text, and
  * no op and no field were added for it. It stays an ANCHOR because it was
  * written as a link; what it gains is the mark and the query beside it, and

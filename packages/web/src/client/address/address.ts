@@ -10,7 +10,7 @@
  * IT LIVES HERE RATHER THAN IN `../pins/` because the shelf turned out to be
  * one consumer of it and not the axis. The axis is *what an address in a title
  * means*, and the second consumer is the outline itself: a row of `Pins.olai`
- * opened as the ordinary outline it is drew `/doc/orchestrator/instructions.md`
+ * opened as the ordinary outline it is drew `/orchestrator/instructions.md`
  * — the plumbing, in a place the design invites people to browse (maintainer,
  * 2026-08-18, on a screenshot). One resolver, read by whoever is drawing, is
  * what keeps the shelf and the tree from having two answers about one title.
@@ -21,7 +21,7 @@
 
 import { basenameOf, type Derived, nodeNamed } from "@olai/format"
 
-import { hrefOf, type Route, routeOf, splitAddress } from "../routes.ts"
+import { hrefOf, type Route, routeIn } from "../routes.ts"
 
 /**
  * A title written as one markdown link, cut into its two halves.
@@ -37,23 +37,18 @@ const LINKED = /^\[([^\]]*)\]\(([^()\s]+)\)$/
 /**
  * The address a title names, or `undefined`.
  *
- * THE TEST IS THE BIJECTION, and it is the reason this is three lines rather
- * than a list of prefixes: `routeOf` answers the DEFAULT OUTLINE for anything
- * it does not recognise, which is the right kindness for somebody who typed
- * into the address bar and exactly wrong here — every title beginning with a
- * slash would become a door to the front page. So the route is printed back
- * and the PATHS are compared: an address this app would mint reads back as
- * itself, and `/etc/passwd` reads back as `/` and is a title.
- *
- * The paths and not the whole address, because the query is re-encoded on the
- * way out (`?q=is:todo` prints as `?q=is%3Atodo`, which is the same filter
- * spelled the way `URLSearchParams` spells it). Comparing the strings whole
- * would refuse an address somebody wrote by hand for being punctuated
- * differently from the way a browser punctuates.
+ * IT IS THE SAME QUESTION A LINK IN RENDERED MARKDOWN IS READ BY
+ * (`../routes.ts`'s {@link routeIn}), and asking it there rather than here is
+ * the whole of this function's rule: `routeOf` answers the DEFAULT OUTLINE for
+ * anything it does not recognise, which is the right kindness for somebody who
+ * typed into the address bar and exactly wrong here — every title beginning
+ * with a slash would become a door to the front page. The parser says for
+ * itself whether it recognised a page, `/etc/passwd` is a title, and a pin and
+ * a written link cannot come to two answers about one address.
  *
  * AND IT IS TOTAL over any string, which is a promise it can only make because
- * `routeOf` makes it first. A title spelled with an escape nothing can read —
- * `/n/%`, `/doc/%ZZ` — used to throw a `URIError` out of the parse, and a throw
+ * the parser makes it first. A title spelled with an escape nothing can read —
+ * `/%`, `/%ZZ.md` — used to throw a `URIError` out of the parse, and a throw
  * here is not a skipped row: it happens during render, so it takes the tree
  * that was rendering with it, on a file the format invites a hand and an agent
  * to edit (found in review, 2026-08-18). Such a title reads as what it is — an
@@ -61,7 +56,7 @@ const LINKED = /^\[([^\]]*)\]\(([^()\s]+)\)$/
  * and `/etc/passwd`.
  *
  * That is a different answer from a WELL-FORMED address whose target is gone:
- * `/n/deleted-id` is a place this app can read, so it is drawn, labelled with
+ * `/#deleted-id` is a place this app can read, so it is drawn, labelled with
  * its own address ({@link nameOf}) — the honest dead row. What is refused here
  * is text that is not an address at all.
  */
@@ -72,16 +67,13 @@ export const addressIn = (title: string): Route | undefined => {
   if (!text.startsWith("/") && !text.startsWith("[")) return undefined
   const linked = LINKED.exec(text)
   const address = linked === null ? text : (linked[2] ?? "")
-  if (!address.startsWith("/") || /\s/.test(address)) return undefined
-  const route = routeOf(address)
-  return splitAddress(hrefOf(route)).pathname === splitAddress(address).pathname
-    ? route
-    : undefined
+  if (/\s/.test(address)) return undefined
+  return routeIn(address) ?? undefined
 }
 
 /** The name written INTO a title, for the address somebody named — `undefined`
  *  for the bare form, which is what this app writes and what {@link nameOf}
- *  answers for. An empty label (`[](/n/herbs)`) is no name: a door with a blank
+ *  answers for. An empty label (`[](/#herbs)`) is no name: a door with a blank
  *  on it is worse than one the set can name. */
 export const labelIn = (title: string): string | undefined => {
   const label = LINKED.exec(title.trim())?.[1]?.trim()
@@ -92,7 +84,7 @@ export const labelIn = (title: string): string | undefined => {
  * WHAT THE PAGE AN ADDRESS OPENS IS CALLED.
  *
  * A reading of the SET rather than a property of the address, and that is the
- * point: an address stores where it goes and nothing else, so `/n/herbs` is
+ * point: an address stores where it goes and nothing else, so `/#herbs` is
  * called whatever that node is called RIGHT NOW. Rename the node anywhere — in
  * the tree, from an agent, in vim — and every face drawn from that address
  * says the new name on the frame the store publishes, because there was never

@@ -18,7 +18,7 @@
  * **The document half of a node address is optional, and the bare id is what
  * this prints.** Node ids are unique across the loaded set and survive renames
  * and moves between files, so a bare `#id` outlives every edit short of a
- * delete — the property the browser's `/n/<id>` permalink argued for, kept.
+ * delete — the property the browser's node permalink argued for, kept.
  * The qualified spelling is READ (`Tasks.olai#a1b2c3` is what somebody writes
  * when they know where the node lives) and NORMALISED away, because the file
  * in it is a fact that can go stale and the id beside it cannot.

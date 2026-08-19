@@ -38,6 +38,8 @@ const ROUTES: ReadonlyArray<Route> = [
   { kind: "agenda", filter: "is:blocked" },
   { kind: "trash", filter: "hinges" },
   { kind: "outline", file: null, filter: "#home -is:done" },
+  // A narrowed NODE page is the case the query's position is decided by: the
+  // address is a fragment, and a URL puts its query in front of one.
   { kind: "node", id: "kitchen", filter: "date:2026-08-01..2026-08-14" },
   { kind: "node", id: "kitchen", filter: "a query with  spaces & an ampersand" },
   // A quoted phrase is the query that puts a `"` — and the spaces it exists to
@@ -57,12 +59,18 @@ test("every route survives being written to a URL and read back", () => {
   }
 })
 
+// A content URL is `/` and then the address — no prefix, because the suffix in
+// the path already says which kind of page it opens and a node's address is a
+// fragment (`@olai/format`'s `address.ts`).
 test("the addresses are the documented ones", () => {
   expect(hrefOf({ kind: "outline", file: null })).toBe("/")
-  expect(hrefOf({ kind: "outline", file: "house.olai" })).toBe("/o/house.olai")
-  expect(hrefOf({ kind: "node", id: "kitchen" })).toBe("/n/kitchen")
+  expect(hrefOf({ kind: "outline", file: "house.olai" })).toBe("/house.olai")
+  expect(hrefOf({ kind: "node", id: "kitchen" })).toBe("/#kitchen")
   expect(hrefOf({ kind: "document", file: "notes/finishes.md" })).toBe(
-    "/doc/notes/finishes.md",
+    "/notes/finishes.md",
+  )
+  expect(hrefOf({ kind: "document", file: "garden.md", at: "beds" })).toBe(
+    "/garden.md#beds",
   )
   expect(hrefOf({ kind: "day", date: "2026-08-10" })).toBe("/d/2026-08-10")
   expect(hrefOf({ kind: "today" })).toBe("/today")
@@ -70,17 +78,39 @@ test("the addresses are the documented ones", () => {
   expect(hrefOf({ kind: "trash" })).toBe("/trash")
 })
 
+// Which PAGE a path opens is the suffix's answer: a `.olai` is a tree, and
+// every other served kind is a body. One address grammar, two pages, and no
+// prefix free to disagree with the name it carries.
+test("the suffix decides which page a document address opens", () => {
+  expect(routeOf("/house.olai")).toEqual({ kind: "outline", file: "house.olai" })
+  expect(routeOf("/finishes.md")).toEqual({ kind: "document", file: "finishes.md" })
+  expect(routeOf("/saved/report.html")).toEqual({
+    kind: "document",
+    file: "saved/report.html",
+  })
+})
+
+// The node permalink is location-free: an id survives renames and moves
+// between files, and the grammar's own spelling of a node carries no file.
+test("a node is a fragment and nothing else", () => {
+  expect(routeOf("/#kitchen")).toEqual({ kind: "node", id: "kitchen" })
+  // Written with the file it lives in — which somebody who knows where it is
+  // will write — and normalised to the bare id on the way in.
+  expect(routeOf("/house.olai#kitchen")).toEqual({ kind: "node", id: "kitchen" })
+  expect(hrefOf(routeOf("/house.olai#kitchen"))).toBe("/#kitchen")
+})
+
 // ── the filter, which is the one thing that is not a path ──────────────
 
 // An unfiltered page is exactly the address it always was: no `?`, no empty
 // query, so one page is one string in the bar and one entry in the history.
 test("a page with no filter wears no query at all", () => {
-  expect(hrefOf({ kind: "outline", file: "house.olai" })).toBe("/o/house.olai")
+  expect(hrefOf({ kind: "outline", file: "house.olai" })).toBe("/house.olai")
   expect(hrefOf({ kind: "outline", file: "house.olai", filter: "" })).toBe(
-    "/o/house.olai",
+    "/house.olai",
   )
-  expect(hrefOf({ kind: "node", id: "kitchen", filter: "   " })).toBe("/n/kitchen")
-  expect(routeOf("/o/house.olai?q=")).toEqual({
+  expect(hrefOf({ kind: "node", id: "kitchen", filter: "   " })).toBe("/#kitchen")
+  expect(routeOf("/house.olai?q=")).toEqual({
     kind: "outline",
     file: "house.olai",
   })
@@ -94,25 +124,32 @@ test("a page with no filter wears no query at all", () => {
 // drawn on what the page DRAWS, `page.ts`), and the address the app writes back
 // is the bare one.
 test("a `?q=` typed onto a document address is dropped, not carried", () => {
-  expect(routeOf("/doc/finishes.md?q=hinges")).toEqual({
+  expect(routeOf("/finishes.md?q=hinges")).toEqual({
     kind: "document",
     file: "finishes.md",
   })
   // ...including beside the one thing that address DOES carry.
-  expect(routeOf("/doc/garden.md?q=hinges#beds")).toEqual({
+  expect(routeOf("/garden.md?q=hinges#beds")).toEqual({
     kind: "document",
     file: "garden.md",
     at: "beds",
   })
-  expect(filterOf(routeOf("/doc/finishes.md?q=hinges"))).toBe("")
-  expect(hrefOf(routeOf("/doc/finishes.md?q=hinges"))).toBe("/doc/finishes.md")
+  expect(filterOf(routeOf("/finishes.md?q=hinges"))).toBe("")
+  expect(hrefOf(routeOf("/finishes.md?q=hinges"))).toBe("/finishes.md")
 })
 
-test("a filtered page spells it in the query", () => {
+// A URL puts its query BEFORE its fragment, so a narrowed node page is the one
+// address whose two halves sit either side of the filter. Written any other
+// way, the browser reads `?q=…` as part of the fragment and the page loses its
+// filter.
+test("a filtered page spells it in the query, in front of any fragment", () => {
   expect(hrefOf({ kind: "outline", file: "house.olai", filter: "#home" })).toBe(
-    "/o/house.olai?q=%23home",
+    "/house.olai?q=%23home",
   )
-  expect(routeOf("/n/kitchen?q=is%3Adone")).toEqual({
+  expect(hrefOf({ kind: "node", id: "kitchen", filter: "is:todo" })).toBe(
+    "/?q=is%3Atodo#kitchen",
+  )
+  expect(routeOf("/?q=is%3Adone#kitchen")).toEqual({
     kind: "node",
     id: "kitchen",
     filter: "is:done",
@@ -150,7 +187,7 @@ test("every route but a document's takes a filter, and a blank one takes it off"
     "",
   )
   expect(filterOf(cleared)).toBe("")
-  expect(hrefOf(cleared)).toBe("/o/house.olai")
+  expect(hrefOf(cleared)).toBe("/house.olai")
   expect(samePage(cleared, { kind: "outline", file: "house.olai" })).toBe(true)
 })
 
@@ -178,7 +215,7 @@ test("what a page is narrowed by is read off the route", () => {
 // parses — what page it opens is `page.ts`'s call, not this parser's.
 test("the trash is one address, and an archive's path is still an outline's", () => {
   expect(routeOf("/trash")).toEqual({ kind: "trash" })
-  expect(routeOf("/o/Archive.olai")).toEqual({
+  expect(routeOf("/Archive.olai")).toEqual({
     kind: "outline",
     file: "Archive.olai",
   })
@@ -201,26 +238,31 @@ test("`/today` parses as itself, not as a date", () => {
   expect(routeOf("/today/")).toEqual({ kind: "outline", file: null })
 })
 
+// The computed pages are words this app claimed and are read FIRST; every
+// other path is asked of the address grammar. The two cannot collide, because
+// a served file carries a suffix the registry claims and a computed page
+// spells none — so a file that WOULD collide is one this app never serves.
+test("a computed page is not a document, and a document is not a day", () => {
+  expect(routeOf("/today.md")).toEqual({ kind: "document", file: "today.md" })
+  expect(routeOf("/d/2026-08-10")).toEqual({ kind: "day", date: "2026-08-10" })
+  expect(routeOf("/agenda.olai")).toEqual({ kind: "outline", file: "agenda.olai" })
+})
+
 // A directory separator stays a separator, so the URL bar shows the path a
 // reader recognises rather than a run of escapes.
 test("an outline in a subdirectory keeps its slashes", () => {
   expect(hrefOf({ kind: "outline", file: "wing/kitchen.olai" })).toBe(
-    "/o/wing/kitchen.olai",
+    "/wing/kitchen.olai",
   )
 })
 
-// A document address and a day address share a first letter and nothing else:
-// the prefixes are whole segments, so `/doc/` is never read as `/d/`.
-test("a document is not a day", () => {
-  expect(routeOf("/doc/a.md")).toEqual({ kind: "document", file: "a.md" })
-  expect(routeOf("/d/2026-08-10")).toEqual({ kind: "day", date: "2026-08-10" })
-})
-
 // Not a route the app writes — a reader typed it. The app they wanted is the
-// one at `/`, not a blank screen.
+// one at `/`, not a blank screen. A path with no suffix the registry claims
+// names no file this directory serves, so it names nothing at all.
 test("an unrecognised path is the default outline", () => {
   expect(routeOf("/")).toEqual({ kind: "outline", file: null })
   expect(routeOf("/somewhere/else")).toEqual({ kind: "outline", file: null })
+  expect(routeOf("/notes.txt")).toEqual({ kind: "outline", file: null })
 })
 
 // A link inside rendered markdown gets the STRICT reading, and the difference
@@ -230,16 +272,14 @@ test("an unrecognised path is the default outline", () => {
 // BIJECTION — an address this app would mint reads back as itself — which is
 // the same test a title that NAMES a place is read by.
 test("a link on the page is a route when it names a page of this app", () => {
-  expect(routeIn("/doc/notes/plan.md")).toEqual({
+  expect(routeIn("/notes/plan.md")).toEqual({
     kind: "document",
     file: "notes/plan.md",
   })
   // Every kind of page, because a pin may be written as a link and pressing one
-  // opens the address (human, 2026-08-19). It claimed `/doc/` alone until then,
-  // and a link that worked for one of the six would have been a rule about pins
-  // hiding inside a rule about links.
-  expect(routeIn("/n/herbs")).toEqual({ kind: "node", id: "herbs" })
-  expect(routeIn("/o/house.olai")).toEqual({ kind: "outline", file: "house.olai" })
+  // opens the address (human, 2026-08-19).
+  expect(routeIn("/#herbs")).toEqual({ kind: "node", id: "herbs" })
+  expect(routeIn("/house.olai")).toEqual({ kind: "outline", file: "house.olai" })
   expect(routeIn("/d/2026-08-10")).toEqual({ kind: "day", date: "2026-08-10" })
   expect(routeIn("/agenda?q=is%3Atodo")).toEqual({ kind: "agenda", filter: "is:todo" })
   expect(routeIn("/today")).toEqual({ kind: "today" })
@@ -251,7 +291,9 @@ test("a link on the page is a route when it names a page of this app", () => {
       "/somewhere/else",
       "/etc/passwd",
       // …nor one written with an escape nothing can read.
-      "/n/%",
+      "/%",
+      // An anchor inside the page being read, which is the browser's: an
+      // address of this app always starts with a slash.
       "#md-1a2b-beds",
       "",
     ]
@@ -260,41 +302,45 @@ test("a link on the page is a route when it names a page of this app", () => {
   }
 })
 
-// A fragment in RENDERED MARKDOWN is still left to the browser, and that is now
-// a narrower statement than it was: the `/doc/` page can land on a section (the
-// route carries one, and the two faces do the landing), but `routeIn` reads an
-// href written in somebody's file, where `#beds` means the id the MARKDOWN has
-// and the page's own ids are minted per block. Claiming it here would need the
-// same translation the face does, at a point that has no rendering to ask.
-test("a document link in markdown carrying a fragment is left to the browser", () => {
-  expect(routeIn("/doc/garden.md#beds")).toBeNull()
+// A fragment is part of the ADDRESS since the addresses ruling, so a link
+// written with one is claimed rather than left to the browser: `#install` after
+// a document is a heading it can land on, and `#a1b2c3` on its own is a node.
+test("a link into a section of a document is this app's", () => {
+  expect(routeIn("/garden.md#beds")).toEqual({
+    kind: "document",
+    file: "garden.md",
+    at: "beds",
+  })
+  // …including the qualified spelling of a node, which this app reads and would
+  // not have written: what decides is whether the parser recognised it.
+  expect(routeIn("/house.olai#kitchen")).toEqual({ kind: "node", id: "kitchen" })
 })
 
 // The two halves an address keeps apart. A `#` ends the query, so a filter and
 // a fragment on one address must not bleed into each other — read the wrong way
 // round, `?q=is:done#beds` narrows a page by a word nobody typed.
 test("a fragment and a filter are read as themselves", () => {
-  expect(routeOf("/doc/garden.md#beds")).toEqual({
+  expect(routeOf("/garden.md#beds")).toEqual({
     kind: "document",
     file: "garden.md",
     at: "beds",
   })
-  expect(routeOf("/o/house.olai?q=is:done#beds")).toEqual({
+  // The fragment is the ELEMENT half of the address — here an id in an
+  // outline, which normalises to the node — and the query is neither half.
+  expect(routeOf("/house.olai?q=is:done#beds")).toEqual({
+    kind: "node",
+    id: "beds",
+    filter: "is:done",
+  })
+  expect(routeOf("/house.olai?q=is:done")).toEqual({
     kind: "outline",
     file: "house.olai",
     filter: "is:done",
   })
   // An empty fragment names no place, and neither does one that cannot be
   // decoded — both are a page that draws fine without one.
-  expect(routeOf("/doc/garden.md#")).toEqual({ kind: "document", file: "garden.md" })
-  expect(routeOf("/doc/garden.md#%zz")).toEqual({ kind: "document", file: "garden.md" })
-})
-
-// `/n/` with nothing after it is a node route for an id nothing declares —
-// which the page already knows how to say. Treating it as the default outline
-// would answer a broken permalink by silently showing something else.
-test("a node route with an empty id is still a node route", () => {
-  expect(routeOf("/n/")).toEqual({ kind: "node", id: "" })
+  expect(routeOf("/garden.md#")).toEqual({ kind: "document", file: "garden.md" })
+  expect(routeOf("/garden.md#%zz")).toEqual({ kind: "document", file: "garden.md" })
 })
 
 // ── an address nothing could have written ──────────────────────────────
@@ -305,7 +351,7 @@ test("a node route with an empty id is still a node route", () => {
 // address — so every half of an address is total, the way the fragment always
 // was.
 test("a malformed escape names the front page rather than throwing", () => {
-  for (const address of ["/n/%", "/n/%ZZ", "/n/%2", "/doc/%", "/d/%ZZ", "/o/%2"]) {
+  for (const address of ["/%", "/%ZZ", "/%2", "/%.md", "/d/%ZZ", "/%2/notes.md"]) {
     expect(routeOf(address)).toEqual({ kind: "outline", file: null })
   }
 })
@@ -313,7 +359,7 @@ test("a malformed escape names the front page rather than throwing", () => {
 test("…and it keeps whatever the address was narrowed by", () => {
   // The query is read by `URLSearchParams`, which is lenient where
   // `decodeURIComponent` is not, so the filter survives a path that does not.
-  expect(routeOf("/n/%?q=is%3Atodo")).toEqual({
+  expect(routeOf("/%?q=is%3Atodo")).toEqual({
     kind: "outline",
     file: null,
     filter: "is:todo",
@@ -321,12 +367,12 @@ test("…and it keeps whatever the address was narrowed by", () => {
 })
 
 test("a malformed FRAGMENT was always total, and still is", () => {
-  expect(routeOf("/doc/notes.md#%ZZ")).toEqual({ kind: "document", file: "notes.md" })
+  expect(routeOf("/notes.md#%ZZ")).toEqual({ kind: "document", file: "notes.md" })
 })
 
 test("a markdown link this parser cannot read is left to the browser", () => {
   // The front-page fallback is the right kindness in the address bar and is
   // exactly the silent substitution `routeIn` exists to refuse.
-  expect(routeIn("/doc/%ZZ")).toBeNull()
-  expect(routeIn("/doc/notes.md")).toEqual({ kind: "document", file: "notes.md" })
+  expect(routeIn("/%ZZ.md")).toBeNull()
+  expect(routeIn("/notes.md")).toEqual({ kind: "document", file: "notes.md" })
 })

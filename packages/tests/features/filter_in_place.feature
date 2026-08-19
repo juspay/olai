@@ -81,11 +81,11 @@ Feature: Filtering the outline in place
 
   Scenario: The filter is part of the address, so it survives a reload
     # A narrowed page is a link somebody can send. That is the same argument
-    # `/n/<id>` is made of, and it is why the filter is in the URL rather than
+    # `/#<id>` is made of, and it is why the filter is in the URL rather than
     # in a signal beside it.
     Given I open the outline "house.olai"
     When I filter the page by "hinges"
-    Then the address is exactly "/o/house.olai?q=hinges"
+    Then the address is exactly "/house.olai?q=hinges"
     When I reload the page
     Then the outline has 3 rows
     And the filter box holds "hinges"
@@ -96,7 +96,7 @@ Feature: Filtering the outline in place
     Given I open the outline "house.olai"
     When I filter the page by "hinges"
     And I clear the filter
-    Then the address is exactly "/o/house.olai"
+    Then the address is exactly "/house.olai"
     And the outline has 10 rows
 
   Scenario: A collapsed ancestor does not hide a match
@@ -408,7 +408,7 @@ Feature: Filtering the outline in place
     # the same act as typing, so it lands in the same place: the address.
     Given I open the outline "garden.olai"
     When I press the tag "#outdoors"
-    Then the address is exactly "/o/garden.olai?q=%23outdoors"
+    Then the address is exactly "/garden.olai?q=%23outdoors"
     And the filter box holds "#outdoors"
     And the node "garden" is a match
 
@@ -438,10 +438,10 @@ Feature: Filtering the outline in place
     Given I open the outline "house.olai"
     When I filter the page by "cabinets"
     And I zoom into the node "install"
-    Then the address is exactly "/n/install"
+    Then the address is exactly "/#install"
     And the filter box holds ""
     When I go back
-    Then the address is exactly "/o/house.olai?q=cabinets"
+    Then the address is exactly "/house.olai?q=cabinets"
 
   Scenario: A zoomed page filters its own children
     # Scoped downstream, and it falls out of the address rather than being
@@ -454,8 +454,8 @@ Feature: Filtering the outline in place
     And the filter found "2 of 3"
 
   Scenario: There is no filter on the one page that cannot carry one
-    # A document is PROSE, and this grammar selects nodes — so `/doc/` is the
-    # one address with no `?q=` on it, and drawing a box there would promise
+    # A document is PROSE, and this grammar selects nodes — so a document is the
+    # one page with no `?q=` on its address, and drawing a box there would promise
     # something neither the URL nor the matcher has anywhere to put. Every other
     # page draws one (`filter_everywhere.feature`).
     Given I open the document "finishes.md"

@@ -69,7 +69,7 @@ import { consumeMinted } from "./minted.ts"
  * KEYED, on the path, and it is not belt-and-braces: without it, going from
  * one document to another is not a mount at all. The route's arm is a `<Match>`
  * whose condition is an object, and Solid compares those as booleans
- * (`!a === !b`), so the arm stays true across `/doc/a.md` → `/doc/b.md` and the
+ * (`!a === !b`), so the arm stays true across `/a.md` → `/b.md` and the
  * page below simply takes a new `file` prop. Everything {@link OneDocument}
  * decides ONCE — whether this document was just minted (and so opens editing),
  * and, through {@link DocEditor}, which file a draft and its `was` belong to —
@@ -98,7 +98,7 @@ function OneDocument(props: { readonly file: string }) {
   // whether it can be written, and what this page must have before it draws
   // one. A path this page model let through is a file the directory HOLDS, so
   // it is a bodied kind by construction; the fallback is the markdown one
-  // because that is what a `/doc/` address meant before there was a second
+  // because that is what a document's address meant before there was a second
   // kind, and a blank page would be a worse answer than a rendering of the
   // text.
   const face = () => FACES[bodyKind(props.file) ?? "document"]

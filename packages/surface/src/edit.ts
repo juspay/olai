@@ -798,7 +798,7 @@ export const Edit = Schema.Union([
   Schema.Struct({
     verb: Schema.Literal("pin"),
     /**
-     * The address, exactly as this app spells one — `/n/<id>`, `/doc/<path>`,
+     * The address, exactly as this app spells one — `/#<id>`, `/<path>`,
      * `/agenda?q=…`. Verbatim: nothing between the affordance that minted it
      * and the node's title parses it, for the reason a `date` crosses as the
      * ten characters that were picked. What reads it back is the same

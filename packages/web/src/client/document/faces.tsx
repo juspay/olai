@@ -1,7 +1,7 @@
 /**
  * The FACE a bodied file's page wears — one per kind, in one table.
  *
- * `/doc/<file>` opens any file whose content is a body (`@olai/format`'s
+ * `/<file>` opens any file whose content is a body (`@olai/format`'s
  * registry: a `.md` today, a `.html` beside it), and what changes between them
  * is not the page — same address, same heading, same "the directory does not
  * hold that" screen — but what the file is DRAWN AS, and whether the reader may

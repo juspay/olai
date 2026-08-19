@@ -1003,7 +1003,7 @@ const FORGERIES: ReadonlyArray<string> = [
   `${FORGED_PREFIX}${mediaHref("nowhere.html")}`,
   `${FORGED_PREFIX}${MEDIA_PREFIX}../../etc/hostname`,
   `${FORGED_PREFIX}${MEDIA_PREFIX}notes/../../secrets.md`,
-  `${FORGED_PREFIX}/doc/finishes.md`,
+  `${FORGED_PREFIX}/finishes.md`,
   `${FORGED_PREFIX}finishes.md`,
   `${FORGED_PREFIX}${mediaHref("Daily/nothing.md")}`,
 ];

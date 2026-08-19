@@ -132,7 +132,7 @@ export const pictureOf = (from: string, src: string): string | null => {
  *
  * The refusals live here, once, because there are two sinks and they are two
  * different things: a picture becomes a `/media/…` URL the server answers, a
- * link becomes a `/doc/…` route the client opens. A refusal added to one of
+ * link becomes the document's own address, which the client opens. A refusal added to one of
  * them and not the other would be a widening nobody meant — and the two lists
  * were character-for-character identical the moment there were two.
  *
@@ -155,7 +155,7 @@ const relativeTo = (from: string, to: string): string | null => {
  * between them with plain relative paths (`../projects/deck.md`), and a
  * renderer that left those alone would hand the browser an address relative to
  * whatever ROUTE the page happens to be at — which is the document's own
- * directory on `/doc/…` by luck, and the wrong place everywhere else. Resolved
+ * directory by luck, and the wrong place everywhere else. Resolved
  * here instead, beside the file the link was WRITTEN in, exactly as a `doc`
  * field and a relative picture already are.
  *

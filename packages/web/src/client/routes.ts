@@ -1,52 +1,90 @@
 /**
  * What a URL means, and nothing else.
  *
- * Five addresses, and the difference between them is what each one is a
- * property OF. `/o/<file>` names a file on disk, so it spells the path.
- * `/n/<id>` names a node, and an id is all it may spell: ids are unique across
- * the loaded set and survive renames and moves across files, so the permalink
- * outlives every edit short of a delete — while a URL that also carried the
- * outline would be a URL that could disagree with the file it named.
+ * A URL here is an ADDRESS with a slash in front of it. `@olai/format`'s
+ * `address.ts` owns the grammar — `[document]#[element]`, one currency for
+ * every feature that has to name something — and this module owns everything
+ * a BROWSER adds to it: which addresses are pages of this app, the computed
+ * pages that name nothing on disk, and the one thing that rides in a query.
  *
- * `/doc/<file>` names a file that is READ — a document, or a `.html` — which is
- * also a file and also spells its path. It is a SECOND prefix rather than more
- * work for `/o/` because an outline is a different KIND OF PAGE: a tree with
- * rows to zoom into and a filter to narrow by, against a body drawn whole. The
- * address says which, so a URL means one kind of page before the set is in
- * hand, and renaming a `.md` to a `.olai` is a different page rather than the
- * same address quietly changing what it draws.
+ * | URL | Page |
+ * |---|---|
+ * | `/Tasks.olai` | one outline, drawn as a tree |
+ * | `/notes/README.md` | one document, drawn as a body |
+ * | `/notes/README.md#install` | …landed at one of its headings |
+ * | `/#a1b2c3` | one node, wherever it lives |
+ * | `/` | whichever outline was found first |
  *
- * ONE prefix for both bodied kinds, and not a third for hypertext, because the
- * path already says which: the suffix is what `fileKind` reads, and it is in
- * the address either way. A `/html/` prefix would be the same fact spelled
- * twice — free to disagree with the name it carries — and it would make the
+ * ## No prefixes, and why the old three had to go
+ *
+ * This used to spell `/o/<file>`, `/doc/<file>` and `/n/<id>`, and the
+ * argument for the first two was that an outline is a different KIND OF PAGE
+ * from a body — a tree with rows to zoom into against prose drawn whole — so
+ * the address should say which before the set is in hand. That argument was
+ * already answered in this file, one kind over: hypertext got NO third prefix,
+ * because *the path already says which* — the suffix is what `fileKind` reads,
+ * and it is in the address either way. A prefix beside it is the same fact
+ * spelled twice, free to disagree with the name it carries, and it makes the
  * kind of a file a property of the LINK that was clicked rather than of the
- * file, which is the seam this app keeps putting back in the format.
+ * file. What changed on 2026-08-19 is that the ruling was taken all the way:
+ * `.olai` is a suffix like the others, so the prefix that spelled it is gone
+ * and a file's address is its path.
  *
- * `/d/<ISO-date>` names a DAY, which is not a thing on disk at all: it is a
- * question asked of every dated node in the set, and the answer is computed at
- * view time (`@olai/format`'s date derivations). `/today` is the same page and
- * a different address — it names no day, it names the day it IS, which is what
- * a bookmark, a home screen and an agent can all keep. Resolving it needs a
- * clock, and a clock is exactly what parsing a URL must not have: the two are
- * kept apart, so this stays pure and `page.ts` is handed the day.
+ * A NODE spells no prefix either, for a sharper reason: `#a1b2c3` is the
+ * address grammar's own spelling of a node, and it is location-free on
+ * purpose. Ids are unique across the loaded set and survive renames and moves
+ * between files, so the permalink outlives every edit short of a delete —
+ * while a URL that also carried the outline would be a URL free to disagree
+ * with the file it named.
+ *
+ * The two vocabularies cannot collide, and it is not luck: every document
+ * address names a file, every served file carries a suffix the registry
+ * claims, and every computed page below spells no file at all.
+ *
+ * WHAT CAN COLLIDE IS THE BUNDLE, and it is named here because a prefix-free
+ * URL space is what makes it possible: the server hands the SPA shell to
+ * anything it does not serve itself, and the two things it does serve at the
+ * root are `/index.html` and `/assets/…` (`@kolu/surface-app`). A served
+ * directory holding an `index.html` at its top level, or any file under an
+ * `assets/` folder, is a page this app can address and cannot be reached at —
+ * the bundle answers first. Moving the bundle's own paths under a reserved
+ * prefix is the fix and it is a server change, so it is filed rather than
+ * done here.
+ *
+ * ## The computed pages, which name nothing on disk
+ *
+ * `/d/<ISO-date>` names a DAY, which is not a thing on disk: it is a question
+ * asked of every dated node in the set, answered at view time. `/today` is the
+ * same page and a different address — it names no day, it names the day it IS,
+ * which is what a bookmark, a home screen and an agent can all keep. Resolving
+ * it needs a clock, and a clock is exactly what parsing a URL must not have.
  *
  * `/agenda` names no day either, and unlike `/today` it never will: it is the
- * same dates read FORWARD — what is overdue, what is on today, what is coming —
- * so it spells nothing at all. A horizon in the URL would be an address that
- * meant something different tomorrow, which is the one thing a link may not do.
+ * same dates read FORWARD, so it spells nothing at all. A horizon in the URL
+ * would be an address that meant something different tomorrow.
  *
  * `/trash` spells nothing for the same reason: it is a question asked of the
  * set — every `Archive.olai` under the directory — not a file's address. The
- * files it reads still HAVE addresses (`/o/Archive.olai` parses like any
- * outline path), and what such an address opens is the trash view, because an
+ * files it reads still HAVE addresses (`/Archive.olai` parses like any
+ * outline), and what such an address opens is the trash view, because an
  * archive is not a place you edit (`page.ts` decides that, not this parser).
  *
- * Most of them carry a QUERY as well as a path, and only one thing rides in it:
+ * They are READ FIRST, which is the whole of the precedence rule: a computed
+ * page is a word this app claimed, and an address is everything else.
+ *
+ * ## The query, which sits between the two halves of an address
+ *
+ * Most pages carry a QUERY as well as a path, and only one thing rides in it:
  * `?q=<filter>`, which is what the page is narrowed by. That is an address
- * rather than a signal for the same reason the pages are — a filtered page is a
- * link somebody can send, and Back is the browser's own history. See
+ * rather than a signal for the same reason the pages are — a filtered page is
+ * a link somebody can send, and Back is the browser's own history. See
  * {@link FILTER_KEY}.
+ *
+ * Where it SITS is the URL's rule rather than this app's: a query comes before
+ * a fragment, so a narrowed node page is `/?q=is%3Atodo#a1b2c3` — the address
+ * printed whole, with the query slid into the one place a browser will read it
+ * from. {@link printAddress} escapes every `#` inside a name, so the one it
+ * writes is the only one in the result and the seam is unambiguous.
  *
  * Pure, and parsing and printing live beside each other on purpose: they are
  * one bijection, and the test that says so (`routes.test.ts`) is the only
@@ -64,19 +102,26 @@
  * means.
  */
 
+import {
+  type Address,
+  addressOf,
+  fileKind,
+  parseAddress,
+  printAddress,
+} from "@olai/format"
+
 export type Route =
   /** One outline. `null` is "whichever was found first" — the bare `/`. */
   | { readonly kind: "outline"; readonly file: string | null; readonly filter?: string }
   /**
    * One document, by its path — and optionally by a place INSIDE it.
    *
-   * `at` is a heading's own id, the thing a `#` in an address has always
-   * meant, and it is on this arm alone because it is the only page made of
-   * prose: a `.md` renders headings that `rehype-slug` gives ids to, and a
-   * `.html` is a document with whatever ids its author wrote. The tree pages
-   * have nothing of the kind — a row's address is a node id and it has a route
-   * of its own (`/n/`) — so a fragment there would be a part of an address
-   * that meant nothing, which is worse than not carrying one.
+   * `at` is a heading's own id, which is what a `#` after a document has
+   * always meant, and it is on this arm alone because it is the only page made
+   * of prose: a `.md` renders headings that `rehype-slug` gives ids to, and a
+   * `.html` is a document with whatever ids its author wrote. An outline's
+   * elements are NODES, and the grammar reads a `#` after a `.olai` as one —
+   * which is why the node arm below carries no file.
    *
    * WITHOUT the `#`, because that character is the address's punctuation
    * rather than part of the name: {@link hrefOf} writes it and {@link routeOf}
@@ -96,13 +141,14 @@ export type Route =
    *  mean something different the day a subdirectory gets its own. */
   | { readonly kind: "trash"; readonly filter?: string }
 
-const OUTLINE_PREFIX = "/o/"
-const DOCUMENT_PREFIX = "/doc/"
-const NODE_PREFIX = "/n/"
 const DAY_PREFIX = "/d/"
 const TODAY = "/today"
 const AGENDA = "/agenda"
 const TRASH = "/trash"
+
+/** The front page: the address that names no place at all, and what every
+ *  string this cannot read comes back as. */
+const HOME = "/"
 
 /**
  * The query key the FILTER rides in — the one thing in an address here that is
@@ -126,37 +172,44 @@ const TRASH = "/trash"
  */
 const FILTER_KEY = "q"
 
-/** Encoded per segment, so a path with a directory in it stays readable in the
- *  URL bar rather than turning into a run of `%2F`. */
+/**
+ * The address a route names, or `null` for one that names no place.
+ *
+ * The three CONTENT routes are the address grammar's three arms, and this is
+ * the whole of the correspondence: an outline and a document are both a
+ * document (which of the two a page draws is the suffix's answer, not the
+ * address's), a place inside a document is its element, and a node is an
+ * element with no document at all.
+ *
+ * `null` is what the front page is — an outline route naming no file — and
+ * what a route naming a path this directory could not serve is. The second is
+ * the print-side twin of {@link routeOf}'s kindness: a route that names
+ * nothing is written as the address that names nothing.
+ */
+const addressIn = (route: Route): Address | null => {
+  if (route.kind === "node") return addressOf(null, route.id)
+  if (route.kind === "document") return addressOf(route.file, route.at ?? null)
+  if (route.kind === "outline") return addressOf(route.file, null)
+  return null
+}
+
+/** The address every content URL is made of, with the query slid into the one
+ *  place a URL will carry it: between the path and the fragment. */
 export const hrefOf = (route: Route): string => {
-  if (route.kind === "node") {
-    return NODE_PREFIX + encodeURIComponent(route.id) + narrowing(route.filter)
-  }
   if (route.kind === "day") {
     return DAY_PREFIX + encodeURIComponent(route.date) + narrowing(route.filter)
   }
   if (route.kind === "today") return TODAY + narrowing(route.filter)
   if (route.kind === "agenda") return AGENDA + narrowing(route.filter)
   if (route.kind === "trash") return TRASH + narrowing(route.filter)
-  if (route.kind === "document") {
-    return DOCUMENT_PREFIX + spell(route.file) + landing(route.at)
-  }
-  const path = route.file === null ? "/" : OUTLINE_PREFIX + spell(route.file)
-  return path + narrowing(route.filter)
+  const address = addressIn(route)
+  if (address === null) return HOME + narrowing(filterOf(route))
+  const written = printAddress(address)
+  const cut = written.indexOf("#")
+  const path = cut === -1 ? written : written.slice(0, cut)
+  const element = cut === -1 ? "" : written.slice(cut)
+  return HOME + path + narrowing(filterOf(route)) + element
 }
-
-/**
- * The `#…` a document address wears when it names a place inside the page —
- * and nothing at all when it does not, so the ordinary address is exactly the
- * address it always was.
- *
- * ENCODED as one component, because an id is somebody's heading run through
- * `rehype-slug` — or, in a `.html`, whatever its author wrote — and neither is
- * promised to be free of characters an address gives its own meaning to. The
- * safe ones survive untouched, so the common case reads as it is written.
- */
-const landing = (at: string | undefined): string =>
-  at === undefined || at === "" ? "" : `#${encodeURIComponent(at)}`
 
 /** The `?q=…` a filtered page wears — and nothing at all for an unfiltered
  *  one, so the ordinary address is exactly the address it always was. Whitespace
@@ -167,28 +220,12 @@ const narrowing = (filter: string | undefined): string =>
     ? ""
     : `?${new URLSearchParams({ [FILTER_KEY]: filter }).toString()}`
 
-/** The place inside a page an address names, or `undefined` for one that names
- *  none — the other end of {@link landing}. A malformed escape is a fragment
- *  nobody could have written, so it names nothing rather than throwing on the
- *  way to a page that would have drawn fine without it. */
-const landed = (fragment: string): string | undefined => {
-  if (fragment === "") return undefined
-  try {
-    return decodeURIComponent(fragment)
-  } catch {
-    return undefined
-  }
-}
-
 /** The filter an address carries, or `undefined` — one reading, so the parser
  *  below and anything that later wants it cannot disagree about a blank one. */
 const filterIn = (search: string): string | undefined => {
   const value = new URLSearchParams(search).get(FILTER_KEY)
   return value === null || value.trim() === "" ? undefined : value
 }
-
-const spell = (file: string): string =>
-  file.split("/").map(encodeURIComponent).join("/")
 
 /** The file a route names, for the two that name one — what a link publishes
  *  as `data-file`, and the sidebar's own answer to "is this entry the page I
@@ -212,44 +249,27 @@ export const fileNamed = (route: Route): string | undefined =>
  * file — and there the same fallback would mean every link this app has no
  * page for silently opening the default outline instead of going where it says.
  *
- * SO THE TEST IS THE BIJECTION, which is the same test a title that NAMES a
- * place is read by (`./address/address.ts`): an address this app would mint
- * reads back as itself, and anything else — `/etc/passwd`, a relative path, a
- * malformed escape — reads back as something else and is left to the browser.
- * It used to claim exactly one shape, `/doc/…`, and widening it is the human's
- * ruling about pins read at its own altitude (2026-08-19): a pin may be written
- * as a markdown link whose label is the name and whose href is the address, and
- * *pressing it opens the address*. A link that only worked for one of the six
- * kinds of page would be a rule about pins hidden inside a rule about links, so
- * what changed is what a WRITTEN LINK means — in a title, in a note, in a
- * document — and pins get it by being written in that vocabulary.
+ * SO IT ASKS THE PARSER WHETHER IT RECOGNISED ANYTHING, which is a question
+ * {@link routeNamed} can answer and {@link routeOf} cannot: the front page is
+ * what an unread address FALLS BACK to there, so a caller holding the answer
+ * cannot tell "the reader typed `/`" from "this is not one of ours". It used
+ * to be tested by the BIJECTION instead — print the route back and compare —
+ * which answered the same for `/etc/passwd` and refused a spelling this app
+ * reads but would not have written, `/house.olai#kitchen`. The bijection is
+ * still the TEST (`routes.test.ts`); it is no longer the mechanism.
  *
- * A FRAGMENT IS STILL NOT CLAIMED. `/doc/x.md#beds` is left to the browser,
- * because what a fragment names on a rendered page is an id this app mints per
- * block, and pretending to answer an anchor it will not land on is worse than a
- * plain navigation that visibly does not.
+ * A FRAGMENT IS PART OF THE ADDRESS NOW, and this claims it. It used to be
+ * left to the browser on the argument that what a `#` named on a rendered page
+ * was an id this app mints per block — but a `#` is the address grammar's own
+ * punctuation since the addresses ruling, `/notes/README.md#install` is a
+ * document landed at a heading and `/#a1b2c3` is a node, and both are pages
+ * this app draws. What is still the browser's is a fragment with NO PATH in
+ * front of it (`#md-1a2b-beds`): that is an anchor inside the page being read,
+ * and an app address always starts with a slash.
  */
-export const routeIn = (href: string): Route | null => {
-  if (!href.startsWith("/") || href.includes("#")) return null
-  const route = routeOf(href)
-  // The ANSWER is checked, not the prefix. Since `spelled`, an address this
-  // parser cannot READ falls back to the front page — the right kindness in the
-  // address bar and exactly the silent substitution this function refuses — and
-  // the same comparison turns away every path that is not one of ours.
-  return splitAddress(hrefOf(route)).pathname === splitAddress(href).pathname
-    ? route
-    : null
-}
+export const routeIn = (href: string): Route | null =>
+  href.startsWith("/") ? routeNamed(href) : null
 
-/**
- * Anything this does not recognise is the default outline: an unknown path is
- * a reader who typed something, and the app they wanted is the one at `/`.
- *
- * It takes the whole ADDRESS — path and query — rather than the pathname,
- * because the filter is part of what a URL means here and a parser handed half
- * of one could only ever answer half. Callers pass `location.pathname +
- * location.search`; a bare path parses exactly as it did before.
- */
 /**
  * Path, query and fragment of an address, cut the way this app writes them.
  *
@@ -258,43 +278,46 @@ export const routeIn = (href: string): Route | null => {
  * the fragment starts. The fragment comes off first: a `#` ends the
  * query, so cutting on `?` before it would leave `#beds` inside a filter
  * and a page narrowed by a word nobody typed.
+ *
+ * The fragment comes back AS WRITTEN, unescaped, because it is half of an
+ * address and the address grammar is what reads it (`@olai/format`'s
+ * `parseAddress`). Decoding it here would be this module holding an opinion
+ * about a name, and re-joining a decoded half to a written one is how a `#`
+ * inside somebody's heading becomes a second cut.
  */
 export const splitAddress = (
   address: string,
 ): {
   readonly pathname: string
   readonly search: string
-  readonly at: string | undefined
+  readonly fragment: string | undefined
 } => {
   const hash = address.indexOf("#")
   const whole = hash === -1 ? address : address.slice(0, hash)
-  const at = hash === -1 ? undefined : landed(address.slice(hash + 1))
+  const fragment = hash === -1 ? undefined : address.slice(hash + 1)
   const cut = whole.indexOf("?")
   return {
     pathname: cut === -1 ? whole : whole.slice(0, cut),
     search: cut === -1 ? "" : whole.slice(cut + 1),
-    at,
+    fragment,
   }
 }
 
 /**
  * The text a path segment SPELLS, or `undefined` for an escape no address
- * could have been written with — {@link landed} for the other half of the
- * address, and here for the reason it is there.
+ * could have been written with.
  *
  * `decodeURIComponent` THROWS on a malformed escape (`%`, `%ZZ`, `%2`), and a
  * parser that throws is a parser a caller cannot use: this one reads the
  * address BAR, where somebody types, and it reads a title out of `Pins.olai`,
- * which the format invites a hand and an agent to edit
- * (docs/format.md's Pins). A `URIError` out of either of those is not a bad
- * address — it is a blank app, because a throw during render takes the tree
- * that was rendering with it, and this client mounts no error boundary.
+ * which the format invites a hand and an agent to edit (docs/format.md's
+ * Pins). A `URIError` out of either of those is not a bad address — it is a
+ * blank app, because a throw during render takes the tree that was rendering
+ * with it, and this client mounts no error boundary.
  *
- * The fragment half has been total since the day it was written, and its
- * sentence is the one to read twice: *a malformed escape is a fragment nobody
- * could have written, so it names nothing rather than throwing on the way to a
- * page that would have drawn fine without it.* Every other half of an address
- * now says the same.
+ * It is left here for the DAY, which is the one address of this app that is
+ * not a `@olai/format` address: a date is not a place in the directory, so
+ * nothing over there reads it and the same totality has to be kept here.
  */
 const spelled = (text: string): string | undefined => {
   try {
@@ -304,46 +327,81 @@ const spelled = (text: string): string | undefined => {
   }
 }
 
+/**
+ * Anything this does not recognise is the default outline: an unknown path is
+ * a reader who typed something, and the app they wanted is the one at `/`.
+ *
+ * It takes the whole ADDRESS — path, query and fragment — rather than the
+ * pathname, because both of the others are part of what a URL means here and a
+ * parser handed one of them could only ever answer part of one. Callers pass
+ * `location.pathname + location.search + location.hash`; a bare path parses
+ * exactly as it did before.
+ *
+ * The reading itself is {@link routeNamed}'s, which answers `null` where this
+ * answers the front page — one grammar, read once, with the KINDNESS added
+ * here rather than baked into it.
+ */
 export const routeOf = (address: string): Route => {
-  const { pathname, search, at } = splitAddress(address)
-  const filter = search === "" ? undefined : filterIn(search)
-  const narrowed = filter === undefined ? {} : { filter }
+  const named = routeNamed(address)
+  if (named !== null) return named
   /** What an address this does not recognise means, and — since {@link spelled}
    *  — what one it cannot READ means too. The kindness is the same either way:
-   *  somebody typed something, and the app they wanted is the one at `/`. */
-  const home: Route = { kind: "outline", file: null, ...narrowed }
-  /** What follows a prefix, or `null` when this is not that kind of address —
-   *  `null` rather than `undefined`, so "not this prefix" and "this prefix,
-   *  spelled with an escape nothing can read" stay two different answers. */
-  const after = (prefix: string): string | null =>
-    pathname.startsWith(prefix) ? pathname.slice(prefix.length) : null
+   *  somebody typed something, and the app they wanted is the one at `/`. It
+   *  keeps whatever the address was NARROWED by, because a query is read by
+   *  `URLSearchParams`, which is lenient where a path is not. */
+  const filter = filterIn(splitAddress(address).search)
+  return { kind: "outline", file: null, ...(filter === undefined ? {} : { filter }) }
+}
 
-  const node = after(NODE_PREFIX)
-  if (node !== null) {
-    const id = spelled(node)
-    return id === undefined ? home : { kind: "node", id, ...narrowed }
-  }
-  const document = after(DOCUMENT_PREFIX)
-  if (document !== null) {
-    const file = spelled(document)
-    return file === undefined
-      ? home
-      : { kind: "document", file, ...(at === undefined ? {} : { at }) }
-  }
-  const day = after(DAY_PREFIX)
-  if (day !== null) {
-    const date = spelled(day)
-    return date === undefined ? home : { kind: "day", date, ...narrowed }
+/**
+ * The route an address NAMES, or `null` for a string that names no page of
+ * this app — the whole of the grammar, and the only place it is read.
+ *
+ * The `null` is what {@link routeIn} needs and what {@link routeOf} spends: a
+ * parser that answered the front page for everything could never say whether
+ * it had recognised anything, and both callers want that answer for opposite
+ * reasons.
+ *
+ * THE COMPUTED PAGES ARE READ FIRST, and that ordering is the only precedence
+ * in this file: `/today`, `/agenda`, `/trash` and `/d/…` are words this app
+ * claimed, and everything else is asked of the address grammar. They cannot
+ * collide with a file — a served file carries a suffix the registry claims and
+ * these spell none — so the order is a reading order and not a rule.
+ */
+const routeNamed = (address: string): Route | null => {
+  const { pathname, search, fragment } = splitAddress(address)
+  const filter = search === "" ? undefined : filterIn(search)
+  const narrowed = filter === undefined ? {} : { filter }
+
+  if (pathname.startsWith(DAY_PREFIX)) {
+    const date = spelled(pathname.slice(DAY_PREFIX.length))
+    return date === undefined ? null : { kind: "day", date, ...narrowed }
   }
   if (pathname === TODAY) return { kind: "today", ...narrowed }
   if (pathname === AGENDA) return { kind: "agenda", ...narrowed }
   if (pathname === TRASH) return { kind: "trash", ...narrowed }
-  const outline = after(OUTLINE_PREFIX)
-  if (outline !== null) {
-    const file = spelled(outline)
-    return file === undefined ? home : { kind: "outline", file, ...narrowed }
+  if (!pathname.startsWith(HOME)) return null
+  // The front page names no file — "whichever outline was found first" — which
+  // is a page of this app and not a fallback, so a link may be written to it.
+  if (pathname === HOME && fragment === undefined) {
+    return { kind: "outline", file: null, ...narrowed }
   }
-  return home
+
+  const named = parseAddress(
+    pathname.slice(HOME.length) + (fragment === undefined ? "" : `#${fragment}`),
+  )
+  if (named === null) return null
+  if (named.kind === "node") return { kind: "node", id: named.id, ...narrowed }
+  if (named.kind === "heading") {
+    return { kind: "document", file: named.path, at: named.slug }
+  }
+  // WHICH PAGE a document opens is the suffix's answer and not the address's:
+  // an outline is a tree of rows to zoom into and narrow, everything else is a
+  // body drawn whole. The registry is asked rather than a second list here,
+  // for the reason it exists (`@olai/format`'s `kinds.ts`).
+  return fileKind(named.path) === "outline"
+    ? { kind: "outline", file: named.path, ...narrowed }
+    : { kind: "document", file: named.path }
 }
 
 /**

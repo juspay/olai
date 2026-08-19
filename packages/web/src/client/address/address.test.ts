@@ -20,9 +20,9 @@ import { addressIn, labelIn, nameOf } from "./address.ts"
 
 test("an address this app would mint is a pin, whatever page it names", () => {
   for (const address of [
-    "/n/herbs",
-    "/doc/notes/finishes.md",
-    "/o/garden.olai",
+    "/#herbs",
+    "/notes/finishes.md",
+    "/garden.olai",
     "/d/2026-08-18",
     "/today",
     "/agenda",
@@ -57,7 +57,7 @@ test("a title spelled with an escape nothing can read is not a door, and does no
   // file the format invites a hand and an agent to edit — so a `URIError` here
   // was the whole sidebar going down, not one row being skipped (review,
   // 2026-08-18). It reads as what it is: not an address, so not a pin.
-  for (const title of ["/n/%", "/doc/%ZZ", "/o/%2", "[x](/n/%)"]) {
+  for (const title of ["/%", "/%ZZ.md", "/%2.olai", "[x](/%)"]) {
     expect(addressIn(title)).toBeUndefined()
   }
 })
@@ -70,7 +70,7 @@ test("ordinary prose is not a pin", () => {
 test("a markdown link is a NAMED pin; a blank label is no name", () => {
   const named = "[What is late](/agenda?q=is%3Atodo)"
   expect(hrefOf(addressIn(named)!)).toBe("/agenda?q=is%3Atodo")
-  expect(addressIn("[](/n/herbs)")).toEqual({ kind: "node", id: "herbs" })
+  expect(addressIn("[](/#herbs)")).toEqual({ kind: "node", id: "herbs" })
 })
 
 test("prose either side of a link is a sentence, not a pin", () => {
@@ -84,15 +84,15 @@ test("prose either side of a link is a sentence, not a pin", () => {
 test("both spellings name the same place — the label is the only difference", () => {
   // One rule for both, because the difference between them is a NAME rather
   // than a destination (human, 2026-08-19).
-  expect(addressIn("/n/herbs")).toEqual({ kind: "node", id: "herbs" })
-  expect(addressIn("[the herb bed](/n/herbs)")).toEqual({ kind: "node", id: "herbs" })
+  expect(addressIn("/#herbs")).toEqual({ kind: "node", id: "herbs" })
+  expect(addressIn("[the herb bed](/#herbs)")).toEqual({ kind: "node", id: "herbs" })
   expect(addressIn("buy milk")).toBeUndefined()
 })
 
 test("the label somebody wrote is a name; a blank one is not", () => {
   expect(labelIn("[What is late](/agenda?q=is%3Atodo)")).toBe("What is late")
-  expect(labelIn("[](/n/herbs)")).toBeUndefined()
-  expect(labelIn("/n/herbs")).toBeUndefined()
+  expect(labelIn("[](/#herbs)")).toBeUndefined()
+  expect(labelIn("/#herbs")).toBeUndefined()
 })
 
 // ── what a place is called ─────────────────────────────────────────────
@@ -108,8 +108,8 @@ test("a node address is called whatever that node is called right now", () => {
 })
 
 test("an address at an id nothing declares says the address rather than a blank", () => {
-  expect(nameOf({ kind: "node", id: "gone" }, named("the herb bed"))).toBe("/n/gone")
-  expect(nameOf({ kind: "node", id: "herbs" }, undefined)).toBe("/n/herbs")
+  expect(nameOf({ kind: "node", id: "gone" }, named("the herb bed"))).toBe("/#gone")
+  expect(nameOf({ kind: "node", id: "herbs" }, undefined)).toBe("/#herbs")
 })
 
 test("a mirror's id resolves to the node it stands for", () => {

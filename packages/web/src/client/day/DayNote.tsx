@@ -16,7 +16,7 @@
  * page of prose, a day with nodes and no note is exactly the page it was
  * before, and a day with neither is still inert.
  *
- * The heading is the PATH and it is a link to `/doc/<path>`, in the same voice
+ * The heading is the PATH and it is a link to `/<path>`, in the same voice
  * the day page names its date and a document page names itself: what is IN the
  * file is about to render itself, and the path is what the sidebar, the URL and
  * this heading all agree to call it. The link is the way from the day to the

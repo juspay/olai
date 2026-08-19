@@ -137,7 +137,7 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     // What is in the manifest is `./manifest.ts`; that it is served at
     // `/manifest.webmanifest`, beside a `no-store` shell, immutable hashed
     // assets, a 404 on an asset miss and the SPA fallback that makes
-    // `/o/<file>` a real URL, is the shell half of the call.
+    // `/<file>` a real URL, is the shell half of the call.
     manifest: MANIFEST,
     // olai's own two routes: the one that answers with bytes from the SERVED
     // directory rather than from the bundle, and the one an agent speaks to.

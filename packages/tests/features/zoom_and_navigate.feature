@@ -1,7 +1,7 @@
 @corpus:good
 Feature: Zoom and navigate
   Every node is a page. Clicking a bullet zooms into it, its address is
-  `/n/<id>`, and because ids are stable and unique across the whole served
+  `/#<id>`, and because ids are stable and unique across the whole served
   directory that address is a permalink: these scenarios load it cold, in a
   fresh tab, and expect the same page.
 
@@ -16,7 +16,7 @@ Feature: Zoom and navigate
     And I mark the page
     When I zoom into the node "install"
     Then the zoomed node is "install"
-    And the address is "/n/install"
+    And the address is "/#install"
     And the node "handles" is shown
     # A route, not a reload: the page answered in place.
     And the page has not reloaded
@@ -39,13 +39,13 @@ Feature: Zoom and navigate
     Given I open the node "handles"
     When I follow the breadcrumb "install the cabinets"
     Then the zoomed node is "install"
-    And the address is "/n/install"
+    And the address is "/#install"
 
   Scenario: The trail roots at the node's own outline
     Given I open the node "handles"
     When I follow the breadcrumb "house.olai"
     Then the tree is shown
-    And the address is "/o/house.olai"
+    And the address is "/house.olai"
 
   Scenario: Zooming a mirror lands on the node it stands for
     # `kitchen-herbs` lives in house.olai and mirrors `herbs` in garden.olai.
@@ -143,14 +143,14 @@ Feature: Zoom and navigate
     # `order` carries `see: ["herbs"]` — a free cross-reference into the other
     # outline. See links ride the expanded note (click), the link text is the
     # TARGET's title, and clicking it is the same navigation a bullet is:
-    # `/n/<id>`, no reload.
+    # `/#<id>`, no reload.
     Given I open the outline "house.olai"
     When I open the note of "order"
     Then the node "order" sees "herbs" as "the herb bed by the door"
     Given I mark the page
     When I follow the see link to "herbs" on "order"
     Then the zoomed node is "herbs"
-    And the address is "/n/herbs"
+    And the address is "/#herbs"
     And the page has not reloaded
     And there should be no page errors
 
@@ -161,7 +161,7 @@ Feature: Zoom and navigate
     Then the node "order" sees "herbs" as "the herb bed by the door"
     When I follow the see link to "herbs" on "order"
     Then the zoomed node is "herbs"
-    And the address is "/n/herbs"
+    And the address is "/#herbs"
     And there should be no page errors
 
   Scenario: The waiting mark opens the page that names the blockers
@@ -172,7 +172,7 @@ Feature: Zoom and navigate
     And I mark the page
     When I follow the waiting mark on "hinges"
     Then the zoomed node is "hinges"
-    And the address is "/n/hinges"
+    And the address is "/#hinges"
     And the page has not reloaded
     And there should be no page errors
 
@@ -183,7 +183,7 @@ Feature: Zoom and navigate
     Then the node "hinges" is blocked by "order"
     When I follow the blocked link to "order" on "hinges"
     Then the zoomed node is "order"
-    And the address is "/n/order"
+    And the address is "/#order"
     And there should be no page errors
 
   Scenario: The waiting mark's tip stays inside the window, and there is one of it

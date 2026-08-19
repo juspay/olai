@@ -20,8 +20,8 @@
  * THE ANSWER RATHER THAN THE LISTS is what travels, and that is the decision
  * worth arguing. The alternative is a context per list — the documents' paths
  * and the outlines' — with the component branching on which one held the path.
- * That hands a UI component the job of knowing that a `.md` is drawn at `/doc/`
- * and an outline at `/o/`, which is `./page.ts`'s job and nobody else's; it is
+ * That hands a UI component the job of knowing that a `.md` is drawn as a body
+ * and an outline as a tree, which is `./page.ts`'s job and nobody else's; it is
  * also the shape that quietly goes wrong when a fourth kind of file arrives.
  * What crosses here is one function ({@link opensAt}, applied to the set as it
  * stands this frame), so the component asks a question and gets a route.
