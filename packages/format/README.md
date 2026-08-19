@@ -12,6 +12,14 @@ The table holds only what EVERY kind has an answer to. A fact one kind has — w
 
 `kept` is the third column and the newest, and what it decides is what one loaded directory COSTS. `unkept(path)` is how every layer asks it — the same move `bodyKind` is one row up, so nobody derives it in two steps of their own. An outline's records are the set and a document's text is what a conditional write is judged against, so both are kept; a `.html` is the one file olai only ever shows — nothing validates it, no op writes it — and a saved page with its pictures inlined is megabytes, so the set keeps its path and its body is read when a reader opens it (`@olai/store`'s `Codec.byName` is how the probe is told not to read it at all, and `@olai/server`'s `bodies.ts` is what reads it). That is why `Document.text` is nullable: `null` is a state — *this file is served and its body is not here* — and never an empty file.
 
+## What a place in the directory is CALLED
+
+`src/address.ts` is the one grammar: **`[document]#[element]`**, with a branded half for each thing a name can be — a `DocumentPath` (a path whose suffix the table above claims), a `NodeId`, a heading `Slug`, and a written `Tag`. Three arms come out of it: a whole document (`Tasks.olai`, `notes/README.md`), a node (`#a1b2c3`, location-free, because an id survives renames and moves between files), and a heading inside a body (`README.md#install`).
+
+What a `#` MEANS is read off the document in front of it — an outline has nodes and no headings, a body has headings and no nodes — which is why the document half insists on a suffix the registry claims, and why `Tasks.olai#a1b2c3` parses and NORMALISES to the bare node it names. `printAddress` is total over an address and `parseAddress` is total over any string, answering `null` for text that names no place: what reads one is an address bar, a title in `Pins.olai` that a hand and an agent are invited to edit, and an href written in somebody's note, and a throw out of any of those is a blank page rather than a bad address.
+
+It is HERE rather than in the browser because it is a statement about the directory, the same reason `kinds.ts` is — the design that rules it is [first-class-documents.md](../../docs/brainstorming/first-class-documents.md). What the browser adds is a slash in front of it and the pages that name nothing on disk (`@olai/web`'s `routes.ts`).
+
 ## Staged, and the stage is part of the answer
 
 Validation is two phases, and the seam is load-bearing rather than tidy.
