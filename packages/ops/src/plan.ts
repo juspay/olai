@@ -3310,26 +3310,11 @@ const planEmpty = (
     )
   }
 
-  const going = new Set(records.map((record) => record.id))
-  // Every record STAYING that names one that is going — asked of the same
-  // index `remove_mirror` asks ({@link dependents}), once per id being
-  // deleted, so a relation the format grows later still cannot slip past it.
-  // Collected as a map keyed by the naming record so a live row pointing at
-  // three of these is one entry rather than three.
-  const held = new Map<string, string>()
-  for (const id of going) {
-    for (const naming of scope.derived.namedBy.get(id) ?? []) {
-      if (going.has(naming.at.node.id)) continue
-      held.set(
-        naming.at.node.id,
-        `\`${naming.at.node.id}\` (${
-          naming.fields.map((field) => `\`${field}\``).join(", ")
-        }, ${naming.at.file}:${naming.at.line})`,
-      )
-    }
-  }
-  if (held.size > 0) {
-    const names = [...held.values()]
+  // Every record STAYING that names one that is going — {@link heldBy}, the
+  // one question `remove_mirror` asks about a single placement, asked here
+  // about a whole pile.
+  const names = heldBy(scope, new Set(records.map((record) => record.id)))
+  if (names.length > 0) {
     const one = names.length === 1
     return Result.fail(
       new UsageFailure({
@@ -4469,15 +4454,48 @@ const planCreateDocument = (
   })
 }
 
+/**
+ * WHAT WOULD BE LEFT POINTING AT NOTHING — the one question two removals ask,
+ * over a set of ids rather than over one.
+ *
+ * Both writes that take records OUT of the set have to ask it, and they are
+ * asking the same thing: `remove_mirror` about a single placement, and
+ * `empty_trash` about every record in an archive. A second spelling would be
+ * two answers to "who still names this" — and, worse, two formats for the
+ * sentence that names them, in the two refusals a person is most likely to
+ * meet one after the other.
+ *
+ * `namedBy` is the format's own `targetsOf` read backwards, built with the rest
+ * of the derivation — so a relation the format grows later still cannot slip
+ * past this, and asking the question costs a lookup per id rather than a walk
+ * of the corpus.
+ *
+ * WHAT IS GOING IS NOT A DEPENDENT OF ITSELF, and that is why the argument is a
+ * SET rather than an id with a self-check beside it. A record naming another
+ * record in the same removal goes when it goes; so does one naming itself. Read
+ * with a set of one, that is exactly the old self-check, which is what makes
+ * this one function rather than a generalisation with a special case in it.
+ *
+ * One entry per NAMING RECORD, not per edge: a live row pointing at three of
+ * the records being deleted is one thing to re-point and reads as one.
+ */
+const heldBy = (scope: Scope, going: ReadonlySet<string>): ReadonlyArray<string> => {
+  const held = new Map<string, string>()
+  for (const id of going) {
+    for (const naming of scope.derived.namedBy.get(id) ?? []) {
+      if (going.has(naming.at.node.id)) continue
+      held.set(
+        naming.at.node.id,
+        `\`${naming.at.node.id}\` (${
+          naming.fields.map((field) => `\`${field}\``).join(", ")
+        }, ${naming.at.file}:${naming.at.line})`,
+      )
+    }
+  }
+  return [...held.values()]
+}
+
+/** {@link heldBy} of one record — what `remove_mirror` asks about the placement
+ *  it is retiring. */
 const dependents = (scope: Scope, id: string): ReadonlyArray<string> =>
-  // `namedBy` is the format's own `targetsOf` read backwards, built with the
-  // rest of the derivation — so a relation added later still cannot slip past
-  // this, and asking the question stopped costing a walk of the corpus. A
-  // record naming ITSELF is not a dependent of itself: it goes when it goes.
-  (scope.derived.namedBy.get(id) ?? [])
-    .filter((naming) => naming.at.node.id !== id)
-    .map((naming) =>
-      `\`${naming.at.node.id}\` (${
-        naming.fields.map((field) => `\`${field}\``).join(", ")
-      }, ${naming.at.file}:${naming.at.line})`
-    )
+  heldBy(scope, new Set([id]))

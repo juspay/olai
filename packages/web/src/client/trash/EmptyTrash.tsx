@@ -10,13 +10,12 @@
  * for the same question at a different scale — a verb that swaps itself for a
  * sentence and two pills — so the two read alike on purpose.
  *
- * **THE COUNT IS THE POINT.** What the question names is every record in every
- * archive the directory holds, asked of the SET
- * ({@link ../derived.tsx}'s indexes), never of the rows this page happens to be
- * drawing. Those two differ for two independent reasons here, and both would
- * understate the write: a filter narrows what is drawn (`../filter/`), and a
- * mirror in an archive draws children that are not records of it. The lesson is
- * `parity-archive`'s, whose confirm learned it first (`../menu/subtree.ts`).
+ * **THE COUNT IS THE POINT**, and it is not this file's arithmetic:
+ * `./counting.ts` answers it over the SET, and carries the argument for why the
+ * rows on screen are not an answer. What this component owns is only WHEN to
+ * ask — which is every frame, through the live indexes, so a pile that arrives
+ * while somebody is reading the question puts the question away rather than
+ * silently re-wording it.
  *
  * **THE VERB IS NOT DRAWN OVER AN EMPTY TRASH**, and it is not taken away by a
  * filter either — those are the same rule read twice. Whether there is anything
@@ -33,7 +32,6 @@
  */
 
 import { createEffect, createMemo, createSignal, Match, Show, Switch } from "solid-js"
-import { nodesOf } from "@olai/format"
 
 import { useDerived } from "../derived.tsx"
 import { SaidLine } from "../edit/SaidLine.tsx"
@@ -42,6 +40,7 @@ import { ALARM_PILL, QUIET_PILL } from "../pill.ts"
 import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
 import { applying } from "../writes.ts"
+import { inTrash } from "./counting.ts"
 import { emptyQuestion } from "./question.ts"
 
 export function EmptyTrash(props: {
@@ -56,12 +55,12 @@ export function EmptyTrash(props: {
   const [asking, setAsking] = createSignal(false)
   const [working, setWorking] = createSignal(false)
 
-  /** How many records go — every record in every archive. Zero is what takes
-   *  the control off the page entirely. */
+  /** How many records go — {@link ./counting.ts}, which is where the argument
+   *  for asking the SET rather than the page lives, and where it is tested.
+   *  Zero is what takes the control off the page entirely. */
   const going = createMemo(() => {
     const indexes = derived()
-    if (indexes === undefined) return 0
-    return props.files.reduce((count, file) => count + nodesOf(indexes, file).length, 0)
+    return indexes === undefined ? 0 : inTrash(indexes, props.files)
   })
 
   /**
