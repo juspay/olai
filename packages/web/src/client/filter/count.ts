@@ -65,7 +65,7 @@ export const NOTHING_COUNTED: Counts = { shown: 0, held: 0, hiddenAsDone: 0 }
 export const countLine = ({ shown, held, hiddenAsDone }: Counts): string => {
   const found = shown === 0 ? `no matches of ${held}` : `${shown} of ${held}`
   if (hiddenAsDone === 0) return found
-  return `${found} — ${hiddenAsDone} ${shown === 0 ? "" : "more "}${
-    hiddenAsDone === 1 ? "match" : "matches"
-  } hidden as done (Prefs)`
+  const more = shown === 0 ? "" : "more "
+  const matches = hiddenAsDone === 1 ? "match" : "matches"
+  return `${found} — ${hiddenAsDone} ${more}${matches} hidden as done (Prefs)`
 }
