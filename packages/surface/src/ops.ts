@@ -67,6 +67,9 @@
  */
 
 import {
+  DocumentAnswer,
+  DocumentBody,
+  DocumentRequest,
   NodeAnswer,
   NodeRequest,
   OpFailure,
@@ -105,4 +108,20 @@ export const opsProcedures = {
   node: { input: NodeRequest, output: NodeAnswer, error: OpFailure },
   /** A node and what hangs under it, nested — `read_subtree`. */
   subtree: { input: SubtreeRequest, output: SubtreeAnswer, error: OpFailure },
+  /** Every document under the served directory — what `list_documents`
+   *  answers. No input, for {@link outlines}' reason: a directory is not a
+   *  question with parameters.
+   *
+   *  A PROCEDURE and not the `documents` COLLECTION next door, which serves
+   *  the same files, because the two answer different questions. The
+   *  collection's key set is every bodied file's path — including the `.html`
+   *  the set keeps no body for — and a path is all it is; this is the ops
+   *  layer's listing, with the line each document opens with and what it
+   *  weighs, over the `.md` the document verbs actually take. A resource is
+   *  also something a host may or may not surface to a model, and a tool is
+   *  something a model can call. */
+  documents: { output: DocumentAnswer, error: OpFailure },
+  /** One document, whole — `read_document`. Refuses a path the set does not
+   *  hold, rather than answering it: see `@olai/format`'s `DocumentBody`. */
+  document: { input: DocumentRequest, output: DocumentBody, error: OpFailure },
 } as const

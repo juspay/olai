@@ -1,7 +1,7 @@
 /**
  * Every read answers what the TABLE says it answers.
  *
- * The four read shapes are declared in `@olai/format` and produced here, which
+ * The six read shapes are declared in `@olai/format` and produced here, which
  * the compiler already checks in one direction — a reader that omits a required
  * field, or builds an envelope the declaration has never heard of, does not
  * build. What it cannot check is the other direction, and the other direction
@@ -23,8 +23,9 @@
  * OFF THE TABLE rather than off a hand-picked list of functions, and that is
  * the difference worth having: `Query.detail` is not what an agent calls,
  * `read_node` is, and the envelope between them (`?? { missing: id }`) is
- * exactly the part a test against the function would not see. A fifth read tool
- * is covered the moment it is added, or the fixture list below fails naming it.
+ * exactly the part a test against the function would not see. A seventh read
+ * tool is covered the moment it is added, or the fixture list below fails
+ * naming it.
  *
  * That envelope now lives in `asking`, one declaration serving the local layer
  * and the surface procedure a bridged agent reaches — so this walk covers the
@@ -63,7 +64,10 @@ import { act, asking, read, TOOLS, write } from "./tools.ts"
 
 /** One house, and everything a read can carry: both marker kinds, a note, a
  *  date, both tag sigils, a placement with a parent and one without, a child
- *  deep enough to truncate a walk, and a file that does not parse. */
+ *  deep enough to truncate a walk, and a file that does not parse — plus the
+ *  documents beside it, which the two document reads answer over: one with a
+ *  heading, one with none, a `.html` the set keeps no body for, and a `.md`
+ *  that could not be read. */
 const EVERYTHING = (): OutlineSet =>
   setOf({
     "house.olai": [
@@ -76,7 +80,13 @@ const EVERYTHING = (): OutlineSet =>
       // …and at the top level, so one of `paint`'s placements has no parent.
       `{"id":"loose","ord":"a1","mirror":"paint"}`,
     ].join("\n"),
-  }, [], { "torn.olai": "{ not a record" })
+  }, [
+    ["notes/finishes.md", "# Finishes\n\nDoors: matte.\n"],
+    ["plain.md", "walnut, or birch\n"],
+    // Bare, because the set holds this one's PATH and not its content — which
+    // is exactly why no document read answers it.
+    "saved/page.html",
+  ], { "torn.olai": "{ not a record", "torn.md": "{ not a record" })
 
 const at = (): Reading => readingOf(EVERYTHING())
 
@@ -118,6 +128,13 @@ const CALLS: Record<string, ReadonlyArray<unknown>> = {
   ],
   read_node: [{ id: "house" }, { id: "paint" }, { id: "shed" }],
   read_subtree: [{ id: "house", depth: 1 }, { id: "house" }, { id: "shed" }],
+  list_documents: [{}],
+  // The reads that REFUSE are not called here: this walk decodes ANSWERS, and
+  // a refusal has none. What `read_document` says about a path the set does not
+  // hold is the MCP face's own test and `an_external_agent.feature`'s, where
+  // the refusal travels as a tool result rather than being discharged by an
+  // `orDie` that would simply throw.
+  read_document: [{ file: "notes/finishes.md" }, { file: "plain.md" }],
 }
 
 const READS = TOOLS.filter((tool) => tool.kind === "read")
@@ -215,6 +232,25 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   expect((paint?.["mirrors"] as ReadonlyArray<Placement>).map((one) => one.parent))
     .toEqual(["house", undefined])
   expect(gone).toEqual({ missing: "shed" })
+
+  // The document listing is the outline listing's twin, torn row and all: a
+  // `.md` the set could not read carries `unreadable` beside an empty title
+  // and a zero, and the `.html` beside it is not in this answer at all —
+  // nothing kept its body, so there is nothing to name or measure.
+  const documents = of("list_documents")[0]?.["documents"] as ReadonlyArray<
+    Record<string, unknown>
+  >
+  expect(documents).toEqual([
+    { file: "notes/finishes.md", title: "Finishes", bytes: 26 },
+    { file: "plain.md", title: "walnut, or birch", bytes: 17 },
+    { file: "torn.md", title: "", bytes: 0, unreadable: [expect.any(String)] },
+  ])
+
+  // And one body, whole — the text a `write_document` guard is judged against.
+  expect(of("read_document")[0]).toEqual({
+    file: "notes/finishes.md",
+    text: "# Finishes\n\nDoors: matte.\n",
+  })
 
   const [cut, whole, absent] = of("read_subtree")
   expect((cut?.["children"] as ReadonlyArray<Subtree>)[1])

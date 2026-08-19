@@ -279,6 +279,87 @@ When(
 
 // ── documents, from a terminal ─────────────────────────────────────────
 
+/**
+ * The two reads, over the same wire the writes go over.
+ *
+ * `resources/read` next door reaches the same files by URI and is a different
+ * claim: a RESOURCE is something a host may or may not put in front of a
+ * model, and a tool is something the model can call. The write verbs describe
+ * their own guard in terms of what a caller READ, so the read had to be a tool
+ * the caller can reach.
+ */
+When(
+  "the terminal agent lists the documents",
+  async function (this: OlaiWorld) {
+    this.toolAnswer = await callTool(agentOf(this), "list_documents", {});
+  },
+);
+
+Then(
+  "the terminal agent was shown the document {string} titled {string}",
+  function (this: OlaiWorld, file: string, title: string) {
+    const listed = (structuredOf(this)["documents"] ?? []) as ReadonlyArray<
+      { readonly file: string; readonly title: string; readonly bytes: number }
+    >;
+    const found = listed.find((one) => one.file === file);
+    assert.ok(
+      found,
+      `the listing is ${JSON.stringify(listed.map((one) => one.file))} — no \`${file}\``,
+    );
+    // The title is DERIVED — the document's first line with its heading marks
+    // off — because a `.md` has no record for a name to be written on. It is
+    // the same line the app draws under a node that attaches one.
+    assert.strictEqual(found.title, title);
+    assert.ok(
+      found.bytes > 0,
+      `\`${file}\` is listed weighing ${found.bytes} bytes, and it is not empty`,
+    );
+  },
+);
+
+Then(
+  "the terminal agent was shown no document {string}",
+  function (this: OlaiWorld, file: string) {
+    const listed = (structuredOf(this)["documents"] ?? []) as ReadonlyArray<
+      { readonly file: string }
+    >;
+    assert.ok(
+      !listed.some((one) => one.file === file),
+      `\`${file}\` is in the listing, and it is not a document these verbs ` +
+        "take — the set keeps its path and not its body, so there is nothing " +
+        "to read back",
+    );
+  },
+);
+
+When(
+  "the terminal agent reads the document {string}",
+  async function (this: OlaiWorld, file: string) {
+    this.toolAnswer = await callTool(agentOf(this), "read_document", { file });
+  },
+);
+
+When(
+  "the terminal agent tries to read the document {string}",
+  async function (this: OlaiWorld, file: string) {
+    // `tryTool`, not `callTool`: the refusal is what this step is FOR.
+    this.toolAnswer = await tryTool(agentOf(this), "read_document", { file });
+  },
+);
+
+Then(
+  "the terminal agent was handed the document text {string}",
+  function (this: OlaiWorld, said: string) {
+    const text = structuredOf(this)["text"];
+    assert.ok(
+      typeof text === "string" && text.includes(said),
+      `the document read as ${JSON.stringify(text)}, which does not carry ` +
+        `${JSON.stringify(said)} — a body a write is judged against has to be ` +
+        "the body",
+    );
+  },
+);
+
 When(
   "the terminal agent creates the document {string} holding {string}",
   async function (this: OlaiWorld, file: string, text: string) {

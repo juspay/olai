@@ -29,6 +29,7 @@
  * other case and keeps the full scale — there is no title over it there.
  */
 
+import { firstLine } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
 import { Markdown } from "../markdown/Markdown.tsx"
@@ -36,7 +37,6 @@ import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 import { useDocument } from "./documents.tsx"
-import { firstLine } from "./preview.ts"
 
 export function DocRef(props: {
   /** The document's path, resolved against the outline that named it. */

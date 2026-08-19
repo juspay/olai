@@ -1,12 +1,20 @@
 /**
  * Reading the set, as an agent is allowed to read it.
  *
- * Every answer here is about NODES: an id, a title, a mark, an ancestry, a
- * `file:line`. Never bytes, never a line of a file, never a directory listing.
- * That is the read half of the same decision the write half makes — the agent
- * works in the format's own terms, so the things it can express are the things
- * the format can be (docs/brainstorming/acp.md, resolved 2026-08-09: "query
- * tools are over parsed nodes, not raw lines").
+ * Every answer about an OUTLINE is about NODES: an id, a title, a mark, an
+ * ancestry, a `file:line`. Never bytes, never a line of a file, never a
+ * directory listing of them. That is the read half of the same decision the
+ * write half makes — the agent works in the format's own terms, so the things
+ * it can express are the things the format can be (docs/brainstorming/acp.md,
+ * resolved 2026-08-09: "query tools are over parsed nodes, not raw lines").
+ *
+ * A DOCUMENT is the exception the write half already made, read back. A `.md`
+ * has no identity below the file — no records, no ids, nothing to name a piece
+ * of it by — so `write_document` takes the whole text and {@link documents} /
+ * {@link document} answer with the whole text, which is the same unit read
+ * rather than a byte range conceded. What is NOT here is the thing that would
+ * be one: no offset, no line range, no walk of the directory that is not the
+ * served set's own list.
  *
  * It is not a smaller `grep`. A grep over `.olai` answers with JSON fragments
  * out of context, invites byte-level edits back, and cannot say where a node
@@ -28,7 +36,12 @@ import {
   DEFAULT_SUBTREE_DEPTH,
   type Derived,
   type Detail,
+  didYouMean,
+  type DocumentBody,
+  type DocumentSummary,
   errorLine,
+  fileKind,
+  firstLine,
   follow,
   type Found,
   heldCustom,
@@ -37,7 +50,9 @@ import {
   MARKS,
   matching,
   nodesOf,
+  NotFoundFailure,
   nothing,
+  type OpFailure,
   type OutlineSet,
   type OutlineSummary,
   parseFilter,
@@ -53,7 +68,9 @@ import {
   type Subtree,
   tagText,
   titleParts,
+  ValidationFailure,
 } from "@olai/format"
+import { Result } from "effect"
 
 /**
  * Every shape an answer here has is `@olai/format`'s, and none of them is
@@ -469,4 +486,119 @@ export const outlines = (
         .map((located) => located.node.title),
     }
   })
+}
+
+// ── the documents ──────────────────────────────────────────────────────
+
+/**
+ * Every document the directory serves, summarised — {@link outlines}' twin
+ * over the other kind of file.
+ *
+ * `.md` ONLY, and the filter is the whole of what makes this honest. The set's
+ * `documents` list is every BODIED file, which is every `.md` and every
+ * `.html` — one list because what the set knows about either is the same two
+ * facts — but a `.html`'s body is not kept (`@olai/format`'s `kinds.ts`, its
+ * `kept` flag owns the argument), so a listing that named one would be
+ * offering a read that cannot be answered and a size that was never measured.
+ * "Document" here is the word the two write verbs already use, and this is the
+ * listing they are read against: what `list_documents` names is what
+ * `write_document` takes.
+ *
+ * The broken map is built once for the whole answer, exactly as {@link
+ * outlines} builds its own: a document that did not READ is in `documents`
+ * with an empty text AND in `broken` (`@olai/format`'s `assemble`), so the
+ * empty text has to be told apart from an empty file, and asking per row would
+ * be files × broken on the first call an agent makes.
+ */
+export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
+  const broken = new Map(set.broken.map((entry) => [entry.file, entry.errors]))
+  // ANNOTATED for {@link outlines}' reason: a field dropped from
+  // `DocumentSummary` fails HERE rather than only at the table-driven decode.
+  return set.documents
+    .filter((entry) => fileKind(entry.file) === "document")
+    .map((entry): DocumentSummary => {
+      const errors = broken.get(entry.file)
+      // The empty title and the zero are what a file that could not be read
+      // gets, and {@link DocumentSummary} says why that is held rather than
+      // settled — it is `OutlineSummary`'s convention, matched on purpose.
+      if (errors !== undefined) {
+        return { file: entry.file, title: "", bytes: 0, unreadable: errors.map(errorLine) }
+      }
+      const text = entry.text ?? ""
+      return { file: entry.file, title: firstLine(text), bytes: bytesOf(text) }
+    })
+}
+
+/** How many BYTES a document's text is, as UTF-8 — what it weighs on disk,
+ *  rather than how many UTF-16 units JavaScript happens to hold it in. Counted
+ *  rather than encoded: `TextEncoder` would allocate a copy of every document
+ *  in the directory to throw all of them away, on a call whose whole point is
+ *  to be cheaper than reading them. */
+const bytesOf = (text: string): number => {
+  let bytes = 0
+  for (let at = 0; at < text.length; at++) {
+    const code = text.charCodeAt(at)
+    if (code < 0x80) bytes += 1
+    else if (code < 0x800) bytes += 2
+    // A surrogate PAIR is one code point in four bytes, and the high half is
+    // what says so — a lone surrogate is not text and is counted as the three
+    // bytes its replacement would take.
+    else if (code >= 0xd800 && code <= 0xdbff && at + 1 < text.length) {
+      bytes += 4
+      at++
+    } else bytes += 3
+  }
+  return bytes
+}
+
+/**
+ * One document, whole — or the refusal that says why not.
+ *
+ * A REFUSAL and not a `{ missing }` arm, which is the one place a document
+ * read parts company with a node read; {@link DocumentBody} carries that
+ * argument. What matters here is that the sentence is the SAME sentence
+ * `write_document` refuses a missing path with, from the same near-miss
+ * function over the same candidate list — a path an agent typed is answered
+ * one way whichever verb it typed it at.
+ *
+ * Two refusals rather than one, because a file the set could not READ is not a
+ * file the set does not hold: it is on the disk, it will parse or it will not,
+ * and answering it as an empty document would be handing back a body nobody
+ * read. That is `@olai/ops`' `writable` rule (`./plan.ts`) asked from the read
+ * side, and it comes back with the validator's own rows for the same reason —
+ * fix the file, then read it.
+ */
+export const document = (
+  set: OutlineSet,
+  file: string,
+): Result.Result<DocumentBody, OpFailure> => {
+  const entry = fileKind(file) === "document"
+    ? set.documents.find((held) => held.file === file)
+    : undefined
+  if (entry === undefined) {
+    const near = didYouMean(
+      file,
+      set.documents.filter((held) => fileKind(held.file) === "document").map((held) => held.file),
+    )
+    return Result.fail(
+      new NotFoundFailure({
+        reason: near === ""
+          ? `\`${file}\` is not a document under the served directory — ` +
+            `\`list_documents\` says what is`
+          : `\`${file}\` is not a document under the served directory${near}`,
+        named: file,
+      }),
+    )
+  }
+  const errors = set.broken.find((entry) => entry.file === file)
+  if (errors !== undefined) {
+    return Result.fail(
+      new ValidationFailure({
+        reason: `\`${file}\` could not be read, so what it holds is not loaded — ` +
+          `there is nothing to answer with. Fix the file first.`,
+        errors: errors.errors,
+      }),
+    )
+  }
+  return Result.succeed({ file, text: entry.text ?? "" })
 }

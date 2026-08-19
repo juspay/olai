@@ -32,7 +32,7 @@
  *     on rather than a sentence it has to parse. That is what `ToolFailure`
  *     is for (juspay/kolu#2155), and it is the reason this migration waited.
  *   - **A read is a read.** `mutates: false` is a conscious opt-in to the
- *     auto-approvable hint, and it is correct for the four query tools and for
+ *     auto-approvable hint, and it is correct for the six query tools and for
  *     nothing else.
  */
 
@@ -85,17 +85,21 @@ export const bespokeFrom = (
  * differently for being reached over a socket.
  *
  * `commit`, `push` and `search` are the members BOTH doors call (`git.*`,
- * `search.nodes`); the rest are the agent's own `ops.*`. Which writer a landing
- * write is recorded as is neither's business — the FACE this client dispatches
- * at decided it (`../runtime.ts`'s `writerAt`).
+ * `search.nodes`); the rest are the agent's own `ops.*`, the two document
+ * reads included — a browser draws a `.md` off the `documents` COLLECTION it
+ * already subscribes to, which is a different question from the listing an
+ * agent asks. Which writer a landing write is recorded as is neither's
+ * business — the FACE this client dispatches at decided it (`../runtime.ts`'s
+ * `writerAt`).
  *
- * ONE PER CLIENT, not one per call. Two of the seven lines are Effect VALUES
- * rather than thunks (`push`, `outlines` — that is the shape the interfaces
- * declare, because a question with no argument is a value), so building a door
- * per tool call would decode `git.push`'s empty input on every `set_done` as
- * well. The adapter hands back the same client object for a connection's whole
- * life, so the key is the connection in everything but name — and an Effect is
- * an immutable description, so reuse across calls is what it is for.
+ * ONE PER CLIENT, not one per call. Three of the nine lines are Effect VALUES
+ * rather than thunks (`push`, `outlines`, `documents` — that is the shape the
+ * interfaces declare, because a question with no argument is a value), so
+ * building a door per tool call would decode `git.push`'s empty input on every
+ * `set_done` as well. The adapter hands back the same client object for a
+ * connection's whole life, so the key is the connection in everything but
+ * name — and an Effect is an immutable description, so reuse across calls is
+ * what it is for.
  */
 const doorFor = (client: OlaiSurfaceClient): Door => {
   const held = DOORS.get(client)
@@ -119,6 +123,8 @@ const doorOver = (client: OlaiSurfaceClient): Door => ({
   node: (request) => landed(client.surface.ops.node(request)),
   subtree: (request) => landed(client.surface.ops.subtree(request)),
   search: (request) => landed(client.surface.search.nodes(request)),
+  documents: landed(client.surface.ops.documents(undefined)),
+  document: (request) => landed(client.surface.ops.document(request)),
 })
 
 /**

@@ -134,15 +134,33 @@ const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
  * What a host is told olai IS, at `initialize`.
  *
  * Load-bearing prose, not a greeting: an agent that has met a hundred MCP
- * servers arrives assuming files, and the one thing it has to unlearn here is
- * that there are any. Reachable only because the adapter passes it through to
+ * servers arrives assuming a filesystem, and what it has to unlearn here is
+ * that this is one. Reachable only because the adapter passes it through to
  * the SDK, which serves `initialize` inside its own protocol layer — there is no
  * request handler a consumer could register to say this instead.
+ *
+ * **IT SAID "there is no file access" UNTIL THIS PR, AND THAT HAD STOPPED
+ * BEING TRUE.** `md-editing` added `create_document` and `write_document` —
+ * verbs whose subject is a file — and the read half (`list_documents`,
+ * `read_document`) is what makes the pair usable at all. A charter an agent is
+ * handed at `initialize` and can disprove with its second tool call is worse
+ * than no charter: what it teaches next is that the rest of this text is
+ * decoration.
+ *
+ * So what it claims now is the thing that is actually true, and it is the
+ * stronger claim rather than the weaker one. The unit is not a byte and never
+ * a range — a NODE for an outline, a whole TEXT for a document — and the
+ * namespace is the served set rather than a disk: there is no listing that is
+ * not this directory's own, no path outside it, no shell and no grep. That is
+ * what the closed table enforces (`@olai/ops`' `tools.ts`), so this sentence
+ * and that list say one thing.
  */
 const INSTRUCTIONS =
-  "olai serves a directory of outlines. Everything here is about NODES, not files: " +
-  "search and read to find one, then use the write tools to change it. There is no " +
-  "file access — a node is the smallest thing you can name, and that is deliberate."
+  "olai serves a directory of outlines and the documents beside them. Everything here " +
+  "is NODES and whole DOCUMENTS, never bytes: search and read to find a node, then use " +
+  "the write tools to change it; list and read a `.md` document by path, and write one " +
+  "back whole. There is no filesystem under this — no shell, no grep, no path outside " +
+  "the served directory, and no way to name part of a file — and that is deliberate."
 
 export interface FaceOptions {
   /**

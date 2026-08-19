@@ -211,6 +211,101 @@ export const OutlineAnswer = Schema.Struct({
 })
 export type OutlineAnswer = typeof OutlineAnswer.Type
 
+// ── the documents ──────────────────────────────────────────────────────
+
+/**
+ * One DOCUMENT of the served directory, as a listing says it — its path, the
+ * line it opens with, and how much text is under that.
+ *
+ * The outline listing's twin ({@link OutlineSummary}), and deliberately the
+ * same shape of answer: enough to choose a file, nothing that would make
+ * listing a directory cost what reading it does. What differs is what a `.md`
+ * HAS. An outline is records, so its summary counts them and names its roots;
+ * a document is one text with no structure below the file, so what can be said
+ * about it is the line it opens with and its size.
+ *
+ * `title` is a DERIVATION and not a field — `firstLine` (`./documents.ts`),
+ * the same rule the web draws under a `doc`-carrying row — because a document
+ * has no record for a name to be written on. That is the whole of the
+ * `md-second-class` asymmetry in one field, and it is answered here rather
+ * than left out: a listing of twenty paths says which directory an agent is
+ * in, and a listing of twenty paths with their opening lines says which file
+ * to read.
+ *
+ * **The unreadable row is a FLAT shape, exactly as {@link OutlineSummary}'s
+ * is**, and knowingly so for the same reason: a document the set could not
+ * read carries `unreadable` beside a `title` and a `bytes` filled in with `""`
+ * and `0` — a name nobody read and a size nobody measured. The convention a
+ * reader has to know is the one next door: *if `unreadable` is here,
+ * disbelieve the two above it.* It is written to MATCH rather than to improve
+ * on it, because the two-arm shape is a ruling the human has not made
+ * ({@link OutlineSummary} records where that stands), and one listing answering
+ * a torn file one way and the other listing answering it another would be the
+ * inconsistency that ruling is waiting to remove from both at once.
+ */
+export const DocumentSummary = Schema.Struct({
+  file: Schema.String,
+  /** The document's first line, heading marks off — what it is ABOUT, in the
+   *  space a listing has. Empty for a document holding nothing. */
+  title: Schema.String,
+  /** Its text's size in bytes, as UTF-8 — what a caller decides with before
+   *  asking for the whole of it. */
+  bytes: Schema.Int,
+  /** Present, and the whole of what can be said about it, when the file could
+   *  not be read: its text is not loaded, so it has neither a line to be named
+   *  by nor a size that was measured. */
+  unreadable: Schema.optionalKey(Schema.Array(Schema.String)),
+})
+export type DocumentSummary = typeof DocumentSummary.Type
+
+/** The whole listing, in the envelope it travels in — {@link OutlineAnswer}'s
+ *  twin, and the field earns itself the same two ways: a bare array is not a
+ *  JSON object, and an envelope is where a second fact about the listing would
+ *  go. */
+export const DocumentAnswer = Schema.Struct({
+  documents: Schema.Array(DocumentSummary),
+})
+export type DocumentAnswer = typeof DocumentAnswer.Type
+
+/** Asking for one document. A node read names an id because a node HAS one; a
+ *  document has no identity below the file, so this names the path — the same
+ *  spelling the listing answers with and `write_document` takes. */
+export const DocumentRequest = Schema.Struct({
+  file: Schema.String.annotate({
+    description:
+      "Path of a document (`.md`) under the served directory, exactly as `list_documents` lists it.",
+  }),
+})
+export type DocumentRequest = typeof DocumentRequest.Type
+
+/**
+ * One document, whole: the path that was asked for and the text under it.
+ *
+ * NO `{ missing }` ARM, which is where this parts company with
+ * {@link NodeAnswer} and {@link SubtreeAnswer}, and the difference is real
+ * rather than a style choice. A node read answers the id it does not hold
+ * because "is there a node called this?" is a question worth an answer — ids
+ * are minted, guessed at and carried around in prose. A path is not guessed
+ * at: it was listed, or a caller typed it, and the useful answer to a typo is
+ * the near miss, which only a refusal carries (`NotFoundFailure`, with
+ * `didYouMean`'s closest path). That is also the voice `write_document`
+ * already refuses a missing path in, and the two reaching for one path should
+ * not be told two different things about it.
+ *
+ * The `file` rides back for the reason it rides back on a write's answer: an
+ * agent holding several reads in flight needs each body to say which path it
+ * is, and the caller's own argument is the only spelling that can.
+ */
+export const DocumentBody = Schema.Struct({
+  file: Schema.String,
+  /** Verbatim, exactly as on disk. Markdown, interpreted only at view time —
+   *  never `null` here, unlike the set's own `Document`: what the set does not
+   *  keep the body of is not a document this read answers (`./documents.ts`
+   *  holds that split, and the tool refuses the other kinds by name). */
+  text: Schema.String,
+})
+export type DocumentBody = typeof DocumentBody.Type
+
 // ── one node ───────────────────────────────────────────────────────────
 
 /** Asking for one node. The whole request: a read names an id, and everything

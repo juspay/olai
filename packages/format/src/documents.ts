@@ -269,3 +269,48 @@ const ASSET_EXTENSIONS: ReadonlyArray<string> = [
  */
 export const isAsset = (path: string): boolean =>
   fileKind(path) === "hypertext" || isPicture(path) || suffixed(path, ASSET_EXTENSIONS)
+
+/**
+ * A document, in one line: its first line with anything on it, heading marks
+ * off.
+ *
+ * The closest thing a `.md` has to a title, and it is a DERIVATION rather than
+ * a field — a document has no record, so there is nowhere on it for a name to
+ * be written. `# Finishes` is a document called Finishes, and the hashes are
+ * markup rather than the name.
+ *
+ * PLAIN TEXT, never rendered markdown, because both callers put it in a space
+ * one line high: the web draws it in a row beside a `doc`-carrying node's
+ * title, and `list_documents` puts it in a listing beside the path. A heading,
+ * a list or a fenced block drawn there would be a document pretending to be a
+ * row.
+ *
+ * IT IS THE FORMAT'S because two faces ask it now. It was `@olai/web`'s
+ * `document/preview.ts` while the browser was the only thing that named a
+ * document, and the rule moved here whole when the agent's listing wanted the
+ * same answer — "MCP and Web ops must be consistent" (HACKING.md) is a
+ * property of there being one function, not of two that were written from each
+ * other.
+ */
+export const firstLine = (text: string): string => {
+  // Scanned rather than split: a preview reads the top of a document, and
+  // `split("\n")` would allocate every line of one to throw all but the first
+  // away — on a page that draws this beside every `doc`-carrying row, and in a
+  // listing that draws it once per served document.
+  let at = 0
+  while (at < text.length) {
+    const end = text.indexOf("\n", at)
+    const line = (end === -1 ? text.slice(at) : text.slice(at, end)).trim()
+    if (line !== "") {
+      // Only the heading marks, and only where markdown puts them: leading
+      // `#`s, and the optional closing run of them. Everything else stays as
+      // written — stripping emphasis and links here would be a second, worse
+      // renderer.
+      const stripped = line.replace(/^#{1,6}\s+/, "").replace(/\s+#+$/, "")
+      return stripped === "" ? line : stripped
+    }
+    if (end === -1) break
+    at = end + 1
+  }
+  return ""
+}
