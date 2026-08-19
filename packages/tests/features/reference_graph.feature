@@ -231,6 +231,14 @@ Feature: The reference graph — the shape a directory's references make
       """
     And I open the reference graph for "hub"
     Then the graph draws 21 nodes
+    # Moved AWAY from, because that is what the rule is about: the frame is the
+    # window now, so how many labels fit at rest is a fact about the reader's
+    # screen rather than a promise. Two steps back and the titles would land on
+    # each other, so only the ones that fit are written — and every dot is still
+    # drawn.
+    When I move the graph camera further away
+    And I move the graph camera further away
+    Then the graph draws 21 nodes
     And the graph names fewer dots than it draws
     # The CENTRE is named whatever else is dropped: it is what the page is about.
     And the graph names the dot "hub"
@@ -267,4 +275,58 @@ Feature: The reference graph — the shape a directory's references make
     And I point at the graph node "c20"
     Then the graph names the dot "c20"
     And the graph caption reads "a referring node number twenty — crowd.olai"
+    And there should be no page errors
+
+  # ── the page is the picture ──────────────────────────────────────────
+
+  Scenario: The drawing takes the pane, and nothing is left under it
+    # Filed by the human from a screenshot: a small fixed box above a screenful
+    # of nothing. The graph IS this page, so the canvas takes what the column
+    # has left after the heading, the caption and the legend.
+    Given I open the reference graph for "herbs"
+    Then the graph fills the pane
+    And the graph page does not scroll
+    And there should be no page errors
+
+  # ── finished work, hidden where the reader said to hide it ───────────
+
+  Scenario: Hiding finished work takes it off the graph, and its arrows with it
+    # The app's own switch rather than a control of this page's: "I do not want
+    # to look at finished work" is a claim about the READER, so it applies to
+    # every page that draws what the directory says now (docs/search.md).
+    #
+    # `basil` is done and mentions the herb bed; `order` is under way and sees
+    # it. Hiding finished work leaves the second and takes the first — and the
+    # arrow it drew goes with it, because an arrow to a dot nobody can see is
+    # the arrow into the dark this drawing already refuses.
+    When another writer adds "look at @herbs before Tuesday" to "garden.olai"
+    And I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"see":["herbs"]}
+      {"id":"sown","parent":"kitchen","ord":"a2","title":"sowed beside @herbs","done":"2026-07-20"}
+      """
+    And I open the reference graph for "herbs"
+    Then the graph draws the nodes "herbs, outsider, order, sown"
+    When I hide the done nodes
+    Then the graph draws the nodes "herbs, outsider, order"
+    And the graph draws no dot for "sown"
+    And the graph draws the arrows "outsider mention herbs, order see herbs"
+    When I show the done nodes
+    Then the graph draws the nodes "herbs, outsider, order, sown"
+    And there should be no page errors
+
+  Scenario: ...and the node the page is about stays, finished or not
+    # The centre survives for the reason a day page keeps its date: the page is
+    # about that node, and a reader who opens a finished node's own graph is
+    # asking about it. `herbs` is marked done here and `order` still sees it.
+    When I rewrite "garden.olai" as:
+      """
+      {"id":"garden","ord":"a0","title":"garden #outdoors"}
+      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","done":"2026-08-01"}
+      """
+    And I open the reference graph for "herbs"
+    And I hide the done nodes
+    Then the graph is centred on "herbs"
+    And the graph draws the nodes "herbs, order"
     And there should be no page errors

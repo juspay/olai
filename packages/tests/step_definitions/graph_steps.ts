@@ -361,3 +361,48 @@ Then(
     );
   },
 );
+
+// ── the drawing IS the page ────────────────────────────────────────────
+
+/**
+ * THE CANVAS FILLS WHAT THE PANE HAS, which is the claim the human filed from a
+ * screenshot: the graph sat in a box of its own height above a screenful of
+ * nothing.
+ *
+ * Asserted as a FRACTION of the window rather than as a number of pixels: what
+ * the drawing is owed is "most of what is left under the header", and a pixel
+ * count would be a test of the heading's font size. Half the viewport is a
+ * floor no fixed box the page could have gone back to would clear.
+ */
+Then("the graph fills the pane", async function (this: OlaiWorld) {
+  const box = await this.page.locator(GRAPH_CANVAS).first().boundingBox();
+  assert.ok(box !== null, "the graph canvas has no box at all");
+  const tall = await this.page.evaluate(() => window.innerHeight);
+  assert.ok(
+    box.height > tall / 2,
+    `the graph canvas is ${Math.round(box.height)}px tall in a ${tall}px window, ` +
+      `which is the small box in a sea of empty space this is written against`,
+  );
+});
+
+/** ...and the page under it does not scroll, which is the other half of the
+ *  same claim: a drawing sized to the window leaves nothing below it to reach. */
+Then("the graph page does not scroll", async function (this: OlaiWorld) {
+  const over = await this.page.evaluate(() =>
+    document.documentElement.scrollHeight - window.innerHeight
+  );
+  assert.ok(over <= 1, `the graph page scrolls by ${over}px`);
+});
+
+/** A dot that is not drawn at all — what hiding finished work does to one, as
+ *  against a label that merely did not fit (`data-labelled`). */
+Then(
+  "the graph draws no dot for {string}",
+  async function (this: OlaiWorld, id: string) {
+    await this.waitUntil(
+      async () =>
+        (await this.page.locator(`${GRAPH_NODE}${attr("data-node-id", id)}`).count()) === 0,
+      `the graph to draw no dot for \`${id}\``,
+    );
+  },
+);

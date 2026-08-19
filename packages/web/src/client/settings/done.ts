@@ -11,7 +11,7 @@
  */
 
 import type { Row } from "@olai/format"
-import { withoutDone } from "@olai/format"
+import { withoutDone, withoutDoneGraph } from "@olai/format"
 import type { Accessor } from "solid-js"
 
 import type { Drawn } from "../page.ts"
@@ -46,13 +46,22 @@ export const visible = (rows: ReadonlyArray<Row>): ReadonlyArray<Row> =>
  * this preference reach", which is here rather than at the composition for the
  * reason above: it is a fact about the preference.
  *
- * It reaches a TREE and nothing else, and that is where it has always reached.
- * A day and the agenda answer a date question and the trash is what was put
- * away; hiding finished work inside any of the three would be this switch
- * deciding something none of those pages was asked — a day page is a record of
- * what happened, and half of what happened is work that got finished.
+ * IT REACHES A TREE AND A GRAPH, and the second one is the preference doing
+ * what it always said it did. "I do not want to look at finished work" is a
+ * claim about the READER, so it applies to every page that draws what the
+ * directory says NOW. A day, the agenda and the trash are the pages it still
+ * does not reach, and for the reason it never did: those are RECORDS — a day is
+ * what happened, and half of what happened is work that got finished, so hiding
+ * it there would be this switch answering a question the page was not asked. A
+ * graph is not a record of anything, which is why it joins the tree rather than
+ * them (`@olai/format`'s `withoutDoneGraph`, and the human asked for it from a
+ * corpus graph that was mostly struck-through dots).
+ *
+ * The CENTRE of a graph stays whether or not it is finished: the page is about
+ * that node, and a reader who opens a done node's own graph is asking about it.
  *
  * THE SAME VALUE COMES BACK for a reader who is not hiding anything, identity
+
  * and all: {@link visible} hands back the very array it was given when the
  * preference is off, and this hands back the whole reading rather than
  * rewrapping it. That identity is what `../filter/narrowing.ts`'s count of
@@ -81,9 +90,16 @@ export const visible = (rows: ReadonlyArray<Row>): ReadonlyArray<Row> =>
  * this preference does not reach.
  */
 export const visibleIn = (drawn: Drawn): Drawn => {
-  if (drawn.kind !== "tree") return drawn
-  const rows = visible(drawn.rows)
-  return rows === drawn.rows ? drawn : { kind: "tree", rows }
+  if (!doneHidden()) return drawn
+  if (drawn.kind === "tree") {
+    const rows = withoutDone(drawn.rows)
+    return rows === drawn.rows ? drawn : { kind: "tree", rows }
+  }
+  if (drawn.kind === "graph") {
+    const graph = withoutDoneGraph(drawn.graph, drawn.focus)
+    return graph === drawn.graph ? drawn : { ...drawn, graph }
+  }
+  return drawn
 }
 
 /** Follow it for as long as this document lives — the same shape as

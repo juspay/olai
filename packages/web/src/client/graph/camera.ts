@@ -29,7 +29,7 @@
 
 import { zoomIdentity, type ZoomTransform } from "d3-zoom"
 
-import { HEIGHT, type Placed, type Placement, WIDTH } from "./layout.ts"
+import type { Frame, Placed, Placement } from "./layout.ts"
 
 /** Where the reader is looking from. d3's own transform, so the gesture handler
  *  and the drawing hold one value rather than two that agree. */
@@ -67,19 +67,20 @@ export const seenAt = (camera: Camera, spot: Placed): Placed => ({
  * are made the same thing, which is also what stops a panned-away label from
  * holding room in the middle of the picture.
  */
-export const inFrame = (seen: Placed): boolean =>
-  seen.x >= 0 && seen.x <= WIDTH && seen.y >= 0 && seen.y <= HEIGHT
+export const inFrame = (seen: Placed, frame: Frame): boolean =>
+  seen.x >= 0 && seen.x <= frame.width && seen.y >= 0 && seen.y <= frame.height
 
 /**
- * How much room one label needs, in the frame's own units — a little wider than
- * a label is (`w-36` against a 1000-unit frame at a typical pane width) and as
- * tall as its two clamped lines, so two kept labels never touch.
+ * How much room one label needs, in CSS PIXELS — a little wider than a label is
+ * (`w-36`, 144px) and as tall as its two clamped lines, so two kept labels
+ * never touch. A number about TYPE, which is what makes it a constant: the box
+ * changes with the window and the words do not.
  *
  * A rectangle rather than a radius because a label is much wider than it is
  * tall, and a circle big enough to keep two side by side apart would throw away
  * every label above and below one.
  */
-const NEEDS = { x: 168, y: 54 }
+const NEEDS = { x: 152, y: 40 }
 
 /**
  * WHICH LABELS ARE DRAWN from here — every one that fits, and nothing that
@@ -103,6 +104,7 @@ const NEEDS = { x: 168, y: 54 }
 export const legible = (
   placement: Placement,
   camera: Camera,
+  frame: Frame,
   order: ReadonlyArray<string>,
   /** The ones a reader is owed whatever the scale — the centre of the page, and
    *  whatever the pointer is on and reaches. They go first, so they claim their
@@ -142,7 +144,7 @@ export const legible = (
     const spot = placement.at.get(id)
     if (spot === undefined) continue
     const seen = seenAt(camera, spot)
-    if (!inFrame(seen) || !room(seen)) continue
+    if (!inFrame(seen, frame) || !room(seen)) continue
     kept.add(id)
     const key = cell(seen)
     const here = taken.get(key)

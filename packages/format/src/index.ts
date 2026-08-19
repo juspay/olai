@@ -283,6 +283,7 @@ export {
   matchedInGraph,
   NOTHING_DRAWN_GRAPH,
   placesInGraph,
+  withoutDoneGraph,
 } from "./graph.ts"
 export type { Graph, GraphNode, Hops } from "./graph.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it

@@ -151,6 +151,7 @@
         "@olai/format": "workspace:*",
         "@olai/surface": "workspace:*",
         "@solid-primitives/keyed": "^1.5.3",
+        "@solid-primitives/resize-observer": "^2.2.0",
         "@solid-primitives/scheduled": "^1.5.3",
         "d3-force": "^3.0.0",
         "d3-selection": "^3.0.0",

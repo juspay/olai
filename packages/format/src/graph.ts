@@ -55,6 +55,7 @@
 
 import { backlinksOf, type Outgoing, referencesOf, type Way } from "./backlinks.ts"
 import { byCorpus, type Derived } from "./derive.ts"
+import type { Status } from "./node.ts"
 import { isArchived, isRegular, type LocatedRegular } from "./node.ts"
 import type { Selected } from "./filter.ts"
 
@@ -82,6 +83,18 @@ export const HOPS_DEFAULT: Hops = 1
 export interface GraphNode {
   readonly at: LocatedRegular
   readonly hops: number
+  /**
+   * The mark it stores, or nothing — {@link Derived.status} read once, HERE,
+   * rather than by whoever draws the dot.
+   *
+   * It is on the node because two readers need it and neither should have to
+   * hold the derivation to ask: the drawing tones a finished dot the way a row
+   * is toned, and {@link withoutDoneGraph} takes finished work off the picture
+   * for a reader who has said they do not want to look at it. The second of
+   * those is a pure transform over a graph — it has no indexes and should need
+   * none.
+   */
+  readonly status: Status | undefined
 }
 
 /**
@@ -172,7 +185,9 @@ export const graphOf = (derived: Derived, asked: Asked): Graph => {
   const nodes: Array<GraphNode> = []
   for (const [id, hops] of reached.hops) {
     const at = derived.byId.get(id)
-    if (at !== undefined && isRegular(at)) nodes.push({ at, hops })
+    if (at !== undefined && isRegular(at)) {
+      nodes.push({ at, hops, status: derived.status.get(id) })
+    }
   }
   nodes.sort((one, other) => byCorpus(one.at, other.at))
 
@@ -278,6 +293,43 @@ export const keepingGraph = (
 ): Graph => {
   const nodes = graph.nodes.filter(
     (node) => node.at.node.id === keep || matched.has(node.at.node.id),
+  )
+  if (nodes.length === graph.nodes.length) return graph
+  const drawn = new Set(nodes.map((node) => node.at.node.id))
+  return {
+    nodes,
+    edges: graph.edges.filter((edge) => drawn.has(edge.from) && drawn.has(edge.to)),
+  }
+}
+
+/**
+ * The same graph with finished work left out — {@link withoutDone} for the page
+ * that is a SHAPE rather than a tree.
+ *
+ * It is the DONE PREFERENCE reaching one more page, and the argument is the
+ * preference's own: "I do not want to look at finished work" is a claim about
+ * the READER, so it applies wherever nodes are drawn. What kept it to trees
+ * until now was that the other pages are RECORDS — a day is what happened, and
+ * half of what happened is work that got finished, so hiding it there would be
+ * the switch answering a question the page was not asked. A graph is not a
+ * record of anything: it is what the directory says RIGHT NOW about what refers
+ * to what, which is exactly the reading a tree is.
+ *
+ * NO SUBTREE SWEEP, and that is the difference from {@link withoutDone}: a
+ * graph has no under. A tree hides a done branch entire because a mark on a
+ * parent is somebody's claim about everything below it; nothing here hangs
+ * below anything, so what goes is the finished node and the arrows that had it
+ * at one end — an arrow to a dot nobody can see is the arrow into the dark
+ * {@link Graph} already refuses.
+ *
+ * The centre survives for {@link keepingGraph}'s reason: the page is about that
+ * node, and a neighbourhood with no centre is a picture of nothing. A reader
+ * who has hidden finished work and then opens a finished node's graph is asking
+ * about THAT node.
+ */
+export const withoutDoneGraph = (graph: Graph, keep: string | undefined): Graph => {
+  const nodes = graph.nodes.filter(
+    (node) => node.status !== "done" || node.at.node.id === keep,
   )
   if (nodes.length === graph.nodes.length) return graph
   const drawn = new Set(nodes.map((node) => node.at.node.id))

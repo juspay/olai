@@ -72,6 +72,11 @@ import { Canvas, sentenceFor } from "./Canvas.tsx"
 import { Controls } from "./Controls.tsx"
 import { createLooking } from "./looking.ts"
 import { placed, sameShape } from "./layout.ts"
+
+/** How coarsely the layout follows the box, in pixels. Small enough that a
+ *  placement is never visibly stale, large enough that dragging a pane does not
+ *  re-settle the picture on every frame. */
+const STEP = 24
 import { EDGE_LOOKS } from "./look.ts"
 
 export interface GraphPageProps {
@@ -164,7 +169,22 @@ function Shape(props: GraphPageProps) {
   // only question that matters: would this graph settle to the same picture
   // (`./layout.ts`).
   const held = createMemo(() => props.page, undefined, { equals: sameShape })
-  const placement = createMemo(() => placed(held()))
+
+  // The frame the layout is FITTED to, coarsened. The box is measured to the
+  // pixel (`./looking.ts`) because the drawing has to be exact; the layout does
+  // not — re-settling three hundred ticks on every pixel of a sidebar drag
+  // would be a picture that boils while somebody resizes. Rounding the
+  // dependency and not the drawing is what keeps the two honest: a placement
+  // may be up to a step stale against the box, which the margins it already
+  // leaves absorb.
+  const room = createMemo(() => ({
+    width: Math.round(looking.frame().width / STEP) * STEP,
+    height: Math.round(looking.frame().height / STEP) * STEP,
+  }), undefined, {
+    equals: (was, is) => was.width === is.width && was.height === is.height,
+  })
+
+  const placement = createMemo(() => placed(held(), room()))
 
   // A NEW PICTURE IS SEEN FROM THE FRONT. Navigating to another neighbourhood,
   // or widening the horizon, replaces what is under the camera — and a camera
@@ -173,7 +193,10 @@ function Shape(props: GraphPageProps) {
   // own record of the transform (which is on the element) agrees with what is
   // drawn; a signal set on its own would leave the next wheel tick resuming
   // from where the reader had been.
-  createEffect(on(placement, looking.fit, { defer: true }))
+  // A NEW PICTURE is seen from the front — but a RESIZE is not a new picture,
+  // so this watches the graph rather than the placement: re-fitting on every
+  // window change would throw away wherever the reader had panned to.
+  createEffect(on(held, looking.fit, { defer: true }))
 
   /** The sentence under the drawing: what the dot under the pointer says, or —
    *  with nothing pointed at — what the page's own node does. The SAME sentence
@@ -186,12 +209,17 @@ function Shape(props: GraphPageProps) {
   })
 
   return (
+    // A COLUMN THAT FILLS THE PANE. The heading, the caption and the legend
+    // take what they need and the drawing takes the rest, so the page is the
+    // picture and the window is its size (`../pane/PageView.tsx` gives the pane
+    // the viewport strip to fill).
     <div
+      class="flex min-h-0 flex-1 flex-col"
       data-testid={TESTID.graphPage}
       data-focus={focus()}
       data-hops={reach()}
     >
-      <header class="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+      <header class="mb-3 flex flex-wrap items-baseline justify-between gap-3">
         <h1 class="m-0 text-2xl font-bold">
           <Show when={centre()} fallback="Reference graph">
             {(node) => (
@@ -239,10 +267,10 @@ function Shape(props: GraphPageProps) {
           focus={focus()}
           looking={looking}
         />
-        {/* Reserved rather than conditional: a line that appears would push the
-            drawing up the moment a pointer reached a dot. */}
+        {/* Reserved rather than conditional: a line that appears would take a
+            line off the drawing the moment a pointer reached a dot. */}
         <p
-          class="mt-2 min-h-5 truncate text-sm text-muted"
+          class="mt-2 min-h-5 shrink-0 truncate text-sm text-muted"
           data-testid={TESTID.graphCaption}
           aria-live="polite"
         >
@@ -324,7 +352,7 @@ function Horizon(props: {
  *  stopped one direction over. */
 function Legend() {
   return (
-    <ul class="mt-3 flex list-none flex-wrap gap-4 p-0 text-xs text-muted">
+    <ul class="mt-2 flex shrink-0 list-none flex-wrap gap-4 p-0 text-xs text-muted">
       <For each={EDGE_LOOKS}>
         {(look) => (
           <li class="flex items-center gap-2" data-testid={look.testid}>

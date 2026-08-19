@@ -86,6 +86,23 @@ export function PageView(props: {
   const owed = () => only(narrowing.drawn(), "agenda")?.agenda
   const trash = () => only(narrowing.drawn(), "trash")
   const shape = () => only(narrowing.drawn(), "graph")
+  /** The graph this reader can SEE before any query narrows it — the page's own
+   *  reading with finished work taken out where they have asked for that
+   *  (`../settings/done.ts`). It is what the picture is PLACED from, so hiding
+   *  what is done re-settles the shape rather than leaving holes in it, while a
+   *  filter goes on taking dots off a drawing that stays put. */
+  const held = () => only(shownDrawn(), "graph")
+
+  /**
+   * Does the open page want the whole strip under the header?
+   *
+   * ONE page does, and it is the one whose content IS a drawing: a graph in a
+   * box of its own height leaves a screenful of nothing under it, which is what
+   * the human saw. Every other page here is as tall as what it holds, and a
+   * min-height on those would be invisible — but it would also be a claim
+   * nothing needs, so it is asked rather than applied.
+   */
+  const fills = (): boolean => page()?.kind === "graph"
 
   const narrow = (text: string): void => {
     router.replaceIn(here(), narrowedTo(route(), text))
@@ -103,7 +120,7 @@ export function PageView(props: {
     <main
       class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12 ${
         !desktop() && !chatOpen() ? "pb-16" : ""
-      }`}
+      } ${fills() ? "min-h-[calc(100dvh-var(--height-header,3rem))]" : ""}`}
       data-testid={TESTID.pane}
       data-pane={String(here())}
       data-pane-focused={here() === router.workspace().focus ? "true" : undefined}
@@ -179,7 +196,7 @@ export function PageView(props: {
                 {(open) => (
                   <GraphPage
                     around={open().around}
-                    page={open().graph}
+                    page={held()?.graph ?? open().graph}
                     drawn={shape()?.graph ?? open().graph}
                     onHorizon={reach}
                   />

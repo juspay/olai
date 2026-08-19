@@ -11,11 +11,13 @@
  * label is selectable text in the reading face rather than an `<svg:text>` that
  * is none of those things.
  *
- * ONE COORDINATE SPACE across the two, and it is the layout's
- * (`./layout.ts`'s `WIDTH` × `HEIGHT`): the box locks that aspect ratio, so the
- * SVG's `viewBox` unit and a percentage of the box are the same place. Nothing
- * converts between them, which is what stops an arrow and the dot it points at
- * from drifting apart at some window width nobody tried.
+ * ONE COORDINATE SPACE across the two, and it is the box's own CSS PIXELS: the
+ * `viewBox` is the measured size, so an SVG unit IS a pixel, and a dot is
+ * offset in pixels beside it. Nothing converts between them, which is what
+ * stops an arrow and the dot it points at from drifting apart at some window
+ * size nobody tried — and it is why the box may now be any shape the page
+ * leaves it, where a fixed frame had to lock an aspect and gave the page a
+ * small picture in a lot of empty space.
  *
  * THE CAMERA IS APPLIED TO THE POINTS, not to a wrapper. An SVG `transform` on
  * a group would move the arrows and leave the HTML dots behind, so the two
@@ -62,7 +64,7 @@ import { toneOf } from "../tone.ts"
 import { inFrame, legible, rankedBy, seenAt } from "./camera.ts"
 import type { Looking } from "./looking.ts"
 import { EDGE_LOOKS, lookOf } from "./look.ts"
-import { HEIGHT, type Placed, type Placement, WIDTH } from "./layout.ts"
+import type { Placed, Placement } from "./layout.ts"
 
 /** How far short of a dot an arrow stops, in the layout's units — room for the
  *  dot and its arrowhead, so the head is readable instead of buried under the
@@ -84,12 +86,14 @@ export function Canvas(props: {
   /** The node the page is about — accented, and absent for the corpus-wide
    *  reading, which is about no one node. */
   readonly focus: string | undefined
-  /** Where the reader is looking from, and the gestures that move it — one
-   *  value with one owner (`./looking.ts`), so the wheel, a pinch, a drag and
-   *  the page's own `+` / `−` / `Fit` are all writing the same camera. */
+  /** Where the reader is looking from, the size of the box they are looking
+   *  through, and the gestures that move it — one value with one owner
+   *  (`./looking.ts`), so the wheel, a pinch, a drag and the page's own `+` /
+   *  `−` / `Fit` are all writing the same camera. */
   readonly looking: Looking
 }) {
   const camera = () => props.looking.camera()
+  const frame = () => props.looking.frame()
   /** Where a node is ON SCREEN — its placement, seen from where the reader is.
    *  Every position on both layers goes through this one function. */
   const spot = (id: string): Placed | undefined => {
@@ -100,7 +104,7 @@ export function Canvas(props: {
   /** ...and the same, for the layer that must not draw what is off the page. */
   const onFrame = (id: string): Placed | undefined => {
     const seen = spot(id)
-    return seen !== undefined && inFrame(seen) ? seen : undefined
+    return seen !== undefined && inFrame(seen, frame()) ? seen : undefined
   }
 
   /**
@@ -160,7 +164,7 @@ export function Canvas(props: {
   /** ...and which labels fit from here, once those have claimed their room
    *  (`./camera.ts`). */
   const labelled = createMemo(() =>
-    legible(props.placement, camera(), ranked(), owed())
+    legible(props.placement, camera(), frame(), ranked(), owed())
   )
 
   return (
@@ -168,8 +172,11 @@ export function Canvas(props: {
       // OVERFLOW-HIDDEN is the frame: panning and zooming put dots outside the
       // box, and a picture that spilled over the caption and the legend would
       // be a picture with no edges.
-      class="relative w-full cursor-grab touch-none overflow-hidden rounded border border-rule/50 active:cursor-grabbing"
-      style={{ "aspect-ratio": `${WIDTH} / ${HEIGHT}` }}
+      // FLEX-1 and `min-h-0`: the drawing IS this page, so it takes whatever the
+      // column has left after the heading, the caption and the legend, and it
+      // follows the window. It had a locked aspect and a fixed height, which
+      // drew a small box above a screenful of nothing.
+      class="relative min-h-0 w-full flex-1 cursor-grab touch-none overflow-hidden rounded border border-rule/50 active:cursor-grabbing"
       data-testid={TESTID.graphCanvas}
       // What a scenario reads the camera by — the scale, to two places, because
       // a test about zooming should not be a test about floating point.
@@ -185,7 +192,7 @@ export function Canvas(props: {
       onPointerLeave={() => props.onHover(undefined)}
     >
       <svg
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        viewBox={`0 0 ${frame().width} ${frame().height}`}
         class="pointer-events-none absolute inset-0 size-full"
         // The arrows say the same thing the links do — `../NodeRefs.tsx`'s rows
         // read backwards — and a screen reader walking a list of line elements
@@ -267,8 +274,8 @@ export function Canvas(props: {
           <span
             class="pointer-events-none absolute mt-11 -translate-x-1/2 select-none text-[0.6875rem] uppercase tracking-wide text-muted/60"
             style={{
-              left: across(seenAt(camera(), { id: grouping.file, ...grouping }).x),
-              top: down(seenAt(camera(), { id: grouping.file, ...grouping }).y),
+              left: at(seenAt(camera(), { id: grouping.file, ...grouping }).x),
+              top: at(seenAt(camera(), { id: grouping.file, ...grouping }).y),
             }}
             data-testid={TESTID.graphFile}
             data-file={grouping.file}
@@ -322,7 +329,9 @@ function Dot(props: {
   readonly onHover: (id: string | undefined) => void
 }) {
   const id = () => props.node.at.node.id
-  const status = () => props.derived?.status.get(id())
+  // The mark the reading already put on the node, rather than a second lookup
+  // per dot per frame into the derivation (`@olai/format`'s `GraphNode`).
+  const status = () => props.node.status
   const said = () => sentenceFor(props.derived, props.node)
 
   return (
@@ -334,7 +343,7 @@ function Dot(props: {
     // pointing at the words is pointing at the node.
     <div
       class="absolute -translate-x-1/2 -translate-y-1/2 transition-opacity"
-      style={{ left: across(props.at.x), top: down(props.at.y) }}
+      style={{ left: at(props.at.x), top: at(props.at.y) }}
       classList={{ "opacity-30": props.quiet }}
       data-testid={TESTID.graphNode}
       data-node-id={id()}
@@ -441,5 +450,6 @@ export const sentenceFor = (
     derived === undefined ? node.at.file : placeOf(derived, node.at)
   }`
 
-const across = (x: number): string => `${(x / WIDTH) * 100}%`
-const down = (y: number): string => `${(y / HEIGHT) * 100}%`
+/** One coordinate, as the offset it is — the box's own pixels, which is what
+ *  the layout, the camera and the `viewBox` are all in. */
+const at = (px: number): string => `${px}px`

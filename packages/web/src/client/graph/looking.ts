@@ -24,32 +24,34 @@
  * `./camera.ts`'s, so they can be tested without a browser; this file is the
  * seam that has to touch one.
  *
- * ## Two units, and the conversion between them
+ * ## ONE unit, and the measurement that makes it one
  *
  * The library works in the element's own PIXELS — that is where a pointer is —
- * and the drawing works in the FRAME's units, the fixed 1000 × 560 both the
- * SVG's `viewBox` and the dots' percentages are in (`./layout.ts`). The scale
- * is the same number in either, being a ratio; the TRANSLATION is not, and a
- * transform handed over unconverted zooms about a point some way from the one
- * the reader put their pointer on.
+ * and so, now, does everything drawn: the SVG's `viewBox` is the box's measured
+ * size and a dot's offset is a pixel offset (`./layout.ts`'s {@link Frame}).
+ * There is no conversion between the gesture and the drawing, because there is
+ * nothing to convert; a fixed frame with a locked aspect needed one, and got it
+ * wrong often enough to be worth deleting rather than maintaining.
  *
- * So the raw transform is what is held, and the camera the drawing reads is
- * that one converted by the box's own width. It is re-read per gesture rather
- * than watched: a resize between two gestures leaves the picture off by
- * whatever the box changed, and the next gesture — which is what a reader does
- * next — corrects it from the library's own pixel-true record.
+ * THE SIZE IS WATCHED, not sampled, because it is what everything above is in:
+ * a window resized or a sidebar dragged changes what the picture has room for,
+ * so the frame is a signal and the layout re-settles off it.
  */
 
+import { createElementSize } from "@solid-primitives/resize-observer"
 import { select } from "d3-selection"
-import { zoom, type ZoomBehavior, zoomIdentity, type ZoomTransform } from "d3-zoom"
+import { zoom, type ZoomBehavior, type ZoomTransform } from "d3-zoom"
 import { type Accessor, createMemo, createSignal, onCleanup } from "solid-js"
 
 import { type Camera, FITTED, FURTHEST, NEAREST, STEP } from "./camera.ts"
-import { type Placed, WIDTH } from "./layout.ts"
+import { type Frame, type Placed, UNMEASURED } from "./layout.ts"
 
 export interface Looking {
   /** The transform every position on the drawing is seen through. */
   readonly camera: Accessor<Camera>
+  /** ...and the box it is seen THROUGH, measured — what the layout fits into
+   *  and what "off the page" is measured against. */
+  readonly frame: Accessor<Frame>
   /** Bind the gestures to the box the picture is drawn in. Called from that
    *  element's own `ref`, so the binding lives exactly as long as it does. */
   readonly watch: (box: HTMLElement) => void
@@ -70,53 +72,54 @@ export interface Looking {
 }
 
 export const createLooking = (): Looking => {
-  const [raw, setRaw] = createSignal<ZoomTransform>(FITTED)
-  let box: HTMLElement | undefined
+  const [camera, setCamera] = createSignal<Camera>(FITTED)
+  const [box, setBox] = createSignal<HTMLElement | undefined>()
 
-  /** Frame units per pixel — the one number the two spaces differ by, read off
-   *  the box rather than assumed, and 1 before there is a box to ask. */
-  const per = (): number => {
-    const wide = box?.clientWidth ?? 0
-    return wide === 0 ? 1 : WIDTH / wide
-  }
-
-  const camera = createMemo((): Camera => {
-    const at = raw()
-    const ratio = per()
-    return zoomIdentity.translate(at.x * ratio, at.y * ratio).scale(at.k)
-  })
+  const size = createElementSize(box)
+  /** The box, as the one space everything here is in — and {@link UNMEASURED}
+   *  for the tick before the observer has answered, so a first paint is a
+   *  picture rather than nothing. */
+  const frame = createMemo((): Frame =>
+    size.width === null || size.height === null || size.width === 0
+      ? UNMEASURED
+      : { width: size.width, height: size.height }
+  )
 
   const behaviour: ZoomBehavior<HTMLElement, unknown> = zoom<HTMLElement, unknown>()
     .scaleExtent([FURTHEST, NEAREST])
     // A few pixels of slop: following a link should not need a perfectly still
     // hand, and a real drag still swallows the click it would have ended in.
     .clickDistance(4)
-    .on("zoom", (event: { readonly transform: ZoomTransform }) => setRaw(event.transform))
+    .on("zoom", (event: { readonly transform: ZoomTransform }) => setCamera(event.transform))
 
   /** The bound element as a selection, or nothing before there is one — every
    *  verb below is a no-op until the drawing exists, which is the frame between
    *  a page rendering and its ref running. */
-  const on = () => (box === undefined ? undefined : select<HTMLElement, unknown>(box))
+  const on = () => {
+    const at = box()
+    return at === undefined ? undefined : select<HTMLElement, unknown>(at)
+  }
 
   const watch = (element: HTMLElement): void => {
-    box = element
+    setBox(element)
     select<HTMLElement, unknown>(element).call(behaviour)
     onCleanup(() => {
       select<HTMLElement, unknown>(element).on(".zoom", null)
-      if (box === element) box = undefined
+      setBox((held) => (held === element ? undefined : held))
     })
   }
 
   const scaleBy = (by: number, toward?: Placed) => {
     const at = on()
     if (at === undefined) return
+    // The point is already in the library's own units, there being only one.
     if (toward === undefined) behaviour.scaleBy(at, by)
-    // The library's own units, which is what makes the point mean what it says.
-    else behaviour.scaleBy(at, by, [toward.x / per(), toward.y / per()])
+    else behaviour.scaleBy(at, by, [toward.x, toward.y])
   }
 
   return {
     camera,
+    frame,
     watch,
     closer: (toward) => scaleBy(STEP, toward),
     further: (toward) => scaleBy(1 / STEP, toward),
@@ -126,7 +129,7 @@ export const createLooking = (): Looking => {
       // agrees with what is drawn: setting the signal alone would leave the
       // next wheel tick resuming from where the reader had been.
       if (at !== undefined) behaviour.transform(at, FITTED)
-      else setRaw(FITTED)
+      else setCamera(FITTED)
     },
   }
 }

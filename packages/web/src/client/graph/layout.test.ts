@@ -11,7 +11,11 @@
 import type { Graph, GraphNode, LocatedRegular } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { HEIGHT, placed, sameShape, WIDTH } from "./layout.ts"
+import { type Frame, placed, sameShape } from "./layout.ts"
+
+/** A box to draw in — the numbers are a fixture rather than a constant now that
+ *  the real one is measured off the page (`./looking.ts`). */
+const FRAME: Frame = { width: 1000, height: 560 }
 
 const at = (id: string, file: string): LocatedRegular => ({
   file,
@@ -19,7 +23,11 @@ const at = (id: string, file: string): LocatedRegular => ({
   node: { id, ord: "a0", title: id },
 })
 
-const node = (id: string, file = "a.olai"): GraphNode => ({ at: at(id, file), hops: 0 })
+const node = (id: string, file = "a.olai"): GraphNode => ({
+  at: at(id, file),
+  hops: 0,
+  status: undefined,
+})
 
 const graph = (
   nodes: ReadonlyArray<GraphNode>,
@@ -35,11 +43,11 @@ const HOUSE = graph(
 )
 
 test("every dot lands inside the frame", () => {
-  for (const spot of placed(HOUSE).at.values()) {
+  for (const spot of placed(HOUSE, FRAME).at.values()) {
     expect(spot.x).toBeGreaterThanOrEqual(0)
-    expect(spot.x).toBeLessThanOrEqual(WIDTH)
+    expect(spot.x).toBeLessThanOrEqual(FRAME.width)
     expect(spot.y).toBeGreaterThanOrEqual(0)
-    expect(spot.y).toBeLessThanOrEqual(HEIGHT)
+    expect(spot.y).toBeLessThanOrEqual(FRAME.height)
   }
 })
 
@@ -48,23 +56,23 @@ test("every dot lands inside the frame", () => {
 // comes back to a link finds the shape they left, and a screenshot of this page
 // is reproducible.
 test("the same graph settles to the same picture, twice running", () => {
-  expect([...placed(HOUSE).at.values()]).toEqual([...placed(HOUSE).at.values()])
+  expect([...placed(HOUSE, FRAME).at.values()]).toEqual([...placed(HOUSE, FRAME).at.values()])
 })
 
 test("one node is a picture of one node, in the middle of the frame", () => {
-  const only = placed(graph([node("a")], []))
-  expect(only.at.get("a")).toEqual({ id: "a", x: WIDTH / 2, y: HEIGHT / 2 })
+  const only = placed(graph([node("a")], []), FRAME)
+  expect(only.at.get("a")).toEqual({ id: "a", x: FRAME.width / 2, y: FRAME.height / 2 })
 })
 
 test("a graph with nothing in it places nothing", () => {
-  expect(placed(graph([], [])).at.size).toBe(0)
+  expect(placed(graph([], []), FRAME).at.size).toBe(0)
 })
 
 // "Files as groupings", as far as this module owns it: one point per file with
 // anything on the page, in the sidebar's own path order, at the middle of what
 // landed there.
 test("each file gets one point, in path order, centred on and level with its own nodes", () => {
-  const placement = placed(HOUSE)
+  const placement = placed(HOUSE, FRAME)
   expect(placement.files.map((one) => one.file)).toEqual(["a.olai", "b.olai"])
   const named = placement.files.find((one) => one.file === "b.olai")!
   const ends = ["c", "d"].map((id) => placement.at.get(id)!)

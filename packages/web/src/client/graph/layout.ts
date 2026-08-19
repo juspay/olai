@@ -30,7 +30,7 @@
  *
  * The forces settle at whatever scale their constants imply, which is a fact
  * about the constants. What a reader wants is the shape filling the frame, so
- * the settled positions are mapped into {@link WIDTH} × {@link HEIGHT} by one
+ * the settled positions are mapped into the {@link Frame} by one
  * UNIFORM scale — uniform because a non-uniform one would stretch the shape,
  * and the shape is the whole content of this page.
  *
@@ -57,13 +57,30 @@ import {
   type SimulationNodeDatum,
 } from "d3-force"
 
-/** The coordinate space a placement is in — the SVG's `viewBox` and the box the
- *  HTML dots are positioned in as percentages of. The two agree because they
- *  are one pair of numbers, and the canvas locks its aspect ratio to it
- *  (`./Canvas.tsx`), which is what lets a percentage and a viewBox unit be the
- *  same place. */
-export const WIDTH = 1000
-export const HEIGHT = 560
+/**
+ * THE BOX THE PICTURE IS DRAWN IN, in its own CSS pixels.
+ *
+ * It was a fixed 1000 × 560 with the canvas locking that aspect, and the page
+ * around it was a sea of empty space — the drawing is the whole content of this
+ * page, so a frame that ignores the window is a frame that wastes it. The box
+ * is MEASURED now (`./looking.ts`), and every number here, in `./camera.ts` and
+ * on the drawing is one coordinate space: the box's pixels.
+ *
+ * That is also what the pixels buy. A label is 144px wide and a dot is 10px
+ * across whatever the window does, so "far enough apart to be readable" is a
+ * number about type rather than a ratio against a frame that changes — and the
+ * gesture library works in the element's pixels too, so the conversion that
+ * used to sit between it and the drawing is gone.
+ */
+export interface Frame {
+  readonly width: number
+  readonly height: number
+}
+
+/** What to draw in before the box has been measured — one frame, so the first
+ *  paint is a picture rather than nothing, and the measurement replaces it on
+ *  the tick after. */
+export const UNMEASURED: Frame = { width: 960, height: 540 }
 
 /**
  * How long the simulation is run for.
@@ -119,7 +136,7 @@ interface Body extends SimulationNodeDatum {
   readonly toward: { readonly x: number; readonly y: number }
 }
 
-export const placed = (graph: Graph): Placement => {
+export const placed = (graph: Graph, frame: Frame): Placement => {
   if (graph.nodes.length === 0) return NOTHING_PLACED
 
   const files = [...new Set(graph.nodes.map((node) => node.at.file))].sort(byPath)
@@ -184,7 +201,7 @@ export const placed = (graph: Graph): Placement => {
     .stop()
     .tick(TICKS)
 
-  return fitted(bodies)
+  return fitted(bodies, frame)
 }
 
 /** Where each file pulls its own nodes, before anything is fitted: evenly round
@@ -229,7 +246,7 @@ const anchorsFor = (
  * A shape with no extent in a direction (one node, or a row of them) divides by
  * one instead of by zero, and the uniform scale then centres it.
  */
-const fitted = (bodies: ReadonlyArray<Body>): Placement => {
+const fitted = (bodies: ReadonlyArray<Body>, frame: Frame): Placement => {
   const xs = bodies.map((body) => body.x ?? 0)
   const ys = bodies.map((body) => body.y ?? 0)
   const from = { x: Math.min(...xs), y: Math.min(...ys) }
@@ -246,8 +263,8 @@ const fitted = (bodies: ReadonlyArray<Body>): Placement => {
   // touches, and what a reader sees is a shape the frame's own proportions with
   // its local spacing true.
   const stretch = {
-    x: (WIDTH - BESIDE_A_DOT * 2) / Math.max(span.x, 1),
-    y: (HEIGHT - ABOVE_A_DOT - UNDER_A_DOT) / Math.max(span.y, 1),
+    x: Math.max(frame.width - BESIDE_A_DOT * 2, 1) / Math.max(span.x, 1),
+    y: Math.max(frame.height - ABOVE_A_DOT - UNDER_A_DOT, 1) / Math.max(span.y, 1),
   }
 
   /** One axis of one body, put where it belongs — or in the MIDDLE of the frame
@@ -266,8 +283,8 @@ const fitted = (bodies: ReadonlyArray<Body>): Placement => {
 
   const room: Array<Body> = bodies.map((body): Body => {
     const landed = {
-      x: along(body.x ?? 0, from.x, span.x, stretch.x, WIDTH, BESIDE_A_DOT),
-      y: along(body.y ?? 0, from.y, span.y, stretch.y, HEIGHT, ABOVE_A_DOT),
+      x: along(body.x ?? 0, from.x, span.x, stretch.x, frame.width, BESIDE_A_DOT),
+      y: along(body.y ?? 0, from.y, span.y, stretch.y, frame.height, ABOVE_A_DOT),
     }
     return { id: body.id, file: body.file, toward: landed, ...landed }
   })
@@ -280,8 +297,8 @@ const fitted = (bodies: ReadonlyArray<Body>): Placement => {
 
   const place = (body: Body): Placed => ({
     id: body.id,
-    x: within(body.x ?? 0, BESIDE_A_DOT, WIDTH - BESIDE_A_DOT),
-    y: within(body.y ?? 0, ABOVE_A_DOT, HEIGHT - UNDER_A_DOT),
+    x: within(body.x ?? 0, BESIDE_A_DOT, frame.width - BESIDE_A_DOT),
+    y: within(body.y ?? 0, ABOVE_A_DOT, frame.height - UNDER_A_DOT),
   })
 
   const at = new Map<string, Placed>()
@@ -311,10 +328,10 @@ const fitted = (bodies: ReadonlyArray<Body>): Placement => {
  *  are a LOOK: how far apart two connected nodes sit, how hard everything
  *  pushes away from everything else, how strongly a file gathers its own. */
 /** How far a dot is held from its neighbours ONCE FITTED, in the frame's own
- *  units: room for the mark, and for the two `TRIM`s an arrow spends stopping
- *  short of the dots at each of its ends (`./Canvas.tsx`) — under that, a real
- *  reference is drawn as a line of no length. */
-const DOT_ROOM = 46
+ *  own pixels: room for the mark, and for the two `TRIM`s an arrow spends
+ *  stopping short of the dots at each of its ends (`./Canvas.tsx`) — under
+ *  that, a real reference is drawn as a line of no length. */
+const DOT_ROOM = 40
 /** How hard a dot is pulled back to where the forces put it while that room is
  *  opened. Enough to keep the shape, not enough to close the gaps. */
 const HOLDS_ITS_PLACE = 0.12
@@ -332,12 +349,13 @@ const ROOM_TICKS = 120
  */
 const within = (at: number, from: number, to: number): number =>
   Math.min(Math.max(at, from), to)
-/** Half a label, in the frame's units — what an edge has to leave beside a dot
- *  for its words to be whole. */
-const BESIDE_A_DOT = 104
-/** ...and the two lines under one. */
-const UNDER_A_DOT = 64
-const ABOVE_A_DOT = 24
+/** Half a label, in CSS PIXELS — a title is drawn in a 144px box (`w-36`), so
+ *  this is what an edge has to leave beside a dot for its words to be whole. */
+const BESIDE_A_DOT = 78
+/** ...and the two clamped lines under one, plus the gap above them. */
+const UNDER_A_DOT = 58
+/** The top edge holds only the MARK, which is a few pixels. */
+const ABOVE_A_DOT = 16
 
 const LINK_DISTANCE = 170
 const LINK_STRENGTH = 0.25

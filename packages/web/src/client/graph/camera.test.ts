@@ -12,7 +12,10 @@ import { zoomIdentity } from "d3-zoom"
 import { expect, test } from "bun:test"
 
 import { FITTED, inFrame, legible, rankedBy, seenAt } from "./camera.ts"
-import { HEIGHT, type Placement, WIDTH } from "./layout.ts"
+import { type Frame, type Placement } from "./layout.ts"
+
+/** The box these are asked about — a fixture, since the real one is measured. */
+const FRAME: Frame = { width: 1000, height: 560 }
 
 const placement = (
   at: ReadonlyArray<readonly [id: string, x: number, y: number]>,
@@ -46,12 +49,12 @@ test("zoomed in, the same dots all keep their labels", () => {
   // pan keeps all three inside the frame, which the rule also asks.
   const three = placement([["a", 10, 0], ["b", 12, 0], ["c", 14, 0]])
   const close = zoomIdentity.translate(-800, 200).scale(100)
-  expect(ids(legible(three, close, ["a", "b", "c"], new Set()))).toEqual(["a", "b", "c"])
+  expect(ids(legible(three, close, FRAME, ["a", "b", "c"], new Set()))).toEqual(["a", "b", "c"])
 })
 
 test("...and fitted, which is where the crowding is, they do not", () => {
   const three = placement([["a", 10, 0], ["b", 12, 0], ["c", 14, 0]])
-  expect(ids(legible(three, FITTED, ["a", "b", "c"], new Set()))).toEqual(["a"])
+  expect(ids(legible(three, FITTED, FRAME, ["a", "b", "c"], new Set()))).toEqual(["a"])
 })
 
 test("zoomed out, a label that would land on one already drawn is not", () => {
@@ -59,29 +62,29 @@ test("zoomed out, a label that would land on one already drawn is not", () => {
   // the picture the maintainer photographed was every one of them drawn.
   const heap = placement([["a", 10, 10], ["b", 12, 10], ["c", 14, 10]])
   const far = zoomIdentity.scale(0.5)
-  expect(ids(legible(heap, far, ["a", "b", "c"], new Set()))).toEqual(["a"])
+  expect(ids(legible(heap, far, FRAME, ["a", "b", "c"], new Set()))).toEqual(["a"])
 })
 
 test("...and the same dots, spread out, all keep their labels", () => {
   const spread = placement([["a", 10, 10], ["b", 500, 10], ["c", 10, 300]])
   const far = zoomIdentity.scale(0.5)
-  expect(ids(legible(spread, far, ["a", "b", "c"], new Set()))).toEqual(["a", "b", "c"])
+  expect(ids(legible(spread, far, FRAME, ["a", "b", "c"], new Set()))).toEqual(["a", "b", "c"])
 })
 
 // The other half of decluttering: what is hidden has to be one gesture away.
 test("what the reader is owed claims its room first, whatever the order says", () => {
   const heap = placement([["a", 10, 10], ["b", 12, 10], ["c", 14, 10]])
   const far = zoomIdentity.scale(0.5)
-  expect(ids(legible(heap, far, ["a", "b", "c"], new Set(["c"])))).toEqual(["c"])
+  expect(ids(legible(heap, far, FRAME, ["a", "b", "c"], new Set(["c"])))).toEqual(["c"])
 })
 
 test("what is off the frame is not on the page — the drawing asks this too", () => {
   // Not merely invisible: the box clips it either way, and a clipped anchor is
   // still an anchor sitting over whatever the page has where it went.
-  expect(inFrame({ id: "a", x: 10, y: 10 })).toBe(true)
-  expect(inFrame({ id: "a", x: -1, y: 10 })).toBe(false)
-  expect(inFrame({ id: "a", x: WIDTH + 1, y: 10 })).toBe(false)
-  expect(inFrame({ id: "a", x: 10, y: HEIGHT + 1 })).toBe(false)
+  expect(inFrame({ id: "a", x: 10, y: 10 }, FRAME)).toBe(true)
+  expect(inFrame({ id: "a", x: -1, y: 10 }, FRAME)).toBe(false)
+  expect(inFrame({ id: "a", x: FRAME.width + 1, y: 10 }, FRAME)).toBe(false)
+  expect(inFrame({ id: "a", x: 10, y: FRAME.height + 1 }, FRAME)).toBe(false)
 })
 
 test("a dot the camera has panned off the frame claims no room and draws none", () => {
@@ -89,13 +92,13 @@ test("a dot the camera has panned off the frame claims no room and draws none", 
   // would leave a hole in the middle of the picture as they panned.
   const pair = placement([["off", -900, 10], ["on", 10, 10]])
   const panned = zoomIdentity.scale(0.5)
-  expect(ids(legible(pair, panned, ["off", "on"], new Set()))).toEqual(["on"])
+  expect(ids(legible(pair, panned, FRAME, ["off", "on"], new Set()))).toEqual(["on"])
   expect(seenAt(panned, { id: "off", x: -900, y: 10 }).x).toBeLessThan(0)
 })
 
 test("nothing is drawn outside the frame, in either direction", () => {
-  const wide = placement([["far", WIDTH * 4, HEIGHT * 4]])
-  expect(ids(legible(wide, zoomIdentity.scale(0.5), ["far"], new Set()))).toEqual([])
+  const wide = placement([["far", FRAME.width * 4, FRAME.height * 4]])
+  expect(ids(legible(wide, zoomIdentity.scale(0.5), FRAME, ["far"], new Set()))).toEqual([])
 })
 
 // ── the order the room is spent in ────────────────────────────────────
