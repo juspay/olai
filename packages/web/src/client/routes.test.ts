@@ -282,3 +282,37 @@ test("a fragment and a filter are read as themselves", () => {
 test("a node route with an empty id is still a node route", () => {
   expect(routeOf("/n/")).toEqual({ kind: "node", id: "" })
 })
+
+// ── an address nothing could have written ──────────────────────────────
+
+// `decodeURIComponent` throws on a malformed escape, and this parser is read
+// in two places where a person types: the address bar, and a title in
+// `Pins.olai` (docs/format.md's Pins). A throw there is a blank app, not a bad
+// address — so every half of an address is total, the way the fragment always
+// was.
+test("a malformed escape names the front page rather than throwing", () => {
+  for (const address of ["/n/%", "/n/%ZZ", "/n/%2", "/doc/%", "/d/%ZZ", "/o/%2"]) {
+    expect(routeOf(address)).toEqual({ kind: "outline", file: null })
+  }
+})
+
+test("…and it keeps whatever the address was narrowed by", () => {
+  // The query is read by `URLSearchParams`, which is lenient where
+  // `decodeURIComponent` is not, so the filter survives a path that does not.
+  expect(routeOf("/n/%?q=is%3Atodo")).toEqual({
+    kind: "outline",
+    file: null,
+    filter: "is:todo",
+  })
+})
+
+test("a malformed FRAGMENT was always total, and still is", () => {
+  expect(routeOf("/doc/notes.md#%ZZ")).toEqual({ kind: "document", file: "notes.md" })
+})
+
+test("a markdown link this parser cannot read is left to the browser", () => {
+  // The front-page fallback is the right kindness in the address bar and is
+  // exactly the silent substitution `routeIn` exists to refuse.
+  expect(routeIn("/doc/%ZZ")).toBeNull()
+  expect(routeIn("/doc/notes.md")).toEqual({ kind: "document", file: "notes.md" })
+})

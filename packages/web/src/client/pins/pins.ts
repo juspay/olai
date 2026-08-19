@@ -104,6 +104,20 @@ const LINKED = /^\[([^\]]*)\]\(([^()\s]+)\)$/
  * spelled the way `URLSearchParams` spells it). Comparing the strings whole
  * would refuse a pin somebody wrote by hand for being punctuated differently
  * from the way a browser punctuates.
+ *
+ * AND IT IS TOTAL over any string, which is a promise it can only make because
+ * `routeOf` makes it first. A title spelled with an escape nothing can read —
+ * `/n/%`, `/doc/%ZZ` — used to throw a `URIError` out of the parse, and a
+ * throw here is not a skipped row: it happens during render, so it takes the
+ * whole sidebar with it, on a file the format invites a hand and an agent to
+ * edit (found in review, 2026-08-18). Such a title reads as what it is now —
+ * an address nothing could have written, so not an address, so not a door —
+ * and lands with prose and `/etc/passwd` rather than on the shelf.
+ *
+ * That is a different answer from a WELL-FORMED address whose target is gone:
+ * `/n/deleted-id` is a door this app can read, so it is drawn, labelled with
+ * its own address (`./name.ts`) — the honest dead row. What is refused here is
+ * text that is not an address at all.
  */
 export const addressIn = (title: string): Route | undefined => {
   const text = title.trim()

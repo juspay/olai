@@ -86,6 +86,33 @@ Feature: Pinning a page to the sidebar
     Then the pinned shelf reads "/agenda /n/order /n/demo"
     And there should be no page errors
 
+  Scenario: A reorder lands where the pointer is, though the page moved under it
+    # The shelf is in a STICKY column: its rows do not move when the document
+    # does. Answered in document coordinates, a drag freezes its midpoints at
+    # the scroll position of the lift and then reads the pointer against a
+    # newer one — so it writes a gap nobody aimed at. The page is scrolled
+    # MID-DRAG here, which is what the window-edge autoscroll used to do on the
+    # reader's behalf.
+    Given the directory has the pins:
+      | /n/order  |
+      | /n/demo   |
+      | /agenda   |
+    When I open the document "kitchen-sink.md"
+    And I drag the pin "/agenda" above "/n/order" while the page scrolls
+    Then the pinned shelf reads "/agenda /n/order /n/demo"
+    And there should be no page errors
+
+  Scenario: A title spelled with an escape nothing can read takes nothing down
+    # `Pins.olai` is a file the format invites a hand and an agent to edit, and
+    # `decodeURIComponent("%")` throws — which during render is the whole
+    # sidebar, not one skipped row.
+    Given the directory has the pins:
+      | /n/%     |
+      | /n/order |
+    Then the pinned shelf reads "/n/order"
+    And the outline list links to "house.olai"
+    And there should be no page errors
+
   Scenario: A row of the shelf's outline that is not an address is not a door
     # `Pins.olai` is an ordinary outline: a heading or a note in it is a thing
     # somebody may write, and a title that merely begins with a slash is text.

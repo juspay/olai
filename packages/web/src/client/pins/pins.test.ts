@@ -65,6 +65,29 @@ test("a title that merely begins with a slash is a title, not a door", () => {
   expect(addressIn("/notes and things")).toBeUndefined()
 })
 
+test("a title spelled with an escape nothing can read is not a door, and does not throw", () => {
+  // `decodeURIComponent("%")` throws, and this parse runs during render on a
+  // file the format invites a hand and an agent to edit — so a `URIError` here
+  // was the whole sidebar going down, not one row being skipped (review,
+  // 2026-08-18). It reads as what it is: not an address, so not a pin.
+  for (const title of ["/n/%", "/doc/%ZZ", "/o/%2", "[x](/n/%)"]) {
+    expect(addressIn(title)).toBeUndefined()
+  }
+})
+
+test("…and the shelf drawn over one is the shelf without it", () => {
+  const shelf = derive(
+    setOf({
+      "Pins.olai": [
+        `{"id":"p-bad","ord":"a0","title":"/n/%"}`,
+        `{"id":"p-good","ord":"a1","title":"/agenda"}`,
+      ].join("\n"),
+      "garden.olai": GARDEN,
+    }).nodes,
+  )
+  expect(pinsOf(shelf).map((pin) => pin.id)).toEqual(["p-good"])
+})
+
 test("ordinary prose is not a pin", () => {
   expect(addressIn("the ones I keep coming back to")).toBeUndefined()
   expect(addressIn("")).toBeUndefined()

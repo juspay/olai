@@ -51,10 +51,11 @@ import { sayPin } from "./pinning.ts"
 import { type Pin as Pinned, pinsOf } from "./pins.ts"
 import { gapAt, placing } from "./reorder.ts"
 
-/** Where each drawn row SITS, taken once when a drag lifts: the midpoint that
- *  decides which gap the pointer is over (in page coordinates, so a scroll
- *  during the drag does not move the answer), and the offset the drop line is
- *  drawn at (inside the list, which is what it is positioned against). */
+/** Where each drawn row SITS, taken once when a drag lifts — both numbers as
+ *  offsets INSIDE the list, which is the one space neither the window's scroll
+ *  nor the sidebar's can move (see {@link Shelf}'s `measure`): the midpoint
+ *  that decides which gap the pointer is over, and the offset the drop line is
+ *  drawn at. */
 interface Measured {
   readonly middles: ReadonlyArray<number>
   readonly gaps: ReadonlyArray<number>
@@ -75,9 +76,10 @@ interface Measured {
 interface Carrying {
   /** Which row was picked up, as its index in the shelf as drawn. */
   readonly from: number
-  /** Where the rows were at the LIFT. Nothing on screen moves while a row is
-   *  carried — the shelf redraws when the file says so, which is after the
-   *  drop — so this is measured once rather than per frame. */
+  /** Where the rows were at the LIFT, in the list's own coordinates. Nothing
+   *  on screen moves while a row is carried — the shelf redraws when the file
+   *  says so, which is after the drop — and a scroll moves the list and its
+   *  rows together, so this is measured once rather than per frame. */
   readonly rows: Measured
   /** Which gap the pointer is over now — the only one of the three that
    *  changes per move. */
@@ -106,29 +108,49 @@ export function Shelf() {
   let list: HTMLUListElement | undefined
 
   /**
-   * The rows' places, read off the DOM at the moment the drag lifts.
+   * Where the rows sit, IN THE LIST'S OWN COORDINATES — measured at the lift,
+   * and the whole of what this gesture is answered in.
    *
    * ASKED OF THE DOM rather than of a list of refs this component kept: the
    * rows are already in the document, already carry the testid that identifies
    * them, and already sit in the order the shelf draws — so an array of
-   * elements filled by a `ref` per row, cleaned up per row, and read once per
-   * gesture was a second copy of the list, kept in step by machinery, for a
-   * question the container answers in one call.
+   * elements filled by a `ref` per row was a second copy of the list, kept in
+   * step by machinery, for a question the container answers in one call.
+   *
+   * LIST-RELATIVE, and that is the fix rather than a tidy-up (found in review,
+   * 2026-08-18). The tree's drag measures in DOCUMENT coordinates and asks
+   * `../pointer.ts` for the page-scrolling `onPage`, which is right there: its
+   * rows live in the scrolling document, so a row's document position is
+   * invariant and the page moving under the pointer is part of the gesture.
+   * The shelf is the other shape — a STICKY column with a scroll region of its
+   * own — so a pin's document position moves every time the window scrolls
+   * while the row itself has not moved at all. Measured that way, a page that
+   * scrolled mid-drag left every midpoint answering for a place the rows had
+   * left, and the `place` that fired could name a gap the pointer was never
+   * over.
+   *
+   * Offsets INSIDE the list are the one space nothing can move: the window
+   * scrolling does not change them, and the sidebar's own scroll region moves
+   * the list and its rows together. So the measurement stays a measurement of
+   * one moment ({@link Carrying}), and what is read fresh per move is the ONE
+   * number that converts the pointer into it — the list's own top.
    */
   const measure = (): Measured => {
-    const box = list?.getBoundingClientRect()
+    const top = listTop()
     const at = [...(list?.querySelectorAll(selector(TESTID.pin)) ?? [])]
       .map((row) => row.getBoundingClientRect())
     return {
-      middles: at.map((row) => row.top + row.height / 2 + window.scrollY),
+      middles: at.map((row) => row.top + row.height / 2 - top),
       // One more than there are rows: a gap above the first and one below the
-      // last, which is what `./reorder.ts` counts over.
-      gaps: [
-        ...at.map((row) => row.top - (box?.top ?? 0)),
-        (at.at(-1)?.bottom ?? box?.top ?? 0) - (box?.top ?? 0),
-      ],
+      // last, which is what `./reorder.ts` counts over — and the same numbers
+      // the drop line is drawn at, since it is positioned against this list.
+      gaps: [...at.map((row) => row.top - top), (at.at(-1)?.bottom ?? top) - top],
     }
   }
+
+  /** Where the list is on screen right now — the one number a move needs, and
+   *  the reason a move needs no re-measurement of the rows. */
+  const listTop = (): number => list?.getBoundingClientRect().top ?? 0
 
   const grab = (at: number, event: PointerEvent) => {
     travelled = false
@@ -138,9 +160,16 @@ export function Shelf() {
         travelled = true
         setCarrying({ from: at, rows: measure(), gap: at })
       },
-      onPage: (_x, y) =>
+      // `onMove` and not `onPage`: the page-following half of that primitive
+      // scrolls the WINDOW, which is the right help for a drag over the
+      // outline and the wrong one over a column that does not move with the
+      // page. The pointer arrives in viewport coordinates and is converted
+      // into the list's own by the one number that can have changed.
+      onMove: (event) =>
         setCarrying((held) =>
-          held === undefined ? undefined : { ...held, gap: gapAt(held.rows.middles, y) }
+          held === undefined
+            ? undefined
+            : { ...held, gap: gapAt(held.rows.middles, event.clientY - listTop()) }
         ),
       onEnd: (ended) => {
         const held = carrying()

@@ -464,9 +464,12 @@ export const inboxIn = (files: ReadonlyArray<string>): string | undefined =>
  * What is in it is ORDINARY NODES whose titles name an ADDRESS in this app —
  * which is what a bookmark is — so an agent reads the shelf with
  * `read_subtree`, adds to it with `add_node`, reorders it with `move_node`
- * and takes something off it with `archive_node`. Pinning grew no verb on
- * either face, which is the whole reason the shelf is a file of nodes rather
- * than a field (docs/format.md's Pins).
+ * and takes something off it with `archive_node`. Pinning grew no op and no
+ * AGENT tool, which is the whole reason the shelf is a file of nodes rather
+ * than a field (docs/format.md's Pins). The browser grew one verb of its own,
+ * `pin`, and it resolves to that same `add` — what it saves a tab is the
+ * READING of which file the shelf is, never an op (`@olai/surface`'s
+ * `edit.ts`, where quick capture makes the identical trade).
  *
  * AT THE ROOT when olai mints one, for {@link INBOX}'s reason exactly: a shelf
  * nobody has created yet is a promise the sidebar makes, and the file it mints

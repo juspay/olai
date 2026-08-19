@@ -142,6 +142,46 @@ When(
   },
 );
 
+/**
+ * The same drag, with the DOCUMENT SCROLLING under it mid-gesture — which is
+ * the one shape that tells the two coordinate spaces apart.
+ *
+ * The shelf sits in a sticky column, so its rows do not move when the page
+ * does. A gesture answered in document coordinates freezes its midpoints at
+ * the scroll position of the LIFT and then reads a pointer against a newer
+ * one, so the gap it writes is off by however far the page went — which in the
+ * app is what the window-edge autoscroll does for you, and here is done
+ * outright so the scenario is deterministic (review, 2026-08-18).
+ *
+ * The pointer is put back at the SAME VIEWPORT POSITION after the scroll,
+ * because that is where the row it is aiming at still is.
+ */
+When(
+  "I drag the pin {string} above {string} while the page scrolls",
+  async function (this: OlaiWorld, address: string, target: string) {
+    await this.showSidebar();
+    const from = await pinAt(this, address).boundingBox();
+    assert.ok(from !== null, "the carried pin has to be laid out to drag it");
+    await this.page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await this.page.mouse.down();
+    // Past the travel threshold, so the gesture lifts and MEASURES.
+    await this.page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + 12, {
+      steps: 4,
+    });
+    const was = await this.page.evaluate(() => window.scrollY);
+    await this.page.evaluate(() => window.scrollBy(0, 400));
+    await this.waitUntil(
+      async () => (await this.page.evaluate(() => window.scrollY)) > was,
+      "the page to have scrolled UNDER the drag — the whole subject of this step",
+    );
+    const onto = await pinAt(this, target).boundingBox();
+    assert.ok(onto !== null, "the target pin has to be laid out to aim at it");
+    await this.page.mouse.move(onto.x + onto.width / 2, onto.y + 2, { steps: 10 });
+    await this.page.mouse.up();
+    await this.waitForFrame();
+  },
+);
+
 Then("the pinned shelf is not drawn", async function (this: OlaiWorld) {
   await this.showSidebar();
   await this.page.locator(SHELF).waitFor({ state: "detached", timeout: POLL_TIMEOUT });

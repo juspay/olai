@@ -51,6 +51,17 @@
  * Pure, and parsing and printing live beside each other on purpose: they are
  * one bijection, and the test that says so (`routes.test.ts`) is the only
  * thing standing between a link the app writes and a link it cannot read back.
+ *
+ * AND TOTAL. Parsing answers a route for every string, including one no
+ * address could have been written with: `decodeURIComponent` throws on a
+ * malformed escape, and this parser is asked about the ADDRESS BAR, where a
+ * person types, and about a TITLE in `Pins.olai`, which the format invites a
+ * hand and an agent to edit (docs/format.md's Pins). A throw out of either is
+ * not a bad address — it is a blank app, since a throw during render takes the
+ * tree that was rendering with it and this client mounts no error boundary. So
+ * every half of an address is read the way the fragment always was: what
+ * cannot be read names nothing, and the address means what an unrecognised one
+ * means.
  */
 
 export type Route =
@@ -208,8 +219,17 @@ export const fileNamed = (route: Route): string | undefined =>
  * pretending to answer an anchor it will not land on is worse than a plain
  * navigation that visibly does not.
  */
-export const routeIn = (href: string): Route | null =>
-  href.startsWith(DOCUMENT_PREFIX) && !href.includes("#") ? routeOf(href) : null
+export const routeIn = (href: string): Route | null => {
+  if (!href.startsWith(DOCUMENT_PREFIX) || href.includes("#")) return null
+  const route = routeOf(href)
+  // …and the ANSWER is checked, not just the prefix. Since `spelled`, an
+  // address this parser cannot READ falls back to the front page — which is
+  // the right kindness in the address bar and is exactly the silent
+  // substitution the paragraph above refuses here. A `/doc/` link written with
+  // a malformed escape is therefore left to the browser, like every other link
+  // this app has no page for.
+  return route.kind === "document" ? route : null
+}
 
 /**
  * Anything this does not recognise is the default outline: an unknown path is
@@ -247,41 +267,73 @@ export const splitAddress = (
   }
 }
 
+/**
+ * The text a path segment SPELLS, or `undefined` for an escape no address
+ * could have been written with — {@link landed} for the other half of the
+ * address, and here for the reason it is there.
+ *
+ * `decodeURIComponent` THROWS on a malformed escape (`%`, `%ZZ`, `%2`), and a
+ * parser that throws is a parser a caller cannot use: this one reads the
+ * address BAR, where somebody types, and it reads a title out of `Pins.olai`,
+ * which the format invites a hand and an agent to edit
+ * (docs/format.md's Pins). A `URIError` out of either of those is not a bad
+ * address — it is a blank app, because a throw during render takes the tree
+ * that was rendering with it, and this client mounts no error boundary.
+ *
+ * The fragment half has been total since the day it was written, and its
+ * sentence is the one to read twice: *a malformed escape is a fragment nobody
+ * could have written, so it names nothing rather than throwing on the way to a
+ * page that would have drawn fine without it.* Every other half of an address
+ * now says the same.
+ */
+const spelled = (text: string): string | undefined => {
+  try {
+    return decodeURIComponent(text)
+  } catch {
+    return undefined
+  }
+}
+
 export const routeOf = (address: string): Route => {
   const { pathname, search, at } = splitAddress(address)
   const filter = search === "" ? undefined : filterIn(search)
   const narrowed = filter === undefined ? {} : { filter }
-  return pathname.startsWith(NODE_PREFIX)
-    ? {
-      kind: "node",
-      id: decodeURIComponent(pathname.slice(NODE_PREFIX.length)),
-      ...narrowed,
-    }
-    : pathname.startsWith(DOCUMENT_PREFIX)
-    ? {
-      kind: "document",
-      file: decodeURIComponent(pathname.slice(DOCUMENT_PREFIX.length)),
-      ...(at === undefined ? {} : { at }),
-    }
-    : pathname.startsWith(DAY_PREFIX)
-    ? {
-      kind: "day",
-      date: decodeURIComponent(pathname.slice(DAY_PREFIX.length)),
-      ...narrowed,
-    }
-    : pathname === TODAY
-    ? { kind: "today", ...narrowed }
-    : pathname === AGENDA
-    ? { kind: "agenda", ...narrowed }
-    : pathname === TRASH
-    ? { kind: "trash", ...narrowed }
-    : pathname.startsWith(OUTLINE_PREFIX)
-    ? {
-      kind: "outline",
-      file: decodeURIComponent(pathname.slice(OUTLINE_PREFIX.length)),
-      ...narrowed,
-    }
-    : { kind: "outline", file: null, ...narrowed }
+  /** What an address this does not recognise means, and — since {@link spelled}
+   *  — what one it cannot READ means too. The kindness is the same either way:
+   *  somebody typed something, and the app they wanted is the one at `/`. */
+  const home: Route = { kind: "outline", file: null, ...narrowed }
+  /** What follows a prefix, or `null` when this is not that kind of address —
+   *  `null` rather than `undefined`, so "not this prefix" and "this prefix,
+   *  spelled with an escape nothing can read" stay two different answers. */
+  const after = (prefix: string): string | null =>
+    pathname.startsWith(prefix) ? pathname.slice(prefix.length) : null
+
+  const node = after(NODE_PREFIX)
+  if (node !== null) {
+    const id = spelled(node)
+    return id === undefined ? home : { kind: "node", id, ...narrowed }
+  }
+  const document = after(DOCUMENT_PREFIX)
+  if (document !== null) {
+    const file = spelled(document)
+    return file === undefined
+      ? home
+      : { kind: "document", file, ...(at === undefined ? {} : { at }) }
+  }
+  const day = after(DAY_PREFIX)
+  if (day !== null) {
+    const date = spelled(day)
+    return date === undefined ? home : { kind: "day", date, ...narrowed }
+  }
+  if (pathname === TODAY) return { kind: "today", ...narrowed }
+  if (pathname === AGENDA) return { kind: "agenda", ...narrowed }
+  if (pathname === TRASH) return { kind: "trash", ...narrowed }
+  const outline = after(OUTLINE_PREFIX)
+  if (outline !== null) {
+    const file = spelled(outline)
+    return file === undefined ? home : { kind: "outline", file, ...narrowed }
+  }
+  return home
 }
 
 /**
