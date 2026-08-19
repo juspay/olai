@@ -36,7 +36,7 @@ import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
 
 import { Lede } from "./Lede.tsx"
 import { Reload } from "../Reload.tsx"
-import { hrefOf } from "../routes.ts"
+import { HOME_ROUTE, hrefOf } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 
@@ -69,7 +69,7 @@ export function Fault(props: { readonly text: string }) {
           // Through `routes.ts` like every other address this app writes: it is
           // the one bijection between a URL and what it means, and it is pure —
           // nothing about the page being down stops it answering.
-          href={hrefOf({ kind: "outline", file: null })}
+          href={hrefOf(HOME_ROUTE)}
           data-testid={TESTID.faultHome}
         >
           Start over on the first outline

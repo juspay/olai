@@ -180,7 +180,7 @@ Feature: An agent olai did not start
     # carries, so the arrow just written answers a search a turn later — no
     # re-reading of `after` and no second definition of what waiting means.
     When the terminal agent searches for "is:blocked"
-    Then the terminal agent found exactly "install"
+    Then the terminal agent found exactly "#install"
     And the page has not reloaded
     And there should be no page errors
 
@@ -281,18 +281,27 @@ Feature: An agent olai did not start
     # `under` is the scoping a person gets by filtering a zoomed page, said out
     # loud so the agent can ask the same question rather than a wider one.
     When the terminal agent searches for "is:done"
-    Then the terminal agent found exactly "demo"
+    Then the terminal agent found exactly "#demo"
     When the terminal agent searches for "-is:done cabinets"
-    Then the terminal agent found exactly "order, install"
+    # THE DOCUMENT LEADS, and that is the ranking rather than a kind winning:
+    # `notes/cabinets.md` is CALLED Cabinets, so the word starts its title,
+    # where the two records only carry it in the middle of theirs. A negated
+    # clause is satisfied by a document — it is indeed not done — which is the
+    # other half of what a `.md` can answer (docs/search.md).
+    Then the terminal agent found exactly "notes/cabinets.md, #order, #install"
     When the terminal agent searches for "cabinets" under "install"
-    Then the terminal agent found exactly "install"
+    Then the terminal agent found exactly "#install"
     # A phrase and a group reach this door through the same one grammar, so an
     # agent can ask for the line a person quoted — and for either of two
     # things, which is the query that used to be two calls.
     When the terminal agent searches for '"the new cabinets"'
-    Then the terminal agent found exactly "order"
+    Then the terminal agent found exactly "#order"
     When the terminal agent searches for "counters OR cabinets"
-    Then the terminal agent found exactly "order, install, demo"
+    # AND `finishes.md` LAST, which is the roadmap item closed in one line:
+    # "counters" is in its PROSE and in no title, so it is the weakest kind of
+    # hit there is — and until now it was no hit at all, because nothing walked
+    # a body.
+    Then the terminal agent found exactly "notes/cabinets.md, #order, #install, #demo, finishes.md"
     # A group takes a CLAUSE as readily as a word, including the one whose value
     # is a word for a day — counted from the server's own clock, the one a
     # `done` is stamped with. Every date in this fixture is in the past and
@@ -300,7 +309,7 @@ Feature: An agent olai did not start
     # under way: `install` carries a dated `doing`, which is on no day at all,
     # and is here on the mark rather than on the date.
     When the terminal agent searches for "date:..today OR is:doing"
-    Then the terminal agent found exactly "install, demo"
+    Then the terminal agent found exactly "#install, #demo"
 
   Scenario: An operator it gets wrong is refused with the reason, not with silence
     # The fourth door onto the same grammar, and the one where silence is

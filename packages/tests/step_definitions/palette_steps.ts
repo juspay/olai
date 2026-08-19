@@ -192,10 +192,11 @@ Then(
   "the palette lists the node {string}",
   async function (this: OlaiWorld, title: string) {
     // A debounce and one server round trip sit between the keystroke and the
-    // row, so this waits rather than reads. `data-id^="node-"` tells a node
-    // hit from a shell item that happens to share a word.
+    // row, so this waits rather than reads. A row's id is its ADDRESS, and a
+    // node's address is a bare fragment — so `hit-#` tells a node hit from a
+    // document row and from a shell item that happens to share a word.
     await this.page
-      .locator(`${PALETTE_ITEM}[data-id^="node-"]`)
+      .locator(`${PALETTE_ITEM}[data-id^="hit-#"]`)
       .filter({ hasText: title })
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -206,12 +207,13 @@ Then(
   "the palette lists the document {string}",
   async function (this: OlaiWorld, file: string) {
     // Gripped by its `data-id` rather than by the text: the row's label is the
-    // file's NAME, and a directory can hold two of those under different
-    // folders — the id is the whole path, which is the thing a scenario means.
-    // (No wait for a round trip is owed here, unlike a node hit: the document
-    // rows are matched in the tab off the served list it already holds.)
+    // document's TITLE, and the id is its address, which is the thing a
+    // scenario means. It waits like a node hit does, and for the same reason —
+    // one reading answers both kinds now (`@olai/format`'s
+    // `matchingDocuments`), so a document row is a debounce and a round trip
+    // away exactly as a record's is.
     await this.page
-      .locator(`${PALETTE_ITEM}${attr("data-id", `doc-${file}`)}`)
+      .locator(`${PALETTE_ITEM}${attr("data-id", `hit-${file}`)}`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
@@ -226,7 +228,7 @@ Then(
     // the outline it lives in.
     await this.waitForFrame();
     const rows = await this.page
-      .locator(`${PALETTE_ITEM}${attr("data-id", `doc-${file}`)}`)
+      .locator(`${PALETTE_ITEM}${attr("data-id", `hit-${file}`)}`)
       .count();
     assert.strictEqual(rows, 0, `the palette lists ${JSON.stringify(file)}`);
   },

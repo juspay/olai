@@ -87,7 +87,21 @@ export type { Previous } from "./validate.ts"
  *  below). */
 export { reading } from "./validate.ts"
 
-export { apart, assemble, BrokenFile, brokenBy, brokenIn, nodesIn, OutlineSet } from "./set.ts"
+export {
+  apart,
+  assemble,
+  BrokenFile,
+  brokenBy,
+  bodiedIn,
+  brokenIn,
+  documentAt,
+  markdownAt,
+  markdownIn,
+  nodesIn,
+  OutlineSet,
+  outlinePaths,
+  outlinesIn,
+} from "./set.ts"
 /** WHICH FILE COMES FIRST — the order a directory is read in, and the one
  *  spelling of it: the set is assembled in it, the patcher places an arriving
  *  file by it, and the browser folds and draws in it. Exported because the
@@ -99,7 +113,28 @@ export {
   basenameOf,
   byPath,
 } from "./paths.ts"
-export type { DecodedFile, Outline } from "./set.ts"
+/** THE SUM the set serves, and the whole world of it: the three arms, their
+ *  shared face, the constructors a decode calls and the narrowings a reader
+ *  asks for. `Document` is what a served file IS
+ *  (docs/brainstorming/first-class-documents.md, PR 2); the nodes are the
+ *  substructure of one arm rather than a collection beside it. */
+export {
+  bodiedDocument,
+  bodyOf,
+  Document,
+  Face,
+  faceOf,
+  Hypertext,
+  isOutline,
+  Markdown,
+  Outline,
+  outlineDocument,
+} from "./document.ts"
+/** A heading's derived id, and the headings of a body — the element half of
+ *  the address grammar. Exported because the BROWSER assigns the same ids as
+ *  it renders (`/web`'s `markdown/slugs.ts`), and a slug spelled twice is
+ *  an address this app writes and cannot open. */
+export { claim, slugOf, slugsIn } from "./slug.ts"
 /** The view PATCHED rather than rebuilt, and what a delta says: files upserted,
  *  files gone — Surface's own collection-delta frame, which is the vocabulary
  *  "what changed" already travels this system in.
@@ -164,9 +199,6 @@ export {
   bodiedOf,
   bytesOf,
   docOf,
-  Document,
-  documentIn,
-  documentsIn,
   firstLine,
   isAsset,
   isPicture,
@@ -299,8 +331,8 @@ export type { Zoomed } from "./zoom.ts"
  *  `Way` is the SCHEMA read off it — which is what the answer vocabulary
  *  carries (`Reference`) and what a browser keys its rows by, rather than
  *  either of them being a second spelling of the list. */
-export { backlinksOf, Way, WAYS } from "./backlinks.ts"
-export type { Backlink } from "./backlinks.ts"
+export { backlinksOf, referrersTo, Way, WAYS } from "./backlinks.ts"
+export type { Backlink, Referrer } from "./backlinks.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it
  *  selects, `ranked` puts them in the order a door shows them in, `keeping` and
  *  `matchedIn` are what a TREE narrowed to them looks like and how many rows of
@@ -318,10 +350,15 @@ export {
   litBy,
   matchedIn,
   matching,
+  /** The other arm: which DOCUMENTS a query selects, and both kinds put in one
+   *  order. A body is text the way a note is, and a query that could only ask
+   *  about records is the shape this arc replaced. */
+  matchingDocuments,
   /** The words a query looks for, folded and deduped — {@link litBy}'s other
    *  half, and the only thing a view needs off a parsed query. */
   needlesOf,
   parseFilter,
+  rankedTogether,
   /** Both halves of "3 of 41" over a tree: {@link matchedIn} counts the rows a
    *  query selected and `rowsIn` counts the rows there are, so the two cannot
    *  come to disagree about what a row is — the pairing the flat pages have in
@@ -536,6 +573,9 @@ export {
  *  fact about the QUERY. The matcher stays where the matcher is. */
 export {
   DEFAULT_SEARCH_LIMIT,
+  DocumentHit,
+  isNodeHit,
+  NodeHit,
   SearchAnswer,
   SearchHit,
   SearchRequest,

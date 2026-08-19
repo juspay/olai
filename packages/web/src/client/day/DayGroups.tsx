@@ -29,6 +29,7 @@ import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { DayNode } from "./DayNode.tsx"
 import { placeOf } from "./place.ts"
+import { atFile } from "../routes.ts"
 
 /** Which heading level a group's file name is drawn as. */
 export type Heading = "h2" | "h3" | "h4"
@@ -58,7 +59,7 @@ function Group(props: {
         component={props.heading}
         class="m-0 mb-2 font-mono text-xs text-muted"
       >
-        <Link route={{ kind: "outline", file: props.group.file }} class={CRUMB}>
+        <Link route={atFile(props.group.file)} class={CRUMB}>
           {props.group.file}
         </Link>
       </Dynamic>

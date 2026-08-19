@@ -10,9 +10,9 @@ import { expect, test } from "bun:test"
 
 import { backlinksOf } from "./backlinks.ts"
 import { derive, type Derived } from "./derive.ts"
-import { setOf } from "./fixtures.testlib.ts"
+import { recordsOf, setOf } from "./fixtures.testlib.ts"
 
-const viewOf = (files: Record<string, string>): Derived => derive(setOf(files).nodes)
+const viewOf = (files: Record<string, string>): Derived => derive(recordsOf(setOf(files)))
 
 /** A referrer as this suite reads one: which record, and how it refers. */
 const said = (derived: Derived, id: string): ReadonlyArray<string> =>

@@ -14,12 +14,12 @@
  */
 
 import { derive } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { referringTo, rowsOf } from "./refs.ts"
 
-const viewOf = (files: Record<string, string>) => derive(setOf(files).nodes)
+const viewOf = (files: Record<string, string>) => derive(recordsOf(setOf(files)))
 
 const HOUSE = {
   "house.olai": [

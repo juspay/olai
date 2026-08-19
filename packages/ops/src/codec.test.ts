@@ -13,7 +13,8 @@
  * and once from nothing, and asserts the two are the same reading.
  */
 
-import type { DecodedFile, OutlineError, Reading } from "@olai/format"
+import type { Document, OutlineError, Reading } from "@olai/format"
+import { markdownIn, outlinePaths } from "@olai/format"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
@@ -23,7 +24,7 @@ type Files = Record<string, string>
 
 const decoded = (
   files: Files,
-): Map<string, Result.Result<DecodedFile, ReadonlyArray<OutlineError>>> =>
+): Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>> =>
   new Map(
     Object.entries(files).map(([path, contents]) => [
       path,
@@ -123,7 +124,8 @@ test("an edited outline is patched onto the last verdict", () => {
 test("an outline that arrives is patched in, in path order", () => {
   const arriving = { ...KITCHEN, "beside.olai": `{"id":"new","ord":"a","title":"new"}` }
   const reading = bothWays(KITCHEN, arriving, { changed: ["beside.olai"], removed: [] })
-  expect(reading.set.files).toEqual(["beside.olai", "kitchen.olai", "notes/plan.olai"])
+  expect(outlinePaths(reading.set))
+    .toEqual(["beside.olai", "kitchen.olai", "notes/plan.olai"])
   expect(reading.derived.nodes.map((at) => at.node.id))
     .toEqual(["new", "cook", "shop", "plan", "here"])
 })
@@ -144,7 +146,8 @@ test("a document that changed is a moved path with no records of its own", () =>
   // body's text as an outline's nodes would say something else entirely.
   const body = { ...KITCHEN, "notes/plan.md": "# the plan, rewritten\n" }
   const reading = bothWays(KITCHEN, body, { changed: ["notes/plan.md"], removed: [] })
-  expect(reading.set.documents).toEqual([{ file: "notes/plan.md", text: "# the plan, rewritten\n" }])
+  expect(markdownIn(reading.set).map((one) => [String(one.path), one.body]))
+    .toEqual([["notes/plan.md", "# the plan, rewritten\n"]])
   expect(reading.derived.byFile.has("notes/plan.md")).toBe(false)
 })
 

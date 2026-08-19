@@ -22,7 +22,7 @@
  */
 
 import { derive, rowsOf, type Row } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { armedNodes, releaseArmed } from "../chat/armed.ts"
@@ -37,7 +37,7 @@ const HOUSE = [
   `{"id":"echo","ord":"a2","mirror":"install"}`,
 ].join("\n")
 
-const derived = derive(setOf({ "house.olai": HOUSE }).nodes)
+const derived = derive(recordsOf(setOf({ "house.olai": HOUSE })))
 
 const row = (id: string): Row => {
   const found = flatten(rowsOf(derived, "house.olai"), new Set())

@@ -10,7 +10,7 @@
  */
 
 import { derive, rowsOf, rowsUnder, type Row } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { foldIdOf, foldOf, foldsUnder } from "./rows.ts"
@@ -31,7 +31,7 @@ const GARDEN = [
 ].join("\n")
 
 const derived = derive(
-  setOf({ "house.olai": HOUSE, "garden.olai": GARDEN }).nodes,
+  recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })),
 )
 
 const house = rowsOf(derived, "house.olai")

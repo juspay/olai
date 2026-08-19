@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 
 import type { Route } from "./routes.ts"
-import { hrefOf, routeOf } from "./routes.ts"
+import { atElement, atFile, atNode, HOME_ROUTE, hrefOf, routeOf } from "./routes.ts"
 import {
   closeAt,
   closeFocused,
@@ -25,13 +25,13 @@ import {
   WORKSPACE_PREFIX,
 } from "./workspace.ts"
 
-const house: Route = { kind: "outline", file: "house.olai" }
-const kitchen: Route = { kind: "node", id: "kitchen" }
-const garden: Route = { kind: "outline", file: "garden.olai" }
+const house: Route = atFile("house.olai")
+const kitchen: Route = atNode("kitchen")
+const garden: Route = atFile("garden.olai")
 const agenda: Route = { kind: "agenda" }
 const today: Route = { kind: "today" }
-const doc: Route = { kind: "document", file: "notes/finishes.md", at: "beds" }
-const filtered: Route = { kind: "outline", file: "house.olai", filter: "is:done" }
+const doc: Route = atElement("notes/finishes.md", "beds")
+const filtered: Route = { ...atFile("house.olai"), filter: "is:done" }
 
 test("a lone page is exactly the address it always was", () => {
   expect(hrefOfWorkspace(lone(house))).toBe("/house.olai")
@@ -234,7 +234,7 @@ test("flexOf gives collapsed panes nothing and shares the rest", () => {
 })
 
 test("an empty /s/ is the default outline, not a throw", () => {
-  expect(workspaceOf("/s/")).toEqual(lone({ kind: "outline", file: null }))
+  expect(workspaceOf("/s/")).toEqual(lone(HOME_ROUTE))
   expect(workspaceOf("/s")).toEqual(lone(routeOf("/s")))
 })
 

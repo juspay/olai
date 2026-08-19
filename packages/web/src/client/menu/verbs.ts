@@ -53,7 +53,7 @@ import { repeatPick } from "../date/repeat.ts"
 import { type Relation, RELATIONS } from "../edges/relation.ts"
 import { pinnedAt } from "../pins/pins.ts"
 import { customEntries } from "../props/drawer.ts"
-import { hrefOf } from "../routes.ts"
+import { atNode, hrefOf } from "../routes.ts"
 import { archiveQuestion } from "../trash/question.ts"
 import { under } from "./subtree.ts"
 
@@ -212,13 +212,13 @@ export const writeVerbs = (
     // and a mirror's page is its target's; storing the placement's id instead
     // would leave a pin that stops resolving the day somebody retires that
     // placement, which is a write about a line and not about the shelf.
-    const pinned = pinnedAt(derived, { kind: "node", id: shown.node.id })
+    const pinned = pinnedAt(derived, atNode(shown.node.id))
     verbs.push(
       pinned === undefined
         ? {
           id: "pin",
           label: "Pin to sidebar",
-          does: sends({ verb: "pin", at: hrefOf({ kind: "node", id: shown.node.id }) }),
+          does: sends({ verb: "pin", at: hrefOf(atNode(shown.node.id)) }),
         }
         : {
           id: "unpin",

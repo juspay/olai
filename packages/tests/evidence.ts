@@ -639,7 +639,7 @@ const PALETTE_HIT = '[data-testid="palette-item"][data-id^="node-"]'
 /** …and the rows of it that are DOCUMENTS, told apart the same way: a served
  *  file's row carries its whole path in `data-id`, so a shot can print WHICH
  *  file it matched rather than the name a folder may repeat. The header's box
- *  draws the identical row (`web/src/client/palette/documents.ts`), which is
+ *  draws the identical row (`web/src/client/search/row.ts`), which is
  *  why the pair is spelled here together. */
 const PALETTE_DOC = '[data-testid="palette-item"][data-id^="doc-"]'
 const HEADER_DOC = '[data-testid="header-search-item"][data-id^="doc-"]'

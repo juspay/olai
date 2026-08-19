@@ -51,7 +51,7 @@ import {
   tagText,
   titleParts,
 } from "@olai/format"
-import { median, setOf, timed, timesSaid, vaultOf } from "@olai/format/testlib"
+import { median, recordsOf, setOf, timed, timesSaid, vaultOf } from "@olai/format/testlib"
 
 import { type Tag, tagsOf } from "./tags.ts"
 
@@ -64,7 +64,7 @@ const ROUNDS = Number(process.env["OLAI_BENCH_ROUNDS"] ?? 20)
  *  here: path order is a promise of the format's own, and a bench that spells
  *  it again is a bench that can come to measure a corpus in an order no app
  *  holds. */
-const view = derive(setOf(Object.fromEntries(vaultOf({ files: FILES, records: RECORDS }))).nodes)
+const view = derive(recordsOf(setOf(Object.fromEntries(vaultOf({ files: FILES, records: RECORDS })))))
 
 /** One row of the widget's list, built the way both walks below build one —
  *  they differ in what they walk, never in what they answer with. */

@@ -45,14 +45,23 @@
 
 import { Schema } from "effect"
 
-import { Refusal, SEARCH_FIELDS } from "./filter.ts"
+import { AtDocument, AtNode } from "./address.ts"
+import { DOCUMENT_FIELDS, Refusal, SEARCH_FIELDS } from "./filter.ts"
 import { Found } from "./reading.ts"
 
-/** One hit: a situated node, plus the only thing about it that is a fact about
- *  the QUERY rather than about the record — which field carried the strongest
- *  match, so a caller can say why this came back instead of leaving a reader to
- *  guess. */
-export const SearchHit = Schema.Struct({
+/**
+ * ONE HIT ON A NODE: a situated record, its ADDRESS, and the only thing about
+ * it that is a fact about the QUERY rather than about the record — which field
+ * carried the strongest match, so a caller can say why this came back instead
+ * of leaving a reader to guess.
+ *
+ * `at` is what a hit is FOR, once a search answers with two kinds of thing:
+ * somewhere to go. It is the bare `#id` this format's node addresses are — the
+ * id is global and outlives every move, so the address is right about where the
+ * node is even after the file it is in has been renamed (`./address.ts`).
+ */
+export const NodeHit = Schema.Struct({
+  at: AtNode,
   ...Found.fields,
   /** ABSENT when the query named no words at all: `is:done` selects a node by a
    *  field test, and no title, id, tag or note carried it. Saying one of them
@@ -83,7 +92,59 @@ export const SearchHit = Schema.Struct({
    */
   matchedProps: Schema.optionalKey(Schema.Array(Schema.String)),
 })
+export type NodeHit = typeof NodeHit.Type
+
+/**
+ * ONE HIT ON A DOCUMENT — the half of every search this app could not answer.
+ *
+ * It carries what a row needs and nothing more: where to go, what the document
+ * is CALLED, and which of its three places held the word. There is no `line`,
+ * no `status` and no `path` of ancestors, because a document has none of
+ * those — an arm with them filled in with zeroes and empty lists would be
+ * exactly the shape this whole arc exists to stop, a document pretending to be
+ * a node badly.
+ *
+ * WHAT IT DOES NOT CARRY YET, said rather than left to be noticed: an excerpt
+ * of the line a `body` match landed on. `matched` says the word was in the
+ * prose, which is enough for a reader to decide to open it, and quoting the
+ * line is a design question (how much, from where, how highlighted) that
+ * belongs with whatever draws it rather than riding in ahead of a caller.
+ */
+export const DocumentHit = Schema.Struct({
+  at: AtDocument,
+  /** What the document is called: its own face's title, so this row, the
+   *  palette, `list_documents` and the page's own heading say one name. */
+  title: Schema.String,
+  /** Which of `./filter.ts`'s three document fields carried the strongest
+   *  match — ABSENT for a query that named no words, on {@link NodeHit}'s own
+   *  rule. */
+  matched: Schema.optionalKey(Schema.Literals(DOCUMENT_FIELDS)),
+})
+export type DocumentHit = typeof DocumentHit.Type
+
+/**
+ * WHAT A SEARCH ANSWERS WITH — a node or a document, and nothing said about
+ * either that is not true of it.
+ *
+ * A SUM rather than one shape with a `kind` and a run of optional fields, for
+ * `./document.ts`'s reason and this file's own: the two arms genuinely differ,
+ * and a reader that had to check whether `line` was filled in would be the
+ * node-shaped path and the document-shaped path this arc replaced with a type.
+ *
+ * THE DISCRIMINANT IS THE ADDRESS, which is the grammar doing real work rather
+ * than a tag beside it: an address already says whether it names a node or a
+ * document, and a second field saying so would be free to disagree with it.
+ * {@link isNodeHit} is how a reader narrows — the same move `isMirror` and
+ * `isOutline` are, named once rather than spelled as a field test wherever a
+ * door only draws one kind.
+ */
+export const SearchHit = Schema.Union([NodeHit, DocumentHit])
 export type SearchHit = typeof SearchHit.Type
+
+/** Whether a hit is on a record. The doors that only ever wanted a node — the
+ *  edge panel picking something to `see`, the chat composer's `@` list —
+ *  narrow through this, and the type is what makes them say so. */
+export const isNodeHit = (hit: SearchHit): hit is NodeHit => hit.at.kind === "node"
 
 export const SearchAnswer = Schema.Struct({
   hits: Schema.Array(SearchHit),
@@ -160,6 +221,25 @@ export const SearchRequest = Schema.Struct({
     Schema.String.annotate({
       description:
         "Only this node and everything beneath it, by id — the same scoping a person gets by filtering a zoomed page.",
+    }),
+  ),
+  /**
+   * ONE KIND OF THING, for a caller that can only use one.
+   *
+   * The third scope, and the one the sum made necessary: a search answers with
+   * records AND documents, and a door PICKING A RECORD to point at — the edge
+   * panel writing a `see`, the composer's `@` list, the move picker — cannot
+   * take a document, because a `see` names a node id and nothing else. Such a
+   * door filtering the answer itself would be a door whose list runs short
+   * exactly when a query matches enough documents to fill the limit, so the
+   * narrowing is on the REQUEST, where the cap is applied.
+   *
+   * Absent is both, which is what every reading door wants.
+   */
+  kind: Schema.optionalKey(
+    Schema.Literals(["node", "document"]).annotate({
+      description:
+        "Only records (`node`) or only documents (`document`). Both when it is not given.",
     }),
   ),
 })

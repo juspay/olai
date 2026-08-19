@@ -9,7 +9,7 @@
  */
 
 import { derive, rowsOf, type Row } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { datePick } from "../date/pick.ts"
@@ -30,7 +30,7 @@ const GARDEN = [
   `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`,
 ].join("\n")
 
-const derived = derive(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN }).nodes)
+const derived = derive(recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
 const rows = rowsOf(derived, "house.olai")
 
 /** One row of the fixture, by id — through the client's own walk
@@ -76,11 +76,11 @@ test("a mirror pins the node it SHOWS, never the placement standing there", () =
 
 test("a node the shelf already holds is offered the way OFF it instead", () => {
   const withShelf = derive(
-    setOf({
+    recordsOf(setOf({
       "house.olai": HOUSE,
       "garden.olai": GARDEN,
       "Pins.olai": `{"id":"p-install","ord":"a0","title":"/#install"}`,
-    }).nodes,
+    })),
   )
   const shelved = rowsOf(withShelf, "house.olai")
   const installed = flatten(shelved, new Set()).find((one) => one.at.node.id === "install")!
@@ -231,13 +231,13 @@ test("the repeat entry sends nothing on its own", () => {
 
 test("a repeating row says CHANGE, and gains the entry that stops it", () => {
   const repeating = derive(
-    setOf({
+    recordsOf(setOf({
       "house.olai": HOUSE.replace(
         `"title":"order the cabinets","date":"2026-08-10"`,
         `"title":"order the cabinets","date":"2026-08-10","repeat":"every week on monday"`,
       ),
       "garden.olai": GARDEN,
-    }).nodes,
+    })),
   )
   const found = flatten(rowsOf(repeating, "house.olai"), new Set())
     .find((one) => one.at.node.id === "order")

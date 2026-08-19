@@ -10,7 +10,7 @@
  */
 
 import { derive, zoom } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { filterItems } from "./items.ts"
@@ -22,7 +22,7 @@ const HOUSE = [
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
 ].join("\n")
 
-const derived = derive(setOf({ "house.olai": HOUSE }).nodes)
+const derived = derive(recordsOf(setOf({ "house.olai": HOUSE })))
 
 /** The zoomed page for an id, narrowed to the arm that IS a node — which is
  *  the only arm App hands the palette. */

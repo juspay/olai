@@ -50,7 +50,7 @@ import { mediaHref } from "@olai/surface"
 import type { Element, Root } from "hast"
 
 import { type Heading, headingOf } from "./outline.ts"
-import { hrefOf } from "../routes.ts"
+import { atFile, hrefOf } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 
 export interface Rewrite {
@@ -174,7 +174,7 @@ const resolveDocument = (element: Element, from: string): void => {
   if (document === null) return
   element.properties = {
     ...element.properties,
-    href: hrefOf({ kind: "document", file: document }) + written.slice(cut),
+    href: hrefOf(atFile(document)) + written.slice(cut),
   }
 }
 

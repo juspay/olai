@@ -245,8 +245,10 @@ export type OutlineAnswer = typeof OutlineAnswer.Type
  */
 export const DocumentSummary = Schema.Struct({
   file: Schema.String,
-  /** The document's first line, heading marks off — what it is ABOUT, in the
-   *  space a listing has. Empty for a document holding nothing. */
+  /** What the document is CALLED — its first line with the heading marks off,
+   *  and its filename when the body has no line to be named by. The document's
+   *  own face answers it (`./document.ts`), so this listing, the browser's rows
+   *  and a search hit all say the same name. */
   title: Schema.String,
   /** Its text's size in bytes, as UTF-8 — what a caller decides with before
    *  asking for the whole of it. It is the size of the text `read_document`

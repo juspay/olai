@@ -8,13 +8,13 @@
  */
 
 import type { RegularNode } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { customEntries, drawerEntries, isLink, systemEntries } from "./drawer.ts"
 
 const nodeOf = (record: string): RegularNode =>
-  setOf({ "a.olai": record }).nodes[0]?.node as RegularNode
+  recordsOf(setOf({ "a.olai": record }))[0]?.node as RegularNode
 
 test("the id is always a line, because nothing else on the page says it", () => {
   // The ruling this file was rewritten for: an id is what every tool call and

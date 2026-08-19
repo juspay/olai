@@ -36,6 +36,7 @@ import { desktop } from "./layout/media.ts"
 import { chatOpen, sidebarOpen, toggleSidebar } from "./layout/prefs.ts"
 import { Rail } from "./layout/Rail.tsx"
 import { only } from "./narrow.ts"
+import { byFacePath } from "./paths.ts"
 import { OpensProvider } from "./opens.tsx"
 import { createOutlines } from "./outlines.ts"
 import { fileOf, opensAt, pageOf } from "./page.ts"
@@ -78,9 +79,17 @@ export default function App() {
 
   const problems = () => errors.value() ?? []
 
+  /**
+   * THE DIRECTORY, as one collection of faces — what every page model question
+   * is asked of (`./page.ts`).
+   *
+   * The two collections stay two on the wire, because an outline's records
+   * travel with it and a document's body does not; they are ONE list from here
+   * up, in the directory's own order, so nothing above has to pick which half
+   * of a directory it was thinking about.
+   */
   const found = createMemo(() => ({
-    files: outlines.files(),
-    documents: documents.paths(),
+    documents: byFacePath([...outlines.faces(), ...documents.faces()]),
     broken: outlines.broken(),
   }))
 
@@ -133,7 +142,7 @@ export default function App() {
       <FieldsProvider value={fields}>
       <AirProvider value={air}>
       <OpensProvider opens={(path, at) => opensAt(found(), path, at)}>
-      <ServedProvider outlines={found().files} documents={found().documents}>
+      <ServedProvider faces={found().documents}>
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
           the TAB (`./clock.ts`), and the panel reads it too — the `@` list's
           node half is matched by the format's own grammar, whose relative words
@@ -201,8 +210,6 @@ export default function App() {
                     </Show>
                     <Show when={desktop() ? sidebarOpen() : true}>
                       <Sidebar
-                        files={outlines.files()}
-                        documents={documents.paths()}
                         active={fileOf(open())}
                         broken={outlines.broken()}
                         agenda={agenda()}

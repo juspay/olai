@@ -459,18 +459,26 @@ Then(
   },
 );
 
-/** Exactly these ids, in the order they came back — the shape a scoped or
- *  operator query is judged by, because what a narrowing does is take hits
- *  AWAY and "contains X" cannot see that happen. */
+/**
+ * Exactly these ADDRESSES, in the order they came back — the shape a scoped or
+ * operator query is judged by, because what a narrowing does is take hits AWAY
+ * and "contains X" cannot see that happen.
+ *
+ * By the address rather than by an id, because an answer holds two kinds of
+ * thing: `#order` is a record and `notes/cabinets.md` is a document, and the
+ * written form is what tells them apart — the same string the app writes into
+ * the bar. Reading `hit.id` was fine while every hit was a node and reads back
+ * `undefined` for the other half.
+ */
 Then(
   "the terminal agent found exactly {string}",
   function (this: OlaiWorld, expected: string) {
     const hits = (structuredOf(this)["hits"] ?? []) as ReadonlyArray<
-      { readonly id: string }
+      { readonly at: { readonly kind: string; readonly id?: string; readonly path?: string } }
     >;
     assert.deepStrictEqual(
-      hits.map((hit) => hit.id),
-      expected === "" ? [] : expected.split(",").map((id) => id.trim()),
+      hits.map((hit) => (hit.at.kind === "node" ? `#${hit.at.id}` : hit.at.path)),
+      expected === "" ? [] : expected.split(",").map((one) => one.trim()),
     );
   },
 );

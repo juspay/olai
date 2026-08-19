@@ -48,6 +48,12 @@ export {
    *  on the answer because three of the four doors ask the server, and a door
    *  that answered `is:open` with an empty list and no reason would be the
    *  one place a typo looks like an empty directory. */
+  /** ONE HIT ON A DOCUMENT, and one on a record, and the narrowing between
+   *  them: a search answers with both, and a door that draws only one says so
+   *  in its type ({@link isNodeHit}). */
+  DocumentHit,
+  isNodeHit,
+  NodeHit,
   Refusal,
   SearchAnswer,
   SearchHit,

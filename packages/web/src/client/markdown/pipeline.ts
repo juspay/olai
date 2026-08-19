@@ -60,7 +60,6 @@ import { common } from "lowlight"
 import rehypeAutolinkHeadings from "rehype-autolink-headings"
 import rehypeHighlight from "rehype-highlight"
 import rehypeSanitize from "rehype-sanitize"
-import rehypeSlug from "rehype-slug"
 import rehypeStringify from "rehype-stringify"
 import remarkGfm from "remark-gfm"
 import remarkParse from "remark-parse"
@@ -70,6 +69,7 @@ import type { Root } from "hast"
 
 import { AUTOLINK } from "./anchors.ts"
 import { SANITISE } from "./sanitise.ts"
+import { rehypeSlugs } from "./slugs.ts"
 
 /**
  * The grammars a fence may name: `lowlight`'s common set, plus Nix.
@@ -91,7 +91,7 @@ const pipeline = unified()
   .use(remarkParse)
   .use(remarkGfm)
   .use(remarkRehype, { clobberPrefix: "" })
-  .use(rehypeSlug)
+  .use(rehypeSlugs)
   .use(rehypeAutolinkHeadings, AUTOLINK)
   .use(rehypeSanitize, SANITISE)
   .use(rehypeHighlight, { detect: false, languages })

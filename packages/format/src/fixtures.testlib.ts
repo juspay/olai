@@ -31,7 +31,8 @@ import type { OutlineError } from "./errors.ts"
 import { unkept } from "./kinds.ts"
 import type { Located } from "./node.ts"
 import { parseOutline } from "./parse.ts"
-import { assemble, type DecodedFile, type Outline, type OutlineSet } from "./set.ts"
+import { bodiedDocument, type Document, type Outline } from "./document.ts"
+import { assemble, outlinesIn, type OutlineSet } from "./set.ts"
 import type { Reading } from "./validate.ts"
 
 /** The default fixture file name. Named once so a test that cares about paths
@@ -71,10 +72,10 @@ export const setOf = (
   broken: Record<string, string> = {},
 ): OutlineSet =>
   assemble(
-    new Map<string, Result.Result<DecodedFile, ReadonlyArray<OutlineError>>>([
+    new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>([
       ...Object.entries(files).map(
         ([file, contents]) =>
-          [file, Result.succeed<DecodedFile>(outlineOf(contents, file))] as const,
+          [file, Result.succeed<Document>(outlineOf(contents, file))] as const,
       ),
       ...documents.map((document) => {
         const [file, said] = typeof document === "string" ? [document, ""] : document
@@ -92,7 +93,7 @@ export const setOf = (
         }
         return [
           file,
-          Result.succeed<DecodedFile>({ file, text: bodyless ? null : said }),
+          Result.succeed<Document>(bodiedDocument(file, bodyless ? null : said)),
         ] as const
       }),
       ...Object.entries(broken).map(
@@ -116,7 +117,7 @@ export const setOf = (
  */
 export const readingOf = (set: OutlineSet): Reading => ({
   set,
-  derived: derive(set.nodes),
+  derived: derive(recordsOf(set)),
 })
 
 /** One file's worth of JSONL that must NOT parse, and the errors it produces —
@@ -181,7 +182,7 @@ export const STAMP_SHAPE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$
  *  wants, for the tests that need no set around them. */
 export const nodesOfFiles = (
   files: Record<string, string>,
-): ReadonlyArray<Located> => setOf(files).nodes
+): ReadonlyArray<Located> => recordsOf(setOf(files))
 
 /**
  * A seeded pseudo-random source: Mulberry32, eight lines of arithmetic and one
@@ -479,3 +480,10 @@ export const timesSaid = (
     `, mean ${ms(times.reduce((one, other) => one + other, 0) / times.length)}` +
     `, min ${ms(Math.min(...times))}, max ${ms(Math.max(...times))}`
 }
+
+/** Every record of a set, flat — the shape the rules and the walks want, out of
+ *  the one collection the set serves. A test's own flattening, deliberately:
+ *  the format exports none (`./set.ts` says why), and what a production caller
+ *  holds is the derivation, which carries these already. */
+export const recordsOf = (set: OutlineSet): ReadonlyArray<Located> =>
+  outlinesIn(set).flatMap((outline) => outline.nodes)

@@ -28,7 +28,8 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
-import { type FailureKind, type OutlineSet } from "@olai/format"
+import { type FailureKind, type OutlineSet, outlinePaths } from "@olai/format"
+import { recordsOf } from "@olai/format/testlib"
 import { codec, make as makeOps, type Store as OutlineStore, TOOLS } from "@olai/ops"
 import { STAMP, steady } from "@olai/ops/testlib"
 import * as Store from "@olai/store"
@@ -324,7 +325,7 @@ test("each tool carries its title and its description", async () => {
     // model choosing the tool, the title for the human reading a host's list.
     // Both come off the ops table, which is the single place a tool is
     // described — `title` survived migration because kolu#2155 added the field.
-    expect(search?.title).toBe("Search nodes")
+    expect(search?.title).toBe("Search the directory")
     expect(search?.description).toContain("Find nodes by title")
   })
 })
@@ -567,10 +568,11 @@ test("list_documents is the map of the other kind of file", async () => {
     expect(answered.isError).toBe(false)
     // Paths in the set's own order, each with the line it opens with and what
     // its text weighs. The heading marks are off the first — `# Finishes` is a
-    // document called Finishes — and a document with nothing in it is named
-    // nothing rather than left out.
+    // document called Finishes — and a document with nothing in it is named by
+    // its FILE rather than by nothing: the title is the document's own face
+    // now (`@olai/format`'s `Document`), and a face's title is total.
     expect(answered.structured["documents"]).toEqual([
-      { file: "empty.md", title: "", bytes: 0 },
+      { file: "empty.md", title: "empty", bytes: 0 },
       { file: "finishes.md", title: "Finishes", bytes: 26 },
       { file: "notes/cabinets.md", title: "Walnut, or birch.", bytes: 22 },
     ])
@@ -646,7 +648,7 @@ test("read_document refuses a path the set does not hold, with the closest one",
     expect(hypertext.structured).toMatchObject({ kind: "not-found" })
 
     // AND THE SHAPES A PATH ARGUMENT IS ATTACKED WITH. True by construction —
-    // this read never opens a path: `documentIn` asks the suffix and then
+    // this read never opens a path: `markdownAt` asks the suffix and then
     // matches the set's own keys EXACTLY, so there is no join, no `realpath`
     // and no traversal to defeat. Pinned anyway, because "by construction" is
     // a property of the current construction: the day somebody resolves a path
@@ -832,7 +834,7 @@ test("create_outline mints a file through the same tool surface as every other w
       summary: "capture: something to capture",
     })
     expect(read("inbox.olai")).toContain("something to capture")
-    expect((await set()).files).toContain("inbox.olai")
+    expect(outlinePaths(await set())).toContain("inbox.olai")
   })
 })
 
@@ -1093,7 +1095,7 @@ test("one add_node lands a whole subtree, and says what it made", async () => {
     // The tree is a tree: `measure` hangs off `shelves`, which hangs off the
     // node the call named.
     const nodes = new Map(
-      (await set()).nodes.map((located) => [located.node.id, located.node]),
+      recordsOf(await set()).map((located) => [located.node.id, located.node]),
     )
     const [pantry, shelves, measure] = captured
     expect(nodes.get(shelves?.id ?? "")).toMatchObject({ parent: pantry?.id })

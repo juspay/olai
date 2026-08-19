@@ -8,12 +8,12 @@
  */
 
 import { derive } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { inTrash } from "./counting.ts"
 
-const derivedOf = (files: Record<string, string>) => derive(setOf(files).nodes)
+const derivedOf = (files: Record<string, string>) => derive(recordsOf(setOf(files)))
 
 test("it counts the records of every archive, signposts included", () => {
   const derived = derivedOf({

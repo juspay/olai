@@ -40,7 +40,7 @@ test("the spec's own example line is a node", () => {
   const outline = outlineOf(
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","date":"2026-08-10","after":["demo"]}`,
   )
-  expect(outline.file).toBe("a.olai")
+  expect(String(outline.path)).toBe("a.olai")
   expect(outline.nodes.length).toBe(1)
   expect(outline.nodes[0]?.line).toBe(1)
   // Stored verbatim: the reader hands back exactly the fields on disk, because

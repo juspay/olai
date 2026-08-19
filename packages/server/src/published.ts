@@ -35,7 +35,7 @@
  * (`runtime.ts`) and needs no projection.
  */
 
-import { nodesOf, type Reading } from "@olai/format"
+import { bodiedIn, bodyOf, faceOf, nodesOf, outlinesIn, type Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import type { DocumentEntry, Head, OutlineEntry } from "@olai/surface"
 
@@ -135,12 +135,14 @@ const documentsOf = (
   snapshot: Snapshot<Reading>,
   held: Published | null,
 ): Pick<Published, "documents" | "heads" | "unread"> => {
-  const documents = snapshot.value.set.documents
-  const keyOf = (document: (typeof documents)[number]) => document.file
+  // The BODIED half of the one collection: this member is what a reader opens
+  // as a page, and an outline is published as its records next door.
+  const documents = bodiedIn(snapshot.value.set)
+  const keyOf = (document: (typeof documents)[number]) => document.path
   const change = changeOf(
     documents,
     keyOf,
-    (document) => ({ rev: snapshot.rev, text: document.text }),
+    (document) => ({ rev: snapshot.rev, text: bodyOf(document) }),
     snapshot,
     held?.documents,
   )
@@ -153,7 +155,12 @@ const documentsOf = (
   const heads = changeOf(
     documents,
     keyOf,
-    () => ({ rev: snapshot.rev }),
+    // The FACE rides here — the cheap half of a document, cut from the same
+    // value the body was cut from, one line up. That is what makes the two
+    // slices one fact rather than two: a head whose face disagreed with the
+    // body beside it would be a title the palette draws for prose the page
+    // does not have.
+    (document) => ({ rev: snapshot.rev, face: faceOf(document) }),
     snapshot,
     held?.heads,
   )
@@ -240,12 +247,13 @@ export const publishedOf = (
 
   return {
     outlines: changeOf(
-      set.files,
-      (file) => file,
-      (file) => ({
+      outlinesIn(set),
+      (outline) => outline.path,
+      (outline) => ({
         rev: snapshot.rev,
-        nodes: nodesOf(derived, file),
-        broken: broken.get(file) ?? null,
+        nodes: nodesOf(derived, outline.path),
+        broken: broken.get(outline.path) ?? null,
+        face: faceOf(outline),
       }),
       snapshot,
       published?.outlines,

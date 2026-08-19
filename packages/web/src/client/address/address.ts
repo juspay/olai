@@ -118,21 +118,25 @@ export const labelIn = (title: string): string | undefined => {
  */
 export const nameOf = (route: Route, derived: Derived | undefined): string => {
   switch (route.kind) {
-    case "node": {
-      // The node at the end of whatever chain the id addresses — the set's one
-      // answer to "what does this id mean" (`@olai/format`'s `nodeNamed`), the
-      // same one a `see` link's text comes from.
-      const shows = derived === undefined ? undefined : nodeNamed(derived, route.id)
-      return shows?.node.title ?? hrefOf({ kind: "node", id: route.id })
-    }
-    case "outline":
+    case "at": {
+      const address = route.address
       // `null` is the front page — "whichever outline was found first" — and it
       // has no filename to draw, so it takes the word a reader would use for
-      // it. Every other outline is its own name, through the format's own
-      // spelling of "the last segment of a path" rather than a second slice.
-      return route.file === null ? "Home" : basenameOf(route.file)
-    case "document":
-      return basenameOf(route.file)
+      // it.
+      if (address === null) return "Home"
+      if (address.kind === "node") {
+        // The node at the end of whatever chain the id addresses — the set's
+        // one answer to "what does this id mean" (`@olai/format`'s
+        // `nodeNamed`), the same one a `see` link's text comes from.
+        const shows = derived === undefined ? undefined : nodeNamed(derived, address.id)
+        return shows?.node.title ?? hrefOf(route)
+      }
+      // A FILE is its own name, through the format's own spelling of "the last
+      // segment of a path" rather than a second slice — and a heading is
+      // named by the file it is in, because a pin to a section of a document is
+      // a pin to that document as far as a row four columns wide is concerned.
+      return basenameOf(address.path)
+    }
     case "day":
       return route.date
     case "today":
