@@ -43,11 +43,11 @@ bun run test features/see_the_outline.feature:45 # one scenario
 While changing the server or the client, point `OLAI_BIN` at a two-line script that runs the working tree instead of rebuilding with Nix each time:
 
 ```bash
-printf '#!/usr/bin/env bash\nexec bun %s/packages/server/src/main.ts "$@"\n' "$PWD" > /tmp/olai-dev
-chmod +x /tmp/olai-dev && export OLAI_BIN=/tmp/olai-dev
+just build-client
+export OLAI_BIN="$(just dev-bin)"
 ```
 
-It takes the same argv, so the harness cannot tell the difference — but it serves `packages/web/dist`, so a client change needs a `just build-client` first. `just e2e` always uses the nix-built binary, which is what a user runs.
+`just dev-bin` writes `.olai-dev/bin` inside THIS worktree. `/tmp/olai-dev` is a path every checkout shares, and two e2e lanes used to drive one tree through it. The wrapper takes the same argv, so the harness cannot tell the difference — but it serves `packages/web/dist`, so a client change needs the `just build-client` first. `just e2e` always uses the nix-built binary, which is what a user runs.
 
 Bun hosts the runner. Bun executes `.ts` directly, so there is no tsx, no ts-node and no build step between a step definition and the browser — which is also why the dev shell needs no node.
 
@@ -59,7 +59,7 @@ Which server the suite drives is two decisions, not one — **who owns the proce
 
 | variable | meaning |
 |---|---|
-| `OLAI_BIN` | Path to the `olai` executable. The harness **spawns** one server per corpus as `<bin> web <dir> --port <port> --host 127.0.0.1` — pointed at this worker's own copy of that corpus, see below — and waits for the `url=` field of its `serving` line on stdout, decoded with `@olai/log`'s own `findLogfmt` rather than a regex of ours. This is what `just e2e` sets. |
+| `OLAI_BIN` | Path to the `olai` executable. The harness **spawns** one server per corpus as `<bin> web <dir> --host 127.0.0.1` — no `--port`, so the process default of 0 lets the OS pick, pointed at this worker's own copy of that corpus, see below — and waits for the `url=` field of its `serving` line on stdout, decoded with `@olai/log`'s own `findLogfmt` rather than a regex of ours. This is what `just e2e` sets. |
 | `OLAI_URL` | Base URL of a server you are **already running**, reused as it is. No spawning, so no per-corpus servers — see `OLAI_CORPUS`. |
 | `OLAI_CORPUS` | Only read with `OLAI_URL`: which fixture corpus that one server is serving (default `good`). A scenario needing a different one fails immediately, with the command to run instead — better than quietly asserting against the wrong outlines. |
 | `HEADLESS` | `false` opens a visible browser. Anything else (or unset) is headless. |
@@ -107,7 +107,7 @@ One section per run, against a directory the driver has just re-copied and a ser
 just build-client
 nix develop .#e2e -c bash
 cd packages/tests
-LABEL=after PORT=7802 bash wire.sh
+LABEL=after bash wire.sh
 ```
 
 `wire.ts` / `wire.sh` are the same kind of thing as `evidence.ts` one section up — not part of the suite, never run by `just e2e` — and they answer the question a screenshot cannot: how many bytes a session cost, and down which of the two wires. It opens the app, opens a saved page of a megabyte, rewrites it three times while it is on screen and then opens a note, counting every websocket frame the tab was delivered and every byte fetched off `/media/`.
@@ -126,7 +126,7 @@ RUNS=6  SUITES=5 sh underload.sh    # five suites at once, as a shared box is
 
 `underload.sh` / `underload.ts` are NOT part of the suite either. They exist because the failures this section is about are one scenario in six hundred, never the same one twice — so the fact worth having is a CENSUS over thirty runs and not a log of one, and `underload.ts` reads the cucumber message streams back into exactly that: which scenarios went, how often, on which step, and what each said.
 
-**The two knobs are two different questions, and mixing them answers neither.** `BUSY` pins the cores and leaves this the only suite on the box, so whatever fails under it failed on LOAD. `SUITES` starts several at once, which is what a box shared between worktrees actually looks like, and is the only way to reach the failures that need a STRANGER on the machine rather than a slow one — the port bands below were found that way and nothing else would have found them.
+**The two knobs are two different questions, and mixing them answers neither.** `BUSY` pins the cores and leaves this the only suite on the box, so whatever fails under it failed on LOAD. `SUITES` starts several at once, which is what a box shared between worktrees actually looks like, and is the only way to reach the failures that need a STRANGER on the machine rather than a slow one — the shared-port collisions this suite used to have were found that way and nothing else would have found them.
 
 ## Fixture corpora
 
@@ -144,9 +144,7 @@ A COPY, and one per worker, because `--parallel` is one process per worker: four
 
 A `@scratch:` scenario may also RESTART its server, which nothing else in the suite may do — a shared corpus server is running for every other scenario in the run, and `hooks.ts` refuses rather than trusting the tag. That is what lets a feature ask the one question no other scenario could: what does an open page do when the process behind it is replaced? The restart comes back on the SAME port, because the page is already pointed at it — `startOwnServer` binds the exact port and fails loudly if the address it got back is a different one, so a port stolen in between reads as itself instead of as a mysteriously dead page.
 
-**Which ports a worker may bind is CLAIMED, not computed** (`support/workers.ts`'s `heldBand`), and that is what makes the paragraph above hold on a box that is not only running this. Ports 20000 upward are cut into bands of two hundred; a worker takes a band by binding its FIRST port and keeping that socket for its whole life, so a second process wanting the same band is told `EADDRINUSE` by the kernel and walks on to the next. The search starts at the worker's own id, so one suite alone still gets bands 0, 1, 2, 3 exactly as it always did.
-
-It used to be arithmetic on that id, and the id is unique inside ONE run and says nothing about the run beside it: two worktrees each running the suite both numbered their workers from zero and both scanned from 20000. The restart is the one thing that could not survive it, because it has to come back on the same address and therefore has a window between letting the port go and the child's own `listen` — and the other run's port search walked into that window. Measured on a 32-core box, five suites at once, six rounds each: **thirty runs dropped twenty-seven scenarios, and seventeen of them were exactly this**, every one reported in `startOwnServer`'s own sentence. Nothing inside a single run ever collided — its bands were already disjoint and each worker asks for one port at a time — which is why an ordinary CI lane never saw it and a shared box saw it constantly.
+**The first bind asks the OS.** No `--port` means the process default of 0, so two worktrees cannot pick the same number and cannot squat production. A restart still has to come back on the address the page is pointed at, and `holdPort` keeps that socket across the kill so a `listen(0)` elsewhere on the box cannot land in the gap. The suite used to walk a claimed band of ports instead; a worker id is unique inside ONE run and says nothing about the run beside it, so two worktrees both numbered their workers from zero and both scanned from 20000 — which is how one e2e lane dialed another's server.
 
 ## Git, which every other scenario is served without
 

@@ -11,11 +11,11 @@ nix run github:juspay/olai -- web path/to/outlines
 or, in a clone:
 
 ```sh
-just run            # the one brain: this repo's docs, on 127.0.0.1:7714
-just serve docs     # the same port, plus a client-bundler watch for the edit loop
+just run            # the one brain: this repo's docs, on an OS-assigned port
+just serve docs     # the same, plus a client-bundler watch for the edit loop
 ```
 
-`olai web <dir> [--port] [--host]` reads the directory recursively, picking up every `.olai` outline and every `.md` document, and serves them to a browser. It does not descend into dot-directories or `node_modules` — a directory of outlines is usually a git repository, and nothing anyone wrote is inside `.git`. Defaults: port `7714`, host `127.0.0.1`.
+`olai web <dir> [--port] [--host]` reads the directory recursively, picking up every `.olai` outline and every `.md` document, and serves them to a browser. It does not descend into dot-directories or `node_modules` — a directory of outlines is usually a git repository, and nothing anyone wrote is inside `.git`. Defaults: port `0` (the OS picks one), host `127.0.0.1`. A fixed `--port` is a deploy's word — the home-manager module passes `7714` ("olai" on a phone keypad). `just run` / `just serve` write the bound URL to `.olai-dev/url` in this worktree, so a second checkout cannot squat the first, and neither can squat production.
 
 If a directory that used to serve comes up EMPTY, its outlines predate the rename to `.olai`: [format.md](format.md) carries the one-line `git mv` to run on it. olai reads the one extension and migrates nothing for you.
 
@@ -95,8 +95,8 @@ Any MCP client — a coding agent in a terminal, working in the same directory �
 }
 ```
 
-`7714` is this repo's convention: `just run` (and `just serve`) bind that port, spelled once as the `port` variable in the justfile, so the URL in `.mcp.json` holds. Another directory picks its own port and writes the same shape. Requests from `127.0.0.1` do not need a bearer token; the chat still sends the one it was handed, which is accepted and ignored. A request that did not come from loopback is refused without that token.
+`7714` is the production/deploy port: the home-manager module binds it, and `.mcp.json` names it, so an agent in this repo talks to the user service and never to a worktree's `just run`. A worktree's server writes its own address to `.olai-dev/url`; point an agent at *that* checkout by reading the file and appending `/mcp`. Requests from `127.0.0.1` do not need a bearer token; the chat still sends the one it was handed, which is accepted and ignored. A request that did not come from loopback is refused without that token.
 
-Unattended agent runs need the server up. `just run` is the one brain.
+Unattended agent runs need the server up. The user service is the one brain; `just run` is a worktree's own.
 
 There is no write CLI, and there never will be — no shell command adds a node or marks one. The two write surfaces are a page and an HTTP POST at `/mcp`, and they are two clients of one server.
