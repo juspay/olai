@@ -19,9 +19,14 @@
  */
 
 import { expect, test } from "bun:test"
+import * as fs from "node:fs"
+import * as os from "node:os"
+import * as path from "node:path"
 
 import { COMMIT_BUTTON, COMMIT_MODES, commitDoors, COMMIT_TOOL } from "@olai/ops"
+import { BOOT_TIMEOUT, startWeb } from "./child.testlib.ts"
 import { commitMode, commitsSaid } from "./commits.ts"
+import { served } from "./serve.testlib.ts"
 
 // ── what the two flags come to between them ────────────────────────────
 
@@ -98,3 +103,28 @@ test("apart from the doors, both faces say the same thing", () => {
     commitsSaid(face).replace(commitDoors(face), "…")
   expect(withoutDoors("web")).toBe(withoutDoors("mcp"))
 })
+
+/**
+ * The parse-time half of "opt-out", which the truth table cannot see.
+ *
+ * Effect 4's `Flag.boolean` treats omission as a missing required flag unless
+ * it has a fallback. `--no-commit` is the opt-out: a person (and the e2e git
+ * scenarios) who want the default pass nothing. Spawning, not parsing in
+ * process, because that is the seam the CLI library owns and the unit tests
+ * of `commitMode` never touch.
+ */
+test("olai web without --no-commit still boots", async () => {
+  const runtime = fs.mkdtempSync(path.join(os.tmpdir(), "olai-commit-run-"))
+  const server = startWeb({
+    root: served(),
+    extra: [],
+    env: { XDG_RUNTIME_DIR: runtime },
+  })
+  try {
+    const url = await server.address()
+    expect(url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
+    expect(server.said()).not.toContain("Missing required flag")
+  } finally {
+    server.kill()
+  }
+}, BOOT_TIMEOUT * 3)

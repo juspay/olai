@@ -101,8 +101,8 @@ An agent does not have to READ that resource to learn a repository is busy, eith
 **A busy port is not a refusal.** If the port asked for is already listening, the listener binds once more on a port the OS picks and says so:
 
 ```
-timestamp=… level=Info fiber=#5 message="port in use — serving elsewhere" serve=24ms root=/home/you/outlines asked=7714 url=http://127.0.0.1:40429
-timestamp=… level=Info fiber=#5 message=serving serve=25ms root=/home/you/outlines url=http://127.0.0.1:40429
+timestamp=… level=INFO fiber=#5 message="port in use — serving elsewhere" serve=24ms root=/home/you/outlines asked=7714 url=http://127.0.0.1:40429
+timestamp=… level=INFO fiber=#5 message=serving serve=25ms root=/home/you/outlines url=http://127.0.0.1:40429
 ```
 
 The reader asked to read their outlines, not to own port 7714. Every other listen failure still is a refusal — a host that is not this machine's, a privileged port — which is why exactly one error code recovers rather than "listen failed". The address that gets reported is always the one **actually bound**, and it is its own `url=` field: the browser tests read it out of that line rather than assuming the port they passed, because the printed address is the only thing that knows. Everything about the shape of those lines — one format, the levels, what is a message and what is an annotation, and the `--log-level` that turns the quiet half on — is [`@olai/log`](../log/README.md).

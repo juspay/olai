@@ -16,7 +16,7 @@
     "@olai/surface": "workspace:*",
     "@solid-primitives/keyed": "^1.5.3",
     "@solid-primitives/scheduled": "^1.5.3",
-    "effect": "4.0.0-beta.106",
+    "effect": "4.0.0-rc.110",
     "highlight.js": "^11.11.1",
     "lowlight": "^3.3.0",
     "rehype-autolink-headings": "^7.1.0",

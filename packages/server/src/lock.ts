@@ -83,6 +83,7 @@
  * writes inside the thing it holds.
  */
 
+import { isPrivateOwnedDir } from "@kolu/surface/unix-socket"
 import { codeOf, reasonOf } from "@olai/log"
 import { Data, Effect } from "effect"
 import type { Scope } from "effect"
@@ -151,12 +152,12 @@ export const lockFor = (root: string): string =>
  * olai kept a user of until #184 and is one again here.
  *
  * Spelled out rather than called as `getRuntimeSocketPath`, which is the same
- * five lines and IS still importable: that function's value is that two
- * programs which must MEET compute one path, and the two processes here are
- * both olai computing it through this file. What it would cost is a module
- * about serving RPC over unix sockets pulled back into the binary's graph for a
- * string, one release after #184 took it out. If a second program ever has to
- * find olai's lock, that trade flips and the call is the right answer.
+ * five lines: that function's value is that two programs which must MEET
+ * compute one path, and the two processes here are both olai computing it
+ * through this file. If a second program ever has to find olai's lock, the
+ * call is the right answer. The unix-socket module is already in this file's
+ * graph for `isPrivateOwnedDir`; the reason this path is still local is the
+ * meeting-vs-computing distinction, not a desire to keep the module out.
  *
  * NOT `os.tmpdir()`, and that is the whole reason this is not one line: it
  * honours `$TMPDIR`, which differs by LAUNCH CONTEXT — a launchd- or
@@ -289,46 +290,20 @@ const openLock = (path: string): number | LockUnavailable => {
   const directory = dirname(path)
   try {
     fs.mkdirSync(directory, { recursive: true, mode: 0o700 })
-    const wrong = notPrivatelyOurs(directory)
-    if (wrong !== null) return new LockUnavailable({ path, reason: wrong })
+    // mkdirSync's mode applies only when the directory is CREATED. A
+    // pre-existing `/tmp/olai-$UID` is exactly the case it cannot speak for,
+    // so we ask the same predicate the unix-socket serve path uses. A failed
+    // lstat throws into this try and becomes LockUnavailable via reasonOf —
+    // the same fold mkdir and open already take. A false is "the directory
+    // exists and is not ours."
+    if (!isPrivateOwnedDir(directory)) {
+      return new LockUnavailable({
+        path,
+        reason: `${directory} is not a private owner-only directory`,
+      })
+    }
     return fs.openSync(path, fs.constants.O_RDWR | fs.constants.O_CREAT, 0o600)
   } catch (cause) {
     return new LockUnavailable({ path, reason: reasonOf(cause) })
   }
-}
-
-/**
- * Why the directory the lock sits in has to be interrogated rather than just
- * created: off systemd it is a FIXED path, `/tmp/olai-$UID`, and anybody on the
- * machine can get there first. A directory somebody else prepared is a
- * directory they can hold a lock in — and olai would then report a stranger's
- * claim as another olai of the reader's own, and refuse to serve their notes
- * until they worked out why.
- *
- * Three predicates, and `mkdirSync`'s `mode` is none of them: it applies only
- * when the directory is CREATED, so a pre-existing one is exactly the case it
- * cannot speak for.
- *
- *   - `lstat`, never `stat`: `stat` follows a symlink, so a link left at the
- *     path pointing somewhere owner-private would answer "yours" about a
- *     directory that is not the one at this path.
- *   - it must be a directory at all.
- *   - it must be ours, and closed to group and other.
- *
- * The list is `isPrivateOwnedDir` from `@kolu/surface`'s unix-socket module,
- * which guards the same fixed path against the same person, and whose docstring
- * argues each of the three. It is not exported, so this is the three predicates
- * rather than the call; if upstream ever exports it, this function is the thing
- * to delete.
- */
-const notPrivatelyOurs = (directory: string): string | null => {
-  const info = fs.lstatSync(directory)
-  if (!info.isDirectory()) return `${directory} is not a directory`
-  const us = process.getuid?.()
-  if (us !== undefined && info.uid !== us) {
-    return `${directory} belongs to uid ${info.uid}, not to you`
-  }
-  return (info.mode & 0o077) === 0
-    ? null
-    : `${directory} is open to other users (mode ${(info.mode & 0o777).toString(8)})`
 }

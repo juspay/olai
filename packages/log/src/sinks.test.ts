@@ -130,7 +130,7 @@ test("the stdout sink writes logfmt on stdout", async () => {
     // The shape the e2e suite reads the server's address out of: one line, the
     // level as a field, and every varying value its own `key=value`.
     const line = String(out[0])
-    expect(line).toContain("level=Info")
+    expect(line).toContain("level=INFO")
     expect(line).toContain("message=serving")
     expect(line).toContain("url=http://127.0.0.1:7714")
     expect(line).not.toContain("\n")
@@ -174,12 +174,12 @@ test("OLAI_LOG=pretty forces pretty even when the stream is not a TTY", async ()
 
     const { out } = await written(toStdout)
     // Pretty is message-first, local time in brackets — not logfmt's
-    // `timestamp=… level=Info message=…` field order. One line at least
+    // `timestamp=… level=INFO message=…` field order. One line at least
     // carries the message; none is a bare logfmt line.
     const joined = out.map(String).join("\n")
     expect(joined).toContain("serving")
-    expect(joined).not.toMatch(/^timestamp=\S+ level=Info /m)
-    // Coloured level is uppercased in pretty; logfmt uses Effect's title case.
+    expect(joined).not.toMatch(/^timestamp=\S+ level=INFO /m)
+    // Coloured level is uppercased in pretty; logfmt now is too (Effect rc).
     expect(joined).toMatch(/INFO/)
   })
 })
@@ -196,7 +196,7 @@ test("OLAI_LOG=pretty on toStderr keeps stdout empty (the protocol stream)", asy
     expect(err.length).toBeGreaterThan(0)
     const joined = err.map(String).join("\n")
     expect(joined).toContain("serving")
-    expect(joined).not.toMatch(/^timestamp=\S+ level=Info /m)
+    expect(joined).not.toMatch(/^timestamp=\S+ level=INFO /m)
     expect(joined).toMatch(/INFO/)
   })
 })

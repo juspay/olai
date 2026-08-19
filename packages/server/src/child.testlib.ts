@@ -93,8 +93,12 @@ export interface WebChild {
 }
 
 /**
- * `olai web <root> --port 0 --no-commit`, spawned the way a person's shell
- * does — the packaged artefact's own entry point, not this package's modules.
+ * `olai web <root> --port 0 …`, spawned the way a person's shell does — the
+ * packaged artefact's own entry point, not this package's modules.
+ *
+ * `--no-commit` is the default extra because most callers are not about git.
+ * Pass `extra: []` to take the process default (`manual`), which is the one
+ * thing Effect 4 started refusing without a fallback on the boolean flag.
  */
 export const startWeb = (options: {
   readonly root: string
@@ -102,10 +106,13 @@ export const startWeb = (options: {
    *  meet somewhere the environment decides they do — said explicitly rather
    *  than left to what this process happens to have inherited. */
   readonly env?: NodeJS.ProcessEnv
+  /** Argv after `--port 0`. Unset includes `--no-commit`. */
+  readonly extra?: ReadonlyArray<string>
 }): WebChild => {
+  const extra = options.extra ?? ["--no-commit"]
   const child = spawn(
     process.execPath,
-    [MAIN, "web", options.root, "--port", "0", "--no-commit"],
+    [MAIN, "web", options.root, "--port", "0", ...extra],
     {
       env: {
         ...process.env,
