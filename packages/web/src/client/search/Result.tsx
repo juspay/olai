@@ -73,6 +73,8 @@
 
 import { For, Show } from "solid-js"
 
+import type { DirectoryKind } from "../file/icons.tsx"
+import { Glyph } from "../file/icons.tsx"
 import type { NodeProp } from "./props.ts"
 
 /**
@@ -101,6 +103,19 @@ export interface RowTestids {
 
 export function Result(props: {
   readonly label: string
+  /**
+   * WHICH KIND OF FILE this row opens, drawn as the directory's own glyph in
+   * front of the label — absent on every row that is not a file, which is most
+   * of them.
+   *
+   * The face is the sidebar's (`../file/icons.tsx`) rather than one this row
+   * invents, for the reason this component is one component: a `.md` in a list
+   * of strangers has to look like the `.md` in the tree, or a reader is
+   * learning the directory twice. It is the row's only inline mark, and it
+   * cannot starve the label — the glyph is a fixed 0.875rem box and the label
+   * is what flexes.
+   */
+  readonly of?: DirectoryKind
   /** A chord or a word, inline at the right of the first line. */
   readonly hint?: string
   /** Where the node lives — the second line. See `../palette/items.ts` for
@@ -136,7 +151,19 @@ export function Result(props: {
       onClick={() => props.onSelect()}
     >
       <span class="flex w-full min-w-0 items-baseline gap-3">
-        <span class="min-w-0 flex-1 truncate">{props.label}</span>
+        <span class="flex min-w-0 flex-1 items-baseline gap-2">
+          <Show when={props.of}>
+            {(of) => (
+              // Centred in the line rather than sat on its baseline: a drawing
+              // has none, and the vendored page's ink sits below the type's
+              // when it is aligned as if it had.
+              <span class="flex shrink-0 self-center">
+                <Glyph of={of()} />
+              </span>
+            )}
+          </Show>
+          <span class="min-w-0 flex-1 truncate">{props.label}</span>
+        </span>
         <Show when={props.hint}>
           {(hint) => (
             <span class="shrink-0 font-mono text-[0.6875rem] text-muted">

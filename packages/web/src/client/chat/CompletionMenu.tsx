@@ -75,7 +75,7 @@ export function CompletionMenu(props: {
    *  cursor goes back to the top when it changes, because a keystroke means a
    *  different question and the answer to the last one is not where somebody's
    *  eye is. It matters more here than it reads: the file rows are three
-   *  buckets deep (`./files.ts`), so a query that gains a character can
+   *  buckets deep (`../file/matching.ts`), so a query that gains a character can
    *  REORDER them under a walked index, and Enter would take a row the arrows
    *  never landed on. Keyed on the question rather than on the rows, so
    *  walking the list does not reset it and a directory frame arriving does

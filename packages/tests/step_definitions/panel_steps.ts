@@ -266,6 +266,18 @@ Then(
   },
 );
 
+Then(
+  "the header search lists the document {string}",
+  async function (this: OlaiWorld, file: string) {
+    // By `data-id`, for `palette_steps.ts`'s reason: the label is the file's
+    // name and the id is its whole path. One reading, two doors — this step and
+    // the palette's are the same assertion about the same block of rows.
+    await this.page
+      .locator(`${HEADER_SEARCH_ITEM}${attr("data-id", `doc-${file}`)}`)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
 /** One `key value` pair on a result row — the third line PR #192 left off and
  *  this one draws. Scoped to the row, so "the hit for THIS node says it". */
 const searchRowProp = (

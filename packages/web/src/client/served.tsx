@@ -2,14 +2,17 @@
  * The served directory's files, as one list of paths, reachable from anywhere.
  *
  * Two collections carry them and always have — the outlines' keys and the
- * documents' key set — and two things now want them TOGETHER: the sidebar,
- * which draws them as a tree (`./fileTree.ts`), and the chat composer, which
- * completes a path into a message when somebody types `@` (`./chat/files.ts`).
- * The sidebar is handed them as props because it is drawn one level under the
- * app; the composer is five levels under it, inside whichever of the two chat
- * shells this viewport uses, so it is a context for the reason `./derived.tsx`
- * is one: threading a list through `Panel` → `Face` → `Body` would make every
- * component's signature a function of what one descendant happens to need.
+ * documents' key set — and three things now want them TOGETHER: the sidebar,
+ * which draws them as a tree (`./fileTree.ts`); the chat composer, which
+ * completes a path into a message when somebody types `@`; and the two search
+ * doors, whose document rows are the bodied ones matched by name
+ * (`./palette/documents.ts`). The last two ask through one matcher
+ * (`./file/matching.ts`). The sidebar is handed them as props because it is
+ * drawn one level under the app; the composer is five levels under it, inside
+ * whichever of the two chat shells this viewport uses, so it is a context for
+ * the reason `./derived.tsx` is one: threading a list through `Panel` → `Face`
+ * → `Body` would make every component's signature a function of what one
+ * descendant happens to need.
  *
  * The value is an ACCESSOR, again for `./derived.tsx`'s reason: a directory
  * gains and loses files while a tab is open, and a context holding the array
@@ -57,7 +60,7 @@ export function ServedProvider(props: {
   // IDENTITY mean "the directory changed" rather than "a frame arrived". Both
   // sources mint a fresh array whenever their own stream speaks — a key set
   // re-sent unchanged is still a new array — and downstream there is a fold
-  // kept against this very array (`./chat/files.ts`, a `WeakMap`), so without
+  // kept against this very array (`./file/matching.ts`, a `WeakMap`), so without
   // this the vault would be re-folded for frames that said nothing. A memo
   // with no `equals` compares by reference and would never notice.
   const files = createMemo(

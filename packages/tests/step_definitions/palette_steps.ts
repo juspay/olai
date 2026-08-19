@@ -26,6 +26,7 @@ import { Then, When } from "@cucumber/cucumber";
 
 import { saysThat } from "../support/said.ts";
 import {
+  attr,
   HYDRATION_TIMEOUT,
   oneLine,
   PALETTE,
@@ -198,6 +199,36 @@ Then(
       .filter({ hasText: title })
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the palette lists the document {string}",
+  async function (this: OlaiWorld, file: string) {
+    // Gripped by its `data-id` rather than by the text: the row's label is the
+    // file's NAME, and a directory can hold two of those under different
+    // folders — the id is the whole path, which is the thing a scenario means.
+    // (No wait for a round trip is owed here, unlike a node hit: the document
+    // rows are matched in the tab off the served list it already holds.)
+    await this.page
+      .locator(`${PALETTE_ITEM}${attr("data-id", `doc-${file}`)}`)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the palette lists no document {string}",
+  async function (this: OlaiWorld, file: string) {
+    // Read after a frame rather than polled, for `the palette does not offer`'s
+    // reason: the absence has to be true NOW. Asked of the row's own id rather
+    // than of the list's text, because a node hit may well NAME the file this
+    // step is claiming has no row of its own — a top-level node's place line is
+    // the outline it lives in.
+    await this.waitForFrame();
+    const rows = await this.page
+      .locator(`${PALETTE_ITEM}${attr("data-id", `doc-${file}`)}`)
+      .count();
+    assert.strictEqual(rows, 0, `the palette lists ${JSON.stringify(file)}`);
   },
 );
 

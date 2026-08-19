@@ -111,7 +111,7 @@ const LIMIT = 8
  * THE OTHER COMPLETION IN THIS APP GOES THE OTHER WAY ON PURPOSE, and the two
  * are cross-referenced so that neither is "harmonized" into the other by
  * somebody meeting one of them alone: the chat composer's `@` offers every file
- * the directory serves, ARCHIVES INCLUDED (`../chat/files.ts`, argued in
+ * the directory serves, ARCHIVES INCLUDED (`../file/matching.ts`, argued in
  * docs/chat.md). They differ because they complete different things. That one
  * completes a PATH a person is about to name in a sentence — "what did we put
  * away last month" is a fair thing to ask an agent, and a path half-remembered
