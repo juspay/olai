@@ -98,14 +98,29 @@ export interface Narrowing {
   readonly needles: Accessor<ReadonlyArray<string>>
   /** What the page actually draws: done-hidden first, then narrowed. */
   readonly drawn: Accessor<Drawn>
-  /** How many drawn rows are matches, and how many rows there are in all —
-   *  "3 of 41", the honest version. Both are PLACES: a node drawn twice is two
-   *  rows, and the reader is counting rows. */
+  /**
+   * How many drawn rows are matches — "3" of "3 of 41". PLACES, like the two
+   * numbers below it: a node drawn twice is two rows, and the reader is
+   * counting rows.
+   */
   readonly shown: Accessor<number>
-  readonly total: Accessor<number>
-  /** Matches the done-preference is holding back. Zero unless finished work is
-   *  hidden, and the reason `is:done` looking empty is a sentence rather than a
-   *  mystery. */
+  /**
+   * How many rows the page HOLDS — every place it could draw, before this
+   * reader's preferences take anything off it. The denominator, and the set
+   * both other counts are counted inside.
+   *
+   * MEASURED AGAINST `all()`, WHICH IS THE FIX this reading was revisited for.
+   * It used to be measured against what was LEFT after finished work was
+   * hidden, which made "8 of 57 — 17 matches hidden as done" two numbers out of
+   * two different sets: the 17 were held back precisely because they were not
+   * among the 57 (docs/brainstorming/filter-in-place.md filed it). Counted over
+   * what the page holds, every part of the sentence is a part of one whole —
+   * matches drawn, plus matches held back, plus rows that did not match.
+   */
+  readonly held: Accessor<number>
+  /** Matches the done-preference is holding back — inside {@link held}, and
+   *  never drawn. Zero unless finished work is hidden, and the reason `is:done`
+   *  looking empty is a sentence rather than a mystery. */
   readonly hiddenAsDone: Accessor<number>
 }
 
@@ -193,10 +208,15 @@ export const createNarrowing = (source: {
     matched,
     drawn,
     shown,
+    // OVER `all()`, never over what was left of it: the two numbers beside this
+    // one count matches inside the page's whole set, and a denominator counted
+    // over a smaller one is the mixed arithmetic this reading was revisited to
+    // stop ({@link Narrowing.held}).
+    //
     // Only ever READ beside the count, which is drawn only while a filter is
     // on — so an unfiltered page does not pay a walk of everything it draws, on
     // every revision the store publishes, for a number nobody is looking at.
-    total: createMemo(() => (active() ? placesIn(source.visible()) : 0)),
+    held: createMemo(() => (active() ? placesIn(source.all()) : 0)),
     // The difference between what the query selects on this page and what
     // survived the preference. Measured over the page's own rows rather than
     // over the set, because "4 done matches are hidden" is a claim about what
@@ -314,7 +334,8 @@ const keepingArchives = (
     return rows.length === 0 ? [] : [{ ...group, rows }]
   })
 
-/** How many PLACES a page draws — the second number in "3 of 41". */
+/** How many PLACES a page is made of — asked of what it HOLDS, which is the
+ *  second number in "3 of 41" ({@link Narrowing.held}). */
 const placesIn = (drawn: Drawn): number => {
   switch (drawn.kind) {
     case "tree":

@@ -12,10 +12,11 @@
  * Everything it draws is a fact somebody could otherwise only guess at:
  *
  *   - the COUNT, "3 of 41", so a query that narrowed to nothing is
- *     distinguishable from one that narrowed to everything;
- *   - what the done-preference is HOLDING BACK, because `is:done` under a
- *     reader who hides finished work draws nothing and the reason must not be
- *     a mystery (`./narrowing.ts` argues the order);
+ *     distinguishable from one that narrowed to everything — and what the
+ *     done-preference is HOLDING BACK, because `is:done` under a reader who
+ *     hides finished work draws nothing and the reason must not be a mystery
+ *     (`./narrowing.ts` argues the order, `./count.ts` the wording, and the
+ *     three numbers are counted inside one set so the sentence adds up);
  *   - a REFUSAL, in the grammar's own words, for a known operator with an
  *     unknown value. Never silently downgraded to a substring search:
  *     HACKING.md's rule is that an error reaches somebody.
@@ -30,6 +31,7 @@ import { SaidLine } from "../edit/SaidLine.tsx"
 import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
+import { countLine } from "./count.ts"
 import type { Narrowing } from "./narrowing.ts"
 
 /** What the box says when it is empty — the whole grammar in one line, because
@@ -97,14 +99,11 @@ export function FilterBar(props: {
           // worth.
           aria-live="polite"
         >
-          {props.narrowing.shown() === 0
-            ? "no matches"
-            : `${props.narrowing.shown()} of ${props.narrowing.total()}`}
-          <Show when={props.narrowing.hiddenAsDone() > 0}>
-            {` — ${props.narrowing.hiddenAsDone()} more ${
-              props.narrowing.hiddenAsDone() === 1 ? "match is" : "matches are"
-            } hidden as done (Prefs)`}
-          </Show>
+          {countLine({
+            shown: props.narrowing.shown(),
+            held: props.narrowing.held(),
+            hiddenAsDone: props.narrowing.hiddenAsDone(),
+          })}
         </p>
       </Show>
 

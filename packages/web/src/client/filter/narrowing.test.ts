@@ -23,6 +23,7 @@ import {
   datedOn,
   derive,
   type Row,
+  rowsIn,
   rowsOf,
   rowsUnder,
   withoutDone,
@@ -90,14 +91,14 @@ test("an empty box is not a filter, and the page is the page", () => {
   expect(treeRows(reading)).toHaveLength(1)
   // The counts are only ever drawn beside an active filter, so an unfiltered
   // page does not walk its own tree to produce them.
-  expect(reading.total()).toBe(0)
+  expect(reading.held()).toBe(0)
   expect(reading.shown()).toBe(0)
 })
 
 test("a filtered page counts the rows it draws, of the rows it holds", () => {
   const reading = page("hinges")
   expect(reading.shown()).toBe(1)
-  expect(reading.total()).toBe(5)
+  expect(reading.held()).toBe(5)
 })
 
 test("a query keeps its matches and the ancestors that lead to them", () => {
@@ -123,11 +124,37 @@ test("finished work is hidden before the query is asked, and the difference is r
   expect(hiding.hiddenAsDone()).toBe(1)
 })
 
+/**
+ * THE DENOMINATOR IS WHAT THE PAGE HOLDS, and it is the same number whichever
+ * way the preference is set — which is the whole of the arithmetic fix.
+ *
+ * The count used to be measured against what the preference LEFT, so the two
+ * numbers in "2 of 4 — 1 match hidden as done" came out of two different sets:
+ * the held-back match was held back precisely because it was not among the 4.
+ * Counted over what the page holds, the parts are parts of one whole — matches
+ * drawn, plus matches held back, plus the rows that did not match — and a
+ * reader who adds them up is not lied to.
+ */
+test("the denominator does not move when finished work is hidden", () => {
+  expect(page("#home").held()).toBe(5)
+  expect(page("#home", true).held()).toBe(5)
+
+  const hiding = page("#home", true)
+  // Two drawn and one held back, inside the five the page holds. The tree
+  // itself is down to four rows, and that is exactly the number this must not
+  // be measured against.
+  expect(hiding.shown() + hiding.hiddenAsDone()).toBeLessThanOrEqual(hiding.held())
+  expect(rowsIn(treeRows(hiding))).toBe(4)
+})
+
 test("`is:done` under a reader who hides finished work says why it found nothing", () => {
   const hiding = page("is:done", true)
   expect(treeRows(hiding)).toEqual([])
   expect(hiding.shown()).toBe(0)
   expect(hiding.hiddenAsDone()).toBe(1)
+  // Nothing drawn, and still the honest denominator: the page holds five rows,
+  // and the query is what emptied it.
+  expect(hiding.held()).toBe(5)
 })
 
 // The one door that parses for itself gets the relative words from the same
@@ -174,7 +201,7 @@ test("a day keeps the rows that matched, and drops the outline that has none", (
 
   const reading = narrowing(whole, "hinges")
   expect(reading.shown()).toBe(1)
-  expect(reading.total()).toBe(2)
+  expect(reading.held()).toBe(2)
   expect(datedIds(reading.drawn())).toEqual(["hinges"])
 
   // Nothing on the day matched, so the outline that held both rows goes with
@@ -183,7 +210,7 @@ test("a day keeps the rows that matched, and drops the outline that has none", (
   const none = narrowing(whole, "bathroom")
   expect(groupsIn(none.drawn())).toEqual([])
   expect(none.shown()).toBe(0)
-  expect(none.total()).toBe(2)
+  expect(none.held()).toBe(2)
 })
 
 /**
@@ -252,7 +279,7 @@ test("the agenda narrows day by day, and counts every row it draws", () => {
   expect(datedIds(owed)).toEqual(["order", "hinges"])
 
   const reading = narrowing(owed, "is:todo")
-  expect(reading.total()).toBe(2)
+  expect(reading.held()).toBe(2)
   expect(reading.shown()).toBe(1)
   const drawn = reading.drawn()
   // One late DAY left, narrowed to the row that says `todo` — `order` is
@@ -275,7 +302,7 @@ const trash: Drawn = {
 test("a word typed on the trash searches what was put away", () => {
   const reading = narrowing(trash, "grout")
   expect(reading.shown()).toBe(1)
-  expect(reading.total()).toBe(4)
+  expect(reading.held()).toBe(4)
   // The pile's own scaffold is kept as the context that says where it came
   // from — the tree rule, on a tree of archives.
   expect(flat(archiveRows(reading.drawn()))).toEqual(["old-kitchen", "grout"])
@@ -330,7 +357,7 @@ test("a page with nothing to narrow counts nothing and stays itself", () => {
   const reading = narrowing({ kind: "none" }, "hinges")
   expect(reading.drawn()).toEqual({ kind: "none" })
   expect(reading.shown()).toBe(0)
-  expect(reading.total()).toBe(0)
+  expect(reading.held()).toBe(0)
 })
 
 const treeRows = (reading: Narrowing): ReadonlyArray<Row> =>
