@@ -86,7 +86,7 @@ export type { Previous } from "./validate.ts"
  *  below). */
 export { reading } from "./validate.ts"
 
-export { apart, assemble, BrokenFile, nodesIn, OutlineSet } from "./set.ts"
+export { apart, assemble, BrokenFile, brokenIn, nodesIn, OutlineSet } from "./set.ts"
 /** WHICH FILE COMES FIRST — the order a directory is read in, and the one
  *  spelling of it: the set is assembled in it, the patcher places an arriving
  *  file by it, and the browser folds and draws in it. Exported because the

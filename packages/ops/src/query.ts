@@ -31,6 +31,7 @@
 import {
   ancestorTitles,
   backlinksOf,
+  brokenIn,
   bytesOf,
   countedChildren,
   DEFAULT_SEARCH_LIMIT,
@@ -538,9 +539,10 @@ export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
  * Two refusals rather than one, because a file the set could not READ is not a
  * file the set does not hold: it is on the disk, it will parse or it will not,
  * and answering it as an empty document would be handing back a body nobody
- * read. That is `@olai/ops`' `writable` rule (`./plan.ts`) asked from the read
- * side, and it comes back with the validator's own rows for the same reason —
- * fix the file, then read it.
+ * read. `brokenIn` is the fact, shared with the write gate's `writable`
+ * ({@link ./plan.ts}); the CONSEQUENCE is this verb's own, and it comes back
+ * with the validator's rows for the reason a refused write does — fix the
+ * file, then read it.
  */
 export const document = (
   set: OutlineSet,
@@ -552,13 +554,13 @@ export const document = (
       noSuchDocument(set.documents, file, "\`list_documents\` says what is"),
     )
   }
-  const errors = set.broken.find((entry) => entry.file === file)
-  if (errors !== undefined) {
+  const broken = brokenIn(set, file)
+  if (broken !== undefined) {
     return Result.fail(
       new ValidationFailure({
         reason: `\`${file}\` could not be read, so what it holds is not loaded — ` +
           `there is nothing to answer with. Fix the file first.`,
-        errors: errors.errors,
+        errors: broken,
       }),
     )
   }

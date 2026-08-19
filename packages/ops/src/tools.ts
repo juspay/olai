@@ -239,16 +239,29 @@ export const asking = (
       ) ?? { missing: request.id }),
   search: (request) => Effect.map(read, (at) => Query.search(at.derived, request, now())),
   documents: Effect.map(read, (at) => ({ documents: Query.documents(at.set) })),
-  // The one envelope here that can be a REFUSAL, so it is the one built with
-  // `flatMap`: the walk answers a `Result` — a document the set does not hold,
-  // or holds and could not read — and this is where that becomes the failure
-  // channel every other read already declares.
   document: (request) =>
-    Effect.flatMap(read, (at) => {
-      const answer = Query.document(at.set, request.file)
-      return Result.isFailure(answer) ? Effect.fail(answer.failure) : Effect.succeed(answer.success)
-    }),
+    Effect.flatMap(read, (at) => raised(Query.document(at.set, request.file))),
 })
+
+/**
+ * A walk that can REFUSE, on the failure channel every read here already
+ * declares.
+ *
+ * Five of the six answer from the snapshot alone, so their envelope is a
+ * `map` and the error channel exists only for "the served directory has never
+ * loaded". The sixth is `read_document`, whose walk decides between three
+ * outcomes rather than computing one — the body, a path that is not a
+ * document, a file the set could not read — and a `Result` is what a pure
+ * function says that with ({@link ./plan.ts} says everything it refuses that
+ * way, for the same reason).
+ *
+ * So the two vocabularies meet HERE, once and by name, rather than as an
+ * unwrapping inside an envelope. What it is not is a general Result-to-Effect
+ * helper: it is the one seam between this package's pure half and its effectful
+ * one, and the docstring is the point of it.
+ */
+const raised = <A>(outcome: Result.Result<A, OpFailure>): Effect.Effect<A, OpFailure> =>
+  Result.isFailure(outcome) ? Effect.fail(outcome.failure) : Effect.succeed(outcome.success)
 
 /**
  * The WRITE half, the same way: one verb, and the only thing every one of the

@@ -31,6 +31,7 @@ import {
   BATCH_AT_MOST,
   type BatchedRequest,
   bodyKind,
+  brokenIn,
   BusyFailure,
   chainOf,
   countedChildren,
@@ -436,9 +437,15 @@ const regularAt = (scope: Scope, id: string): Result.Result<LocatedRegular, OpFa
  * format's own registry rather than a flag a caller passes — a file whose
  * content is a BODY lost its text, a file whose content is records lost those —
  * so a caller cannot ask for the wrong sentence about the file it named.
+ *
+ * The FACT is `brokenIn`'s, on the floor, because `read_document` turns on the
+ * same one and reaches a different conclusion from it: a write refuses because
+ * re-emitting the file would erase what is really in it, a read refuses because
+ * the empty text is a body nobody read. One fact, two verbs, two sentences —
+ * which is why what is shared here is the lookup and not the prose.
  */
 const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> => {
-  const broken = scope.set.broken.find((entry) => entry.file === file)
+  const broken = brokenIn(scope.set, file)
   if (broken !== undefined) {
     return Result.fail(
       new ValidationFailure({
@@ -447,7 +454,7 @@ const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> =>
             ? "could not be read, so what it holds is not loaded — writing it would drop that."
             : "has lines that do not parse, so its records are not loaded — writing it would drop them."
         } Fix the file first.`,
-        errors: broken.errors,
+        errors: broken,
       }),
     )
   }
