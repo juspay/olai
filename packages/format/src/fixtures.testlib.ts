@@ -235,9 +235,12 @@ const unparsable = (
  * this one, so a mark that flips reaches a file the delta never named and the
  * dirty set is not always one record; a NOTE on every fifth record, with every
  * TENTH of them naming another record by its `@id`, so the derivation has prose
- * to read and the mention index is not an empty map both benches report nothing
+ * to read and the tag index is not an empty map both benches report nothing
  * about — which `./vault.test.ts` asserts of the size the benches run, because
- * the first spelling of this used a modulo that never fired. Paths are mostly flat, some nested, and a few in a
+ * the first spelling of this used a modulo that never fired; and `#tags` in the
+ * titles ({@link titleTags}), because the index files BOTH sigils and a vault
+ * whose titles hold none of the commoner one would measure the half nobody
+ * writes. Paths are mostly flat, some nested, and a few in a
  * directory named after a file beside it: the pair the two readings of path
  * order used to disagree about.
  *
@@ -283,7 +286,7 @@ const fileOf = (random: () => number, at: number, records: number): string => {
       id,
       parent: root,
       ord: `a${which}`,
-      title: `record ${which} of file ${at}`,
+      title: `record ${which} of file ${at}${titleTags(at, which)}`,
     }
     if (random() < 0.3) record["todo"] = true
     else if (random() < 0.15) record["done"] = true
@@ -312,7 +315,7 @@ const fileOf = (random: () => number, at: number, records: number): string => {
     if (which % 5 === 0) {
       record["desc"] = which % 10 === 0
         ? `a note about @f${at}n1 and what it is for`
-        : "a note about what this is for"
+        : `a note about #upkeep${at % 12} and what this is for`
     }
     // A placement pointing into the file before this one, so a mark that flips
     // reaches a file the frame never named.
@@ -325,6 +328,35 @@ const fileOf = (random: () => number, at: number, records: number): string => {
   }
   return lines.join("\n")
 }
+
+/**
+ * The `#tags` one record's title carries — a broad one on every third record
+ * and a narrower one on every fifth, so a title sometimes holds two and most
+ * hold one.
+ *
+ * WHY A VAULT NEEDS THEM: the index the benches print numbers about files what
+ * prose says under BOTH sigils, and `#` is the one people write. A vault whose
+ * titles hold only `@` measures the fold's cheap negative
+ * (`derive.ts`'s `mayHoldTag`) rather than its walk, and would print a
+ * corpus-wide tag walk as costing nothing — the same *was never asked*
+ * `./vault.test.ts` was minted over. The shape is asserted there, at the size
+ * the benches run.
+ *
+ * TWO VOCABULARIES rather than one, because a completion reading this index
+ * ranks by how many records write a name: `#area0`..`#area19` are the names a
+ * whole directory shares and `#topic0`..`#topic39` the ones a corner of it
+ * does, so the ordering has something to order.
+ *
+ * COUNTED rather than DRAWN, exactly as the note above is and for its reason:
+ * a `random()` call here would shift the rest of the seeded stream and rename
+ * every figure the docs quote. Record 1 is deliberately left bare — it is the
+ * one {@link retitled} rewrites, and a tag in it would make the benches' edit
+ * an edit to the tag index as well as to a title.
+ */
+const titleTags = (at: number, which: number): string =>
+  `${which % 3 === 0 ? ` #area${at % 20}` : ""}${
+    which % 5 === 0 ? ` #topic${(at + which) % 40}` : ""
+  }`
 
 /**
  * One record of a {@link vaultOf} file, retitled to say it was edit `which` —

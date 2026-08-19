@@ -113,6 +113,8 @@ Being blocked is a SECOND fact about a node, never a replacement for the first: 
 
 The reverse reading — **what refers to this node** — comes out of two indexes kept beside the rest of the derived view and patched per changed file like everything else in it (`@olai/format`'s `derive.ts` and `patch.ts`, [architecture.md](architecture.md)). It is what the browser draws under a zoomed node and what `read_node` answers as `referencedBy`: one reading, so a person and an agent cannot be told different things about one id.
 
+**The prose index files BOTH sigils, and this section reads half of it.** `taggedBy` is keyed by the tag as WRITTEN, so `#herbs` and `@herbs` are two keys — which is what lets one index answer two questions that have nothing to do with each other: what refers to a node (the `@` half, here) and what vocabulary the set uses (both halves, which is the browser's tag completion). A `#herbs` is never a reference, however exactly it spells somebody's id.
+
 **Three things are deliberately not references, and each is already answered elsewhere:**
 
 - **A `mirror` is not.** A placement is a second VIEW of a node rather than a claim about it — the record says nothing except *draw it here too*, it carries no prose of its own, and where else a node is drawn is `read_node`'s `mirrors`. Counting placements would put one fact under two names, and would fill the section on exactly the nodes a curated list points at with entries that say nothing about them.

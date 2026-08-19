@@ -181,38 +181,55 @@ export interface Derived {
    */
   readonly namedBy: ReadonlyMap<string, ReadonlyArray<Naming>>
   /**
-   * The word after an `@` → the records that WRITE it, in a title or a note, in
-   * corpus order: {@link mentionsOf} read backwards.
+   * A tag AS WRITTEN → the records that write it, in a title or a note, in
+   * corpus order: {@link writtenTags} read backwards.
    *
-   * KEYED BY THE WORD rather than by a node, and that is the whole of why this
+   * BOTH SIGILS, ONE INDEX, and the key carries which: `@herbs` and `#herbs`
+   * are two keys, never one. That is the format's own rule read backwards —
+   * `#topic` and `@person` are two namespaces over one alphabet
+   * ({@link titleTagRe}) — and it is what lets the two readers of this index
+   * ask their own question of it without either one filtering for the other.
+   * Backlinks want the `@` half ({@link ./backlinks.ts}); the browser's tag
+   * completion wants the whole vocabulary and the sigil it was written with
+   * (`web/src/client/complete/tags.ts`). Sigil-stripped keys would collide the
+   * two namespaces and make both questions unanswerable from here.
+   *
+   * KEYED BY THE TAG rather than by a node, and that is the whole of why this
    * index can be patched at all. `@alice` and `@order` are the same thing to a
-   * title ({@link titleTagRe}: two sigils, two namespaces, one alphabet); what
-   * makes the second a REFERENCE is that some record claims the id `order`,
-   * which is a question about a different index and is asked at the READ
-   * ({@link ./backlinks.ts}). Were existence asked here, minting a node would
-   * have to walk every note in the directory to find the mentions that had just
-   * become references, and dropping one would have to walk them again — a
-   * corpus-wide pass per capture, inside an index whose whole claim is that an
-   * edit costs what it touched.
+   * title; what makes the second a REFERENCE is that some record claims the id
+   * `order`, which is a question about a different index and is asked at the
+   * READ ({@link ./backlinks.ts}). Were existence asked here, minting a node
+   * would have to walk every note in the directory to find the mentions that
+   * had just become references, and dropping one would have to walk them again
+   * — a corpus-wide pass per capture, inside an index whose whole claim is that
+   * an edit costs what it touched.
    *
    * ONE ENTRY PER RECORD, so a node writing `@order` in its title and again in
-   * its note is one mention rather than two — {@link Naming}'s rule next door,
+   * its note is one entry rather than two — {@link Naming}'s rule next door,
    * kept for the same reader: what asks this wants to know WHICH records to
-   * draw, and a record is one record however often it says the word.
+   * draw, and a record is one record however often it says the word. It is also
+   * what makes the completion's count a count of NODES rather than of
+   * occurrences, which is what that widget always claimed to say.
    *
    * A MIRROR IS NEVER IN IT — and that is in the TYPE rather than in this
    * sentence: a placement has no title and no note of its own, so it has no
-   * prose to mention anything with, and a reader of this index should not have
-   * to re-narrow what the fold already proved. ({@link Derived.namedBy} next
-   * door stays `Located` because `mirror` IS one of the fields it files.)
+   * prose to tag anything with, and a reader of this index should not have to
+   * re-narrow what the fold already proved. ({@link Derived.namedBy} next door
+   * stays `Located` because `mirror` IS one of the fields it files.)
+   *
+   * THE ARCHIVE IS IN IT, like every other index here: what is put away is left
+   * out at the READ (both readers do, each in its own words), because an index
+   * that knew about `Archive.olai` would be the format's storage rule wired
+   * into a fold that is about what prose says.
    *
    * SOME KEYS CAN NEVER BECOME REFERENCES, and that is a decision rather than
-   * an oversight. A tag's alphabet takes `/` so that `#work/olai` is one tag,
-   * and an id's ({@link ID_SHAPE}) does not — so `@work/olai` files under a
-   * word no record can ever claim, and the reading answers nothing for it. They
-   * are left in: filtering by id SHAPE at the fold would be this index knowing
-   * about ids, which is exactly what keying it by the word exists to avoid, and
-   * the cost is one map entry per distinct slashed tag in the directory.
+   * an oversight. Every `#topic` is one, and so is `@work/olai`: a tag's
+   * alphabet takes `/` so that `#work/olai` is one tag, and an id's
+   * ({@link ID_SHAPE}) does not. They are left in: filtering by id SHAPE at the
+   * fold would be this index knowing about ids, which is exactly what keying it
+   * by the written tag exists to avoid — and since the completion asks this
+   * index for the whole vocabulary, the keys that are nobody's id are half of
+   * what it is FOR.
    *
    * NOTHING READS THE KEYS IN ORDER, unlike the three indexes above, and the
    * patcher spends exactly that — it adds and drops keys in place rather than
@@ -220,7 +237,7 @@ export interface Derived {
    * and promised so: a reader listing what refers to a node says them in the
    * order the directory holds them.
    */
-  readonly mentionedBy: ReadonlyMap<string, ReadonlyArray<LocatedRegular>>
+  readonly taggedBy: ReadonlyMap<string, ReadonlyArray<LocatedRegular>>
 }
 
 /**
@@ -289,13 +306,19 @@ export const nameInto = (
 }
 
 /**
- * Every `@word` this record WRITES, title first and then the note, in the order
- * it wrote them — {@link targetsOf}'s shape for the prose half of a reference.
+ * Every tag this record WRITES, AS WRITTEN (`#topic`, `@person`), title first
+ * and then the note, in the order it wrote them — {@link targetsOf}'s shape for
+ * the prose half of a reference, and the whole of the vocabulary a set uses.
  *
- * A record mentioning nothing — which is nearly every record — allocates
- * nothing, for {@link targetsOf}'s own reason: this is asked of every node in
- * the directory to build a reverse index, and the guard is one `indexOf` per
- * string. A mirror has no prose at all and answers the same empty list.
+ * THE SIGIL IS PART OF THE ANSWER ({@link tagText}), because it is part of what
+ * was written: `@herbs` and `#herbs` are two tags in every reader of this
+ * format, and a fold that dropped the sigil would hand its index two meanings
+ * under one key. It is what {@link Derived.taggedBy} is keyed by.
+ *
+ * A record tagging nothing — which is most of them — allocates nothing, for
+ * {@link targetsOf}'s own reason: this is asked of every node in the directory
+ * to build a reverse index, and the guard is two `indexOf` per string. A mirror
+ * has no prose at all and answers the same empty list.
  *
  * A NOTE IS READ AS TEXT, and that is a decision rather than an omission. The
  * note is markdown, and the browser that draws it declines to style a tag
@@ -317,24 +340,24 @@ export const nameInto = (
  * narrower thing than the truth twice before `./backlinks.test.ts` pinned every
  * row of it (docs/format.md's References carries the table).
  */
-export const mentionsOf = (node: Node): ReadonlyArray<string> => {
-  if (isMirror(node)) return NOTHING_MENTIONED
-  const title = mentionsIn(node.title)
-  const note = node.desc === undefined ? NOTHING_MENTIONED : mentionsIn(node.desc)
+export const writtenTags = (node: Node): ReadonlyArray<string> => {
+  if (isMirror(node)) return NO_TAGS
+  const title = writtenTagsIn(node.title)
+  const note = node.desc === undefined ? NO_TAGS : writtenTagsIn(node.desc)
   // Three answers rather than one concat, and each shares a list the caller
-  // does not own: nearly every record says nothing at all, and of the ones that
-  // do, most say it in one of the two places. Statements rather than a nested
+  // does not own: most records say nothing at all, and of the ones that do,
+  // most say it in one of the two places. Statements rather than a nested
   // ternary — the same three arms, read top to bottom.
   if (note.length === 0) return title
   if (title.length === 0) return note
   return [...title, ...note]
 }
 
-/** The answer for prose that mentions nothing: ONE list, shared. */
-const NOTHING_MENTIONED: ReadonlyArray<string> = []
+/** The answer for prose that tags nothing: ONE list, shared. */
+const NO_TAGS: ReadonlyArray<string> = []
 
 /**
- * The `@` tags of one string, sigil dropped — {@link titleParts}, kept.
+ * The tags of one string, as written — {@link titleParts}, kept.
  *
  * THROUGH THAT WALK rather than through a second one over {@link titleTagRe},
  * which is what this was: where a tag starts and stops is one function's
@@ -344,21 +367,22 @@ const NOTHING_MENTIONED: ReadonlyArray<string> = []
  * is 23.0µs against 23.8µs, because the cost is the regex and not the parts.
  * A 3% figure is not worth a second reading of what a tag is.
  *
- * The cheap negative is {@link mayHoldSigil} rather than {@link mayHoldTag}:
- * that one is for a walk that wants both sigils, and this walk wants one.
+ * The cheap negative is {@link mayHoldTag}, which is the guard for a walk that
+ * wants both sigils — and this one does, since the index behind it is the
+ * whole of what prose tagged rather than one namespace of it.
  */
-const mentionsIn = (text: string): ReadonlyArray<string> => {
-  if (!mayHoldSigil("@", text)) return NOTHING_MENTIONED
+const writtenTagsIn = (text: string): ReadonlyArray<string> => {
+  if (!mayHoldTag(text)) return NO_TAGS
   let found: Array<string> | undefined
   for (const part of titleParts(text)) {
-    if (part.kind === "tag" && part.sigil === "@") (found ??= []).push(part.tag)
+    if (part.kind === "tag") (found ??= []).push(tagText(part))
   }
-  return found ?? NOTHING_MENTIONED
+  return found ?? NO_TAGS
 }
 
 /**
- * One record's mentions, filed into `mentionedBy` — the whole of how that index
- * is built, in one place, for {@link nameInto}'s reason: the patcher runs this
+ * One record's tags, filed into `taggedBy` — the whole of how that index is
+ * built, in one place, for {@link nameInto}'s reason: the patcher runs this
  * same fold over the records one changed file brought in
  * ({@link ./patch.ts}), and a second spelling of the once-per-record rule is a
  * second spelling free to drift from this one.
@@ -367,17 +391,17 @@ const mentionsIn = (text: string): ReadonlyArray<string> => {
  * appended as the walk reaches each record, so an entry already filed by the
  * record in hand can only be the one on the end.
  */
-export const mentionInto = (
-  mentionedBy: Map<string, Array<LocatedRegular>>,
+export const tagInto = (
+  taggedBy: Map<string, Array<LocatedRegular>>,
   located: Located,
 ): void => {
   // The narrowing the index's type promises, done once at the fold: a mirror
-  // mentions nothing, so this drops nothing that {@link mentionsOf} would not
+  // writes no prose, so this drops nothing that {@link writtenTags} would not
   // have answered empty for anyway.
   if (!isRegular(located)) return
-  for (const word of mentionsOf(located.node)) {
-    const held = mentionedBy.get(word)
-    if (held === undefined) mentionedBy.set(word, [located])
+  for (const tag of writtenTags(located.node)) {
+    const held = taggedBy.get(tag)
+    if (held === undefined) taggedBy.set(tag, [located])
     else if (held[held.length - 1] !== located) held.push(located)
   }
 }
@@ -388,7 +412,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   // of a built-in (the same note #198 took). The three tables below are not
   // that shape: one keeps the FIRST claim rather than every one, one skips the
   // records with no key at all, one keys a record by every id it names and one
-  // by every word its prose says — so they share one walk, since none of them
+  // by every tag its prose writes — so they share one walk, since none of them
   // reads what another builds and splitting them is four passes to ask four
   // things about a record already in hand.
   const byFile = Map.groupBy(nodes, (located) => located.file)
@@ -396,7 +420,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   const byId = new Map<string, Located>()
   const children = new Map<string, Array<Located>>()
   const namedBy = new Map<string, Array<{ at: Located; fields: Array<TargetField> }>>()
-  const mentionedBy = new Map<string, Array<LocatedRegular>>()
+  const taggedBy = new Map<string, Array<LocatedRegular>>()
 
   for (const located of nodes) {
     if (!byId.has(located.node.id)) byId.set(located.node.id, located)
@@ -409,7 +433,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
     }
 
     nameInto(namedBy, located)
-    mentionInto(mentionedBy, located)
+    tagInto(taggedBy, located)
   }
 
   // Sorted rather than trusted: a set assembled file by file already arrives
@@ -434,7 +458,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
     mirrorsOf,
     edgesTo,
     namedBy,
-    mentionedBy,
+    taggedBy,
   }
 }
 
@@ -450,7 +474,7 @@ export const byLine = (a: Located, b: Located): number => a.line - b.line
  * The order `assemble` puts a set in, and the order every reverse index here
  * promises its members in. It is one comparator rather than one per asker
  * because three of them promise that order — {@link Derived.namedBy},
- * {@link Derived.mentionedBy} and the reading over both
+ * {@link Derived.taggedBy} and the reading over both
  * ({@link ./backlinks.ts}) — and because reaching for the format's own path
  * order rather than comparing two strings is what makes a file and the
  * directory beside it come out where a rebuilt view puts them.
@@ -1354,25 +1378,44 @@ export const nodeNamed = (
 export const TAG_SIGILS = ["#", "@"] as const
 export type TagSigil = (typeof TAG_SIGILS)[number]
 
+/** One tag, split the way this format reads one: which sigil started it, and
+ *  the name after it. */
+export interface TitleTag {
+  /** Which character started it — carried rather than assumed, so a part list
+   *  rejoins to the title it came from. */
+  readonly sigil: TagSigil
+  /** The name, without the sigil. */
+  readonly tag: string
+}
+
 /** A title, split into what to print and what to style. Tags live inline in
  *  the title verbatim — the format stores no tag list — so the split happens
  *  at view time, every time. */
 export type TitlePart =
   | { readonly kind: "text"; readonly text: string }
-  | {
-    readonly kind: "tag"
-    /** Which character started it — carried rather than assumed, so a part
-     *  list rejoins to the title it came from. */
-    readonly sigil: TagSigil
-    /** The name, without the sigil. */
-    readonly tag: string
-  }
+  | ({ readonly kind: "tag" } & TitleTag)
 
-/** The written form of a tag part — the characters the title actually holds.
- *  One spelling, because every consumer that draws a tag or indexes one needs
- *  it and three of them re-assembling it is three chances to drop the `@`. */
-export const tagText = (part: { readonly sigil: TagSigil; readonly tag: string }): string =>
-  `${part.sigil}${part.tag}`
+/** The written form of a tag — the characters the title actually holds. One
+ *  spelling, because every consumer that draws a tag or indexes one needs it
+ *  and three of them re-assembling it is three chances to drop the `@`. It is
+ *  also what {@link Derived.taggedBy} is keyed by. */
+export const tagText = (part: TitleTag): string => `${part.sigil}${part.tag}`
+
+/**
+ * ...and the same reading backwards: a written tag split into its two halves.
+ *
+ * The inverse of {@link tagText}, beside it, because {@link Derived.taggedBy}'s
+ * keys are written tags and a reader that wants the namespace and the name has
+ * to take one apart. Doing that at the call site is a second, private claim
+ * about where the sigil is — the thing this pair exists to keep to one place.
+ *
+ * It TRUSTS its argument, which is why it takes no failure: the only strings
+ * this is asked about are keys that {@link tagText} wrote.
+ */
+export const tagParts = (written: string): TitleTag => ({
+  sigil: written[0] as TagSigil,
+  tag: written.slice(1),
+})
 
 /**
  * Whether text could hold a tag AT ALL — a plain `indexOf` per sigil, and the
@@ -1386,20 +1429,6 @@ export const tagText = (part: { readonly sigil: TagSigil; readonly tag: string }
  */
 export const mayHoldTag = (text: string): boolean =>
   text.includes("#") || text.includes("@")
-
-/**
- * ...and the same cheap negative for ONE of them, which is what a walk that
- * wants a single namespace asks: a title full of `#topic` should not pay a
- * regex to find out it mentions nobody.
- *
- * It takes a {@link TagSigil} rather than a string, and that is the whole point
- * of it existing beside the function above rather than as a fourth bare
- * `includes` somewhere: {@link mayHoldTag}'s own note records that this guard
- * was written three times before it was named and that two of them had already
- * drifted — one asking about `#` only. A guard that cannot be handed a
- * character which does not open a tag cannot drift that way again.
- */
-export const mayHoldSigil = (sigil: TagSigil, text: string): boolean => text.includes(sigil)
 
 /**
  * A fresh `/g` regex for an inline tag in a title.

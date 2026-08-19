@@ -39,7 +39,7 @@ test("the vault is the directory the published numbers name", () => {
 
 test("every index a bench prints a number about has something in it", () => {
   // The one that was empty, and the reason this file exists.
-  expect(view.mentionedBy.size).toBeGreaterThan(0)
+  expect(view.taggedBy.size).toBeGreaterThan(0)
   // ...and the rest of the shapes `vaultOf`'s header promises, so this fence
   // covers the next one to go quiet rather than only the one that did.
   expect(view.status.size).toBeGreaterThan(0)
@@ -62,6 +62,28 @@ test("the prose is really there, and really names records", () => {
   expect(mentions.length).toBeLessThan(noted.length)
   // ...and the words they write are ids the corpus really holds, so the READING
   // over this index answers with referrers rather than with dead keys.
-  const claimed = [...view.mentionedBy.keys()].filter((word) => view.byId.has(word))
-  expect(claimed.length).toBe(view.mentionedBy.size)
+  const mentioned = [...view.taggedBy.keys()].filter((tag) => tag.startsWith("@"))
+  expect(mentioned.length).toBeGreaterThan(0)
+  expect(mentioned.filter((tag) => view.byId.has(tag.slice(1))).length).toBe(mentioned.length)
+})
+
+// BOTH SIGILS, because the index files both and a vault that wrote only the
+// rarer one would print the fold's cheap negative as the cost of its walk —
+// this file's own reason for existing, one namespace over. The `#` half is what
+// the completion this index feeds is nearly all made of.
+test("the titles really carry `#tags`, and the notes carry some too", () => {
+  const topics = [...view.taggedBy.keys()].filter((tag) => tag.startsWith("#"))
+  expect(topics.length).toBeGreaterThan(20)
+  // More records write a `#` than an `@`: the shape a real directory has, and
+  // the one the completion's ordering is measured against.
+  const entries = (of: string): number =>
+    [...view.taggedBy].filter(([tag]) => tag.startsWith(of))
+      .reduce((total, [, own]) => total + own.length, 0)
+  expect(entries("#")).toBeGreaterThan(entries("@"))
+  // ...and a tag written in a NOTE is filed, which is the half of the fold a
+  // title-only vault would leave unmeasured.
+  const inNotes = view.nodes.filter((at) =>
+    (at.node as { desc?: string }).desc?.includes("#") === true
+  )
+  expect(inNotes.length).toBeGreaterThan(0)
 })

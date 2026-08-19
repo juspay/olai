@@ -22,9 +22,9 @@
  *     replaced, which is this PR's own before/after printed rather than quoted
  *     ({@link patching} states the two ways it is a reconstruction).
  *
- * AND TWO MEASUREMENTS UNDER THEM, both about the layer rather than the patch,
- * because a claim about {@link ./overlay.ts} that this file did not print would
- * be the unreproducible laptop sample the paragraph above says it retired:
+ * AND THREE MEASUREMENTS UNDER THEM, because a claim this file did not print
+ * would be the unreproducible laptop sample the paragraph above says it
+ * retired. Two are about the layer rather than the patch:
  *
  *   - what the layer COSTS a reader — a corpus-wide walk of `byId` on each
  *     arm's own final view ({@link walked}). It times `get`, which is how every
@@ -34,6 +34,11 @@
  *     same edits, cloned against layered ({@link lever}), for a spread of files
  *     and for one file typed in, with the eight indexes that stay clones sized
  *     beside them.
+ *
+ * ...and the third is about the TAG INDEX's width: the corpus-wide fold timed
+ * filing `@` alone against filing both sigils ({@link folds}), which is the
+ * cost half of the trade `taggedBy` makes. The saving half is a leg of its own
+ * one package up (`@olai/web`'s `complete/tags.bench.ts`).
  *
  * THE PATCHED ARM CARRIES ITS VIEW FORWARD, edit after edit, because that is
  * what both callers do — the write gate patches the last published view, the
@@ -56,9 +61,9 @@
  * to work out whether it ever did.
  */
 
-import { derive, type Derived } from "./derive.ts"
+import { derive, type Derived, tagInto, titleParts } from "./derive.ts"
 import { median, nodesOf, retitled, retitledIn, timed, vaultOf } from "./fixtures.testlib.ts"
-import type { Located } from "./node.ts"
+import { isMirror, type Located, type LocatedRegular } from "./node.ts"
 import { overlaid } from "./overlay.ts"
 import { patched, type SetDelta } from "./patch.ts"
 import { byPath } from "./paths.ts"
@@ -397,18 +402,16 @@ const lever = (
  * as two figures from two moments, for {@link walked}'s reason.
  *
  * Clones on both sides, because the nine are what the patcher GOES ON doing:
- * seven of them delete keys across a patch, which a layer keeping the base's
- * key set cannot, and of the two that do not, one is walked whole by the
- * validator and one is asked a key at a time and simply is not big enough to be
- * worth a layer.
+ * eight of them delete keys across a patch, which a layer keeping the base's
+ * key set cannot, and the one that does not is walked whole by the validator.
  *
- * `mentionedBy` joined the list when it joined the view, and it is named here
+ * `taggedBy` joined the list when it joined the view, and it is named here
  * rather than left out because the arm is "what a patch still pays": an index
  * missing from it is a clone the pair silently does not count.
  */
 const beside = (): readonly [byId: number, others: number] => {
   const others = (["children", "status", "after", "blocked", "byFile", "mirrorsOf", "edgesTo",
-    "namedBy", "mentionedBy"] as const).map((key) => first[key] as ReadonlyMap<string, unknown>)
+    "namedBy", "taggedBy"] as const).map((key) => first[key] as ReadonlyMap<string, unknown>)
   const arms = [
     () => {
       new Map(first.byId)
@@ -428,6 +431,88 @@ const beside = (): readonly [byId: number, others: number] => {
     median(rounds.map((round) => round[0] as number)),
     median(rounds.map((round) => round[1] as number)),
   ]
+}
+
+// ── what the tag index's WIDTH costs ───────────────────────────────────
+
+/**
+ * THE FOLD, TIMED BOTH WAYS: the tag index filed under one sigil against under
+ * both — the corpus-wide half of the trade the `taggedBy` branch was asked to
+ * measure (`mentions-index-one-sigil`, deferred at #237 precisely because
+ * nobody had).
+ *
+ * The narrow arm is a RECONSTRUCTION of the fold as it was, kept here for the
+ * reason {@link cloned} is kept: a before/after this harness cannot print is
+ * the unreproducible laptop sample this file exists to retire. What it costs a
+ * READER to have the wider index is `@olai/web`'s `complete/tags.bench.ts`,
+ * which prints the other half of the same trade.
+ *
+ * IT IS THE FOLD AND NOT THE WHOLE DERIVE, on purpose: the rest of `derive` is
+ * byte-identical across the change, so a rebuild-vs-rebuild figure would put
+ * this difference inside forty milliseconds of unrelated work and two noisy
+ * machines apart. What is timed is every record of the vault filed, which is
+ * exactly what a rebuild pays and forty times what one patched edit does.
+ */
+const folds = (): readonly [narrow: number, wide: number] => {
+  const arms = [
+    () => {
+      const index = new Map<string, Array<LocatedRegular>>()
+      for (const at of first.nodes) mentionOnlyInto(index, at)
+      return index
+    },
+    () => {
+      const index = new Map<string, Array<LocatedRegular>>()
+      for (const at of first.nodes) tagInto(index, at)
+      return index
+    },
+  ] as const
+  // The wide arm files every key the narrow one does, and more; an arm that
+  // had quietly stopped filing anything would report a magnificent number.
+  const [narrow, wide] = arms.map((arm) => arm())
+  if ((narrow as Map<string, unknown>).size === 0) {
+    throw new Error("the vault holds no `@` prose — the narrow arm measures nothing")
+  }
+  if ((wide as Map<string, unknown>).size <= (narrow as Map<string, unknown>).size) {
+    throw new Error("the wide arm files no more keys than the narrow one — check the vault")
+  }
+  for (const arm of arms) timed(arm)
+  const rounds = Array.from({ length: 9 }, (_, round) => {
+    const order = round % 2 === 0 ? [0, 1] : [1, 0]
+    const times: Array<number> = []
+    for (const which of order) times[which] = timed(arms[which as 0 | 1])
+    return times
+  })
+  return [
+    median(rounds.map((round) => round[0] as number)),
+    median(rounds.map((round) => round[1] as number)),
+  ]
+}
+
+/**
+ * The `@`-only fold, as {@link ./derive.ts} spelled it before `taggedBy` — the
+ * expression the arm above is the before of.
+ *
+ * A private copy, and it may not be shared with the module it stands for: that
+ * module now has one fold and this is the one it replaced. It is held to the
+ * same shape ({@link tagInto}: mirrors out, one entry per record, title then
+ * note) so the two arms differ in exactly one thing, which is how many sigils
+ * the walk claims.
+ */
+const mentionOnlyInto = (
+  index: Map<string, Array<LocatedRegular>>,
+  located: Located,
+): void => {
+  if (isMirror(located.node)) return
+  const regular = located as LocatedRegular
+  for (const text of [regular.node.title, regular.node.desc ?? ""]) {
+    if (!text.includes("@")) continue
+    for (const part of titleParts(text)) {
+      if (part.kind !== "tag" || part.sigil !== "@") continue
+      const held = index.get(part.tag)
+      if (held === undefined) index.set(part.tag, [regular])
+      else if (held[held.length - 1] !== regular) held.push(regular)
+    }
+  }
 }
 
 const say = (name: string, times: ReadonlyArray<number>): void => {
@@ -466,4 +551,10 @@ console.log(
   `\none clone of each index: ${byIdClone.toFixed(3)}ms for byId,` +
     ` ${othersClone.toFixed(3)}ms for all nine others together` +
     ` — which is the work a patch still does`,
+)
+const [narrowFold, wideFold] = folds()
+console.log(
+  `\nthe tag fold over the whole corpus: ${narrowFold.toFixed(2)}ms filing \`@\` alone,` +
+    ` ${wideFold.toFixed(2)}ms filing both sigils` +
+    ` — the width this index pays per REBUILD (${first.taggedBy.size} keys)`,
 )
