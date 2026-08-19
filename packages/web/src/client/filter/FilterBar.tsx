@@ -40,7 +40,7 @@ import type { Narrowing } from "./narrowing.ts"
  *  what survives a clip is the front (`../search/place.ts` makes the same
  *  argument about a row). */
 const PLACEHOLDER =
-  `filter — words, "a phrase", a OR b, #tag, is:done, has:desc, date:last-week, -not`
+  `filter — words, "a phrase", a OR b, #tag, is:done, has:desc, date:last-week, changed:today, -not`
 
 export function FilterBar(props: {
   readonly narrowing: Narrowing

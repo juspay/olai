@@ -1073,6 +1073,30 @@ export const isBlocked = (derived: Derived, id: string): boolean =>
   derived.blocked.has(id)
 
 /**
+ * WHETHER THIS NODE IS DRAWN ANYWHERE ELSE — {@link Derived.mirrorsOf} asked
+ * by a caller that only wants the answer yes or no.
+ *
+ * {@link isBlocked}'s shape one index over, and here for the same two reasons.
+ * Absence is how that index spells "nothing" — a node nothing mirrors has no
+ * entry, never an empty set (`./patch.ts` deletes a key whose last member
+ * leaves) — so the presence of a key IS the answer, with no set minted to have
+ * its size read. And the reading side is where both halves of that convention
+ * belong: the caller is `filter.ts`'s `is:mirrored`, which asks this of every
+ * node of the directory on every keystroke of the filter box, and whose
+ * negation is the form that touches nearly all of them, since almost nothing
+ * is placed twice.
+ *
+ * CHAINS FOLLOWED and THE ARCHIVE INCLUDED, both inherited from the index
+ * rather than decided here — which is what makes this the same answer
+ * `read_node` hands back as `mirrors` (`@olai/ops`' `placementsOf`). A
+ * placement in an `Archive.olai` is a placement: it is where the node is drawn
+ * on the trash page, and a reader who put one copy away has not thereby
+ * unmirrored the node.
+ */
+export const isMirrored = (derived: Pick<Derived, "mirrorsOf">, id: string): boolean =>
+  derived.mirrorsOf.has(id)
+
+/**
  * What this node's `after` targets hold up — whether or not the node is WORK
  * yet.
  *

@@ -20,23 +20,32 @@ import { nodesOfFiles } from "./fixtures.testlib.ts"
 /** One corpus, standing in for a directory: marks, dates, notes, edges, tags,
  *  a repeat rule, a mirror, an archive beside it — and a chain of `after`
  *  edges that crosses a file, so blockedness has something to be derived from.
- *  Every assertion below is about this. */
+ *  Every assertion below is about this.
+ *
+ *  THE STAMPS ARE ON SOME RECORDS AND NOT OTHERS, deliberately, because that
+ *  is the directory the stamp operators actually meet: they arrived after the
+ *  format did, so `kitchen`, `demo`, `garden` and `herbs` are nodes written
+ *  before they existed and carry none. Nothing invents a past for them, and
+ *  the pair of tests that says so is the honesty rule those two operators are
+ *  held to. `install` carries a `created` with no `changed` beside it, which
+ *  is the record saying nothing has been written to it since it was captured.
+ *  Instants, not days, so the cut to a day is exercised rather than assumed. */
 const CORPUS = {
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
     `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":"2026-08-03"}`,
-    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","repeat":"every week on monday","desc":"walnut or birch","after":["demo"],"see":["herbs"],"custom":{"agent":"Claude-Opus","pr":"https://github.com/juspay/olai/pull/176","tags":["cabinets","walnut"]}}`,
-    `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doc":"finishes.md","after":["order"]}`,
-    `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":"2026-08-11","after":["order"]}`,
+    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","repeat":"every week on monday","desc":"walnut or birch","after":["demo"],"see":["herbs"],"created":"2026-08-01T09:12:44-04:00","changed":"2026-08-13T10:02:00-04:00","custom":{"agent":"Claude-Opus","pr":"https://github.com/juspay/olai/pull/176","tags":["cabinets","walnut"]}}`,
+    `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doc":"finishes.md","after":["order"],"created":"2026-08-13T08:00:00-04:00"}`,
+    `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":"2026-08-11","after":["order"],"created":"2026-07-20T14:30:00-04:00","changed":"2026-08-11T09:00:00-04:00"}`,
     `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
   ].join("\n"),
   "garden.olai": [
     `{"id":"garden","ord":"a0","title":"garden #outdoors"}`,
     `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed #home","doing":true,"after":["hinges"]}`,
-    `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20","custom":{"agent":"claude-opus"}}`,
+    `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20","created":"2025-12-31T23:59:00-05:00","changed":"2026-08-10T07:00:00-04:00","custom":{"agent":"claude-opus"}}`,
   ].join("\n"),
   "Archive.olai": [
-    `{"id":"gone","ord":"a0","title":"the old kitchen table #home","done":"2026-06-01"}`,
+    `{"id":"gone","ord":"a0","title":"the old kitchen table #home","done":"2026-06-01","created":"2026-06-01T10:00:00-04:00"}`,
   ].join("\n"),
 }
 
@@ -145,6 +154,47 @@ test("a field holding nothing is a field the record does not carry", () => {
   expect(selectsIn(hollow, "has:desc")).toEqual(["real"])
   expect(selectsIn(hollow, "has:see")).toEqual([])
   expect(selectsIn(hollow, "has:after")).toEqual([])
+})
+
+/**
+ * ...AND A HOLLOW STAMP IS THE SAME ANSWER, which needs its own test because
+ * it is not the same CODE: `desc` and the edge lists go through `carries`,
+ * which asks the writer's `nothing`, while the two stamps go through
+ * `stampWithin`. "The writer's list, asked as a question rather than restated"
+ * is therefore a claim about two functions, and this pins the second one.
+ * Without it `dayOf("")` is `""`, an unbounded span holds of every day
+ * including that one, and `has:created` selects a record `has:desc` calls
+ * empty — two answers to one word, from the one grammar that keeps refusing
+ * them.
+ *
+ * THE FIXTURE CANNOT BE JSONL, and that is the honest scope of this row rather
+ * than a wrinkle in writing it. `created` is validated ISO per line
+ * (./parse.ts, the same loop that checks the marks and `date`), so
+ * `{"created":""}` is a `bad-date` and never reaches a reader through a parsed
+ * file — `nodesOfFiles` refuses it outright, which is how this test first
+ * failed. So the record is built here by hand, and what it pins is the matcher
+ * answering over A SET THE VALIDATOR HAS ALREADY CONDEMNED — a case this file
+ * meets elsewhere on purpose (a mirror chain that closes a loop, a parent that
+ * is missing) and answers rather than assumes away. A hand-edited outline,
+ * a bad merge, and a half-written line are all how one arrives.
+ */
+test("a hollow stamp is a stamp the record does not carry", () => {
+  const at = (id: string, created: string, line: number) => ({
+    file: "a.olai",
+    line,
+    node: { id, ord: `a${line}`, title: id, created },
+  })
+  const condemned = derive([
+    at("blank", "", 1),
+    at("real", "2026-08-01T09:00:00-04:00", 2),
+  ])
+  expect(selectsIn(condemned, "has:created")).toEqual(["real"])
+  // ...and the negation answers with it, which is the absent-stamp law reading
+  // a field that is present and hollow exactly as it reads one that is gone.
+  expect(selectsIn(condemned, "-has:created")).toEqual(["blank"])
+  // The BOUNDED form never disagreed — `"" >= "2000-01-01"` is false — so what
+  // this pins is the unbounded reading, against both of its spellings.
+  expect(selectsIn(condemned, "created:2000..2100")).toEqual(["real"])
 })
 
 test("`date:` reads the two dates a journal reads — scheduled, and finished", () => {
@@ -830,7 +880,9 @@ const refusalsOf = (text: string): ReadonlyArray<Refusal> | null => {
 test("a known operator with an unknown value is refused, and teaches", () => {
   const refused = refusalsOf("is:open")
   expect(refused?.map((one) => one.token)).toEqual(["is:open"])
-  expect(refused?.[0]?.reason).toContain("done, doing, todo, marked, blocked, archived")
+  expect(refused?.[0]?.reason).toContain(
+    "done, doing, todo, marked, blocked, mirrored, archived",
+  )
   // Refused means it selects NOTHING — never "the half of the query I could
   // read", which is the silent error that would look like an answer. The union
   // is what makes that structural: a refused filter HAS no terms to fall back
@@ -840,7 +892,9 @@ test("a known operator with an unknown value is refused, and teaches", () => {
 })
 
 test("each operator says what it takes", () => {
-  expect(refusalsOf("has:tags")?.[0]?.reason).toContain("desc, date, see, after, doc, repeat")
+  expect(refusalsOf("has:tags")?.[0]?.reason).toContain(
+    "desc, date, created, changed, see, after, doc, repeat",
+  )
   expect(refusalsOf("date:soon")?.[0]?.reason).toContain("2026-08-10")
   expect(refusalsOf("date:..")).toHaveLength(1)
 })
@@ -902,6 +956,205 @@ test("a colon after anything else is a colon in a word", () => {
   expect(refusalsOf("todo: http://example.com")).toBe(null)
   expect(selects("todo:")).toEqual([])
   expect(selects("order:")).toEqual([])
+})
+
+// ── mirrored ───────────────────────────────────────────────────────────
+
+/**
+ * `is:mirrored` IS THE ONE DIRECTION A MIRROR CAN BE ASKED ABOUT from here.
+ *
+ * A placement is never a hit — `matching` skips it, because a second view of a
+ * node answered as a node would be the same node twice, once at a place no
+ * write lands — so the question with a subject is the other one: is this NODE
+ * drawn anywhere else? `herbs` is placed under `kitchen` as well as under
+ * `garden`, and it is the only node in the corpus that is.
+ */
+test("`is:mirrored` finds the node a placement shows, never the placement", () => {
+  expect(selects("is:mirrored")).toEqual(["herbs"])
+  // The mirror RECORD is not among them, and not because it fails the test —
+  // it is not a candidate at all.
+  expect(selects("is:mirrored")).not.toContain("kitchen-herbs")
+  // ...and the node it is filed UNDER is not mirrored by holding one.
+  expect(selects("is:mirrored")).not.toContain("kitchen")
+})
+
+/** It reads `Derived.mirrorsOf`, which follows chains — so a mirror of a
+ *  mirror of a node is a place that node is drawn, and the record in the
+ *  middle collects nothing. Same index `read_node` answers `mirrors` from, so
+ *  a query cannot find a placement that read does not report. */
+test("a chain of placements is places the node at the end of it is drawn", () => {
+  const chained = derive(nodesOfFiles({
+    ...CORPUS,
+    "shelf.olai": `{"id":"now-herbs","ord":"a0","mirror":"kitchen-herbs"}`,
+  }))
+  // `now-herbs` shows `kitchen-herbs` which shows `herbs`, so both placements
+  // are filed under `herbs` and neither is filed under the one in the middle.
+  expect(selectsIn(chained, "is:mirrored")).toEqual(["herbs"])
+})
+
+/** A chain that dangles shows no node and is filed nowhere — the same silence
+ *  `Derived.status` keeps about one, rather than a second rule here. */
+test("a placement pointing at nothing mirrors nothing", () => {
+  const dangling = derive(nodesOfFiles({
+    "a.olai": `{"id":"a","ord":"a","title":"a"}\n{"id":"m","ord":"b","mirror":"nobody"}`,
+  }))
+  expect(selectsIn(dangling, "is:mirrored")).toEqual([])
+})
+
+/** ...and it composes and negates like every other clause. The negation is the
+ *  form that touches nearly every node, since almost nothing is placed twice. */
+test("`is:mirrored` composes and negates", () => {
+  expect(selects("#home is:mirrored")).toEqual(["herbs"])
+  expect(selects("-is:mirrored")).not.toContain("herbs")
+  expect(selects("herb -is:mirrored")).toEqual([])
+  expect(selects("is:mirrored OR is:blocked")).toEqual(["herbs", "hinges"])
+})
+
+/** It is taught with the rest of the values `is:` takes, off the same list the
+ *  parser reads. */
+test("`is:` teaches the mirrored value with the others", () => {
+  expect(refusalsOf("is:mirror")?.[0]?.reason).toContain(
+    "done, doing, todo, marked, blocked, mirrored, archived",
+  )
+})
+
+// ── the stamps ─────────────────────────────────────────────────────────
+
+/**
+ * `created:` and `changed:` READ THE RECORD'S OWN STAMPS, where `date:` reads
+ * the journal's two — so the three operators ask different questions of the
+ * same node, and the corpus is built to tell them apart. `order` is scheduled
+ * for the 10th, was captured on the 1st and was last written today: one node,
+ * three different answers.
+ */
+test("the stamps are the record's own, and are not the journal's dates", () => {
+  expect(selects("created:2026-08-01")).toEqual(["order"])
+  expect(selects("changed:today")).toEqual(["order"])
+  // ...and what the node is scheduled FOR is a third day again, on which
+  // neither of its stamps falls.
+  expect(selects("date:2026-08-10")).toEqual(["order"])
+  expect(selects("created:2026-08-10")).toEqual([])
+  expect(selects("changed:2026-08-10")).toEqual(["basil"])
+})
+
+/** A stamp is an INSTANT and a bound is a day, so the ten characters in front
+ *  of the `T` are what is compared — the same cut ./dates.ts makes of a dated
+ *  `done`, rather than a second reading of what a day is. */
+test("a stamp is the day its instant falls on", () => {
+  // Captured at 08:00 local on the 13th, and the 13th is what finds it.
+  expect(selects("created:today")).toEqual(["install"])
+  // ...and 2025-12-31T23:59 is the last day of that year rather than the first
+  // of the next, which is what a parse into an instant could have made of it.
+  expect(selects("created:2025-12-31")).toEqual(["basil"])
+  expect(selects("created:2026-01-01")).toEqual([])
+})
+
+/**
+ * THE VALUE GRAMMAR IS `date:`'s, whole and unchanged — which is the claim
+ * behind the three being one list rather than three operators written out.
+ * Every form that operator takes is asked of a stamp: a day above, and a
+ * month, a year and the relative words here.
+ */
+test("a stamp takes every value a date does", () => {
+  expect(selects("created:2026-07")).toEqual(["hinges"])
+  expect(selects("created:2025")).toEqual(["basil"])
+  expect(selects("created:this-week")).toEqual(["install"])
+  expect(selects("changed:this-week")).toEqual(["basil", "order", "hinges"])
+  expect(selects("changed:last-week")).toEqual([])
+  expect(selects("created:last-month")).toEqual(["hinges"])
+})
+
+/** ...and it composes with a range at either end for free, because a relative
+ *  word and a written one are read into the same span before either reaches a
+ *  clause. */
+test("a stamp range is the same two comparisons a date range is", () => {
+  expect(selects("created:..2026-07-31")).toEqual(["basil", "hinges"])
+  expect(selects("created:2026-08-01..")).toEqual(["order", "install"])
+  expect(selects("created:2026-07-01..today")).toEqual(["order", "install", "hinges"])
+  expect(selects("changed:yesterday..today")).toEqual(["order"])
+})
+
+/**
+ * ABSENCE SELECTS NOTHING, and this is the honesty rule the pair is held to.
+ *
+ * The stamps arrived after the format did, so a node written before them
+ * carries no `created` — and nothing here invents one. It offers no day, so no
+ * bound can hold of it, and it is not found however wide the span: a ledger
+ * does not make up a past it did not see (./node.ts), and `git log` is the
+ * archaeologist's tool.
+ */
+test("a node with no stamp is not found by any span, however wide", () => {
+  expect(selects("created:2000..")).not.toContain("kitchen")
+  expect(selects("created:..2100")).not.toContain("kitchen")
+  expect(selects("created:2026")).not.toContain("kitchen")
+  expect(selects("changed:2000..2100")).toEqual(["basil", "order", "hinges"])
+})
+
+/**
+ * ...AND THE NEGATION IS THE EXISTING LAW, not an exception carved for these
+ * two: the dash negates the CLAUSE, and a clause that has nothing to read
+ * cannot hold — so the unstamped nodes come back under `-created:` exactly as
+ * a node with no date at all comes back under `-has:date`.
+ *
+ * Asserted BESIDE that one rather than described, because the claim is that
+ * they are one rule: what a reader has learnt from the older operator is what
+ * this one does.
+ */
+test("negation finds the unstamped, as `-has:date` already found the undated", () => {
+  // A node with no `date` and no dated `done` is found by the negation.
+  expect(selects("-has:date")).toContain("kitchen")
+  // ...and a node with no `created` is found by the negation of a span, on
+  // exactly that reading.
+  expect(selects("-created:2026")).toContain("kitchen")
+  expect(selects("-created:2000..2100")).toEqual(["garden", "herbs", "kitchen", "demo"])
+})
+
+/**
+ * `has:created` / `has:changed` are those operators asked with NO BOUNDS, for
+ * the reason `has:date` is one: a reader who finds a node with
+ * `created:2026-08` and then cannot find it with `has:created` has met two
+ * answers to one word.
+ *
+ * And the pair buys the one question the format itself names as a real answer
+ * — a `changed` absent beside a `created` means nothing has been written to
+ * the node since it was captured (./node.ts) — which has no other spelling in
+ * this grammar, since a span with both ends open is refused.
+ */
+test("`has:` on a stamp is that operator unbounded, and the pair is sayable", () => {
+  expect(selects("has:created")).toEqual(["basil", "order", "install", "hinges"])
+  expect(selects("has:changed")).toEqual(["basil", "order", "hinges"])
+  expect(selects("has:created -has:changed")).toEqual(["install"])
+  // ...and the unbounded form agrees with the widest bounded one on every
+  // node, which is the whole reason that row is not a plain field test.
+  expect(selects("has:created")).toEqual(selects("created:2000..2100"))
+})
+
+/** They refuse in the grammar's own voice, and teach the same twelve words
+ *  `date:` teaches — one sentence for the three, named by whichever of them
+ *  the reader actually typed. */
+test("a stamp refuses what a date refuses, in its own name", () => {
+  const refused = refusalsOf("created:soon")
+  expect(refused?.map((one) => one.token)).toEqual(["created:soon"])
+  expect(refused?.[0]?.reason).toContain("created: takes a day, month or year")
+  expect(refused?.[0]?.reason).toContain("last-")
+  expect(refusalsOf("changed:2026-13")).toHaveLength(1)
+  expect(refusalsOf("changed:..")).toHaveLength(1)
+  expect(refusalsOf("created:")?.[0]?.reason).toContain("no value")
+})
+
+/** A stamp clause reads a RECORD, so it answers about a node wherever it was
+ *  filed — which is what makes `is:archived created:2026-06` a question with
+ *  an answer, exactly as it is for `date:`. */
+test("a stamp reaches what was put away, when the query asks for it", () => {
+  expect(selects("created:2026-06")).toEqual([])
+  expect(selects("is:archived created:2026-06")).toEqual(["gone"])
+})
+
+/** ...and they compose and negate like every other clause. */
+test("a stamp composes with words, marks and the joiner", () => {
+  expect(selects("cabinets created:this-week")).toEqual(["install"])
+  expect(selects("created:today OR created:2025")).toEqual(["basil", "install"])
+  expect(selects("has:created -changed:this-week")).toEqual(["install"])
 })
 
 // ── the archive ────────────────────────────────────────────────────────
