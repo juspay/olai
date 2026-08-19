@@ -679,16 +679,33 @@ const GRAPH_FILE = '[data-testid="graph-file"]'
 const GRAPH_CAPTION = '[data-testid="graph-caption"]'
 const GRAPH_HORIZON = '[data-testid="graph-horizon"]'
 const GRAPH_CLOSER = '[data-testid="graph-closer"]'
+
+/** The DONE preference, picked in the panel it is set in — the same door a
+ *  reader uses, rather than a write into storage, because what this section is
+ *  photographing is the switch reaching one more page. */
+const pickDone = async (page: Page, value: "hidden" | "visible"): Promise<void> => {
+  const panel = page.locator('[data-testid="prefs-panel"]')
+  if (!(await panel.isVisible().catch(() => false))) {
+    await page.locator('[data-testid="prefs-trigger"]').first().click()
+    await panel.waitFor()
+  }
+  await page.locator(`[data-testid="prefs-choice"][data-value="${value}"]`).first().click()
+  await page.keyboard.press("Escape")
+  await page.waitForTimeout(250)
+}
 const GRAPH_FIT = '[data-testid="graph-fit"]'
 const GRAPH_LABELLED = '[data-testid="graph-node"][data-labelled="true"]'
 
 /** What the camera is doing and how much of the picture it leaves readable —
  *  the two numbers a shot of a crowded graph has to be checked against, since
  *  "the labels declutter" is exactly the claim a screenshot alone cannot make. */
-const graphCamera = async (page: Page): Promise<string> =>
-  `scale ${await page.locator(GRAPH_CANVAS).first().getAttribute("data-scale")}, ` +
-  `${await page.locator(GRAPH_LABELLED).count()} of ` +
-  `${await page.locator(GRAPH_NODE).count()} dots named`
+const graphCamera = async (page: Page): Promise<string> => {
+  const box = await page.locator(GRAPH_CANVAS).first().boundingBox()
+  return `canvas ${Math.round(box?.width ?? 0)}×${Math.round(box?.height ?? 0)}, ` +
+    `scale ${await page.locator(GRAPH_CANVAS).first().getAttribute("data-scale")}, ` +
+    `${await page.locator(GRAPH_LABELLED).count()} of ` +
+    `${await page.locator(GRAPH_NODE).count()} dots named`
+}
 
 /** What the drawing is OF, printed beside the shot — a picture cannot be read
  *  back as data, and these three lines are what a reviewer checks the pixels
@@ -2291,11 +2308,15 @@ const SECTIONS = {
       ...Array.from({ length: 9 }, (_, at) =>
         `{"id":"kp${at}","parent":"plans","ord":"b${at}","title":"kitchen step ${
           at + 1
-        }: measure, order and fit","see":["kitchen-plan"]}`),
+        }: measure, order and fit",${
+          at % 2 === 0 ? `"done":"2026-08-0${(at % 8) + 1}",` : `"todo":true,`
+        }"see":["kitchen-plan"]}`),
       ...Array.from({ length: 9 }, (_, at) =>
         `{"id":"gp${at}","parent":"plans","ord":"c${at}","title":"garden step ${
           at + 1
-        }: dig, plant and water","see":["garden-plan"]}`),
+        }: dig, plant and water",${
+          at % 3 === 0 ? `"done":"2026-08-0${(at % 8) + 1}",` : ""
+        }"see":["garden-plan"]}`),
     ])
     rewrite("notes.olai", [
       `{"id":"notes","ord":"a0","title":"loose notes"}`,
@@ -2331,6 +2352,16 @@ const SECTIONS = {
     await page.waitForTimeout(DRAWN)
     console.log(`  fitted again: ${await graphCamera(page)}`)
     await shot(page, "fitted-again")
+
+    // ...and FINISHED WORK taken off it, through the one switch this app has
+    // for that claim. Two shots, because what the pixels have to show is that
+    // the arrows went with the dots and the shape re-settled around what is
+    // left rather than keeping holes where the done nodes were.
+    await pickDone(page, "hidden")
+    await page.waitForTimeout(SETTLE)
+    console.log(`  done hidden:  ${await graphCamera(page)}`)
+    await shot(page, "done-hidden")
+    await pickDone(page, "visible")
   },
 
   "what-refers-to-this-node": async (page) => {
