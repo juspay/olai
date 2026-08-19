@@ -99,6 +99,7 @@ import { emitter, reasonOf } from "@olai/log"
 import type { AskAnswer } from "@olai/surface"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
+import { Calls } from "./calls.ts"
 import { sameDirectory } from "./directory.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import {
@@ -119,7 +120,6 @@ import {
   STEER_TIMEOUT,
   STEER_WHEN_IDLE,
   steerTaken,
-  toolNameIn,
 } from "./interpret.ts"
 import * as Kolu from "./kolu.ts"
 import type { Held, Memory, MemoryFailure } from "./memory.ts"
@@ -358,40 +358,47 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      */
     let given: ReadonlyArray<string> = []
 
-    /**
-     * What tool each call id is, out of the `tool_call` frames.
-     *
-     * The permission request carries a DISPLAY title, not a name — for a plan
-     * exit it reads "Ready to code?" — but the adapter guarantees the tool call
-     * it references has already been announced, and that announcement carries
-     * the programmatic name in its `_meta`. So the name is remembered as the
-     * frames go past, and the permission handler looks it up. A miss is a name
-     * we do not know, which is answered by ASKING; nothing here guesses.
-     *
-     * Emptied with the conversation ({@link leaving}), because a call id is only
-     * ever looked up inside the session that minted it — otherwise this would be
-     * every tool call the process had ever seen, kept for the life of a server
-     * that is meant to run for weeks.
-     */
-    const toolNames = new Map<string, string>()
+    /** What has been said about each of this conversation's tool calls — which
+     *  tool it is, and which agent made it ({@link ./calls.ts}). Per session,
+     *  because a call id is only ever looked up inside the session that minted
+     *  it. */
+    const calls = new Calls()
 
     /** The conversation is over — replaced, reloaded, or dead. Everything keyed
-     *  to it goes: the questions nobody is going to answer now, the tool names
-     *  they were keyed alongside, and which model the CLI said it was running.
-     *  One function, because "this session is finished" is one fact and four
-     *  call sites remembering three things each is how one of them ends up
-     *  remembering two. */
+     *  to it goes: the questions nobody is going to answer now, what was said
+     *  about the calls they named, and which model the CLI said it was
+     *  running. One function, because "this session is finished" is one fact
+     *  and four call sites remembering three things each is how one of them
+     *  ends up remembering two. */
     const leaving = (): void => {
       questions.withdrawAll()
-      toolNames.clear()
+      calls.forget()
       forgetModel()
     }
 
-    /** Put a form in front of a person and wait for it — the registry holds the
-     *  promise, and this is the one place the row it draws is announced. */
+    /**
+     * Put a form in front of a person and wait for it — the registry holds the
+     * promise, and this is the one place the row it draws is announced.
+     *
+     * WHO IS ASKING is worked out here rather than handed in. An asker is only
+     * ever true of one form, so a caller passing both would be pairing two
+     * things nothing enforces — each honest alone, and wrong together the
+     * first time two questions are in flight. The form names the call it was
+     * asked from and the call is what has been heard about
+     * ({@link ./calls.ts}), so there is nothing left for a caller to supply.
+     *
+     * A form drawn in nobody's name is drawn as the main agent's, which is the
+     * one thing a subagent's question must not say.
+     */
     const put = (form: Form, signal: AbortSignal): Promise<Questions.Settled> =>
       questions.ask(form, signal, (id) => {
-        emit({ _tag: "asked", id, message: form.message, fields: form.fields })
+        emit({
+          _tag: "asked",
+          id,
+          message: form.message,
+          fields: form.fields,
+          parent: calls.about(form.toolCall).parent,
+        })
       })
 
     /** A question we cannot draw. Declined on the wire and SAID out loud: an
@@ -423,18 +430,23 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       return { action: "accept", content: settled.content }
     }
 
-    /** Which tool a permission request is about, or `null` when nothing said.
-     *  The request's own `_meta` carries the name for a subagent's call; every
-     *  other call was announced first, and the announcement did. */
+    /** Which tool a permission request is about, or `null` when nothing said —
+     *  which is answered by ASKING, never by guessing. `put` above reads the
+     *  other field of the same answer, and both are a lookup because the
+     *  request's own words went in through the same door every frame does. */
     const toolOf = (request: RequestPermissionRequest): string | null =>
-      toolNameIn(request.toolCall._meta) ??
-        toolNames.get(request.toolCall.toolCallId) ??
-        null
+      calls.about(request.toolCall.toolCallId).name ?? null
 
     const onPermission = async (
       params: RequestPermissionRequest,
       signal: AbortSignal,
     ): Promise<RequestPermissionResponse> => {
+      // A REQUEST'S TOOL CALL IS A FRAME ABOUT THAT CALL — the adapter builds
+      // its `_meta` the same way it builds an announcement's, with the tool
+      // name and, for a subagent's call, whose it is — so it goes in through
+      // the same door rather than being read as a second kind of source. Both
+      // questions below are then a lookup.
+      calls.heard(params.toolCall.toolCallId, params.toolCall._meta)
       // The tools olai handed this conversation are answered here and now —
       // already mediated, already validated — and everything else is put in
       // front of a person. Which is which is `allowedWithoutAsking`, and it is
@@ -452,14 +464,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       return typeof picked !== "string"
         ? { outcome: { outcome: "cancelled" } }
         : { outcome: { outcome: "selected", optionId: picked } }
-    }
-
-    const remember = (
-      toolCallId: string,
-      meta: { readonly [key: string]: unknown } | null | undefined,
-    ): void => {
-      const name = toolNameIn(meta)
-      if (name !== null) toolNames.set(toolCallId, name)
     }
 
     const onUpdate = (notification: SessionNotification): void => {
@@ -481,10 +485,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // the same thing with either.
         case "tool_call":
         case "tool_call_update":
-          // Not drawn, and not an event: the NAME of the tool is what the
-          // permission handler needs and the permission request does not
-          // carry — see `toolNames`.
-          remember(update.toolCallId, update._meta)
+          // Not drawn, and not an event: what this frame said about its call —
+          // which tool it is, and which agent made it — is what the two
+          // handlers above need and what neither question they answer carries
+          // ({@link ./calls.ts}).
+          calls.heard(update.toolCallId, update._meta)
           emit({
             _tag: "tool",
             id: update.toolCallId,

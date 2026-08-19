@@ -13,14 +13,21 @@ import { describe, expect, test } from "bun:test"
 
 import { laneOf } from "./lanes.ts"
 
-/** A row, as the transcript serves one. Only two fields are read here and both
- *  are named: its own key, and the agent it belongs to. */
+/** A row, as the transcript serves one. Only three fields are read here and
+ *  all three are named: its own key, the agent it belongs to, and what KIND of
+ *  row it is — a question names its lane where a tool call would not. */
 const row = (id: string, parent?: string): ChatEntry => ({
   id,
   seq: 0,
   kind: "tool",
   text: id,
   ...(parent === undefined ? {} : { parent }),
+})
+
+/** ... and the same row as a QUESTION the agent stopped to ask. */
+const asked = (id: string, parent?: string): ChatEntry => ({
+  ...row(id, parent),
+  kind: "ask",
 })
 
 /** Nothing above it at all — the top of the transcript. */
@@ -108,6 +115,49 @@ describe("which rows are drawn in a lane", () => {
     // saying even when the other half is missing, and it is the LANE that says
     // so rather than every row that draws one.
     expect(laneOf(row("tool:call-1", "tool:gone"), NOTHING, nameOf))
+      .toEqual({ parent: "tool:gone", label: "a subagent" })
+  })
+
+  test("a subagent's question names its lane even where a call would not", () => {
+    // THE ONE EXCEPTION, and it is about what the row IS rather than where it
+    // sits. A form blocks the turn and the panel points people AT it — from
+    // the composer, the header and the app's agent toggle — so a reader
+    // arrives at it without having read the row above, and a permission form
+    // answered in the wrong agent's name is a decision made on a false
+    // premise. Both established shapes, because a form lands in either:
+    // directly under the call that spawned the agent...
+    expect(laneOf(asked("ask:1", "tool:agent-1"), row("tool:agent-1"), nameOf))
+      .toEqual({ parent: "tool:agent-1", label: "sent to tool:agent-1" })
+    // ... and in the middle of that agent's own run.
+    expect(
+      laneOf(asked("ask:1", "tool:agent-1"), row("tool:call-1", "tool:agent-1"), nameOf),
+    ).toEqual({ parent: "tool:agent-1", label: "sent to tool:agent-1" })
+  })
+
+  test("the main agent's own question is in no lane, named or otherwise", () => {
+    // Most questions. The exception above is about which lane a form names,
+    // never about putting one in a lane it does not belong to.
+    expect(laneOf(asked("ask:1"), row("tool:call-1", "tool:agent-1"), nameOf))
+      .toBeNull()
+  })
+
+  test("a question does not make the lane under it open again", () => {
+    // The other half of the same fix, and the one that was VISIBLE: an
+    // unattributed form between two of one subagent's calls broke the run, so
+    // the lane re-introduced itself underneath it and the panel read as two
+    // agents where there was one. The form is in the lane now, so the call
+    // after it is still established and stays silent.
+    expect(
+      laneOf(
+        row("tool:call-2", "tool:agent-1"),
+        asked("ask:1", "tool:agent-1"),
+        nameOf,
+      ),
+    ).toEqual({ parent: "tool:agent-1", label: null })
+  })
+
+  test("a question from an agent the panel never saw start still says somebody", () => {
+    expect(laneOf(asked("ask:1", "tool:gone"), row("tool:gone"), nameOf))
       .toEqual({ parent: "tool:gone", label: "a subagent" })
   })
 

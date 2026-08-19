@@ -71,6 +71,10 @@
  *   plan         ask to leave plan mode, the way the adapter does
  *   permit       ask permission for an ops tool, which needs no person
  *   nameless     ask permission for a tool nothing has named
+ *   subagent asks     a SPAWNED agent asks permission mid-run — the request
+ *                itself stamped with the `Agent` call it came out of
+ *   subagent elicits  the same, as an `AskUserQuestion` elicitation, which
+ *                names the tool call it was asked from and nothing else
  *   crash        exit mid-turn, having SPOKEN first
  *   vanish       exit mid-turn having said NOTHING AT ALL — not even the
  *                usage frames every other turn opens with, so the client has
@@ -1362,6 +1366,86 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
      *  the one field that says whose it is. */
     const inside = (id: string, title: string, parent: string): void =>
       announce(id, title, { toolName: "Grep", parentToolUseId: parent })
+
+    // A SUBAGENT THAT STOPS TO ASK, in the two shapes the adapter has for one.
+    // Both put a form in front of a person on behalf of an agent nobody sent
+    // there directly, and the frames say so in DIFFERENT places — which is why
+    // both are driven rather than one standing in for the other.
+    //
+    // Each is asked in the MIDDLE of that agent's own run, with a call before
+    // the form and a call after it, because the form is not only mis-drawn on
+    // its own: a row in no lane between two of one agent's calls ENDS the
+    // stretch, so the lane re-opens and names itself again underneath the
+    // form. That second half is what a reader actually sees, and a turn that
+    // asked and stopped could not show it.
+    if (argument === "asks" || argument === "elicits") {
+      const elicits = argument === "elicits"
+      const agent = `agent-${++nextMcpId}`
+      const before = `sub-${++nextMcpId}`
+      const asking = `call-${++nextMcpId}`
+      const after = `sub-${++nextMcpId}`
+      spawn(agent, "explore the outline", "Explore")
+      inside(before, "grep for cabinets", agent)
+      // The tool the question is ABOUT, announced first — which the adapter
+      // guarantees for both paths (`ensureToolCallEmitted`) and which the
+      // elicitation below depends on entirely: an `elicitation/create` names
+      // this call and carries no attribution of its own, so this frame is the
+      // only place the client can learn whose question it is.
+      announce(asking, elicits ? "AskUserQuestion" : "run a command", {
+        toolName: elicits ? "AskUserQuestion" : "Bash",
+        parentToolUseId: agent,
+      })
+      const answer = elicits
+        ? await request("elicitation/create", {
+          mode: "form",
+          sessionId,
+          toolCallId: asking,
+          message: "Which cabinets should I order?",
+          requestedSchema: {
+            type: "object",
+            properties: {
+              question_0: {
+                type: "string",
+                title: "Cabinets",
+                oneOf: [{ const: "oak", title: "oak" }, { const: "birch", title: "birch" }],
+              },
+            },
+          },
+        })
+        : await request("session/request_permission", {
+          sessionId,
+          toolCall: {
+            toolCallId: asking,
+            title: "run a command",
+            // WHERE A PERMISSION REQUEST SAYS IT, and the difference from the
+            // elicitation above: the adapter stamps the attribution onto the
+            // request itself, beside the tool name (0.66.0, `canUseTool`).
+            _meta: { claudeCode: { toolName: "Bash", parentToolUseId: agent } },
+          },
+          options: [
+            { kind: "allow_once", name: "Allow Once", optionId: "allow" },
+            { kind: "reject_once", name: "Deny", optionId: "reject" },
+          ],
+        })
+      if (endedCancelled(id)) return
+      completed(asking)
+      // ... and the run CARRIES ON under the form, which is the half the lane
+      // rule is about.
+      inside(after, "grep for worktops", agent)
+      for (const call of [before, after, agent]) completed(call)
+      // Reported in each path's OWN words — the same sentences `ask` and
+      // `plan` end on — so a scenario reads what came back rather than a shape
+      // invented for these two turns.
+      const outcome = (answer as { outcome?: { outcome?: string; optionId?: string } })
+        ?.outcome
+      say(
+        elicits
+          ? `you answered: ${JSON.stringify(answer)}`
+          : `permission: ${outcome?.optionId ?? outcome?.outcome ?? "nothing"}`,
+      )
+      respond(id, { stopReason: "end_turn" })
+      return
+    }
 
     // ... AND THEN FALLING OVER UNDER IT. The face has to come off, and the
     // row's own status cannot be what takes it off: a status is sticky, an

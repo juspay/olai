@@ -186,6 +186,22 @@ Three things are on that row and every one of them comes off the wire:
 
 Then the calls arrive in the lane that is already open under it, and when the agent reports back the row completes and its answer is in the fold. Nothing about the rest of the drawing changes — the same rail, the same names, in the same places.
 
+### When it is a subagent that asks
+
+A spawned agent can stop and ask — permission for a tool nothing recognises, or a question with options to pick from — and the form lands **in that agent's lane**, indented behind the same rail its calls are, with the lane naming who is asking:
+
+```
+· explore the outline                    ↳ Explore
+│ ↳ explore the outline
+│ ┌ Allow `rg --files`?
+│ │  [ Allow Once ]  [ Deny ]
+│ grep for worktops
+```
+
+That name is drawn on a form wherever it sits, which is the one place the *once per stretch* rule above does not apply. The reason is what a form is: the one row here where being wrong about who is speaking changes what you press. And you rarely meet it by reading down to it — a blocked question is announced in the composer, in the header and on the app's agent toggle, so you come looking for a form that may be anywhere, including scrolled off the top of a long turn with nothing above it you have read.
+
+Before this, the form was drawn in the ordinary column and read as the agent you are talking to. The second half was louder: a row in nobody's lane, landing between two of one subagent's calls, **ends the stretch** — so the lane opened again and introduced itself a second time under the form, and one agent's run read as two.
+
 **What is deliberately not drawn is the subagent's own prose.** The agent olai ships with does not send it: a spawned agent's text and thinking are stripped from the feed unless a client asks for a nested transcript, and olai does not ask. So a running subagent is its calls and its status here, and the one place its own words appear is the report it hands back at the end. That is a floor rather than a preference — but it also means the main agent's voice in this panel is only ever the main agent's, which is worth having.
 
 ## Attachments
