@@ -504,7 +504,7 @@ describe("a query is words and operators", () => {
     const answer = search(derivedOf(WORK()), { text: "is:open trip" }, TODAY)
     expect(answer.refusals).toEqual([{
       token: "is:open",
-      reason: "is: takes one of done, doing, todo, marked, blocked, archived",
+      reason: "is: takes one of done, doing, todo, marked, blocked, mirrored, archived",
     }])
     // As TYPED — an agent that echoed the folded token back to a person would
     // be quoting them wrongly.

@@ -839,7 +839,9 @@ const refusalsOf = (text: string): ReadonlyArray<Refusal> | null => {
 test("a known operator with an unknown value is refused, and teaches", () => {
   const refused = refusalsOf("is:open")
   expect(refused?.map((one) => one.token)).toEqual(["is:open"])
-  expect(refused?.[0]?.reason).toContain("done, doing, todo, marked, blocked, archived")
+  expect(refused?.[0]?.reason).toContain(
+    "done, doing, todo, marked, blocked, mirrored, archived",
+  )
   // Refused means it selects NOTHING — never "the half of the query I could
   // read", which is the silent error that would look like an answer. The union
   // is what makes that structural: a refused filter HAS no terms to fall back
@@ -913,6 +915,66 @@ test("a colon after anything else is a colon in a word", () => {
   expect(refusalsOf("todo: http://example.com")).toBe(null)
   expect(selects("todo:")).toEqual([])
   expect(selects("order:")).toEqual([])
+})
+
+// ── mirrored ───────────────────────────────────────────────────────────
+
+/**
+ * `is:mirrored` IS THE ONE DIRECTION A MIRROR CAN BE ASKED ABOUT from here.
+ *
+ * A placement is never a hit — `matching` skips it, because a second view of a
+ * node answered as a node would be the same node twice, once at a place no
+ * write lands — so the question with a subject is the other one: is this NODE
+ * drawn anywhere else? `herbs` is placed under `kitchen` as well as under
+ * `garden`, and it is the only node in the corpus that is.
+ */
+test("`is:mirrored` finds the node a placement shows, never the placement", () => {
+  expect(selects("is:mirrored")).toEqual(["herbs"])
+  // The mirror RECORD is not among them, and not because it fails the test —
+  // it is not a candidate at all.
+  expect(selects("is:mirrored")).not.toContain("kitchen-herbs")
+  // ...and the node it is filed UNDER is not mirrored by holding one.
+  expect(selects("is:mirrored")).not.toContain("kitchen")
+})
+
+/** It reads `Derived.mirrorsOf`, which follows chains — so a mirror of a
+ *  mirror of a node is a place that node is drawn, and the record in the
+ *  middle collects nothing. Same index `read_node` answers `mirrors` from, so
+ *  a query cannot find a placement that read does not report. */
+test("a chain of placements is places the node at the end of it is drawn", () => {
+  const chained = derive(nodesOfFiles({
+    ...CORPUS,
+    "shelf.olai": `{"id":"now-herbs","ord":"a0","mirror":"kitchen-herbs"}`,
+  }))
+  // `now-herbs` shows `kitchen-herbs` which shows `herbs`, so both placements
+  // are filed under `herbs` and neither is filed under the one in the middle.
+  expect(selectsIn(chained, "is:mirrored")).toEqual(["herbs"])
+})
+
+/** A chain that dangles shows no node and is filed nowhere — the same silence
+ *  `Derived.status` keeps about one, rather than a second rule here. */
+test("a placement pointing at nothing mirrors nothing", () => {
+  const dangling = derive(nodesOfFiles({
+    "a.olai": `{"id":"a","ord":"a","title":"a"}\n{"id":"m","ord":"b","mirror":"nobody"}`,
+  }))
+  expect(selectsIn(dangling, "is:mirrored")).toEqual([])
+})
+
+/** ...and it composes and negates like every other clause. The negation is the
+ *  form that touches nearly every node, since almost nothing is placed twice. */
+test("`is:mirrored` composes and negates", () => {
+  expect(selects("#home is:mirrored")).toEqual(["herbs"])
+  expect(selects("-is:mirrored")).not.toContain("herbs")
+  expect(selects("herb -is:mirrored")).toEqual([])
+  expect(selects("is:mirrored OR is:blocked")).toEqual(["herbs", "hinges"])
+})
+
+/** It is taught with the rest of the values `is:` takes, off the same list the
+ *  parser reads. */
+test("`is:` teaches the mirrored value with the others", () => {
+  expect(refusalsOf("is:mirror")?.[0]?.reason).toContain(
+    "done, doing, todo, marked, blocked, mirrored, archived",
+  )
 })
 
 // ── the stamps ─────────────────────────────────────────────────────────

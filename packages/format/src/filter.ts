@@ -41,6 +41,7 @@ import {
   ancestorsOf,
   type Derived,
   isBlocked,
+  isMirrored,
   mayHoldTag,
   type Row,
   storedMarker,
@@ -171,13 +172,22 @@ const positionBonus = (haystack: string, needle: string): number => {
 
 // ── the grammar ────────────────────────────────────────────────────────
 
-/** The marks `is:` selects on, plus the three questions that are not a mark:
+/** The marks `is:` selects on, plus the four questions that are not a mark:
  *  `marked` (any of the three — what makes `is:marked -is:done` sayable),
- *  `blocked` (the one DERIVED value here) and `archived` (below). Which of
- *  them is answered by what is {@link being}, and that is a switch, so a value
- *  added to this list is a compile error there rather than a query that finds
- *  nothing. */
-const IS_VALUES = ["done", "doing", "todo", "marked", "blocked", "archived"] as const
+ *  `blocked` and `mirrored` (the two DERIVED values here — what is standing
+ *  in a node's way, and where else the node is drawn) and `archived` (below).
+ *  Which of them is answered by what is {@link being}, and that is a switch, so
+ *  a value added to this list is a compile error there rather than a query that
+ *  finds nothing. */
+const IS_VALUES = [
+  "done",
+  "doing",
+  "todo",
+  "marked",
+  "blocked",
+  "mirrored",
+  "archived",
+] as const
 type IsValue = (typeof IS_VALUES)[number]
 
 /**
@@ -1464,6 +1474,18 @@ const being = (derived: Derived, at: LocatedRegular, value: IsValue): boolean =>
     // does.
     case "blocked":
       return isBlocked(derived, at.node.id)
+    // THE SECOND DERIVED VALUE, and the one place this grammar can ask about a
+    // MIRROR at all. A placement is never a hit ({@link matching}) — it is a
+    // second view of a node, so answering with one would be the same node
+    // twice, once at a place no write lands — which left the format's one
+    // remaining record field unreadable from here in both directions. This is
+    // the direction that has a subject: not "is this record a placement" but
+    // "is this NODE drawn somewhere else", which is what a curated list puts on
+    // a node and what `read_node` already answers as `mirrors`. The index is
+    // the same one, so a query cannot find a placement that read does not
+    // report, or miss one it does.
+    case "mirrored":
+      return isMirrored(derived, at.node.id)
     case "marked":
       return storedMarker(at.node) !== undefined
     // The STORED mark, never a derived one: a parent whose children are all
