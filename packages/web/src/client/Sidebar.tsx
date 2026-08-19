@@ -254,7 +254,7 @@ export function Sidebar(props: {
         </div>
 
         <div
-          class="olai-scroll min-h-0 flex-1 overflow-y-auto p-4"
+          class="olai-scroll min-h-0 flex-1 overflow-y-auto p-3"
           data-testid={TESTID.sidebarBody}
           // Any navigation (day, outline, document) bubbles here and puts the
           // mobile drawer away. Folder folds stop propagation so a reader can
@@ -356,7 +356,7 @@ function Agenda(props: { readonly agenda: Agenda | undefined }) {
 
   return (
     <div
-      class="mb-2"
+      class="mb-1"
       data-testid={TESTID.agendaOwed}
       data-owed={mark().face}
       data-overdue={String(mark().owed.overdue)}

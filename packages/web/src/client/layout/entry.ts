@@ -68,22 +68,32 @@ export const ROW_GAP = "gap-1.5"
  * the month's heading is the name of the month a reader is looking at, and
  * these are names for lists that already say what they hold.
  */
-export const REGION = "mt-3 border-t border-paper/15 pt-2"
+export const REGION = "mt-2 border-t border-paper/15 pt-2"
 
 /**
  * WHAT IT MAY NOT COST is the tree's place on a short screen, and that is a
  * promise with a test behind it: the column is sticky and exactly one screen
  * tall, and `features/the_sidebar_sticks.feature` holds that the FILE TREE
  * still reaches the visible strip at the bottom of a long page — it is what a
- * reader came back to the column for. The month above it is ~300px of a 400px
- * window, so everything between the two is a budget rather than a free choice:
- * the first draft of these regions spent 45px on a rule, a margin and a label
- * over the tree, and pushed it 28px under the fold (caught by that scenario,
- * 2026-08-19). Hence the tighter spacing here, the month's own bottom margin
- * giving way to it (`../calendar/Calendar.tsx`), and exactly ONE label below
- * the month — the shelf's, because a list that is new to a reader is the one
- * that needs naming. The tree is what the column IS; a rule above it says
- * where it starts.
+ * reader came back to the column for. The month above it is ~240px of the
+ * 328px the column has on a 400px window, so everything between the two is a
+ * budget rather than a free choice:
+ *
+ *   - the first draft of these regions spent 45px on a rule, a margin and a
+ *     label over the tree, and pushed it 28px under the fold (caught by that
+ *     scenario, 2026-08-19);
+ *   - the redesign spent it again, from four directions at once — a bar 1rem
+ *     taller, a month with more padding and a bigger heading, a roomier row —
+ *     and put the tree 29px under the fold on all four page kinds. Reclaimed
+ *     the same way it was spent: a size off the month's day cells and its
+ *     heading, and a step off four paddings. The tree now clears the fold by
+ *     21px, which is the margin this note exists to keep.
+ *
+ * Hence the tighter spacing here, the month's own bottom margin giving way to
+ * it (`../calendar/Calendar.tsx`), and exactly ONE label below the month —
+ * the shelf's, because a list that is new to a reader is the one that needs
+ * naming. The tree is what the column IS; a rule above it says where it
+ * starts.
  */
 
 /** …and the words over it. `px-2` so the label sits on the same left edge as
