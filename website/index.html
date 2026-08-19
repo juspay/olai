@@ -24,11 +24,11 @@
 <meta name="twitter:image:alt" content="olai — a git-native outliner. A palm leaf in ink on sea-glass paper.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,400;1,9..144,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,400;1,9..144,600&display=swap" rel="stylesheet">
 <style>
   :root {
     --display: "Fraunces", "Iowan Old Style", Palatino, "Palatino Linotype", serif;
-    --sans: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --sans: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
     --well: color-mix(in srgb, var(--rule) 28%, var(--paper));
   }
@@ -36,22 +36,22 @@
   /* Default is reef: the lagoon under the palm. Every other row is a pick,
      including chalk, which used to be what an unpicked page read in. */
   :root,
-  [data-theme="reef"]       { --paper:#D7F0E8; --desk:#C5E6DC; --panel:#F4FBF8; --pill:#B5DDD2; --ink:#14352F; --muted:#4E7A71; --rule:#9CC9BE; --accent:#C44E24; --done:#1F7A58; --doing:#C48418; --alarm:#C13B4E; }
+  [data-theme="reef"]       { --paper:#D7F0E8; --desk:#C5E6DC; --panel:#E8F7F2; --pill:#B5DDD2; --ink:#14352F; --muted:#4E7A71; --rule:#9CC9BE; --accent:#C44E24; --done:#1F7A58; --doing:#C48418; --alarm:#C13B4E; }
   [data-theme="chalk"]      { --paper:#FAFAF6; --desk:#F2F2EC; --panel:#F5F5F0; --pill:#EDEFE6; --ink:#15180F; --muted:#555E4C; --rule:#C9CDBF; --accent:#134F75; --done:#2A6626; --doing:#8F5200; --alarm:#8E3348; }
   [data-theme="leaf"]       { --paper:#E4ECCA; --desk:#EDF2DC; --panel:#EFF4DC; --pill:#F5F8E6; --ink:#2C4222; --muted:#74855F; --rule:#CDD8AB; --accent:#2B6A8F; --done:#3E7A3A; --doing:#B9741B; --alarm:#A84A5E; }
   [data-theme="manuscript"] { --paper:#F0E7D2; --desk:#F5EDDD; --panel:#F7F0E2; --pill:#FAF4E6; --ink:#3D2F1B; --muted:#8C7B5C; --rule:#DCCEAC; --accent:#2F6580; --done:#5A7A34; --doing:#A05A16; --alarm:#9E4444; }
   [data-theme="pitch"]      { --paper:#000000; --desk:#0D110A; --panel:#10140C; --pill:#161B10; --ink:#C9D6B4; --muted:#77836A; --rule:#242B1E; --accent:#6FAECE; --done:#7FC97A; --doing:#D9A85A; --alarm:#D68B9A; }
-  [data-theme="light"]      { --paper:#FFFFFF; --desk:#F3F4F4; --panel:#F7F8F8; --pill:#C1E1F2; --ink:#2A3135; --muted:#868C90; --rule:#DCE0E2; --accent:#1C64F2; --done:#057A55; --doing:#9F580A; --alarm:#E02424; }
-  [data-theme="dark"]       { --paper:#2A3135; --desk:#353C3F; --panel:#3D4447; --pill:#336677; --ink:#FFFFFF; --muted:#9EA1A2; --rule:#5C6062; --accent:#76A9FA; --done:#31C48D; --doing:#E3A008; --alarm:#F98080; }
-  [data-theme="vintage"]    { --paper:#ECEEF0; --desk:#F3F4F4; --panel:#F7F8F8; --pill:#C1E1F2; --ink:#2A3135; --muted:#868C90; --rule:#DCE0E2; --accent:#1C64F2; --done:#057A55; --doing:#9F580A; --alarm:#E02424; }
+  [data-theme="light"]      { --paper:#FFFFFF; --desk:#F3F4F4; --panel:#DCE0E2; --pill:#C1E1F2; --ink:#2A3135; --muted:#868C90; --rule:#DCE0E2; --accent:#1C64F2; --done:#057A55; --doing:#9F580A; --alarm:#E02424; }
+  [data-theme="dark"]       { --paper:#2A3135; --desk:#353C3F; --panel:#5C6062; --pill:#336677; --ink:#FFFFFF; --muted:#9EA1A2; --rule:#5C6062; --accent:#76A9FA; --done:#31C48D; --doing:#E3A008; --alarm:#F98080; }
+  [data-theme="vintage"]    { --paper:#ECEEF0; --desk:#F3F4F4; --panel:#DCE0E2; --pill:#C1E1F2; --ink:#2A3135; --muted:#868C90; --rule:#DCE0E2; --accent:#1C64F2; --done:#057A55; --doing:#9F580A; --alarm:#E02424; }
   [data-theme="catppuccin"] { --paper:#1E1E2E; --desk:#343546; --panel:#45475A; --pill:#313244; --ink:#CDD6F4; --muted:#9399B2; --rule:#313244; --accent:#89B4FA; --done:#A6E3A1; --doing:#F9E2AF; --alarm:#F38BA8; }
-  [data-theme="chocolate"]  { --paper:#FFEFE2; --desk:#F0DAC9; --panel:#FFF6EE; --pill:#FBDA8A; --ink:#281603; --muted:#7D5E47; --rule:#A1836B; --accent:#1A73E8; --done:#2DA044; --doing:#C99A00; --alarm:#D93636; }
+  [data-theme="chocolate"]  { --paper:#FFEFE2; --desk:#F0DAC9; --panel:#E6CDBB; --pill:#FBDA8A; --ink:#281603; --muted:#7D5E47; --rule:#A1836B53; --accent:#1A73E8; --done:#2DA044; --doing:#C99A00; --alarm:#D93636; }
   [data-theme="hacker"]     { --paper:#000000; --desk:#002200; --panel:#003300; --pill:#005500; --ink:#00FF00; --muted:#009900; --rule:#005500; --accent:#76A9FA; --done:#31C48D; --doing:#E3A008; --alarm:#F98080; }
-  [data-theme="matcha"]     { --paper:#DDEABE; --desk:#EEF6CF; --panel:#F4FAD9; --pill:#EEF6CF; --ink:#415915; --muted:#85AC41; --rule:#85AC41; --accent:#2868A0; --done:#3D8828; --doing:#A88510; --alarm:#C43838; }
-  [data-theme="moon"]       { --paper:#FDF6F6; --desk:#ECE7EE; --panel:#F7F4FB; --pill:#EFEEF5; --ink:#615F7F; --muted:#8B6FA8; --rule:#E4D8EA; --accent:#6B8BC9; --done:#5FA876; --doing:#C9A84F; --alarm:#C85B5B; }
+  [data-theme="matcha"]     { --paper:#DDEABE; --desk:#EEF6CF; --panel:#EEF6CF; --pill:#EEF6CF; --ink:#415915; --muted:#85AC41; --rule:#85AC41; --accent:#2868A0; --done:#3D8828; --doing:#A88510; --alarm:#C43838; }
+  [data-theme="moon"]       { --paper:#FDF6F6; --desk:#ECE7EE; --panel:#DFDEF2; --pill:#EFEEF5; --ink:#615F7F; --muted:#8B6FA8; --rule:#E4D8EA; --accent:#6B8BC9; --done:#5FA876; --doing:#C9A84F; --alarm:#C85B5B; }
   [data-theme="neo"]        { --paper:#141414; --desk:#2D2D2D; --panel:#373737; --pill:#286C8E; --ink:#DCDBDB; --muted:#9EA1A2; --rule:#242424; --accent:#76A9FA; --done:#8DBD6A; --doing:#F1C068; --alarm:#CF4653; }
   [data-theme="one-dark"]   { --paper:#282C33; --desk:#2F343E; --panel:#3B4048; --pill:#293B5B; --ink:#C8CCD4; --muted:#5D636F; --rule:#3B4048; --accent:#73ADE9; --done:#A1C181; --doing:#DFC184; --alarm:#D07277; }
-  [data-theme="robot"]      { --paper:#000000; --desk:#1A2B2B; --panel:#151413; --pill:#151413; --ink:#FEA143; --muted:#7A8A8A; --rule:#E8393F; --accent:#3580D3; --done:#4ED8A3; --doing:#DFE361; --alarm:#E8393F; }
+  [data-theme="robot"]      { --paper:#000000; --desk:#1A2B2B; --panel:#FEA14320; --pill:#151413; --ink:#FEA143; --muted:#7A8A8A; --rule:#E8393F; --accent:#3580D3; --done:#4ED8A3; --doing:#DFE361; --alarm:#E8393F; }
   [data-theme="aurora"]     { --paper:#0A1220; --desk:#121C30; --panel:#1A2742; --pill:#243352; --ink:#D5E8F5; --muted:#7A93B0; --rule:#2A3C58; --accent:#4EE0C8; --done:#7EE0A8; --doing:#F0C04A; --alarm:#F07090; }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1157,7 +1157,7 @@ The corner unit is the **risky one** — see
         </div>
         <div class="prow">
           <div class="lbl">Font</div>
-          <div class="field">Atkinson Hyperlegible</div>
+          <div class="field">Atkinson Hyperlegible Next</div>
           <p class="hint">The page is set in Atkinson Hyperlegible Next.</p>
         </div>
         <div class="prow">
@@ -1184,7 +1184,7 @@ The corner unit is the **risky one** — see
           <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
         </div>
         <p class="caption">The same rows, in two of the palettes. A palette is
-        eight colours with a name; picking one writes <code>data-theme</code> on
+        eleven colours with a name; picking one writes <code>data-theme</code> on
         <code>&lt;html&gt;</code>, and the stored pick lands there before the
         first paint, so a reload never flashes the wrong one.</p>
       </div>
