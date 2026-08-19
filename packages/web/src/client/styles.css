@@ -148,6 +148,35 @@ html {
   color: var(--color-ink);
 }
 
+/* The month is a 7-column grid. A classic scrollbar appearing in this
+ * column stole a strip and reflowed the days. Reserve the gutter on
+ * desktop so the card never jumps; keep the bar thin and paper-on-ink
+ * so it belongs to the spine rather than to the OS. Phone drawer is
+ * left alone: its 44px day cells already spend the width. */
+.olai-dir-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-paper) 34%, transparent) transparent;
+}
+
+.olai-dir-scroll::-webkit-scrollbar {
+  width: 0.5rem;
+}
+
+.olai-dir-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.olai-dir-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-paper) 34%, transparent);
+  border-radius: 999px;
+}
+
+@media (min-width: 48rem) {
+  .olai-dir-scroll {
+    scrollbar-gutter: stable;
+  }
+}
+
 /* THE SHEET the outline is written on. Square to the spine and the
  * header: a single rounded corner under a straight rule was a bite of
  * ink with the resize handle sitting in it. */
