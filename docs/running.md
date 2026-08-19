@@ -95,7 +95,7 @@ Any MCP client — a coding agent in a terminal, working in the same directory �
 }
 ```
 
-`7714` is the production/deploy port: the home-manager module binds it, and `.mcp.json` names it, so an agent in this repo talks to the user service and never to a worktree's `just run`. A worktree's server writes its own address to `.olai-dev/url`; point an agent at *that* checkout by reading the file and appending `/mcp`. Requests from `127.0.0.1` do not need a bearer token; the chat still sends the one it was handed, which is accepted and ignored. A request that did not come from loopback is refused without that token.
+`7714` is the production/deploy port: the home-manager module binds it, and `.mcp.json` names it, so an agent in this repo talks to the user service and never to a worktree's `just run`. Without that service, `.mcp.json` at 7714 points at nothing — `just run docs --port 7714` is how you make it hold (the recipe already forwards extra args). A worktree's server writes its own address to `.olai-dev/url`: the first line is the URL, the second is `pid=` of the process that wrote it. If that pid is gone the URL is stale — `curl` it before pointing an agent at *that* checkout (`…/mcp`). Requests from `127.0.0.1` do not need a bearer token; the chat still sends the one it was handed, which is accepted and ignored. A request that did not come from loopback is refused without that token.
 
 Unattended agent runs need the server up. The user service is the one brain; `just run` is a worktree's own.
 

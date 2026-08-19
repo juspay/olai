@@ -9,8 +9,10 @@
  *
  *   - the address a restarted server has to come back on, so the open page
  *     is still pointed at it — {@link holdPort} keeps that port across the
- *     kill, because a `listen(0)` elsewhere on the box used to land in the
- *     gap;
+ *     kill. The hold ends before the replacement listens, so the remaining
+ *     window is a bet on the ephemeral pool, not a closed gap. A claimed
+ *     band below `ip_local_port_range` used to make it structural; that
+ *     walk died with the initial bind asking the OS;
  *   - the host's XDG cache / `PADI_SOCKET`, so a cache keyed on the served
  *     path (recall does this) or a padi on the laptop would be one thing
  *     every worker wrote. HOME is left alone (see `isolateEnv`).

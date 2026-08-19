@@ -27,8 +27,9 @@ dist := justfile_directory() + "/packages/web/dist"
 # Where this worktree's `just run` / `just serve` write the URL they actually
 # bound. Per-worktree on purpose: `/tmp/olai-dev` is a path every checkout
 # shares, and two e2e lanes used to dial one tree through it. The server
-# reads the same file back on a `bun --watch` restart so the address stays
-# put; `.mcp.json` names production (7714), not this.
+# reads the same file back when the next process asks for port 0 (a
+# `bun --watch` restart, or a later `just run`); `.mcp.json` names
+# production (7714), not this.
 dev_url := justfile_directory() + "/.olai-dev/url"
 
 # The e2e shell is the dev shell plus Playwright's browsers, which cost ~600ms

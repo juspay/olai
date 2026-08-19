@@ -32,6 +32,12 @@ import { startWeb } from "./child.testlib.ts"
 import { serve } from "./serve.ts"
 import { served, SERVER_LAYERS } from "./serve.testlib.ts"
 
+// A developer who exported OLAI_PORT_FILE (just run's file) would have
+// every in-process serve() here rewrite that file and try their live
+// port. child.testlib already strips it from CLI children; this is the
+// twin. withPortFile below puts it back for the tests that are about it.
+delete process.env.OLAI_PORT_FILE
+
 /** A port with something already listening on it, closed with the test. */
 const occupied = (): Promise<{ port: number; release: () => Promise<void> }> =>
   new Promise((resolve, reject) => {
@@ -180,7 +186,7 @@ test("the bound url is written to OLAI_PORT_FILE", async () => {
     const said = await withPortFile(file, () => run({ port: 0 }))
     const bound = String(findSaid(said, "serving")?.annotations.url)
     expect(bound).toMatch(url)
-    expect(fs.readFileSync(file, "utf8")).toBe(`${bound}\n`)
+    expect(fs.readFileSync(file, "utf8")).toBe(`${bound}\npid=${process.pid}\n`)
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
@@ -212,9 +218,28 @@ test("a remembered port that is taken is a fallback, and the file follows", asyn
     expect(bound).toMatch(url)
     expect(bound).not.toBe(`http://127.0.0.1:${taken.port}`)
     expect(findSaid(said, "port in use")?.annotations.asked).toBe(taken.port)
-    expect(fs.readFileSync(file, "utf8")).toBe(`${bound}\n`)
+    expect(fs.readFileSync(file, "utf8")).toBe(`${bound}\npid=${process.pid}\n`)
   } finally {
     await taken.release()
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("a port file that cannot be written is a failure, not a defect", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "olai-port-file-"))
+  const blocker = path.join(dir, "not-a-dir")
+  fs.writeFileSync(blocker, "x")
+  const file = path.join(blocker, "url")
+  try {
+    const failure = await withPortFile(file, () => run({ port: 0 })).then(
+      () => undefined,
+      (cause: unknown) => String(cause),
+    )
+    expect(failure).toBeDefined()
+    expect(failure).toContain("cannot write the bound url")
+    expect(failure).not.toContain("[object Object]")
+    expect(failure).not.toContain("faulted")
+  } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
 })

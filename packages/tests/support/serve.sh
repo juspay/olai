@@ -62,22 +62,29 @@ olai_serve() {
   local port=${PORT:-0}
   local port_file
   port_file=$(mktemp)
+  # Drop a previous section's URL so a failed boot cannot silently reuse it
+  # (`evidence.sh` calls this in a loop). Unset rather than empty: callers
+  # run `set -u` and should die naming the miss if we return without setting.
+  unset OLAI_URL
   OLAI_DIST_DIR="$root/packages/web/dist" OLAI_ACP_AGENT= \
     OLAI_PORT_FILE="$port_file" \
     bun "$root/packages/server/src/main.ts" web "$vault" --port "$port" \
     > "$log" 2>&1 &
   OLAI_SERVER=$!
-  # Fifteen seconds of quarter-seconds. A boot that never answers is left to
-  # the driver to fail on, with the log this wrote beside it: a readiness loop
-  # that exits non-zero here would report "the server did not start" for what
-  # is usually "the vault is not what you think it is".
+  # Fifteen seconds of quarter-seconds. A boot that never answers used to
+  # fall through with status 0 and leave OLAI_URL unset (or, from the
+  # second evidence section on, still holding the previous section's).
   for _ in $(seq 1 60); do
     if [ -s "$port_file" ]; then
-      OLAI_URL=$(tr -d '\n' < "$port_file")
+      OLAI_URL=$(head -n1 "$port_file")
       rm -f "$port_file"
       return 0
     fi
     sleep 0.25
   done
+  echo "the olai server never wrote its bound url." >&2
+  echo "server log ($log):" >&2
+  cat "$log" >&2 || true
   rm -f "$port_file"
+  return 1
 }

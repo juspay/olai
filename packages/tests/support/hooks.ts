@@ -530,10 +530,13 @@ export const stopOwnServer = async (world: OlaiWorld): Promise<void> => {
   live.delete(child);
   world.ownServer = undefined;
   // Bind the port ourselves until startOwnServer releases it, so nothing on
-  // the box can take the address the page is still pointed at. The hold is
-  // what closed the hole a `listen(0)` elsewhere used to walk into: the
-  // window between the kill and the child's own listen, where a hold has
-  // already been given up.
+  // the box can take the address during the kill. The hold covers kill →
+  // release, not release → the child's listen: startOwnServer lets the hold
+  // go and then spawns, and that window is open. A claimed band below the
+  // kernel's ephemeral range used to make a `listen(0)` elsewhere unable
+  // to land in it; ports are now OS-assigned from that range, and a
+  // collision is a hard restart failure (no retry on the fixed-port path).
+  // The bet is the width of the ephemeral pool, not a closed window.
   world.portHold = await holdPort(port);
 };
 

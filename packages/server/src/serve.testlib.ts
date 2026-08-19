@@ -30,6 +30,11 @@ import * as path from "node:path"
 
 import { serve } from "./serve.ts"
 
+// child.testlib strips OLAI_PORT_FILE from CLI children. This is the
+// in-process twin: a developer who exported just run's file would have
+// every withServe / encoding.test serve() rewrite it.
+delete process.env.OLAI_PORT_FILE
+
 /** The platform a real server needs: the CLI's own services (stdio, terminal,
  *  file system) and the static layer's (the file-response platform and ETags)
  *  — the same pair `main.ts` provides, so a test runs the stack the binary
