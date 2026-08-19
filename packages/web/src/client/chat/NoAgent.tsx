@@ -22,7 +22,7 @@ const AGENT_ENV = "OLAI_ACP_AGENT"
 export function NoAgent() {
   return (
     <div
-      class="flex-1 overflow-y-auto px-4 py-6 text-sm text-muted"
+      class="olai-scroll flex-1 overflow-y-auto px-4 py-6 text-sm text-muted"
       data-testid={TESTID.chatNoAgent}
     >
       <p class="m-0 mb-3 text-ink">No ACP agent is configured.</p>

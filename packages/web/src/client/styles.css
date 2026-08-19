@@ -116,31 +116,31 @@ html {
   border-color: color-mix(in srgb, var(--color-paper) 18%, transparent);
 }
 
-/* The month is a 7-column grid. A classic scrollbar appearing in this
- * column stole a strip and reflowed the days. Reserve the gutter on
- * desktop so the card never jumps; keep the bar thin and paper-on-ink
- * so it belongs to the spine rather than to the OS. Phone drawer is
- * left alone: its 44px day cells already spend the width. */
-.olai-dir-scroll {
+/* ONE overflow bar: thin, currentColour, gutter reserved on desktop so
+ * a classic scrollbar cannot steal a strip (the month's 7 cells, a
+ * conversation). Thumb follows the surface — paper on the spine, ink
+ * on the desk — rather than a second pair of hexes. Phone leaves the
+ * gutter: the drawer's 44px day cells already spend the width. */
+.olai-scroll {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--color-paper) 34%, transparent) transparent;
+  scrollbar-color: color-mix(in srgb, currentColor 34%, transparent) transparent;
 }
 
-.olai-dir-scroll::-webkit-scrollbar {
+.olai-scroll::-webkit-scrollbar {
   width: 0.5rem;
 }
 
-.olai-dir-scroll::-webkit-scrollbar-track {
+.olai-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.olai-dir-scroll::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--color-paper) 34%, transparent);
+.olai-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, currentColor 34%, transparent);
   border-radius: 999px;
 }
 
 @media (min-width: 48rem) {
-  .olai-dir-scroll {
+  .olai-scroll {
     scrollbar-gutter: stable;
   }
 }

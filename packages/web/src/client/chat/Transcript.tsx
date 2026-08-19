@@ -192,7 +192,7 @@ export function Transcript(props: { readonly chat: Chat }) {
 
   return (
     <div
-      class="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-2"
+      class="olai-scroll min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-2 text-ink"
       data-testid={TESTID.chatTranscript}
       ref={pane}
       onScroll={() => {

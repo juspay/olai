@@ -250,7 +250,7 @@ export function Sidebar(props: {
         </div>
 
         <div
-          class="olai-dir-scroll min-h-0 flex-1 overflow-y-auto p-4"
+          class="olai-scroll min-h-0 flex-1 overflow-y-auto p-4"
           data-testid={TESTID.sidebarBody}
           // Any navigation (day, outline, document) bubbles here and puts the
           // mobile drawer away. Folder folds stop propagation so a reader can
