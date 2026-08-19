@@ -125,11 +125,16 @@ Feature: Filtering the outline in place
 
   Scenario: The count line is measured against what the page holds, not what a preference left
     # THE DENOMINATOR, on the page where NOTHING is being held back — which is
-    # the case the scenario below cannot show. `hinges` matches one open row,
-    # so there is no held-back clause to read the second number against: the
+    # the case the scenario below cannot show. `hinges` matches one open row
+    # and neither finished one, so the line is the count and NOTHING ELSE: the
     # page draws eight rows, the line says ten, and ten is what the page HOLDS.
     # It used to be the rows that were left, which is where the arithmetic
     # broke the moment a match was held back as well.
+    #
+    # The reading is EXACT here, and that is half of what this scenario is for:
+    # asked as a substring it would go green against a bar that had appended a
+    # clause about matches nothing is holding back (review of #248, both
+    # reviewers). One element, one sentence, one comparison.
     Given I open the outline "house.olai"
     Then the outline has 10 rows
     When I hide the done nodes
@@ -195,7 +200,7 @@ Feature: Filtering the outline in place
     # A relative word at the other end of a range, and nothing here is
     # scheduled beyond today.
     When I filter the page by "date:tomorrow.."
-    Then the filter found "no matches"
+    Then the filter found "no matches of 10"
 
   Scenario: A word the relative vocabulary does not hold is refused
     # The same contract every unknown value is held to: `date:tomorrowish` is
@@ -217,7 +222,7 @@ Feature: Filtering the outline in place
     And the node "knobs" is not shown
     And the filter found "1 of 10"
     When I filter the page by '"hinges the pick"'
-    Then the filter found "no matches"
+    Then the filter found "no matches of 10"
     When I filter the page by "hinges the pick"
     Then the node "hinges" is a match
     And the filter found "1 of 10"
@@ -255,7 +260,7 @@ Feature: Filtering the outline in place
     And the node "knobs" is a match
     And the filter found "2 of 10"
     When I filter the page by "walnut or knobs"
-    Then the filter found "no matches"
+    Then the filter found "no matches of 10"
 
   Scenario: The three ways this grammar can be typed wrong are all refused
     # The refusal contract, extended to being typed wrong rather than asked

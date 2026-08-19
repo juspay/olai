@@ -38,9 +38,17 @@ export interface Counts {
   /** Every place the page holds, whatever this reader's preferences draw of
    *  it. The denominator, and the set the other two are counted inside. */
   readonly held: number
-  /** Matched, and NOT drawn, because this reader hides finished work. The one
-   *  hider there is; a second one would be a second field and a second clause,
-   *  never a lump sum, since the sentence's job is to say which. */
+  /**
+   * Matched, and NOT drawn, because this reader hides finished work. The one
+   * hider there is; a second one would be a second field and a second clause,
+   * never a lump sum, since the sentence's job is to say which.
+   *
+   * WHAT THE PREFERENCE TOOK OFF, which is a shade wider than "rows that store
+   * `done`": hiding a finished row takes its subtree with it
+   * (`../settings/done.ts`), so a match beneath one is counted here — hidden,
+   * and hidden BY this switch, which is what the clause names and where a
+   * reader who wants it back would go.
+   */
   readonly hiddenAsDone: number
 }
 

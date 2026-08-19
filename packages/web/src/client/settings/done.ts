@@ -63,10 +63,14 @@ export const visible = (rows: ReadonlyArray<Row>): ReadonlyArray<Row> =>
  * that says which file: the filter's count line reports the matches this
  * function took away as "hidden as done" (`../filter/count.ts`), and it arrives
  * at that number as the difference between the page and what comes back from
- * here. The LABEL is true only because that difference is finished work and
- * nothing else. A second reason to drop a row, added here, would quietly be
- * reported under the first one's name — so it belongs there as its own clause,
- * not inside this subtraction.
+ * here. What the label claims is exactly what this function does, and no more:
+ * these rows are the ones THIS PREFERENCE took off — a finished row, and the
+ * subtree that goes with it, which is why a match beneath a done ancestor is
+ * counted here and is honestly blamed on the switch that swept it away (the
+ * menu refuses to tick off a branch still holding unfinished TASKS, which is
+ * where that rule is kept). A second reason to drop a row, added here, would
+ * quietly be reported under this one's name — so it belongs there as its own
+ * clause, not inside this subtraction.
  *
  * IT IS THE PREFERENCE AND NOT THE ROWS that the identity is about, which is
  * worth being exact on: `withoutDone` is a `flatMap` and mints a new list
