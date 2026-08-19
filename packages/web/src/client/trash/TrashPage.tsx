@@ -86,7 +86,7 @@ export function TrashPage(props: {
       <header class="mb-8">
         <h1 class={`${PAGE_TITLE} italic text-ink`}>Trash</h1>
         <p class="m-0 mt-1 text-sm text-muted">
-          What was archived, kept whole. Put a row back and it returns where it
+          What was put away, kept whole. Put a row back and it returns where it
           came from, everything under it included.
         </p>
         {/* The PAGE's verb, and the only one here that is not about a row —
