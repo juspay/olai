@@ -766,9 +766,14 @@ The corner unit is the **risky one** — see
     ⌘K palette, an agent’s <code>search_nodes</code>, and the filter that
     narrows the page in front of you. The first three list what they found;
     the fourth takes rows away and leaves the rest standing where they live.
-    The two that list also open <strong>documents</strong>: a <code>.md</code>
-    or a saved page is a row of its own, matched by its name and the folder it
-    sits in — its prose stays prose, and the query language selects nodes.</p>
+    The two that list also find <strong>documents</strong>: a <code>.md</code>
+    or a saved page is a hit of its own, looked for in four places that line up
+    with a node’s one for one — what it is called, its path, the tags in its
+    prose, and <em>the prose itself</em>. Both kinds come back in one ranked
+    list, so a document whose title holds the word outranks a node that only
+    mentions it in a note. What a document does not have, it does not pretend
+    to: an operator over a field it lacks — <code>is:done</code>,
+    <code>has:date</code> — selects none of them.</p>
     <div class="cols">
       <div class="panel">
         <div class="file">/house.olai?q=%23home+OR+alcove</div>
@@ -999,6 +1004,14 @@ The corner unit is the **risky one** — see
     not a reference — a mirror is a view of the thing rather than a remark
     about it — and neither is an ordering edge, which the page already draws
     both ways.</p>
+    <p><strong>So does a document.</strong> A <em>Referred to by …</em> line
+    under its body, on the same terms: the node that <em>attaches</em> it with
+    <code>doc</code>, the note that <em>links</em> it, and the other document
+    whose prose does. It names the record rather than the file the record sits
+    in — “<em>install the cabinets</em>”, not “<em>house.olai</em>” — because a
+    link is always some record’s. A link written at one of the document’s own
+    headings counts: whoever wrote <code>brief.md#scope</code> is talking about
+    <code>brief.md</code>.</p>
     <p><strong>And the sidebar starts files as well as listing them.</strong>
     <em>+ New outline</em> and <em>+ New document</em> ask for a path, relative
     and with its own extension, judged by exactly the rules an agent’s
