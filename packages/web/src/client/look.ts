@@ -13,11 +13,6 @@
 export const PAGE_TITLE =
   "m-0 font-serif text-4xl font-medium italic tracking-tight md:text-5xl"
 
-/** The column a lone page is set in — a reading measure, centred in the
- *  sheet. Split panes still each get one; a row that ellipsizes is a line,
- *  and a line that has a measure is a line that can be read. */
-export const PAGE_COL = "mx-auto w-full max-w-3xl"
-
 /** The word in the bar. Colour is the header's (`text-paper` on ink);
  *  this is only the face. */
 export const WORDMARK =

@@ -34,7 +34,6 @@ import { followed, followedSplit, useGo, useHere, useRouter } from "../router.ts
 import { filterOf, hrefOf, narrowable, narrowedTo, samePage } from "../routes.ts"
 import { panesOf } from "../workspace.ts"
 import { visibleIn } from "../settings/done.ts"
-import { PAGE_COL } from "../look.ts"
 import { TESTID } from "../testids.ts"
 import { TrashPage } from "../trash/TrashPage.tsx"
 
@@ -113,7 +112,6 @@ export function PageView(props: {
         go(next)
       }}
     >
-      <div class={PAGE_COL}>
       <NarrowedProvider narrowed={narrowing}>
         <Show when={narrowing.drawn().kind !== "none"}>
           <FilterBar narrowing={narrowing} onType={narrow} />
@@ -172,7 +170,6 @@ export function PageView(props: {
           )}
         </Show>
       </NarrowedProvider>
-      </div>
     </main>
   )
 }

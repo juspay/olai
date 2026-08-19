@@ -82,7 +82,7 @@ export function TrashPage(props: {
   const narrowed = useNarrowed()
 
   return (
-    <div data-testid={TESTID.trashPage} class="mx-auto max-w-3xl">
+    <div data-testid={TESTID.trashPage}>
       <header class="mb-8">
         <h1 class={`${PAGE_TITLE} text-ink`}>Trash</h1>
         <p class="m-0 mt-1 text-sm text-muted">
