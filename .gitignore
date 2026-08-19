@@ -27,3 +27,4 @@ node_modules
 # docs/, per .apm/skills/lowy-electricity/SKILL.md.
 /debates
 docs/orchestrator/lanes.olai
+/.claude/settings.local.json
