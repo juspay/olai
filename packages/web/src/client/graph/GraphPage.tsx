@@ -54,11 +54,11 @@ import { createMemo, createSignal, For, Show } from "solid-js"
 import { useDerived } from "../derived.tsx"
 import { useNarrowed } from "../filter/narrowed.tsx"
 import { only } from "../narrow.ts"
-import type { Around } from "../page.ts"
+import { type Around, focusOf } from "../page.ts"
 import { NotFound } from "../NotFound.tsx"
+import { Segmented } from "../Segmented.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
-import { TARGET } from "../touch.ts"
 import { ancestry, Canvas } from "./Canvas.tsx"
 import { placed, sameShape } from "./layout.ts"
 import { EDGE_LOOKS } from "./look.ts"
@@ -102,9 +102,11 @@ function Shape(props: GraphPageProps) {
    *  horizon that is only meaningful beside it. */
   const centre = () => (props.around === undefined ? undefined : only(props.around, "node"))
 
-  /** The node the page is ABOUT, read off that one resolution — the accent on
-   *  a dot, and the dot the caption falls back to. */
-  const focus = (): string | undefined => centre()?.shows.node.id
+  /** The node the page is ABOUT — the accent on a dot, and the dot the caption
+   *  falls back to. The page model's own derivation (`../page.ts`), because the
+   *  filter reads the same one and a second expression here would be the id a
+   *  prune protects and the id wearing the accent free to differ. */
+  const focus = (): string | undefined => focusOf(props.around)
 
   /** ...and how far it reaches, as the attribute the page publishes. Absent on
    *  the corpus-wide reading rather than defaulted: there is no centre for a
@@ -238,36 +240,40 @@ const nothing = (node: Extract<Around, { kind: "node" }> | undefined): string =>
 /**
  * How far the reading reaches, as one button per value.
  *
- * The values are the FORMAT's closed list (`@olai/format`'s `HOPS`), read
- * rather than written out here — the same arrangement the legend below has with
+ * The STRIP is `../Segmented.tsx` — this app's one "choose between two or three
+ * named things" control, which the preferences panel already draws three of. It
+ * was hand-rolled here for a release and that was a second strip with its own
+ * `aria-pressed` spelled its own way: the two would drift, and nothing would
+ * fail while they did.
+ *
+ * The VALUES are the format's closed list (`@olai/format`'s `HOPS`), read
+ * rather than written out — the same arrangement the legend below has with
  * `WAYS`, and for the same reason: a third horizon added where the reading
- * lives would otherwise be a control that went on offering two.
+ * lives would otherwise be a control that went on offering two. They cross the
+ * strip as TEXT because that is what a choice is to it, and they come back
+ * through the same list rather than through a `parseInt`: what the reader
+ * pressed is one of these values or the press meant nothing.
  */
 function Horizon(props: {
   readonly hops: Hops
   readonly onPick: (hops: Hops) => void
 }) {
+  const choices = HOPS.map((hops) => ({
+    value: String(hops),
+    label: hops === 1 ? "1 hop" : `${hops} hops`,
+  }))
+
   return (
-    <div
-      class="flex items-center gap-1 text-xs text-muted"
-      role="group"
-      aria-label="how far the graph reaches"
-    >
-      <For each={HOPS}>
-        {(hops) => (
-          <button
-            type="button"
-            class={`${TARGET} md:min-h-0 cursor-pointer rounded border border-rule/70 bg-transparent px-2 py-0.5 hover:bg-rule/50 hover:text-ink aria-pressed:border-accent aria-pressed:bg-accent/15 aria-pressed:text-accent`}
-            data-testid={TESTID.graphHorizon}
-            data-hops={String(hops)}
-            aria-pressed={props.hops === hops}
-            onClick={() => props.onPick(hops)}
-          >
-            {hops === 1 ? "1 hop" : `${hops} hops`}
-          </button>
-        )}
-      </For>
-    </div>
+    <Segmented
+      choices={choices}
+      value={String(props.hops)}
+      testid={TESTID.graphHorizon}
+      label="how far the graph reaches"
+      onPick={(value) => {
+        const asked = HOPS.find((hops) => String(hops) === value)
+        if (asked !== undefined) props.onPick(asked)
+      }}
+    />
   )
 }
 

@@ -14,6 +14,16 @@
  * is about MEANING rather than about storage is asked, and there are four of
  * them.
  *
+ * IT READS THEM FROM EITHER END. {@link backlinksOf} answers "what refers to
+ * this node", which is what a page and `read_node` ask; {@link referencesOf}
+ * answers "what does this record refer to", which the reference GRAPH needs and
+ * no index can be asked for. The two are here together because the rulings
+ * below are what CHANGES — a fourth way, a fifth thing that is deliberately not
+ * a reference — and a second module holding half of them is a module that goes
+ * stale silently. `backlinks.test.ts` holds the pair to each other over a whole
+ * corpus, in both directions, which is the only statement of "these agree" that
+ * survives somebody editing one of them.
+ *
  * ## What counts, and what deliberately does not
  *
  * **A `see` counts.** It is the format's own free cross-reference — the one
@@ -59,8 +69,14 @@
 
 import { Schema } from "effect"
 
-import { byCorpus, type Derived } from "./derive.ts"
-import { isArchived, isRegular, type Located, type LocatedRegular } from "./node.ts"
+import { byCorpus, type Derived, mentionsOf, nodeNamed } from "./derive.ts"
+import {
+  isArchived,
+  isRegular,
+  type Located,
+  type LocatedRegular,
+  targetsOf,
+} from "./node.ts"
 
 /**
  * How one record refers to another: an edge somebody wrote with `set_see`, or a
@@ -102,6 +118,21 @@ export interface Backlink {
 /** The answer for a node nobody talks about, which is most of them: ONE list,
  *  shared, for {@link targetsOf}'s reason — a page asks this per frame. */
 const NOTHING_REFERS: ReadonlyArray<Backlink> = []
+
+/** One node a record refers to, and how — {@link Backlink} read the other way
+ *  round: that one names the REFERRER, this one names the target. */
+export interface Outgoing {
+  readonly to: string
+  readonly ways: ReadonlyArray<Way>
+}
+
+/** The answer for a record that refers to nothing, which is most of them. */
+const REFERS_TO_NOTHING: ReadonlyArray<Outgoing> = []
+
+/** The ways one thing refers, said in {@link WAYS} order — the ONE place that
+ *  order becomes an answer's order, spent by both directions below. */
+const inOrder = (found: ReadonlySet<Way>): ReadonlyArray<Way> =>
+  WAYS.filter((way) => found.has(way))
 
 /**
  * Everything that refers to `id`, in corpus order.
@@ -146,9 +177,55 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
 
   if (found.size === 0) return NOTHING_REFERS
   return [...found]
-    .map(([at, ways]): Backlink => ({ at, ways: WAYS.filter((way) => ways.has(way)) }))
+    .map(([at, ways]): Backlink => ({ at, ways: inOrder(ways) }))
     // Sorted rather than merged: both indexes promise corpus order on their
     // own, but this reads up to two of them per placement and the union of
     // several ordered lists is not one. A referrer count is a handful.
     .sort((one, other) => byCorpus(one.at, other.at))
+}
+
+/**
+ * ...and everything `at` refers TO — {@link backlinksOf} read forwards, under
+ * every ruling in this file's header.
+ *
+ * It reads the RECORD rather than an index, which is what makes it the one
+ * reading no reverse table can answer, and it is not a second opinion for the
+ * same reason both are in this file: the rulings are stated once above and
+ * spent twice below.
+ *
+ * CANONICAL AT THE FAR END: a `see` or an `@id` naming a placement is a
+ * reference to the node standing at it ({@link nodeNamed}), which is how the
+ * reverse reading files it — so the two answers are about the same pairs.
+ *
+ * A record never refers to ITSELF and an id nothing claims is not a reference,
+ * both of which are the reverse reading's rules read forwards. A target in an
+ * ARCHIVE is left out, which is #226 asked at the other end of the arrow: the
+ * reverse reading drops an archived REFERRER, and this drops an archived
+ * referent, so nothing either of them answers reaches into the Trash.
+ *
+ * The `see` list comes through {@link targetsOf} rather than off the field, so
+ * the one table saying which fields point at ids is the one table this reads —
+ * the same reason the reverse reading asks the index rather than the record.
+ */
+export const referencesOf = (
+  derived: Derived,
+  at: LocatedRegular,
+): ReadonlyArray<Outgoing> => {
+  let found: Map<string, Set<Way>> | undefined
+  const file = (named: string, way: Way): void => {
+    const target = nodeNamed(derived, named)
+    if (target === undefined) return
+    if (target.node.id === at.node.id || isArchived(target.file)) return
+    const ways = (found ??= new Map()).get(target.node.id)
+    if (ways === undefined) found.set(target.node.id, new Set([way]))
+    else ways.add(way)
+  }
+
+  for (const [field, named] of targetsOf(at.node)) {
+    if (field === "see") file(named, "see")
+  }
+  for (const word of mentionsOf(at.node)) file(word, "mention")
+
+  if (found === undefined) return REFERS_TO_NOTHING
+  return [...found].map(([to, ways]): Outgoing => ({ to, ways: inOrder(ways) }))
 }

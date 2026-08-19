@@ -675,8 +675,10 @@ export const TESTID = {
    *  bare title cannot say. It is always drawn, so nothing on the page moves
    *  when a pointer arrives. */
   graphCaption: "graph-caption",
-  /** How far the reading reaches, as a control — one button per value in the
-   *  format's closed list; `data-hops` is which, `aria-pressed` which is on. */
+  /** How far the reading reaches, as a control — one segment per value in the
+   *  format's closed list, drawn by the app's one segmented strip
+   *  (`Segmented.tsx`), so `data-value` is which and `aria-pressed` says which
+   *  is in force. */
   graphHorizon: "graph-horizon",
   /** The legend's `see` row, and the same for a mention. */
   graphLegendSee: "graph-legend-see",

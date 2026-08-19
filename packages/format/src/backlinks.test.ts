@@ -4,13 +4,21 @@
  * The INDEXES are held to `derive` by `./patch.test.ts`'s oracle; what is
  * asserted here is the meaning laid over them: which of the things a record can
  * do counts as a reference, which ids a node answers to, and who is left out.
+ *
+ * AND THE SAME RULINGS READ FORWARDS. `referencesOf` answers what a record
+ * refers TO, which no reverse index can be asked, and the last test in this
+ * file is the whole of why it lives beside `backlinksOf` rather than beside
+ * the graph that needs it: over a corpus holding one of everything the rulings
+ * are about, the two readings are the same set of pairs. That is the only form
+ * of "these agree" that survives somebody editing one of them.
  */
 
 import { expect, test } from "bun:test"
 
-import { backlinksOf } from "./backlinks.ts"
+import { backlinksOf, referencesOf } from "./backlinks.ts"
 import { derive, type Derived } from "./derive.ts"
 import { setOf } from "./fixtures.testlib.ts"
+import { isRegular } from "./node.ts"
 
 const viewOf = (files: Record<string, string>): Derived => derive(setOf(files).nodes)
 
@@ -197,4 +205,81 @@ test("a word inside another word is not a mention", () => {
       `{"id":"mail","ord":"b","title":"write to sam@herbs.example","desc":"filed under #herbs"}`,
   })
   expect(backlinksOf(view, "herbs")).toEqual([])
+})
+
+// ── the same rulings, read forwards ──────────────────────────────────
+
+/** A corpus with one of everything above at once — the two readings are
+ *  compared over it, so anything a ruling covers is in the comparison. */
+const BOTH_WAYS = {
+  "garden.olai": [
+    `{"id":"garden","ord":"a0","title":"garden"}`,
+    `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed"}`,
+    `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil, beside @herbs"}`,
+    `{"id":"frames","parent":"garden","ord":"a1","title":"the cold frames","see":["basil"]}`,
+    `{"id":"itself","parent":"garden","ord":"a2","title":"@itself and @nobody","see":["itself"]}`,
+    `{"id":"shed","parent":"garden","ord":"a3","title":"the shed","see":["retired"]}`,
+  ].join("\n"),
+  "house.olai": [
+    `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
+    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","see":["herbs"]}`,
+    `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","desc":"after @herbs is in","after":["order"]}`,
+    `{"id":"both","parent":"kitchen","ord":"a3","title":"water @herbs","see":["herbs"]}`,
+    `{"id":"kitchen-herbs","parent":"kitchen","ord":"a4","mirror":"herbs"}`,
+    `{"id":"through","parent":"kitchen","ord":"a5","title":"trim @kitchen-herbs","see":["kitchen-herbs"]}`,
+  ].join("\n"),
+  "Archive.olai": `{"id":"retired","ord":"a0","title":"the old bed, see @herbs","see":["herbs"]}`,
+}
+
+test("a record refers to nothing when it names nothing, itself, or a word nobody claims", () => {
+  const view = viewOf(BOTH_WAYS)
+  const itself = view.byId.get("itself")!
+  expect(isRegular(itself) ? referencesOf(view, itself) : ["not a node"]).toEqual([])
+})
+
+test("the forward reading and the backward one are about the same pairs", () => {
+  const view = viewOf(BOTH_WAYS)
+
+  // Every (referrer, target, way) the FORWARD reading finds, over every live
+  // record. An ARCHIVED one is skipped on both sides rather than inside
+  // `referencesOf`: that reading is asked about a record somebody named, and
+  // the one caller who can name an archived one is a reader looking at a node
+  // that was put away — whose page still says what it points at, exactly as
+  // `backlinksOf` still says what points at it. Which records a WALK reaches is
+  // the graph's own rule (`./graph.test.ts`), and it never reaches into the
+  // Trash.
+  const forward = new Set<string>()
+  for (const at of view.nodes) {
+    if (!isRegular(at) || at.file === "Archive.olai") continue
+    for (const { to, ways } of referencesOf(view, at)) {
+      for (const way of ways) forward.add(`${at.node.id} ${way} ${to}`)
+    }
+  }
+
+  // ...and every one the BACKWARD reading finds. Asked of the NODES, never of
+  // a mirror's id: `backlinksOf` answers about whatever a placement stands for
+  // and files the pair under the id it was asked with, so asking about both
+  // ends of a chain would be one relationship counted twice under two names.
+  // The forward reading names the canonical end, which is the node.
+  const backward = new Set<string>()
+  for (const at of view.nodes) {
+    if (!isRegular(at)) continue
+    // AN ARCHIVED TARGET is the one pair the two readings disagree about, and
+    // it is stated rather than papered over: `backlinksOf` asked about a node
+    // that was put away still answers with its live referrers, because it is a
+    // question about that node's own page. The forward reading leaves it out,
+    // because what asks it is a picture that may not grow a limb into the
+    // Trash — so the pairs landing on `retired` are the backward reading's
+    // alone.
+    if (at.file === "Archive.olai") continue
+    for (const back of backlinksOf(view, at.node.id)) {
+      for (const way of back.ways) backward.add(`${back.at.node.id} ${way} ${at.node.id}`)
+    }
+  }
+
+  expect([...backward].sort()).toEqual([...forward].sort())
+  // ...and the exclusion above is real rather than vacuous: something live does
+  // point into the archive, and the forward reading does not have it.
+  expect(backlinksOf(view, "retired").map((back) => back.at.node.id)).toEqual(["shed"])
+  expect([...forward].some((pair) => pair.endsWith(" retired"))).toBe(false)
 })

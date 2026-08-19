@@ -21,17 +21,18 @@
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
+import { GRAPH_AROUND, graphAround } from "./door.ts"
 
 export function GraphLink(props: { readonly id: string }) {
   return (
     <div class="mt-1 flex flex-wrap items-center gap-1">
       <Link
-        route={{ kind: "graph", focus: props.id }}
+        route={graphAround(props.id)}
         class={`${TARGET} md:min-h-0 inline-flex items-center rounded px-1.5 py-0.5 text-xs text-muted no-underline hover:bg-rule/50 hover:text-ink`}
         testid={TESTID.nodeGraphLink}
-        label={`draw the reference graph around this node`}
+        label="draw the reference graph around this node"
       >
-        Reference graph
+        {GRAPH_AROUND}
       </Link>
     </div>
   )

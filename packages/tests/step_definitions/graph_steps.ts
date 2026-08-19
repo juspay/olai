@@ -191,7 +191,7 @@ Then(
       "the graph page",
     );
     await this.expectAttribute(
-      `${GRAPH_HORIZON}${attr("data-hops", String(hops))}`,
+      `${GRAPH_HORIZON}${attr("data-value", String(hops))}`,
       "aria-pressed",
       "true",
       `the ${hops}-hop control`,
@@ -203,7 +203,7 @@ When(
   "I set the graph horizon to {int} hops",
   async function (this: OlaiWorld, hops: number) {
     await this.press(
-      this.page.locator(`${GRAPH_HORIZON}${attr("data-hops", String(hops))}`).first(),
+      this.page.locator(`${GRAPH_HORIZON}${attr("data-value", String(hops))}`).first(),
     );
     await this.waitForFrame();
   },

@@ -1945,7 +1945,7 @@ const SECTIONS = {
     // TWO HOPS: `labels` sees `cuttings`, which mentions `herbs` — so it is one
     // ring further out and is not on the picture above at all.
     await wearTheme(page, "chalk")
-    await page.locator(`${GRAPH_HORIZON}[data-hops="2"]`).first().click()
+    await page.locator(`${GRAPH_HORIZON}[data-value="2"]`).first().click()
     await page.waitForTimeout(DRAWN)
     console.log(`  two hops out:   ${await graphNodes(page)}`)
     console.log(`  the address is: ${await page.evaluate(() => location.pathname + location.search)}`)

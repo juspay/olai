@@ -1,29 +1,25 @@
 /**
- * The reference graph, and the one promise that keeps it honest: the forward
- * reading and the backward one are about the same pairs.
+ * The WALK: which nodes a neighbourhood reaches, which arrows are drawn between
+ * them, and what a filter leaves of both.
  *
- * `./backlinks.test.ts` holds every ruling about what a reference IS. Nothing
- * here restates one — what is asserted is that {@link referencesOf} inherits
- * all of them, which is stated once, over a whole corpus, in both directions.
- * That is the only form of "these two agree" that cannot go stale while
- * somebody edits one of them, and it is why the rulings below are spot-checked
- * rather than re-derived: each of those tests would pass against a forward
- * reading that had quietly stopped agreeing, and the symmetry test would not.
+ * What an edge IS is not tested here and is not decided here —
+ * `./backlinks.test.ts` holds every ruling, in both directions, including the
+ * whole-corpus promise that the two readings are about the same pairs. What the
+ * rulings get here is a SPOT-CHECK apiece: the point of those cases is that the
+ * walk spends the rulings rather than reinventing them, so each is one line
+ * asserting the picture obeys a rule argued elsewhere.
  */
 
 import { expect, test } from "bun:test"
 
 import { setOf } from "./fixtures.testlib.ts"
-import { backlinksOf } from "./backlinks.ts"
 import { derive } from "./derive.ts"
-import { isRegular } from "./node.ts"
 import {
   type Graph,
   graphOf,
   keepingGraph,
   matchedInGraph,
   placesInGraph,
-  referencesOf,
 } from "./graph.ts"
 
 const viewOf = (files: Record<string, string>) => derive(setOf(files).nodes)
@@ -60,54 +56,6 @@ const edgesOf = (graph: Graph): ReadonlyArray<string> =>
 
 const drawnIn = (graph: Graph): ReadonlyArray<string> =>
   graph.nodes.map((node) => `${node.at.node.id}@${node.hops}`)
-
-// ── the promise ──────────────────────────────────────────────────────
-
-test("the forward reading and the backward one are about the same pairs", () => {
-  const derived = viewOf(HOUSE)
-
-  // Every (referrer, target, way) the FORWARD reading finds, over every live
-  // record. An ARCHIVED one is skipped on both sides below rather than inside
-  // `referencesOf`: that reading is asked about a record somebody named, and
-  // the one caller who can name an archived one is a reader zooming a node that
-  // was put away — whose page still says what it points at, exactly as
-  // `backlinksOf` still says what points at it. Which records a WALK reaches is
-  // the graph's own rule, and it never reaches into the Trash.
-  const forward = new Set<string>()
-  for (const at of derived.nodes) {
-    if (!isRegular(at) || at.file === "Archive.olai") continue
-    for (const { to, ways } of referencesOf(derived, at)) {
-      for (const way of ways) forward.add(`${at.node.id} ${way} ${to}`)
-    }
-  }
-
-  // ...and every one the BACKWARD reading finds. Asked of the NODES, never of
-  // a mirror's id: `backlinksOf` answers about whatever a placement stands for
-  // and files the pair under the id it was asked with, so asking about both
-  // ends of a chain would be one relationship counted twice under two names.
-  // The forward reading names the canonical end, which is the node.
-  const backward = new Set<string>()
-  for (const at of derived.nodes) {
-    if (!isRegular(at)) continue
-    // AN ARCHIVED TARGET is the one pair the two readings disagree about, and
-    // it is stated here rather than papered over: `backlinksOf` asked about a
-    // node that was put away still answers with its live referrers, because it
-    // is a question about that node's own page. The graph leaves it out at
-    // both ends — a picture may not grow a limb into the Trash — so the pairs
-    // landing on `retired` are the backward reading's alone.
-    if (at.file === "Archive.olai") continue
-    for (const back of backlinksOf(derived, at.node.id)) {
-      for (const way of back.ways) backward.add(`${back.at.node.id} ${way} ${at.node.id}`)
-    }
-  }
-
-  expect([...backward].sort()).toEqual([...forward].sort())
-  // ...and the exclusion above is real rather than vacuous: something live does
-  // point into the archive, and neither the graph nor the forward reading has
-  // it.
-  expect(backlinksOf(derived, "retired").map((back) => back.at.node.id)).toEqual(["shed"])
-  expect([...forward].some((pair) => pair.endsWith(" retired"))).toBe(false)
-})
 
 // ── what a neighbourhood is ──────────────────────────────────────────
 
@@ -199,12 +147,6 @@ test("what is put away is at neither end — the centre included", () => {
     nodes: [],
     edges: [],
   })
-})
-
-test("a record never refers to itself, and a word nothing claims is not an edge", () => {
-  const derived = viewOf(HOUSE)
-  const itself = derived.byId.get("itself")!
-  expect(isRegular(itself) ? referencesOf(derived, itself) : []).toEqual([])
 })
 
 // ── the corpus-wide reading ──────────────────────────────────────────

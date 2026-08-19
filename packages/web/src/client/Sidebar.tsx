@@ -93,6 +93,7 @@ import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
 import { NewOutline } from "./outline/NewOutline.tsx"
 import { ROW_TESTID, routeTo } from "./file/kinds.ts"
+import { WHOLE_GRAPH, WHOLE_GRAPH_ROUTE } from "./graph/door.ts"
 import { Glyph } from "./file/icons.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
@@ -415,12 +416,12 @@ function GraphOfIt() {
 
   return (
     <Link
-      route={{ kind: "graph", focus: null }}
+      route={WHOLE_GRAPH_ROUTE}
       class={`${ENTRY} mt-4 text-muted`}
       testid={TESTID.graphLink}
       current={router.route().kind === "graph"}
     >
-      Graph
+      {WHOLE_GRAPH}
     </Link>
   )
 }

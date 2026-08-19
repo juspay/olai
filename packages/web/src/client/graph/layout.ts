@@ -134,7 +134,11 @@ export const placed = (graph: Graph): Placement => {
   // index, so the run starts clustered and two nodes never start coincident.
   // Coincident bodies are the one case a force layout has to jiggle its way out
   // of, and jiggling is where its randomness is spent.
-  const bodies: ReadonlyArray<Body> = graph.nodes.map((node, index) => {
+  // MUTABLE, and declared so: the simulation writes `x` / `y` / `vx` / `vy`
+  // into these on every tick. A `ReadonlyArray` here needed two casts to hand
+  // the same value to `forceSimulation`, which is a type saying the opposite of
+  // what the value is for.
+  const bodies: Array<Body> = graph.nodes.map((node, index) => {
     const toward = anchors.get(node.at.file)!
     const turn = (index * GOLDEN) % (Math.PI * 2)
     return {
@@ -146,15 +150,17 @@ export const placed = (graph: Graph): Placement => {
     }
   })
 
-  const links: ReadonlyArray<SimulationLinkDatum<Body>> = graph.edges.map((edge) => ({
+  // ...and so are these: `forceLink` replaces each `source` / `target` id with
+  // the body it resolved to.
+  const links: Array<SimulationLinkDatum<Body>> = graph.edges.map((edge) => ({
     source: edge.from,
     target: edge.to,
   }))
 
-  forceSimulation(bodies as Array<Body>)
+  forceSimulation(bodies)
     .force(
       "link",
-      forceLink<Body, SimulationLinkDatum<Body>>(links as Array<SimulationLinkDatum<Body>>)
+      forceLink<Body, SimulationLinkDatum<Body>>(links)
         .id((body) => body.id)
         .distance(LINK_DISTANCE)
         .strength(LINK_STRENGTH),

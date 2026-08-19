@@ -39,7 +39,7 @@ import { LAYER } from "../layer.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
 import { Row } from "./Row.tsx"
-import { Segmented } from "./Segmented.tsx"
+import { Segmented } from "../Segmented.tsx"
 import { TESTID } from "../testids.ts"
 import { FontSelect } from "../theme/FontSelect.tsx"
 import { currentTypeface } from "../theme/fontState.ts"
@@ -105,6 +105,7 @@ export function Panel(props: {
           by looking rather than by reading the option. */}
       <Row label="Size" pref="size" hint={currentTypeSize().hint}>
         <Segmented
+          testid={TESTID.prefsChoice}
           choices={SIZE_CHOICES}
           value={currentSize()}
           onPick={(name) => {
@@ -116,6 +117,7 @@ export function Panel(props: {
 
       <Row label="Notes" pref="density" hint={densityHint()}>
         <Segmented
+          testid={TESTID.prefsChoice}
           choices={DENSITY_CHOICES}
           value={density()}
           onPick={setDensity}
@@ -124,6 +126,7 @@ export function Panel(props: {
 
       <Row label="Done" pref="done" hint={doneHint()}>
         <Segmented
+          testid={TESTID.prefsChoice}
           choices={DONE_CHOICES}
           value={doneHidden() ? "hidden" : "visible"}
           onPick={(value) => setDoneHidden(value === "hidden")}

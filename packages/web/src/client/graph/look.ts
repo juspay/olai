@@ -39,9 +39,22 @@ export interface EdgeLook {
   /** The legend's words — a phrase about the RELATION, the way
    *  `../backlinks/way.ts`'s labels are, read along the arrow: "sees". */
   readonly label: string
-  /** The stroke, as one theme-token utility. Never a hex: a colour written
-   *  here would be right in one palette out of fifteen. */
+  /**
+   * The line's ink and its ARROWHEAD's, as theme-token utilities — one pair on
+   * one record, because they are one fact ("what colour is this kind of
+   * reference drawn in") and a side table beside this one was that fact held
+   * together by a comment.
+   *
+   * Two literal fields rather than one token name the two are built from, and
+   * that is Tailwind's constraint rather than a preference: the scanner emits
+   * the classes it can SEE, so a `stroke-${ink}` template would emit nothing
+   * and the arrows would have no colour at all.
+   *
+   * Never a hex either way: a colour written here would be right in one palette
+   * out of fifteen.
+   */
   readonly stroke: string
+  readonly arrowFill: string
   /** `stroke-dasharray`, or `undefined` for a solid line. A raw attribute
    *  rather than a utility because Tailwind has none for it, and a dash pattern
    *  is a length in the SVG's own units rather than a token. */
@@ -59,6 +72,7 @@ const LOOK: Record<Way, EdgeLook> = {
     way: "see",
     label: "sees",
     stroke: "stroke-accent",
+    arrowFill: "fill-accent",
     dashes: undefined,
     arrow: "graph-arrow-see",
     testid: TESTID.graphLegendSee,
@@ -67,17 +81,11 @@ const LOOK: Record<Way, EdgeLook> = {
     way: "mention",
     label: "mentions",
     stroke: "stroke-muted",
+    arrowFill: "fill-muted",
     dashes: "6 5",
     arrow: "graph-arrow-mention",
     testid: TESTID.graphLegendMention,
   },
-}
-
-/** The arrowhead's fill per kind — beside the stroke it caps, so the pair
- *  cannot be edited apart. */
-export const ARROW_FILL: Record<Way, string> = {
-  see: "fill-accent",
-  mention: "fill-muted",
 }
 
 /**

@@ -23,11 +23,13 @@
  *   - what is put away is on the Trash and nowhere else (#226), so an archived
  *     record is at neither end.
  *
- * What is new is {@link referencesOf}: the same rulings read FORWARDS, which
- * `backlinksOf` cannot be asked for. It is not a second opinion and it is not
- * asserted to be one — `graph.test.ts` holds the two to each other over a whole
- * corpus, in both directions, which is the only statement of "these agree" that
- * cannot go stale while somebody edits one of them.
+ * The FORWARD reading this needs — what does one record refer to, which
+ * `backlinksOf` cannot be asked — lives THERE too, as `referencesOf`. It was
+ * here for one release and that was the same axis encapsulated twice: the
+ * rulings are what change (a fourth way, a fifth thing that is not a
+ * reference), and a module holding half of them is a module that goes stale
+ * silently. What is left here is the other axis entirely — how far a picture
+ * of those references reaches, and what a corpus-wide one is.
  *
  * ## Scoped, because a corpus-wide picture answers nothing
  *
@@ -47,9 +49,9 @@
  * you have to ask for by name.
  */
 
-import { backlinksOf, type Way, WAYS } from "./backlinks.ts"
-import { byCorpus, type Derived, mentionsOf, nodeNamed } from "./derive.ts"
-import { isArchived, isRegular, type LocatedRegular, targetsOf } from "./node.ts"
+import { backlinksOf, referencesOf, type Way } from "./backlinks.ts"
+import { byCorpus, type Derived } from "./derive.ts"
+import { isArchived, isRegular, type LocatedRegular } from "./node.ts"
 import type { Selected } from "./filter.ts"
 
 /**
@@ -113,61 +115,6 @@ export interface Graph {
 /** A reading with nothing in it — ONE value, shared, for the frames and the
  *  addresses that produce one. */
 export const NOTHING_DRAWN_GRAPH: Graph = { nodes: [], edges: [] }
-
-/** One node this record refers to, and how. {@link Backlink} read the other way
- *  round: that one names the REFERRER, this one names the target. */
-export interface Outgoing {
-  readonly to: string
-  readonly ways: ReadonlyArray<Way>
-}
-
-/** The answer for a record that refers to nothing, which is most of them. */
-const REFERS_TO_NOTHING: ReadonlyArray<Outgoing> = []
-
-/**
- * Everything `at` refers to — {@link backlinksOf} read forwards, under the same
- * rulings.
- *
- * CANONICAL AT THE FAR END: a `see` or an `@id` naming a placement is a
- * reference to the node standing at it ({@link nodeNamed}), which is exactly
- * how the reverse reading files it — so the two answers are about the same
- * pairs and `graph.test.ts` can hold them to each other.
- *
- * A record never refers to ITSELF, an id nothing claims is not a reference, and
- * a target in an archive is left out. The first two are the reverse reading's
- * own rules; the third is #226 asked at the other end of the arrow, and it is
- * what keeps a graph from growing a limb into the Trash.
- *
- * The `see` list is read through {@link targetsOf} rather than off the field,
- * so the one table that says which fields point at ids is the one table this
- * reads — the same reason the reverse reading asks the index rather than the
- * record.
- */
-export const referencesOf = (
-  derived: Derived,
-  at: LocatedRegular,
-): ReadonlyArray<Outgoing> => {
-  let found: Map<string, Set<Way>> | undefined
-  const file = (named: string, way: Way): void => {
-    const target = nodeNamed(derived, named)
-    if (target === undefined) return
-    if (target.node.id === at.node.id || isArchived(target.file)) return
-    const ways = (found ??= new Map()).get(target.node.id)
-    if (ways === undefined) found.set(target.node.id, new Set([way]))
-    else ways.add(way)
-  }
-
-  for (const [field, named] of targetsOf(at.node)) {
-    if (field === "see") file(named, "see")
-  }
-  for (const word of mentionsOf(at.node)) file(word, "mention")
-
-  if (found === undefined) return REFERS_TO_NOTHING
-  return [...found].map(([to, ways]): Outgoing => ({
-    to,
-    ways: WAYS.filter((way) => ways.has(way)),
-  }))
-}
 
 /**
  * What a reading was asked for — TWO readings and not one with an optional

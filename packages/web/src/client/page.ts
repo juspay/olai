@@ -454,16 +454,23 @@ export const drawnBy = (
     return { kind: "trash", files: page.files, groups: archivesOf(derived, page) }
   }
   if (page.kind === "graph") {
-    return { kind: "graph", focus: focusOf(page), graph: page.graph }
+    return { kind: "graph", focus: focusOf(page.around), graph: page.graph }
   }
   return NOTHING_DRAWN
 }
 
-/** The node a graph page is centred on, canonically — read off the one
- *  resolution the page made rather than off the address, so the id the filter
- *  protects and the id the walk was built from are the same id. */
-const focusOf = (page: Extract<Page, { kind: "graph" }>): string | undefined =>
-  page.around?.kind === "node" ? page.around.shows.node.id : undefined
+/**
+ * The node a graph page is centred on, canonically — read off the one
+ * resolution the page made rather than off the address, so the id the filter
+ * protects and the id the walk was built from are the same id.
+ *
+ * EXPORTED, and asked of the CENTRE rather than of the page, because two
+ * readers want it and neither may derive it for itself: the filter needs the id
+ * a prune may not drop ({@link drawnBy}), and the drawing needs the id that
+ * wears the accent (the graph page). One expression, two callers.
+ */
+export const focusOf = (around: Around | undefined): string | undefined =>
+  around?.kind === "node" ? around.shows.node.id : undefined
 
 /**
  * A `zoom` that is only ever asked about an id that resolved to NOTHING,

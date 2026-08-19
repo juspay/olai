@@ -610,8 +610,9 @@ export const GRAPH_EDGE = selector(TESTID.graphEdge);
 export const GRAPH_FILE = selector(TESTID.graphFile);
 /** The line under the drawing: the ancestry of whatever is being pointed at. */
 export const GRAPH_CAPTION = selector(TESTID.graphCaption);
-/** How far the reading reaches, as one button per value; `data-hops` is which
- *  and `aria-pressed` says which is in force. */
+/** How far the reading reaches, as one segment per value of the app's one
+ *  segmented strip: `data-value` is which and `aria-pressed` says which is in
+ *  force. */
 export const GRAPH_HORIZON = selector(TESTID.graphHorizon);
 /** Said in the drawing's place when there is nothing to draw. */
 export const GRAPH_EMPTY = selector(TESTID.graphEmpty);

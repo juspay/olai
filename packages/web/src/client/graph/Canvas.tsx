@@ -38,7 +38,7 @@ import { nodePlace } from "../search/place.ts"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { toneOf } from "../tone.ts"
-import { ARROW_FILL, EDGE_LOOKS, lookOf } from "./look.ts"
+import { EDGE_LOOKS, lookOf } from "./look.ts"
 import { HEIGHT, type Placed, type Placement, WIDTH } from "./layout.ts"
 
 /** How far short of a dot an arrow stops, in the layout's units — room for the
@@ -130,7 +130,7 @@ export function Canvas(props: {
                 markerHeight="6"
                 orient="auto-start-reverse"
               >
-                <path d={ARROW} class={ARROW_FILL[look.way]} />
+                <path d={ARROW} class={look.arrowFill} />
               </marker>
             )}
           </For>
