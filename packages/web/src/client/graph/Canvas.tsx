@@ -29,12 +29,12 @@
  * sighted reader's copy of the same sentence.
  */
 
-import { ancestorTitles, type Derived, type Graph, type GraphNode } from "@olai/format"
+import type { Derived, Graph, GraphNode } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, For, Show } from "solid-js"
 
 import { NodeTitle } from "../NodeTitle.tsx"
-import { nodePlace } from "../search/place.ts"
+import { placeOf } from "../search/place.ts"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { toneOf } from "../tone.ts"
@@ -135,33 +135,43 @@ export function Canvas(props: {
             )}
           </For>
         </defs>
-        <For each={props.graph.edges}>
+        {/* `<Key>` for the reason the dots below use it, and it is the same
+            reason read on the other element: the reading is minted fresh on
+            every revision the store publishes, so `<For>` — which compares by
+            reference — found no common run and tore down and rebuilt every
+            line in the picture per frame. Keyed by the PAIR, which is what an
+            edge is; the ways it refers can change under it without the line
+            being a different line. */}
+        <Key each={props.graph.edges} by={(edge) => `${edge.from} ${edge.to}`}>
           {(edge) => (
-            <Show when={both(spot(edge.from), spot(edge.to))}>
+            <Show when={both(spot(edge().from), spot(edge().to))}>
               {(ends) => {
-                const look = lookOf(edge.ways)
-                const line = trimmed(ends()[0], ends()[1])
+                // MEMOS, now that the row outlives a frame: under `<For>` these
+                // were recomputed by the rebuild itself, and a keyed row that
+                // read them once would draw the placement it was born with.
+                const look = createMemo(() => lookOf(edge().ways))
+                const line = createMemo(() => trimmed(ends()[0], ends()[1]))
                 return (
                   <line
-                    x1={line.x1}
-                    y1={line.y1}
-                    x2={line.x2}
-                    y2={line.y2}
-                    class={`${look.stroke} transition-opacity`}
+                    x1={line().x1}
+                    y1={line().y1}
+                    x2={line().x2}
+                    y2={line().y2}
+                    class={`${look().stroke} transition-opacity`}
                     stroke-width="2"
-                    stroke-dasharray={look.dashes}
-                    marker-end={`url(#${look.arrow})`}
-                    opacity={litEdge(edge.from, edge.to) ? 0.85 : 0.12}
+                    stroke-dasharray={look().dashes}
+                    marker-end={`url(#${look().arrow})`}
+                    opacity={litEdge(edge().from, edge().to) ? 0.85 : 0.12}
                     data-testid={TESTID.graphEdge}
-                    data-from={edge.from}
-                    data-to={edge.to}
-                    data-ways={edge.ways.join("+")}
+                    data-from={edge().from}
+                    data-to={edge().to}
+                    data-ways={edge().ways.join("+")}
                   />
                 )
               }}
             </Show>
           )}
-        </For>
+        </Key>
       </svg>
 
       {/* The file names, written where their nodes landed — under the dots,
@@ -221,7 +231,7 @@ function Dot(props: {
 }) {
   const id = () => props.node.at.node.id
   const status = () => props.derived?.status.get(id())
-  const place = () => ancestry(props.derived, props.node)
+  const said = () => sentenceFor(props.derived, props.node)
 
   return (
     // THE BOX IS THE DOT, and the label hangs off it absolutely — which is what
@@ -252,7 +262,7 @@ function Dot(props: {
         // The whole sentence, because a tip may never be the only home of one:
         // the title, and the ancestry that says which `order the new cabinets`
         // this is.
-        label={`${props.node.at.node.title} — ${place()}`}
+        label={said()}
       >
         <span
           class="block rounded-full"
@@ -313,14 +323,28 @@ const trimmed = (
   }
 }
 
-/** Where a node sits, in the reader's words — the SAME sentence a search hit's
- *  second line says (`../search/place.ts`), so "which `order the new
- *  cabinets`?" is answered the same way at every door. */
-export const ancestry = (derived: Derived | undefined, node: GraphNode): string =>
-  derived === undefined ? node.at.file : nodePlace({
-    file: node.at.file,
-    path: ancestorTitles(derived, node.at.node.id),
-  })
+/**
+ * WHAT A DOT SAYS: its title, and where that node sits.
+ *
+ * The whole sentence rather than its tail, because it is said TWICE — on the
+ * dot's own `aria-label` and in the caption under the drawing
+ * (`./GraphPage.tsx`) — and the two are meant to be the same words. They were
+ * two `${title} — ${…}` templates for a release, which is a promise kept by
+ * convention: the em dash, the order and the fallback all had to agree, and
+ * nothing failed when they stopped.
+ *
+ * The PLACE half is `../search/place.ts`'s, so "which `order the new
+ * cabinets`?" is answered the same way here as on a search hit's second line.
+ * Before the first frame there are no indexes and the file is the honest
+ * answer: it is what a top-level node's place is anyway.
+ */
+export const sentenceFor = (
+  derived: Derived | undefined,
+  node: GraphNode,
+): string =>
+  `${node.at.node.title} — ${
+    derived === undefined ? node.at.file : placeOf(derived, node.at)
+  }`
 
 const across = (x: number): string => `${(x / WIDTH) * 100}%`
 const down = (y: number): string => `${(y / HEIGHT) * 100}%`

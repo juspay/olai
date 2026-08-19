@@ -211,12 +211,12 @@ export const referencesOf = (
   derived: Derived,
   at: LocatedRegular,
 ): ReadonlyArray<Outgoing> => {
-  let found: Map<string, Set<Way>> | undefined
+  const found = new Map<string, Set<Way>>()
   const file = (named: string, way: Way): void => {
     const target = nodeNamed(derived, named)
     if (target === undefined) return
     if (target.node.id === at.node.id || isArchived(target.file)) return
-    const ways = (found ??= new Map()).get(target.node.id)
+    const ways = found.get(target.node.id)
     if (ways === undefined) found.set(target.node.id, new Set([way]))
     else ways.add(way)
   }
@@ -226,6 +226,6 @@ export const referencesOf = (
   }
   for (const word of mentionsOf(at.node)) file(word, "mention")
 
-  if (found === undefined) return REFERS_TO_NOTHING
+  if (found.size === 0) return REFERS_TO_NOTHING
   return [...found].map(([to, ways]): Outgoing => ({ to, ways: inOrder(ways) }))
 }

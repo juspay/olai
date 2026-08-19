@@ -81,7 +81,7 @@ import {
   type SearchField,
 } from "@olai/format"
 
-import { nodePlace } from "../search/place.ts"
+import { placeOf } from "../search/place.ts"
 
 /** One node the query means, ready to draw: what taking it WRITES, what a
  *  person READS to choose it, and where it sits. Flattened out of the match
@@ -138,7 +138,7 @@ export const matchNodes = (
       // an ancestor walk per hit over a common word is a walk per node in the
       // vault, and the shortlist above has already thrown all but eight away.
       // The ops layer answers a hit the same way round, for the same reason.
-      place: nodePlace({ file: at.file, path: ancestorTitles(derived, at.node.id) }),
+      place: placeOf(derived, at),
       note: match.field !== null && !SHOWN_ON_THE_ROW.has(match.field),
     }))
 

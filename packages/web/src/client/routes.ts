@@ -179,14 +179,13 @@ export const hrefOf = (route: Route): string => {
   if (route.kind === "agenda") return AGENDA + narrowing(route.filter)
   if (route.kind === "trash") return TRASH + narrowing(route.filter)
   if (route.kind === "graph") {
-    // A horizon is spelled only where there is a centre for it to be a horizon
-    // OF — the corpus-wide reading has none, so `?hops=` there would be a part
-    // of an address that meant nothing. It is the exclusion `?q=` already has
-    // on a document, one route over, and the parser below drops it for the same
-    // reason, so the pair stays a bijection.
-    if (route.focus === null) return GRAPH + narrowing(route.filter)
-    return GRAPH_PREFIX + encodeURIComponent(route.focus) +
-      spelt([...horizon(route.hops), ...narrowedBy(route.filter)])
+    const path = route.focus === null
+      ? GRAPH
+      : GRAPH_PREFIX + encodeURIComponent(route.focus)
+    return path + spelt([
+      ...(reachable(route) ? horizon(route.hops) : []),
+      ...narrowedBy(route.filter),
+    ])
   }
   if (route.kind === "document") {
     return DOCUMENT_PREFIX + spell(route.file) + landing(route.at)
@@ -354,8 +353,6 @@ export const routeOf = (address: string): Route => {
   const { pathname, search, at } = splitAddress(address)
   const filter = search === "" ? undefined : filterIn(search)
   const narrowed = filter === undefined ? {} : { filter }
-  const hops = search === "" ? undefined : horizonIn(search)
-  const reaching = hops === undefined ? {} : { hops }
   return pathname.startsWith(NODE_PREFIX)
     ? {
       kind: "node",
@@ -381,7 +378,7 @@ export const routeOf = (address: string): Route => {
     : pathname === TRASH
     ? { kind: "trash", ...narrowed }
     : pathname === GRAPH || pathname.startsWith(GRAPH_PREFIX)
-    ? graphAt(focused(pathname), reaching, narrowed)
+    ? graphAt(focused(pathname), search, narrowed)
     : pathname.startsWith(OUTLINE_PREFIX)
     ? {
       kind: "outline",
@@ -393,21 +390,41 @@ export const routeOf = (address: string): Route => {
 
 /**
  * A graph address, with the horizon dropped where there is no centre to measure
- * one from.
+ * one from — and the query read for one only where it can carry one, which is
+ * why the raw `search` comes in here rather than a horizon parsed for every
+ * address in the app.
  *
- * The one place that exclusion is enforced, and it is the ARM rather than a
- * guard — the shape {@link routeOf}'s document arm already has, for the same
- * reason: a query key that means nothing on this page is left OFF the route, so
- * {@link hrefOf} has nothing to drop and the two stay one bijection.
+ * The exclusion is {@link reachable}'s, asked once, exactly as the filter's is
+ * {@link narrowable}'s: a query key that means nothing on a page is left OFF
+ * the route, so {@link hrefOf} has nothing to drop and the two stay one
+ * bijection.
  */
 const graphAt = (
   focus: string | null,
-  reaching: { readonly hops?: Hops },
+  search: string,
   narrowed: { readonly filter?: string },
-): Route =>
-  focus === null
-    ? { kind: "graph", focus, ...narrowed }
-    : { kind: "graph", focus, ...reaching, ...narrowed }
+): Route => {
+  const bare = { kind: "graph", focus, ...narrowed } as const
+  if (!reachable(bare)) return bare
+  const hops = search === "" ? undefined : horizonIn(search)
+  return hops === undefined ? bare : { ...bare, hops }
+}
+
+/**
+ * Which addresses may carry a HORIZON — the graph's, and only where it names a
+ * node for the horizon to be measured from.
+ *
+ * {@link narrowable}'s sibling, and here for the reason that one is here: the
+ * rule was written three times — the arm that carries `hops`, {@link hrefOf}'s
+ * graph branch and {@link reachingTo}'s guard — and this file has already paid
+ * for that shape once. Its own words, one screen down: "Three spellings of the
+ * same list is three edits the day another page grows a filter, and two of them
+ * are easy to miss because nothing fails when they disagree."
+ */
+export const reachable = (
+  route: Route,
+): route is Extract<Route, { kind: "graph" }> & { focus: string } =>
+  route.kind === "graph" && route.focus !== null
 
 /**
  * Which addresses may be narrowed — every one but a document's, and the one
@@ -450,7 +467,7 @@ export const narrowedTo = (route: Route, filter: string): Route => {
  * never returns.
  */
 export const reachingTo = (route: Route, hops: Hops): Route =>
-  route.kind === "graph" && route.focus !== null ? { ...route, hops } : route
+  reachable(route) ? { ...route, hops } : route
 
 /** What a page is narrowed BY, for the one component that draws it and the
  *  memo that parses it. Read off the route for the reason `fileNamed` is: the

@@ -262,10 +262,11 @@ export type { Backlink } from "./backlinks.ts"
 /** The same references read as a SHAPE: `graphOf` is the reference graph around
  *  one node, or the whole of it. Every ruling about what counts as a reference
  *  stays in `backlinks.ts`, and the FORWARD reading this needs (`referencesOf`)
- *  is `graph.ts`'s own — not on this list, because nothing outside that module
- *  asks it and a door with no caller is one more thing for the next reader to
- *  wonder about; it is held to `backlinksOf` over a whole corpus by
- *  `graph.test.ts`. `HOPS` is the closed horizon both the address and the
+ *  is `backlinks.ts`'s own `referencesOf` — not on this list, because nothing
+ *  outside those two modules asks it and a door with no caller is one more
+ *  thing for the next reader to wonder about, which is also why `Asked` and
+ *  `GraphEdge` are absent: a caller writes the first as a literal and reads the
+ *  second off `Graph`. `HOPS` is the closed horizon both the address and the
  *  control read; `keepingGraph` / `placesInGraph` / `matchedInGraph` are the
  *  same three things a filtered page asks of every other shape it draws. */
 export {
@@ -277,7 +278,7 @@ export {
   NOTHING_DRAWN_GRAPH,
   placesInGraph,
 } from "./graph.ts"
-export type { Asked, Graph, GraphEdge, GraphNode, Hops } from "./graph.ts"
+export type { Graph, GraphNode, Hops } from "./graph.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it
  *  selects, `ranked` puts them in the order a door shows them in, `keeping` and
  *  `matchedIn` are what a TREE narrowed to them looks like and how many rows of

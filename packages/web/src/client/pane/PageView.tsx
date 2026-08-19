@@ -13,7 +13,6 @@
 import { createMemo, Match, Show, Switch } from "solid-js"
 
 import type { Agenda, Derived, Hops } from "@olai/format"
-import { NOTHING_DRAWN_GRAPH } from "@olai/format"
 
 import { AgendaPage } from "../agenda/AgendaPage.tsx"
 import { CLEARANCE } from "../connection/Indicator.tsx"
@@ -180,7 +179,8 @@ export function PageView(props: {
                 {(open) => (
                   <GraphPage
                     around={open().around}
-                    graph={shape()?.graph ?? NOTHING_DRAWN_GRAPH}
+                    page={open().graph}
+                    drawn={shape()?.graph ?? open().graph}
                     onHorizon={reach}
                   />
                 )}

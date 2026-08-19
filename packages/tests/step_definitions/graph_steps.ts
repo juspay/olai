@@ -27,6 +27,7 @@ import { Given, Then, When } from "@cucumber/cucumber";
 
 import {
   attr,
+  expectDrawn,
   GRAPH_CAPTION,
   GRAPH_EDGE,
   GRAPH_EMPTY,
@@ -97,7 +98,7 @@ Then(
   "the graph draws the nodes {string}",
   async function (this: OlaiWorld, ids: string) {
     await this.waitUntil(
-      async () => (await drawn(this)).join(", ") === ids,
+      async () => (await dots(this)).join(", ") === ids,
       `the graph to draw ${JSON.stringify(ids)}`,
     );
   },
@@ -107,7 +108,7 @@ Then(
   "the graph draws {int} nodes",
   async function (this: OlaiWorld, many: number) {
     await this.waitUntil(
-      async () => (await drawn(this)).length === many,
+      async () => (await dots(this)).length === many,
       `the graph to draw ${many} nodes`,
     );
   },
@@ -121,7 +122,7 @@ Then(
   "the graph draws the arrows {string}",
   async function (this: OlaiWorld, arrows: string) {
     await this.waitUntil(
-      async () => (await drawnArrows(this)).join(", ") === arrows,
+      async () => (await edges(this)).join(", ") === arrows,
       `the graph to draw the arrows ${JSON.stringify(arrows)}`,
     );
   },
@@ -169,13 +170,7 @@ Then(
 Then(
   "the graph names the files {string}",
   async function (this: OlaiWorld, files: string) {
-    await this.waitUntil(
-      async () =>
-        (await this.page.locator(GRAPH_FILE).evaluateAll((found) =>
-          found.map((one) => one.getAttribute("data-file") ?? "")
-        )).join(", ") === files,
-      `the graph to name the files ${JSON.stringify(files)}`,
-    );
+    await expectDrawn(this.page.locator(GRAPH_FILE), "data-file", files);
   },
 );
 
@@ -276,15 +271,22 @@ Then(
   },
 );
 
-/** Every node drawn, by id, in the order the page drew them — which is the
- *  reading's own corpus order. */
-const drawn = async (world: OlaiWorld): Promise<ReadonlyArray<string>> =>
+/**
+ * Every node drawn, by id, in the order the page drew them — the reading's own
+ * corpus order.
+ *
+ * POLLED rather than asserted once, which is why this is not `expectDrawn`: one
+ * scenario watches a dot ARRIVE under a write another hand made, and a one-shot
+ * assertion would race the frame. Named `dots` rather than `drawn` because
+ * `world.ts` exports a `drawn` of its own that sibling step files import.
+ */
+const dots = async (world: OlaiWorld): Promise<ReadonlyArray<string>> =>
   await world.page.locator(GRAPH_NODE).evaluateAll((found) =>
     found.map((one) => one.getAttribute("data-node-id") ?? "")
   );
 
-/** ...and every arrow, as the claim it makes. */
-const drawnArrows = async (world: OlaiWorld): Promise<ReadonlyArray<string>> =>
+/** ...and every arrow, as the claim it makes, on the same terms. */
+const edges = async (world: OlaiWorld): Promise<ReadonlyArray<string>> =>
   await world.page.locator(GRAPH_EDGE).evaluateAll((found) =>
     found.map((one) =>
       `${one.getAttribute("data-from") ?? ""} ${one.getAttribute("data-ways") ?? ""} ${

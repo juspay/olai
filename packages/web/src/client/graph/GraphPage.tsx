@@ -59,7 +59,7 @@ import { NotFound } from "../NotFound.tsx"
 import { Segmented } from "../Segmented.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
-import { ancestry, Canvas } from "./Canvas.tsx"
+import { Canvas, sentenceFor } from "./Canvas.tsx"
 import { placed, sameShape } from "./layout.ts"
 import { EDGE_LOOKS } from "./look.ts"
 
@@ -68,12 +68,26 @@ export interface GraphPageProps {
    *  of the three ways the address failed to name one. `undefined` is the
    *  corpus-wide reading, which named none (`../page.ts`'s `Around`). */
   readonly around: Around | undefined
-  /** What the page draws, AFTER the filter — which is the reading with what
-   *  did not match taken out of it, the centre excepted (`../page.ts`). Which
-   *  node that centre IS is not a second prop: it is {@link GraphPageProps.around}
-   *  read once, below, so the accent and the pruned graph cannot come to two
-   *  answers about one page. */
-  readonly graph: Graph
+/**
+   * TWO readings, and the difference between them is the whole of what a filter
+   * does here.
+   *
+   * `page` is what the ADDRESS names, and it is what the dots are PLACED from:
+   * where a node sits is a property of the neighbourhood, not of a query typed
+   * over it. Laying out the narrowed one instead meant a three-hundred-tick
+   * force simulation per character — synchronously, on the input's own path —
+   * and a picture that jumped under the reader as they typed.
+   *
+   * `drawn` is what is left after the filter (`../page.ts`), and it is a SUBSET
+   * of the first, so every dot it holds has a placement already. A filter takes
+   * dots off a picture rather than commissioning a new one.
+   *
+   * Which node the page is ABOUT is on neither: it is
+   * {@link GraphPageProps.around} read once, below, so the accent and the
+   * pruned graph cannot come to two answers about one page.
+   */
+  readonly page: Graph
+  readonly drawn: Graph
   readonly onHorizon: (hops: Hops) => void
 }
 
@@ -111,10 +125,7 @@ function Shape(props: GraphPageProps) {
   /** ...and how far it reaches, as the attribute the page publishes. Absent on
    *  the corpus-wide reading rather than defaulted: there is no centre for a
    *  horizon to be measured from, so a number there would be a claim. */
-  const reach = (): string | undefined => {
-    const at = centre()
-    return at === undefined ? undefined : String(at.hops)
-  }
+  const reach = (): string | undefined => centre()?.hops.toString()
 
   /**
    * WHAT THE READER IS POINTING AT — derived against what is DRAWN rather than
@@ -129,29 +140,28 @@ function Shape(props: GraphPageProps) {
    * remembering is the same rule the rest of this client keeps: the reading is
    * the answer, and a held id is at most a question.
    */
-  const hovered = createMemo(() => {
-    const asked = pointed()
-    return asked !== undefined && props.graph.nodes.some((one) => one.at.node.id === asked)
-      ? asked
-      : undefined
-  })
+  const hovered = createMemo(() =>
+    props.drawn.nodes.find((one) => one.at.node.id === pointed())
+  )
 
-  // THE LAYOUT IS HELD BY SHAPE, not by identity. The reading is minted fresh
-  // on every revision the store publishes — every keystroke anywhere in the
-  // directory — and settling a force layout is three hundred ticks over a
-  // quadtree. `sameShape` costs one walk and answers the only question that
-  // matters: would this graph settle to the same picture (`./layout.ts`).
-  const held = createMemo(() => props.graph, undefined, { equals: sameShape })
+  // THE LAYOUT IS HELD BY SHAPE, not by identity, and it is placed from the
+  // PAGE's reading rather than the filtered one (see the props above). The
+  // reading is minted fresh on every revision the store publishes — every
+  // keystroke anywhere in the directory — and settling a force layout is three
+  // hundred ticks over a quadtree. `sameShape` costs one walk and answers the
+  // only question that matters: would this graph settle to the same picture
+  // (`./layout.ts`).
+  const held = createMemo(() => props.page, undefined, { equals: sameShape })
   const placement = createMemo(() => placed(held()))
 
-  /** The sentence under the drawing: where the dot under the pointer sits, or —
-   *  with nothing pointed at — where the page's own node does. */
+  /** The sentence under the drawing: what the dot under the pointer says, or —
+   *  with nothing pointed at — what the page's own node does. The SAME sentence
+   *  that dot carries on its `aria-label`, out of the one place it is assembled
+   *  (`./Canvas.tsx`). */
   const said = createMemo(() => {
-    const asked = hovered() ?? focus()
-    const node = props.graph.nodes.find((one) => one.at.node.id === asked)
-    return node === undefined
-      ? ""
-      : `${node.at.node.title} — ${ancestry(derived(), node)}`
+    const node = hovered() ??
+      props.drawn.nodes.find((one) => one.at.node.id === focus())
+    return node === undefined ? "" : sentenceFor(derived(), node)
   })
 
   return (
@@ -183,7 +193,7 @@ function Shape(props: GraphPageProps) {
       </header>
 
       <Show
-        when={worthDrawing(props.graph) || narrowed.active()}
+        when={worthDrawing(props.drawn) || narrowed.active()}
         fallback={
           <p class="text-muted" data-testid={TESTID.graphEmpty}>
             {nothing(centre())}
@@ -191,10 +201,10 @@ function Shape(props: GraphPageProps) {
         }
       >
         <Canvas
-          graph={props.graph}
+          graph={props.drawn}
           placement={placement()}
           derived={derived()}
-          hovered={hovered()}
+          hovered={hovered()?.at.node.id}
           onHover={setPointed}
           focus={focus()}
         />

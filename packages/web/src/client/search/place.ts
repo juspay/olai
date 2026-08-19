@@ -25,7 +25,23 @@
  * satisfy a function that reads none of them.
  */
 
+import { ancestorTitles, type Derived, type LocatedRegular } from "@olai/format"
 import type { SearchHit } from "@olai/surface"
 
 export const nodePlace = (hit: Pick<SearchHit, "file" | "path">): string =>
   hit.path.length === 0 ? hit.file : [...hit.path].reverse().join(" · ")
+
+/**
+ * The same sentence for a caller holding a RECORD rather than a hit — the
+ * ancestry walk and the formatting above, joined.
+ *
+ * The pairing was written out at every such call site (`../chat/nodes.ts`'s
+ * `@` list, the graph's dots), which is the half this module's header did not
+ * cover: it extracted the FORMATTING, and left "which ancestors get situated"
+ * to be spelled again per reader. `@olai/ops`' `foundOf` is a fourth reader and
+ * cannot import this one — it is a different package, and its own comment
+ * already names itself the third — so what this collapses is the two that can
+ * share.
+ */
+export const placeOf = (derived: Derived, at: LocatedRegular): string =>
+  nodePlace({ file: at.file, path: ancestorTitles(derived, at.node.id) })

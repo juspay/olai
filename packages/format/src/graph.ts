@@ -43,13 +43,17 @@
  *
  * ## A lookup, like the section it generalises
  *
- * A focused reading costs the walk it draws: two index reads per node reached,
- * and nothing scans the corpus. The corpus-wide one is O(records) once, which
- * is what "every node that is in the graph" means and is why it is the reading
- * you have to ask for by name.
+ * A focused reading costs the walk it draws — the records it reaches, once
+ * each — and nothing scans the corpus. The corpus-wide one asks every record
+ * what it refers to, which means the tag regex over every title and every note
+ * in the directory; that is what "every node that is in the graph" costs and it
+ * is why that reading is one you have to ask for by name. It could be assembled
+ * from `derive`'s reverse indexes instead and is deliberately not: the two
+ * readings would then be built from two different things, which is the
+ * divergence `./backlinks.ts` holds its pair together to prevent.
  */
 
-import { backlinksOf, referencesOf, type Way } from "./backlinks.ts"
+import { backlinksOf, type Outgoing, referencesOf, type Way } from "./backlinks.ts"
 import { byCorpus, type Derived } from "./derive.ts"
 import { isArchived, isRegular, type LocatedRegular } from "./node.ts"
 import type { Selected } from "./filter.ts"
@@ -143,14 +147,30 @@ export type Asked =
    *  no horizon to be given. */
   | { readonly kind: "whole" }
 
+/**
+ * WHAT A WALK FOUND: how far out each node is, and — for the ones it expanded —
+ * what they refer to.
+ *
+ * The second half is the walk handing on work it has already done rather than a
+ * cache: asking a record what it refers to means running the tag regex over its
+ * title and its whole note ({@link mentionsOf}), and the edge pass below needs
+ * exactly the answers the walk just threw away. What is missing from it is the
+ * OUTER RING, which a neighbourhood reaches and never expands, so the pass asks
+ * for those and only those.
+ */
+interface Reached {
+  readonly hops: ReadonlyMap<string, number>
+  readonly refers: ReadonlyMap<string, ReadonlyArray<Outgoing>>
+}
+
 export const graphOf = (derived: Derived, asked: Asked): Graph => {
   const reached = asked.kind === "whole"
     ? everythingReferring(derived)
     : neighbourhoodOf(derived, asked.focus, asked.hops)
-  if (reached.size === 0) return NOTHING_DRAWN_GRAPH
+  if (reached.hops.size === 0) return NOTHING_DRAWN_GRAPH
 
   const nodes: Array<GraphNode> = []
-  for (const [id, hops] of reached) {
+  for (const [id, hops] of reached.hops) {
     const at = derived.byId.get(id)
     if (at !== undefined && isRegular(at)) nodes.push({ at, hops })
   }
@@ -162,8 +182,10 @@ export const graphOf = (derived: Derived, asked: Asked): Graph => {
   // when it is drawn: an arrow into the dark says less than no arrow.
   const edges: Array<GraphEdge> = []
   for (const node of nodes) {
-    for (const { to, ways } of referencesOf(derived, node.at)) {
-      if (reached.has(to)) edges.push({ from: node.at.node.id, to, ways })
+    const refers = reached.refers.get(node.at.node.id) ??
+      referencesOf(derived, node.at)
+    for (const { to, ways } of refers) {
+      if (reached.hops.has(to)) edges.push({ from: node.at.node.id, to, ways })
     }
   }
   return { nodes, edges }
@@ -178,39 +200,36 @@ export const graphOf = (derived: Derived, asked: Asked): Graph => {
  * in the answer, even when nothing refers to it — the page is about it, and a
  * page that drew nothing would be saying the node is not there.
  */
-const neighbourhoodOf = (
-  derived: Derived,
-  focus: string,
-  hops: Hops,
-): ReadonlyMap<string, number> => {
+const neighbourhoodOf = (derived: Derived, focus: string, hops: Hops): Reached => {
   const found = new Map<string, number>()
+  const refers = new Map<string, ReadonlyArray<Outgoing>>()
   const at = derived.byId.get(focus)
-  if (at === undefined || !isRegular(at) || isArchived(at.file)) return found
+  if (at === undefined || !isRegular(at) || isArchived(at.file)) {
+    return { hops: found, refers }
+  }
   found.set(focus, 0)
 
   let frontier: ReadonlyArray<string> = [focus]
   for (let hop = 1; hop <= hops && frontier.length > 0; hop += 1) {
     const next: Array<string> = []
+    // ONE spelling of "this id is `hop` out", spent by both directions: which
+    // end of an arrow reached a node is not a fact about how far away it is.
+    const reach = (other: string): void => {
+      if (found.has(other)) return
+      found.set(other, hop)
+      next.push(other)
+    }
     for (const id of frontier) {
       const here = derived.byId.get(id)
       if (here === undefined || !isRegular(here)) continue
-      for (const { to } of referencesOf(derived, here)) {
-        if (!found.has(to)) {
-          found.set(to, hop)
-          next.push(to)
-        }
-      }
-      for (const back of backlinksOf(derived, id)) {
-        const from = back.at.node.id
-        if (!found.has(from)) {
-          found.set(from, hop)
-          next.push(from)
-        }
-      }
+      const outgoing = referencesOf(derived, here)
+      refers.set(id, outgoing)
+      for (const { to } of outgoing) reach(to)
+      for (const back of backlinksOf(derived, id)) reach(back.at.node.id)
     }
     frontier = next
   }
-  return found
+  return { hops: found, refers }
 }
 
 /**
@@ -226,16 +245,18 @@ const neighbourhoodOf = (
  * a distance measured from an arbitrary node would be a fact about the walk
  * rather than about the set.
  */
-const everythingReferring = (derived: Derived): ReadonlyMap<string, number> => {
+const everythingReferring = (derived: Derived): Reached => {
   const found = new Map<string, number>()
+  const refers = new Map<string, ReadonlyArray<Outgoing>>()
   for (const at of derived.nodes) {
     if (!isRegular(at) || isArchived(at.file)) continue
-    for (const { to } of referencesOf(derived, at)) {
-      found.set(at.node.id, 0)
-      found.set(to, 0)
-    }
+    const outgoing = referencesOf(derived, at)
+    if (outgoing.length === 0) continue
+    refers.set(at.node.id, outgoing)
+    found.set(at.node.id, 0)
+    for (const { to } of outgoing) found.set(to, 0)
   }
-  return found
+  return { hops: found, refers }
 }
 
 /**

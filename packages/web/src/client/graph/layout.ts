@@ -188,14 +188,15 @@ export const placed = (graph: Graph): Placement => {
  *  file pulls to the middle, where a circle of one would put it anyway. */
 const anchorsFor = (
   files: ReadonlyArray<string>,
-): ReadonlyMap<string, { readonly x: number; readonly y: number }> =>
-  new Map(
+): ReadonlyMap<string, { readonly x: number; readonly y: number }> => {
+  const reach = files.length === 1 ? 0 : SPREAD
+  return new Map(
     files.map((file, index) => {
       const turn = (index / files.length) * Math.PI * 2
-      const reach = files.length === 1 ? 0 : SPREAD
       return [file, { x: Math.cos(turn) * reach, y: Math.sin(turn) * reach }] as const
     }),
   )
+}
 
 /**
  * The settled bodies, mapped into the frame — and the files' own centres taken
@@ -228,13 +229,13 @@ const fitted = (bodies: ReadonlyArray<Body>): Placement => {
   })
 
   const at = new Map<string, Placed>()
-  const middles = new Map<string, { file: string; x: number; low: number; of: number }>()
+  const middles = new Map<string, { x: number; low: number; of: number }>()
   for (const body of bodies) {
     const spot = place(body)
     at.set(spot.id, spot)
     const middle = middles.get(body.file)
     if (middle === undefined) {
-      middles.set(body.file, { file: body.file, x: spot.x, low: spot.y, of: 1 })
+      middles.set(body.file, { x: spot.x, low: spot.y, of: 1 })
     } else {
       middle.x += spot.x
       middle.low = Math.max(middle.low, spot.y)
@@ -244,9 +245,9 @@ const fitted = (bodies: ReadonlyArray<Body>): Placement => {
 
   return {
     at,
-    files: [...middles.values()]
-      .sort((one, other) => byPath(one.file, other.file))
-      .map(({ file, x, low, of }): Grouping => ({ file, x: x / of, y: low })),
+    files: [...middles]
+      .sort(([one], [other]) => byPath(one, other))
+      .map(([file, { x, low, of }]): Grouping => ({ file, x: x / of, y: low })),
   }
 }
 

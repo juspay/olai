@@ -16,19 +16,24 @@
  * menu's list, where a verb that would change nothing is left out. There is
  * nothing to decide: every node has a neighbourhood, and one with nothing in it
  * is an answer the page gives in words (`./GraphPage.tsx`).
+ *
+ * "Like the edge verbs" is spent rather than described: the strip and the verb's
+ * own look are `../edges/EdgeVerbs.tsx`' (`VERB_STRIP`, `QUIET_VERB`), which is
+ * where they were written first, and all this keeps of its own is the reset an
+ * `<a>` needs where a `<button>` needs a different one.
  */
 
+import { QUIET_VERB, VERB_STRIP } from "../edges/EdgeVerbs.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
-import { TARGET } from "../touch.ts"
 import { GRAPH_AROUND, graphAround } from "./door.ts"
 
 export function GraphLink(props: { readonly id: string }) {
   return (
-    <div class="mt-1 flex flex-wrap items-center gap-1">
+    <div class={VERB_STRIP}>
       <Link
         route={graphAround(props.id)}
-        class={`${TARGET} md:min-h-0 inline-flex items-center rounded px-1.5 py-0.5 text-xs text-muted no-underline hover:bg-rule/50 hover:text-ink`}
+        class={`${QUIET_VERB} no-underline`}
         testid={TESTID.nodeGraphLink}
         label="draw the reference graph around this node"
       >

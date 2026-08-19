@@ -67,9 +67,12 @@ export interface EdgeLook {
   readonly testid: TestId
 }
 
-const LOOK: Record<Way, EdgeLook> = {
+/** The table WITHOUT the way each row is already keyed by: a `Record<Way, …>`
+ *  does not tie a value's own `way` to its key, so `see: { way: "mention" }`
+ *  type-checked while this carried both. The key is put back below, where the
+ *  array is built. */
+const LOOK: Record<Way, Omit<EdgeLook, "way">> = {
   see: {
-    way: "see",
     label: "sees",
     stroke: "stroke-accent",
     arrowFill: "fill-accent",
@@ -78,7 +81,6 @@ const LOOK: Record<Way, EdgeLook> = {
     testid: TESTID.graphLegendSee,
   },
   mention: {
-    way: "mention",
     label: "mentions",
     stroke: "stroke-muted",
     arrowFill: "fill-muted",
@@ -93,7 +95,10 @@ const LOOK: Record<Way, EdgeLook> = {
  * after it — READ rather than re-declared, so the legend and an edge's own
  * `ways` array come out the same way round.
  */
-export const EDGE_LOOKS: ReadonlyArray<EdgeLook> = WAYS.map((way) => LOOK[way])
+export const EDGE_LOOKS: ReadonlyArray<EdgeLook> = WAYS.map((way) => ({
+  way,
+  ...LOOK[way],
+}))
 
 /**
  * How ONE edge is drawn, when it is both.

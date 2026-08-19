@@ -20,6 +20,7 @@
  */
 
 import type { Edit, SearchHit } from "@olai/surface"
+import { WHOLE_GRAPH, WHOLE_GRAPH_ROUTE } from "../graph/door.ts"
 
 import type { Route } from "../routes.ts"
 import { nodePlace } from "../search/place.ts"
@@ -123,6 +124,17 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     hint: "what was put away",
     action: { kind: "route", route: { kind: "trash" } },
     search: "go to trash archive archived put away restore put back",
+  },
+  {
+    // The fifth page that belongs to no file, and so the fifth row here. The
+    // NEIGHBOURHOOD of a node is not on this list and cannot be: it names a
+    // node, and which node is the question the row underneath these already
+    // answers (the palette's own node results, and the row's `•••`).
+    id: "nav-graph",
+    label: `Go to the ${WHOLE_GRAPH}`,
+    hint: "every reference, drawn",
+    action: { kind: "route", route: WHOLE_GRAPH_ROUTE },
+    search: "go to graph reference references map shape links mentions",
   },
   {
     id: "panel-sidebar",
