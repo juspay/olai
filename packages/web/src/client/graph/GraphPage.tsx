@@ -70,21 +70,21 @@ import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { Canvas, sentenceFor } from "./Canvas.tsx"
 import { Controls } from "./Controls.tsx"
-import { createLooking } from "./looking.ts"
 import { placed, sameShape } from "./layout.ts"
+import { EDGE_LOOKS } from "./look.ts"
+import { createLooking } from "./looking.ts"
 
 /** How coarsely the layout follows the box, in pixels. Small enough that a
  *  placement is never visibly stale, large enough that dragging a pane does not
  *  re-settle the picture on every frame. */
 const STEP = 24
-import { EDGE_LOOKS } from "./look.ts"
 
 export interface GraphPageProps {
   /** The CENTRE, resolved — the node and how far the reading reaches, or which
    *  of the three ways the address failed to name one. `undefined` is the
    *  corpus-wide reading, which named none (`../page.ts`'s `Around`). */
   readonly around: Around | undefined
-/**
+  /**
    * TWO readings, and the difference between them is the whole of what a filter
    * does here.
    *
