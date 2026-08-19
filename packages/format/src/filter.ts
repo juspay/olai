@@ -191,8 +191,16 @@ const IS_VALUES = [
 type IsValue = (typeof IS_VALUES)[number]
 
 /**
- * THE DAY QUESTIONS: three operators over one value grammar, told apart by
- * nothing but which of a node's days they read.
+ * THE THREE READINGS OF A RECORD AS DAYS, which are also the three operators
+ * that take a span of them — one value grammar, told apart by nothing but
+ * which days each asks for.
+ *
+ * READINGS rather than fields, and the distinction is why the list is not
+ * called after the record's keys: two of these three ARE a field, and `date`
+ * is not — it is ./dates.ts's `datesOf`, the journal's pair, which reads a
+ * `date` and a dated `done` and would be misdescribed by either field's name.
+ * What the three have in common is not where they are stored but that each
+ * turns one record into the days it offers.
  *
  * `date:` reads the JOURNAL's two — what the node is scheduled FOR, and when
  * the work was finished (./dates.ts) — and the other two read the record's own
@@ -211,24 +219,24 @@ type IsValue = (typeof IS_VALUES)[number]
  * {@link clauseOf} and {@link teaching} — so a name added here is a compile
  * error in the two that switch until it says what it reads.
  *
- * WHAT EACH ONE READS is {@link daysOf}, and it is the one function that turns
- * a record into the days it offers.
+ * WHAT EACH ONE READS is {@link dayWithin}, which is the one place a record
+ * is read as days at all.
  */
-const DAY_FIELDS = ["date", "created", "changed"] as const
-type DayField = (typeof DAY_FIELDS)[number]
+const DAY_READINGS = ["date", "created", "changed"] as const
+type DayReading = (typeof DAY_READINGS)[number]
 
 /** Is this `has:` row one of them — the rows that are an unbounded day
  *  question rather than a field test? A type guard for {@link isOperator}'s
  *  reason: it narrows {@link HasField} to the complement below, so the field
  *  test's callee can refuse the three by type rather than by a comment. */
-const isDayField = (field: HasField): field is DayField =>
-  (DAY_FIELDS as ReadonlyArray<string>).includes(field)
+const isDayReading = (field: HasField): field is DayReading =>
+  (DAY_READINGS as ReadonlyArray<string>).includes(field)
 
 /** The optional fields of a record `has:` asks about. One row per field a
  *  reader might select on; `has:children` is deliberately absent, being a
  *  question about the SET rather than about the record.
  *
- *  THE THREE {@link DAY_FIELDS} are the rows that are not a plain field test:
+ *  THE THREE {@link DAY_READINGS} are the rows that are not a plain field test:
  *  each is its own operator asked with NO BOUNDS, which is what keeps the pair
  *  from disagreeing — a reader who finds a node with `created:2026-08-19` and
  *  then cannot find it with `has:created` has met two answers to one word. See
@@ -240,7 +248,7 @@ const isDayField = (field: HasField): field is DayField =>
  *  field of the RECORD, the days are the JOURNAL's — and the field test is the
  *  honest reading of the rule. What the overlap means to somebody writing a
  *  query is docs/search.md's to say. */
-const HAS_FIELDS = ["desc", ...DAY_FIELDS, "see", "after", "doc", "repeat"] as const
+const HAS_FIELDS = ["desc", ...DAY_READINGS, "see", "after", "doc", "repeat"] as const
 type HasField = (typeof HAS_FIELDS)[number]
 
 /** The operator names. A colon after anything else is a colon in a word — see
@@ -248,11 +256,11 @@ type HasField = (typeof HAS_FIELDS)[number]
  *  spells: `"is:done"` is the text, which is the escape hatch out of this table
  *  and the reason quoting and the operators shipped together.
  *
- *  The three day operators are SPREAD IN from {@link DAY_FIELDS} rather than
+ *  The three day operators are SPREAD IN from {@link DAY_READINGS} rather than
  *  listed again, which is what makes that list the one place a fourth of them
  *  would be added: it is read here, by {@link HAS_FIELDS}, by {@link clauseOf}
  *  and by {@link teaching}, and a name in none of them is not an operator. */
-const OPERATORS = ["is", "has", ...DAY_FIELDS, "prop"] as const
+const OPERATORS = ["is", "has", ...DAY_READINGS, "prop"] as const
 type Operator = (typeof OPERATORS)[number]
 
 /** Is this word before a colon one of them? A type guard, so what follows is a
@@ -265,7 +273,7 @@ type Clause =
   | { readonly kind: "has"; readonly field: HasField }
   /**
    * An inclusive span of DAYS, as text, and WHICH of a node's days it is asked
-   * of ({@link DAY_FIELDS}). `null` on either side is "unbounded that way",
+   * of ({@link DAY_READINGS}). `null` on either side is "unbounded that way",
    * which is what `date:..2026-08-10` and `created:2026-08-10..` are.
    *
    * ONE ARM FOR THE THREE, and the `of` is the whole difference between them:
@@ -276,7 +284,7 @@ type Clause =
    */
   | {
     readonly kind: "days"
-    readonly of: DayField
+    readonly of: DayReading
     readonly from: string | null
     readonly to: string | null
   }
@@ -814,7 +822,7 @@ const teaching = (name: Operator, value: string): string => {
     case "has":
       return `has: takes one of ${HAS_FIELDS.join(", ")}`
     // ONE SENTENCE FOR THE THREE, named by whichever was typed. They share a
-    // value grammar exactly ({@link DAY_FIELDS}), so a reader refused at
+    // value grammar exactly ({@link DAY_READINGS}), so a reader refused at
     // `created:soon` is taught the same twelve words a reader refused at
     // `date:soon` is — and a value added to that grammar teaches itself at all
     // three doors rather than at whichever copy somebody remembered.
@@ -1045,7 +1053,7 @@ const spanOf = (value: string, now: string): Span | null => {
  * of them — with the operator's own name carried through as WHICH days it will
  * be asked of.
  *
- * ONE READING FOR THE THREE ({@link DAY_FIELDS}), and `of` is the only thing
+ * ONE PARSE FOR THE THREE ({@link DAY_READINGS}), and `of` is the only thing
  * that distinguishes what comes out. That is the decomplecting the pair of
  * stamp operators is worth: `created:last-week..` did not need a line of
  * parsing written for it, because a span of days and the days a record offers
@@ -1069,7 +1077,7 @@ const spanOf = (value: string, now: string): Span | null => {
  * of the left, the high of the right — so `date:last-week..today` runs from
  * last Monday to tonight, and an end left empty is unbounded that way.
  */
-const daysClause = (of: DayField, value: string, now: string): Clause | null => {
+const daysClause = (of: DayReading, value: string, now: string): Clause | null => {
   const at = value.indexOf(RANGE)
   if (at === -1) {
     const span = spanOf(value, now)
@@ -1504,22 +1512,37 @@ const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean =>
   // field, and the three exceptions in the table are deliberate: a reader who
   // can find a node with `date:2026-08-03` and then not find it with
   // `has:date` has met two answers to one word. So both sides go through
-  // {@link daysOf} — the per-RECORD rule, and pointedly not the walk above it,
-  // which is where the archive comes out: a day clause answers about a node
+  // {@link dayWithin} — the per-RECORD rule, and pointedly not the walk above
+  // it, which is where the archive comes out: a day clause answers about a node
   // wherever it was filed, which is what makes `is:archived date:2026-08-11` a
   // question with an answer (docs/search.md).
   if (clause.kind === "has") {
-    return isDayField(clause.field)
-      ? daysOf(at.node, clause.field).length > 0
+    // The unbounded span, which is what that row MEANS — see {@link dayWithin}.
+    return isDayReading(clause.field)
+      ? dayWithin(at.node, clause.field, null, null)
       : carries(at.node, clause.field)
   }
   if (clause.kind === "prop") return propKeyOf(at.node, clause) !== null
-  return daysOf(at.node, clause.of).some((day) => within(day, clause))
+  return dayWithin(at.node, clause.of, clause.from, clause.to)
 }
 
 /**
- * The DAYS a record offers one of the three day operators — the one place a
- * record becomes a list of days to compare.
+ * DOES ANY DAY THIS RECORD OFFERS UNDER `of` FALL INSIDE THE SPAN — the one
+ * place a record is read as days, and the only question anything asks of it.
+ *
+ * A PREDICATE RATHER THAN A LIST OF DAYS, which is what it was for one commit
+ * and never needed to be. Nothing wants the days: the clause wants a yes or a
+ * no, and a list is a pair of allocations per node per clause on the way to
+ * one — over every node of the directory, on every keystroke of the filter
+ * box. There is no intermediate here because nothing was ever going to read it.
+ *
+ * AN UNBOUNDED SPAN IS WHAT `has:` ASKS, and saying so in the arguments is
+ * what makes that identity code rather than convention: `null` on both ends
+ * cannot exclude a day, so `has:created` is `created:` with the bounds left
+ * off, in one call rather than in a second reading written beside it. A
+ * grammar cannot spell that span — `created:..` is refused, for the reason
+ * an empty needle is — but the shape it would mean is exactly this, and it is
+ * the shape the two rows are.
  *
  * `date` is ./dates.ts's `datesOf`, which is the same two the JOURNAL reads:
  * what the node is scheduled for, and when it was finished. A filter that
@@ -1530,23 +1553,31 @@ const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean =>
  * the same `dayOf` — one day or none, never two, since a record carries at
  * most one of each. They are compared as TEXT like every other date in this
  * package: a stamp is an instant with an offset on it, and the ten characters
- * in front of the `T` are the day the person writing was having.
+ * in front of the `T` are the day the person writing it was having.
  *
- * ABSENCE IS AN EMPTY LIST, and that is the whole of the honesty rule these
- * two operators are held to. A node written before the stamps existed carries
- * no `created`, and nothing here invents one: it offers no day, so no bound
- * can hold of it, so `created:2026` does not find it. What FINDS it is the
- * negation — `-created:2026` — for the reason it finds a node with no date at
- * all under `-has:date`: the dash negates the CLAUSE, and a clause that cannot
- * hold of a record it has nothing to read is false. Which is the honest reading
- * and is worth saying out loud, because "not created in 2026" and "not known to
- * have been created in 2026" are the same rows and are not the same sentence.
- * docs/search.md says it in those words.
+ * ABSENCE OFFERS NO DAY, and that is the whole of the honesty rule the two
+ * stamp operators are held to. A node written before the stamps existed
+ * carries no `created`, and nothing here invents one: there is no day for a
+ * bound to hold of, so `created:2026` does not find it, and neither does the
+ * widest span anybody can type. What FINDS it is the negation —
+ * `-created:2026` — for the reason that finds a node with no date at all
+ * under `-has:date`: the dash negates the CLAUSE, and a clause that cannot
+ * hold of a record it has nothing to read is false. Which is the honest
+ * reading and is worth saying out loud, because "not created in 2026" and "not
+ * known to have been created in 2026" are the same rows and are not the same
+ * sentence. docs/search.md says it in those words.
  */
-const daysOf = (node: RegularNode, of: DayField): ReadonlyArray<string> => {
-  if (of === "date") return datesOf(node).map(({ date }) => dayOf(date))
+const dayWithin = (
+  node: RegularNode,
+  of: DayReading,
+  from: string | null,
+  to: string | null,
+): boolean => {
+  if (of === "date") {
+    return datesOf(node).some(({ date }) => within(dayOf(date), from, to))
+  }
   const stamp = node[of]
-  return stamp === undefined ? [] : [dayOf(stamp)]
+  return stamp !== undefined && within(dayOf(stamp), from, to)
 }
 
 /**
@@ -1592,8 +1623,8 @@ const propKeyOf = (
 
 /**
  * The rows of {@link HAS_FIELDS} that ARE a plain field test — every one but
- * the three {@link DAY_FIELDS}, which are their own operator asked with no
- * bounds and go through {@link daysOf} instead ({@link holds}).
+ * the three {@link DAY_READINGS}, which are their own operator asked with no
+ * bounds and go through {@link dayWithin} instead ({@link holds}).
  *
  * A TYPE rather than a sentence, and it claims only what it delivers: nobody
  * can call `carries(node, "date")`, which would answer about the `date` FIELD
@@ -1601,7 +1632,7 @@ const propKeyOf = (
  * be got right by hand is {@link holds}' branch — this narrows the callee, it
  * does not decide the table.
  */
-type CarriedField = Exclude<HasField, DayField>
+type CarriedField = Exclude<HasField, DayReading>
 
 /** Whether a record carries a field — the WRITER's own rule for absence
  *  (./write.ts's `nothing`), asked as a question rather than restated. The four
@@ -1611,9 +1642,13 @@ type CarriedField = Exclude<HasField, DayField>
 const carries = (node: RegularNode, field: CarriedField): boolean =>
   !nothing(node[field])
 
-const within = (day: string, clause: Extract<Clause, { kind: "days" }>): boolean =>
-  (clause.from === null || day >= clause.from) &&
-  (clause.to === null || day <= clause.to)
+/** Is this day inside the span? `null` on an end is no bound that way, so
+ *  `null, null` holds of every day there is — which is the reading
+ *  {@link dayWithin} spends for `has:`. Over the BOUNDS rather than over the
+ *  clause that carries them, so the unbounded question has something to call
+ *  without minting a clause nobody typed. */
+const within = (day: string, from: string | null, to: string | null): boolean =>
+  (from === null || day >= from) && (to === null || day <= to)
 
 /**
  * Every node the query selects, in the set's own file-then-line order.
