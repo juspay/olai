@@ -91,7 +91,7 @@ export const offers = (
   query: string,
   now: string,
 ): ReadonlyArray<Offer> => {
-  const paths = matchFiles(folded(files), query, LIMIT)
+  const paths = matchFiles(folded(files), query, LIMIT).map((file) => file.path)
   // A first frame has no indexes yet and nothing is drawn that needs them
   // (`../derived.tsx`), so the file half answers alone rather than waiting.
   const nodes = derived === undefined ? [] : matchNodes(derived, query, now, LIMIT)

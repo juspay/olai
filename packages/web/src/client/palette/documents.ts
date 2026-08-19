@@ -61,8 +61,17 @@ import type { PaletteItem } from "./items.ts"
  *  this is a block inside a list a reader is standing over, not a report. */
 const LIMIT = 8
 
+/** One document of the directory, ready to be matched and ready to be drawn:
+ *  the fold every served path gets, plus the one fact a row needs that a path
+ *  does not carry in the shape a row wants it — WHICH KIND it is. Answered
+ *  where the filter below already asks the question, so the matcher hands back
+ *  a row's glyph rather than a string to ask again. */
+interface Document extends Folded {
+  readonly of: BodyKind
+}
+
 /**
- * The bodied paths of one directory, folded for matching — kept per version of
+ * The documents of one directory, folded for matching — kept per version of
  * the served list rather than rebuilt per keystroke.
  *
  * `../file/matching.ts`'s `folded` is already a `WeakMap` over that same list,
@@ -71,13 +80,21 @@ const LIMIT = 8
  * per character typed, and doing it after the match would be worse than slow —
  * `matchFiles` stops once its best bucket has filled the cap, so a list
  * narrowed afterwards could answer with three rows while five more matched.
+ *
+ * `bodyKind` is asked ONCE per file per version of the directory, and its
+ * answer is kept: it is the same question "is this a row at all" and "what
+ * glyph does the row wear", and two calls for one answer is how they get to
+ * disagree.
  */
-const bodied = new WeakMap<ReadonlyArray<string>, ReadonlyArray<Folded>>()
+const bodied = new WeakMap<ReadonlyArray<string>, ReadonlyArray<Document>>()
 
-const documentsIn = (paths: ReadonlyArray<string>): ReadonlyArray<Folded> => {
+const documentsIn = (paths: ReadonlyArray<string>): ReadonlyArray<Document> => {
   const before = bodied.get(paths)
   if (before !== undefined) return before
-  const now = folded(paths).filter((file) => bodyKind(file.path) !== null)
+  const now = folded(paths).flatMap((file) => {
+    const of = bodyKind(file.path)
+    return of === null ? [] : [{ ...file, of }]
+  })
   bodied.set(paths, now)
   return now
 }
@@ -100,14 +117,15 @@ const documentsIn = (paths: ReadonlyArray<string>): ReadonlyArray<Folded> => {
  * here: a row of this list opens the same page the sidebar's row opens,
  * because both ask the registry the same question.
  */
-const documentItem = (path: string, of: BodyKind): PaletteItem => {
+const documentItem = (document: Document): PaletteItem => {
+  const path = document.path
   const folder = dirOf(path)
   return {
     id: `doc-${path}`,
     label: nameOf(path),
-    of,
+    of: document.of,
     place: folder === "" ? undefined : folder,
-    action: { kind: "route", route: routeTo(of, path) },
+    action: { kind: "route", route: routeTo(document.of, path) },
     // Never filtered locally a second time: `documentItems` has already
     // decided these match, exactly as the server decides it for a node hit
     // (`./items.ts`'s `nodeItem`).
@@ -133,12 +151,5 @@ export const documentItems = (
 ): ReadonlyArray<PaletteItem> => {
   const wanted = query.trim()
   if (wanted === "") return []
-  return matchFiles(documentsIn(paths), wanted, limit).flatMap((path) => {
-    // `documentsIn` kept only the paths this can answer for, so the guard
-    // never fires — it is what makes that a fact in the types rather than a
-    // claim in a comment, and a row with no kind would have no glyph and
-    // nowhere to go.
-    const of = bodyKind(path)
-    return of === null ? [] : [documentItem(path, of)]
-  })
+  return matchFiles(documentsIn(paths), wanted, limit).map(documentItem)
 }

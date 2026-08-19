@@ -126,6 +126,15 @@ export const folded = (paths: ReadonlyArray<string>): ReadonlyArray<Folded> => {
  * fill the list: a query typed towards a real file finds its answer without
  * reading the rest of the vault.
  *
+ * IT SELECTS, and does not project: what comes back is the entries handed in,
+ * not their paths, so a caller that folded something ALONGSIDE the path keeps
+ * it — the palette folds each document's KIND in, which is what its row's
+ * glyph is (`../palette/documents.ts`), and the `@` list reads `.path` and
+ * ignores the rest. Answering with paths cost that caller the kind on every
+ * keystroke and gave it back only as a re-derivation with an impossible
+ * `null` to guard: a fact this pass already knew, thrown away and looked up
+ * again. The `@` list is unchanged by it — its rows were always the path.
+ *
  * THE CAP IS THE CALLER'S because the list this fills is not the same list at
  * every door: in the `@` popup this half and the node half divide eight rows
  * between them ({@link ../chat/naming.ts}), and in the palette the document
@@ -136,19 +145,19 @@ export const folded = (paths: ReadonlyArray<string>): ReadonlyArray<Folded> => {
  * that stopped at three could not be asked for eight afterwards, when the
  * other half turned out to have nothing to offer.
  */
-export const matchFiles = (
-  files: ReadonlyArray<Folded>,
+export const matchFiles = <File extends Folded>(
+  files: ReadonlyArray<File>,
   query: string,
   limit: number,
-): ReadonlyArray<string> => {
+): ReadonlyArray<File> => {
   const wanted = query.toLowerCase()
-  const named: Array<string> = []
-  const pathed: Array<string> = []
-  const buried: Array<string> = []
+  const named: Array<File> = []
+  const pathed: Array<File> = []
+  const buried: Array<File> = []
   for (const file of files) {
-    if (wanted === "" || file.name.startsWith(wanted)) named.push(file.path)
-    else if (file.whole.startsWith(wanted)) pathed.push(file.path)
-    else if (file.whole.includes(wanted)) buried.push(file.path)
+    if (wanted === "" || file.name.startsWith(wanted)) named.push(file)
+    else if (file.whole.startsWith(wanted)) pathed.push(file)
+    else if (file.whole.includes(wanted)) buried.push(file)
     if (named.length >= limit) break
   }
   return [...named, ...pathed, ...buried].slice(0, limit)

@@ -11,11 +11,22 @@
 
 import { expect, test } from "bun:test"
 
-import { dirOf, folded, matchFiles, nameOf } from "./matching.ts"
+import { dirOf, folded, type Folded, matchFiles, nameOf } from "./matching.ts"
 
 /** The cap the composer passes when the node half of the list has nothing to
  *  offer — the whole of it (`./naming.ts` divides it). */
 const LIMIT = 8
+
+/** The match, read as PATHS — which is what these tests are about and not what
+ *  the matcher answers with: it hands back the entries it was given, so a
+ *  caller keeps whatever it folded alongside the path (`./matching.ts`). What
+ *  a document row keeps that way is asserted next door
+ *  (`../palette/documents.test.ts`); here the path is the whole claim. */
+const matched = (
+  files: ReadonlyArray<Folded>,
+  query: string,
+  limit: number,
+): ReadonlyArray<string> => matchFiles(files, query, limit).map((file) => file.path)
 
 const DIRECTORY = folded([
   "Daily/2026-08.olai",
@@ -27,7 +38,7 @@ const DIRECTORY = folded([
 ])
 
 test("an empty query is the whole directory — a bare `@` shows what is there", () => {
-  expect(matchFiles(DIRECTORY, "", LIMIT)).toEqual([
+  expect(matched(DIRECTORY, "", LIMIT)).toEqual([
     "Daily/2026-08.olai",
     "finishes.md",
     "garden.olai",
@@ -40,11 +51,11 @@ test("an empty query is the whole directory — a bare `@` shows what is there",
 test("a query is matched against the file's own NAME first", () => {
   // `pal` is nowhere near the start of `notes/palette.md` as a path, and it is
   // exactly how somebody asks for that file.
-  expect(matchFiles(DIRECTORY, "pal", LIMIT)).toEqual(["notes/palette.md"])
+  expect(matched(DIRECTORY, "pal", LIMIT)).toEqual(["notes/palette.md"])
 })
 
 test("...and against the PATH, so a folder is a way in", () => {
-  expect(matchFiles(DIRECTORY, "notes/", LIMIT)).toEqual([
+  expect(matched(DIRECTORY, "notes/", LIMIT)).toEqual([
     "notes/cabinets.md",
     "notes/palette.md",
   ])
@@ -52,29 +63,29 @@ test("...and against the PATH, so a folder is a way in", () => {
 
 test("a name that starts with the query beats one that merely holds it", () => {
   const files = folded(["archive/old-cabinets.md", "cabinets.md"])
-  expect(matchFiles(files, "cab", LIMIT)).toEqual([
+  expect(matched(files, "cab", LIMIT)).toEqual([
     "cabinets.md",
     "archive/old-cabinets.md",
   ])
 })
 
 test("case is not something anybody should have to get right", () => {
-  expect(matchFiles(DIRECTORY, "DAILY/", LIMIT)).toEqual(["Daily/2026-08.olai"])
-  expect(matchFiles(folded(["Notes/Palette.md"]), "palette", LIMIT)).toEqual([
+  expect(matched(DIRECTORY, "DAILY/", LIMIT)).toEqual(["Daily/2026-08.olai"])
+  expect(matched(folded(["Notes/Palette.md"]), "palette", LIMIT)).toEqual([
     "Notes/Palette.md",
   ])
 })
 
 test("a query nothing holds answers with nothing, which is what draws no box", () => {
-  expect(matchFiles(DIRECTORY, "alice", LIMIT)).toEqual([])
+  expect(matched(DIRECTORY, "alice", LIMIT)).toEqual([])
 })
 
 test("the list is a shortlist — eight rows, whatever the vault is", () => {
   const many = folded(
     Array.from({ length: 40 }, (_, at) => `notes/note-${at}.md`),
   )
-  expect(matchFiles(many, "note", LIMIT).length).toBe(8)
-  expect(matchFiles(many, "", LIMIT).length).toBe(8)
+  expect(matched(many, "note", LIMIT).length).toBe(8)
+  expect(matched(many, "", LIMIT).length).toBe(8)
 })
 
 test("what a row reads: the name, and where it sits", () => {
