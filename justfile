@@ -195,8 +195,10 @@ hm-module:
 #     replaced (`packages/web/src/client/complete/tags.bench.ts`, added with
 #     `taggedBy` — the roadmap deferred that index until somebody measured this
 #     walk, so the measurement is a leg rather than a paragraph). Its two arms
-#     must answer the same list or the run fails; what the wider index costs the
-#     FOLD is the pair the second leg prints at the end.
+#     must answer the same list or the run fails, and a third times the walk as
+#     it literally stood; what the wider index costs the FOLD, and what the tag
+#     WALK under it costs in the three shapes it has been written in, are the
+#     two pairs the second leg prints at the end.
 #
 # Three of the four run the SAME generated vault (`@olai/format/testlib`'s
 # `vaultOf`), so a frame's cost, the patch inside it and what a completion asks

@@ -55,6 +55,25 @@ test("`@word` is a reference exactly when a record claims the word", () => {
   expect(said(claimed, "alice")).toEqual(["note mention"])
 })
 
+// THE HALF OF THE INDEX THIS READING TAKES, asserted here because nothing else
+// can assert it. `taggedBy` files both sigils under keys that keep them, and a
+// reading that looked up the bare word — or looked up both spellings — would
+// draw `#herbs` as a referrer of the node called `herbs`. The oracle next door
+// cannot catch that: `derive` and `patch` would agree about a key either way,
+// and the widget's own tests are about the vocabulary rather than about who
+// refers to what. So the pair is pinned at the door that decides it.
+test("a `#topic` spelled like an id is not a reference, and the `@` beside it is", () => {
+  const view = viewOf({
+    "garden.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+    "house.olai": `{"id":"ask","ord":"a","title":"ask @herbs about the pots"}\n` +
+      `{"id":"topic","ord":"b","title":"seed order","desc":"filed under #herbs"}`,
+  })
+  // Both keys are really there, so this is the READING choosing between them
+  // rather than an index that never filed the topic.
+  expect([...view.taggedBy.keys()].sort()).toEqual(["#herbs", "@herbs"])
+  expect(said(view, "herbs")).toEqual(["ask mention"])
+})
+
 test("a mention that arrives with the node it names is a reference at once", () => {
   // The other half of the rule above, and the reason the index is not filtered
   // by existence: the word was already written, and nothing rewrote it.

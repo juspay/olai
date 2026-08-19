@@ -38,7 +38,10 @@
  * ...and the third is about the TAG INDEX's width: the corpus-wide fold timed
  * filing `@` alone against filing both sigils ({@link folds}), which is the
  * cost half of the trade `taggedBy` makes. The saving half is a leg of its own
- * one package up (`@olai/web`'s `complete/tags.bench.ts`).
+ * one package up (`@olai/web`'s `complete/tags.bench.ts`), and the WALK under
+ * both — `titleParts` in the three shapes it has been written in — is
+ * {@link walks}, which exists because the figures for it were once quoted in a
+ * comment and printed by nothing.
  *
  * THE PATCHED ARM CARRIES ITS VIEW FORWARD, edit after edit, because that is
  * what both callers do — the write gate patches the last published view, the
@@ -61,7 +64,15 @@
  * to work out whether it ever did.
  */
 
-import { derive, type Derived, tagInto, titleParts } from "./derive.ts"
+import {
+  derive,
+  type Derived,
+  mayHoldTag,
+  tagInto,
+  tagText,
+  titleParts,
+  titleTagRe,
+} from "./derive.ts"
 import {
   alternating,
   median,
@@ -520,6 +531,101 @@ const mentionsFrom = (
   }
 }
 
+// ── ...and what the WALK under it costs, three ways ────────────────────
+
+/**
+ * THE TAG WALK ITSELF, timed in the three shapes it has been written in — the
+ * pair of figures {@link ./derive.ts}'s `titleParts` and `writtenTagsIn` used
+ * to quote from a laptop, printed by the leg instead (both reviewers of #249
+ * asked for exactly this, and they were right: a number in a comment that no
+ * harness prints is the unreproducible sample this whole file exists to
+ * retire).
+ *
+ * Over every string of prose in the corpus, since that is what a rebuild walks:
+ *
+ *   - `parts` — {@link titleParts} as it is, stepping one fresh `/g` regex with
+ *     `exec`;
+ *   - `matchAll` — the same function as it stood before #249, asking the regex
+ *     for an iterator per call. That is the rewrite the PR made on the way past
+ *     and the one this pair exists to justify — it is a GLOBAL change, since
+ *     the search matcher and the browser's two renderings of a pill walk the
+ *     same function;
+ *   - `loop` — the shape this file's own note REJECTS: a private walk over
+ *     {@link titleTagRe}, which would not allocate the prose between the tags
+ *     and would take the written form off the match. It is timed so that the
+ *     rejection stays a measurement rather than a memory.
+ *
+ * ALL THREE MUST FIND THE SAME TAGS, checked over the whole corpus before
+ * anything is timed: two of them build parts and one builds only the written
+ * forms, so what is compared is what a fold would take out of each.
+ */
+const walks = (): { parts: number; matchAll: number; loop: number } => {
+  const prose: Array<string> = []
+  for (const at of first.nodes) {
+    if (!isRegular(at)) continue
+    prose.push(at.node.title)
+    if (at.node.desc !== undefined) prose.push(at.node.desc)
+  }
+
+  /** What a fold takes out of a walk: the written tags, in order. */
+  const viaParts = (): ReadonlyArray<string> => {
+    const found: Array<string> = []
+    for (const text of prose) {
+      if (!mayHoldTag(text)) continue
+      for (const part of titleParts(text)) if (part.kind === "tag") found.push(tagText(part))
+    }
+    return found
+  }
+  /** {@link titleParts} as it was: `matchAll` per call, same parts out. */
+  const viaMatchAll = (): ReadonlyArray<string> => {
+    const found: Array<string> = []
+    for (const text of prose) {
+      if (!mayHoldTag(text)) continue
+      let at = 0
+      const parts: Array<{ kind: "text" | "tag"; written?: string }> = []
+      for (const match of text.matchAll(titleTagRe())) {
+        const start = match.index
+        if (start > at) parts.push({ kind: "text" })
+        parts.push({ kind: "tag", written: match[0] })
+        at = start + match[0].length
+      }
+      if (at < text.length) parts.push({ kind: "text" })
+      for (const part of parts) if (part.written !== undefined) found.push(part.written)
+    }
+    return found
+  }
+  /**
+   * The private loop, which is the one this tree declines to have — stepping
+   * the regex exactly as {@link titleParts} does, so the ONLY difference is
+   * what it declines to build: no part per segment of prose, and the written
+   * form taken off the match rather than re-assembled. A loop written with
+   * `matchAll` would be measuring the rewrite above a second time and calling
+   * it the loop's cost.
+   */
+  const viaLoop = (): ReadonlyArray<string> => {
+    const found: Array<string> = []
+    for (const text of prose) {
+      if (!mayHoldTag(text)) continue
+      const tags = titleTagRe()
+      let match: RegExpExecArray | null
+      while ((match = tags.exec(text)) !== null) found.push(match[0])
+    }
+    return found
+  }
+
+  const answers = [viaParts(), viaMatchAll(), viaLoop()].map((tags) => tags.join(" "))
+  if (answers[0] === "" ) throw new Error("the vault's prose holds no tags — this measures nothing")
+  if (answers[0] !== answers[1] || answers[0] !== answers[2]) {
+    throw new Error("the three walks disagree about the corpus's tags — none of them is a number")
+  }
+  // Two pairs rather than one three-way: `alternating` fairly compares two arms
+  // at a time, and the two questions are separate — what the rewrite bought,
+  // and what the rejected shape would buy on top of it.
+  const [parts, matchAll] = alternating([viaParts, viaMatchAll])
+  const [again, loop] = alternating([viaParts, viaLoop])
+  return { parts: median([parts, again]), matchAll, loop }
+}
+
 const say = (name: string, times: ReadonlyArray<number>): void => {
   console.log(timesSaid(name, times, 12))
 }
@@ -557,4 +663,10 @@ console.log(
   `\nthe tag fold over the whole corpus: ${narrowFold.toFixed(2)}ms filing \`@\` alone,` +
     ` ${wideFold.toFixed(2)}ms filing both sigils` +
     ` — the width this index pays per REBUILD (${first.taggedBy.size} keys)`,
+)
+const walked3 = walks()
+console.log(
+  `the tag walk over the same prose: ${walked3.parts.toFixed(2)}ms as \`titleParts\` is` +
+    ` (\`exec\`), ${walked3.matchAll.toFixed(2)}ms as it was (\`matchAll\`),` +
+    ` ${walked3.loop.toFixed(2)}ms for the private loop this tree declines to have`,
 )

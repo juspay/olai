@@ -361,15 +361,23 @@ const NO_TAGS: ReadonlyArray<string> = []
  *
  * THROUGH THAT WALK rather than through a second one over {@link titleTagRe},
  * which is what this was: where a tag starts and stops is one function's
- * answer, and a private loop here would be a fourth reader of that alphabet
- * spelling its own boundaries. The argument for the loop is that it allocates
- * neither the prose between the tags nor the written form (a match IS one);
- * measured over a 1,144-character note it was 23.0µs against 23.8µs, and
- * RE-MEASURED over the whole bench vault when this index gained the commoner
- * sigil — where the walk is the largest single cost in a rebuild and the case
- * for a private loop would have been strongest — it is 21.05ms against
- * 22.17ms. Five per cent, twice, because the cost is the regex and not the
- * parts. It is not worth a second reading of what a tag is.
+ * answer, and a private loop here would be a second walk of that alphabet
+ * keeping its own boundaries. The argument for the loop is that it allocates
+ * neither the prose between the tags nor the written form (a match IS one).
+ *
+ * WHAT IT IS WORTH IS PRINTED rather than remembered, and the figure MOVED:
+ * `patch.bench.ts`'s `walks` times the corpus's prose three ways, and on the
+ * bench vault the loop is about 9ms against this walk's 12ms — a quarter,
+ * where the same comparison read three per cent before {@link titleParts}
+ * stopped asking `matchAll` for an iterator. The regex used to dominate; it no
+ * longer does, so what the parts cost is visible.
+ *
+ * IT IS STILL NOT TAKEN HERE, and the reason is scope rather than the number:
+ * a tag-only walk beside the one every renderer uses is a second shape of the
+ * same question, on the hot path, and it belongs in a change that is about
+ * that rather than riding along with an index re-key. The leg is what makes it
+ * a decision somebody can re-take — three arms, one command — instead of a
+ * sentence quoting a laptop.
  *
  * The cheap negative is {@link mayHoldTag}, which is the guard for a walk that
  * wants both sigils — and this one does, since the index behind it is the
@@ -1492,10 +1500,14 @@ export const tagOpensAt = (text: string, at: number): boolean =>
  * asked for an iterator. `matchAll` clones the regex and allocates an iterator
  * per call, and this is called once per string of prose in the directory — for
  * the tag index's fold, for the search matcher's per-record fold, and per drawn
- * row in the browser. Measured over the bench vault's corpus-wide fold: 22.9ms
- * against 15.5ms, which is a third of what the widened index pays per rebuild.
- * (The rejected shape is a private `titleTagRe` loop somewhere ELSE — see
- * {@link writtenTagsIn}. This is this function's own internals.)
+ * row in the browser, so it is a GLOBAL change and is named as one on the PR
+ * that made it (#249).
+ *
+ * The pair is a LEG rather than a sentence, for this package's standing reason:
+ * `patch.bench.ts`'s `walks` times the corpus's prose as this function is, as
+ * it was, and in the shape {@link writtenTagsIn} declines — roughly 12ms
+ * against 16ms against 9ms on the bench vault, all three checked to find the
+ * same tags before any of them is timed.
  */
 export const titleParts = (title: string): ReadonlyArray<TitlePart> => {
   const parts: Array<TitlePart> = []

@@ -32,8 +32,13 @@ export const TAG_ATTRIBUTE = "data-tag"
  *  third spelling of it: a modified click is the browser's (⌘-click and
  *  shift-click on a row are also the multi-select gestures, `../Tree.tsx`), and
  *  one something deeper already answered — a tag inside a breadcrumb, where the
- *  `<Link>` has run first — goes where the link says. */
-export const taggedBy = (event: MouseEvent): string | null => {
+ *  `<Link>` has run first — goes where the link says.
+ *
+ *  NAMED FOR THE PRESS, and it was `taggedBy` until `@olai/format` grew a
+ *  `Derived.taggedBy` — the reverse index of which records write which tag.
+ *  Two unrelated answers under one word in one app is a grep that lands on the
+ *  wrong file; this one is about a MouseEvent and says so. */
+export const tagPressed = (event: MouseEvent): string | null => {
   if (!ours(event)) return null
   const target = event.target
   if (!(target instanceof Element)) return null
@@ -44,4 +49,4 @@ export const taggedBy = (event: MouseEvent): string | null => {
 /** Is this click on a tag pill? What a row's own title handler asks before it
  *  opens an editor, so one press does not both filter the page and put a caret
  *  in the line — the press belongs to the tag. */
-export const onATag = (event: MouseEvent): boolean => taggedBy(event) !== null
+export const onATag = (event: MouseEvent): boolean => tagPressed(event) !== null
