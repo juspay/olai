@@ -1461,12 +1461,26 @@ const propKeyOf = (
   return null
 }
 
+/**
+ * The rows of {@link HAS_FIELDS} that ARE a plain field test — every one but
+ * `date`, which is the unbounded `date:` and reads ./dates.ts instead
+ * ({@link holds}).
+ *
+ * A TYPE rather than a sentence, and the difference is what a growing table
+ * costs: `carries(node, "date")` would answer about the `date` FIELD where the
+ * grammar answers about the journal's two dates, and two answers to one word
+ * is precisely what the exception exists to prevent. Spelled as an exclusion
+ * so a row added to that table is a field test by default and has to argue to
+ * be anything else.
+ */
+type CarriedField = Exclude<HasField, "date">
+
 /** Whether a record carries a field — the WRITER's own rule for absence
  *  (./write.ts's `nothing`), asked as a question rather than restated. The four
  *  ways a field can hold nothing (`undefined`, `null`, `[]`, `""`) all say the
  *  same thing about the node, and a second list of them here is how `desc: ""`
  *  becomes a note to search for and no note to write. */
-const carries = (node: RegularNode, field: HasField): boolean =>
+const carries = (node: RegularNode, field: CarriedField): boolean =>
   !nothing(node[field])
 
 const within = (day: string, clause: Extract<Clause, { kind: "date" }>): boolean =>
