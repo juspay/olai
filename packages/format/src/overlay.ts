@@ -87,10 +87,11 @@
  * purpose. `byId` is the corpus-sized one — 21,552 entries against 8,282 for
  * the next largest and a few hundred for most, so one clone of it costs about
  * what all the others together cost, which `patch.bench.ts` prints as a pair.
- * Size is not the whole reason and not the deciding one: seven of those nine
+ * Size is not the whole reason and not the deciding one: eight of those nine
  * DELETE keys across a patch, which a layer that keeps `base`'s key set cannot
- * do. The two that do not are `namedBy` and `mentionedBy`, and both were left alone
- * deliberately. `namedBy`: the
+ * do — `taggedBy` among them, since a tag nothing writes any more has to leave
+ * the map rather than stay as an empty list. The one that does not is
+ * `namedBy`, and it was left alone deliberately: the
  * validator WALKS it whole ({@link ./validate.ts}'s `checkTargets`), and a walk
  * through the generator below costs more per entry than the clone it would
  * save, where `byId`'s only whole-index reader asks for {@link Layer.keys},

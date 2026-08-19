@@ -28,6 +28,7 @@ One matcher was never quite the whole of it, because the question and the answer
 | `is:archived` | what was put away — see below |
 | `has:desc` `has:see` `has:after` `has:doc` | a field the record carries (an empty edge list is no edge) |
 | `has:date` | on any day at all — the unbounded `date:`, so the two cannot disagree |
+| `has:repeat` | what COMES BACK: the node carries a repeat rule — see below |
 | `date:2026-08-10` `date:2026-08` `date:2026` | a day, a month, a year |
 | `date:today` `date:yesterday` `date:tomorrow` | the day the query is asked on, and the two beside it |
 | `date:this-week` `date:last-month` `date:next-year` | `this-` / `last-` / `next-`, with `week`, `month` or `year` |
@@ -37,6 +38,8 @@ One matcher was never quite the whole of it, because the question and the answer
 | `-anything` | takes that word or operator back out — ONE leading dash. A second one is a character, not a second negation: `--force` is a word people write, so `--is:done` looks for that text and finds it wherever somebody typed it |
 
 `date:` reads the two dates a journal reads — what the node is scheduled for, and when it was finished. A dated `doing` or `todo` is on no day here, exactly as on the day page ([format.md](format.md)).
+
+**`has:repeat` asks after the RULE, not the day it repeats from.** A repeating node is a dated one carrying a `repeat` — the format refuses a rule with no date to repeat from ([format.md](format.md)) — so what this selects sits *inside* what `has:date` selects, and the two compose into the question worth asking: `has:date -has:repeat` is everything dated once. Only the occurrence that is NEXT carries the rule: completing one hands it to the occurrence it spawns, so `has:repeat` is the live head of every recurrence and never the eleven finished records behind it.
 
 **The relative words are twelve, and they are a spelling of a value rather than a second operator.** Three for a day — `today`, `yesterday`, `tomorrow`, because that is the shape English already has — and `this-`, `last-`, `next-` in front of `week`, `month` and `year`. Each resolves to the span it names and is then the same two string comparisons a written date is, which is why they compose with a range wherever one takes a date: `date:last-week..` is everything since Monday week, `date:..today` everything up to tonight, `date:last-month..yesterday` the span between. A month and a year resolve to exactly what their written forms do, so `date:this-month` and `date:2026-08` are one answer in August.
 
@@ -86,7 +89,7 @@ Above every page that draws nodes there is a filter box. It is not the header's 
 - **Folds are suspended while a filter is on.** A collapse is a claim about the tree you were reading, and honouring it inside a filtered one would hide the match you typed for. Nothing is written: clearing the filter brings every collapse back.
 - **Hiding finished work happens first.** The Prefs switch is a standing claim about the reader; the filter is a question about the page. So `is:done` under a done-hiding preference draws nothing — and the bar says how many matches are being held back, rather than leaving it a mystery.
 - **A narrowed page can be KEPT** — `⌘⇧P` puts it on the sidebar's shelf with its query, so a saved search is a pin rather than a fourth kind of thing ([editing.md](editing.md#pinning-a-page-to-the-sidebar), [format.md](format.md#pins)). The chord is live while the caret is in the box, which is where a hand is when the thought arrives.
-- The bar reports **"3 of 41"**: how many drawn rows are matches, of how many rows the page draws.
+- The bar reports **"3 of 41"**: how many drawn rows are matches, of how many rows the page HOLDS — every row it could draw, whether or not a preference of yours is taking some of them off the screen. So the second number does not move when you hide finished work, and the matches held back are counted inside it: **"3 of 41 — 2 more matches hidden as done (Prefs)"** is 5 matches on a page of 41 rows, and adds up. Found nothing? The denominator stays, because "no matches of 41" and an empty directory are two different pieces of news. A part that is zero is not said.
 
 ### Every row says why it is drawn
 
@@ -100,7 +103,9 @@ The note is **excerpted, never auto-expanded**. Notes here run to paragraphs; th
 
 None of this is stored, and none of it is a second matcher: the highlight comes from the same case fold `matching` searched with, so the page cannot light up a stretch of text the query never looked at — and a letter whose lower case is written with two characters (`İ`) lights whole, because there is no half a character to light.
 
-Two places a matched row lights nothing, named so they are not mistaken for bugs. A needle that lives **only inside a title's `code` span or link** selects the row and lights nothing: those are the one part of a title this app deliberately does not re-read (a `#` in a URL fragment is not a tag), and the highlight follows the same walk. And a phrase spanning two rendered pieces of a title — across a `**bold**`, say — lights neither, because the words are found per piece of rendered markup. A phrase across a `#tag` does light, since a tag is a split of one string rather than a second piece.
+A needle inside a title's **`code` span or link text** lights like any other, and that is worth saying because it did not used to. Those are the one part of a title this app deliberately does not re-read for `#tags` — a `#` in a URL fragment is not a tag — and the highlight, riding the same walk, used to stop at the same door: the row was selected on the strength of a word in its code span and drew nothing lit. The two rules are separate now. The tag rule is unchanged (no pills inside code or a link, however deeply nested); the highlight goes everywhere the text goes, and never into an attribute, so a link keeps its href.
+
+One place a matched row still lights nothing, named so it is not mistaken for a bug: a phrase spanning two rendered pieces of a title — across a `**bold**`, say — lights neither, because the words are found per piece of rendered markup. Lighting it means rendering that preserves the source's offsets, which is a different change. A phrase across a `#tag` does light, since a tag is a split of one string rather than a second piece.
 
 ### Which pages filter, and what it means on each
 
@@ -148,11 +153,21 @@ They are two lines rather than one because a place is somebody's prose. Side by 
 
 ## Where searching happens on each face
 
-- **Header box** — desktop and up. It sits first in the right-hand cluster and is the one control there that may shrink to nothing, so the connection and commit pills never lose a character to it. Type, arrow up and down, Enter to open, Escape to clear.
+- **Header box** — desktop and up. It sits first in the right-hand cluster and is the one control there that may shrink to nothing, so the connection and commit pills never lose a character to it. Type, arrow up and down, Enter to open, Escape to clear. Documents match here too (below).
 - **Phone** — a magnifier in the same place, opening the `⌘K` palette, which is a full-width modal built for exactly this. The bar at 390pt has no room for a box and a phone has no chord to press.
-- **`⌘K` palette** — the shell's commands, node results underneath them, and the two things it WRITES: the zoomed node's own verbs, and quick capture on a `+` prefix ([editing.md](editing.md)). Neither is a search — a query carrying `>` or `+` is a line being typed rather than a lookup, and nothing is asked of the server for it.
+- **`⌘K` palette** — the shell's commands, then the directory's documents, then node results, and the two things it WRITES: the zoomed node's own verbs, and quick capture on a `+` prefix ([editing.md](editing.md)). Neither is a search — a query carrying `>` or `+` is a line being typed rather than a lookup, and nothing is asked of the server for it.
 - **A panel under a row** — where searching is how you answer a question the row asked. Three of them, each drawing the same rows over the same procedure: the `((` widget in a title (place a mirror of what you find), the edge panel's box (`see` / `after` — what this node points at), and the move-to picker's (⌘⇧M — which node this row goes under, [editing.md](editing.md)). The last one is the one that draws a REFUSAL beside its hits: a destination is not merely a node, so most of the set is somewhere a given row cannot go, and it says which as you walk the list.
 - **`search_nodes`** — the same answer for an agent, over MCP.
+
+## Documents, by name
+
+**The two doors that list hits also list DOCUMENTS** — every `.md` and every saved `.html` the directory serves. Type into the `⌘K` palette or the header box and a file whose name you are spelling is a row, drawn with the same glyph the sidebar's tree gives it, with the folder it sits in on the line underneath; Enter opens its page. A block of its own, above the node hits and below the commands, because the two answers come from different places: the files are matched in your own tab off the list it already holds, the nodes are a question asked of the server.
+
+**They are matched on the NAME and the PATH, and on nothing else.** `pal` finds `notes/palette.md` because that is what the file is called; `notes/` finds everything under that folder. What is INSIDE a document is not searched here, and that is the ruling rather than an omission — a document is prose, and this grammar selects nodes. So `is:done`, `#home` and `prop:` say nothing about a `.md`, the same way `?q=` narrows every page but a document's. Finding a note by what it SAYS is the parked item above, and this is deliberately not half of it.
+
+**One rule, matched the way `@` is matched in a message**: the name first, the path second, a substring last, no fuzzy scoring — the same buckets the chat composer completes a path with ([chat.md](chat.md)), so the file that comes first is the file you have started spelling, whichever surface you are typing in. An empty ⌘K lists no documents at all: it is a list of commands until you type, and a bare `@` in a message is the door that exists for browsing the directory.
+
+**There is no way to MAKE a document from the palette**, and none to make an outline either. `+ New document` and `+ New outline` live in the sidebar ([editing.md](editing.md)); the palette has never carried a create row for either, and giving one to documents alone would be the old imbalance the other way up.
 
 ## Not yet: finding a note you cannot name
 

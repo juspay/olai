@@ -592,6 +592,17 @@ export const TRASH_PUT_BACK = selector(TESTID.trashPutBack);
 export const TRASH_SAID = selector(TESTID.trashSaid);
 /** Said in the rows' place when nothing is in the trash. */
 export const TRASH_EMPTY = selector(TESTID.trashEmpty);
+/** The page's OWN verb: empty the Trash for good. Drawn only when the
+ *  archives hold something, and never taken away by a filter. One id for its
+ *  three states, so a step reaches the control rather than a state of it. */
+export const TRASH_EMPTY_VERB = selector(TESTID.trashEmptyVerb);
+/** The question that replaces it before anything is written. */
+export const TRASH_EMPTY_CONFIRM = selector(TESTID.trashEmptyConfirm);
+/** The way out of that question, which writes nothing. */
+export const TRASH_EMPTY_CANCEL = selector(TESTID.trashEmptyCancel);
+/** What the emptying said — the PAGE's line, since the write is about every
+ *  archive at once and there is no row to put it under. */
+export const TRASH_PAGE_SAID = selector(TESTID.trashPageSaid);
 /** The way to it, at the foot of the directory column. */
 export const TRASH_LINK = selector(TESTID.trashLink);
 /** THE day's note, above those groups: a document named for the date itself.

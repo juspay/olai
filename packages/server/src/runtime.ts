@@ -708,6 +708,8 @@ export const bind = (
           outlines: () => wiring.ops.outlines,
           node: ({ input }) => wiring.ops.node(input),
           subtree: ({ input }) => wiring.ops.subtree(input),
+          documents: () => wiring.ops.documents,
+          document: ({ input }) => wiring.ops.document(input),
         },
         git: {
           // The button's door, under the writer this runtime was composed with

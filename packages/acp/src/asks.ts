@@ -73,11 +73,28 @@ export class Refused {
   constructor(readonly reason: string) {}
 }
 
-/** A form to put in front of a person: what the agent said it needs, and the
- *  fields to fill in. */
+/** A form to put in front of a person: what the agent said it needs, the
+ *  fields to fill in, and which tool call it is about. */
 export interface Form {
   readonly message: string
   readonly fields: ReadonlyArray<AskField>
+  /**
+   * The tool call this question was asked FROM, or `null` for one that names
+   * none.
+   *
+   * The protocol carries it on both ways in ({@link formOf}'s `toolCallId`,
+   * {@link permissionFormOf}'s `toolCall.toolCallId`), and it is the one thing
+   * a form says about its own provenance — which is what a client needs to say
+   * WHO is asking. That answer is not here and cannot be: which agent a call
+   * belongs to is an agent-specific `_meta` reading, and this package speaks
+   * ACP and nothing else. What it can honestly answer is the call, so it does,
+   * and the caller joins that to whatever it knows about calls.
+   *
+   * `null` rather than absent because a form always has the question — an
+   * elicitation scoped to a request rather than a session names no call, and
+   * that is a fact about the form rather than a field somebody forgot.
+   */
+  readonly toolCall: string | null
 }
 
 /**
@@ -101,8 +118,18 @@ export const formOf = (request: CreateElicitationRequest): Form | Refused => {
     )
   }
   const fields = fieldsOf((request as { requestedSchema?: ElicitationSchema }).requestedSchema)
-  return fields instanceof Refused ? fields : { message: request.message, fields }
+  return fields instanceof Refused
+    ? fields
+    : { message: request.message, fields, toolCall: toolCallOf(request) }
 }
+
+/** Which call a session-scoped elicitation was asked from. A cast because the
+ *  field belongs to one arm of the request's union and a form elicitation may
+ *  be scoped to a request instead, which names none — and `textOr` below for
+ *  the rest, since "a string that is actually there" is one rule this file
+ *  already owns and spells four other times. */
+const toolCallOf = (request: CreateElicitationRequest): string | null =>
+  textOr((request as { readonly toolCallId?: unknown }).toolCallId, null)
 
 const fieldsOf = (
   schema: ElicitationSchema | undefined,
@@ -228,6 +255,7 @@ export const PERMISSION_FIELD = "permission"
  */
 export const permissionFormOf = (request: RequestPermissionRequest): Form => ({
   message: textOr(request.toolCall.title, "the agent is asking for permission"),
+  toolCall: request.toolCall.toolCallId,
   fields: [{
     key: PERMISSION_FIELD,
     label: null,

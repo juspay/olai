@@ -9,6 +9,12 @@
  * and what an agent finds cannot drift (items.ts says why there is no local
  * matcher).
  *
+ * Between the two: the DIRECTORY'S DOCUMENTS (`./documents.ts`), matched by
+ * name and path against the served list this tab already holds, drawn with the
+ * sidebar's own glyph, and opening the `/doc/` address the router has served
+ * all along. They are keyed on the NAME and nowhere near a body — the grammar
+ * above still selects nodes, and a document is prose.
+ *
  * ## The two things it writes
  *
  * **OP ROWS**, about the node the reader has ZOOMED (`./ops.ts`): the same
@@ -77,9 +83,11 @@ import {
   type PaletteItem,
   SHELL_ITEMS,
 } from "./items.ts"
+import { documentItems } from "./documents.ts"
 import { opItems } from "./ops.ts"
 import { pinItem } from "../pins/palette.ts"
 import { sayPin, togglePin } from "../pins/pinning.ts"
+import { useServed } from "../served.tsx"
 import { createCursor } from "../search/cursor.ts"
 import { createNodeSearch } from "../search/nodes.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
@@ -143,6 +151,11 @@ export function Palette(props: {
   const undo = useUndo()
   const derived = useDerived()
   const router = useRouter()
+  /** Every path the directory serves, from the one list this tab already holds
+   *  (`../served.tsx`) — where the document rows come from. Reached rather than
+   *  handed down for the reason the derivation above is: a directory gains and
+   *  loses files while a tab is open. */
+  const served = useServed()
   const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
   // WHICH row Enter takes, and the arrows that walk it — the one cursor every
@@ -211,14 +224,24 @@ export function Palette(props: {
   const mode = createMemo(() => modeOf(query()))
   const listing = () => mode().kind === "filter"
 
+  /**
+   * WHAT THIS BOX IS ASKING — the query, or `null` while it is asking nothing:
+   * the palette is shut, or the line carries a prefix. Neither `>` nor `+` is a
+   * lookup, and asking for one would spend a round trip per keystroke on a
+   * sentence nobody is looking things up with.
+   *
+   * ONE accessor, because two lists are answered from it — the nodes over the
+   * wire and the documents in this tab — and "when is this box asking" is a
+   * different question from "what does that list do with the answer". Spelled
+   * per consumer, the two would be free to gate differently: a prefix that took
+   * the node search away and left the file rows standing is a list answering a
+   * line nobody is searching with.
+   */
+  const asked = () => (paletteOpen() && listing() ? query() : null)
+
   // The nodes, from the server — one primitive, its own failure, and no
-  // request bookkeeping in this component ({@link ./search.ts}). It is asked
-  // only while the palette is open and the box is not carrying a prefix:
-  // neither `>` nor `+` is a search, and asking for one would spend a round
-  // trip per keystroke on a sentence nobody is looking things up with.
-  const nodes = createNodeSearch(() =>
-    paletteOpen() && listing() ? query() : null
-  )
+  // request bookkeeping in this component ({@link ../search/nodes.ts}).
+  const nodes = createNodeSearch(asked)
 
   /**
    * The zoomed node's verbs — its OWN memo, and guarded on the palette being
@@ -236,6 +259,24 @@ export function Palette(props: {
     paletteOpen() ? opItems(props.zoomed, derived()) : []
   )
 
+  /**
+   * The document rows — their OWN memo, and the served list is read only from
+   * inside it.
+   *
+   * Both halves of that are the reason. Beside the node hits in one memo, the
+   * block was re-derived every time an answer landed from the server, and
+   * `<For>` keys a row by REFERENCE — so a round trip that had nothing to do
+   * with these files tore them down and drew them again, under the cursor of
+   * somebody walking the list. That is the churn the ordering below exists to
+   * prevent, arriving by the other road. And reading `served()` after the
+   * gate means a directory that gains a file does not re-run this while the
+   * palette is shut, which is `opRows`' own guard one block up.
+   */
+  const documents = createMemo(() => {
+    const query = asked()
+    return query === null ? [] : documentItems(served(), query)
+  })
+
   const items = createMemo(() => {
     if (!listing()) return [] as ReadonlyArray<PaletteItem>
     // THE OP ROWS FIRST, because they are the only rows that are about what
@@ -243,12 +284,22 @@ export function Palette(props: {
     // fold is a list nobody finds them in. What makes that safe is
     // {@link chosen}: an untouched palette has no row chosen, so being at the
     // top is not being one keystroke from a write.
-    // THE SHELF'S ROW sits between them: it is about the page rather than
+    // THE SHELF'S ROW sits with the commands: it is about the page rather than
     // about the zoomed node, so it belongs with the contextual half and not
-    // with the fixed commands — and it is the one door a document or a
-    // filtered page has that a reader can find by looking (../pins/palette.ts).
+    // with the fixed ones — and it is the one door a document or a filtered
+    // page has that a reader can find by looking (../pins/palette.ts).
     const commands = [...opRows(), pinItem(router.route(), derived()), ...SHELL_ITEMS]
-    return [...filterItems(query(), commands), ...nodes.hits().map(nodeItem)]
+    // THEN THE FILES, THEN THE NODES, which is the order they can be ANSWERED
+    // in: the commands and the documents are matched in this tab off lists it
+    // already holds, and a node hit is a debounce and a round trip away. A
+    // block that arrives late must not push the rows a reader is already
+    // walking down the list under their cursor, so the two local blocks sit
+    // above it and the list only ever grows at the bottom.
+    return [
+      ...filterItems(query(), commands),
+      ...documents(),
+      ...nodes.hits().map(nodeItem),
+    ]
   })
 
   /** Everything this modal is holding, put down — one spelling, because the
@@ -736,6 +787,7 @@ export function Palette(props: {
                     <li>
                       <Result
                         label={item.label}
+                        of={item.of}
                         hint={item.hint}
                         place={item.place}
                         props={item.props}

@@ -180,6 +180,38 @@ export const assemble = (
 }
 
 /**
+ * WHY the set holds no content for one file — its errors — or `undefined` for a
+ * file it read.
+ *
+ * The one question two ops ask before they trust the set about a path, and it
+ * was a `.find` at each of them. It reads as a lookup either way; what it was
+ * missing is a NAME, because the fact it establishes is subtle and both
+ * callers turn on it: a file in `broken` is one the set holds a PLACE for and
+ * no content — an outline whose lines did not parse contributes no records, a
+ * document whose read failed contributes an empty text ({@link assemble}) —
+ * and neither of those absences means the file is empty.
+ *
+ * The two callers then say different things about it, correctly, and that is
+ * exactly why the SENTENCE is not here: `write_document` refuses because
+ * re-emitting the file from the set would erase what is really in it, and
+ * `read_document` refuses because handing back the empty text would be a body
+ * nobody read. One fact, two verbs, two consequences.
+ */
+export const brokenIn = (
+  set: OutlineSet,
+  file: string,
+): ReadonlyArray<OutlineError> | undefined => brokenBy(set).get(file)
+
+/** The same fact for a WHOLE ANSWER rather than one path — every listing walks
+ *  the files and asks it per row, and a `.find` per row is files × broken on
+ *  the first call an agent makes. Both listings built this map inline and
+ *  identically before it had a name. */
+export const brokenBy = (
+  set: OutlineSet,
+): ReadonlyMap<string, ReadonlyArray<OutlineError>> =>
+  new Map(set.broken.map((entry) => [entry.file, entry.errors]))
+
+/**
  * A set taken back APART into the map {@link assemble} puts together — the
  * inverse, declared beside what it inverts.
  *

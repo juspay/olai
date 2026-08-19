@@ -237,6 +237,29 @@ const pickerOn = async (page: Page, id: string) => {
   await page.locator(MOVE_PICKER).first().waitFor()
 }
 
+// ── the row editor's completions ───────────────────────────────────────
+
+const COMPLETIONS = '[data-testid="completions"]'
+const COMPLETION_ITEM = '[data-testid="completion-item"]'
+
+/** The shortlist as a reader sees it, top to bottom — the LABELS alone, which
+ *  for a tag is the name as it will be written. `innerText` and its first line,
+ *  which is the same reading `step_definitions/completion_steps.ts` takes of
+ *  the same row: the count beside a label is laid out inline and is a separate
+ *  question ({@link rowSaying}). */
+const labels = async (page: Page): Promise<string> =>
+  (await page.locator(COMPLETION_ITEM).evaluateAll((rows) =>
+    rows.map((one) => (one as HTMLElement).innerText.split("\n")[0]?.trim() ?? "")
+  )).join(", ") || "(nothing)"
+
+/** ...and ONE ROW WHOLE, label and the count beside it, which is what a reader
+ *  of the shot sees on that line. Named for what it answers rather than for the
+ *  half of it a caller happens to be about to quote. */
+const rowSaying = async (page: Page, label: string): Promise<string> =>
+  oneLine(
+    await page.locator(COMPLETION_ITEM).filter({ hasText: label }).first().innerText(),
+  )
+
 /** One line out of however many the markup wrapped it over — what a console
  *  line can hold, spelled once for every reader here that prints something the
  *  page drew. */
@@ -417,6 +440,27 @@ const putAway = async (page: Page, id: string) => {
   await page.waitForTimeout(SETTLE)
 }
 
+/** The `•••` verb that opens the repeat picker, and the picker's three parts.
+ *  NAMED for {@link putAway}'s reason: two sections drive them, and a test id
+ *  or a verb renamed in one copy would leave the other clicking nothing. */
+const REPEAT_VERB = '[data-testid="node-menu-panel"] >> text=Set repeat…'
+const REPEAT_PICKER = '[data-testid="repeat-picker"]'
+const REPEAT_RULE = '[data-testid="repeat-picker-rule"]'
+const REPEAT_SET = '[data-testid="repeat-picker-set"]'
+
+/** Put a repeat rule on a row, through the menu and the picker — for the
+ *  section whose subject is what a rule makes possible AFTERWARDS. The section
+ *  about the picker ITSELF drives the same four locators one at a time,
+ *  because what it photographs is what sits between them. */
+const repeatsEvery = async (page: Page, id: string, rule: string) => {
+  await openMenu(page, id)
+  await page.locator(REPEAT_VERB).first().click()
+  await page.locator(REPEAT_PICKER).first().waitFor()
+  await page.locator(REPEAT_RULE).first().selectOption(rule)
+  await page.locator(REPEAT_SET).first().click()
+  await page.waitForTimeout(SETTLE)
+}
+
 /** How long a freshly opened page is given to draw before it is read or
  *  photographed — a render and a subscription's first frame, not a write
  *  ({@link SETTLE} is that one). */
@@ -575,12 +619,27 @@ const BACKLINK_MENTION_REFS = '[data-testid="backlink-mention-refs"]'
 const DAY_PAGE = '[data-testid="day-page"]'
 const AGENDA_PAGE = '[data-testid="agenda-page"]'
 const TRASH_PAGE = '[data-testid="trash-page"]'
+/** The Trash page's OWN verb, its question, and the way out of it — the app's
+ *  only delete, and the one control here that is not about a row. */
+const EMPTY_TRASH_VERB = '[data-testid="trash-empty-verb"]'
+const EMPTY_TRASH_CONFIRM = '[data-testid="trash-empty-confirm"]'
+const EMPTY_TRASH_CANCEL = '[data-testid="trash-empty-cancel"]'
+/** What the page says in the rows' place once there is nothing left. */
+const TRASH_EMPTY_LINE = '[data-testid="trash-empty"]'
 
 /** The ⌘K box, and the rows of it that are NODES — a shell item that happens to
  *  share a word is not an answer to a query, which is what `data-id` tells
  *  apart (the browser tests read the same pair). */
 const PALETTE_INPUT = '[data-testid="palette-input"]'
 const PALETTE_HIT = '[data-testid="palette-item"][data-id^="node-"]'
+/** …and the rows of it that are DOCUMENTS, told apart the same way: a served
+ *  file's row carries its whole path in `data-id`, so a shot can print WHICH
+ *  file it matched rather than the name a folder may repeat. The header's box
+ *  draws the identical row (`web/src/client/palette/documents.ts`), which is
+ *  why the pair is spelled here together. */
+const PALETTE_DOC = '[data-testid="palette-item"][data-id^="doc-"]'
+const HEADER_DOC = '[data-testid="header-search-item"][data-id^="doc-"]'
+const DOCUMENT_PAGE = '[data-testid="document-page"]'
 
 /** The rows of a day or of the agenda, under the file each was found in — flat
  *  rows that carry their own ancestry, which is why a filtered one keeps
@@ -883,19 +942,18 @@ const SECTIONS = {
     // THE RULE, from the `•••` — the only door on a row that does not repeat
     // yet, since there is no pill to press.
     await openMenu(page, "order")
-    await page.locator('[data-testid="node-menu-panel"] >> text=Set repeat…').first().click()
-    await page.locator('[data-testid="repeat-picker"]').first().waitFor()
+    await page.locator(REPEAT_VERB).first().click()
+    await page.locator(REPEAT_PICKER).first().waitFor()
     await page.waitForTimeout(200)
     console.log(`  the rules it offers: ${
-      (await page.locator('[data-testid="repeat-picker-rule"] option').allInnerTexts()).join(" · ")
+      (await page.locator(`${REPEAT_RULE} option`).allInnerTexts()).join(" · ")
     }`)
     await shot(page, "picker-open")
 
-    await page.locator('[data-testid="repeat-picker-rule"]').first()
-      .selectOption("every week on monday")
+    await page.locator(REPEAT_RULE).first().selectOption("every week on monday")
     await page.waitForTimeout(200)
     await shot(page, "rule-chosen")
-    await page.locator('[data-testid="repeat-picker-set"]').first().click()
+    await page.locator(REPEAT_SET).first().click()
     await page.waitForTimeout(SETTLE)
     console.log(`  the row now says:    ${await textOf(page, `${row("order")} [data-testid="repeat"]`)}`)
     console.log(`  and the file says:   ${recordOf("order")}`)
@@ -919,6 +977,53 @@ const SECTIONS = {
     await opened(page, "/agenda", AGENDA_PAGE)
     console.log(`  the agenda draws:\n${await listed(page, AGENDA_PAGE)}`)
     await shot(page, "agenda-shows-the-occurrence")
+  },
+
+  /**
+   * FINDING WHAT COMES BACK — `has:repeat`, over a page that mixes the two
+   * kinds of row, in both halves of the palette table.
+   *
+   * The rule is a field the record carries, so the facet is spelled, parsed
+   * and evaluated exactly where `has:desc` is and there is no new machinery to
+   * photograph. What a picture adds is the PAGE it makes: one row that comes
+   * back, drawn with the ancestry that says what it is about — and the same
+   * query negated, which is every row that is dated once or not at all.
+   *
+   * The rule is put on first, because nothing in the served fixture repeats:
+   * a shot of this facet over a directory with no rule in it would be a shot
+   * of the empty answer.
+   */
+  "finding-what-comes-back": async (page) => {
+    pinnedBy(
+      "recurring_dates.feature",
+      "`has:repeat` narrows the page to the rows that come back",
+    )
+    await repeatsEvery(page, "order", "every week on monday")
+    console.log(`  the record now says: ${recordOf("order")}`)
+    // The MIX, before anything is asked of it: ten rows, one of which wears a
+    // rule. What the facet does is only legible against this.
+    await shot(page, "the-page-that-mixes-both")
+
+    // BOTH QUERIES in one palette, then both again in the other — rather than
+    // a theme flipped per query. The filter is in the address and the theme is
+    // a reload, so the second order pays two page loads for the picture the
+    // first gets in one.
+    const both = async (dark: boolean) => {
+      const half = dark ? "-dark" : "-light"
+      await narrow(page, "has:repeat")
+      console.log(`  has:repeat${half.padEnd(7)} ${await said(page, FILTER_COUNT)}`)
+      console.log(`  the rows say: ${await whyDrawn(page)}`)
+      await shot(page, `has-repeat${half}`)
+      // ...and the same facet with the dash every other token takes, which is
+      // the whole of this grammar's negation story.
+      await narrow(page, "-has:repeat")
+      console.log(`  -has:repeat${half.padEnd(6)} ${await said(page, FILTER_COUNT)}`)
+      console.log(`  the rows say: ${await whyDrawn(page)}`)
+      await shot(page, `not-has-repeat${half}`)
+    }
+    await both(false)
+    await inTheDark(page)
+    await both(true)
   },
 
   "filter-keeps-ancestors": async (page) => {
@@ -1689,6 +1794,94 @@ const SECTIONS = {
     await shot(page, "drawn-inside-refused")
   },
 
+  /**
+   * A DOCUMENT IS A ROW IN THE BOX — the ⌘K row of the `.olai`/`.md` parity
+   * table, which said "zero document rows: no open, no create, no capture".
+   *
+   * Photographed at BOTH DOORS, because that is the claim: the ⌘K palette and
+   * the header's box are one reading, and a file found in one and not the
+   * other would be the drift they are one reading against. And in BOTH
+   * PALETTES, light and dark, because the row draws a glyph in the theme's own
+   * ink beside a place line in its muted one — a face that reads in exactly one
+   * of them is a face nobody checked.
+   *
+   * What is NOT here is as much of the point: no create row (the palette has
+   * never had one, for an outline either), and nothing matched out of a body —
+   * the query is `pal`, which is what the FILE is called.
+   */
+  "documents-in-the-palette": async (page) => {
+    pinnedBy(
+      "documents.feature",
+      "The ⌘K palette opens a document by name",
+      "The header's box finds the same document, drawn the same way",
+    )
+    const pass = async (dark: boolean) => {
+      const suffix = dark ? "-dark" : ""
+      await opened(page, "/o/house.olai", OUTLINE_TREE)
+
+      // THE PALETTE, on a query that is the start of a file's NAME rather than
+      // of its path: `notes/palette.md` is what `pal` means to a person.
+      await page.keyboard.press("ControlOrMeta+k")
+      await page.locator(PALETTE_INPUT).waitFor()
+      await page.locator(PALETTE_INPUT).fill("pal")
+      await page.locator(PALETTE_DOC).first().waitFor()
+      await page.waitForTimeout(400)
+      console.log(`  documents drawn:    ${await page.locator(PALETTE_DOC).count()}`)
+      console.log(
+        `  the first one:      ${await page.locator(PALETTE_DOC).first().getAttribute("data-id")}`,
+      )
+      await shot(page, `the-palette-matches-a-document${suffix}`)
+
+      // …and the row OPENS it: the same page the sidebar's row opens, at the
+      // address the router has served all along.
+      await page.locator(PALETTE_DOC).first().click()
+      await page.locator(DOCUMENT_PAGE).first().waitFor()
+      await page.waitForTimeout(SETTLE)
+      console.log(`  the address:        ${new URL(page.url()).pathname}`)
+      await shot(page, `the-document-opens${suffix}`)
+
+      // THE OTHER DOOR, over the same query and drawing the same row.
+      const box = page.locator('[data-testid="header-search"]')
+      await box.click()
+      await box.fill("pal")
+      await page.locator(HEADER_DOC).first().waitFor()
+      await page.waitForTimeout(400)
+      console.log(
+        `  the header box too: ${await page.locator(HEADER_DOC).first().getAttribute("data-id")}`,
+      )
+      await shot(page, `the-header-box-matches${suffix}`)
+    }
+
+    await pass(false)
+
+    // BOTH BODIED KINDS in one list, which is the row set being the registry's
+    // answer rather than a suffix somebody typed: `a` is inside `palette.md`
+    // and inside `quarter.html`, and the two are drawn with the two glyphs the
+    // sidebar gives them. Once, in the light pass — the pair above is what has
+    // to be checked in either palette; this is a fact about the SET.
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await page.keyboard.press("ControlOrMeta+k")
+    await page.locator(PALETTE_INPUT).waitFor()
+    await page.locator(PALETTE_INPUT).fill("a")
+    await page.locator(PALETTE_DOC).first().waitFor()
+    // `a` is a broad query, so the commands it also matches fill the box above
+    // them — which is the block ORDER working, and means the shot has to be
+    // taken where the block is. The list scrolls under a fixed input, so this
+    // is a picture of the same palette a little further down.
+    await page.locator(PALETTE_DOC).last().scrollIntoViewIfNeeded()
+    await page.waitForTimeout(400)
+    const matched = await page.locator(PALETTE_DOC).evaluateAll((rows) =>
+      rows.map((row) => row.getAttribute("data-id"))
+    )
+    console.log(`  “a” matches:        ${matched.join(", ")}`)
+    await shot(page, "a-document-and-a-saved-page")
+    await page.keyboard.press("Escape")
+
+    await wearTheme(page, "pitch")
+    await pass(true)
+    await wearTheme(page, "chalk")
+  },
+
   "new-outline": async (page) => {
     await page.locator('[data-testid="new-outline"]').click()
     const box = page.locator('[data-testid="new-outline-path"]')
@@ -1794,6 +1987,92 @@ const SECTIONS = {
    * that separates them on screen, and the transcript prints both records so
    * the ids are readable beside the picture.
    */
+  /**
+   * EMPTYING THE TRASH — the app's only delete, photographed in both halves of
+   * the palette table because the confirm is the whole feature and the confirm
+   * is drawn in theme tokens.
+   *
+   * FIVE SHOTS PER PASS, and the middle three are the point. A trash with a
+   * pile in it, then the QUESTION — which names how many rows go, counted over
+   * what the archives hold rather than over what the page is drawing — then the
+   * pile still standing after **Cancel**, then the emptied page. The cancel shot
+   * is the one a reviewer cannot get anywhere else: a confirm that writes on
+   * either button looks exactly like a correct one until somebody presses the
+   * wrong half, and the transcript prints the file beside each picture so the
+   * claim is the disk's rather than the pixels'.
+   *
+   * A DIFFERENT ROW PER PASS, which is `move-to-picker`'s arrangement and for
+   * its reason: this is a WRITE, and a trash that has already been emptied
+   * cannot be emptied again. The theme is set before the pass rather than
+   * between shots, so every frame in a pass is painted by the boot script the
+   * way a person's browser paints it.
+   */
+  "empty-the-trash": async (page) => {
+    pinnedBy(
+      "trash.feature",
+      "Emptying asks first, and the question names how many rows go",
+      "The count is the SET's, not the rows a filter left on screen",
+      "Cancel writes nothing, and leaves the Trash exactly as it stood",
+      "Confirming empties it for good, and the archive on disk holds nothing",
+    )
+
+    const pass = async (dark: boolean, id: string) => {
+      const suffix = dark ? "-dark" : ""
+      await opened(page, "/o/house.olai", OUTLINE_TREE)
+      await putAway(page, id)
+      // The pile is real before anything is photographed — the guard every
+      // section that writes carries ({@link shotSays}).
+      shotSays(id, "Archive.olai")
+
+      await opened(page, "/trash", TRASH_PAGE)
+      const pile = await piled(page)
+      console.log(`  the pile:\n${pile}`)
+      if (pile.includes("(nothing)")) {
+        throw new Error("the Trash drew nothing, and the shot after this says it drew a pile")
+      }
+      await shot(page, `the-trash-with-items${suffix}`)
+
+      await page.locator(EMPTY_TRASH_VERB).first().click()
+      await page.waitForTimeout(DRAWN)
+      console.log(`  it asks: ${await textOf(page, EMPTY_TRASH_CONFIRM)}`)
+      // The count in that sentence, against the file it is a claim about.
+      console.log(
+        `  Archive.olai holds: ${servedLines("Archive.olai").length} records`,
+      )
+      await shot(page, `asks${suffix}`)
+
+      // CANCEL, and the pile still there afterwards — the half of a confirm
+      // that is invisible until it is wrong.
+      await page.locator(EMPTY_TRASH_CANCEL).first().click()
+      await page.waitForTimeout(DRAWN)
+      shotSays(id, "Archive.olai")
+      console.log(`  after Cancel, Archive.olai still holds: ${
+        servedLines("Archive.olai").length
+      } records`)
+      await shot(page, `cancelled${suffix}`)
+
+      await page.locator(EMPTY_TRASH_VERB).first().click()
+      await page.waitForTimeout(DRAWN)
+      await page.locator(EMPTY_TRASH_VERB).first().click()
+      await page.waitForTimeout(SETTLE)
+      // …and the row is in NO outline now, which is the one thing this app
+      // could not say before.
+      shotSays(id, undefined)
+      console.log(`  emptied, Archive.olai holds: ${
+        servedLines("Archive.olai").length
+      } records`)
+      console.log(`  and the page says: ${await textOf(page, TRASH_EMPTY_LINE)}`)
+      await shot(page, `emptied${suffix}`)
+    }
+
+    await pass(false, "install")
+    // The other half of the palette table. Set before the pass, so the frames
+    // that follow are painted by the boot script rather than by a swap
+    // ({@link inTheDark} does the same for a section with nothing left to do).
+    await page.evaluate(() => localStorage.setItem("olai.theme", "dark"))
+    await pass(true, "order")
+  },
+
   "a-subtree-and-its-copy": async (page) => {
     pinnedBy(
       "duplicate_subtree.feature",
@@ -2011,6 +2290,107 @@ const SECTIONS = {
     shotSays("cuttings", "garden.olai")
     await shot(page, "a-reference-arrives")
   },
+
+  /**
+   * THE TAG COMPLETION, READ OFF THE INDEX (`mentions-index-one-sigil`): what
+   * `#` offers, where those names come from and what the number beside each
+   * one now counts.
+   *
+   * The set is written here so the shot holds the three things at once — a tag
+   * on two rows, a tag on one, and a tag written ONLY IN A NOTE, which is the
+   * behaviour that changed: the list is `Derived.taggedBy`'s keys, and that
+   * index files a record under every tag its title or its note writes. The old
+   * walk looked at titles alone, so `#hob` was a word this set used and never
+   * offered back.
+   *
+   * `#home` is written TWICE by one row on purpose. The count says how many
+   * NODES carry a name — which is what the widget always claimed — so the row
+   * saying it twice must still be one vote, and a picture is the only place a
+   * reader sees the claim and the number together.
+   */
+  "a-tag-completion-reads-the-index": async (page) => {
+    pinnedBy(
+      "input_widgets.feature",
+      "A tag written in a NOTE is vocabulary too",
+      "A tag is counted once per node, however often that node writes it",
+    )
+    rewrite("house.olai", [
+      `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home #home","doing":"2026-08-01"}`,
+      `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets #home","desc":"ask the #hob people about the cut-out first"}`,
+      `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets #handover"}`,
+      `{"id":"knobs","parent":"install","ord":"a0","title":"pick the knobs"}`,
+    ])
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await page.locator(title("knobs")).first().click()
+    await page.locator('[data-testid="title-editor"]').first().waitFor()
+    await page.keyboard.type(" #")
+    await page.locator(COMPLETIONS).first().waitFor()
+    await page.waitForTimeout(DRAWN)
+    // Printed rather than only photographed: that `#hob` is on the list at all
+    // is the whole claim, and it is a row in a shot like any other.
+    console.log(`  a bare \`#\` offers: ${await labels(page)}`)
+    console.log(`  and \`#home\`, which one row writes twice, says: ${
+      await rowSaying(page, "#home")
+    }`)
+    await shot(page, "a-bare-hash")
+
+    await page.keyboard.type("ho")
+    await page.waitForTimeout(DRAWN)
+    console.log(`  narrowed to \`#ho\`:  ${await labels(page)}`)
+    await shot(page, "narrowed")
+  },
+
+  /**
+   * THE COUNT LINE ADDS UP — the plain page, and the one the sentence exists
+   * for, in both halves of the palette table.
+   *
+   * The line used to put two numbers out of two different sets beside each
+   * other: "1 of 8 — 2 more matches hidden as done" counted the rows LEFT
+   * after finished work was taken off, next to matches that had been taken off
+   * with it. The denominator is now what the page HOLDS, so the parts are parts
+   * of one whole — which is a claim about arithmetic, and therefore the one
+   * kind of claim a screenshot can carry: the same page, one preference apart,
+   * with the second number unmoved.
+   *
+   * `hinges OR is:done` is the query that draws all three truths at once on
+   * this fixture: one open match drawn, and two finished ones (`demo`, and
+   * `basil` under the MIRROR of the herb bed) held back.
+   */
+  "the-count-line-adds-up": async (page) => {
+    pinnedBy(
+      "filter_in_place.feature",
+      "The count line is measured against what the page holds, not what a preference left",
+      "Matches held back by the done preference are counted, and the reason is named",
+    )
+    // THE PLAIN CASE first, and what it is here to show is an ABSENCE: nothing
+    // is being held back, so nothing is said about holding anything back.
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await narrow(page, "cabinets")
+    console.log(`  nothing hidden, the bar says: ${await textOf(page, FILTER_COUNT)}`)
+    await shot(page, "plain-light")
+
+    await inTheDark(page)
+    await shot(page, "plain-dark")
+
+    // ...and the same page under a reader who hides finished work. The stored
+    // value rather than the Prefs panel, exactly as the theme above is set:
+    // the panel is portalled over the page this section is photographing, and
+    // that switch has its own scenarios (`preferences.feature`).
+    await page.evaluate(() => {
+      localStorage.setItem("olai.theme", "chalk")
+      localStorage.setItem("olai.done.hidden", "true")
+    })
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    console.log(`  hiding finished work, the page draws ${
+      await page.locator(`${OUTLINE_TREE} [data-testid="node"]`).count()
+    } rows`)
+    await narrow(page, "hinges OR is:done")
+    console.log(`  and the bar says: ${await textOf(page, FILTER_COUNT)}`)
+    await shot(page, "hidden-light")
+
+    await inTheDark(page)
+    await shot(page, "hidden-dark")
+  },
 } satisfies Record<string, (page: Page) => Promise<void>>
 
 /**
@@ -2071,6 +2451,9 @@ const SHAPES: Partial<Record<Section, Parameters<Browser["newContext"]>[0]>> = {
   // name for it, so the next one does not copy another literal.
   "a-subtree-and-its-copy": PANEL_FITS,
   "move-to-trash-from-the-menu": PANEL_FITS,
+  // …and the section that STARTS by making one: it drives the same `•••`
+  // confirm twice before it ever reaches the Trash page.
+  "empty-the-trash": PANEL_FITS,
   "retire-a-placement": PANEL_FITS,
   // …and the section about a panel of the same kind, for the same reason: a
   // list of eight destinations with a refusal under it is taller than the

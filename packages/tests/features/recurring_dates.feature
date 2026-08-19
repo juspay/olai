@@ -173,3 +173,26 @@ Feature: A dated node that comes back
     # page's answer, not this one's.
     And the agenda does not list "order"
     And there should be no page errors
+
+  # ── finding one ────────────────────────────────────────────────────
+
+  Scenario: `has:repeat` narrows the page to the rows that come back
+    # WHAT IT SELECTS is the grammar's (`format/filter.test.ts`); what is
+    # driven here is the page, and this one is the mix the facet needs — one
+    # row that comes back, nine that are dated once or not at all.
+    Given I open the node menu of "order"
+    And I choose "Set repeat…" from the node menu
+    And I pick the repeat rule "every week on monday"
+    When I filter the page by "has:repeat"
+    Then the node "order" is a match
+    And the node "kitchen" is context
+    And the node "install" is not shown
+    And the filter found "1 of 10"
+    # ...and negated with the dash every other token in this grammar takes —
+    # there is no second spelling for a facet. `order` is still drawn, because
+    # a matching row keeps its whole subtree, and it is drawn as CONTEXT.
+    When I filter the page by "-has:repeat"
+    Then the node "install" is a match
+    And the node "order" is context
+    And the filter found "9 of 10"
+    And there should be no page errors

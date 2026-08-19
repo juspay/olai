@@ -4,7 +4,7 @@
  *
  * `fixtures.testlib.ts`'s own header says it has no tests — it is a helper
  * module rather than a suite — and this file is the one exception, minted for a
- * reason worth writing down. `vaultOf` gained prose so that the mention index
+ * reason worth writing down. `vaultOf` gained prose so that the tag index
  * would stop being an empty map in `patch.bench.ts` and `deriving.bench.ts`;
  * the first spelling of that used `which % 25 === 0` inside a loop that runs
  * `which` from 1 to 20, so it **never fired**. The vault had 3,920 notes and
@@ -23,7 +23,7 @@
 
 import { expect, test } from "bun:test"
 
-import { derive } from "./derive.ts"
+import { derive, tagPart, type TagSigil, tagText, type TitleTag } from "./derive.ts"
 import { setOf, vaultOf } from "./fixtures.testlib.ts"
 import { isMirror } from "./node.ts"
 
@@ -39,7 +39,7 @@ test("the vault is the directory the published numbers name", () => {
 
 test("every index a bench prints a number about has something in it", () => {
   // The one that was empty, and the reason this file exists.
-  expect(view.mentionedBy.size).toBeGreaterThan(0)
+  expect(view.taggedBy.size).toBeGreaterThan(0)
   // ...and the rest of the shapes `vaultOf`'s header promises, so this fence
   // covers the next one to go quiet rather than only the one that did.
   expect(view.status.size).toBeGreaterThan(0)
@@ -62,6 +62,32 @@ test("the prose is really there, and really names records", () => {
   expect(mentions.length).toBeLessThan(noted.length)
   // ...and the words they write are ids the corpus really holds, so the READING
   // over this index answers with referrers rather than with dead keys.
-  const claimed = [...view.mentionedBy.keys()].filter((word) => view.byId.has(word))
-  expect(claimed.length).toBe(view.mentionedBy.size)
+  const mentioned = written("@")
+  expect(mentioned.length).toBeGreaterThan(0)
+  expect(mentioned.filter((tag) => view.byId.has(tag.tag)).length).toBe(mentioned.length)
+})
+
+/** The index's keys under one sigil, taken apart the way the format takes one
+ *  apart ({@link tagPart}) — a fence that split a written key by hand would be
+ *  the one file that cannot notice the encoding moving. */
+const written = (sigil: TagSigil): ReadonlyArray<TitleTag> =>
+  [...view.taggedBy.keys()].map(tagPart).filter((tag) => tag.sigil === sigil)
+
+// BOTH SIGILS, because the index files both and a vault that wrote only the
+// rarer one would print the fold's cheap negative as the cost of its walk —
+// this file's own reason for existing, one namespace over. The `#` half is what
+// the completion this index feeds is nearly all made of.
+test("the titles really carry `#tags`, and the notes carry some too", () => {
+  expect(written("#").length).toBeGreaterThan(20)
+  // More records write a `#` than an `@`: the shape a real directory has, and
+  // the one the completion's ordering is measured against.
+  const entries = (sigil: TagSigil): number =>
+    written(sigil).reduce((total, tag) => total + (view.taggedBy.get(tagText(tag))?.length ?? 0), 0)
+  expect(entries("#")).toBeGreaterThan(entries("@"))
+  // ...and a tag written in a NOTE is filed, which is the half of the fold a
+  // title-only vault would leave unmeasured.
+  const inNotes = view.nodes.filter((at) =>
+    (at.node as { desc?: string }).desc?.includes("#") === true
+  )
+  expect(inNotes.length).toBeGreaterThan(0)
 })

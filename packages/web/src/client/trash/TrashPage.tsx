@@ -10,7 +10,7 @@
  *
  * IT IS NOT A PLACE YOU EDIT, and that is drawn rather than fenced: no
  * editor mounts here, no `•••`, no checkbox, no date pill — a row is its
- * title and the one verb a trash row has, **Put back**, which sends the
+ * title and the one verb a trash ROW has, **Put back**, which sends the
  * `unarchive` edit with the id alone. Where the subtree returns is the ops
  * layer's own answer (the recorded chain of ancestor titles, matched back
  * against the live outlines), a refusal comes back in the ops layer's own
@@ -18,10 +18,21 @@
  * inverse the server records. An agent's `unarchive_node` is the same call,
  * which is what HACKING.md's consistency rule demands of a new verb.
  *
+ * THE PAGE HAS ONE VERB OF ITS OWN, and it is the app's only delete:
+ * **Empty trash**, beside the heading, which permanently removes every record
+ * in every archive the directory holds (`./EmptyTrash.tsx`). It is not a row's
+ * verb and could not be — what it is about is the piles rather than anything
+ * in one — and it sits behind a confirm naming how many rows go, counted over
+ * the SET, saying plainly that nothing puts them back. `empty_trash` is the
+ * same op for an agent, so the rule that put **Put back** here put this here
+ * too.
+ *
  * An EMPTY trash is a page that says so, not an error: the archive tool
  * re-creates `Archive.olai` on first use, so a directory with no archive
  * file and one whose archives hold nothing are the same fact, and both are
- * drawn the same way.
+ * drawn the same way — and that is also what takes the **Empty trash** verb
+ * off the page, since a control offering to delete nothing teaches a reader
+ * the wrong thing about the one control here that cannot be taken back.
  *
  * ## It can be looked THROUGH, which is not the same as edited
  *
@@ -49,6 +60,7 @@ import { SaidLine } from "../edit/SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
 import { useNarrowed } from "../filter/narrowed.tsx"
 import { CONTEXT_DIM, lighting, matchedAttr, unfiltered } from "../filter/why.ts"
+import { EmptyTrash } from "./EmptyTrash.tsx"
 import { NodeTitle } from "../NodeTitle.tsx"
 import type { TrashGroup } from "../page.ts"
 import { createSaying } from "../saying.ts"
@@ -75,6 +87,13 @@ export function TrashPage(props: {
           What was archived, kept whole. Put a row back and it returns where it
           came from, everything under it included.
         </p>
+        {/* The PAGE's verb, and the only one here that is not about a row —
+            emptying is about every archive at once, so it hangs off the heading
+            rather than off anything in the pile (`./EmptyTrash.tsx`). It is
+            handed the FILES rather than the groups, deliberately: what it
+            counts and what it deletes is what the archives hold, and the groups
+            are what survived the filter box. */}
+        <EmptyTrash files={props.files} />
       </header>
       <Show
         when={props.groups.length > 0}

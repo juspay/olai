@@ -9,7 +9,7 @@
  *
  * The two reverse indexes {@link ./derive.ts} keeps are what makes it a lookup:
  * {@link Derived.namedBy} carries what records SAY with their fields (`see`
- * among them) and {@link Derived.mentionedBy} carries what their prose says.
+ * among them) and {@link Derived.taggedBy} carries what their prose tagged.
  * This module is the READING over the pair — which is where every question that
  * is about MEANING rather than about storage is asked, and there are four of
  * them.
@@ -26,7 +26,13 @@
  * What turns a tag into a reference is the id existing, and that question is
  * asked HERE rather than in the index, so that minting a node does not have to
  * re-read every note in the directory to find the mentions that just became
- * references ({@link Derived.mentionedBy}).
+ * references ({@link Derived.taggedBy}).
+ *
+ * **A `#topic` never counts, whatever it spells.** The index behind this reads
+ * both sigils, under keys that keep them, so a set with a node called `herbs`
+ * and a `#herbs` topic written across a dozen titles has two things there and
+ * this section draws one of them. Sigil-stripped keys would have made that
+ * ambiguity unreachable rather than decided.
  *
  * **A MIRROR DOES NOT COUNT, and that is the ruling this file was asked to
  * make.** A placement is a VIEW of a node, not a reference to one: the record
@@ -59,7 +65,7 @@
 
 import { Schema } from "effect"
 
-import { byCorpus, type Derived } from "./derive.ts"
+import { byCorpus, type Derived, tagText } from "./derive.ts"
 import { isArchived, isRegular, type Located, type LocatedRegular } from "./node.ts"
 
 /**
@@ -103,6 +109,12 @@ export interface Backlink {
  *  shared, for {@link targetsOf}'s reason — a page asks this per frame. */
 const NOTHING_REFERS: ReadonlyArray<Backlink> = []
 
+/** How prose NAMES the node called `id` — the key {@link Derived.taggedBy}
+ *  files that under, spelled through the format's own {@link tagText} so this
+ *  reading cannot come to disagree with the fold about what an `@` tag looks
+ *  like written down. */
+const mentioned = (id: string): string => tagText({ sigil: "@", tag: id })
+
 /**
  * Everything that refers to `id`, in corpus order.
  *
@@ -111,10 +123,16 @@ const NOTHING_REFERS: ReadonlyArray<Backlink> = []
  * corpus, which is what lets a page ask it on every frame the store publishes.
  *
  * AN ID NOTHING CLAIMS HAS NO REFERRERS, and that line is the whole of where
- * the existence question is asked. `@alice` files under `alice` whether or not
- * anybody is called that ({@link Derived.mentionedBy}), so without this the
- * word would be a reference to a node that is not there — and a caller asking
- * about a node it has in hand pays one map read for it.
+ * the existence question is asked. `@alice` files under `@alice` whether or not
+ * anybody is called that ({@link Derived.taggedBy}), so without this the tag
+ * would be a reference to a node that is not there — and a caller asking about
+ * a node it has in hand pays one map read for it.
+ *
+ * THE `@` HALF OF THAT INDEX AND NOTHING ELSE, which is what {@link mentioned}
+ * spells: the index files both sigils under keys that carry them, and a
+ * `#herbs` is a topic somebody wrote rather than a sentence about the node
+ * called `herbs`. Prose refers to a node by NAMING it, and `@` is how this
+ * format names one.
  */
 export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlink> => {
   if (!derived.byId.has(id)) return NOTHING_REFERS
@@ -124,7 +142,7 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
     // talking about the page it is on, and a `see` onto one of its own
     // placements is the same sentence through a mirror.
     if (at.node.id === id || isArchived(at.file)) return
-    // A REFERRER IS A REGULAR NODE. `mentionedBy` says so in its TYPE, so this
+    // A REFERRER IS A REGULAR NODE. `taggedBy` says so in its TYPE, so this
     // is asked only of the naming side, where `Located` is honest because
     // `mirror` is one of the fields that index files — and asked through the
     // format’s own guard, so this narrows the way every other consumer does.
@@ -141,7 +159,7 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
     for (const naming of derived.namedBy.get(named) ?? []) {
       if (naming.fields.includes("see")) file(naming.at, "see")
     }
-    for (const at of derived.mentionedBy.get(named) ?? []) file(at, "mention")
+    for (const at of derived.taggedBy.get(mentioned(named)) ?? []) file(at, "mention")
   }
 
   if (found.size === 0) return NOTHING_REFERS

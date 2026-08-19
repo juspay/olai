@@ -48,6 +48,8 @@ const of = (verb: Edit["verb"]): Edit => {
       return { verb, file: "a.md" }
     case "docDay":
       return { verb, date: "2026-09-01" }
+    case "emptyTrash":
+      return { verb }
     default:
       return { verb, id: "a" } as Edit
   }
@@ -95,6 +97,16 @@ test("so does a row leaving the page, or coming back to it", () => {
   for (const verb of ["remove", "archive", "unarchive", "unmirror"] as const) {
     expect(redraws(of(verb))).toBe(true)
   }
+})
+
+// EMPTYING THE TRASH is the one destructive write, and it still does not move
+// a row this editor is in: the records it deletes are archived ones, which no
+// outline page draws, and the verb is sent from the Trash's own heading where
+// there is no caret at all. Stated rather than left to the default, because a
+// verb that removes records is exactly the one a later reader would assume
+// belongs on the moving side.
+test("emptying the trash moves no row an editor could be standing in", () => {
+  expect(redraws(of("emptyTrash"))).toBe(false)
 })
 
 // A DOCUMENT is not a row at all, so nothing about it is owed a caret in a

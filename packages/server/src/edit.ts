@@ -59,11 +59,13 @@ import {
   type Derived,
   INBOX,
   inboxIn,
+  isArchived,
   isDay,
   isMirror,
   type Located,
   type LocatedRegular,
   nodeNamed,
+  nodesOf,
   type OpFailure,
   PINS,
   pinsIn,
@@ -253,6 +255,15 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       )
       return Result.succeed({ op: "create-doc", file })
     }
+    // THE ONE DELETE, and the one that resolves the MOST: what the browser
+    // sends is "empty the Trash" and nothing else, because which archives this
+    // directory holds — and which of them have anything in them — are facts
+    // about the SET (`../../surface/src/edit.ts` argues it, and it is quick
+    // capture's argument one page over). Read here, against the reading the
+    // write is judged on, so a pile that arrived since the tab last drew the
+    // page goes with the rest instead of being quietly left behind.
+    case "emptyTrash":
+      return emptyTrashRequest(at, edit)
   }
 }
 
@@ -393,6 +404,62 @@ const pinRequest = (
       ? { op: "create", file: PINS, seed: { title: edit.at } }
       : { op: "add", file: shelf, title: edit.at },
   )
+}
+
+// ── the trash, emptied ─────────────────────────────────────────────────
+
+/**
+ * EVERY ARCHIVE THAT HOLDS ANYTHING, emptied in ONE write — the resolution the
+ * `Empty trash` button asks for.
+ *
+ * The reading is the whole of the work, and it is here for the reason every
+ * placement in this file is here: which files the directory serves, which of
+ * them are archives, and which of those have records in them are facts about
+ * the SET, and the set this write is judged against is this one. A tab that
+ * listed them for itself would be reading a manifest some frames old — and the
+ * failure mode is not a refusal, it is a pile arriving between the draw and the
+ * click and quietly surviving a gesture that said "everything".
+ *
+ * ONE OP NAMING THEM ALL, never a batch of one-per-archive — and that is a
+ * correctness decision rather than a tidier spelling. `empty` judges what may
+ * still point into an archive against the UNION of the archives it is emptying;
+ * `apply` plans each op against the set the one before it left, so a `see` from
+ * one pile into another reads as a holder of whichever pile is planned first.
+ * The same two archives then refuse in path order, plan in the reverse, and
+ * refuse both ways round when the two piles name each other — an emptying that
+ * could never land, over records the write was going to delete anyway. Grok
+ * found it against this resolver's own output (#250); the op's own field
+ * argues it where it is declared.
+ *
+ * THE COUNT IS THE CALLER'S and is passed straight through. It is the number
+ * the confirm put in front of somebody, and re-deriving it here would be
+ * exactly the second reading the paragraph above rules out — this reading is
+ * newer than the one they read, so a count taken here would always agree with
+ * itself and could never refuse. What it guards against is the write widening
+ * under a retry, and that is checked in the planner, on every attempt.
+ *
+ * AN EMPTY TRASH IS REFUSED HERE rather than sent as an op with no files, and
+ * the sentence is this resolver's own for the reason `docDay`'s day-shape check
+ * is: an `empty` with an empty list is refused in terms of the list ("name at
+ * least one archive"), which teaches a reader about the wrong thing. The button
+ * is not drawn over an empty trash, so nothing a person can press reaches this
+ * — what does is a stale tab, and a stale tab deserves the true sentence.
+ */
+const emptyTrashRequest = (
+  at: Reading,
+  edit: Extract<Edit, { verb: "emptyTrash" }>,
+): Resolved => {
+  const piles = at.set.files.filter(
+    (file) => isArchived(file) && nodesOf(at.derived, file).length > 0,
+  )
+  if (piles.length === 0) {
+    return Result.fail(refusal("the Trash is empty, so there is nothing to delete"))
+  }
+  return Result.succeed({
+    op: "empty",
+    files: piles,
+    ...(edit.was === undefined ? {} : { was: edit.was }),
+  })
 }
 
 // ── the four moves ─────────────────────────────────────────────────────
@@ -871,6 +938,18 @@ export const inverseOf = (
     // stays the one write here that cannot be taken back, said by answering
     // nothing rather than by leaving a ⌘Z that quietly does the wrong thing.
     case "unmirror":
+      return []
+    // NOTHING TAKES AN EMPTIED TRASH BACK, and this is the only entry here
+    // that answers so because the WORLD has no inverse rather than because
+    // this surface cannot spell one. `unmirror` above is the other silent
+    // arm, and its silence is about the shape of a placement verb; this one
+    // is about the records being gone from the set. What still has them is
+    // git, to exactly the extent git had already recorded them, and that is a
+    // thing somebody does in a terminal — a ⌘Z that quietly re-read a commit
+    // would be inventing a restore this app does not have. The fence is the
+    // confirm the Trash page asks before the write, which says so in as many
+    // words.
+    case "emptyTrash":
       return []
     // A document commit is the text verbs' shape at file size: the inverse is
     // the text it replaced, guarded by what this write wrote, so ⌘Z can only

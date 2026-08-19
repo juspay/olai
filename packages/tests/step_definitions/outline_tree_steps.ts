@@ -25,6 +25,7 @@ import {
   NODE_GUTTER,
   NODE_MENU,
   NODE_REF,
+  NODE_TITLE,
   nodeSelector,
   NOTE_MARK,
   PROGRESS,
@@ -612,6 +613,21 @@ Then(
   },
 );
 
+/** ...and the titles where a `#…` is written and is NOT a tag: inside code,
+ *  and inside a link (a URL fragment). A pill there would be pressable, and
+ *  would filter the page by a word nobody tagged anything with. */
+Then(
+  "the title of {string} styles no tags",
+  async function (this: OlaiWorld, id: string) {
+    const title = this.nodeTitle(id);
+    await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await title.locator(TAG).count()) === 0,
+      `the title of "${id}" to style no tags`,
+    );
+  },
+);
+
 /** Inline markdown in a title — the same promise a note's open body makes,
  *  scoped to the title span so a bold word in the note cannot answer for it. */
 Then(
@@ -625,6 +641,22 @@ Then(
           (value) => value.trim() === text,
         ),
       `the title of "${id}" to render ${JSON.stringify(text)} in bold`,
+    );
+  },
+);
+
+/** A link in a title, read by where it POINTS — the half of it a highlight
+ *  must never reach, since a mark inside an attribute is a broken link rather
+ *  than a loud one. Through `expectAttribute`, so a failure says the href it
+ *  found and not only the one it wanted. */
+Then(
+  "the title of {string} links to {string}",
+  async function (this: OlaiWorld, id: string, href: string) {
+    await this.expectAttribute(
+      `${nodeSelector(id)} ${NODE_TITLE} a`,
+      "href",
+      href,
+      `the link in the title of "${id}"`,
     );
   },
 );

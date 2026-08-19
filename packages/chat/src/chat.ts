@@ -368,7 +368,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           )
           return
         case "asked":
-          publish(transcript.ask(event.id, event.message, event.fields))
+          publish(transcript.ask(event.id, event.message, event.fields, event.parent))
           move({ asking: asking() })
           return
         case "askSettled":

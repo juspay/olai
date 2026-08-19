@@ -1084,6 +1084,44 @@ Feature: Talking to the agent
     Then the agent's answer mentions "permission: reject"
 
   @scratch:chat
+  Scenario: A permission a subagent asked for says which subagent is asking
+    # The form was drawn in the main column and read as the agent you are
+    # talking to — anonymous at the one row where who is asking decides what
+    # you press. And the row broke the RUN under it: a form in no lane between
+    # two of one subagent's calls ends the stretch, so the lane re-opened and
+    # introduced itself again underneath the form, and one agent read as two.
+    #
+    # The attribution rides the request itself here, beside the tool name the
+    # rule about approving-without-asking already reads.
+    When I ask the agent "subagent asks"
+    Then the chat shows a question
+    And the question is drawn in the lane of the agent that asked it
+    And the question's lane names itself, as "explore the outline"
+    When I choose "Allow Once"
+    And I answer the question
+    Then the agent's answer mentions "permission: allow"
+    And the question is drawn in the lane of the agent that asked it
+    And exactly one lane names itself, as "explore the outline"
+    And no lane introduces itself under the question
+
+  @scratch:chat
+  Scenario: A question a subagent asked is drawn in the subagent's lane too
+    # The OTHER shape, and it is not the one above with a different payload:
+    # an `elicitation/create` carries no attribution at all. It names the tool
+    # call it was asked from, and that call's own announcement is where the
+    # adapter said whose it was — so this is the path where the answer is
+    # remembered from a frame rather than read off the request.
+    When I ask the agent "subagent elicits"
+    Then the chat shows a question
+    And the question is drawn in the lane of the agent that asked it
+    And the question's lane names itself, as "explore the outline"
+    When I choose "oak"
+    And I answer the question
+    Then the agent's answer mentions "oak"
+    And exactly one lane names itself, as "explore the outline"
+    And no lane introduces itself under the question
+
+  @scratch:chat
   Scenario: An answered question is still there after a reload
     # The form is a ROW, and a row is transcript — so it comes back the way
     # every other row does, on the first frame of a fresh subscription, with no

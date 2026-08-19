@@ -256,7 +256,7 @@ export function Composer(props: {
 
   /** The served directory's paths — the two key sets this tab already holds
    *  (`../served.tsx`), so there is no walk and no request behind an `@`. They
-   *  are folded for matching by `./files.ts`, which keeps its answer against
+   *  are folded for matching by `../file/matching.ts`, which keeps its answer against
    *  the list it was given: asked only while a name is being typed, and done
    *  once per version of the directory rather than once per keystroke. */
   const files = useServed()

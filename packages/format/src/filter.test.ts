@@ -18,14 +18,14 @@ import {
 import { nodesOfFiles } from "./fixtures.testlib.ts"
 
 /** One corpus, standing in for a directory: marks, dates, notes, edges, tags,
- *  a mirror, an archive beside it — and a chain of `after` edges that crosses
- *  a file, so blockedness has something to be derived from. Every assertion
- *  below is about this. */
+ *  a repeat rule, a mirror, an archive beside it — and a chain of `after`
+ *  edges that crosses a file, so blockedness has something to be derived from.
+ *  Every assertion below is about this. */
 const CORPUS = {
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
     `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":"2026-08-03"}`,
-    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","desc":"walnut or birch","after":["demo"],"see":["herbs"],"custom":{"agent":"Claude-Opus","pr":"https://github.com/juspay/olai/pull/176","tags":["cabinets","walnut"]}}`,
+    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","repeat":"every week on monday","desc":"walnut or birch","after":["demo"],"see":["herbs"],"custom":{"agent":"Claude-Opus","pr":"https://github.com/juspay/olai/pull/176","tags":["cabinets","walnut"]}}`,
     `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doc":"finishes.md","after":["order"]}`,
     `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":"2026-08-11","after":["order"]}`,
     `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
@@ -116,6 +116,19 @@ test("`has:` asks what the record carries, and an empty edge list is no edge", (
   // The FIELD, which is a different question from what the node is waiting on
   // — see the blockedness section below, where these four part company.
   expect(selects("has:after")).toEqual(["herbs", "order", "install", "hinges"])
+  // `order` is the one node here that comes back — one more plain field test,
+  // and one line like its four siblings. That the dash and the words compose
+  // with it is the grammar's, pinned once for every clause below.
+  expect(selects("has:repeat")).toEqual(["order"])
+})
+
+// The one thing the table alone does not say, and the reason `has:repeat` is
+// not a second way of asking `has:date`: a repeating node is a DATED one
+// carrying a rule (./parse.ts refuses a rule without a date), so this selects
+// inside that — and the difference between them is everything dated once.
+test("`has:repeat` is inside `has:date`, and the difference is what is dated once", () => {
+  expect(selects("has:date")).toEqual(["basil", "demo", "order"])
+  expect(selects("has:date -has:repeat")).toEqual(["basil", "demo"])
 })
 
 // The four ways a field can hold nothing are the WRITER's list (`write.ts`'s
@@ -827,7 +840,7 @@ test("a known operator with an unknown value is refused, and teaches", () => {
 })
 
 test("each operator says what it takes", () => {
-  expect(refusalsOf("has:tags")?.[0]?.reason).toContain("desc, date, see, after, doc")
+  expect(refusalsOf("has:tags")?.[0]?.reason).toContain("desc, date, see, after, doc, repeat")
   expect(refusalsOf("date:soon")?.[0]?.reason).toContain("2026-08-10")
   expect(refusalsOf("date:..")).toHaveLength(1)
 })

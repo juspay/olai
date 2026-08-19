@@ -93,7 +93,7 @@ Feature: Typing @ in the chat completes a file of the directory
 
   @scratch:chat
   Scenario: A keystroke is a new question, so the arrows start again at the top
-    # The rows are three buckets deep (`client/chat/files.ts`), so one more
+    # The rows are three buckets deep (`client/file/matching.ts`), so one more
     # character can REORDER them — and a cursor left where it was would mean
     # Enter taking a file the arrows never landed on, which is the one failure
     # a completion must not have. Both queries below answer with the same three

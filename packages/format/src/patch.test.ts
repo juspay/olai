@@ -74,7 +74,7 @@ const deltaOf = (before: Corpus, after: Corpus): SetDelta => ({
  * the two that are sets: `mirrorsOf` and `edgesTo` promise corpus order to
  * whoever spreads them, and `toEqual` over a `Set` would only read membership.
  *
- * `mentionedBy` is deliberately in the sorted half. It is the one reverse index
+ * `taggedBy` is deliberately in the sorted half. It is the one reverse index
  * that promises its VALUES in corpus order and nothing about its keys, which is
  * exactly what lets the patcher add and drop keys in place — so comparing key
  * order here would be this test holding the patcher to a promise the index does
@@ -91,7 +91,7 @@ const readable = (derived: Derived): unknown => ({
   blocked: byKey(derived.blocked),
   mirrorsOf: byKey(spread(derived.mirrorsOf)),
   edgesTo: byKey(spread(derived.edgesTo)),
-  mentionedBy: byKey(derived.mentionedBy),
+  taggedBy: byKey(derived.taggedBy),
 })
 
 const byKey = <V>(map: ReadonlyMap<string, V>): ReadonlyArray<readonly [string, V]> =>
@@ -152,17 +152,24 @@ const idFor = (random: () => number, used: Set<string>): string => {
 }
 
 /**
- * A word for prose to say, or nothing — what `mentionedBy` is keyed by.
+ * A tag for prose to write, or nothing — what `taggedBy` is keyed by.
  *
- * Mostly an id the corpus really uses, so a mention is usually a REFERENCE the
- * reading over this index would draw; sometimes a word nothing declares, which
- * is a person tag and has to file exactly the same way, since the index is
- * about what prose says rather than about what exists.
+ * Mostly an `@` on an id the corpus really uses, so a mention is usually a
+ * REFERENCE the reading over this index would draw; sometimes a word nothing
+ * declares, which is a person tag and has to file exactly the same way, since
+ * the index is about what prose says rather than about what exists.
+ *
+ * BOTH SIGILS, and the `#` half draws from the SAME pool of ids on purpose:
+ * `#n3` and `@n3` are two keys of one map that a sigil-stripped index would
+ * have collided, and the only way a generated corpus reaches that pair is by
+ * spelling topics the way it spells mentions.
  */
-const mention = (random: () => number): string => {
+const tagged = (random: () => number): string => {
   const roll = random()
   if (roll < 0.55) return ""
-  return roll < 0.9 ? ` @${pick(random, IDS)}` : " @nobody"
+  if (roll < 0.8) return ` @${pick(random, IDS)}`
+  if (roll < 0.92) return ` #${pick(random, IDS)}`
+  return roll < 0.96 ? " @nobody" : " #topic"
 }
 
 const fileOf = (random: () => number, used: Set<string>): string => {
@@ -181,16 +188,16 @@ const fileOf = (random: () => number, used: Set<string>): string => {
     }
     if (random() < 0.25) record["mirror"] = pick(random, IDS)
     else {
-      record["title"] = `line ${at}${mention(random)}`
+      record["title"] = `line ${at}${tagged(random)}`
       if (random() < 0.4) record[pick(random, ["done", "doing", "todo"])] = true
       if (random() < 0.3) record["after"] = [pick(random, IDS)]
       if (random() < 0.3) record["blocks"] = [pick(random, IDS)]
       if (random() < 0.2) record["see"] = [pick(random, IDS)]
-      // A note, sometimes with a word in it — the second half of what
-      // `mentionedBy` files, and the reason a title alone would not do: a
-      // record naming one word in BOTH is one mention, so the fold's
+      // A note, sometimes with a tag in it — the second half of what
+      // `taggedBy` files, and the reason a title alone would not do: a
+      // record writing one tag in BOTH is one entry, so the fold's
       // once-per-record rule is only reachable from here.
-      if (random() < 0.3) record["desc"] = `a note${mention(random)}${mention(random)}`
+      if (random() < 0.3) record["desc"] = `a note${tagged(random)}${tagged(random)}`
     }
     own.push(id)
     lines.push(JSON.stringify(record))
@@ -239,12 +246,12 @@ const tweak = (random: () => number, text: string): string => {
   }
   const record = JSON.parse(lines[at] as string) as Record<string, unknown>
   if ("mirror" in record) record["mirror"] = pick(random, IDS)
-  else if (roll < 0.4) record["title"] = `edited ${Math.floor(random() * 100)}${mention(random)}`
+  else if (roll < 0.4) record["title"] = `edited ${Math.floor(random() * 100)}${tagged(random)}`
   else if (roll < 0.45) {
     // The note rewritten — the edit this whole feature is about, since a
     // reference somebody adds in prose is a keystroke in a `desc` and nothing
     // else about the record moves.
-    const written = `edited note${mention(random)}`
+    const written = `edited note${tagged(random)}`
     if (written === "edited note" && random() < 0.5) delete record["desc"]
     else record["desc"] = written
   } else if (roll < 0.65) {
@@ -455,23 +462,23 @@ test("a word typed into a note reaches the index, and taking it out empties the 
     "b.olai": `{"id":"note","ord":"a","title":"a note"}`,
   }
   const view = viewOf(before)
-  expect(view.mentionedBy.has("cook")).toBe(false)
+  expect(view.taggedBy.has("@cook")).toBe(false)
 
   const said = `{"id":"note","ord":"a","title":"a note","desc":"see @cook first"}`
   const next = patched(view, editing("b.olai", said))
   expect(next).toBeDefined()
   same(next as Derived, viewOf({ ...before, "b.olai": said }), () => "a note names a node")
-  expect((next as Derived).mentionedBy.get("cook")?.map((at) => at.node.id)).toEqual(["note"])
+  expect((next as Derived).taggedBy.get("@cook")?.map((at) => at.node.id)).toEqual(["note"])
 
   // ...and out again. A key nothing says any more GOES, rather than standing
   // empty where a rebuild would have had no key at all.
   const quiet = patched(next as Derived, editing("b.olai", before["b.olai"] as string))
   expect(quiet).toBeDefined()
   same(quiet as Derived, viewOf(before), () => "the word is deleted")
-  expect((quiet as Derived).mentionedBy.has("cook")).toBe(false)
+  expect((quiet as Derived).taggedBy.has("@cook")).toBe(false)
 })
 
-test("one record saying a word twice is one mention, in the title and in the note", () => {
+test("one record writing a tag twice is one entry, in the title and in the note", () => {
   const before: Corpus = {
     "a.olai": `{"id":"cook","ord":"a","title":"cook"}`,
     "b.olai": `{"id":"note","ord":"a","title":"a note"}`,
@@ -481,7 +488,31 @@ test("one record saying a word twice is one mention, in the title and in the not
   const next = patched(view, editing("b.olai", both))
   expect(next).toBeDefined()
   same(next as Derived, viewOf({ ...before, "b.olai": both }), () => "said twice")
-  expect((next as Derived).mentionedBy.get("cook")?.length).toBe(1)
+  expect((next as Derived).taggedBy.get("@cook")?.length).toBe(1)
+})
+
+// A patch that moved `#cook` and `@cook` as one key would answer both of these
+// with the same list, and the oracle would agree with it — `derive` would have
+// collided them too. So the assertion is on the KEYS, and it is here rather
+// than left to the generator because it is the whole reason this index is keyed
+// by the written form.
+test("the two sigils are two keys, and an edit moves only the one it wrote", () => {
+  const before: Corpus = {
+    "a.olai": `{"id":"cook","ord":"a","title":"cook"}`,
+    "b.olai": `{"id":"topic","ord":"a","title":"about #cook"}`,
+    "deep/c.olai": `{"id":"note","ord":"a","title":"ask @cook"}`,
+  }
+  const view = viewOf(before)
+  expect(view.taggedBy.get("#cook")?.map((at) => at.node.id)).toEqual(["topic"])
+  expect(view.taggedBy.get("@cook")?.map((at) => at.node.id)).toEqual(["note"])
+
+  const quiet = `{"id":"topic","ord":"a","title":"about nothing"}`
+  const next = patched(view, editing("b.olai", quiet))
+  expect(next).toBeDefined()
+  same(next as Derived, viewOf({ ...before, "b.olai": quiet }), () => "the topic goes")
+  expect((next as Derived).taggedBy.has("#cook")).toBe(false)
+  // The mention is in a file the delta never named, and it is still filed.
+  expect((next as Derived).taggedBy.get("@cook")?.map((at) => at.node.id)).toEqual(["note"])
 })
 
 // ── where the key ORDER is the answer ──────────────────────────────────
