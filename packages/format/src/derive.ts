@@ -362,10 +362,14 @@ const NO_TAGS: ReadonlyArray<string> = []
  * THROUGH THAT WALK rather than through a second one over {@link titleTagRe},
  * which is what this was: where a tag starts and stops is one function's
  * answer, and a private loop here would be a fourth reader of that alphabet
- * spelling its own boundaries. The argument for the loop was that it did not
- * allocate the prose between the tags; measured over a 1,144-character note it
- * is 23.0µs against 23.8µs, because the cost is the regex and not the parts.
- * A 3% figure is not worth a second reading of what a tag is.
+ * spelling its own boundaries. The argument for the loop is that it allocates
+ * neither the prose between the tags nor the written form (a match IS one);
+ * measured over a 1,144-character note it was 23.0µs against 23.8µs, and
+ * RE-MEASURED over the whole bench vault when this index gained the commoner
+ * sigil — where the walk is the largest single cost in a rebuild and the case
+ * for a private loop would have been strongest — it is 21.05ms against
+ * 22.17ms. Five per cent, twice, because the cost is the regex and not the
+ * parts. It is not worth a second reading of what a tag is.
  *
  * The cheap negative is {@link mayHoldTag}, which is the guard for a walk that
  * wants both sigils — and this one does, since the index behind it is the
