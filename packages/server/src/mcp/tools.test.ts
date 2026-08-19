@@ -232,6 +232,7 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "create_document",
       "create_outline",
       "duplicate_node",
+      "empty_trash",
       "list_documents",
       "list_outlines",
       "merge_node",
@@ -407,7 +408,7 @@ test("initialize tells a host what olai is, and nothing the tools disprove", asy
     // agent arrives assuming a filesystem, and this is where it is told what the
     // units are instead.
     const said = client.getInstructions() ?? ""
-    expect(said).toContain("NODES and whole DOCUMENTS")
+    expect(said).toContain("NODES and whole FILES")
     expect(client.getServerVersion()).toMatchObject({ name: "olai" })
 
     // AND IT IS HELD TO THE TABLE. The charter said "there is no file access"
@@ -420,6 +421,23 @@ test("initialize tells a host what olai is, and nothing the tools disprove", asy
     const { tools } = await client.listTools()
     expect(tools.map((tool) => tool.name).filter((name) => name.includes("document")).sort())
       .toEqual(["create_document", "list_documents", "read_document", "write_document"])
+
+    // THE SAME PIN, ONE UNIT ALONG. `empty_trash` names `.olai` archives, so an
+    // enumeration that stopped at nodes and documents would be the same
+    // disprovable sentence in a newer coat — and this one is worse to get
+    // wrong, because the verb it leaves out is the only one that DELETES. The
+    // charter names it and says so; a table that grows a second such verb, or
+    // loses this one, fails here.
+    expect(said).toContain("`empty_trash` names whole `Archive.olai` files")
+    expect(said).toContain("the one tool here that deletes")
+    expect(tools.map((tool) => tool.name).filter((name) => name.includes("empty")))
+      .toEqual(["empty_trash"])
+
+    // …and the claims that actually do the work still hold over the whole
+    // table: no path outside the served directory, and nothing that can name
+    // part of a file. Those are what make this a charter rather than a tour.
+    expect(said).toContain("no path outside the served directory")
+    expect(said).toContain("no way to name part of a file")
   })
 })
 
@@ -1375,6 +1393,149 @@ test("a done mark minted in the archive is re-opened when the subtree comes back
   })
 })
 
+/**
+ * The trash's THIRD verb on the agent's face, and the only destructive one in
+ * this whole surface: `empty_trash`.
+ *
+ * Driven end to end because that is where the two things worth pinning are —
+ * that a no-`op` argument list reaches the planner as the right request, and
+ * that what is refused is refused BEFORE anything is written. The refusal here
+ * is the one that matters: `order` is archived while a live `see` names it, so
+ * deleting it would leave that edge pointing at nothing, and the archive is
+ * still on disk afterwards, byte for byte.
+ */
+test("empty_trash deletes the pile, and refuses while something still points into it", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
+    // A live row that names what is about to be put away. Ids move with a node
+    // when it is archived, so this edge goes on resolving INTO the archive —
+    // which is exactly what makes the pile undeletable.
+    const linked = await call(client, "set_see", { id: "demo", add: ["order"] })
+    expect(linked.isError).toBe(false)
+    const away = await call(client, "archive_node", { id: "order" })
+    expect(away.isError).toBe(false)
+    const filled = read("Archive.olai")
+    expect(filled).toContain(`"id":"order"`)
+
+    const held = await call(client, "empty_trash", { files: ["Archive.olai"] })
+    expect(held.isError).toBe(true)
+    expect(held.structured["kind"]).toBe("usage")
+    expect(String(held.structured["reason"])).toContain("`demo`")
+    expect(String(held.structured["reason"])).toContain("`see`")
+    // Nothing was written: the gate plans before it renames.
+    expect(read("Archive.olai")).toBe(filled)
+    expect(refusals).toEqual(["empty: UsageFailure"])
+
+    // Re-point the edge and the pile deletes — the way through the refusal
+    // named, taken.
+    const freed = await call(client, "set_see", { id: "demo", remove: ["order"] })
+    expect(freed.isError).toBe(false)
+    const gone = await call(client, "empty_trash", { files: ["Archive.olai"] })
+    expect(gone.isError).toBe(false)
+    expect(gone.structured).toMatchObject({
+      summary: "empty: Archive.olai (2 records)",
+      file: "Archive.olai",
+      did: "empty_trash",
+    })
+    expect(read("Archive.olai")).toBe("")
+    // …and the live outline is untouched: the blast radius is one file.
+    expect(read("house.olai")).toContain(`"id":"kitchen"`)
+  })
+})
+
+test("empty_trash refuses a live outline, and an archive with nothing in it", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
+    const live = await call(client, "empty_trash", { files: ["house.olai"] })
+    expect(live.isError).toBe(true)
+    expect(String(live.structured["reason"])).toContain("is not an archive")
+    expect(read("house.olai")).toBe(HOUSE)
+
+    // The state a put-back leaves: the file stands, holding nothing. Emptying
+    // it is refused rather than committed as a diff-less write.
+    await call(client, "archive_node", { id: "order" })
+    await call(client, "unarchive_node", { id: "order" })
+    expect(read("Archive.olai")).toBe("")
+    const twice = await call(client, "empty_trash", { files: ["Archive.olai"] })
+    expect(twice.isError).toBe(true)
+    expect(String(twice.structured["reason"])).toContain("already empty")
+  })
+})
+
+/**
+ * TWO PILES AND AN EDGE BETWEEN THEM, on the agent's face — the topology grok
+ * probed the planner with (#250), driven end to end because that is where the
+ * old shape actually broke: the browser sent one `empty` per archive inside an
+ * `apply`, and the same two piles refused in path order and landed in the
+ * reverse.
+ *
+ * Named together, they are one call and the order of the list means nothing.
+ */
+test("empty_trash over two piles judges the edge between them as a record that goes", async () => {
+  await withTools({
+    "house.olai": HOUSE,
+    "garden/plot.olai": [
+      `{"id":"beds","ord":"a0","title":"the beds"}`,
+      `{"id":"quote","parent":"beds","ord":"a0","title":"a quote","see":["order"]}`,
+      "",
+    ].join("\n"),
+  }, async ({ client, read }) => {
+    // `quote` names `order`, and both are about to be archived into DIFFERENT
+    // archives — which is exactly the edge that used to read as a holder.
+    expect((await call(client, "archive_node", { id: "order" })).isError).toBe(false)
+    expect((await call(client, "archive_node", { id: "beds" })).isError).toBe(false)
+    expect(read("Archive.olai")).toContain(`"id":"order"`)
+    expect(read("garden/Archive.olai")).toContain(`"id":"quote"`)
+
+    const gone = await call(client, "empty_trash", {
+      files: ["Archive.olai", "garden/Archive.olai"],
+    })
+    expect(gone.isError).toBe(false)
+    expect(String(gone.structured["summary"]))
+      .toBe("empty: Archive.olai, garden/Archive.olai (4 records)")
+    expect(read("Archive.olai")).toBe("")
+    expect(read("garden/Archive.olai")).toBe("")
+  })
+})
+
+/** The same edge, with only ONE of the two piles named: what is inside the
+ *  emptying is what the call names, so the record in the archive nobody named
+ *  is outside it and holds — the rule read from the other side. */
+test("empty_trash still refuses for a namer in an archive the call left out", async () => {
+  await withTools({
+    "house.olai": HOUSE,
+    "garden/plot.olai": [
+      `{"id":"beds","ord":"a0","title":"the beds"}`,
+      `{"id":"quote","parent":"beds","ord":"a0","title":"a quote","see":["order"]}`,
+      "",
+    ].join("\n"),
+  }, async ({ client, read }) => {
+    await call(client, "archive_node", { id: "order" })
+    await call(client, "archive_node", { id: "beds" })
+    const held = await call(client, "empty_trash", { files: ["Archive.olai"] })
+    expect(held.isError).toBe(true)
+    expect(String(held.structured["reason"])).toContain("`quote`")
+    expect(read("Archive.olai")).toContain(`"id":"order"`)
+  })
+})
+
+/** `was` — the count somebody was shown, checked against the set the write is
+ *  judged on. What it closes is the retry's window: a re-plan against a newer
+ *  snapshot silently widens this write. */
+test("empty_trash with a stale `was` deletes nothing and names both counts", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
+    await call(client, "archive_node", { id: "order" })
+    const filled = read("Archive.olai")
+
+    const stale = await call(client, "empty_trash", { files: ["Archive.olai"], was: 1 })
+    expect(stale.isError).toBe(true)
+    expect(String(stale.structured["reason"])).toContain("held 1 record when this was asked for")
+    expect(read("Archive.olai")).toBe(filled)
+
+    const right = await call(client, "empty_trash", { files: ["Archive.olai"], was: 2 })
+    expect(right.isError).toBe(false)
+    expect(read("Archive.olai")).toBe("")
+  })
+})
+
 /** The other half of ledger-complete: a dependency, written from the node that
  *  waits, read back off the node, and refused when it would close a loop. */
 test("set_after writes a dependency, and a loop is refused naming it", async () => {
@@ -1571,6 +1732,7 @@ test("`apply` and `update` advertise finite schemas with no $ref", async () => {
       "doing",
       "done",
       "duplicate",
+      "empty",
       "merge",
       "mirror",
       "move",

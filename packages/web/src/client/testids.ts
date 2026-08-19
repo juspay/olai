@@ -668,6 +668,24 @@ export const TESTID = {
   /** Said in the rows' place when nothing is in the trash — including when no
    *  archive file exists yet, which is the same fact. */
   trashEmpty: "trash-empty",
+  /** The page's own verb, beside the heading: empty the Trash for good. Drawn
+   *  only when the archives hold something — a control offering to delete
+   *  nothing is a control that teaches a reader the wrong thing — and never
+   *  taken away by a filter, which narrows what is DRAWN and not what is
+   *  there. One id for the resting pill and for the alarm one the question
+   *  puts in its place: it is one control in three states, and a suite reaching
+   *  it should not have to know which one it is in. */
+  trashEmptyVerb: "trash-empty-verb",
+  /** The question that replaces that verb before anything is written: how many
+   *  rows go, and that nothing puts them back (`trash/question.ts`). */
+  trashEmptyConfirm: "trash-empty-confirm",
+  /** The way out of it, which leaves the Trash exactly as it was. */
+  trashEmptyCancel: "trash-empty-cancel",
+  /** What the emptying had to say — the PAGE's line rather than a row's,
+   *  because the write is about every archive at once and there is no row to
+   *  put it under. Same two moods and the same `data-tone` as every other
+   *  said-line in this app. */
+  trashPageSaid: "trash-page-said",
   notFound: "not-found",
   errorView: "error-view",
   errorFileGroup: "error-file-group",

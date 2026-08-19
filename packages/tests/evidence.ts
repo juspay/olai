@@ -619,6 +619,13 @@ const BACKLINK_MENTION_REFS = '[data-testid="backlink-mention-refs"]'
 const DAY_PAGE = '[data-testid="day-page"]'
 const AGENDA_PAGE = '[data-testid="agenda-page"]'
 const TRASH_PAGE = '[data-testid="trash-page"]'
+/** The Trash page's OWN verb, its question, and the way out of it — the app's
+ *  only delete, and the one control here that is not about a row. */
+const EMPTY_TRASH_VERB = '[data-testid="trash-empty-verb"]'
+const EMPTY_TRASH_CONFIRM = '[data-testid="trash-empty-confirm"]'
+const EMPTY_TRASH_CANCEL = '[data-testid="trash-empty-cancel"]'
+/** What the page says in the rows' place once there is nothing left. */
+const TRASH_EMPTY_LINE = '[data-testid="trash-empty"]'
 
 /** The ⌘K box, and the rows of it that are NODES — a shell item that happens to
  *  share a word is not an answer to a query, which is what `data-id` tells
@@ -1844,6 +1851,92 @@ const SECTIONS = {
    * that separates them on screen, and the transcript prints both records so
    * the ids are readable beside the picture.
    */
+  /**
+   * EMPTYING THE TRASH — the app's only delete, photographed in both halves of
+   * the palette table because the confirm is the whole feature and the confirm
+   * is drawn in theme tokens.
+   *
+   * FIVE SHOTS PER PASS, and the middle three are the point. A trash with a
+   * pile in it, then the QUESTION — which names how many rows go, counted over
+   * what the archives hold rather than over what the page is drawing — then the
+   * pile still standing after **Cancel**, then the emptied page. The cancel shot
+   * is the one a reviewer cannot get anywhere else: a confirm that writes on
+   * either button looks exactly like a correct one until somebody presses the
+   * wrong half, and the transcript prints the file beside each picture so the
+   * claim is the disk's rather than the pixels'.
+   *
+   * A DIFFERENT ROW PER PASS, which is `move-to-picker`'s arrangement and for
+   * its reason: this is a WRITE, and a trash that has already been emptied
+   * cannot be emptied again. The theme is set before the pass rather than
+   * between shots, so every frame in a pass is painted by the boot script the
+   * way a person's browser paints it.
+   */
+  "empty-the-trash": async (page) => {
+    pinnedBy(
+      "trash.feature",
+      "Emptying asks first, and the question names how many rows go",
+      "The count is the SET's, not the rows a filter left on screen",
+      "Cancel writes nothing, and leaves the Trash exactly as it stood",
+      "Confirming empties it for good, and the archive on disk holds nothing",
+    )
+
+    const pass = async (dark: boolean, id: string) => {
+      const suffix = dark ? "-dark" : ""
+      await opened(page, "/o/house.olai", OUTLINE_TREE)
+      await putAway(page, id)
+      // The pile is real before anything is photographed — the guard every
+      // section that writes carries ({@link shotSays}).
+      shotSays(id, "Archive.olai")
+
+      await opened(page, "/trash", TRASH_PAGE)
+      const pile = await piled(page)
+      console.log(`  the pile:\n${pile}`)
+      if (pile.includes("(nothing)")) {
+        throw new Error("the Trash drew nothing, and the shot after this says it drew a pile")
+      }
+      await shot(page, `the-trash-with-items${suffix}`)
+
+      await page.locator(EMPTY_TRASH_VERB).first().click()
+      await page.waitForTimeout(DRAWN)
+      console.log(`  it asks: ${await textOf(page, EMPTY_TRASH_CONFIRM)}`)
+      // The count in that sentence, against the file it is a claim about.
+      console.log(
+        `  Archive.olai holds: ${servedLines("Archive.olai").length} records`,
+      )
+      await shot(page, `asks${suffix}`)
+
+      // CANCEL, and the pile still there afterwards — the half of a confirm
+      // that is invisible until it is wrong.
+      await page.locator(EMPTY_TRASH_CANCEL).first().click()
+      await page.waitForTimeout(DRAWN)
+      shotSays(id, "Archive.olai")
+      console.log(`  after Cancel, Archive.olai still holds: ${
+        servedLines("Archive.olai").length
+      } records`)
+      await shot(page, `cancelled${suffix}`)
+
+      await page.locator(EMPTY_TRASH_VERB).first().click()
+      await page.waitForTimeout(DRAWN)
+      await page.locator(EMPTY_TRASH_VERB).first().click()
+      await page.waitForTimeout(SETTLE)
+      // …and the row is in NO outline now, which is the one thing this app
+      // could not say before.
+      shotSays(id, undefined)
+      console.log(`  emptied, Archive.olai holds: ${
+        servedLines("Archive.olai").length
+      } records`)
+      console.log(`  and the page says: ${await textOf(page, TRASH_EMPTY_LINE)}`)
+      await shot(page, `emptied${suffix}`)
+    }
+
+    await pass(false, "install")
+    // The other half of the palette table. Set before the pass, so the frames
+    // that follow are painted by the boot script rather than by a swap
+    // ({@link inTheDark} does the same for a section with nothing left to do).
+    await page.evaluate(() => localStorage.setItem("olai.theme", "dark"))
+    await pass(true, "order")
+  },
+
   "a-subtree-and-its-copy": async (page) => {
     pinnedBy(
       "duplicate_subtree.feature",
@@ -2222,6 +2315,9 @@ const SHAPES: Partial<Record<Section, Parameters<Browser["newContext"]>[0]>> = {
   // name for it, so the next one does not copy another literal.
   "a-subtree-and-its-copy": PANEL_FITS,
   "move-to-trash-from-the-menu": PANEL_FITS,
+  // …and the section that STARTS by making one: it drives the same `•••`
+  // confirm twice before it ever reaches the Trash page.
+  "empty-the-trash": PANEL_FITS,
   "retire-a-placement": PANEL_FITS,
   // …and the section about a panel of the same kind, for the same reason: a
   // list of eight destinations with a refusal under it is taller than the

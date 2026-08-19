@@ -242,6 +242,8 @@ export const plan = (
       return planDuplicate(scope, request)
     case "unarchive":
       return planUnarchive(scope, request)
+    case "empty":
+      return planEmpty(scope, request)
     case "create":
       return planCreate(scope, request)
     case "see":
@@ -3273,6 +3275,179 @@ const bareScaffold = (node: Node): boolean => {
   return Object.keys(rest).length === 0
 }
 
+
+// ── empty the trash ────────────────────────────────────────────────────
+
+/**
+ * ONE ARCHIVE, EMPTIED — the first write in this planner that DESTROYS.
+ *
+ * Everything else here moves records between files or rewrites their fields;
+ * `archive` was named a trash rather than a shredder precisely because nothing
+ * in olai ever took a record out of the set. This one does, and the whole of
+ * its design is about being the smallest thing that can:
+ *
+ *   - it names an ARCHIVE and no node. There is no way to spell "delete this
+ *     one row", which is the shredder-aimed-at-a-row that #109's deferral is
+ *     about and is still the human's to rule on. Emptying a bin is a different
+ *     gesture from picking something out of one and burning it;
+ *   - it writes that file with NO RECORDS and touches nothing else. The file
+ *     itself stays — an archive that vanished and re-appeared on the next
+ *     put-away would be a file blinking in the sidebar — and the whole trash is
+ *     an `apply` of these, one per archive, so N archives are still one plan,
+ *     one validation and one rename;
+ *   - and it destroys no more than it says. The records leave through the same
+ *     gate every other write goes through and are committed by whichever door
+ *     commits everything else, so what git holds afterwards is exactly what git
+ *     had already recorded — no more, and no less. A `doc` an archived node
+ *     named is a FILE and stays: a document is not a node, nothing in this
+ *     vocabulary names bytes, and a `.md` nobody points at is a thing a person
+ *     can see.
+ *
+ * FOUR REFUSALS, and three of them are about which file this is. An outline the
+ * set does not hold, and an outline that is not an archive, are both "you are
+ * pointing at the wrong file" and say so in the archive's own terms. An archive
+ * with nothing in it is refused rather than written as a no-op, which is the
+ * rule `set_see` already keeps for a call that would change nothing — and it is
+ * what makes "the trash is already empty" a sentence somebody reads rather than
+ * a commit with no diff in it.
+ *
+ * THE FOURTH IS THE ONE THAT MATTERS, and it is {@link planUnmirror}'s rule
+ * read over a set instead of over one record. Ids move with a node when it is
+ * archived — that is `archive`'s own promise, and it is why a mirror or an
+ * `after` naming something you put away goes on resolving — so deleting those
+ * records can leave live outlines naming ids nothing declares, which is a set
+ * the validator condemns (`unknown-target`). The write gate would catch it and
+ * refuse with the validator's rows; this refuses FIRST, in the vocabulary of
+ * the thing somebody actually has to do, naming what still points in. What
+ * points in from INSIDE the same emptying is not a dependent: those records go
+ * when they go.
+ */
+const planEmpty = (
+  scope: Scope,
+  request: Extract<Request, { op: "empty" }>,
+): Planned => {
+  // NAMED ONCE EACH. A path repeated is not a second archive, and it would
+  // otherwise count its records twice into everything below — the number the
+  // `was` guard is checked against, and the number the summary reports.
+  const files = [...new Set(request.files)]
+  if (files.length === 0) {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          "name at least one archive to empty — `list_outlines` says which files " +
+          "are `Archive.olai`, and every one you mean goes in `files` together",
+      }),
+    )
+  }
+
+  for (const file of files) {
+    // "Is this a file the directory serves, and can it be written?" is
+    // {@link landsIn}'s own pair, asked with no `parent` — the same two
+    // refusals `add_node` gives for a file it cannot reach, in the same words.
+    // Spelling them again here would be one wording for an unserved path in
+    // `add` and another in `empty`, drifting the first time either is edited.
+    const named = landsIn(scope, { file })
+    if (Result.isFailure(named)) return Result.fail(named.failure)
+
+    if (!isArchived(file)) {
+      return Result.fail(
+        new UsageFailure({
+          reason:
+            `\`${file}\` is not an archive, and \`empty_trash\` empties the TRASH — ` +
+            `an \`${ARCHIVE}\` beside an outline, which is where \`archive_node\` puts ` +
+            `things. Nothing here deletes out of a live outline; \`archive_node\` is ` +
+            `how a node leaves one.`,
+        }),
+      )
+    }
+  }
+
+  // THE UNION, and it is the whole of what this op's shape buys. Everything
+  // below — the count, the guard, and the holder sweep — is asked of every
+  // record this write deletes rather than of one pile at a time, so a `see`
+  // from one of these archives into another is a record that GOES rather than
+  // a holder that refuses. Judged per file, the same two archives refuse in
+  // one order, plan in the other, and refuse both ways round when they name
+  // each other; `../../format/src/writing.ts` argues it where the field is
+  // declared.
+  const going = files.flatMap((file) => recordsOf(scope, file))
+  if (going.length === 0) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `${capped(files, (file) => `\`${file}\``)} ${
+          files.length === 1 ? "is" : "are"
+        } already empty, so there is nothing to delete`,
+      }),
+    )
+  }
+
+  // WHAT THE CALLER WAS LOOKING AT, checked here rather than at the caller —
+  // and therefore checked on every retry, against the snapshot that retry is
+  // judged on, which is the TOCTOU lesson the undo's own `was` records
+  // (`@olai/server`'s `edit.ts`). A write re-planned against a newer snapshot
+  // silently WIDENS this one: a record archived in between is a record the
+  // retry deletes, and the person who agreed to a number never saw it.
+  if (request.was !== undefined && request.was !== going.length) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `the Trash held ${request.was} ${
+          request.was === 1 ? "record" : "records"
+        } when this was asked for and holds ${going.length} now, so nothing was ` +
+          `deleted — something was archived or put back in between. Look again and ` +
+          `ask again.`,
+      }),
+    )
+  }
+
+  // Every record STAYING that names one that is going — {@link heldBy}, the
+  // one question `remove_mirror` asks about a single placement, asked here
+  // about every pile at once.
+  const held = heldBy(scope, new Set(going.map((record) => record.id)))
+  if (held.length > 0) {
+    // The agreement, spelled out once each above the sentence rather than five
+    // times inside it. This is the refusal somebody actually has to act on, and
+    // a template carrying five ternaries is a template nobody reads back to
+    // check that it still says what it means.
+    const one = held.length === 1
+    const record = one ? "a record" : "records"
+    const it = one ? "it" : "them"
+    const thatNames = one ? "that names" : "those name"
+    const itNames = one ? "it names" : "they name"
+    return Result.fail(
+      new UsageFailure({
+        reason: `${capped(files, (file) => `\`${file}\``)} still ${
+          files.length === 1 ? "has" : "have"
+        } ${record} pointed INTO ${files.length === 1 ? "it" : "them"} from ` +
+          `outside: ${capped(held, (naming) => naming)}. Deleting what ${thatNames} ` +
+          `would leave ${it} pointing at nothing, so nothing was written — re-point ` +
+          `or retire ${it} first, or \`unarchive_node\` what ${itNames} back out.`,
+      }),
+    )
+  }
+
+  const first = files[0] as string
+  return Result.succeed({
+    files: files.map((file) => ({ file, nodes: [] })),
+    // A file op answers with its PATH where a node op answers with an id and a
+    // title, which is `create_outline`'s own shape and for its reason: there is
+    // no node here for either field to be about, and inventing one would be a
+    // reply naming a record this write has just deleted.
+    //
+    // WITH SEVERAL ARCHIVES IT IS A STAND-IN, and one worth saying out loud
+    // rather than leaving to be found — `apply`'s own `id` is the same
+    // admission (`./sorted.ts`). The subject of this write is a SET of files
+    // and `WriteResult` has one `file`, so it names the first the caller
+    // listed; what actually says what happened is the {@link summary}, which
+    // names every one of them and the count.
+    id: first,
+    title: first,
+    file: first,
+    summary: `empty: ${capped(files, (file) => file)} (${going.length} ${
+      going.length === 1 ? "record" : "records"
+    })`,
+  })
+}
+
 // ── duplicate ──────────────────────────────────────────────────────────
 
 /**
@@ -4374,15 +4549,48 @@ const planCreateDocument = (
   })
 }
 
+/**
+ * WHAT WOULD BE LEFT POINTING AT NOTHING — the one question two removals ask,
+ * over a set of ids rather than over one.
+ *
+ * Both writes that take records OUT of the set have to ask it, and they are
+ * asking the same thing: `remove_mirror` about a single placement, and
+ * `empty_trash` about every record in an archive. A second spelling would be
+ * two answers to "who still names this" — and, worse, two formats for the
+ * sentence that names them, in the two refusals a person is most likely to
+ * meet one after the other.
+ *
+ * `namedBy` is the format's own `targetsOf` read backwards, built with the rest
+ * of the derivation — so a relation the format grows later still cannot slip
+ * past this, and asking the question costs a lookup per id rather than a walk
+ * of the corpus.
+ *
+ * WHAT IS GOING IS NOT A DEPENDENT OF ITSELF, and that is why the argument is a
+ * SET rather than an id with a self-check beside it. A record naming another
+ * record in the same removal goes when it goes; so does one naming itself. Read
+ * with a set of one, that is exactly the old self-check, which is what makes
+ * this one function rather than a generalisation with a special case in it.
+ *
+ * One entry per NAMING RECORD, not per edge: a live row pointing at three of
+ * the records being deleted is one thing to re-point and reads as one.
+ */
+const heldBy = (scope: Scope, going: ReadonlySet<string>): ReadonlyArray<string> => {
+  const held = new Map<string, string>()
+  for (const id of going) {
+    for (const naming of scope.derived.namedBy.get(id) ?? []) {
+      if (going.has(naming.at.node.id)) continue
+      held.set(
+        naming.at.node.id,
+        `\`${naming.at.node.id}\` (${
+          naming.fields.map((field) => `\`${field}\``).join(", ")
+        }, ${naming.at.file}:${naming.at.line})`,
+      )
+    }
+  }
+  return [...held.values()]
+}
+
+/** {@link heldBy} of one record — what `remove_mirror` asks about the placement
+ *  it is retiring. */
 const dependents = (scope: Scope, id: string): ReadonlyArray<string> =>
-  // `namedBy` is the format's own `targetsOf` read backwards, built with the
-  // rest of the derivation — so a relation added later still cannot slip past
-  // this, and asking the question stopped costing a walk of the corpus. A
-  // record naming ITSELF is not a dependent of itself: it goes when it goes.
-  (scope.derived.namedBy.get(id) ?? [])
-    .filter((naming) => naming.at.node.id !== id)
-    .map((naming) =>
-      `\`${naming.at.node.id}\` (${
-        naming.fields.map((field) => `\`${field}\``).join(", ")
-      }, ${naming.at.file}:${naming.at.line})`
-    )
+  heldBy(scope, new Set([id]))

@@ -4,15 +4,25 @@
  *
  * This is a CLOSED list, and what is missing from it is the design. There is no
  * shell, no grep, no listing of the DIRECTORY, and no read or write that names
- * a byte — the agent names a NODE, or (since `md-editing`) a whole DOCUMENT.
- * That second one is the closest this list comes to file access and is
- * deliberately not it: the four document tools name a `.md` the SET serves and
- * carry its text ENTIRELY — `write_document` through the same plan → validate
+ * a byte — the agent names a NODE, or (since `md-editing`) a whole DOCUMENT,
+ * or (since `empty-trash`) a whole ARCHIVE. The DOCUMENT is the closest this
+ * list comes to file access and is deliberately not it: the four document
+ * tools name a `.md` the SET serves and carry its text ENTIRELY —
+ * `write_document` through the same plan → validate
  * → stage → rename → commit gate, `read_document` out of the same snapshot
  * every other read answers from — so there is no offset, no range, and nothing
  * for a caller to splice at either end. `list_documents` is that closure said
  * out loud: what an agent may read is what the served set holds, so the listing
  * IS the namespace and there is no directory walk under it.
+ *
+ * THE THIRD UNIT IS `empty_trash`'s, and it is the one tool here that DELETES.
+ * It names `Archive.olai` files the set already serves and empties them whole,
+ * so it is the rule above read once more rather than an exception to it: a path
+ * the listing already holds, every record in it or none, and nothing that could
+ * name part of one. What makes it the entry to read twice is what it DOES
+ * rather than what it names — argued where the request is declared
+ * ({@link ../../format/src/writing.ts}'s `EmptyRequest`) and said again in the
+ * tool's own description, because the description is the agent's only manual.
  *
  * The reads came late (`md-second-class`, the read half) and their absence was
  * not a policy: an agent could `create_document` a file it could never read
@@ -55,6 +65,7 @@ import {
   ApplyRequest,
   ArchiveRequest,
   DuplicateRequest,
+  EmptyRequest,
   CommitRequest,
   type CommitResult,
   CreateDocumentRequest,
@@ -645,6 +656,13 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "Take a node and everything under it back OUT of an `Archive.olai` — the inverse of `archive_node`. The subtree comes back intact with its ids, and it lands LAST among its new siblings (the archive does not record where in a row a node sat). Where it lands: by default the chain of ancestor titles the archive recorded above the node is matched against the live outlines beside the archive, and the call is refused — naming what it found — when that chain matches nowhere or more than one place; give `parent` (it goes under that node) or `file` (top level of that outline) to decide instead. An ancestor the removal leaves empty in the archive is tidied away, provided it is the bare title scaffold `archive_node` wrote and nothing still names it. Work in an archive is over, so nothing in one is unfinished — and that exemption ends HERE, in both directions. A subtree holding a `todo` or `doing` that comes back under a `done` ancestor takes that ancestor's mark off; and any `done` INSIDE what comes back, standing over unfinished work in it, comes off too — those marks were true while the branch was over and are false the moment it is live again. The answer's `nudge` names every one of them. Nothing is refused: the trash is not a place you can edit a mark, so a refusal would strand the subtree there.",
     UnarchiveRequest,
     { op: "unarchive" },
+  ),
+  write(
+    "empty_trash",
+    "Empty the trash",
+    "PERMANENTLY DELETE every record in the archives you name. This is the only write in this whole surface that destroys rather than moves, and the only one nothing puts back: `archive_node` is a trash and `unarchive_node` is the way out of it, and this is what stops carrying the pile. What survives is whatever git had already recorded — the files are rewritten with no records in them, through the same gate and the same commit door as every other write — so a directory with no history, or one whose archive was never committed, keeps nothing.\n\nIT NAMES FILES AND NEVER A NODE. There is no way here to delete ONE row out of the trash; the unit is the archive, exactly as a bin is emptied rather than picked through. NAME EVERY ARCHIVE YOU MEAN IN ONE CALL (`list_outlines` says which files are `Archive.olai`; a directory can hold one beside each outline's directory). That is not a convenience: what may still point into an archive is judged against the UNION of the archives in this call, so a `see` from one of these piles into another is a record this write deletes rather than a holder that refuses it. Split the same emptying across two calls — or two `apply` entries — and the two piles refuse in one order, land in the other, and refuse both ways round when they name each other.\n\nREFUSED four ways, and the fourth is the one to plan around: an outline the set does not hold, an outline that is not an archive (nothing here deletes out of a live outline — `archive_node` is how a node leaves one), archives that hold nothing between them, and — the important one — a record OUTSIDE every archive named still pointing into one. Ids move with a node when it is archived, so a mirror, a `see` or an `after` written in a live outline goes on resolving at what was put away; deleting those records would leave it naming ids nothing declares. The refusal names each such record with its `file:line` and the field it points with. Re-point or retire them, or `unarchive_node` what they name back out, and call again. The `.md` a `doc` field named is a FILE and is never touched.\n\n`was` IS THE COUNT YOU EXPECT, together, across those archives — optional, and worth sending whenever a number was shown to somebody. A write is re-planned against a newer snapshot when the store moves under it, and a re-plan of this one silently widens: a node archived in between goes too. With `was`, that is a refusal naming both counts instead.",
+    EmptyRequest,
+    { op: "empty" },
   ),
   write(
     "set_see",

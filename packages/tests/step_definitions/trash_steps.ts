@@ -20,8 +20,12 @@ import {
   oneLine,
   POLL_TIMEOUT,
   TRASH_EMPTY,
+  TRASH_EMPTY_CANCEL,
+  TRASH_EMPTY_CONFIRM,
+  TRASH_EMPTY_VERB,
   TRASH_LINK,
   TRASH_PAGE,
+  TRASH_PAGE_SAID,
   TRASH_PUT_BACK,
   TRASH_ROW,
   TRASH_SAID,
@@ -202,3 +206,104 @@ Then(
     );
   },
 );
+
+// ── emptying it ────────────────────────────────────────────────────────
+
+/** The page's own verb, pressed. ONE control in three states — offered,
+ *  asking, working — so every step here reaches it by the same selector rather
+ *  than by the words on it, which is the same fact its testid records. */
+const pressEmptyTrash = async (world: OlaiWorld): Promise<void> => {
+  await world.page
+    .locator(TRASH_EMPTY_VERB)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await world.page.locator(TRASH_EMPTY_VERB).click();
+};
+
+/** The FIRST press: it raises the question and writes nothing. */
+When("I press Empty trash", async function (this: OlaiWorld) {
+  await pressEmptyTrash(this);
+  await this.page
+    .locator(TRASH_EMPTY_CONFIRM)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/** …and the SECOND, which is the one that deletes. Its own sentence rather
+ *  than the same one twice: the two presses reach the same control and mean
+ *  entirely different things, and a scenario that says so cannot be misread by
+ *  whoever copies the pattern next. It waits for the confirm to be UP first,
+ *  so a step that lands before the question is drawn fails as a missing
+ *  question rather than by quietly arming one. */
+When("I confirm emptying the Trash", async function (this: OlaiWorld) {
+  await this.page
+    .locator(TRASH_EMPTY_CONFIRM)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await pressEmptyTrash(this);
+  await this.waitForFrame();
+});
+
+When("I cancel emptying the Trash", async function (this: OlaiWorld) {
+  await this.page.locator(TRASH_EMPTY_CANCEL).click();
+  await expectGone(
+    this,
+    TRASH_EMPTY_CONFIRM,
+    "the question is still up after Cancel",
+  );
+});
+
+/** VERBATIM, because the count in it is the whole claim: what a person agrees
+ *  to has to be what the write moves, and the sentence itself is unit-tested
+ *  where it is written (`trash/question.test.ts`). */
+Then(
+  "the Trash asks {string}",
+  async function (this: OlaiWorld, text: string) {
+    const line = this.page.locator(TRASH_EMPTY_CONFIRM).first();
+    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(oneLine(await line.innerText()), text);
+  },
+);
+
+Then("the Trash does not offer Empty trash", async function (this: OlaiWorld) {
+  await expectAbsent(
+    this,
+    TRASH_PAGE,
+    TRASH_EMPTY_VERB,
+    "the Trash offers to empty itself over an archive that holds nothing",
+  );
+});
+
+Then("the Trash offers Empty trash", async function (this: OlaiWorld) {
+  await this.page
+    .locator(TRASH_EMPTY_VERB)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/** What the emptying said, on the PAGE's line rather than under a row — the
+ *  write is about every archive at once, so there is no row to put it under.
+ *  Verbatim and in the alarm tone, the contract every refusal here keeps. */
+Then(
+  "the Trash says {string}",
+  async function (this: OlaiWorld, text: string) {
+    const line = this.page.locator(TRASH_PAGE_SAID).first();
+    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(oneLine(await line.innerText()), text);
+    assert.strictEqual(
+      await line.getAttribute("data-tone"),
+      "alarm",
+      "a refusal is an alarm",
+    );
+  },
+);
+
+/** The file, read off the disk the suite is serving: an emptied archive holds
+ *  no records at all. The page having drawn nothing and the archive being
+ *  empty are two claims, and this is the second one. */
+Then(
+  "{string} holds nothing",
+  async function (this: OlaiWorld, file: string) {
+    await this.waitUntil(
+      async () => this.servedNodes(file).length === 0,
+      `${file} to hold no records`,
+    );
+  },
+);
+

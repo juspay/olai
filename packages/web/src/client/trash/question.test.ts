@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { archiveQuestion } from "./question.ts"
+import { archiveQuestion, emptyQuestion } from "./question.ts"
 
 test("one row, named, with nothing under it: the singular all the way through", () => {
   expect(archiveQuestion({ kind: "row", title: "pick the knobs" }, 0)).toBe(
@@ -38,4 +38,36 @@ test("a pick of ONE is still a pick, and the agreement follows what the write mo
   expect(archiveQuestion({ kind: "rows", count: 1 }, 0)).toContain("It keeps its id")
   expect(archiveQuestion({ kind: "rows", count: 1 }, 3)).toContain("the 3 rows under it")
   expect(archiveQuestion({ kind: "rows", count: 1 }, 3)).toContain("They keep their ids")
+})
+
+test("emptying names the count and says outright that nothing puts it back", () => {
+  expect(emptyQuestion(12)).toBe(
+    "Permanently delete all 12 rows in the Trash? Nothing in olai puts them " +
+      "back — the records leave the archive the way every other write does, so " +
+      "what survives is whatever git has already recorded.",
+  )
+})
+
+test("one row is the singular all the way through, and is still counted", () => {
+  // "the one row" rather than "all 1 rows": the sentence a person reads about
+  // the last thing in their trash should not read like a template.
+  expect(emptyQuestion(1)).toBe(
+    "Permanently delete the one row in the Trash? Nothing in olai puts it " +
+      "back — the record leaves the archive the way every other write does, so " +
+      "what survives is whatever git has already recorded.",
+  )
+})
+
+test("the promise is unconditional, because the claim it makes is true either way", () => {
+  // "whatever git has ALREADY recorded" is deliberately the wording rather
+  // than "git still has them": a directory with no repository, one served
+  // `--no-commit`, and one whose archive has been waiting uncommitted since
+  // the row was put away are all told the truth by it — and none of them is
+  // told that something is recoverable when it is not. Nothing here reads a
+  // git state, so there is no second reading of the repository to keep in
+  // step with the header's.
+  for (const count of [1, 2, 40]) {
+    expect(emptyQuestion(count)).toContain("whatever git has already recorded")
+    expect(emptyQuestion(count)).toContain("Nothing in olai puts")
+  }
 })
