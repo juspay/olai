@@ -285,12 +285,3 @@ Then(
   },
 );
 
-Then(
-  "{string} still holds the node {string}",
-  async function (this: OlaiWorld, file: string, id: string) {
-    await this.waitUntil(
-      async () => this.servedNodes(file).some((node) => node["id"] === id),
-      `${file} to still hold ${JSON.stringify(id)}`,
-    );
-  },
-);

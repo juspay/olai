@@ -161,7 +161,7 @@ Feature: The trash can be seen into, taken out of, and emptied
     And I cancel emptying the Trash
     Then the Trash lists the node "install"
     And the Trash lists the node "knobs"
-    And "Archive.olai" still holds the node "install"
+    And "Archive.olai" holds the node "install"
     And the Trash offers Empty trash
     And there should be no page errors
 
@@ -195,5 +195,5 @@ Feature: The trash can be seen into, taken out of, and emptied
     And I press Empty trash
     And I press Empty trash
     Then the Trash says "`Archive.olai` still has records pointed INTO it from outside: `install` (`after`, house.olai:3), `hinges` (`after`, house.olai:5). Deleting what those name would leave them pointing at nothing, so nothing was written — re-point or retire them first, or `unarchive_node` what they name back out."
-    And "Archive.olai" still holds the node "order"
+    And "Archive.olai" holds the node "order"
     And there should be no page errors

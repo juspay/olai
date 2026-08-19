@@ -672,8 +672,9 @@ export const TESTID = {
    *  only when the archives hold something — a control offering to delete
    *  nothing is a control that teaches a reader the wrong thing — and never
    *  taken away by a filter, which narrows what is DRAWN and not what is
-   *  there. `data-rows` is the count the question names, so the suite can
-   *  check the sentence against the set rather than against itself. */
+   *  there. One id for the resting pill and for the alarm one the question
+   *  puts in its place: it is one control in three states, and a suite reaching
+   *  it should not have to know which one it is in. */
   trashEmptyVerb: "trash-empty-verb",
   /** The question that replaces that verb before anything is written: how many
    *  rows go, and that nothing puts them back (`trash/question.ts`). */

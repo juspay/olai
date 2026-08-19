@@ -6,9 +6,12 @@
  * off the PAGE rather than off a row. Folding that into `./TrashPage.tsx` would
  * have put a small state machine in the middle of a file whose whole subject is
  * drawing a pile, and this app's rule is folder hierarchy over monoliths
- * (HACKING.md). It is also the shape `../select/SelectionBar.tsx` already has
- * for the same question at a different scale — a verb that swaps itself for a
- * sentence and two pills — so the two read alike on purpose.
+ * (HACKING.md). The three states, and the rule that an armed question does not
+ * outlive its subject, are NOT this file's either — they are
+ * `../confirming.ts`'s, shared with `../select/SelectionBar.tsx`, which is
+ * where that rule was found as a bug. What is left here is the layout and the
+ * write, which is the division `../saying.ts` already keeps for the line
+ * underneath.
  *
  * **THE COUNT IS THE POINT**, and it is not this file's arithmetic:
  * `./counting.ts` answers it over the SET, and carries the argument for why the
@@ -31,8 +34,9 @@
  * verbatim, like every other refusal a person meets in this app.
  */
 
-import { createEffect, createMemo, createSignal, Match, Show, Switch } from "solid-js"
+import { createMemo, Match, Show, Switch } from "solid-js"
 
+import { createConfirming } from "../confirming.ts"
 import { useDerived } from "../derived.tsx"
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
@@ -43,18 +47,6 @@ import { applying } from "../writes.ts"
 import { inTrash } from "./counting.ts"
 import { emptyQuestion } from "./question.ts"
 
-/**
- * WHERE THE CONTROL IS, as ONE value rather than as two booleans.
- *
- * `offered` is the resting pill, `asking` is the question with its two ways
- * out, and `working` is the write in flight. It was an `asking` flag and a
- * `working` flag, which is three states encoded in four combinations: nothing
- * meant `asking && working`, and a reader had to hold both to know which of
- * the three was on screen. One value makes the fourth unspellable and the
- * `Switch` below total over what is left.
- */
-type Where = "offered" | "asking" | "working"
-
 export function EmptyTrash(props: {
   /** Every archive the directory holds, in path order — the page's own list
    *  (`../page.ts`), including the ones holding nothing, because what this
@@ -64,7 +56,6 @@ export function EmptyTrash(props: {
   const derived = useDerived()
   const undo = useUndo()
   const { said, say } = createSaying()
-  const [where, setWhere] = createSignal<Where>("offered")
 
   /** How many records go — {@link ./counting.ts}, which is where the argument
    *  for asking the SET rather than the page lives, and where it is tested.
@@ -74,31 +65,20 @@ export function EmptyTrash(props: {
     return indexes === undefined ? 0 : inTrash(indexes, props.files)
   })
 
-  /**
-   * The question is about the trash AS IT IS, so it does not outlive it.
-   *
-   * `../select/SelectionBar.tsx` learned this the hard way and the trap is the
-   * same one: a confirm armed against one count, left standing while another
-   * tab (or the agent) archives something, is a person agreeing to a sentence
-   * that has stopped being true. So the count is watched, and any change to it
-   * takes the question down rather than silently re-wording it.
-   *
-   * It puts the control back to `offered` and never past `working`: a write in
-   * flight is not a question anybody is being asked, and the frame that lands
-   * it is the frame that changes the count.
-   */
-  createEffect(() => {
-    going()
-    setWhere((was) => (was === "asking" ? "offered" : was))
-  })
+  /** The question, and the rule that it does not outlive what it is about
+   *  (`../confirming.ts`, which is where that trap is written down). The
+   *  SUBJECT here is the count: a confirm armed against five rows and left
+   *  standing while another tab — or the agent — archives a sixth is a person
+   *  agreeing to a sentence that has stopped being true. */
+  const confirm = createConfirming(going)
 
   const empty = async () => {
-    setWhere("working")
+    confirm.begin()
     // The answer, handed straight through: a refusal is the ops layer's own
     // sentence and a landed write may have a nudge, and `say` reads
     // `undefined` as "nothing to report" rather than as a sentence.
     const answer = await applying({ verb: "emptyTrash" }, undo.record)
-    setWhere("offered")
+    confirm.done()
     say(answer)
   }
 
@@ -107,7 +87,7 @@ export function EmptyTrash(props: {
       <Show when={going() > 0}>
         <div class="mt-3 flex flex-wrap items-center gap-2">
           <Switch>
-            <Match when={where() === "asking"}>
+            <Match when={confirm.where() === "asking"}>
               <p
                 class="m-0 flex-1 text-sm text-ink"
                 data-testid={TESTID.trashEmptyConfirm}
@@ -121,7 +101,6 @@ export function EmptyTrash(props: {
                 type="button"
                 class={`${ALARM_PILL} cursor-pointer`}
                 data-testid={TESTID.trashEmptyVerb}
-                data-rows={String(going())}
                 onClick={() => void empty()}
               >
                 Empty trash
@@ -130,7 +109,7 @@ export function EmptyTrash(props: {
                 type="button"
                 class={`${QUIET_PILL} cursor-pointer`}
                 data-testid={TESTID.trashEmptyCancel}
-                onClick={() => setWhere("offered")}
+                onClick={() => confirm.drop()}
               >
                 Cancel
               </button>
@@ -144,9 +123,8 @@ export function EmptyTrash(props: {
                 type="button"
                 class={`${QUIET_PILL} cursor-pointer`}
                 data-testid={TESTID.trashEmptyVerb}
-                data-rows={String(going())}
-                disabled={where() === "working"}
-                onClick={() => setWhere("asking")}
+                disabled={confirm.where() === "working"}
+                onClick={() => confirm.ask()}
               >
                 Empty trash
               </button>

@@ -3277,15 +3277,14 @@ const planEmpty = (
   request: Extract<Request, { op: "empty" }>,
 ): Planned => {
   const file = request.file
-  if (!scope.set.files.includes(file)) {
-    return Result.fail(
-      new NotFoundFailure({
-        reason: `\`${file}\` is not one of the outlines under the served directory: ` +
-          `${scope.set.files.join(", ") || "there are none"}`,
-        named: file,
-      }),
-    )
-  }
+  // "Is this a file the directory serves, and can it be written?" is
+  // {@link landsIn}'s own pair, asked with no `parent` — the same two refusals
+  // `add_node` gives for a file it cannot reach, in the same words. Spelling
+  // them again here would be one wording for an unserved path in `add` and
+  // another in `empty`, drifting the first time either is edited.
+  const named = landsIn(scope, { file })
+  if (Result.isFailure(named)) return Result.fail(named.failure)
+
   if (!isArchived(file)) {
     return Result.fail(
       new UsageFailure({
@@ -3297,9 +3296,6 @@ const planEmpty = (
       }),
     )
   }
-
-  const may = writable(scope, file)
-  if (Result.isFailure(may)) return Result.fail(may.failure)
 
   const records = recordsOf(scope, file)
   if (records.length === 0) {
