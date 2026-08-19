@@ -26,14 +26,13 @@
 import { Result } from "effect"
 
 import { derive, type Derived, drawnFrom } from "./derive.ts"
-import { type Document, resolveRelative } from "./documents.ts"
+import { type Document, documentsIn, resolveRelative } from "./documents.ts"
 import {
   chainOf,
   compareErrors,
   isGuessWhileUnreadable,
   type OutlineError,
 } from "./errors.ts"
-import { fileKind } from "./kinds.ts"
 import { isMirror, type Located, type Site } from "./node.ts"
 import { patch, type SetDelta } from "./patch.ts"
 import { byPath } from "./paths.ts"
@@ -389,18 +388,16 @@ const checkMirrorContainment = (
  *  would therefore have quietly widened what `doc` may point at — to a file the
  *  surfaces that draw an attachment cannot draw (a reference under a row is one
  *  line of markdown, and a zoomed node draws the whole document through the
- *  markdown pipeline; neither is a sealed frame). So the kind is asked here,
- *  where the rule about `doc` lives, and the message below stays true. */
+ *  markdown pipeline; neither is a sealed frame). So the kind is asked —
+ *  through `documentsIn`, the one function that answers it for the validator,
+ *  the planner and both document reads alike — and the message below stays
+ *  true. */
 const checkDocs = (
   all: ReadonlyArray<Located>,
   documents: ReadonlyArray<Document>,
   errors: Array<OutlineError>,
 ): void => {
-  const known = new Set(
-    documents
-      .filter((document) => fileKind(document.file) === "document")
-      .map((document) => document.file),
-  )
+  const known = new Set(documentsIn(documents).map((document) => document.file))
   for (const located of all) {
     const { file, node } = located
     if (isMirror(node) || node.doc === undefined) continue

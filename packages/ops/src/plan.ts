@@ -31,6 +31,7 @@ import {
   BATCH_AT_MOST,
   type BatchedRequest,
   bodyKind,
+  brokenIn,
   BusyFailure,
   chainOf,
   countedChildren,
@@ -39,9 +40,11 @@ import {
   derive,
   type Derived,
   didYouMean,
+  type Document,
+  documentIn,
+  documentsIn,
   drawingPath,
   DOCUMENT_EXT,
-  fileKind,
   isMirror,
   type Located,
   type LocatedRegular,
@@ -411,6 +414,47 @@ export const notANode = (id: string, target: string): OpFailure =>
       `not a node of its own. Name \`${target}\` instead.`,
   })
 
+/**
+ * WHAT A PATH THAT IS NOT A DOCUMENT IS TOLD — one sentence, for every verb
+ * that can be handed one.
+ *
+ * {@link notFound}'s counterpart for the other thing an op can name. A
+ * `write_document` and a `read_document` refuse the same miss, and each built
+ * the same near-miss list out of the same set and then wrote the same sentence
+ * before this was one function: a caller who mistypes a path once should not
+ * learn two different things about it depending on which verb the typo landed
+ * at. The near miss is `didYouMean` — the same function an unknown node id
+ * gets, one moment earlier than the validator would give it.
+ *
+ * WHAT EACH CALLER KEEPS is the clause for a set with no near miss at all,
+ * because there the useful thing to say genuinely differs: a read is pointed
+ * at the listing, a write at the verb that starts a document. That is the one
+ * per-verb part, so it is the one part passed in.
+ *
+ * HERE rather than on the floor, which is where it was first written. The
+ * format declares what a refusal IS ({@link ../../format/src/failure.ts}) and
+ * this layer is the only one that raises one — a package that started
+ * composing agent-facing prose would be a second voice for the same "no".
+ * `documentsIn` and `didYouMean` are down there, and they are the two FACTS
+ * this sentence is made of.
+ *
+ * It takes the BODIED LIST rather than a scope: {@link ./query.ts} calls it
+ * over a bare set, which is what a read has.
+ */
+export const noSuchDocument = (
+  bodied: ReadonlyArray<Document>,
+  file: string,
+  instead: string,
+): OpFailure => {
+  const near = didYouMean(file, documentsIn(bodied).map((entry) => entry.file))
+  return new NotFoundFailure({
+    reason: near === ""
+      ? `\`${file}\` is not a document under the served directory — ${instead}`
+      : `\`${file}\` is not a document under the served directory${near}`,
+    named: file,
+  })
+}
+
 /** The record with this id, or the refusal that says so. A MIRROR is not an
  *  answer: it is a second placement of a node that lives elsewhere, and every
  *  op edits the node. */
@@ -437,9 +481,15 @@ const regularAt = (scope: Scope, id: string): Result.Result<LocatedRegular, OpFa
  * format's own registry rather than a flag a caller passes — a file whose
  * content is a BODY lost its text, a file whose content is records lost those —
  * so a caller cannot ask for the wrong sentence about the file it named.
+ *
+ * The FACT is `brokenIn`'s, on the floor, because `read_document` turns on the
+ * same one and reaches a different conclusion from it: a write refuses because
+ * re-emitting the file would erase what is really in it, a read refuses because
+ * the empty text is a body nobody read. One fact, two verbs, two sentences —
+ * which is why what is shared here is the lookup and not the prose.
  */
 const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> => {
-  const broken = scope.set.broken.find((entry) => entry.file === file)
+  const broken = brokenIn(scope.set, file)
   if (broken !== undefined) {
     return Result.fail(
       new ValidationFailure({
@@ -448,7 +498,7 @@ const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> =>
             ? "could not be read, so what it holds is not loaded — writing it would drop that."
             : "has lines that do not parse, so its records are not loaded — writing it would drop them."
         } Fix the file first.`,
-        errors: broken.errors,
+        errors: broken,
       }),
     )
   }
@@ -4409,27 +4459,18 @@ const planWriteDocument = (
   scope: Scope,
   request: Extract<Request, { op: "doc" }>,
 ): Planned => {
-  // The kind is asked of the REQUESTED path rather than of every entry: a
-  // `.html` is refused by its own name, and the walk over the set is then only
-  // what the near-miss list below needs — which is the failure path.
-  const document = fileKind(request.file) === "document"
-    ? scope.set.documents.find((entry) => entry.file === request.file)
-    : undefined
+  // Both halves are the FLOOR's — which of the set's bodied files are
+  // documents, and what a path that is not one is told. This verb and
+  // `read_document` refuse the same miss, and the only thing they say
+  // differently is where to go instead.
+  const document = documentIn(scope.set.documents, request.file)
   if (document === undefined) {
-    const near = didYouMean(
-      request.file,
-      scope.set.documents
-        .filter((entry) => fileKind(entry.file) === "document")
-        .map((entry) => entry.file),
-    )
     return Result.fail(
-      new NotFoundFailure({
-        reason: near === ""
-          ? `\`${request.file}\` is not a document under the served directory — ` +
-            `\`create_document\` is what starts one`
-          : `\`${request.file}\` is not a document under the served directory${near}`,
-        named: request.file,
-      }),
+      noSuchDocument(
+        scope.set.documents,
+        request.file,
+        "`create_document` is what starts one",
+      ),
     )
   }
 

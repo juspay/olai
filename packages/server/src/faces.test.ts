@@ -225,6 +225,8 @@ test("the agent's face is what it can SEE plus the doors its tools land through"
       "ops.outlines",
       "ops.node",
       "ops.subtree",
+      "ops.documents",
+      "ops.document",
       "search.nodes",
       "git.commit",
       "git.push",

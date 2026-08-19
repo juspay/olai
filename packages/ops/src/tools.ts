@@ -3,13 +3,35 @@
  * nothing else.
  *
  * This is a CLOSED list, and what is missing from it is the design. There is no
- * file read, no directory listing, no shell and no grep, and no write that
- * names a byte — the agent names a NODE, or (since `md-editing`) a whole
- * DOCUMENT. That second one is the closest this list comes to a file write and
- * is deliberately not one: `write_document` takes a `.md` the set already
- * holds and replaces its text ENTIRELY, through the same plan → validate →
- * stage → rename → commit gate, so there is no offset, no range, and nothing
- * for a caller to splice. Two consequences follow, and both were paid for:
+ * shell, no grep, no listing of the DIRECTORY, and no read or write that names
+ * a byte — the agent names a NODE, or (since `md-editing`) a whole DOCUMENT,
+ * or (since `empty-trash`) a whole ARCHIVE. The DOCUMENT is the closest this
+ * list comes to file access and is deliberately not it: the four document
+ * tools name a `.md` the SET serves and carry its text ENTIRELY —
+ * `write_document` through the same plan → validate
+ * → stage → rename → commit gate, `read_document` out of the same snapshot
+ * every other read answers from — so there is no offset, no range, and nothing
+ * for a caller to splice at either end. `list_documents` is that closure said
+ * out loud: what an agent may read is what the served set holds, so the listing
+ * IS the namespace and there is no directory walk under it.
+ *
+ * THE THIRD UNIT IS `empty_trash`'s, and it is the one tool here that DELETES.
+ * It names `Archive.olai` files the set already serves and empties them whole,
+ * so it is the rule above read once more rather than an exception to it: a path
+ * the listing already holds, every record in it or none, and nothing that could
+ * name part of one. What makes it the entry to read twice is what it DOES
+ * rather than what it names — argued where the request is declared
+ * ({@link ../../format/src/writing.ts}'s `EmptyRequest`) and said again in the
+ * tool's own description, because the description is the agent's only manual.
+ *
+ * The reads came late (`md-second-class`, the read half) and their absence was
+ * not a policy: an agent could `create_document` a file it could never read
+ * back, and `write_document`'s `was` — the conditional write that refuses to
+ * land on words nobody saw — asked callers for text no tool of theirs could
+ * fetch. A surface with a write and no read is not a narrow surface, it is a
+ * broken one.
+ *
+ * Two consequences follow from the whole-text rule, and both were paid for:
  *
  *   - a malformed outline is unrepresentable through this path. Every write
  *     goes through {@link ./plan.ts} to whole records and the format's own
@@ -50,6 +72,9 @@ import {
   CreateRequest,
   DateRequest,
   DescRequest,
+  DocumentAnswer,
+  DocumentBody,
+  DocumentRequest,
   MARKS,
   MarkRequest,
   MergeRequest,
@@ -143,7 +168,7 @@ interface Described {
 }
 
 /**
- * The READ half of the ops layer, as the four questions the query tools ask —
+ * The READ half of the ops layer, as the six questions the query tools ask —
  * not as a snapshot for each of them to walk.
  *
  * It is {@link Acting} for reads, and it exists for the reason that one does,
@@ -154,11 +179,12 @@ interface Described {
  * a {@link Reading}, which is the whole set plus its derivations and exists
  * only where the store is.
  *
- * So the envelope each read answers in — `{ outlines }`, `?? { missing: id }` —
- * is declared ONCE, here in {@link asking}, and the table's entries are the
- * one-line calls onto it that the act arm's already are. What a reader would
- * otherwise have is two spellings of the same envelope, one for the local
- * answer and one for the wire's.
+ * So the envelope each read answers in — `{ outlines }`, `{ documents }`,
+ * `?? { missing: id }`, and the one refusal a read raises — is declared ONCE,
+ * here in {@link asking}, and the table's entries are the one-line calls onto
+ * it that the act arm's already are. What a reader would otherwise have is two
+ * spellings of the same envelope, one for the local answer and one for the
+ * wire's.
  *
  * The WALKS do not move and are not here: which nodes match, which mirrors
  * resolve, how far a subtree descends stay in {@link ./query.ts}, pure over a
@@ -178,9 +204,18 @@ export interface Asking {
   readonly search: (
     request: SearchRequest,
   ) => Effect.Effect<SearchAnswer, OpFailure>
+  /** Every document under the served directory — `list_documents`. The other
+   *  kind of file, listed the way the outlines are. */
+  readonly documents: Effect.Effect<DocumentAnswer, OpFailure>
+  /** One document, whole — `read_document`. The only read here that REFUSES a
+   *  miss instead of answering it: a path is not an id, and the useful answer
+   *  to a typo is the near miss ({@link ./query.ts}). */
+  readonly document: (
+    request: DocumentRequest,
+  ) => Effect.Effect<DocumentBody, OpFailure>
 }
 
-/** The four envelopes, over whatever answers "the set as a reader sees it".
+/** The six envelopes, over whatever answers "the set as a reader sees it".
  *  ONE declaration: `{@link ./ops.ts}`'s `make` builds an {@link Asking} over
  *  its own gated read, and a test builds one over a fixture — and the second is
  *  then genuinely testing what an agent calls rather than what `Query` returns.
@@ -189,7 +224,7 @@ export interface Asking {
  *  ops layer has: "the served directory has never loaded" is one refusal,
  *  raised in one place, and every question inherits it.
  *
- *  THE CLOCK comes in beside it, because one of the four questions is not a
+ *  THE CLOCK comes in beside it, because one of the six questions is not a
  *  function of the snapshot alone: `date:yesterday` counts from the day the
  *  query is asked on. It is the layer's own — `{@link ./ops.ts}`'s `make`
  *  passes the same `now` a `done` mark is stamped with — and it is that one
@@ -214,6 +249,18 @@ export const asking = (
         request.depth === undefined ? {} : { depth: request.depth },
       ) ?? { missing: request.id }),
   search: (request) => Effect.map(read, (at) => Query.search(at.derived, request, now())),
+  documents: Effect.map(read, (at) => ({ documents: Query.documents(at.set) })),
+  // THE ONE READ THAT CAN REFUSE FROM THE WALK ITSELF. Five of the six answer
+  // from the snapshot alone, so their envelope is a `map` and the failure
+  // channel carries only "the served directory has never loaded". The sixth
+  // decides between three outcomes rather than computing one — the body, a
+  // path that is not a document, a file the set could not read — and a
+  // `Result` is what a pure function says that with ({@link ./plan.ts} refuses
+  // everything that way). `fromResult` is Effect's own lift, so the seam
+  // between this package's pure half and its effectful one is a library call
+  // rather than a spelling of one.
+  document: (request) =>
+    Effect.flatMap(read, (at) => Effect.fromResult(Query.document(at.set, request.file))),
 })
 
 /**
@@ -307,9 +354,11 @@ export type Tool =
 /** A read asks NOTHING that is not on the floor either — the request schemas
  *  below are `@olai/format`'s, for the reason its `./reading.ts` argues: a
  *  question the agent's face asks and a question a wire spec would carry are one
- *  question, and two spellings of it are two spellings free to drift. This is
- *  the one read with nothing to ask, which is why it is the only one declared
- *  here. */
+ *  question, and two spellings of it are two spellings free to drift. The two
+ *  LISTINGS ask nothing at all — a directory is not a question with parameters —
+ *  and an empty struct is not a shape the floor would publish for either of
+ *  them, so the one they share is declared here. `push` reads it too, for the
+ *  same reason with the same nothing to ask. */
 const NoArgs = Schema.Struct({})
 
 // ── the list ───────────────────────────────────────────────────────────
@@ -492,6 +541,22 @@ export const TOOLS: ReadonlyArray<Tool> = [
     SubtreeAnswer,
     (asking, args) => asking.subtree(args),
   ),
+  read(
+    "list_documents",
+    "List documents",
+    "Every document under the served directory — every `.md` the set serves — with the line it opens with and how big it is. The map for the other kind of file, exactly as `list_outlines` is the map for the outlines: enough to choose one, never the text of all of them.\n\n`title` IS DERIVED, NOT DECLARED. It is the document's first non-blank line with its heading marks taken off (`# Finishes` is a document called Finishes), because a `.md` has no record for a name to be written on — it is the same line the app draws under a node that attaches one. Empty for a document holding nothing. `bytes` is what its text weighs as UTF-8, which is what to decide with before asking for the whole of it.\n\nWHAT IS NOT IN IT is a `.html` the directory holds: the app shows those and the set keeps their path without their body, so there is nothing for `read_document` to answer about one and nothing here to measure. `document` is the same word `create_document` and `write_document` use, and this is the listing those two are read against — what is here is what they take.\n\nA FILE THE SET COULD NOT READ is still here, carrying `unreadable` — its own errors — beside an empty title and a zero. If `unreadable` is present, disbelieve the two beside it: nobody read that file, so nobody named or measured it.",
+    NoArgs,
+    DocumentAnswer,
+    (asking) => asking.documents,
+  ),
+  read(
+    "read_document",
+    "Read a document",
+    "One document, whole and verbatim: the text `write_document` would replace, out of the same snapshot every other read here answers from. `file` is a `.md` path exactly as `list_documents` lists it.\n\nREAD BEFORE YOU WRITE, and pass back what you read as `write_document`'s `was`. That makes the write CONDITIONAL: if the document changed since — another editor, a `git pull` — the write is refused instead of landing on top of words you have not seen. Reading, editing the text you were given and writing it back is the whole loop, and it is the only one there is: there is no offset and no line range at either end, because a document is one text.\n\nREFUSED, NOT ANSWERED EMPTY, when the path is not one. A path the set does not hold comes back with the closest one that does, in the same words `write_document` refuses a missing path in — one typo, one answer, whichever verb you typed it at. A `.html` is refused the same way: the set keeps its path and not its body. And a file the directory holds but could NOT read is refused with the validator's own rows, because handing back an empty text for a file that is not empty would be a lie an edit is then written against.\n\nMarkdown, stored exactly as on disk and interpreted only at view time. Nothing here parses it, and nothing about it is validated.",
+    DocumentRequest,
+    DocumentBody,
+    (asking, args) => asking.document(args),
+  ),
 
   write(
     "create_outline",
@@ -631,14 +696,14 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "create_document",
     "Create a document",
-    "Start a new `.md` document under the served directory. `file` is a relative `.md` path (no absolute paths, no `..`); refused if that document already exists — `write_document` is what edits one, and the split is what keeps a typo from minting a file. `text` is what it is born holding; absent creates it empty. The new document joins the set on the write's own revision, so the sidebar and every open tab see it immediately, and the write lands and waits for `commit` like any other.\n\nWHERE IT GOES IS A CONVENTION YOU READ, NOT ONE YOU PICK. This directory is somebody's vault and it already has a shape: look at `surface://collections/documents` before choosing a path, and put the new file where its neighbours are. That matters most for a DAY'S NOTE, whose name is the whole of what makes it one (a basename that is exactly an ISO date, `2026-08-13.md`): a vault keeping `Daily/2026/08/2026-08-12.md` wants `Daily/2026/08/2026-08-13.md`, and the same file at the root is a second convention nobody asked for. The web's calendar derives exactly that from the newest existing daily note; there is no separate op for it because the answer is a path, and this is the tool that takes one.",
+    "Start a new `.md` document under the served directory. `file` is a relative `.md` path (no absolute paths, no `..`); refused if that document already exists — `write_document` is what edits one, and the split is what keeps a typo from minting a file. `text` is what it is born holding; absent creates it empty. The new document joins the set on the write's own revision, so the sidebar and every open tab see it immediately, and the write lands and waits for `commit` like any other.\n\nWHERE IT GOES IS A CONVENTION YOU READ, NOT ONE YOU PICK. This directory is somebody's vault and it already has a shape: look at `list_documents` before choosing a path, and put the new file where its neighbours are. That matters most for a DAY'S NOTE, whose name is the whole of what makes it one (a basename that is exactly an ISO date, `2026-08-13.md`): a vault keeping `Daily/2026/08/2026-08-12.md` wants `Daily/2026/08/2026-08-13.md`, and the same file at the root is a second convention nobody asked for. The web's calendar derives exactly that from the newest existing daily note; there is no separate op for it because the answer is a path, and this is the tool that takes one.",
     CreateDocumentRequest,
     { op: "create-doc" },
   ),
   write(
     "write_document",
     "Write a document",
-    "Replace a document's text, whole and verbatim. `file` names a `.md` the set already holds (refused with the closest path otherwise); `text` is the entire new content — markdown, stored exactly as given, interpreted only at view time, never validated. Read the document first (`surface://collections/documents/<path>`) and pass what you read as `was` to make the write CONDITIONAL: if the file has changed since — another editor, a `git pull` — the write is refused instead of landing on top of words you have not seen, and the answer says to read again. Omit `was` only when overwriting whatever is there is what you mean. The write lands on disk, reaches every open page on its own revision, and waits for `commit`.",
+    "Replace a document's text, whole and verbatim. `file` names a `.md` the set already holds (refused with the closest path otherwise); `text` is the entire new content — markdown, stored exactly as given, interpreted only at view time, never validated. Read the document first (`read_document`) and pass what you read back as `was` to make the write CONDITIONAL: if the file has changed since — another editor, a `git pull` — the write is refused instead of landing on top of words you have not seen, and the answer says to read again. Omit `was` only when overwriting whatever is there is what you mean. The write lands on disk, reaches every open page on its own revision, and waits for `commit`.",
     WriteDocumentRequest,
     { op: "doc" },
   ),

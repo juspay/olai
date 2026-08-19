@@ -237,6 +237,29 @@ const pickerOn = async (page: Page, id: string) => {
   await page.locator(MOVE_PICKER).first().waitFor()
 }
 
+// ── the row editor's completions ───────────────────────────────────────
+
+const COMPLETIONS = '[data-testid="completions"]'
+const COMPLETION_ITEM = '[data-testid="completion-item"]'
+
+/** The shortlist as a reader sees it, top to bottom — the LABELS alone, which
+ *  for a tag is the name as it will be written. `innerText` and its first line,
+ *  which is the same reading `step_definitions/completion_steps.ts` takes of
+ *  the same row: the count beside a label is laid out inline and is a separate
+ *  question ({@link rowSaying}). */
+const labels = async (page: Page): Promise<string> =>
+  (await page.locator(COMPLETION_ITEM).evaluateAll((rows) =>
+    rows.map((one) => (one as HTMLElement).innerText.split("\n")[0]?.trim() ?? "")
+  )).join(", ") || "(nothing)"
+
+/** ...and ONE ROW WHOLE, label and the count beside it, which is what a reader
+ *  of the shot sees on that line. Named for what it answers rather than for the
+ *  half of it a caller happens to be about to quote. */
+const rowSaying = async (page: Page, label: string): Promise<string> =>
+  oneLine(
+    await page.locator(COMPLETION_ITEM).filter({ hasText: label }).first().innerText(),
+  )
+
 /** One line out of however many the markup wrapped it over — what a console
  *  line can hold, spelled once for every reader here that prints something the
  *  page drew. */
@@ -1967,6 +1990,107 @@ const SECTIONS = {
     }`)
     shotSays("cuttings", "garden.olai")
     await shot(page, "a-reference-arrives")
+  },
+
+  /**
+   * THE TAG COMPLETION, READ OFF THE INDEX (`mentions-index-one-sigil`): what
+   * `#` offers, where those names come from and what the number beside each
+   * one now counts.
+   *
+   * The set is written here so the shot holds the three things at once — a tag
+   * on two rows, a tag on one, and a tag written ONLY IN A NOTE, which is the
+   * behaviour that changed: the list is `Derived.taggedBy`'s keys, and that
+   * index files a record under every tag its title or its note writes. The old
+   * walk looked at titles alone, so `#hob` was a word this set used and never
+   * offered back.
+   *
+   * `#home` is written TWICE by one row on purpose. The count says how many
+   * NODES carry a name — which is what the widget always claimed — so the row
+   * saying it twice must still be one vote, and a picture is the only place a
+   * reader sees the claim and the number together.
+   */
+  "a-tag-completion-reads-the-index": async (page) => {
+    pinnedBy(
+      "input_widgets.feature",
+      "A tag written in a NOTE is vocabulary too",
+      "A tag is counted once per node, however often that node writes it",
+    )
+    rewrite("house.olai", [
+      `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home #home","doing":"2026-08-01"}`,
+      `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets #home","desc":"ask the #hob people about the cut-out first"}`,
+      `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets #handover"}`,
+      `{"id":"knobs","parent":"install","ord":"a0","title":"pick the knobs"}`,
+    ])
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await page.locator(title("knobs")).first().click()
+    await page.locator('[data-testid="title-editor"]').first().waitFor()
+    await page.keyboard.type(" #")
+    await page.locator(COMPLETIONS).first().waitFor()
+    await page.waitForTimeout(DRAWN)
+    // Printed rather than only photographed: that `#hob` is on the list at all
+    // is the whole claim, and it is a row in a shot like any other.
+    console.log(`  a bare \`#\` offers: ${await labels(page)}`)
+    console.log(`  and \`#home\`, which one row writes twice, says: ${
+      await rowSaying(page, "#home")
+    }`)
+    await shot(page, "a-bare-hash")
+
+    await page.keyboard.type("ho")
+    await page.waitForTimeout(DRAWN)
+    console.log(`  narrowed to \`#ho\`:  ${await labels(page)}`)
+    await shot(page, "narrowed")
+  },
+
+  /**
+   * THE COUNT LINE ADDS UP — the plain page, and the one the sentence exists
+   * for, in both halves of the palette table.
+   *
+   * The line used to put two numbers out of two different sets beside each
+   * other: "1 of 8 — 2 more matches hidden as done" counted the rows LEFT
+   * after finished work was taken off, next to matches that had been taken off
+   * with it. The denominator is now what the page HOLDS, so the parts are parts
+   * of one whole — which is a claim about arithmetic, and therefore the one
+   * kind of claim a screenshot can carry: the same page, one preference apart,
+   * with the second number unmoved.
+   *
+   * `hinges OR is:done` is the query that draws all three truths at once on
+   * this fixture: one open match drawn, and two finished ones (`demo`, and
+   * `basil` under the MIRROR of the herb bed) held back.
+   */
+  "the-count-line-adds-up": async (page) => {
+    pinnedBy(
+      "filter_in_place.feature",
+      "The count line is measured against what the page holds, not what a preference left",
+      "Matches held back by the done preference are counted, and the reason is named",
+    )
+    // THE PLAIN CASE first, and what it is here to show is an ABSENCE: nothing
+    // is being held back, so nothing is said about holding anything back.
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await narrow(page, "cabinets")
+    console.log(`  nothing hidden, the bar says: ${await textOf(page, FILTER_COUNT)}`)
+    await shot(page, "plain-light")
+
+    await inTheDark(page)
+    await shot(page, "plain-dark")
+
+    // ...and the same page under a reader who hides finished work. The stored
+    // value rather than the Prefs panel, exactly as the theme above is set:
+    // the panel is portalled over the page this section is photographing, and
+    // that switch has its own scenarios (`preferences.feature`).
+    await page.evaluate(() => {
+      localStorage.setItem("olai.theme", "chalk")
+      localStorage.setItem("olai.done.hidden", "true")
+    })
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    console.log(`  hiding finished work, the page draws ${
+      await page.locator(`${OUTLINE_TREE} [data-testid="node"]`).count()
+    } rows`)
+    await narrow(page, "hinges OR is:done")
+    console.log(`  and the bar says: ${await textOf(page, FILTER_COUNT)}`)
+    await shot(page, "hidden-light")
+
+    await inTheDark(page)
+    await shot(page, "hidden-dark")
   },
 } satisfies Record<string, (page: Page) => Promise<void>>
 

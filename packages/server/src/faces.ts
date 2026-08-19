@@ -213,7 +213,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
  * day an agent could read it on one path and not the other.
  *
  * The procedures added on top are the tool table's three arms, and nothing
- * else: `ops.*` (the nineteen writes and the three reads that had no procedure),
+ * else: `ops.*` (the nineteen writes and the five reads that had no procedure),
  * plus `search.nodes`, `git.commit` and `git.push` — the three members BOTH
  * doors call, because none of them has an agent-specific version. What a commit
  * is RECORDED AS does differ, and it is not a member's business: this face is
@@ -239,6 +239,8 @@ export const AGENT: ExposeMap<typeof surface.spec> = {
   "ops.outlines": "tool",
   "ops.node": "tool",
   "ops.subtree": "tool",
+  "ops.documents": "tool",
+  "ops.document": "tool",
   "search.nodes": "tool",
   "git.push": "tool",
 }

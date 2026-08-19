@@ -68,21 +68,36 @@ Then(
   },
 );
 
+/**
+ * THE WHOLE COUNT LINE, exactly — not a substring of it.
+ *
+ * The suite's one reader (`support/said.ts`) matches a substring, and it is
+ * right to: most of the sentences it reads are a phrase inside a paragraph
+ * somebody wrote. This element is not one of those. It holds the count line and
+ * nothing else (`client/filter/count.ts` is the only thing that writes it), so
+ * a substring here buys nothing and costs the two things this feature is made
+ * of: `"1 of 10"` is inside `"1 of 100"`, and — the one that matters —
+ * `"1 of 10"` is inside `"1 of 10 — 2 more matches hidden as done (Prefs)"`,
+ * so the scenario that exists to prove NO clause is said could not see one
+ * appear (found by both reviewers of #248).
+ *
+ * The count settles a frame after the query, so the equality is WAITED for
+ * rather than read once; what a failure prints is what the bar actually says.
+ */
 Then(
   "the filter found {string}",
   async function (this: OlaiWorld, said: string) {
-    // The count settles a frame after the query. Waited for here because a
-    // sentence that CHANGES is not a selector; read and reported by the
-    // suite's one reader (`support/said.ts`), so a failure says what the bar
-    // actually says.
+    const line = this.page.locator(FILTER_COUNT).first();
+    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(
-      async () =>
-        (await this.page.locator(FILTER_COUNT).innerText().catch(() => "")).includes(
-          said,
-        ),
-      `the filter says ${JSON.stringify(said)}`,
+      async () => (await line.innerText().catch(() => "")).trim() === said,
+      `the filter says exactly ${JSON.stringify(said)}`,
     ).catch(() => undefined);
-    await saysThat(this, FILTER_COUNT, said, "filter count");
+    assert.strictEqual(
+      (await line.innerText()).trim(),
+      said,
+      `the filter count reads ${JSON.stringify((await line.innerText()).trim())}`,
+    );
   },
 );
 
