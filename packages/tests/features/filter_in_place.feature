@@ -349,7 +349,7 @@ Feature: Filtering the outline in place
     # takes instead.
     Given I open the outline "house.olai"
     When I filter the page by "is:open"
-    Then the filter refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, archived"
+    Then the filter refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, trashed"
     And the outline has 0 rows
 
   Scenario: A date no calendar could hold is refused too
@@ -368,7 +368,7 @@ Feature: Filtering the outline in place
     # to prevent, and the one none of the four doors had a scenario for.
     Given I open the outline "house.olai"
     When I filter the page by "is:OPEN"
-    Then the filter refuses "is:OPEN" and says "done, doing, todo, marked, blocked, mirrored, archived"
+    Then the filter refuses "is:OPEN" and says "done, doing, todo, marked, blocked, mirrored, trashed"
     # ...while a query that MATCHES still folds, so the two cannot be confused.
     When I filter the page by "IS:DONE"
     Then the node "demo" is a match
@@ -380,7 +380,7 @@ Feature: Filtering the outline in place
     # typo looks exactly like an empty directory.
     Given I open the outline "house.olai"
     When I search the header for "is:open"
-    Then the search refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, archived"
+    Then the search refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, trashed"
 
   Scenario: The ⌘K palette refuses it too, in its own row
     # The third door. It reads the same `createNodeSearch` primitive the header
@@ -390,7 +390,7 @@ Feature: Filtering the outline in place
     Given I open the outline "house.olai"
     When I press the palette shortcut
     And I type "is:open" into the palette
-    Then the search refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, archived"
+    Then the search refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, trashed"
 
   Scenario: The ⌘K palette takes a phrase, over the same wire
     # And the same door on the day it ANSWERS. The palette is the one that

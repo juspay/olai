@@ -74,7 +74,7 @@ Feature: The filter reaches every page that draws nodes
   Scenario: A day refuses an unknown value in the grammar's own words
     Given I open the day "2019-11-05"
     When I filter the page by "is:open"
-    Then the filter refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, archived"
+    Then the filter refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, trashed"
     And the node "rails" is not shown
 
   @corpus:journal

@@ -318,11 +318,11 @@ Feature: An agent olai did not start
     # empty or the query is wrong. The refusal rides the answer.
     When the terminal agent searches for "is:open"
     Then the terminal agent found exactly ""
-    And the terminal agent was refused "is:open" and told "done, doing, todo, marked, blocked, mirrored, archived"
+    And the terminal agent was refused "is:open" and told "done, doing, todo, marked, blocked, mirrored, trashed"
     # AS TYPED — an answer that echoed the folded token back would be quoting
     # the caller wrongly.
     When the terminal agent searches for "is:OPEN"
-    Then the terminal agent was refused "is:OPEN" and told "done, doing, todo, marked, blocked, mirrored, archived"
+    Then the terminal agent was refused "is:OPEN" and told "done, doing, todo, marked, blocked, mirrored, trashed"
     # ...and the same contract on the refusal that is a QUOTE rather than an
     # operator, where "as typed" is the whole of what an agent has to echo back
     # to a person: capitals and opening quote both survive the trip.

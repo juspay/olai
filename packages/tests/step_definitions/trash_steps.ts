@@ -152,7 +152,7 @@ Then(
     const text = oneLine(await line.innerText());
     assert.match(
       text,
-      /is the title `archive` wrote above what was put away/,
+      /is the title `trash` wrote above what was put away/,
       `the line under ${JSON.stringify(title)} reads ${JSON.stringify(text)}`,
     );
     assert.strictEqual(await line.getAttribute("data-tone"), "alarm");
