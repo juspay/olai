@@ -292,6 +292,15 @@ export const REF_DROP = selector(TESTID.refDrop);
 export const BACKLINKS = selector(TESTID.backlinks);
 /** Its summary — the count in words, and what a pointer presses to open it. */
 export const BACKLINKS_SUMMARY = selector(TESTID.backlinksSummary);
+/** The same question one kind of thing over: the `<details>` under a
+ *  DOCUMENT's body, absent on a document nothing points at. `data-count` is
+ *  how many things do — a record that attaches or links it, or another
+ *  document whose body links it. */
+export const DOCUMENT_REFERRERS = selector(TESTID.documentReferrers);
+/** Its summary — the count in words, and what a pointer presses to open it. */
+export const DOCUMENT_REFERRERS_SUMMARY = selector(TESTID.documentReferrersSummary);
+/** One row of that list. */
+export const DOCUMENT_REFERRER = selector(TESTID.documentReferrer);
 /**
  * One row inside it, found by the label a READER sees on it — the referrers
  * whose `see` lands here, or the ones whose title or note writes this node's

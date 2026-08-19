@@ -297,3 +297,64 @@ Feature: Documents
       """
     Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md, notes/wiring.md"
     And the page has not reloaded
+
+  # ── the half a document could not have ───────────────────────────────
+  #
+  # Every reference in this vault points ONE way on disk: `install` writes
+  # `doc: finishes.md` and the file itself says nothing about the node. Until a
+  # document travelled with the addresses it points AT — and every other file
+  # did too — "what is talking about this?" was a question nothing could answer
+  # (docs/brainstorming/first-class-documents.md).
+
+  @corpus:good
+  Scenario: A document's page says what points at it
+    When I open the document "finishes.md"
+    Then the document is pointed at by 1 thing
+    When I open what points at the document
+    # The RECORD that attached it, not merely the outline it sits in: a link is
+    # always some record's, and naming the file would be the coarser answer
+    # offered because it was the easier one.
+    Then what points at the document is "install the cabinets"
+    And there should be no page errors
+
+  # A `[…](…)` in a body is a reference the same way a `doc` field is, which is
+  # what makes one rule for both worth having: `finishes.md` links the saved
+  # quote, so the quote's page knows who sent a reader to it.
+  @corpus:good
+  Scenario: A link written in one document's prose is a reference from it
+    When I open the document "report.html"
+    Then the document is pointed at by 1 thing
+    When I open what points at the document
+    Then what points at the document is "Finishes"
+    And there should be no page errors
+
+  # A document nothing names draws no section at all — the absence is the
+  # answer, exactly as it is for a node nobody refers to.
+  @corpus:good
+  Scenario: A document nothing points at says nothing
+    When I open the document "notes/palette.md"
+    Then nothing points at the document
+
+  # ── search reaches a body ────────────────────────────────────────────
+  #
+  # `cabinetmaker` is written in `finishes.md`'s prose and in no node's title,
+  # note or id. This is the roadmap's `search-document-bodies`, and before it a
+  # word inside a document was invisible to every door in this app.
+  @corpus:good
+  Scenario: A word in a document's prose is something a search finds
+    Given I open the outline "house.olai"
+    When I press the palette shortcut
+    And I type "cabinetmaker" into the palette
+    Then the palette lists the document "finishes.md"
+    And there should be no page errors
+
+  # …and the same word through the other door, over the same reading: two doors
+  # that found different things would be the drift the one index exists against.
+  @corpus:good
+  Scenario: The header's box finds a body too
+    Given I open the outline "house.olai"
+    When I search the header for "cabinetmaker"
+    Then the header search lists the document "finishes.md"
+    When I press the header search result "Finishes"
+    Then the document open is "finishes.md"
+    And there should be no page errors
