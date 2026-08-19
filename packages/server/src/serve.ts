@@ -27,6 +27,8 @@ import { adapterFrom, AGENT_ENV, whyNoAgent } from "@olai/chat"
 import { type CommitMode, make as makeOps, TOOLS } from "@olai/ops"
 import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
+import * as fs from "node:fs"
+import * as path from "node:path"
 
 import * as Chat from "@olai/chat"
 import { openDirectory } from "./directory.ts"
@@ -186,10 +188,23 @@ export const serve = (options: ServeOptions) =>
       transport,
     })
 
+    // Port 0 plus a remembered URL is how `just run` under `bun --watch`
+    // stays on one address across restarts: the first boot asks the OS, the
+    // file records what it got, and the next process reads it back. Unset,
+    // nothing is written and nothing is reused — the e2e suite and a
+    // packaged `--port 7714` both take that road. The env is the justfile's
+    // (and the drivers'), not a flag, so two worktrees cannot share one file.
+    const port = options.port === 0 ? (rememberedPort() ?? 0) : options.port
     const url = yield* Effect.onError(
-      listen({ ...options, bound: wired.bound, mcp: { transport, token } }),
+      listen({
+        ...options,
+        port,
+        bound: wired.bound,
+        mcp: { transport, token },
+      }),
       () => runtime.stopped,
     )
+    remember(url)
     // Registered AFTER the listener's own, so it runs BEFORE it: finalizers
     // run in reverse, and this one has to be true by the time anything starts
     // closing the runtime.
@@ -224,3 +239,33 @@ export const serve = (options: ServeOptions) =>
   }).pipe(Effect.withLogSpan("serve"))
 
 const LOOPBACK: ReadonlySet<string> = new Set(["127.0.0.1", "localhost", "::1"])
+
+/** Where this process should write (and, on a later boot with `--port 0`,
+ *  read back) the URL it actually bound. Per-worktree by construction:
+ *  the justfile points it at `<worktree>/.olai-dev/url`, never at a path
+ *  two checkouts share. */
+const PORT_FILE = "OLAI_PORT_FILE"
+
+/** The port a previous boot of THIS process's worktree bound, if the file
+ *  still names one. Corrupt or missing is "nothing remembered", not a
+ *  reason to refuse to serve — the OS will pick again. */
+const rememberedPort = (): number | undefined => {
+  const file = process.env[PORT_FILE]
+  if (file === undefined || file === "") return undefined
+  try {
+    const port = Number(new URL(fs.readFileSync(file, "utf8").trim()).port)
+    return Number.isInteger(port) && port > 0 ? port : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Record the bound URL so a later boot (and a harness) can read it back.
+ *  Throws if the file cannot be written: a silent miss would be a server
+ *  nobody can find. */
+const remember = (url: string): void => {
+  const file = process.env[PORT_FILE]
+  if (file === undefined || file === "") return
+  fs.mkdirSync(path.dirname(file), { recursive: true })
+  fs.writeFileSync(file, `${url}\n`)
+}
