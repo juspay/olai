@@ -73,10 +73,15 @@
   --width-sidebar: 20rem;
   --width-rail: 3rem;
 
-  /* The app header's height. The chat dock sits UNDER the bar (chat/Panel.tsx),
-   * so its `top` and its height both subtract this; the header itself is
-   * `h-16` (4rem). Static on `:root` — the bar does not paint it; a `4rem`
-   * fallback on the dock only fires if this sheet failed to load. */
+  /* The app header's height, and the ONLY spelling of it. The bar WEARS this
+   * (`h-[var(--height-header)]`); everything that sits under the bar subtracts
+   * it — the chat dock's `top` and height, the sidebar column, the rail, a
+   * sticky section row, the page sheet. No consumer carries a fallback
+   * literal: a `4rem` beside every `var()` is a second spelling of this line,
+   * and it can only fire on a page where this sheet failed to load, which has
+   * no styling for it to save. (`--visible-h` and friends DO keep fallbacks —
+   * those are written by JS at runtime, so the fallback is what the first
+   * paint reads.) */
   --height-header: 4rem;
 }
 

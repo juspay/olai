@@ -202,7 +202,7 @@ export function Sidebar(props: {
       <Show when={props.open}>
         <button
           type="button"
-          class={`fixed inset-x-0 bottom-0 top-[var(--height-header,4rem)] ${LAYER.page} bg-ink/40 md:hidden`}
+          class={`fixed inset-x-0 bottom-0 top-[var(--height-header)] ${LAYER.page} bg-ink/40 md:hidden`}
           data-testid={TESTID.sidebarScrim}
           aria-label="close the directory"
           onClick={() => props.onClose()}
@@ -219,14 +219,14 @@ export function Sidebar(props: {
           (props.open ? "flex " : "hidden ") +
           `${LAYER.chrome} olai-dir flex-col border-r ` +
           // Wide enough that the month's 7 day cells still hit 44×44.
-          "fixed bottom-0 left-0 top-[var(--height-header,4rem)] w-[min(22rem,92vw)] " +
+          "fixed bottom-0 left-0 top-[var(--height-header)] w-[min(22rem,92vw)] " +
           // `top-` above is BOTH positions' offset — the drawer's inset and
           // this column's sticky threshold are the same seam, so they read the
           // same token. `bottom`/`left` are the drawer's alone and must not
           // survive here: an inset on a sticky box is a constraint against the
           // scrollport, not a place to sit.
           "md:sticky md:bottom-auto md:left-auto md:flex " +
-          "md:h-[calc(100dvh-var(--height-header,4rem))] md:w-full md:translate-x-0"
+          "md:h-[calc(100dvh-var(--height-header))] md:w-full md:translate-x-0"
         }
         data-testid={TESTID.sidebar}
         data-open={props.open ? "true" : "false"}

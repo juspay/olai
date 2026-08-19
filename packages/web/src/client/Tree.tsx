@@ -490,7 +490,7 @@ function Branch(props: {
           // title-cell completions) portal out of this context — a heading
           // left at the same layer as an in-tree menu is the heading that
           // paints through it (`menu-under-headers`).
-          [`sticky top-[var(--height-header,4rem)] py-1 ${LAYER.row}`]: section(),
+          [`sticky top-[var(--height-header)] py-1 ${LAYER.row}`]: section(),
           // ...and an opaque backdrop, or the rows would read through it. NOT
           // when this row is the caret's or is picked: those wear a wash of
           // their own, and two backgrounds on one element is a race between two

@@ -24,7 +24,7 @@ import { Report } from "./Report.tsx"
 
 export function Page(props: { readonly errors: ReadonlyArray<OutlineError> }) {
   return (
-    <main class="min-h-[calc(100dvh-var(--height-header,4rem))] max-w-none bg-paper px-8 py-10" data-testid={TESTID.errorView}>
+    <main class="min-h-[calc(100dvh-var(--height-header))] max-w-none bg-paper px-8 py-10" data-testid={TESTID.errorView}>
       <h1 class={`${PAGE_TITLE} mb-2 text-alarm`}>
         {props.errors.length === 0
           ? "Broken outlines"

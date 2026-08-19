@@ -17,7 +17,7 @@
  * (burger, then footer) — which is why the phone e2e no longer opens the sheet
  * to reach it.
  *
- * The bar is a fixed `h-16` and the right-hand group is `flex-nowrap`: wrapping
+ * The bar is a fixed `--height-header` and the right-hand group is `flex-nowrap`: wrapping
  * inside a fixed height centred the second row off the top of the viewport on a
  * 390pt phone in every connection state longer than `live`.
  *
@@ -65,10 +65,10 @@
  * to trust — and is the sole exception to "the header is on every screen".
  *
  * The bar is INK, the same ground as the directory spine: header and sidebar
- * are one forest frame, and the outline is a paper sheet sitting in it. Height
- * is `h-16` (4rem) and the static `--height-header` token in `styles.css` —
- * the chat drawer subtracts the same token so it sits under this bar, not
- * over it. A coral rule along the bottom is the one loud mark the chrome
+ * are one forest frame, and the outline is a paper sheet sitting in it. Its
+ * height is `--height-header` and nothing else: the bar WEARS the token that
+ * everything under it subtracts, rather than an `h-16` somebody has to keep
+ * equal to it. A coral rule along the bottom is the one loud mark the chrome
  * allows itself.
  *
  * ## It STICKS, and that is what makes the rest of the chrome true
@@ -145,7 +145,7 @@ export function AppHeader(props: {
 }) {
   return (
     <header
-      class={`sticky top-0 ${LAYER.header} flex h-16 shrink-0 items-center gap-2 border-b-2 border-accent bg-ink px-3 font-sans text-paper md:px-6`}
+      class={`sticky top-0 ${LAYER.header} flex h-[var(--height-header)] shrink-0 items-center gap-2 border-b-2 border-accent bg-ink px-3 font-sans text-paper md:px-6`}
       data-testid={TESTID.appHeader}
       data-layout={props.docked ? "docked" : "chrome-only"}
     >
