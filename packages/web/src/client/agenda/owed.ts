@@ -64,10 +64,9 @@ export interface Mark {
    *  count when nothing is. The one ruling in this table — loud wins whole —
    *  and it is here rather than in the component for that reason. */
   readonly count: number
-  /** The row's ink and ground, over ../Sidebar.tsx's ENTRY_SHAPE. Every state
-   *  names an ink, INCLUDING the quiet one: two utilities setting one property
-   *  are settled by the order Tailwind emitted them in and not by the order
-   *  they were written, so the shape it is appended to carries none. */
+  /** The row's ink and ground, over ../Sidebar.tsx's ENTRY_SHAPE. Empty on
+   *  the quiet and today faces: the spine already paints paper, and a second
+   *  `text-ink` here would be forest on forest. The alarm names its own. */
   readonly entry: string
   /** The chip's paint, or empty where there is no chip — which is also how a
    *  consumer asks whether to draw one, so "is there a mark" is decided here
@@ -97,11 +96,11 @@ const PAINT: Record<Face, { readonly entry: string; readonly chip: string; reado
     dot: "bg-alarm",
   },
   today: {
-    entry: "text-ink",
+    entry: "",
     chip: `${CHIP} bg-pill text-muted`,
     dot: "border border-muted bg-transparent",
   },
-  quiet: { entry: "text-ink", chip: "", dot: "" },
+  quiet: { entry: "", chip: "", dot: "" },
 }
 
 /**

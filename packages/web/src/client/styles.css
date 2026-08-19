@@ -106,46 +106,14 @@ html {
   background-color: color-mix(in srgb, var(--color-accent) 38%, transparent);
 }
 
-/* THE DIRECTORY SPINE. Ink ground, paper words — the cover of the book the
- * outline sits in. Palettes invert with their own ink: reef is a forest
- * column beside a lagoon page; aurora is a pale sky beside midnight paper.
- *
- * The month is a paper CARD on that spine (`.olai-card`), so it keeps the
- * page's ink. Everything else in the column inherits paper and a remapped
- * muted, which is what stops `text-muted` (a mid-green on reef) from
- * disappearing into the forest. */
+/* THE DIRECTORY SPINE. Ink ground, paper words — inherited, not remapped.
+ * The month is a paper CARD on that spine (`.olai-card`) and paints its
+ * own ink. Palettes invert with their ink: reef is a forest column beside
+ * a lagoon page; aurora is a pale sky beside midnight paper. */
 .olai-dir {
   background-color: var(--color-ink);
   color: var(--color-paper);
   border-color: color-mix(in srgb, var(--color-paper) 18%, transparent);
-}
-
-.olai-dir .text-ink {
-  color: var(--color-paper);
-}
-
-.olai-dir .text-muted {
-  color: color-mix(in srgb, var(--color-paper) 64%, var(--color-ink));
-}
-
-.olai-dir .hover\:text-ink:hover {
-  color: var(--color-paper);
-}
-
-.olai-dir .olai-card {
-  color: var(--color-ink);
-}
-
-.olai-dir .olai-card .text-ink {
-  color: var(--color-ink);
-}
-
-.olai-dir .olai-card .text-muted {
-  color: var(--color-muted);
-}
-
-.olai-dir .olai-card .hover\:text-ink:hover {
-  color: var(--color-ink);
 }
 
 /* The month is a 7-column grid. A classic scrollbar appearing in this

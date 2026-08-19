@@ -13,10 +13,9 @@
  * THE INK IS SPLIT OUT, and that is the part to keep: the agenda's entry
  * changes it (`../agenda/owed.ts`), and two utilities setting one property are
  * settled by the order Tailwind emitted its rules in rather than by the order
- * they were written — appending `text-alarm` to a class that already says
- * `text-ink` is a coin toss, which is the trap `../calendar/Day.tsx` composes
- * per-property to avoid. So every user of this names an ink, and exactly one
- * of them names something other than the ordinary one.
+ * they were written. The ordinary row inherits paper from the spine
+ * (`.olai-dir`); the alarm names its own. The trap `../calendar/Day.tsx`
+ * composes per-property to avoid.
  */
 
 import { TARGET } from "../touch.ts"
@@ -83,4 +82,4 @@ export const REGION = "mt-3 border-t border-paper/15 pt-2"
  *  the rows under it — an entry's own padding — rather than hanging a couple of
  *  pixels outside the column of names ({@link ENTRY_SHAPE}). */
 export const REGION_LABEL =
-  "m-0 mb-1 px-2.5 font-serif text-[0.75rem] italic tracking-tight text-muted"
+  "m-0 mb-1 px-2.5 font-serif text-[0.75rem] italic tracking-tight text-paper/55"

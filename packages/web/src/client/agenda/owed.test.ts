@@ -37,8 +37,8 @@ test("nothing owed is the entry it always was", () => {
   expect(mark.chip).toBe("")
   expect(mark.dot).toBe("")
   expect(mark.said).toBeUndefined()
-  // It still names an ink: the shape it is appended to carries none.
-  expect(mark.entry).toBe("text-ink")
+  // Empty: the spine already paints paper, and a second ink would hide it.
+  expect(mark.entry).toBe("")
 })
 
 test("what is COMING never lights it: a task due Friday is not news today", () => {
@@ -51,7 +51,7 @@ test("work on today is the quiet face — a nudge, and the row is untouched", ()
   const mark = markOf(readingOf([ON_TODAY]))
   expect(mark.face).toBe("today")
   expect(mark.count).toBe(1)
-  expect(mark.entry).toBe("text-ink")
+  expect(mark.entry).toBe("")
   expect(mark.chip).toContain("bg-pill")
   expect(mark.said).toBe("Agenda — 1 on today")
 })

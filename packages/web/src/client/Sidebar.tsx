@@ -122,12 +122,12 @@ import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
  *  that have more than one thing on them. The agenda's entry is the same
  *  SHAPE and not this, so nothing about that row moves; `Trash` borrows this
  *  one and has a single child, where a gap is inert. */
-const ENTRY = `${ENTRY_SHAPE} ${ROW_GAP} text-ink`
+const ENTRY = `${ENTRY_SHAPE} ${ROW_GAP}`
 
 /** A directory row: folds, does not navigate. */
 const DIR =
   `flex ${TARGET} items-center ${ROW_GAP} rounded-xl px-1 py-1 text-[0.875rem] ` +
-  "leading-snug text-muted hover:bg-paper/10 hover:text-ink md:min-h-0"
+  "leading-snug text-paper/65 hover:bg-paper/10 hover:text-paper md:min-h-0"
 
 interface TreeView {
   readonly isActive: (file: string) => boolean
@@ -235,7 +235,7 @@ export function Sidebar(props: {
             cover the calendar's month-step chevrons (top-right of the body). */}
         <button
           type="button"
-          class={`absolute bottom-2 right-2 ${WITHIN.raised} hidden ${TARGET_BOX} items-center justify-center rounded-full border border-paper/20 bg-ink text-muted hover:bg-paper/10 hover:text-ink md:inline-flex md:min-h-8 md:min-w-8`}
+          class={`absolute bottom-2 right-2 ${WITHIN.raised} hidden ${TARGET_BOX} items-center justify-center rounded-full border border-paper/20 bg-ink text-paper/65 hover:bg-paper/10 hover:text-paper md:inline-flex md:min-h-8 md:min-w-8`}
           data-testid={TESTID.sidebarCollapse}
           aria-label="collapse the sidebar to the icon rail"
           title="collapse sidebar"
@@ -400,7 +400,7 @@ function Trash() {
   return (
     <Link
       route={{ kind: "trash" }}
-      class={`${ENTRY} text-muted`}
+      class={`${ENTRY} text-paper/65`}
       testid={TESTID.trashLink}
       current={router.route().kind === "trash"}
     >
@@ -457,7 +457,7 @@ function Dir(props: {
         }}
       >
         <span
-          class={`${CONTROL} text-[0.55rem] leading-none text-muted`}
+          class={`${CONTROL} text-[0.55rem] leading-none text-paper/55`}
           aria-hidden="true"
         >
           <span

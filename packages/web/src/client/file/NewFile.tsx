@@ -69,7 +69,7 @@ export function NewFile(props: {
         fallback={
           <button
             type="button"
-            class="cursor-pointer rounded-xl border-0 bg-transparent px-2.5 py-1 text-[0.8125rem] text-muted hover:bg-paper/10 hover:text-ink"
+            class="cursor-pointer rounded-xl border-0 bg-transparent px-2.5 py-1 text-[0.8125rem] text-paper/65 hover:bg-paper/10 hover:text-paper"
             data-testid={props.making.testids.open}
             onClick={(event) => {
               // The sidebar body closes the mobile drawer on any click that
