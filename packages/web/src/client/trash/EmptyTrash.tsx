@@ -43,6 +43,18 @@ import { applying } from "../writes.ts"
 import { inTrash } from "./counting.ts"
 import { emptyQuestion } from "./question.ts"
 
+/**
+ * WHERE THE CONTROL IS, as ONE value rather than as two booleans.
+ *
+ * `offered` is the resting pill, `asking` is the question with its two ways
+ * out, and `working` is the write in flight. It was an `asking` flag and a
+ * `working` flag, which is three states encoded in four combinations: nothing
+ * meant `asking && working`, and a reader had to hold both to know which of
+ * the three was on screen. One value makes the fourth unspellable and the
+ * `Switch` below total over what is left.
+ */
+type Where = "offered" | "asking" | "working"
+
 export function EmptyTrash(props: {
   /** Every archive the directory holds, in path order — the page's own list
    *  (`../page.ts`), including the ones holding nothing, because what this
@@ -52,8 +64,7 @@ export function EmptyTrash(props: {
   const derived = useDerived()
   const undo = useUndo()
   const { said, say } = createSaying()
-  const [asking, setAsking] = createSignal(false)
-  const [working, setWorking] = createSignal(false)
+  const [where, setWhere] = createSignal<Where>("offered")
 
   /** How many records go — {@link ./counting.ts}, which is where the argument
    *  for asking the SET rather than the page lives, and where it is tested.
@@ -70,21 +81,24 @@ export function EmptyTrash(props: {
    * same one: a confirm armed against one count, left standing while another
    * tab (or the agent) archives something, is a person agreeing to a sentence
    * that has stopped being true. So the count is watched, and any change to it
-   * puts the question away rather than silently re-wording it.
+   * takes the question down rather than silently re-wording it.
+   *
+   * It puts the control back to `offered` and never past `working`: a write in
+   * flight is not a question anybody is being asked, and the frame that lands
+   * it is the frame that changes the count.
    */
   createEffect(() => {
     going()
-    setAsking(false)
+    setWhere((was) => (was === "asking" ? "offered" : was))
   })
 
   const empty = async () => {
-    setAsking(false)
-    setWorking(true)
+    setWhere("working")
     // The answer, handed straight through: a refusal is the ops layer's own
     // sentence and a landed write may have a nudge, and `say` reads
     // `undefined` as "nothing to report" rather than as a sentence.
     const answer = await applying({ verb: "emptyTrash" }, undo.record)
-    setWorking(false)
+    setWhere("offered")
     say(answer)
   }
 
@@ -93,19 +107,21 @@ export function EmptyTrash(props: {
       <Show when={going() > 0}>
         <div class="mt-3 flex flex-wrap items-center gap-2">
           <Switch>
-            <Match when={asking()}>
+            <Match when={where() === "asking"}>
               <p
                 class="m-0 flex-1 text-sm text-ink"
                 data-testid={TESTID.trashEmptyConfirm}
               >
                 {emptyQuestion(going())}
               </p>
+              {/* The ALARM half — the one that does the thing — and the quiet
+                  one beside it is the way out, which is the pairing every
+                  confirm in this app wears (`../pill.ts`). */}
               <button
                 type="button"
                 class={`${ALARM_PILL} cursor-pointer`}
                 data-testid={TESTID.trashEmptyVerb}
                 data-rows={String(going())}
-                disabled={working()}
                 onClick={() => void empty()}
               >
                 Empty trash
@@ -114,19 +130,23 @@ export function EmptyTrash(props: {
                 type="button"
                 class={`${QUIET_PILL} cursor-pointer`}
                 data-testid={TESTID.trashEmptyCancel}
-                onClick={() => setAsking(false)}
+                onClick={() => setWhere("offered")}
               >
                 Cancel
               </button>
             </Match>
+            {/* Offered, and — while the write is in flight — the same pill,
+                inert. Drawn rather than taken away, because a control that
+                vanished under the hand that pressed it reads as a page that
+                lost the gesture. */}
             <Match when={true}>
               <button
                 type="button"
                 class={`${QUIET_PILL} cursor-pointer`}
                 data-testid={TESTID.trashEmptyVerb}
                 data-rows={String(going())}
-                disabled={working()}
-                onClick={() => setAsking(true)}
+                disabled={where() === "working"}
+                onClick={() => setWhere("asking")}
               >
                 Empty trash
               </button>

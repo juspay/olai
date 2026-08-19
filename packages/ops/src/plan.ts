@@ -3313,18 +3313,23 @@ const planEmpty = (
   // Every record STAYING that names one that is going — {@link heldBy}, the
   // one question `remove_mirror` asks about a single placement, asked here
   // about a whole pile.
-  const names = heldBy(scope, new Set(records.map((record) => record.id)))
-  if (names.length > 0) {
-    const one = names.length === 1
+  const held = heldBy(scope, new Set(records.map((record) => record.id)))
+  if (held.length > 0) {
+    // The agreement, spelled out once each above the sentence rather than five
+    // times inside it. This is the refusal somebody actually has to act on, and
+    // a template carrying five ternaries is a template nobody reads back to
+    // check that it still says what it means.
+    const one = held.length === 1
+    const record = one ? "a record" : "records"
+    const it = one ? "it" : "them"
+    const thatNames = one ? "that names" : "those name"
+    const itNames = one ? "it names" : "they name"
     return Result.fail(
       new UsageFailure({
-        reason:
-          `\`${file}\` still has ${one ? "a record" : "records"} pointed INTO it from ` +
-          `outside: ${capped(names, (naming) => naming)}. Deleting what ${
-            one ? "that names" : "those name"
-          } would leave ${one ? "it" : "them"} pointing at nothing, so nothing was ` +
-          `written — re-point or retire ${one ? "it" : "them"} first, or ` +
-          `\`unarchive_node\` what ${one ? "it names" : "they name"} back out.`,
+        reason: `\`${file}\` still has ${record} pointed INTO it from outside: ` +
+          `${capped(held, (naming) => naming)}. Deleting what ${thatNames} would ` +
+          `leave ${it} pointing at nothing, so nothing was written — re-point or ` +
+          `retire ${it} first, or \`unarchive_node\` what ${itNames} back out.`,
       }),
     )
   }

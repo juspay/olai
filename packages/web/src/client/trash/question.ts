@@ -99,9 +99,14 @@ export const emptyQuestion = (
   count: number,
 ): string => {
   const one = count === 1
-  return `Permanently delete ${one ? "the one row" : `all ${count} rows`} in the Trash? ` +
-    `Nothing in olai puts ${one ? "it" : "them"} back — the ${
-      one ? "record leaves" : "records leave"
-    } the archive the way every other write does, so what survives is whatever ` +
-    `git has already recorded.`
+  // The agreement above the sentence rather than inside it, which is what lets
+  // the sentence itself be read as the thing a person is about to agree to —
+  // the same arrangement the refusal it may meet afterwards keeps
+  // (`@olai/ops`' `plan.ts`).
+  const rows = one ? "the one row" : `all ${count} rows`
+  const it = one ? "it" : "them"
+  const leave = one ? "record leaves" : "records leave"
+  return `Permanently delete ${rows} in the Trash? Nothing in olai puts ${it} ` +
+    `back — the ${leave} the archive the way every other write does, so what ` +
+    `survives is whatever git has already recorded.`
 }
