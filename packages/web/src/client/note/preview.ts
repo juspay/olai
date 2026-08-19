@@ -16,7 +16,7 @@
  * pretending to be a row. The first non-blank line is taken and its common
  * marks are dropped — `**walnut**` is a note that mentions walnut, and the
  * asterisks are markup rather than the word. Same visual grammar as a
- * document's one-line preview (`../document/preview.ts`): one dim truncated
+ * document's one-line preview (`@olai/format`'s `firstLine`): one dim truncated
  * line, no block rendering.
  */
 

@@ -184,6 +184,36 @@ Feature: An agent olai did not start
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: A terminal finds the documents and reads one back
+    # The read half of the same gate, and the half that did not exist: the
+    # write verbs have always taken a `was` — the text the caller read — and
+    # until `list_documents` and `read_document` there was no tool that could
+    # hand an agent that text. So an agent could mint a `.md` it could never
+    # read and rewrite one it had never seen.
+    # The listing is the map, exactly as `list_outlines` is: every served
+    # `.md` with the line it opens with, the ones in folders included — a path
+    # an agent can hand straight back to a read or a write. (What is NOT in it
+    # is a `.html`: the app shows those and the set keeps no body for one, so
+    # there is nothing to read back. This corpus holds none, so that exclusion
+    # is pinned where a `.html` exists — `server/src/mcp/tools.test.ts`.)
+    When the terminal agent lists the documents
+    Then the terminal agent was shown the document "finishes.md" titled "Finishes"
+    And the terminal agent was shown the document "notes/cabinets.md" titled "Cabinets"
+    # And the body is the body — verbatim, out of the same snapshot the page
+    # renders from, which is what makes it a thing a write can be judged
+    # against.
+    When the terminal agent reads the document "finishes.md"
+    Then the terminal agent was handed the document text "Matte black handles, oak counters"
+    # A path that is not one is REFUSED, in the voice every other tool refuses
+    # in: the kind as data, and the near miss in the sentence — the same near
+    # miss `write_document` gives for the same typo, because one path typed
+    # wrongly should not be answered two different ways.
+    When the terminal agent tries to read the document "finishs.md"
+    Then the terminal agent was refused with the kind "not-found"
+    And the terminal agent was refused, saying "did you mean `finishes.md`"
+    And the page has not reloaded
+    And there should be no page errors
+
   Scenario: A terminal writes a document, both faces of one gate
     # The consistency rule, end to end: `create_document` mints the file and
     # `write_document` replaces its text — the same two ops the browser's

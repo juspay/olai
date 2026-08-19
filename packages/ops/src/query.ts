@@ -1,12 +1,20 @@
 /**
  * Reading the set, as an agent is allowed to read it.
  *
- * Every answer here is about NODES: an id, a title, a mark, an ancestry, a
- * `file:line`. Never bytes, never a line of a file, never a directory listing.
- * That is the read half of the same decision the write half makes — the agent
- * works in the format's own terms, so the things it can express are the things
- * the format can be (docs/brainstorming/acp.md, resolved 2026-08-09: "query
- * tools are over parsed nodes, not raw lines").
+ * Every answer about an OUTLINE is about NODES: an id, a title, a mark, an
+ * ancestry, a `file:line`. Never bytes, never a line of a file, never a
+ * directory listing of them. That is the read half of the same decision the
+ * write half makes — the agent works in the format's own terms, so the things
+ * it can express are the things the format can be (docs/brainstorming/acp.md,
+ * resolved 2026-08-09: "query tools are over parsed nodes, not raw lines").
+ *
+ * A DOCUMENT is the exception the write half already made, read back. A `.md`
+ * has no identity below the file — no records, no ids, nothing to name a piece
+ * of it by — so `write_document` takes the whole text and {@link documents} /
+ * {@link document} answer with the whole text, which is the same unit read
+ * rather than a byte range conceded. What is NOT here is the thing that would
+ * be one: no offset, no line range, no walk of the directory that is not the
+ * served set's own list.
  *
  * It is not a smaller `grep`. A grep over `.olai` answers with JSON fragments
  * out of context, invites byte-level edits back, and cannot say where a node
@@ -23,12 +31,20 @@
 import {
   ancestorTitles,
   backlinksOf,
+  brokenBy,
+  brokenIn,
+  bytesOf,
   countedChildren,
   DEFAULT_SEARCH_LIMIT,
   DEFAULT_SUBTREE_DEPTH,
   type Derived,
   type Detail,
+  type DocumentBody,
+  documentIn,
+  documentsIn,
+  type DocumentSummary,
   errorLine,
+  firstLine,
   follow,
   type Found,
   heldCustom,
@@ -38,6 +54,7 @@ import {
   matching,
   nodesOf,
   nothing,
+  type OpFailure,
   type OutlineSet,
   type OutlineSummary,
   parseFilter,
@@ -53,7 +70,11 @@ import {
   type Subtree,
   tagText,
   titleParts,
+  ValidationFailure,
 } from "@olai/format"
+import { Result } from "effect"
+
+import { noSuchDocument } from "./plan.ts"
 
 /**
  * Every shape an answer here has is `@olai/format`'s, and none of them is
@@ -425,7 +446,7 @@ export const outlines = (
   set: OutlineSet,
   derived: Derived,
 ): ReadonlyArray<OutlineSummary> => {
-  const broken = new Map(set.broken.map((entry) => [entry.file, entry.errors]))
+  const broken = brokenBy(set)
   /**
    * Each file's own nodes, grouped once. The set is FLAT ({@link OutlineSet}
    * says why), so "which nodes are this file's" is a scan of the whole list,
@@ -479,3 +500,80 @@ export const outlines = (
     }
   })
 }
+
+// ── the documents ──────────────────────────────────────────────────────
+
+/**
+ * Every document the directory serves, summarised — {@link outlines}' twin
+ * over the other kind of file.
+ *
+ * WHAT COUNTS AS A DOCUMENT is not decided here: `documentsIn` is the floor's
+ * one answer, shared with the validator that checks a `doc` reference and the
+ * planner that refuses a `write_document`, so what this lists and what those
+ * two accept cannot come apart. A `.html` is out of all three — the set keeps
+ * its path and not its bytes — and a listing that named one would be offering
+ * a read that cannot be answered and a size nobody measured.
+ *
+ * The broken map is taken once for the whole answer, exactly as {@link
+ * outlines} takes its own: a document that did not READ is in `documents`
+ * with an empty text AND in `broken` (`@olai/format`'s `assemble`), so the
+ * empty text has to be told apart from an empty file.
+ */
+export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
+  const broken = brokenBy(set)
+  // ANNOTATED for {@link outlines}' reason: a field dropped from
+  // `DocumentSummary` fails HERE rather than only at the table-driven decode.
+  return documentsIn(set.documents).map((entry): DocumentSummary => {
+    const errors = broken.get(entry.file)
+    // The empty title and the zero are what a file that could not be read
+    // gets, and {@link DocumentSummary} says why that is held rather than
+    // settled — it is `OutlineSummary`'s convention, matched on purpose.
+    if (errors !== undefined) {
+      return { file: entry.file, title: "", bytes: 0, unreadable: errors.map(errorLine) }
+    }
+    const text = entry.text ?? ""
+    return { file: entry.file, title: firstLine(text), bytes: bytesOf(text) }
+  })
+}
+
+/**
+ * One document, whole — or the refusal that says why not.
+ *
+ * A REFUSAL and not a `{ missing }` arm, which is the one place a document
+ * read parts company with a node read; {@link DocumentBody} carries that
+ * argument. What matters here is that the sentence is the SAME sentence
+ * `write_document` refuses a missing path with, from the same near-miss
+ * function over the same candidate list — a path an agent typed is answered
+ * one way whichever verb it typed it at.
+ *
+ * Two refusals rather than one, because a file the set could not READ is not a
+ * file the set does not hold: it is on the disk, it will parse or it will not,
+ * and answering it as an empty document would be handing back a body nobody
+ * read. `brokenIn` is the fact, shared with the write gate's `writable`
+ * ({@link ./plan.ts}); the CONSEQUENCE is this verb's own, and it comes back
+ * with the validator's rows for the reason a refused write does — fix the
+ * file, then read it.
+ */
+export const document = (
+  set: OutlineSet,
+  file: string,
+): Result.Result<DocumentBody, OpFailure> => {
+  const entry = documentIn(set.documents, file)
+  if (entry === undefined) {
+    return Result.fail(
+      noSuchDocument(set.documents, file, "`list_documents` says what is"),
+    )
+  }
+  const broken = brokenIn(set, file)
+  if (broken !== undefined) {
+    return Result.fail(
+      new ValidationFailure({
+        reason: `\`${file}\` could not be read, so what it holds is not loaded — ` +
+          `there is nothing to answer with. Fix the file first.`,
+        errors: broken,
+      }),
+    )
+  }
+  return Result.succeed({ file, text: entry.text ?? "" })
+}
+

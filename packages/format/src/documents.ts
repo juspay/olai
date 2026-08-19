@@ -269,3 +269,128 @@ const ASSET_EXTENSIONS: ReadonlyArray<string> = [
  */
 export const isAsset = (path: string): boolean =>
   fileKind(path) === "hypertext" || isPicture(path) || suffixed(path, ASSET_EXTENSIONS)
+
+/**
+ * WHICH of the set's bodied files are DOCUMENTS.
+ *
+ * The set carries one list for every file it keeps a body for, because what it
+ * knows about either kind is the same two facts ({@link Document}) — and every
+ * consumer of that list then wants the `.md` half of it, because a `.html` is
+ * the one file olai only shows: nothing validates it, no op writes it, and the
+ * set keeps its path without its bytes.
+ *
+ * FOUR CALLERS ASKED THIS, each with its own `.filter`: the validator deciding
+ * what a node's `doc` may point at, the planner refusing a `write_document`,
+ * and both document reads. Four spellings of one rule is four places for it to
+ * come to disagree — and the failure mode is not a crash but a quiet
+ * disagreement about what a served directory contains, which is exactly the
+ * class of bug `kinds.ts` was centralised to end. It is here rather than
+ * beside any of them because it is a statement about what a document IS, which
+ * is this module's whole subject.
+ */
+export const documentsIn = (
+  bodied: ReadonlyArray<Document>,
+): ReadonlyArray<Document> => bodied.filter((entry) => fileKind(entry.file) === "document")
+
+/**
+ * ONE of them, by the path a caller named — or `undefined` for a path the set
+ * does not serve as a document, whether because nothing is there or because
+ * what is there is a `.html`.
+ *
+ * The KIND is asked of the requested path FIRST, so the walk over the set only
+ * happens for a path that could be one. That is not a micro-optimisation kept
+ * for its own sake: it is what makes the two callers — a write's refusal and a
+ * read's — walk the list on the same terms, which is the property that lets
+ * them answer one typo with one sentence.
+ */
+export const documentIn = (
+  bodied: ReadonlyArray<Document>,
+  file: string,
+): Document | undefined =>
+  fileKind(file) === "document" ? bodied.find((entry) => entry.file === file) : undefined
+
+/**
+ * A document, in one line: its first line with anything on it, heading marks
+ * off.
+ *
+ * The closest thing a `.md` has to a title, and it is a DERIVATION rather than
+ * a field — a document has no record, so there is nowhere on it for a name to
+ * be written. `# Finishes` is a document called Finishes, and the hashes are
+ * markup rather than the name.
+ *
+ * PLAIN TEXT, never rendered markdown, because both callers put it in a space
+ * one line high: the web draws it in a row beside a `doc`-carrying node's
+ * title, and `list_documents` puts it in a listing beside the path. A heading,
+ * a list or a fenced block drawn there would be a document pretending to be a
+ * row.
+ *
+ * IT IS THE FORMAT'S because two faces ask it now. It was `@olai/web`'s
+ * `document/preview.ts` while the browser was the only thing that named a
+ * document, and the rule moved here whole when the agent's listing wanted the
+ * same answer — "MCP and Web ops must be consistent" (HACKING.md) is a
+ * property of there being one function, not of two that were written from each
+ * other.
+ */
+export const firstLine = (text: string): string => {
+  // Scanned rather than split: a preview reads the top of a document, and
+  // `split("\n")` would allocate every line of one to throw all but the first
+  // away — on a page that draws this beside every `doc`-carrying row, and in a
+  // listing that draws it once per served document.
+  let at = 0
+  while (at < text.length) {
+    const end = text.indexOf("\n", at)
+    const line = (end === -1 ? text.slice(at) : text.slice(at, end)).trim()
+    if (line !== "") {
+      // Only the heading marks, and only where markdown puts them: leading
+      // `#`s, and the optional closing run of them. Everything else stays as
+      // written — stripping emphasis and links here would be a second, worse
+      // renderer.
+      const stripped = line.replace(/^#{1,6}\s+/, "").replace(/\s+#+$/, "")
+      return stripped === "" ? line : stripped
+    }
+    if (end === -1) break
+    at = end + 1
+  }
+  return ""
+}
+
+/** One encoder for the process, because `bytesOf` is called once per served
+ *  document and constructing one per call is the only avoidable cost here. */
+const UTF8 = new TextEncoder()
+
+/**
+ * What a document's text WEIGHS, in bytes, as UTF-8 on disk.
+ *
+ * Beside {@link firstLine} because it is the same kind of fact — the two things
+ * that can be said about a document without reading it, and the two a listing
+ * carries. What a caller does with it is decide whether to ask for the whole
+ * of it.
+ *
+ * BYTES rather than `text.length`, which is UTF-16 units and would report a
+ * different number than every other tool a person has for the same file. This
+ * was fifteen lines of code-unit arithmetic — the same count without the
+ * transient buffer — and the buffer is the better trade: a surrogate-pair
+ * branch and a lone-surrogate rule are exactly the kind of thing that is
+ * subtly wrong for years, and `TextEncoder` is the runtime's own answer.
+ * `Buffer.byteLength` is the other one-liner and is not available to this
+ * package, which runs in a browser as readily as in a server.
+ *
+ * IT MEASURES THE TEXT, not the file, and those part company for a `.md`
+ * that is not valid UTF-8: the store decodes leniently, so bytes it could not
+ * read are already replacement characters by the time this counts them, and
+ * the answer can exceed the file's size on disk. That is the RIGHT number for
+ * what this field is for — it matches the text `read_document` hands over and
+ * the text `write_document`'s `was` is compared against — and it is the same
+ * deferral as below: the store knows the real one and throws it away.
+ *
+ * WHAT IT COSTS, stated because this package argues about wire cost
+ * everywhere else: a listing is O(the bytes of every served `.md`), where
+ * {@link ./set.ts}'s outline listing is O(nodes). That is a cost class up, and
+ * it is accepted for now because it is an agent's occasional call over bodies
+ * the process is already holding — not a render, not a keystroke, not a
+ * subscription. The cheaper form exists if it ever matters and is one layer
+ * down: `@olai/store` decodes each file and throws away the byte count the
+ * read already had, so carrying it onto {@link Document} would make this
+ * O(documents) and delete the question.
+ */
+export const bytesOf = (text: string): number => UTF8.encode(text).length

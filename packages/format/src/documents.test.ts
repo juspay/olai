@@ -3,6 +3,7 @@ import { expect, test } from "bun:test"
 import {
   docOf,
   bodiedOf,
+  firstLine,
   isAsset,
   isPicture,
   pictureOf,
@@ -140,4 +141,33 @@ test("a page and the parts it draws with are assets, and nothing else is", () =>
   expect(isAsset("a/plan.olai")).toBe(false)
   expect(isAsset("a/data.json")).toBe(false)
   expect(isAsset("js")).toBe(false)
+})
+
+// ── the line a document is named by ────────────────────────────────────
+//
+// Moved here with the rule itself, from `@olai/web`'s `document/preview.ts`,
+// when the agent's `list_documents` wanted the same answer the browser's
+// `DocRef` draws.
+
+test("the first line is the first line with anything on it", () => {
+  expect(firstLine("\n\n  Brushed brass.\nAnd more.\n")).toBe("Brushed brass.")
+})
+
+// A document nearly always opens with its title as a heading, and the hashes
+// are markup rather than part of the name.
+test("a leading heading is named without its marks", () => {
+  expect(firstLine("# Finishes\n\nDoors: matte.")).toBe("Finishes")
+  expect(firstLine("### Deep ###")).toBe("Deep")
+})
+
+// Only the heading marks. Emphasis, links and code spans stay as written: a
+// preview that started interpreting them would be a second, worse renderer.
+test("nothing else is interpreted", () => {
+  expect(firstLine("- **walnut**, or `birch`")).toBe("- **walnut**, or `birch`")
+  expect(firstLine("#tag first")).toBe("#tag first")
+})
+
+test("an empty document previews as nothing", () => {
+  expect(firstLine("")).toBe("")
+  expect(firstLine("\n \n")).toBe("")
 })
