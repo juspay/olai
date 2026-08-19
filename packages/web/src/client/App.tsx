@@ -53,7 +53,10 @@ import { connectionReadout, olai } from "./wire.ts"
 import { isLone } from "./workspace.ts"
 
 export default function App() {
-  const outlines = createOutlines()
+  const outlines = createOutlines(
+    olai.collections.outlines.use(),
+    olai.cells.manifest.use(),
+  )
   /** Every editable page on screen, for the one gesture that is about more
    *  than the page it began in: a row dragged out of one pane and dropped in
    *  the next (`./drag/fields.ts`). The WORKSPACE owns it because the drag is

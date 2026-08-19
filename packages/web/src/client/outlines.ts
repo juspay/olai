@@ -51,11 +51,12 @@
  */
 
 import { type BrokenFile, derive, type Derived, type Face, patch } from "@olai/format"
-import type { Manifest } from "@olai/surface"
-import { type Accessor, createMemo } from "solid-js"
+import type { Manifest, OutlineEntry } from "@olai/surface"
+import type { CollectionFold, UseCollectionResult } from "@kolu/surface/solid"
+import { type Accessor, createMemo, untrack } from "solid-js"
+import { unwrap } from "solid-js/store"
 
 import { facesOf, sortByPath } from "./paths.ts"
-import { olai } from "./wire.ts"
 
 export interface Outlines {
   /** The set-wide facts: `undefined` before the first frame, `null` for a
@@ -78,10 +79,41 @@ export interface Outlines {
   readonly derived: Accessor<Derived | undefined>
 }
 
-export const createOutlines = (): Outlines => {
-  const entries = olai.collections.outlines.use()
-  const manifest = olai.cells.manifest.use()
+/** The outlines collection, reduced to what this composition asks of it: the
+ *  keys, one entry per key, and the FRAME SOCKET. Spelled structurally rather
+ *  than as one of the framework's four result types, because those differ by
+ *  what a caller reached them through — a bound `.use()` carries no `stream` of
+ *  its own, an un-enrolled `useCollectionDeltas` does — and this module has no
+ *  opinion about which door the frames came in by. */
+export interface OutlineEntries extends UseCollectionResult<string, OutlineEntry> {
+  readonly fold: CollectionFold<string, OutlineEntry>
+}
 
+/** The manifest cell, reduced to the one thing this composition asks of it.
+ *  Structural rather than the framework's own result type because a cell's
+ *  `error` and `pending` belong to whoever draws the connection, and naming
+ *  them here would be this module claiming a reader it does not have. */
+export interface ManifestCell {
+  readonly value: Accessor<Manifest | undefined>
+}
+
+/**
+ * The composition, over the two members rather than over the wire.
+ *
+ * They are ARGUMENTS because the app has exactly one place where a member is
+ * reached — `App.tsx`, the composition root, which already names the wire for
+ * the errors cell beside this call — and because a module that reaches
+ * `./wire.ts` itself can only ever be read by a browser: importing it opens a
+ * websocket at module scope. That is what left the tab's own per-frame cost
+ * unmeasurable and is why #263 had to file it as a deferral rather than close
+ * it. `./outlines.bench.ts` drives THIS function over the framework's real
+ * `deltas` hook, which is a measurement of the composition rather than of a
+ * re-spelling of it.
+ */
+export const createOutlines = (
+  entries: OutlineEntries,
+  manifest: ManifestCell,
+): Outlines => {
   const files = createMemo(() => sortByPath(entries.keys()))
 
   /**
@@ -112,9 +144,42 @@ export const createOutlines = (): Outlines => {
    * preceded by an upsert is a real frame rather than a hypothetical one. It
    * costs one wasted wake — such a file lands in `touched`, so a frame carrying
    * only it answers with a fresh `Derived` identity — and nothing else.
+   *
+   * THE SEED IS THE STORE'S ENTRIES AND NOT THE FRAME'S, which is the whole of
+   * what a reconnect costs and was #263's first standing deferral. A snapshot
+   * re-initialises this fold — the design ruled that, and it is right: one
+   * honest full rebuild per reconnect — but the entries the frame carries are
+   * FRESHLY DECODED, so a link flap handed the rebuild new record objects for
+   * every file in the directory even though not a byte had changed. The store
+   * beside it does not: it value-diffs a snapshot and keeps the object it
+   * already had, precisely so that an unchanged entry does not re-notify its
+   * readers. Reading the seed from there costs one dictionary read per file and
+   * keeps every unchanged record's IDENTITY — which is what every per-record
+   * cache downstream is keyed by, `@olai/format`'s per-record search fold
+   * above all (a `WeakMap` on the record, so an object nobody holds any more is
+   * a fold nobody can reach). Without this, the first search after a link flap
+   * pays the corpus cold; `./outlines.bench.ts` is where that is a number.
+   *
+   * `unwrap` because the accessor hands back a READ PROXY over the held value,
+   * and a proxy is a different object from the one the last view was built out
+   * of — which is the only thing this line is about. The fallback to the
+   * frame's own entry is for a key the store cannot answer, which is a state
+   * the framework does not have (the snapshot is applied to the store before
+   * any fold is seeded) and is written as a total function rather than as an
+   * assertion about somebody else's ordering. `untrack` because a seed is not a
+   * READ: `init` also runs at registration time, and a dependency taken there
+   * would belong to whichever computation happened to call this function.
    */
   const view = entries.fold({
-    init: (all) => patch(EMPTY, { upserts: all, removes: [] }),
+    init: (all) =>
+      untrack(() =>
+        patch(EMPTY, {
+          upserts: all.map(([file, arrived]) =>
+            [file, unwrap(entries.byKey(file)?.() ?? arrived)] as const
+          ),
+          removes: [],
+        })
+      ),
     step: patch,
   })
 
@@ -133,10 +198,11 @@ export const createOutlines = (): Outlines => {
    * never a record — and they are NOT folded here, deliberately: a second and
    * third accumulator over the same frames would be three things to keep in
    * step with one wire, where the socket's own argument is that a consumer
-   * should hold ONE. If a directory large enough to feel this turns up, the
-   * honest first move is to measure a frame end to end in a browser — which
-   * nothing in this tree does any more, and which is this PR's own standing
-   * deferral rather than a claim that it would not matter.
+   * should hold ONE. What they cost is no longer an argument either way:
+   * `./outlines.bench.ts` drives this whole composition through the
+   * framework's own `deltas` hook and prints the frame, the fold and the two
+   * walks as three arms of one run, so a directory large enough to feel them
+   * is a number somebody can produce rather than a thing to guess at.
    */
   return {
     manifest: manifest.value,
