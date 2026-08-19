@@ -97,6 +97,14 @@ export const createOutlines = (): Outlines => {
    * is. Every frame after it is the held view patched with what the frame
    * named, which is the whole of what a keystroke costs this tab.
    *
+   * THE STEP IS THE PATCHER, passed as itself rather than called through a
+   * lambda that re-spells the frame. That is not brevity: a `step` written as
+   * `(held, { upserts, removes }) => patch(held, { upserts, removes })` would
+   * be this module claiming to translate between two shapes, and there is no
+   * translation — `SetDelta` IS the collection-delta frame, which is what
+   * `patch`'s own docstring says it takes. If the two ever part, this line stops
+   * compiling, which is the right place for that to be noticed.
+   *
    * A REMOVE OF A KEY THIS FOLD NEVER SAW is a no-op in the patcher
    * (`byFile.delete` on an absent file), which is exactly what the socket asks
    * of a `step`: the server's tick coalescer resolves an upsert-then-remove
@@ -107,7 +115,7 @@ export const createOutlines = (): Outlines => {
    */
   const view = entries.fold({
     init: (all) => patch(EMPTY, { upserts: all, removes: [] }),
-    step: (held, { upserts, removes }) => patch(held, { upserts, removes }),
+    step: patch,
   })
 
   return {
