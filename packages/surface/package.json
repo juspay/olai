@@ -17,6 +17,6 @@
   "dependencies": {
     "@olai/acp": "workspace:*",
     "@olai/format": "workspace:*",
-    "effect": "4.0.0-beta.106"
+    "effect": "4.0.0-rc.110"
   }
 }

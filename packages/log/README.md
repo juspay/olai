@@ -54,7 +54,7 @@ Colour follows the **destination** stream (stdout for `toStdout`, stderr for `to
 One line per event, `key=value`, quoted only where it has to be:
 
 ```
-timestamp=2026-08-10T17:45:36.770Z level=Info fiber=#5 message=serving serve=12ms root=/home/you/outlines url=http://127.0.0.1:7714
+timestamp=2026-08-10T17:45:36.770Z level=INFO fiber=#5 message=serving serve=12ms root=/home/you/outlines url=http://127.0.0.1:7714
 timestamp=2026-08-10T17:45:36.812Z level=Warn fiber=#8 message="the agent is running a model its picker does not offer" serve=54ms root=/home/you/outlines agent=claude-code-acp model=opus-5
 ```
 

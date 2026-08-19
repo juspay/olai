@@ -282,7 +282,7 @@ test("a runtime directory that is not a directory refuses the boot", async () =>
 }, BOUND_MS)
 
 test("a runtime directory other users can write refuses the boot", async () => {
-  // The threat `notPrivatelyOurs` is for: `/tmp/olai-$UID` is a fixed path, and
+  // The threat `isPrivateOwnedDir` is for: `/tmp/olai-$UID` is a fixed path, and
   // a directory somebody else prepared is one they can hold a lock in — olai
   // would then report a stranger's claim as another olai of the reader's own.
   // 0755 is OURS and still open, which is the case `mkdirSync`'s `mode:` cannot

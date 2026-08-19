@@ -19,7 +19,7 @@
     "@olai/format": "workspace:*",
     "@olai/log": "workspace:*",
     "@olai/surface": "workspace:*",
-    "effect": "4.0.0-beta.106",
+    "effect": "4.0.0-rc.110",
     "zod": "^4.0.0"
   },
   "//devDependencies": "@types/node is for `node:child_process`, which is how an ACP agent is started.",

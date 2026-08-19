@@ -38,7 +38,7 @@ test("a field the encoder left bare reads back as itself", async () => {
     ),
   )
 
-  expect(fields.level).toBe("Info")
+  expect(fields.level).toBe("INFO")
   expect(fields.message).toBe("serving")
   expect(fields.url).toBe("http://127.0.0.1:40429")
 })
@@ -81,7 +81,7 @@ test("a line found by message is that line, not a later one that shares a field"
 // in the middle of a quoted value, where there is no closing quote to find and
 // the fields read so far are all there is.
 test("a partial trailing line is not a match", () => {
-  expect(findLogfmt("timestamp=… level=Info fiber=#2 message=serv", "serving"))
+  expect(findLogfmt("timestamp=… level=INFO fiber=#2 message=serv", "serving"))
     .toBeUndefined()
 
   const cut = `timestamp=… level=Warn message="the agent could not`
