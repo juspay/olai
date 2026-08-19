@@ -139,7 +139,7 @@ export type Route =
    *
    * `at` is a heading's own id, which is what a `#` after a document has
    * always meant, and it is on this arm alone because it is the only page made
-   * of prose: a `.md` renders headings that `rehype-slug` gives ids to, and a
+   * of prose: a `.md` renders headings the format's own rule gives ids to, and a
    * `.html` is a document with whatever ids its author wrote. An outline's
    * elements are NODES, and the grammar reads a `#` after a `.olai` as one —
    * which is why the node arm below carries no file.

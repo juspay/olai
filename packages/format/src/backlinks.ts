@@ -218,6 +218,13 @@ export interface Referrer {
  * `Archive.olai` is left out, the same way it is left out of search, of the
  * agenda and of blockedness.
  *
+ * A LINK ONTO A HEADING POINTS AT THE DOCUMENT, which is the one place this
+ * reading is not a string comparison. `[the scope](brief.md#scope)` is a
+ * reference to `brief.md` — the reader who opens that file is who wants to
+ * know — and a page that showed it only under the heading would answer half the
+ * question and hide the other half. The reverse does not hold: asking about the
+ * heading is asking about the heading.
+ *
  * A DOCUMENT DOES NOT REFER TO ITSELF, and that is one line rather than a
  * caller's job: a `.md` whose own body links a heading of itself is talking
  * about the page it is on.
@@ -234,10 +241,13 @@ export const referrersTo = (
   // here has to know how the arms are shaped.
   const wanted = printAddress(address)
   const here = address.kind === "node" ? null : address.path
+  const points = (link: Address): boolean =>
+    printAddress(link) === wanted ||
+    (address.kind === "document" && link.kind === "heading" && link.path === address.path)
   const found: Array<Referrer> = []
   for (const face of faces) {
     if (face.path === here || isArchived(face.path)) continue
-    if (!face.links.some((link) => printAddress(link) === wanted)) continue
+    if (!face.links.some(points)) continue
     const records = derived.byFile.get(face.path)
     // A face with no records behind it is a BODY — the link is the document's
     // own, and there is nothing finer to name.
@@ -247,7 +257,7 @@ export const referrersTo = (
     }
     for (const located of records) {
       if (!isRegular(located)) continue
-      if (!recordLinks(located).some((link) => printAddress(link) === wanted)) continue
+      if (!recordLinks(located).some(points)) continue
       found.push({ face, at: located })
     }
   }
