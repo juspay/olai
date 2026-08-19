@@ -29,8 +29,9 @@
  *     browser's calendar grid and the agenda's felt distances must not each own
  *     a Monday — or a subtraction;
  *   - what a QUERY means, `parseFilter` with `matchOf` / `matching` and the row
- *     transform `keeping` — the grammar (`is:`, `has:`, `date:`, `-`, and the
- *     substring terms around them), which nodes it selects, and what a tree
+ *     transform `keeping` — the grammar (`is:`, `has:`, `date:`, `created:`,
+ *     `changed:`, `prop:`, `-`, and the substring terms around them), which
+ *     nodes it selects, and what a tree
  *     narrowed to them looks like with the ancestors kept. Here, and not in the
  *     ops layer where the search procedure is, because a browser filtering rows
  *     it already holds and an agent calling `search_nodes` must not be two

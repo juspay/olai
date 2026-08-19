@@ -15,8 +15,25 @@ import {
  *  here is the things a type cannot say: that no two rows answer to the same
  *  name, that the values are colours, and that the default is one of them. */
 describe("the palette table", () => {
-  test("ships the fifteen the racket implementation did", () => {
-    expect(PALETTES.length).toBe(15)
+  test("keeps the fifteen the racket implementation did, and the two after them", () => {
+    expect(THEME_NAMES.slice(0, 15)).toEqual([
+      "leaf",
+      "manuscript",
+      "chalk",
+      "pitch",
+      "light",
+      "dark",
+      "vintage",
+      "catppuccin",
+      "chocolate",
+      "hacker",
+      "matcha",
+      "moon",
+      "neo",
+      "one-dark",
+      "robot",
+    ])
+    expect(THEME_NAMES.slice(15)).toEqual(["reef", "aurora"])
   })
 
   test("no two themes share a name", () => {

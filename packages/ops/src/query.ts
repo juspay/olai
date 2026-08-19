@@ -203,8 +203,9 @@ const carriedOf = (
  * every box a person types into.
  *
  * WHAT MATCHES IS NOT DECIDED HERE any more, and that is the whole of the
- * filter-in-place change: the words, the operators (`is:`, `has:`, `date:` and
- * their negations), the archive rule and which field carried a hit all live in
+ * filter-in-place change: the words, the operators (`is:`, `has:`, `date:`,
+ * `created:`, `changed:`, `prop:` and their negations), the archive rule and
+ * which field carried a hit all live in
  * `@olai/format`'s `filter.ts`, because a browser narrowing rows it already
  * holds cannot call this procedure on every keystroke and must not answer
  * differently for having to do it itself. One matcher, five callers; that
