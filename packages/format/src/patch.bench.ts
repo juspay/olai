@@ -55,8 +55,8 @@
  * so the figure is reproducible and is a figure about a stated shape:
  * {@link FILES} outlines of {@link RECORDS} records, a third of them marked, a
  * twentieth of them mirrors reaching into the file before. It is the SAME vault
- * `@olai/web`'s `deriving.bench.ts` runs on, so the two benches' numbers are
- * about one directory. Size it with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS /
+ * `@olai/web`'s `complete/tags.bench.ts` runs on, so the two benches' numbers
+ * are about one directory. Size it with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS /
  * OLAI_BENCH_EDITS — and the last of those is worth turning up: the layer
  * flattens when it has grown past half the map, which forty edits over
  * twenty-record files come nowhere near. `OLAI_BENCH_EDITS=900` reaches it,

@@ -115,16 +115,16 @@ export interface Published {
  * reader sat on the announcement with no body until it opened the key again.
  * That is closed now, and by the other half of the same revision: the newborn
  * path is in `unread` too, a hold is taken by the SUBSCRIPTION rather than by a
- * successful read (`@olai/surface`'s `holding.ts`), so the body is read for
- * exactly the readers holding that key and lands on the same key one frame
- * later. What is left of the edge is an ORDER rather than an absence: a holder
- * across a birth sees the announcement and then the body, where a reader who
- * opens the key afterwards sees only the body. Nobody in tree is even in that
- * position — the browser's subscription is CREATED from the key set (the page
- * model refuses a path the directory does not hold, `@olai/web`'s `page.ts`),
- * and an MCP client reads afresh on every `notifications/resources/updated` —
- * and a raw client that holds one is now told the whole truth in two frames
- * instead of half of it in one.
+ * successful read (the collection's own `holders` dep, `./runtime.ts`), so the
+ * body is read for exactly the readers holding that key and lands on the same
+ * key one frame later. What is left of the edge is an ORDER rather than an
+ * absence: a holder across a birth sees the announcement and then the body,
+ * where a reader who opens the key afterwards sees only the body. Nobody in
+ * tree is even in that position — the browser's subscription is CREATED from
+ * the key set (the page model refuses a path the directory does not hold,
+ * `@olai/web`'s `page.ts`), and an MCP client reads afresh on every
+ * `notifications/resources/updated` — and a raw client that holds one is now
+ * told the whole truth in two frames instead of half of it in one.
  *
  * WHAT IS STILL NOT DONE HERE, and deliberately: no body is READ from this
  * function, on a birth or on any other revision. A `git pull` that adds four

@@ -92,7 +92,7 @@ const FIELD_WEIGHT = { title: 1000, id: 750, tag: 500, desc: 250 } as const
  * A `WeakMap` on the RECORD rather than on the set, which is what makes it
  * correct without an invalidation rule: a record is a value here — a file that
  * changes is re-parsed into new records and the set is PATCHED with them
- * (`@olai/web`'s `deriving.ts`, over `./patch.ts`) — so a fold that is still
+ * (`@olai/web`'s `outlines.ts`, over `./patch.ts`) — so a fold that is still
  * reachable is a fold of text that has not changed, and one nothing holds any
  * more is collectable with the record it was about. There is no frame, no
  * revision and no clearing.

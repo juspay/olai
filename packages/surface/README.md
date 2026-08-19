@@ -91,11 +91,9 @@ Two things about it are worth reading before the file:
 
 Who is on the other end is deliberately NOT a member here. It is a real question — a page bound to a server that has been replaced must know, and both ends of the stale-tab handshake compare that id — but the framework reserves `system/identity` for it and answers it out of every surface, process id included. A member of our own would be a second answer to a question already answered.
 
-## One FACT that is not a member
+## One FACT that went upstream
 
-`src/holding.ts` is the other kind of thing here: not a member, not an address, but a fact about a member's subscriptions that the wire had no way to state. A per-key `get` says when a reader OPENS a key. Nothing says when the last one LETS GO — the framework owns that lifetime (a handler answers with a `Stream`, and the stream's scope is the subscription) and does not publish it, so a server that has to know whether anybody is still showing a file had to infer it from opens and age the answer out. `@olai/server`'s `bodies.ts` did exactly that, bounded at sixteen paths, and named this module as what would replace it.
-
-`holding` wraps one collection's `get` in a scoped acquire — hold on the way in, release on the way out — so its holders are counted by the same lifetime the framework already manages: a tab navigating, a socket dropping, a runtime closing and a one-shot reader taking its frame and leaving are all the same event. It is deliberately NOT a member: a verb a reader had to call to say "I am done" would be a promise a closed tab cannot keep, and the readers this exists for are exactly the ones that vanish. Nothing new crosses the wire, and the module counts without deciding — what a hold is WORTH belongs to whoever asked for one. It is the package's one serving-side module and lives behind its own subpath (`@olai/surface/holding`) for that reason: the index is what the browser bundles, and this reaches for `@kolu/surface/server`.
+`src/holding.ts` was the other kind of thing here — not a member, not an address, but a fact about a member's subscriptions that the wire had no way to state. A per-key `get` says when a reader OPENS a key; nothing said when the last one LETS GO, because the framework owns that lifetime (a handler answers with a `Stream`, and the stream's scope is the subscription) and did not publish it. So this package wrapped one collection's `get` in a scoped acquire at the composition root, and its own note said WHERE IT WOULD RATHER LIVE is upstream. It lives there now: `holders?: (key) => Effect<unknown, never, Scope>` is a member of `CollectionHandlerDeps` beside `readAll`/`readOne` ([juspay/kolu#2188](https://github.com/juspay/kolu/pull/2188)), so a collection states who is holding what where it is BUILT rather than by being re-written afterwards, and the order that makes it worth anything — hold, then subscribe, then `readOne` — is the framework's own pin (`packages/surface/src/collectionHolders.test.ts`). What is left here is what this package always was: one door, the declaration, with no serving-side module in it and no `./holding` subpath beside it. What a hold is WORTH was never ours and did not move — `@olai/server`'s `bodies.ts` owns the count, the read-on-held and everything decided from them.
 
 ## One address that is not a member
 
@@ -107,7 +105,7 @@ A picture cannot travel the surface: a document's `![](shot.png)` becomes an `<i
 
 ## Entry point
 
-`main`, `types` and the `.` export all point at `src/index.ts`, which exports the `surface` definition, the `OutlineEntry` and `Manifest` schemas, the `Edit` vocabulary, the media URL and the seal above. That is the declaration, with no implementation on either side of it. The one other door is `./holding` (above), which a serving side asks for by name so that the index — what the browser bundles — never carries it.
+`main`, `types` and the `.` export all point at `src/index.ts`, which exports the `surface` definition, the `OutlineEntry` and `Manifest` schemas, the `Edit` vocabulary, the media URL and the seal above. That is the declaration, with no implementation on either side of it, and it is the only door: `./holding` was a second subpath for as long as a serving-side seam lived here, and it went with the module (above).
 
 ## Layering
 
