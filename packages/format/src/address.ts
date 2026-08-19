@@ -174,21 +174,38 @@ export const addressOf = (
 }
 
 /**
- * The address, written.
+ * The address, written, in the TWO HALVES the grammar is made of — the
+ * document and the element, each percent-encoded, neither carrying the `#`
+ * between them.
  *
- * Percent-encoded, per path segment, so the separator a reader recognises
- * survives and every character this grammar has claimed — the `#` above all —
- * cannot be confused with one somebody's filename happens to hold.
+ * Encoded per path segment, so the separator a reader recognises survives and
+ * every character this grammar has claimed cannot be confused with one
+ * somebody's filename happens to hold. An empty `path` is the node arm, whose
+ * document half is the absence of one.
  *
- * The `#` this writes is therefore the ONLY unescaped one in the result, which
- * is what lets a caller that has to put something between the halves (a
- * browser's query string, which a URL puts before the fragment) cut the
- * printed form at it.
+ * It exists because of who has to write an address into something LONGER than
+ * itself: a URL puts its query between a path and a fragment, so the browser
+ * needs the seam ({@link printAddress} joins what it would then have to cut
+ * back open). Two functions, one of them defined as the other — rather than a
+ * caller re-reading a string this module has just written.
  */
-export const printAddress = (address: Address): string => {
-  if (address.kind === "node") return `#${encodeURIComponent(address.id)}`
+export const writtenAddress = (
+  address: Address,
+): { readonly path: string; readonly element: string | undefined } => {
+  if (address.kind === "node") {
+    return { path: "", element: encodeURIComponent(address.id) }
+  }
   const path = spellPath(address.path)
-  return address.kind === "document" ? path : `${path}#${encodeURIComponent(address.slug)}`
+  return address.kind === "document"
+    ? { path, element: undefined }
+    : { path, element: encodeURIComponent(address.slug) }
+}
+
+/** The address, written whole — the two halves above with the grammar's own
+ *  `#` between them, which is then the only unescaped one in the result. */
+export const printAddress = (address: Address): string => {
+  const { path, element } = writtenAddress(address)
+  return element === undefined ? path : `${path}#${element}`
 }
 
 /**

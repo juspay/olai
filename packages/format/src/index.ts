@@ -157,6 +157,7 @@ export {
   printAddress,
   Slug,
   Tag,
+  writtenAddress,
 } from "./address.ts"
 export {
   bodiedOf,

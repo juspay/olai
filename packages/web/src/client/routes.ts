@@ -15,6 +15,25 @@
  * | `/#a1b2c3` | one node, wherever it lives |
  * | `/` | whichever outline was found first |
  *
+ * ## What a URL is made of
+ *
+ * Two things, and everything below is one of them:
+ *
+ *   - a PLACE — an address in the served directory, or one of the computed
+ *     pages, which are questions asked of the set and spell a word instead;
+ *   - a NARROWING — `?q=`, and nothing else rides in a query here.
+ *
+ * The bijection is over that pair, in both directions, which is why
+ * {@link hrefOf} reads as *place, then narrowing, then the element half* and
+ * {@link routeNamed} reads as *the words this app claimed, then the grammar*.
+ *
+ * {@link Route} is not yet spelled that way — a filter is a field on each arm,
+ * and the three content arms carry a place each — and that is a deliberate
+ * hold rather than an oversight: which page an address opens is a fact this
+ * module derives (from the suffix) and every consumer of `Route` reads off the
+ * arm, so collapsing the arms belongs with the change that makes the SET serve
+ * one collection of documents (the design's PR 2), not with the grammar.
+ *
  * ## No prefixes, and why the old three had to go
  *
  * This used to spell `/o/<file>`, `/doc/<file>` and `/n/<id>`, and the
@@ -82,9 +101,9 @@
  *
  * Where it SITS is the URL's rule rather than this app's: a query comes before
  * a fragment, so a narrowed node page is `/?q=is%3Atodo#a1b2c3` — the address
- * printed whole, with the query slid into the one place a browser will read it
- * from. {@link printAddress} escapes every `#` inside a name, so the one it
- * writes is the only one in the result and the seam is unambiguous.
+ * with the query slid into the one place a browser will read it from. The
+ * grammar hands its two halves over already apart (`writtenAddress`), so this
+ * writes a URL rather than cutting one back open.
  *
  * Pure, and parsing and printing live beside each other on purpose: they are
  * one bijection, and the test that says so (`routes.test.ts`) is the only
@@ -107,7 +126,7 @@ import {
   addressOf,
   fileKind,
   parseAddress,
-  printAddress,
+  writtenAddress,
 } from "@olai/format"
 
 export type Route =
@@ -186,29 +205,35 @@ const FILTER_KEY = "q"
  * the print-side twin of {@link routeOf}'s kindness: a route that names
  * nothing is written as the address that names nothing.
  */
-const addressIn = (route: Route): Address | null => {
+const addressNamed = (route: Route): Address | null => {
   if (route.kind === "node") return addressOf(null, route.id)
   if (route.kind === "document") return addressOf(route.file, route.at ?? null)
   if (route.kind === "outline") return addressOf(route.file, null)
   return null
 }
 
-/** The address every content URL is made of, with the query slid into the one
- *  place a URL will carry it: between the path and the fragment. */
+/**
+ * The URL a route is at: a PLACE, and what it is NARROWED by.
+ *
+ * Both halves of that sentence are visible in the shape of this function. The
+ * place is either an address ({@link addressNamed}) or one of the computed
+ * pages, which spell a word instead; the narrowing is a query, and it goes
+ * where a URL keeps one — after the path and BEFORE any fragment, which is
+ * why the address is written in halves ({@link writtenAddress}) rather than
+ * whole and cut back open here.
+ */
 export const hrefOf = (route: Route): string => {
+  const narrowed = narrowing(filterOf(route))
   if (route.kind === "day") {
-    return DAY_PREFIX + encodeURIComponent(route.date) + narrowing(route.filter)
+    return DAY_PREFIX + encodeURIComponent(route.date) + narrowed
   }
-  if (route.kind === "today") return TODAY + narrowing(route.filter)
-  if (route.kind === "agenda") return AGENDA + narrowing(route.filter)
-  if (route.kind === "trash") return TRASH + narrowing(route.filter)
-  const address = addressIn(route)
-  if (address === null) return HOME + narrowing(filterOf(route))
-  const written = printAddress(address)
-  const cut = written.indexOf("#")
-  const path = cut === -1 ? written : written.slice(0, cut)
-  const element = cut === -1 ? "" : written.slice(cut)
-  return HOME + path + narrowing(filterOf(route)) + element
+  if (route.kind === "today") return TODAY + narrowed
+  if (route.kind === "agenda") return AGENDA + narrowed
+  if (route.kind === "trash") return TRASH + narrowed
+  const address = addressNamed(route)
+  if (address === null) return HOME + narrowed
+  const { path, element } = writtenAddress(address)
+  return HOME + path + narrowed + (element === undefined ? "" : `#${element}`)
 }
 
 /** The `?q=…` a filtered page wears — and nothing at all for an unfiltered
