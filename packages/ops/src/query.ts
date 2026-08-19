@@ -290,7 +290,16 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     ...stampsOf(node),
     // AS WRITTEN, sigil and all: `#alice` and `@alice` are two tags, so a list
     // that dropped the character that started them could not tell a reader
-    // which one this node carries.
+    // which one this node carries. It is the same spelling
+    // `@olai/format`'s tag index is keyed by (`Derived.taggedBy`), and
+    // deliberately not that index read forwards: this is a node's OWN title,
+    // which is what a caller about to edit the record is asking about, where
+    // the index also files what a NOTE says (`derive.ts`'s `writtenTags`). The
+    // two answers were one question until the browser's tag completion began
+    // reading the index, and the divergence is stated rather than harmonised —
+    // moving `tags` onto the index would put a note's words in a field that
+    // says "this node's title", and moving the completion off it would put the
+    // corpus walk back.
     tags: titleParts(node.title).flatMap((part) =>
       part.kind === "tag" ? [tagText(part)] : []
     ),

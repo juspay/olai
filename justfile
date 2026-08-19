@@ -171,7 +171,7 @@ nix:
 hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
-# What a keystroke costs, on a generated vault. THREE of them now, and each is
+# What a keystroke costs, on a generated vault. FOUR of them now, and each is
 # a LEG rather than a scratch file, because slice 3 of `model-indices` ran its
 # numbers as a one-off and a benchmark nobody can re-run is a number nobody can
 # check — and deliberately NOT a dependency of `check`, since a timing that
@@ -190,11 +190,19 @@ hm-module:
 #   - the MATCHER, timed with the fold it keeps per record against without it —
 #     what the filter over a page and the chat composer's `@` list each pay per
 #     keystroke (`packages/format/src/filter.bench.ts`, added when a reviewer
-#     asked where the milliseconds in its header came from).
+#     asked where the milliseconds in its header came from);
+#   - the TAG COMPLETION, timed as an index read against the corpus walk it
+#     replaced (`packages/web/src/client/complete/tags.bench.ts`, added with
+#     `taggedBy` — the roadmap deferred that index until somebody measured this
+#     walk, so the measurement is a leg rather than a paragraph). Its two arms
+#     must answer the same list or the run fails, and a third times the walk as
+#     it literally stood; what the wider index costs the FOLD, and what the tag
+#     WALK under it costs in the three shapes it has been written in, are the
+#     two pairs the second leg prints at the end.
 #
-# The first two run the SAME generated vault (`@olai/format/testlib`'s
-# `vaultOf`), so a frame's cost and the patch inside it are two numbers about
-# one directory. `--conditions browser` is load-bearing for the FIRST: without
+# Three of the four run the SAME generated vault (`@olai/format/testlib`'s
+# `vaultOf`), so a frame's cost, the patch inside it and what a completion asks
+# of it are numbers about one directory. `--conditions browser` is load-bearing for the FIRST: without
 # it Bun resolves SolidJS's server build, whose memos never re-run, and every
 # arm reports an empty loop. Size both with OLAI_BENCH_FILES /
 # OLAI_BENCH_RECORDS / OLAI_BENCH_EDITS — and turning the last one up to 900 is
@@ -204,6 +212,7 @@ bench: install
     {{ nix_shell }} bun --conditions browser packages/web/src/client/deriving.bench.ts
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
+    {{ nix_shell }} bun packages/web/src/client/complete/tags.bench.ts
 
 # The browser tests: Cucumber features driven through Playwright against the
 # nix-built binary, which is what a user actually runs. `nix` is a dependency

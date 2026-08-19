@@ -29,8 +29,8 @@
  * ## Where each list comes from
  *
  *   - a DAY is read from the phrase and today, purely (`../date/natural.ts`).
- *   - a TAG is enumerated from the loaded set, by the format's own walk
- *     (`./tags.ts`, which argues why this one is not the server's).
+ *   - a TAG is enumerated from the loaded set, off the derivation's own tag
+ *     index (`./tags.ts`, which argues why this one is not the server's).
  *   - a NODE is the SERVER's search — `../search/nodes.ts`, the same primitive
  *     the ⌘K palette and the header box call, debounce and all. A third door
  *     onto one reading, which is the rule that file exists to keep.
@@ -211,9 +211,9 @@ export const createCompletion = (field: {
           },
         }))
       case "tag":
-        // The set's tags are walked once per derivation and cached against it
-        // (`./tags.ts`), so asking here — only while a tag is being typed —
-        // costs nothing on a session that never types one.
+        // The set's tags are READ off `Derived.taggedBy` once per derivation and
+        // cached against it (`./tags.ts`), so asking here — only while a tag is
+        // being typed — costs nothing on a session that never types one.
         return matchTags(tagsOf(derived()), found.sigil, found.query).map((tag) => ({
           id: `${tag.sigil}${tag.name}`,
           label: `${tag.sigil}${tag.name}`,

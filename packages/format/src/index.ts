@@ -229,6 +229,7 @@ export {
   storedMarker,
   TAG_SIGILS,
   tagOpensAt,
+  tagPart,
   tagText,
   titleParts,
   titleTagRe,
@@ -245,6 +246,7 @@ export type {
   Situated,
   TagSigil,
   TitlePart,
+  TitleTag,
 } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
