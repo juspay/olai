@@ -108,10 +108,22 @@ export function HeaderSearch(props: {
    * found a file the other one did not would be exactly the drift this whole
    * seam exists against.
    */
-  const items = createMemo(() => [
-    ...documentItems(served(), asked()),
-    ...nodes.hits().map(nodeItem),
-  ])
+  const documents = createMemo(() => {
+    const asking = asked()
+    return asking === null ? [] : documentItems(served(), asking)
+  })
+  /**
+   * A MEMO EACH, and then the list — because the two blocks move at different
+   * speeds and `<For>` keys a row by reference.
+   *
+   * The node hits answer a debounced round trip, so `hits()` holds still while
+   * somebody types; the documents answer the keystroke itself. Minted together
+   * in one memo, every character re-made all eight node rows from the same
+   * unchanged hits, and every answer that landed re-made the file rows — each
+   * of them a teardown and a redraw of rows nothing had happened to.
+   */
+  const hits = createMemo(() => nodes.hits().map(nodeItem))
+  const items = createMemo(() => [...documents(), ...hits()])
   // The panel is up when there is anything to say — rows, a refused call, or a
   // query the grammar could not read. That last one is why a typo in an
   // operator opens the panel at all rather than looking like an empty

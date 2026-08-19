@@ -24,8 +24,8 @@ const DIRECTORY = [
   "report.html",
 ]
 
-const ids = (query: string, limit?: number): ReadonlyArray<string> =>
-  documentItems(DIRECTORY, query, limit).map((item) => item.id)
+const ids = (query: string): ReadonlyArray<string> =>
+  documentItems(DIRECTORY, query).map((item) => item.id)
 
 test("an outline is not a document row, however well the query fits it", () => {
   // The whole point of the parity work is that a `.md` is reachable, not that
@@ -66,7 +66,6 @@ test("a query nothing is called answers with nothing", () => {
 test("the block is a shortlist, whatever the vault holds", () => {
   const many = Array.from({ length: 40 }, (_, at) => `notes/note-${at}.md`)
   expect(documentItems(many, "note").length).toBe(8)
-  expect(documentItems(many, "note", 3).length).toBe(3)
 })
 
 test("a row wears the sidebar's face and opens the file's own page", () => {
@@ -106,19 +105,3 @@ test("a document row is never filtered a second time by the shell's matcher", ()
   expect(row?.search).toBe("")
 })
 
-test("the fold is kept per version of the directory, not per keystroke", () => {
-  // Two queries against the SAME array answer from one filtered fold — the
-  // arrangement `../file/matching.ts` keeps for the composer, and the reason
-  // typing does not walk the vault per character. What is observable from out
-  // here is that the answers agree; the cache itself is a `WeakMap`.
-  expect(ids("cab")).toEqual(["doc-notes/cabinets.md"])
-  expect(ids("cab")).toEqual(["doc-notes/cabinets.md"])
-})
-
-test("a box that is not asking is not an empty query, and neither draws a row", () => {
-  // `null` is the door's own word for "asking nothing" — shut, prefixed, or
-  // without the caret (`../search/nodes.ts`'s vocabulary). Admitted here so a
-  // door hands over what it has rather than translating a state into a string
-  // it is not.
-  expect(documentItems(DIRECTORY, null)).toEqual([])
-})

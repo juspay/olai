@@ -64,6 +64,12 @@ export type PaletteAction =
   | { readonly kind: "prefix"; readonly prefix: string }
 
 export interface PaletteItem {
+  /** Unique in the list, and — for the rows that are not commands — PREFIXED
+   *  by what the row is about: `node-<id>` for a search hit, `doc-<path>` for
+   *  a served file (`./documents.ts`). That prefix is a contract with a
+   *  package that does not import this one: it is how a scenario tells a hit
+   *  from a shell command that happens to share a word, in both doors
+   *  (`packages/tests`' palette and header steps). */
   readonly id: string
   readonly label: string
   /** A short word about the row, drawn INLINE at the right: a chord, a

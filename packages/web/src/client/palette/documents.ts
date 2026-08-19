@@ -134,8 +134,8 @@ const documentItem = (document: Document): PaletteItem => {
 }
 
 /**
- * The document rows for `query`, best first — and NONE at all for a box that
- * is not asking.
+ * The document rows for `query`, best first — and NONE at all for an empty
+ * box.
  *
  * That last part is the one rule this list has of its own, and it is about
  * what the palette IS. A bare `@` in a message completes to the whole
@@ -144,19 +144,19 @@ const documentItem = (document: Document): PaletteItem => {
  * bury the rows a reader opened it for behind a directory listing they did not
  * ask for. The first character typed is what asks.
  *
- * `null` is the door saying it is asking NOTHING — shut, or carrying a prefix,
- * or without the caret — and it is admitted here rather than mapped to `""` at
- * each door, which is `../search/nodes.ts`'s own vocabulary for the same fact.
- * For this list the two really are one answer (no rows), and saying so once in
- * the module beats two call sites each translating a state into a string it is
- * not.
+ * A door that is asking NOTHING — shut, prefixed, or without the caret — does
+ * not call this at all: it answers with no rows itself, so the served list
+ * stays untracked while it is idle (`./Palette.tsx`, `../search/
+ * HeaderSearch.tsx`). What is left here is the query, and the cap is this
+ * block's own — {@link LIMIT}, for the reason `../search/nodes.ts` states
+ * about its own: it is what a shortlist over a page a reader is standing on
+ * shows, which is what makes it a constant rather than an argument.
  */
 export const documentItems = (
   paths: ReadonlyArray<string>,
-  query: string | null,
-  limit: number = LIMIT,
+  query: string,
 ): ReadonlyArray<PaletteItem> => {
-  const wanted = query?.trim() ?? ""
+  const wanted = query.trim()
   if (wanted === "") return []
-  return matchFiles(documentsIn(paths), wanted, limit).map(documentItem)
+  return matchFiles(documentsIn(paths), wanted, LIMIT).map(documentItem)
 }

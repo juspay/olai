@@ -155,9 +155,19 @@ export const matchFiles = <File extends Folded>(
   const pathed: Array<File> = []
   const buried: Array<File> = []
   for (const file of files) {
+    // NO BUCKET GROWS PAST THE CAP, because nothing past it can be drawn: the
+    // answer is the first `limit` of the three read in order, so a ninth
+    // path-match is dead the moment it is pushed. The WALK still goes on —
+    // a name match further down the vault outranks everything held here, which
+    // is why only `named` filling ends it — but a query with no name match at
+    // all used to build two vault-sized arrays per keystroke to throw all but
+    // eight of them away, and there are two doors typing into this now.
     if (wanted === "" || file.name.startsWith(wanted)) named.push(file)
-    else if (file.whole.startsWith(wanted)) pathed.push(file)
-    else if (file.whole.includes(wanted)) buried.push(file)
+    else if (file.whole.startsWith(wanted)) {
+      if (pathed.length < limit) pathed.push(file)
+    } else if (file.whole.includes(wanted) && buried.length < limit) {
+      buried.push(file)
+    }
     if (named.length >= limit) break
   }
   return [...named, ...pathed, ...buried].slice(0, limit)
