@@ -64,7 +64,7 @@ const walked = (derived: Derived): ReadonlyArray<Tag> => {
   const counts = new Map<string, Tag>()
   for (const located of derived.nodes) {
     if (isMirror(located.node) || isArchived(located.file)) continue
-    const said = new Set<string>()
+    const voted = new Set<string>()
     for (const text of [located.node.title, located.node.desc ?? ""]) {
       // The format's own cheap negative first, exactly as the walk had it:
       // `titleParts` runs a global regex and most prose holds no sigil at all.
@@ -72,8 +72,8 @@ const walked = (derived: Derived): ReadonlyArray<Tag> => {
       for (const part of titleParts(text)) {
         if (part.kind !== "tag") continue
         const key = `${part.sigil}${part.tag}`
-        if (said.has(key)) continue
-        said.add(key)
+        if (voted.has(key)) continue
+        voted.add(key)
         const before = counts.get(key)
         counts.set(
           key,
@@ -98,19 +98,17 @@ const arms = {
 
 // THE SAME ANSWER, asserted before anything is timed — see the header. A
 // benchmark whose fast arm answers a shorter list is not a benchmark.
-const said = (tags: ReadonlyArray<Tag>): string =>
+const spelling = (tags: ReadonlyArray<Tag>): string =>
   tags.map((tag) => `${tag.sigil}${tag.name} ${tag.count}`).join("\n")
-const answers = Object.fromEntries(
-  Object.entries(arms).map(([name, arm]) => [name, said(arm(fresh()))]),
-)
-if (answers["walk"] !== answers["index"]) {
+const walkSaid = spelling(arms.walk(fresh()))
+const indexSaid = spelling(arms.index(fresh()))
+if (walkSaid !== indexSaid) {
   throw new Error(
     "the two arms disagree about the set's tags, so neither number means anything:\n" +
-      `walk said ${answers["walk"]?.split("\n").length} tags,` +
-      ` index said ${answers["index"]?.split("\n").length}`,
+      `  walk:  ${walkSaid.split("\n").length} tags\n  index: ${indexSaid.split("\n").length}`,
   )
 }
-const tags = (answers["index"] as string).split("\n").length
+const tags = indexSaid.split("\n").length
 if (tags < 2) throw new Error(`the vault holds ${tags} tags — this measures nothing`)
 
 const run = (name: keyof typeof arms): void => {

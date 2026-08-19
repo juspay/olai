@@ -43,7 +43,7 @@
  * index keeps them apart for the same reason, in its keys.
  */
 
-import { type Derived, isArchived, type TagSigil, tagParts } from "@olai/format"
+import { type Derived, isArchived, type TagSigil, tagPart } from "@olai/format"
 
 /** One tag of the set, and how much of it there is. */
 export interface Tag {
@@ -104,30 +104,37 @@ const LIMIT = 8
  * is read once and the old answer is collectable with the old derivation.
  * `undefined` (no set yet) is no tags rather than a throw.
  */
-const held = new WeakMap<Derived, ReadonlyArray<Tag>>()
+const counted = new WeakMap<Derived, ReadonlyArray<Tag>>()
 
 export const tagsOf = (derived: Derived | undefined): ReadonlyArray<Tag> => {
   if (derived === undefined) return []
-  const seen = held.get(derived)
+  const seen = counted.get(derived)
   if (seen !== undefined) return seen
-  const counted = counting(derived)
-  held.set(derived, counted)
-  return counted
+  const tags = counting(derived)
+  counted.set(derived, tags)
+  return tags
 }
 
 const counting = (derived: Derived): ReadonlyArray<Tag> => {
-  const found: Array<Tag> = []
+  const tags: Array<Tag> = []
   for (const [written, records] of derived.taggedBy) {
-    // The archive, taken off the count rather than off the corpus: an entry per
-    // record that writes this tag, which is a handful where the walk this
-    // replaced was every node of the set.
-    let count = 0
-    for (const at of records) if (!isArchived(at.file)) count++
-    if (count === 0) continue
-    const { sigil, tag } = tagParts(written)
-    found.push({ sigil, name: tag, folded: tag.toLowerCase(), count })
+    const live = alive(records)
+    if (live === 0) continue
+    const { sigil, tag } = tagPart(written)
+    tags.push({ sigil, name: tag, folded: tag.toLowerCase(), count: live })
   }
-  return found.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+  return tags.sort((one, other) =>
+    other.count - one.count || one.name.localeCompare(other.name)
+  )
+}
+
+/** How many of one tag's records are not put away — the archive rule, taken off
+ *  the COUNT rather than off the corpus. It is a walk of the entries of one tag,
+ *  which is a handful, where the walk this replaced was every node of the set. */
+const alive = (records: ReadonlyArray<{ readonly file: string }>): number => {
+  let live = 0
+  for (const at of records) if (!isArchived(at.file)) live++
+  return live
 }
 
 /**

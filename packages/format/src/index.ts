@@ -229,7 +229,7 @@ export {
   storedMarker,
   TAG_SIGILS,
   tagOpensAt,
-  tagParts,
+  tagPart,
   tagText,
   titleParts,
   titleTagRe,

@@ -1416,7 +1416,7 @@ export const tagText = (part: TitleTag): string => `${part.sigil}${part.tag}`
  * It TRUSTS its argument, which is why it takes no failure: the only strings
  * this is asked about are keys that {@link tagText} wrote.
  */
-export const tagParts = (written: string): TitleTag => ({
+export const tagPart = (written: string): TitleTag => ({
   sigil: written[0] as TagSigil,
   tag: written.slice(1),
 })
