@@ -66,6 +66,8 @@ One table, one row per optional field a node record can carry that a reader migh
 
 Not in the table: `has:children`, `has:mirror`, `has:tag`. The first two are questions about the SET rather than about the record — a node does not carry its children — and `titleParts` already makes a bare `#` term do the third badly enough that a fourth spelling would be a trap. Named as deferred rather than forgotten.
 
+**The mirror one is answered since** (`search-stamp-operators`), and not as a `has:` row: the "set rather than record" line stopped being the whole reason the day `is:blocked` shipped, since that is a set question too and it is in the grammar because the derivation already holds the answer. What was actually wrong was the DIRECTION. A placement is never a hit, so "does this record carry a `mirror`" has no subject worth asking about; "is this NODE drawn somewhere else" does, it is what a curated list does to a node, and it is one lookup in `Derived.mirrorsOf` — the same index `read_node` answers `mirrors` from. So it is `is:mirrored`, beside the other derived value rather than in the field table. `has:children` and `has:tag` stand as deferred.
+
 ### `date:` — the two dates a journal reads
 
 `date:2026-08-10` (that day), `date:2026-08` (that month), `date:2026` (that year), and ranges: `date:2026-08-01..2026-08-14`, `date:..2026-08-10` (on or before), `date:2026-08-10..` (on or after). Bounds are inclusive.
@@ -251,7 +253,7 @@ So the denominator is now what the page **holds** — every place it could draw,
 
 ## Deferred, named
 
-- Changed-since dates (`changed:7d`) — the relative words landed (`search-relative-dates`); a question about HISTORY is a different one, and nothing in the format answers it.
+- ~~Changed-since dates (`changed:7d`)~~ — **landed** (`search-stamp-operators`), struck rather than removed so the list still says what this design deferred. The reasoning here was right about HISTORY and wrong about the format: a question about history is still a different one and is still `git log`'s, but the format grew two STAMPS in the meantime — `created` when the ops layer captures a node, `changed` when it writes to one — and those are facts on the RECORD, so asking about them is a clause like any other. What it cost was nothing new: `created:` and `changed:` share `date:`'s whole value grammar, read by one `spanOf` before anything knows which operator asked, so the spelling is `changed:last-week` rather than the `7d` sketched here. The honest half is that a node written before the stamps existed carries neither, and no span reaches it — the operators do not invent a past, which is exactly the limit "nothing in the format answers it" was pointing at.
 - ~~Quoted phrases~~ and ~~`OR`~~ — **landed** (`search-quoting-or`), struck rather than removed so the list still says what this design deferred; what each cost is above. The `>` ancestry operator is still deferred, and `>` is still spoken for by the palette.
 - ~~`is:blocked`~~ — **landed**, and the entry is struck rather than removed so the list still says what this design deferred (the cost it named, and what it turned out to be, is above).
 - ~~Filtering the day, agenda and trash pages.~~ — **landed** (`search-everywhere`), struck rather than removed so the list still says what this design deferred; what it cost, and which of the two reasons for deferring it were wrong, is under "Where the filter lives: the address" above.

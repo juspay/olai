@@ -479,7 +479,7 @@
           <tr><td>Sync</td><td>Their cloud</td><td>git, or anything that moves files</td></tr>
           <tr><td>History</td><td>In-app version history</td><td><code>git log</code>; every edit is a reviewable commit</td></tr>
           <tr><td>Concurrent edits</td><td>Resolved by their server</td><td>Line-based git merges</td></tr>
-          <tr><td>Search</td><td>Keyword, in their app</td><td>The same query language everywhere — a box in the header, the ⌘K palette, a filter that narrows the outline in place, and an agent's own tools — with <code>is:done</code>, <code>has:desc</code>, <code>date:</code>, <code>prop:</code> and <code>-not</code> meaning one thing in all four, over files you can also grep yourself</td></tr>
+          <tr><td>Search</td><td>Keyword, in their app</td><td>The same query language everywhere — a box in the header, the ⌘K palette, a filter that narrows the outline in place, and an agent's own tools — with <code>is:done</code>, <code>has:desc</code>, <code>date:</code>, <code>changed:</code>, <code>prop:</code> and <code>-not</code> meaning one thing in all four, over files you can also grep yourself</td></tr>
           <tr><td>Programmatic access</td><td>Vendor API, where one exists</td><td>Any agent over ACP or MCP; any text tool</td></tr>
           <tr><td>Source</td><td>Proprietary</td><td><a href="https://github.com/juspay/olai">Open source</a> (AGPL-3.0)</td></tr>
         </tbody>
@@ -872,10 +872,12 @@ The corner unit is the **risky one** — see
         whose children are all ticked is not <code>is:done</code> unless
         somebody ticked it. <code>has:desc</code>, <code>has:date</code>,
         <code>has:see</code> ask what the record carries.
-        <code>is:blocked</code> is the one that is <em>derived</em> — the node
-        is waiting, because something it must come after is a task nobody has
-        finished, which is the same reading that dims the row and writes its
-        <code>blocked by</code> line. <code>date:2026-08</code> takes a day,
+        Two are <em>derived</em> rather than read off the record:
+        <code>is:blocked</code> is a node waiting, because something it must
+        come after is a task nobody has finished — the same reading that dims
+        the row and writes its <code>blocked by</code> line — and
+        <code>is:mirrored</code> is a node drawn somewhere else as well,
+        because you put it on a list. <code>date:2026-08</code> takes a day,
         a month, a year or a range
         (<code>date:2026-08-01..2026-08-14</code>), reading the same two dates
         the journal reads — or it takes the words:
@@ -886,6 +888,25 @@ The corner unit is the **risky one** — see
         <code>prop:agent=claude-opus</code> ask after a property you put on a
         node yourself — by key, or by key and value. <code>-</code> in front of
         any of them takes it back out.</p>
+        <p><strong>And two ask what olai did, rather than what you
+        said.</strong> When olai captures a node it stamps the instant; when it
+        writes to one afterwards it re-stamps another. Both are put on by the
+        tool and by no verb you can type — so a node has a
+        <code>created</code> from the moment olai made it, a
+        <code>changed</code> only once something has been written to it since,
+        and a node older than the stamps has neither.
+        <code>created:</code> and <code>changed:</code> read those,
+        and they take every value <code>date:</code> takes — so
+        <code>changed:today</code> is what you touched today,
+        <code>created:last-week</code> is what arrived, and
+        <code>-changed:last-month</code> is what has gone quiet. They are not
+        the same question as <code>date:</code>: one node can be scheduled for
+        the 10th, captured on the 1st and last written this morning.
+        <strong>And nothing invents a past for the ones that have
+        none</strong> — no span reaches an unstamped node, however wide,
+        because a ledger does not make up a past it did not see. What finds
+        them is the negation, <code>-has:created</code>; what says when they
+        were really written is <code>git log</code>.</p>
         <p><strong>Quote a phrase, or say <code>OR</code>.</strong>
         <code>"kitchen remodel"</code> is one substring where two words are
         two, so quoting is how the order of the words gets into a query — and a
