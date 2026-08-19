@@ -47,6 +47,7 @@ import {
   tagText,
   titleParts,
 } from "./derive.ts"
+import type { Markdown } from "./document.ts"
 import { customOf } from "./custom.ts"
 import { shiftDay, shiftMonth, weekdayOf } from "./calendar.ts"
 import { type DayGroup, datesOf, dayOf, monthOf } from "./dates.ts"
@@ -1129,7 +1130,7 @@ const matchOf = (
         continue
       }
       hay ??= haystacksOf(at.node)
-      const hit = wordHit(hay, one.word)
+      const hit = wordHit(hay, one.word, SEARCH_FIELDS, FIELD_WEIGHT)
       if (one.negated) {
         if (hit === null) holding = true
         continue
@@ -1189,21 +1190,28 @@ const propsOf = (node: RegularNode, filter: Extract<Filter, { kind: "asking" }>)
 
 /** The best a single word does across the four fields: the score it earns, and
  *  the highest-weighted field that held it. */
-const wordHit = (
-  hay: Record<SearchField, ReadonlyArray<string>>,
+const wordHit = <F extends string>(
+  hay: Record<F, ReadonlyArray<string>>,
   word: string,
-): { readonly field: SearchField; readonly score: number } | null => {
+  /** Which places to look, and what each is worth. A PARAMETER since PR 2,
+   *  because there are two vocabularies now and one walk: a record's four
+   *  fields, and the three a document has. What the two share is the rule —
+   *  best score wins, highest-weighted field names the hit — and that rule is
+   *  what a second copy of this loop would have been free to drift on. */
+  fields: ReadonlyArray<F>,
+  weights: Record<F, number>,
+): { readonly field: F; readonly score: number } | null => {
   let score = -1
-  let field: SearchField | null = null
+  let field: F | null = null
   let weight = -1
-  for (const name of SEARCH_FIELDS) {
+  for (const name of fields) {
     for (const haystack of hay[name]) {
       const bonus = positionBonus(haystack, word)
       if (bonus === -1) continue
-      const value = FIELD_WEIGHT[name] + bonus
+      const value = weights[name] + bonus
       if (value > score) score = value
-      if (FIELD_WEIGHT[name] > weight) {
-        weight = FIELD_WEIGHT[name]
+      if (weights[name] > weight) {
+        weight = weights[name]
         field = name
       }
     }
@@ -1724,3 +1732,162 @@ export const keepingDated = (
     const nodes = group.nodes.filter((entry) => matched.has(entry.shows.node.id))
     return nodes.length === 0 ? [] : [{ ...group, nodes }]
   })
+
+// ── the other kind of thing a query selects ────────────────────────────
+
+/**
+ * WHERE A WORD IS LOOKED FOR IN A DOCUMENT.
+ *
+ * A `.md` has no id and no `desc`; it has a name, the tags its prose writes and
+ * the prose itself. So this is not {@link SEARCH_FIELDS} with two entries
+ * crossed out — it is the other vocabulary, three places long, and the two
+ * meet at {@link wordHit}, which is the rule they share.
+ *
+ * `body` is the one that closes the roadmap's `search-document-bodies`: a
+ * document's prose is text the way a node's note is, and it was invisible to
+ * every search this app had because nothing walked it.
+ */
+export const DOCUMENT_FIELDS = ["title", "tag", "body"] as const
+export type DocumentField = (typeof DOCUMENT_FIELDS)[number]
+
+/** What each is worth, on {@link FIELD_WEIGHT}'s own scale and for its reason:
+ *  the closer a hit is to what a document CALLS itself, the higher it goes. The
+ *  numbers are shared with the records' table on purpose — one query answers
+ *  with both kinds in one ranked list, and two scales would sort them into two
+ *  blocks that only looked interleaved. */
+const DOCUMENT_WEIGHT: Record<DocumentField, number> = {
+  title: FIELD_WEIGHT.title,
+  tag: FIELD_WEIGHT.tag,
+  body: FIELD_WEIGHT.desc,
+}
+
+/** One document the query selected, with why — {@link Matched}'s twin over the
+ *  other arm of the set. */
+export interface MatchedDocument {
+  readonly at: Markdown
+  readonly match: { readonly field: DocumentField | null; readonly score: number }
+}
+
+/**
+ * The folded text of a DOCUMENT, kept for as long as the document is —
+ * {@link folded} next door, on the other kind of value, and correct for the
+ * identical reason: a document is a value here, a file that changes is decoded
+ * into a NEW one, so a fold that is still reachable is a fold of text that has
+ * not changed.
+ *
+ * It matters more here than there, if anything: a body is the largest string in
+ * the process after a saved page, and folding every one of them per keystroke
+ * is what a search box over a vault would otherwise cost.
+ */
+const foldedDocuments = new WeakMap<Markdown, Record<DocumentField, ReadonlyArray<string>>>()
+
+const documentHay = (
+  document: Markdown,
+): Record<DocumentField, ReadonlyArray<string>> => {
+  const before = foldedDocuments.get(document)
+  if (before !== undefined) return before
+  const now: Record<DocumentField, ReadonlyArray<string>> = {
+    title: [document.title.toLowerCase()],
+    // Bare AND as written, exactly as a record's tags are folded, so `alice`
+    // finds `@alice` with the start-of-field bonus and `@alice` finds only the
+    // one that carries that sigil.
+    tag: document.tags.flatMap((tag) => {
+      const written = tag.toLowerCase()
+      return [written.slice(1), written]
+    }),
+    body: [document.body.toLowerCase()],
+  }
+  foldedDocuments.set(document, now)
+  return now
+}
+
+/**
+ * Which documents a query selects, and why — {@link matching}'s twin.
+ *
+ * ## What a document cannot answer, and what that means
+ *
+ * A clause (`is:done`, `has:date`, `date:today`, `prop:pr`) asks about a FIELD,
+ * and a document has none: there is nothing on a `.md` for a mark, a date or a
+ * property to be written on. So a positive clause selects NO document — not
+ * because documents are second-class here, but because the honest answer to
+ * "which documents are done" is none of them. That is the hole frontmatter
+ * fills, and it is named in the design as the next step rather than patched
+ * here.
+ *
+ * A NEGATED clause is satisfied, and by the same sentence read the other way:
+ * `-is:done` asks for what is not finished, and a document is not. Dropping
+ * documents there too would be answering a question nobody asked — it would
+ * make `#kitchen -is:done` narrower than `#kitchen`, which no reader expects of
+ * a negation.
+ *
+ * ## What a SCOPE means
+ *
+ * `file` is one outline and `under` is one node's subtree, and a document is in
+ * neither: both are questions about where a RECORD sits in a tree. A scoped
+ * query therefore selects no documents at all, which is what the browser's
+ * filter over an open outline page wants and what a `search` with `file` means.
+ *
+ * The archive rule does not reach here either. What is put away is an
+ * `Archive.olai`, which is an outline; a `.md` beside one is a document like
+ * any other.
+ */
+export const matchingDocuments = (
+  documents: ReadonlyArray<Markdown>,
+  filter: Filter,
+  scope: Scope = {},
+): ReadonlyArray<MatchedDocument> => {
+  if (filter.kind !== "asking") return []
+  if (scope.file !== undefined || scope.under !== undefined) return []
+  const out: Array<MatchedDocument> = []
+  for (const document of documents) {
+    const match = documentMatchOf(document, filter)
+    if (match !== null) out.push({ at: document, match })
+  }
+  return out
+}
+
+/**
+ * Does this document match, and why — or `null`.
+ *
+ * {@link matchOf}'s shape, group by group: every group must hold, and a group
+ * holds when any alternative in it does. What differs is the two lines above —
+ * a clause is answered by its negation alone — and the vocabulary the words are
+ * looked for in.
+ */
+const documentMatchOf = (
+  document: Markdown,
+  filter: Extract<Filter, { kind: "asking" }>,
+): MatchedDocument["match"] | null => {
+  let score = 0
+  let field: DocumentField | null = null
+  let weight = -1
+  let hay: Record<DocumentField, ReadonlyArray<string>> | undefined
+
+  for (const group of filter.groups) {
+    let holding = false
+    let best: { readonly field: DocumentField; readonly score: number } | null = null
+    for (const one of group) {
+      if (one.kind === "clause") {
+        if (one.negated) holding = true
+        continue
+      }
+      hay ??= documentHay(document)
+      const hit = wordHit(hay, one.word, DOCUMENT_FIELDS, DOCUMENT_WEIGHT)
+      if (one.negated) {
+        if (hit === null) holding = true
+        continue
+      }
+      if (hit === null) continue
+      holding = true
+      if (best === null || hit.score > best.score) best = hit
+    }
+    if (!holding) return null
+    if (best === null) continue
+    score += best.score
+    if (DOCUMENT_WEIGHT[best.field] > weight) {
+      weight = DOCUMENT_WEIGHT[best.field]
+      field = best.field
+    }
+  }
+  return { field, score }
+}

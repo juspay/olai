@@ -172,9 +172,9 @@ export const headingsIn = (body: string): ReadonlyArray<string> => {
       previous = null
       continue
     }
-    const atx = ATX.exec(line)
+    const atx = headingText(line)
     if (atx !== null) {
-      found.push(atx[1]!.replace(/\s+#+$/, "").trim())
+      found.push(atx)
       previous = null
       continue
     }
@@ -188,24 +188,80 @@ export const headingsIn = (body: string): ReadonlyArray<string> => {
   return found
 }
 
-/** One to six hashes, a space, and the words. The space is required by
- *  markdown itself: `#tag` at the start of a line is a tag somebody wrote, not
- *  a heading, and this format has plenty of those. */
-const ATX = /^#{1,6}[ \t]+(.*)$/
+/**
+ * The WORDS of an ATX heading line — `## Install` is `Install` — or `null`
+ * for a line that is not one.
+ *
+ * One to six hashes and then a SPACE, which markdown itself insists on and
+ * this format leans on hard: `#tag` at the start of a line is a tag somebody
+ * wrote, and a directory of these is full of them. The optional closing run of
+ * hashes comes off the other end, which is the same rule read backwards.
+ *
+ * SCANNED rather than matched, and that is not style. The regex it replaces
+ * (`/^#{1,6}[ \t]+(.*)$/` with a `/\s+#+$/` after it) is quadratic on input
+ * somebody else wrote — CodeQL's `js/polynomial-redos`, and it is right: an
+ * unanchored `\s+` restarts at every position of a line of spaces, and this is
+ * run over every line of every document in a served directory. A scan of the
+ * two ends is linear and says the rule more plainly than the pattern did.
+ *
+ * EXPORTED because {@link ./documents.ts}'s `firstLine` asks the same
+ * question about the first line of a body — what a `.md` is CALLED is its
+ * opening heading's words — and two spellings of "take the marks off" is two
+ * chances to take a different number of characters.
+ */
+export const headingText = (line: string): string | null => {
+  let opens = 0
+  while (opens < line.length && line[opens] === "#") opens++
+  if (opens === 0 || opens > 6) return null
+  const after = line[opens]
+  if (after !== " " && after !== "\t") return null
+  // The closing run, and only where markdown puts one: hashes at the very end
+  // with a space in front of them. A heading that ENDS in a hash with no space
+  // before it (`## C#`) keeps it, which is the whole reason the space is
+  // required rather than assumed.
+  let end = line.length
+  while (end > opens && line[end - 1] === "#") end--
+  if (end < line.length) {
+    let before = end
+    while (before > opens && (line[before - 1] === " " || line[before - 1] === "\t")) before--
+    if (before < end) end = before
+    else end = line.length
+  }
+  return line.slice(opens, end).trim()
+}
 
 /** The rule under a setext heading: one character, repeated, and nothing
  *  else. */
 const SETEXT = /^(?:=+|-+)$/
 
+/** How long a run of `char` a line opens with — 0 for a line that does not. */
+const runOf = (line: string, char: string): number => {
+  let length = 0
+  while (length < line.length && line[length] === char) length++
+  return length
+}
+
 /** What a line opens a fence with, or `null` — the run of backticks or tildes,
  *  kept so the closing fence can be held to being at least as long (markdown's
  *  own rule, and what lets a fence hold a shorter fence inside it). */
 const opensFence = (line: string): string | null => {
-  const fence = /^(`{3,}|~{3,})/.exec(line)
-  return fence === null ? null : fence[1]!
+  for (const char of FENCES) {
+    const length = runOf(line, char)
+    if (length >= 3) return char.repeat(length)
+  }
+  return null
 }
 
+/** The two characters markdown fences code with. */
+const FENCES = ["`", "~"] as const
+
 /** Whether a line closes the fence that is open: the same character, at least
- *  as long, and nothing after it. */
-const closes = (line: string, fence: string): boolean =>
-  new RegExp(`^${fence[0] === "`" ? "`" : "~"}{${fence.length},}\\s*$`).test(line)
+ *  as long, and nothing after it.
+ *
+ *  A scan rather than a `new RegExp` built per line, which is what this was:
+ *  a pattern compiled once for every line inside every fenced block of every
+ *  document in the directory, to ask a question two `while`s answer. */
+const closes = (line: string, fence: string): boolean => {
+  const length = runOf(line, fence[0]!)
+  return length >= fence.length && line.slice(length).trim() === ""
+}

@@ -35,6 +35,7 @@
 
 import { type Address, addressOf, printAddress } from "./address.ts"
 import { bodyKind, fileKind } from "./kinds.ts"
+import { headingText } from "./slug.ts"
 import { isMirror, type Located } from "./node.ts"
 
 /**
@@ -271,12 +272,15 @@ export const firstLine = (text: string): string => {
     const end = text.indexOf("\n", at)
     const line = (end === -1 ? text.slice(at) : text.slice(at, end)).trim()
     if (line !== "") {
-      // Only the heading marks, and only where markdown puts them: leading
-      // `#`s, and the optional closing run of them. Everything else stays as
+      // Only the heading marks, and only where markdown puts them — which is
+      // `./slug.ts`'s own rule, asked rather than spelled again: what a
+      // heading's WORDS are is one question, and this file and the face's
+      // element list were taking the marks off with two patterns that were
+      // free to take different numbers of characters. Everything else stays as
       // written — stripping emphasis and links here would be a second, worse
       // renderer.
-      const stripped = line.replace(/^#{1,6}\s+/, "").replace(/\s+#+$/, "")
-      return stripped === "" ? line : stripped
+      const stripped = headingText(line)
+      return stripped === null || stripped === "" ? line : stripped
     }
     if (end === -1) break
     at = end + 1
@@ -364,8 +368,8 @@ export const linksIn = (from: string, text: string): ReadonlyArray<Address> => {
   if (!text.includes("](")) return NO_LINKS
   let found: Array<Address> | undefined
   let seen: Set<string> | undefined
-  for (const match of text.matchAll(LINK)) {
-    const address = linkTo(from, match[1]!)
+  for (const href of writtenLinks(text)) {
+    const address = linkTo(from, href)
     if (address === null) continue
     const written = printAddress(address)
     if ((seen ??= new Set()).has(written)) continue
@@ -375,21 +379,55 @@ export const linksIn = (from: string, text: string): ReadonlyArray<Address> => {
   return found ?? NO_LINKS
 }
 
+/**
+ * The TARGET of every inline markdown link in a piece of prose, in the order
+ * they are written — a bracketed label, then a parenthesised address.
+ *
+ * ONE FORWARD SCAN, and that is a correctness decision rather than a taste one.
+ * The pattern this replaces (`/\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g`) is
+ * quadratic on prose somebody else wrote — CodeQL's `js/polynomial-redos` —
+ * because the label's `[^\]]*` restarts at every `[` of a line full of them
+ * and scans to the end each time. This is run over every body of a served
+ * directory and every note in it, which is exactly the input that is not
+ * this app's to trust.
+ *
+ * The scan keeps the same reading the pattern had: the label may not hold a
+ * `]`, the target may hold no whitespace (what follows a space is markdown's
+ * optional title, which is dropped), and a link whose target is written in
+ * angle brackets is not read — that is the spelling for a filename with a
+ * space in it, and unwrapping them would be a scan pretending to be a parser.
+ */
+const writtenLinks = (text: string): ReadonlyArray<string> => {
+  const found: Array<string> = []
+  let label = -1
+  for (let at = 0; at < text.length; at++) {
+    const char = text[at]
+    if (char === "[") label = at
+    else if (char === "]") {
+      if (label !== -1 && text[at + 1] === "(") {
+        const close = text.indexOf(")", at + 2)
+        if (close !== -1) {
+          const target = text.slice(at + 2, close)
+          // What a space opens is markdown's optional title, and what it cannot
+          // be is part of the address.
+          const space = target.search(SPACE)
+          found.push(space === -1 ? target : target.slice(0, space))
+          at = close
+        }
+      }
+      label = -1
+    }
+  }
+  return found
+}
+
+/** Where a written target stops. A single class rather than a repetition, so
+ *  the search is one pass over the characters between the parentheses. */
+const SPACE = /\s/
+
 /** The answer for prose that points nowhere, which is most of it: ONE list,
  *  shared, as `./derive.ts` shares its own. */
 const NO_LINKS: ReadonlyArray<Address> = []
-
-/**
- * An inline markdown link, as far as a scan can tell: a bracketed label, then
- * a parenthesised address and the optional title markdown allows after it.
- *
- * The label may not hold a `]` and the address may hold no whitespace, which
- * is what keeps this from running away across a paragraph. A link whose target
- * is written in angle brackets (`[x](<a b.md>)`) is not read — it is the
- * spelling for a filename with a space in it, and a scan that unwrapped them
- * would be a scan pretending to be a parser.
- */
-const LINK = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g
 
 /** What one written link names, or `null` — the grammar's three arms, told
  *  apart by where the `#` is. */
