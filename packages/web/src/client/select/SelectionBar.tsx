@@ -54,7 +54,7 @@ import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import { under } from "../menu/subtree.ts"
 import type { TestId } from "../testids.ts"
-import { archiveQuestion } from "../trash/question.ts"
+import { trashQuestion } from "../trash/question.ts"
 import { archivable } from "./bulk.ts"
 import { useSelection } from "./selection.ts"
 
@@ -116,7 +116,7 @@ export function SelectionBar() {
    *  (`./selection.ts`). */
   const trash = () => {
     confirm.drop()
-    selection.run("archive")
+    selection.run("trash")
   }
 
   return (
@@ -146,7 +146,7 @@ export function SelectionBar() {
                 </Match>
                 <Match when={confirm.where() === "asking"}>
                   <span data-testid={TESTID.selectionConfirm}>
-                    {archiveQuestion({ kind: "rows", count: rows().length }, hanging())}
+                    {trashQuestion({ kind: "rows", count: rows().length }, hanging())}
                   </span>
                   <Pill testid={TESTID.selectionTrash} onPress={trash}>
                     Move to Trash

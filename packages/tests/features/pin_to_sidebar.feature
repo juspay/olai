@@ -75,7 +75,7 @@ Feature: Pinning a page to the sidebar
     When I pin the page
     Then the pinned shelf is not drawn
     # Unpinning is the set's own removal, so it is reversible rather than gone.
-    And "_olai/Archive.olai" holds a node titled "/house.olai"
+    And "_olai/Trash.olai" holds a node titled "/house.olai"
 
   Scenario: A pin is taken off the shelf from the shelf
     When I pin the page

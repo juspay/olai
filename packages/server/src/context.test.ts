@@ -111,7 +111,7 @@ test("a mirror is refused naming the node it shows", () => {
 test("an archived node resolves, with the archive it is in as its file", () => {
   const set = setOf({
     "house.olai": HOUSE,
-    "Archive.olai": `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`,
+    "_olai/Trash.olai": `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`,
   })
   const outcome = contextFor(readingOf(set), ["tiles"])
   expect(Result.isSuccess(outcome)).toBe(true)
@@ -119,7 +119,7 @@ test("an archived node resolves, with the archive it is in as its file", () => {
     {
       id: "tiles",
       title: "the tiles nobody liked",
-      file: "Archive.olai",
+      file: "_olai/Trash.olai",
       line: 1,
       path: [],
     },

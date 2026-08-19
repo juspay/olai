@@ -261,33 +261,45 @@ test("the agenda lights up no outline, and draws no tree", () => {
 
 /** The same directory once something has been archived: the archives are in
  *  the file list like anything else, and only this model treats them apart. */
-const WITH_ARCHIVES = ["Archive.olai", ...FILES, "wing/Archive.olai"]
+const WITH_TRASH = ["_olai/Trash.olai", ...FILES]
+const WITH_LEFTOVER = ["Archive.olai", ...FILES, "garden/Archive.olai"]
 
-test("the trash is every archive the directory holds, and an empty one is a page", () => {
-  expect(pageAt({ kind: "trash" }, WITH_ARCHIVES)).toEqual({
+test("the trash is the one `_olai/Trash.olai`, and an empty one is a page", () => {
+  expect(pageAt({ kind: "trash" }, WITH_TRASH)).toEqual({
     kind: "trash",
-    files: ["Archive.olai", "wing/Archive.olai"],
+    files: ["_olai/Trash.olai"],
   })
-  // Nothing archived yet — the archive tool creates the file on first use, so
-  // an absent archive is an empty trash, never a missing page.
+  // Nothing put away yet — trash_node creates the file on first use, so
+  // an absent trash is an empty page, never a missing one.
   expect(pageAt({ kind: "trash" })).toEqual({ kind: "trash", files: [] })
 })
 
-test("an archive's own address opens the trash — it is not a place you edit", () => {
-  expect(pageAt(atFile("Archive.olai"), WITH_ARCHIVES)).toEqual({
+test("the trash file's own address opens the trash — it is not a place you edit", () => {
+  expect(pageAt(atFile("_olai/Trash.olai"), WITH_TRASH)).toEqual({
     kind: "trash",
-    files: ["Archive.olai", "wing/Archive.olai"],
+    files: ["_olai/Trash.olai"],
+  })
+})
+
+test("a leftover Archive.olai is an ordinary outline, not the trash", () => {
+  expect(pageAt(atFile("Archive.olai"), WITH_LEFTOVER)).toEqual({
+    kind: "outline",
+    file: "Archive.olai",
+  })
+  expect(pageAt({ kind: "trash" }, WITH_LEFTOVER)).toEqual({
+    kind: "trash",
+    files: [],
   })
 })
 
 test("a bare `/` never opens an archive, even one that sorts first", () => {
-  expect(pageAt(HOME_ROUTE, WITH_ARCHIVES))
+  expect(pageAt(HOME_ROUTE, WITH_TRASH))
     .toEqual({ kind: "outline", file: "garden.olai" })
 })
 
 test("the trash lights up no outline, and holds no row store", () => {
-  expect(fileOf(pageAt({ kind: "trash" }, WITH_ARCHIVES))).toBeUndefined()
-  expect(rowsFor(SET, pageAt({ kind: "trash" }, WITH_ARCHIVES))).toEqual([])
+  expect(fileOf(pageAt({ kind: "trash" }, WITH_TRASH))).toBeUndefined()
+  expect(rowsFor(SET, pageAt({ kind: "trash" }, WITH_TRASH))).toEqual([])
 })
 
 // A day draws no TREE. It is a list of nodes from all over the set, each with
@@ -340,8 +352,8 @@ test("a day draws the groups it was answered with, and the agenda the reading it
 test("the trash draws each archive that has something in it, and no others", () => {
   const set = derive([
     ...NODES,
-    located("Archive.olai", 1, { id: "old", ord: "a0", title: "the old kitchen" }),
-    located("Archive.olai", 2, {
+    located("_olai/Trash.olai", 1, { id: "old", ord: "a0", title: "the old kitchen" }),
+    located("_olai/Trash.olai", 2, {
       id: "tiles",
       parent: "old",
       ord: "a0",
@@ -350,13 +362,13 @@ test("the trash draws each archive that has something in it, and no others", () 
   ])
   const drawn = drawnAt(
     { kind: "trash" },
-    ["Archive.olai", ...FILES, "wing/Archive.olai"],
+    ["_olai/Trash.olai", ...FILES],
     set,
   )
-  // `wing/Archive.olai` holds nothing, so it is not a heading over no rows —
+  // `_olai/Trash.olai` holds nothing, so it is not a heading over no rows —
   // which is also what makes "the trash is empty" this list being empty.
   expect(drawn.kind === "trash" ? drawn.groups.map((group) => group.file) : [])
-    .toEqual(["Archive.olai"])
+    .toEqual(["_olai/Trash.olai"])
   expect(
     drawn.kind === "trash"
       ? drawn.groups.flatMap((group) => group.rows.map((row) => row.at.node.id))

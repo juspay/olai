@@ -348,7 +348,7 @@ test("an after cycle through the archive is still refused", () => {
   const error = only(
     errorsOf({
       "a.olai": `{"id":"live","ord":"a","title":"live","doing":true,"after":["old"]}`,
-      "Archive.olai": `{"id":"old","ord":"a","title":"old","done":true,"after":["live"]}`,
+      "_olai/Trash.olai": `{"id":"old","ord":"a","title":"old","done":true,"after":["live"]}`,
     }),
   )
   expect(error.code).toBe("after-cycle")

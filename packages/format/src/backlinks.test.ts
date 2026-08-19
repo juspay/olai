@@ -123,7 +123,7 @@ test("what is put away is on the Trash and nowhere else", () => {
   const view = viewOf({
     "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
       `{"id":"live","ord":"b","title":"live","see":["herbs"]}`,
-    "Archive.olai": `{"id":"gone","ord":"a","title":"about @herbs","see":["herbs"]}`,
+    "_olai/Trash.olai": `{"id":"gone","ord":"a","title":"about @herbs","see":["herbs"]}`,
   })
   expect(said(view, "herbs")).toEqual(["live see"])
 })

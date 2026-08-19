@@ -36,7 +36,7 @@ import { Schema } from "effect"
 
 import { Tag } from "./address.ts"
 import {
-  isArchived,
+  isTrashed,
   isMirror,
   isRegular,
   type Located,
@@ -218,9 +218,9 @@ export interface Derived {
    * re-narrow what the fold already proved. ({@link Derived.namedBy} next door
    * stays `Located` because `mirror` IS one of the fields it files.)
    *
-   * THE ARCHIVE IS IN IT, like every other index here: what is put away is left
+   * THE TRASH IS IN IT, like every other index here: what is put away is left
    * out at the READ (both readers do, each in its own words), because an index
-   * that knew about `Archive.olai` would be the format's storage rule wired
+   * that knew about `_olai/Trash.olai` would be the format's storage rule wired
    * into a fold that is about what prose says.
    *
    * SOME KEYS CAN NEVER BECOME REFERENCES, and that is a decision rather than
@@ -887,7 +887,7 @@ const inPlay = (
   id: string,
 ): InTheWay | undefined => {
   const at = nodeNamed(index, id)
-  if (at === undefined || isArchived(at.file)) return undefined
+  if (at === undefined || isTrashed(at.file)) return undefined
   const mark = status.get(at.node.id)
   return unfinished(mark) ? { at, status: mark } : undefined
 }
@@ -1092,10 +1092,10 @@ export const isBlocked = (derived: Derived, id: string): boolean =>
  * negation is the form that touches nearly all of them, since almost nothing
  * is placed twice.
  *
- * CHAINS FOLLOWED and THE ARCHIVE INCLUDED, both inherited from the index
+ * CHAINS FOLLOWED and THE TRASH INCLUDED, both inherited from the index
  * rather than decided here — which is what makes this the same answer
  * `read_node` hands back as `mirrors` (`@olai/ops`' `placementsOf`). A
- * placement in an `Archive.olai` is a placement: it is where the node is drawn
+ * placement in an `_olai/Trash.olai` is a placement: it is where the node is drawn
  * on the trash page, and a reader who put one copy away has not thereby
  * unmirrored the node.
  */

@@ -3,11 +3,12 @@ import { expect, test } from "bun:test"
 import { nodesOf } from "./fixtures.testlib.ts"
 import { OUTLINE_EXT } from "./kinds.ts"
 import {
-  ARCHIVE,
-  archiveBeside,
+  TRASH,
+  TRASH_FILE,
   ID_SHAPE,
   INBOX,
   inboxIn,
+  isTrashed,
   isMirror,
   mintedInto,
   MirrorNode,
@@ -70,13 +71,13 @@ test("ID_SHAPE admits slugs and nothing else", () => {
 // beside it, for the reason the registry gives: a retyped suffix left behind is
 // not a type error, it is a file the walk stops claiming. `fileKind` needs no
 // assertion here — it reads the same constant these two do.
-test("the archive and the inbox wear the one suffix", () => {
-  expect(ARCHIVE).toBe(`Archive${OUTLINE_EXT}`)
+test("the trash and the inbox wear the one suffix", () => {
+  expect(TRASH).toBe(`Trash${OUTLINE_EXT}`)
   expect(INBOX).toBe(`Inbox${OUTLINE_EXT}`)
 })
 
-// The inbox is the other named file this format knows, and it is read the same
-// way the archive is: by NAME, wherever it sits. Both faces resolve a capture
+// The inbox is the other named file this format knows, and it is read by NAME,
+// wherever it sits. Both faces resolve a capture
 // through this — the web's `+` and an agent capturing by hand — so one
 // spelling of the rule is what keeps them landing in the same file.
 test("a directory's inbox is whichever outline is called that, wherever it sits", () => {
@@ -123,10 +124,14 @@ test("olai mints its own files under _olai/, and finds them anywhere", () => {
   expect(pinsIn([PINS, "_olai/Pins.olai"])).toBe(PINS)
 })
 
-// The ARCHIVE and the INBOX deliberately have NOT moved: each is its own
-// change, with its own history and its own migration (human, 2026-08-19).
-test("the archive and the inbox are minted where they always were", () => {
-  expect(archiveBeside("notes/house.olai")).toBe("notes/Archive.olai")
+// The TRASH has moved under `_olai/`; the inbox has not (human, 2026-08-19).
+test("the trash is one file under _olai/, and the inbox stays at the root", () => {
+  expect(TRASH_FILE).toBe("_olai/Trash.olai")
+  expect(mintedInto(TRASH)).toBe(TRASH_FILE)
+  expect(isTrashed(TRASH_FILE)).toBe(true)
+  expect(isTrashed("Archive.olai")).toBe(false)
+  expect(isTrashed("notes/Archive.olai")).toBe(false)
+  expect(isTrashed("Trash.olai")).toBe(false)
   expect(INBOX).toBe("Inbox.olai")
 })
 

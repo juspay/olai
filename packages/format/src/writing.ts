@@ -558,7 +558,7 @@ export const SplitRequest = Schema.Struct({
  *   - the CHILDREN move, in order, to the end of the sibling's own — nothing
  *     may be orphaned by a keystroke;
  *   - the MARK, the DATE and the EDGES of the node being merged go WITH ITS
- *     RECORD into `Archive.olai`, because the format allows one mark per node
+ *     RECORD into `_olai/Trash.olai`, because the format allows one mark per node
  *     and the surviving row already has its own answer. Nothing is destroyed —
  *     the record is in the trash with its ids intact — and the answer's `nudge`
  *     says what went, so a `done` never disappears silently.
@@ -567,12 +567,12 @@ export const MergeRequest = Schema.Struct({
   op: Schema.Literal("merge"),
   id: Schema.String.annotate({
     description:
-      "The `id` of the node to merge INTO THE SIBLING ABOVE IT. Its title is appended to that sibling's, its note joined to that sibling's, its children moved under it — and its own record goes to `Archive.olai`, keeping its id, mark, date and edges.",
+      "The `id` of the node to merge INTO THE SIBLING ABOVE IT. Its title is appended to that sibling's, its note joined to that sibling's, its children moved under it — and its own record goes to `_olai/Trash.olai`, keeping its id, mark, date and edges.",
   }),
 })
 
-export const ArchiveRequest = Schema.Struct({
-  op: Schema.Literal("archive"),
+export const TrashRequest = Schema.Struct({
+  op: Schema.Literal("trash"),
   id: Id,
 })
 
@@ -630,7 +630,7 @@ export const DuplicateRequest = Schema.Struct({
 })
 
 /**
- * Take a subtree back OUT of an `Archive.olai` — the inverse `archive` never
+ * Take a subtree back OUT of an `_olai/Trash.olai` — the inverse `archive` never
  * had, built once here and exposed on both faces together (HACKING.md's
  * consistency rule; `parity-unarchive`).
  *
@@ -645,11 +645,11 @@ export const DuplicateRequest = Schema.Struct({
  * past them, and they are {@link LANDING}'s own pair: under that node, or at
  * the top level of that outline.
  */
-export const UnarchiveRequest = Schema.Struct({
-  op: Schema.Literal("unarchive"),
+export const UntrashRequest = Schema.Struct({
+  op: Schema.Literal("untrash"),
   id: Schema.String.annotate({
     description:
-      "The `id` of a node in an `Archive.olai`. It comes back out with everything under it.",
+      "The `id` of a node in an `_olai/Trash.olai`. It comes back out with everything under it.",
   }),
   file: Schema.optionalKey(
     Schema.String.annotate({
@@ -685,7 +685,7 @@ export const UnarchiveRequest = Schema.Struct({
  * in it, and the hole is the refusal below rather than the write: each op in a
  * batch is planned against the set the op before it left, so an archive's
  * holders are judged against ONE pile while the emptying is about several. A
- * `see` from `garden/Archive.olai` into `Archive.olai` then reads as a holder —
+ * `see` from `_olai/Trash.olai` into `_olai/Trash.olai` then reads as a holder —
  * it is outside the pile in hand — and the same two ops refuse in path order,
  * succeed in the reverse, and refuse BOTH ways round when the two piles name
  * each other. Every one of those is a record the write deletes, and the set it
@@ -729,7 +729,7 @@ export const EmptyRequest = Schema.Struct({
   op: Schema.Literal("empty"),
   files: Schema.Array(
     Schema.String.annotate({
-      description: "An `Archive.olai` the served directory holds, root-relative.",
+      description: "An `_olai/Trash.olai` the served directory holds, root-relative.",
     }),
   ).annotate({
     description:
@@ -1146,9 +1146,9 @@ const BATCHED = [
   arm(MoveRequest),
   arm(SplitRequest),
   arm(MergeRequest),
-  arm(ArchiveRequest),
+  arm(TrashRequest),
   arm(DuplicateRequest),
-  arm(UnarchiveRequest),
+  arm(UntrashRequest),
   arm(EmptyRequest),
   arm(SeeRequest),
   arm(MirrorRequest),
@@ -1230,9 +1230,9 @@ export const WriteRequest = Schema.Union([
   MoveRequest,
   SplitRequest,
   MergeRequest,
-  ArchiveRequest,
+  TrashRequest,
   DuplicateRequest,
-  UnarchiveRequest,
+  UntrashRequest,
   EmptyRequest,
   CreateRequest,
   SeeRequest,

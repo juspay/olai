@@ -58,7 +58,7 @@ const SET = derive([
     node: { id: "chase-beds", parent: "garden", ord: "a0", title: "chase the supplier" },
   },
   {
-    file: "Archive.olai",
+    file: "_olai/Trash.olai",
     line: 1,
     node: { id: "tiles", ord: "a0", title: "the tiles nobody liked" },
   },
@@ -111,9 +111,9 @@ test("the operators that fit in ONE TOKEN work, because the grammar reads it", (
   expect(ids("#nothing")).toEqual([])
 })
 
-test("what was put away is out, and `is:archived` is how it is asked for", () => {
+test("what was put away is out, and `is:trashed` is how it is asked for", () => {
   expect(ids("tiles")).toEqual([])
-  expect(ids("is:archived")).toEqual(["tiles"])
+  expect(ids("is:trashed")).toEqual(["tiles"])
 })
 
 test("the list is capped, and the cap keeps the best", () => {

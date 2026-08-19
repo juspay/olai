@@ -248,7 +248,7 @@ Feature: Undo
     # the commit window; this is a WRITE going through, and asking the holding
     # form of it passes only when the archive lands inside one animation frame.
     Then "house.olai" no longer holds a node titled "a line typed by mistake"
-    And "Archive.olai" holds a node titled "a line typed by mistake"
+    And "_olai/Trash.olai" holds a node titled "a line typed by mistake"
     # NOTHING is said now, and that is the news. This used to be the one entry
     # that explained why it could not be redone — a `move` is same-file by the
     # format, so nothing this surface could send brought a row back out of the
@@ -261,7 +261,7 @@ Feature: Undo
     # two files, and the record leaves the archive a moment after it arrives
     # here. Held, this reads the first of the two writes and calls the second
     # one a failure.
-    And "Archive.olai" no longer holds a node titled "a line typed by mistake"
+    And "_olai/Trash.olai" no longer holds a node titled "a line typed by mistake"
     # WHERE it landed, not just that it is back: the row was a sibling of
     # `handles`, so it belongs under `install`. With the chain above it still
     # standing, both roads lead there — the scenario below is the one that
@@ -281,12 +281,12 @@ Feature: Undo
     And I press "Enter"
     And I press "Escape"
     And I press "ControlOrMeta+z"
-    Then "Archive.olai" holds a node titled "a line typed by mistake"
+    Then "_olai/Trash.olai" holds a node titled "a line typed by mistake"
     When another writer retitles "install" to "fit the cabinets" in "house.olai"
     Then the node "install" has the title "fit the cabinets"
     When I press "ControlOrMeta+Shift+z"
     Then "house.olai" holds a node titled "a line typed by mistake" under "install"
-    And "Archive.olai" no longer holds a node titled "a line typed by mistake"
+    And "_olai/Trash.olai" no longer holds a node titled "a line typed by mistake"
 
   Scenario: An undo does not clobber what somebody else did meanwhile
     # The whole reason this is an inverse and not a snapshot restore. Between
@@ -331,7 +331,7 @@ Feature: Undo
     And another writer archives "install" out of "house.olai"
     Then the node "install" is not shown
     When I press "ControlOrMeta+z"
-    Then the undo refusal says "Archive.olai"
+    Then the undo refusal says "_olai/Trash.olai"
     And the node "knobs" is a child of "kitchen"
 
   Scenario: An undo that no longer fits says why, and does not try again

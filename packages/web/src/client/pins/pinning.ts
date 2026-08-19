@@ -84,5 +84,5 @@ export const togglePin = async (
   const already = pinnedAt(derived, route)
   return already === undefined
     ? applying({ verb: "pin", at: hrefOf(route) }, record)
-    : applying({ verb: "archive", id: already.id }, record)
+    : applying({ verb: "trash", id: already.id }, record)
 }

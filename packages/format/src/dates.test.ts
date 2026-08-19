@@ -263,12 +263,12 @@ test("two records claiming one id are two rows, not one", () => {
 // Work that was put away leaves the journal with it (ruled 2026-08-17, human,
 // reversing 2026-08-11): what is archived is drawn on the TRASH PAGE and
 // nowhere else. The day, the calendar's dot and the agenda read this one walk,
-// so the rule reaches all three at once — and `is:archived` is what still
+// so the rule reaches all three at once — and `is:trashed` is what still
 // reaches the node itself, at every door (./filter.ts).
 test("an archived node is on no day, and lights no day in the calendar", () => {
   const archived = derive(
     nodesOfFiles({
-      "Archive.olai":
+      "_olai/Trash.olai":
         `{"id":"deck","ord":"a0","title":"the deck","done":"2026-08-11T09:00:00-04:00"}`,
     }),
   )
@@ -283,7 +283,7 @@ test("an archived node is on no day, and lights no day in the calendar", () => {
 test("the live outline keeps the day the archive was taken off", () => {
   const beside = derive(
     nodesOfFiles({
-      "Archive.olai":
+      "_olai/Trash.olai":
         `{"id":"deck","ord":"a0","title":"the deck","done":"2026-08-11T09:00:00-04:00"}`,
       "work.olai": `{"id":"rails","ord":"a0","title":"paint the rails","date":"2026-08-11"}`,
     }),

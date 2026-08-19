@@ -2,7 +2,7 @@
  * WHAT THE TRASH ASKS BEFORE IT DOES ANYTHING — the two questions, in one
  * place, because they are the two halves of one promise.
  *
- * {@link archiveQuestion} is asked on the way IN — one sentence, whichever
+ * {@link trashQuestion} is asked on the way IN — one sentence, whichever
  * door it was chosen from — and it promises a bin somebody can open.
  * {@link emptyQuestion} is asked when somebody stops wanting the bin, and it is
  * the only sentence in this app about a write that destroys. They are beside
@@ -10,7 +10,7 @@
  * reader who was told "the Trash is where to put it back" is owed, in the same
  * words, what it means when the Trash goes.
  *
- * The human's ruling (2026-08-12) was about the ARCHIVE, not about a menu: a
+ * The human's ruling (2026-08-12) was about the TRASH, not about a menu: a
  * subtree may go to the Trash, with a confirm naming how much goes with it and
  * promising the bin it implies. So the sentence belongs to the Trash rather
  * than to either affordance, and it is here beside the page that opens one.
@@ -35,7 +35,7 @@ export type Going =
    *  a pick of one row was still picked rather than pointed at. */
   | { readonly kind: "rows"; readonly count: number }
 
-export const archiveQuestion = (
+export const trashQuestion = (
   going: Going,
   /** How many rows hang UNDER the ones going — not counting them. A fact about
    *  the set rather than about the tree on screen (`../menu/subtree.ts`). */
@@ -62,7 +62,7 @@ export const archiveQuestion = (
  * WHAT EMPTYING THE TRASH ASKS — the other sentence this module owns, and the
  * only one in the app about a write that DESTROYS.
  *
- * It is here beside {@link archiveQuestion} because the two are one promise
+ * It is here beside {@link trashQuestion} because the two are one promise
  * read in both directions: that one says the bin is where to put a row back,
  * and this one is what happens when somebody stops wanting the bin. A reader
  * who agreed to the first is owed the second in the same voice.

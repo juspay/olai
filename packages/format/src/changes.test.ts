@@ -54,18 +54,18 @@ describe("what changed", () => {
 
   test("a node that changed file is archived, and reads under the file it is in now", () => {
     const before = at("a.olai", node({ id: "x", title: "install them" }))
-    const after = at("Archive.olai", node({ id: "x", title: "install them" }))
+    const after = at("_olai/Trash.olai", node({ id: "x", title: "install them" }))
 
     // ONE change, not a removal and an unrelated arrival: ids are unique
     // across the set, so the comparison is by id across every file it was
     // handed.
     expect(changesOf(before, after)).toEqual([
       {
-        file: "Archive.olai",
+        file: "_olai/Trash.olai",
         id: "x",
         title: "install them",
         fields: ["file"],
-        sort: "archived",
+        sort: "trashed",
       },
     ])
   })

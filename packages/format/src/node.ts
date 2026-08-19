@@ -367,76 +367,65 @@ export const targetsOf = (
   return named ?? NOTHING_NAMED
 }
 
-/** Where work that is over is put away: one `Archive.olai` per directory,
- *  beside the outline it left. The same rule as the racket reference, so a
- *  directory that has been archived from before goes on reading the way it did.
+/** Where work that is over is put away: one `_olai/Trash.olai` for the
+ *  whole served directory. Being trashed is a fact about the FILE a node is
+ *  written in — there is no field for it, and there is not going to be one,
+ *  for the reason no derived state is stored. It lives here rather than in
+ *  ./kinds.ts because it is a fact about ONE kind — which outline a directory
+ *  puts its finished work in — and the registry holds only what every kind has
+ *  an answer to.
  *
- *  Being archived is a fact about the FILE a node is written in — there is no
- *  field for it, and there is not going to be one, for the reason no derived
- *  state is stored. It lives here rather than in ./kinds.ts because it is a
- *  fact about ONE kind — which outline a directory puts its finished work in —
- *  and the registry holds only what every kind has an answer to.
+ *  There used to be one `Archive.olai` per directory, beside the outline it
+ *  left. That convention is dead (human, 2026-08-19): those files stay on disk
+ *  as ordinary outlines, are not the trash, are not drawn on the trash page,
+ *  and `is:trashed` does not reach them. No migration. The kind registry still
+ *  parses them — they are `.olai` — because a skip for a dead name would keep
+ *  that name load-bearing; a leftover is orphaned until a human hand-moves it.
  *
  *  THE CENSUS IS KEPT because it is what makes the one spelling honest, and it
  *  is longer than it looks — nine rules in three packages, which is exactly why
  *  none of them may re-derive the name:
  *
- *    - `@olai/ops` — the op that MOVES a subtree there, and `unarchive`'s
- *      rules about what may come back out and where it lands;
+ *    - `@olai/ops` — the op that MOVES a subtree there, and `untrash`'s
+ *      rules about what may come back out and where it lands. The outermost
+ *      scaffold title is the outline the node left, so one file can hold
+ *      piles from many;
  *    - ./derive.ts — blockedness, which exempts what has been put away at both
- *      ends of an arrow, so archived work holds nothing up and nothing holds
+ *      ends of an arrow, so trashed work holds nothing up and nothing holds
  *      it up;
  *    - ./changes.ts — what tells a cross-file move that landed here
- *      (*archived*) from one that did not (*moved*);
+ *      (*trashed*) from one that did not (*moved*);
  *    - ./dates.ts — the walk every date reading is built from, which leaves
- *      the archive out because what was put away is drawn on the trash page
+ *      the trash out because what was put away is drawn on the trash page
  *      and nowhere else (ruled 2026-08-17);
- *    - ./filter.ts, twice — the `is:archived` clause, which is how a query
- *      NAMES the archive, and the default one node up that keeps it out of
+ *    - ./filter.ts, twice — the `is:trashed` clause, which is how a query
+ *      NAMES the trash, and the default one node up that keeps it out of
  *      every reading that did not;
  *    - `@olai/web`, five times, all of them the same ruling read on a screen:
- *      an archive's own address opens the TRASH rather than an editable tree
- *      (`page.ts`, which also skips archives when `/` picks a first outline);
- *      the sidebar's file tree does not list one (`Sidebar.tsx`), because the
- *      Trash entry at the foot of the column is where they are read; the
- *      filter widens its scope only on a page already drawing archived rows
+ *      the trash file's own address opens the TRASH rather than an editable
+ *      tree (`page.ts`, which also skips it when `/` picks a first outline);
+ *      the sidebar's file tree does not list it (`Sidebar.tsx`), because the
+ *      Trash entry at the foot of the column is where it is read; the
+ *      filter widens its scope only on a page already drawing trashed rows
  *      (`filter/narrowing.ts`); the tag vocabulary does not count them
  *      (`complete/tags.ts`), because that count is a promise about rows; and
- *      the move-to picker refuses one as a DESTINATION in its own words
- *      (`move/destination.ts`) — a query that says `is:archived` can reach the
+ *      the move-to picker refuses it as a DESTINATION in its own words
+ *      (`move/destination.ts`) — a query that says `is:trashed` can reach the
  *      Trash from there, and what is put away is not somewhere work is moved
  *      TO.
  *
  *  Two spellings would be two answers about the same file — and the
  *  commit-message reader makes that permanent, since a subject cannot be
  *  corrected after the fact. */
-export const ARCHIVE = `Archive${OUTLINE_EXT}`
-
-/** {@link ARCHIVE} as it appears anywhere but the root — hoisted rather than
- *  built inside {@link isArchived}, which is asked once per file per probe and
- *  was minting this same string every time to throw it away. A constant folded
- *  at module load says the same thing and allocates nothing. */
-const ARCHIVE_UNDER = `/${ARCHIVE}`
-
-export const isArchived = (file: string): boolean =>
-  file === ARCHIVE || file.endsWith(ARCHIVE_UNDER)
-
-/** The archive that sits beside `file`: same directory, the one name above.
- *  `archive` writes there and `unarchive` reads back from there, and one
- *  spelling of the adjacency is what makes the second visibly the first's
- *  inverse — two ad-hoc path slices were two chances to disagree about where
- *  a node's archive is. */
-export const archiveBeside = (file: string): string => {
-  const cut = file.lastIndexOf("/")
-  return cut === -1 ? ARCHIVE : `${file.slice(0, cut + 1)}${ARCHIVE}`
-}
+export const TRASH = `Trash${OUTLINE_EXT}`
 
 /** The outline a quick capture lands in when a directory has none yet — at the
  *  ROOT, and named the way a person would name it, because an inbox nobody has
  *  created is a promise a surface makes ("capture to the Inbox") and the file
  *  it mints has to be the file they would have made themselves. Beside
- *  {@link ARCHIVE} because it is the same kind of statement: what a served
- *  file IS, by its name. */
+ *  {@link TRASH} because it is the same kind of statement: what a served
+ *  file IS, by its name. The inbox has deliberately NOT moved under `_olai/`
+ *  (human, 2026-08-19). */
 export const INBOX = `Inbox${OUTLINE_EXT}`
 
 /**
@@ -444,7 +433,7 @@ export const INBOX = `Inbox${OUTLINE_EXT}`
  *
  * A CONVENTION read off the files, in the shape {@link dailyNotePathFor} reads
  * the daily-note one — and HERE rather than in whichever face happens to ask,
- * for the reason `ARCHIVE` is here: a rule about what a file is, spelled in
+ * for the reason `TRASH` is here: a rule about what a file is, spelled in
  * two places, is two answers about the same directory. The web's quick capture
  * resolves through it (`@olai/server`'s `edit.ts`), and an agent capturing by
  * hand reads the same sentence rather than guessing at the browser's.
@@ -464,7 +453,7 @@ export const inboxIn = (files: ReadonlyArray<string>): string | undefined =>
  * What is in it is ORDINARY NODES whose titles name an ADDRESS in this app —
  * which is what a bookmark is — so an agent reads the shelf with
  * `read_subtree`, adds to it with `add_node`, reorders it with `move_node`
- * and takes something off it with `archive_node`. Pinning grew no op and no
+ * and takes something off it with `trash_node`. Pinning grew no op and no
  * AGENT tool, which is the whole reason the shelf is a file of nodes rather
  * than a field (docs/format.md's Pins). The browser grew one verb of its own,
  * `pin`, and it resolves to that same `add` — what it saves a tab is the
@@ -486,8 +475,8 @@ export const PINS = `Pins${OUTLINE_EXT}`
  * A served directory is somebody's — their outlines, their notes, their names,
  * at the top level where they put them. A file OLAI made because a person
  * pressed something is a different kind of thing, and it does not belong in
- * that list: the shelf is the first of them, and there will be more (human,
- * 2026-08-19).
+ * that list: the shelf was the first of them, and the trash is the second
+ * (human, 2026-08-19).
  *
  * `_` rather than `.`, and that is load-bearing rather than a style: a
  * dot-directory is not WALKED at all (`@olai/store`'s `disk.ts` prunes them,
@@ -505,18 +494,32 @@ export const PINS = `Pins${OUTLINE_EXT}`
 export const OLAI_DIR = "_olai"
 
 /**
- * Where olai mints a file it names itself — one spelling, so the day the
- * ARCHIVE and the INBOX move here too it is one call each rather than a path
- * assembled at three sites.
+ * Where olai mints a file it names itself — one spelling, so a convention that
+ * lands here is one call rather than a path assembled at three sites.
  *
- * They deliberately have NOT moved (human, 2026-08-19: pins first, the other
- * two are their own change). `archiveBeside` still puts an `Archive.olai`
- * beside the file it is emptying, and a capture still mints `Inbox.olai` at the
- * root; each is a decision with its own history and its own migration, and
- * moving them under cover of this one would be three conventions changing in a
- * PR about one.
+ * The shelf was first; the trash has now moved here too (human, 2026-08-19).
+ * The inbox has deliberately NOT: a capture still mints `Inbox.olai` at the
+ * root, because an inbox nobody has created is a promise a surface makes and
+ * the file it mints has to be the file they would have made themselves.
  */
 export const mintedInto = (name: string): string => `${OLAI_DIR}/${name}`
+
+/**
+ * THE one trash. Minted here, found here, written here. Not "whichever
+ * outline is called `Trash.olai`" — {@link pinsIn} and {@link inboxIn} still
+ * find by name wherever the file sits; the trash is one file at one path,
+ * because a node put away from any outline has to have one place to go, and
+ * an entry in that file records which outline it came from so untrash can
+ * put it back.
+ *
+ * Exact path, not a basename walk: `_olai/trash.olai` is a different file
+ * and an ordinary outline. The mint always writes {@link TRASH}.
+ */
+export const TRASH_FILE = mintedInto(TRASH)
+
+/** Whether `file` is the one trash — asked once per file per probe, compared
+ *  against a constant so the hot path allocates nothing. */
+export const isTrashed = (file: string): boolean => file === TRASH_FILE
 
 /** The directory's shelf, or `undefined` when it has none — {@link inboxIn}'s
  *  question one convention over, answered by the same walk so that one

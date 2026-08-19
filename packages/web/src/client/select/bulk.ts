@@ -39,7 +39,7 @@ import type { Edit } from "@olai/surface"
 /** The verbs a selection answers to. The four moves are the surface's own
  *  `move` words, spelled once; `complete` and `archive` are the two the `•••`
  *  menu already spells for a single row. */
-export type Bulk = "complete" | "in" | "out" | "up" | "down" | "archive"
+export type Bulk = "complete" | "in" | "out" | "up" | "down" | "trash"
 
 /** Which way the rows are walked. A table rather than a condition in the loop,
  *  so the argument in the header is checkable against the list rather than
@@ -50,7 +50,7 @@ const REVERSED: Record<Bulk, boolean> = {
   up: false,
   out: true,
   down: true,
-  archive: false,
+  trash: false,
 }
 
 /** The node a row draws, or `undefined` for a placement whose chain died or
@@ -84,7 +84,7 @@ export const bulkEdits = (
         const node = shown(row)
         return node === undefined ? [] : [{ verb: "toggle", id: node, mark: "done" }]
       }
-      case "archive": {
+      case "trash": {
         // A MIRROR is left out on purpose, and the bar refuses the whole
         // gesture rather than quietly dropping it ({@link archivable}): the
         // node a placement shows lives somewhere else, so archiving from here
@@ -92,7 +92,7 @@ export const bulkEdits = (
         // same argument the `•••` menu makes for not offering the verb on a
         // mirror at all (`../menu/verbs.ts`).
         const node = row.kind === "node" ? row.shows.node.id : undefined
-        return node === undefined ? [] : [{ verb: "archive", id: node }]
+        return node === undefined ? [] : [{ verb: "trash", id: node }]
       }
     }
   })

@@ -28,7 +28,7 @@
 import type { Selected } from "@olai/format"
 import {
   datedIn,
-  isArchived,
+  isTrashed,
   keeping,
   keepingDated,
   keepingOwed,
@@ -78,7 +78,7 @@ export const narrowed = (drawn: Drawn, matched: Selected): Drawn => {
  * TRASH is the archive, every group of it — so the answer is its kind and not a
  * scan, because a trash drawing no archived row is a trash drawing no row. And
  * a TREE can be one node's: `/#<id>` on a node somebody put away, which is
- * exactly where an `is:archived` hit lands when it is clicked (docs/search.md —
+ * exactly where an `is:trashed` hit lands when it is clicked (docs/search.md —
  * the ruling took away the default presence, not the reachability). An
  * outline's own tree is a live file, since an archive's address opens the trash
  * instead (`../page.ts`) — with one gap that is not this file's to close: a
@@ -100,7 +100,7 @@ export const narrowed = (drawn: Drawn, matched: Selected): Drawn => {
  * bound — this runs per keystroke, and what it feeds is a default rather than a
  * permission.
  *
- * WHAT IT DECIDES IS THE CANDIDATE SET, AND THE COST IS WHOLE-ARCHIVE, which is
+ * WHAT IT DECIDES IS THE CANDIDATE SET, AND THE COST IS WHOLE-TRASH, which is
  * worth stating rather than leaving to be discovered. `true` puts every
  * archived node in the directory in front of the matcher — not only the ones
  * this page could draw — and the rows that match somewhere else are then
@@ -111,12 +111,12 @@ export const narrowed = (drawn: Drawn, matched: Selected): Drawn => {
  * NONE — every outline, which is the page somebody types on all day — paying
  * nothing for a file that only ever grows.
  */
-export const showsArchived = (drawn: Drawn): boolean => {
+export const showsTrashed = (drawn: Drawn): boolean => {
   switch (drawn.kind) {
     case "trash":
       return true
     case "tree":
-      return drawn.rows.some((row) => isArchived(shownRecord(row).file))
+      return drawn.rows.some((row) => isTrashed(shownRecord(row).file))
     case "day":
     case "agenda":
     case "none":

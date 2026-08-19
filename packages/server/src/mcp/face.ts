@@ -150,7 +150,7 @@ const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
  * So what it claims now is the thing that is actually true, and it is the
  * stronger claim rather than the weaker one. The unit is not a byte and never
  * a range — a NODE for an outline, a whole TEXT for a document, a whole
- * ARCHIVE for `empty_trash` — and the namespace is the served set rather than
+ * TRASH for `empty_trash` — and the namespace is the served set rather than
  * a disk: there is no listing that is not this directory's own, no path outside
  * it, no shell and no grep. That is what the closed table enforces
  * (`@olai/ops`' `tools.ts`), so this sentence and that list say one thing.
@@ -167,7 +167,7 @@ const INSTRUCTIONS =
   "olai serves a directory of outlines and the documents beside them. Everything here " +
   "is NODES and whole FILES, never bytes: search and read to find a node, then use " +
   "the write tools to change it; list and read a `.md` document by path, and write one " +
-  "back whole; and `empty_trash` names whole `Archive.olai` files, which is the one " +
+  "back whole; and `empty_trash` empties `_olai/Trash.olai`, which is the one " +
   "tool here that deletes. There is no filesystem under this — no shell, no grep, no " +
   "path outside the served directory, and no way to name part of a file — and that is " +
   "deliberate."

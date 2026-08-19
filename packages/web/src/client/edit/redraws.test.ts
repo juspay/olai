@@ -40,7 +40,7 @@ const of = (verb: Edit["verb"]): Edit => {
       return { verb, id: "a", parent: null, after: null }
     case "mirror":
       return { verb, target: "a", at: { kind: "after", id: "b" } }
-    case "unarchive":
+    case "untrash":
       return { verb, id: "a" }
     case "doc":
       return { verb, file: "a.md", text: "" }
@@ -94,7 +94,7 @@ test("everything structural moves it", () => {
 })
 
 test("so does a row leaving the page, or coming back to it", () => {
-  for (const verb of ["remove", "archive", "unarchive", "unmirror"] as const) {
+  for (const verb of ["remove", "trash", "untrash", "unmirror"] as const) {
     expect(redraws(of(verb))).toBe(true)
   }
 })

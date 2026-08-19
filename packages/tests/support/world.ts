@@ -1922,7 +1922,7 @@ export class OlaiWorld extends World {
    * every assertion that WAITS for something to arrive in one goes through.
    *
    * Some writes in this app mint the file they land in: `archive` writes
-   * `Archive.olai` the first time anything is put away. A scenario polling
+   * `_olai/Trash.olai` the first time anything is put away. A scenario polling
    * for a node to ARRIVE there is polling for the FILE too, and a reader that
    * threw would fail on the first poll — at speed it usually does not, under
    * load it does, and what the failure then names is an ENOENT out of a helper

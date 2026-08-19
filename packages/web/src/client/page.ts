@@ -41,7 +41,7 @@ import {
   dailyNotesOn,
   datedOn,
   fileKind,
-  isArchived,
+  isTrashed,
   rowsOf,
   rowsUnder,
   zoom,
@@ -211,7 +211,7 @@ export const pageOf = (
   const outlines = outlinesOf(found)
   const named = address === null ? null : address.path
   const file = named === null
-    ? outlines.find((candidate) => !isArchived(candidate))
+    ? outlines.find((candidate) => !isTrashed(candidate))
     : outlines.includes(named)
     ? named
     : undefined
@@ -222,7 +222,7 @@ export const pageOf = (
       requested: outlines.length === 0 ? null : named,
     }
   }
-  if (isArchived(file)) return trashOf(found)
+  if (isTrashed(file)) return trashOf(found)
   const unreadable = found.broken.get(file)
   return unreadable === undefined
     ? { kind: "outline", file }
@@ -234,7 +234,7 @@ export const pageOf = (
  *  address, so the two doors cannot show two different trashes. */
 const trashOf = (found: Found): Page => ({
   kind: "trash",
-  files: outlinesOf(found).filter(isArchived),
+  files: outlinesOf(found).filter(isTrashed),
 })
 
 /**
@@ -313,7 +313,7 @@ export const rowsFor = (
 /** One archive, and the rows it holds — the trash's own group, and named for
  *  `DayGroup` because it is the same shape and the same idea: a file heading
  *  and what is under it. What makes it the trash's rather than the sidebar's is
- *  that the file is an `Archive.olai` (`isArchived`). */
+ *  that the file is an `_olai/Trash.olai` (`isTrashed`). */
 export interface TrashGroup {
   readonly file: string
   readonly rows: ReadonlyArray<Row>

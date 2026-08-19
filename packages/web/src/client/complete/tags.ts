@@ -58,7 +58,7 @@
 
 import {
   type Derived,
-  isArchived,
+  isTrashed,
   type LocatedRegular,
   type TagSigil,
   tagPart,
@@ -156,7 +156,7 @@ const counting = (derived: Derived): ReadonlyArray<Tag> => {
  * Which of the served files are archives — judged ONCE per derivation, off the
  * file index, rather than per index entry.
  *
- * `isArchived` is a question about a PATH, and `@olai/format`'s own note beside
+ * `isTrashed` is a question about a PATH, and `@olai/format`'s own note beside
  * it says it is meant to be asked once per file per probe. This reading has an
  * entry per (record, tag) pair to get through — more entries than the directory
  * has files, by a lot, on a set where a name is written on a thousand rows — so
@@ -171,7 +171,7 @@ const counting = (derived: Derived): ReadonlyArray<Tag> => {
  */
 const archives = (derived: Derived): ReadonlySet<string> => {
   const away = new Set<string>()
-  for (const file of derived.byFile.keys()) if (isArchived(file)) away.add(file)
+  for (const file of derived.byFile.keys()) if (isTrashed(file)) away.add(file)
   return away
 }
 

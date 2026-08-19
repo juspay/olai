@@ -24,7 +24,7 @@
 import { Schema } from "effect"
 
 import type { Custom } from "./custom.ts"
-import { isArchived, isMirror, MirrorNode, type Node, RegularNode } from "./node.ts"
+import { isTrashed, isMirror, MirrorNode, type Node, RegularNode } from "./node.ts"
 
 /**
  * Every field of a record that can differ between two readings, DERIVED from
@@ -83,7 +83,7 @@ export type Field = typeof Field.Type
  */
 export const Sort = Schema.Literals([
   "created",
-  "archived",
+  "trashed",
   "gone",
   "done",
   "undone",
@@ -139,7 +139,7 @@ interface Placed {
  *
  * Matched by ID ACROSS FILES rather than within one, so archiving reads as one
  * change to one node rather than as a removal and an unrelated arrival: the
- * subtree left `roadmap.olai` and is in `Archive.olai`, which is what
+ * subtree left `roadmap.olai` and is in `_olai/Trash.olai`, which is what
  * happened. Both files are dirty in that case, so both sides are in hand.
  *
  * The answer is in file order — the `after` side's, then whatever only the
@@ -294,7 +294,7 @@ const set = (node: Node, field: "done" | "doing" | "date"): boolean =>
 const sortOf = (fields: ReadonlyArray<Field>, after: Placed): Sort => {
   const changed = new Set(fields)
   if (changed.has("file")) {
-    return isArchived(after.file) ? "archived" : "moved"
+    return isTrashed(after.file) ? "trashed" : "moved"
   }
   if (changed.has("done")) return set(after.node, "done") ? "done" : "undone"
   if (changed.has("doing")) return set(after.node, "doing") ? "doing" : "not-doing"

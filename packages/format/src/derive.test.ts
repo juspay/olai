@@ -540,7 +540,7 @@ test("an edge named twice, however it is spelled, is one edge", () => {
 test("archived work neither blocks nor is blocked", () => {
   const derived = derive(nodesOfFiles({
     "house.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["put-away"]}`,
-    "Archive.olai":
+    "_olai/Trash.olai":
       `{"id":"put-away","ord":"a","title":"put away half-finished","doing":true}\n` +
         `{"id":"old","ord":"b","title":"old","todo":true,"after":["a"]}`,
   }))
@@ -582,7 +582,7 @@ test("standingBefore asks the same question of a node that is not work yet", () 
     "a.olai": `{"id":"a","ord":"a","title":"a","after":["note","fin","gone"]}\n` +
       `{"id":"note","ord":"b","title":"a note"}\n` +
       `{"id":"fin","ord":"c","title":"fin","done":"2026-08-10"}`,
-    "Archive.olai": `{"id":"gone","ord":"a","title":"gone","todo":true}`,
+    "_olai/Trash.olai": `{"id":"gone","ord":"a","title":"gone","todo":true}`,
   }))
   expect(before(clear, "a")).toEqual([])
 
@@ -614,7 +614,7 @@ test("an archive beside any outline is an archive", () => {
     waiting(
       derive(nodesOfFiles({
         "work/plans.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["old"]}`,
-        "work/Archive.olai": `{"id":"old","ord":"a","title":"old","doing":true}`,
+        "_olai/Trash.olai": `{"id":"old","ord":"a","title":"old","doing":true}`,
       })),
       "a",
     ),

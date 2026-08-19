@@ -183,7 +183,7 @@ test("what a page is narrowed by is read off the route", () => {
 // parses — what page it opens is `page.ts`'s call, not this parser's.
 test("the trash is one address, and an archive's path is still an outline's", () => {
   expect(routeOf("/trash")).toEqual({ kind: "trash" })
-  expect(routeOf("/Archive.olai")).toEqual(atFile("Archive.olai"))
+  expect(routeOf("/_olai/Trash.olai")).toEqual(atFile("_olai/Trash.olai"))
 })
 
 // `/agenda` spells nothing at all — not a day, not a horizon. An address that

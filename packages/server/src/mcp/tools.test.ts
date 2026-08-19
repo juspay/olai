@@ -228,7 +228,6 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "add_mirror",
       "add_node",
       "apply",
-      "archive_node",
       "commit",
       "create_document",
       "create_outline",
@@ -255,7 +254,8 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "set_title",
       "set_todo",
       "split_node",
-      "unarchive_node",
+      "trash_node",
+      "untrash_node",
       "update",
       "write_document",
     ])
@@ -398,7 +398,7 @@ test("both annotation hints are pinned, for a read and for a write", async () =>
     expect(of("list_documents")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
     expect(of("read_document")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
     expect(of("set_done")).toMatchObject({ readOnlyHint: false, destructiveHint: true })
-    expect(of("archive_node")).toMatchObject({ readOnlyHint: false, destructiveHint: true })
+    expect(of("trash_node")).toMatchObject({ readOnlyHint: false, destructiveHint: true })
   })
 })
 
@@ -429,7 +429,7 @@ test("initialize tells a host what olai is, and nothing the tools disprove", asy
     // wrong, because the verb it leaves out is the only one that DELETES. The
     // charter names it and says so; a table that grows a second such verb, or
     // loses this one, fails here.
-    expect(said).toContain("`empty_trash` names whole `Archive.olai` files")
+    expect(said).toContain("`empty_trash` empties `_olai/Trash.olai`")
     expect(said).toContain("the one tool here that deletes")
     expect(tools.map((tool) => tool.name).filter((name) => name.includes("empty")))
       .toEqual(["empty_trash"])
@@ -1321,32 +1321,32 @@ test("remove_mirror on a node refuses, and says what does put a node away", asyn
     const answer = await call(client, "remove_mirror", { id: "order" })
     expect(answer.isError).toBe(true)
     expect(answer.structured["kind"]).toBe("usage")
-    expect(String(answer.structured["reason"])).toContain("archive_node")
+    expect(String(answer.structured["reason"])).toContain("trash_node")
     expect(refusals).toEqual(["unmirror: UsageFailure"])
     expect(read("house.olai")).toBe(HOUSE)
   })
 })
 
-/** The trash, both ways, on the agent's face: `archive_node` puts a subtree
- *  away and `unarchive_node` brings it back where the recorded chain says it
+/** The trash, both ways, on the agent's face: `trash_node` puts a subtree
+ *  away and `untrash_node` brings it back where the recorded chain says it
  *  came from — the op `parity-unarchive` was owed on BOTH faces at once. */
-test("unarchive_node takes back what archive_node put away", async () => {
+test("untrash_node takes back what trash_node put away", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
-    const away = await call(client, "archive_node", { id: "order" })
+    const away = await call(client, "trash_node", { id: "order" })
     expect(away.isError).toBe(false)
     expect(read("house.olai")).not.toContain(`"id":"order"`)
-    expect(read("Archive.olai")).toContain(`"id":"order"`)
+    expect(read("_olai/Trash.olai")).toContain(`"id":"order"`)
 
-    const back = await call(client, "unarchive_node", { id: "order" })
+    const back = await call(client, "untrash_node", { id: "order" })
     expect(back.isError).toBe(false)
     expect(back.structured).toMatchObject({
-      summary: "unarchive: order the cabinets",
+      summary: "untrash: order the cabinets",
       file: "house.olai",
     })
     // Back under its own parent — the chain of ancestor titles, followed — and
     // the emptied scaffold tidied away behind it.
     expect(read("house.olai")).toContain(`"id":"order","parent":"kitchen"`)
-    expect(read("Archive.olai")).toBe("")
+    expect(read("_olai/Trash.olai")).toBe("")
   })
 })
 
@@ -1356,7 +1356,7 @@ test("unarchive_node takes back what archive_node put away", async () => {
  *
  * Both gates skip archived writes, deliberately: work put away is over. So the
  * contradiction can be MINTED in there (step 2 below is refused nowhere), and
- * `unarchive_node` is the write that would otherwise carry it into the live
+ * `untrash_node` is the write that would otherwise carry it into the live
  * set — where a `done` over a `todo` is exactly the state that vanishes from
  * the page. It comes back out repaired, and the answer says which mark it took
  * off.
@@ -1366,11 +1366,11 @@ test("a done mark minted in the archive is re-opened when the subtree comes back
     // `install` is `doing`, so `kitchen` cannot be marked done in the live set
     // — that is door one, and the refusal is asserted above. Put it away and
     // the same write goes through.
-    const away = await call(client, "archive_node", { id: "install" })
+    const away = await call(client, "trash_node", { id: "install" })
     expect(away.isError).toBe(false)
     const shut = await call(client, "set_done", { id: "install" })
     expect(shut.isError).toBe(false)
-    expect(read("Archive.olai")).toContain(`"id":"install"`)
+    expect(read("_olai/Trash.olai")).toContain(`"id":"install"`)
 
     // Now the branch is done in the trash with nothing unfinished under it, so
     // give it something: a task filed under it, still inside the archive.
@@ -1383,7 +1383,7 @@ test("a done mark minted in the archive is re-opened when the subtree comes back
     // Nothing was re-opened in there: the archive is exempt at both doors.
     expect(String(filed.structured["nudge"] ?? "")).not.toContain("marked done")
 
-    const back = await call(client, "unarchive_node", { id: "install" })
+    const back = await call(client, "untrash_node", { id: "install" })
     expect(back.isError).toBe(false)
     expect(String(back.structured["nudge"]))
       .toContain("`install them` was marked done over work that is not finished")
@@ -1413,32 +1413,32 @@ test("empty_trash deletes the pile, and refuses while something still points int
     // which is exactly what makes the pile undeletable.
     const linked = await call(client, "set_see", { id: "demo", add: ["order"] })
     expect(linked.isError).toBe(false)
-    const away = await call(client, "archive_node", { id: "order" })
+    const away = await call(client, "trash_node", { id: "order" })
     expect(away.isError).toBe(false)
-    const filled = read("Archive.olai")
+    const filled = read("_olai/Trash.olai")
     expect(filled).toContain(`"id":"order"`)
 
-    const held = await call(client, "empty_trash", { files: ["Archive.olai"] })
+    const held = await call(client, "empty_trash", { files: ["_olai/Trash.olai"] })
     expect(held.isError).toBe(true)
     expect(held.structured["kind"]).toBe("usage")
     expect(String(held.structured["reason"])).toContain("`demo`")
     expect(String(held.structured["reason"])).toContain("`see`")
     // Nothing was written: the gate plans before it renames.
-    expect(read("Archive.olai")).toBe(filled)
+    expect(read("_olai/Trash.olai")).toBe(filled)
     expect(refusals).toEqual(["empty: UsageFailure"])
 
     // Re-point the edge and the pile deletes — the way through the refusal
     // named, taken.
     const freed = await call(client, "set_see", { id: "demo", remove: ["order"] })
     expect(freed.isError).toBe(false)
-    const gone = await call(client, "empty_trash", { files: ["Archive.olai"] })
+    const gone = await call(client, "empty_trash", { files: ["_olai/Trash.olai"] })
     expect(gone.isError).toBe(false)
     expect(gone.structured).toMatchObject({
-      summary: "empty: Archive.olai (2 records)",
-      file: "Archive.olai",
+      summary: "empty: _olai/Trash.olai (3 records)",
+      file: "_olai/Trash.olai",
       did: "empty_trash",
     })
-    expect(read("Archive.olai")).toBe("")
+    expect(read("_olai/Trash.olai")).toBe("")
     // …and the live outline is untouched: the blast radius is one file.
     expect(read("house.olai")).toContain(`"id":"kitchen"`)
   })
@@ -1448,15 +1448,15 @@ test("empty_trash refuses a live outline, and an archive with nothing in it", as
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
     const live = await call(client, "empty_trash", { files: ["house.olai"] })
     expect(live.isError).toBe(true)
-    expect(String(live.structured["reason"])).toContain("is not an archive")
+    expect(String(live.structured["reason"])).toContain("is not the trash")
     expect(read("house.olai")).toBe(HOUSE)
 
     // The state a put-back leaves: the file stands, holding nothing. Emptying
     // it is refused rather than committed as a diff-less write.
-    await call(client, "archive_node", { id: "order" })
-    await call(client, "unarchive_node", { id: "order" })
-    expect(read("Archive.olai")).toBe("")
-    const twice = await call(client, "empty_trash", { files: ["Archive.olai"] })
+    await call(client, "trash_node", { id: "order" })
+    await call(client, "untrash_node", { id: "order" })
+    expect(read("_olai/Trash.olai")).toBe("")
+    const twice = await call(client, "empty_trash", { files: ["_olai/Trash.olai"] })
     expect(twice.isError).toBe(true)
     expect(String(twice.structured["reason"])).toContain("already empty")
   })
@@ -1482,40 +1482,35 @@ test("empty_trash over two piles judges the edge between them as a record that g
   }, async ({ client, read }) => {
     // `quote` names `order`, and both are about to be archived into DIFFERENT
     // archives — which is exactly the edge that used to read as a holder.
-    expect((await call(client, "archive_node", { id: "order" })).isError).toBe(false)
-    expect((await call(client, "archive_node", { id: "beds" })).isError).toBe(false)
-    expect(read("Archive.olai")).toContain(`"id":"order"`)
-    expect(read("garden/Archive.olai")).toContain(`"id":"quote"`)
+    expect((await call(client, "trash_node", { id: "order" })).isError).toBe(false)
+    expect((await call(client, "trash_node", { id: "beds" })).isError).toBe(false)
+    expect(read("_olai/Trash.olai")).toContain(`"id":"order"`)
+    expect(read("_olai/Trash.olai")).toContain(`"id":"quote"`)
 
     const gone = await call(client, "empty_trash", {
-      files: ["Archive.olai", "garden/Archive.olai"],
+      files: ["_olai/Trash.olai"],
     })
     expect(gone.isError).toBe(false)
     expect(String(gone.structured["summary"]))
-      .toBe("empty: Archive.olai, garden/Archive.olai (4 records)")
-    expect(read("Archive.olai")).toBe("")
-    expect(read("garden/Archive.olai")).toBe("")
+      .toBe("empty: _olai/Trash.olai (6 records)")
+    expect(read("_olai/Trash.olai")).toBe("")
   })
 })
 
 /** The same edge, with only ONE of the two piles named: what is inside the
  *  emptying is what the call names, so the record in the archive nobody named
  *  is outside it and holds — the rule read from the other side. */
-test("empty_trash still refuses for a namer in an archive the call left out", async () => {
+test("empty_trash still refuses for a namer in a leftover Archive.olai", async () => {
   await withTools({
     "house.olai": HOUSE,
-    "garden/plot.olai": [
-      `{"id":"beds","ord":"a0","title":"the beds"}`,
-      `{"id":"quote","parent":"beds","ord":"a0","title":"a quote","see":["order"]}`,
-      "",
-    ].join("\n"),
+    "Archive.olai": `{"id":"quote","ord":"a0","title":"a leftover quote","see":["order"]}`,
   }, async ({ client, read }) => {
-    await call(client, "archive_node", { id: "order" })
-    await call(client, "archive_node", { id: "beds" })
-    const held = await call(client, "empty_trash", { files: ["Archive.olai"] })
+    await call(client, "trash_node", { id: "order" })
+    const held = await call(client, "empty_trash", { files: ["_olai/Trash.olai"] })
     expect(held.isError).toBe(true)
     expect(String(held.structured["reason"])).toContain("`quote`")
-    expect(read("Archive.olai")).toContain(`"id":"order"`)
+    expect(read("_olai/Trash.olai")).toContain(`"id":"order"`)
+    expect(read("Archive.olai")).toContain(`"id":"quote"`)
   })
 })
 
@@ -1524,17 +1519,17 @@ test("empty_trash still refuses for a namer in an archive the call left out", as
  *  snapshot silently widens this write. */
 test("empty_trash with a stale `was` deletes nothing and names both counts", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
-    await call(client, "archive_node", { id: "order" })
-    const filled = read("Archive.olai")
+    await call(client, "trash_node", { id: "order" })
+    const filled = read("_olai/Trash.olai")
 
-    const stale = await call(client, "empty_trash", { files: ["Archive.olai"], was: 1 })
+    const stale = await call(client, "empty_trash", { files: ["_olai/Trash.olai"], was: 1 })
     expect(stale.isError).toBe(true)
     expect(String(stale.structured["reason"])).toContain("held 1 record when this was asked for")
-    expect(read("Archive.olai")).toBe(filled)
+    expect(read("_olai/Trash.olai")).toBe(filled)
 
-    const right = await call(client, "empty_trash", { files: ["Archive.olai"], was: 2 })
+    const right = await call(client, "empty_trash", { files: ["_olai/Trash.olai"], was: 3 })
     expect(right.isError).toBe(false)
-    expect(read("Archive.olai")).toBe("")
+    expect(read("_olai/Trash.olai")).toBe("")
   })
 })
 
@@ -1728,7 +1723,6 @@ test("`apply` and `update` advertise finite schemas with no $ref", async () => {
     expect(verbs).toEqual([
       "add",
       "after",
-      "archive",
       "date",
       "desc",
       "doing",
@@ -1744,8 +1738,9 @@ test("`apply` and `update` advertise finite schemas with no $ref", async () => {
       "split",
       "title",
       "todo",
-      "unarchive",
+      "trash",
       "unmirror",
+      "untrash",
       "update",
     ])
     // The four that are deliberately not batchable: the three writes whose

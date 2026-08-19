@@ -125,7 +125,7 @@ export const withFolds = (
  *
  * And GONE MEANS GONE FROM THE SET, not from the file the fold is filed under.
  * That is the whole point of keying by id: `archive` is a MOVE — the record
- * lands in `Archive.olai` with its id kept while the file it left goes on
+ * lands in `_olai/Trash.olai` with its id kept while the file it left goes on
  * being served with the rest of its nodes — and reading "house.olai does not
  * declare it any more" as a deletion would forget a fold precisely when the
  * design promises to keep it (a place key could not survive that move at all,

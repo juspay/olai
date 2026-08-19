@@ -80,7 +80,7 @@ Feature: Splitting and merging a row
     # A TRASH rather than a shredder: the record is in the archive with its id,
     # which is what makes the mark it carried recoverable and the whole thing
     # undoable.
-    And "Archive.olai" holds the node "knobs"
+    And "_olai/Trash.olai" holds the node "knobs"
     # The caret lands on the SEAM — the length of what the row above said —
     # which is where the two halves met.
     And the row being typed holds "pick the hingespick the knobs"

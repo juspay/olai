@@ -44,7 +44,7 @@ const CORPUS = {
     `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed #home","doing":true,"after":["hinges"]}`,
     `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20","created":"2025-12-31T23:59:00-05:00","changed":"2026-08-10T07:00:00-04:00","custom":{"agent":"claude-opus"}}`,
   ].join("\n"),
-  "Archive.olai": [
+  "_olai/Trash.olai": [
     `{"id":"gone","ord":"a0","title":"the old kitchen table #home","done":"2026-06-01","created":"2026-06-01T10:00:00-04:00"}`,
   ].join("\n"),
 }
@@ -481,7 +481,7 @@ test("a phrase is folded and negated like any other word", () => {
     kind: "asking",
     groups: [[{ kind: "term", word: "-force", negated: false }]],
     namedProps: [],
-    speaksOfArchive: false,
+    speaksOfTrash: false,
   })
 })
 
@@ -707,7 +707,7 @@ test("both De Morgan readings are sayable: neither, and not both", () => {
 /** The archive is opened by the query NAMING it, wherever it is named — an
  *  alternative is part of the query exactly as a token has always been. */
 test("an alternative that names the archive opens it", () => {
-  expect(selects("is:archived OR nothing-is-called-this")).toEqual(["gone"])
+  expect(selects("is:trashed OR nothing-is-called-this")).toEqual(["gone"])
 })
 
 // ── blockedness ────────────────────────────────────────────────────────
@@ -881,7 +881,7 @@ test("a known operator with an unknown value is refused, and teaches", () => {
   const refused = refusalsOf("is:open")
   expect(refused?.map((one) => one.token)).toEqual(["is:open"])
   expect(refused?.[0]?.reason).toContain(
-    "done, doing, todo, marked, blocked, mirrored, archived",
+    "done, doing, todo, marked, blocked, mirrored, trashed",
   )
   // Refused means it selects NOTHING — never "the half of the query I could
   // read", which is the silent error that would look like an answer. The union
@@ -889,6 +889,14 @@ test("a known operator with an unknown value is refused, and teaches", () => {
   // on.
   expect(refusalsOf("is:open kitchen")).toHaveLength(1)
   expect(selects("is:open kitchen")).toEqual([])
+})
+
+test("`is:archived` is unknown — the operator is `is:trashed`", () => {
+  const refused = refusalsOf("is:archived")
+  expect(refused?.map((one) => one.token)).toEqual(["is:archived"])
+  expect(refused?.[0]?.reason).toContain("trashed")
+  expect(refused?.[0]?.reason).not.toContain("archived")
+  expect(selects("is:archived")).toEqual([])
 })
 
 test("each operator says what it takes", () => {
@@ -1014,7 +1022,7 @@ test("`is:mirrored` composes and negates", () => {
  *  parser reads. */
 test("`is:` teaches the mirrored value with the others", () => {
   expect(refusalsOf("is:mirror")?.[0]?.reason).toContain(
-    "done, doing, todo, marked, blocked, mirrored, archived",
+    "done, doing, todo, marked, blocked, mirrored, trashed",
   )
 })
 
@@ -1143,11 +1151,11 @@ test("a stamp refuses what a date refuses, in its own name", () => {
 })
 
 /** A stamp clause reads a RECORD, so it answers about a node wherever it was
- *  filed — which is what makes `is:archived created:2026-06` a question with
+ *  filed — which is what makes `is:trashed created:2026-06` a question with
  *  an answer, exactly as it is for `date:`. */
 test("a stamp reaches what was put away, when the query asks for it", () => {
   expect(selects("created:2026-06")).toEqual([])
-  expect(selects("is:archived created:2026-06")).toEqual(["gone"])
+  expect(selects("is:trashed created:2026-06")).toEqual(["gone"])
 })
 
 /** ...and they compose and negate like every other clause. */
@@ -1163,10 +1171,10 @@ test("what was put away stays put away until it is asked for", () => {
   // `gone` carries `#home` and the word `kitchen`, and answers neither.
   expect(selects("#home")).not.toContain("gone")
   expect(selects("kitchen")).toEqual(["kitchen"])
-  expect(selects("is:archived")).toEqual(["gone"])
-  expect(selects("#home is:archived")).toEqual(["gone"])
+  expect(selects("is:trashed")).toEqual(["gone"])
+  expect(selects("#home is:trashed")).toEqual(["gone"])
   // Saying it out loud is the same default said out loud.
-  expect(selects("#home -is:archived")).toEqual(["herbs", "kitchen", "hinges"])
+  expect(selects("#home -is:trashed")).toEqual(["herbs", "kitchen", "hinges"])
 })
 
 /**
@@ -1179,19 +1187,19 @@ test("what was put away stays put away until it is asked for", () => {
  */
 test("a scope that is already the archive is answered rather than overruled", () => {
   const home = parseFilter("#home", TODAY)
-  expect(matching(derived, home, { archived: true }).map(({ at }) => at.node.id))
+  expect(matching(derived, home, { trashed: true }).map(({ at }) => at.node.id))
     .toEqual(["gone", "herbs", "kitchen", "hinges"])
   // The operator goes on meaning what it means there — and its negation still
   // takes what was put away back out.
-  const archived = parseFilter("#home is:archived", TODAY)
-  expect(matching(derived, archived, { archived: true }).map(({ at }) => at.node.id))
+  const archived = parseFilter("#home is:trashed", TODAY)
+  expect(matching(derived, archived, { trashed: true }).map(({ at }) => at.node.id))
     .toEqual(["gone"])
-  const live = parseFilter("#home -is:archived", TODAY)
-  expect(matching(derived, live, { archived: true }).map(({ at }) => at.node.id))
+  const live = parseFilter("#home -is:trashed", TODAY)
+  expect(matching(derived, live, { trashed: true }).map(({ at }) => at.node.id))
     .toEqual(["herbs", "kitchen", "hinges"])
   // And it composes with the other two scopes rather than replacing them.
   expect(
-    matching(derived, home, { archived: true, file: "Archive.olai" })
+    matching(derived, home, { trashed: true, file: "_olai/Trash.olai" })
       .map(({ at }) => at.node.id),
   ).toEqual(["gone"])
 })
@@ -1382,20 +1390,20 @@ test("an outline with nothing left is not a heading over no rows", () => {
 // The two halves of the 2026-08-17 ruling, side by side: `gone` was finished on
 // the 1st of June and then put away, so the day it happened on draws nothing —
 // and the operator that names the archive still answers with it, from any door.
-test("a day draws none of the archive, and `is:archived` still reaches it", () => {
+test("a day draws none of the archive, and `is:trashed` still reaches it", () => {
   expect(onDay("2026-06-01")).toEqual([])
-  expect(selects("is:archived")).toEqual(["gone"])
+  expect(selects("is:trashed")).toEqual(["gone"])
 })
 
 // ...and the CONJUNCTION, which is the sentence docs/search.md actually makes
 // and the one neither half above can hold on its own. `date:` reads a record's
 // own dates (`datesOf`) where a day page reads the walk that drops the archive,
-// so the two clauses compose: `is:archived` opens the reading and `date:` finds
+// so the two clauses compose: `is:trashed` opens the reading and `date:` finds
 // the day inside it. Pinned because the obvious "tidy-up" — gating `datesOf` on
 // the file the record sits in — kills this query while every test above stays
 // green.
-test("`is:archived` and `date:` compose over a day the page itself draws empty", () => {
-  expect(selects("is:archived date:2026-06-01")).toEqual(["gone"])
+test("`is:trashed` and `date:` compose over a day the page itself draws empty", () => {
+  expect(selects("is:trashed date:2026-06-01")).toEqual(["gone"])
   // Without the operator the same day selects nothing: the archive is out of
   // the reading, not out of the record.
   expect(selects("date:2026-06-01")).toEqual([])
@@ -1448,7 +1456,7 @@ test("what was put away is out of a shortlist too, unless the query says so", ()
   // reach it — and the operator, which SELECTS what was put away rather than
   // widening the reading, answers with it alone.
   expect(bestOf("kitchen", 8)).toEqual(["kitchen"])
-  expect(bestOf("kitchen is:archived", 8)).toEqual(["gone"])
+  expect(bestOf("kitchen is:trashed", 8)).toEqual(["gone"])
 })
 
 test("a query the grammar refuses, and an empty one, have no shortlist", () => {

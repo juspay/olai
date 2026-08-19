@@ -26,7 +26,7 @@
  * at every door that asks for it (#226 took the default presence, never the way
  * to ask), and "why did we put this away?" is a question to be able to ask. So
  * it goes, with the `file` it sits in — and the LINE says which that is
- * (`@olai/chat`'s `lineFor`, which asks the format the same `isArchived` every
+ * (`@olai/chat`'s `lineFor`, which asks the format the same `isTrashed` every
  * other reader of an archive asks), because an agent handed a row that reads
  * like live work will treat it as live work. Nothing about it is decided here:
  * this answers WHICH node, and what the sentence says about one is the sentence

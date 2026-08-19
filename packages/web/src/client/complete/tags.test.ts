@@ -77,7 +77,7 @@ test("a name written with both sigils is two tags, each counted its own way", ()
 test("what is in the trash is not counted, and a tag only it used is not offered", () => {
   const withArchive = derive(nodesOfFiles({
     "house.olai": `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
-    "Archive.olai": [
+    "_olai/Trash.olai": [
       `{"id":"old","ord":"a0","title":"the old kitchen #home"}`,
       `{"id":"gone","ord":"a1","title":"the old boiler #boiler"}`,
     ].join("\n"),

@@ -118,9 +118,9 @@ export type Ask = typeof Ask.Type
  * meant to — what was put away is reachable at every door that asks for it
  * (2026-08-17's ruling took the default presence, never the way to ask). That
  * it WAS put away is a thing the agent has to be told, and it is told by the
- * line rather than by a field here: `file` already says `Archive.olai`, and
+ * line rather than by a field here: `file` already says `_olai/Trash.olai`, and
  * `@olai/chat`'s `lineFor` asks the format the same question every other reader
- * of an archive asks (`isArchived`). A boolean beside the file it is computed
+ * of an archive asks (`isTrashed`). A boolean beside the file it is computed
  * from would be one more pair for a producer to get wrong, and a convention
  * frozen into a wire schema — where #226 moved this very area two commits ago.
  *
