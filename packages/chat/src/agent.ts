@@ -377,28 +377,26 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }
 
     /**
-     * WHO is asking — the `Agent` call the question came out of, or
-     * `undefined` for one the main agent asked itself.
+     * Put a form in front of a person and wait for it — the registry holds the
+     * promise, and this is the one place the row it draws is announced.
      *
-     * The form is the argument rather than the call id it carries, so the
-     * question a lane is drawn for is the same question that was put in front
-     * of somebody: two arguments, a form and an id, would be a pair nothing
-     * enforced and each half honest alone.
+     * WHO IS ASKING is worked out here rather than handed in, and the third
+     * argument is the REQUEST'S `_meta` for that reason. An asker is only ever
+     * true of one form, so a caller passing both would be pairing two things
+     * nothing enforces — each honest alone, and wrong together the first time
+     * two questions are in flight. What a caller genuinely holds that this
+     * cannot reach is the envelope the question arrived in, and the two kinds
+     * of question keep it in different places: a permission request stamps the
+     * attribution on the tool call it is about, and an elicitation carries no
+     * stamp and names the call instead ({@link ./calls.ts}).
+     *
+     * A form drawn in nobody's name is drawn as the main agent's, which is the
+     * one thing a subagent's question must not say.
      */
-    const askerOf = (
-      form: Form,
-      meta: { readonly [key: string]: unknown } | null | undefined,
-    ): string | undefined => calls.about(form.toolCall, meta).parent
-
-    /** Put a form in front of a person and wait for it — the registry holds the
-     *  promise, and this is the one place the row it draws is announced. The
-     *  ASKER travels with it: a form drawn in nobody's name is drawn as the
-     *  main agent's, which is the one thing a subagent's question must not
-     *  say. */
     const put = (
       form: Form,
       signal: AbortSignal,
-      parent: string | undefined,
+      meta: { readonly [key: string]: unknown } | null | undefined,
     ): Promise<Questions.Settled> =>
       questions.ask(form, signal, (id) => {
         emit({
@@ -406,7 +404,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           id,
           message: form.message,
           fields: form.fields,
-          parent,
+          parent: calls.about(form.toolCall, meta).parent,
         })
       })
 
@@ -426,7 +424,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         undrawable(form.reason)
         return { action: "decline" }
       }
-      const settled = await put(form, signal, askerOf(form, params._meta))
+      const settled = await put(form, signal, params._meta)
       // A dismissal is a DECLINE and a withdrawal is a CANCEL, and the adapter
       // reads them differently: decline tells the model the person skipped and
       // lets the turn go on, cancel aborts the tool use. Saying "cancel" for a
@@ -459,7 +457,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         return { outcome: { outcome: "selected", optionId: allowed } }
       }
       const form = permissionFormOf(params)
-      const settled = await put(form, signal, askerOf(form, params.toolCall._meta))
+      const settled = await put(form, signal, params.toolCall._meta)
       const picked = settled.content[PERMISSION_FIELD]
       // Dismissed, withdrawn, or — impossible, since the field is required, but
       // said in one place rather than assumed in two — nothing chosen. All

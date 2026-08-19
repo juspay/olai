@@ -29,7 +29,8 @@
  * row IS rather than about where it sits. A form blocks the turn and is
  * pointed at from outside the list, so a reader meets it without having read
  * the row above; and a permission form answered in the wrong agent's name is
- * the one row here where being misread changes a decision. See {@link silent}.
+ * the one row here where being misread changes a decision. See
+ * {@link railSaysIt}.
  *
  * WHAT CHANGES BEHIND THIS, and the reason it is a module rather than an
  * expression in the row that draws it: **how much a lane has to say to be
@@ -103,36 +104,43 @@ export const laneOf = (
   if (row === undefined) return null
   const parent = row.parent
   if (parent === undefined) return null
-  // Two ways for the lane to be established already, and they are the two
-  // shapes a reader actually sees: the `Agent` frame itself is the row above
-  // (the ordinary case — a subagent's first call lands directly under the call
-  // that spawned it), or the row above is another call by the same agent.
-  const established = above?.id === parent || above?.parent === parent
   // An `Agent` frame the panel was never sent still gets a lane and still gets
   // a name — the bare fact, because "a subagent did this" is the half of the
   // sentence worth saying even when the other half is missing.
-  return { parent, label: silent(row, established) ? null : nameOf(parent) ?? SOMEBODY }
+  return { parent, label: railSaysIt(row, above) ? null : nameOf(parent) ?? SOMEBODY }
 }
 
 /**
- * Whether the rail can carry this row on its own.
+ * Whether the rail alone already says whose row this is.
  *
- * "The lane is already established" is the rule for WORK, and it is enough for
- * work because a reader who wants to know whose grep this was reads upwards
- * and finds out. A QUESTION is not work: it is a control, it blocks the turn,
- * and the panel sends people to it from somewhere else entirely — the
- * composer, the header and the app's agent toggle all say a question is
- * waiting ({@link ../../../../chat/README.md}), so a reader arrives at the
- * form rather than scrolling down to it and has no row above to have read.
+ * OVER THE TWO ROWS, like {@link laneOf} itself and for its reason: "the lane
+ * is established" is a fact about this pair and about no single value in it,
+ * so taking it as a computed boolean beside the row would be a pair nothing
+ * enforces — each argument honest alone, and the two able to describe
+ * different places in the list.
+ *
+ * Two ways for the lane to be established already, and they are the two shapes
+ * a reader actually sees: the `Agent` frame itself is the row above (the
+ * ordinary case — a subagent's first call lands directly under the call that
+ * spawned it), or the row above is another call by the same agent.
+ *
+ * That is the rule for WORK, and it is enough for work because a reader who
+ * wants to know whose grep this was reads upwards and finds out. A QUESTION is
+ * not work: it is a control, it blocks the turn, and the panel sends people to
+ * it from somewhere else entirely — the composer, the header and the app's
+ * agent toggle all say a question is waiting
+ * ({@link ../../../../chat/README.md}) — so a reader ARRIVES at a form rather
+ * than scrolling down to it, and has no row above to have read.
  *
  * So an ask names its lane wherever it is drawn. It costs one line under a
- * form that is already several, and what it buys is that the question a
- * subagent asked cannot be answered in the belief that the main agent asked
- * it. The stretch itself is unaffected — the row below is still one of the
- * same agent's, so the lane does not open again under the form.
+ * form that is already several, and what it buys is that a question a subagent
+ * asked cannot be answered in the belief that the main agent asked it. The
+ * stretch itself is unaffected — the row below the form is still one of the
+ * same agent's, so the lane does not open again underneath it.
  */
-const silent = (row: ChatEntry, established: boolean): boolean =>
-  established && row.kind !== "ask"
+const railSaysIt = (row: ChatEntry, above: ChatEntry | undefined): boolean =>
+  row.kind !== "ask" &&
+  (above?.id === row.parent || above?.parent === row.parent)
 
 /** What a lane is called when the frame that spawned it is not on screen. */
 const SOMEBODY = "a subagent"

@@ -1433,10 +1433,15 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       // rule is about.
       inside(after, "grep for worktops", agent)
       for (const call of [before, after, agent]) completed(call)
+      // Reported in each path's OWN words — the same sentences `ask` and
+      // `plan` end on — so a scenario reads what came back rather than a shape
+      // invented for these two turns.
       const outcome = (answer as { outcome?: { optionId?: string } })?.outcome
-      say(elicits ? `you answered: ${JSON.stringify(answer)}` : `permission: ${
-        outcome?.optionId ?? "nothing"
-      }`)
+      say(
+        elicits
+          ? `you answered: ${JSON.stringify(answer)}`
+          : `permission: ${outcome?.optionId ?? "nothing"}`,
+      )
       respond(id, { stopReason: "end_turn" })
       return
     }
