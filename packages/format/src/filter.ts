@@ -186,10 +186,12 @@ type IsValue = (typeof IS_VALUES)[number]
  *
  *  `date` is the one row that is not a plain field test — see {@link holds}.
  *
- *  `repeat` is a plain one, and what it asks after is the RULE rather than the
- *  day: a repeating node carries a `date` to repeat FROM (./parse.ts refuses
- *  one without), so what `has:repeat` selects sits inside what `has:date`
- *  does, and `has:date -has:repeat` is everything dated once. */
+ *  `repeat` could have looked like a second exception and is not. A rule needs
+ *  a `date` to repeat FROM (./parse.ts refuses one without), so this row and
+ *  that one answer about overlapping nodes from opposite ends — the rule is a
+ *  field of the RECORD, the days are the JOURNAL's — and the field test is the
+ *  honest reading of the rule. What the overlap means to somebody writing a
+ *  query is docs/search.md's to say. */
 const HAS_FIELDS = ["desc", "date", "see", "after", "doc", "repeat"] as const
 type HasField = (typeof HAS_FIELDS)[number]
 

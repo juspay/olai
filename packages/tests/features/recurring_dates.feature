@@ -177,12 +177,9 @@ Feature: A dated node that comes back
   # ── finding one ────────────────────────────────────────────────────
 
   Scenario: `has:repeat` narrows the page to the rows that come back
-    # The rule is a field the record carries, so it is a facet of the one
-    # grammar rather than a second reading beside it — spelled, parsed and
-    # evaluated exactly where `has:desc` and `has:doc` are, and costing what
-    # they cost (`format/filter.test.ts` holds what it selects). This page is
-    # the mix it needs: one row that comes back, and nine that are dated once
-    # or not at all.
+    # WHAT IT SELECTS is the grammar's (`format/filter.test.ts`); what is
+    # driven here is the page, and this one is the mix the facet needs — one
+    # row that comes back, nine that are dated once or not at all.
     Given I open the node menu of "order"
     And I choose "Set repeat…" from the node menu
     And I pick the repeat rule "every week on monday"
