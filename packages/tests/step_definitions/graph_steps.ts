@@ -28,7 +28,11 @@ import { Given, Then, When } from "@cucumber/cucumber";
 import {
   attr,
   expectDrawn,
+  GRAPH_CANVAS,
   GRAPH_CAPTION,
+  GRAPH_CLOSER,
+  GRAPH_FIT,
+  GRAPH_FURTHER,
   GRAPH_EDGE,
   GRAPH_EMPTY,
   GRAPH_FILE,
@@ -294,3 +298,66 @@ const edges = async (world: OlaiWorld): Promise<ReadonlyArray<string>> =>
       }`
     )
   );
+
+// ── the camera ─────────────────────────────────────────────────────────
+
+/**
+ * WHAT THE READER IS LOOKING FROM, read off the drawing rather than off a
+ * transform: `data-scale` is the one number the page publishes about the
+ * camera, and `1.00` is fitted — the layout already puts the whole graph in the
+ * frame, so the camera that shows everything is the one doing nothing.
+ */
+Then("the graph is fitted", async function (this: OlaiWorld) {
+  await this.expectAttribute(GRAPH_CANVAS, "data-scale", "1.00", "the graph");
+});
+
+Then("the graph is closer than fitted", async function (this: OlaiWorld) {
+  await this.waitUntil(async () => {
+    const said = await this.page.locator(GRAPH_CANVAS).first().getAttribute("data-scale");
+    return said !== null && Number(said) > 1;
+  }, "the graph to be closer than fitted");
+});
+
+When("I move the graph camera closer", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(GRAPH_CLOSER).first());
+  await this.waitForFrame();
+});
+
+When("I move the graph camera further away", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(GRAPH_FURTHER).first());
+  await this.waitForFrame();
+});
+
+When("I fit the graph", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(GRAPH_FIT).first());
+  await this.waitForFrame();
+});
+
+// ── and what it can hold ───────────────────────────────────────────────
+
+/** A DOT IS ALWAYS DRAWN and its label is not: at a scale where every title
+ *  would land on its neighbour's, only the ones that fit are written. */
+Then(
+  "the graph names fewer dots than it draws",
+  async function (this: OlaiWorld) {
+    await this.waitUntil(async () => {
+      const drawn = await this.page.locator(GRAPH_NODE).count();
+      const named = await this.page
+        .locator(`${GRAPH_NODE}${attr("data-labelled", "true")}`)
+        .count();
+      return drawn > 0 && named > 0 && named < drawn;
+    }, "the graph to name fewer dots than it draws");
+  },
+);
+
+Then(
+  "the graph names the dot {string}",
+  async function (this: OlaiWorld, id: string) {
+    await this.expectAttribute(
+      `${GRAPH_NODE}${attr("data-node-id", id)}`,
+      "data-labelled",
+      "true",
+      `the dot for \`${id}\``,
+    );
+  },
+);

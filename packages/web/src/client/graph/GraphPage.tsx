@@ -25,6 +25,15 @@
  * address (`../routes.ts`'s `?hops=`), so what a reader is looking at is a link
  * they can send and Back is the browser's own history.
  *
+ * The CAMERA is beside it and is NOT in the address, which is the same division
+ * the fold and the calendar's month already keep: how far a reader has zoomed
+ * into a picture is a fact about their looking rather than about the page, and
+ * a link that carried it would be a link that opened somewhere nobody chose. It
+ * is held here — one value, read by the drawing and written by the gestures and
+ * by `./Controls.tsx` alike — and it goes back to fitted whenever the picture
+ * underneath it changes, because a camera aimed at the last graph is aimed at
+ * nothing.
+ *
  * The CAPTION under the drawing is the ancestry of whatever the reader is
  * pointing at, and it is always drawn — an empty line that fills rather than a
  * line that appears, so nothing on the page moves when a pointer arrives. It is
@@ -49,7 +58,7 @@
  */
 
 import { isArchived, type Graph, type Hops, HOPS } from "@olai/format"
-import { createMemo, createSignal, For, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
 import { useNarrowed } from "../filter/narrowed.tsx"
@@ -60,6 +69,8 @@ import { Segmented } from "../Segmented.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { Canvas, sentenceFor } from "./Canvas.tsx"
+import { Controls } from "./Controls.tsx"
+import { createLooking } from "./looking.ts"
 import { placed, sameShape } from "./layout.ts"
 import { EDGE_LOOKS } from "./look.ts"
 
@@ -111,6 +122,7 @@ function Shape(props: GraphPageProps) {
   const derived = useDerived()
   const narrowed = useNarrowed()
   const [pointed, setPointed] = createSignal<string | undefined>()
+  const looking = createLooking()
 
   /** The centre, when there is one — the node this page is about, with the
    *  horizon that is only meaningful beside it. */
@@ -154,6 +166,15 @@ function Shape(props: GraphPageProps) {
   const held = createMemo(() => props.page, undefined, { equals: sameShape })
   const placement = createMemo(() => placed(held()))
 
+  // A NEW PICTURE IS SEEN FROM THE FRONT. Navigating to another neighbourhood,
+  // or widening the horizon, replaces what is under the camera — and a camera
+  // left where the last graph was would open the next one on empty space. The
+  // reset goes through the BEHAVIOUR rather than through the signal, so d3's
+  // own record of the transform (which is on the element) agrees with what is
+  // drawn; a signal set on its own would leave the next wheel tick resuming
+  // from where the reader had been.
+  createEffect(on(placement, looking.fit, { defer: true }))
+
   /** The sentence under the drawing: what the dot under the pointer says, or —
    *  with nothing pointed at — what the page's own node does. The SAME sentence
    *  that dot carries on its `aria-label`, out of the one place it is assembled
@@ -186,10 +207,19 @@ function Shape(props: GraphPageProps) {
             )}
           </Show>
         </h1>
-        {/* Only where there is a centre to be far from. */}
-        <Show when={centre()}>
-          {(node) => <Horizon hops={node().hops} onPick={props.onHorizon} />}
-        </Show>
+        <div class="flex flex-wrap items-center gap-3">
+          {/* Only where there is a centre to be far from. */}
+          <Show when={centre()}>
+            {(node) => <Horizon hops={node().hops} onPick={props.onHorizon} />}
+          </Show>
+          <Controls
+            looking={looking}
+            toward={() => {
+              const at = focus()
+              return at === undefined ? undefined : placement().at.get(at)
+            }}
+          />
+        </div>
       </header>
 
       <Show
@@ -207,6 +237,7 @@ function Shape(props: GraphPageProps) {
           hovered={hovered()?.at.node.id}
           onHover={setPointed}
           focus={focus()}
+          looking={looking}
         />
         {/* Reserved rather than conditional: a line that appears would push the
             drawing up the moment a pointer reached a dot. */}

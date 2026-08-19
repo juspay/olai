@@ -599,8 +599,14 @@ export const TRASH_LINK = selector(TESTID.trashLink);
 /** The page. `data-focus` is the node it is centred on — absent for the
  *  corpus-wide reading — and `data-hops` is how far out it reaches. */
 export const GRAPH_PAGE = selector(TESTID.graphPage);
+/** The drawing itself — the box the dots and the arrows are in, and the one
+ *  the camera's gestures are bound to. `data-scale` is how far the reader has
+ *  zoomed, and `1.00` is fitted. */
+export const GRAPH_CANVAS = selector(TESTID.graphCanvas);
 /** One dot and its label, which is a link to the node. `data-node-id` is
- *  which, `data-hops` how far from the centre, `data-focus` marks the centre. */
+ *  which, `data-hops` how far from the centre, `data-focus` marks the centre,
+ *  and `data-labelled` says whether its words fit from where the reader is
+ *  looking — a dot is always drawn, its label is not. */
 export const GRAPH_NODE = selector(TESTID.graphNode);
 /** One arrow. `data-from` / `data-to` are its ends and `data-ways` is HOW that
  *  record refers — the format's own list joined with `+`, so a scenario tells a
@@ -620,6 +626,11 @@ export const GRAPH_EMPTY = selector(TESTID.graphEmpty);
 export const GRAPH_LINK = selector(TESTID.graphLink);
 /** ...and the way to ONE node's, on that node's own page. */
 export const NODE_GRAPH_LINK = selector(TESTID.nodeGraphLink);
+/** The camera's three controls: closer, further away, and back to the whole
+ *  graph — which is a RESET, because the layout already fits the frame. */
+export const GRAPH_CLOSER = selector(TESTID.graphCloser);
+export const GRAPH_FURTHER = selector(TESTID.graphFurther);
+export const GRAPH_FIT = selector(TESTID.graphFit);
 /** THE day's note, above those groups: a document named for the date itself.
  *  `data-file` is which. */
 export const DAY_NOTE = selector(TESTID.dayNote);

@@ -658,11 +658,14 @@ export const TESTID = {
   /** The reference graph, as a page. `data-focus` is the node it is centred on
    *  and is absent for the corpus-wide reading; `data-hops` is how far out. */
   graphPage: "graph-page",
-  /** The drawing itself — the box the dots and the arrows are in. */
+  /** The drawing itself — the box the dots and the arrows are in, and the one
+   *  the camera's gestures are bound to. `data-scale` is how far the reader has
+   *  zoomed, to two places. */
   graphCanvas: "graph-canvas",
   /** One dot and its label: a link to the node. `data-node-id` is which,
-   *  `data-hops` how far from the centre it is, and `data-focus` marks the one
-   *  the page is about. */
+   *  `data-hops` how far from the centre it is, `data-focus` marks the one the
+   *  page is about, and `data-labelled` says whether its words fit from where
+   *  the reader is looking — a dot is always drawn, its label is not. */
   graphNode: "graph-node",
   /** One arrow. `data-from` / `data-to` are the ends and `data-ways` is how
    *  that record refers — the format's own list, joined, so a scenario can
@@ -680,6 +683,12 @@ export const TESTID = {
    *  (`Segmented.tsx`), so `data-value` is which and `aria-pressed` says which
    *  is in force. */
   graphHorizon: "graph-horizon",
+  /** The camera's three controls. Gestures are enough for a trackpad and
+   *  nothing else, so closer / further / fit are buttons as well — and `Fit` is
+   *  a reset, because the layout already fits the frame. */
+  graphCloser: "graph-closer",
+  graphFurther: "graph-further",
+  graphFit: "graph-fit",
   /** The legend's `see` row, and the same for a mention. */
   graphLegendSee: "graph-legend-see",
   graphLegendMention: "graph-legend-mention",

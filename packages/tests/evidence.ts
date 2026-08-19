@@ -619,6 +619,17 @@ const GRAPH_EDGE = '[data-testid="graph-edge"]'
 const GRAPH_FILE = '[data-testid="graph-file"]'
 const GRAPH_CAPTION = '[data-testid="graph-caption"]'
 const GRAPH_HORIZON = '[data-testid="graph-horizon"]'
+const GRAPH_CLOSER = '[data-testid="graph-closer"]'
+const GRAPH_FIT = '[data-testid="graph-fit"]'
+const GRAPH_LABELLED = '[data-testid="graph-node"][data-labelled="true"]'
+
+/** What the camera is doing and how much of the picture it leaves readable —
+ *  the two numbers a shot of a crowded graph has to be checked against, since
+ *  "the labels declutter" is exactly the claim a screenshot alone cannot make. */
+const graphCamera = async (page: Page): Promise<string> =>
+  `scale ${await page.locator(GRAPH_CANVAS).first().getAttribute("data-scale")}, ` +
+  `${await page.locator(GRAPH_LABELLED).count()} of ` +
+  `${await page.locator(GRAPH_NODE).count()} dots named`
 
 /** What the drawing is OF, printed beside the shot — a picture cannot be read
  *  back as data, and these three lines are what a reviewer checks the pixels
@@ -1966,6 +1977,81 @@ const SECTIONS = {
 
     await wearTheme(page, "pitch")
     await shot(page, "click-through-dark")
+  },
+
+  /**
+   * THE CAMERA, over the reading that needs one: every reference in the
+   * directory at once.
+   *
+   * The corpus-wide graph is the secondary face and the one the scoped default
+   * exists to spare a reader — and it is exactly where a fitted picture has more
+   * labels than frame. So this section is the crowded case: a corpus WRITTEN for
+   * it (twenty-eight records, four outlines, two hubs and a chain), photographed
+   * fitted, then zoomed in, then panned, and fitted again.
+   *
+   * What the shots have to show is one claim in two halves: every DOT is drawn
+   * at every scale, and only the LABELS that fit are written — the centre and
+   * the hubs first, the rest as the reader comes closer. The numbers printed
+   * beside each shot are what makes that checkable rather than a matter of
+   * opinion about a picture.
+   */
+  "the-graph-has-a-camera": async (page) => {
+    pinnedBy(
+      "reference_graph.feature",
+      "A page opens fitted, and the controls move the camera",
+      "A dot still opens its node once the camera has moved",
+      "A crowded graph draws every dot and only the labels that fit",
+      "...and pointing at a dot names it, whichever labels fit",
+    )
+    // Two hubs, a chain between them, and a crowd around each — the shape a
+    // directory takes once anything has been cross-referenced for a while.
+    rewrite("plans.olai", [
+      `{"id":"plans","ord":"a0","title":"the plans"}`,
+      `{"id":"kitchen-plan","parent":"plans","ord":"a1","title":"the kitchen plan everything hangs off"}`,
+      `{"id":"garden-plan","parent":"plans","ord":"a2","title":"the garden plan everything hangs off","see":["kitchen-plan"]}`,
+      ...Array.from({ length: 9 }, (_, at) =>
+        `{"id":"kp${at}","parent":"plans","ord":"b${at}","title":"kitchen step ${
+          at + 1
+        }: measure, order and fit","see":["kitchen-plan"]}`),
+      ...Array.from({ length: 9 }, (_, at) =>
+        `{"id":"gp${at}","parent":"plans","ord":"c${at}","title":"garden step ${
+          at + 1
+        }: dig, plant and water","see":["garden-plan"]}`),
+    ])
+    rewrite("notes.olai", [
+      `{"id":"notes","ord":"a0","title":"loose notes"}`,
+      ...Array.from({ length: 7 }, (_, at) =>
+        `{"id":"n${at}","parent":"notes","ord":"b${at}","title":"a note that mentions @kitchen-plan in passing (${
+          at + 1
+        })"}`),
+    ])
+
+    await opened(page, "/graph", GRAPH_CANVAS)
+    console.log(`  fitted:      ${await graphCamera(page)}`)
+    await shot(page, "crowded-fitted-light")
+
+    await wearTheme(page, "pitch")
+    await shot(page, "crowded-fitted-dark")
+
+    // CLOSER, three steps: the same picture with more of it written out.
+    await wearTheme(page, "chalk")
+    for (let step = 0; step < 3; step += 1) {
+      await page.locator(GRAPH_CLOSER).first().click()
+    }
+    await page.waitForTimeout(DRAWN)
+    console.log(`  three closer: ${await graphCamera(page)}`)
+    await shot(page, "zoomed-in-light")
+
+    await wearTheme(page, "pitch")
+    await shot(page, "zoomed-in-dark")
+
+    // ...and back, which is a reset rather than a measurement: the layout
+    // already fits the frame, so the whole graph is the camera doing nothing.
+    await wearTheme(page, "chalk")
+    await page.locator(GRAPH_FIT).first().click()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  fitted again: ${await graphCamera(page)}`)
+    await shot(page, "fitted-again")
   },
 
   "what-refers-to-this-node": async (page) => {

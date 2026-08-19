@@ -65,10 +65,6 @@ import {
 export const WIDTH = 1000
 export const HEIGHT = 560
 
-/** How much of the frame is left around the shape, in the units above — room
- *  for the labels, which hang off their dots and are the widest thing here. */
-const PADDING = 90
-
 /**
  * How long the simulation is run for.
  *
@@ -128,6 +124,7 @@ export const placed = (graph: Graph): Placement => {
 
   const files = [...new Set(graph.nodes.map((node) => node.at.file))].sort(byPath)
   const anchors = anchorsFor(files)
+  const grouping = files.length === 1 ? 0 : GROUPING
 
   // The starting positions are DERIVED rather than left to d3's spiral: every
   // node begins near its file's anchor, offset around a small circle by its
@@ -169,13 +166,21 @@ export const placed = (graph: Graph): Placement => {
     // Wide enough to hold a dot AND the label under it apart from its
     // neighbour's: the collision radius is what stops the one thing a reader
     // cannot recover from, which is two titles written over each other.
-    .force("collide", forceCollide<Body>(COLLISION))
+    .force("collide", forceCollide<Body>(COLLISION).iterations(COLLISION_PASSES))
     // The file grouping, as a force rather than as a box: a node is PULLED
     // toward where its file sits and an edge can still drag it across the
     // page, which is what makes a cross-file reference visible as a long arrow
     // instead of being hidden inside a container.
-    .force("toFileX", forceX<Body>((body) => body.toward.x).strength(GROUPING))
-    .force("toFileY", forceY<Body>((body) => body.toward.y).strength(GROUPING))
+    //
+    // OFF WHERE THERE IS ONE FILE, and that is the difference between a picture
+    // and a ball. With one file every anchor is the same point, so what had
+    // been "keep these apart from those" became "pull everything to the middle"
+    // — an unasked-for centring that crushed the repulsion and the collision
+    // between it, and drew a corpus-wide reading of a single-outline directory
+    // as a dense knot with its labels on top of each other. Nothing needs to
+    // hold the shape together: the fit re-centres whatever the forces settle on.
+    .force("toFileX", forceX<Body>((body) => body.toward.x).strength(grouping))
+    .force("toFileY", forceY<Body>((body) => body.toward.y).strength(grouping))
     .stop()
     .tick(TICKS)
 
@@ -199,9 +204,27 @@ const anchorsFor = (
 }
 
 /**
- * The settled bodies, mapped into the frame — and the files' own centres taken
- * AFTER the mapping, so a legend point and the dots it names are in one
- * coordinate space by construction rather than by two conversions agreeing.
+ * The settled bodies, mapped into the frame — and then held APART in it.
+ *
+ * ## Two phases, because separation does not survive a fit
+ *
+ * The forces above settle at whatever scale their constants imply, and the fit
+ * is one uniform scale onto the frame — so a graph that spreads wide is shrunk,
+ * and the gaps the collision force worked to open shrink with it. On a
+ * corpus-wide reading of a real directory that is the whole picture: dots in
+ * pairs a few units apart, arrows shorter than the room their own heads need
+ * and therefore invisible, and a knot where a shape should be.
+ *
+ * So the collision is re-run HERE, in the frame's own units, where "far enough
+ * apart to be seen, pointed at, and joined by a visible arrow" is a number that
+ * means something. A weak pull back to where each dot landed keeps it the same
+ * shape rather than a fresh one — the forces above decide the SHAPE, this
+ * decides that it is legible — and a clamp keeps the result inside the frame,
+ * which the pass can otherwise push a dot just past.
+ *
+ * The files' own centres are taken after all of it, so a legend point and the
+ * dots it names are in one coordinate space by construction rather than by two
+ * conversions agreeing.
  *
  * A shape with no extent in a direction (one node, or a row of them) divides by
  * one instead of by zero, and the uniform scale then centres it.
@@ -214,23 +237,56 @@ const fitted = (bodies: ReadonlyArray<Body>): Placement => {
     x: Math.max(...xs) - from.x,
     y: Math.max(...ys) - from.y,
   }
-  const scale = Math.min(
-    (WIDTH - PADDING * 2) / Math.max(span.x, 1),
-    (HEIGHT - PADDING * 2) / Math.max(span.y, 1),
-  )
-  const offset = {
-    x: (WIDTH - span.x * scale) / 2,
-    y: (HEIGHT - span.y * scale) / 2,
+  // EACH AXIS ON ITS OWN, which is the one place a non-uniform scale is right.
+  // A force layout settles round and the frame is wide, so one uniform scale
+  // drops a circle into a rectangle at the height's ratio and leaves a third of
+  // the width empty — which is exactly the room the labels needed. Stretching
+  // here would be a distorted picture if it were the last word; it is not. The
+  // pass below is a CIRCULAR collision, so it re-rounds every neighbourhood it
+  // touches, and what a reader sees is a shape the frame's own proportions with
+  // its local spacing true.
+  const stretch = {
+    x: (WIDTH - BESIDE_A_DOT * 2) / Math.max(span.x, 1),
+    y: (HEIGHT - ABOVE_A_DOT - UNDER_A_DOT) / Math.max(span.y, 1),
   }
+
+  /** One axis of one body, put where it belongs — or in the MIDDLE of the frame
+   *  where there is no extent to stretch, which is a graph of one node and a row
+   *  of them: dividing a zero span into a frame is a scale that means nothing,
+   *  and the honest place for a shape with no width is the centre. */
+  const along = (
+    value: number,
+    least: number,
+    reach: number,
+    scale: number,
+    span: number,
+    inset: number,
+  ) =>
+    reach < 1 ? span / 2 : (value - least) * scale + inset
+
+  const room: Array<Body> = bodies.map((body): Body => {
+    const landed = {
+      x: along(body.x ?? 0, from.x, span.x, stretch.x, WIDTH, BESIDE_A_DOT),
+      y: along(body.y ?? 0, from.y, span.y, stretch.y, HEIGHT, ABOVE_A_DOT),
+    }
+    return { id: body.id, file: body.file, toward: landed, ...landed }
+  })
+  forceSimulation(room)
+    .force("collide", forceCollide<Body>(DOT_ROOM).iterations(COLLISION_PASSES))
+    .force("keepX", forceX<Body>((body) => body.toward.x).strength(HOLDS_ITS_PLACE))
+    .force("keepY", forceY<Body>((body) => body.toward.y).strength(HOLDS_ITS_PLACE))
+    .stop()
+    .tick(ROOM_TICKS)
+
   const place = (body: Body): Placed => ({
     id: body.id,
-    x: ((body.x ?? 0) - from.x) * scale + offset.x,
-    y: ((body.y ?? 0) - from.y) * scale + offset.y,
+    x: within(body.x ?? 0, BESIDE_A_DOT, WIDTH - BESIDE_A_DOT),
+    y: within(body.y ?? 0, ABOVE_A_DOT, HEIGHT - UNDER_A_DOT),
   })
 
   const at = new Map<string, Placed>()
   const middles = new Map<string, { x: number; low: number; of: number }>()
-  for (const body of bodies) {
+  for (const body of room) {
     const spot = place(body)
     at.set(spot.id, spot)
     const middle = middles.get(body.file)
@@ -254,10 +310,44 @@ const fitted = (bodies: ReadonlyArray<Body>): Placement => {
 /** The force constants, named where they are argued rather than inline. They
  *  are a LOOK: how far apart two connected nodes sit, how hard everything
  *  pushes away from everything else, how strongly a file gathers its own. */
-const LINK_DISTANCE = 130
-const LINK_STRENGTH = 0.35
-const REPULSION = -420
-const COLLISION = 46
+/** How far a dot is held from its neighbours ONCE FITTED, in the frame's own
+ *  units: room for the mark, and for the two `TRIM`s an arrow spends stopping
+ *  short of the dots at each of its ends (`./Canvas.tsx`) — under that, a real
+ *  reference is drawn as a line of no length. */
+const DOT_ROOM = 46
+/** How hard a dot is pulled back to where the forces put it while that room is
+ *  opened. Enough to keep the shape, not enough to close the gaps. */
+const HOLDS_ITS_PLACE = 0.12
+const ROOM_TICKS = 120
+
+/**
+ * ...and the frame itself, which the pass above can push a dot just past.
+ *
+ * THREE numbers rather than one, and each of them is the LABEL rather than the
+ * mark. A dot is a few pixels; its words are a box a hundred and forty-four
+ * wide and two lines tall, centred under it — so a dot against the left edge is
+ * a title with its first half outside the picture, and one against the bottom
+ * is a title cut in half by it. The mark is what the top edge has to hold, and
+ * that one is small.
+ */
+const within = (at: number, from: number, to: number): number =>
+  Math.min(Math.max(at, from), to)
+/** Half a label, in the frame's units — what an edge has to leave beside a dot
+ *  for its words to be whole. */
+const BESIDE_A_DOT = 104
+/** ...and the two lines under one. */
+const UNDER_A_DOT = 64
+const ABOVE_A_DOT = 24
+
+const LINK_DISTANCE = 170
+const LINK_STRENGTH = 0.25
+const REPULSION = -1400
+const COLLISION = 60
+/** How hard the collision is resolved. ONE pass leaves overlaps standing where
+ *  the springs and the repulsion disagree with it, which on a graph of any
+ *  density is a heap of dots in the middle — the picture a reader met before
+ *  this number existed. */
+const COLLISION_PASSES = 3
 const GROUPING = 0.07
 /** How far a file's anchor sits from the middle before anything is fitted. The
  *  fit rescales all of it, so this is a RATIO to the constants above rather

@@ -17,6 +17,27 @@
  * converts between them, which is what stops an arrow and the dot it points at
  * from drifting apart at some window width nobody tried.
  *
+ * THE CAMERA IS APPLIED TO THE POINTS, not to a wrapper. An SVG `transform` on
+ * a group would move the arrows and leave the HTML dots behind, so the two
+ * layers would need two transforms kept in step — and a scaled group scales its
+ * stroke widths and its arrowheads with it, so a zoomed-out picture would draw
+ * hairlines and a zoomed-in one would draw ropes. Every position goes through
+ * `seenAt` (`./camera.ts`) instead, once, and both layers read the answer: the
+ * shape moves and everything drawn ON it keeps its size.
+ *
+ * THE GESTURES ARE `d3-zoom`'s (wheel, pinch, drag, and the clamping between
+ * them), bound to this box by a ref. What this file owns is the seam: the
+ * behaviour publishes a transform, the page holds it, and the drawing reads it.
+ * A DRAG DOES NOT CLICK — d3's own `clickDistance` decides that — which is what
+ * keeps panning and following a link the same button.
+ *
+ * WHICH LABELS ARE DRAWN is `./camera.ts`'s `legible`, and it is the answer to
+ * the thing that made a corpus-wide reading unreadable: at a scale where every
+ * label would land on its neighbour's, only the ones that FIT are drawn — the
+ * centre and whatever is being pointed at first, then the nodes the most arrows
+ * touch. Zooming in fills the gaps between them, which is one picture gaining
+ * detail rather than two pictures.
+ *
  * WHAT A DOT IS DRAWN IN is `../tone.ts`'s table, unchanged: finished work
  * recedes into the muted ink and everything else is plain. The one accented
  * thing is the node the page is ABOUT, and the `see` arrows — argued in
@@ -38,6 +59,8 @@ import { placeOf } from "../search/place.ts"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { toneOf } from "../tone.ts"
+import { inFrame, legible, rankedBy, seenAt } from "./camera.ts"
+import type { Looking } from "./looking.ts"
 import { EDGE_LOOKS, lookOf } from "./look.ts"
 import { HEIGHT, type Placed, type Placement, WIDTH } from "./layout.ts"
 
@@ -61,8 +84,33 @@ export function Canvas(props: {
   /** The node the page is about — accented, and absent for the corpus-wide
    *  reading, which is about no one node. */
   readonly focus: string | undefined
+  /** Where the reader is looking from, and the gestures that move it — one
+   *  value with one owner (`./looking.ts`), so the wheel, a pinch, a drag and
+   *  the page's own `+` / `−` / `Fit` are all writing the same camera. */
+  readonly looking: Looking
 }) {
-  const spot = (id: string): Placed | undefined => props.placement.at.get(id)
+  const camera = () => props.looking.camera()
+  /** Where a node is ON SCREEN — its placement, seen from where the reader is.
+   *  Every position on both layers goes through this one function. */
+  const spot = (id: string): Placed | undefined => {
+    const at = props.placement.at.get(id)
+    return at === undefined ? undefined : seenAt(camera(), at)
+  }
+
+  /** ...and the same, for the layer that must not draw what is off the page. */
+  const onFrame = (id: string): Placed | undefined => {
+    const seen = spot(id)
+    return seen !== undefined && inFrame(seen) ? seen : undefined
+  }
+
+  /**
+   * The order labels are spent in — the nodes the most arrows touch first — as
+   * a memo, because it is a fact about the GRAPH and the camera moves far more
+   * often than the graph does.
+   */
+  const ranked = createMemo(() =>
+    rankedBy(props.graph.nodes.map((node) => node.at.node.id), props.graph.edges)
+  )
 
   /**
    * What stays bright while a reader is pointing at a dot: that dot and
@@ -96,11 +144,42 @@ export function Canvas(props: {
   const litEdge = (from: string, to: string): boolean =>
     props.hovered === undefined || props.hovered === from || props.hovered === to
 
+  /**
+   * The labels a reader is owed whatever the scale: the node the page is about,
+   * and whatever they are pointing at along with everything it is talking to.
+   * That is the other half of decluttering — what a far view hides has to be
+   * one gesture away.
+   */
+  const owed = createMemo(() => {
+    const asked = new Set<string>()
+    if (props.focus !== undefined) asked.add(props.focus)
+    for (const id of lit() ?? []) asked.add(id)
+    return asked
+  })
+
+  /** ...and which labels fit from here, once those have claimed their room
+   *  (`./camera.ts`). */
+  const labelled = createMemo(() =>
+    legible(props.placement, camera(), ranked(), owed())
+  )
+
   return (
     <div
-      class="relative w-full"
+      // OVERFLOW-HIDDEN is the frame: panning and zooming put dots outside the
+      // box, and a picture that spilled over the caption and the legend would
+      // be a picture with no edges.
+      class="relative w-full cursor-grab touch-none overflow-hidden rounded border border-rule/50 active:cursor-grabbing"
       style={{ "aspect-ratio": `${WIDTH} / ${HEIGHT}` }}
       data-testid={TESTID.graphCanvas}
+      // What a scenario reads the camera by — the scale, to two places, because
+      // a test about zooming should not be a test about floating point.
+      data-scale={camera().k.toFixed(2)}
+      // `touch-none` above and this together are what make a pinch a zoom
+      // rather than the browser's own page gesture. The behaviour is not made
+      // here — one owner holds it, the camera and this element together
+      // (`./looking.ts`) — because the controls beside the drawing have to
+      // drive the very same one.
+      ref={props.looking.watch}
       // A pointer leaving the whole box clears the caption: a dot the reader
       // moved off the edge of the page would otherwise stay named.
       onPointerLeave={() => props.onHover(undefined)}
@@ -187,7 +266,10 @@ export function Canvas(props: {
         {(grouping) => (
           <span
             class="pointer-events-none absolute mt-11 -translate-x-1/2 select-none text-[0.6875rem] uppercase tracking-wide text-muted/60"
-            style={{ left: across(grouping.x), top: down(grouping.y) }}
+            style={{
+              left: across(seenAt(camera(), { id: grouping.file, ...grouping }).x),
+              top: down(seenAt(camera(), { id: grouping.file, ...grouping }).y),
+            }}
             data-testid={TESTID.graphFile}
             data-file={grouping.file}
             aria-hidden="true"
@@ -203,7 +285,11 @@ export function Canvas(props: {
           every frame instead of moving it. */}
       <Key each={props.graph.nodes} by={(node) => node.at.node.id}>
         {(node) => (
-          <Show when={spot(node().at.node.id)}>
+          // A dot the camera has moved off the frame is not drawn at all
+          // (`./camera.ts`'s `inFrame`): the box clips it either way, and an
+          // anchor clipped out of sight is still an anchor sitting over
+          // whatever the page has where it went.
+          <Show when={onFrame(node().at.node.id)}>
             {(at) => (
               <Dot
                 node={node()}
@@ -211,6 +297,7 @@ export function Canvas(props: {
                 derived={props.derived}
                 focus={props.focus === node().at.node.id}
                 quiet={!litNode(node().at.node.id)}
+                labelled={labelled().has(node().at.node.id)}
                 onHover={props.onHover}
               />
             )}
@@ -227,6 +314,11 @@ function Dot(props: {
   readonly derived: Derived | undefined
   readonly focus: boolean
   readonly quiet: boolean
+  /** Whether this dot's words fit from where the reader is looking
+   *  (`./camera.ts`). The DOT is always drawn — it is what the shape is made
+   *  of — and the ancestry stays on the link either way, so a label that is not
+   *  drawn is still announced and still one hover from being read. */
+  readonly labelled: boolean
   readonly onHover: (id: string | undefined) => void
 }) {
   const id = () => props.node.at.node.id
@@ -248,6 +340,7 @@ function Dot(props: {
       data-node-id={id()}
       data-hops={String(props.node.hops)}
       data-focus={props.focus ? "true" : undefined}
+      data-labelled={props.labelled ? "true" : "false"}
       onPointerEnter={() => props.onHover(id())}
       // Focus is the keyboard's hover, and it is caught HERE rather than on the
       // link: `focusin` / `focusout` bubble where `focus` does not, so tabbing
@@ -278,18 +371,20 @@ function Dot(props: {
             title itself goes through the app's own renderer, so a `#tag` and a
             markdown emphasis look here exactly as they do on a row —
             `links={false}` because this is already inside an `<a>`. */}
-        <span
-          class={`absolute left-1/2 top-full mt-1 line-clamp-2 w-36 -translate-x-1/2 text-center text-xs hover:underline ${
-            toneOf(status())
-          }`}
-          classList={{ "font-semibold": props.focus }}
-        >
-          <NodeTitle
-            title={props.node.at.node.title}
-            from={props.node.at.file}
-            links={false}
-          />
-        </span>
+        <Show when={props.labelled}>
+          <span
+            class={`absolute left-1/2 top-full mt-1 line-clamp-2 w-36 -translate-x-1/2 text-center text-xs hover:underline ${
+              toneOf(status())
+            }`}
+            classList={{ "font-semibold": props.focus }}
+          >
+            <NodeTitle
+              title={props.node.at.node.title}
+              from={props.node.at.file}
+              links={false}
+            />
+          </span>
+        </Show>
       </Link>
     </div>
   )

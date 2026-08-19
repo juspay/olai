@@ -173,3 +173,98 @@ Feature: The reference graph — the shape a directory's references make
     And the graph draws the arrows "order see herbs"
     And the filter found "1 of 3"
     And there should be no page errors
+
+  # ── the camera ───────────────────────────────────────────────────────
+
+  Scenario: A page opens fitted, and the controls move the camera
+    # FITTED is the camera doing nothing: the layout already puts the whole
+    # graph in the frame, so `Fit` is a reset rather than a measurement.
+    Given I open the reference graph for "herbs"
+    Then the graph is fitted
+    When I move the graph camera closer
+    Then the graph is closer than fitted
+    When I fit the graph
+    Then the graph is fitted
+    And there should be no page errors
+
+  Scenario: A dot still opens its node once the camera has moved
+    # The camera is applied to the POSITIONS, so a dot is the same link wherever
+    # it has been moved to — which is the whole reason the nodes are HTML
+    # anchors over the arrows rather than shapes inside them. The CENTRE is the
+    # one this can name: a zoom is about the middle of the frame, so what was
+    # there is still there, while a dot near the edge may have been moved off
+    # the page entirely (and is then not drawn at all).
+    Given I open the reference graph for "herbs"
+    When I move the graph camera closer
+    Then the graph is closer than fitted
+    When I follow the graph to "herbs"
+    Then the zoomed node is "herbs"
+    And there should be no page errors
+
+  Scenario: A crowded graph draws every dot and only the labels that fit
+    # Twenty records all pointing at one node. Fitted, their titles would land
+    # on each other — which is the picture this rule exists to have stopped —
+    # so the dots are all drawn and the words are spent on what fits.
+    When I rewrite "crowd.olai" as:
+      """
+      {"id":"hub","ord":"a0","title":"the node everything points at"}
+      {"id":"c01","ord":"b01","title":"a referring node number one","see":["hub"]}
+      {"id":"c02","ord":"b02","title":"a referring node number two","see":["hub"]}
+      {"id":"c03","ord":"b03","title":"a referring node number three","see":["hub"]}
+      {"id":"c04","ord":"b04","title":"a referring node number four","see":["hub"]}
+      {"id":"c05","ord":"b05","title":"a referring node number five","see":["hub"]}
+      {"id":"c06","ord":"b06","title":"a referring node number six","see":["hub"]}
+      {"id":"c07","ord":"b07","title":"a referring node number seven","see":["hub"]}
+      {"id":"c08","ord":"b08","title":"a referring node number eight","see":["hub"]}
+      {"id":"c09","ord":"b09","title":"a referring node number nine","see":["hub"]}
+      {"id":"c10","ord":"b10","title":"a referring node number ten","see":["hub"]}
+      {"id":"c11","ord":"b11","title":"a referring node number eleven","see":["hub"]}
+      {"id":"c12","ord":"b12","title":"a referring node number twelve","see":["hub"]}
+      {"id":"c13","ord":"b13","title":"a referring node number thirteen","see":["hub"]}
+      {"id":"c14","ord":"b14","title":"a referring node number fourteen","see":["hub"]}
+      {"id":"c15","ord":"b15","title":"a referring node number fifteen","see":["hub"]}
+      {"id":"c16","ord":"b16","title":"a referring node number sixteen","see":["hub"]}
+      {"id":"c17","ord":"b17","title":"a referring node number seventeen","see":["hub"]}
+      {"id":"c18","ord":"b18","title":"a referring node number eighteen","see":["hub"]}
+      {"id":"c19","ord":"b19","title":"a referring node number nineteen","see":["hub"]}
+      {"id":"c20","ord":"b20","title":"a referring node number twenty","see":["hub"]}
+      """
+    And I open the reference graph for "hub"
+    Then the graph draws 21 nodes
+    And the graph names fewer dots than it draws
+    # The CENTRE is named whatever else is dropped: it is what the page is about.
+    And the graph names the dot "hub"
+    And there should be no page errors
+
+  Scenario: ...and pointing at a dot names it, whichever labels fit
+    # The other half of decluttering: what a crowded view hides has to be one
+    # gesture away, so a dot the reader points at is named at any scale.
+    When I rewrite "crowd.olai" as:
+      """
+      {"id":"hub","ord":"a0","title":"the node everything points at"}
+      {"id":"c01","ord":"b01","title":"a referring node number one","see":["hub"]}
+      {"id":"c02","ord":"b02","title":"a referring node number two","see":["hub"]}
+      {"id":"c03","ord":"b03","title":"a referring node number three","see":["hub"]}
+      {"id":"c04","ord":"b04","title":"a referring node number four","see":["hub"]}
+      {"id":"c05","ord":"b05","title":"a referring node number five","see":["hub"]}
+      {"id":"c06","ord":"b06","title":"a referring node number six","see":["hub"]}
+      {"id":"c07","ord":"b07","title":"a referring node number seven","see":["hub"]}
+      {"id":"c08","ord":"b08","title":"a referring node number eight","see":["hub"]}
+      {"id":"c09","ord":"b09","title":"a referring node number nine","see":["hub"]}
+      {"id":"c10","ord":"b10","title":"a referring node number ten","see":["hub"]}
+      {"id":"c11","ord":"b11","title":"a referring node number eleven","see":["hub"]}
+      {"id":"c12","ord":"b12","title":"a referring node number twelve","see":["hub"]}
+      {"id":"c13","ord":"b13","title":"a referring node number thirteen","see":["hub"]}
+      {"id":"c14","ord":"b14","title":"a referring node number fourteen","see":["hub"]}
+      {"id":"c15","ord":"b15","title":"a referring node number fifteen","see":["hub"]}
+      {"id":"c16","ord":"b16","title":"a referring node number sixteen","see":["hub"]}
+      {"id":"c17","ord":"b17","title":"a referring node number seventeen","see":["hub"]}
+      {"id":"c18","ord":"b18","title":"a referring node number eighteen","see":["hub"]}
+      {"id":"c19","ord":"b19","title":"a referring node number nineteen","see":["hub"]}
+      {"id":"c20","ord":"b20","title":"a referring node number twenty","see":["hub"]}
+      """
+    And I open the reference graph for "hub"
+    And I point at the graph node "c20"
+    Then the graph names the dot "c20"
+    And the graph caption reads "a referring node number twenty — crowd.olai"
+    And there should be no page errors
