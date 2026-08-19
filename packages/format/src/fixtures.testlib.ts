@@ -224,10 +224,11 @@ const unparsable = (
  *
  * Here rather than in either benchmark for {@link seeded}'s own reason, and
  * with a sharper edge on it: two benches quote figures about "the 1,000-file
- * vault" — what a frame costs a tab (`@olai/web`'s `deriving.bench.ts`) and
- * what a patch costs the patcher underneath it ({@link ./patch.bench.ts}) —
- * and two numbers about two different generated corpora are two numbers nobody
- * may compare. One generator is what makes them one vault.
+ * vault" — what a patch costs the patcher ({@link ./patch.bench.ts}) and what
+ * the tag index costs the completion above it (`@olai/web`'s
+ * `complete/tags.bench.ts`) — and two numbers about two different generated
+ * corpora are two numbers nobody may compare. One generator is what makes them
+ * one vault.
  *
  * WHAT IT WRITES, and each of the shapes earns its place: a root per file with
  * its records under it, marks on about a third of them so blockedness has
@@ -404,7 +405,7 @@ const EDITED = "edited "
  * The middle of a run's times, in milliseconds.
  *
  * Here for {@link seeded}'s reason once more, and this was the third copy about
- * to be written: `just bench`'s four legs each measure something different and
+ * to be written: `just bench`'s three legs each measure something different and
  * each read their times the same way. A MEDIAN rather than a mean or a minimum,
  * which is a decision the three of them have to share — a mean is dragged by
  * one scheduling hiccup, and a minimum is a number nobody else's machine
@@ -414,7 +415,7 @@ export const median = (times: ReadonlyArray<number>): number =>
   [...times].sort((one, other) => one - other)[Math.floor(times.length / 2)] ?? 0
 
 /** What `run` took, in milliseconds — `Bun.nanoseconds` because it is monotonic
- *  and because one clock across four legs is one fewer thing that can differ
+ *  and because one clock across three legs is one fewer thing that can differ
  *  between two numbers somebody is comparing. A body that has to hand something
  *  back writes it to a binding it closes over; the clock stops before the
  *  binding is read. */

@@ -22,8 +22,7 @@
  *     `./bodies.ts`, which reads the file when a reader opens it, publishes it
  *     on that reader's own key, and goes on doing so for exactly as long as
  *     somebody holds that key — the subscription's own lifetime, which the
- *     handlers this file binds are wrapped to report (`@olai/surface`'s
- *     `holding.ts`).
+ *     collection's own handler deps report (`holders`, beside `readOne`).
  *   - the CONVERSATION is the chat's: a cell for where it stands, a collection
  *     for the rows, and the procedures. The collection is deliberately
  *     server-authored — `readAll` is the transcript itself and the writes come
@@ -72,7 +71,6 @@ import {
   type OpFailure,
   surface,
 } from "@olai/surface"
-import { holding } from "@olai/surface/holding"
 import { UsageFailure } from "@olai/format"
 import { surfaceTag } from "@kolu/surface/define"
 import {
@@ -319,11 +317,11 @@ export const bind = (
      * `held` is not touched. That is the memory claim in one line: the body
      * goes to the wire and the projection goes on holding a path.
      *
-     * WHO IS STILL READING is not inferred here either. Every per-key `get` on
-     * the documents collection is wrapped so that its subscription's lifetime is
-     * a hold on that path (`@olai/surface`'s `holding.ts`, applied to the bound
-     * handlers below), so this module re-reads a file for exactly the readers
-     * who have it open at that moment and stops the instant the last one goes.
+     * WHO IS STILL READING is not inferred here either. The documents
+     * collection hands its `holders` to the framework beside `readOne` (below),
+     * so every per-key `get` takes a hold that lives exactly as long as that
+     * subscription — and this module re-reads a file for exactly the readers who
+     * have it open at that moment and stops the instant the last one goes.
      */
     const bodies = yield* Bodies.make({
       read: wiring.store.body,
@@ -603,6 +601,28 @@ export const bind = (
             bodies.unread([key])
             return undefined
           },
+          /**
+           * WHO HOLDS THIS KEY, said by the framework rather than guessed at
+           * here: the effect runs in the `get` stream's own scope, so a hold is
+           * taken when a reader subscribes and released when that subscription
+           * ends — a tab navigating, a socket dropping, the runtime tearing
+           * down, or a one-shot reader taking its frame and leaving. Two readers
+           * of one key are two holds and two releases.
+           *
+           * IT SITS BESIDE `readOne` BECAUSE THE PULL ORDER IS LOAD-BEARING:
+           * the framework runs this first and only then builds the stream, so
+           * the hold is in place before the channel subscribe and before the
+           * `readOne` above — which is what lets that `readOne` ask for a body
+           * that only a held path is read for. That order is the framework's
+           * own pin now (`collectionHolders.test.ts`, "THE PULL ORDER"), where
+           * it used to be a wrap of this repo's own and a test beside it.
+           *
+           * What a hold is WORTH stays here: {@link ./bodies.ts} owns the
+           * count, the read-on-held, the one-at-a-time queue and the
+           * drop-if-released-before-read. The framework reports lifetimes and
+           * does not count.
+           */
+          holders: bodies.held,
           upsert: () => {},
           remove: () => {},
         },
@@ -743,19 +763,17 @@ export const bind = (
 
     return {
       /**
-       * The runtime, with one member's subscriptions reporting who holds them.
+       * The runtime as it was minted, with nothing wrapped around it.
        *
-       * Wrapped HERE, at the one place the handlers are minted, rather than at
-       * each face: every face is a FILTER over this record (`./faces.ts`) and
-       * `writerAt` rebuilds it by copying the values, so a reader that can reach
-       * the documents collection at all reaches it through this wrap. Doing it
-       * per face would make "a body stays live for the page somebody has open"
-       * one face's own arrangement, and a second face would inherit the guess.
+       * "Who holds this key" used to be added HERE, by re-writing the documents
+       * collection's `get` handler after the fact, because the framework had no
+       * seam for it. It has one now (`holders`, in the deps above), so the fact
+       * is inside the handler at the moment it is built: every face is a FILTER
+       * over this record (`./faces.ts`) and `writerAt` rebuilds it by copying
+       * the values, so every face inherits the hold BY CONSTRUCTION rather than
+       * by this wrap having run before the filtering did.
        */
-      bound: {
-        ...runtime,
-        handlers: holding(runtime.handlers, "documents", bodies.held),
-      },
+      bound: runtime,
       publish: {
         state: (state) => runtime.ctx.cells.chat.set(state),
         transcript: (change) => {

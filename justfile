@@ -171,18 +171,16 @@ nix:
 hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
-# What a keystroke costs, on a generated vault. FOUR of them now, and each is
-# a LEG rather than a scratch file, because slice 3 of `model-indices` ran its
+# What a keystroke costs, on a generated vault. THREE of them, and each is a
+# LEG rather than a scratch file, because slice 3 of `model-indices` ran its
 # numbers as a one-off and a benchmark nobody can re-run is a number nobody can
 # check — and deliberately NOT a dependency of `check`, since a timing that
 # fails a lane on a busy machine teaches nobody anything.
 #
-#   - the tab's derived memo, timed as it was (flatten the corpus and derive
-#     it) against as it is (patch the held view with the file that moved);
-#   - the PATCHER underneath it, with the browser taken out of the picture —
-#     `derive` over the whole corpus, against `patched` on the view the last
-#     edit left, against that same patch paying the id-map clone the overlay
-#     replaced (`packages/format/src/patch.bench.ts`). It is the harness slice 3
+#   - the PATCHER under every view — `derive` over the whole corpus, against
+#     `patched` on the view the last edit left, against that same patch paying
+#     the id-map clone the overlay replaced
+#     (`packages/format/src/patch.bench.ts`). It is the harness slice 3
 #     measured its order-of-magnitude figure with and did not commit, which is
 #     why architecture.md called that number one this tree could not reproduce,
 #     and the third arm is there so the overlay's own before/after is printed
@@ -198,18 +196,19 @@ hm-module:
 #     must answer the same list or the run fails, and a third times the walk as
 #     it literally stood; what the wider index costs the FOLD, and what the tag
 #     WALK under it costs in the three shapes it has been written in, are the
-#     two pairs the second leg prints at the end.
+#     two pairs the first leg prints at the end.
 #
-# Three of the four run the SAME generated vault (`@olai/format/testlib`'s
-# `vaultOf`), so a frame's cost, the patch inside it and what a completion asks
-# of it are numbers about one directory. `--conditions browser` is load-bearing for the FIRST: without
-# it Bun resolves SolidJS's server build, whose memos never re-run, and every
-# arm reports an empty loop. Size both with OLAI_BENCH_FILES /
-# OLAI_BENCH_RECORDS / OLAI_BENCH_EDITS — and turning the last one up to 900 is
-# what makes the second leg's layer grow past half the id map and flatten, which
-# it prints the edit of.
+# Two of the three run the SAME generated vault (`@olai/format/testlib`'s
+# `vaultOf` — the patcher and the tag completion), so a patch's cost and what a
+# completion asks of the view it leaves are numbers about one directory; the
+# matcher generates a corpus of its own, sized for keystrokes rather than for a
+# directory. What a FRAME costs the tab is not timed here any
+# more: the merge is the framework's, and `@kolu/surface`'s own
+# `src/solid/collectionDeltas.bench.ts` measures it end to end.
+# Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS / OLAI_BENCH_EDITS —
+# and turning the last one up to 900 is what makes the first leg's layer grow
+# past half the id map and flatten, which it prints the edit of.
 bench: install
-    {{ nix_shell }} bun --conditions browser packages/web/src/client/deriving.bench.ts
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
     {{ nix_shell }} bun packages/web/src/client/complete/tags.bench.ts

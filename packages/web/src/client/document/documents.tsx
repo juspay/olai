@@ -24,17 +24,22 @@
  *     integer each, and it is what lets a page watch ONE file for changes
  *     without opening a stream — or asking for a body — of its own.
  *
- *     WHAT THE BATCHED VERB COSTS, named because it is a trade and not a free
- *     win: a `deltas` frame is FOLDED here, and the fold copies the whole
- *     keyed dict before reconciling it, so a revision that touches any bodied
- *     file costs every open tab one pass over the directory's paths — where
- *     the key stream this replaced only ever fired on a file appearing or
- *     going. It is the same shape and a smaller value than the `outlines` fold
- *     this app already does on every revision (nodes, not an integer), and the
- *     alternative — a per-key stream for each file being watched — buys O(1)
- *     per tab at the price of a second subscription per open document and of
- *     the file list having to come from somewhere else. Measured before it is
- *     changed, like everything else here (`packages/tests/wire.ts`).
+ *     WHAT THE BATCHED VERB COST, and no longer does — kept as a paragraph
+ *     rather than deleted, because the trade was named here when it was real
+ *     and a reader deserves to be told which way it went. It WAS this: a
+ *     `deltas` frame was folded into a keyed store by copying the whole dict
+ *     and reconciling the copy, so a revision that touched any bodied file cost
+ *     every open tab one pass over the directory's paths — where the key stream
+ *     this replaced only ever fired on a file appearing or going. The framework
+ *     now writes the keys the frame NAMES, one leaf replacement per upsert
+ *     (kolu #2187), so the pass over the paths is gone and a head arrives for
+ *     the cost of the head. NOT ONE LINE HERE CHANGED for that: the same
+ *     `.use()`, the same `{keys, byKey}`, the same enrolment — which is the
+ *     whole argument for the tax having been the client library's to fix rather
+ *     than this module's to work around. What is left is the honest floor: the
+ *     alternative shape — a per-key stream for each file being watched — buys
+ *     nothing over it now and still costs a second subscription per open
+ *     document and a file list from somewhere else.
  *   - {@link Documents.read} is the BODY of one document, from a narrowed
  *     subscription whose keys are the documents somebody is showing. A body
  *     reaches this tab when a component asks for it and stops arriving when

@@ -5,13 +5,13 @@
  * `fixtures.testlib.ts`'s own header says it has no tests — it is a helper
  * module rather than a suite — and this file is the one exception, minted for a
  * reason worth writing down. `vaultOf` gained prose so that the tag index
- * would stop being an empty map in `patch.bench.ts` and `deriving.bench.ts`;
- * the first spelling of that used `which % 25 === 0` inside a loop that runs
- * `which` from 1 to 20, so it **never fired**. The vault had 3,920 notes and
- * not one `@` in it, `mentionedBy.size` was `0`, the patcher's own early return
- * fired on every edit, and the format README claimed the opposite beside the
- * numbers for a whole review cycle — until a reviewer derived the corpus and
- * counted.
+ * would stop being an empty map in `patch.bench.ts` and `@olai/web`'s
+ * `complete/tags.bench.ts`; the first spelling of that used `which % 25 === 0`
+ * inside a loop that runs `which` from 1 to 20, so it **never fired**. The
+ * vault had 3,920 notes and not one `@` in it, `mentionedBy.size` was `0`, the
+ * patcher's own early return fired on every edit, and the format README claimed
+ * the opposite beside the numbers for a whole review cycle — until a reviewer
+ * derived the corpus and counted.
  *
  * So this is not a test of a generator. It is the fence between a bench and a
  * false claim: an index nothing exercises prints *costs zero* where what it

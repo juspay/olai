@@ -36,7 +36,7 @@ interface Fixture {
    *  ask — which is what the two callers in `./runtime.ts` amount to for a path
    *  whose body the set does not keep. What comes back is that reader LEAVING,
    *  which is that scope closing (the wire's own release is a subscription's
-   *  scope, `@olai/surface`'s `holding.ts`). */
+   *  scope, asked for by the `holders` dep in `./runtime.ts`). */
   readonly opens: (path: string) => Effect.Effect<Effect.Effect<void>>
 }
 

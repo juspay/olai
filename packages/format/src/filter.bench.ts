@@ -6,9 +6,9 @@
  * fold landed with two milliseconds quoted in a comment and a reviewer asked,
  * correctly, where the numbers came from (#228, grok). A benchmark nothing runs
  * is a benchmark that rots, and a number nobody can re-run is a number nobody
- * can check. Deliberately not part of `just check`, for `../../web/src/client/
- * deriving.bench.ts`'s reason: a timing that fails a lane on a busy machine
- * teaches nobody anything.
+ * can check. Deliberately not part of `just check`, for `./patch.bench.ts`'s
+ * reason: a timing that fails a lane on a busy machine teaches nobody
+ * anything.
  *
  * WHAT IT MEASURES is one word typed one character at a time — seven queries
  * over one derivation, which is what the chat composer's `@` list and the

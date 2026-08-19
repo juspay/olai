@@ -10,8 +10,8 @@
  * after are arms of one run rather than two paragraphs.
  *
  * THREE ARMS over one generated vault (`@olai/format/testlib`'s `vaultOf`, the
- * SAME corpus `deriving.bench.ts` and `packages/format/src/patch.bench.ts` run
- * on, so all three legs' numbers are about one directory):
+ * SAME corpus `packages/format/src/patch.bench.ts` runs on, so this leg's
+ * numbers and the patcher's are about one directory):
  *
  *   - `index` — {@link tagsOf}, which reads `Derived.taggedBy`: the keys of a
  *     map and the length of each entry, with the archive taken off;

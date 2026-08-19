@@ -10,11 +10,12 @@
  * Two facts drive it, and they are the only two:
  *
  *   - {@link Bodies.held} — a reader HAS this key open, for as long as the
- *     scope it is run in is. That scope is the wire's own subscription, wrapped
- *     around the per-key `get` (`@olai/surface`'s `holding.ts`): the hold is
- *     taken when the subscription starts and dropped when it ends, whether it
- *     ends by a tab navigating, a socket dropping or a one-shot reader taking
- *     its frame and leaving.
+ *     scope it is run in is. That scope is the wire's own subscription: the
+ *     documents collection hands this to the framework as its `holders` dep
+ *     (`./runtime.ts`), pulled before the per-key `get` stream is built, so the
+ *     hold is taken when the subscription starts and dropped when it ends,
+ *     whether it ends by a tab navigating, a socket dropping or a one-shot
+ *     reader taking its frame and leaving.
  *   - {@link Bodies.unread} — paths whose body is not on the wire
  *     (`./published.ts`'s `unread`), from the two moments that produce them: a
  *     reader that has just subscribed to a key the set holds a path and no text
@@ -69,9 +70,10 @@ import { Effect, Queue, type Scope } from "effect"
 export interface Bodies {
   /**
    * A reader has this file OPEN, for the lifetime of the SCOPE this is run in —
-   * which is the subscription's own (`@olai/surface`'s `holding.ts`). While any
-   * scope holding it is open, the body is re-read on every revision that moves
-   * the file; when the last one closes, it is not.
+   * which is the subscription's own (the `holders` dep the documents collection
+   * hands the framework, `../runtime.ts`). While any scope holding it is open,
+   * the body is re-read on every revision that moves the file; when the last one
+   * closes, it is not.
    *
    * A scope rather than a returned release function, because a lifetime with two
    * ends a caller has to pair by hand is a lifetime one interrupted caller

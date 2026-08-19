@@ -106,11 +106,10 @@ test("only the files the probe re-decoded are upserted", () => {
   expect(published.documents.upserts.map(([path]) => path)).toEqual(["notes.md"])
 })
 
-// `rev` IS THE CHANGE TOKEN, which is the half of the sentence above a reader
-// now rests its whole view on: a browser folds its derivation from these
-// numbers — a file whose number moved is an upsert, and nothing else is
-// re-read (`@olai/web`'s `deriving.ts`) — because the client library consumes
-// the delta frames and hands a tab a keyed store rather than the frame. So the
+// `rev` IS THE CHANGE TOKEN, which is the half of the sentence above two
+// readers rest on: a phase-4 write names the revision it edited as its base,
+// and `Head.rev` is how a page WATCHES one file it does not draw — a preview
+// waiting for its `.html` to move — without asking for the body. So the
 // promise is two-sided and both sides are asserted here: the file that moved
 // carries the new revision, and the file that did not carries the very entry it
 // was published with, at the old one. A neighbour rebuilt at the new revision
