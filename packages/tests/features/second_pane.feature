@@ -67,7 +67,7 @@ Feature: The second pane
     And the address is exactly "/house.olai"
 
   Scenario: A split restores from its address
-    When I open the address "/s/o%2Fhouse.olai/n%2Finstall?f=1"
+    When I open the address "/s/house.olai/%23install?f=1"
     Then there are 2 panes
     And pane 0 is showing "/house.olai"
     And pane 1 is showing "/#install"
@@ -89,7 +89,7 @@ Feature: The second pane
     And pane 1 is showing "/#install"
 
   Scenario: On a narrow screen the panes are tabs
-    When I open the address "/s/o%2Fhouse.olai/n%2Finstall?f=1"
+    When I open the address "/s/house.olai/%23install?f=1"
     And I shrink the window to a phone
     Then the pane tabs are shown
     And there are 2 pane tabs
@@ -98,7 +98,7 @@ Feature: The second pane
     And there should be no page errors
 
   Scenario: Tapping a tab switches the page, and closing it returns to a plain page
-    When I open the address "/s/o%2Fhouse.olai/n%2Finstall?f=1"
+    When I open the address "/s/house.olai/%23install?f=1"
     And I shrink the window to a phone
     Then pane 1 is showing "/#install"
     When I tap pane tab 0

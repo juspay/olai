@@ -1397,7 +1397,7 @@ const SECTIONS = {
    * the line is drawn over the OTHER column, promising a landing there.
    */
   "drag-across-panes": async (page) => {
-    await splitOn(page, "/s/o%2Fhouse.olai/o%2Fhouse.olai")
+    await splitOn(page, "/s/house.olai/house.olai")
     console.log(`  two panes, one file. before: ${await order(page)}`)
     await shot(page, "two-panes-on-one-file")
 
@@ -1430,7 +1430,7 @@ const SECTIONS = {
    * there is no drop line beside it offering a landing it could not keep.
    */
   "a-drop-into-another-file-is-refused": async (page) => {
-    await splitOn(page, "/s/o%2Fhouse.olai/o%2Fgarden.olai")
+    await splitOn(page, "/s/house.olai/garden.olai")
     await shot(page, "two-panes-two-files")
 
     const over = await boxOf(page.locator(titleIn(1, "mint")))
