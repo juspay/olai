@@ -75,6 +75,36 @@ test("a needle inside a code span nested in a link is lit too", () => {
   )
 })
 
+test("a needle at a span's edges, and one that is the whole span", () => {
+  // The edges are `runsIn`'s and not this file's — a window is a pair of
+  // bounds on one search of the text — but a literal stretch reaches it
+  // through the guard added here, so this is where a change to that guard
+  // would show up. No empty runs, no mark that swallows a backtick.
+  const hit = (text: string) =>
+    `<mark class="olai-hit" data-testid="hit">${text}</mark>`
+  expect(lit(CODE, "just")).toContain(`<code>${hit("just")} check</code>`)
+  expect(lit(CODE, "check")).toContain(`<code>just ${hit("check")}</code>`)
+  expect(lit(CODE, "just check")).toContain(`<code>${hit("just check")}</code>`)
+})
+
+// ── and the half that is STILL deferred, pinned so it stays a decision ──
+
+test("a phrase spanning two rendered pieces still lights neither", () => {
+  // The other half of `filter-highlight-dark-corners`, deferred on this PR
+  // and named in docs/search.md: markdown has already cut the title into
+  // pieces, and one needle is looked for inside each piece rather than across
+  // them. Lighting it needs rendering that preserves the source's offsets.
+  //
+  // Here so that half cannot be un-deferred by accident: a change that starts
+  // lighting the fragment of the phrase that happens to sit inside the code
+  // span, or inside the link, would go red rather than shipping half an
+  // answer to a reader who typed a phrase.
+  expect(lit(CODE, "check before")).not.toContain("olai-hit")
+  expect(lit(LINK, "spec first")).not.toContain("olai-hit")
+  expect(lit("nested [`#home`](https://x.test) link", "#home link"))
+    .not.toContain("olai-hit")
+})
+
 // ── the half that is protected, and stays protected ────────────────────
 
 test("a `#…` inside a code span is code, not a tag", () => {
