@@ -102,7 +102,9 @@ The note is **excerpted, never auto-expanded**. Notes here run to paragraphs; th
 
 None of this is stored, and none of it is a second matcher: the highlight comes from the same case fold `matching` searched with, so the page cannot light up a stretch of text the query never looked at — and a letter whose lower case is written with two characters (`İ`) lights whole, because there is no half a character to light.
 
-Two places a matched row lights nothing, named so they are not mistaken for bugs. A needle that lives **only inside a title's `code` span or link** selects the row and lights nothing: those are the one part of a title this app deliberately does not re-read (a `#` in a URL fragment is not a tag), and the highlight follows the same walk. And a phrase spanning two rendered pieces of a title — across a `**bold**`, say — lights neither, because the words are found per piece of rendered markup. A phrase across a `#tag` does light, since a tag is a split of one string rather than a second piece.
+A needle inside a title's **`code` span or link text** lights like any other, and that is worth saying because it did not used to. Those are the one part of a title this app deliberately does not re-read for `#tags` — a `#` in a URL fragment is not a tag — and the highlight, riding the same walk, used to stop at the same door: the row was selected on the strength of a word in its code span and drew nothing lit. The two rules are separate now. The tag rule is unchanged (no pills inside code or a link, however deeply nested); the highlight goes everywhere the text goes, and never into an attribute, so a link keeps its href.
+
+One place a matched row still lights nothing, named so it is not mistaken for a bug: a phrase spanning two rendered pieces of a title — across a `**bold**`, say — lights neither, because the words are found per piece of rendered markup. Lighting it means rendering that preserves the source's offsets, which is a different change. A phrase across a `#tag` does light, since a tag is a split of one string rather than a second piece.
 
 ### Which pages filter, and what it means on each
 

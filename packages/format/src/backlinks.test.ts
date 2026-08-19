@@ -146,7 +146,7 @@ test("the referrers come in corpus order, whichever index found them", () => {
 // parser, and deciding what a reference IS out of one would put a parser under
 // the write gate — so what the record SAYS is the answer. What that costs is a
 // disagreement with the browser, which DOES parse before it styles a tag
-// (`web/src/client/markdown/tags.ts`, whose `SKIP_TAGS` is `code` and `a`).
+// (`web/src/client/markdown/tags.ts`, which reads no tag inside `code` or `a`).
 //
 // THE DISAGREEMENT GOES BOTH WAYS, and these tests are the enumeration. Two
 // reviewers of #237 each found the prose one case short of the truth — it said
@@ -196,7 +196,7 @@ test("and the divergence runs the OTHER way too: emphasis is styled and is not a
   // The half that is easy to miss, and the reason "the bias is toward showing
   // more" is not a safe thing to say: `*` and `_` are not in the opening
   // alphabet, so this reading skips them — while the client's tag styling walks
-  // into `em` and `strong` (they are not in `SKIP_TAGS`) and draws the pill.
+  // into `em` and `strong` (they are not in `NO_TAGS_IN`) and draws the pill.
   // So a reader can see `@herbs` styled as a tag on a record's own page and not
   // find that record in the herb bed's referenced-by section.
   const view = viewOf({
