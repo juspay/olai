@@ -54,18 +54,13 @@ import {
   type SessionInfo,
   UsageFailure,
 } from "@olai/surface"
-import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
+import { type Accessor, createEffect, createSignal, on } from "solid-js"
 
 import { olai } from "../wire.ts"
 import { type Call, run } from "../run.ts"
 import { attaching } from "./attach.ts"
-import { TRANSCRIPT_ORDER } from "./order.ts"
+import { createRows } from "./order.ts"
 import { forget, remember } from "./previews.ts"
-
-/** The empty conversation, minted once: every panel reading a fold that has no
- *  accumulator yet is handed the same array, so a memo over it settles rather
- *  than reporting a new empty list per frame. */
-const NO_ROWS: ReadonlyArray<string> = []
 
 /**
  * What asking for the stored conversations answered.
@@ -216,26 +211,11 @@ export const createChat = (): Chat => {
   const entry = (key: string): Accessor<ChatEntry | undefined> => () =>
     transcript.byKey(key)?.()
 
-  /**
-   * THE ORDER, FOLDED — the wire's own frames accumulated into a key list
-   * instead of the whole transcript being re-read and re-sorted per frame
-   * ({@link ./order.ts}, which is where the shape is argued).
-   *
-   * The memo over it is not a leftover: the fold's accessor is declared
-   * `equals: false` by the framework — it cannot know whether a consumer's
-   * accumulator is a value — so it wakes on every frame, and the fold's whole
-   * saving is that the array it hands back on a frame that moved nothing is
-   * the SAME array. A memo compares with `===`, so this is where that
-   * sameness stops being a fact and becomes a quiet reader: `<For>` and
-   * `Transcript.tsx`'s `previousOf` re-run when a row arrives or leaves, and
-   * on none of the frames that merely grow one.
-   *
-   * `undefined` is the fold's one absent state — no snapshot yet, or a `step`
-   * that threw and was contained — and an empty conversation is what it reads
-   * as, which is what it looked like before the first frame anyway.
-   */
-  const order = transcript.fold(TRANSCRIPT_ORDER)
-  const rows = createMemo<ReadonlyArray<string>>(() => order()?.keys ?? NO_ROWS)
+  // THE ORDER, FOLDED — the wire's own frames accumulated into a key list
+  // instead of the whole transcript being re-read and re-sorted per frame.
+  // {@link ./order.ts} is where that shape is argued and where the reader's
+  // half of it lives with it.
+  const rows = createRows(transcript.fold)
 
   /** Every verb the same way: clear the last refusal, run, and keep whatever
    *  this one refuses with. A verb that SUCCEEDS says nothing — the transcript

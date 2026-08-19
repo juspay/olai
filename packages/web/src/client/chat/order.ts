@@ -34,7 +34,8 @@
  */
 
 import type { ChatEntry } from "@olai/surface"
-import type { CollectionFoldOptions } from "@kolu/surface/solid"
+import type { CollectionFold, CollectionFoldOptions } from "@kolu/surface/solid"
+import { type Accessor, createMemo } from "solid-js"
 
 /**
  * The accumulator: the keys in conversation order, and where each of them
@@ -100,4 +101,36 @@ export const TRANSCRIPT_ORDER: CollectionFoldOptions<string, ChatEntry, Ordered>
     }
     return moved ? { keys: ordered(held.seq), seq: held.seq } : held
   },
+}
+
+/** The empty conversation, minted once: every panel reading a fold that has no
+ *  accumulator yet is handed the same array, so the memo below settles rather
+ *  than reporting a new empty list per frame. */
+const NO_ROWS: ReadonlyArray<string> = []
+
+/**
+ * The row keys, in conversation order — the fold registered and read.
+ *
+ * BOTH HALVES HERE, because they are one claim. The fold's saving is that a
+ * frame which moved nothing hands back the very array it handed back last time,
+ * and the framework declares a fold's accessor `equals: false` — it cannot know
+ * whether a consumer's accumulator is a value — so that sameness has to be
+ * COMPARED somewhere or it buys nothing. A memo is where: it compares with
+ * `===`, so `<For>` and `../chat/Transcript.tsx`'s `previousOf` re-run when a
+ * row arrives or leaves and on none of the frames that merely grow one. Split
+ * across two modules, the claim and the thing that cashes it were an unenforced
+ * rule; here they are one function.
+ *
+ * MUST be called under a reactive owner, which is the fold's own requirement:
+ * the registration is dropped by that owner's `onCleanup`.
+ *
+ * `undefined` is the fold's one absent state — no snapshot yet, or a `step`
+ * that threw and was contained — and an empty conversation is what it reads as,
+ * which is what a panel looked like before the first frame anyway.
+ */
+export const createRows = (
+  fold: CollectionFold<string, ChatEntry>,
+): Accessor<ReadonlyArray<string>> => {
+  const order = fold(TRANSCRIPT_ORDER)
+  return createMemo(() => order()?.keys ?? NO_ROWS)
 }

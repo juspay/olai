@@ -66,12 +66,20 @@ import { collection } from "@kolu/surface"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import { useCollectionDeltas } from "@kolu/surface/solid"
 import { derive, type Derived, faceOf, matching, parseFilter, patch } from "@olai/format"
-import { median, outlineOf, retitled, retitledIn, timesSaid, vaultOf } from "@olai/format/testlib"
+import {
+  median,
+  outlineOf,
+  retitled,
+  retitledIn,
+  timed,
+  timesSaid,
+  vaultOf,
+} from "@olai/format/testlib"
 import { LOADED, type Manifest, OutlineEntry } from "@olai/surface"
 import { Effect, Queue, Schema, Stream } from "effect"
 import { createEffect, createRoot } from "solid-js"
 
-import { createOutlines, type OutlineEntries } from "./outlines.ts"
+import { createOutlines, type OutlineEntries, type Outlines } from "./outlines.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 21)
@@ -112,7 +120,7 @@ const outlines = collection({
  * because an arm that has stopped receiving is not a shape anything below
  * measures.
  */
-const controllable = (): { source: Stream.Stream<Frame>; push: (frame: Frame) => void } => {
+const controllable = (): { source: Stream.Stream<Frame>; push: Push } => {
   const queue = Effect.runSync(Queue.unbounded<Frame>())
   return {
     source: Stream.fromQueue(queue),
@@ -162,27 +170,38 @@ const loaded = (): Manifest => LOADED
 
 // ── the frame: three arms ──────────────────────────────────────────────
 
+/** Deliver one frame to one arm. */
+type Push = (frame: Frame) => void
+
 interface Arm {
-  readonly push: (frame: Frame) => void
+  readonly push: Push
   /** Which edit this arm's OWN answer says it is at, read off the file the
    *  edit named. Off the clock, and the whole guard against an arm that
    *  stopped recomputing. */
   readonly said: (file: string) => number | undefined
 }
 
-/** One arm: the hook over its own stream, and whatever `observe` decides to
- *  read from it every frame. The effect is what makes a frame's work happen
- *  when the frame lands rather than when a reader gets round to asking — which
- *  is what a rendered page does and what a lazy memo would not. */
-const arm = (
-  observe: (entries: OutlineEntries) => (file: string) => number | undefined,
-): Arm =>
+/** One arm: the framework's hook over a stream this bench pushes into, and
+ *  whatever `read` builds on top of it — the three lines every arm in both
+ *  sections opens with, spelled once. The reactive root is never disposed
+ *  because the process ends with the leg. */
+const driven = <T>(read: (entries: OutlineEntries) => T): { push: Push; it: T } =>
   createRoot(() => {
     const { source, push } = controllable()
-    const entries = useCollectionDeltas(outlines, { source })
-    const said = observe(entries)
-    return { push, said }
+    return { push, it: read(useCollectionDeltas(outlines, { source })) }
   })
+
+/** One arm of the first section: the hook, and whatever `observe` decides to
+ *  read from it every frame. The effect inside `observe` is what makes a
+ *  frame's work happen when the frame LANDS rather than when a reader gets
+ *  round to asking — which is what a rendered page does and what a lazy memo
+ *  would not. */
+const arm = (
+  observe: (entries: OutlineEntries) => (file: string) => number | undefined,
+): Arm => {
+  const { push, it } = driven(observe)
+  return { push, said: it }
+}
 
 /** THE FRAMEWORK ALONE: the frame written into the store, and nothing derived
  *  from it. Its answer is read straight out of the store, which is what says
@@ -190,34 +209,40 @@ const arm = (
 const frameOnly = (): Arm =>
   arm((entries) => (file) => retitledIn(entries.byKey(file)?.()?.nodes ?? []))
 
-/** THE FOLD: `createOutlines`, with `derived` observed and nothing else. */
-const viewOnly = (): Arm =>
+/** An arm over the SHIPPED composition, reading whatever `observe` reads of it
+ *  every frame. The two below differ in exactly that and in nothing else, which
+ *  is what makes the gap between them attributable to what the second one
+ *  reads. */
+const composed = (observe: (view: Outlines) => void): Arm =>
   arm((entries) => {
     const view = createOutlines(entries, loaded)
-    createEffect(() => view.derived())
+    createEffect(() => observe(view))
     return (file) => retitledIn(view.derived()?.byFile.get(file) ?? [])
   })
+
+/** THE FOLD: `derived` observed and nothing else. */
+const viewOnly = (): Arm => composed((view) => void view.derived())
 
 /** THE WHOLE COMPOSITION: everything `App.tsx` reads off this module. */
 const wholeTab = (): Arm =>
-  arm((entries) => {
-    const view = createOutlines(entries, loaded)
-    createEffect(() => {
-      view.derived()
-      view.files()
-      view.faces()
-      view.broken()
-    })
-    return (file) => retitledIn(view.derived()?.byFile.get(file) ?? [])
+  composed((view) => {
+    view.derived()
+    view.files()
+    view.faces()
+    view.broken()
   })
 
-/** One frame, pushed and waited for. THE FRAME IS THE MEASUREMENT: the work an
- *  effect does happens when the write that invalidated it finishes, so the
- *  whole of "a file changed and this tab has a view of it again" is inside this
- *  window. */
-const frameCost = async (end: Arm, frame: Frame): Promise<number> => {
+/** One frame, pushed and waited for, in milliseconds — `@olai/format/testlib`'s
+ *  `timed` for a window that has to be AWAITED, which the testlib's own is not.
+ *  Same clock (`Bun.nanoseconds`), so the two numbers this leg prints per arm
+ *  and every number the other three legs print are one clock's.
+ *
+ *  THE FRAME IS THE MEASUREMENT: the work an effect does happens when the write
+ *  that invalidated it finishes, so the whole of "a file changed and this tab
+ *  has a view of it again" is inside this window. */
+const frameCost = async (push: Push, frame: Frame): Promise<number> => {
   const at = Bun.nanoseconds()
-  end.push(frame)
+  push(frame)
   await settled()
   return (Bun.nanoseconds() - at) / 1e6
 }
@@ -239,7 +264,7 @@ const theFrame = async (): Promise<void> => {
   ]
   const first = new Map<string, number>()
   for (const [name, end] of arms) {
-    first.set(name, await frameCost(end, snapshotOf()))
+    first.set(name, await frameCost(end.push, snapshotOf()))
     const said = end.said(fileFor(0))
     if (said !== undefined) {
       throw new Error(`${name} says it is at edit ${said} before any edit was made`)
@@ -252,7 +277,7 @@ const theFrame = async (): Promise<void> => {
     // one of them always going first.
     const order = arms.map((_, at) => arms[(at + which) % arms.length] as (typeof arms)[number])
     for (const [name, end] of order) {
-      ;(times.get(name) as Array<number>).push(await frameCost(end, frame))
+      ;(times.get(name) as Array<number>).push(await frameCost(end.push, frame))
       const said = end.said(fileFor(which))
       if (said !== which) {
         throw new Error(
@@ -296,25 +321,25 @@ const searched = (view: Derived): number => matching(view, parseFilter(TYPED, TO
 /** An arm of the second section: a hook of its own, and a view seeded one of
  *  the two ways. */
 interface Flapped {
-  readonly push: (frame: Frame) => void
+  readonly push: Push
   readonly view: () => Derived
 }
 
-const flapArm = (seeded: (entries: OutlineEntries) => () => Derived | undefined): Flapped =>
-  createRoot(() => {
-    const { source, push } = controllable()
-    const entries = useCollectionDeltas(outlines, { source })
-    const read = seeded(entries)
-    createEffect(() => read())
-    return {
-      push,
-      view: () => {
-        const held = read()
-        if (held === undefined) throw new Error("the arm has no view — no snapshot ever landed")
-        return held
-      },
-    }
+const flapArm = (seeded: (entries: OutlineEntries) => () => Derived | undefined): Flapped => {
+  const { push, it: read } = driven((entries) => {
+    const view = seeded(entries)
+    createEffect(() => view())
+    return view
   })
+  return {
+    push,
+    view: () => {
+      const held = read()
+      if (held === undefined) throw new Error("the arm has no view — no snapshot ever landed")
+      return held
+    },
+  }
+}
 
 /** WHAT `outlines.ts` DID: the fold seeded with the entries the frame carries.
  *  Re-inlined here because it is the "before" of this comparison and lives
@@ -360,13 +385,13 @@ const theReconnect = async (): Promise<void> => {
     const again = snapshotOf()
     const order = arms.map((_, at) => arms[(at + flap) % arms.length] as (typeof arms)[number])
     for (const [name, end] of order) {
-      const at = Bun.nanoseconds()
-      end.push(again)
-      await settled()
-      const rebuilt = (Bun.nanoseconds() - at) / 1e6
-      const searchAt = Bun.nanoseconds()
-      const answered = searched(end.view())
-      const cost = (Bun.nanoseconds() - searchAt) / 1e6
+      const rebuilt = await frameCost(end.push, again)
+      // The search itself is synchronous, so it is timed with the testlib's own
+      // clock — the one every other `just bench` leg reports from.
+      let answered = 0
+      const cost = timed(() => {
+        answered = searched(end.view())
+      })
       if (answered !== hits.values().next().value) {
         throw new Error(`${name} answered ${answered} hits after the flap, not ${
           hits.values().next().value
