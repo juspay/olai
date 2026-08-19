@@ -121,7 +121,8 @@ import { noSuchDocument } from "./plan.ts"
 // is what `validate` answers with and what {@link ./deps.ts}'s store holds), so
 // the derivation arrives with the snapshot and the memo has nothing left to
 // save. A caller holding a bare set and no derivation is a test fixture, and it
-// says `derive(set.nodes)`.
+// reaches the records through the outlines they are written in — there is no
+// node-only list on the set to ask for (`@olai/format`'s `set.ts`).
 
 /**
  * One node, situated — the shape every read here answers with.
