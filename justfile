@@ -171,12 +171,23 @@ nix:
 hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
-# What a keystroke costs, on a generated vault. THREE of them, and each is a
+# What a keystroke costs, on a generated vault. FOUR of them, and each is a
 # LEG rather than a scratch file, because slice 3 of `model-indices` ran its
 # numbers as a one-off and a benchmark nobody can re-run is a number nobody can
 # check — and deliberately NOT a dependency of `check`, since a timing that
 # fails a lane on a busy machine teaches nobody anything.
 #
+#   - the TAB's own frame — what the browser pays between a `deltas` frame
+#     landing and having a view of the directory again, in three cumulative
+#     arms (the framework's store write alone, plus the fold, plus the walks
+#     `outlines.ts` keeps beside it), and what a link flap costs the search
+#     after it (`packages/web/src/client/outlines.bench.ts`). It drives the
+#     framework's real hook over a hand-pushed stream and reads the real
+#     `createOutlines`, which is what the bench it replaces did not: that one
+#     simulated the store write, so it could not feel the framework change
+#     under it. `--conditions browser` is load-bearing here: without it Bun
+#     resolves SolidJS's server build, whose memos never re-run, and every arm
+#     reports an empty loop;
 #   - the PATCHER under every view — `derive` over the whole corpus, against
 #     `patched` on the view the last edit left, against that same patch paying
 #     the id-map clone the overlay replaced
@@ -198,17 +209,19 @@ hm-module:
 #     WALK under it costs in the three shapes it has been written in, are the
 #     two pairs the first leg prints at the end.
 #
-# Two of the three run the SAME generated vault (`@olai/format/testlib`'s
-# `vaultOf` — the patcher and the tag completion), so a patch's cost and what a
-# completion asks of the view it leaves are numbers about one directory; the
-# matcher generates a corpus of its own, sized for keystrokes rather than for a
-# directory. What a FRAME costs the tab is not timed here any
-# more: the merge is the framework's, and `@kolu/surface`'s own
-# `src/solid/collectionDeltas.bench.ts` measures it end to end.
-# Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS / OLAI_BENCH_EDITS —
-# and turning the last one up to 900 is what makes the first leg's layer grow
-# past half the id map and flatten, which it prints the edit of.
+# Three of the four run the SAME generated vault (`@olai/format/testlib`'s
+# `vaultOf` — the tab, the patcher and the tag completion), so what a frame
+# costs a browser, the patch inside it and what a completion asks of the view it
+# leaves are numbers about one directory; the matcher generates a corpus of its
+# own, sized for keystrokes rather than for a directory. The MERGE under all of
+# it is not timed here and should not be: it is the framework's, and
+# `@kolu/surface`'s own `src/solid/collectionDeltas.bench.ts` measures it end to
+# end. Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS /
+# OLAI_BENCH_EDITS — and turning the last one up to 900 is what makes the
+# patcher's layer grow past half the id map and flatten, which it prints the
+# edit of.
 bench: install
+    {{ nix_shell }} bun --conditions browser packages/web/src/client/outlines.bench.ts
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
     {{ nix_shell }} bun packages/web/src/client/complete/tags.bench.ts
