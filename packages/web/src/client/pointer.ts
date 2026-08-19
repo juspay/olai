@@ -2,10 +2,11 @@
  * A POINTER DRAG: from a press, moves until it ends — and nothing about what
  * is being dragged.
  *
- * Two things in this client drag with a pointer, and they have nothing else in
- * common: a panel edge that maps a delta onto a width (`./layout/resize.ts`)
- * and a row that maps a position onto a placement in the outline
- * (`./drag/dragging.ts`). What they SHARE is entirely the plumbing below —
+ * Three things in this client drag with a pointer, and they have nothing else
+ * in common: a panel edge that maps a delta onto a width
+ * (`./layout/resize.ts`), a row that maps a position onto a placement in the
+ * outline (`./drag/dragging.ts`), and a pin that maps one onto a gap in a flat
+ * shelf (`./pins/Shelf.tsx`). What they SHARE is entirely the plumbing below —
  * window listeners rather than the element's (a pointer that leaves the handle
  * is still dragging it), a teardown that runs on every way a gesture can end,
  * the text-selection guard, and telling a drag from a click. That plumbing was
@@ -28,13 +29,25 @@
  *
  * WHY NOT A LIBRARY: what is left after the paragraphs above is thirty lines of
  * `addEventListener`, and the SolidJS drag libraries in reach own a sortable
- * LIST — flat, one container, no depth — which is the shape neither consumer
- * has.
+ * LIST — flat, one container, no depth — which was, for two of the three
+ * consumers, a shape neither of them had.
+ *
+ * THE THIRD ONE IS THAT SHAPE, and it is worth saying so rather than leaving
+ * the sentence above reading as a closed question: the sidebar's pinned shelf
+ * (`./pins/Shelf.tsx`) is a flat sortable list in one container, which is
+ * exactly what those libraries are for. It is still built on this, and the
+ * reason is a measurement rather than a habit — what it needs from a library
+ * is a threshold, a set of window listeners and a teardown, all three of which
+ * are already here and already spent by two other gestures, against a
+ * dependency whose own model (its ghost, its drop targets, its sensors) would
+ * have to be talked out of doing the parts this app measures for itself. The
+ * day a second flat list wants one, that arithmetic changes, and this
+ * paragraph is what it should be re-read against.
  *
  * THE PAGE KEEPING UP is here for the same reason the threshold is
  * ({@link Gesture.onPage}): it is a paired obligation — feed it, and stop it on
  * every way a gesture can end — and it was about to be wired identically by the
- * two consumers that want it. Opt-in, because the third does not: a panel edge
+ * consumers that want it. Opt-in, because the panel edge does not: an edge
  * scrolling the outline behind it would be this used by accident.
  */
 

@@ -104,3 +104,11 @@ test("with no indexes yet the archive is not offered, rather than uncounted", ()
   expect(opItems(at("kitchen"), undefined).map((row) => row.label))
     .toEqual(["Mark todo", "Complete", "Clear mark", "Duplicate"])
 })
+
+test("the shelf's verb is not among them — the palette's pin row is the PAGE's", () => {
+  // On a zoomed node the page IS that node, so keeping the menu's own pin here
+  // would put two rows in the list doing one thing, and one of them would
+  // quietly drop the `?q=`. The `•••` on a ROW goes on offering it.
+  expect(labels("order")).not.toContain("Pin to sidebar")
+  expect(labels("order")).not.toContain("Unpin from sidebar")
+})

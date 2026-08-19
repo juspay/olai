@@ -112,7 +112,7 @@ export function Calendar(props: {
     <section
       // No horizontal pad below md: `p-3` plus the drawer's `p-4` left
       // 41px cells on a 390pt phone, under the 44px finger rule.
-      class="olai-card mb-5 rounded-xl bg-panel py-3 md:p-3"
+      class="olai-card mb-1 rounded-xl bg-panel py-3 md:p-3"
       data-testid={TESTID.calendar}
       data-month={month()}
     >

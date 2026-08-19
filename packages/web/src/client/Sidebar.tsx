@@ -7,6 +7,17 @@
  * agenda is the same dates read forward — what is owed. Neither is a thing on
  * disk, which is exactly why they are here rather than in the tree below them.
  *
+ * BELOW BOTH, and directly above the files, sits the reader's own short list —
+ * the pinned shelf (./pins/Shelf.tsx). It is neither of the journal's questions
+ * and not a thing on disk that this column walks: it is a handful of doors
+ * somebody kept. It went above the agenda first and was moved here (human,
+ * 2026-08-19), and the order is the argument: the journal's two questions are
+ * what the directory has to SAY, and a shelf in front of them puts a reader's
+ * own bookmarks ahead of the news. Beside the tree it is what it actually is —
+ * a shortcut INTO the files, a hand's width from the list it shortcuts. It
+ * draws nothing when there are no pins, so a directory that has never used one
+ * has the column it always had.
+ *
  * Desktop: a resizable column when open, replaced by the icon rail when
  * minimized (./layout/Rail.tsx). Mobile: a slide-over drawer with scrim under
  * the header — not the old capped close-on-any-tap sheet. App chrome
@@ -97,43 +108,13 @@ import { Glyph } from "./file/icons.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
 import { LAYER, WITHIN } from "./layer.ts"
+import { ENTRY_SHAPE, REGION, ROW_GAP } from "./layout/entry.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
+import { Shelf } from "./pins/Shelf.tsx"
 import { Link, useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
-
-/** One entry's box, hover and current-page wash — everything about it EXCEPT
- *  what colour the words are. The ink is split out because the agenda's entry
- *  changes it (`./agenda/owed.ts`), and two utilities setting one property are
- *  settled by the order Tailwind emitted its rules in rather than by the order
- *  they were written here: appending `text-alarm` to a class that already says
- *  `text-ink` is a coin toss, which is the trap `./calendar/Day.tsx` composes
- *  per-property to avoid. So every user of this names an ink, and exactly one
- *  does. */
-const ENTRY_SHAPE =
-  `flex ${TARGET} items-center break-all rounded-md px-2 py-0.5 text-[0.8125rem] leading-snug ` +
-  "no-underline hover:bg-rule/50 aria-[current=page]:bg-accent/15 " +
-  "aria-[current=page]:text-accent aria-[current=page]:font-semibold md:min-h-0"
-
-/** The space between the things on a row of the tree — a glyph, a name, and
- *  the mark when a file could not be read.
- *
- *  ONE gap for both kinds of row, spelled once, because the two agreeing is a
- *  promise and not a coincidence: a folder's name and a file's name are read
- *  as one column of names, and a folder row that took a different gap would
- *  put its names a couple of pixels off every file's for as long as nobody
- *  looked. Named for the same reason `./touch.ts` names the tree's
- *  `GUTTER_GAP` rather than repeating it down the row: a gap that is written
- *  twice is a rule, and a rule is what nothing enforces.
- *
- *  It MOVES the folder rows, and that is the promise rather than a side
- *  effect: a folder's row was `gap-0.5`, so adopting this widens
- *  triangle-to-glyph from 2px to 6px. Two pixels of difference between the two
- *  kinds of row is exactly what "one column of names" rules out, and the
- *  before/after shots are where it can be checked — the folder rows are inside
- *  the region this PR says DIFFERS, not the ones it says are byte-identical. */
-const ROW_GAP = "gap-1.5"
 
 /** One file entry. Workflowy-quiet: soft hover, a wash when current.
  *
@@ -279,24 +260,57 @@ export function Sidebar(props: {
           <Agenda agenda={props.agenda} />
           {props.children}
 
-          <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
-            <Key each={tree()} by="key">
-              {(row) => <Entry row={row()} view={view} />}
-            </Key>
-          </ul>
-          {/* Directly under the tree, because the tree is what it adds to: the
-              two ways to a FILE that does not exist yet — an outline
-              (./outline/NewOutline.tsx) and a document
-              (./document/NewDocument.tsx), both drawing the one path box
-              (./file/NewFile.tsx). The outline first, because the tree
-              above it is mostly outlines and because that is the file this app
-              is about. */}
-          <NewOutline />
-          <NewDocument />
+          {/* THE SHELF, between the journal's two questions and the files —
+              which is where a reader's own short list belongs (human,
+              2026-08-19). Above the agenda it sat in front of the news; here it
+              is the last thing said about the DIRECTORY before the directory
+              itself, and a pinned outline is a hand's width from the outline
+              list it is a shortcut into. It draws nothing at all when there are
+              no pins (`./pins/Shelf.tsx`), so the ordinary column is exactly
+              the column it always was. */}
+          <Shelf />
 
-          {/* And below both, the way OUT of the directory rather than into it:
-              what has been put away. */}
-          <Trash />
+          {/* THE DIRECTORY ITSELF — the tree, and the two ways to add to it,
+              in one region because the second is about the first.
+
+              NO LABEL over it, where the shelf has one, and the reason is a
+              budget rather than a preference: this column is one screen tall
+              and the month above is most of it, so every line of chrome here
+              is a line the TREE loses on a short screen — which a scenario
+              holds ("the file tree is still on screen"). What needed naming
+              was the list that is new to a reader; the tree is what the column
+              IS, and the rule above it says where it starts. */}
+          <section class={REGION} data-testid={TESTID.sidebarFiles}>
+            <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
+              <Key each={tree()} by="key">
+                {(row) => <Entry row={row()} view={view} />}
+              </Key>
+            </ul>
+            {/* Directly under the tree, because the tree is what it adds to:
+                the two ways to a FILE that does not exist yet — an outline
+                (./outline/NewOutline.tsx) and a document
+                (./document/NewDocument.tsx), both drawing the one path box
+                (./file/NewFile.tsx). The outline first, because the tree above
+                it is mostly outlines and because that is the file this app is
+                about.
+
+                Set off by a hairline of their own INSIDE the region rather than
+                made a region of their own: they belong to the tree — a reader
+                looking for "how do I make one" looks at the end of the list of
+                them — and what they needed was to stop reading as two more
+                files, which is what a rule and a gap say. */}
+            <div class="mt-2 border-t border-rule/40 pt-2">
+              <NewOutline />
+              <NewDocument />
+            </div>
+          </section>
+
+          {/* And below all of it, the way OUT of the directory rather than into
+              it: what has been put away. Its own region, because it is the one
+              row here that is not about the files above it. */}
+          <div class={REGION}>
+            <Trash />
+          </div>
         </div>
       </nav>
     </>
@@ -386,7 +400,7 @@ function Trash() {
   return (
     <Link
       route={{ kind: "trash" }}
-      class={`${ENTRY} mt-4 text-muted`}
+      class={`${ENTRY} text-muted`}
       testid={TESTID.trashLink}
       current={router.route().kind === "trash"}
     >

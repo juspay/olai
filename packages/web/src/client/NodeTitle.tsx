@@ -12,10 +12,45 @@
  * which is why it arrives as a prop from the row rather than being read here:
  * the same title is drawn in a breadcrumb and a see-link, where there is no
  * query to have found anything.
+ *
+ * ## AND A TITLE THAT IS NOTHING BUT AN ADDRESS IS DRAWN AS THE PAGE IT NAMES
+ *
+ * `/doc/orchestrator/instructions.md` is a title this app WRITES: it is how a
+ * pin is spelled, because storing a name beside the address would be storing a
+ * copy of a fact the set already holds (docs/format.md's Pins). The sidebar's
+ * shelf resolved those rows from the first day and the FILE's own page did
+ * not — so opening `Pins.olai`, which the design invites, showed the plumbing
+ * (maintainer, 2026-08-18: *wtf is this UI*).
+ *
+ * The fix is here rather than on that page, and that is the whole of it: a
+ * title is rendered at view time — markdown is, tags are — and an address is
+ * one more reading of the same string, so it is decided where every title is
+ * decided and no page has a case of its own. `Pins.olai` is browsable because
+ * it is an ordinary outline, and it now reads like one.
+ *
+ * A TITLE WRITTEN AS ONE MARKDOWN LINK to an address is the same face with a
+ * name in it (human, 2026-08-19): `[Kitchen project](/n/abc123)` draws
+ * *Kitchen project* and pressing it opens `/n/abc123`. That is how a pin
+ * carries a name somebody chose — renaming one is editing this row's text, and
+ * no op and no field were added for it. It stays an ANCHOR because it was
+ * written as a link; what it gains is the mark and the query beside it, and
+ * what it loses is being drawn by the markdown pipeline, which for one link and
+ * nothing else was a round trip through a chunk to arrive at the same words
+ * (before the chunk lands, that title draws its raw source — which for a pin is
+ * the plumbing, briefly, on every first paint).
+ *
+ * The EDITOR is untouched and is the other half of the answer: a click on the
+ * line opens it, and what it shows is the SOURCE — the title exactly as it is
+ * stored — the same trade every markdown title already makes. So the face is
+ * what you read and the address is what you edit. On a NAMED face the label
+ * itself is the link, so the press that edits is anywhere else on the line;
+ * `../Tree.tsx`'s `clickTitle` is what keeps those two presses apart.
  */
 
-import { createMemo } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
+import { addressIn, labelIn } from "./address/address.ts"
+import { Face } from "./address/Face.tsx"
 import { renderTitle } from "./markdown/title.ts"
 
 export function NodeTitle(props: {
@@ -32,6 +67,12 @@ export function NodeTitle(props: {
    *  on every title drawn for a row the query did not select. */
   readonly needles?: ReadonlyArray<string>
 }) {
+  /** The place this title names, for the titles that name one. Cheap for every
+   *  other title in the directory: the test short-circuits on the first
+   *  character (`./address/address.ts`). */
+  const address = createMemo(() => addressIn(props.title))
+  /** …and the name written INTO it, for the spelling that carries one. */
+  const named = createMemo(() => labelIn(props.title))
   const html = createMemo(() =>
     renderTitle(props.title, props.from, {
       links: props.links,
@@ -39,11 +80,27 @@ export function NodeTitle(props: {
     }),
   )
   return (
-    <span
-      class="olai-md olai-md-inline"
-      // Safe: markdown is sanitised; tags are alphabet-restricted; the empty
-      // fallback is escaped. See ./markdown/title.ts and ./markdown/render.ts.
-      innerHTML={html()}
-    />
+    <Show
+      when={address()}
+      fallback={
+        <span
+          class="olai-md olai-md-inline"
+          // Safe: markdown is sanitised; tags are alphabet-restricted; the empty
+          // fallback is escaped. See ./markdown/title.ts and ./markdown/render.ts.
+          innerHTML={html()}
+        />
+      }
+    >
+      {(route) => (
+        // The needles are deliberately not carried into a face: what a filter
+        // lights is where a WORD sits in the words somebody wrote, and this
+        // title's words are the set's rather than the file's. The row is still
+        // drawn, and still says it is a match in the ways that are about the
+        // row (`./filter/why.ts`).
+        <span class="flex min-w-0 flex-1 items-center gap-1.5">
+          <Face route={route()} named={named()} pressable={props.links !== false} />
+        </span>
+      )}
+    </Show>
   )
 }

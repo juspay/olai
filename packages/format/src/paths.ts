@@ -55,3 +55,21 @@ export const byPath = (one: string, other: string): -1 | 0 | 1 => {
   // it comes first for the same reason.
   return one.length === other.length ? 0 : one.length < other.length ? -1 : 1
 }
+
+/**
+ * What a file is CALLED — the last segment of its path, and the second thing
+ * this module owns about a path.
+ *
+ * Here for {@link byPath}'s reason exactly: it was spelled twice for two
+ * readers who must not disagree — this package's own convention walk (which
+ * outline is the inbox, which one is the shelf: `./node.ts`) and the browser's
+ * sidebar, where a pinned document is drawn by its name rather than by its
+ * whole path (`@olai/web`'s `pins/name.ts`). Two slices of the same string is
+ * exactly the kind of one-liner that is copied rather than imported, and then
+ * disagrees the day somebody decides a trailing slash is a thing.
+ *
+ * No separator, no directory: a path with none is its own basename, which is
+ * what the root of a served directory looks like.
+ */
+export const basenameOf = (file: string): string =>
+  file.slice(file.lastIndexOf("/") + 1)

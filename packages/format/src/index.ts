@@ -92,7 +92,12 @@ export { apart, assemble, BrokenFile, brokenBy, brokenIn, nodesIn, OutlineSet } 
  *  file by it, and the browser folds and draws in it. Exported because the
  *  browser is one of those three (slice 4 of `model-indices`), and a client
  *  ordering paths its own way would be the same directory read two ways. */
-export { byPath } from "./paths.ts"
+export {
+  /** What a file is CALLED — its last path segment, for the readers that draw
+   *  a name rather than a path. One spelling, beside the order rule. */
+  basenameOf,
+  byPath,
+} from "./paths.ts"
 export type { DecodedFile, Outline } from "./set.ts"
 /** The view PATCHED rather than rebuilt, and what a delta says: files upserted,
  *  files gone — Surface's own collection-delta frame, which is the vocabulary
@@ -155,6 +160,15 @@ export {
   isMirror,
   Located,
   MARKS,
+  /** Where olai mints a file it named itself, and the directory it puts them
+   *  in — a MINT rather than a home: what a directory already has is found
+   *  where it sits (`./node.ts`). */
+  mintedInto,
+  OLAI_DIR,
+  /** The shelf's own filename, and the walk that finds a directory's — the
+   *  pin convention, read the way the inbox one is (`./node.ts`). */
+  PINS,
+  pinsIn,
   /** A place in the loaded set — `{file, line}`, as a schema, so an error's
    *  site, a record in the set, a read's answer and a mirror's location are one
    *  derivation of "where" rather than four spellings of it. */

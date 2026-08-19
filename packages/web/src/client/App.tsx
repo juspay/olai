@@ -40,6 +40,7 @@ import { OpensProvider } from "./opens.tsx"
 import { createOutlines } from "./outlines.ts"
 import { fileOf, opensAt, pageOf } from "./page.ts"
 import { Palette } from "./palette/Palette.tsx"
+import { pinSaid } from "./pins/pinning.ts"
 import { Panes } from "./pane/Panes.tsx"
 import { SHELL_LONE, SHELL_SPLIT } from "./pane/shell.ts"
 import { createRouter, RouterProvider } from "./router.tsx"
@@ -152,7 +153,15 @@ export default function App() {
           else setMenuOpen(!menuOpen())
         }}
       />
-      <UndoSaid said={undo.said()} />
+      {/* ONE LINE for the two gestures in this app that have no row to hang
+          one under: ⌘Z, which is pressed with no draft open, and the shelf's
+          (⌘⇧P and the sidebar's own controls), which is pressed at whatever
+          page the reader is looking at and may be refused before there is a
+          shelf drawn to say so. The pin's is the one that fades — it takes
+          itself away after the usual dwell, where an undo's stands until the
+          next ⌘Z — so "the newer of the two" is what this reads as in
+          practice, and the older one is still there when it goes. */}
+      <UndoSaid said={pinSaid() ?? undo.said()} />
       <div class="flex min-h-dvh flex-col">
         <AppHeader
           docked={docked()}

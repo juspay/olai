@@ -24,7 +24,7 @@ import { Schema } from "effect"
 
 import { Custom } from "./custom.ts"
 import { OUTLINE_EXT } from "./kinds.ts"
-import { byPath } from "./paths.ts"
+import { basenameOf, byPath } from "./paths.ts"
 
 /** `true`, or the ISO date/datetime the state was reached at. */
 const Marker = Schema.Union([Schema.Literal(true), Schema.String])
@@ -449,9 +449,93 @@ export const INBOX = `Inbox${OUTLINE_EXT}`
  * resolves through it (`@olai/server`'s `edit.ts`), and an agent capturing by
  * hand reads the same sentence rather than guessing at the browser's.
  *
- * The file is whichever outline is CALLED `Inbox.olai`, wherever it sits, so
- * a directory that already keeps its inbox under `notes/` captures into the
- * file it has rather than growing a second one at the root. Case-insensitively,
+ * HOW that file is found is {@link outlineCalled}'s, and it is that function
+ * rather than a walk here because the shelf below is found the same way.
+ */
+export const inboxIn = (files: ReadonlyArray<string>): string | undefined =>
+  outlineCalled(files, INBOX)
+
+/**
+ * The outline the PINNED SHELF is — every pin the directory holds, one node
+ * per pin, in the order they are drawn.
+ *
+ * The third filename in this file that means something, and it means it the
+ * way the other two do: BY ITS NAME, with no field on any record saying so.
+ * What is in it is ORDINARY NODES whose titles name an ADDRESS in this app —
+ * which is what a bookmark is — so an agent reads the shelf with
+ * `read_subtree`, adds to it with `add_node`, reorders it with `move_node`
+ * and takes something off it with `archive_node`. Pinning grew no op and no
+ * AGENT tool, which is the whole reason the shelf is a file of nodes rather
+ * than a field (docs/format.md's Pins). The browser grew one verb of its own,
+ * `pin`, and it resolves to that same `add` — what it saves a tab is the
+ * READING of which file the shelf is, never an op (`@olai/surface`'s
+ * `edit.ts`, where quick capture makes the identical trade).
+ *
+ * WHERE ONE IS MINTED is {@link mintedInto}'s and not this constant's, and the
+ * two questions are deliberately apart: this is the NAME a directory's shelf is
+ * found by, wherever it sits, and a directory that already keeps a `Pins.olai`
+ * at its root goes on using it. What olai CREATES, when there is none, is
+ * `_olai/Pins.olai` — a file olai made rather than one a person did, so it
+ * goes where those go (human, 2026-08-19).
+ */
+export const PINS = `Pins${OUTLINE_EXT}`
+
+/**
+ * THE DIRECTORY OLAI MINTS ITS OWN FILES INTO.
+ *
+ * A served directory is somebody's — their outlines, their notes, their names,
+ * at the top level where they put them. A file OLAI made because a person
+ * pressed something is a different kind of thing, and it does not belong in
+ * that list: the shelf is the first of them, and there will be more (human,
+ * 2026-08-19).
+ *
+ * `_` rather than `.`, and that is load-bearing rather than a style: a
+ * dot-directory is not WALKED at all (`@olai/store`'s `disk.ts` prunes them,
+ * because whoever put one there did not mean it as content), so a shelf under
+ * one would never be read back. An underscore is an ordinary directory that
+ * sorts to the top and reads as machine-owned to a person looking at `ls`.
+ *
+ * IT IS A MINT AND NOT A HOME, which is the whole distinction this file keeps
+ * between the two questions a convention asks. {@link pinsIn} goes on finding
+ * whichever outline is CALLED `Pins.olai`, wherever it sits — a directory that
+ * already keeps one at the root, or under `notes/`, keeps using the file it
+ * has and nothing moves. This says only where olai puts one when the directory
+ * has none.
+ */
+export const OLAI_DIR = "_olai"
+
+/**
+ * Where olai mints a file it names itself — one spelling, so the day the
+ * ARCHIVE and the INBOX move here too it is one call each rather than a path
+ * assembled at three sites.
+ *
+ * They deliberately have NOT moved (human, 2026-08-19: pins first, the other
+ * two are their own change). `archiveBeside` still puts an `Archive.olai`
+ * beside the file it is emptying, and a capture still mints `Inbox.olai` at the
+ * root; each is a decision with its own history and its own migration, and
+ * moving them under cover of this one would be three conventions changing in a
+ * PR about one.
+ */
+export const mintedInto = (name: string): string => `${OLAI_DIR}/${name}`
+
+/** The directory's shelf, or `undefined` when it has none — {@link inboxIn}'s
+ *  question one convention over, answered by the same walk so that one
+ *  directory cannot have two answers depending on who asked. */
+export const pinsIn = (files: ReadonlyArray<string>): string | undefined =>
+  outlineCalled(files, PINS)
+
+/**
+ * The one outline a directory CALLS by a given name, or `undefined`.
+ *
+ * Two conventions are read this way — the inbox a capture lands in, the shelf a
+ * pin lands on — and they became one function the moment there were two of
+ * them: the rule is not "where the inbox is", it is "how this format finds the
+ * file a directory named", and a second copy of it would be two directories'
+ * worth of behaviour under one sentence in docs/format.md.
+ *
+ * The file is whichever outline is CALLED that, wherever it sits, so a
+ * directory that already keeps its inbox under `notes/` captures into the file
+ * it has rather than growing a second one at the root. Case-insensitively,
  * because it is a name a person typed and `inbox.olai` is the same intention.
  *
  * SHALLOWEST WINS, then path order — one answer, and a stable one, for the
@@ -462,12 +546,14 @@ export const INBOX = `Inbox${OUTLINE_EXT}`
  * first", and a second one would be a directory whose inbox depended on who
  * was asking.
  */
-export const inboxIn = (files: ReadonlyArray<string>): string | undefined =>
+const outlineCalled = (
+  files: ReadonlyArray<string>,
+  name: string,
+): string | undefined =>
   files
-    .filter((file) => basenameOf(file).toLowerCase() === INBOX.toLowerCase())
+    .filter((file) => basenameOf(file).toLowerCase() === name.toLowerCase())
     .sort((a, b) => depthOf(a) - depthOf(b) || byPath(a, b))
     .at(0)
 
-const basenameOf = (file: string): string => file.slice(file.lastIndexOf("/") + 1)
 
 const depthOf = (file: string): number => file.split("/").length

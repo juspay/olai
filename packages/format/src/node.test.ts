@@ -4,12 +4,17 @@ import { nodesOf } from "./fixtures.testlib.ts"
 import { OUTLINE_EXT } from "./kinds.ts"
 import {
   ARCHIVE,
+  archiveBeside,
   ID_SHAPE,
   INBOX,
   inboxIn,
   isMirror,
+  mintedInto,
   MirrorNode,
   type Node,
+  OLAI_DIR,
+  PINS,
+  pinsIn,
   RegularNode,
 } from "./node.ts"
 
@@ -88,4 +93,47 @@ test("with two inboxes the shallower one wins, so the answer is stable", () => {
   // capture from the obvious one beside it.
   expect(inboxIn(["deep/down/Inbox.olai", INBOX, "a/Inbox.olai"])).toBe(INBOX)
   expect(inboxIn(["z/Inbox.olai", "a/Inbox.olai"])).toBe("a/Inbox.olai")
+})
+// The shelf is the THIRD named file, and it is read by the same walk — which
+// is the whole reason `outlineCalled` exists rather than a second filter
+// beside the inbox's. A directory that keeps its pins under `notes/` gets the
+// file it has, exactly as it does for a capture.
+test("a directory's shelf is whichever outline is called that, wherever it sits", () => {
+  expect(PINS).toBe(`Pins${OUTLINE_EXT}`)
+  expect(pinsIn(["house.olai", "Pins.olai"])).toBe("Pins.olai")
+  expect(pinsIn(["house.olai", "notes/pins.olai"])).toBe("notes/pins.olai")
+  expect(pinsIn(["my-Pins.olai"])).toBeUndefined()
+  expect(pinsIn([])).toBeUndefined()
+  // Shallowest first, then path order — the inbox's rule, because it is the
+  // same walk.
+  expect(pinsIn(["deep/down/Pins.olai", PINS, "a/Pins.olai"])).toBe(PINS)
+})
+
+// WHERE OLAI MINTS ONE is a different question from where it FINDS one, and
+// only the first moved (human, 2026-08-19). A dot-directory would not do:
+// `@olai/store`'s walk prunes those, so a shelf under one would never be read
+// back.
+test("olai mints its own files under _olai/, and finds them anywhere", () => {
+  expect(OLAI_DIR).toBe("_olai")
+  expect(mintedInto(PINS)).toBe("_olai/Pins.olai")
+  expect(OLAI_DIR.startsWith(".")).toBe(false)
+  // The reading is untouched: a shelf already at the root, or under `notes/`,
+  // or in the mint directory is the one that answers.
+  expect(pinsIn(["_olai/Pins.olai"])).toBe("_olai/Pins.olai")
+  expect(pinsIn([PINS, "_olai/Pins.olai"])).toBe(PINS)
+})
+
+// The ARCHIVE and the INBOX deliberately have NOT moved: each is its own
+// change, with its own history and its own migration (human, 2026-08-19).
+test("the archive and the inbox are minted where they always were", () => {
+  expect(archiveBeside("notes/house.olai")).toBe("notes/Archive.olai")
+  expect(INBOX).toBe("Inbox.olai")
+})
+
+// The two conventions are two files and never one, which is what a directory
+// holding both has to be able to say.
+test("the inbox and the shelf are different files", () => {
+  const files = ["Inbox.olai", "Pins.olai"]
+  expect(inboxIn(files)).toBe("Inbox.olai")
+  expect(pinsIn(files)).toBe("Pins.olai")
 })

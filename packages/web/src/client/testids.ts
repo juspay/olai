@@ -40,12 +40,43 @@ export const TESTID = {
   sidebarRail: "sidebar-rail",
   /** Drag handle on the open sidebar's right edge. */
   sidebarResize: "sidebar-resize",
+  // ── the shelf, above everything else in the column ───────────────────
+  /** The PINNED shelf. Drawn only when the directory has a pin — an empty
+   *  shelf is not an empty box, it is nothing at all — which is what makes
+   *  its presence the fact a scenario asserts. */
+  pinShelf: "pin-shelf",
+  /** One pin. `data-pin` is the pin NODE's own id (what an unpin archives and
+   *  a reorder moves), `data-at` is the address it opens — the two facts a
+   *  scenario needs and neither of which is readable off the words drawn. */
+  pin: "pin",
+  /** The link inside a pin — the door itself. Its own name because the row
+   *  also carries a control, and a click on "the pin" has to be able to mean
+   *  the one that navigates. */
+  pinLink: "pin-link",
+  /** What an ADDRESS is called, wherever one is drawn as the page it names —
+   *  a shelf row, and an outline row whose title is nothing but an address
+   *  (`client/address/Face.tsx`). One name for one face, so a scenario asking
+   *  "what does this resolve to" does not have to know which page it is on. */
+  addressName: "address-name",
+  /** The query an address carries, drawn as its own chip. Absent on an address
+   *  to a whole page, which is what says the face keeps the filter rather than
+   *  dropping it. */
+  addressFilter: "address-filter",
+  /** Take this pin off the shelf. */
+  pinRemove: "pin-remove",
+  /** The line that says where a dragged pin would land. */
+  pinDropLine: "pin-drop-line",
   /** Rail icon: jump to today. */
   railCalendar: "rail-calendar",
   /** Rail icon: open outlines / home. */
   railOutlines: "rail-outlines",
   /** Rail icon: open the directory (documents). */
   railDocs: "rail-docs",
+  /** The DIRECTORY region of the sidebar: the tree, and the two ways to add
+   *  to it, under one label. Its own name because the column reads as REGIONS
+   *  now — pinned, directory, trash — and a scenario asserting that has to be
+   *  able to name one. */
+  sidebarFiles: "sidebar-files",
   /** The sidebar's file tree: every outline and document under the folders
    *  they live in. Still named `outline-list` because that is the contract the
    *  browser tests already assert on for "the directory is listed", and a
