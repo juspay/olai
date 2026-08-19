@@ -325,8 +325,10 @@ Feature: Documents
     When I open the document "report.html"
     Then the document is pointed at by 1 thing
     When I open what points at the document
+    # No "no page errors" here, unlike its neighbour: this fixture is a saved
+    # page that deliberately reaches for the outside world, and the console
+    # errors are the sandbox REFUSING it (features/html_preview.feature).
     Then what points at the document is "Finishes"
-    And there should be no page errors
 
   # A document nothing names draws no section at all — the absence is the
   # answer, exactly as it is for a node nobody refers to.
