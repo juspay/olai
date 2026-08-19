@@ -31,6 +31,7 @@
 import {
   ancestorTitles,
   backlinksOf,
+  brokenBy,
   brokenIn,
   bytesOf,
   countedChildren,
@@ -52,7 +53,6 @@ import {
   MARKS,
   matching,
   nodesOf,
-  noSuchDocument,
   nothing,
   type OpFailure,
   type OutlineSet,
@@ -73,6 +73,8 @@ import {
   ValidationFailure,
 } from "@olai/format"
 import { Result } from "effect"
+
+import { noSuchDocument } from "./plan.ts"
 
 /**
  * Every shape an answer here has is `@olai/format`'s, and none of them is
@@ -435,7 +437,7 @@ export const outlines = (
   set: OutlineSet,
   derived: Derived,
 ): ReadonlyArray<OutlineSummary> => {
-  const broken = new Map(set.broken.map((entry) => [entry.file, entry.errors]))
+  const broken = brokenBy(set)
   /**
    * Each file's own nodes, grouped once. The set is FLAT ({@link OutlineSet}
    * says why), so "which nodes are this file's" is a scan of the whole list,
@@ -503,14 +505,13 @@ export const outlines = (
  * its path and not its bytes — and a listing that named one would be offering
  * a read that cannot be answered and a size nobody measured.
  *
- * The broken map is built once for the whole answer, exactly as {@link
- * outlines} builds its own: a document that did not READ is in `documents`
+ * The broken map is taken once for the whole answer, exactly as {@link
+ * outlines} takes its own: a document that did not READ is in `documents`
  * with an empty text AND in `broken` (`@olai/format`'s `assemble`), so the
- * empty text has to be told apart from an empty file, and asking per row would
- * be files × broken on the first call an agent makes.
+ * empty text has to be told apart from an empty file.
  */
 export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
-  const broken = new Map(set.broken.map((entry) => [entry.file, entry.errors]))
+  const broken = brokenBy(set)
   // ANNOTATED for {@link outlines}' reason: a field dropped from
   // `DocumentSummary` fails HERE rather than only at the table-driven decode.
   return documentsIn(set.documents).map((entry): DocumentSummary => {
@@ -551,7 +552,7 @@ export const document = (
   const entry = documentIn(set.documents, file)
   if (entry === undefined) {
     return Result.fail(
-      noSuchDocument(set.documents, file, "\`list_documents\` says what is"),
+      noSuchDocument(set.documents, file, "`list_documents` says what is"),
     )
   }
   const broken = brokenIn(set, file)

@@ -200,8 +200,16 @@ export const assemble = (
 export const brokenIn = (
   set: OutlineSet,
   file: string,
-): ReadonlyArray<OutlineError> | undefined =>
-  set.broken.find((entry) => entry.file === file)?.errors
+): ReadonlyArray<OutlineError> | undefined => brokenBy(set).get(file)
+
+/** The same fact for a WHOLE ANSWER rather than one path — every listing walks
+ *  the files and asks it per row, and a `.find` per row is files × broken on
+ *  the first call an agent makes. Both listings built this map inline and
+ *  identically before it had a name. */
+export const brokenBy = (
+  set: OutlineSet,
+): ReadonlyMap<string, ReadonlyArray<OutlineError>> =>
+  new Map(set.broken.map((entry) => [entry.file, entry.errors]))
 
 /**
  * A set taken back APART into the map {@link assemble} puts together — the

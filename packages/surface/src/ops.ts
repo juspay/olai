@@ -108,20 +108,43 @@ export const opsProcedures = {
   node: { input: NodeRequest, output: NodeAnswer, error: OpFailure },
   /** A node and what hangs under it, nested — `read_subtree`. */
   subtree: { input: SubtreeRequest, output: SubtreeAnswer, error: OpFailure },
-  /** Every document under the served directory — what `list_documents`
-   *  answers. No input, for {@link outlines}' reason: a directory is not a
-   *  question with parameters.
+  /**
+   * Every document under the served directory — what `list_documents`
+   * answers. No input, for {@link outlines}' reason: a directory is not a
+   * question with parameters.
    *
-   *  A PROCEDURE and not the `documents` COLLECTION next door, which serves
-   *  the same files, because the two answer different questions. The
-   *  collection's key set is every bodied file's path — including the `.html`
-   *  the set keeps no body for — and a path is all it is; this is the ops
-   *  layer's listing, with the line each document opens with and what it
-   *  weighs, over the `.md` the document verbs actually take. A resource is
-   *  also something a host may or may not surface to a model, and a tool is
-   *  something a model can call. */
+   * ## Why these two exist beside the `documents` COLLECTION
+   *
+   * The collection serves the same files and an agent can reach it — it is in
+   * `@olai/server`'s `MCP` map, as `surface://collections/documents/<path>`.
+   * So this pair is a SECOND route to a body, and that is deliberate rather
+   * than overlooked: the two are shaped for the two kinds of consumer olai
+   * has, and a reader who assumes they are twins will be surprised by every
+   * difference below.
+   *
+   * A COLLECTION is render-shaped. Its key set is every BODIED file's path —
+   * the `.html` included, whose body the set does not keep — a `get` is one
+   * key at a time, and the point of it is that a tab holding one file open is
+   * pushed the news when it moves. It answers a KEY: a path it does not hold
+   * is simply not there, and a file in `broken` reads as the empty text the
+   * set is carrying for it, because a page's job is to draw what there is.
+   *
+   * THESE are request-shaped. The listing is the `.md` the document verbs
+   * actually take, with the line each opens with and what it weighs, which is
+   * what an agent chooses a file WITH; the read refuses a path that is not one
+   * — with the near miss, in `write_document`'s own words — and refuses a file
+   * the set could not read rather than handing back a body nobody read, which
+   * is what an agent about to WRITE the file needs to be told.
+   *
+   * And a tool is a thing a model can call, where a resource is a thing a host
+   * may or may not put in front of it. That is the plainest reason the write
+   * verbs' prose now points here: an agent cannot be asked to supply what it
+   * read (`write_document`'s `was`) through a channel it may not have.
+   */
   documents: { output: DocumentAnswer, error: OpFailure },
   /** One document, whole — `read_document`. Refuses a path the set does not
-   *  hold, rather than answering it: see `@olai/format`'s `DocumentBody`. */
+   *  hold rather than answering it, and refuses one the set could not read
+   *  rather than answering empty: see `@olai/format`'s `DocumentBody`, and the
+   *  paragraph above for how that differs from the collection's `get`. */
   document: { input: DocumentRequest, output: DocumentBody, error: OpFailure },
 } as const

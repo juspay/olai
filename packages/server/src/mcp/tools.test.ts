@@ -359,6 +359,10 @@ test("both annotation hints are pinned, for a read and for a write", async () =>
     // conscious opt-in and only the query tools get it.
     expect(of("search_nodes")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
     expect(of("read_subtree")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
+    // The two document reads are reads on the same terms — neither touches
+    // the disk, both answer out of the served snapshot.
+    expect(of("list_documents")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
+    expect(of("read_document")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
     expect(of("set_done")).toMatchObject({ readOnlyHint: false, destructiveHint: true })
     expect(of("archive_node")).toMatchObject({ readOnlyHint: false, destructiveHint: true })
   })
@@ -590,17 +594,6 @@ test("read_document refuses a path the set does not hold, with the closest one",
     const hypertext = await call(client, "read_document", { file: "saved/page.html" })
     expect(hypertext.isError).toBe(true)
     expect(hypertext.structured).toMatchObject({ kind: "not-found" })
-  })
-})
-
-/** Both reads are auto-approvable, and that is a conscious opt-in: neither
- *  touches the disk. */
-test("the document reads are advertised read-only", async () => {
-  await withTools(VAULT, async ({ client }) => {
-    const { tools } = await client.listTools()
-    const of = (name: string) => tools.find((tool) => tool.name === name)?.annotations
-    expect(of("list_documents")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
-    expect(of("read_document")).toMatchObject({ readOnlyHint: true, destructiveHint: false })
   })
 })
 

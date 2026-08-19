@@ -317,21 +317,6 @@ Then(
   },
 );
 
-Then(
-  "the terminal agent was shown no document {string}",
-  function (this: OlaiWorld, file: string) {
-    const listed = (structuredOf(this)["documents"] ?? []) as ReadonlyArray<
-      { readonly file: string }
-    >;
-    assert.ok(
-      !listed.some((one) => one.file === file),
-      `\`${file}\` is in the listing, and it is not a document these verbs ` +
-        "take — the set keeps its path and not its body, so there is nothing " +
-        "to read back",
-    );
-  },
-);
-
 When(
   "the terminal agent reads the document {string}",
   async function (this: OlaiWorld, file: string) {

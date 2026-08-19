@@ -47,7 +47,7 @@
  * nothing beside it to spell differently.
  */
 
-import { Effect, Result, Schema } from "effect"
+import { Effect, Schema } from "effect"
 
 import {
   AddRequest,
@@ -204,7 +204,7 @@ export interface Asking {
   ) => Effect.Effect<DocumentBody, OpFailure>
 }
 
-/** The four envelopes, over whatever answers "the set as a reader sees it".
+/** The six envelopes, over whatever answers "the set as a reader sees it".
  *  ONE declaration: `{@link ./ops.ts}`'s `make` builds an {@link Asking} over
  *  its own gated read, and a test builds one over a fixture — and the second is
  *  then genuinely testing what an agent calls rather than what `Query` returns.
@@ -213,7 +213,7 @@ export interface Asking {
  *  ops layer has: "the served directory has never loaded" is one refusal,
  *  raised in one place, and every question inherits it.
  *
- *  THE CLOCK comes in beside it, because one of the four questions is not a
+ *  THE CLOCK comes in beside it, because one of the six questions is not a
  *  function of the snapshot alone: `date:yesterday` counts from the day the
  *  query is asked on. It is the layer's own — `{@link ./ops.ts}`'s `make`
  *  passes the same `now` a `done` mark is stamped with — and it is that one
@@ -239,29 +239,18 @@ export const asking = (
       ) ?? { missing: request.id }),
   search: (request) => Effect.map(read, (at) => Query.search(at.derived, request, now())),
   documents: Effect.map(read, (at) => ({ documents: Query.documents(at.set) })),
+  // THE ONE READ THAT CAN REFUSE FROM THE WALK ITSELF. Five of the six answer
+  // from the snapshot alone, so their envelope is a `map` and the failure
+  // channel carries only "the served directory has never loaded". The sixth
+  // decides between three outcomes rather than computing one — the body, a
+  // path that is not a document, a file the set could not read — and a
+  // `Result` is what a pure function says that with ({@link ./plan.ts} refuses
+  // everything that way). `fromResult` is Effect's own lift, so the seam
+  // between this package's pure half and its effectful one is a library call
+  // rather than a spelling of one.
   document: (request) =>
-    Effect.flatMap(read, (at) => raised(Query.document(at.set, request.file))),
+    Effect.flatMap(read, (at) => Effect.fromResult(Query.document(at.set, request.file))),
 })
-
-/**
- * A walk that can REFUSE, on the failure channel every read here already
- * declares.
- *
- * Five of the six answer from the snapshot alone, so their envelope is a
- * `map` and the error channel exists only for "the served directory has never
- * loaded". The sixth is `read_document`, whose walk decides between three
- * outcomes rather than computing one — the body, a path that is not a
- * document, a file the set could not read — and a `Result` is what a pure
- * function says that with ({@link ./plan.ts} says everything it refuses that
- * way, for the same reason).
- *
- * So the two vocabularies meet HERE, once and by name, rather than as an
- * unwrapping inside an envelope. What it is not is a general Result-to-Effect
- * helper: it is the one seam between this package's pure half and its effectful
- * one, and the docstring is the point of it.
- */
-const raised = <A>(outcome: Result.Result<A, OpFailure>): Effect.Effect<A, OpFailure> =>
-  Result.isFailure(outcome) ? Effect.fail(outcome.failure) : Effect.succeed(outcome.success)
 
 /**
  * The WRITE half, the same way: one verb, and the only thing every one of the

@@ -35,10 +35,8 @@
 
 import { Schema } from "effect"
 
-import { NotFoundFailure } from "./failure.ts"
 import { bodyKind, fileKind } from "./kinds.ts"
 import { isMirror, type Located } from "./node.ts"
-import { didYouMean } from "./suggest.ts"
 
 /**
  * One BODIED file of the set: its path, and its text.
@@ -312,41 +310,6 @@ export const documentIn = (
   fileKind(file) === "document" ? bodied.find((entry) => entry.file === file) : undefined
 
 /**
- * WHAT A PATH THAT IS NOT A DOCUMENT IS TOLD — one sentence, for every verb
- * that can be handed one.
- *
- * `read_document` and `write_document` refuse the same miss, and each built
- * the same near-miss list out of the same set and then wrote the same sentence
- * before this was one function. A caller who mistypes a path once should not
- * learn two different things about it depending on which verb the typo landed
- * at — and the near miss (`didYouMean` over the documents the set actually
- * serves, the same function an unknown node id gets) is the whole value of the
- * answer.
- *
- * WHAT EACH CALLER KEEPS is the clause for a set with no near miss at all,
- * because there the useful thing to say genuinely differs: a read is pointed
- * at the listing, a write at the verb that starts a document. That is the one
- * per-verb part, so it is the one part passed in.
- *
- * It takes the BODIED LIST rather than the set, which is not a detail: `set.ts`
- * imports this module for {@link Document}, so a signature naming an
- * `OutlineSet` would be a cycle. Every caller has the list.
- */
-export const noSuchDocument = (
-  bodied: ReadonlyArray<Document>,
-  file: string,
-  instead: string,
-): NotFoundFailure => {
-  const near = didYouMean(file, documentsIn(bodied).map((entry) => entry.file))
-  return new NotFoundFailure({
-    reason: near === ""
-      ? `\`${file}\` is not a document under the served directory — ${instead}`
-      : `\`${file}\` is not a document under the served directory${near}`,
-    named: file,
-  })
-}
-
-/**
  * A document, in one line: its first line with anything on it, heading marks
  * off.
  *
@@ -391,6 +354,10 @@ export const firstLine = (text: string): string => {
   return ""
 }
 
+/** One encoder for the process, because `bytesOf` is called once per served
+ *  document and constructing one per call is the only avoidable cost here. */
+const UTF8 = new TextEncoder()
+
 /**
  * What a document's text WEIGHS, in bytes, as UTF-8 on disk.
  *
@@ -399,28 +366,23 @@ export const firstLine = (text: string): string => {
  * carries. What a caller does with it is decide whether to ask for the whole
  * of it.
  *
- * COUNTED, not encoded. `new TextEncoder().encode(text).length` is the obvious
- * spelling and it allocates a copy of every document in the directory to throw
- * all of them away — on the call whose whole purpose is to be cheaper than
- * reading them. `Buffer.byteLength` is not available to this package, which
- * runs in a browser as readily as in a server.
- *
  * BYTES rather than `text.length`, which is UTF-16 units and would report a
- * different size than every other tool a person has for the same file.
+ * different number than every other tool a person has for the same file. This
+ * was fifteen lines of code-unit arithmetic — the same count without the
+ * transient buffer — and the buffer is the better trade: a surrogate-pair
+ * branch and a lone-surrogate rule are exactly the kind of thing that is
+ * subtly wrong for years, and `TextEncoder` is the runtime's own answer.
+ * `Buffer.byteLength` is the other one-liner and is not available to this
+ * package, which runs in a browser as readily as in a server.
+ *
+ * WHAT IT COSTS, stated because this package argues about wire cost
+ * everywhere else: a listing is O(the bytes of every served `.md`), where
+ * {@link ./set.ts}'s outline listing is O(nodes). That is a cost class up, and
+ * it is accepted for now because it is an agent's occasional call over bodies
+ * the process is already holding — not a render, not a keystroke, not a
+ * subscription. The cheaper form exists if it ever matters and is one layer
+ * down: `@olai/store` decodes each file and throws away the byte count the
+ * read already had, so carrying it onto {@link Document} would make this
+ * O(documents) and delete the question.
  */
-export const bytesOf = (text: string): number => {
-  let bytes = 0
-  for (let at = 0; at < text.length; at++) {
-    const code = text.charCodeAt(at)
-    if (code < 0x80) bytes += 1
-    else if (code < 0x800) bytes += 2
-    // A surrogate PAIR is one code point in four bytes, and the high half is
-    // what says so — a lone surrogate is not text and is counted as the three
-    // bytes its replacement character would take.
-    else if (code >= 0xd800 && code <= 0xdbff && at + 1 < text.length) {
-      bytes += 4
-      at++
-    } else bytes += 3
-  }
-  return bytes
-}
+export const bytesOf = (text: string): number => UTF8.encode(text).length
