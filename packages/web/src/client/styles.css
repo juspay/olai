@@ -111,14 +111,22 @@ html {
   background-color: color-mix(in srgb, var(--color-accent) 38%, transparent);
 }
 
-/* THE DIRECTORY SPINE. Ink ground, paper words — inherited, not remapped.
- * The month is a paper CARD on that spine (`.olai-card`) and paints its
- * own ink. Palettes invert with their ink: reef is a forest column beside
- * a lagoon page; aurora is a pale sky beside midnight paper. */
-.olai-dir {
+/* THE FRAME. Ink ground, paper words — inherited, not remapped. The header,
+ * the directory spine and the collapsed rail are ONE surround, and this is
+ * the one place that says what it is made of; a page is the paper sheet
+ * sitting in it (`layout/sheet.ts`). The month is a paper CARD on the spine
+ * (`.olai-card`) and paints its own ink. Palettes invert with their ink: reef
+ * is a forest column beside a lagoon page; aurora is a pale sky beside
+ * midnight paper.
+ *
+ * GROUND ONLY — no `border-color`. Everything in this file is unlayered and
+ * Tailwind's utilities are not, so a `border-color` here would outrank every
+ * `border-*` a consumer wrote on the same element: it is exactly what stopped
+ * the header, whose bottom rule is coral, from wearing this class. The rules
+ * are the consumers' own, named where they are drawn. */
+.olai-frame {
   background-color: var(--color-ink);
   color: var(--color-paper);
-  border-color: color-mix(in srgb, var(--color-paper) 18%, transparent);
 }
 
 /* ONE overflow bar: thin, currentColour, gutter reserved on desktop so

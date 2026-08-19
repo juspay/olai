@@ -14,7 +14,7 @@
  * changes it (`../agenda/owed.ts`), and two utilities setting one property are
  * settled by the order Tailwind emitted its rules in rather than by the order
  * they were written. The ordinary row inherits paper from the spine
- * (`.olai-dir`); the alarm names its own. The trap `../calendar/Day.tsx`
+ * (`.olai-frame`); the alarm names its own. The trap `../calendar/Day.tsx`
  * composes per-property to avoid.
  */
 

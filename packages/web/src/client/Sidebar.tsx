@@ -217,7 +217,7 @@ export function Sidebar(props: {
           // the drawer into flow offsets). Desktop: a STICKY column, pinned
           // under the header (see the note above).
           (props.open ? "flex " : "hidden ") +
-          `${LAYER.chrome} olai-dir flex-col border-r ` +
+          `${LAYER.chrome} olai-frame flex-col border-r border-paper/20 ` +
           // Wide enough that the month's 7 day cells still hit 44×44.
           "fixed bottom-0 left-0 top-[var(--height-header)] w-[min(22rem,92vw)] " +
           // `top-` above is BOTH positions' offset — the drawer's inset and

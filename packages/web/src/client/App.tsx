@@ -162,7 +162,10 @@ export default function App() {
           next ⌘Z — so "the newer of the two" is what this reads as in
           practice, and the older one is still there when it goes. */}
       <UndoSaid said={pinSaid() ?? undo.said()} />
-      <div class="flex min-h-dvh flex-col bg-ink">
+      {/* No ground of its own: `html` is already ink (./styles.css), and what
+          shows through here — the strip under a sticky spine on a page taller
+          than the viewport — is that same forest either way. */}
+      <div class="flex min-h-dvh flex-col">
         <AppHeader
           docked={docked()}
           go={(route) => router.go(route)}

@@ -64,8 +64,9 @@
  * here. That is pre-existing and intentional — a broken client has no chrome
  * to trust — and is the sole exception to "the header is on every screen".
  *
- * The bar is INK, the same ground as the directory spine: header and sidebar
- * are one forest frame, and the outline is a paper sheet sitting in it. Its
+ * The bar is INK, the same ground as the directory spine — `.olai-frame`,
+ * the one place that says what the surround is made of, which the sidebar and
+ * the rail wear too — and the outline is a paper sheet sitting in it. Its
  * height is `--height-header` and nothing else: the bar WEARS the token that
  * everything under it subtracts, rather than an `h-16` somebody has to keep
  * equal to it. A coral rule along the bottom is the one loud mark the chrome
@@ -145,7 +146,7 @@ export function AppHeader(props: {
 }) {
   return (
     <header
-      class={`sticky top-0 ${LAYER.header} flex h-[var(--height-header)] shrink-0 items-center gap-2 border-b-2 border-accent bg-ink px-3 font-sans text-paper md:px-6`}
+      class={`sticky top-0 ${LAYER.header} olai-frame flex h-[var(--height-header)] shrink-0 items-center gap-2 border-b-2 border-accent px-3 font-sans md:px-6`}
       data-testid={TESTID.appHeader}
       data-layout={props.docked ? "docked" : "chrome-only"}
     >

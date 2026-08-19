@@ -2,7 +2,7 @@
  * What a PAGE is: a sheet of paper, filling the space under the bar.
  *
  * The frame is ink — the header and the directory spine are one forest
- * surround (`../styles.css`, `.olai-dir`) — and every screen that is not
+ * surround (`../styles.css`, `.olai-frame`) — and every screen that is not
  * frame has to paint the paper it sits on, or the outline reads on forest.
  * Nothing can enforce that from above: the paper cannot go on the shell that
  * HOLDS a page, because on desktop that shell is a grid whose first column is
