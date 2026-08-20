@@ -54,6 +54,7 @@ import { MANIFEST } from "./manifest.ts"
 import { mcpRoute } from "./mcp/route.ts"
 import { mediaLayer } from "./media.ts"
 import { report } from "./report.ts"
+import { resyncRoute } from "./resync.ts"
 import type { Bound } from "./runtime.ts"
 
 export interface ListenOptions {
@@ -73,6 +74,9 @@ export interface ListenOptions {
    *  {@link ./mcp/route.ts} for why it rides this listener rather than a
    *  transport of its own. */
   readonly mcp: Parameters<typeof mcpRoute>[0]
+  /** `POST /olai/resync` — look at the disk now, ignoring mtime+size stamps.
+   *  See {@link ./resync.ts}. */
+  readonly resync: Parameters<typeof resyncRoute>[0]
 }
 
 /** Binds, and registers its own teardown on the enclosing scope — so a caller
@@ -139,12 +143,17 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     // assets, a 404 on an asset miss and the SPA fallback that makes
     // `/<file>` a real URL, is the shell half of the call.
     manifest: MANIFEST,
-    // olai's own two routes: the one that answers with bytes from the SERVED
-    // directory rather than from the bundle, and the one an agent speaks to.
-    // MERGED rather than ordered — `HttpRouter` ranks by specificity, so
-    // `POST /mcp` and `GET /media/*` both beat the shell's catch-all whichever
-    // went in first.
-    routes: Layer.merge(mcpRoute(options.mcp), mediaLayer(options.root)),
+    // olai's own three routes: the one that answers with bytes from the SERVED
+    // directory rather than from the bundle, the one an agent speaks to, and
+    // the one that forces a re-read of the disk (`POST /olai/resync`). MERGED
+    // rather than ordered — `HttpRouter` ranks by specificity, so `POST /mcp`,
+    // `GET /media/*` and `POST /olai/resync` all beat the shell's catch-all
+    // whichever went in first.
+    routes: Layer.mergeAll(
+      mcpRoute(options.mcp),
+      mediaLayer(options.root),
+      resyncRoute(options.resync),
+    ),
     host: options.host,
     port,
     allowedOrigins: options.allowedOrigins,

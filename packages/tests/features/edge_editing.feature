@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Writing a node's edges — `see` and `after`
   The web has DRAWN both edges since edges-ui: the `see` links under a node,
@@ -17,8 +18,9 @@ Feature: Writing a node's edges — `see` and `after`
   close a loop is refused NAMING the loop — the sentence an agent gets, on the
   page a person is reading.
 
-  `@scratch:` because these write the directory they are served — each
-  scenario gets a private copy of it.
+  `@scratch:` because these write the directory they are served. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   Background:
     Given I open the outline "house.olai"

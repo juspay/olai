@@ -1369,10 +1369,10 @@ export class OlaiWorld extends World {
    *  scratch scenarios of that feature on this worker. */
   served?: string;
   /**
-   * Set only while this scenario is on a feature-shared scratch. One record
-   * rather than a boolean plus two optionals: a shared run that has no key,
-   * or a key with no snapshot, is not a state After can be asked to interpret.
-   * Absent means the copy is private (killed in After) or there is no copy.
+   * Set only while this scenario is on a feature-shared scratch. Absent
+   * means the copy is private (killed in After) or there is no copy. After
+   * restores the tree and asks the server to re-read; the fixture origin
+   * lives on the slot, not here.
    */
   scratchShare?: ScratchShare;
   /** Where this scenario PUSHES to, once it has asked for one: a bare

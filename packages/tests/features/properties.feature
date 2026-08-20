@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Properties on a node, from the web
   A property is a named fact on a node — `pr`, `agent`, `isbn` — kept in the
@@ -22,8 +23,9 @@ Feature: Properties on a node, from the web
   tools go through, so nothing is echoed — the run changes when the file says
   it changed.
 
-  `@scratch:` because these write the directory they are served — each
-  scenario gets a private copy of it.
+  `@scratch:` because these write the directory they are served. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   Background:
     Given I open the outline "house.olai"

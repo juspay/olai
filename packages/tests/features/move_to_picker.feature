@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Moving a row to a parent you search for
   Every way this app had of moving a row was a step from where it already was:
@@ -22,8 +23,9 @@ Feature: Moving a row to a parent you search for
   would be teaching a rule this app does not have, and a reader hunting for a
   title they can see would be debugging a search.
 
-  `@scratch:` because these write the directory they are served — each scenario
-  gets a private copy of it.
+  `@scratch:` because these write the directory they are served. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   Background:
     Given I open the outline "house.olai"

@@ -3,33 +3,37 @@
  *
  * A `@scratch:<name>` scenario still means "I write the files I am served".
  * By default that is a private copy and a private server, thrown away with
- * the scenario, because two scenarios mutating the same file through one
- * live store is a flake. Features whose scenarios write DISJOINT files can
- * opt in: `@share-scratch` at the top of the feature, and every `@scratch:`
- * scenario on this worker shares one copy and one server.
+ * the scenario. Features opt in with `@share-scratch` at the top: every
+ * `@scratch:` scenario on this worker shares one copy and one server, and
+ * After restores the tree to the fixture and asks the still-running server
+ * to re-read (`POST /olai/resync`). Overlapping writers can share because
+ * the next scenario starts from the original corpus, not from the last
+ * one's leftovers.
  *
  * Sharing is per worker, never across workers. `--parallel` is one process
  * per worker; one olai per directory is a kernel lock
  * (`packages/server/src/lock.ts`), so two workers over one tree would refuse
  * to boot. Each worker's map is already its own.
  *
- * This module is that contract: the tags, and the observer that names a
- * collision. Spawn identity (agent / kolu / git) lives with isolateEnv in
- * `workers.ts` — that volatility is what the child *is*, not whether these
- * scenarios may share.
+ * This module is that contract: the tags, the restore, and the observer that
+ * names a restore that did not take. Spawn identity (agent / kolu / git)
+ * lives with isolateEnv in `workers.ts` — that volatility is what the child
+ * *is*, not whether these scenarios may share.
  *
- * Collision is OBSERVED, not declared. A `@writes:house.olai` tag can be
- * forgotten, and a forgotten declaration is the silent flake this exists to
- * prevent (HACKING.md: never silently ignore errors). The observer is a
- * content-hash of the tree at Before versus After: declarations can be
- * forgotten, fs.watch misses events, the server log couples to format, and
- * mtime is blind to a same-length rewrite. Hashing is the smallest snapshot
- * that still sees UI edits, `writeServed`, the agent, and Trash minting.
- * It does not see a scenario that only READS a file another one wrote — so a
- * feature whose early scenarios depend on the original corpus and whose later
- * ones mutate it is not a candidate. A write flushed asynchronously between
- * one scenario's After-walk and the next's Before-walk is attributed to
- * nobody: the late file becomes part of the next baseline.
+ * Bytes put back are not a signal the server honours. The store's stamps are
+ * mtime+size, and a same-length rewrite in the same second is a change its
+ * watcher is entitled not to notice (packages/tests/README.md, the evidence
+ * driver's own warning; `@olai/store`'s probe). `refresh` still uses those
+ * stamps. The write path forgets the files it just wrote; `Store.resync` is
+ * the same forget for an unknown set of paths. The harness POSTs that, and
+ * does not return to the next scenario until the probe has published.
+ *
+ * A restore that cannot put the tree back — leftover files, a missing
+ * fixture path — fails naming the scenario and the files. Chat, `@git`,
+ * `@kolu`, `@agent-stored`, and a scenario that restarts its server stay
+ * private: conversation state lives in the process and in XDG, a git repo
+ * is more than the files, and SIGKILL would take the shared server out
+ * from under the rest of the feature (`restartGate`).
  */
 
 import { createHash } from "node:crypto";
@@ -37,12 +41,19 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 /** `@share-scratch` on a feature: its `@scratch:` scenarios share one copy
- *  and one server per worker, as long as they write disjoint files. */
+ *  and one server per worker. After each, the tree is restored to the
+ *  fixture and the server re-reads, so overlapping writers can share. */
 export const SHARE_TAG = "@share-scratch";
 /** `@own-scratch` on a scenario inside a sharing feature: keep a private
- *  copy, because this one collides (or restarts the server, or lists the
- *  whole vault). Meaningless without {@link SHARE_TAG}, and refused. */
+ *  copy, because restore cannot make this one's state true (it restarts
+ *  the server, or conversation/git/kolu state lives off the tree).
+ *  Meaningless without {@link SHARE_TAG}, and refused. */
 export const OWN_TAG = "@own-scratch";
+
+/** `POST` path the shared-scratch After uses to force a re-read. Named
+ *  once: the server's route and this harness must agree, and
+ *  `scratch.test.ts` pins both spellings. */
+export const RESYNC_PATH = "/olai/resync";
 
 const CORPUS_TAG = /^@(corpus|scratch):([A-Za-z0-9_-]+)$/;
 
@@ -51,11 +62,12 @@ export const DEFAULT_CORPUS = "good";
 
 export type ScratchMode = "corpus" | "own" | "share";
 
-/** The world record a sharing scenario carries: slot key plus the tree hash
- *  taken at Before. Absent means the copy is private, or there is no copy. */
+/** The world record a sharing scenario carries: the slot key. Absent means
+ *  the copy is private, or there is no copy. The tree hash lives on the
+ *  slot (the fixture origin), not here: After restores to that origin
+ *  rather than diffing this scenario against the last one. */
 export type ScratchShare = {
   readonly key: string;
-  readonly was: Map<string, string>;
 };
 
 /**
@@ -160,7 +172,7 @@ export const filesOf = (root: string): Map<string, string> => {
 };
 
 /** Paths whose contents changed, appeared, or disappeared between two walks. */
-const changedFiles = (
+export const changedFiles = (
   before: ReadonlyMap<string, string>,
   after: ReadonlyMap<string, string>,
 ): ReadonlyArray<string> => {
@@ -170,61 +182,81 @@ const changedFiles = (
     .sort();
 };
 
-export interface ScratchWriter {
-  readonly name: string;
-  readonly files: ReadonlyArray<string>;
-}
+/** Whether two content-hash walks are the same tree. */
+export const sameTree = (
+  a: ReadonlyMap<string, string>,
+  b: ReadonlyMap<string, string>,
+): boolean => changedFiles(a, b).length === 0;
 
-/** The earlier writer on this shared scratch whose files overlap `files`. */
-const overlapWith = (
-  files: ReadonlyArray<string>,
-  previous: ReadonlyArray<ScratchWriter>,
-): { readonly writer: ScratchWriter; readonly files: ReadonlyArray<string> } | undefined => {
-  for (const writer of previous) {
-    const hit = files.filter((file) => writer.files.includes(file));
-    if (hit.length > 0) return { writer, files: hit };
+/**
+ * Put `root` back to `fixture` WITHOUT replacing directory inodes.
+ *
+ * A recursive watch is armed on the inodes it saw at boot. Deleting `notes/`
+ * and copying it back is a new inode; the watcher stays on the old one, and
+ * the next scenario's `I rewrite notes/from.html` is a create the store never
+ * hears. Files that are extras are removed; fixture files are written in
+ * place; directories that exist in both trees stay. Missing `root` is
+ * recreated. A scenario that takes the served directory away (the inode
+ * itself) still keeps {@link OWN_TAG}.
+ */
+export const restoreTree = (root: string, fixture: string): void => {
+  fs.mkdirSync(root, { recursive: true });
+  const want = filesOf(fixture);
+  const have = filesOf(root);
+  for (const file of have.keys()) {
+    if (!want.has(file)) fs.rmSync(path.join(root, file), { force: true });
   }
-  return undefined;
+  for (const file of want.keys()) {
+    const dest = path.join(root, file);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(path.join(fixture, file), dest);
+  }
 };
 
-const collisionError = (
+/** Paths that still differ from `origin` after a restore. Empty is success. */
+export const leftovers = (
+  origin: ReadonlyMap<string, string>,
+  root: string,
+): ReadonlyArray<string> => changedFiles(origin, filesOf(root));
+
+/** A restore that did not put the tree back. The loud-refusal that used to
+ *  name two overlapping writers: overlapping writes are a clean baseline
+ *  now, and this is what stays refused. */
+export const unrestoredError = (
   feature: string,
-  current: string,
-  previous: string,
+  name: string,
   files: ReadonlyArray<string>,
 ): Error =>
   new Error(
-    `these two scenarios share a scratch (${SHARE_TAG} on ${feature}) and ` +
-      `both wrote ${files.map((file) => JSON.stringify(file)).join(", ")}:\n` +
-      `  first:  ${previous}\n` +
-      `  second: ${current}\n` +
-      `tag the later one ${OWN_TAG} so it keeps a private copy, or write a ` +
-      `different file — a shared scratch that two scenarios mutate is a ` +
-      `flake, not a faster run`,
+    `restore of the shared scratch (${SHARE_TAG} on ${feature}) after ` +
+      `${JSON.stringify(name)} left ` +
+      `${files.map((file) => JSON.stringify(file)).join(", ")} ` +
+      `different from the corpus — tag it ${OWN_TAG} if this scenario is ` +
+      `one restore cannot put back (a server restart, conversation state, ` +
+      `git, kolu), not a faster run`,
   );
 
 /**
- * After a sharing scenario: append what it changed to the ledger, or name
- * both writers if the files overlap. One call so the hook does not reassemble
- * the walk, the diff, the overlap and the sentence.
+ * Ask the still-running server to re-read the restored files. Returns
+ * only once `Store.resync` has published — the contract the next scenario's
+ * first load needs. Bytes on disk are not that contract.
  */
-export const recordWrites = (args: {
-  readonly feature: string;
-  readonly name: string;
-  readonly before: ReadonlyMap<string, string>;
-  readonly root: string;
-  readonly writers: ReadonlyArray<ScratchWriter>;
-}): {
-  readonly writers: ReadonlyArray<ScratchWriter>;
-  readonly error: Error | undefined;
-} => {
-  const files = changedFiles(args.before, filesOf(args.root));
-  const hit = overlapWith(files, args.writers);
-  return {
-    writers: [...args.writers, { name: args.name, files }],
-    error:
-      hit === undefined
-        ? undefined
-        : collisionError(args.feature, args.name, hit.writer.name, hit.files),
-  };
+export const askResync = async (
+  baseUrl: string,
+  timeoutMs: number,
+): Promise<void> => {
+  const url = new URL(RESYNC_PATH, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
+  const response = await fetch(url, {
+    method: "POST",
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `the shared scratch's server did not re-read the restored files ` +
+        `(POST ${RESYNC_PATH} → ${response.status}${
+          body.trim() === "" ? "" : `: ${body.trim()}`
+        })`,
+    );
+  }
 };

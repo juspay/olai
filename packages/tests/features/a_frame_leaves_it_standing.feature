@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: A frame leaves the rest of the page standing
   `the_chrome_holds_still.feature` asks this of a NAVIGATION. This is the same
@@ -22,8 +23,9 @@ Feature: A frame leaves the rest of the page standing
 
   Each scenario makes ONE thing happen that publishes a frame and then asserts
   about what that frame did not touch. `@scratch:` because they write the
-  directory they are served — and they write the same files as each other, so
-  there is nothing here for `@share-scratch` to share.
+  directory they are served. They share one copy per worker (`@share-scratch`);
+  the corpus is restored between scenarios, so writing the same files is no
+  longer a reason to spawn a server each.
 
   Background:
     Given I open the app

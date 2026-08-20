@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Keyboard editing
   The Workflowy loop, without the agent: click a title and type, Enter for the
@@ -7,8 +8,9 @@ Feature: Keyboard editing
 
   Every one of those is one op through the same write gate the agent's tools go
   through, and nothing is echoed: what you see is the file coming back. Which
-  is why these are `@scratch:` — they write the directory they are served, so
-  each gets a private copy of it (`support/hooks.ts`).
+  is why these are `@scratch:` — they write the directory they are served.
+  They share one copy per worker (`@share-scratch`); the corpus is restored
+  between scenarios under the still-running server.
 
   Background:
     Given I open the outline "house.olai"

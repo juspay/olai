@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Undo
   ⌘Z takes back the last edit YOU made here, and ⌘⇧Z puts it back.
@@ -8,6 +9,8 @@ Feature: Undo
   outline AS IT IS NOW. So an undo never takes back anybody else's work, and one
   that no longer fits says why instead of guessing. `@scratch:` for the same
   reason keyboard editing is: these write the directory they are served.
+  They share one copy per worker (`@share-scratch`); the corpus is restored
+  between scenarios.
 
   Background:
     Given I open the outline "house.olai"

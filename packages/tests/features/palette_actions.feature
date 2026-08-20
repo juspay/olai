@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: The ⌘K palette writes
   The palette could go places and ask the agent; it could not change anything.
@@ -15,8 +16,9 @@ Feature: The ⌘K palette writes
   first use, at `_olai/Inbox.olai` — where olai puts the files it names
   itself), and the box empties for the next one.
 
-  `@scratch:` because they write the directory they are served — each scenario
-  gets a private copy of it.
+  `@scratch:` because they write the directory they are served. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   Background:
     Given I open the outline "house.olai"

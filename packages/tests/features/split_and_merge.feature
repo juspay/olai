@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Splitting and merging a row
   The two keys that change how many rows there are without a verb of their own.
@@ -9,7 +10,9 @@ Feature: Splitting and merging a row
   Both are ONE op at the same write gate the agent's tools go through
   (`split_node` and `merge_node` are the same two ops), so a merge that moves
   four children and archives a record either happens whole or does not happen.
-  `@scratch:` because they write the directory they are served.
+  `@scratch:` because they write the directory they are served. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   Background:
     Given I open the outline "house.olai"

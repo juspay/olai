@@ -800,6 +800,28 @@ test("a commit that changes no length in the same second still publishes", () =>
       expect(after?.rev).toBe((before?.rev ?? 0) + 1)
     })))
 
+// The accepted trade for an OUTSIDE rewrite: refresh still uses stamps, so
+// a same-length put-back with the original mtime is invisible. resync forgets
+// the stamps first — that is the whole of the method.
+test("PIN (resync): a same-length rewrite refresh misses, and resync publishes", () =>
+  withStore({ "a.txt": "alpha" }, ({ store, write, root }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      expect(before?.value.text["a.txt"]).toBe("alpha")
+      const file = path.join(root, "a.txt")
+      const stamp = fs.statSync(file)
+      write("a.txt", "ALPHA")
+      fs.utimesSync(file, stamp.atime, stamp.mtime)
+      yield* store.refresh
+      const missed = yield* snapshotOf(store)
+      expect(missed?.value.text["a.txt"]).toBe("alpha")
+      expect(missed?.rev).toBe(before?.rev)
+      yield* store.resync
+      const after = yield* snapshotOf(store)
+      expect(after?.value.text["a.txt"]).toBe("ALPHA")
+      expect(after?.rev).toBe((before?.rev ?? 0) + 1)
+    })))
+
 // ── one write, one verdict ─────────────────────────────────────────────
 //
 // The gate judges the set it is ABOUT to write, and then publishes what it

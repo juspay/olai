@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: It stays live
   The files on disk are the state and the page follows them. Nobody reloads and
@@ -7,8 +8,10 @@ Feature: It stays live
   same assertions while proving nothing.
 
   These edit the served directory underneath a running server, which is why
-  they are `@scratch:` — a private copy of the `good` corpus, thrown away with
-  the scenario. See `support/hooks.ts`.
+  they are `@scratch:`. They share one copy per worker (`@share-scratch`); the
+  corpus is restored between scenarios. The scenario that takes the served
+  directory away keeps a private copy (`@own-scratch`): restore cannot follow
+  a watcher on an inode that is gone.
 
   Background:
     Given I open the outline "garden.olai"
@@ -95,6 +98,7 @@ Feature: It stays live
     And the page has not reloaded
     And there should be no page errors
 
+  @own-scratch
   Scenario: A directory that stops being readable says so, over the tree it left
     # The store's OTHER kind of error, and the one that used to have nowhere to
     # go. A file it cannot parse has always reached a reader; a TREE it cannot

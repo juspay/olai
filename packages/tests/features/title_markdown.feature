@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Inline markdown in titles
   Racket rendered titles as INLINE-ONLY markdown — bold, links, code, and no
@@ -5,8 +6,8 @@ Feature: Inline markdown in titles
   go through, forced down to phrasing content so a heading or a fence cannot
   break a tree row's layout. Tags stay a separate view-time split.
 
-  These edit the served directory, so they are `@scratch:` — a private copy of
-  the `good` corpus, thrown away with the scenario.
+  These edit the served directory, so they are `@scratch:`. They share one
+  copy per worker (`@share-scratch`); the corpus is restored between scenarios.
 
   Background:
     Given I open the outline "house.olai"
