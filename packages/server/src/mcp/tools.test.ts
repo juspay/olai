@@ -353,7 +353,19 @@ test("the read tools teach the fields the mirror and edge ops depend on", async 
       tools.find((tool) => tool.name === name)?.description ?? ""
 
     for (
-      const field of ["`mirrors`", "`placed`", "`after`", "`remove_mirror`", "`referencedBy`"]
+      const field of [
+        "`mirrors`",
+        "`placed`",
+        "`after`",
+        "`remove_mirror`",
+        "`referencedBy`",
+        // …and blockedness, which joined for the same reason `referencedBy`
+        // did: the app dims a row with it and names what a page is waiting on,
+        // so a description that did not mention it would leave an agent
+        // rebuilding the answer out of `after` — and getting it wrong, since a
+        // `done` target and a bullet are in nobody's way.
+        "`blockedBy`",
+      ]
     ) {
       expect(said("read_node")).toContain(field)
     }
@@ -1550,6 +1562,49 @@ test("set_after writes a dependency, and a loop is refused naming it", async () 
     expect(loop.isError).toBe(true)
     expect(loop.structured["kind"]).toBe("usage")
     expect(String(loop.structured["reason"])).toContain("`order` → `install` → `order`")
+  })
+})
+
+/**
+ * And the DERIVED half of that graph, read back off the node — what an agent
+ * can now see that only a page could before.
+ *
+ * Not a second test of the derivation: that is one function in
+ * `@olai/format` and `@olai/ops`' `query.test.ts` pins the field against it.
+ * What is only true HERE is that the value CROSSES. A field the ops layer
+ * produces and the answer schema does not declare type-checks clean everywhere
+ * and is dropped in silence on the way out — which has happened once already,
+ * to a search field the palette's encoder ate (`@olai/format`'s `searching.ts`
+ * header). So this reads the structured answer an agent actually receives.
+ *
+ * TWO assertions, and the second is not the rule read again: what an optional
+ * field does when it empties is a WIRE question of its own — `Schema.optionalKey`
+ * has to drop the key rather than send `[]`, which is the promise the four
+ * fields above it make and the one a browser and an agent both read as
+ * "nothing". Which marks block and which do not is the derivation's, and is
+ * pinned one layer down against the function that decides it.
+ */
+test("read_node says what a node is waiting on, and drops the field when it clears", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
+    await call(client, "set_after", { id: "install", add: ["order"] })
+    await call(client, "set_todo", { id: "order" })
+
+    // The blocker arrives SITUATED — with its title, its place, its ancestors
+    // and the mark that makes it one — not as the id the record already holds.
+    expect((await call(client, "read_node", { id: "install" })).structured["blockedBy"])
+      .toEqual([{
+        id: "order",
+        title: "order the cabinets",
+        file: "house.olai",
+        line: 3,
+        path: ["Kitchen remodel"],
+        status: "todo",
+      }])
+
+    // Finishing it clears the way, and the field GOES rather than emptying.
+    await call(client, "set_done", { id: "order" })
+    expect((await call(client, "read_node", { id: "install" })).structured)
+      .not.toHaveProperty("blockedBy")
   })
 })
 

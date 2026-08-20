@@ -32,6 +32,7 @@ import {
   agendaOf,
   ancestorTitles,
   backlinksOf,
+  blockersOf,
   bodiedIn,
   brokenBy,
   brokenIn,
@@ -550,6 +551,7 @@ export const detail = (derived: Derived, id: string): Detail | null => {
   const placements = placementsOf(derived, id)
   const placed = placedUnder(derived, id)
   const referencedBy = referrersOf(derived, id)
+  const blockedBy = waitingFor(derived, id)
   return {
     ...foundOf(derived, regular),
     ...(node.date === undefined ? {} : { date: node.date }),
@@ -582,8 +584,29 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     ...(placements.length === 0 ? {} : { mirrors: placements }),
     ...(placed.length === 0 ? {} : { placed }),
     ...(referencedBy.length === 0 ? {} : { referencedBy }),
+    ...(blockedBy.length === 0 ? {} : { blockedBy }),
   }
 }
+
+/**
+ * What this node is waiting on, situated — the derived blockedness, in the
+ * shape a read answers in.
+ *
+ * {@link referrersOf}'s arrangement one relation over, and for its reason: the
+ * DERIVATION is `@olai/format`'s (`blockersOf`, over the `after` graph with
+ * `blocks` already normalised into it, exempting `done` targets, bullets and
+ * everything put away — argued and tested down there, and the same index the
+ * app's rows dim from and `is:blocked` selects on), and `foundOf` is what turns
+ * each blocker into the answer every other list here is made of.
+ *
+ * NOTHING IS DECIDED HERE, which is the point of it being one expression: a second
+ * spelling of "is this still in the way" would be a node an agent is told it
+ * can start while the page it is drawn on says it cannot. The mark each entry
+ * carries is `foundOf`'s read of `derived.status` — the very map the blockedness
+ * pass asked — so the two cannot disagree about the blocker either.
+ */
+const waitingFor = (derived: Derived, id: string): ReadonlyArray<Found> =>
+  blockersOf(derived, id).map((one) => foundOf(derived, one.at))
 
 /**
  * What refers to this node — the browser's own "referenced by" section, in the
