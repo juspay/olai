@@ -192,7 +192,7 @@ export function Shelf() {
     // Trash keeping its id, so an unpin is undoable with ⌘Z and reversible from
     // the Trash's own `Put back`. A second verb that erased it would be a
     // removal only this face knew (`@olai/surface`'s `edit.ts`).
-    void applying({ verb: "archive", id: pin.id }, undo.record).then(sayPin)
+    void applying({ verb: "trash", id: pin.id }, undo.record).then(sayPin)
   }
 
   // `createSelector` rather than comparing in each row, which is the sidebar's

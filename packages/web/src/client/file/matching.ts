@@ -68,7 +68,7 @@
  *
  * ## The archives ARE in the `@` list, and that is a decision — not an oversight
  *
- * An `Archive.olai` is a file the directory serves, so it is in the list the
+ * An `_olai/Trash.olai` is a file the directory serves, so it is in the list the
  * composer passes; the sidebar hides it behind the Trash and that does not
  * (docs/chat.md). What a message may NAME is a different question from what a
  * reader opens, and "what did we put away last month" is a fair thing to ask an
@@ -78,7 +78,7 @@
  * the other way, and the three are one `grep` apart: the tag vocabulary
  * (`../complete/tags.ts`) stopped counting archived nodes under the 2026-08-17
  * ruling, and the NODE half of the `@` list (`../chat/nodes.ts`) offers none
- * unless the query says `is:archived`. None of the three should be
+ * unless the query says `is:trashed`. None of the three should be
  * "harmonized" into the others. The tag list ranks the vocabulary of the set a
  * reader is LOOKING at; the node list names a row of a reading, where what was
  * put away is drawn on the Trash and nowhere else; and this one completes a

@@ -104,7 +104,7 @@ Feature: Duplicating a subtree
     And I press "ControlOrMeta+z"
     Then "house.olai" holds exactly 1 node titled "install the cabinets"
     And "house.olai" holds the node "install"
-    And "Archive.olai" holds a node titled "install the cabinets"
+    And "_olai/Trash.olai" holds a node titled "install the cabinets"
     When I press "ControlOrMeta+Shift+z"
     Then "house.olai" holds exactly 2 nodes titled "install the cabinets"
     And there should be no page errors

@@ -50,7 +50,8 @@ Feature: Typing @ in the chat completes a file of the directory
     # the documents together, because what a message may name is a FILE and not
     # a kind of file.
     When I type "look at @" into the chat
-    Then the completion offers "house.olai"
+    Then the completion offers "_olai/Trash.olai"
+    And the completion offers "house.olai"
     And the completion offers "finishes.md"
     And the completion offers "notes/cabinets.md"
     When I type "look at @fin" into the chat
@@ -88,17 +89,18 @@ Feature: Typing @ in the chat completes a file of the directory
     Then the completion offers "finishes.md"
     When I press "ArrowDown" in the chat
     And I accept the completion
-    # Directory order, so the second row is the outline beside the document.
-    Then the chat input reads "read @house.olai "
+    # Directory order: `_olai/Trash.olai` sorts first, so one down is the
+    # document beside it.
+    Then the chat input reads "read @finishes.md "
 
   @scratch:chat
   Scenario: A keystroke is a new question, so the arrows start again at the top
     # The rows are three buckets deep (`client/file/matching.ts`), so one more
     # character can REORDER them — and a cursor left where it was would mean
     # Enter taking a file the arrows never landed on, which is the one failure
-    # a completion must not have. Both queries below answer with the same three
-    # files in the same order, so what this can only be about is the cursor:
-    # walked to the third row, then asked something else, Enter takes the FIRST.
+    # a completion must not have. What this can only be about is the cursor:
+    # walked down, then asked something else, Enter takes the FIRST of the new
+    # list (`_olai/Trash.olai` sorts first among the files `@s` matches).
     When I type "read @" into the chat
     Then the completion offers "notes/cabinets.md"
     When I press "ArrowDown" in the chat
@@ -106,7 +108,7 @@ Feature: Typing @ in the chat completes a file of the directory
     And I type "read @s" into the chat
     Then the completion offers "notes/cabinets.md"
     When I accept the completion
-    Then the chat input reads "read @finishes.md "
+    Then the chat input reads "read @_olai/Trash.olai "
 
   @scratch:chat
   Scenario: A pointer takes the same row, and hands the caret back

@@ -90,7 +90,7 @@ test("a node the shelf already holds is offered the way OFF it instead", () => {
   // The PIN's own node — the row on the shelf — and archived rather than
   // erased, which is what makes an unpin undoable.
   expect(offered.find((one) => one.id === "unpin")?.does)
-    .toEqual({ kind: "edit", edit: { verb: "archive", id: "p-install" } })
+    .toEqual({ kind: "edit", edit: { verb: "trash", id: "p-install" } })
 })
 
 test("the shelf's verb comes first among the writes", () => {
@@ -364,7 +364,7 @@ test("the put-away is a node's verb, not a placement's", () => {
   // somewhere else, out of sight. The LABEL speaks Trash — the human-facing
   // name — while the edit it sends is still the `archive` op's own word.
   expect(labels("kitchen-herbs")).not.toContain("Move to Trash")
-  expect(edit("install", "Move to Trash")).toEqual({ verb: "archive", id: "install" })
+  expect(edit("install", "Move to Trash")).toEqual({ verb: "trash", id: "install" })
 })
 
 test("the confirm names the row, how much goes with it, and the way back", () => {

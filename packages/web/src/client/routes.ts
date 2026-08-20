@@ -82,8 +82,8 @@
  * would be an address that meant something different tomorrow.
  *
  * `/trash` spells nothing for the same reason: it is a question asked of the
- * set — every `Archive.olai` under the directory — not a file's address. The
- * files it reads still HAVE addresses (`/Archive.olai` parses like any
+ * set — every `_olai/Trash.olai` under the directory — not a file's address. The
+ * files it reads still HAVE addresses (`/_olai/Trash.olai` parses like any
  * outline), and what such an address opens is the trash view, because an
  * archive is not a place you edit (`page.ts` decides that, not this parser).
  *
@@ -155,7 +155,7 @@ export type Route =
   | { readonly kind: "today"; readonly filter?: string }
   /** What is owed, read forward from whatever day it is. */
   | { readonly kind: "agenda"; readonly filter?: string }
-  /** What was put away: every `Archive.olai` under the directory, read-only.
+  /** What was put away: every `_olai/Trash.olai` under the directory, read-only.
    *  It spells no file for the reason `/agenda` spells no horizon — which
    *  archives exist is the set's answer, and an address that named one would
    *  mean something different the day a subdirectory gets its own. */

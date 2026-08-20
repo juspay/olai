@@ -615,9 +615,9 @@ export const AGENDA_OWED = selector(TESTID.agendaOwed);
 /** The number on it. Absent when nothing is owed — a quiet entry wears no chip
  *  rather than a zero. */
 export const AGENDA_COUNT = selector(TESTID.agendaCount);
-/** The trash: every archive the directory holds, read-only, one verb. */
+/** The trash: the one `_olai/Trash.olai` the directory holds, read-only, one verb. */
 export const TRASH_PAGE = selector(TESTID.trashPage);
-/** One row of it — an archived node; `data-node-id` is which. */
+/** One row of it — a trashed node; `data-node-id` is which. */
 export const TRASH_ROW = selector(TESTID.trashRow);
 /** The one verb a trash row offers. */
 export const TRASH_PUT_BACK = selector(TESTID.trashPutBack);
@@ -626,15 +626,15 @@ export const TRASH_SAID = selector(TESTID.trashSaid);
 /** Said in the rows' place when nothing is in the trash. */
 export const TRASH_EMPTY = selector(TESTID.trashEmpty);
 /** The page's OWN verb: empty the Trash for good. Drawn only when the
- *  archives hold something, and never taken away by a filter. One id for its
+ *  trash holds something, and never taken away by a filter. One id for its
  *  three states, so a step reaches the control rather than a state of it. */
 export const TRASH_EMPTY_VERB = selector(TESTID.trashEmptyVerb);
 /** The question that replaces it before anything is written. */
 export const TRASH_EMPTY_CONFIRM = selector(TESTID.trashEmptyConfirm);
 /** The way out of that question, which writes nothing. */
 export const TRASH_EMPTY_CANCEL = selector(TESTID.trashEmptyCancel);
-/** What the emptying said — the PAGE's line, since the write is about every
- *  archive at once and there is no row to put it under. */
+/** What the emptying said — the PAGE's line, since the write is about the
+ *  one trash and there is no row to put it under. */
 export const TRASH_PAGE_SAID = selector(TESTID.trashPageSaid);
 /** The way to it, at the foot of the directory column. */
 export const TRASH_LINK = selector(TESTID.trashLink);
@@ -1920,7 +1920,7 @@ export class OlaiWorld extends World {
    * every assertion that WAITS for something to arrive in one goes through.
    *
    * Some writes in this app mint the file they land in: `archive` writes
-   * `Archive.olai` the first time anything is put away. A scenario polling
+   * `_olai/Trash.olai` the first time anything is put away. A scenario polling
    * for a node to ARRIVE there is polling for the FILE too, and a reader that
    * threw would fail on the first poll — at speed it usually does not, under
    * load it does, and what the failure then names is an ENOENT out of a helper

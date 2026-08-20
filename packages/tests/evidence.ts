@@ -1221,7 +1221,7 @@ const SECTIONS = {
    * shots are the half a transcript cannot show (an agenda that says "Nothing
    * is due." where a row was, with the entry beside it no longer on fire); the
    * listings are the half a screenshot cannot (that the record is in the
-   * archive, with its date and its mark still on it, and that `is:archived`
+   * archive, with its date and its mark still on it, and that `is:trashed`
    * still finds it from a page drawing none of the archive).
    */
   "archived-only-in-trash": async (page) => {
@@ -1257,8 +1257,8 @@ const SECTIONS = {
     // Nothing archived is on this page for a query to find, which is the rule
     // said from the filter's side: the box narrows the page rather than
     // re-asking its question.
-    await narrow(page, "is:archived")
-    console.log(`  filtered by "is:archived": ${await said(page, FILTER_COUNT)}`)
+    await narrow(page, "is:trashed")
+    console.log(`  filtered by "is:trashed": ${await said(page, FILTER_COUNT)}`)
     await shot(page, "day-after")
 
     await opened(page, "/trash", TRASH_PAGE)
@@ -1269,9 +1269,9 @@ const SECTIONS = {
     // the way to ask. The header's box is the same matcher, from any page.
     await page.keyboard.press("Control+k")
     await page.locator(PALETTE_INPUT).first().waitFor()
-    await page.locator(PALETTE_INPUT).first().fill("is:archived")
+    await page.locator(PALETTE_INPUT).first().fill("is:trashed")
     await page.waitForTimeout(SETTLE)
-    console.log(`  \`is:archived\` still answers with:`)
+    console.log(`  \`is:trashed\` still answers with:`)
     const hits = await page.locator(PALETTE_HIT).allInnerTexts()
     console.log(hits.map((one) => `    ${oneLine(one)}`).join("\n") || "    (nothing)")
     await shot(page, "is-archived-still-finds-it")
@@ -1938,7 +1938,7 @@ const SECTIONS = {
   },
 
   /**
-   * The `•••` menu's own put-away — `archive_node` from the mouse, which is
+   * The `•••` menu's own put-away — `trash_node` from the mouse, which is
    * the half the bulk bar's section above does not show: one row, its own
    * menu, and the question that names how much goes with it.
    *
@@ -1976,8 +1976,8 @@ const SECTIONS = {
     console.log(`  the record: ${recordOf("install")}`)
     // The whole claim of the shot below: the row left the page BECAUSE the
     // subtree moved, not because a click found the label and wrote nothing.
-    shotSays("install", "Archive.olai")
-    shotSays("knobs", "Archive.olai")
+    shotSays("install", "_olai/Trash.olai")
+    shotSays("knobs", "_olai/Trash.olai")
     await shot(page, "gone-from-the-page")
     await opened(page, "/trash", TRASH_PAGE)
     const pile = await piled(page)
@@ -2052,7 +2052,7 @@ const SECTIONS = {
       await putAway(page, id)
       // The pile is real before anything is photographed — the guard every
       // section that writes carries ({@link shotSays}).
-      shotSays(id, "Archive.olai")
+      shotSays(id, "_olai/Trash.olai")
 
       await opened(page, "/trash", TRASH_PAGE)
       const pile = await piled(page)
@@ -2067,7 +2067,7 @@ const SECTIONS = {
       console.log(`  it asks: ${await textOf(page, EMPTY_TRASH_CONFIRM)}`)
       // The count in that sentence, against the file it is a claim about.
       console.log(
-        `  Archive.olai holds: ${servedLines("Archive.olai").length} records`,
+        `  _olai/Trash.olai holds: ${servedLines("_olai/Trash.olai").length} records`,
       )
       await shot(page, `asks${suffix}`)
 
@@ -2075,9 +2075,9 @@ const SECTIONS = {
       // that is invisible until it is wrong.
       await page.locator(EMPTY_TRASH_CANCEL).first().click()
       await page.waitForTimeout(DRAWN)
-      shotSays(id, "Archive.olai")
-      console.log(`  after Cancel, Archive.olai still holds: ${
-        servedLines("Archive.olai").length
+      shotSays(id, "_olai/Trash.olai")
+      console.log(`  after Cancel, _olai/Trash.olai still holds: ${
+        servedLines("_olai/Trash.olai").length
       } records`)
       await shot(page, `cancelled${suffix}`)
 
@@ -2088,8 +2088,8 @@ const SECTIONS = {
       // …and the row is in NO outline now, which is the one thing this app
       // could not say before.
       shotSays(id, undefined)
-      console.log(`  emptied, Archive.olai holds: ${
-        servedLines("Archive.olai").length
+      console.log(`  emptied, _olai/Trash.olai holds: ${
+        servedLines("_olai/Trash.olai").length
       } records`)
       console.log(`  and the page says: ${await textOf(page, TRASH_EMPTY_LINE)}`)
       await shot(page, `emptied${suffix}`)

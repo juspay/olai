@@ -59,7 +59,8 @@ import {
   type Derived,
   INBOX,
   inboxIn,
-  isArchived,
+  isTrashed,
+  TRASH_FILE,
   isDay,
   isMirror,
   type Located,
@@ -177,8 +178,8 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       return Result.succeed({ op: "unmirror", id: edit.id })
     case "mirror":
       return mirrorRequest(at, edit)
-    case "archive":
-      return Result.succeed({ op: "archive", id: edit.id })
+    case "trash":
+      return Result.succeed({ op: "trash", id: edit.id })
     // A duplicate resolves nothing either, and for `archive`'s reason read the
     // other way: what the copy SAYS is already on disk, so the op reads the
     // subtree where the write is judged rather than being handed one. A
@@ -187,9 +188,9 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
     // middle, which is the half a person feels.
     case "duplicate":
       return Result.succeed({ op: "duplicate", id: edit.id })
-    case "unarchive":
+    case "untrash":
       return Result.succeed({
-        op: "unarchive",
+        op: "untrash",
         id: edit.id,
         ...(edit.parent === undefined ? {} : { parent: edit.parent }),
         ...(edit.file === undefined ? {} : { file: edit.file }),
@@ -363,7 +364,7 @@ const mirrorRequest = (
  *
  * WHICH file the inbox is, though, is `@olai/format`'s ({@link inboxIn}) and
  * not this resolver's: it is a statement about what a served file IS by its
- * name, the same kind of thing `ARCHIVE` is, and an agent capturing by hand
+ * name, the same kind of thing `TRASH` is, and an agent capturing by hand
  * has to be able to read the same sentence rather than guess at the browser's.
  *
  * The title travels VERBATIM, blank and all: a capture of nothing is refused
@@ -420,7 +421,7 @@ const pinRequest = (
 // ── the trash, emptied ─────────────────────────────────────────────────
 
 /**
- * EVERY ARCHIVE THAT HOLDS ANYTHING, emptied in ONE write — the resolution the
+ * EVERY TRASH THAT HOLDS ANYTHING, emptied in ONE write — the resolution the
  * `Empty trash` button asks for.
  *
  * The reading is the whole of the work, and it is here for the reason every
@@ -449,11 +450,11 @@ const pinRequest = (
  * itself and could never refuse. What it guards against is the write widening
  * under a retry, and that is checked in the planner, on every attempt.
  *
- * AN EMPTY TRASH IS REFUSED HERE rather than sent as an op with no files, and
- * the sentence is this resolver's own for the reason `docDay`'s day-shape check
- * is: an `empty` with an empty list is refused in terms of the list ("name at
- * least one archive"), which teaches a reader about the wrong thing. The button
- * is not drawn over an empty trash, so nothing a person can press reaches this
+ * AN EMPTY TRASH IS REFUSED HERE rather than sent as an `empty` of a file that
+ * holds nothing, and the sentence is this resolver's own for the reason
+ * `docDay`'s day-shape check is: the planner's already-empty refusal names the
+ * file, which is true but not what a stale tab needs to hear. The button is
+ * not drawn over an empty trash, so nothing a person can press reaches this
  * — what does is a stale tab, and a stale tab deserves the true sentence.
  */
 const emptyTrashRequest = (
@@ -461,14 +462,14 @@ const emptyTrashRequest = (
   edit: Extract<Edit, { verb: "emptyTrash" }>,
 ): Resolved => {
   const piles = outlinePaths(at.set).filter(
-    (file) => isArchived(file) && nodesOf(at.derived, file).length > 0,
+    (file) => isTrashed(file) && nodesOf(at.derived, file).length > 0,
   )
   if (piles.length === 0) {
     return Result.fail(refusal("the Trash is empty, so there is nothing to delete"))
   }
   return Result.succeed({
     op: "empty",
-    files: piles,
+    file: TRASH_FILE,
     ...(edit.was === undefined ? {} : { was: edit.was }),
   })
 }
@@ -722,9 +723,9 @@ const walkRequest = (
  * A row, taken back.
  *
  * `archive` is the whole of it, because `archive` is the whole of what the set
- * can do about a record it no longer wants: the node goes to `Archive.olai`
+ * can do about a record it no longer wants: the node goes to `_olai/Trash.olai`
  * keeping its id, so anything pointing at it goes on resolving. That is a
- * trash rather than a shredder, and it is the same op `archive_node` runs.
+ * trash rather than a shredder, and it is the same op `trash_node` runs.
  *
  * The guard is the one thing this adds, and it is about what an undo is
  * ENTITLED to: the row it takes back is the row it added, never a branch. A
@@ -747,7 +748,7 @@ const removeRequest = (
       ),
     )
   }
-  return Result.succeed({ op: "archive", id: edit.id })
+  return Result.succeed({ op: "trash", id: edit.id })
 }
 
 // ── what would take a write back ───────────────────────────────────────
@@ -907,7 +908,7 @@ export const inverseOf = (
     // and a parent that has itself been archived since is the ops layer's
     // refusal to give, in its own words.
     case "remove":
-    case "archive":
+    case "trash":
       return unarchiveOf(at.derived, edit.id)
     // The two edge verbs are their own inverse read the other way round: what
     // this write ADDS is what would be removed, and what it removes is what
@@ -917,8 +918,8 @@ export const inverseOf = (
       return edgesOf(at.derived, edit)
     // The inverse of an unarchive is the archive that made it — same subtree,
     // same scaffold rebuilt, so ⌘Z after a `Put back` puts it back IN.
-    case "unarchive":
-      return [{ verb: "archive", id: edit.id }]
+    case "untrash":
+      return [{ verb: "trash", id: edit.id }]
     // A duplicate is taken back by putting the COPY away — `applied` is the
     // copy's root, never the original, which this write did not touch. It is
     // `remove`'s answer without `remove`'s narrowing, and the narrowing has
@@ -930,7 +931,7 @@ export const inverseOf = (
     // and it goes to the Trash rather than anywhere else, so ⌘⇧Z (an
     // `unarchive` of the same subtree) is the way back.
     case "duplicate":
-      return [{ verb: "archive", id: applied }]
+      return [{ verb: "trash", id: applied }]
     // A placement is taken back by retiring it, and `applied` is the placement
     // the write minted — never the target, which this write did not touch. One
     // edit, exact, and its own inverse is refused by the ops layer for the same
@@ -1064,7 +1065,7 @@ const unarchiveOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
   if (located === undefined || isMirror(located.node)) return []
   const parent = located.node.parent
   return [{
-    verb: "unarchive",
+    verb: "untrash",
     id,
     ...(parent === undefined ? { file: located.file } : { parent }),
   }]

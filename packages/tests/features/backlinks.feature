@@ -18,7 +18,7 @@ Feature: Referenced by — a zoomed node says what points at it
       node is drawn;
     - an `after` or a `blocks` is the ordering graph, and both directions of it
       are already on the page (`blocked by`, and the node's own `after` row);
-    - a referrer written in an `Archive.olai` is left out, as it is everywhere
+    - a referrer written in an `_olai/Trash.olai` is left out, as it is everywhere
       else (#226).
 
   `@scratch:` because the live scenarios write the directory they are served —
@@ -62,7 +62,7 @@ Feature: Referenced by — a zoomed node says what points at it
     And there should be no page errors
 
   Scenario: What is put away is on the Trash and nowhere else
-    When I rewrite "Archive.olai" as:
+    When I rewrite "_olai/Trash.olai" as:
       """
       {"id":"retired","ord":"a0","title":"the old bed, see @herbs","see":["herbs"]}
       """

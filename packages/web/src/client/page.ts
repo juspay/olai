@@ -41,7 +41,8 @@ import {
   dailyNotesOn,
   datedOn,
   fileKind,
-  isArchived,
+  isLeftoverArchive,
+  isTrashed,
   rowsOf,
   rowsUnder,
   zoom,
@@ -204,14 +205,18 @@ export const pageOf = (
   }
 
   // What is left is an OUTLINE, or the front page — which is whichever outline
-  // was found first, skipping the archives, since those are the trash's to show
-  // and nobody's front page. A named one has to be served, and naming an
-  // archive opens the trash: an archive is not a place you edit, so the address
-  // a sidebar used to link goes where the entry went.
+  // was found first, skipping the trash and leftover Archive.olai: the trash
+  // is the trash page's to show, and a leftover is dormant, so neither is
+  // anybody's front page. A named leftover still opens as an outline — that is
+  // how a human hand-moves it. Naming the trash opens the trash: it is not a
+  // place you edit, so the address a sidebar used to link goes where the entry
+  // went.
   const outlines = outlinesOf(found)
   const named = address === null ? null : address.path
   const file = named === null
-    ? outlines.find((candidate) => !isArchived(candidate))
+    ? outlines.find((candidate) =>
+      !isTrashed(candidate) && !isLeftoverArchive(candidate)
+    )
     : outlines.includes(named)
     ? named
     : undefined
@@ -222,7 +227,7 @@ export const pageOf = (
       requested: outlines.length === 0 ? null : named,
     }
   }
-  if (isArchived(file)) return trashOf(found)
+  if (isTrashed(file)) return trashOf(found)
   const unreadable = found.broken.get(file)
   return unreadable === undefined
     ? { kind: "outline", file }
@@ -234,7 +239,7 @@ export const pageOf = (
  *  address, so the two doors cannot show two different trashes. */
 const trashOf = (found: Found): Page => ({
   kind: "trash",
-  files: outlinesOf(found).filter(isArchived),
+  files: outlinesOf(found).filter(isTrashed),
 })
 
 /**
@@ -313,7 +318,7 @@ export const rowsFor = (
 /** One archive, and the rows it holds — the trash's own group, and named for
  *  `DayGroup` because it is the same shape and the same idea: a file heading
  *  and what is under it. What makes it the trash's rather than the sidebar's is
- *  that the file is an `Archive.olai` (`isArchived`). */
+ *  that the file is an `_olai/Trash.olai` (`isTrashed`). */
 export interface TrashGroup {
   readonly file: string
   readonly rows: ReadonlyArray<Row>

@@ -69,7 +69,7 @@ import {
   chainOf,
   type Derived,
   drawingPath,
-  isArchived,
+  isTrashed,
   isMirror,
 } from "@olai/format"
 
@@ -137,7 +137,7 @@ export const whyNot = (
   if (to.id === moved.id) {
     return `\`${to.title}\` is the row you are moving — nothing can go under itself.`
   }
-  if (isArchived(to.file)) {
+  if (isTrashed(to.file)) {
     return `\`${to.title}\` has been put away — the Trash holds what is finished ` +
       `with, and nothing is moved INTO it. \`Put back\` is how something comes out.`
   }

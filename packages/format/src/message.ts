@@ -47,7 +47,7 @@ export const MESSAGE_PREFIX = "olai"
  *  and the other is a sentence on screen. */
 const VERB: Readonly<Record<Sort, string>> = {
   created: "capture",
-  archived: "archive",
+  trashed: "trash",
   gone: "gone",
   done: "done",
   undone: "undone",

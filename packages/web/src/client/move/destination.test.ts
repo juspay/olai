@@ -36,7 +36,7 @@ import { type Destination, type Moved, whyNot } from "./destination.ts"
  *       kitchen-install (a mirror of install, a sibling of what it shows)
  *
  * with `herbs` over in `garden.olai` and `tiles` put away in an archive that
- * sits under a folder — an archive is `Archive.olai` at the root or beside any
+ * sits under a folder — an archive is `_olai/Trash.olai` at the root or beside any
  * outline under it (`@olai/format`'s own rule).
  */
 const HOUSE = [
@@ -57,7 +57,7 @@ const derived = derive(
   recordsOf(setOf({
     "house.olai": HOUSE,
     "garden.olai": GARDEN,
-    "notes/Archive.olai": AWAY,
+    "_olai/Trash.olai": AWAY,
   })),
 )
 

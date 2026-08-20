@@ -150,7 +150,7 @@ Feature: Filtering the outline in place
     # typo looks exactly like an empty directory.
     Given I open the outline "house.olai"
     When I search the header for "is:open"
-    Then the search refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, archived"
+    Then the search refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, trashed"
 
   Scenario: Pressing a `#tag` filters the page by it
     # The gesture the tags have been decorative for since title-markdown. It is

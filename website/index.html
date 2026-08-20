@@ -933,14 +933,14 @@ The corner unit is the **risky one** — see
         <p><strong>Clicking a <span class="tagchip">#tag</span> filters by
         it</strong>, and the filter lives in the address (<code>?q=</code>), so
         a narrowed page is a link you can send and the back button works.
-        Archived nodes stay out of every reading until a query says
-        <code>is:archived</code>.</p>
+        Trashed nodes stay out of every reading until a query says
+        <code>is:trashed</code>.</p>
         <p><strong>The box is above every page that draws nodes</strong> — an
         outline, a zoomed node, a day, the agenda, the Trash — and it means the
         same thing on each: what did not match goes, what did stays where it
         lives. A day and the agenda keep no ancestors because their rows
         already carry them; the Trash searches <em>within</em> what was put
-        away, since that page is the archive and the box is asking about the
+        away, since that page is the trash and the box is asking about the
         rows in front of you. The one page with no filter is a document: it is
         prose, and this grammar selects nodes.</p>
         <p>The same words reach an agent unchanged, with a scope a person gets
@@ -1051,15 +1051,15 @@ The corner unit is the **risky one** — see
     menu edit back too — all but the retire, which has no ⌘Z at all, and
     <code>((</code> is how that line comes back instead.
     Nothing you put away is deleted by putting it away: the Trash keeps the subtree whole,
-    ids and all — on disk it is an <code>Archive.olai</code> beside the outline
-    it left, which is why nothing that pointed at it breaks — and the sidebar’s
+    ids and all — on disk it is <code>_olai/Trash.olai</code>, the one trash for
+    the served directory, which is why nothing that pointed at it breaks — and the sidebar’s
     Trash is where you read it, with <em>Put back</em> on the rows that were put
     away, restoring each where it came from. <strong>A row you put away leaves
     every other page with it</strong> — off its day, out of the calendar’s dots,
     off the agenda even if it was late — because putting something away is
     saying you are done looking at it; the Trash is the one page that shows it,
-    and <code>is:archived</code> is how you go looking on purpose. (The titles above them are the
-    signposts the archive wrote to remember where things hung; they are not
+    and <code>is:trashed</code> is how you go looking on purpose. (The titles above them are the
+    signposts the trash wrote to remember which outline they left and where they hung; they are not
     rows anybody put away, so they have nothing to put back.) It is a place to
     look and to restore from rather than one to edit. Every one of those is the
     same operation an agent would
@@ -1067,9 +1067,9 @@ The corner unit is the **risky one** — see
     things to a directory.</p>
     <p><strong>And the Trash can be emptied — the one thing in olai that
     permanently deletes.</strong> <em>Empty trash</em> sits beside the heading
-    on that page and takes every record in every archive, subtrees and
+    on that page and takes every record in the trash, subtrees and
     signposts alike. It asks first, and the question says how many rows go —
-    counted over what the archives hold rather than over what the page happens
+    counted over what the trash holds rather than over what the page happens
     to be drawing, so narrowing the Trash with the filter box does not narrow
     what you are agreeing to — and it says outright that nothing in olai puts
     them back and that what survives is whatever git has already recorded.
@@ -1140,7 +1140,7 @@ The corner unit is the **risky one** — see
     ordinary node per pin, whose title is the address it opens. Nothing is stored in the browser, nothing
     new was added to the format, and an agent keeps the shelf with the tools it
     already has — <code>add_node</code> pins, <code>move_node</code> reorders,
-    <code>archive_node</code> unpins. Nothing stores a copy of a node’s name
+    <code>trash_node</code> unpins. Nothing stores a copy of a node’s name
     either, so renaming one anywhere renames it on the shelf — and opening
     <code>Pins.olai</code> shows the same faces the shelf does, because a title
     that is nothing but an address is drawn as the page it names wherever it is

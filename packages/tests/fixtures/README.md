@@ -113,7 +113,7 @@ rather than of anything ornamental in it:
 | a node two levels down | `hinges` under `install` — so a completion row has ancestors to say, nearest first |
 | a node found by its NOTE | `hinges` again: `brass` is in its note and in no title anywhere, which is the row that has to say why it is there |
 | two nodes of ONE title | `chase-supplier` under `install`, `chase-tiler` under `kitchen` — the pair a vault gets by copy-paste, and the reason a row says more than its title |
-| something put away | `notes/Archive.olai`'s `tiles` — out of every list unless the query says `is:archived` |
+| something put away | `_olai/Trash.olai`'s `tiles` — out of every list unless the query says `is:trashed` |
 
 The two documents are what `features/chat_at_completion.feature` completes
 against, and they are the smallest set that asks the question: one file whose
@@ -124,13 +124,10 @@ directory rather than over one kind of file. The nodes above them are what
 level in: a row with ancestors, a row found by something a reader cannot see on
 it, and two rows nothing but their place tells apart.
 
-The archive is at `notes/Archive.olai` rather than at the root, and the reason
-is worth knowing before moving it: `list_outlines` answers in path order and the
-scripted agent's `add` verb writes into the FIRST outline it is told about, so a
-root archive would have it capturing into the trash — and a row written there is
-drawn on no page (#226). A nested archive is an ordinary archive to every rule
-that reads one (`isArchived` is `Archive.olai` or `/Archive.olai`), so nothing
-about what it tests is weaker for sitting in a folder.
+The trash is `_olai/Trash.olai` — the one trash, same as every other corpus.
+`list_outlines` answers in path order and that file sorts first, so the
+scripted agent's `add` verb skips it: capturing into the trash is not a
+capture, and a row written there is drawn on no page (#226).
 
 The third child is the model in one line: `order` carries no mark, so it is a
 bullet rather than a task nobody has started, and the nudge above does **not**

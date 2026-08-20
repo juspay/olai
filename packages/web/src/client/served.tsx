@@ -20,7 +20,7 @@
  *
  * ## Everything the directory holds, archives included
  *
- * The sidebar hides `Archive.olai` from its tree — an archive is not an
+ * The sidebar hides `_olai/Trash.olai` from its tree — an archive is not an
  * outline a reader opens and edits, and the Trash entry below the tree is its
  * one way in. This list keeps it, because it is answering a different
  * question: what a message may NAME. The agent reads files, an archive is a

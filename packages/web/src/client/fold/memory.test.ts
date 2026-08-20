@@ -94,16 +94,16 @@ test("a value this app did not write is nothing, and the reader gets the default
 
 test("a node that MOVED to another file keeps its fold, under the new file", () => {
   // The case pruning by bucket alone gets wrong, and it is the ordinary one:
-  // `archive` keeps the id and moves the record to `Archive.olai`, leaving the
+  // `archive` keeps the id and moves the record to `_olai/Trash.olai`, leaving the
   // source file served with the rest of its nodes. Read as "not declared by
   // house.olai any more" that is indistinguishable from a deletion — and the
   // whole point of keying by id is that a fold survives a move.
   const live = new Map([
     ["house.olai", new Set(["kitchen", "order"])],
-    ["Archive.olai", new Set(["install"])],
+    ["_olai/Trash.olai", new Set(["install"])],
   ])
   expect(pruned(foldsOf({ "house.olai": ["kitchen", "install"] }), live)).toEqual(
-    foldsOf({ "house.olai": ["kitchen"], "Archive.olai": ["install"] }),
+    foldsOf({ "house.olai": ["kitchen"], "_olai/Trash.olai": ["install"] }),
   )
 })
 
@@ -139,10 +139,10 @@ test("an id lives in ONE bucket: folding it where it moved to clears the old one
   // every row reads is the union — so "one node, one fold state" has to hold in
   // the storage and not only in the id.
   const stale = foldsOf({ "house.olai": ["install"] })
-  expect(withFolds(stale, [{ id: "install", file: "Archive.olai" }], true))
-    .toEqual(foldsOf({ "Archive.olai": ["install"] }))
+  expect(withFolds(stale, [{ id: "install", file: "_olai/Trash.olai" }], true))
+    .toEqual(foldsOf({ "_olai/Trash.olai": ["install"] }))
   // ...and unfolding finds it wherever it is, not only under the file named.
-  expect(withFolds(stale, [{ id: "install", file: "Archive.olai" }], false))
+  expect(withFolds(stale, [{ id: "install", file: "_olai/Trash.olai" }], false))
     .toEqual(new Map())
 })
 

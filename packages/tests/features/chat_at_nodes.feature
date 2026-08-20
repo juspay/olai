@@ -16,7 +16,7 @@ Feature: Typing @ in the chat completes a node of the directory
   What the list offers is the format's own matcher (`@olai/format`'s
   `parseFilter` / `matching`), so a word here means what it means in the filter
   bar, in the ⌘K palette and in an agent's `search_nodes` — including
-  `is:archived`, which is the only way to reach what was put away, and the whole
+  `is:trashed`, which is the only way to reach what was put away, and the whole
   of this door's archive rule (#226).
 
   Every scenario is `@scratch:chat` — the panel needs an agent, and the agent is
@@ -173,13 +173,13 @@ Feature: Typing @ in the chat completes a node of the directory
     Then the chat shows my message "ask @tiles about it"
 
   @scratch:chat
-  Scenario: What was put away is not offered, and is:archived is how to ask
+  Scenario: What was put away is not offered, and is:trashed is how to ask
     # #226's ruling, inherited rather than respelled: the matcher reads the
-    # query's own `is:archived` before it walks, so this door has no archive
+    # query's own `is:trashed` before it walks, so this door has no archive
     # rule of its own to drift from that one.
     When I type "the @tiles" into the chat
     Then the completion does not offer "tiles"
-    When I type "the @is:archived" into the chat
+    When I type "the @is:trashed" into the chat
     Then the completion offers "tiles"
     When I accept the completion
     Then the chat input reads "the @tiles "

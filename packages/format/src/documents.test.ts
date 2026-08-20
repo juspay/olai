@@ -8,6 +8,7 @@ import {
   isPicture,
   pictureOf,
   resolveRelative,
+  retargetRelative,
 } from "./documents.ts"
 import { nodesOf } from "./fixtures.testlib.ts"
 
@@ -32,6 +33,21 @@ test("a relative path resolves against the naming file's directory", () => {
 // climb out of it is dropped rather than escaping — every caller then matches
 // the answer against files that were actually found, and a path that clamped
 // simply resolves to nothing.
+test("retargetRelative keeps the same landing when the naming file moves", () => {
+  expect(retargetRelative("house.olai", "_olai/Trash.olai", "finishes.md"))
+    .toBe("../finishes.md")
+  expect(retargetRelative("_olai/Trash.olai", "house.olai", "../finishes.md"))
+    .toBe("finishes.md")
+  expect(retargetRelative("house.olai", "_olai/Trash.olai", "notes/palette.md"))
+    .toBe("../notes/palette.md")
+  expect(retargetRelative("notes/plan.olai", "_olai/Trash.olai", "cabinets.md"))
+    .toBe("../notes/cabinets.md")
+  expect(resolveRelative(
+    "_olai/Trash.olai",
+    retargetRelative("house.olai", "_olai/Trash.olai", "finishes.md"),
+  )).toBe("finishes.md")
+})
+
 test("a path climbing above the served directory clamps to it", () => {
   expect(resolveRelative("plan.olai", "../../etc/passwd.md")).toBe("etc/passwd.md")
   expect(resolveRelative("sub/plan.olai", "../../../a.md")).toBe("a.md")

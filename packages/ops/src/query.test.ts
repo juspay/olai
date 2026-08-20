@@ -447,7 +447,7 @@ describe("a query is words and operators", () => {
         `{"id":"house","ord":"a1","title":"the house"}`,
         `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","done":"2026-08-09"}`,
       ].join("\n"),
-      "Archive.olai": `{"id":"old","ord":"a0","title":"an old trip","done":"2026-01-01"}`,
+      "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"an old trip","done":"2026-01-01"}`,
     })
 
   const ids = (query: Parameters<typeof search>[1]): ReadonlyArray<string> =>
@@ -523,7 +523,7 @@ describe("a query is words and operators", () => {
     const answer = search(readingOf(WORK()), { text: "is:open trip" }, TODAY)
     expect(answer.refusals).toEqual([{
       token: "is:open",
-      reason: "is: takes one of done, doing, todo, marked, blocked, mirrored, archived",
+      reason: "is: takes one of done, doing, todo, marked, blocked, mirrored, trashed",
     }])
     // As TYPED — an agent that echoed the folded token back to a person would
     // be quoting them wrongly.
@@ -542,13 +542,13 @@ describe("a query is words and operators", () => {
 
   test("the archive is out of it unless the query says so", () => {
     expect(ids({ text: "trip" })).toEqual(["trip"])
-    expect(ids({ text: "trip is:archived" })).toEqual(["old"])
+    expect(ids({ text: "trip is:trashed" })).toEqual(["old"])
   })
 
   test("a scope narrows to one outline, or to one node and what is beneath it", () => {
     expect(ids({ text: "is:done", file: "work.olai" })).toEqual(["book", "paint"])
     expect(ids({ text: "is:done", under: "trip" })).toEqual(["book"])
-    expect(ids({ text: "is:done", file: "Archive.olai", under: "trip" })).toEqual([])
+    expect(ids({ text: "is:done", file: "_olai/Trash.olai", under: "trip" })).toEqual([])
   })
 
   test("a hit says which field carried the words — and says nothing when none did", () => {

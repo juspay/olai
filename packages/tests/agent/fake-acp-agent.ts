@@ -1533,8 +1533,8 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "context") {
     // The id, and the REST of its line — which carries the one thing on it that
     // is not a fact about where the node is but about what to do with it: a
-    // node that was put away says `; archived`, because nothing refuses a write
-    // into an archive and a row that read like live work would be worked on.
+    // node that was put away says `; trashed`, because nothing refuses a write
+    // into the trash and a row that read like live work would be worked on.
     const named = [...text.matchAll(/^Node in context: `([^`]+)`(.*)$/gm)].map(
       (match) => ({ id: match[1] ?? "", said: match[2] ?? "" }),
     )
@@ -1552,7 +1552,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       // all. (It did, until a sabotage run said so.)
       say(
         `\`${node}\` is the node titled ${found?.title ?? "?"}` +
-          `${said.includes("; archived") ? ", and it was put away" : ""}.\n`,
+          `${said.includes("; trashed") ? ", and it was put away" : ""}.\n`,
       )
     }
     respond(id, { stopReason: "end_turn" })
@@ -1581,7 +1581,9 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     const listed = (outlines["structuredContent"] as
       | { outlines?: ReadonlyArray<{ file: string }> }
       | undefined)?.outlines ?? []
-    const file = listed[0]?.file
+    // `_olai/Trash.olai` sorts first, and capturing into the trash is not
+    // a capture — the tree would never show the row (#226).
+    const file = listed.find((one) => one.file !== "_olai/Trash.olai")?.file
     await useTool("add_node", { file, title: argument })
     say(`added \`${argument}\`.`)
     respond(id, { stopReason: "end_turn" })

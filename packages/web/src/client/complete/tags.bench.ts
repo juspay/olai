@@ -45,7 +45,8 @@
 import {
   derive,
   type Derived,
-  isArchived,
+  isLeftoverArchive,
+  isTrashed,
   isMirror,
   mayHoldTag,
   tagText,
@@ -100,7 +101,10 @@ const ranked = (counts: ReadonlyMap<string, Tag>): ReadonlyArray<Tag> =>
 const walked = (derived: Derived): ReadonlyArray<Tag> => {
   const counts = new Map<string, Tag>()
   for (const located of derived.nodes) {
-    if (isMirror(located.node) || isArchived(located.file)) continue
+    if (
+      isMirror(located.node) || isTrashed(located.file) ||
+      isLeftoverArchive(located.file)
+    ) continue
     const voted = new Set<string>()
     for (const text of [located.node.title, located.node.desc]) {
       // The format's own cheap negative first, exactly as the walk had it:
@@ -135,7 +139,10 @@ const walked = (derived: Derived): ReadonlyArray<Tag> => {
 const titlesOnly = (derived: Derived): ReadonlyArray<Tag> => {
   const counts = new Map<string, Tag>()
   for (const located of derived.nodes) {
-    if (isMirror(located.node) || isArchived(located.file)) continue
+    if (
+      isMirror(located.node) || isTrashed(located.file) ||
+      isLeftoverArchive(located.file)
+    ) continue
     if (!mayHoldTag(located.node.title)) continue
     for (const part of titleParts(located.node.title)) {
       if (part.kind !== "tag") continue

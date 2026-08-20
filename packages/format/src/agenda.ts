@@ -138,7 +138,7 @@ export const UPCOMING_DAYS = 7
 /**
  * The agenda: one reading of the whole set, at `today`.
  *
- * The ARCHIVE is out of it, and not by a rule of this module's: what is owed is
+ * The TRASH is out of it, and not by a rule of this module's: what is owed is
  * read out of the same bucketed walk a day page is (./dates.ts), and that walk
  * leaves archived nodes out for every reading built on it (ruled 2026-08-17,
  * human — what was put away is drawn on the trash page and nowhere else). It is

@@ -380,7 +380,7 @@ test("nothing put away is owed: the archive is the trash's and no page else's", 
   // The 2026-08-17 ruling, read on the page it was reported against. A node in
   // an archive still says `todo` and still names a day — and it is on no
   // section here, because putting something away is the reader saying they are
-  // done looking at it. The one door left to it is `is:archived`
+  // done looking at it. The one door left to it is `is:trashed`
   // (docs/search.md), and the one page is the trash.
   //
   // ONE OF EACH — slipped, due today, coming up — because the exclusion is the
@@ -389,7 +389,7 @@ test("nothing put away is owed: the archive is the trash's and no page else's", 
   // had been written three times and got one of them wrong.
   const archived: Derived = derive(
     nodesOfFiles({
-      "Archive.olai": [
+      "_olai/Trash.olai": [
         `{"id":"gate","ord":"a0","title":"the old gate","todo":true,"date":"2026-08-01"}`,
         `{"id":"bell","ord":"a1","title":"the bell","doing":true,"date":"2026-08-12"}`,
         `{"id":"hedge","ord":"a2","title":"the hedge","todo":true,"date":"2026-08-14"}`,
@@ -400,6 +400,22 @@ test("nothing put away is owed: the archive is the trash's and no page else's", 
   expect(agenda.overdue).toEqual([])
   expect(nothingDue(agenda)).toBe(true)
   // And the mark outside the page counts what the page draws, which is nothing.
+  expect(owedOf(agenda)).toEqual({ overdue: 0, today: 0 })
+})
+
+test("a leftover Archive.olai is owed on no agenda either", () => {
+  const leftover: Derived = derive(
+    nodesOfFiles({
+      "Archive.olai": [
+        `{"id":"gate","ord":"a0","title":"the old gate","todo":true,"date":"2026-08-01"}`,
+        `{"id":"bell","ord":"a1","title":"the bell","doing":true,"date":"2026-08-12"}`,
+        `{"id":"hedge","ord":"a2","title":"the hedge","todo":true,"date":"2026-08-14"}`,
+      ].join("\n"),
+    }),
+  )
+  const agenda = agendaOf(leftover, TODAY)
+  expect(agenda.overdue).toEqual([])
+  expect(nothingDue(agenda)).toBe(true)
   expect(owedOf(agenda)).toEqual({ overdue: 0, today: 0 })
 })
 

@@ -246,7 +246,7 @@ export const FILE_EXTS: ReadonlyArray<string> = CLAIMS.map(([, claim]) => claim.
  * The outline's suffix, by name.
  *
  * Two things that are not `fileKind` need the string itself and cannot get it
- * from a boolean: the conventional file names derived from it (`Archive.olai`,
+ * from a boolean: the conventional file names derived from it (`Trash.olai`,
  * `Inbox.olai` — ./node.ts) and the mint that refuses a path which would not
  * be claimed back (`@olai/ops`' `outlinePath`). Retyping it in either place is
  * not a type error; it is a file the walk stops claiming, or an op that

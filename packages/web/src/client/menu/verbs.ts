@@ -54,7 +54,7 @@ import { type Relation, RELATIONS } from "../edges/relation.ts"
 import { pinnedAt } from "../pins/pins.ts"
 import { customEntries } from "../props/drawer.ts"
 import { atNode, hrefOf } from "../routes.ts"
-import { archiveQuestion } from "../trash/question.ts"
+import { trashQuestion } from "../trash/question.ts"
 import { under } from "./subtree.ts"
 
 /**
@@ -227,7 +227,7 @@ export const writeVerbs = (
           // is about — never the node it opens. Archived rather than erased:
           // that is the removal the set has, and it is what makes an unpin
           // undoable and reversible from the Trash.
-          does: sends({ verb: "archive", id: pinned.id }),
+          does: sends({ verb: "trash", id: pinned.id }),
         },
     )
     // The mark it already carries is not offered again: putting it back is the
@@ -423,20 +423,20 @@ export const writeVerbs = (
     // somewhere else, out of sight, on a click that reads as being about this
     // line. The entry SPEAKS Trash — the human-facing name for the archive
     // (`../trash/TrashPage.tsx`) — while the id below, the wire verb and the
-    // op stay `archive`: the file is still `Archive.olai` and the agent's
-    // tool is still `archive_node`; only the surface a person reads renames.
+    // op stay `archive`: the file is still `_olai/Trash.olai` and the agent's
+    // tool is still `trash_node`; only the surface a person reads renames.
     verbs.push({
-      id: "archive",
+      id: "trash",
       label: "Move to Trash",
-      does: sends({ verb: "archive", id: shown.node.id }),
+      does: sends({ verb: "trash", id: shown.node.id }),
       // Counted over the SET rather than over this row's children: what the
       // write moves is not what the page happens to be drawing (`./subtree.ts`).
       //
       // The SENTENCE is the Trash's own (`../trash/question.ts`) rather than
-      // this file's: the human's 2026-08-12 ruling is about the ARCHIVE, and a
+      // this file's: the human's 2026-08-12 ruling is about the TRASH, and a
       // multi-selection's Move to Trash makes the same promise about the same
       // op. Two spellings of it could only ever drift.
-      confirm: archiveQuestion(
+      confirm: trashQuestion(
         { kind: "row", title: shown.node.title },
         under(derived, shown.node.id),
       ),

@@ -263,12 +263,12 @@ test("two records claiming one id are two rows, not one", () => {
 // Work that was put away leaves the journal with it (ruled 2026-08-17, human,
 // reversing 2026-08-11): what is archived is drawn on the TRASH PAGE and
 // nowhere else. The day, the calendar's dot and the agenda read this one walk,
-// so the rule reaches all three at once — and `is:archived` is what still
+// so the rule reaches all three at once — and `is:trashed` is what still
 // reaches the node itself, at every door (./filter.ts).
 test("an archived node is on no day, and lights no day in the calendar", () => {
   const archived = derive(
     nodesOfFiles({
-      "Archive.olai":
+      "_olai/Trash.olai":
         `{"id":"deck","ord":"a0","title":"the deck","done":"2026-08-11T09:00:00-04:00"}`,
     }),
   )
@@ -283,7 +283,7 @@ test("an archived node is on no day, and lights no day in the calendar", () => {
 test("the live outline keeps the day the archive was taken off", () => {
   const beside = derive(
     nodesOfFiles({
-      "Archive.olai":
+      "_olai/Trash.olai":
         `{"id":"deck","ord":"a0","title":"the deck","done":"2026-08-11T09:00:00-04:00"}`,
       "work.olai": `{"id":"rails","ord":"a0","title":"paint the rails","date":"2026-08-11"}`,
     }),
@@ -293,6 +293,27 @@ test("the live outline keeps the day the archive was taken off", () => {
     "work.olai",
   ])
   expect(datedDays(beside, "2026-08").has("2026-08-11")).toBe(true)
+})
+
+// Leftover Archive.olai is the same exclusion one basename over (human,
+// 2026-08-19): left on disk and stop being read. A dated leftover lights no
+// day, is on no day's page, and is owed on no agenda — and it is still not
+// the trash, so `is:trashed` is not the door back in (./filter.ts).
+test("a leftover Archive.olai is on no day, and lights no day in the calendar", () => {
+  const leftover = derive(
+    nodesOfFiles({
+      "Archive.olai":
+        `{"id":"old","ord":"a0","title":"the old deck","done":"2026-08-11T09:00:00-04:00"}`,
+      "notes/Archive.olai":
+        `{"id":"older","ord":"a0","title":"the older deck","date":"2026-08-11"}`,
+      "work.olai": `{"id":"rails","ord":"a0","title":"paint the rails","date":"2026-08-11"}`,
+    }),
+  )
+  expect(idsOf(leftover, "2026-08-11")).toEqual(["rails"])
+  expect(datedOn(leftover, "2026-08-11").map((group) => group.file)).toEqual([
+    "work.olai",
+  ])
+  expect(datedDays(leftover, "2026-08").has("2026-08-11")).toBe(true)
 })
 
 // A mirror is a second PLACEMENT of a node, and the format gives it no field

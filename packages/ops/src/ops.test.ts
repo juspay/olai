@@ -366,8 +366,8 @@ test("creating an empty outline is a zero-byte file the sidebar can list", () =>
 test("a created file sorting before an existing one is published in path order", () =>
   withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
-      yield* run(fixture, { op: "create", file: "Archive.olai" })
-      expect(outlinePaths(yield* fixture.set())).toEqual(["Archive.olai", "house.olai"])
+      yield* run(fixture, { op: "create", file: "_olai/Trash.olai" })
+      expect(outlinePaths(yield* fixture.set())).toEqual(["_olai/Trash.olai", "house.olai"])
       // And the flat node list follows the same order, which is what a search
       // tie reads: every record of the earlier file comes first.
       const set = yield* fixture.set()
@@ -382,18 +382,18 @@ test("a created file sorting before an existing one is published in path order",
 test("archiving writes both files, and the set stays valid across them", () =>
   withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
-      const applied = yield* run(fixture, { op: "archive", id: "order" })
-      expect(applied.file).toBe("Archive.olai")
+      const applied = yield* run(fixture, { op: "trash", id: "order" })
+      expect(applied.file).toBe("_olai/Trash.olai")
 
       expect(fixture.read("house.olai")).not.toContain(`"order"`)
-      const archive = fixture.read("Archive.olai") ?? ""
+      const archive = fixture.read("_olai/Trash.olai") ?? ""
       expect(archive).toContain(`"title":"Kitchen remodel"`)
       expect(archive).toContain(`"id":"order"`)
 
       // One revision for the pair, not two — the gate renamed both or neither.
       expect(applied.rev).toBe(2)
       const set = yield* fixture.set()
-      expect([...outlinePaths(set)].sort()).toEqual(["Archive.olai", "house.olai"])
+      expect([...outlinePaths(set)].sort()).toEqual(["_olai/Trash.olai", "house.olai"])
     })))
 
 /**
@@ -601,13 +601,13 @@ describe("the auto-commit", () => {
           file: "shed.olai",
           seed: { title: "clear the shed" },
         })).committed).toBe(true)
-        expect((yield* run(fixture, { op: "archive", id: "install" })).committed).toBe(true)
+        expect((yield* run(fixture, { op: "trash", id: "install" })).committed).toBe(true)
 
         // Every subject carries the `olai` prefix, which IS the audit filter:
         // `git log --grep '^olai'` is the view of what the tool wrote, and
         // `--invert-grep` gives back the repository's real history.
         expect(gitLog(fixture.root).slice(0, 4)).toEqual([
-          "olai: archive: install them",
+          "olai: trash: install them",
           "olai: capture: clear the shed",
           "olai: capture: paint",
           "olai: done: order the cabinets",
@@ -618,7 +618,7 @@ describe("the auto-commit", () => {
             cwd: fixture.root,
             encoding: "utf8",
           }).trim().split("\n").sort(),
-        ).toEqual(["Archive.olai", "house.olai"])
+        ).toEqual(["_olai/Trash.olai", "house.olai"])
       }), { git: true }))
 
   test("a write that committed says nothing about why not, and git reads healthy", () =>

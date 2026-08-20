@@ -22,6 +22,8 @@ import * as assert from "node:assert";
 import * as fs from "node:fs";
 import { Then, When } from "@cucumber/cucumber";
 
+import { retargetRelative } from "@olai/format";
+
 import { expectCodeIn, expectSiteIn } from "../support/errors.ts";
 import {
   attr,
@@ -100,11 +102,12 @@ When(
   },
 );
 
-/** A subtree ARCHIVED under everybody's feet: the records leave this outline
- *  for `Archive.olai` beside it, keeping their ids, which is exactly what the
- *  ops layer's `archive` does. Everything under the named node goes with it —
- *  a child left behind pointing at a parent in another file is a set that does
- *  not validate, which would be a scenario about the wrong thing. */
+/** A subtree put away under everybody's feet: the records leave this outline
+ *  for `_olai/Trash.olai`, keeping their ids, which is exactly what the
+ *  ops layer's `trash` does. `doc` is rewritten so it still names the same
+ *  file from the trash's directory. Everything under the named node goes with
+ *  it — a child left behind pointing at a parent in another file is a set that
+ *  does not validate, which would be a scenario about the wrong thing. */
 When(
   "another writer archives {string} out of {string}",
   function (this: OlaiWorld, id: string, file: string) {
@@ -122,20 +125,25 @@ When(
     }
     assert.ok(records.some((node) => node["id"] === id), `${file} holds no \`${id}\``);
     // Archive first, then the outline. A probe that listed between the two
-    // writes used to see `install` gone and no `Archive.olai` — undo then
+    // writes used to see `install` gone and no `_olai/Trash.olai` — undo then
     // answered "not a node in the loaded set" instead of naming the archive.
     // Written this way, "the node is not shown" cannot become true until the
     // archive is already on disk, so the next probe that drops the row also
     // holds it.
     this.writeServed(
-      "Archive.olai",
+      "_olai/Trash.olai",
       records
         .filter((node) => moving.has(String(node["id"])))
         // The root of what moved keeps no parent — whatever it hung under is
         // still in the outline it left.
-        .map((node) =>
-          JSON.stringify(node["id"] === id ? { ...node, parent: undefined } : node)
-        )
+        .map((node) => {
+          const moved =
+            node["id"] === id ? { ...node, parent: undefined } : { ...node }
+          if (typeof moved["doc"] === "string") {
+            moved["doc"] = retargetRelative(file, "_olai/Trash.olai", moved["doc"])
+          }
+          return JSON.stringify(moved)
+        })
         .join("\n"),
     );
     this.writeServed(

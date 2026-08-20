@@ -236,8 +236,8 @@ Feature: Dragging rows, and picking several
     Then the question names "3 rows under it"
     When I press the Trash
     Then the node "install" is not shown
-    And "Archive.olai" holds the node "install"
-    And "Archive.olai" holds the node "knobs"
+    And "_olai/Trash.olai" holds the node "install"
+    And "_olai/Trash.olai" holds the node "knobs"
 
   Scenario: The question does not outlive the rows it is about
     # `asking` is a signal on a bar that is always mounted, so putting the pick

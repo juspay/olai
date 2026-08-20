@@ -540,7 +540,7 @@ test("an edge named twice, however it is spelled, is one edge", () => {
 test("archived work neither blocks nor is blocked", () => {
   const derived = derive(nodesOfFiles({
     "house.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["put-away"]}`,
-    "Archive.olai":
+    "_olai/Trash.olai":
       `{"id":"put-away","ord":"a","title":"put away half-finished","doing":true}\n` +
         `{"id":"old","ord":"b","title":"old","todo":true,"after":["a"]}`,
   }))
@@ -548,6 +548,29 @@ test("archived work neither blocks nor is blocked", () => {
   expect(waiting(derived, "old")).toEqual([])
   // The status index still knows what they are; it is blocking they are out of.
   expect(derived.status.get("put-away")).toBe("doing")
+})
+
+// Leftover Archive.olai is the same exemption (human, 2026-08-19): orphaned
+// from live readings, so it neither blocks nor is blocked, and a leftover
+// mirror does not make a live node `is:mirrored`.
+test("leftover Archive.olai work neither blocks nor is blocked", () => {
+  const derived = derive(nodesOfFiles({
+    "house.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["old"]}`,
+    "Archive.olai":
+      `{"id":"old","ord":"a","title":"leftover half-finished","doing":true}\n` +
+        `{"id":"waiting","ord":"b","title":"waiting","todo":true,"after":["a"]}`,
+  }))
+  expect(waiting(derived, "a")).toEqual([])
+  expect(waiting(derived, "waiting")).toEqual([])
+  expect(derived.status.get("old")).toBe("doing")
+})
+
+test("a leftover Archive.olai mirror does not make a node is:mirrored", () => {
+  const derived = derive(nodesOfFiles({
+    "house.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+    "Archive.olai": `{"id":"m","ord":"a","mirror":"herbs"}`,
+  }))
+  expect(derived.mirrorsOf.has("herbs")).toBe(false)
 })
 
 /**
@@ -582,7 +605,7 @@ test("standingBefore asks the same question of a node that is not work yet", () 
     "a.olai": `{"id":"a","ord":"a","title":"a","after":["note","fin","gone"]}\n` +
       `{"id":"note","ord":"b","title":"a note"}\n` +
       `{"id":"fin","ord":"c","title":"fin","done":"2026-08-10"}`,
-    "Archive.olai": `{"id":"gone","ord":"a","title":"gone","todo":true}`,
+    "_olai/Trash.olai": `{"id":"gone","ord":"a","title":"gone","todo":true}`,
   }))
   expect(before(clear, "a")).toEqual([])
 
@@ -614,7 +637,7 @@ test("an archive beside any outline is an archive", () => {
     waiting(
       derive(nodesOfFiles({
         "work/plans.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["old"]}`,
-        "work/Archive.olai": `{"id":"old","ord":"a","title":"old","doing":true}`,
+        "_olai/Trash.olai": `{"id":"old","ord":"a","title":"old","doing":true}`,
       })),
       "a",
     ),

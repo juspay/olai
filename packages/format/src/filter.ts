@@ -55,7 +55,8 @@ import { type DayGroup, datesOf, dayOf, monthOf } from "./dates.ts"
 import { basenameOf } from "./paths.ts"
 import { nothing } from "./write.ts"
 import {
-  isArchived,
+  isLeftoverArchive,
+  isTrashed,
   isMirror,
   type Located,
   type LocatedRegular,
@@ -188,7 +189,7 @@ const IS_VALUES = [
   "marked",
   "blocked",
   "mirrored",
-  "archived",
+  "trashed",
 ] as const
 type IsValue = (typeof IS_VALUES)[number]
 
@@ -408,7 +409,7 @@ export type Refusal = typeof Refusal.Type
  * refused query still carried whatever half of it parsed, and "check
  * `refusals` before you read `terms`" was an arm-order convention every reader
  * had to know. Here there is nothing to know — a `refused` filter HAS no terms
- * to be tempted by, and `speaksOfArchive` exists only on the arm where an
+ * to be tempted by, and `speaksOfTrash` exists only on the arm where an
  * archive rule means anything.
  *
  * The three are three different things to DO, which is why none of them
@@ -442,7 +443,7 @@ export type Filter =
      * hit for an answer that is a fact about the QUERY.
      *
      * Derived at parse time from the tokens it is built beside, exactly as
-     * `speaksOfArchive` below is, and negated clauses are left out here for the
+     * `speaksOfTrash` below is, and negated clauses are left out here for the
      * reason {@link Match.props} gives: a node found by `-prop:agent` was not
      * found ON `agent`.
      */
@@ -450,9 +451,9 @@ export type Filter =
     /** True when the query names the archive at all, in either polarity. The
      *  archive is out of every reading unless it is ASKED for
      *  (docs/search.md), and this is the flag that says it was — so
-     *  `is:archived` reaches what was put away and `-is:archived` says out
+     *  `is:trashed` reaches what was put away and `-is:trashed` says out
      *  loud what is otherwise the default. */
-    readonly speaksOfArchive: boolean
+    readonly speaksOfTrash: boolean
   }
 
 // ── the tokenizer ──────────────────────────────────────────────────────
@@ -670,7 +671,7 @@ export const parseFilter = (text: string, now: string): Filter => {
   const groups: Array<Array<Alternative>> = []
   const namedProps: Array<Extract<Clause, { kind: "prop" }>> = []
   const refusals: Array<Refusal> = []
-  let speaksOfArchive = false
+  let speaksOfTrash = false
   // The last token was a joiner, so the next one lands in the group before it
   // rather than opening one of its own.
   let joining = false
@@ -707,7 +708,7 @@ export const parseFilter = (text: string, now: string): Filter => {
     // of the groups afterwards — where the order is no longer the reader's.
     if (alternative.kind === "clause") {
       const { clause } = alternative
-      if (clause.kind === "is" && clause.value === "archived") speaksOfArchive = true
+      if (clause.kind === "is" && clause.value === "trashed") speaksOfTrash = true
       if (clause.kind === "prop" && !alternative.negated) namedProps.push(clause)
     }
     const last = groups[groups.length - 1]
@@ -732,7 +733,7 @@ export const parseFilter = (text: string, now: string): Filter => {
   // nobody asked, which is the silent error the refusals exist to prevent.
   if (refusals.length > 0) return { kind: "refused", refusals }
   if (groups.length === 0) return { kind: "nothing" }
-  return { kind: "asking", groups: inCostOrder(groups), namedProps, speaksOfArchive }
+  return { kind: "asking", groups: inCostOrder(groups), namedProps, speaksOfTrash }
 }
 
 /**
@@ -1215,7 +1216,7 @@ export interface Scope {
    * Whether what was put AWAY is in this corner of the set at all.
    *
    * The default is the grammar's own rule — archived nodes are out of every
-   * reading unless the query says `is:archived` (docs/search.md) — because the
+   * reading unless the query says `is:trashed` (docs/search.md) — because the
    * doors that leave it alone are asking about the DIRECTORY, where an archive
    * is a place a reader has to name before they are shown it.
    *
@@ -1225,7 +1226,7 @@ export interface Scope {
    * directory. The filter over a page is the caller there, and it passes `true`
    * where the rows in front of somebody are archived ones: the trash, which IS
    * the archive, and a zoom onto an archived node, which is where an
-   * `is:archived` hit lands. A matcher applying the default to either would
+   * `is:trashed` hit lands. A matcher applying the default to either would
    * take every row off the screen and leave nothing to read the absence by.
    *
    * That was three pages until 2026-08-17, when the human ruled that what is
@@ -1233,7 +1234,7 @@ export interface Scope {
    * archived rows until ./dates.ts stopped them, and the caller narrowed with
    * them (`@olai/web`'s `filter/narrowing.ts`).
    */
-  readonly archived?: boolean | undefined
+  readonly trashed?: boolean | undefined
 }
 
 /**
@@ -1244,7 +1245,7 @@ export interface Scope {
  * index lookup, and the words are the only thing that scans text. (The archive
  * is cheaper than all of them and is asked one level up, in {@link matching},
  * because whether it is in the reading at all is a fact about the QUESTION —
- * the query's own `is:archived`, or a caller whose scope already holds it.)
+ * the query's own `is:trashed`, or a caller whose scope already holds it.)
  * That order survived `OR` in two halves — the groups
  * arrive with the wordless ones in front ({@link inCostOrder}), and the
  * haystacks are minted at the first word rather than at the top.
@@ -1588,8 +1589,8 @@ const sourceOffsets = (
  */
 const being = (derived: Derived, at: LocatedRegular, value: IsValue): boolean => {
   switch (value) {
-    case "archived":
-      return isArchived(at.file)
+    case "trashed":
+      return isTrashed(at.file)
     // THE ONE DERIVED VALUE, and it is the index the views draw from rather
     // than a second reading of `after`: the same answer that puts the `blocked
     // by` line on a node's page and the dim on a row, so a query cannot find a
@@ -1634,7 +1635,7 @@ const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean =>
   // keeps a reader from meeting two answers to one word. The per-RECORD rule,
   // and pointedly not the walk above it, which is where the archive comes out:
   // a day clause answers about a node wherever it was filed, and that is what
-  // makes `is:archived date:2026-08-11` a question with an answer
+  // makes `is:trashed date:2026-08-11` a question with an answer
   // (docs/search.md).
   return dayWithin(at.node, clause)
 }
@@ -1806,8 +1807,8 @@ const within = (day: string, clause: DaysClause): boolean =>
  *
  * WHAT WAS PUT AWAY is decided here rather than per record, because it is a
  * fact about the QUESTION and not about any node: the query named the archive
- * ({@link Filter} `speaksOfArchive`), or the caller said its scope already
- * holds it ({@link Scope.archived}). One boolean per call, read before the
+ * ({@link Filter} `speaksOfTrash`), or the caller said its scope already
+ * holds it ({@link Scope.trashed}). One boolean per call, read before the
  * walk.
  */
 export const matching = (
@@ -1816,13 +1817,18 @@ export const matching = (
   scope: Scope = {},
 ): ReadonlyArray<Matched> => {
   const inScope = scoping(derived, scope)
-  const putAway = scope.archived === true ||
-    (filter.kind === "asking" && filter.speaksOfArchive)
+  const putAway = scope.trashed === true ||
+    (filter.kind === "asking" && filter.speaksOfTrash)
   const out: Array<Matched> = []
   for (const located of derived.nodes) {
     if (isMirror(located.node)) continue
     const at = located as LocatedRegular
-    if (!putAway && isArchived(at.file)) continue
+    // Leftover Archive.olai is orphaned from every query, including
+    // `is:trashed`: it is not trash, and it is not live work either. The
+    // file's own page still draws unfiltered (the filter box is inactive
+    // then); a query over the directory does not re-enter it.
+    if (isLeftoverArchive(at.file)) continue
+    if (!putAway && isTrashed(at.file)) continue
     if (!inScope(at)) continue
     const match = matchOf(derived, at, filter)
     if (match !== null) out.push({ at, match })
@@ -2224,7 +2230,7 @@ const documentHay = (
  * filter over an open outline page wants and what a `search` with `file` means.
  *
  * The archive rule does not reach here either. What is put away is an
- * `Archive.olai`, which is an outline; a `.md` beside one is a document like
+ * `_olai/Trash.olai`, which is an outline; a `.md` beside one is a document like
  * any other.
  */
 export const matchingDocuments = (
