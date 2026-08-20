@@ -281,7 +281,8 @@ Feature: Committing on purpose
     # push as a non-fast-forward. Nothing here pulls, rebases or forces, and
     # nothing goes round again: the commit stands, the loop stops, and git's own
     # words are on the pill and in the panel with the one gesture that resumes
-    # it. The second flurry is the fence — it stays waiting.
+    # it. The second flurry is the fence: the window is given its full run and
+    # what it would have recorded is still on disk, uncommitted.
     Given the served repository has a remote
     And somebody else has pushed to the remote
     When I open the preferences
@@ -305,5 +306,8 @@ Feature: Committing on purpose
       and the frames want glazing
       """
     Then the commit pill says 1 uncommitted
-    And olai has recorded 1 commit here
+    When the quiet window is given its full run
+    Then olai has recorded 1 commit here
+    And "later.md" is still waiting in the repository
+    And the commit pill says auto-commit is "paused"
     And there should be no page errors

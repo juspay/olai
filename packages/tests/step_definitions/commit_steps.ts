@@ -43,6 +43,7 @@ import {
   COMMIT_UNPUSHED,
   HYDRATION_TIMEOUT,
   oneLine,
+  PAST_QUIET_WINDOW,
   POLL_TIMEOUT,
   QUIET_WINDOW_STEP_TIMEOUT,
   QUIET_WINDOW_TIMEOUT,
@@ -342,6 +343,25 @@ Then(
       "the commit pill",
       QUIET_WINDOW_TIMEOUT,
     );
+  },
+);
+
+/**
+ * Give the quiet window its full run and look afterwards — the only way to say
+ * a timer did NOT fire.
+ *
+ * A bare wait, and it is named as one: what follows it is whatever the scenario
+ * wanted to still be true, and the value of the step is that the window has
+ * demonstrably had its chance. The one scenario that needs it is the stop —
+ * "nothing goes round again" is a claim about a timer nobody re-armed, and an
+ * assertion made a moment after the edit would pass just as well against a loop
+ * that was about to record.
+ */
+When(
+  "the quiet window is given its full run",
+  { timeout: QUIET_WINDOW_STEP_TIMEOUT },
+  async function (this: OlaiWorld) {
+    await this.page.waitForTimeout(PAST_QUIET_WINDOW);
   },
 );
 

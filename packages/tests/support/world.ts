@@ -159,6 +159,17 @@ export const STEER_DEADLINE_TIMEOUT = 45_000;
  */
 export const QUIET_WINDOW_TIMEOUT = 40_000;
 
+/**
+ * ... and how long a scenario waits to prove the window did NOT fire.
+ *
+ * A negative claim about a timer can only be made by outliving it, so this is
+ * the window itself plus room for the commit it would have made. Spelled rather
+ * than derived from the budget above: that one is a DEADLINE a poll may return
+ * early from, this one is a WAIT that is paid in full every time, and the two
+ * will not always want to move together.
+ */
+export const PAST_QUIET_WINDOW = 22_000;
+
 /** How long a freshly spawned server gets to print its listening line. Not a
  *  poll budget — it bounds a child process — but it is derived from the same
  *  scale so `hooks.ts` and this file cannot drift. */
