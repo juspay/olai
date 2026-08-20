@@ -313,9 +313,11 @@ Deliberately absent, and still the human’s to rule on: a delete key. Emptying 
 
 **It is a drawing rule and nothing else.** Those files are in the directory either way: search finds them, an agent's `list_outlines` lists them, the Trash page and the shelf read them, and git records them like anything else. What changes is one list of rows in one browser.
 
+**Except one that would not parse.** An outline olai could not read keeps its row whichever way the switch is set, wearing the ⚠ every unreadable outline gets. That mark is the only place this app says so short of opening the page — so a `Pins.olai` with a bad line in it would otherwise be an empty shelf and no explanation anywhere.
+
 **Prefs → Hidden outlines → Shown** puts them back, for when you want to open `Pins.olai` as an outline and read the addresses in it ([running.md](running.md)). It is this browser's, like every other preference, and it starts off. The Trash stays out of the tree either way — it is a page rather than a file you edit ([format.md](format.md)).
 
-**The Inbox entry is drawn only when there is an inbox.** A directory that has never captured has none, and minting one is the capture's job, not a door's — so the entry appears the moment your first `⌘K` `+` lands and opens the file that capture went into.
+**The Inbox entry is drawn only when there is an inbox.** A directory that has never captured has none, and minting one is the capture's job, not a door's — so the entry appears the moment your first `⌘K` `+` lands and opens the file that capture went into. It is an ordinary outline behind that door — type into it like any other — so the entry lights up when you are on it and carries the ⚠ when the file will not parse.
 
 ## Pinning a page to the sidebar
 
