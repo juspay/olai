@@ -18,7 +18,6 @@ import {
   type Status,
   isTagName,
   mayHoldTag,
-  storedMarker,
   TAG_SIGILS,
   tagOpensAt,
   tagText,
@@ -29,7 +28,7 @@ import {
   withoutDone,
 } from "./derive.ts"
 import { FIXTURE_FILE, nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
-import { isMirror, type Located, type RegularNode } from "./node.ts"
+import { isMirror, type Located, type RegularNode, storedMarker } from "./node.ts"
 
 const statusesOf = (contents: string): ReadonlyMap<string, Status> =>
   derive(nodesOf(contents)).status

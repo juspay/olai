@@ -253,6 +253,10 @@ export {
    *  request that writes one, the keystroke that toggles one and the read that
    *  answers with one are one derivation of that list rather than five. */
   Status,
+  /** What a record CLAIMS about itself, which is its status — read off the
+   *  MARKS list beside it, so the checkbox, the journal and the planner all ask
+   *  one question about a record rather than three (`./node.ts`). */
+  storedMarker,
   /** Which words a `custom` key may not take, and what writes each of them
    *  instead — asked of the record's own field names, so a new field cannot
    *  arrive without one. `set_prop` is its only caller. */
@@ -333,7 +337,6 @@ export {
   standingBefore,
   isTagName,
   mayHoldTag,
-  storedMarker,
   TAG_SIGILS,
   tagOpensAt,
   tagPart,
@@ -425,15 +428,18 @@ export {
   datedDays,
   datedIn,
   datedOn,
-  dayOf,
   isDay,
   sameDated,
-  /** The TIME a datetime names, where `dayOf` takes the day off the front of
-   *  the same value. Public because the agenda's spine keeps a pill for it and
-   *  drops one for everything else the day heading already said. */
-  timeOf,
 } from "./dates.ts"
-export type { DayEntry, DayGroup, Occasion } from "./dates.ts"
+export type { DayEntry, DayGroup } from "./dates.ts"
+/** WHICH of a node's fields put it on a day, and WHICH day that is
+ *  (./occasion.ts) — the floor every date reading above stands on, and the fold
+ *  the derivation's day index is built with. What crosses this door is the
+ *  TEXT half: a day is a prefix of an ISO value and a month is a shorter one,
+ *  and every consumer that draws or compares one asks here rather than slicing
+ *  for itself. */
+export { dayOf, monthOf, timeOf } from "./occasion.ts"
+export type { Occasion } from "./occasion.ts"
 /** The one place a date is COUNTED rather than compared (./calendar.ts): which
  *  weekday a day falls on, the day before or after one, the days a month holds.
  *  Public because two packages ask it — the query grammar's relative words are

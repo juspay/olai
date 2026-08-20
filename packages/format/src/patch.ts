@@ -60,12 +60,20 @@ import {
   type InTheWay,
   nameInto,
   type Naming,
+  byDayKey,
   nodeNamed,
-  storedMarker,
   tagInto,
   writtenTags,
 } from "./derive.ts"
-import { isMirror, type Located, type LocatedRegular, type Status, targetsOf } from "./node.ts"
+import {
+  isMirror,
+  type Located,
+  type LocatedRegular,
+  type Status,
+  storedMarker,
+  targetsOf,
+} from "./node.ts"
+import { type Dated, dateInto } from "./occasion.ts"
 import { overlaid } from "./overlay.ts"
 import { byPath } from "./paths.ts"
 
@@ -172,6 +180,7 @@ export const patched = (
   const children = containment(edit)
   const namedBy = namings(edit, nodes)
   const taggedBy = taggings(edit)
+  const byDay = dating(edit)
   const { status, mirrorsOf, dirty } = resolutions(edit, byId)
   const { after, edgesTo, rewritten } = orderings(edit, { byId, mirrorsOf, namedBy }, dirty)
   const blocked = blockage(edit, { byId, status, after, edgesTo }, dirty, rewritten)
@@ -188,6 +197,7 @@ export const patched = (
     edgesTo,
     namedBy,
     taggedBy,
+    byDay,
   }
 }
 
@@ -463,6 +473,59 @@ const taggings = (edit: Edit): ReadonlyMap<string, ReadonlyArray<LocatedRegular>
     else taggedBy.set(key, own)
   }
   return taggedBy
+}
+
+/**
+ * What lands on what day — {@link Derived.byDay} carried across the edit.
+ *
+ * {@link taggings} above with a key ORDER to keep, which is the whole of the
+ * difference: nothing reads a tag's keys in order, and three readings spend this
+ * index's ({@link Derived.byDay}). So a day the edit ADDS or EMPTIES re-sorts
+ * the keys, exactly as {@link regrouped} re-sorts `byFile`'s when a file
+ * arrives or goes away — and the edits that neither add nor empty a day, which
+ * is nearly all of them, move members inside keys that are already in place and
+ * pay nothing for the promise.
+ *
+ * Every day this edit can move is a day it TOUCHED — one the arriving records
+ * land on, or one the departing records were on — because a record in a file the
+ * delta never named cannot have changed its dates.
+ *
+ * BOTH SIDES GO THROUGH {@link dateInto}, including the departing one whose
+ * entries are thrown away: what a record puts on a day is one rule (a mirror
+ * files nothing, what was put away files nothing, two fields and not three), and
+ * a second spelling of it here to collect keys from would be exactly the drift
+ * the fold is factored out to stop.
+ */
+const dating = (edit: Edit): ReadonlyMap<string, ReadonlyArray<Dated>> => {
+  const arriving = new Map<string, Array<Dated>>()
+  for (const at of edit.incoming) dateInto(arriving, at)
+  const departing = new Map<string, Array<Dated>>()
+  for (const at of edit.outgoing) dateInto(departing, at)
+
+  const keys = new Set<string>([...arriving.keys(), ...departing.keys()])
+  // NOTHING ON EITHER SIDE CARRIED A DATE, so the map that stood IS the answer
+  // and the clone below is not paid at all — a keystroke in an outline nobody
+  // scheduled anything in, which is most outlines.
+  if (keys.size === 0) return edit.before.byDay
+
+  const byDay = new Map(edit.before.byDay)
+  // Whether the KEYS moved, which is the only thing that costs the sort. A day
+  // that gains or loses a record is not that; a day that appears or empties is.
+  let reordered = false
+  for (const key of keys) {
+    const own = [
+      ...(edit.before.byDay.get(key) ?? []).filter((one) => !edit.touched.has(one.at.file)),
+      ...(arriving.get(key) ?? []),
+    ].sort((one, other) => byCorpus(one.at, other.at))
+    if (own.length === 0) reordered = byDay.delete(key) || reordered
+    else {
+      if (!byDay.has(key)) reordered = true
+      byDay.set(key, own)
+    }
+  }
+  return reordered
+    ? new Map([...byDay].sort(([one], [other]) => byDayKey(one, other)))
+    : byDay
 }
 
 /**

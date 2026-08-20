@@ -38,22 +38,15 @@
  * directory — and a derivation whose answer changed with the machine it ran on.
  */
 
-import { Order, Schema } from "effect"
+import { Schema } from "effect"
 
 import { daysBetween, MONTHS, WEEKDAYS, weekdayOf } from "./calendar.ts"
 
-import {
-  type Dated,
-  datedByDay,
-  datedIn,
-  type DayGroup,
-  dayOf,
-  groupedOn,
-  timeOf,
-} from "./dates.ts"
-import { type Derived, storedMarker } from "./derive.ts"
+import { datedIn, type DayGroup, groupedOn } from "./dates.ts"
+import type { Derived } from "./derive.ts"
 import { keepingDated, type Selected } from "./filter.ts"
-import type { RegularNode } from "./node.ts"
+import { type RegularNode, storedMarker } from "./node.ts"
+import { type Dated, dayOf, timeOf } from "./occasion.ts"
 
 /**
  * Should this have happened by now?
@@ -150,17 +143,19 @@ export const UPCOMING_DAYS = 7
  * ruling in one sentence — archiving is a reader saying they are done looking
  * at something, and a page that went on asking them for it would be arguing.
  */
-export const agendaOf = (derived: Derived, today: string): Agenda => {
-  // ONE walk over the set, for every day of the line: each of them is a
-  // question about a day, and asking a dozen of them of a dozen walks is what
-  // a bucketed reading exists to stop (./dates.ts).
-  const days = datedByDay(derived)
-  return {
-    overdue: behind(derived, days, today),
-    today: owedOn(derived, days, today),
-    upcoming: aheadOf(derived, days, today),
-  }
-}
+export const agendaOf = (derived: Derived, today: string): Agenda => ({
+  overdue: behind(derived, today),
+  // TODAY'S BUCKET IS ASKED FOR BY THE VALUE THE CALLER HANDED OVER, which is
+  // what the bucketed walk this replaced did (`days.get(today)`) and is
+  // deliberately not `dayOf(today)`. Every door sends a plain day (`@olai/web`'s
+  // `clock.ts` mints one; the `owed` procedure carries it verbatim), so the two
+  // spellings answer identically for everything anything sends — and where they
+  // could differ, this one is what the reading has always answered. Normalising
+  // it here would be a performance change quietly giving a different answer to a
+  // question, which is the one thing this diff may not do.
+  today: owedOn(derived, derived.byDay.get(today) ?? []),
+  upcoming: aheadOf(derived, today),
+})
 
 /** Nothing to show, said once: an empty agenda is a page that says so, offers
  *  nothing to press and draws no line at all, and "empty" is the conjunction of
@@ -300,9 +295,6 @@ export const owedIn = (agenda: Agenda): number =>
 const datedInDays = (days: ReadonlyArray<AgendaDay>): number =>
   days.reduce((total, day) => total + datedIn(day.groups), 0)
 
-/** Every day the set has anything on, and what it has on it. */
-type Days = ReadonlyMap<string, ReadonlyArray<Dated>>
-
 /**
  * The days that have GONE and still owe something, oldest first.
  *
@@ -324,21 +316,24 @@ type Days = ReadonlyMap<string, ReadonlyArray<Dated>>
  * dates are its `date` and a dated `done`, and a node whose mark is `done` is
  * not overdue — so a node here is here for its `date` and can be on no other
  * day of this half.
+ *
+ * A WALK OF THE DAYS BEFORE TODAY, in the index's own key order, which is what
+ * replaced sorting every day the set has per read ({@link Derived.byDay}): it
+ * takes them from the front and stops at today. A directory ten years into a
+ * daily habit has three and a half thousand days in it, and this used to sort
+ * all of them to find the handful that owe something — per subscriber, per
+ * published revision, since `vault-in-browser`'s PR 4 put the counting on the
+ * server.
  */
 const behind = (
   derived: Derived,
-  days: Days,
   today: string,
 ): ReadonlyArray<AgendaDay> => {
   const gone: Array<AgendaDay> = []
-  for (
-    const date of [...days.keys()].filter((day) => day < dayOf(today)).sort(
-      Order.String,
-    )
-  ) {
-    const owed = (days.get(date) ?? []).filter((one) =>
-      isOverdue(one.at.node, today)
-    )
+  const now = dayOf(today)
+  for (const [date, dated] of derived.byDay) {
+    if (date >= now) break
+    const owed = dated.filter((one) => isOverdue(one.at.node, today))
     if (owed.length > 0) gone.push({ date, groups: groupedOn(derived, owed) })
   }
   return gone
@@ -360,10 +355,9 @@ const behind = (
  */
 const owedOn = (
   derived: Derived,
-  days: Days,
-  day: string,
+  dated: ReadonlyArray<Dated>,
 ): ReadonlyArray<DayGroup> =>
-  groupedOn(derived, (days.get(day) ?? []).filter((one) => unfinished(one.at.node)))
+  groupedOn(derived, dated.filter((one) => unfinished(one.at.node)))
 
 /** Anything that is not finished work — the one spelling of it in this module,
  *  because "what is left" is the question the whole page asks and two ways of
@@ -381,15 +375,13 @@ const unfinished = (node: RegularNode): boolean => storedMarker(node) !== "done"
  */
 const aheadOf = (
   derived: Derived,
-  days: Days,
   today: string,
 ): ReadonlyArray<AgendaDay> => {
   const ahead: Array<AgendaDay> = []
-  for (
-    const date of [...days.keys()].filter((day) => day > today).sort(Order.String)
-  ) {
+  for (const [date, dated] of derived.byDay) {
+    if (date <= today) continue
     if (ahead.length === UPCOMING_DAYS) break
-    const groups = owedOn(derived, days, date)
+    const groups = owedOn(derived, dated)
     if (groups.length > 0) ahead.push({ date, groups })
   }
   return ahead

@@ -308,6 +308,23 @@ export type LocatedRegular = Located & { readonly node: RegularNode }
  */
 export const isRegular = (at: Located): at is LocatedRegular => !isMirror(at.node)
 
+/**
+ * What a record claims about itself, which IS its status — and `undefined` for
+ * one claiming nothing, the one spelling of absence this format has. Read in
+ * {@link MARKS} order, which is precedence: the three are mutually exclusive on
+ * disk, so it only decides what a set the validator has already condemned looks
+ * like.
+ *
+ * BESIDE THE LIST IT READS, which is where {@link Status} already sits and for
+ * that member’s own reason: what a record CARRIES is this module’s subject, and
+ * a derivation over a set is not. It lived in `./derive.ts` until `./occasion.ts`
+ * — the leaf that decides which of a node’s fields put it on a day — needed it:
+ * that module is imported BY the fold, so reaching back up into the fold would
+ * have been a cycle through the one module every reading here is layered on.
+ */
+export const storedMarker = (node: RegularNode): Status | undefined =>
+  MARKS.find((mark) => node[mark] !== undefined)
+
 /** Ids are slugs — a chosen name or a minted short string. The shape is
  *  checked rather than assumed because ids appear in URLs, in `#tag`-adjacent
  *  text and as bare wire keys. */
