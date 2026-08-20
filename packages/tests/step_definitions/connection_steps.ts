@@ -6,6 +6,14 @@
  * a scenario is being served by. They belong to `@scratch:` scenarios alone —
  * the shared corpus servers are running for every other scenario in the run —
  * and `support/hooks.ts` enforces that rather than trusting the tag.
+ *
+ * TWO WAYS TO CUT A WIRE live here and they are not interchangeable. `the
+ * server stops` kills the process, so the tab that comes back presents a
+ * process id nobody minted and is RETIRED at the handshake — which is the only
+ * way to reach that state, and the reason a page can never be watched coming
+ * back live through it. `the browser goes offline` cuts the socket and leaves
+ * the process alive, so the redial is accepted and the freeze lifts: the other
+ * half of §5b's ruling, unreachable any other way.
  */
 
 import * as assert from "node:assert";
