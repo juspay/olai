@@ -262,6 +262,21 @@ test("nothing else is interpreted", () => {
   expect(firstLine("#tag first")).toBe("#tag first")
 })
 
+// A `.md` that opens with a `---` block was called `---` — in the sidebar, in
+// the palette and beside every `doc`-carrying row — because the fence was the
+// first line with anything on it. The record on top of a document is not what
+// the document is CALLED.
+test("frontmatter is not the first line", () => {
+  expect(firstLine("---\ntitle: The kitchen plan\n---\n\n# The plan\n\nProse.\n"))
+    .toBe("The plan")
+  // …and when the block is the whole file, the document has nothing to say,
+  // which is what makes the caller fall back to the filename.
+  expect(firstLine("---\ntitle: x\n---\n")).toBe("")
+  // An unclosed `---` is a thematic break and not frontmatter, so the line
+  // under it is still the line under it (`./frontmatter.ts` says why).
+  expect(firstLine("---\nBrushed brass.\n")).toBe("---")
+})
+
 test("an empty document previews as nothing", () => {
   expect(firstLine("")).toBe("")
   expect(firstLine("\n \n")).toBe("")

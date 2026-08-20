@@ -135,6 +135,14 @@ export {
  *  it renders (`/web`'s `markdown/slugs.ts`), and a slug spelled twice is
  *  an address this app writes and cannot open. */
 export { claim, slugOf, slugsIn } from "./slug.ts"
+/** A document body with its `---` block taken off — the ONE place the app
+ *  decides where frontmatter ends. Exported because the BROWSER spends it too:
+ *  a document is drawn from its prose, so the block is off the page, off the
+ *  contents and off the heading ids, and the page and the face cannot come to
+ *  disagree about which lines a document has. A NOTE is not a file and does not
+ *  spend it — a leading `---` in one is the thematic break markdown says it is
+ *  (`./document.ts` argues both halves). */
+export { proseIn } from "./frontmatter.ts"
 /** The view PATCHED rather than rebuilt, and what a delta says: files upserted,
  *  files gone — Surface's own collection-delta frame, which is the vocabulary
  *  "what changed" already travels this system in.

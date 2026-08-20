@@ -268,14 +268,20 @@ Then(
   },
 );
 
+/** One DOCUMENT row of the header's results, by path.
+ *
+ *  By `data-id`, for `palette_steps.ts`'s reason: the label is the file's NAME
+ *  and the id is its whole path. One reading, two doors — the step below and
+ *  the palette's are the same assertion about the same block of rows. Named
+ *  because two steps ask for it and a locator spelled twice is a locator that
+ *  can come to name two different rows. */
+const documentRow = (world: OlaiWorld, file: string) =>
+  world.page.locator(`${HEADER_SEARCH_ITEM}${attr("data-id", `hit-${file}`)}`);
+
 Then(
   "the header search lists the document {string}",
   async function (this: OlaiWorld, file: string) {
-    // By `data-id`, for `palette_steps.ts`'s reason: the label is the file's
-    // name and the id is its whole path. One reading, two doors — this step and
-    // the palette's are the same assertion about the same block of rows.
-    await this.page
-      .locator(`${HEADER_SEARCH_ITEM}${attr("data-id", `hit-${file}`)}`)
+    await documentRow(this, file)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
@@ -292,6 +298,25 @@ const searchRowProp = (
     .filter({ hasText: title })
     .first()
     .locator(`${HEADER_SEARCH_ITEM_PROP}${attr("data-key", key)}`);
+
+/**
+ * WHAT A DOCUMENT ROW CALLS IT — the face's title, drawn as the row's first
+ * line, asked by PATH so the assertion cannot be satisfied by the thing it is
+ * about.
+ *
+ * By `data-id` for the reason the listing step above gives, and then the row's
+ * own first line: a document whose title came off the wrong line would be
+ * found by this step and named wrong by it, which is exactly the failure a
+ * `---` block at the top used to produce.
+ */
+Then(
+  "the header search result for the document {string} is called {string}",
+  async function (this: OlaiWorld, file: string, title: string) {
+    const row = documentRow(this, file);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal((await row.innerText()).split("\n")[0]?.trim(), title);
+  },
+);
 
 Then(
   "the header search result {string} shows the property {string} holding {string}",

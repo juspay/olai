@@ -284,9 +284,10 @@ export const search = (
   // point at cannot take a document, and one filtering the answer itself would
   // run short exactly when a query matched enough documents to fill the cap.
   const nodes = query.kind === "document" ? [] : matching(at.derived, filter, scope)
-  // The other arm of the set, asked the same question. What a document cannot
-  // answer — a mark, a date, a property — selects none of them, which is
-  // `matchingDocuments`' own rule and the hole frontmatter fills.
+  // The other arm of the set, asked the same question. A document answers
+  // `prop:` out of its frontmatter and nothing else — a mark, a date and a
+  // record's field select none of them, which is `matchingDocuments`' own rule
+  // and the honest answer rather than a hole.
   const documents = query.kind === "node"
     ? []
     : matchingDocuments(bodiedIn(at.set), filter, scope)
@@ -295,12 +296,26 @@ export const search = (
     .slice(0, limit)
     .map((selected): SearchHit => {
       if (selected.kind === "document") {
+        // Through `heldCustom` for {@link carriedOf}'s reason, which is not
+        // only the pruning: it puts the keys in the FILE's canonical order
+        // (alphabetical), and a node hit's `custom` already comes back that
+        // way. Without it a document's `props` would arrive in frontmatter
+        // line order — two orderings of one open map inside one ranked answer,
+        // which is exactly the drift the row's own ordering rule refuses
+        // (`@olai/web`'s `search/props.ts`).
+        const props = heldCustom(selected.at.props)
         return {
           // WHERE TO GO, which is what a hit is for: the document's own
           // address, minted by the grammar rather than assembled here.
           at: { kind: "document", path: selected.at.path },
           title: selected.at.title,
           ...(selected.match.field === null ? {} : { matched: selected.match.field }),
+          // The two halves of "why is this here" a document can carry, each
+          // omitted on the format's own rule for absence — the same two lines
+          // the node arm below spells, over the frontmatter this file writes
+          // about itself instead of over a record's `custom`.
+          ...(nothing(props) ? {} : { props }),
+          ...(selected.match.props.length === 0 ? {} : { matchedProps: selected.match.props }),
         }
       }
       const { at: located, match } = selected

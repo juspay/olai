@@ -29,6 +29,7 @@
  * otherwise be drawn larger than the date at the top of the page.
  */
 
+import { proseIn } from "@olai/format"
 import { Show } from "solid-js"
 
 import { useDocument } from "../document/documents.tsx"
@@ -60,7 +61,11 @@ export function DayNote(props: { readonly file: string }) {
       <Show when={document()}>
         {(served) => (
           <Markdown
-            source={served().text}
+            /* THE PROSE: a daily note is a document, so its `---` block is its
+               own record rather than the first thing it says
+               (`../markdown/pipeline.ts` says why the strip is here and not
+               in the pipeline). */
+            source={proseIn(served().text)}
             from={props.file}
             class="olai-md-compact"
             testid={TESTID.documentBody}

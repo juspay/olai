@@ -101,3 +101,12 @@ test("a setext heading needs prose above the rule", () => {
   expect(headingsIn("Prose.\n\n---\n\nMore.")).toEqual([])
   expect(headingsIn("---\ntitle: x\n---\n\n# Real")).toEqual(["Real"])
 })
+
+// Where the block ENDS is `./frontmatter.ts`'s rule now rather than this
+// scan's, and the corner that move fixed is this one: an unclosed `---` used
+// to swallow every heading below it, where the renderer draws a thematic break
+// and carries on. A face that lost a document's whole element list is an
+// address the app writes and cannot open.
+test("an unclosed frontmatter fence hides no heading", () => {
+  expect(headingsIn("---\ntitle: x\n\n# Real\n\n## Also")).toEqual(["Real", "Also"])
+})

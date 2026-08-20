@@ -332,6 +332,47 @@ describe("the properties a node carries", () => {
     expect(nodeHits(search(readingOf(set), { text: "lane" }, TODAY))[0]?.custom)
       .toEqual({ pr: long })
   })
+
+  /**
+   * THE OTHER ARM CARRIES THE SAME TWO FIELDS, and that is the whole of what a
+   * document gained: a `.md` writes named facts about itself in the `---` block
+   * at the top (`@olai/format`'s `frontmatter.ts`), so `prop:` selects one, and
+   * the hit says both what the file carries and which key was the reason.
+   *
+   * Pinned HERE rather than only in the format, for this file's own reason: the
+   * fields are optional on the wire, so one produced by the matcher and not
+   * spread onto the hit type-checks clean everywhere and is silently absent
+   * from every answer an agent and the palette read.
+   */
+  test("a document hit carries its frontmatter and the key that selected it", () => {
+    const vault = readingOf(setOf(
+      { "roadmap.olai": `{"id":"lane","ord":"a0","title":"a lane"}` },
+      [
+        ["notes/plan.md", "---\npr: 176\nagent: claude-opus\n---\n\n# The plan\n"],
+        ["brief.md", "# Brief\n"],
+      ],
+    ))
+    const [hit] = search(vault, { text: "prop:agent=claude-opus" }, TODAY).hits
+    expect(hit).toMatchObject({
+      at: { kind: "document", path: "notes/plan.md" },
+      title: "The plan",
+      props: { pr: "176", agent: "claude-opus" },
+      matchedProps: ["agent"],
+    })
+    // No words in that query, so no field carried it.
+    expect(hit).not.toHaveProperty("matched")
+    // …and the keys arrive in the FILE's canonical order — alphabetical, not
+    // the order the block happens to write them (`heldCustom`). A node hit's
+    // `custom` has always come back that way, and two orderings of one open
+    // map inside one ranked answer is a difference a reader would see.
+    expect(Object.keys((hit as { props: object }).props)).toEqual(["agent", "pr"])
+    // A document with no block says nothing, exactly as a node with no map
+    // does — absence has one spelling here too.
+    const [plain] = search(vault, { text: "brief" }, TODAY).hits
+    expect(plain).toMatchObject({ at: { kind: "document", path: "brief.md" } })
+    expect(plain).not.toHaveProperty("props")
+    expect(plain).not.toHaveProperty("matchedProps")
+  })
 })
 
 describe("what refers to a node", () => {

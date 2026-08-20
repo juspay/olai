@@ -42,6 +42,7 @@
  */
 
 import { Slug } from "./address.ts"
+import { proseIn } from "./frontmatter.ts"
 
 /**
  * The slug of one heading's words.
@@ -159,31 +160,27 @@ export const headingsIn = (body: string): ReadonlyArray<string> => {
   const found: Array<string> = []
   let fence: string | null = null
   let previous: string | null = null
+  // FRONTMATTER FIRST, and through {@link ./frontmatter.ts} rather than a rule
+  // of this scan's own — which is what it used to be, and the one place in
+  // this package that knew the block existed at all. Skipping it is not
+  // tidiness: its closing rule sits directly under a line of text, so a scan
+  // that did not know about it would read `title: x` as a setext heading and
+  // hand the face a section the document does not have. Asking the module that
+  // also READS the block is what keeps the two from disagreeing about where it
+  // ends — and it is what fixed the corner this scan had wrong, an unclosed
+  // `---` swallowing every heading below it where the renderer draws a
+  // thematic break.
+  //
   // SCANNED rather than split, which is `./documents.ts`'s own refusal one
   // door over: this runs at the decode of every `.md` in a served directory,
   // and `split("\n")` allocates a string per line of every one of them to
   // throw nearly all of them away.
-  // FRONTMATTER, when the very first line opens it: a `---` at the top of a
-  // file, and everything to the next one. It is SKIPPED rather than read, and
-  // skipping it is not tidiness — its closing rule sits directly under a line
-  // of text, so a scan that did not know about it would read `title: x` as a
-  // setext heading and hand the face a section the document does not have.
-  // Nothing here READS frontmatter; that is the design's named next step
-  // (docs/brainstorming/first-class-documents.md), and this is the one line
-  // that keeps it from being read WRONG before it is read at all.
-  let matter = body.startsWith("---\n")
+  const text = proseIn(body)
   let at = 0
-  while (at <= body.length) {
-    const start = at
-    const end = body.indexOf("\n", at)
-    const line = (end === -1 ? body.slice(at) : body.slice(at, end)).trim()
-    at = end === -1 ? body.length + 1 : end + 1
-    if (matter) {
-      // The opening rule is line one; the region ends at the next one.
-      if (start > 0 && line === "---") matter = false
-      previous = null
-      continue
-    }
+  while (at <= text.length) {
+    const end = text.indexOf("\n", at)
+    const line = (end === -1 ? text.slice(at) : text.slice(at, end)).trim()
+    at = end === -1 ? text.length + 1 : end + 1
     if (fence !== null) {
       if (closes(line, fence)) fence = null
       previous = null
@@ -252,10 +249,6 @@ export const headingText = (line: string): string | null => {
   }
   return line.slice(opens, end).trim()
 }
-
-/** Where the scan is once it has consumed the opening `---` — anything past
- *  it is inside the frontmatter until the closing rule. */
-const FRONTMATTER_OPENS = 4
 
 /** The rule under a setext heading: one character, repeated, and nothing
  *  else. */

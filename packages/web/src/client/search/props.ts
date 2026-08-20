@@ -51,7 +51,8 @@
  * highlighted it would be drawing a lie the matcher never told.
  */
 
-import type { NodeHit } from "@olai/surface"
+import { type Custom, customOf } from "@olai/format"
+import type { DocumentHit, NodeHit } from "@olai/surface"
 
 import { customEntries } from "../props/drawer.ts"
 
@@ -65,9 +66,32 @@ export interface NodeProp {
   readonly matched: boolean
 }
 
-export const nodeProps = (hit: NodeHit): ReadonlyArray<NodeProp> => {
-  const matched = hit.matchedProps ?? []
-  const entries = customEntries(hit).map((entry) => ({
+export const nodeProps = (hit: NodeHit): ReadonlyArray<NodeProp> =>
+  rowProps(customOf(hit), hit.matchedProps)
+
+/**
+ * The same line for a DOCUMENT, off the frontmatter at the top of the `.md`
+ * (`@olai/format`'s `frontmatter.ts`).
+ *
+ * A second entry point and not a second function: the ordering, the matched
+ * half and the drawer's own spelling of a value are one rule below, because a
+ * `prop:` query answers with both kinds in one ranked list and a row that
+ * ordered a document's keys differently from a node's would be the drift this
+ * module's header refuses. What differs is only WHERE the map is — a record's
+ * open field, or the record a document writes about itself.
+ */
+export const documentProps = (hit: DocumentHit): ReadonlyArray<NodeProp> =>
+  rowProps(hit.props ?? {}, hit.matchedProps)
+
+/** The rule, over the MAP — which is what lets there be one of it. Both kinds
+ *  of hit carry an open map under a field name of their own, and neither name
+ *  is a fact this ordering depends on. */
+const rowProps = (
+  custom: Custom,
+  named: ReadonlyArray<string> | undefined,
+): ReadonlyArray<NodeProp> => {
+  const matched = named ?? []
+  const entries = customEntries(custom).map((entry) => ({
     key: entry.key,
     value: entry.value,
     matched: matched.includes(entry.key),

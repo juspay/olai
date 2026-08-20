@@ -93,25 +93,67 @@ Then(
   },
 );
 
-/** The rendered body — `world.documentBody()`, kept as a local name because
- *  every step below reads better for it. */
-const body = (world: OlaiWorld) => world.documentBody();
+/** The rendered body, DRAWN — `world.documentBody()` and the wait a caller
+ *  would otherwise have to remember. The wait is folded in because every step
+ *  below needs it and none of them wants a different one: a rendered body is
+ *  only a thing to assert about once it is on the page, and "each new step
+ *  remembers to wait" is the kind of rule a step gets wrong once and then
+ *  flakes on somebody else's machine. */
+const body = async (world: OlaiWorld) => {
+  const rendered = world.documentBody();
+  await rendered.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  return rendered;
+};
 
 Then(
   "the document renders bold text {string}",
   async function (this: OlaiWorld, text: string) {
-    const rendered = body(this);
-    await rendered.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const rendered = await body(this);
     await this.rendersBold(rendered, text);
   },
 );
+
+/**
+ * THE ABSENCE a rendered document has to have, and the one thing a step about
+ * frontmatter can honestly ask of a page.
+ *
+ * Over the rendered BODY's text rather than the page's, because the source is
+ * on the page in one state a reader can reach — the editor — and a step that
+ * looked at the whole pane would be green for the wrong reason the moment
+ * somebody opens it.
+ *
+ * `oneLine` on both sides, so a claim about text is not a claim about where
+ * the renderer put its newlines.
+ */
+Then(
+  "the document does not draw the text {string}",
+  async function (this: OlaiWorld, text: string) {
+    const rendered = await body(this);
+    const said = oneLine(await rendered.innerText());
+    assert.ok(
+      !said.includes(oneLine(text)),
+      `the document draws ${JSON.stringify(text)}, which is not part of its prose`,
+    );
+  },
+);
+
+/** No thematic break at all — the other half of what a `---` block used to
+ *  leave behind, and the half no text assertion can see. */
+Then("the document draws no rule", async function (this: OlaiWorld) {
+  const rendered = await body(this);
+  assert.strictEqual(
+    await rendered.locator("hr").count(),
+    0,
+    "the document draws a thematic break",
+  );
+});
 
 // ── the pipeline's own promises ────────────────────────────────────────
 
 Then(
   "the document highlights a code block as {string}",
   async function (this: OlaiWorld, language: string) {
-    const code = body(this).locator(`pre code.language-${language}`).first();
+    const code = (await body(this)).locator(`pre code.language-${language}`).first();
     await code.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     // The tokens are the point: a `language-ts` class with no spans under it is
     // a block that was labelled and never highlighted.
@@ -138,7 +180,7 @@ Then(
 Then(
   "the task list is drawn with checkboxes and no bullets",
   async function (this: OlaiWorld) {
-    const items = body(this).locator("li.task-list-item");
+    const items = (await body(this)).locator("li.task-list-item");
     await items.first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     // The checkbox IS the marker. A list-style left in place draws both, which
     // reads as two marks about one line — and it is invisible in the HTML,
@@ -163,7 +205,7 @@ Then(
 Then(
   "no code span in a table is broken across lines",
   async function (this: OlaiWorld) {
-    const spans = body(this).locator("td code, th code");
+    const spans = (await body(this)).locator("td code, th code");
     await spans.first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     // A path or an identifier wrapped mid-token inside a column reads as two
     // values. `getClientRects` is the question asked directly: one rect is one
@@ -189,7 +231,7 @@ Then("the page requested nothing off this server", function (this: OlaiWorld) {
 Then(
   "the picture {string} is drawn in the document",
   async function (this: OlaiWorld, src: string) {
-    const picture = body(this).locator(`img${attr("src", src)}`).first();
+    const picture = (await body(this)).locator(`img${attr("src", src)}`).first();
     await picture.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     // Decoded, not merely present: an `<img>` whose fetch 404'd is on screen
     // too, and reports a natural width of zero.

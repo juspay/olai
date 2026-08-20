@@ -493,7 +493,11 @@
     you were typing refuses the save in plain words instead of being silently
     overwritten, in either direction. New documents come from the sidebar's
     path box, or from a bare calendar day — pressing one creates that day's
-    note where your vault already keeps them.</p>
+    note where your vault already keeps them. A document that opens with a
+    <code>---</code> block writes its own <strong>properties</strong> there:
+    the block is kept off the rendered page, out of the document's name and out
+    of its table of contents, and its keys answer <code>prop:</code> exactly as
+    a node's do.</p>
     <p>A <code>.html</code> file in the directory — a saved article, a report
     a build wrote, a dashboard something exported — is listed and previewed the
     same way, and is read rather than edited. <strong>The page works</strong>:
@@ -846,7 +850,12 @@ The corner unit is the **risky one** — see
     list, so a document whose title holds the word outranks a node that only
     mentions it in a note. What a document does not have, it does not pretend
     to: an operator over a field it lacks — <code>is:done</code>,
-    <code>has:date</code> — selects none of them.</p>
+    <code>has:date</code> — selects none of them. What it <em>does</em> have is
+    <strong>frontmatter</strong>: the <code>---</code> block at the top of a
+    <code>.md</code>, whose keys are the same properties a node carries, so
+    <code>prop:agent=claude-opus</code> answers with both kinds in one list —
+    and the block itself stays off the page, out of the title and out of the
+    table of contents.</p>
     <div class="cols">
       <div class="panel">
         <div class="file">/house.olai?q=%23home+OR+alcove</div>
@@ -884,7 +893,9 @@ The corner unit is the **risky one** — see
         composing with a range like any other value
         (<code>date:last-week..</code>). <code>prop:pr</code> and
         <code>prop:agent=claude-opus</code> ask after a property you put on a
-        node yourself — by key, or by key and value. <code>-</code> in front of
+        node yourself — by key, or by key and value; a <code>.md</code>'s
+        properties are its YAML frontmatter, and answer the same two.
+        <code>-</code> in front of
         any of them takes it back out.</p>
         <p><strong>And two ask what olai did, rather than what you
         said.</strong> When olai captures a node it stamps the instant; when it

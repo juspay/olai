@@ -30,9 +30,9 @@
  */
 
 import {
+  type Custom,
   customKeys,
   customOf,
-  type HasCustom,
   type RegularNode,
   storedMarker,
 } from "@olai/format"
@@ -96,14 +96,16 @@ export const systemEntries = (node: RegularNode): ReadonlyArray<Entry> => {
  * (`@olai/format`'s `customKeys`), so what is on screen is what is on disk and
  * nothing re-sorts itself under the reader after a reload.
  *
- * Takes anything CARRYING a map rather than a whole record, because a search
- * hit is the other thing that has one (`../search/props.ts`) and it is not a
- * `RegularNode`. Widened rather than copied: the rule that a list value is
- * drawn as its members joined lives here, and a second spelling of it in the
- * row would be free to draw the same node two ways on two surfaces.
+ * TAKES THE MAP, not a thing carrying one, which is the same move
+ * `@olai/format`'s `propKeyOf` and `propsOf` make one layer down and for the
+ * identical reason: there are two kinds of thing with an open map now — a
+ * record's `custom` and a document's frontmatter (`Face.props`) — and a
+ * function that took a CARRIER would either need two of itself or a
+ * `{ custom: … }` wrapper minted at the call site to lie about which one this
+ * is. The rule that a list value is drawn as its members joined lives here,
+ * once, and both kinds spend it.
  */
-export const customEntries = (node: HasCustom): ReadonlyArray<Entry> => {
-  const custom = customOf(node)
+export const customEntries = (custom: Custom): ReadonlyArray<Entry> => {
   return customKeys(custom).flatMap((key) => {
     const value = custom[key]
     if (value === undefined) return []
@@ -117,7 +119,7 @@ export const customEntries = (node: HasCustom): ReadonlyArray<Entry> => {
 
 export const drawerEntries = (node: RegularNode): ReadonlyArray<Entry> => [
   ...systemEntries(node),
-  ...customEntries(node),
+  ...customEntries(customOf(node)),
 ]
 
 /** Is this value something to open in a browser? Narrow on purpose: a value is

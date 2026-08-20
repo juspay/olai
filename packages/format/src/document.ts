@@ -79,11 +79,16 @@
  * both, and the browser had a `preview.ts` of its own). They are FIELDS now,
  * which is the whole difference: a consumer cannot forget to call a field.
  *
- * **Frontmatter is the named next step and is not designed here.** YAML at the
- * top as the document's own authored record — dates, edges, props, possibly
- * marks — waits until the derived face is standing. Until it exists, a query
- * over a field a document lacks (`is:done`) selects nothing in one, which is
- * the honest answer and the hole frontmatter fills.
+ * **...and one field that is not derived at all.** `props` is a `.md`'s YAML
+ * frontmatter, read by {@link ./frontmatter.ts} — the document's own authored
+ * record, and the half of the brainstorm's "later" this round took. It is
+ * PROPERTIES and not a record: `prop:agent=claude-opus` selects a document the
+ * way it selects a node, through one `propKeyOf`, while `is:done`, `has:date`
+ * and `date:today` still select no document at all. There is nowhere on a
+ * `.md` for a MARK or a DAY — a document with one would have to appear on the
+ * day page, the agenda and the calendar, all three of which read a node — so
+ * that half stays the honest nothing it was, and stays named rather than
+ * quietly patched.
  *
  * ## Where the face is BUILT, and why it is not here
  *
@@ -100,7 +105,9 @@
 import { Schema } from "effect"
 
 import { Address, addressOf, DocumentPath, printAddress, Slug, Tag } from "./address.ts"
+import { Custom } from "./custom.ts"
 import { tagsIn, writtenTags } from "./derive.ts"
+import { frontmatterIn, proseIn } from "./frontmatter.ts"
 import { firstLine, linksIn, recordLinks } from "./documents.ts"
 import { fileKind, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
@@ -138,6 +145,34 @@ export const Face = Schema.Struct({
   /** The tags its prose writes, as written — both sigils, `#topic` and
    *  `@person`, which are two namespaces over one alphabet (`./derive.ts`). */
   tags: Schema.Array(Tag),
+  /**
+   * The named facts the file writes ABOUT ITSELF — a `.md`'s YAML frontmatter,
+   * read by {@link ./frontmatter.ts} and answered by `prop:` in the query
+   * grammar exactly as a record's `custom` map is.
+   *
+   * TOTAL like the other four, and empty for the two kinds that write none: an
+   * outline's records carry their own properties (a file is not one of its
+   * nodes), and a `.html` is the file olai only ever shows. Empty because
+   * NOTHING WROTE ONE, which is the same honest sentence hypertext's empty
+   * `links` and `tags` already say, and not a slot waiting to be filled in.
+   *
+   * `Custom` and not a type of its own: a document's properties ARE a record's
+   * properties — one open namespace, no key given a meaning by olai, text or a
+   * list of it — so one `propKeyOf` answers both (`./filter.ts`) and one
+   * drawer draws both. The FIELD is named for what a reader calls them, which
+   * is what the operator is spelled; `custom` is the record's word for the one
+   * open field beside its closed ones, and a `.md` has no closed fields for
+   * these to be custom relative to.
+   *
+   * They are PROPERTIES and not a record. A `date:` here is a property named
+   * "date" and not the journal's day, a `done:` is a property and not a mark,
+   * a `tags:` is a property and not one of the tags above — which this format
+   * writes with a sigil in prose. `./frontmatter.ts`'s header argues that
+   * ruling; the short of it is that a document carrying a real date would have
+   * to appear on the day page, the agenda and the calendar, all three of which
+   * read a NODE.
+   */
+  props: Custom,
 })
 export type Face = typeof Face.Type
 
@@ -160,11 +195,12 @@ export type Face = typeof Face.Type
  * content, so what crosses the wire is a value this module made and not a shape
  * somebody assembled to match it.
  */
-export const faceOf = ({ path, title, links, tags }: Document): Face => ({
+export const faceOf = ({ path, title, links, tags, props }: Document): Face => ({
   path,
   title,
   links,
   tags,
+  props,
 })
 
 /**
@@ -278,6 +314,11 @@ export const outlineDocument = (
     title: stemOf(file),
     links,
     tags,
+    // A FILE writes no properties of its own here: an outline's named facts
+    // are on its records, where `set_prop` puts them, and a `.olai` has no
+    // frontmatter to read. Empty because nothing wrote one, which is the same
+    // sentence hypertext's empty `links` says.
+    props: {},
     nodes,
   }
 }
@@ -306,9 +347,18 @@ export const bodiedDocument = (file: string, text: string | null): Markdown | Hy
   // kind is this one. A fourth unkept kind would need an arm of its own, and
   // branching on `kept` would have quietly filed it under this one's name.
   if (fileKind(file) === "hypertext") {
-    return { kind: "hypertext", path, title: stemOf(file), links: [], tags: [] }
+    return { kind: "hypertext", path, title: stemOf(file), links: [], tags: [], props: {} }
   }
   const body = text ?? ""
+  // THE PROSE, ONCE — the body with any frontmatter taken off
+  // ({@link ./frontmatter.ts}). Two of the four readings below ask for it here
+  // rather than themselves, and the split is not arbitrary: `firstLine` and
+  // `slugsIn` are only ever about a document's BODY, so each asks on its own
+  // and is honest to any caller; `tagsIn` and `linksIn` are asked of a record's
+  // title and note as well, where a leading `---` is a thematic break like any
+  // other and skipping it would be this package inventing frontmatter for a
+  // bullet.
+  const prose = proseIn(body)
   return {
     kind: "document",
     path,
@@ -316,8 +366,11 @@ export const bodiedDocument = (file: string, text: string | null): Markdown | Hy
     // and one that opens with a picture both have a name on screen, and the
     // name they have is the one the sidebar already draws.
     title: firstLine(body) || stemOf(file),
-    links: linksIn(file, body),
-    tags: tagsIn(body),
+    links: linksIn(file, prose),
+    tags: tagsIn(prose),
+    // The record a document is allowed to write about itself, and the one
+    // field of this face that is not derived from prose at all.
+    props: frontmatterIn(body),
     body,
     headings: slugsIn(body),
   }

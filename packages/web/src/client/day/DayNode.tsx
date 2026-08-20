@@ -49,7 +49,7 @@
  * saying it is the agenda.
  */
 
-import { type DayEntry, isOverdue } from "@olai/format"
+import { customOf, type DayEntry, isOverdue } from "@olai/format"
 import { Show } from "solid-js"
 
 import { Aside } from "../Aside.tsx"
@@ -85,7 +85,7 @@ export function DayNode(props: {
    *  surfaces. */
   const openable = () => {
     const desc = node().desc
-    return (desc !== undefined && desc !== "") || customEntries(node()).length > 0
+    return (desc !== undefined && desc !== "") || customEntries(customOf(node())).length > 0
   }
   /** The ancestry, when there is any — a root has none, and an empty trail is
    *  nothing to draw. Asked once and read by whichever of the two slots below

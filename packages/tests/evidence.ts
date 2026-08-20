@@ -653,7 +653,17 @@ const PALETTE_HIT = '[data-testid="palette-item"][data-id^="node-"]'
  *  why the pair is spelled here together. */
 const PALETTE_DOC = '[data-testid="palette-item"][data-id^="doc-"]'
 const HEADER_DOC = '[data-testid="header-search-item"][data-id^="doc-"]'
+/** One SEARCH HIT row of the header box, by the address it stands for — the
+ *  `hit-<address>` id `palette/items.ts` mints, which for a document is its
+ *  path. Distinct from {@link HEADER_DOC}, which is the palette's own file-row
+ *  family (`doc-<path>`): the header box answers with hits and nothing else. */
+const headerHit = (at: string) =>
+  `[data-testid="header-search-item"][data-id="hit-${at}"]`
 const DOCUMENT_PAGE = '[data-testid="document-page"]'
+const DOCUMENT_BODY = '[data-testid="document-body"]'
+/** One line of a document's contents — the survey the frontmatter section
+ *  reads to say whether a phantom heading reached it. */
+const TOC_LINK = '[data-testid="toc-link"]'
 
 /** The rows of a day or of the agenda, under the file each was found in — flat
  *  rows that carry their own ancestry, which is why a filtered one keeps
@@ -2060,6 +2070,116 @@ const SECTIONS = {
     await shot(page, "a-document-and-a-saved-page")
     await page.keyboard.press("Escape")
 
+    await wearTheme(page, "pitch")
+    await pass(true)
+    await wearTheme(page, "chalk")
+  },
+
+  /**
+   * FRONTMATTER IS A RECORD (`frontmatter-is-a-record`): the `---` block at the
+   * top of a `.md`, off the page and answering `prop:`.
+   *
+   * The two documents it writes are THREE IDENTICAL LINES, and the only
+   * difference between them is which line the first `---` sits on. That is the
+   * whole boundary rule, and it is also the before/after: `almost.md`'s block
+   * is not frontmatter — it opens on line two — so the app draws it exactly as
+   * every frontmatter'd document was drawn before this section existed, a
+   * thematic break and a phantom `<h2>` with an anchor and a row in the
+   * contents. `plan.md` is the same three lines one line up.
+   *
+   * WRITTEN HERE rather than taken from `fixtures/good`, so this section runs
+   * unchanged against a checkout that has none of this — which is what makes
+   * the pair of runs a before and an after rather than two pictures.
+   */
+  "frontmatter-is-a-record": async (page) => {
+    pinnedBy(
+      "documents.feature",
+      "A document's frontmatter is a record and not part of its page",
+      "A document is found by a property its frontmatter writes",
+    )
+    const BLOCK = [
+      "---",
+      "agent: claude-opus",
+      "owners: [alice, bob]",
+      "date: 2026-09-01",
+      "tags: '#draft'",
+      "---",
+    ]
+    const PROSE = [
+      "",
+      "# The kitchen plan",
+      "",
+      "Oak counters, matte doors. Talk to @alice before ordering.",
+      "",
+      "## Next steps",
+      "",
+      "Measure the alcove.",
+    ]
+    rewrite("notes/plan.md", [...BLOCK, ...PROSE])
+    // The SAME three lines, one line down — so the first `---` is a thematic
+    // break and the second underlines `agent: claude-opus` into a setext
+    // heading. Which is what every one of these looked like before.
+    rewrite("notes/almost.md", ["", ...BLOCK, ...PROSE])
+
+    /** What the page is CARRYING: the headings it drew, and the contents made
+     *  of them. A phantom heading shows up in both. */
+    const surveyed = async (): Promise<string> => {
+      const drawn = await page.locator(`${DOCUMENT_BODY} h1, ${DOCUMENT_BODY} h2`)
+        .allInnerTexts()
+      const listed = await page.locator(TOC_LINK).allInnerTexts()
+      return `headings [${drawn.map(oneLine).join(" | ")}] contents [${
+        listed.map(oneLine).join(" | ")
+      }]`
+    }
+
+    const pass = async (dark: boolean) => {
+      const suffix = dark ? "-dark" : ""
+
+      // THE BLOCK ON LINE TWO — not frontmatter, and drawn as markdown has
+      // always drawn it. This is the "before" picture, taken by the same
+      // script that takes the one under it.
+      await opened(page, "/notes/almost.md", DOCUMENT_PAGE)
+      console.log(`  a block on line 2:  ${await surveyed()}`)
+      await shot(page, `a-block-that-is-not-frontmatter${suffix}`)
+
+      // …AND ON LINE ONE. Same three lines, and now there is no rule, no
+      // phantom heading, no anchor and no contents row: the page opens on the
+      // document's own first heading.
+      await opened(page, "/notes/plan.md", DOCUMENT_PAGE)
+      console.log(`  the same on line 1: ${await surveyed()}`)
+      await shot(page, `frontmatter-is-off-the-page${suffix}`)
+
+      // WHAT THE DOCUMENT IS CALLED, in the door that draws a face's title:
+      // the body's first real line, not the fence and not the first YAML key.
+      const box = page.locator('[data-testid="header-search"]')
+      await box.click()
+      await box.fill("plan")
+      const row = page.locator(headerHit("notes/plan.md"))
+      await row.waitFor()
+      await page.waitForTimeout(400)
+      console.log(`  the row is called:  ${oneLine(await row.innerText())}`)
+      await shot(page, `the-title-is-the-first-real-line${suffix}`)
+
+      // …AND THE DOOR THIS ITEM IS: a property query, selecting a `.md`. The
+      // key it matched leads the row's third line, exactly as it does on a
+      // node's.
+      await box.fill("prop:agent=claude-opus")
+      await page.locator(headerHit("notes/plan.md")).waitFor()
+      await page.waitForTimeout(400)
+      const rows = await page.locator('[data-testid="header-search-item"]')
+        .evaluateAll((all) => all.map((one) => one.getAttribute("data-id")))
+      console.log(`  prop: selects:      ${rows.join(", ")}`)
+      console.log(
+        `  its property line:  ${
+          (await page.locator('[data-testid="header-search-item-prop"]').allInnerTexts())
+            .map(oneLine).join(" · ")
+        }`,
+      )
+      await shot(page, `a-property-selects-a-document${suffix}`)
+      await page.keyboard.press("Escape")
+    }
+
+    await pass(false)
     await wearTheme(page, "pitch")
     await pass(true)
     await wearTheme(page, "chalk")
