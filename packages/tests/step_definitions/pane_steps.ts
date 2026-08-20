@@ -31,20 +31,14 @@ const paneAt = (world: OlaiWorld, index: number) => world.pane(index);
 When(
   "I alt-click the zoom of {string}",
   async function (this: OlaiWorld, id: string) {
-    const zoom = this.within(id, ZOOM);
-    await zoom.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await zoom.click({ modifiers: ["Alt"] });
-    await this.waitForFrame();
+    await this.press(this.within(id, ZOOM), "click", ["Alt"]);
   },
 );
 
 When(
   "I alt-shift-click the zoom of {string}",
   async function (this: OlaiWorld, id: string) {
-    const zoom = this.within(id, ZOOM);
-    await zoom.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await zoom.click({ modifiers: ["Alt", "Shift"] });
-    await this.waitForFrame();
+    await this.press(this.within(id, ZOOM), "click", ["Alt", "Shift"]);
   },
 );
 
@@ -52,19 +46,14 @@ When(
   "I alt-click the zoom of {string} in pane {int}",
   async function (this: OlaiWorld, id: string, index: number) {
     const zoom = paneAt(this, index).locator(`${nodeSelector(id)} ${ZOOM}`).first();
-    await zoom.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await zoom.click({ modifiers: ["Alt"] });
-    await this.waitForFrame();
+    await this.press(zoom, "click", ["Alt"]);
   },
 );
 
 When(
   "I zoom into the node {string} in pane {int}",
   async function (this: OlaiWorld, id: string, index: number) {
-    const zoom = paneAt(this, index).locator(`${nodeSelector(id)} ${ZOOM}`).first();
-    await zoom.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await zoom.click();
-    await this.waitForFrame();
+    await this.press(paneAt(this, index).locator(`${nodeSelector(id)} ${ZOOM}`).first());
   },
 );
 

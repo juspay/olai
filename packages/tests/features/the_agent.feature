@@ -267,6 +267,41 @@ Feature: Talking to the agent
     And the agent's answer mentions "[image]"
 
   @scratch:chat
+  Scenario: A link the agent wrote opens the page it names, in place
+    # THE REGRESSION THIS EXISTS FOR. The panel is mounted BESIDE the panes, so
+    # an anchor in a rendered answer had nothing above it to catch the click:
+    # a `.md` path the renderer had resolved, and an address of this app the
+    # agent spelled out, both fell through to the browser's default and loaded
+    # the whole app cold — taking the conversation that was on screen with it.
+    When I ask the agent "links"
+    Then the agent's answer mentions "the cabinets note"
+    When I follow the link "the cabinets note" in the agent's answer
+    Then the address is "/notes/cabinets.md"
+    # The line that tells a navigation from a load. Without it a full reload
+    # passes every other assertion here — it lands on this very document.
+    And the page has not reloaded
+    # ...which is what the reader would have lost: the transcript is still the
+    # one they were reading.
+    And the chat shows my message "links"
+    # The other half, and a different path through the renderer: an app address
+    # in an answer is written as-is and rewritten by nothing.
+    When I follow the link "the order row" in the agent's answer
+    Then the address is "/#order"
+    And the page has not reloaded
+
+  @scratch:chat
+  Scenario: Alt+click on a link the agent wrote opens it to the right
+    # A written link inside a pane has given this for free since panes existed.
+    # The panel asks the router the same question the pane does, so a link in a
+    # drawer is not a second kind of link with a shorter list of gestures.
+    When I ask the agent "links"
+    Then the agent's answer mentions "the cabinets note"
+    When I alt-click the link "the cabinets note" in the agent's answer
+    Then there are 2 panes
+    And pane 1 is showing "/notes/cabinets.md"
+    And the page has not reloaded
+
+  @scratch:chat
   Scenario: The input completes the agent's own slash commands
     # The list is the AGENT'S — olai keeps none of its own — so what is offered
     # is whatever that agent reported over the session.

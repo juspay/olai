@@ -1542,10 +1542,21 @@ export class OlaiWorld extends World {
    *  mouse, and finding out that a control is reachable without one is the
    *  whole point of tapping it. Everything around it — waiting for the thing
    *  to be visible, waiting out the frame the click schedules — is the same
-   *  either way, and was three copies before it was a parameter. */
-  async press(target: Locator, gesture: "click" | "tap" = "click"): Promise<void> {
+   *  either way, and was three copies before it was a parameter.
+   *
+   *  MODIFIERS are the second parameter for the same reason, and they arrived
+   *  the same way: an Alt-click opens a pane to the right, and every step that
+   *  wanted one had written the trio out again with `{ modifiers }` on the end
+   *  — four copies of the wait and the settle, each with its own spelling of
+   *  the timeout. A tap takes them too (Playwright's own option on both), so
+   *  this stays one call rather than a branch. */
+  async press(
+    target: Locator,
+    gesture: "click" | "tap" = "click",
+    modifiers?: ReadonlyArray<"Alt" | "Shift">,
+  ): Promise<void> {
     await target.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await target[gesture]();
+    await target[gesture](modifiers === undefined ? {} : { modifiers: [...modifiers] });
     await this.waitForFrame();
   }
 

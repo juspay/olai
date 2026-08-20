@@ -68,6 +68,7 @@ import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "sol
 
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { useShowNode } from "../focus.ts"
+import { useFollow } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { declaringFailure } from "./declared.ts"
 import { Entry } from "./Entry.tsx"
@@ -82,6 +83,7 @@ import type { Chat } from "./state.ts"
 
 export function Transcript(props: { readonly chat: Chat }) {
   const show = useShowNode()
+  const follow = useFollow()
   let pane: HTMLDivElement | undefined
   let content: HTMLDivElement | undefined
   /** Should new text pull the view down with it? True until the reader scrolls
@@ -208,8 +210,16 @@ export function Transcript(props: { readonly chat: Chat }) {
         }
         following = atBottom()
       }}
+      // A press the chips decline is still a press on the agent's markdown, and
+      // an anchor in there is an address in this vault: a `.md` link the
+      // renderer resolved (`../markdown/rewrite.ts`) or an app path the agent
+      // wrote. This panel is mounted BESIDE the panes, so nothing above it was
+      // ever going to catch one — they fell to the browser and reloaded the app
+      // cold. `useFollow` is the pane's own tail, and it lands in the focused
+      // pane, which is where a link pressed in a drawer belongs.
       onClick={(event) => {
-        pressed(event.target)
+        if (pressed(event.target)) return
+        follow(event)
       }}
       // The keyboard's half of the same control: a marked span is given
       // `role="button"` and a tab stop (`./refs.ts`), and those two promise
