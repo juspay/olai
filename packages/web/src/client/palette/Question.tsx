@@ -32,7 +32,7 @@ import { Show } from "solid-js"
 
 import type { Edit } from "@olai/surface"
 
-import type { Naming } from "../pins/naming.ts"
+import type { Named } from "../pins/naming.ts"
 import { ALARM_PILL, QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 
@@ -53,17 +53,12 @@ export type Asking =
     readonly question: string
     readonly edit: Edit
   }
-  | {
-    readonly kind: "name"
-    readonly label: string
-    readonly question: string
-    /** What the box holds greyed — the name this door takes with nothing
-     *  typed, so "Enter with nothing" is a thing the reader can see. */
-    readonly placeholder: string
-    /** Which pin the answer is about, and the whole of what it writes
-     *  (`../pins/naming.ts`'s `namedEdit`). */
-    readonly naming: Naming
-  }
+  // …and the other arm is the whole value the door that asks it resolves
+  // (`../pins/naming.ts`'s `Named`): the words, and the pin they are about.
+  // Declared there rather than restated here, because a question and its
+  // subject are one thing and this panel is the only part of it that is
+  // general.
+  | Named
 
 export function Question(props: {
   readonly asking: Asking

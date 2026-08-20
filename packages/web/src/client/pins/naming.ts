@@ -72,10 +72,21 @@ export type Naming =
   }
   | { readonly kind: "rename"; readonly pin: Pin }
 
-/** The question, as the panel draws it — resolved from the {@link Naming} in
- *  one place, so the two arms cannot drift into two different promises about
- *  what an empty box does. */
-export interface Asked {
+/**
+ * A NAMING QUESTION, WHOLE — the words the panel draws and the pin they are
+ * about, as one value.
+ *
+ * One value because they are one thing: a question with no subject cannot be
+ * answered and a subject with no words cannot be asked, and the alternative —
+ * a bag of strings the palette spreads beside the {@link Naming} it was
+ * resolved from — is one concept split across two, held together by a rule at
+ * the call site that builds it. It is the palette's `Asking` union's other arm
+ * (`../palette/Question.tsx`), declared HERE because what a naming question IS
+ * belongs with what answering one writes; the panel owns how a question is
+ * drawn, which is the same for both of them.
+ */
+export interface Named {
+  readonly kind: "name"
   /** The words above the box. */
   readonly question: string
   /** The name this door takes with nothing typed — greyed in the box. */
@@ -86,21 +97,30 @@ export interface Asked {
   readonly initial: string
   /** The verb's own word, on the button that goes ahead. */
   readonly label: string
+  /** Which pin it is about — the whole of what an answer writes
+   *  ({@link namedEdit}). */
+  readonly naming: Naming
 }
 
-export const askingFor = (naming: Naming): Asked =>
+/** The question this naming raises, resolved in ONE place so the two arms
+ *  cannot drift into two different promises about what an empty box does. */
+export const askingFor = (naming: Naming): Named =>
   naming.kind === "pin"
     ? {
+      kind: "name",
       question: "a name for this pin — Enter with nothing pins it unnamed",
       placeholder: naming.bare,
       initial: "",
       label: "Pin",
+      naming,
     }
     : {
+      kind: "name",
       question: "a name for this pin — Enter with nothing takes the name off",
       placeholder: naming.pin.bare,
       initial: naming.pin.written ? naming.pin.name : "",
       label: "Rename",
+      naming,
     }
 
 /**

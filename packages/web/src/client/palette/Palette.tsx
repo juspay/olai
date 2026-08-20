@@ -403,17 +403,9 @@ export function Palette(props: {
       return
     }
     if (action.kind === "pin") {
-      // A NARROWED page is asked what to call it first, and the question
-      // arrives through the same door the shelf's own rename uses — so there
-      // is one way in and one way this panel raises one.
-      const naming = namingFor(router.route(), pins(), called())
-      if (naming !== null) {
-        askName(naming)
-        return
-      }
       // The palette STAYS UP while this one is in flight, exactly as an op row
       // does, because the answer belongs in the box the reader is looking at.
-      pin().then((line) => {
+      pinPage((line) => {
         if (line === undefined) close()
         else setSaid(line)
       })
@@ -460,10 +452,24 @@ export function Palette(props: {
    * — because that is what "this page" means in a workspace that may be split,
    * and it is the same reading the sidebar lights an entry from (`../App.tsx`).
    * Which of the two writes it is is the shelf's answer rather than a state
-   * here (`../pins/pinning.ts`).
+   * here (`../pins/pinning.ts`), and WHETHER it writes at all before asking
+   * what to call it is `../pins/naming.ts`'s.
+   *
+   * ONE FUNCTION for both doors, because that second decision is one rule and
+   * a rule spelled at two call sites is a rule that eventually differs — the
+   * chord would go on asking after the row stopped, or the other way round.
+   * What genuinely differs between them is only WHERE THE ANSWER GOES, which
+   * is why that is the parameter: a chord has nothing on screen but the line
+   * under the header, and a row chosen in this palette has this box.
    */
-  const pin = (): Promise<Said | undefined> =>
-    togglePin(router.route(), pins(), undo.record)
+  const pinPage = (said: (line: Said | undefined) => void): void => {
+    const naming = namingFor(router.route(), pins(), called())
+    if (naming !== null) {
+      askName(naming)
+      return
+    }
+    void togglePin(router.route(), pins(), undo.record).then(said)
+  }
 
   /**
    * A QUESTION PUT UP, in the box the reader is already looking at.
@@ -482,7 +488,7 @@ export function Palette(props: {
     setSaid(null)
     setQuery(ask.initial)
     setChosen(false)
-    setAsking({ kind: "name", ...ask, naming })
+    setAsking(ask)
   }
 
   /**
@@ -729,11 +735,7 @@ export function Palette(props: {
       // (`../pins/naming.ts`). Asking opens this palette with the box holding
       // the question, so Enter alone still writes the bare pin the chord always
       // wrote.
-      if (match.action === "pin") {
-        const naming = namingFor(router.route(), pins(), called())
-        if (naming === null) void pin().then(sayPin)
-        else askName(naming)
-      }
+      if (match.action === "pin") pinPage(sayPin)
     }
     window.addEventListener("keydown", onKey)
     onCleanup(() => window.removeEventListener("keydown", onKey))

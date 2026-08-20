@@ -163,13 +163,24 @@ const pinOf = (row: Pinned): Pin | undefined => {
   const route = addressIn(row.title)
   if (route === undefined) return undefined
   const shows = showing(route, row)
+  // THE PAIR IS `titleFace`'s ANSWER, taken whole rather than assembled here:
+  // which of the two names is drawn, and whether the words are somebody's own,
+  // is one rule with one home (`../address/address.ts`) — the same one an
+  // ordinary outline row is drawn by. So `name` and `written` cannot say two
+  // different things about one title, because nothing here decides either.
+  // `bare` is the other half of the SAME reading, asked outright: the name
+  // this door would take with nothing written on it. It is asked rather than
+  // inferred from the pair, since a written name that happens to match the
+  // node's own is still a written name.
   const { name, written } = titleFace(row.title, route, shows)
-  // The two names, from the ONE rule that decides which of them is drawn
-  // (`../address/address.ts`): what this row says now, and what it would say
-  // with no words written on it. The second is asked again rather than derived
-  // from the first, because a written name that happens to match the node's is
-  // still a written name.
-  return { id: row.id, route, name, at: addressWritten(row.title), bare: nameOf(route, shows), written }
+  return {
+    id: row.id,
+    route,
+    at: addressWritten(row.title),
+    name,
+    bare: nameOf(route, shows),
+    written,
+  }
 }
 
 /**
