@@ -27,7 +27,9 @@
  * that still sees UI edits, `writeServed`, the agent, and Trash minting.
  * It does not see a scenario that only READS a file another one wrote — so a
  * feature whose early scenarios depend on the original corpus and whose later
- * ones mutate it is not a candidate.
+ * ones mutate it is not a candidate. A write flushed asynchronously between
+ * one scenario's After-walk and the next's Before-walk is attributed to
+ * nobody: the late file becomes part of the next baseline.
  */
 
 import { createHash } from "node:crypto";
@@ -48,6 +50,37 @@ const CORPUS_TAG = /^@(corpus|scratch):([A-Za-z0-9_-]+)$/;
 export const DEFAULT_CORPUS = "good";
 
 export type ScratchMode = "corpus" | "own" | "share";
+
+/** The world record a sharing scenario carries: slot key plus the tree hash
+ *  taken at Before. Absent means the copy is private, or there is no copy. */
+export type ScratchShare = {
+  readonly key: string;
+  readonly was: Map<string, string>;
+};
+
+/**
+ * A shared scratch must not be restarted: SIGKILL would take the process
+ * out from under every other scenario in the feature on this worker.
+ * `undefined` is the private-copy path, which may restart.
+ */
+export const restartGate = (share: ScratchShare | undefined): Error | undefined => {
+  if (share === undefined) return undefined;
+  return new Error(
+    `this scenario restarts the server it is served by, so it must own ` +
+      `that server: tag it ${OWN_TAG} rather than sharing (${SHARE_TAG}) — ` +
+      `the shared scratch is running for every other scenario in this feature too`,
+  );
+};
+
+/**
+ * A pickle already recorded on this shared slot is a Cucumber retry: the
+ * first attempt's writes are still on the tree, so the retry takes a
+ * private copy rather than inheriting them.
+ */
+export const alreadyShared = (
+  seenPickles: ReadonlySet<string>,
+  pickleId: string,
+): boolean => seenPickles.has(pickleId);
 
 export interface ScratchRequest {
   readonly corpus: string;

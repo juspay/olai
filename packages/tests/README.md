@@ -22,7 +22,7 @@ The suite shares constants with `@olai/web` rather than retyping them — a numb
 
 Prefer a shared scratch corpus per **feature** over a private server per scenario when the scenarios write disjoint files. `@share-scratch` at the top of a feature is that opt-in; `@own-scratch` on a scenario inside it keeps a private copy. The harness hashes the scratch tree after each sharing scenario and fails naming both if two writers touch the same file.
 
-This suite is 59 features, 717 scenarios. A 2026-08-19 audit cut ~160 that did not earn the browser; the grammar, the destination refusals, the trash wording, the install fetch and the rest of that list live in the unit suites now. Four browser-only claims the first cut left unpinned (anchor jump, sidebar inner scroll, same-page never-inside-itself, late-picture rungs) are back.
+This suite is 59 features, 724 scenarios (720 Gherkin `Scenario`/`Scenario Outline` entries; two outlines expand to six examples). A 2026-08-19 audit cut ~160 that did not earn the browser; the grammar, the destination refusals, the trash wording, the install fetch and the rest of that list live in the unit suites now. Four browser-only claims the first cut left unpinned (anchor jump, sidebar inner scroll, same-page never-inside-itself, late-picture rungs) are back.
 
 ```
 packages/tests/

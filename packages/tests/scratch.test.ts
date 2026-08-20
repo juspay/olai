@@ -1,8 +1,9 @@
 /**
  * Pins on feature-shared scratch: the tag grammar, the hash-diff, the
- * collision sentence. Each test is a sabotage target — if `@own-scratch`
- * without `@share-scratch` is silently ignored, if two writers of the same
- * file do not name each other, the named assertion is what goes red.
+ * collision sentence, the restart gate, the retry fallback. Each test is a
+ * sabotage target — if `@own-scratch` without `@share-scratch` is silently
+ * ignored, if two writers of the same file do not name each other, if a
+ * shared scratch can be restarted, the named assertion is what goes red.
  */
 
 import { expect, test } from "bun:test";
@@ -11,11 +12,13 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 import {
+  alreadyShared,
   DEFAULT_CORPUS,
   filesOf,
   OWN_TAG,
   recordWrites,
   requestOf,
+  restartGate,
   SHARE_TAG,
 } from "./support/scratch.ts";
 
@@ -73,6 +76,31 @@ test("two corpus tags on one scenario are refused", () => {
   expect(() => requestOf(tags("@scratch:good", "@corpus:chat"))).toThrow(
     /one corpus/,
   );
+});
+
+test("PIN (restart): a shared scratch may not be restarted", () => {
+  expect(restartGate(undefined)).toBeUndefined();
+  const error = restartGate({ key: "html_previews.feature::good::off", was: new Map() });
+  expect(error).toBeDefined();
+  expect(error!.message).toContain(OWN_TAG);
+  expect(error!.message).toContain(SHARE_TAG);
+  expect(error!.message).toMatch(/restarts the server/);
+});
+
+test("PIN (retry): a pickle already on the shared slot takes a private copy", () => {
+  const seen = new Set(["pickle-1"]);
+  expect(alreadyShared(seen, "pickle-1")).toBe(true);
+  expect(alreadyShared(seen, "pickle-2")).toBe(false);
+  expect(alreadyShared(new Set(), "pickle-1")).toBe(false);
+});
+
+test("PIN (hooks): stopOwnServer and the share path consult the gates", () => {
+  const src = fs.readFileSync(
+    path.join(import.meta.dirname, "support", "hooks.ts"),
+    "utf8",
+  );
+  expect(src).toContain("restartGate(");
+  expect(src).toContain("alreadyShared(");
 });
 
 test("filesOf hashes contents, not mtimes, and walks nested paths with /", () => {

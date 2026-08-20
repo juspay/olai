@@ -52,12 +52,12 @@ import type { Browser } from "playwright";
 
 import { BROWSER_ARGS } from "./browser.ts";
 import {
+  alreadyShared,
   DEFAULT_CORPUS,
   filesOf,
-  OWN_TAG,
   recordWrites,
   requestOf,
-  SHARE_TAG,
+  restartGate,
   type ScratchWriter,
 } from "./scratch.ts";
 import { SCENARIO_SETUP_TIMEOUT, SERVER_START_TIMEOUT } from "./world.ts";
@@ -542,13 +542,8 @@ const startServerChild = async (
  * is not.
  */
 export const stopOwnServer = async (world: OlaiWorld): Promise<void> => {
-  if (world.scratchShare !== undefined) {
-    throw new Error(
-      `this scenario restarts the server it is served by, so it must own ` +
-        `that server: tag it ${OWN_TAG} rather than sharing (${SHARE_TAG}) — ` +
-        `the shared scratch is running for every other scenario in this feature too`,
-    );
-  }
+  const refused = restartGate(world.scratchShare);
+  if (refused !== undefined) throw refused;
   const child = ownServerOf(world);
   const port = Number(new URL(world.baseUrl).port);
   await new Promise<void>((resolve) => {
@@ -935,7 +930,7 @@ Before(
         // A retry of a sharing scenario would inherit its first attempt's
         // writes; a private copy is a different server, not a flag on this one
         // (CUCUMBER_RETRY, default 0).
-        if (slot.seenPickles.has(scenario.pickle.id)) {
+        if (alreadyShared(slot.seenPickles, scenario.pickle.id)) {
           await ownCopy();
         } else {
           slot.seenPickles.add(scenario.pickle.id);

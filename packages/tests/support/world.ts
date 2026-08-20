@@ -46,6 +46,7 @@ import type {
 } from "playwright";
 
 import type { TerminalAgent } from "./mcp.ts";
+import type { ScratchShare } from "./scratch.ts";
 import { attr } from "./selectors.ts";
 
 /** Per-step budget for interaction polls against a settled UI — a click
@@ -1251,7 +1252,7 @@ export class OlaiWorld extends World {
    * or a key with no snapshot, is not a state After can be asked to interpret.
    * Absent means the copy is private (killed in After) or there is no copy.
    */
-  scratchShare?: { readonly key: string; readonly was: Map<string, string> };
+  scratchShare?: ScratchShare;
   /** Where this scenario PUSHES to, once it has asked for one: a bare
    *  repository in a temp directory, wired up as `origin`. Undefined for every
    *  scenario that is not about pushing, which is all but one of them. */
