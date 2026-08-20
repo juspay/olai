@@ -51,20 +51,45 @@ export const outlinesHidden: Accessor<boolean> = pref.value
 export const setOutlinesHidden = (value: boolean): void => pref.set(value)
 
 /**
- * Whether the file tree draws `file`.
+ * The paths the file tree actually draws — the whole rule, over the whole
+ * list.
  *
- * The preference and what it DOES to a list of paths are one thing, said once
- * here rather than as a condition spelled at the tree — the shape
- * `./done.ts`'s `visible` has, and for its reason: what "hidden" means is a
- * fact about the preference, and a second site deciding it is a second answer.
+ * A LIST in and a list out, which is `./done.ts`'s `visible` one subject over
+ * and the same argument: the preference and what it DOES are one thing, so
+ * every site that draws a directory asks the same question rather than each
+ * spelling a condition of its own. The same array comes back when nothing is
+ * hidden, identity and all.
  *
- * It is asked per PATH rather than handed the list, because the sidebar
- * already filters that list for the trash (an archive is not an outline a
- * reader opens, whichever way this switch is set — `Sidebar.tsx`), and two
- * filters over one array is one pass either way.
+ * ## …EXCEPT A FILE THAT COULD NOT BE READ
+ *
+ * A ⚠ on its row is the ONLY place this app says an outline failed to parse
+ * outside the page you would have to open to find out (`errors/Broken.tsx`,
+ * `Sidebar.tsx`). So hiding a broken `_olai/Pins.olai` would swallow that
+ * report entirely: the shelf would simply be empty, and nothing anywhere would
+ * say why — the silent failure HACKING.md rules out. The row comes back for
+ * exactly as long as the file will not parse, and goes when it does.
+ *
+ * WHICH files could not be read is the caller's, because it is a fact about
+ * the SET rather than about this preference: the sidebar already holds the
+ * map, and a second reading of it here would be a second answer.
  */
-export const drawnInTree = (file: string): boolean =>
-  !outlinesHidden() || !inOlaiDir(file)
+export const drawnInTree = (
+  files: ReadonlyArray<string>,
+  broken: ReadonlyMap<string, unknown>,
+): ReadonlyArray<string> => drawnWhen(files, broken, outlinesHidden())
+
+/** The rule itself, with the preference passed IN — so what it decides is a
+ *  unit test over three literals rather than a browser with a `localStorage`
+ *  in it. {@link drawnInTree} is this function and the signal, and nothing
+ *  else. */
+export const drawnWhen = (
+  files: ReadonlyArray<string>,
+  broken: ReadonlyMap<string, unknown>,
+  hiding: boolean,
+): ReadonlyArray<string> =>
+  hiding
+    ? files.filter((file) => !inOlaiDir(file) || broken.has(file))
+    : files
 
 /** Follow it for as long as this document lives — the shape every stored
  *  preference has, started once from `main.tsx`, because a preference belongs

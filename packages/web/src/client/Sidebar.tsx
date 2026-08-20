@@ -52,8 +52,13 @@
  * **Inbox** and **Trash**, in that order — what comes IN, then what was thrown
  * out. The trash is a page rather than a file you edit and is left out of the
  * tree whichever way the switch is set; the inbox is an ordinary outline, so
- * its entry lights up like a tree row and its door is drawn only when the
- * directory actually has one.
+ * its entry lights up like a tree row, wears the same ⚠ when its file will not
+ * parse, and is drawn only when the directory actually has one.
+ *
+ * ONE EXCEPTION to the hiding, and it is the reason the rule takes the broken
+ * map: an outline that could not be READ keeps its row whichever way the
+ * switch is set, because the ⚠ on it is the only word this app says about a
+ * file it could not parse without somebody opening the page to find out.
  *
  * Every row says what KIND it is in a glyph before its name (./file/icons.tsx)
  * — an olai outline, a document, a folder. Three kinds drawn in one ink was a
@@ -217,9 +222,13 @@ export function Sidebar(props: {
   // than a ruling: the outlines olai named for itself are left out unless this
   // browser asked for them (./settings/hiddenOutlines.ts). Each of them has a
   // door of its own in this very column, so the rows were a second way in
-  // stacked on top of a reader's own files.
+  // stacked on top of a reader's own files. It is handed the BROKEN map for
+  // the exception that rule keeps — a file nobody could read keeps its row,
+  // because the ⚠ on it is the only place this column says so.
   const tree = createMemo(() =>
-    fileTree(served().filter((file) => !isTrashed(file) && drawnInTree(file))),
+    fileTree(
+      drawnInTree(served().filter((file) => !isTrashed(file)), props.broken),
+    ),
   )
 
   // WHICH FILE THE INBOX IS, read off the same resolver the server captures
@@ -370,7 +379,15 @@ export function Sidebar(props: {
               draws nothing at all until the directory has an inbox, which is
               the rule the shelf above already keeps. */}
           <div class={REGION}>
-            <Show when={inbox()}>{(file) => <Inbox file={file()} isActive={isActive} />}</Show>
+            <Show when={inbox()}>
+              {(file) => (
+                <Inbox
+                  file={file()}
+                  isActive={isActive}
+                  broken={props.broken.has(file())}
+                />
+              )}
+            </Show>
             <Trash />
           </div>
         </div>
@@ -497,10 +514,15 @@ function Trash() {
  *  `notes/inbox.olai` — sees it here and in the tree, which is the double the
  *  shelf has always had for a root `Pins.olai`: this entry is a door onto
  *  whichever file the directory's inbox is, and hiding somebody's own outline
- *  is not this switch's business. */
+ *  is not this switch's business.
+ *
+ *  AND IT IS MARKED when its file could not be read, exactly as a tree row is:
+ *  this is the door onto an ordinary outline, so an outline that will not parse
+ *  has to say so where the reader meets it. */
 function Inbox(props: {
   readonly file: string
   readonly isActive: (file: string) => boolean
+  readonly broken: boolean
 }) {
   return (
     <Link
@@ -508,9 +530,17 @@ function Inbox(props: {
       class={`${ENTRY} text-paper/65`}
       testid={TESTID.inboxLink}
       current={props.isActive(props.file)}
+      broken={props.broken}
       title={props.file}
     >
       Inbox
+      <Show when={props.broken}>
+        {/* No margin of its own: the row has one gap and this is on it — the
+            tree's own mark, said the same way (see `File` below). */}
+        <span class="text-alarm" title="this file could not be read">
+          ⚠
+        </span>
+      </Show>
     </Link>
   )
 }

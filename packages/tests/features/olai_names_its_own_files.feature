@@ -93,6 +93,25 @@ Feature: The files olai names for itself, and the doors onto them
     Then the outline list does not link to "_olai/Pins.olai"
     And the file tree does not show the folder "_olai"
 
+  Scenario: An outline that will not parse keeps its row, hidden or not
+    # THE EXCEPTION, and the reason the rule is asked with the broken files in
+    # hand. The ⚠ on a row is the only place this app reports a file it could
+    # not read without somebody opening the page to find out — so a hidden
+    # `_olai/Pins.olai` that will not parse would be an empty shelf and no word
+    # anywhere (HACKING.md: never silently ignore errors).
+    When I pin the page
+    # The shelf FIRST, so the rewrite below lands on a file the pin has already
+    # been written into rather than racing that write.
+    Then the pinned shelf holds "/house.olai"
+    And the outline list does not link to "_olai/Pins.olai"
+    When I rewrite "_olai/Pins.olai" as:
+      """
+      {"id":"p0","ord":"a0",title:"/house.olai"}
+      """
+    Then the file tree shows the folder "_olai"
+    When I expand the folder "_olai"
+    Then the outline "_olai/Pins.olai" is marked unreadable
+
   # ── the inbox mints under _olai/, and gets a door ────────────────────
 
   Scenario: A directory that has never captured offers no Inbox
