@@ -55,6 +55,12 @@
  * says so beside it, and `../claims.test.ts` holds it to being the only
  * `showModal` in the client.
  *
+ * No fallback for a browser without `showModal`, deliberately: this client's
+ * stylesheet is Tailwind 4, whose own floor (Safari 16.4, Chrome 111, Firefox
+ * 128) is already years above the dialog's (Safari 15.4, March 2022). A guard
+ * here would be a branch nothing this app runs in can take, drawing a
+ * half-freeze in the name of a browser that cannot render the page anyway.
+ *
  * The one thing the top layer does not cover is a listener on the WINDOW: an
  * inert element cannot be pressed, but a global chord is not pressed on an
  * element (`../keys.ts`'s chords are heard on the window, and ⌘Z would fire an
@@ -121,7 +127,13 @@ export function Offline(props: { readonly readout: SurfaceReadout }) {
       // No `z-*` of any kind, and that is the point — see the header. The
       // backdrop is the dim, painted by the browser over the whole viewport
       // including the app bar, and the box is the card.
-      class="m-auto max-w-sm rounded-2xl border-0 bg-panel px-6 py-5 text-ink shadow-xl ring-1 ring-rule/40 backdrop:bg-black/60"
+      //
+      // `focus:outline-none` because `showModal` FOCUSES this: with no reload
+      // button on it the dialog itself takes the focus, and a focus ring drawn
+      // around a card nobody navigated to reads as a border somebody chose.
+      // The focus itself is kept — it is half of what makes the page under this
+      // unreachable by keyboard.
+      class="m-auto max-w-sm rounded-2xl border-0 bg-panel px-6 py-5 text-ink shadow-xl ring-1 ring-rule/40 focus:outline-none backdrop:bg-black/60"
       data-testid={TESTID.offline}
       // WHICH state froze it, for a test and for whoever is reading the DOM —
       // the same attribute and the same values the pill publishes
