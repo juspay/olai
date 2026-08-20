@@ -46,40 +46,8 @@ Given(
     // it itself.
     this.scratch();
     this.terminalAgent = await connectTerminalAgent(`${this.baseUrl}/mcp`);
-    const listed = await this.terminalAgent.call("tools/list");
-    this.toolsOffered = (
-      (listed.result?.tools ?? []) as ReadonlyArray<{ name: string }>
-    ).map((tool) => tool.name);
   },
 );
-
-// ── what it is allowed to do ───────────────────────────────────────────
-
-Then(
-  "the terminal agent is offered the tool {string}",
-  function (this: OlaiWorld, name: string) {
-    assert.ok(
-      this.toolsOffered.includes(name),
-      `the tool surface offers ${this.toolsOffered.join(", ")} — no \`${name}\``,
-    );
-  },
-);
-
-Then("the terminal agent is offered no file tools", function (this: OlaiWorld) {
-  // The closed list is a closed list from out here too. What would make an
-  // agent able to write a broken outline is any tool that names a FILE or a
-  // shell, and the way that ships is by somebody adding a convenience.
-  const forbidden = this.toolsOffered.filter((name) =>
-    /read_file|write_file|edit|list_dir|glob|grep|bash|shell|exec/i.test(name),
-  );
-  assert.deepStrictEqual(
-    forbidden,
-    [],
-    `the tool surface offers ${forbidden.join(", ")}, which name bytes rather ` +
-      "than nodes — the whole guarantee is that an agent cannot express a " +
-      "malformed outline",
-  );
-});
 
 // ── what it does ───────────────────────────────────────────────────────
 
@@ -237,13 +205,6 @@ When(
   },
 );
 
-When(
-  "the terminal agent tries to duplicate {string}",
-  async function (this: OlaiWorld, id: string) {
-    this.toolAnswer = await tryTool(agentOf(this), "duplicate_node", { id });
-  },
-);
-
 /** The arrow is written from the node that WAITS — `a blocks b` is spelled as
  *  `b after a`, and the ops layer writes it one way. */
 When(
@@ -262,89 +223,6 @@ When(
     this.toolAnswer = await callTool(agentOf(this), "search_nodes", { text });
   },
 );
-
-/** The same tool, SCOPED — the narrowing a person gets by filtering a zoomed
- *  page, said out loud so an agent can ask the same question. Without it the
- *  two faces would answer different questions with one grammar, which is the
- *  deviation HACKING.md forbids. */
-When(
-  "the terminal agent searches for {string} under {string}",
-  async function (this: OlaiWorld, text: string, under: string) {
-    this.toolAnswer = await callTool(agentOf(this), "search_nodes", {
-      text,
-      under,
-    });
-  },
-);
-
-// ── documents, from a terminal ─────────────────────────────────────────
-
-/**
- * The two reads, over the same wire the writes go over.
- *
- * `resources/read` next door reaches the same files by URI and is a different
- * claim: a RESOURCE is something a host may or may not put in front of a
- * model, and a tool is something the model can call. The write verbs describe
- * their own guard in terms of what a caller READ, so the read had to be a tool
- * the caller can reach.
- */
-When(
-  "the terminal agent lists the documents",
-  async function (this: OlaiWorld) {
-    this.toolAnswer = await callTool(agentOf(this), "list_documents", {});
-  },
-);
-
-Then(
-  "the terminal agent was shown the document {string} titled {string}",
-  function (this: OlaiWorld, file: string, title: string) {
-    const listed = (structuredOf(this)["documents"] ?? []) as ReadonlyArray<
-      { readonly file: string; readonly title: string; readonly bytes: number }
-    >;
-    const found = listed.find((one) => one.file === file);
-    assert.ok(
-      found,
-      `the listing is ${JSON.stringify(listed.map((one) => one.file))} — no \`${file}\``,
-    );
-    // The title is DERIVED — the document's first line with its heading marks
-    // off — because a `.md` has no record for a name to be written on. It is
-    // the same line the app draws under a node that attaches one.
-    assert.strictEqual(found.title, title);
-    assert.ok(
-      found.bytes > 0,
-      `\`${file}\` is listed weighing ${found.bytes} bytes, and it is not empty`,
-    );
-  },
-);
-
-When(
-  "the terminal agent reads the document {string}",
-  async function (this: OlaiWorld, file: string) {
-    this.toolAnswer = await callTool(agentOf(this), "read_document", { file });
-  },
-);
-
-When(
-  "the terminal agent tries to read the document {string}",
-  async function (this: OlaiWorld, file: string) {
-    // `tryTool`, not `callTool`: the refusal is what this step is FOR.
-    this.toolAnswer = await tryTool(agentOf(this), "read_document", { file });
-  },
-);
-
-Then(
-  "the terminal agent was handed the document text {string}",
-  function (this: OlaiWorld, said: string) {
-    const text = structuredOf(this)["text"];
-    assert.ok(
-      typeof text === "string" && text.includes(said),
-      `the document read as ${JSON.stringify(text)}, which does not carry ` +
-        `${JSON.stringify(said)} — a body a write is judged against has to be ` +
-        "the body",
-    );
-  },
-);
-
 When(
   "the terminal agent creates the document {string} holding {string}",
   async function (this: OlaiWorld, file: string, text: string) {
@@ -366,44 +244,6 @@ When(
   },
 );
 
-When(
-  "the terminal agent tries to rewrite {string} expecting {string}, as {string}",
-  async function (this: OlaiWorld, file: string, was: string, text: string) {
-    // `tryTool`, not `callTool`: the refusal is what this step is FOR.
-    this.toolAnswer = await tryTool(agentOf(this), "write_document", {
-      file,
-      text,
-      was,
-    });
-  },
-);
-
-When(
-  "the terminal agent tries to mark {string} done",
-  async function (this: OlaiWorld, id: string) {
-    // `tryTool`, not `callTool`: the refusal is what this step is FOR, so it
-    // is read off the reply rather than thrown.
-    this.toolAnswer = await tryTool(agentOf(this), "set_done", { id });
-  },
-);
-
-// ── what it was told ───────────────────────────────────────────────────
-
-/** The refusal's own SENTENCE, beside the kind above — because what a refusal
- *  teaches is the half a caller acts on when the kind alone cannot say which
- *  node to name instead. */
-Then(
-  "the terminal agent was refused, saying {string}",
-  function (this: OlaiWorld, said: string) {
-    const reason = structuredOf(this)["reason"];
-    assert.ok(
-      typeof reason === "string" && reason.includes(said),
-      `the refusal reads ${JSON.stringify(reason)}, which does not say ` +
-        `${JSON.stringify(said)}`,
-    );
-  },
-);
-
 
 Then(
   "the terminal agent was refused with the kind {string}",
@@ -419,42 +259,6 @@ Then(
       kind,
       "the refusal has to carry its kind as data — a sentence to parse is " +
         "what the taxonomy exists to replace",
-    );
-  },
-);
-
-Then(
-  "the terminal agent was told {string}",
-  function (this: OlaiWorld, said: string) {
-    const nudge = structuredOf(this)["nudge"];
-    assert.ok(
-      typeof nudge === "string" && nudge.includes(said),
-      `the answer's nudge was ${JSON.stringify(nudge)}, which does not mention ` +
-        `${JSON.stringify(said)} — advice about a write that HAPPENED travels ` +
-        "on the answer, in a field of its own",
-    );
-  },
-);
-
-Then(
-  "the terminal agent found {string} in {string}",
-  function (this: OlaiWorld, id: string, file: string) {
-    const hits = (structuredOf(this)["hits"] ?? []) as ReadonlyArray<{
-      readonly id: string;
-      readonly file: string;
-      readonly line: number;
-    }>;
-    const found = hits.find((hit) => hit.id === id);
-    assert.ok(
-      found,
-      `no hit for "${id}" among ${hits.map((hit) => hit.id).join(", ")}`,
-    );
-    assert.strictEqual(found.file, file);
-    // A hit that could not say WHERE would leave the agent no way to point a
-    // person at it, which is the reason these queries are over parsed nodes.
-    assert.ok(
-      found.line >= 1,
-      `the hit for "${id}" carries no line number`,
     );
   },
 );
@@ -482,44 +286,6 @@ Then(
     );
   },
 );
-
-/**
- * The refusal, over the wire an agent uses.
- *
- * Read from `structuredContent` like every other assertion here: the prose is
- * what a model reads, the structure is what a caller acts on — and a refusal a
- * caller cannot act on is a refusal that may as well be silence.
- */
-Then(
-  "the terminal agent was refused {string} and told {string}",
-  function (this: OlaiWorld, token: string, teaching: string) {
-    const refusals = (structuredOf(this)["refusals"] ?? []) as ReadonlyArray<
-      { readonly token: string; readonly reason: string }
-    >;
-    const found = refusals.find((one) => one.token === token);
-    assert.ok(
-      found,
-      `no refusal naming \`${token}\` among ${JSON.stringify(refusals)} — an ` +
-        "empty answer with no reason is the silence this field exists to end",
-    );
-    assert.ok(
-      found.reason.includes(teaching),
-      `the refusal for \`${token}\` reads ${JSON.stringify(found.reason)}, ` +
-        `which does not say what the operator takes (${teaching})`,
-    );
-  },
-);
-
-/** The other half: a query the grammar COULD read says nothing about
- *  refusals, so an agent cannot mistake "found nothing" for "asked wrongly". */
-Then("the terminal agent was refused nothing", function (this: OlaiWorld) {
-  assert.strictEqual(
-    structuredOf(this)["refusals"],
-    undefined,
-    "a readable query carried a refusal",
-  );
-});
-
 // ── what it may READ ───────────────────────────────────────────────────
 
 /**

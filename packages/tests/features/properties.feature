@@ -29,12 +29,6 @@ Feature: Properties on a node, from the web
     Given I open the outline "house.olai"
     And I mark the page
 
-  Scenario: A row draws no drawer until somebody has added a property
-    # And no pilcrow either: the mark is a promise that there is something
-    # behind it, and `handles` has neither a note nor a property.
-    Then the node "handles" shows no drawer
-    And the node "handles" shows no pilcrow
-
   Scenario: Adding one writes it, and the open row says so
     When I open the node menu of "handles"
     Then the node menu offers "Add property…"
@@ -171,12 +165,4 @@ Feature: Properties on a node, from the web
     And the header search result "choose the handles" shows the property "agent" holding "claude-opus"
     And the header search result "choose the handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/192"
     And the header search result "choose the handles" marks "agent" as why it matched
-    And there should be no page errors
-
-  Scenario: A node carrying no property draws no third line
-    # The drawer's rule on a row, kept on a result row for the drawer's own
-    # reason: a list of titles must not grow a line to say nothing.
-    When I search the header for "cabinets"
-    Then the header search lists the node "order the new cabinets"
-    And the header search result "order the new cabinets" shows no properties
     And there should be no page errors

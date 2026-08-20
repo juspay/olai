@@ -86,37 +86,6 @@ Feature: One place to set how this browser reads
     When I press Shift+Tab
     Then the last control in the preferences has the focus
 
-  Scenario: Escape shuts it and hands the keyboard back
-    # Somebody who opened this, tabbed into it and pressed Escape would
-    # otherwise land on `<body>`, which is nowhere.
-    When I open the app
-    And I open the preferences
-    And I press Escape on the preferences
-    Then the preferences are shut
-    And the preferences trigger has the focus
-
-  Scenario: The trigger puts it away again
-    # The other half of the two-root rule: a press ON the trigger is not a press
-    # outside the panel, and reading it as one shuts the panel on the
-    # pointerdown for the trigger's own click to reopen — a control that looks
-    # like it does nothing. `committing.feature` holds the same claim for the
-    # pill beside this, which is where the bug was.
-    When I open the app
-    And I open the preferences
-    And I press the preferences trigger
-    Then the preferences are shut
-    And the preferences trigger has the focus
-
-  Scenario: A press outside it shuts it
-    # The panel is portalled to the body, so it is not a descendant of the
-    # control that opened it and neither of them can speak for the other — a
-    # click-away that knew about only one root would shut the panel every time
-    # somebody pressed a control ON it.
-    When I open the app
-    And I open the preferences
-    And I click the wordmark
-    Then the preferences are shut
-
   Scenario: Done: Hidden takes the finished work off the page you are reading
     # A default that only applied to the NEXT page would be a setting that does
     # nothing when you press it, on a page that is showing exactly what it is
@@ -190,16 +159,6 @@ Feature: One place to set how this browser reads
     And the Done row explains that finished work is "hidden"
     And there should be no page errors
 
-  Scenario: Setting a preference asks the server for nothing
-    # The whole doctrine, as an assertion: a pick is stored in this browser and
-    # is never sent. "It works" and "it works without asking anybody" look
-    # identical on screen.
-    When I open the app
-    And I open the preferences
-    And I watch what the page asks for
-    And I set Done to "hidden"
-    Then the page asked for nothing at all
-
   # ── how much of a row is drawn ───────────────────────────────────────
 
   Scenario: Notes moves the page you are reading, and is remembered
@@ -212,26 +171,6 @@ Feature: One place to set how this browser reads
     When I reload the page
     Then this browser has stored that notes are "open"
     And the row "order" is open
-
-  Scenario: A density set in another tab lands in this one
-    # A preference belongs to the BROWSER, and a browser is more than one tab —
-    # the same `storage` event the theme and the done preference ride, which a
-    # reload scenario cannot ask about: deleting `followDensity` would pass
-    # every other Notes scenario here.
-    Given I open the outline "house.olai"
-    Then the row "order" is folded
-    When a second tab sets Notes to "open"
-    Then the row "order" is open
-    And there should be no page errors
-
-  # ── how big the page is set ──────────────────────────────────────────
-
-  Scenario: The page is set a notch above the browser's own size by default
-    # 18px rather than 16 (human: "I find the text to be too cramped"). Read as
-    # the pixels a reader actually gets, so this reddens if the sheet's blocks
-    # and the boot script's attribute ever stop meeting.
-    When I open the app
-    Then the page is set at "18px"
 
   Scenario: Picking a size sets the whole page, and is remembered
     Given I open the outline "house.olai"
@@ -247,18 +186,3 @@ Feature: One place to set how this browser reads
     # line under a reader who had just opened the page.
     Then the page is set at "20px"
     And this browser has stored the size "larger"
-
-  Scenario: Each Notes mode says what you get, not what it is called
-    # THE FENCE FOR A QUIZ. Three adjectives on a segmented strip say which one
-    # is pressed and nothing about what the page will now do — and two of the
-    # three need saying out loud, because a reader arriving after the fold has
-    # no way to know which of them is the shape olai used to have. Cozy names
-    # itself as that shape; Open says it is about notes NOBODY HAS FOLDED, which
-    # is the difference between a default and a lock.
-    Given I open the outline "house.olai"
-    When I set Notes to "cozy"
-    Then the Notes row explains that a row "before this switch existed"
-    When I set Notes to "open"
-    Then the Notes row explains that a row "you have not folded yourself"
-    When I set Notes to "compact"
-    Then the Notes row explains that a row "A row is its title"

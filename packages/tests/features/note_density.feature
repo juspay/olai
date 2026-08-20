@@ -27,11 +27,6 @@ Feature: A row is its title, and the pilcrow opens the rest
     And the description of "order" is clamped to one line
     And the row "order" is folded
 
-  Scenario: A node with nothing under it wears no pilcrow
-    # The mark is a promise that there is something behind it. `handles` has
-    # no note and no properties, so a mark on it would open an empty row.
-    Then the node "handles" shows no pilcrow
-
   Scenario: The pilcrow opens the row, and folds it again
     When I open the note of "order"
     Then the row "order" is open

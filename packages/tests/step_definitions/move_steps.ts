@@ -94,23 +94,6 @@ When(
   },
 );
 
-Then(
-  "the move picker offers {string}",
-  async function (this: OlaiWorld, title: string) {
-    await (await hitOf(this, title)).waitFor({
-      state: "visible",
-      timeout: POLL_TIMEOUT,
-    });
-  },
-);
-
-/** Tab out of the box, onto the panel's way out — the position the Escape
- *  handler had to move up the tree to answer from. `focus()` rather than a
- *  press, because pressing it would take the way out rather than stand on it. */
-When("I focus the move picker's way out", async function (this: OlaiWorld) {
-  await (await pickerOf(this)).locator(MOVE_CLOSE).first().focus();
-});
-
 /** Put the cursor on a row without taking it — which is what a hover does, and
  *  what makes the aim's refusal a thing a scenario can read one row at a time.
  *  The press below would do it too; this is the half that writes nothing. */
@@ -184,25 +167,6 @@ Then("the move picker refuses nothing", async function (this: OlaiWorld) {
     "the picker to draw no refusal about the row the cursor is on",
   );
 });
-
-/** The DIM on a row, which is the same verdict said where a reader scanning the
- *  list can see it — the half the sentence under the list cannot do for eight
- *  rows at once. */
-Then(
-  "the move picker draws {string} as refused",
-  async function (this: OlaiWorld, title: string) {
-    const row = (await pickerOf(this))
-      .locator("li")
-      .filter({ has: this.page.locator(MOVE_HIT).filter({ hasText: title }) })
-      .first();
-    assert.strictEqual(
-      await row.getAttribute("data-refused"),
-      "true",
-      `${JSON.stringify(title)} is not drawn as a refused destination`,
-    );
-  },
-);
-
 // ── and what a write said ──────────────────────────────────────────────
 
 /**

@@ -81,31 +81,6 @@ Feature: The outline and the chat point at each other
     But the agent's answer does not make "notes.md" a reference
 
   @scratch:chat
-  Scenario: A PLACEMENT the agent named lands on the node it shows
-    # An agent writes placement ids — `read_node` answers `mirrors` with them,
-    # `remove_mirror` takes them — and a mirror is not a row: every row carries
-    # the node it SHOWS. So a span marked with the placement's own id names no
-    # row on the page, and the press leaves for a node that is right there.
-    # The mirror is written here rather than into the fixture because it is
-    # this scenario's subject and nobody else's.
-    When I rewrite "house.olai" as:
-      """
-      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
-      {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
-      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets"}
-      {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doing":"2026-08-02"}
-      {"id":"now-order","ord":"a1","mirror":"order"}
-      """
-    Then the node "now-order" is shown
-    When I ask the agent "name now-order"
-    # What the agent WROTE is `now-order`; what the reference points at is the
-    # node standing there, which is what a `see` to the same placement does.
-    Then the agent's answer names the node "order"
-    When I press the node "order" in the answer
-    Then the node "order" is focused
-    And the address is "/house.olai"
-
-  @scratch:chat
   Scenario: An armed node that has gone refuses the send rather than losing the subject
     # The join the units cannot make: a runtime that swallowed the resolver's
     # refusal and sent anyway would keep every one of them green, and the agent

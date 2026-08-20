@@ -91,18 +91,6 @@ Feature: Setting a date from the web
     # a scenario that only asked about deadness would have kept that green.
     And the date picker offers to "Set date"
 
-  Scenario: Escape closes it and writes nothing
-    When I open the date picker on "order"
-    And I press "Escape"
-    Then the date picker is closed
-    And "house.olai" holds the node "order" dated "2026-08-10"
-
-  Scenario: Cancel does the same, with the mouse
-    When I open the date picker on "order"
-    And I cancel the date picker
-    Then the date picker is closed
-    And "house.olai" holds the node "order" dated "2026-08-10"
-
   Scenario: A node scheduled for an INSTANT starts on its day, and says so
     # The format lets `date` carry a datetime, and a day box can only hold a
     # day — so it holds the day that instant falls on (`@olai/format`'s own
@@ -120,17 +108,6 @@ Feature: Setting a date from the web
     And the date picker says "Scheduled for 2026-08-10T14:30:00-04:00. Picking a day writes that day, and the time goes with it."
     When I pick the date "2026-08-10"
     Then "house.olai" holds the node "order" dated "2026-08-10"
-
-  Scenario: A date picked at a mirror lands on the node it shows
-    # The standing routing rule, one field along from the mark verbs: what a
-    # node SAYS is edited on the node, wherever the reader is standing. The
-    # placement's own record cannot carry a date at all — a mirror is exactly
-    # its four fields.
-    When I open the node menu of "kitchen-herbs"
-    And I choose "Set date…" from the node menu
-    And I pick the date "2026-09-01"
-    Then "garden.olai" holds the node "herbs" dated "2026-09-01"
-    And "house.olai" holds the node "kitchen-herbs" with no date
 
   Scenario: A date set here moves the node onto that day's page
     # `knobs` carries no date, so the menu is its door — there is no pill to

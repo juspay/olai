@@ -82,11 +82,6 @@ When("I close the focused pane", async function (this: OlaiWorld) {
   await this.waitForFrame();
 });
 
-When("I press Alt+Left", async function (this: OlaiWorld) {
-  await this.page.keyboard.press("Alt+ArrowLeft");
-  await this.waitForFrame();
-});
-
 When("I press Alt+Right", async function (this: OlaiWorld) {
   await this.page.keyboard.press("Alt+ArrowRight");
   await this.waitForFrame();

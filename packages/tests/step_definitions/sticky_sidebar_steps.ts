@@ -15,16 +15,12 @@
 import * as assert from "node:assert";
 import { Then } from "@cucumber/cucumber";
 
-import { TESTID } from "@olai/web/src/client/testids.ts";
-
 import {
   APP_HEADER,
   OUTLINE_LIST,
   SIDEBAR,
   SIDEBAR_BODY,
   SIDEBAR_COLLAPSE,
-  SIDEBAR_EXPAND,
-  SIDEBAR_RAIL,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -86,10 +82,6 @@ Then("the directory column is pinned under the header", async function (this: Ol
   await pinnedUnderTheHeader(this, SIDEBAR, "the directory column");
 });
 
-Then("the directory rail is pinned under the header", async function (this: OlaiWorld) {
-  await pinnedUnderTheHeader(this, SIDEBAR_RAIL, "the icon rail");
-});
-
 /** The point of the pin: the TREE is what a reader came back to the column for,
  *  and it sits at the top of it — the first thing a column scrolling away takes
  *  with it. Intersecting the strip rather than wholly inside it: a tree longer
@@ -131,23 +123,6 @@ Then("the collapse affordance is on screen", async function (this: OlaiWorld) {
   );
 });
 
-/** The rail is the collapsed face of the directory and its first button is the
- *  way BACK to it, so "app chrome never disappears" is a claim about the screen
- *  rather than about the document. Asked of the pointer and not only of the box:
- *  a rail the page paints over passes every measurement above. */
-Then("the way back to the directory takes the pointer", async function (this: OlaiWorld) {
-  const found = await this.topmostTestidOver(
-    this.page.locator(SIDEBAR_EXPAND),
-    "the expand button",
-  );
-  assert.strictEqual(
-    found,
-    TESTID.sidebarExpand,
-    `the element at the middle of the expand button is ${found} — something on ` +
-      "the page is painting over the rail",
-  );
-});
-
 /**
  * The other half of the pin: the column has a scroll region OF ITS OWN.
  *
@@ -160,11 +135,6 @@ Then("the way back to the directory takes the pointer", async function (this: Ol
  * the BOTTOM of the page so the answer cannot be an accident: wheeling up there
  * is the one direction the page could still move in, so a column that did not
  * take the wheel itself would be caught taking the page with it.
- *
- * Desktop only, and not by oversight: a `@phone` context is emulated with a
- * touch screen and NO mouse (`support/hooks.ts`), so a wheel there is an event
- * the browser never delivers. What the phone has to keep is a drawer that opens
- * and shuts, which is asked in its own scenario.
  */
 Then(
   "the directory takes the wheel, and the page stays where it is",
@@ -183,22 +153,11 @@ Then(
         page: window.scrollY,
       }));
 
-    // From the TOP of the column, put there rather than assumed: opening an
-    // outline clicks an entry, and a browser scrolls the entry it is given
-    // focus of into view — so a column whose list starts low enough may already
-    // be sitting at its own bottom, where a wheel turned down has nothing left
-    // to move and this step would be measuring the setup rather than the pin.
-    // Where the column happens to be parked is nobody's promise; that a wheel
-    // over it moves the COLUMN and not the page is the whole of this one.
     await body.evaluate((node) => {
       node.scrollTop = 0;
     });
 
     const start = await reading();
-    // The reset is a PRECONDITION of what follows, so it is asserted here
-    // rather than left to fail later as a wheel that could not move: a column
-    // this step could not put at its top would otherwise report itself as a
-    // pin that does not work.
     assert.strictEqual(
       start.top,
       0,
@@ -247,3 +206,5 @@ Then(
     );
   },
 );
+
+

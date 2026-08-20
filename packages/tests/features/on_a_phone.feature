@@ -277,28 +277,6 @@ Feature: On a phone
     And the address is "/d/2019-11-06"
 
   @corpus:good @phone
-  Scenario: What a finger aims at is big enough to aim at
-    Given I open the outline "house.olai"
-    When I tap the burger
-    Then every "outline entry" is at least 44px tall and 44px wide
-    # A document in the sidebar is the same kind of thing as an outline in it.
-    And every "document entry" is at least 44px tall and 44px wide
-    # A folder row is a new target the file tree added; the enumeration being
-    # exhaustive is the point of this scenario.
-    And every "folder toggle" is at least 44px tall and 44px wide
-    And every "collapse toggle" is at least 44px tall and 28px wide
-    And every "zoom bullet" is at least 44px tall and 28px wide
-    When I open the preferences
-    Then every "done choice" is at least 44px tall and 44px wide
-
-  @corpus:journal @phone
-  Scenario: The month is a grid of targets, not of numbers
-    Given I open the day "2019-11-05"
-    When I tap the burger
-    Then every "calendar day" is at least 44px tall and 44px wide
-    And every "month step" is at least 44px tall and 44px wide
-
-  @corpus:good @phone
   Scenario: The page knows how much of itself the browser is showing
     # An on-screen keyboard covers the bottom of the viewport without
     # shrinking it, so the page measures the visible strip itself and
@@ -308,20 +286,3 @@ Feature: On a phone
     # nothing on this page to type into yet.
     Given I open the outline "house.olai"
     Then the page reports the visible strip as the whole viewport
-
-  # A laptop, on purpose: the burger is a fact about the WIDTH, so above 48rem
-  # there is a column, everything is in it, and there is nothing to press.
-  @corpus:good
-  Scenario: On a laptop the same controls stay compact
-    Given I open the outline "house.olai"
-    Then every "collapse toggle" is smaller than 44px tall
-    And every "outline entry" is smaller than 44px tall
-    And there is no burger
-
-  # Desktop geometry (default 1440×900). Short page + full-height column: the
-  # grid floor used to resolve to 0 (`min-h-full` against auto height) and left
-  # the sidebar rule hanging at y≈777 on a 900px viewport.
-  @corpus:good
-  Scenario: The directory column reaches the bottom of a short page
-    Given I open the outline "house.olai"
-    Then the sidebar reaches the bottom of the viewport

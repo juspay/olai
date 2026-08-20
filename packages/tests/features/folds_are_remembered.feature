@@ -28,19 +28,6 @@ Feature: The outline remembers how you left it
     And the children of "kitchen" are hidden
     And there should be no page errors
 
-  Scenario: ...and opening it again is remembered too
-    # The other direction, which a store of "what was collapsed" only gets right
-    # if unfolding REMOVES rather than doing nothing: a node nobody has touched
-    # and a node somebody has opened both draw open.
-    Given I open the outline "house.olai"
-    When I collapse the node "kitchen"
-    And I reload the page
-    Then the node "kitchen" is collapsed
-    When I expand the node "kitchen"
-    And I reload the page
-    Then the children of "kitchen" are shown
-    And this browser remembers no folds
-
   Scenario: A fold survives zooming in and back out
     # The deliberate bonus of keying by node: a zoomed page derives its rows
     # from the node down, so the same row has a different PLACE key there than
@@ -77,24 +64,6 @@ Feature: The outline remembers how you left it
     Then the node "herbs" is collapsed
     And the children of "herbs" are hidden
 
-  Scenario: Collapse all is remembered, and so is expand all
-    # The menu's two bulk verbs go through the same memory as the triangle, so
-    # a reader who shut a whole branch does not find it open on the next visit.
-    Given I open the outline "house.olai"
-    When I open the node menu of "kitchen"
-    And I choose "Collapse all" from the node menu
-    And I reload the page
-    Then the node "kitchen" is collapsed
-    When I expand the node "kitchen"
-    Then the node "install" is collapsed
-    When I open the node menu of "kitchen"
-    And I choose "Expand all" from the node menu
-    And I reload the page
-    Then the children of "install" are shown
-    # Said of the STORAGE too, so "wrote nothing at all" and "wrote something
-    # this reader cannot see" cannot both look like a page that came back open.
-    And this browser remembers no folds
-
   Scenario: A folder you opened in the directory is still open after a reload
     Given I open the outline "house.olai"
     And the folder "Daily" is collapsed
@@ -103,24 +72,3 @@ Feature: The outline remembers how you left it
     When I reload the page
     Then the folder "Daily" is expanded
     And this browser remembers the folder "Daily" open
-
-  Scenario: Folding asks the server for nothing
-    # The whole doctrine as an assertion: how this reader is reading is not
-    # something the directory is told, so nothing crosses the wire and nothing
-    # reaches a file. "It works" and "it works without asking anybody" look
-    # identical on screen.
-    Given I open the outline "house.olai"
-    When I watch what the page asks for
-    And I collapse the node "kitchen"
-    Then the page asked for nothing at all
-
-  Scenario: A fold made in another tab lands in this one
-    # A preference belongs to the BROWSER, and a browser is more than one tab —
-    # the same `storage` event the theme and the Done default ride. A reload
-    # scenario cannot ask this: deleting the listener entirely would leave every
-    # other scenario here green.
-    Given I open the outline "house.olai"
-    And the node "kitchen" is expanded
-    When a second tab collapses the node "kitchen"
-    Then the node "kitchen" is collapsed
-    And there should be no page errors

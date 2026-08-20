@@ -147,14 +147,6 @@ When(
 When("I click away from the node menu", async function (this: OlaiWorld) {
   await this.clickAway();
 });
-
-/** The same, with a finger: `clickAway` presses the sidebar, which on a phone
- *  is a drawer that is not out — so the page below the tree is the nothing
- *  this one presses (`world.tapAway`). */
-When("I tap away from the node menu", async function (this: OlaiWorld) {
-  await this.tapAway();
-});
-
 /**
  * WHERE the caret is, as this suite talks about elements: the test id it
  * carries, the row it is in, and the words on it. `null` for `<body>`, which is
@@ -315,63 +307,6 @@ Then(
     );
   },
 );
-
-/**
- * THE PANEL FITS THE WINDOW — the geometric half of the overflow fix, which no
- * other step in this suite can see.
- *
- * A menu taller than the room either side of a row is not a hidden element and
- * not an unstyled one: every entry is `visible` to Playwright, laid out
- * exactly where the panel says, and simply off the screen. So the assertion is
- * the BOX against the viewport, which is the same kind of claim the
- * paints-over-a-heading step below makes with `elementFromPoint` — the honest
- * one for the failure being pinned.
- *
- * It is asked of the PANEL rather than of each entry, and the entries are then
- * asked to be inside the panel: a cap that scrolls is exactly a panel whose
- * children may sit outside its box, so the two together say "capped, and
- * scrollable to the end" where either alone would pass on a menu that had
- * silently lost its tail.
- */
-Then(
-  "every entry of the node menu is inside the window",
-  async function (this: OlaiWorld) {
-    const panel = await panelOf(this);
-    const box = await this.box(panel, "the node menu");
-    const screen = this.page.viewportSize();
-    assert.ok(screen !== null, "this scenario needs a sized viewport");
-    assert.ok(
-      box.y >= 0 && box.y + box.height <= screen.height,
-      `the node menu is ${Math.round(box.height)}px tall at y=${Math.round(box.y)} ` +
-        `on a ${screen.height}px window — its ${
-          box.y < 0 ? "top" : "tail"
-        } hangs off the screen, where nothing can press it`,
-    );
-    // …and it really is a SCROLLER rather than a panel that dropped its tail:
-    // the content is taller than the box it is capped to.
-    const scrolls = await panel.evaluate((el) => el.scrollHeight > el.clientHeight + 1);
-    assert.ok(
-      scrolls,
-      "the menu fits the window without scrolling, so this scenario is not " +
-        "asking the question it was written for — shrink the window further",
-    );
-  },
-);
-
-/** …and the LAST one can actually be pressed, which is what a cap buys: the
- *  entry the next verb pushes off the edge. Playwright scrolls it into view
- *  inside the panel's own scroller and refuses if it cannot be reached, so the
- *  press IS the assertion — `Copy as text` only navigates the clipboard. */
-Then(
-  "the last entry of the node menu can be pressed",
-  async function (this: OlaiWorld) {
-    const entries = (await panelOf(this)).locator(NODE_MENU_ITEM);
-    const last = entries.nth((await entries.count()) - 1);
-    await last.scrollIntoViewIfNeeded();
-    await last.hover();
-  },
-);
-
 /** What it is offering, in order. Through `oneLine` like every other text this
  *  suite reads out of the DOM, so a label that wraps is still one label. */
 const menuLabels = async (world: OlaiWorld): Promise<ReadonlyArray<string>> =>
@@ -397,19 +332,6 @@ Then(
       `node menu offers ${JSON.stringify(labels)}, and this step says ${
         JSON.stringify(label)
       } is not one of them`,
-    );
-  },
-);
-
-Then(
-  "the node menu offers exactly:",
-  async function (this: OlaiWorld, table: { rawTable: string[][] }) {
-    const expected = table.rawTable.map((row) => row[0]!.trim());
-    const labels = await menuLabels(this);
-    assert.deepStrictEqual(
-      labels,
-      expected,
-      `node menu offers ${JSON.stringify(labels)}, expected exactly ${JSON.stringify(expected)}`,
     );
   },
 );

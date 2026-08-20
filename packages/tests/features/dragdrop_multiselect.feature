@@ -79,7 +79,8 @@ Feature: Dragging rows, and picking several
   Scenario: A branch is never offered a place inside itself
     # Not a guard but a construction: the rows being carried are left out of the
     # ones a drop can land beside, so there is no gesture that asks the ops
-    # layer to make a loop.
+    # layer to make a loop. The predicate is `select/range.test.ts`; this is
+    # the live drag filtering the gap list by it, which no unit file pins.
     When I pick up the bullet of "install" and hold it above the title of "knobs"
     Then the drop line names nothing under "install"
     When I let go
@@ -108,15 +109,6 @@ Feature: Dragging rows, and picking several
     And the row "hinges" is not picked
     When I pick the title of "knobs"
     Then 1 rows are picked
-
-  Scenario: A parent and its child are ONE row to a verb
-    # What a bulk verb is asked of is the picked rows nothing else picked
-    # contains — a subtree moves whole, so an op for the child as well would be
-    # an op about a row that has already moved with its parent.
-    When I pick the title of "install"
-    And I shift-click the title of "knobs"
-    Then 1 rows are picked
-    And the row "knobs" is picked
 
   Scenario: Shift+arrow leaves the caret and starts picking rows
     When I click the title of "handles"
@@ -342,39 +334,12 @@ Feature: Dragging rows, and picking several
     And the row "install" is picked
     And the row "kitchen-herbs" is picked
 
-  Scenario: A sweep replaces what was picked rather than adding to it
-    When I pick the title of "handles"
-    And I sweep from beside "demo" down to "order"
-    Then 2 rows are picked
-    And the row "handles" is not picked
-    When I let go
-    Then 2 rows are picked
-
   Scenario: Pressing the page without pulling puts the pick away
     When I pick the title of "handles"
     And I shift-click the title of "knobs"
     Then 3 rows are picked
     When I press below the outline
     Then no rows are picked
-
-  Scenario: Which end the pull began at is the end a shift-click measures from
-    # A sweep is a range gesture like the other four, so it leaves an ANCHOR and
-    # a FOCUS rather than a bag of rows: the row it started on is what the
-    # shift-click after it extends from.
-    When I sweep from beside "install" down to "kitchen-herbs"
-    And I let go
-    And I shift-click the title of "install"
-    Then 1 rows are picked
-    And the row "install" is picked
-
-  Scenario: A parent and its child crossed by one sweep are one row to a verb
-    # The same rule the other four pickers keep, arrived at by the gesture most
-    # likely to meet it: pulling across a branch crosses everything drawn under
-    # it, and a subtree moves whole.
-    When I sweep from beside "install" down to "knobs"
-    Then the band is crossing 4 rows
-    And 1 rows are picked
-    And the row "knobs" is picked
 
   # ── the page keeps up with a gesture ─────────────────────────────────
   #

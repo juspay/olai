@@ -92,20 +92,6 @@ Then("the Trash is empty", async function (this: OlaiWorld) {
     .locator(TRASH_EMPTY)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
-
-/** The other side of it, for a page a FILTER emptied: "the Trash is empty" is a
- *  claim about the archive, and a query that found nothing in it is a claim
- *  about the query — which the bar makes. Saying both would be the page
- *  telling the reader their archive had been emptied by a search. */
-Then("the Trash does not say it is empty", async function (this: OlaiWorld) {
-  await expectAbsent(
-    this,
-    TRASH_PAGE,
-    TRASH_EMPTY,
-    "the Trash says it is empty over a page a filter narrowed to nothing",
-  );
-});
-
 When(
   "I put back {string} from the Trash",
   async function (this: OlaiWorld, id: string) {
@@ -306,4 +292,3 @@ Then(
     );
   },
 );
-

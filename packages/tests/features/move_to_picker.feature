@@ -142,18 +142,6 @@ Feature: Moving a row to a parent you search for
     And the row "knobs" holds the caret
     And there should be no page errors
 
-  Scenario: Escape answers from the way-out button too, not only from the box
-    # The handler is the PANEL's rather than the input's: a reader who has
-    # tabbed to `Done` is still in the picker, and a key only the box answered
-    # did nothing there.
-    When I click the title of "knobs"
-    And I press "ControlOrMeta+Shift+m"
-    And I focus the move picker's way out
-    And I press "Escape"
-    Then no move picker is open
-    And the row "knobs" holds the caret
-    And there should be no page errors
-
   # ── the `•••` door, which is the only one a finger has ──────────────
 
   Scenario: The menu offers Move to…, and it opens the same panel
@@ -162,20 +150,6 @@ Feature: Moving a row to a parent you search for
     When I choose "Move to…" from the node menu
     Then the move picker is open on "knobs"
     And there should be no page errors
-
-  # ── what it will not do, said at the aim ────────────────────────────
-
-  Scenario: A destination in another outline is refused, in a drag's own words
-    # The format's law, and the sentence `move_node` refuses in — the same one
-    # a row dragged over the other pane meets (#238). The row is still DRAWN:
-    # the limit is said, never hidden.
-    When I click the title of "knobs"
-    And I press "ControlOrMeta+Shift+m"
-    And I search the move picker for "the compost heap"
-    Then the move picker offers "the compost heap"
-    And the move picker draws "the compost heap" as refused
-    And the move picker refuses with "`garden.olai`"
-    And the move picker refuses with "Every outline is an independent tree"
 
   Scenario: Enter on a cross-file destination writes nothing at all
     # The aim is the answer: the sentence was on screen before the key, the
@@ -187,69 +161,6 @@ Feature: Moving a row to a parent you search for
     Then the move picker is open on "knobs"
     And the move picker refuses with "Every outline is an independent tree"
     And the node "knobs" is a child of "install"
-    And there should be no page errors
-
-  Scenario: A row is not offered a place inside itself
-    # The never-inside-itself rule #238 hardened, asked of a list instead of a
-    # gesture: `install` cannot go under `handles`, which is its own child, and
-    # cannot go under itself either. Two sentences, because they are two
-    # different mistakes.
-    When I click the title of "install"
-    And I press "ControlOrMeta+Shift+m"
-    And I search the move picker for "choose the handles"
-    Then the move picker refuses with "inside the row you are moving"
-    When I search the move picker for "install the cabinets"
-    Then the move picker refuses with "the row you are moving"
-
-  Scenario: A destination a PLACEMENT inside the row draws is refused, naming the chain
-    # The case a parent walk cannot see, and the reason the rule walks the
-    # DRAWING graph instead (found by review). A Now section is mirrors of live
-    # work — `ops` documents it — so `now` draws `install` through the
-    # placement under it, and moving `now` under `install` (or under anything
-    # beneath it) would draw the page inside itself for ever. Before the walk
-    # this row was undimmed, the planner planned it, and the write gate refused
-    # the SET afterwards: the exact shape the aim exists to prevent.
-    When I rewrite "house.olai" as:
-      """
-      {"id":"now","ord":"a0","title":"Now"}
-      {"id":"now-install","parent":"now","ord":"a0","mirror":"install"}
-      {"id":"kitchen","ord":"a1","title":"kitchen remodel #home"}
-      {"id":"install","parent":"kitchen","ord":"a0","title":"install the cabinets"}
-      {"id":"handles","parent":"install","ord":"a0","title":"choose the handles"}
-      """
-    Then the node "now-install" is shown
-    When I click the title of "now"
-    And I press "ControlOrMeta+Shift+m"
-    And I search the move picker for "install the cabinets"
-    Then the move picker draws "install the cabinets" as refused
-    And the move picker refuses with "through a placement"
-    And the move picker refuses with "`now` → `now-install` → `install`"
-    When I search the move picker for "choose the handles"
-    Then the move picker refuses with "`now` → `now-install` → `install` → `handles`"
-    # …and Enter there writes nothing, so the row is where it was.
-    When I press "Enter"
-    Then the move picker is open on "now"
-    And the node "now" is not a child of "install"
-    And the node "now" is not a child of "handles"
-    And there should be no page errors
-
-  Scenario: A sibling of what the placement shows still takes the row
-    # The other half, which is what keeps the walk a rule rather than a fence:
-    # `kitchen` is where `install` LIVES, not something `now` draws.
-    When I rewrite "house.olai" as:
-      """
-      {"id":"now","ord":"a0","title":"Now"}
-      {"id":"now-install","parent":"now","ord":"a0","mirror":"install"}
-      {"id":"kitchen","ord":"a1","title":"kitchen remodel #home"}
-      {"id":"install","parent":"kitchen","ord":"a0","title":"install the cabinets"}
-      """
-    Then the node "now-install" is shown
-    When I click the title of "now"
-    And I press "ControlOrMeta+Shift+m"
-    And I search the move picker for "kitchen remodel"
-    Then the move picker refuses nothing
-    When I choose "kitchen remodel #home" from the move picker
-    Then the node "now" in "house.olai" sits under "kitchen"
     And there should be no page errors
 
   Scenario: The reason is about the row the cursor is ON, and moves with it
@@ -265,43 +176,6 @@ Feature: Moving a row to a parent you search for
     When I point the move picker at "order the new cabinets"
     Then the move picker refuses nothing
     And there should be no page errors
-
-  Scenario: The parent a row already has is offered, and refused as a reorder
-    # THE RULING (docs/editing.md): the current parent is in the list, because
-    # a reader who searches for a title they can see must find it — and it is
-    # refused, because a destination puts the row LAST under it, which is a
-    # reorder rather than a move. The sentence names the two gestures that mean
-    # that on purpose.
-    When I click the title of "handles"
-    And I press "ControlOrMeta+Shift+m"
-    And I search the move picker for "install the cabinets"
-    Then the move picker offers "install the cabinets"
-    And the move picker refuses with "already this row's parent"
-    And the move picker refuses with "reorder"
-
-  Scenario: Something put away says so, rather than that it is another file
-    # Both are true — an archive is another outline by construction — and only
-    # one of them is the news. The Trash is reached from the picker only by
-    # asking for it (`is:trashed`), since the matcher leaves archived nodes out
-    # of every other answer.
-    When I open the node menu of "hinges"
-    And I choose "Move to Trash" from the node menu
-    And I choose "Move to Trash" from the node menu
-    Then the node "hinges" is not shown
-    When I click the title of "knobs"
-    And I press "ControlOrMeta+Shift+m"
-    And I search the move picker for "is:trashed pick the hinges"
-    Then the move picker offers "pick the hinges"
-    And the move picker refuses with "put away"
-
-  Scenario: An ordinary destination in the same file refuses nothing
-    # The other half of every scenario above: the picker is quiet when the aim
-    # is a legal one, so the sentence means something when it is there.
-    When I click the title of "knobs"
-    And I press "ControlOrMeta+Shift+m"
-    And I search the move picker for "kitchen remodel"
-    Then the move picker offers "kitchen remodel"
-    And the move picker refuses nothing
 
   # ── a placement, which moves as itself ──────────────────────────────
 

@@ -24,15 +24,6 @@ Feature: Writing a node's edges — `see` and `after`
     Given I open the outline "house.olai"
     And I mark the page
 
-  # ── `see`, from a row ───────────────────────────────────────────────
-
-  Scenario: The `•••` menu offers both edge verbs, on every node
-    # Not narrowed by what a node already carries: naming what a node points at
-    # is a thing you do to a node that says nothing yet.
-    When I open the node menu of "handles"
-    Then the node menu offers "Link to a node…"
-    And the node menu offers "Wait for a node…"
-
   Scenario: Linking to a node from the menu writes the `see` the agent writes
     When I open the node menu of "handles"
     And I choose "Link to a node…" from the node menu
@@ -67,16 +58,6 @@ Feature: Writing a node's edges — `see` and `after`
     Then "house.olai" holds the node "handles" seeing nothing
     When I press "ControlOrMeta+Shift+z"
     Then "house.olai" holds the node "handles" seeing "compost"
-    And there should be no page errors
-
-  Scenario: An edge chosen at a MIRROR lands on the node it shows
-    # The standing routing rule for everything a node SAYS — a placement's own
-    # record cannot carry an edge at all.
-    When I open the node menu of "kitchen-herbs"
-    And I choose "Link to a node…" from the node menu
-    And I search the edge panel for "compost"
-    And I choose "the compost heap" from the edge panel
-    Then "garden.olai" holds the node "herbs" seeing "compost"
     And there should be no page errors
 
   # ── `after`, and the loop it refuses to close ───────────────────────

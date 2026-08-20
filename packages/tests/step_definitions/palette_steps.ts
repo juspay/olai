@@ -234,15 +234,6 @@ Then(
   },
 );
 
-Then(
-  "the palette row {string} is about {string}",
-  async function (this: OlaiWorld, label: string, place: string) {
-    const row = this.page.locator(PALETTE_ITEM).filter({ hasText: label }).first();
-    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(oneLine(await row.innerText()).includes(place), true, place);
-  },
-);
-
 /** A row that NAVIGATES: it closes the palette, and waiting for that is what
  *  keeps the next step from racing the frame. */
 When(

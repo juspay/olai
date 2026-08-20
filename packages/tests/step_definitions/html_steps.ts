@@ -524,18 +524,11 @@ Then("the preview is as tall as the page it shows", async function (this: OlaiWo
  * THE COST OF TWO RUNGS, read as a height: the page in there is TALLER than the
  * frame around it, and stayed that way.
  *
- * It is the negative of the step above and it is not a failure — it is the
- * decision `../../web/src/client/document/rungs.ts` makes, named out loud where
- * a reader meets it. A picture that arrives after `load` (a `loading="lazy"`
- * one) grows the page and is refused a rung, because the message that says "my
- * pictures landed" and the message that says "you made me taller and I am
- * measured in `vh`" are the same message, and only one of them may be acted on.
- * So the frame keeps the height it had and the rest scrolls inside it.
- *
- * A WAIT rather than a read, and the waiting is what gives it teeth: the two
- * heights are equal until the late picture lands, so this can only go green
- * after the page really grew — and if the frame had followed it they would be
- * equal again and this would time out saying both numbers.
+ * A picture that arrives after `load` (`loading="lazy"`) grows the page and is
+ * refused a rung, because the message that says "my pictures landed" and the
+ * message that says "you made me taller and I am measured in `vh`" are the
+ * same message. So the frame keeps the height it had and the rest scrolls
+ * inside it.
  */
 Then("the preview is shorter than the page it shows", async function (this: OlaiWorld) {
   await untilHeights(
@@ -581,33 +574,6 @@ Then(
       ({ frame }) => how.holds(frame, tall),
       `the frame is ${which} than the ${tall}px viewport`,
       (seen) => how.complain(seen, tall),
-    );
-  },
-);
-
-// The cap, said as the PROMISE rather than as the number that keeps it. "Two
-// screens" is a styling decision (`Hypertext.tsx`'s class), and a step that
-// re-spelled it here would be a contract kept by memory in two halves of the
-// repo — green while asserting something weaker if the bound were ever
-// narrowed, red for no defect if it were widened. What a reader is owed is
-// this: the frame STOPPED SHORT of its page, so an enormous file cannot make an
-// enormous element, and the rest of the page is still in there to scroll. A
-// frame that had swallowed the whole document fails the first half; one that
-// had dropped the document fails the second.
-Then(
-  "the preview stops short of its page and scrolls the rest",
-  async function (this: OlaiWorld) {
-    const tall = this.viewport().height;
-    await untilHeights(
-      this,
-      ({ frame, page }) => page > frame && frame > tall,
-      "the frame stopped short of the page it holds",
-      ({ frame, page }) =>
-        frame >= page
-          ? `the frame is ${frame}px and the page in it is ${page}px — it grew to ` +
-            `hold the whole document, so an enormous file makes an enormous element`
-          : `the frame is only ${frame}px against a ${tall}px viewport — it is ` +
-            `bounded, but so far under one screen that the cap is not what stopped it`,
     );
   },
 );

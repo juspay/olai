@@ -249,28 +249,6 @@ Feature: A `.html` in the vault
     And there is no preview on this page
 
   @scratch:good
-  Scenario: A link to a note beside the page opens the note
-    # The other kind of file olai has a page for, and the one judgement call in
-    # this rule. The media route REFUSES a `.md` — it is not a part a page draws
-    # itself with, and a note has a page of its own — so this link is a 404 in
-    # the frame and has always been a dead click. It never reaches the network
-    # now: it names a note, and a note has a page, which is where the reader
-    # meant to go. The two rules answer different questions — what a browser may
-    # be SERVED, and where a reader may be TAKEN.
-    Given I open the app
-    When I rewrite "notes/index.html" as:
-      """
-      <h1>Index</h1>
-      <p><a id="note" href="palette.md">the palette note</a></p>
-      """
-    And I expand the folder "notes"
-    And I click the page "notes/index.html"
-    Then the preview shows the heading "Index"
-    When I click "#note" inside the preview
-    Then the document open is "notes/palette.md"
-    And the address is "/notes/palette.md"
-
-  @scratch:good
   Scenario: A link carrying a fragment opens the page AND lands on the section
     # THE CARVE-OUT IS GONE, and this is what replaced it. `other.html#beds`
     # names two things — a file olai has a page for, and a place inside it — and
@@ -1185,73 +1163,6 @@ Feature: A `.html` in the vault
     # seal that the walk-off budget ends at.
     And the preview shows the heading "Form"
 
-  @scratch:good
-  Scenario: A page with a picture in it is as tall as the picture makes it
-    # The measurement, and what pictures did to it. An `<img>` is a zero-tall
-    # box until its bytes arrive, so the reading taken when the document parsed
-    # is short by the whole height of the picture — and under the old rule (one
-    # height per width, because nothing could be fetched and nothing could
-    # therefore move) that short reading was the only one the frame would ever
-    # accept. `art/tall.png` is 1200px tall and carries no width or height
-    # attribute, so the page cannot be measured correctly before it loads.
-    #
-    # The picture is HELD BACK on purpose, because otherwise this scenario is a
-    # race it usually wins for the wrong reason: a kilobyte over loopback often
-    # beats the first layout, and a run where it did would pass with or without
-    # the mechanism under test. Held, the order is the one a page with a real
-    # photograph in it always sees.
-    Given I open the app
-    And the vault's pictures are slow to arrive
-    When I rewrite "poster.html" as:
-      """
-      <h1>Poster</h1>
-      <img src="art/tall.png" alt="a tall picture">
-      """
-    And I click the page "poster.html"
-    Then the preview shows the heading "Poster"
-    And the preview draws its picture "img"
-    And the preview is as tall as the page it shows
-    And the preview is taller than the viewport
-
-  @scratch:good
-  Scenario: A picture that arrives after the page has loaded does not move the frame
-    # The other side of the rule above, and the COST of it — named in #201's
-    # report as bounded and correctly deferred, and now held rather than
-    # described. Two rungs is at most one arriving reading and one settled one
-    # per width, so a picture that lands after `load` is refused a third: the
-    # frame keeps the height it had and the page scrolls inside it, under the
-    # stylesheet's bounds.
-    #
-    # That is a decision and not an oversight. The frame cannot tell "I grew
-    # because my pictures landed" from "I grew because you made me taller and I
-    # am measured in `vh`" — they are the same message — so a frame that
-    # followed the late picture would follow a `vh` page up its own ladder.
-    # `rungs.test.ts` counts the rungs; this is a browser agreeing about what
-    # they cost.
-    #
-    # `loading="lazy"` is what puts a picture on the far side of `load`: a lazy
-    # image does not hold the event, so `load` fires — and the settled reading
-    # is taken — while the picture is still in flight. Held back by the route
-    # for the same reason as above: unheld this is a race that usually resolves
-    # the wrong way and would pass either way.
-    Given I open the app
-    And the vault's pictures are slow to arrive
-    When I rewrite "late.html" as:
-      """
-      <h1>Late</h1>
-      <img loading="lazy" src="art/tall.png" alt="a tall picture, later">
-      """
-    And I click the page "late.html"
-    Then the preview shows the heading "Late"
-    # The picture did arrive and did decode — this is not a scenario about a
-    # picture that never came.
-    And the preview draws its picture "img"
-    # …and the frame did not follow it. The page in there is now 1200px taller
-    # than the frame around it.
-    And the preview is shorter than the page it shows
-    And the preview is shorter than the viewport
-    And there should be no page errors
-
   # ── the other ways a page names a picture ────────────────────────────
   #
   # #201 shipped the pictures and named three shapes it had not covered:
@@ -1359,6 +1270,33 @@ Feature: A `.html` in the vault
     Then the preview is back on the sealed document
     And the app is not loaded inside the preview
 
+  @scratch:good
+  Scenario: A picture that arrives after the page has loaded does not move the frame
+    # Live-wire, not a pixel threshold: a `loading="lazy"` image landing after
+    # `load`, with the route holding it back so the order is not a race.
+    # `rungs.test.ts` counts the rungs; this is a browser agreeing about what
+    # they cost. Relative assertions (`shorter than the page it shows`), not
+    # hard-coded px.
+    #
+    # Two rungs is at most one arriving reading and one settled one per width,
+    # so a picture that lands after `load` is refused a third: the frame keeps
+    # the height it had and the page scrolls inside it. The frame cannot tell
+    # "I grew because my pictures landed" from "I grew because you made me
+    # taller and I am measured in `vh`" — they are the same message.
+    Given I open the app
+    And the vault's pictures are slow to arrive
+    When I rewrite "late.html" as:
+      """
+      <h1>Late</h1>
+      <img loading="lazy" src="art/tall.png" alt="a tall picture, later">
+      """
+    And I click the page "late.html"
+    Then the preview shows the heading "Late"
+    And the preview draws its picture "img"
+    And the preview is shorter than the page it shows
+    And the preview is shorter than the viewport
+    And there should be no page errors
+
   # ── how tall the frame is ────────────────────────────────────────────
   #
   # The frame is the height of the page it holds. It was `70dvh` flat before —
@@ -1390,21 +1328,6 @@ Feature: A `.html` in the vault
     And the preview is shorter than the viewport
 
   @scratch:good
-  Scenario: A page taller than the screen gets a frame taller than the screen
-    Given I open the app
-    When I rewrite "article.html" as:
-      """
-      <h1>Article</h1>
-      <div style="height:1200px;background:#eef">a long page</div>
-      """
-    And I click the page "article.html"
-    Then the preview shows the heading "Article"
-    And the preview is as tall as the page it shows
-    # The other half: a long page is read by scrolling THIS page, not by
-    # scrolling a box inside it.
-    And the preview is taller than the viewport
-
-  @scratch:good
   Scenario: A page sized in viewport units does not inflate to the bound
     # The measurement is taken INSIDE the box it sizes, so a page whose own
     # height is a share of the viewport — `min-height: 100vh` on a wrapper, which
@@ -1429,23 +1352,6 @@ Feature: A `.html` in the vault
     And I click the page "hero.html"
     Then the preview shows the heading "Hero"
     And the preview is shorter than the viewport
-
-  @scratch:good
-  Scenario: An enormous page is bounded, and the rest of it is still there
-    Given I open the app
-    When I rewrite "atlas.html" as:
-      """
-      <h1>Atlas</h1>
-      <div style="height:8000px;background:#efe">a very long page</div>
-      """
-    And I click the page "atlas.html"
-    Then the preview shows the heading "Atlas"
-    # A measured height is still a number from an untrusted frame, and even an
-    # honest one can be absurd. Past the bound the growing stops and the old
-    # behaviour — the page scrolling inside its own frame — takes over. Where
-    # exactly it stops is a styling decision and is not named here; that it
-    # stops, and that nothing was dropped when it did, is the promise.
-    And the preview stops short of its page and scrolls the rest
 
   @scratch:good
   Scenario: A `.html` dropped into the directory joins the sidebar

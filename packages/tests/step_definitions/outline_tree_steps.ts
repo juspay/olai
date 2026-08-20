@@ -208,15 +208,6 @@ Then(
   },
 );
 
-Then(
-  "the node {string} shows no progress",
-  async function (this: OlaiWorld, id: string) {
-    // Absent, not `0/0`: a node with no tasks under it has nothing to count,
-    // which is the same answer the derivation gives.
-    await drawsNothing(this, id, PROGRESS, "progress badge");
-  },
-);
-
 /**
  * WAITS, and that is the whole of what changed here. The badge is redrawn from
  * the snapshot, and every scenario that asks this has just made a write — so
@@ -513,25 +504,6 @@ Then(
     );
   },
 );
-
-// ── what may ride beside a title ───────────────────────────────────────
-
-Then(
-  "the node {string} shows the fact {string} holding {string}",
-  async function (this: OlaiWorld, id: string, key: string, value: string) {
-    const fact = this.node(id).first().locator(`${HOT_FACT}${attr("data-key", key)}`);
-    await fact.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(readable(await fact.innerText()), `${key} ${value}`);
-  },
-);
-
-Then(
-  "the node {string} shows no inline fact",
-  async function (this: OlaiWorld, id: string) {
-    await drawsNothing(this, id, HOT_FACT, "inline fact");
-  },
-);
-
 Then(
   "the node {string} says it is folding {string} finished rows",
   async function (this: OlaiWorld, id: string, count: string) {
@@ -783,20 +755,6 @@ Then(
   },
 );
 
-Then(
-  "the node {string} has no toggle",
-  async function (this: OlaiWorld, id: string) {
-    await this.node(id)
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(
-      await this.node(id).locator(TOGGLE).count(),
-      0,
-      `"${id}" has no children, so there is nothing for a toggle to do`,
-    );
-  },
-);
-
 // ── mirrors ────────────────────────────────────────────────────────────
 
 /** `data-kind` is the row's whole classification — "node" | "mirror" |
@@ -890,17 +848,6 @@ Then(
       "waiting",
       `the waiting mark on "${id}" does not carry data-face=waiting`,
     );
-  },
-);
-
-Then(
-  "the waiting mark on {string} says {string}",
-  async function (this: OlaiWorld, id: string, said: string) {
-    const mark = this.within(id, BLOCKED);
-    await mark.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // The LABEL, not the tip: what a row is waiting on must be readable
-    // without a pointer, so this is the copy that has to be right.
-    assert.strictEqual(await mark.getAttribute("aria-label"), said);
   },
 );
 

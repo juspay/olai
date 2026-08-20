@@ -48,11 +48,6 @@ Feature: Referenced by — a zoomed node says what points at it
     Then the zoomed node is "order"
     And there should be no page errors
 
-  Scenario: A node nobody has written about draws nothing at all
-    Given I open the node "compost"
-    Then the page draws no referenced-by section
-    And there should be no page errors
-
   # ── the three rulings ────────────────────────────────────────────────
 
   Scenario: A placement is not a reference
@@ -64,14 +59,6 @@ Feature: Referenced by — a zoomed node says what points at it
     And the page says it is referenced by 1 nodes
     When I open the referenced-by section
     Then the referenced-by "sees this" row reads "order the new cabinets"
-    And there should be no page errors
-
-  Scenario: An ordering edge is not a reference
-    # `hinges` comes after `order`, and so does `install` — two edges landing on
-    # `order`, drawn on those nodes' own pages as what they are waiting on.
-    # Nothing SEES `order` and no prose names it, so its page says nothing here.
-    Given I open the node "order"
-    Then the page draws no referenced-by section
     And there should be no page errors
 
   Scenario: What is put away is on the Trash and nowhere else

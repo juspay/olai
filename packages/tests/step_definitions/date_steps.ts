@@ -127,10 +127,6 @@ When("I press the date picker's button", async function (this: OlaiWorld) {
   await this.press(button(this));
 });
 
-When("I cancel the date picker", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(DATE_PICKER_CANCEL));
-});
-
 // ── what the page does not offer ───────────────────────────────────────
 
 /** A pill that says something rather than doing something — the day page and

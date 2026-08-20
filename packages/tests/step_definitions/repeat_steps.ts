@@ -145,10 +145,6 @@ When("I empty the repeat picker", async function (this: OlaiWorld) {
   await this.waitForFrame();
 });
 
-When("I press the repeat picker's button", async function (this: OlaiWorld) {
-  await this.press(button(this));
-});
-
 When("I cancel the repeat picker", async function (this: OlaiWorld) {
   await this.press(this.page.locator(REPEAT_PICKER_CANCEL));
 });
@@ -176,22 +172,6 @@ Then(
     );
   },
 );
-
-/** A pill that says something rather than doing something — the day page and
- *  the agenda, drawn read-only. Asked as the badge's own `data-picks`, exactly
- *  as the date pill's is. */
-Then(
-  "the repeat rule on {string} does not open the picker",
-  async function (this: OlaiWorld, id: string) {
-    await this.expectAttribute(
-      `${nodeSelector(id)} ${REPEAT}`,
-      "data-picks",
-      "false",
-      `the repeat badge on "${id}"`,
-    );
-  },
-);
-
 // ── the occurrence a completion made ───────────────────────────────────
 
 /**

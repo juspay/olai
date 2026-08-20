@@ -179,6 +179,14 @@ test("only layer.ts spells a z-index", () => {
 // name on this list and a rider that quietly goes back in the tree drops off
 // it and fails here. overlay.ts itself does not match: it is the definition,
 // and the pattern is the CALL.
+// Live or nothing: an offline shell would show outlines that had stopped
+// being true. The install surface's e2e used to ask `navigator.serviceWorker`
+// after the bundle had run; that claim now lives here, on the files that
+// would actually register one, not on the shell HTML.
+test("no client file registers a service worker", () => {
+  expect(filesSpelling(/serviceWorker/)).toEqual([])
+})
+
 test("overlays that hang over the outline mount on overlayRoot", () => {
   expect(filesSpelling(/overlayRoot\s*\(/)).toEqual([
     path.join("complete", "Completions.tsx"),

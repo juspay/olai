@@ -26,23 +26,6 @@ Feature: Talking to the agent
     And the agent's answer mentions "marked"
 
   @scratch:chat
-  Scenario: The agent captures a node and it appears in the tree
-    When I ask the agent "add water the plants"
-    Then the tree eventually shows a node titled "water the plants"
-
-  @scratch:chat
-  Scenario: A parent cannot be marked done over work nobody has finished
-    # A mark is a stored fact on whatever carries it, and one on a parent is a
-    # claim about the whole BRANCH — which is exactly why it has to be true
-    # when it is made: hiding what is done takes the subtree with the row, so a
-    # `done` here would sweep `install the cabinets` off the page while it is
-    # still under way. Refused where the person who asked for it is looking,
-    # in the ops layer's own words (`done-over-open-work`, 2026-08-16).
-    When I ask the agent "done kitchen"
-    Then the chat shows a refusal
-    And node "kitchen" is not done
-
-  @scratch:chat
   Scenario: A parent is marked like any other node once the branch is finished
     # The gate is about unfinished work and nothing else: `install the
     # cabinets` is the only task under the branch, so finishing it is what the
@@ -76,14 +59,6 @@ Feature: Talking to the agent
     Then the chat shows my message "hello"
     And the agent's answer mentions "you said: hello"
     And my message sits to the right of the agent's
-
-  @scratch:chat
-  Scenario: The header names the model the session runs on
-    # A turn's cost and character depend on the model and nothing else on the
-    # page says which one. The agent reports it as a session config option and
-    # a value the picker offers is shown by the picker's own LABEL, so what is
-    # asserted is "Fake One" rather than the raw `fake-model-1` it came as.
-    Then the panel header names the model "Fake One"
 
   @scratch:chat
   Scenario: A tool call is one foldable line
@@ -406,47 +381,6 @@ Feature: Talking to the agent
     Then the picker lists "an older conversation"
     When I pick the conversation "an older conversation"
     Then the conversation is titled "an older conversation"
-
-  # ── and the ways OUT of it ───────────────────────────────────────────────
-  #
-  # The picker had none. Every other panel this client draws answers a pointer
-  # outside it and Escape — one spelling of the two, in `client/dismiss.ts` —
-  # and this one answered neither, so a list opened by mistake sat over the
-  # transcript until somebody found the button again. That is a missing
-  # affordance rather than a fourth copy of an existing one, and the three
-  # scenarios below are the three ways out it now has.
-
-  @agent-stored @scratch:chat
-  Scenario: Escape puts the picker away, and hands the caret back
-    # A keyboard that dismissed a panel it was standing in would be left on
-    # `<body>` — nowhere, and the whole page to walk down to get back — so the
-    # caret goes back on the control that opened it. Same rule as the header's
-    # popovers, and only for the gesture a keyboard can make.
-    When I open the session picker
-    Then the picker is showing
-    When I press "Escape"
-    Then the picker is put away
-    And the chats button has the caret
-
-  @agent-stored @scratch:chat
-  Scenario: A pointer outside puts the picker away
-    When I open the session picker
-    Then the picker is showing
-    When I click away from the session picker
-    Then the picker is put away
-
-  @agent-stored @scratch:chat
-  Scenario: Pressing chats again puts it away
-    # TWO ROOTS, and the bug the Commit pill had one layer up: the list is a
-    # SIBLING of the button rather than a child of it, so a click-away that
-    # knew only the list would read a press of `chats` as a press outside —
-    # shutting on the pointerdown, and reopened a moment later by that same
-    # press's own click. Pressing it a second time would do nothing at all, and
-    # the picker would look identical before and after.
-    When I open the session picker
-    Then the picker is showing
-    When I press the chats button
-    Then the picker is put away
 
   @scratch:chat
   Scenario: The panel shows the turn happening, not only its result

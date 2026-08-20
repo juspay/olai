@@ -18,12 +18,11 @@
  * copied to the dist root by its build) and the paths below are the URLs that
  * puts them at. They are the only two ends of this contract, they live in two
  * packages that do not import each other — deliberately, see
- * `clientDist.ts` — and what checks that they still agree is a browser test
- * that fetches every `src` this names
- * (`packages/tests/features/install_it.feature`). It has to be a test rather
- * than a type: the static layer answers an unmatched path with the HTML shell,
- * so a stale path here would 200 rather than 404, and only the content type
- * would say otherwise.
+ * `clientDist.ts` — and what checks that they still agree is `serve.test.ts`,
+ * which fetches every `src` this names against a dist assembled from the
+ * client's public files. It has to be a test rather than a type: the static
+ * layer answers an unmatched path with the HTML shell, so a stale path here
+ * would 200 rather than 404, and only the content type would say otherwise.
  *
  * The colours are the DEFAULT palette's paper — `reef`, which is what a page
  * that has picked no theme reads in — because they are the chrome around the

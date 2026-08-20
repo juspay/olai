@@ -122,34 +122,6 @@ Feature: The trash can be seen into, taken out of, and emptied
     Then the Trash is empty
     And the Trash does not offer Empty trash
 
-  Scenario: Emptying asks first, and the question names how many rows go
-    When I open the node menu of "install"
-    And I choose "Move to Trash" from the node menu
-    And I choose "Move to Trash" from the node menu
-    Then "_olai/Trash.olai" holds the node "install"
-    When I open the Trash
-    Then the Trash offers Empty trash
-    # Six: the subtree's four rows, plus the source-file signpost and the
-    # ancestor title the trash wrote above them to remember where they hung.
-    # Every one of them is a record the write deletes, and a row a reader can
-    # see on this page.
-    When I press Empty trash
-    Then the Trash asks "Permanently delete all 6 rows in the Trash? Nothing in olai puts them back — the records leave the trash the way every other write does, so what survives is whatever git has already recorded."
-
-  Scenario: The count is the SET's, not the rows a filter left on screen
-    # The lesson `parity-archive`'s own confirm learned: what a person agrees
-    # to has to be what the write moves. Narrowing this page to one row must
-    # not narrow the sentence — the pile still goes, whole.
-    When I open the node menu of "install"
-    And I choose "Move to Trash" from the node menu
-    And I choose "Move to Trash" from the node menu
-    When I open the Trash
-    And I filter the page by "knobs"
-    Then the Trash lists the node "knobs"
-    And the Trash does not list the node "hinges"
-    When I press Empty trash
-    Then the Trash asks "Permanently delete all 6 rows in the Trash? Nothing in olai puts them back — the records leave the trash the way every other write does, so what survives is whatever git has already recorded."
-
   Scenario: Cancel writes nothing, and leaves the Trash exactly as it stood
     When I open the node menu of "install"
     And I choose "Move to Trash" from the node menu

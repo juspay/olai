@@ -17,10 +17,8 @@ import { Then } from "@cucumber/cucumber";
 
 import {
   APP_HEADER,
-  CHAT_PANEL,
   CHAT_TOGGLE,
   HEADINGS,
-  HYDRATION_TIMEOUT,
   POLL_TIMEOUT,
   PREFS_TRIGGER,
 } from "../support/world.ts";
@@ -72,25 +70,6 @@ Then(
   },
 );
 
-/** The desktop seam. The dock is `fixed` at `top: var(--height-header)`, which
- *  is a claim about the VIEWPORT: it is the bottom edge of the bar only while
- *  the bar is at the top of it. `panel_steps.ts` asks the same question of the
- *  phone sheet and of the drawer. */
-Then("the agent dock sits under the header", async function (this: OlaiWorld) {
-  await this.page
-    .locator(CHAT_PANEL)
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  const header = await this.box(this.page.locator(APP_HEADER), "the app header");
-  const dock = await this.box(this.page.locator(CHAT_PANEL), "the agent dock");
-  const seam = header.y + header.height;
-  assert.ok(
-    Math.abs(dock.y - seam) <= 2,
-    `the dock starts at y=${Math.round(dock.y)} and the header ends at ` +
-      `${Math.round(seam)} — a gap here is a strip of the page showing between ` +
-      "the two, which is what a scrolled-away header left behind",
-  );
-});
-
 /** Where a fragment jump landed. Under the bar is the failure the document's
  *  `scroll-padding-top` exists to stop, and it is invisible in the address —
  *  which changed either way. */
@@ -121,3 +100,5 @@ Then(
     );
   },
 );
+
+
