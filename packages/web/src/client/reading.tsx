@@ -58,7 +58,6 @@ import {
   useContext,
 } from "solid-js"
 
-import { createFrames } from "./frames.ts"
 import { createNames, type Names } from "./names.ts"
 import { olai } from "./wire.ts"
 
@@ -102,18 +101,28 @@ export interface Reading {
    * readings and answers it by handing out plain values; a page's reading is
    * too big to copy per frame, so this counts the frames instead.
    *
-   * COUNTED OFF THE STORE (`./frames.ts`) rather than off the framework's own
-   * change signal, and that is a cost rather than a taste: registering ANY
-   * `Subscription.updated` handler switches kolu's tracker out of its O(1) path
-   * and into a deep compare of the whole page plus two `structuredClone`s of
-   * it, per frame, to hand over a payload this file discards
-   * (docs/brainstorming/reactivity-after-the-flip.md §3.6). The store is
-   * written by the same frame the handler would have reported, so the fact is
-   * there to be had for nothing. It keeps the two halves of that law its
-   * readers were written against — a first frame is a value rather than news,
-   * and the blank a new question opens with is not a frame — and drops the
-   * third: an identical reconnect snapshot still replaces every array element
-   * in the store, so it is still a frame every reader of that store can see.
+   * COUNTED OFF `Subscription.changed`, which is the framework's own answer to
+   * exactly this question (`@kolu/surface`, juspay/kolu#2190). It was not, for
+   * two releases: registering an `updated` handler — the only change channel
+   * there was — put two `structuredClone`s of the whole page on every frame to
+   * hand over a `{prev, next}` pair this file discarded, two deep copies of a
+   * hundred kilobytes per keystroke for an integer
+   * (docs/brainstorming/reactivity-after-the-flip.md §3.6). So the count was
+   * taken off the STORE instead, by a module of this client's own
+   * (`frames.ts`, deleted with this line), which said in its header that it was
+   * a stand-in and named the upstream fact that would end it. `changed` is that
+   * fact: the same change-iff-fired law, fired at the same moments, with no
+   * snapshot taken for anybody who did not ask for one.
+   *
+   * THE LAW, in the three clauses its readers were written against: a FIRST
+   * frame is a value rather than news; the blank a new question opens with
+   * re-arms that rule rather than counting (the framework resets the tracker
+   * when the input moves); and an equal reconnect snapshot is SILENT. The
+   * stand-in kept the first two and could not keep the third — an identical
+   * frame replaced every array element in the store, so a reader of the store
+   * saw it. Since the `page` stream now declares what identifies a row
+   * (`@olai/surface`'s `arrayKey`), an identical frame writes nothing either,
+   * and the two readings agree.
    *
    * THE PAGE ITSELF is the right granularity, and narrower than what it
    * replaced: a revision that moved nothing on this page sends no frame at all
@@ -128,7 +137,15 @@ export const createReading = (
   request: Accessor<PageRequest | null>,
 ): Reading => {
   const answer = olai.streams.page.use(request)
-  const at = createFrames(answer)
+  /** The generation — see {@link Reading.at}. `changed` rather than `updated`
+   *  because the payload is the one thing this does not want, and the handler
+   *  survives an input change (the framework resets the tracker, which re-arms
+   *  the first-frame rule; the handlers belong to the caller). The `?.` is the
+   *  channel's own optionality: a hand-assembled `Subscription`-shaped value
+   *  may omit it, and every subscription the framework mints provides it. */
+  const [at, setAt] = createSignal(0)
+  const stop = answer.changed?.(() => setAt((was) => was + 1))
+  if (stop !== undefined) onCleanup(stop)
   /**
    * THE LAST ANSWER, HELD ACROSS THE NEXT QUESTION.
    *
@@ -196,7 +213,9 @@ export const useReading = (): Accessor<PageReading | undefined> => {
  * it just moved (`./edit/editing.tsx`'s `settling`). Both used to read the
  * derivation's identity, which was a fresh value per revision; neither can read
  * the reading's, because a subscription's value is a store whose identity
- * survives every frame.
+ * survives every frame — and since the `page` stream declares what identifies a
+ * row, its ELEMENTS' identities survive one too, so there is nothing left down
+ * there for a reader to mistake for news.
  */
 export const useFrames = (): Accessor<number> => {
   const frames = useContext(FramesContext)

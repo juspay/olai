@@ -22,8 +22,8 @@
  * (`./App.tsx`, for the palette's pin row).
  *
  * And because the memo has a RULE in it that both of them need. Every frame the
- * server publishes replaces every element of `names` with a fresh object — the
- * store writes frames with `reconcile(next, { key: null })` and no `merge`
+ * server published used to replace every element of `names` with a fresh object
+ * — the store wrote frames with `reconcile(next, { key: null })` and no `merge`
  * (docs/brainstorming/reactivity-after-the-flip.md §2) — so a memo that merely
  * built the table notified on EVERY frame, whatever the frame said. Its readers
  * are the leaves: every `NodeTitle`'s face memo, every `EdgeRefs` row, every
@@ -35,6 +35,24 @@
  * whose `equals` compares the MEMBERSHIP, so the value's identity means "the
  * answer changed" rather than "a frame arrived", and Solid keeps the previous
  * value when the comparator says they are equal.
+ *
+ * ## Why the `equals` stayed when the merge learned about keys
+ *
+ * `@olai/surface`'s `page` stream declares `arrayKey: "key"` now
+ * (juspay/kolu#2190), which took two thirds of the paragraph above away: `names`
+ * carries no `key`, so it merges BY POSITION, and neither a repeated frame nor a
+ * frame in which only a ROW moved writes anything into it. Those used to wake
+ * the copy and be stopped here; they do not wake it at all, and the audit's 2.10
+ * as originally written is upstream's now.
+ *
+ * It is kept for the case a key cannot reach: a NAVIGATION. A new question
+ * blanks the subscription, so its first frame has nothing to merge into and the
+ * store adopts it whole — every reader wakes, whatever the value says. Two
+ * pages naming the same ids is the ordinary case (a zoom in, a zoom out, the
+ * same outline reached twice), and without the comparison every leaf of the
+ * arriving page would re-run for a table saying what the last one said. That is
+ * measured rather than argued: `./names.browsertest.ts`'s second half counts the
+ * copy's own runs on both sides of the declaration.
  *
  * THE COPY IS THE MECHANISM, not a nicety, and it is the one thing that
  * arrangement needs here and does not need there. A comparator needs two

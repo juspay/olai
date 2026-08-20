@@ -31,6 +31,8 @@ notifies on an identical frame: rows[$TRACK] 1 · rows[0] 1 · rows[0].node.titl
 
 With `key: null` and no `merge`, `applyState` diffs arrays by reference; nothing off the wire is `===` the previous element, so every `Row`, `Named`, crumb, `Backlink`, `Referrer`, `DayEntry` is replaced wholesale, and `arr[$TRACK]` fires. (`{ key: null, merge: true }` would recycle by index; `key: "key"` would recycle by the row key where one exists.) So: `reading.page()`, `.shows`, `.shows.rows`, `.names`, `.zoomed` are frame-stable — `PageView`'s `page`/`allDrawn` memos do not re-run per frame — but **anything keyed by reference over a wire array remounts on every frame of that page**, and anything reading a row through a `<Key>` item signal re-evaluates all of its bindings for all rows.
 
+*(This fact is as it was measured, and it is what the findings below were found against. It stopped being the whole truth on 2026-08-20: a member can DECLARE what identifies a row now, and four of olai's do — see the LANDED block at the end of §3.5, which is where the numbers on both sides of that are.)*
+
 ## 3. The findings
 
 Severity: **A** = DOM remount / flicker or a wire re-subscription / re-ask; **B** = wasted recomputation; **C** = stale or wrong UI. Verification: **M** = measured in a browser (§1 or the Fact B replay); **R** = the full code path was read and the claim rests on nothing unverified; **r** = reasoned from code, not run.
@@ -129,6 +131,27 @@ and `edit/redraws.ts`'s header already says as much in its own words.
 | 5.3 | `@kolu/surface/src/solid/createReactiveSubscription.ts` | Fact A's clause (a), which is the framework diverging from its own docstring: the header says the subscription re-establishes "whenever the input **changes**", and the implementation is `on(inputFn, …)`, which fires when the input NOTIFIES. Every consumer therefore has to re-impose the equality by hand, and each of them writes the same paragraph explaining why (`PageView.tsx`, `dates.ts`'s `createOwed`, `moving.tsx`, and — found by PR 3 — `document/Hypertext.tsx`) | Compare the input where the schema is: the binding loop in `surfaceClient.ts` (`for (const [key] of Object.entries(spec.streams))`) has `inputSchema` in hand, so `Schema.toEquivalence(…)` lifted over `null` is the right equality for every stream of every surface with no app knowledge. After it lands, `moving.tsx`'s `request` memo and its `null`-lifting go, and `createOwed`'s "hand me a memo" contract stops being the caller's to keep |
 
 After the kolu change lands, bump the npins pin here and delete whatever client-side `equals` 2.10 needed.
+
+**LANDED, 2026-08-20 — juspay/kolu#2190 (`b6378c576`), and olai's pin bump beside it.** Appended rather than written over: what §3.5 asked for is above, and this is what came back.
+
+| # | What shipped upstream | What olai did with it |
+|---|---|---|
+| 5.1 | `CellSpec` / `StreamSpec` / `CollectionSpec` take **`arrayKey?: string`**, carried on the member's descriptor to the one seam that merges; a declared merge is `{ key: <field>, merge: true }`. Elements carrying the field are diffed BY it; elements that do not are merged BY POSITION, which is silent on a repeated frame just the same; an undeclared member is unchanged in every particular | Four members declare: `page` → `key`, `pins` → `id`, `pending` → `path`, `chat` → `name`. `errors` declares nothing and says why (no field identifies an `OutlineError`); the three `deltas` collections cannot — the batched delivery replaces each named leaf whole. Pinned per site against the schema, the way kolu pins its own (`packages/surface/src/surface.test.ts`) |
+| 5.2 | `Subscription.changed(handler)` — the same change-iff-fired law, the same moments, no `{prev, next}` and **no clone at all** | `reading.tsx` reads it; `packages/web/src/client/frames.ts` and its browsertest are deleted whole. The stand-in's own header said this was the day |
+| 5.3 | **Not shipped.** #2190 covers 5.1 and 5.2 only | Every consumer still re-imposes the input equality by hand, exactly as this row describes. The four sites it names are unchanged and correct; the row stands |
+
+**2.11, measured on both sides of the declaration** (`packages/web/src/client/Tree.browsertest.ts`, over `writeWrappedValue` with the key the spec ships and with none — the undeclared arm is a test too, so nobody can make the declared case pass by making the merge silent everywhere). Three top-level rows, one per-row binding each; a `Branch` has ~25, so multiply:
+
+| Frame | Per-row bindings re-run, before | after |
+|---|---|---|
+| an IDENTICAL frame replayed | **3 of 3** | **0** |
+| one row's title changed | **3 of 3** | **1** |
+| a row three levels down retitled | **3 of 3** | **0** |
+| the rows REORDERED, no content changed | **3 of 3** | **0** — the objects move with their rows |
+
+`rows[$TRACK]` fires **1** on an identical frame before and **0** after, which is §6's own replay reading the same as it did against Solid 1.9.14.
+
+**2.10 stayed, and the measurement is why** (`names.browsertest.ts`'s second half). `names` carries no `key`, so it merges by POSITION: a repeated frame and a frame in which only a ROW moved now write nothing into it and never wake the copy — for those, the `equals` is spent. What it still earns is the case a key cannot reach: a NAVIGATION blanks the subscription, so its first frame has nothing to merge into and the store adopts it whole, and two pages naming the same ids (a zoom in, a zoom out, the same outline reached twice) is the ordinary case.
 
 ## 4. What is already right — do not touch
 
