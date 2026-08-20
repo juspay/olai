@@ -192,12 +192,13 @@ export const createMoving = (
    * hits and this is what asks about them; one line between the two, and it is
    * an accessor.
    *
-   * {@link NONE} until a panel is open, and a spent accessor after one closes:
-   * both are read only through the request below, which asks nothing at all
-   * with no row standing.
+   * TWO NAMES for the two halves, and they are two things rather than one
+   * spelled twice: `hitIds` is WHOSE reading this is — the open panel's, or
+   * {@link NONE} while there is no panel — and `aimed` is WHAT IT SAYS, by
+   * value, which is the only form a subscription's argument may take.
    */
-  const [aiming, setAiming] = createSignal<Accessor<ReadonlyArray<string>>>(NONE)
-  const aimed = createMemo<ReadonlyArray<string>, undefined>(() => aiming()(), undefined, {
+  const [hitIds, setHitIds] = createSignal<Accessor<ReadonlyArray<string>>>(NONE)
+  const aimed = createMemo<ReadonlyArray<string>, undefined>(() => hitIds()(), undefined, {
     // BY VALUE, and this is not tidiness: the shortlist's hits are a fresh
     // array on every answer, and this is a SUBSCRIPTION'S INPUT — so compared
     // by reference the stream would tear down and re-open on every answer, the
@@ -406,7 +407,7 @@ export const createMoving = (
       batch(() => {
         // `() => NONE` and not `NONE`: a function handed to a setter is an
         // updater, so an accessor is set through one that answers with it.
-        setAiming(() => NONE)
+        setHitIds(() => NONE)
         setStanding({ kind: "picking", ...at })
       })
     },
@@ -430,7 +431,7 @@ export const createMoving = (
                 // The accessor, held as a VALUE — Solid reads a function passed
                 // to a setter as an updater, so a signal whose value is a
                 // function is set through one that answers with it.
-                onAimed={(ids) => setAiming(() => ids)}
+                onAimed={(ids) => setHitIds(() => ids)}
                 onWrite={write}
                 onClose={close}
               />
@@ -456,9 +457,8 @@ export const createMoving = (
   }
 }
 
-/** No destinations, because no panel is open — the accessor {@link
- *  createMoving}'s `aiming` holds before a shortlist has handed up its own. A
- *  module constant so that every read of it is the same empty array and the
- *  memo over it settles on the first comparison. */
-const EMPTY: ReadonlyArray<string> = []
-const NONE = (): ReadonlyArray<string> => EMPTY
+/** No destinations, because no panel is open — what {@link createMoving}'s
+ *  `hitIds` holds before a shortlist has handed up its own reading. The array
+ *  is fresh per call and that costs nothing: what reads it compares by value
+ *  ({@link ../ids.ts}), so an empty list is an empty list. */
+const NONE = (): ReadonlyArray<string> => []
