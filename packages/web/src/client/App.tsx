@@ -54,6 +54,7 @@ import { SHEET, SHELL_LONE, SHELL_SPLIT } from "./layout/sheet.ts"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
 import { ServedProvider } from "./served.tsx"
+import { Preferences } from "./settings/Preferences.tsx"
 import { Sidebar } from "./Sidebar.tsx"
 import { TodayProvider } from "./today.tsx"
 import { connectionReadout, olai } from "./wire.ts"
@@ -375,6 +376,9 @@ export default function App() {
                         owed={owed()}
                         open={desktop() ? true : menuOpen()}
                         onClose={() => setMenuOpen(false)}
+                        foot={
+                          desktop() ? undefined : <Preferences where="closet" />
+                        }
                       >
                         <Calendar today={today()} open={openDay()} />
                       </Sidebar>

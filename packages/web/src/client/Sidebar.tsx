@@ -21,9 +21,8 @@
  * Desktop: a resizable column when open, replaced by the icon rail when
  * minimized (./layout/Rail.tsx). Mobile: a slide-over drawer with scrim under
  * the header — not the old capped close-on-any-tap sheet. The column is the
- * directory; on a phone the preferences live at the foot of it (the closet),
- * because they are not a fifth chip in the bar. Connection and git are
- * banners when they are news (`./News.tsx`); the agent is the thumb strip.
+ * directory. App chrome that sits at the foot of the phone drawer (preferences)
+ * arrives as {@link Sidebar.foot} so this module does not import it.
  *
  * Directory nodes fold client-locally like the outline tree's folds, and are
  * REMEMBERED the same way (./fold/folders.ts): nothing is written to the
@@ -116,11 +115,9 @@ import { openFolders, toggleFolder } from "./fold/folders.ts"
 import { LAYER, WITHIN } from "./layer.ts"
 import { ENTRY_SHAPE, REGION, ROW_GAP } from "./layout/entry.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
-import { desktop } from "./layout/media.ts"
 import { setSidebarOpen } from "./layout/prefs.ts"
 import { Shelf } from "./pins/Shelf.tsx"
 import { Link, useRouter } from "./router.tsx"
-import { Preferences } from "./settings/Preferences.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET_BOX } from "./touch.ts"
 import { atFile } from "./routes.ts"
@@ -161,6 +158,13 @@ export function Sidebar(props: {
    *  first frame is still arriving, and then the entry claims nothing. */
   readonly owed: Owed | undefined
   readonly children?: JSX.Element
+  /**
+   * Phone drawer footer. App chrome that is not the directory — preferences —
+   * is composed here by the caller so this column does not import it.
+   * Always mounted on a phone even while the drawer is `hidden`, so opening
+   * it and putting the drawer away does not unmount the panel.
+   */
+  readonly foot?: JSX.Element
   /**
    * Mobile drawer open. Desktop always draws the column when this component
    * is mounted (the parent swaps in the rail when minimized).
@@ -325,15 +329,12 @@ export function Sidebar(props: {
             <Trash />
           </div>
         </div>
-        {/* Phone only, and ALWAYS mounted on a phone — even while the drawer
-            is `hidden` — so opening preferences and putting the drawer away
-            does not unmount the panel. Desktop keeps the trigger in the
-            header. Clicks here do not go through the body's close-on-navigate,
-            because this is not a directory row. */}
-        <Show when={!desktop()}>
-          <div class="shrink-0 border-t border-paper/15 p-3">
-            <Preferences where="closet" />
-          </div>
+        <Show when={props.foot}>
+          {(foot) => (
+            <div class="shrink-0 border-t border-paper/15 p-3">
+              {foot()}
+            </div>
+          )}
         </Show>
       </nav>
     </>
