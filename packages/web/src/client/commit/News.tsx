@@ -13,6 +13,7 @@ import { Portal } from "solid-js/web"
 import { createNow } from "./ago.ts"
 import { explain, faceOf, isInert, isNews, newsSays } from "./said.ts"
 import { Panel } from "./Panel.tsx"
+import { BANNER } from "../readout.ts"
 import { createPopover } from "../popover.ts"
 import { autoPush } from "../settings/autopush.ts"
 import { createCommit } from "./state.ts"
@@ -37,7 +38,7 @@ export function GitNews() {
         <button
           type="button"
           ref={panel.setTrigger}
-          class={`flex min-h-11 w-full items-center justify-between gap-2 border-b border-rule bg-paper px-4 py-2.5 text-left text-sm ${
+          class={`${BANNER} justify-between ${
             alarm() ? "text-alarm" : "text-doing"
           }`}
           data-testid={TESTID.gitNews}

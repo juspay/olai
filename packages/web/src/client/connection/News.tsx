@@ -10,6 +10,7 @@
 import { Show } from "solid-js"
 
 import { isDegraded, lookOf, type SurfaceReadout } from "./status.ts"
+import { BANNER } from "../readout.ts"
 import { TESTID } from "../testids.ts"
 
 export function ConnectionNews(props: { readonly readout: SurfaceReadout }) {
@@ -17,7 +18,7 @@ export function ConnectionNews(props: { readonly readout: SurfaceReadout }) {
   return (
     <Show when={isDegraded(props.readout)}>
       <div
-        class="flex w-full min-h-11 items-center gap-2 border-b border-rule bg-paper px-4 py-2.5 text-sm text-doing"
+        class={`${BANNER} text-doing`}
         data-testid={TESTID.connection}
         data-connection={props.readout.status}
         data-stopped={props.readout.stopped?.join(" ")}
