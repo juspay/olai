@@ -205,13 +205,24 @@ export const createAsked = (source: {
     }
   })
 
+  /**
+   * ONLY WHILE SOMETHING IS ASKED, which is the guard the resource does not
+   * give: `latest` keeps the last value it resolved even after the source goes
+   * away, so a box emptied and typed into again would draw the PREVIOUS
+   * filter's rows for the length of a settle — the whole page, then four rows
+   * of an answer to a question nobody asked, then the answer. Holding still is
+   * only honest between two queries of one session; across a clear there is
+   * nothing to hold, and the page is whole until the first answer lands.
+   */
+  const held = () => (asked() === null ? undefined : answer.latest)
+
   return {
-    matched: () => answer.latest?.matches,
+    matched: () => held()?.matches,
     // In flight, the rows on screen are the LAST query's, so they answer
     // nothing anybody is asking — and during the settle, before `asked` moves,
     // they answer the query they were fetched for, which is what the text
     // riding on the answer says.
-    answering: () => (answer.loading ? null : answer.latest?.text ?? null),
+    answering: () => (answer.loading ? null : held()?.text ?? null),
     failure,
     offline,
   }
