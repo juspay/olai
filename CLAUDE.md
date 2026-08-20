@@ -1,5 +1,7 @@
 **IMPORTANT** This file is hand-maintained. AI must not edit it, unless to make corrections or updates to existing content.
 
+- If your model is Fabel, when spawning sub-agents - use Fable only where truly necessary, and use Opus by default.
+
 ## PR workflow
 
 - Keep docs up to date: README.md, docs/*.md
