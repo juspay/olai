@@ -41,14 +41,18 @@
  * {@link markRegion} is the same reading asked of ANY region, for the lists
  * that are rebuilt by something other than a navigation (PR 2 of the same
  * campaign: every list drawn over a wire array, on every frame of its page or
- * every answer it draws). It watches for one more thing, which the navigation
- * probe has no use for: whether a `role="alert"` under the region MOVED — a
- * live region rebuilt with the same words in it is a sentence read out loud a
- * second time, and that is a fact about mutations rather than about what is on
- * screen at the end.
+ * every answer it draws). It watches for one more thing: whether a
+ * `role="alert"` under the region MOVED — a live region rebuilt with the same
+ * words in it is a sentence read out loud a second time, and that is a fact
+ * about mutations rather than about what is on screen at the end.
  *
- * They keep separate slots and separate serials, so a scenario may plant both
- * and neither reads the other's marks.
+ * The MARKS ARE ONE PLANT, though, and `markScreen` lays them by calling
+ * `markRegion` over the sidebar: "did these elements survive" is one question
+ * however the gesture that raised it is spelled, and two spellings of it would
+ * be two definitions of what an element is to compare. So there is one slot and
+ * one serial, and a second plant REPLACES the first — a scenario marks the
+ * screen or marks a region, and then says as many things about that one plant
+ * as it means to.
  */
 
 import * as assert from "node:assert";
