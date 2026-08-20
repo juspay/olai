@@ -61,11 +61,23 @@
  * question asked while the wire was down, the box inert wearing the pill's own
  * words. It does not any more, because the app-wide ruling landed: a wire that
  * cannot carry a question FREEZES THE APP under an overlay
- * (`vault-in-browser.md` §5b, `../connection/Offline.tsx`), so there is no
- * keystroke to refuse and no box on screen to draw a reason on. What is left
- * here is the one rule the freeze does not make: the last answer stands
+ * (`vault-in-browser.md` §5b, `../connection/Offline.tsx`), so no keystroke
+ * ARRIVES to be refused and there is no box on screen to draw a reason on. What
+ * is left here is the one rule the freeze does not make: the last answer stands
  * through a refused call, because a narrowed page may not blank under somebody
  * because a socket blinked.
+ *
+ * ONE QUESTION CAN STILL BE SENT INTO A DEAD SOCKET, and it is worth naming
+ * rather than implying it away: the settle already ticking when the wire drops
+ * ({@link SETTLE_MS}) fires into it, where the deleted guard used to clear the
+ * timer. Both branches are honest. If the call is refused, the failure lands in
+ * its own slot with the answered rows still standing — the rule above — and it
+ * is drawn BEHIND the overlay, where nobody is reading it; when the wire
+ * returns, the generation below re-asks and a successful answer clears it. If
+ * the socket comes back first, the call simply lands. Clearing the timer
+ * instead would mean this door reading the connection again — the exact thing
+ * the overlay took away from it — to suppress a line nobody can see, so the
+ * tail is documented rather than closed. (opencode, review of #277.)
  *
  * COMING BACK IS ALREADY WRITTEN, and it is the set's generation that writes
  * it ({@link Ask.at}): a reconnect re-opens the subscription with a full

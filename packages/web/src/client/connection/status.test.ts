@@ -34,7 +34,8 @@ const STATES: ReadonlyArray<SurfaceReadoutStatus> = [...TABLED, "degraded"]
  *
  *  `needsReload` is fixed rather than derived: which states are terminal is the
  *  readout's rule and pinned upstream, nothing here reads the bit (it is
- *  `Connection.tsx`'s), and re-deriving it in a fixture would be that rule
+ *  `Offline.tsx`'s, which draws the reload offer on the freeze it is true
+ *  under), and re-deriving it in a fixture would be that rule
  *  living on as a second copy in a file about wording. */
 const readoutOf = (status: SurfaceReadoutStatus): SurfaceReadout =>
   status === "degraded"

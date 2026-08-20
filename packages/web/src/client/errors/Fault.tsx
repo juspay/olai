@@ -20,12 +20,13 @@
  * state left worth resuming.
  *
  * TWO, because a reload alone can be a loop. `reloadForUpdate` is the
- * framework's reload, for the reason ../connection/Connection.tsx gives — it
- * lands on the `no-store` shell and the bundle that shell names rather than on
- * whatever a cache still remembers, which matters more here than anywhere,
- * since a stale bundle may be the very thing that threw. But a fault is usually
- * deterministic FOR THE PAGE it happened on: #70's crashed on opening a day, and
- * a reader sitting on `/d/2026-08-09` can press Reload all afternoon. So there
+ * framework's reload, for the reason ../connection/Offline.tsx gives where the
+ * other Reload button lives — it lands on the `no-store` shell and the bundle
+ * that shell names rather than on whatever a cache still remembers, which
+ * matters more here than anywhere, since a stale bundle may be the very thing
+ * that threw. But a fault is usually deterministic FOR THE PAGE it happened on:
+ * #70's crashed on opening a day, and a reader sitting on `/d/2026-08-09` can
+ * press Reload all afternoon. So there
  * is also the way out of that page — a real document navigation to `/`, not a
  * `<Link>`, whose router lives inside the tree that has just come down. It is
  * what ./NotFound.tsx already does with the sidebar: a dead end is not a reason
