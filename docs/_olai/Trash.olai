@@ -38,3 +38,6 @@
 {"id":"lane-wn-deferrals","parent":"lane-whatsnew","ord":"a8","title":"deferrals ruled #human","todo":true,"after":["lane-wn-evidence"],"created":"2026-08-19T18:21:37-04:00"}
 {"id":"lane-wn-merge","parent":"lane-whatsnew","ord":"a9","title":"merge","todo":true,"after":["lane-wn-deferrals"],"created":"2026-08-19T18:21:37-04:00"}
 {"id":"lane-wn-retire","parent":"lane-whatsnew","ord":"aA","title":"retire terminals","todo":true,"after":["lane-wn-merge"],"created":"2026-08-19T18:21:37-04:00"}
+{"id":"iqi040lz","ord":"a2","title":"_olai/Pins.olai"}
+{"id":"fm0j8eua","parent":"iqi040lz","ord":"a0","title":"[deferred today](/roadmap.olai?q=%23deferral+created%3Atoday)","created":"2026-08-20T14:21:03-04:00"}
+{"id":"lc1nctji","parent":"iqi040lz","ord":"a1","title":"[created today](/roadmap.olai?q=created%3Atoday)","created":"2026-08-20T11:26:42-04:00","changed":"2026-08-20T11:27:02-04:00"}
