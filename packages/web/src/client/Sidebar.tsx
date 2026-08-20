@@ -117,7 +117,7 @@ import { setSidebarOpen } from "./layout/prefs.ts"
 import { Shelf } from "./pins/Shelf.tsx"
 import { Link, useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
-import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
+import { CONTROL, TARGET_BOX } from "./touch.ts"
 import { atFile } from "./routes.ts"
 
 /** One file entry. Workflowy-quiet: soft hover, a wash when current.
@@ -128,10 +128,12 @@ import { atFile } from "./routes.ts"
  *  one and has a single child, where a gap is inert. */
 const ENTRY = `${ENTRY_SHAPE} ${ROW_GAP}`
 
-/** A directory row: folds, does not navigate. */
-const DIR =
-  `flex ${TARGET} items-center ${ROW_GAP} rounded-xl px-1 py-1 text-[0.875rem] ` +
-  "leading-snug text-paper/65 hover:bg-paper/10 hover:text-paper md:min-h-0"
+/** A directory row: folds, does not navigate. Same SHAPE as a file — the
+ *  padding, the gap, the type — because a different left edge was the whole
+ *  of why a folder's glyph sat in a different column from a file's. The ink
+ *  is the folder's own (muted, brightening under the pointer); current-page
+ *  wash is a file's, and a button does not carry it. */
+const DIR = `${ENTRY_SHAPE} ${ROW_GAP} text-paper/65 hover:text-paper`
 
 interface TreeView {
   readonly isActive: (file: string) => boolean
@@ -476,7 +478,9 @@ function Dir(props: {
         </span>
         {/* The triangle says whether it is OPEN; this says it is a folder at
             all — which the triangle cannot, because every fold control in the
-            app is one (`./file/icons.tsx`). */}
+            app is one (`./file/icons.tsx`). The triangle sits in CONTROL, and
+            a file row holds that same box empty, so this glyph and a file's
+            occupy one column. */}
         <Glyph of="folder" />
         <span class="break-all">{props.row.name}</span>
       </button>
@@ -501,7 +505,7 @@ function File(props: {
   const outline = props.row.of === "outline"
 
   return (
-    <li class="mb-1">
+    <li class="mb-0.5">
       <Link
         route={atFile(props.row.file)}
         class={ENTRY}
@@ -509,6 +513,12 @@ function File(props: {
         current={props.view.isActive(props.row.file)}
         broken={outline && props.view.broken.has(props.row.file)}
       >
+        {/* The fold control's box, empty: a file has no triangle, and leaving
+            the cell out put its glyph where a folder's triangle sits — so the
+            four drawings that were supposed to be one column (`./file/icons.tsx`)
+            never were. The outline tree already holds this seat open
+            (`./Tree.tsx`'s HOVER_CELL fallback). */}
+        <span class={CONTROL} aria-hidden="true" />
         {/* Which kind of file this is — the thing four characters of extension
             were carrying on their own (`./file/icons.tsx`). */}
         <Glyph of={props.row.of} />
