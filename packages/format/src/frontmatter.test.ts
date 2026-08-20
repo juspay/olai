@@ -1,19 +1,26 @@
 /**
  * The `---` block: where it ends, and what a reader gets out of it.
  *
- * Two rules with two very different failure modes, so they are two sections
- * below. WHERE IT ENDS has to agree with micromark, because the browser
- * renders through `remark-frontmatter` — a disagreement there is a page that
- * hides a block the face read, or a face that read a document's first
- * paragraph as a record. `@olai/web`'s `markdown/slugs.test.ts` is the other
- * half of that pair, holding this rule to the real pipeline over bodies that
- * carry one; these are the corners a rendered `<h1>` cannot show.
+ * Two rules, and this file is the RULES THEMSELVES, written out: what
+ * `proseIn` and `frontmatterIn` answer, corner by corner, in the vocabulary of
+ * this package alone. Nothing here reaches for a library.
  *
- * WHAT A VALUE IS has no such twin, because nothing else in this app reads
- * YAML. What it has instead is a stated subset (`./frontmatter.ts`'s header),
- * and these are the sentences of it — including, deliberately, the refusals:
- * a key this reading will not read is a key the document does not carry, and
- * that has to be as pinned as the ones it does.
+ * That is deliberate, and it is half of a pair. Neither rule is ours to invent
+ * — a `.md` in somebody's vault is read by GitHub, by an editor, by a static
+ * site builder — so each is FENCED against the real thing in a file of its
+ * own, where the library lives as a devDependency and nothing ships it:
+ *
+ *   - WHERE IT ENDS — `@olai/web`'s `markdown/frontmatter.test.ts`, which
+ *     renders every corner below through `remark-frontmatter` and through
+ *     `proseIn` and requires the same page.
+ *   - WHAT A VALUE IS — `./frontmatter.library.test.ts`, which asks `yaml`
+ *     the same lines and requires that we agree, refuse together, or are
+ *     narrower for a reason the module header argues by name.
+ *
+ * So the sentences below are the readable statement of the rule and those two
+ * are what keep it honest. Both include, deliberately, the REFUSALS: a key
+ * this reading will not read is a key the document does not carry, and that
+ * has to be as pinned as the ones it does.
  */
 
 import { expect, test } from "bun:test"
@@ -165,6 +172,34 @@ test("a refused member refuses the list", () => {
   expect(frontmatterIn("---\nowners:\n  - alice\n  - { b: 1 }\n---\n")).toEqual({})
   expect(frontmatterIn("---\nowners: [alice, [bob]]\n---\n")).toEqual({})
   expect(frontmatterIn("---\nowners:\n  -\n  - bob\n---\n")).toEqual({})
+})
+
+/**
+ * A `#` IN A FLOW SEQUENCE refuses the list, and it is worth its own case
+ * because the shape is so inviting: `tags: [#home, #kitchen]` reads like a
+ * list of two tags and is a list to nobody. A plain scalar may not OPEN with a
+ * `#`, so `yaml` refuses that document outright; and a `#` with whitespace in
+ * front of it opens a COMMENT that runs to the end of the line, taking the
+ * closing bracket with it, so `[a #b, c]` is a sequence nobody closed. Reading
+ * either as the members left over would be handing back a list assembled out
+ * of what a comment ate.
+ *
+ * `./frontmatter.library.test.ts` holds every line here against the real
+ * parser, which refuses all five and reads both spellings that work.
+ */
+test("a # in a flow sequence refuses the list, quoted is how it is written", () => {
+  expect(frontmatterIn("---\ntags: [#home, #kitchen]\n---\n")).toEqual({})
+  expect(frontmatterIn("---\ntags: [#home]\n---\n")).toEqual({})
+  expect(frontmatterIn("---\ntags: [a, #b]\n---\n")).toEqual({})
+  expect(frontmatterIn("---\ntags: [a #b, c]\n---\n")).toEqual({})
+  expect(frontmatterIn("---\ntags: [a, b #c]\n---\n")).toEqual({})
+  // The two spellings that DO work, so the refusal above reads as a rule
+  // rather than as "hashes are unwelcome": quote the member, or write a `#`
+  // with no whitespace in front of it.
+  expect(frontmatterIn("---\ntags: ['#home', '#kitchen']\n---\n"))
+    .toEqual({ tags: ["#home", "#kitchen"] })
+  expect(frontmatterIn("---\ntags: [kitchen#2, x]\n---\n"))
+    .toEqual({ tags: ["kitchen#2", "x"] })
 })
 
 // A stray `- item` above every key belongs to nothing — a top-level sequence

@@ -13,7 +13,8 @@ import { expect, test } from "bun:test"
 import { addressOf, printAddress } from "./address.ts"
 import { referrersTo } from "./backlinks.ts"
 import { faceOf } from "./document.ts"
-import { derive } from "./derive.ts"
+import { linksIn } from "./documents.ts"
+import { derive, tagsIn } from "./derive.ts"
 import { matching, matchingDocuments, parseFilter, rankedTogether } from "./filter.ts"
 import { recordsOf, setOf } from "./fixtures.testlib.ts"
 import { bodiedIn, markdownIn, type OutlineSet } from "./set.ts"
@@ -159,6 +160,51 @@ test("a document's face is read past its frontmatter", () => {
     tags: "#draft",
     seen: "[the brief](../brief.md)",
   })
+})
+
+/**
+ * THE BOUNDARY THE WHOLE STRIP TURNS ON: a `.md` is a FILE and has
+ * frontmatter; a node's NOTE is a field on a record and does not.
+ *
+ * `tagsIn` and `linksIn` are asked of both — `bodiedDocument` hands them a
+ * document's prose, `recordLinks` and `writtenTags` hand them a record's title
+ * and note as written — so the skip lives at the caller and not in them. That
+ * is a claim about two functions with no test on it until now, and it is the
+ * load-bearing one: it is why `@olai/web`'s markdown pipeline is deliberately
+ * innocent of the block (`markdown/pipeline.ts`). If a note's leading `---`
+ * were skipped here, the pipeline would have to hide it there, and every note
+ * that opens with a thematic break would lose it off the screen.
+ *
+ * The render half of the same boundary is pinned next door — `slugs.test.ts`
+ * hands the pipeline a whole body and requires the `<hr>` back. This is the
+ * indexing half.
+ */
+test("a note is not a file, so a leading --- block is prose in one", () => {
+  const text = [
+    "---",
+    "tags: '#home'",
+    "seen: '[the brief](../brief.md)'",
+    "---",
+    "",
+    "Talk to @alice.",
+  ].join("\n")
+
+  // AS A NOTE, the block is prose: the `#home` in it is a tag somebody wrote,
+  // and the `[…](…)` is a link this note points along. Nothing skipped.
+  expect(tagsIn(text).map(String)).toEqual(["#home", "@alice"])
+  expect(linksIn("house.olai", text).map(printAddress)).toEqual(["brief.md"])
+
+  // AS A DOCUMENT, the same six lines index neither — the block is the file's
+  // own record, and what it holds is a PROPERTY. One text, two readings, and
+  // the difference is entirely which kind of thing is asking.
+  const set = setOf({ "house.olai": `{"id":"a","ord":"a0","title":"a"}` }, [
+    ["notes/note.md", text],
+    ["brief.md", "# Brief\n"],
+  ])
+  const document = markdownIn(set).find((one) => one.path === "notes/note.md")
+  expect(document?.tags.map(String)).toEqual(["@alice"])
+  expect(document?.links.map(printAddress)).toEqual([])
+  expect(document?.props).toEqual({ tags: "#home", seen: "[the brief](../brief.md)" })
 })
 
 // …and the same sentence read the other way: `-is:done` asks for what is not

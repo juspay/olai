@@ -104,6 +104,16 @@
  * a property this document carries — which is the same answer a document gets
  * for a key nobody wrote, and is why a reader can never be shown half a value.
  *
+ * A `#` ANYWHERE IN A FLOW SEQUENCE refuses the list, and that is the same
+ * sentence rather than a new one: `[#home, #kitchen]` is not a list of two
+ * tags — `yaml` refuses it, because a plain scalar may not OPEN with a `#` —
+ * and `[a #b, c]` is a sequence whose closing bracket a comment ate. Both are
+ * errors to the library and both are a key this document does not carry here.
+ * `['#home', '#kitchen']` is how that list is written, and `[kitchen#2, x]`
+ * needs no quoting at all: a `#` with no whitespace in front of it is part of
+ * the word. `./frontmatter.library.test.ts` holds every one of those against
+ * the real parser.
+ *
  * A key written twice keeps its FIRST claim, exactly as the id table does
  * (`./derive.ts`'s `byId`): a later line silently replacing an earlier one is
  * the kind of thing a person has to run the parser to see.
@@ -500,6 +510,16 @@ const flowSequence = (inside: string): ReadonlyArray<string> | null => {
       quote = char
       continue
     }
+    // A `#` WITH WHITESPACE IN FRONT OF IT OPENS A COMMENT, and a comment in a
+    // flow context runs to the END OF THE LINE — taking the closing bracket
+    // with it, so `[a #b, c]` is a sequence nobody ever closed and `yaml`
+    // refuses it outright. {@link scalarOf}'s comment rule is right for the two
+    // places a comment really can end a value (after `key: `, and after a `-`
+    // item, where the line ending IS the value's end) and wrong here, where it
+    // would hand back `["a", "c"]` — a list assembled out of what a comment ate.
+    // So the whole list goes, which is this function's standing rule for a
+    // member it cannot read.
+    if (char === "#" && (inside[at - 1] === " " || inside[at - 1] === "\t")) return null
     if (char !== "," && char !== undefined) continue
     const value = scalarOf(inside.slice(from, at).trim())
     from = at + 1
