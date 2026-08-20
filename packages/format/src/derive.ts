@@ -467,19 +467,20 @@ export const tagInto = (
 export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   // `Map.groupBy` is the language's own group-by-key, and grouping by file is
   // exactly that — a hand-rolled accumulator here would be a second spelling
-  // of a built-in (the same note #198 took). The three tables below are not
+  // of a built-in (the same note #198 took). The five tables below are not
   // that shape: one keeps the FIRST claim rather than every one, one skips the
-  // records with no key at all, one keys a record by every id it names and one
-  // by every tag its prose writes — so they share one walk, since none of them
-  // reads what another builds and splitting them is four passes to ask four
-  // things about a record already in hand.
+  // records with no key at all, one keys a record by every id it names, one by
+  // every tag its prose writes, and one by every DAY its dates fall on (which
+  // is 0, 1 or 2 keys per record, so not a grouping at all) — so they share one
+  // walk, since none of them reads what another builds and splitting them is
+  // five passes to ask five things about a record already in hand.
   const byFile = Map.groupBy(nodes, (located) => located.file)
 
   const byId = new Map<string, Located>()
   const children = new Map<string, Array<Located>>()
   const namedBy = new Map<string, Array<{ at: Located; fields: Array<TargetField> }>>()
   const taggedBy = new Map<string, Array<LocatedRegular>>()
-  const dated = new Map<string, Array<Dated>>()
+  const days = new Map<string, Array<Dated>>()
 
   for (const located of nodes) {
     if (!byId.has(located.node.id)) byId.set(located.node.id, located)
@@ -493,7 +494,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
 
     nameInto(namedBy, located)
     tagInto(taggedBy, located)
-    dateInto(dated, located)
+    dateInto(days, located)
   }
 
   // Sorted rather than trusted: a set assembled file by file already arrives
@@ -506,8 +507,8 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   for (const siblings of children.values()) siblings.sort(byOrd)
   // The one index here whose KEYS are promised in an order the walk does not
   // already give ({@link Derived.byDay}): a set is in corpus order, and the days
-  // its records name are in no order at all.
-  const byDay = new Map([...dated].sort(([one], [other]) => byDayKey(one, other)))
+  // its records name arrive in no order at all.
+  const byDay = new Map([...days].sort(([one], [other]) => byDayKey(one, other)))
 
   const { status, mirrorsOf } = resolutions(nodes, byId)
   const { after, edgesTo } = orderings(byId, nodes)

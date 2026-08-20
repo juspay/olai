@@ -425,20 +425,21 @@ export {
   DatedAnswer,
   datedAnswer,
   DatedRequest,
-  datedDays,
   datedIn,
   datedOn,
   isDay,
   sameDated,
 } from "./dates.ts"
 export type { DayEntry, DayGroup } from "./dates.ts"
-/** WHICH of a node's fields put it on a day, and WHICH day that is
- *  (./occasion.ts) — the floor every date reading above stands on, and the fold
- *  the derivation's day index is built with. What crosses this door is the
- *  TEXT half: a day is a prefix of an ISO value and a month is a shorter one,
- *  and every consumer that draws or compares one asks here rather than slicing
- *  for itself. */
-export { dayOf, monthOf, timeOf } from "./occasion.ts"
+/** THE DAY an ISO value falls on (./occasion.ts, which is where the two fields
+ *  that put a node on a day are read and the derivation's day index is folded).
+ *  Public because a browser compares days it was handed against the one its own
+ *  clock says, and a date somebody typed is a datetime as often as not — one
+ *  slicing rule, or two that disagree about half past two. Its neighbours
+ *  `monthOf` and `timeOf` stay inside: what asks about a month asks
+ *  `datedAnswer`, and the only reader of a TIME is the pill `owedFact` already
+ *  prints. */
+export { dayOf } from "./occasion.ts"
 export type { Occasion } from "./occasion.ts"
 /** The one place a date is COUNTED rather than compared (./calendar.ts): which
  *  weekday a day falls on, the day before or after one, the days a month holds.
