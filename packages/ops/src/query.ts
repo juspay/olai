@@ -29,6 +29,7 @@
  */
 
 import {
+  agendaOf,
   ancestorTitles,
   backlinksOf,
   bodiedIn,
@@ -38,6 +39,9 @@ import {
   countedChildren,
   DEFAULT_SEARCH_LIMIT,
   DEFAULT_SUBTREE_DEPTH,
+  type DatedAnswer,
+  datedAnswer,
+  type DatedRequest,
   type Derived,
   type Detail,
   type DocumentBody,
@@ -60,6 +64,9 @@ import {
   nodesOf,
   nothing,
   type OpFailure,
+  type Owed,
+  owedOf,
+  type OwedRequest,
   type OutlineSet,
   outlinePaths,
   type OutlineSummary,
@@ -433,8 +440,57 @@ export const named = (
     named.push({ asked: id, id: at.node.id })
   }
   return { named }
-
 }
+
+// ── the directory's dates, as the sidebar asks them ────────────────────
+
+/**
+ * WHICH DAYS OF ONE MONTH have something on them — the calendar's dots.
+ *
+ * The browser used to walk its own copy of the set for this, once per month
+ * drawn and again on every published revision. It cannot any more
+ * (`docs/brainstorming/vault-in-browser.md`: the browser may hold at most the
+ * page in front of somebody), so the walk runs here and the answer travels —
+ * which is the whole of what changed. The WALK is `@olai/format`'s
+ * {@link datedDays}, unmoved: what is dated, what a mark's own date counts for
+ * and what a put-away outline is excluded from are that module's rulings, read
+ * once for the day page, the agenda and this.
+ *
+ * NOTHING IS ADDED HERE, which is the shape rather than an omission: the walk
+ * and the ORDER it is answered in are both `@olai/format`'s
+ * ({@link datedAnswer}, which is the one way to build one, beside the
+ * equivalence that rests on it). What this layer contributes is the gate the
+ * request arrives through, which is the whole of what a query door is.
+ *
+ * THE WALK IS THE WHOLE SET, per call, and that is true of every date reading
+ * this layer has (`@olai/format`'s `datedNodes`). It was already true when the
+ * browser made the call; what is new is that it now runs per subscriber per
+ * revision, which is exactly the pressure the roadmap's `perf-dates-index`
+ * node exists to answer. Nothing about this shape forces an index first, and
+ * nothing about it gets in one's way: an index changes what `datedDays` costs,
+ * not what it means.
+ */
+export const dated = (derived: Derived, request: DatedRequest): DatedAnswer =>
+  datedAnswer(derived, request.month)
+
+/**
+ * HOW MUCH IS OWED as of the reader's own today — the two numbers the
+ * directory's own entry wears (`@olai/web`'s `agenda/owed.ts`).
+ *
+ * `owedOf` over `agendaOf` and never a count of its own, which is
+ * `@olai/format`'s own ruling about this number read across a wire: the mark
+ * beside the word counts THE ROWS THE AGENDA PAGE DRAWS, so a second walk that
+ * added up late work its own way would be a second reading of one directory,
+ * free to disagree with the page one click away.
+ *
+ * TODAY comes from the REQUEST rather than from this layer's clock, and that is
+ * the one thing this reading takes from the caller. The dates in the files are
+ * what a person wrote down, so what is late is late where that person is
+ * standing; a server that answered from its own zone would put a reader west of
+ * it on tomorrow's arithmetic all evening ({@link OwedRequest}).
+ */
+export const owed = (derived: Derived, request: OwedRequest): Owed =>
+  owedOf(agendaOf(derived, request.today))
 
 // ── one node, and what is under it ─────────────────────────────────────
 

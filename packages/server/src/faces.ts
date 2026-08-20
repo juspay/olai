@@ -175,10 +175,23 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  * `notifications/resources/updated` for the key it already holds; a second
  * resource carrying the revision it would then read anyway is a URI published
  * for nobody. It costs nothing to add the day something asks.
+ *
+ * `dated` and `owed` are a FOURTH and FIFTH, and they are the two STREAMS
+ * this surface grew for `vault-in-browser`'s PR 4 — the sidebar's month of
+ * dots and its count of what is late. Same test as `heads`, same answer: they
+ * are questions only a render-shaped consumer asks. A month of dots is a paint
+ * instruction for a grid somebody is looking at, and two integers about the
+ * reader's own today are a badge. An agent asking what is late asks
+ * `search_nodes` with a date clause and is answered with the NODES — which is
+ * the thing it can act on, and the thing neither of these carries. They also
+ * take an INPUT, which the `surface://` resource vocabulary has no place to
+ * put: an agent could not name a month if it wanted one.
  */
 export const BROWSER: ExposeMap<typeof surface.spec> = {
   outlines: "resource",
   documents: "resource",
+  dated: "resource",
+  owed: "resource",
   heads: "resource",
   transcript: "resource",
   errors: "resource",

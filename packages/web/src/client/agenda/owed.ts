@@ -11,6 +11,12 @@
  * because a third place that marks the agenda (the icon rail is the second) must
  * not be a third argument about what late work looks like.
  *
+ * WHAT IT IS A TABLE OVER is two integers off the wire (../dates.ts's `owed`
+ * stream), which is `docs/brainstorming/vault-in-browser.md`'s PR 4: the
+ * counting is `@olai/format`'s `owedOf` over `agendaOf`, on the server, where
+ * the set is. Nothing here reads a directory, and there is no longer one on this
+ * side to read.
+ *
  * ## Two faces, and why they are the two the date badge already has
  *
  * The app has one alarm vocabulary and it is spent on the DATE: a pill that
@@ -39,7 +45,7 @@
  * click away, on the page that is the answer.
  */
 
-import { type Agenda, type Owed, owedOf } from "@olai/format"
+import type { Owed } from "@olai/surface"
 
 /** Which of the three the entry is wearing. `quiet` is today's entry, unchanged
  *  — an agenda with nothing late and nothing on today is a door, not news. */
@@ -84,9 +90,6 @@ export interface Mark {
   readonly said: string | undefined
 }
 
-/** Nothing owed, and nothing read yet, which draw the same: no claim. */
-const NOTHING: Owed = { overdue: 0, today: 0 }
-
 /** How each face is PAINTED, and the only part of a mark that is a table
  *  lookup — everything else about one is read off the counts. */
 const PAINT: Record<Face, { readonly entry: string; readonly chip: string; readonly dot: string }> = {
@@ -104,21 +107,35 @@ const PAINT: Record<Face, { readonly entry: string; readonly chip: string; reado
 }
 
 /**
- * The mark for one reading of the agenda, or the quiet face for no reading at
+ * The mark for one reading of what is owed, or the quiet face for no reading at
  * all.
  *
- * `undefined` is the frame before the first snapshot arrives, and it draws
+ * IT TAKES THE COUNTS, and it used to take the `Agenda` and count them itself.
+ * The counting is `@olai/format`'s `owedOf` either way and always was — what
+ * changed is WHICH SIDE OF THE WIRE calls it, which is
+ * `docs/brainstorming/vault-in-browser.md`'s PR 4: the two numbers arrive on
+ * the `owed` stream (../dates.ts) and this table paints them. The rule that
+ * made this take an answer rather than a set to walk survives the move intact
+ * and is now enforced by a wire: there is no directory on this side to count a
+ * second way.
+ *
+ * `undefined` is the frame before the first answer arrives, and it draws
  * NOTHING rather than a zero: a mark that claimed "nothing is late" out of a
- * directory it has not read yet is the one lie a readout may never tell (the
- * connection pill's rule, ../connection/Indicator.tsx). The app draws
- * "Reading…" in that frame anyway, so this is a promise about the code rather
- * than a sight anybody meets.
+ * directory it has not been told about is the one lie a readout may never tell
+ * (the connection pill's rule, ../connection/Indicator.tsx).
  *
  * LOUD WINS WHOLE is the one ruling here, and it is spelled twice because it
  * decides two different things: which face, and which number that face prints.
+ *
+ * IT COPIES THE TWO NUMBERS because a MARK IS A VALUE about one moment —
+ * {@link unchanged} compares one against another, so it cannot be two readings
+ * of an object something else is free to move. The constructor is where that is
+ * guaranteed rather than inherited from whoever called it; ../dates.ts keeps
+ * the same promise one layer out, for the wire value's own readers, and the two
+ * are separate promises rather than the same one made twice.
  */
-export const markOf = (agenda: Agenda | undefined): Mark => {
-  const owed = agenda === undefined ? NOTHING : owedOf(agenda)
+export const markOf = (counted: Owed | undefined): Mark => {
+  const owed: Owed = { overdue: counted?.overdue ?? 0, today: counted?.today ?? 0 }
   const face: Face = owed.overdue > 0 ? "overdue" : owed.today > 0 ? "today" : "quiet"
   return {
     face,
@@ -132,12 +149,21 @@ export const markOf = (agenda: Agenda | undefined): Mark => {
 /**
  * Has anything a reader could SEE changed?
  *
- * A mark is minted fresh on every revision the store publishes, and reference
+ * A mark is minted fresh on every frame that reaches this table, and reference
  * equality would push all nine of its bindings into the DOM on each of them —
  * a class, a label, a title and three `data-` facts rewritten because somebody
  * typed a character in an outline. The counts are the whole of what this
  * readout says (the face, the paint and the sentence are all read off them), so
  * comparing them is comparing the mark.
+ *
+ * WHICH IS ONLY TRUE BECAUSE {@link markOf} COPIED THEM. Comparing fields of a
+ * value something else keeps mutating in place is comparing a thing to itself,
+ * which this would report as "nothing changed" forever — the one direction an
+ * `equals` must never be wrong in, since its failure is a frame that is never
+ * drawn. That is not hypothetical: this table was handed the wire's own
+ * reconciled store for one commit, and the chip printed "3" over a directory
+ * owing four while `data-overdue` beside it, read straight through the same
+ * object, said four.
  */
 export const unchanged = (before: Mark, after: Mark): boolean =>
   before.owed.overdue === after.owed.overdue && before.owed.today === after.owed.today

@@ -160,6 +160,23 @@ test("the heads collection is the browser's alone", () => {
   expect(resolved().resources.map((r) => r.key)).not.toContain("heads")
 })
 
+test("the two date streams are the browser's alone", () => {
+  // Not a restatement of the exactness test above — same shape as the `heads`
+  // fence beside it, and the same job: exposing one later trips a failure that
+  // explains itself. A month of dots and two integers about the READER's own
+  // today are questions only something with a screen asks; an agent asking what
+  // is late asks `search_nodes` with a date clause and is answered with the
+  // nodes. They also take an input, and the `surface://` resource vocabulary
+  // has nowhere to put one.
+  expect(BROWSER["dated"]).toBe("resource")
+  expect(BROWSER["owed"]).toBe("resource")
+  expect(Object.keys(MCP)).not.toContain("dated")
+  expect(Object.keys(MCP)).not.toContain("owed")
+  const keys = resolved().resources.map((r) => r.key)
+  expect(keys).not.toContain("dated")
+  expect(keys).not.toContain("owed")
+})
+
 test("the chat's state and transcript are not exposed", () => {
   const keys = resolved().resources.map((r) => r.key)
   expect(keys).not.toContain("chat")
@@ -183,6 +200,7 @@ test("every exposed key names something the spec actually declares", () => {
 const DECLARED = (): ReadonlyArray<string> => [
   ...Object.keys(surface.spec.cells ?? {}),
   ...Object.keys(surface.spec.collections ?? {}),
+  ...Object.keys(surface.spec.streams ?? {}),
   ...Object.entries(surface.spec.procedures ?? {}).flatMap(([ns, verbs]) =>
     Object.keys(verbs).map((verb) => `${ns}.${verb}`)
   ),

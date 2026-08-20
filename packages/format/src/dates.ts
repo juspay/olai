@@ -56,7 +56,7 @@
  * business being the first place in the codebase that risks it.
  */
 
-import { Order } from "effect"
+import { Order, Schema } from "effect"
 
 import {
   type Derived,
@@ -289,6 +289,72 @@ export const datedDays = (derived: Derived, month: string): ReadonlySet<string> 
   }
   return days
 }
+
+/**
+ * What a reader ASKS {@link datedDays} — one month, the one on screen.
+ *
+ * A shape on the floor rather than a string on a wire, and for the reason
+ * `./searching.ts` gives about every other question this format is asked: since
+ * `vault-in-browser`'s PR 4 the calendar's dots are computed on the server and
+ * drawn in a browser, so the question crosses a wire, and a vocabulary spelled
+ * in the wire spec would be a second spelling of this one free to drift from it.
+ * `@olai/ops` produces the answer, `@olai/surface` carries it, the sidebar
+ * draws it, and none of the three has to agree with the others by memory.
+ */
+export const DatedRequest = Schema.Struct({
+  /** `YYYY-MM` — the month the grid is laid out for. A month with nothing in
+   *  it is a legal question with an empty answer, which is what lets a reader
+   *  page back through empty years without the door refusing. */
+  month: Schema.String,
+})
+export type DatedRequest = typeof DatedRequest.Type
+
+/**
+ * Which days of that month have something on them.
+ *
+ * SORTED, and the sort is the whole of what this adds to {@link datedDays}'
+ * set. The answer is re-read on every published revision and sent only when it
+ * CHANGED (`@olai/server`'s `runtime.ts`), so "changed" has to mean "a
+ * different set of days" rather than "the walk happened to reach them in a
+ * different order" — and the walk's order is the set's, which a moved record
+ * reorders without adding or removing a single dot.
+ *
+ * A LIST and not counts, for {@link datedDays}' own reason: the calendar draws
+ * a dot, and a number nothing prints is a fact with no reader.
+ */
+export const DatedAnswer = Schema.Struct({
+  days: Schema.Array(Schema.String),
+})
+export type DatedAnswer = typeof DatedAnswer.Type
+
+/** When two answers name the same days, so the subscription carrying them can
+ *  stay quiet — `./agenda.ts`'s `sameOwed` one reading over, and derived from
+ *  the schema for the same reason. It compares the list IN ORDER, which is what
+ *  {@link datedAnswer} beside it exists to guarantee. */
+export const sameDated: (a: DatedAnswer, b: DatedAnswer) => boolean = Schema
+  .toEquivalence(DatedAnswer)
+
+/**
+ * The one way to build a {@link DatedAnswer} — {@link datedDays} asked of a
+ * month, in order.
+ *
+ * THE SORT AND THE EQUIVALENCE ARE A PAIR, so they are one thing rather than
+ * two that agree by comment: {@link sameDated} compares the list in order, and
+ * the caller that produced an unsorted one would be wrong in a way nothing here
+ * could see. Written as a constructor beside the schema, the shape this package
+ * already keeps for a value that TRAVELS — the walk is `datedDays` still, and
+ * what is added is the normalisation the wire's own equality rests on.
+ *
+ * (The failure it forecloses is the mild one — a frame sent for a month whose
+ * dots did not move, never one withheld. It is foreclosed anyway, because a
+ * rule that can only be held by remembering is a rule.)
+ */
+export const datedAnswer = (derived: Derived, month: string): DatedAnswer => ({
+  // `Order.String`, which is what this package sorts day text with everywhere
+  // else (./agenda.ts's day lists, ./dates.ts's own groups) rather than the
+  // default comparator's stringify-and-compare.
+  days: [...datedDays(derived, month)].sort(Order.String),
+})
 
 /**
  * One node on a day: everything a zoomed page knows about it — the same {@link

@@ -384,11 +384,20 @@ export {
   dailyNoteDays,
   dailyNotePathFor,
   dailyNotesOn,
+  /** WHAT THE CALENDAR'S DOTS ASK AND ARE ANSWERED WITH, as schemas: since
+   *  `vault-in-browser`'s PR 4 the month's dots are walked on the server and
+   *  drawn in a browser, so the pair crosses a wire and is declared here — on
+   *  the floor `@olai/ops` and `@olai/surface` both stand on — rather than
+   *  twice. `sameDated` is what keeps a revision that moved no dot quiet. */
+  DatedAnswer,
+  datedAnswer,
+  DatedRequest,
   datedDays,
   datedIn,
   datedOn,
   dayOf,
   isDay,
+  sameDated,
   /** The TIME a datetime names, where `dayOf` takes the day off the front of
    *  the same value. Public because the agenda's spine keeps a pill for it and
    *  drops one for everything else the day heading already said. */
@@ -436,8 +445,13 @@ export {
   isOverdue,
   keepingOwed,
   nothingDue,
+  /** What a reader ASKS to be told what is owed, and the counts they are
+   *  answered with — the pair above's other half, on the wire for its reason. */
+  Owed,
   owedIn,
   owedOf,
+  OwedRequest,
+  sameOwed,
   /** THE SPINE'S OWN ARITHMETIC (`agenda-spine`, 2026-08-18). The agenda draws
    *  one line of time, and everything it says about a day past the day itself is
    *  counted here rather than in a component: where a day sits and how far away
@@ -454,7 +468,6 @@ export type {
   Agenda,
   AgendaDay,
   Felt,
-  Owed,
   Quiet,
   Standing,
   Tone,
