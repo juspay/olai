@@ -113,6 +113,31 @@ test("PIN (hooks): After restores and asks the server to re-read", () => {
   expect(src).not.toContain("recordWrites(");
 });
 
+test("PIN (teardown): the terminal agent drops in-flight fetches on stop", () => {
+  const src = fs.readFileSync(
+    path.join(import.meta.dirname, "support", "mcp.ts"),
+    "utf8",
+  );
+  expect(src).toContain("AbortController");
+  expect(src).toContain("ac.abort()");
+  expect(src).not.toContain("stop: () => {}");
+});
+
+test("PIN (teardown): AfterAll kills each server's process group before the browser closes", () => {
+  const src = fs.readFileSync(
+    path.join(import.meta.dirname, "support", "hooks.ts"),
+    "utf8",
+  );
+  expect(src).toContain("detached: true");
+  expect(src).toMatch(/process\.kill\(\s*-\s*pid/);
+  const afterAll = src.slice(src.indexOf("AfterAll("));
+  const killAt = afterAll.indexOf("await killAll()");
+  const browserAt = afterAll.indexOf("await browser.close()");
+  expect(killAt).toBeGreaterThan(-1);
+  expect(browserAt).toBeGreaterThan(-1);
+  expect(killAt).toBeLessThan(browserAt);
+});
+
 test("filesOf hashes contents, not mtimes, and walks nested paths with /", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-hash-"));
   try {

@@ -335,9 +335,49 @@ const fixtureDir = (corpus: string): string => {
   return dir;
 };
 
+/**
+ * Take a spawned olai, and everything it started, off the box.
+ *
+ * The child is a process-group leader (`detached: true` at spawn). A kill of
+ * the pid alone leaves its ACP agent (and any other grandchild) holding the
+ * pipes this worker is still reading — cucumber never prints the summary,
+ * odu's log drain hangs, the node is stopped with "output still owed". SIGKILL
+ * of the group, then destroy the pipes, is what actually ends the worker.
+ */
 const killChild = (child: ChildProcess | undefined): void => {
-  if (child && child.exitCode === null) child.kill("SIGKILL");
+  if (!child || child.exitCode !== null) return;
+  child.stdout?.destroy();
+  child.stderr?.destroy();
+  const pid = child.pid;
+  if (pid === undefined) {
+    child.kill("SIGKILL");
+    return;
+  }
+  try {
+    process.kill(-pid, "SIGKILL");
+  } catch {
+    try {
+      child.kill("SIGKILL");
+    } catch {
+      // already gone
+    }
+  }
 };
+
+/** Signal, then wait until the process is actually gone (or a short bound). */
+const reap = (child: ChildProcess | undefined): Promise<void> =>
+  new Promise((resolve) => {
+    if (!child || child.exitCode !== null || child.signalCode !== null) {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(resolve, 2000);
+    child.once("exit", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    killChild(child);
+  });
 
 const shuttingDown = (label: string): string =>
   `the run is shutting down; abandoning the server for ${label}`;
@@ -425,6 +465,10 @@ const startServerChild = async (
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
+      // Own process group so killChild can SIGKILL the server AND the ACP
+      // agent it spawned. Same group as the worker would take cucumber down
+      // with the servers.
+      detached: true,
       env: isolateEnv(spawnOptions.stateRoot, {
         // The EMPTY string is the explicit off switch, and it is what a person
         // turning chat off would set — so the no-agent scenario reaches that
@@ -558,7 +602,7 @@ export const stopOwnServer = async (world: OlaiWorld): Promise<void> => {
       return;
     }
     events(child).once("exit", () => resolve());
-    child.kill("SIGKILL");
+    killChild(child);
   });
   live.delete(child);
   world.ownServer = undefined;
@@ -749,7 +793,7 @@ const forgetShared = async (
 ): Promise<void> => {
   try {
     const slot = await entry;
-    killChild(slot.server.child);
+    await reap(slot.server.child);
     fs.rmSync(slot.server.root, { recursive: true, force: true });
     fs.rmSync(scratchState(slot.server.root), { recursive: true, force: true });
   } catch {
@@ -765,17 +809,19 @@ const forgetShared = async (
 const killAll = async (): Promise<void> => {
   const pending = [...servers.values()];
   const pendingShared = [...sharedScratches.values()];
+  const reaping = [...live];
   servers.clear();
   sharedScratches.clear();
   killLive();
   await Promise.all([
     ...pending.map((entry) =>
       entry.then(
-        (server) => killChild(server.child),
+        (server) => reap(server.child),
         () => undefined,
       ),
     ),
     ...pendingShared.map(forgetShared),
+    ...reaping.map(reap),
   ]);
 };
 // A cucumber run killed from the keyboard skips AfterAll; without this, every
@@ -829,8 +875,11 @@ BeforeAll(async () => {
 });
 
 AfterAll(async () => {
-  if (browser) await browser.close();
+  // Servers first: a Chromium still holding sockets to a live olai is a
+  // `browser.close()` that never returns, and that is the same hang as a
+  // grandchild holding stdio — cucumber never reaches the summary.
   await killAll();
+  if (browser) await browser.close();
   if (workerState !== undefined) {
     fs.rmSync(workerState, { recursive: true, force: true });
     workerState = undefined;

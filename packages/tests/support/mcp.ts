@@ -47,7 +47,11 @@ export const connectTerminalAgent = async (
 ): Promise<TerminalAgent> => {
   let next = 0;
   const waiting = new Map<number, (reply: Reply) => void>();
-  const pending: Promise<void>[] = [];
+  const ac = new AbortController();
+  const swallowAbort = (cause: unknown): void => {
+    if (ac.signal.aborted) return;
+    throw cause;
+  };
 
   const post = (message: Readonly<Record<string, unknown>>): Promise<Response> =>
     fetch(mcpUrl, {
@@ -57,6 +61,7 @@ export const connectTerminalAgent = async (
         accept: "application/json",
       },
       body: JSON.stringify(message),
+      signal: ac.signal,
     });
 
   const call = (method: string, params?: unknown): Promise<Reply> => {
@@ -70,8 +75,8 @@ export const connectTerminalAgent = async (
         resolve(reply);
       });
     });
-    pending.push(
-      post({ jsonrpc: "2.0", id, method, params }).then(async (response) => {
+    void post({ jsonrpc: "2.0", id, method, params })
+      .then(async (response) => {
         if (!response.ok) {
           throw new Error(
             `the terminal agent's \`${method}\` was refused at HTTP ${response.status}: ${
@@ -82,17 +87,23 @@ export const connectTerminalAgent = async (
         const reply = (await response.json()) as Reply;
         waiting.get(id)?.(reply);
         waiting.delete(id);
-      }),
-    );
+      })
+      .catch(swallowAbort);
     return answered;
   };
 
   const agent: TerminalAgent = {
     call,
     notify: (method) => {
-      pending.push(post({ jsonrpc: "2.0", method }).then(() => undefined));
+      void post({ jsonrpc: "2.0", method }).then(() => undefined).catch(swallowAbort);
     },
-    stop: () => {},
+    stop: () => {
+      ac.abort();
+      for (const [id, reply] of waiting) {
+        waiting.delete(id);
+        reply({ id, error: { code: -1, message: "stopped" } });
+      }
+    },
   };
 
   const ready = await call("initialize", {
