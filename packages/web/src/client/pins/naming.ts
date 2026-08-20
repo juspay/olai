@@ -48,7 +48,7 @@
  * draws it have no path between them.
  */
 
-import { type Accessor, createSignal } from "solid-js"
+import { type Accessor, batch, createSignal } from "solid-js"
 
 import { PIN_NAME_UNWRITABLE, pinTitle } from "@olai/format"
 import type { Edit, Shelf } from "@olai/surface"
@@ -164,29 +164,51 @@ export const namingFor = (
     : null
 
 /**
- * The question SOMEBODY ELSE asked — set by a door outside the palette, read
+ * The question SOMEBODY ELSE asked — set by a door outside the palette, taken
  * by the palette when it opens.
  *
  * One signal rather than a prop, for `../palette/open.ts`'s reason word for
  * word: the shelf's rename control and the panel that asks the question have
  * no path between them, and a prop drilled from `App.tsx` through the sidebar
- * would say less than this does. It is CLEARED when the palette closes, so a
- * question nobody answered cannot be raised again over a page the reader has
- * since left.
+ * would say less than this does.
+ *
+ * IT IS A REQUEST AND NOT A STATE, which is the whole of why {@link askName}
+ * writes both signals and why the palette DROPS one it finds over a closed
+ * modal ({@link clearAsked}). Read as a pair, "the palette is open" and "a
+ * question is pending" spell a fourth state nothing means — a question waiting
+ * over a palette that is shut, which the next ⌘K would raise about a page the
+ * reader left ten minutes ago. Nothing enforces its absence by CONVENTION
+ * here: the palette's own effect reads both, and a pending question it finds
+ * with the modal down is put down with it, so the state cannot outlive the
+ * turn it was spelled in.
+ *
+ * (That is also why there is no clear at the close: closing IS the run that
+ * drops it, and a second site spelling the same rule is the one that
+ * eventually disagrees.)
  */
 const [asked, setAsked] = createSignal<Naming | null>(null)
 
-/** Ask for a name in the palette, opening it if it is not up. Both writes land
- *  in one batch, so the palette sees the question and the open together. */
-export const askName = (naming: Naming): void => {
-  setAsked(naming)
-  setPaletteOpen(true)
-}
+/**
+ * Ask for a name in the palette, opening it if it is not up.
+ *
+ * BATCHED, and load-bearing rather than tidy: outside one, Solid flushes after
+ * every write, so the palette's effect would run once on a request over a
+ * modal that is not up yet — and that run is the one that PUTS A REQUEST DOWN
+ * (see above). The two writes are one fact ("ask this, here"), so they arrive
+ * as one. Found by `features/pin_to_sidebar.feature`, which is what an e2e is
+ * for: no unit test holds two signals and an effect between them.
+ */
+export const askName = (naming: Naming): void =>
+  batch(() => {
+    setAsked(naming)
+    setPaletteOpen(true)
+  })
 
 /** What was asked, for the palette to raise. */
 export const nameAsked: Accessor<Naming | null> = asked
 
-/** …and the palette putting it down, which closing does. */
+/** …and the palette putting it down — on raising it, and on finding one over a
+ *  modal that is not up. */
 export const clearAsked = (): void => {
   setAsked(null)
 }

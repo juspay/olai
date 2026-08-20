@@ -318,10 +318,6 @@ export function Palette(props: {
   const close = () => {
     setPaletteOpen(false)
     blank()
-    // …and the question somebody asked from OUTSIDE, put down with everything
-    // else: a name asked for over a page the reader has since left must not be
-    // raised again by the next ⌘K (`../pins/naming.ts`).
-    clearAsked()
     const back = previousFocus
     previousFocus = null
     queueMicrotask(() => back?.focus())
@@ -352,7 +348,14 @@ export function Palette(props: {
     // second effect because opening BLANKS — a question raised beside this one
     // would be wiped by whichever ran last.
     const outside = nameAsked()
-    if (!paletteOpen()) return
+    if (!paletteOpen()) {
+      // A QUESTION OVER A MODAL THAT IS NOT UP is put down here, which is what
+      // keeps "a question is pending" from being a state that outlives the
+      // gesture that spelled it (`../pins/naming.ts`). This run is the close,
+      // and the next open starts from nothing.
+      if (outside !== null) clearAsked()
+      return
+    }
     // `??=` because this may run a second time over an OPEN palette — a
     // question asked while it is up — and what is focused then is this
     // dialog's own box. Where the reader came FROM is a fact about the open,
@@ -361,6 +364,11 @@ export function Palette(props: {
       ? document.activeElement
       : null
     blank()
+    // RAISED rather than taken, and the difference is this effect's own
+    // dependency: clearing here would re-run it with nothing pending, and the
+    // `blank()` above would wipe the question in the same breath it was asked.
+    // What the request cannot do is outlive the modal, which is the close's
+    // arm above.
     if (outside !== null) raise(outside)
     // The element is not attached at the instant the signal flips.
     queueMicrotask(() => input?.focus())
