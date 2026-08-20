@@ -116,13 +116,13 @@ export const LAYER = {
    */
   header: "z-[45]",
   /**
-   * Over the bar as well: the two full-screen modals (the command palette, the
-   * restarted card), and the panels that are PORTALLED out of the header —
-   * the commit panel, preferences, the search results. Those three are drawn
-   * against the viewport rather than inside the 3rem box they belong to, so
-   * they need a layer of their own up here; the modals need one because a
-   * question about the whole app may not have the app's own chrome on top of
-   * it.
+   * Over the bar as well: the two full-screen modals (the command palette and
+   * the keyboard-shortcut list it opens), and the panels that are PORTALLED out
+   * of the header — the commit panel, preferences, the search results. Those
+   * three are drawn against the viewport rather than inside the 3rem box they
+   * belong to, so they need a layer of their own up here; the modals need one
+   * because a question about the whole app may not have the app's own chrome on
+   * top of it.
    */
   over: "z-50",
 } as const

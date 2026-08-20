@@ -100,12 +100,14 @@
  * the whole point: above the panels (the chat dock, the drawer, its scrim, the
  * minimized pill), which is what stops a page scrolling UNDER the bar from
  * painting over it, and below what covers the whole viewport — the command
- * palette, the restarted card, and the panels this bar's own pills portal out
- * of it — which must cover this too. It is the one layer whose number is not a
- * round ten, because it is defined by the two it sits between. A positioned bar
- * with a z-index is a stacking context, which is why NOTHING in the bar opens
- * inside it any more:
- * the theme popover used to, and rode at 45 with it, and its replacement
+ * palette, the keyboard-shortcut list, and the panels this bar's own pills
+ * portal out of it — which must cover this too. (The offline overlay covers it
+ * as well and is not in that list: it is a modal `<dialog>` in the top layer,
+ * which is above every number this table has — ./layer.ts says so.) It is the
+ * one layer whose number is not a round ten, because it is defined by the two
+ * it sits between. A positioned bar with a z-index is a stacking context, which
+ * is why NOTHING in the bar opens inside it any more: the theme popover used
+ * to, and rode at 45 with it, and its replacement
  * (`settings/`) portals to the body the way the commit panel and a tip already
  * did. A 3rem box is not somewhere a panel can hang out of.
  */

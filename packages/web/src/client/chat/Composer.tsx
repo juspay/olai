@@ -578,12 +578,15 @@ export function Composer(props: {
           thing (`../search/nodes.ts` argues it at the source). The FILE half
           is unaffected and still answers.
 
-          The BOX IS NEVER DISABLED for it, unlike the filter bar's, and the
-          difference is what each box is FOR: that one exists to ask a question,
-          so a wire that cannot carry one leaves nothing to type into; this one
-          is a sentence somebody is writing, and taking it away because the
-          directory cannot be searched would cost them the message (the
-          "NEVER disabled" argument below, kept).
+          The BOX IS NEVER DISABLED for it: this one is a sentence somebody is
+          writing, and taking it away because the directory cannot be searched
+          would cost them the message (the "NEVER disabled" argument below,
+          kept). It used to be said as a contrast with the filter bar, whose box
+          DID go inert on a dead wire; that face is gone, because a wire which
+          cannot carry a question now freezes the whole app under an overlay
+          (`../connection/Offline.tsx`) and there is no box left to disable. So
+          what is left here is the narrower case it was always really about — a
+          search that FAILED on a live wire.
 
           BOTH conditions are load-bearing: `createSearch` clears its failure
           when the query goes away, but a call already in flight can fail after

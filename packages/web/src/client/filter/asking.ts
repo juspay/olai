@@ -102,10 +102,12 @@ import { showsTrashed } from "./drawn.ts"
 //
 // THIS DOOR IS NOT A CALLER of that primitive, and that file says why from its
 // side: a shortlist is a question somebody opened and closed, where a filter is
-// a standing view of a page — which is where the two rules below that it does
-// not have come from (an answer that survives a refused call, and a question
-// never asked over a dead wire). The set's generation is NOT one of them: that
-// primitive takes a value question with an `equals`, exactly as this one does.
+// a standing view of a page — which is where the ONE rule below that it does not
+// have comes from: an answer that survives a refused call. There were two until
+// the offline overlay landed, and the second ("never asked over a dead wire") is
+// the freeze's job now, as the header says. The set's generation is NOT a third:
+// that primitive takes a value question with an `equals`, exactly as this one
+// does.
 
 /** What a query selected, ready for a row to look itself up in: id → why. The
  *  server's own answer rows, kept as they arrived rather than re-shaped — the
