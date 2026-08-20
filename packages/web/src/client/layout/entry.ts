@@ -29,7 +29,7 @@
 import { TARGET } from "../touch.ts"
 
 export const ENTRY_SHAPE =
-  `flex ${TARGET} items-center break-all rounded-xl px-2.5 py-1 text-[0.875rem] leading-snug ` +
+  `flex min-w-0 ${TARGET} items-center rounded-xl px-2.5 py-1 text-[0.875rem] leading-snug ` +
   "no-underline hover:bg-paper/10 aria-[current=page]:bg-accent/30 " +
   "aria-[current=page]:text-paper aria-[current=page]:font-semibold md:min-h-0"
 

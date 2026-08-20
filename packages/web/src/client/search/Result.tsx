@@ -109,11 +109,11 @@ export function Result(props: {
    * of them.
    *
    * The face is the sidebar's (`../file/icons.tsx`) rather than one this row
-   * invents, for the reason this component is one component: a `.md` in a list
-   * of strangers has to look like the `.md` in the tree, or a reader is
-   * learning the directory twice. It is the row's only inline mark, and it
-   * cannot starve the label — the glyph is a fixed 0.875rem box and the label
-   * is what flexes.
+   * invents, for the reason this component is one component: a markdown file
+   * in a list of strangers has to look like the one in the tree, or a reader
+   * is learning the directory twice. It is the row's only inline mark, and it
+   * cannot starve the label — the glyph is a fixed box and the label is what
+   * flexes.
    */
   readonly of?: DirectoryKind
   /** A chord or a word, inline at the right of the first line. */
@@ -150,18 +150,9 @@ export function Result(props: {
       onMouseDown={(event) => event.preventDefault()}
       onClick={() => props.onSelect()}
     >
-      <span class="flex w-full min-w-0 items-baseline gap-3">
-        <span class="flex min-w-0 flex-1 items-baseline gap-2">
-          <Show when={props.of}>
-            {(of) => (
-              // Centred in the line rather than sat on its baseline: a drawing
-              // has none, and the vendored page's ink sits below the type's
-              // when it is aligned as if it had.
-              <span class="flex shrink-0 self-center">
-                <Glyph of={of()} />
-              </span>
-            )}
-          </Show>
+      <span class="flex w-full min-w-0 items-center gap-3">
+        <span class="flex min-w-0 flex-1 items-center gap-2">
+          <Show when={props.of}>{(of) => <Glyph of={of()} />}</Show>
           <span class="min-w-0 flex-1 truncate">{props.label}</span>
         </span>
         <Show when={props.hint}>
