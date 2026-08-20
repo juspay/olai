@@ -1,152 +1,110 @@
 /**
- * Which NODES an `@` query means — `./nodes.ts`'s whole rule, over a set spelled
- * out here rather than served.
+ * What an `@` ROW says — `./nodes.ts`'s whole remaining rule, over hits spelled
+ * out here rather than searched for.
  *
- * What is asserted is mostly that this door does NOT decide things: the words
- * are the format's grammar, the order is the format's ranking, and the archive
- * is out because the matcher says so. So these are the tests of a caller — that
- * the query reaches the matcher whole, that the answer arrives ranked and
- * capped, and that what a ROW says is built from the node rather than from the
- * query.
+ * WHAT MOVED OUT OF THIS FILE, and why it is not a gap: which nodes a query
+ * means used to be decided here, over the set the tab held, and the cases that
+ * pinned it were cases of a caller — the words reach the matcher whole, the
+ * answer arrives ranked and capped, the archive is out unless it is named. All
+ * of that is the SERVER's now (`search-server-side`), so it is asked where it
+ * is decided: the grammar and the ranking in `@olai/format`'s `filter.test.ts`,
+ * the cap, the scope and the situating in `@olai/ops`' `query.test.ts`, and
+ * that the box reaches them at all in `features/chat_at_nodes.feature`, which
+ * is a browser's question.
+ *
+ * What is left here is the ROW, and it is worth its own test for the reason it
+ * always was: it is what a person reads to choose, and the one thing it has to
+ * explain about itself is a rule (a row owes an explanation only when the
+ * reason is not already on it) rather than a rendering.
  */
 
-import { derive } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { matchNodes } from "./nodes.ts"
+import type { NodeHit } from "@olai/surface"
 
-/** A directory in two files and an archive beside them: one deep chain, two
- *  nodes of ONE TITLE in two places, a note carrying a word its title does not,
- *  and something finished. */
-const SET = derive([
-  { file: "house.olai", line: 1, node: { id: "kitchen", ord: "a0", title: "kitchen remodel" } },
-  {
-    file: "house.olai",
-    line: 2,
-    node: { id: "install", parent: "kitchen", ord: "a1", title: "install the cabinets" },
-  },
-  {
-    file: "house.olai",
-    line: 3,
-    node: {
-      id: "hinges",
-      parent: "install",
-      ord: "a0",
-      title: "pick the hinges",
-      desc: "brass, if the budget survives",
-    },
-  },
-  {
-    file: "house.olai",
-    line: 4,
-    node: {
-      id: "chase-order",
-      parent: "install",
-      ord: "a1",
-      title: "chase the supplier",
-      done: "2026-08-02",
-    },
-  },
-  {
-    file: "garden.olai",
-    line: 1,
-    node: { id: "garden", ord: "a0", title: "garden" },
-  },
-  {
-    file: "garden.olai",
-    line: 2,
-    node: { id: "chase-beds", parent: "garden", ord: "a0", title: "chase the supplier" },
-  },
-  {
-    file: "_olai/Trash.olai",
-    line: 1,
-    node: { id: "tiles", ord: "a0", title: "the tiles nobody liked" },
-  },
-])
+import { nodeMatches } from "./nodes.ts"
 
-const TODAY = "2026-08-13"
-
-const ids = (query: string, limit = 8): ReadonlyArray<string> =>
-  matchNodes(SET, query, TODAY, limit).map((node) => node.id)
-
-test("a word finds the nodes that hold it, best first", () => {
-  // `install the cabinets` starts with the word (+100) where `pick the hinges`
-  // buries it, and both beat the two `chase the supplier` rows, which hold it
-  // nowhere.
-  expect(ids("install")).toEqual(["install"])
-  expect(ids("the")).toEqual(["install", "hinges", "chase-beds", "chase-order"])
-})
-
-test("an empty query offers nothing, because a bare `@` is the directory", () => {
-  // Not a floor invented here: nothing typed is the grammar's own `nothing`
-  // filter, and a filter that asks nothing selects nothing.
-  expect(ids("")).toEqual([])
-})
-
-test("a query the grammar refuses draws nothing rather than a lesson", () => {
-  // Every other door says why. Here the word may be prose on its way to an
-  // agent, and a popped-up grammar lesson over `@example.com:8080` would be
-  // worse than the silence the box already promises for a word nothing matches.
-  expect(ids("is:everywhere")).toEqual([])
-  expect(ids(`"open`)).toEqual([])
-})
-
-test("the operators that fit in ONE TOKEN work, because the grammar reads it", () => {
-  // One token is the whole of what this door can be asked, since the trigger
-  // ends at whitespace (`./completion.ts`) — so what is asserted here is what
-  // the box can actually send. The conjunctions, phrases and `OR` groups that
-  // need a space are the matcher's own, and are asked of it in
-  // `@olai/format`'s `filter.test.ts` rather than of a caller that cannot reach
-  // them.
-  expect(ids("is:done")).toEqual(["chase-order"])
-  // Set order among equals: nothing scores, so all that moves anything is the
-  // finished-last rule, and `chase-order` is the one node it takes out.
-  expect(ids("-is:done")).toEqual([
-    "kitchen",
-    "install",
-    "hinges",
-    "garden",
-    "chase-beds",
-  ])
-  expect(ids("#nothing")).toEqual([])
-})
-
-test("what was put away is out, and `is:trashed` is how it is asked for", () => {
-  expect(ids("tiles")).toEqual([])
-  expect(ids("is:trashed")).toEqual(["tiles"])
-})
-
-test("the list is capped, and the cap keeps the best", () => {
-  expect(ids("the", 2)).toEqual(["install", "hinges"])
-})
+/** One hit, as the server situates it — `id`, `title`, the `file:line` and the
+ *  ancestor titles OUTERMOST FIRST, which is the order `@olai/ops` answers in
+ *  and the order `../search/place.ts` reverses. */
+const hit = (one: {
+  id: string
+  title: string
+  file?: string
+  path?: ReadonlyArray<string>
+  matched?: NodeHit["matched"]
+}): NodeHit => ({
+  at: { kind: "node", id: one.id as never },
+  id: one.id,
+  title: one.title,
+  file: one.file ?? "house.olai",
+  line: 1,
+  path: one.path ?? [],
+  see: undefined,
+  after: undefined,
+  ...(one.matched === undefined ? {} : { matched: one.matched }),
+}) as NodeHit
 
 test("a row reads the title, and says where it sits", () => {
   // Nearest ancestor first — `../search/place.ts`, the same line the ⌘K palette
   // draws — because a line that must be ellipsized loses its end.
-  expect(matchNodes(SET, "hinges", TODAY, 8)).toEqual([
-    { id: "hinges", label: "pick the hinges", place: "install the cabinets · kitchen remodel", note: false },
-  ])
-  // ...and the FILE for a node at the top of one, which has no ancestors to
-  // name.
-  expect(matchNodes(SET, "remodel", TODAY, 8)[0]?.place).toBe("house.olai")
-})
-
-test("two nodes of one title are told apart by where they are", () => {
-  expect(matchNodes(SET, "supplier", TODAY, 8).map((node) => node.place))
-    .toEqual(["garden", "install the cabinets · kitchen remodel"])
-})
-
-test("a row says it is here for a note, and only then", () => {
-  // `brass` is in `hinges`'s note and in nothing else — a row whose label holds
-  // none of what was typed, which reads as a bug until it says why.
-  expect(matchNodes(SET, "brass", TODAY, 8)[0]).toEqual({
+  expect(
+    nodeMatches([
+      hit({
+        id: "hinges",
+        title: "pick the hinges",
+        path: ["kitchen remodel", "install the cabinets"],
+        matched: "title",
+      }),
+    ]),
+  ).toEqual([{
     id: "hinges",
     label: "pick the hinges",
     place: "install the cabinets · kitchen remodel",
-    note: true,
-  })
+    note: false,
+  }])
+})
+
+test("a node at the top of a file is placed by the file, which is all it has", () => {
+  expect(nodeMatches([hit({ id: "kitchen", title: "kitchen remodel" })])[0]?.place)
+    .toBe("house.olai")
+})
+
+test("two nodes of one title are told apart by where they are", () => {
+  expect(
+    nodeMatches([
+      hit({ id: "chase-beds", title: "chase the supplier", file: "garden.olai", path: ["garden"] }),
+      hit({
+        id: "chase-order",
+        title: "chase the supplier",
+        path: ["kitchen remodel", "install the cabinets"],
+      }),
+    ]).map((node) => node.place),
+  ).toEqual(["garden", "install the cabinets · kitchen remodel"])
+})
+
+test("a row says it is here for a note, and only then", () => {
+  // A row whose label holds none of what was typed reads as a bug until it says
+  // the word is in the note underneath.
+  expect(nodeMatches([hit({ id: "hinges", title: "pick the hinges", matched: "desc" })])[0]?.note)
+    .toBe(true)
   // The other three fields are on the row already — the title IS the label, the
   // id is written beside it, a tag is inside the title — so a word found in one
-  // of them owes no explanation. That half is asserted by the whole-row test
-  // above, where `pick the hinges` comes back with `note: false`.
+  // of them owes no explanation.
+  for (const field of ["title", "id", "tag"] as const) {
+    expect(nodeMatches([hit({ id: "hinges", title: "pick the hinges", matched: field })])[0]?.note)
+      .toBe(false)
+  }
+  // ...and neither does a query that named no words at all (`@is:done`), which
+  // is what an absent `matched` MEANS: nothing carried it.
+  expect(nodeMatches([hit({ id: "hinges", title: "pick the hinges" })])[0]?.note).toBe(false)
+})
+
+test("a node with nothing written in it is labelled by its id", () => {
+  // A label has to say something, and the id is the only thing such a node has.
+  expect(nodeMatches([hit({ id: "blank", title: "   " })])[0]?.label).toBe("blank")
+})
+
+test("no answer is no rows, which is what draws no block", () => {
+  expect(nodeMatches([])).toEqual([])
 })

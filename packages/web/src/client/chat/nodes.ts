@@ -1,35 +1,38 @@
 /**
  * WHICH of the directory's nodes an `@` query means — the other half of the
- * list `../file/matching.ts` starts.
+ * list `../file/matching.ts` starts, as a ROW rather than as a search.
  *
- * ## No second matcher, for `../file/matching.ts`'s reason with a better answer
+ * ## No second matcher, and since `search-server-side` no matcher at all
  *
  * The file half had to invent a matcher, because nothing else in olai matches
  * a PATH. A node is the opposite case: the matcher exists, it is the one every
- * other door already asks (`@olai/format`'s `parseFilter` / `matching`), and a
- * prefix rule written here would mean `@cab` in this box and `cab` in the
- * filter bar two lines up selecting different rows of the same directory. That
- * is the drift docs/search.md was written to forbid, and it is worse in a
- * completion than anywhere else: the list is where somebody LEARNS what a query
- * means, so a list with private rules teaches the wrong thing about every other
- * box in the app.
+ * other door already asks, and a prefix rule written here would mean `@cab` in
+ * this box and `cab` in the filter bar two lines up selecting different rows of
+ * the same directory. That is the drift docs/search.md was written to forbid,
+ * and it is worse in a completion than anywhere else: the list is where
+ * somebody LEARNS what a query means, so a list with private rules teaches the
+ * wrong thing about every other box in the app.
  *
- * So the query is read by the grammar and matched by the matcher, and the order
- * is the order (`ranked`, which came down into the format for this door — a
- * completion cannot make a round trip per keystroke, and a second opinion about
- * whether a finished node outranks an open one is exactly the kind of thing
- * nobody notices until two lists disagree in front of them). The other doors
- * ask that same rule through the wire; this one imports it, and that is the
- * whole of the difference between them.
+ * This file used to spend that argument by IMPORTING the matcher and running it
+ * over the set the tab held — "a completion cannot make a round trip per
+ * keystroke", which was true while the alternative was a round trip and the
+ * whole vault was here anyway. The vault is leaving
+ * (docs/brainstorming/vault-in-browser.md), so the round trip is what a
+ * completion costs now, and the door it goes through is the one the ⌘K palette,
+ * the header box, the `((` widget and the edge panel already share
+ * (`../search/nodes.ts`, which owns the debounce and the staleness rule for all
+ * five). What is left HERE is the row: what a person reads to choose it, what
+ * taking it writes, and the one thing it has to explain about itself.
  *
- * What that buys, free and unasked for: `@is:blocked` names something waiting,
- * `@#home` names by tag, `@date:today` names something scheduled — and
- * `@is:trashed` reaches what was put away, which is the only way to reach it
- * (below). What it does NOT buy is a survey: an operator with no word in it
- * scores every match the same, so all that orders the eight is the rule that
- * puts finished work last, and then the directory's own order. That is honest
- * rather than clever — `@` NAMES one node, the ⌘K palette SEARCHES — and it is
- * the matcher's own answer rather than a cap this file invented.
+ * What the grammar buys, free and unasked for as before: `@is:blocked` names
+ * something waiting, `@#home` names by tag, `@date:today` names something
+ * scheduled — and `@is:trashed` reaches what was put away, which is the only
+ * way to reach it (below). What it does NOT buy is a survey: an operator with
+ * no word in it scores every match the same, so all that orders the eight is
+ * the rule that puts finished work last, and then the directory's own order.
+ * That is honest rather than clever — `@` NAMES one node, the ⌘K palette
+ * SEARCHES — and it is the matcher's own answer rather than a cap this file
+ * invented.
  *
  * ## ONE TOKEN, because a completion may not swallow the sentence
  *
@@ -41,11 +44,15 @@
  * `prop:pr`, a word) and what needs a space does not (`"kitchen remodel"`,
  * `a OR b`). The box for those is the one with no sentence around it.
  *
- * An EMPTY query offers no node at all, and that is the grammar's answer rather
- * than a floor invented here: nothing typed parses to the `nothing` filter,
- * which selects nothing. It is also the right answer — a bare `@` shows the
- * directory (tens of files, all of them nameable), where the first eight of a
- * vault's thousands of rows would be an answer to no question.
+ * An EMPTY query offers no node at all, and a query of one or two characters
+ * offers none either — the floor every door onto the one search shares
+ * (`../search/nodes.ts`'s `MIN_LENGTH`), because two characters match half an
+ * outline by substring and a shortlist of eight of them is an answer to no
+ * question. It is the one thing about this list that CHANGED when it stopped
+ * matching locally: `@ca` used to offer node rows and now offers the files
+ * alone, which is the same trade the palette has made since it went through the
+ * server. A bare `@` still shows the directory's files, which are tens of
+ * nameable things rather than the first eight of a vault's thousands of rows.
  *
  * A REFUSED query — `@is:everything`, `@"open` — draws nothing, and this is
  * the one place in olai a refusal is not shown. Every other door draws the
@@ -58,10 +65,11 @@
  *
  * ## What was put away is not offered, and `@is:trashed` is how you ask
  *
- * Zero lines here, which is the point: {@link matching} reads the query's own
+ * Zero lines here, which is the point: the matcher reads the query's own
  * `speaksOfTrash` before it walks, so #226's ruling ("what is put away is
  * drawn on the Trash and nowhere else", docs/search.md's one-page rule) arrives
- * inherited. A door that respelled it is a door that can drift from it.
+ * inherited — now over the wire rather than over the local set, which changes
+ * nothing about it. A door that respelled it is a door that can drift from it.
  *
  * The FILE half of the same list goes the other way — `_olai/Trash.olai` is in it —
  * and the two are right for their own reasons rather than by oversight: a path
@@ -72,19 +80,13 @@
  * All three say so in their own headers, one `grep` apart.
  */
 
-import {
-  ancestorTitles,
-  type Derived,
-  matching,
-  parseFilter,
-  ranked,
-  type SearchField,
-} from "@olai/format"
+import type { SearchField } from "@olai/format"
+import type { NodeHit } from "@olai/surface"
 
 import { nodePlace } from "../search/place.ts"
 
 /** One node the query means, ready to draw: what taking it WRITES, what a
- *  person READS to choose it, and where it sits. Flattened out of the match
+ *  person READS to choose it, and where it sits. Flattened out of the hit
  *  here rather than in the composer, so the rule for what a row says is
  *  testable without a browser. */
 export interface NodeMatch {
@@ -110,44 +112,37 @@ export interface NodeMatch {
    * can account for: `@hinges` answering `order the new cabinets` reads as a
    * bug until something says the word is in the note underneath.
    *
-   * It is the query's own answer (`Match.field`, the highest-weighted field
-   * that carried a word), not a second reading of the record.
+   * It is the query's own answer (the hit's `matched`, the highest-weighted
+   * field that carried a word), not a second reading of the record.
    */
   readonly note: boolean
 }
 
 /**
- * The nodes `query` names, best first, at most `limit` of them.
+ * The hits, as rows of this list.
  *
- * `now` is what the grammar's relative words count from (`date:today`), and it
- * is the TAB's own day (`../clock.ts`) — the same clock the filter over the
- * page parses with, since both are read by whoever is sitting here.
+ * Pure, and the whole of what this file still does: the order is the answer's
+ * (`@olai/format`'s `ranked`, applied server-side), the cap was asked for on
+ * the request (`../search/nodes.ts`), and where a node SITS is built out of
+ * what the hit already carries — the file and the ancestor titles the ops layer
+ * situates every hit with. Nothing is walked here and nothing is looked up.
  */
-export const matchNodes = (
-  derived: Derived,
-  query: string,
-  now: string,
-  limit: number,
+export const nodeMatches = (
+  hits: ReadonlyArray<NodeHit>,
 ): ReadonlyArray<NodeMatch> =>
-  ranked(derived, matching(derived, parseFilter(query, now)))
-    .slice(0, limit)
-    .map(({ at, match }) => ({
-      id: at.node.id,
-      label: at.node.title.trim() === "" ? at.node.id : at.node.title,
-      // Situated for the ROWS THAT ARE DRAWN and not for the ones that matched:
-      // an ancestor walk per hit over a common word is a walk per node in the
-      // vault, and the shortlist above has already thrown all but eight away.
-      // The ops layer answers a hit the same way round, for the same reason.
-      place: nodePlace({ file: at.file, path: ancestorTitles(derived, at.node.id) }),
-      note: match.field !== null && !SHOWN_ON_THE_ROW.has(match.field),
-    }))
+  hits.map((hit) => ({
+    id: hit.id,
+    label: hit.title.trim() === "" ? hit.id : hit.title,
+    place: nodePlace(hit),
+    note: hit.matched !== undefined && !SHOWN_ON_THE_ROW.has(hit.matched),
+  }))
 
 /**
  * The fields a row shows for itself, as a set the compiler keeps whole.
  *
- * Written as what IS visible rather than as `field === "desc"`, so the rule and
- * the code say the same thing: a row owes an explanation when the reason is not
- * already on it. Spelled the other way round, a FIFTH search field would
+ * Written as what IS visible rather than as `matched === "desc"`, so the rule
+ * and the code say the same thing: a row owes an explanation when the reason is
+ * not already on it. Spelled the other way round, a FIFTH search field would
  * silently become an unexplained row that compiles clean — and `Match.field`'s
  * own doc calls its list "closed" while `Match.props` exists precisely because
  * it has been under pressure. Typed off `SearchField` so a field this list has

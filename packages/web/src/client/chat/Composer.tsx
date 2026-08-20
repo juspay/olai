@@ -101,9 +101,10 @@ import { batch, createEffect, createMemo, createSignal, on, Show } from "solid-j
 
 import type { Written } from "../complete/trigger.ts"
 import { useDerived } from "../derived.tsx"
+import { SaidLine } from "../edit/SaidLine.tsx"
+import { createSearch } from "../search/nodes.ts"
 import { useServed } from "../served.tsx"
 import { TESTID } from "../testids.ts"
-import { useToday } from "../today.tsx"
 import { armedNodes, disarmNode, releaseArmed, restoreArmed } from "./armed.ts"
 import { Attachments } from "./Attachments.tsx"
 import {
@@ -181,7 +182,6 @@ export function Composer(props: {
   const working = () => props.chat.state().status === "thinking"
 
   const derived = useDerived()
-  const today = useToday()
 
   /**
    * WHICH NODES THIS MESSAGE IS ABOUT, from the two doors onto one strip.
@@ -255,11 +255,36 @@ export function Composer(props: {
   })
 
   /** The served directory's paths — the two key sets this tab already holds
-   *  (`../served.tsx`), so there is no walk and no request behind an `@`. They
-   *  are folded for matching by `../file/matching.ts`, which keeps its answer against
-   *  the list it was given: asked only while a name is being typed, and done
-   *  once per version of the directory rather than once per keystroke. */
+   *  (`../served.tsx`), so there is no walk and no request behind the FILE half
+   *  of an `@`. They are folded for matching by `../file/matching.ts`, which
+   *  keeps its answer against the list it was given: asked only while a name is
+   *  being typed, and done once per version of the directory rather than once
+   *  per keystroke. */
   const files = useServed()
+
+  /** ...and the word an `@` is looking for, or `null` when the box is not
+   *  naming anything — a `/` command, a dismissed list, nothing typed. */
+  const naming = createMemo(() => {
+    const completing = found()
+    return completing !== null && completing.kind === "name" ? completing.query : null
+  })
+
+  /**
+   * THE NODE HALF, asked of the server — the same procedure the ⌘K palette, the
+   * header box, the `((` widget and the edge panel call, with the same debounce
+   * and the same rule about a stale answer (`../search/nodes.ts`). It used to
+   * be a walk over the set this tab held, which is the copy
+   * docs/brainstorming/vault-in-browser.md is taking away.
+   *
+   * `"node"` because this list writes an id into a sentence and arms it: a
+   * document has no id to write, so the narrowing rides the REQUEST rather than
+   * being filtered out of the answer — a door that filtered afterwards runs
+   * short exactly when a query matches enough documents to fill the cap.
+   *
+   * OUTSIDE the rows memo, deliberately: a resource created inside a memo would
+   * be a new resource per keystroke, which is the debounce undone.
+   */
+  const named = createSearch(naming, "node")
 
   /** A SWITCH rather than a chain of `if`s whose last arm is a fall-through:
    *  the two kinds and the two lists are one table the compiler checks, so a
@@ -281,10 +306,10 @@ export function Composer(props: {
       case "name":
         // WHAT THE DIRECTORY HOLDS UNDER THAT WORD — the files and the nodes,
         // in one list of eight, which is `./naming.ts`'s rule and its argument.
-        // Nothing is walked and nothing is asked of the server: the paths are
-        // the key sets this tab holds and the nodes are the set it has already
-        // derived.
-        return offers(files(), derived(), completing.query, today()).map((offer) => ({
+        // The paths are the key sets this tab holds, matched here; the nodes are
+        // the server's answer to the same word, which arrives a beat later and
+        // takes the slack the file half was not using.
+        return offers(files(), named.hits(), completing.query).map((offer) => ({
           value: offer.value,
           label: offer.label,
           hint: offer.hint,
@@ -541,6 +566,24 @@ export function Composer(props: {
           within={() => input}
           onDismiss={dismiss}
         />
+      </Show>
+
+      {/* THE `@` LIST'S OWN BAD NEWS, and only ever its own: the node half is a
+          call now, and a call that did not arrive must not read as a word that
+          named nothing (HACKING.md — an error reaches somebody). It is drawn
+          while the box is naming something, beside the list it is about, and it
+          is not the send's refusal slot — two unrelated failures sharing one
+          sentence is how a reader is told the wrong thing about the wrong
+          thing (`../search/nodes.ts` argues it at the source). The FILE half
+          is unaffected and still answers. */}
+      <Show when={naming() !== null && named.failure()}>
+        {(said) => (
+          <SaidLine
+            said={{ tone: "alarm", text: `the directory could not be searched — ${said()}` }}
+            class="m-0 mb-1 font-mono text-xs"
+            testid={TESTID.chatNamingFailure}
+          />
+        )}
       </Show>
 
       {/* Above the box, where what is being typed is: what this message is
