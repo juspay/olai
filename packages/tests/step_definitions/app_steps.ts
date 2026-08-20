@@ -32,6 +32,20 @@ Given("I mark the page", async function (this: OlaiWorld) {
 });
 
 /**
+ * Start counting what this tab asks the surface, so a later step can say what a
+ * gesture COST — not what it drew.
+ *
+ * Here rather than in one feature's file because the two features that count
+ * are about different gestures and the same claim: a client that re-asks when
+ * nothing it asked about changed. What each of them counts is its own step,
+ * named in its own words (`chat_steps.ts`, `move_steps.ts`); this is only the
+ * mark, and it needs `@wire` for the reason `world.socketAsks` gives.
+ */
+Given("I mark the wire", function (this: OlaiWorld) {
+  this.markWire();
+});
+
+/**
  * Nothing on the page may make it pan sideways — a whole-app invariant, and
  * here because everything that can break it is shared: one markdown pipeline
  * draws a note, a document and an agent's reply, so any of the three can

@@ -191,3 +191,61 @@ Feature: Moving a row to a parent you search for
     Then the node "kitchen-herbs" in "house.olai" sits under "install"
     And the node "herbs" in "garden.olai" sits under "garden"
     And there should be no page errors
+
+  # ── what the gesture costs the wire ─────────────────────────────────
+
+  @wire
+  Scenario: A landed move asks nothing more, and lets go of the question with its sentence
+    # TWO CLAIMS THAT ARE NOT ON SCREEN, which is why they are counted rather
+    # than looked at. The panel holds ONE subscription — this record, these
+    # destinations — and it stands open while anybody writes, so it is re-read
+    # whenever a frame moves the row. The question does not change when the row
+    # moves, and the picker being SPENT is the end of the question altogether.
+    #
+    # Both were wrong. The request was minted fresh on every frame that re-filed
+    # where the row is drawn, so a value-identical question tore the stream down
+    # and blanked the answer — every refused destination un-dimming for a round
+    # trip. And the spent gesture was never put down: the sentence took itself
+    # away after six seconds, and the subscription stayed open for ever, with
+    # the whole visible tree flattened on every frame behind a panel nobody
+    # could see.
+    #
+    # The nudge is what makes this the case worth counting: it is a landing with
+    # something to SAY, so the gesture genuinely outlives the panel and there is
+    # a sentence to wait out.
+    When I click the title of "knobs"
+    And I press "ControlOrMeta+Shift+m"
+    And I search the move picker for "take out the old"
+    And I mark the wire
+    And I choose "take out the old counters" from the move picker
+    Then the node "knobs" is a child of "demo"
+    And the move noted "marked done over work that is not finished"
+    # The row moved under the panel and was re-found there — and the question is
+    # about the record and the destinations, neither of which moved.
+    And the tab has asked to judge this move 0 times
+    When the move's sentence has gone
+    # …and the wire is marked again, because what the next line is about is the
+    # frame AFTER the gesture ended rather than the landing that ended it.
+    And I mark the wire
+    # Another hand moves the row again. There is nothing of the gesture left, so
+    # this frame reaches nothing at all.
+    And I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters"}
+      {"id":"install","parent":"kitchen","ord":"a1","title":"install the cabinets","doc":"finishes.md"}
+      {"id":"knobs","parent":"kitchen","ord":"a2","title":"pick the knobs","todo":"2026-08-11"}
+      {"id":"dust","parent":"kitchen","ord":"a3","title":"sweep up after"}
+      """
+    # Waited for by the row the rewrite ADDS, which is the only wait that says
+    # this page has drawn that frame: "knobs is inside kitchen" was already true
+    # while it sat under `demo`, and a step that read it would make the two
+    # claims below about a frame that had not arrived.
+    Then the node "dust" is shown
+    And the node "knobs" is not a child of "demo"
+    And the tab has asked to judge this move 0 times
+    # The load-bearing one, and the only trace an un-closed subscription leaves:
+    # nothing is drawn from an answer to a question nobody is asking, so the
+    # arrival of one is the whole evidence.
+    And the set has said nothing more about moving "knobs"
+    And there should be no page errors

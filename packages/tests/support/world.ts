@@ -1152,6 +1152,24 @@ export class OlaiWorld extends World {
   socketFrames?: string[];
 
   /**
+   * …and every frame the tab SENT down it — every question this reader asked —
+   * under the same `@wire` tag, `undefined` without it.
+   *
+   * The mirror of {@link socketFrames}, and the half that answers a different
+   * kind of claim: not "what did the server choose to send" but HOW OFTEN THIS
+   * TAB ASKED. Nothing else here can say it. `requests` is what the page
+   * fetched, and the surface fetches nothing — every procedure call and every
+   * subscription this client opens is a frame on this socket
+   * (`@kolu/surface`'s links), so a claim that a gesture costs ONE call, or
+   * that a spent panel stopped watching, is a claim about this list.
+   *
+   * Read through {@link socketAskedSince}, which counts them from a mark: a
+   * count over the scenario's whole life is a count of everything the boot did
+   * too, and the questions worth counting are the ones a gesture caused.
+   */
+  socketAsks?: string[];
+
+  /**
    * Whether anything the socket delivered carried this text — see {@link
    * socketFrames}.
    *
@@ -1191,6 +1209,94 @@ export class OlaiWorld extends World {
       );
     }
     return frames.some((frame) => frame.includes(text));
+  }
+
+  /** Where in {@link socketAsks} and {@link socketFrames} a scenario started
+   *  counting, or `undefined` while none is. */
+  private askedWireFrom?: number;
+  private saidWireFrom?: number;
+
+  /** Start counting what crosses this tab's socket, in both directions, so a
+   *  later step can say what a gesture cost. `watchRequests`' arrangement one
+   *  wire over: a MARK into the recordings rather than a second listener. */
+  markWire(): void {
+    if (this.socketAsks === undefined || this.socketFrames === undefined) {
+      throw new Error(
+        "nothing recorded this tab's socket; a scenario counting wire calls " +
+          "has to carry the @wire tag",
+      );
+    }
+    this.askedWireFrom = this.socketAsks.length;
+    this.saidWireFrom = this.socketFrames.length;
+  }
+
+  /**
+   * How many questions carrying `probe` this tab has asked since that mark.
+   *
+   * THE PROBE IS A WIRE TAG — `<member>/<verb>`, which is how kolu addresses
+   * every member of a surface (`surfaceTag`, `<prefix><member>/<verb>`; the
+   * prefix is left off so this is a substring of whatever a composed surface
+   * makes the whole tag). A frame carrying it is this tab opening that
+   * subscription or calling that procedure, and the count is what a claim like
+   * "one call for the word, not one per letter" is made against.
+   *
+   * Both refusals of {@link socketCarried} apply, for its reasons: a scenario
+   * that never marked, and a probe the framing could have rewritten.
+   */
+  socketAskedSince(probe: string): number {
+    const asks = this.socketAsks;
+    if (asks === undefined || this.askedWireFrom === undefined) {
+      throw new Error(
+        "nothing is counting what this tab asks the surface; a step has to " +
+          "mark the wire (and the scenario carry @wire) before the gesture it " +
+          "is making a claim about",
+      );
+    }
+    if (!PLAIN_PROBE.test(probe)) {
+      throw new Error(
+        `${JSON.stringify(probe)} is not a probe this can look for: only ` +
+          "plain printable ASCII without a quote or a backslash is certain to " +
+          "appear in a raw frame verbatim",
+      );
+    }
+    return asks
+      .slice(this.askedWireFrom)
+      .filter((frame) => frame.includes(probe)).length;
+  }
+
+  /**
+   * …and the answer to the same question in the other direction: how many
+   * frames the server has DELIVERED since that mark carrying all of `probes`.
+   *
+   * SEVERAL probes rather than one, because what identifies a subscription's
+   * answer is a field name and the thing it is about together — either alone
+   * is a substring of frames from other members. It is how a claim that a tab
+   * STOPPED WATCHING is made: a subscription nobody let go of goes on being
+   * answered, and the answer arriving is the only trace it leaves.
+   *
+   * {@link socketCarried}'s two refusals apply, for its reasons.
+   */
+  socketSaidSince(...probes: ReadonlyArray<string>): number {
+    const frames = this.socketFrames;
+    if (frames === undefined || this.saidWireFrom === undefined) {
+      throw new Error(
+        "nothing is counting what this tab's socket delivered; a step has to " +
+          "mark the wire (and the scenario carry @wire) before the gesture it " +
+          "is making a claim about",
+      );
+    }
+    for (const probe of probes) {
+      if (!PLAIN_PROBE.test(probe)) {
+        throw new Error(
+          `${JSON.stringify(probe)} is not a probe this can look for: only ` +
+            "plain printable ASCII without a quote or a backslash is certain " +
+            "to appear in a raw frame verbatim",
+        );
+      }
+    }
+    return frames
+      .slice(this.saidWireFrom)
+      .filter((frame) => probes.every((probe) => frame.includes(probe))).length;
   }
 
   /** How far down the page a scenario deliberately scrolled, so a later step
@@ -2183,6 +2289,13 @@ export class OlaiWorld extends World {
       await this.page.waitForTimeout(100);
     }
   }
+
+  /** Where a `.html` preview's frame was pointed when a scenario looked, so a
+   *  later step can claim the frame was NOT re-pointed by something that
+   *  happened elsewhere. The address carries the component's own visit counter
+   *  (`client/document/Hypertext.tsx`), so "the same address" is exactly "the
+   *  frame was not navigated" and nothing weaker. */
+  previewPointedAt?: string;
 
   /** The paper the page was painted in before a theme was picked. The only
    *  colour any scenario holds on to, and it is compared against itself: what

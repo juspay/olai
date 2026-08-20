@@ -185,3 +185,68 @@ Then(
     await saysThat(this, MOVE_SAID, said, "the move's said line", "aside");
   },
 );
+
+// ── and what the gesture cost the wire ─────────────────────────────────
+
+/**
+ * The wire tag the picker's one subscription is opened at — `<member>/<verb>`,
+ * which is how kolu addresses every member of a surface (`surfaceTag`: the
+ * whole tag is `<prefix><member>/<verb>`, and the prefix is left off so this is
+ * a substring of whichever composed surface serves it).
+ *
+ * Counting frames rather than reading the DOM, because what these two claims
+ * are about is not on screen at all: a panel that re-asks a question it is
+ * already watching, and a spent gesture that never stops watching, both draw
+ * exactly what a correct client draws.
+ */
+const MOVING = "moving/get";
+
+Then(
+  "the tab has asked to judge this move {int} time(s)",
+  function (this: OlaiWorld, times: number) {
+    assert.strictEqual(
+      this.socketAskedSince(MOVING),
+      times,
+      "how many times this tab opened the move subscription since the mark",
+    );
+  },
+);
+
+/**
+ * …and the other half of the same claim, read off what ARRIVED: a subscription
+ * nobody let go of goes on being answered, and that answer is the only trace it
+ * leaves — nothing is drawn from it, and nothing is asked for it again.
+ *
+ * TWO PROBES, because either alone is a substring of frames about other things:
+ * `refusals` is the answer's own field (`@olai/format`'s `MovingAnswer`; a
+ * search answer carries one too), and the record is what this answer is about.
+ * Together they name a verdict about this row and nothing else.
+ */
+Then(
+  "the set has said nothing more about moving {string}",
+  function (this: OlaiWorld, record: string) {
+    assert.strictEqual(
+      this.socketSaidSince("refusals", record),
+      0,
+      "the set answered about this move after the gesture was over, which is " +
+        "a subscription nobody closed",
+    );
+  },
+);
+
+/**
+ * Wait out the sentence a landed move left standing.
+ *
+ * The line takes itself away after `SAID_MS` (`client/saying.ts`), and what
+ * that moment IS for this gesture is the whole of the claim around it: nothing
+ * of the move is on screen any more, so nothing of it should be on the wire
+ * either. The budget is the poll's, which is comfortably longer than the six
+ * seconds — a step that spelled the six would be the client's constant written
+ * down twice.
+ */
+When("the move's sentence has gone", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(MOVE_SAID).count()) === 0,
+    "the move's said line to take itself away",
+  );
+});

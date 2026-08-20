@@ -147,6 +147,46 @@ When("I type {string} into the chat", async function (this: OlaiWorld, text: str
   await typeInto(this, text);
 });
 
+/**
+ * …and the same words as KEYSTROKES, one `input` event per letter.
+ *
+ * `fill` above sets the whole value in one event, which is the right gesture
+ * for a scenario that is about what is in the box. It is the wrong one for a
+ * scenario about what TYPING costs: a client that re-asks the server on every
+ * keystroke and one that asks once are indistinguishable under a single event,
+ * and the difference is the whole of `reactivity-equals-guards`' composer
+ * finding. So this is `pressSequentially` — a real key per letter.
+ */
+When(
+  "I type {string} into the chat a letter at a time",
+  async function (this: OlaiWorld, text: string) {
+    const input = this.page.locator(CHAT_INPUT);
+    await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await input.pressSequentially(text);
+  },
+);
+
+/**
+ * How many times this tab asked the set what the armed nodes are CALLED, since
+ * the mark — the chip strip's one question (`client/chat/chips.ts`).
+ *
+ * The tag is `<member>/<verb>`, kolu's addressing for a surface member
+ * (`surfaceTag`), matched as a substring of the whole tag the composed surface
+ * serves it at. It is counted on the wire because nothing on screen says it:
+ * the chip draws the same title whether the title was asked for once or once
+ * per letter.
+ */
+Then(
+  "the tab has asked what the armed nodes are called {int} time(s)",
+  function (this: OlaiWorld, times: number) {
+    assert.strictEqual(
+      this.socketAskedSince("nodes/named"),
+      times,
+      "how many times this tab asked for the armed nodes' titles since the mark",
+    );
+  },
+);
+
 /** Send WHAT IS IN THE BOX, rather than typing a message and sending it in one
  *  gesture (`I ask the agent`). A scenario that got the words there some other
  *  way — a completion taken, a draft put back — has to be able to press the

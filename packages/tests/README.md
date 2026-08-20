@@ -183,13 +183,19 @@ Like `@kolu` and `@agent-stored`, it needs `@scratch:<corpus>` — what a server
 
 One of those scenarios goes the whole way rather than reading chrome: it asks the agent for a write under a broken git and opens the tool call's detail, which is the op's own reply as the reader gets it. That is the only assertion in the suite that follows one field (`Applied.why`) from the ops layer, through the internal MCP server and the transcript, onto a screen.
 
-## What the server SENT, as against what the page drew
+## What crossed the socket, as against what the page drew
 
-**`@wire`** keeps every websocket frame the tab was delivered, for the scenario's life, so a step can say what the server chose to send this reader — `the websocket carried "…"` and its negative. Nothing else in the suite can answer that: `world.requests` is what the page FETCHED, and the surface's traffic makes no requests at all.
+**`@wire`** keeps every websocket frame of the scenario's life, in both directions, so a step can say what the server chose to send this reader — `the websocket carried "…"` and its negative — and what this tab ASKED FOR. Nothing else in the suite can answer either: `world.requests` is what the page FETCHED, and the surface's traffic makes no requests at all. Every procedure call and every subscription this client opens is a frame on that one socket (`@kolu/surface`'s links).
 
-It is a tag rather than the default because unlike the request and error recorders it retains PAYLOADS — a transcript's token-by-token deltas, a document's whole body — and two scenarios ask — the pair below. A scenario that forgets it does not quietly pass a negative over an empty list: `world.socketCarried` throws, the way `world.requestsWatched` does for the same class of mistake. It also throws on a probe string carrying a character the framing escapes, since the frames are raw and such a probe would be absent whether or not the body was sent.
+It is a tag rather than the default because unlike the request and error recorders it retains PAYLOADS — a transcript's token-by-token deltas, a document's whole body. A scenario that forgets it does not quietly pass a negative over an empty list: `world.socketCarried` throws, the way `world.requestsWatched` does for the same class of mistake. It also throws on a probe string carrying a character the framing escapes, since the frames are raw and such a probe would be absent whether or not the body was sent.
 
-The two scenarios it exists for are the halves of one rule (`html_previews.feature`): a previewed `.html`'s body must never cross the socket — the frame fetches the file over HTTP — while a `.md`'s body must, because that reader has no other way to have it.
+**What the server SENT.** Two scenarios are the halves of one rule (`html_previews.feature`): a previewed `.html`'s body must never cross the socket — the frame fetches the file over HTTP — while a `.md`'s body must, because that reader has no other way to have it.
+
+**What the tab ASKED.** The other direction answers a claim no assertion about the DOM can make: that a gesture cost the wire nothing. A client that re-asks a question whose answer cannot have changed — a title looked up on every keystroke, a subscription re-opened on every frame that redraws the row it is about — draws exactly what a correct one draws. So those claims are counted: `I mark the wire`, the gesture, and then a step in that feature's own words (`node_context.feature`'s *the tab has asked what the armed nodes are called 0 times*, `move_to_picker.feature`'s *the tab has asked to judge this move 0 times*). Counted from a MARK, through `world.socketAskedSince`, because a count over the scenario's whole life is a count of the boot as well.
+
+The probe those steps hold is a wire TAG — `<member>/<verb>`, which is how kolu addresses a surface member (`surfaceTag`, whose whole tag is `<prefix><member>/<verb>`; the prefix is left off, so the probe is a substring however the surface is composed).
+
+And its mirror, `world.socketSaidSince`, is how a scenario says a tab STOPPED watching: a subscription nobody let go of leaves no other trace — nothing is drawn from an answer to a question nobody is asking, so the answer ARRIVING is the whole of the evidence. It takes several probes and wants them all in one frame, because a field name alone is a substring of other members' frames.
 
 ## A phone, and the two things it changes
 
