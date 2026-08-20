@@ -37,7 +37,7 @@ const waiting = (n: number): Pending => ({
     id: `node-${at}`,
     title: `row ${at}`,
     fields: ["title"] as ReadonlyArray<string>,
-    sort: "title" as const,
+    sort: "renamed" as const,
   })),
 })
 

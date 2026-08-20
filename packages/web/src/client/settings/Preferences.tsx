@@ -71,7 +71,7 @@ export function Preferences(props: {
         data-testid={TESTID.prefsTrigger}
         aria-expanded={open()}
         aria-haspopup="true"
-        title="preferences: theme, type, finished work, and whether a commit from here is pushed"
+        title="preferences: theme, type, finished work, and whether git commits and pushes on its own"
         onClick={() => popover.toggle()}
       >
         <span aria-hidden="true">⚙</span>

@@ -65,11 +65,23 @@ import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { agoOf, createNow } from "./ago.ts"
-import { explain, faceOf, isInert, isNews, MARK, newsSays } from "./said.ts"
+import { createAuto } from "./auto.ts"
+import { createElected } from "./elected.ts"
+import {
+  AUTO_PAUSED,
+  autoFaceOf,
+  explain,
+  faceOf,
+  isInert,
+  isNews,
+  MARK,
+  newsSays,
+} from "./said.ts"
 import { Panel } from "./Panel.tsx"
 import { desktop } from "../layout/media.ts"
 import { BANNER, PILL } from "../readout.ts"
 import { createPopover } from "../popover.ts"
+import { autoCommit } from "../settings/autocommit.ts"
 import { autoPush } from "../settings/autopush.ts"
 import { createCommit } from "./state.ts"
 import { TESTID } from "../testids.ts"
@@ -77,6 +89,13 @@ import { Tip } from "../Tip.tsx"
 
 export function Commit() {
   const commit = createCommit(autoPush)
+  // Auto-commit: the same verb this panel's button runs, on a debounced flurry
+  // instead of a press (`./auto.ts`). It is instantiated HERE, beside the
+  // commit it drives, because the pill is the one control that is always on
+  // screen — a loop hung off the panel would stop existing the moment somebody
+  // shut it. `createElected` is which tab of this browser records
+  // (`./elected.ts`).
+  const auto = createAuto({ on: autoCommit, alone: createElected(), commit })
   // Whether the panel is up, where it goes, and the ways it shuts
   // (`../popover.ts`, shared with the preferences at the other end of the bar).
   // It used to be `note/expand.ts` — the row note's "open until you click
@@ -92,7 +111,7 @@ export function Commit() {
   const inert = () => isInert(face())
   /** One reading of the sentence for the two places it has to be: the tip a
    *  pointer opens, and the label everything else gets. */
-  const said = () => explain(face(), commit.pending(), commit.git())
+  const said = () => explain(face(), commit.pending(), commit.git(), auto.paused())
 
   /**
    * How long ago the last commit was, for the one face that has one — and `""`
@@ -153,8 +172,8 @@ export function Commit() {
   }
 
   const showPill = () => desktop()
-  const showBanner = () => !desktop() && isNews(face(), unpushed())
-  const line = () => newsSays(face(), commit.waiting(), unpushed())
+  const showBanner = () => !desktop() && isNews(face(), unpushed(), auto.paused())
+  const line = () => newsSays(face(), commit.waiting(), unpushed(), auto.paused())
 
   return (
     <>
@@ -188,6 +207,10 @@ export function Commit() {
           data-uncommitted={commit.waiting()}
           data-unpushed={unpushed()}
           data-repo={commit.pending().repo._tag}
+          // What AUTO-COMMIT is doing in this browser, which is a claim about
+          // the reader rather than about the directory — hence its own
+          // attribute rather than a ninth face (`./said.ts`).
+          data-auto={autoFaceOf(auto.armed(), auto.paused())}
           // Absent rather than `false` on the faces with no panel behind them:
           // a control that says it can expand and never does is a promise the
           // page does not keep.
@@ -219,6 +242,15 @@ export function Commit() {
           <Show when={unpushed() > 0}>
             <span class="shrink-0">· {unpushed()} unpushed</span>
           </Show>
+          {/* A loop that has STOPPED, which is the one thing Auto-commit has to
+              say out loud: its promise is that nobody watches it, so silence
+              after a failure is how a person finds out days later from
+              `git log`. It stays at every width, like the unpushed count and
+              unlike the recency — and the reason is a gesture away, in the
+              panel and on this pill's own label. */}
+          <Show when={auto.paused() !== null}>
+            <span class="shrink-0 text-alarm">· {AUTO_PAUSED}</span>
+          </Show>
           {/* Which way the panel opens, and it opens DOWNWARD from the header
               — `../anchor.ts` picks the side with the room. Not below 40rem:
               the bar holds five things at 390pt, and a caret is the cheapest of
@@ -237,13 +269,14 @@ export function Commit() {
           type="button"
           ref={panel.setTrigger}
           class={`${BANNER} justify-between ${
-            face() === "error" ? "text-alarm" : "text-doing"
+            face() === "error" || auto.paused() !== null ? "text-alarm" : "text-doing"
           }`}
           data-testid={TESTID.gitNews}
           data-state={face()}
           data-uncommitted={commit.waiting()}
           data-unpushed={unpushed()}
           data-repo={commit.pending().repo._tag}
+          data-auto={autoFaceOf(auto.armed(), auto.paused())}
           aria-expanded={inert() ? undefined : panel.open()}
           aria-disabled={inert() ? true : undefined}
           aria-label={said()}
@@ -258,7 +291,13 @@ export function Commit() {
       <Show when={panel.open() && !inert() ? panel.at() : null}>
         {(at) => (
           <Portal>
-            <Panel commit={commit} now={now()} at={at()} inside={panel.setPanel} />
+            <Panel
+              commit={commit}
+              auto={auto}
+              now={now()}
+              at={at()}
+              inside={panel.setPanel}
+            />
           </Portal>
         )}
       </Show>

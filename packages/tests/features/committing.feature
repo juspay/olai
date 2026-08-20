@@ -6,7 +6,11 @@ Feature: Committing on purpose
 
   It used to happen on every write, which turned one train of thought into a
   dozen commits. Now the writes land on disk and WAIT, and something asks: a
-  button here, and a `commit` tool for the agent.
+  button here, a `commit` tool for the agent — and, when this browser asks for
+  it, the quiet window at the end of a flurry. Auto-commit is the third door
+  and deliberately not a fourth committer: it presses the same verb the button
+  does, once the edits have stopped arriving, so a burst of work is ONE commit
+  and never one per op.
 
   The pill is ALWAYS on screen, in whichever of its six states this directory
   is in. That follows from what it is for: if the job is to be an audit trail,
@@ -152,8 +156,8 @@ Feature: Committing on purpose
     # says the push landed rather than sitting in flight.
     Given the served repository has a remote
     When I open the preferences
-    And I set Git to "on"
-    Then the Git row explains that a commit "is pushed"
+    And I set Git push to "on"
+    Then the Git push row explains that a commit "is pushed"
     And this browser has stored that auto-push is "on"
     When I press Escape on the preferences
     Then the preferences are shut
@@ -196,4 +200,109 @@ Feature: Committing on purpose
     When I open the commit panel
     Then the panel says the repository is "detached"
     And the commit button is disabled
+    And there should be no page errors
+
+  Scenario: A flurry of edits records itself as one commit, and is pushed
+    # The whole of Auto-commit, end to end, with Auto-push beside it: the
+    # human's goal in his own words — "with both enabled, all changes sync to
+    # Git automatically". FIVE writes go in inside the window and ONE commit
+    # comes out, which is the claim the debounce exists to make and the one no
+    # amount of chrome can show. The last two are documents nobody edited
+    # through olai's ops, so what is being swept is the whole repository.
+    Given the served repository has a remote
+    When I open the preferences
+    And I set Git commit to "on"
+    And I set Git push to "on"
+    Then the Git commit row explains that a write "records itself"
+    And this browser has stored that auto-commit is "on"
+    And this browser has stored that auto-push is "on"
+    When I press Escape on the preferences
+    Then the preferences are shut
+    And the commit pill says auto-commit is "armed"
+    When I rewrite "garden.olai" as:
+      """
+      {"id":"garden","ord":"a0","title":"garden #outdoors"}
+      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}
+      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}
+      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","done":"2026-08-10"}
+      {"id":"frames","parent":"garden","ord":"a1","title":"the cold frames"}
+      {"id":"glazing","parent":"frames","ord":"a0","title":"replace the cracked pane","done":"2026-07-15"}
+      {"id":"sowing","parent":"frames","ord":"a1","title":"sow the first trays","done":"2026-08-11"}
+      {"id":"slugs","parent":"frames","ord":"a2","title":"the slugs got the seedlings last year"}
+      {"id":"compost","parent":"garden","ord":"a2","title":"the compost heap"}
+      {"id":"turned","parent":"compost","ord":"a0","title":"turn the pile","done":"2026-07-01"}
+      {"id":"straw","parent":"compost","ord":"a1","title":"add the straw","done":"2026-07-02"}
+      """
+    And I rewrite "notes.md" as:
+      """
+      the herb bed needs splitting again
+      """
+    And I rewrite "later.md" as:
+      """
+      and the frames want glazing
+      """
+    # Still waiting, and the panel says out loud what is about to happen to it —
+    # a promise rather than a description of a setting, so it is drawn only
+    # while the loop really is going to do it.
+    Then the commit pill says "waiting"
+    When I open the commit panel
+    Then the panel promises to record it on its own
+    When I press the commit pill
+    Then the commit panel is shut
+    # ... and then nobody touches anything.
+    Then the flurry records itself
+    And olai has recorded 1 commit here
+    And the repository is clean
+    And the commit pill says 0 unpushed
+    And there should be no page errors
+
+  Scenario: Auto-commit alone records, and the commits wait to be pushed
+    # The other half of the pair. Without Auto-push the commit is still made on
+    # its own and the pill carries the honest count of what is recorded here and
+    # nowhere else — which is the fact the header exists to surface.
+    Given the served repository has a remote
+    When I open the preferences
+    And I set Git commit to "on"
+    Then the Git push row explains that a commit "waits"
+    And this browser has stored that auto-push is "off"
+    When I press Escape on the preferences
+    And I rewrite "notes.md" as:
+      """
+      the herb bed needs splitting again
+      """
+    Then the flurry records itself
+    And olai has recorded 1 commit here
+    And the commit pill says 1 unpushed
+    And there should be no page errors
+
+  Scenario: A branch somebody else has moved stops the loop, and says so
+    # THE CONFLICT, ruled at dispatch: conflict-safe enough not to corrupt, and
+    # on one, STOP rather than retry blindly. A divergence is what a single user
+    # with two machines actually meets — the upstream moved, so git refuses the
+    # push as a non-fast-forward. Nothing here pulls, rebases or forces, and
+    # nothing goes round again: the commit stands, the loop stops, and git's own
+    # words are on the pill and in the panel with the one gesture that resumes
+    # it. The second flurry is the fence — it stays waiting.
+    Given the served repository has a remote
+    And somebody else has pushed to the remote
+    When I open the preferences
+    And I set Git commit to "on"
+    And I set Git push to "on"
+    And I press Escape on the preferences
+    And I rewrite "notes.md" as:
+      """
+      the herb bed needs splitting again
+      """
+    Then the flurry records itself
+    And olai has recorded 1 commit here
+    And the commit pill says auto-commit is "paused"
+    When I open the commit panel
+    Then the panel says auto-commit is paused because "rejected"
+    When I press the commit pill
+    And I rewrite "later.md" as:
+      """
+      and the frames want glazing
+      """
+    Then the commit pill says 1 uncommitted
+    And olai has recorded 1 commit here
     And there should be no page errors

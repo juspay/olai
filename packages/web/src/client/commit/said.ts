@@ -148,8 +148,16 @@ export const isInert = (face: Face): boolean =>
  * of chips; a banner that is only there when there is news can be trusted
  * when it is absent, because the page itself is the healthy state.
  */
-export const isNews = (face: Face, unpushed: number): boolean =>
-  face === "waiting" || face === "blocked" || face === "error" || unpushed > 0
+export const isNews = (
+  face: Face,
+  unpushed: number,
+  /** Whether Auto-commit has stopped. News on a phone for the same reason it is
+   *  a chip on a laptop: the loop's whole promise is that nobody has to watch
+   *  it, so the one moment it stops is the one moment it has to speak. */
+  paused: string | null = null,
+): boolean =>
+  face === "waiting" || face === "blocked" || face === "error" || unpushed > 0 ||
+  paused !== null
 
 /**
  * One line for the phone banner. The panel behind it has the sentence.
@@ -161,7 +169,11 @@ export const newsSays = (
   face: Face,
   waiting: number,
   unpushed: number,
+  paused: string | null = null,
 ): string => {
+  // A stopped loop outranks every face, because it is the one line that is
+  // about something having gone wrong with a promise rather than about work.
+  if (paused !== null) return `${AUTO_PAUSED} — tap to see`
   switch (face) {
     case "waiting":
       return `${waiting} uncommitted — tap to record`
@@ -246,8 +258,15 @@ export const DETAIL: Readonly<Record<Face, string>> = {
  * git's own words, and the two that are waiting carry how much. Everything else
  * reads as its own sentence.
  */
-export const explain = (face: Face, pending: Pending, git: GitState): string =>
-  alsoUnpushed(sentence(face, pending, git), pending)
+export const explain = (
+  face: Face,
+  pending: Pending,
+  git: GitState,
+  /** Why Auto-commit stopped, when it has — a fact about the READER and not
+   *  about the directory, which is why it is a clause on every face rather
+   *  than a ninth one. Same argument as {@link alsoUnpushed}. */
+  paused: string | null = null,
+): string => alsoPaused(alsoUnpushed(sentence(face, pending, git), pending), paused)
 
 const sentence = (face: Face, pending: Pending, git: GitState): string => {
   switch (face) {
@@ -286,6 +305,51 @@ const alsoUnpushed = (said: string, pending: Pending): string => {
   const unpushed = unpushedOf(pending)
   return unpushed === null ? said : `${said} · ${unpushed}, and the panel can push them`
 }
+
+/**
+ * ── Auto-commit, as this browser sees it ──────────────────────────────
+ *
+ * The loop is `./auto.ts`; these are the words for it. It is a claim about the
+ * READER — "I do not want to press Commit" — so it is never one of the pill's
+ * {@link Face}s: those are eight things about the DIRECTORY, and a ninth that
+ * was true only in this browser would put a preference into the vocabulary the
+ * panel and the phone banner share. It rides beside them instead, exactly as
+ * the unpushed count does and for the same reason.
+ */
+
+/** What Auto-commit is doing here, as the one word the pill carries as an
+ *  attribute — so a scenario asks the state rather than reading a sentence. */
+export type AutoFace = "off" | "armed" | "paused"
+
+export const autoFaceOf = (armed: boolean, paused: string | null): AutoFace =>
+  !armed ? "off" : paused === null ? "armed" : "paused"
+
+/** The chip a stopped loop wears in the header. Short, because the bar is a
+ *  fixed height and the sentence is one gesture away — on the tip, on the
+ *  `aria-label`, and in full in the panel. */
+export const AUTO_PAUSED = "auto-commit paused"
+
+/**
+ * ... and the sentence, which is git's own words plus the one gesture that
+ * resumes the loop.
+ *
+ * The gesture is named because a stopped loop is silent by design: without a
+ * sentence saying how to start it again, "olai stopped committing" is something
+ * a person finds out days later from `git log`.
+ */
+export const autoSays = (paused: string): string =>
+  `auto-commit is paused — ${paused}. Turn Auto-commit off and on again in ` +
+  `preferences to resume.`
+
+/** What an ARMED loop is about to do with what the panel is listing. Drawn only
+ *  while it is really going to happen, so it is a promise rather than a
+ *  description of a setting. */
+export const AUTO_ARMED =
+  "Auto-commit will record all of this as one commit once the edits stop."
+
+/** The pause, on whatever sentence the face produced — see {@link explain}. */
+const alsoPaused = (said: string, paused: string | null): string =>
+  paused === null ? said : `${said} · ${autoSays(paused)}`
 
 /** How much is waiting, in words — the same tally the pill draws as a number,
  *  so the sentence and the label cannot disagree. */
