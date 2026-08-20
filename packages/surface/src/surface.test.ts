@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { Schema } from "effect"
+import { Schema, SchemaAST } from "effect"
 
 import { PageReading, Pending, Shelf } from "@olai/format"
 
@@ -108,85 +108,81 @@ type Keying = "keyed" | "positional" | "mixed"
 /** Every array inside a schema, and whether `field` identifies its elements:
  *  `keyed` (every arm carries it, required and non-nullable), `positional`
  *  (no arm carries it — merged by index, which is silent on a repeated frame
- *  just the same), or `mixed`, which is the one nobody may ship. */
-const keyings = (schema: unknown, field: string): ReadonlyMap<string, Keying> => {
+ *  just the same), or `mixed`, which is the one nobody may ship.
+ *
+ *  Over `SchemaAST`, which `effect` exports with the union and the narrowing
+ *  guards already on it — there is nothing here to hand-roll but the question. */
+const keyings = (
+  schema: { readonly ast: SchemaAST.AST },
+  field: string,
+): ReadonlyMap<string, Keying> => {
   const found = new Map<string, Keying>()
-  const seen = new Set<unknown>()
+  const seen = new Set<SchemaAST.AST>()
 
-  /** What a `suspend` is standing in for. Its thunk hands back whatever the
-   *  declaration wrote — a Schema (`@olai/format`'s `Row.children`, which is
-   *  how a row's subtree is spelled) or the AST itself — so both are unwrapped
-   *  here rather than one of them being assumed and the other silently reading
-   *  as "an array of nothing". */
-  const suspended = (ast: any): unknown => {
-    const held = ast.thunk()
-    return held !== null && typeof held === "object" && "ast" in held ? held.ast : held
-  }
+  /** Through a `suspend` and into a union's arms — the shapes an element can be
+   *  spelled as before it is an object with fields. */
+  const arms = (ast: SchemaAST.AST): ReadonlyArray<SchemaAST.AST> =>
+    SchemaAST.isSuspend(ast)
+      ? arms(ast.thunk())
+      : SchemaAST.isUnion(ast)
+      ? ast.types.flatMap(arms)
+      : [ast]
 
-  /** Through a `suspend` and into a union's arms — the shapes an element can
-   *  be spelled as before it is an object with fields. */
-  const arms = (ast: any): ReadonlyArray<any> => {
-    if (ast === null || typeof ast !== "object") return []
-    if (ast._tag === "Suspend") return arms(suspended(ast))
-    if (ast._tag === "Union") return ast.types.flatMap(arms)
-    return [ast]
-  }
-
-  const carries = (arm: any): boolean => {
-    if (arm._tag !== "Objects") return false
-    const property = arm.propertySignatures.find((one: any) => one.name === field)
+  const carries = (arm: SchemaAST.AST): boolean => {
+    if (!SchemaAST.isObjects(arm)) return false
+    const property = arm.propertySignatures.find((one) => one.name === field)
     if (property === undefined) return false
     // Required and non-nullable, both read off the property's own type: an
     // optional key is `context.isOptional`, and a nullable one is a union with
-    // `Null` in it.
+    // `Null` among its arms.
     if (property.type.context?.isOptional === true) return false
-    return !arms(property.type).some((one: any) => one._tag === "Null")
+    return !arms(property.type).some(SchemaAST.isNull)
   }
 
-  const walk = (ast: any, path: string): void => {
-    if (ast === null || typeof ast !== "object" || seen.has(ast)) return
+  const walk = (ast: SchemaAST.AST, path: string): void => {
+    // A row's `children` is the same array wherever it is reached from, and it
+    // holds rows, so the walk would not otherwise end.
+    if (seen.has(ast)) return
     seen.add(ast)
-    if (ast._tag === "Suspend") return walk(suspended(ast), path)
-    if (ast._tag === "Union") {
+    if (SchemaAST.isSuspend(ast)) return walk(ast.thunk(), path)
+    if (SchemaAST.isUnion(ast)) {
       for (const one of ast.types) walk(one, path)
       return
     }
-    if (ast._tag === "Arrays") {
-      const elements = [...(ast.elements ?? []), ...(ast.rest ?? [])]
-      const objects = elements.flatMap(arms).filter((one: any) => one._tag === "Objects")
+    if (SchemaAST.isArrays(ast)) {
+      const elements = [...ast.elements, ...ast.rest]
+      const objects = elements.flatMap(arms).filter(SchemaAST.isObjects)
       if (objects.length > 0) {
         const carrying = objects.filter(carries).length
         found.set(
           path,
-          carrying === 0
-            ? "positional"
-            : carrying === objects.length
-            ? "keyed"
-            : "mixed",
+          carrying === 0 ? "positional" : carrying === objects.length ? "keyed" : "mixed",
         )
       }
       for (const one of elements) walk(one, `${path}[]`)
       return
     }
-    if (ast._tag === "Objects") {
+    if (SchemaAST.isObjects(ast)) {
       for (const property of ast.propertySignatures) {
-        walk(property.type, path === "" ? property.name : `${path}.${property.name}`)
+        const name = String(property.name)
+        walk(property.type, path === "" ? name : `${path}.${name}`)
       }
     }
   }
 
-  walk((schema as { ast: unknown }).ast, "")
+  walk(schema.ast, "")
   return found
 }
 
-/** The claim every declaration below makes, whatever else it says: the key
- *  identifies some array, and there is no array it identifies HALF of. */
+/** The claim every declaration below makes, whatever else it says: something is
+ *  declared, the key identifies some array, and there is no array it identifies
+ *  HALF of. */
 const declares = (
-  schema: unknown,
+  schema: { readonly ast: SchemaAST.AST },
   field: string | undefined,
 ): ReadonlyMap<string, Keying> => {
-  expect(field).toBeString()
-  const found = keyings(schema, field as string)
+  if (field === undefined) throw new Error("the member declares no arrayKey at all")
+  const found = keyings(schema, field)
   expect([...found].filter(([, how]) => how === "mixed")).toEqual([])
   expect([...found].filter(([, how]) => how === "keyed").length).toBeGreaterThan(0)
   return found
