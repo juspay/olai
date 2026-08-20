@@ -734,6 +734,34 @@ const shelved = async (page: Page) =>
     })
   )).join(" · ")
 
+// ── the directory column's own rows ───────────────────────────────────
+
+/** What a write the palette made had to say — the remark that NAMES the file a
+ *  capture landed in, which is the only place the mint's path is visible to a
+ *  reader (the browser tests read the same slot). */
+const PALETTE_SAID = '[data-testid="palette-said"]'
+/** The door onto the inbox, at the foot of the column above the Trash. Drawn
+ *  only when the directory HAS an inbox, which is a claim a shot of a column
+ *  makes by not having one in it. */
+const INBOX_LINK = '[data-testid="inbox-link"]'
+
+/** The file tree as a reader sees it: every folder it drew and every file
+ *  under them, by the path each stands for.
+ *
+ *  Printed beside the shots because the claim is an ABSENCE — `_olai/` is not
+ *  drawn — and a picture of a column proves an absence only to somebody who
+ *  knows what was supposed to be in it. This line says what the tree actually
+ *  held on that frame. */
+const treeRows = async (page: Page) =>
+  (await page.locator(
+    '[data-testid="file-dir"], [data-testid="outline-link"], ' +
+      '[data-testid="document-link"], [data-testid="hypertext-link"]',
+  ).evaluateAll((all) =>
+    all.map((one) =>
+      one.getAttribute("data-path") ?? one.getAttribute("data-file") ?? "?"
+    )
+  )).join(" · ") || "(nothing)"
+
 /** Every row's title as the page DRAWS it — which for a row whose title is an
  *  address is the page it names, not the address. */
 const titles = async (page: Page) =>
@@ -874,6 +902,84 @@ const SECTIONS = {
     await page.locator(SHELF).waitFor()
     await page.waitForTimeout(DRAWN)
     await shot(page, "the-filter-came-with-it-pitch-dark")
+  },
+
+  /**
+   * THE FILES OLAI NAMES FOR ITSELF (`olai-names-its-own-files`, human
+   * 2026-08-20): `_olai/` out of the file tree, the two doors that replace
+   * those rows at the foot of the column, and the Prefs switch that puts the
+   * rows back.
+   *
+   * The shelf is WRITTEN into `_olai/Pins.olai` rather than clicked up, which
+   * is the same standing-in this file's pin section does: what the shot is
+   * about is what the column DRAWS for a directory that has one, not the
+   * gesture that made it. The inbox, on the other hand, is minted by the
+   * capture — because WHERE it lands is half of what this section is evidence
+   * for, and the palette's own remark names the file it wrote.
+   *
+   * Read the five in order and they are the whole rule: a column with olai's
+   * files kept out of the reader's list; the capture that mints one, saying
+   * where it went; the door that appears for it; the outline behind that door;
+   * and the switch that draws `_olai/` again for somebody who wants it.
+   */
+  "olai-names-its-own-files": async (page) => {
+    rewrite("_olai/Pins.olai", [
+      `{"id":"p-kitchen","ord":"a0","title":"/#kitchen"}`,
+    ])
+    await page.goto(`${BASE}/house.olai`)
+    await page.locator(SHELF).waitFor()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the tree draws:       ${await treeRows(page)}`)
+    console.log(`  the shelf reads:      ${await shelved(page)}`)
+    // No Inbox entry yet: this directory has never captured, and minting one
+    // is the capture's job rather than a door's.
+    console.log(`  inbox entries drawn:  ${await page.locator(INBOX_LINK).count()}`)
+    await shot(page, "the-column-is-the-readers-files", {
+      clip: { x: 0, y: 0, width: 300, height: COLUMN_FITS },
+    })
+
+    // THE CAPTURE, and the sentence it comes back with — which is where the
+    // mint's new path is visible to a reader rather than inferred: only the
+    // server knows which file the inbox is, so the palette prints what the
+    // answer said.
+    await page.keyboard.press("ControlOrMeta+k")
+    await page.locator(PALETTE_INPUT).waitFor()
+    await page.locator(PALETTE_INPUT).fill("+ buy the walnut stain")
+    await page.locator(PALETTE_INPUT).press("Enter")
+    await page.locator(PALETTE_SAID).waitFor()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the palette said:     ${
+      (await page.locator(PALETTE_SAID).innerText()).replace(/\s+/g, " ").trim()
+    }`)
+    await shot(page, "the-capture-says-where-it-landed")
+
+    await page.keyboard.press("Escape")
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the tree now draws:   ${await treeRows(page)}`)
+    await shot(page, "and-now-there-is-an-inbox-door", {
+      clip: { x: 0, y: 0, width: 300, height: COLUMN_FITS },
+    })
+
+    // The door opens the OUTLINE — an ordinary file page, editable, unlike the
+    // Trash beneath it.
+    await page.locator(INBOX_LINK).first().click()
+    await page.locator(OUTLINE_TREE).first().waitFor()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the door landed on:   ${new URL(page.url()).pathname}`)
+    console.log(`  holding:              ${(await titles(page)).join(" · ")}`)
+    await shot(page, "the-inbox-entry-opens-the-inbox")
+
+    // …and the switch that draws them again, photographed with the panel open
+    // over the column it is about.
+    await page.locator('[data-testid="prefs-trigger"]').first().click()
+    await page.locator('[data-testid="prefs-panel"]').waitFor()
+    await page.locator(
+      '[data-testid="prefs-row"][data-pref="hidden-outlines"] ' +
+        '[data-testid="prefs-choice"][data-value="shown"]',
+    ).click()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  with the switch on:   ${await treeRows(page)}`)
+    await shot(page, "the-prefs-switch-draws-them-again")
   },
 
   /**
@@ -2489,6 +2595,12 @@ const sectionNamed = (name: string): Section | undefined =>
  *  in exactly the dimension the panel needs. */
 const PANEL_FITS = { viewport: { width: WIDE, height: 1000 } }
 
+/** …and the height the whole DIRECTORY COLUMN fits in — the agenda, the month,
+ *  the shelf, the tree, the two ways to add to it and the two doors under it.
+ *  Its own number rather than {@link PANEL_FITS}'s, because it is a fact about
+ *  that column and not about a panel. */
+const COLUMN_FITS = 1200
+
 /**
  * What SHAPE of browser a section wants, where the default is not it.
  *
@@ -2537,6 +2649,11 @@ const SHAPES: Partial<Record<Section, Parameters<Browser["newContext"]>[0]>> = {
   // default window leaves below a row, and a shot that clips the sentence it
   // is about says nothing.
   "move-to-picker": PANEL_FITS,
+  // The section whose subject is the WHOLE directory column, from the agenda
+  // at the top to the Inbox and Trash doors at its foot. The column is exactly
+  // one screen tall and scrolls inside itself, so a shorter window would put
+  // the two rows this section is about below its own fold.
+  "olai-names-its-own-files": { viewport: { width: WIDE, height: COLUMN_FITS } },
 }
 
 const main = async () => {

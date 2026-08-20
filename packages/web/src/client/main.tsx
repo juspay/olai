@@ -15,6 +15,7 @@ import { followLayout } from "./layout/prefs.ts"
 import { followAutoPush } from "./settings/autopush.ts"
 import { followDensity } from "./settings/density.ts"
 import { followDoneHidden } from "./settings/done.ts"
+import { followOutlinesHidden } from "./settings/hiddenOutlines.ts"
 import { followStoredFont } from "./theme/fontState.ts"
 import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
@@ -43,13 +44,15 @@ followStoredFont()
 followStoredSize()
 
 // Layout preferences (sidebar open/width, chat open/width/snap), how much of a
-// row is drawn by default, what a page does with finished work, whether a
-// commit from here is pushed, what this browser has folded — of the outline
-// and of the directory — and the phone/desktop media query — document-lifetime,
-// like the theme.
+// row is drawn by default, what a page does with finished work, whether the
+// file tree draws the outlines olai named for itself, whether a commit from
+// here is pushed, what this browser has folded — of the outline and of the
+// directory — and the phone/desktop media query — document-lifetime, like the
+// theme.
 followLayout()
 followDensity()
 followDoneHidden()
+followOutlinesHidden()
 followAutoPush()
 followFolds()
 followFolders()

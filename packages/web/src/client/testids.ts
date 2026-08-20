@@ -695,6 +695,11 @@ export const TESTID = {
    *  anything has ever been archived: an empty trash is a fact, not a hidden
    *  control. */
   trashLink: "trash-link",
+  /** The way to the INBOX, directly above the Trash at the foot of the
+   *  directory column — the outline a `⌘K` `+` captures into, whichever file
+   *  the directory's is. Drawn only when there IS one: a directory that has
+   *  never captured has no inbox, and minting one is the capture's job. */
+  inboxLink: "inbox-link",
   /** The trash, as a page. Every archive the directory holds, read-only. */
   trashPage: "trash-page",
   /** One archive's worth of rows on it; `data-file` is which `_olai/Trash.olai`.

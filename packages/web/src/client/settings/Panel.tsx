@@ -13,14 +13,19 @@
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
  * theme, the typeface, how much of a row is drawn by default, what this
- * browser does with finished work, and whether a commit from here is pushed.
+ * browser does with finished work, which files the directory column draws, and
+ * whether a commit from here is pushed.
  * The DENSITY belongs here for exactly the reason the done preference does: it
  * is a claim about the reader ("I read a tree as a list of titles") rather than
  * about any one outline, so a switch bolted to the outline page would be a
  * per-page control for a per-person fact — and would have to be drawn on the
  * zoomed page and the day page too. Git's Auto-push is the same kind of claim
  * ("I want a commit I make here to be sent"), so it is a row rather than a
- * switch on the Commit panel. The layout values in `../layout/prefs.ts` are
+ * switch on the Commit panel. HIDDEN OUTLINES is the one row whose subject is
+ * the sidebar rather than a page, and it is here for the same test: "I want to
+ * see the files olai made for itself" is a claim about the reader, and the
+ * column it moves has no control of its own to hang it off. The layout values
+ * in `../layout/prefs.ts` are
  * stored the same way and are deliberately NOT here — a sidebar width is set
  * by dragging the sidebar, and a panel being open is set by the control that
  * opens it. Copying them into a settings list would be a second control for
@@ -42,6 +47,7 @@ import { LAYER } from "../layer.ts"
 import { autoPush, setAutoPush } from "./autopush.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
+import { outlinesHidden, setOutlinesHidden } from "./hiddenOutlines.ts"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
 import { TESTID } from "../testids.ts"
@@ -72,6 +78,14 @@ const DENSITY_CHOICES: ReadonlyArray<{ value: Density; label: string }> = [
   { value: "cozy", label: "Cozy" },
   { value: "open", label: "Open" },
 ]
+
+/** Hidden outlines: Hidden / Shown — the Done row's pair one subject over,
+ *  and the same two words, because it is the same kind of claim: a list of
+ *  rows, and whether some of them are on it. */
+const HIDDEN_CHOICES = [
+  { value: "hidden", label: "Hidden" },
+  { value: "shown", label: "Shown" },
+] as const
 
 /** Git: Off / Auto-push — today's wait, or a commit from this browser is
  *  followed by the same push the panel already offers. */
@@ -141,6 +155,18 @@ export function Panel(props: {
         />
       </Row>
 
+      {/* Under Done, because it is the other "which rows are on the page"
+          row — and the only row here whose subject is the DIRECTORY column
+          rather than the outline, which is why its label says out loud which
+          files it is about. */}
+      <Row label="Hidden outlines" pref="hidden-outlines" hint={hiddenHint()}>
+        <Segmented
+          choices={HIDDEN_CHOICES}
+          value={outlinesHidden() ? "hidden" : "shown"}
+          onPick={(value) => setOutlinesHidden(value === "hidden")}
+        />
+      </Row>
+
       <Row label="Git" pref="git" hint={gitHint()}>
         <Segmented
           choices={GIT_CHOICES}
@@ -195,6 +221,20 @@ const doneHint = (): string =>
     ? "Finished work is hidden — a row not drawn, never a node marked or a " +
       "file written."
     : "Finished work is shown."
+
+/** What the choice in force means for the column — and, either way, the half
+ *  that does NOT move: these files are in the set whichever way this row is
+ *  set, so nobody is told a switch took something away from search or from an
+ *  agent. The trash is named in both sentences because it is the one file
+ *  under `_olai/` this row does not reach. */
+const hiddenHint = (): string =>
+  outlinesHidden()
+    ? "Outlines olai names for itself — under _olai/ — are left out of the " +
+      "file tree; the shelf above it and the Inbox and Trash entries below " +
+      "are their doors. They stay in the directory: search and agents read " +
+      "them unchanged."
+    : "The file tree draws _olai/ too, so the shelf and the inbox open as " +
+      "outlines like any other file. The trash keeps its own page."
 
 const gitHint = (): string =>
   autoPush()
