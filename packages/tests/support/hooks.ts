@@ -988,16 +988,25 @@ Before(
     //
     // Registered per SOCKET because a tab that reconnects opens another one,
     // and the recording is of the tab.
+    //
+    // BOTH DIRECTIONS, because the tag arms a recording of the wire and the two
+    // halves answer two kinds of claim: what the server chose to SEND this
+    // reader (`world.socketCarried`), and how often this tab ASKED
+    // (`world.socketAskedSince`) — which is the only place a client that
+    // re-subscribes or re-asks per keystroke shows up at all.
     if (scenario.pickle.tags.some((tag) => tag.name === WIRE_TAG)) {
       const frames: string[] = [];
+      const asks: string[] = [];
       this.socketFrames = frames;
+      this.socketAsks = asks;
+      const text = (payload: string | Buffer): string =>
+        typeof payload === "string" ? payload : payload.toString("utf8");
       this.page.on("websocket", (socket) => {
         socket.on("framereceived", (frame) => {
-          frames.push(
-            typeof frame.payload === "string"
-              ? frame.payload
-              : frame.payload.toString("utf8"),
-          );
+          frames.push(text(frame.payload));
+        });
+        socket.on("framesent", (frame) => {
+          asks.push(text(frame.payload));
         });
       });
     }

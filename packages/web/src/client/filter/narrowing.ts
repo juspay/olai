@@ -58,7 +58,7 @@ import { needlesOf } from "@olai/format"
 import { type Accessor, createMemo } from "solid-js"
 
 import type { Drawn } from "../page.ts"
-import type { Matches } from "./asking.ts"
+import type { Matches } from "./matches.ts"
 import { type Counts, NOTHING_COUNTED } from "./count.ts"
 import { matchesIn, narrowed, placesIn } from "./drawn.ts"
 

@@ -85,7 +85,7 @@ import { useToday } from "../today.tsx"
 import { dayLabel, naturalDays } from "../date/natural.ts"
 import { createTags } from "./asking.ts"
 import { listKey } from "../keys.ts"
-import { triggerIn, type Trigger, type Written, written } from "./trigger.ts"
+import { sameTrigger, triggerIn, type Trigger, type Written, written } from "./trigger.ts"
 
 /** One row of the popup. `choose` is the whole of what it does, so the
  *  component that draws these knows nothing about dates, tags or mirrors. */
@@ -176,11 +176,15 @@ export const createCompletion = (field: {
   const today = useToday()
   const [dismissed, setDismissed] = createSignal<string | null>(null)
 
-  /** What the caret is inside, minus anything Escape has shut. */
+  /** What the caret is inside, minus anything Escape has shut.
+   *
+   *  BY VALUE (`./trigger.ts`'s `sameTrigger`), because a parse mints a fresh
+   *  object and the caret moves far more often than what is armed does — see
+   *  that predicate for what a caret moving inside one `#tag` used to re-run. */
   const trigger = createMemo<Trigger | null>(() => {
     const found = triggerIn(field.text(), field.caret())
     return found === null || tokenOf(found) === dismissed() ? null : found
-  })
+  }, null, { equals: sameTrigger })
 
   /** WHICH token a dismissal is about: the widget and where it starts, so the
    *  same `#` keeps its dismissal while it is being typed and a second one

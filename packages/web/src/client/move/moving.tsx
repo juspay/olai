@@ -34,10 +34,11 @@
  * a refusal leaves the row exactly where it was with the reason under it.
  */
 
-import type { Moved, Row } from "@olai/format"
+import { type Moved, type MovingRequest, type Row, sameMovingRequest } from "@olai/format"
 import type { Edit } from "@olai/surface"
 import {
   type Accessor,
+  batch,
   createContext,
   createEffect,
   createMemo,
@@ -50,6 +51,7 @@ import {
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { flatten, refound } from "../edit/order.ts"
 import { useUndo } from "../edit/undoing.ts"
+import { sameIds } from "../ids.ts"
 import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
@@ -173,20 +175,42 @@ export const createMoving = (
   const [standing, setStanding] = createSignal<Standing | null>(null)
   /**
    * THE DESTINATIONS BEING JUDGED — the ids the picker's shortlist is drawing
-   * right now, reported up by the panel as its search answers.
+   * right now.
    *
    * They are the STREAM'S ARGUMENT, which is why they live here rather than
    * inside the panel: one subscription answers both halves of what this gesture
    * needs to know — where the row now is, and which of these hits could take it
    * — out of one revision of one set, so a refusal can never name a file the
    * row has since left (`@olai/format`'s `moving.ts`).
+   *
+   * WHAT THE PANEL HANDS UP IS THE ACCESSOR, once, and what is here is a
+   * DERIVATION of it — not a report pushed on every answer. The push was an
+   * effect reading the hits and setting a signal this reads, which is a
+   * derivation spelled as a round trip through state: three hops for a value
+   * that is a function of one, and the shape that hid the two defects below
+   * (the request rebuilt when nothing about it moved). A list is what knows its
+   * hits and this is what asks about them; one line between the two, and it is
+   * an accessor.
+   *
+   * TWO NAMES for the two halves, and they are two things rather than one
+   * spelled twice: `hitIds` is WHOSE reading this is and `aimed` is WHAT IT
+   * SAYS, by value.
+   *
+   * WHOSE, exactly: {@link NONE} before any list has mounted; the open list's
+   * accessor while one is; a SPENT one after it goes, because a shortlist does
+   * not hand its list back as it unmounts (`../search/Shortlist.tsx` says why
+   * — the door's question would change at the moment the panel closes, which
+   * here is a subscription re-opened to say the gesture is over). A spent one
+   * is never read, because the request below asks nothing with no row standing
+   * — and `open` puts it down before the next row stands, so the panel that
+   * follows starts from nothing rather than from the last list's rows.
    */
-  const [aimed, setAimed] = createSignal<ReadonlyArray<string>>([], {
-    // BY VALUE, and this is not tidiness: the panel reports its hits on every
-    // answer, a fresh array each time, and this signal is a SUBSCRIPTION'S
-    // INPUT — so compared by reference the stream would tear down and re-open
-    // on every report, the answer would blink to `undefined` between the two,
-    // and the panel that renders off it would unmount and remount for ever.
+  const [hitIds, setHitIds] = createSignal<Accessor<ReadonlyArray<string>>>(NONE)
+  const aimed = createMemo<ReadonlyArray<string>, undefined>(() => hitIds()(), undefined, {
+    // BY VALUE, because the shortlist's hits are a fresh array on every answer
+    // and BOTH readers of this want the destinations rather than the array: the
+    // request below, whose own equality would then absorb it, and `refusals`,
+    // which rebuilds a `Map` per run and is the reader this actually spares.
     equals: sameIds,
   })
   /** How long the line lingers, and what clears it, is the client's ONE
@@ -224,6 +248,31 @@ export const createMoving = (
   })
 
   /**
+   * …and the SPENT gesture, put down when its sentence goes.
+   *
+   * `landed` is the arm that outlives the panel: the picker is gone, and what
+   * stands is a line under the row, wherever the row went. When the line takes
+   * itself away (`../saying.ts`'s six seconds) there is nothing left of the
+   * gesture at all — and nothing was putting it down. `close` is reachable only
+   * from the picker, which is unmounted by then, and the effect above only
+   * nulls a record that has LEFT the page.
+   *
+   * What a `landed` nobody lets go of costs is not on screen, which is why it
+   * went unseen: the subscription below stays open FOR EVER with the last
+   * move's request, and the effect above goes on flattening the whole visible
+   * tree on every frame this page publishes, for a panel nobody can see.
+   *
+   * BOTH READS ARE TRACKED, so this answers whichever of the two arrives last:
+   * a write with a sentence is put down when the sentence expires, and a write
+   * with nothing to say — the ops layer answers with `Said | void` — is put
+   * down the moment it lands, because there was never a line to wait for.
+   */
+  createEffect(() => {
+    const held = standing()
+    if (held?.kind === "landed" && saying.said() === null) setStanding(null)
+  })
+
+  /**
    * WHAT THE SET SAYS ABOUT THIS MOVE — the row as it stands, and a verdict per
    * destination.
    *
@@ -237,11 +286,34 @@ export const createMoving = (
    * A `null` INPUT with no panel open, which is the framework's own way of
    * holding a subscription closed: a row nobody is moving is a question nobody
    * is asking.
+   *
+   * A MEMO WITH AN EQUALITY, and the equality is the whole of it. A stream's
+   * input is not compared — the framework re-subscribes whenever the input
+   * NOTIFIES (`@kolu/surface`'s `createReactiveSubscription`) — so an accessor
+   * minting a fresh object per run re-asks on every notification of anything it
+   * touched. `standing` is such a notification on every frame the row's drawn
+   * place moves under it (the effect above re-files it, which is its job), and
+   * the question is about the RECORD and the destinations, neither of which
+   * moved. Un-guarded, another writer's edit tore this down, blanked the answer
+   * for a round trip, and un-dimmed every refused row in the open list before
+   * re-dimming it.
    */
-  const answer = olai.streams.moving.use(() => {
-    const held = standing()
-    return held === null ? null : { record: held.record, to: aimed() }
-  })
+  const request = createMemo<MovingRequest | null, undefined>(
+    () => {
+      const held = standing()
+      return held === null ? null : { record: held.record, to: aimed() }
+    },
+    undefined,
+    // The FORMAT's own equivalence over the request, beside the one the server
+    // holds its answers by (`@olai/format`'s `sameMovingRequest`) — a
+    // hand-written pair of field comparisons here would be the same two fields
+    // spelled a second time, free to forget the third.
+    {
+      equals: (a, b) => a === null || b === null ? a === b : sameMovingRequest(a, b),
+    },
+  )
+
+  const answer = olai.streams.moving.use(request)
 
   /**
    * The row being moved — `undefined` for a record the set no longer declares,
@@ -333,7 +405,21 @@ export const createMoving = (
       // just opened to make another one, is a sentence about nothing they can
       // see.
       saying.say(null)
-      setStanding({ kind: "picking", ...at })
+      // …and neither are the last panel's DESTINATIONS. The shortlist hands its
+      // own list up when it mounts, which is after this, so a picker that did
+      // not put the old ones down opens by asking the set to judge its row
+      // against rows nobody is showing — and then asks again, correctly, when
+      // the new list arrives. Opening is the moment the gesture starts, so it
+      // is the moment the question does.
+      //
+      // BATCHED so it is one question and not two: both of these feed the
+      // request, and written apart each would open a subscription of its own.
+      batch(() => {
+        // `() => NONE` and not `NONE`: a function handed to a setter is an
+        // updater, so an accessor is set through one that answers with it.
+        setHitIds(() => NONE)
+        setStanding({ kind: "picking", ...at })
+      })
     },
     showing: (key) => {
       const held = standing()
@@ -352,7 +438,10 @@ export const createMoving = (
               <MovePicker
                 moved={at()}
                 refusals={refusals()}
-                onAimed={setAimed}
+                // The accessor, held as a VALUE — Solid reads a function passed
+                // to a setter as an updater, so a signal whose value is a
+                // function is set through one that answers with it.
+                onAimed={(ids) => setHitIds(() => ids)}
                 onWrite={write}
                 onClose={close}
               />
@@ -378,8 +467,9 @@ export const createMoving = (
   }
 }
 
-/** The same destinations in the same order — what "the list is asking about
- *  what it was asking about" means for a value the shortlist mints fresh on
- *  every answer. See {@link createMoving}'s `aimed`. */
-const sameIds = (a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean =>
-  a.length === b.length && a.every((id, at) => id === b[at])
+/** No destinations, because no list is showing — what {@link createMoving}'s
+ *  `hitIds` holds before the first shortlist has handed up its own reading, and
+ *  what `open` puts it back to for every panel after that. The array is fresh
+ *  per call and that costs nothing: what reads it compares by value
+ *  ({@link ../ids.ts}), so an empty list is an empty list. */
+const NONE = (): ReadonlyArray<string> => []

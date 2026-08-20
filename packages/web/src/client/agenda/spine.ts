@@ -12,8 +12,8 @@
  * A tone arrives as a palette token's NAME (`@olai/format`'s `Tone`) and
  * becomes a custom property here — through `../theme/css.ts`'s own
  * `customProperty`, which is where that namespace is decided, so a renamed one
- * is a rename there rather than a second spelling here. All fifteen palettes
- * then follow a line drawn once. The two places a colour has to be MIXED — the
+ * is a rename there rather than a second spelling here. Every palette
+ * then follows a line drawn once. The two places a colour has to be MIXED — the
  * line fading out past the last day, and the ring around now — go through
  * `color-mix` over the same tokens rather than a hex with an alpha on it.
  *

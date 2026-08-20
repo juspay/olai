@@ -78,26 +78,36 @@ typecheck: install
 # client's own Solid tests stick to signals and memos), and it is why the tab's
 # bench asks for `--conditions browser` explicitly. But a rule whose whole
 # subject is reactive cannot be asked under it — and worse than failing, it
-# PASSES, having run none of the code it names. Four are: `settled.ts`, the
-# asker every shortlist door in the client is built on; `fold/refiling.ts`,
-# which decides when this browser asks where its folded ids now live and how
-# many times an answer may be applied; `names.ts`, the table every leaf of a
-# page reads a title through; and `chat/declared.ts`, whose asking is an effect
-# and whose failure slot is shared by every message on screen. So their cases
-# run under the browser condition, here, where they fail this leg like any
-# other test rather than living in a lane nobody runs.
+# PASSES, having run none of the code it names. Two are: `settled.ts`, the asker
+# every shortlist door in the client is built on, and `fold/refiling.ts`, which
+# decides when this browser asks where its folded ids now live and how many
+# times an answer may be applied. So their cases run under the browser
+# condition, here, where they fail this leg like any other test rather than
+# living in a lane nobody runs.
 #
 # The FILENAME is what keeps the two runs apart: bun discovers `.test.` /
 # `_test_` / `.spec.` / `_spec_` and nothing else, so a `.browsertest.ts` is
 # invisible to the first command and named as a path by the second. Running the
 # WHOLE suite under the browser condition is not the alternative — it fails 59
 # tests in packages that legitimately resolve the other way.
+#
+# The list grew with `reactivity-after-the-flip`, whose subjects are memos and
+# effects over a store — and "a memo re-ran" is the very claim a server-resolved
+# run cannot make, so each of these would PASS having recomputed nothing.
+# `names.ts` is the table every title resolver reads (PR 2), `frames.ts` counts
+# what a page frame writes, `directory.ts`'s broken map has to hold its identity
+# across a frame, `chat/last.ts` is about which rows an effect subscribes to
+# (PR 4), and `chat/declared.ts` is an ASKING that is an effect, over a failure
+# slot every message on screen shares (PR 5).
 test: install
     {{ nix_shell }} bun test
     {{ nix_shell }} bun test --conditions browser \
       ./packages/web/src/client/settled.browsertest.ts \
       ./packages/web/src/client/fold/refiling.browsertest.ts \
       ./packages/web/src/client/names.browsertest.ts \
+      ./packages/web/src/client/frames.browsertest.ts \
+      ./packages/web/src/client/directory.browsertest.ts \
+      ./packages/web/src/client/chat/last.browsertest.ts \
       ./packages/web/src/client/chat/declared.browsertest.ts
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the

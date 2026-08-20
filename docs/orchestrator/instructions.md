@@ -61,4 +61,6 @@ When the human approves multiples PRs, approve them in sensible order to minimiz
   
 Before asking the human to approve a PR, read the author's final message in its terminal (kolu snapshot). Anything it leaves "for you" — deferred scope, sibling-repo defects, follow-up work — is not merge-ready until the human has ratified its disposition: fold it into the PR, spawn it as new work, or explicitly let it lie. Never file issues, or take any action on another repo, without the human's ratification. "Recorded" in prose is not tracked; only a URL or a roadmap entry is.
 
+A deferral filed as a roadmap node wears `#deferral` in its TITLE and carries `from=<PR>` as a property (`set_prop`) — the tag is what a `#deferral` query counts, the property is where it came from; prose in the note is neither.
+
 [^green-ci]: Never judge CI from gh pr list's check rollup — it only lists checks that have already reported, so a required check that hasn't started looks like success. Before calling a PR green, run gh pr checks <n> --required and demand an explicit pass on every required check (or mergeStateStatus == CLEAN).

@@ -154,6 +154,12 @@ export interface Where {
 
 const NOWHERE: Where = { place: null, after: null, field: null }
 
+/** What {@link createEditor}'s `drawn` answers with when there is no caret in
+ *  a row — one array, so a page with nothing being typed in it hands back the
+ *  same reference every frame and notifies nobody. NOT `NOTHING_DRAWN`, which
+ *  is `../page.ts`'s and is a PAGE with nothing on it; this is a list. */
+const NO_ROWS: ReadonlyArray<Row> = []
+
 /** What a write that LANDED tells this editor: the node it turned out to be
  *  about, what that node says now, and whatever the rollup had to say. The
  *  surface's `Applied` minus the half only the undo stack reads — named once,
@@ -258,6 +264,31 @@ export const createEditor = (
   }, NOWHERE, { equals: (a, b) => a.place === b.place && a.after === b.after && a.field === b.field })
 
   /**
+   * THE PAGE AS THE EYE RUNS DOWN IT, walked once per frame and only while a
+   * caret is in a row.
+   *
+   * Three things in this file need it and each used to walk the tree for
+   * itself: `follow` re-finds the row a draft is drawn at, `row` looks that row
+   * up, and `step` takes the next one along. `flatten` is the whole VISIBLE
+   * tree, so an open draft paid it once per FRAME for `follow` — which is an
+   * effect, so a keystroke anywhere in the vault or a mark somebody else set
+   * runs it — and again per CALL for the other two, which arrive from key
+   * handlers outside any tracking scope
+   * (docs/brainstorming/reactivity-after-the-flip.md §4.8). One memo is one
+   * walk per frame, and the other two read what it already answered.
+   *
+   * GATED ON {@link where}, which is what keeps this from being a fourth cost
+   * rather than a saving: a page with no caret in it walks nothing, and `where`
+   * compares its three primitives by value, so a person TYPING does not move it
+   * — the memo re-runs on frames, which is exactly when the answer changes. A
+   * row draft is the one state all three readers are reachable from, and it is
+   * the one state with a `field` on it.
+   */
+  const drawn = createMemo<ReadonlyArray<Row>>(() =>
+    where().field === null ? NO_ROWS : flatten(page.rows(), page.collapsed())
+  )
+
+  /**
    * Whether a REDRAW of the row the caret is in is still expected.
    *
    * It answers two questions that are one question: whether the caret is owed
@@ -324,7 +355,7 @@ export const createEditor = (
     const at = where().place
     const held = untrack(draft)
     if (held === null || held.kind !== "row") return
-    const moved = refound(flatten(page.rows(), page.collapsed()), held.row, at)
+    const moved = refound(drawn(), held.row, at)
     if (moved !== undefined && moved !== at) setDraft({ ...held, place: moved })
   }
   createEffect(follow)
@@ -391,7 +422,7 @@ export const createEditor = (
   const row = (): Row | undefined => {
     const held = draft()
     if (held === null || held.kind !== "row") return undefined
-    return flatten(page.rows(), page.collapsed()).find((one) => one.key === held.place)
+    return drawn().find((one) => one.key === held.place)
   }
 
   /** Put the caret in another row's title, committing whatever was being typed
@@ -785,7 +816,7 @@ export const createEditor = (
   const step = async (by: 1 | -1): Promise<void> => {
     const held = draft()
     if (held === null || held.kind !== "row" || held.place === null) return
-    await move(neighbour(page.rows(), page.collapsed(), held.place, by))
+    await move(neighbour(drawn(), held.place, by))
   }
 
   return {

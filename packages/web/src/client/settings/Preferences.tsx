@@ -51,8 +51,8 @@ export function Preferences() {
         type="button"
         ref={popover.setTrigger}
         // The bar's icon-button shape (`../readout.ts`), which the agent toggle
-        // beside it wears too — including the 44px a finger needs. The BORDER
-        // is this button's own: it says whether the panel is up.
+        // beside it wears too — 44px tall on a phone. The BORDER is this
+        // button's own: it says whether the panel is up.
         class={`${ICON_BUTTON} border ${
           open() ? "border-accent text-paper" : "border-paper/25"
         }`}

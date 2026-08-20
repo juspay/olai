@@ -95,7 +95,7 @@ import { granting, read, tracked } from "./support/sweep.ts";
  * rather than four lines each sweep writes for itself.
  */
 const MAY_SPELL_IT: ReadonlyArray<string> = [
-  "docs/Archive.olai",
+  "docs/_olai/Trash.olai",
   "docs/RCA/",
   "docs/brainstorming/",
   "docs/format.md",

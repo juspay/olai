@@ -1120,6 +1120,36 @@ const pointedAt = async (world: OlaiWorld): Promise<string> => {
   return at.href;
 };
 
+/**
+ * WHERE THE FRAME IS POINTED NOW, remembered — and, one step later, that it is
+ * still pointed there.
+ *
+ * The pair is a claim about a NAVIGATION that must not happen. The component
+ * gives every pointing its own visit counter, so re-pointing a frame at the
+ * file it is already showing still changes the address — which makes "the same
+ * href" the exact reading of "this frame was not reloaded", with no timing
+ * window and nothing to count.
+ */
+When("I remember where the preview is pointed", async function (this: OlaiWorld) {
+  this.previewPointedAt = await pointedAt(this);
+});
+
+Then("the preview is pointed where it was", async function (this: OlaiWorld) {
+  const before = this.previewPointedAt;
+  assert.ok(
+    before !== undefined,
+    "no step remembered where the preview was pointed, so there is nothing " +
+      "to compare against — an assertion over that would pass for the wrong " +
+      "reason",
+  );
+  assert.strictEqual(
+    await pointedAt(this),
+    before,
+    "the preview frame was re-pointed — it reloaded the file it was already " +
+      "showing",
+  );
+});
+
 /** What the preview's own address answers, asked for again rather than read
  *  out of the frame: a frame in an opaque origin cannot be asked what its
  *  headers or its bytes were. Two steps below want that response and neither

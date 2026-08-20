@@ -3,8 +3,8 @@
  *
  * Generated from `./palettes.ts` and appended to the built stylesheet by
  * `src/build.ts`, which is why nothing here is in `styles.css`: the table is
- * the source, and a sheet with fifteen hand-copied blocks in it would be
- * fifteen chances for a token to be forgotten. What `styles.css` still spells
+ * the source, and a sheet with a hand-copied block per theme in it would be
+ * one chance per theme for a token to be forgotten. What `styles.css` still spells
  * is the TOKEN NAMES — Tailwind can only generate `text-muted` for a
  * `--color-muted` it has seen in `@theme` — and the default palette's values,
  * which `./css.test.ts` holds to this table.

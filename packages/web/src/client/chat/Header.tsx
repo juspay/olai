@@ -26,6 +26,10 @@
  *
  * Everything drawn is a projection of the chat cell. Nothing is remembered
  * locally, so a second tab's header says the same thing as this one.
+ *
+ * `relative` is the session picker's containing block (`./Sessions.tsx`): the
+ * list hangs from this header's box, so a 20rem list hung from `chats` cannot
+ * run off the left of a phone sheet.
  */
 
 import { Show } from "solid-js"
@@ -43,7 +47,7 @@ export function Header(props: {
   const state = () => props.chat.state()
 
   return (
-    <header class="flex shrink-0 items-center gap-2 border-b border-rule/70 px-3 py-2">
+    <header class="relative flex shrink-0 items-center gap-2 border-b border-rule/70 px-3 py-2">
       <div class="min-w-0 flex-1">
         <div
           class="truncate text-sm font-semibold"

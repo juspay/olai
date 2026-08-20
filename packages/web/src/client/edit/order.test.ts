@@ -66,22 +66,22 @@ test("the fold set is read by NODE, not by the place the row sits in", () => {
 test("the arrows step through what is drawn, across levels", () => {
   // The one thing worth getting wrong: `↓` from the last child of a branch
   // lands on the next row wherever it is in the shape.
-  expect(neighbour(tree, new Set(), "/a/a1/a1x", 1)?.key).toBe("/a/a2")
-  expect(neighbour(tree, new Set(), "/a/a2", 1)?.key).toBe("/b")
-  expect(neighbour(tree, new Set(), "/b", -1)?.key).toBe("/a/a2")
+  expect(neighbour(flatten(tree, new Set()), "/a/a1/a1x", 1)?.key).toBe("/a/a2")
+  expect(neighbour(flatten(tree, new Set()), "/a/a2", 1)?.key).toBe("/b")
+  expect(neighbour(flatten(tree, new Set()), "/b", -1)?.key).toBe("/a/a2")
 })
 
 test("`↓` over a folded branch skips what it is hiding", () => {
-  expect(neighbour(tree, new Set(["a1"]), "/a/a1", 1)?.key).toBe("/a/a2")
+  expect(neighbour(flatten(tree, new Set(["a1"])), "/a/a1", 1)?.key).toBe("/a/a2")
 })
 
 test("either end of the page is where the caret stays", () => {
   // No wrap-around: a page that jumped to the top when you pressed `↓` once
   // too often would be a surprise rather than a convenience.
-  expect(neighbour(tree, new Set(), "/a", -1)).toBeUndefined()
-  expect(neighbour(tree, new Set(), "/b", 1)).toBeUndefined()
+  expect(neighbour(flatten(tree, new Set()), "/a", -1)).toBeUndefined()
+  expect(neighbour(flatten(tree, new Set()), "/b", 1)).toBeUndefined()
 })
 
 test("a place that is not drawn has no neighbours", () => {
-  expect(neighbour(tree, new Set(), "/gone", 1)).toBeUndefined()
+  expect(neighbour(flatten(tree, new Set()), "/gone", 1)).toBeUndefined()
 })

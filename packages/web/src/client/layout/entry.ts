@@ -21,9 +21,8 @@
  * the WASH behind it. Accent-on-accent-wash is the same hue at two strengths:
  * 2.27:1 in reef, 1.19:1 in aurora — every palette in the table fails AA on
  * it, and it is the one row whose whole job is saying which page you are
- * standing on. Paper on that wash clears AA in all fifteen (4.78:1 at the
- * worst, moon). The coral still marks the row; it just no longer has to be
- * legible as type at the same time.
+ * standing on. Paper on that wash clears AA in every palette. The coral still
+ * marks the row; it just no longer has to be legible as type at the same time.
  */
 
 import { TARGET } from "../touch.ts"
