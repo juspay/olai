@@ -285,3 +285,20 @@ Feature: The three input widgets
     And I choose "#outdoors" from the completions
     Then the row being typed holds "pick the knobs #outdoors"
     And there should be no page errors
+
+  # ── the list paints over the page ───────────────────────────────────
+  #
+  # The same stacking question as the `•••` panel and its said line
+  # (`menu_panel.feature`): a sticky section heading is a stacking context
+  # at LAYER.row, and a box left in the title cell is cut in two. Zoomed
+  # into `kitchen`, `order` and `install` are those two headings; `!` on
+  # the first hangs the shortlist over the second. `elementFromPoint` at
+  # the overlap is the only honest assertion.
+
+  Scenario: Completions paint over a later section heading
+    Given I zoom into the node "kitchen"
+    When I click the title of "order"
+    And I type " !"
+    Then the date completions are open
+    And the completions take the pointer where they cross the section heading of "install"
+    And there should be no page errors
