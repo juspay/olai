@@ -49,7 +49,7 @@ import { createRoot } from "solid-js"
 import { only } from "../narrow.ts"
 import type { Drawn } from "../page.ts"
 import { answered } from "./answered.testlib.ts"
-import type { Matches } from "./asking.ts"
+import type { Matches } from "./matches.ts"
 import { createNarrowing, type Narrowing } from "./narrowing.ts"
 
 const derived = derive(nodesOfFiles({

@@ -46,6 +46,7 @@ import { Key } from "@solid-primitives/keyed"
 import {
   createEffect,
   createMemo,
+  createSelector,
   createSignal,
   Index,
   Match,
@@ -173,6 +174,24 @@ export function Palette(props: {
    * is what makes it the one list nobody has asked a question of yet.
    */
   const [chosen, setChosen] = createSignal(false)
+  /**
+   * WHICH ROW IS LIT, asked per row — Solid's own primitive for exactly this
+   * shape, the way the sidebar already asks which entry is the open one.
+   *
+   * Read as `chosen() && index() === cursor.at()` it was O(rows) work per
+   * change: `cursor.at()` reads `items().length`, so every row of the list
+   * re-evaluated its `active` binding whenever the list moved OR the cursor
+   * did, where at most two rows can have changed
+   * (docs/brainstorming/reactivity-after-the-flip.md §4.6). `createSelector`
+   * keeps one signal per subscribed key and wakes only the row that was lit
+   * and the row that now is.
+   *
+   * The UNCHOSEN state is folded in as `-1` rather than left as a second
+   * condition per row, because it is the same question: an untouched palette
+   * has no row lit ({@link chosen}), and a row asking twice is a row that can
+   * be woken twice.
+   */
+  const lit = createSelector(() => (chosen() ? cursor.at() : -1))
   const [askError, setAskError] = createSignal<string | null>(null)
   /** What the last write had to say — a refusal in the ops layer's own words,
    *  or a remark about one that landed. */
@@ -278,7 +297,16 @@ export function Palette(props: {
   )
 
   const items = createMemo(() => {
-    if (!listing()) return [] as ReadonlyArray<PaletteItem>
+    // NOTHING FOR A MODAL NOBODY CAN SEE, and it is the first line for the
+    // reason `opRows` above is guarded: everything below reads values that move
+    // on their own. `pins()` moves whenever anything pinned is retitled
+    // anywhere, `router.route()` on every navigation, and `props.names` twice
+    // per navigation — so a shut palette rebuilt its whole list, re-parsing the
+    // shelf for `pinnedAt` each time, on every one of them
+    // (docs/brainstorming/reactivity-after-the-flip.md §4.5). Solid re-tracks
+    // per run, so while the palette is shut this depends on `paletteOpen()`
+    // and nothing else.
+    if (!paletteOpen() || !listing()) return [] as ReadonlyArray<PaletteItem>
     // THE OP ROWS FIRST, because they are the only rows that are about what
     // the reader is looking at — a list whose contextual half is below the
     // fold is a list nobody finds them in. What makes that safe is
@@ -909,7 +937,7 @@ export function Palette(props: {
                         hint={item().hint}
                         place={item().place}
                         props={item().props}
-                        active={chosen() && index() === cursor.at()}
+                        active={lit(index())}
                         testids={PALETTE_ROW}
                         id={item().id}
                         onHover={() => {

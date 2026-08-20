@@ -26,7 +26,7 @@
  * away by it.
  */
 
-import { createEffect, createSignal, Show } from "solid-js"
+import { createSignal, Show } from "solid-js"
 
 import { ChatHandle } from "../layout/Handle.tsx"
 import { desktop } from "../layout/media.ts"
@@ -45,7 +45,7 @@ import { Composer } from "./Composer.tsx"
 import { DropTarget } from "./DropTarget.tsx"
 import { Header } from "./Header.tsx"
 import { createHolding } from "./holding.ts"
-import { sampleLastAgent } from "./last.ts"
+import { createLastAgent } from "./last.ts"
 import { Minimized } from "./Minimized.tsx"
 import { Missing } from "./Missing.tsx"
 import { NoAgent } from "./NoAgent.tsx"
@@ -173,8 +173,8 @@ function Body(props: { readonly chat: Chat }) {
 function DesktopDock() {
   const chat = createChat()
 
-  // Snapshot the last agent row for the minimized face; dies with this owner.
-  createEffect(() => sampleLastAgent(chat))
+  // Keep the last agent row for the minimized face; dies with this owner.
+  createLastAgent(chat)
 
   return (
     <aside
@@ -211,7 +211,7 @@ function MobileSheet() {
    *  rather than a tap-to-cycle. */
   let dragged = false
 
-  createEffect(() => sampleLastAgent(chat))
+  createLastAgent(chat)
 
   const heightPct = () => {
     const drag = dragPct()

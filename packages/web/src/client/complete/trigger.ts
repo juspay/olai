@@ -63,6 +63,37 @@ const DAY_CAP = 24
 /** The same fence for `((`, and tighter: a node search is a few words. */
 const SEARCH_CAP = 48
 
+/**
+ * Whether two triggers are the SAME offer — the widget, where its span starts,
+ * and what is inside it.
+ *
+ * {@link triggerIn} is a parse, so it mints a fresh object every time it is
+ * asked, and it is asked on every CARET MOVE: a click into the middle of a line,
+ * an arrow key, the `onSelect` a completion's own rewrite fires
+ * (`../edit/RowEditor.tsx`). Almost none of those change what is armed — the
+ * caret moved three characters inside one `#tag` — and without this each of them
+ * re-ran the whole widget: the choices, the failure slot, whether the popup is
+ * showing, its kind, and both question thunks
+ * (docs/brainstorming/reactivity-after-the-flip.md §4.3).
+ *
+ * The SIGIL is compared as well as the three fields every arm has, because `#`
+ * and `@` are two different lists asked of the same door; `kind` alone would
+ * hold a `#ho` popup open over an `@ho` one. It is spelled as a disjunction
+ * rather than a narrowed branch because TypeScript will not narrow `is` from a
+ * comparison against `was` — the second clause is unreachable given the first,
+ * and it is what lets `was.sigil` and `is.sigil` both be read.
+ *
+ * A FOURTH ARM ADDED TO {@link Trigger} would compile here without being
+ * compared, which is the one thing this predicate cannot check for itself:
+ * whatever that arm carries beyond `kind`, `from` and `query` belongs in the
+ * line below, the way `sigil` is.
+ */
+export const sameTrigger = (was: Trigger | null, is: Trigger | null): boolean =>
+  was === is ||
+  (was !== null && is !== null &&
+    was.kind === is.kind && was.from === is.from && was.query === is.query &&
+    (was.kind !== "tag" || is.kind !== "tag" || was.sigil === is.sigil))
+
 export const triggerIn = (text: string, caret: number): Trigger | null => {
   const before = text.slice(0, Math.max(0, caret))
   const brackets = bracketsIn(before)

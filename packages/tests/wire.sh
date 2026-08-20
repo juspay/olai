@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Measure one session against a WORKTREE's own server — see wire.ts for which
-# two sessions there are and what each is asking.
+# three sessions there are and what each is asking.
 #
 #   ROOT=/path/to/a/worktree LABEL=before bash wire.sh
 #   SESSION=pages ROOT=… LABEL=…    # the reading session, not the preview one
+#   SESSION=filter ROOT=… LABEL=…   # the narrowed-page session (calls, not bytes)
 #   PORT=7802 …               # pin a port (optional; the default asks the OS)
 #
 # Expects to be run from packages/tests, inside `nix develop .#e2e`, with the
