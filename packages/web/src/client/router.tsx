@@ -18,7 +18,15 @@
  * one of them.
  */
 
-import { createContext, createSignal, type JSX, onCleanup, useContext } from "solid-js"
+import {
+  type Accessor,
+  createContext,
+  createMemo,
+  createSignal,
+  type JSX,
+  onCleanup,
+  useContext,
+} from "solid-js"
 
 import { usePane } from "./pane/context.tsx"
 import { splitClick } from "./press.ts"
@@ -247,6 +255,32 @@ export const useHere = (): (() => number) => {
   const router = useRouter()
   const pane = usePane()
   return () => pane?.index ?? router.workspace().focus
+}
+
+/**
+ * WHERE INSIDE THIS PANE'S PAGE the navigation was asked to land, or nothing —
+ * {@link Router.landing} read for the pane the reader of it is drawn in.
+ *
+ * A MEMO, and that is the whole of what it adds over reading `landing()` and
+ * comparing the index by hand. `landing` is ONE signal broadcast to every pane
+ * and it is set on every push, with a fresh `{index, at}` each time — so a pane
+ * that read it directly was notified by a navigation next door, every time, and
+ * anything driven off that read ran again for an answer that had not moved. A
+ * memo over a string is where that stops: the answer is a slug or nothing, and
+ * `===` is the right comparison for both.
+ *
+ * `useHere`'s rule for WHICH pane, so a preview, a document's scroll and
+ * anything else that lands somewhere cannot disagree about whose landing this
+ * is (the disagreement two panes previewing two files would show as one being
+ * yanked by the other's click — `reactivity-after-the-flip` §3.3).
+ */
+export const useLanding = (): Accessor<string | undefined> => {
+  const router = useRouter()
+  const here = useHere()
+  return createMemo(() => {
+    const land = router.landing()
+    return land !== undefined && land.index === here() ? land.at : undefined
+  })
 }
 
 /** Navigate the pane this component is in, or the focused pane when it is

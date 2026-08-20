@@ -132,10 +132,16 @@ Given("the agent panel is open", async function (this: OlaiWorld) {
 
 // ── talking ────────────────────────────────────────────────────────────
 
-const typeInto = async (world: OlaiWorld, text: string): Promise<void> => {
+/** The box, waited for — one spelling of "how long a scenario gives the
+ *  composer to appear", shared by every step that types into it. */
+const chatBox = async (world: OlaiWorld) => {
   const input = world.page.locator(CHAT_INPUT);
   await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await input.fill(text);
+  return input;
+};
+
+const typeInto = async (world: OlaiWorld, text: string): Promise<void> => {
+  await (await chatBox(world)).fill(text);
 };
 
 When("I ask the agent {string}", async function (this: OlaiWorld, text: string) {
@@ -160,9 +166,7 @@ When("I type {string} into the chat", async function (this: OlaiWorld, text: str
 When(
   "I type {string} into the chat a letter at a time",
   async function (this: OlaiWorld, text: string) {
-    const input = this.page.locator(CHAT_INPUT);
-    await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await input.pressSequentially(text);
+    await (await chatBox(this)).pressSequentially(text);
   },
 );
 

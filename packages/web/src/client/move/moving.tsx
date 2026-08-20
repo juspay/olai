@@ -38,7 +38,6 @@ import { type Moved, type MovingRequest, type Row, sameMovingRequest } from "@ol
 import type { Edit } from "@olai/surface"
 import {
   type Accessor,
-  batch,
   createContext,
   createEffect,
   createMemo,
@@ -194,16 +193,16 @@ export const createMoving = (
    *
    * TWO NAMES for the two halves, and they are two things rather than one
    * spelled twice: `hitIds` is WHOSE reading this is — the open panel's, or
-   * {@link NONE} while there is no panel — and `aimed` is WHAT IT SAYS, by
-   * value, which is the only form a subscription's argument may take.
+   * {@link NONE} both before one opens and after it goes (the list hands the
+   * accessor back as it unmounts, so this never holds a closed list's) — and
+   * `aimed` is WHAT IT SAYS, by value.
    */
   const [hitIds, setHitIds] = createSignal<Accessor<ReadonlyArray<string>>>(NONE)
   const aimed = createMemo<ReadonlyArray<string>, undefined>(() => hitIds()(), undefined, {
-    // BY VALUE, and this is not tidiness: the shortlist's hits are a fresh
-    // array on every answer, and this is a SUBSCRIPTION'S INPUT — so compared
-    // by reference the stream would tear down and re-open on every answer, the
-    // value would blink to `undefined` between the two, and the panel that
-    // renders off it would unmount and remount for ever.
+    // BY VALUE, because the shortlist's hits are a fresh array on every answer
+    // and BOTH readers of this want the destinations rather than the array: the
+    // request below, whose own equality would then absorb it, and `refusals`,
+    // which rebuilds a `Map` per run and is the reader this actually spares.
     equals: sameIds,
   })
   /** How long the line lingers, and what clears it, is the client's ONE
@@ -398,18 +397,7 @@ export const createMoving = (
       // just opened to make another one, is a sentence about nothing they can
       // see.
       saying.say(null)
-      // …and neither are the last panel's destinations. The shortlist hands its
-      // own up when it mounts, which is after this: without the reset, the
-      // first question a new picker asks is about the ids the LAST one was
-      // showing — a verdict about rows nobody can see, for one round trip.
-      // BATCHED so it is one question and not two: both of these feed the
-      // request below, and written separately each would open a subscription.
-      batch(() => {
-        // `() => NONE` and not `NONE`: a function handed to a setter is an
-        // updater, so an accessor is set through one that answers with it.
-        setHitIds(() => NONE)
-        setStanding({ kind: "picking", ...at })
-      })
+      setStanding({ kind: "picking", ...at })
     },
     showing: (key) => {
       const held = standing()

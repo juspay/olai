@@ -26,7 +26,13 @@
  * A module of its own rather than a private line in either caller, because a
  * rule two modules keep is a rule that drifts in one of them (`./ref.ts` makes
  * the same move for the same reason, and a `.ts` is what lets the law be unit
- * tested without a JSX runtime behind it).
+ * tested without a JSX runtime behind it — `./ids.test.ts`).
+ *
+ * NOT THE ONLY ARRAY-OF-STRINGS EQUALITY IN THE CLIENT, and that is deliberate
+ * rather than an oversight: `./served.tsx` compares a PATH LIST by the same
+ * law, privately, and it is one of the arrangements the reactivity audit's §4
+ * names as already right. Widening this into "the same strings in the same
+ * order" and collapsing that one is a good change, and it is not this PR's.
  */
 
 import { Array, Equivalence } from "effect"

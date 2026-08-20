@@ -164,6 +164,13 @@ export function Shortlist(props: {
   // the render pass, and once rather than per answer because what the door
   // needs is the list itself: it derives its question from this, and the
   // verdicts it sends back arrive as `refusing.why`.
+  //
+  // NOT HANDED BACK when this list goes, which was tried and is worse: the
+  // door's question would then CHANGE at the moment the panel closes, which for
+  // the move picker is a subscription re-opened to ask about no destinations at
+  // all — a round trip spent saying the gesture is over. A door reads this only
+  // while it has something to ask about (`../move/moving.tsx` asks nothing with
+  // no row standing), so a spent accessor is simply never read.
   onMount(() => {
     props.refusing?.asked?.(hits)
   })

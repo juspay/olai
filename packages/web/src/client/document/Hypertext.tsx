@@ -115,7 +115,7 @@ import {
 import { SaidLine } from "../edit/SaidLine.tsx"
 import type { Said } from "../edit/undoing.ts"
 import { useOpens } from "../opens.tsx"
-import { useGo, useHere, useRouter } from "../router.tsx"
+import { useGo, useLanding } from "../router.tsx"
 import { fileNamed } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { useHead } from "../served.tsx"
@@ -282,7 +282,12 @@ export function Hypertext(props: { readonly file: string }) {
   // off the one stream the tab's file list already arrives on
   // (`@olai/surface`'s `Head`), and never the body: the body is what the frame
   // below fetches for itself, over HTTP, which is the point of all this.
-  const rev = useHead(() => props.file)
+  //
+  // A MEMO over it, because the head is one ENTRY of a collection and the
+  // accessor under this reads a field of it: the entry speaks when anything
+  // about the file moves, and what this frame acts on is the NUMBER. Compared
+  // as a number, a head that spoke without moving says nothing here.
+  const rev = createMemo(useHead(() => props.file))
   const [measured, setMeasured] = createSignal<string>()
   // What the last click could not be answered with, or nothing. It is CLEARED
   // by the next pointing rather than by a timer ({@link fresh}), which is the
@@ -295,13 +300,11 @@ export function Hypertext(props: { readonly file: string }) {
   // page had no such id. A SIGNAL rather than a scroll done on arrival, for the
   // reason the effect below gives.
   const [landedAt, setLandedAt] = createSignal<number>()
-  const router = useRouter()
-  const here = useHere()
   const go = useGo()
-  const landingAt = () => {
-    const land = router.landing()
-    return land !== undefined && land.index === here() ? land.at : undefined
-  }
+  /** Where inside this file this pane was asked to land, or nothing — the
+   *  router's own answer for the pane this frame is drawn in, memoized there
+   *  so a navigation next door says nothing here (`../router.tsx`). */
+  const landingAt = useLanding()
   const opens = useOpens()
   let frame: HTMLIFrameElement | undefined
 
@@ -589,28 +592,17 @@ export function Hypertext(props: { readonly file: string }) {
     if (custody.at === "stray") clearTimeout(custody.until)
   })
 
-  /**
-   * WHAT THE FRAME IS POINTED BY, as one string — the two facts the effect
-   * below acts on, joined so that "they are the same two facts" is a
-   * comparison a memo can make.
-   *
-   * A STRING, and this is not tidiness. `on` has no equality of its own: it
-   * re-runs whenever anything its input reads NOTIFIES, and an input returning
-   * a fresh array notifies on every one of them. `router.landing()` is a fresh
-   * `{index, at}` on every push in ANY pane ({@link ../router.tsx}), and this
-   * component asks it a question about THIS pane — so pane B opening a heading
-   * would notify pane A's input, whose answer is `undefined` before and after,
-   * and reload a preview nobody touched. Two panes previewing two files is the
-   * whole point of the split, and yanking one of them because the other
-   * navigated is the same class of bug the landing's `index` exists to prevent.
-   *
-   * The join is unambiguous because of which half is FIRST: a revision is an
-   * integer or nothing, so the first `|` is always the separator and whatever a
-   * heading's slug happens to hold cannot be read as a revision. Two different
-   * pairs cannot spell one string.
-   */
-  const asking = createMemo(() => `${rev() ?? ""}|${landingAt() ?? ""}`)
-
+  // WHAT IT WATCHES IS TWO NUMBERS AND A SLUG, and each is compared as
+  // itself — which is the whole of why neither is read raw here. `on` has no
+  // equality: it re-runs whenever anything its input READ notifies, so an input
+  // over a signal that speaks without moving re-runs for nothing. Both of these
+  // are such signals underneath — the head is one entry of a collection, and
+  // `router.landing()` is one object broadcast to every pane on every push — so
+  // each is memoized where it is answered ({@link rev} above, `../router.tsx`'s
+  // `useLanding`), and what arrives here is a value. Un-memoized, pane B
+  // opening a heading reloaded pane A's preview: a question whose answer was
+  // `undefined` before and after.
+  //
   // DEFERRED, because the first document is pointed at by the `ref` below —
   // before the element is in the page, so it arrives with its address already
   // on it and costs exactly one load.
@@ -650,7 +642,7 @@ export function Hypertext(props: { readonly file: string }) {
   // stopped being true the cost is one re-pointing at the file already shown,
   // which is what a walk-off already does and what the budget above bounds.
   createEffect(
-    on(asking, () => {
+    on(() => [rev(), landingAt()], () => {
       walkOffs = 0
       show()
     }, { defer: true }),
