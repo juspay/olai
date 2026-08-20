@@ -151,6 +151,22 @@ export function Commit() {
     }
   }
 
+  /** What the pill can still say when the bar has no room for the sentence.
+   *  `1 uncommitted` at 360pt became `1…`, which is worse than the number. A
+   *  face with a mark (`✓`, `⚠`) keeps the mark and drops the word. */
+  const saysPhone = () => {
+    switch (face()) {
+      case "waiting":
+      case "blocked":
+        return String(commit.waiting())
+      case "committed":
+      case "error":
+        return ""
+      default:
+        return says()
+    }
+  }
+
   return (
     <>
       <Tip text={said()}>
@@ -202,7 +218,10 @@ export function Commit() {
               </span>
             )}
           </Show>
-          <span class="min-w-0 truncate">{says()}</span>
+          <Show when={saysPhone() !== ""}>
+            <span class="min-w-0 truncate sm:hidden">{saysPhone()}</span>
+          </Show>
+          <span class="hidden min-w-0 truncate sm:inline">{says()}</span>
           {/* The first thing the bar gives up — see {@link ago}. */}
           <Show when={ago() !== ""}>
             <span class="hidden shrink-0 sm:block">· {ago()}</span>

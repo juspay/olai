@@ -63,7 +63,7 @@ import { refusalLines } from "../refusals.ts"
 import type { Route } from "../routes.ts"
 import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
-import { TARGET_BOX } from "../touch.ts"
+import { TARGET } from "../touch.ts"
 import { createCursor } from "./cursor.ts"
 import { createSearch } from "./nodes.ts"
 import { Result, type RowTestids } from "./Result.tsx"
@@ -203,10 +203,11 @@ export function HeaderSearch(props: {
       </div>
 
       {/* The phone's door: the same modal the chord opens, and the only door
-          a phone has. */}
+          a phone has. Height is a finger's; width is not a 44px square — that
+          square sat on the wordmark at 360pt. */}
       <button
         type="button"
-        class={`${TARGET_BOX} inline-flex items-center justify-center rounded text-paper/70 hover:text-paper md:hidden`}
+        class={`${TARGET} inline-flex w-8 shrink-0 items-center justify-center rounded text-paper/70 hover:text-paper md:hidden`}
         data-testid={TESTID.headerSearchOpen}
         aria-label="search the directory"
         onClick={() => openPalette()}
