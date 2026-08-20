@@ -26,9 +26,24 @@
  * Nothing in this file imports one ({@link Asking}, handed in by `App.tsx`),
  * which is `../edit/undoing.ts`'s arrangement word for word and for its reason:
  * everything here is a rule about WHEN, and a rule that can only be checked by
- * pressing a triangle in a browser is a rule nothing checks. `./refiling.test.ts`
- * is what that buys — it drives this door with an answer it hands over itself,
- * and it exists because the rule below was got wrong once (#276's review).
+ * pressing a triangle in a browser is a rule nothing checks.
+ * `./refiling.browsertest.ts` is what that buys — it drives this door with an
+ * answer it hands over itself, and it exists because the rule below was got
+ * wrong once (#276's review).
+ *
+ * ## Not a caller of `../settled.ts`
+ *
+ * That is the receptacle for the same-looking thing — a question the server is
+ * asked as somebody types, with the settle and the latest-wins rule named once
+ * — and every shortlist door in this client is built on it. This one is not,
+ * and the reason is the same one the rule below turns on: what `createSettled`
+ * hands back is three ACCESSORS a door DRAWS, over a `createResource` that
+ * holds the answer in a signal. Nothing draws this answer. It is applied and
+ * forgotten, and holding it in a signal is precisely what let an effect read it
+ * and apply it twice. Nor is it a keystroke: the settle here is a hand clicking
+ * triangles, which is why it is not that file's `SETTLE_MS`. Two doors, one
+ * shape, two different axes — the same distinction `../filter/asking.ts` is
+ * held apart by there.
  *
  * ## Nothing on screen is waiting for this
  *
@@ -149,7 +164,7 @@ export const createRefiling = (wire: Asking): void => {
    * Out here the apply is not in the graph at all, so applying twice is not a
    * thing that can happen; what a resource was giving — drop the answer to a
    * question that has been overtaken — is the counter above, which is where
-   * that rule was before and where it costs three lines. (`./refiling.test.ts`
+   * that rule was before and where it costs three lines. (`./refiling.browsertest.ts`
    * pins both.)
    *
    * The failure is a CONSOLE LINE and not a banner — see the header — and it is

@@ -68,9 +68,33 @@ install:
 typecheck: install
     {{ nix_shell }} bun run typecheck
 
-# Unit tests
+# Unit tests. TWO commands, one leg — and the second is not a second suite.
+#
+# `bun test` resolves SolidJS's SERVER build, where a memo never re-runs,
+# `createResource` throws outright, an EFFECT never runs at all and `isServer`
+# is true (which is what `@solid-primitives/scheduled` reads to turn `debounce`
+# into a function that does nothing). That is fine for nearly everything (the
+# packages that are not the browser want that resolution, and most of the
+# client's own Solid tests stick to signals and memos), and it is why the tab's
+# bench asks for `--conditions browser` explicitly. But a rule whose whole
+# subject is reactive cannot be asked under it — and worse than failing, it
+# PASSES, having run none of the code it names. Two are: `settled.ts`, the asker
+# every shortlist door in the client is built on, and `fold/refiling.ts`, which
+# decides when this browser asks where its folded ids now live and how many
+# times an answer may be applied. So their cases run under the browser
+# condition, here, where they fail this leg like any other test rather than
+# living in a lane nobody runs.
+#
+# The FILENAME is what keeps the two runs apart: bun discovers `.test.` /
+# `_test_` / `.spec.` / `_spec_` and nothing else, so a `.browsertest.ts` is
+# invisible to the first command and named as a path by the second. Running the
+# WHOLE suite under the browser condition is not the alternative — it fails 59
+# tests in packages that legitimately resolve the other way.
 test: install
     {{ nix_shell }} bun test
+    {{ nix_shell }} bun test --conditions browser \
+      ./packages/web/src/client/settled.browsertest.ts \
+      ./packages/web/src/client/fold/refiling.browsertest.ts
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json (bunfig.toml explains why they have to be there). Reads
@@ -203,9 +227,11 @@ hm-module:
 #     keystroke (`packages/format/src/filter.bench.ts`, added when a reviewer
 #     asked where the milliseconds in its header came from);
 #   - the TAG COMPLETION, timed as an index read against the corpus walk it
-#     replaced (`packages/web/src/client/complete/tags.bench.ts`, added with
+#     replaced (`packages/format/src/vocabulary.bench.ts`, added with
 #     `taggedBy` — the roadmap deferred that index until somebody measured this
-#     walk, so the measurement is a leg rather than a paragraph). Its two arms
+#     walk, so the measurement is a leg rather than a paragraph). It moved down
+#     from the browser with the reading it times, which the server now runs per
+#     settled keystroke instead of the tab running it per frame. Its two arms
 #     must answer the same list or the run fails, and a third times the walk as
 #     it literally stood; what the wider index costs the FOLD, and what the tag
 #     WALK under it costs in the three shapes it has been written in, are the
@@ -226,7 +252,7 @@ bench: install
     {{ nix_shell }} bun --conditions browser packages/web/src/client/outlines.bench.ts
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
-    {{ nix_shell }} bun packages/web/src/client/complete/tags.bench.ts
+    {{ nix_shell }} bun packages/format/src/vocabulary.bench.ts
 
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
 # instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees

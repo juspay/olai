@@ -34,6 +34,7 @@
  */
 
 import type { Derived, Row } from "@olai/format"
+import type { Shelf } from "@olai/surface"
 
 import { armNode } from "../chat/armed.ts"
 import type { Relation } from "../edges/relation.ts"
@@ -81,6 +82,10 @@ export const nodeMenuActions = (args: {
    *  is REMEMBERED drops the ids of nodes the set no longer declares as it is
    *  written (`../fold/memory.ts`). */
   readonly derived: Derived | undefined
+  /** The shelf as the server answered it, for the ONE verb that is about the
+   *  sidebar rather than about the row: whether this node is already a door on
+   *  it (`../pins/answered.tsx`). */
+  readonly pins: Shelf
   readonly collapsed: boolean
   /** Every node under this row that has children — what the two "all" verbs
    *  name. Passed in rather than walked here: the walk is over Row shape, which
@@ -196,7 +201,11 @@ export const nodeMenuActions = (args: {
   // — turned into the running of it. Spread rather than copied field by field:
   // a hand-written list of names here is the list that goes stale the day a
   // verb grows a field, silently, because both shapes still compile.
-  const writes: MenuAction[] = writeVerbs(subjectOfRow(args.row), args.derived).map(
+  const writes: MenuAction[] = writeVerbs(
+    subjectOfRow(args.row),
+    args.derived,
+    args.pins,
+  ).map(
     ({ does, ...verb }) => ({
       ...verb,
       // A BLOCK, and the `return` under it is load-bearing: an action answers

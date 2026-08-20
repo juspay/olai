@@ -12,20 +12,29 @@
  * ONE ROW WITH TWO LABELS, for {@link ../pins/pinning.ts}'s reason: pinning is
  * a state, the shelf already knows which way this page's answer goes, and a
  * palette offering both would make a reader choose between two words.
+ *
+ * TWO THINGS ARE ASKED HERE AND THEY COME FROM DIFFERENT PLACES, which is worth
+ * saying out loud while that is true: whether this page is already on the shelf
+ * is the SERVER's answer (`./pins.ts` over the `pins` cell), and what this page
+ * is CALLED is still the tab's own reading of the set — this row names a page a
+ * reader is standing on, and a page's reading is what PR 10 moves
+ * (`docs/brainstorming/vault-in-browser.md` §6).
  */
 
 import type { Derived } from "@olai/format"
+import type { Shelf } from "@olai/surface"
 
 import type { PaletteItem } from "../palette/items.ts"
 import type { Route } from "../routes.ts"
-import { nameOf } from "../address/address.ts"
+import { nameOf, shownIn } from "../address/address.ts"
 import { pinnedAt } from "./pins.ts"
 
 export const pinItem = (
   route: Route,
+  shelf: Shelf,
   derived: Derived | undefined,
 ): PaletteItem => {
-  const already = pinnedAt(derived, route)
+  const already = pinnedAt(shelf, route)
   return {
     id: "pin-page",
     label: already === undefined ? "Pin this page" : "Unpin this page",
@@ -34,7 +43,7 @@ export const pinItem = (
     // in, and wanted here for the same reason a write row wants it: the
     // palette is opened from anywhere, and a bare "Pin this page" in a list of
     // strangers does not say which page it means.
-    place: nameOf(route, derived),
+    place: nameOf(route, shownIn(derived, route)),
     action: { kind: "pin" },
     search: "pin unpin shelf sidebar bookmark save this page keep",
   }

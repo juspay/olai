@@ -143,8 +143,10 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  *
  * Written as the complement of one omission, and the omission is the whole
  * point of this map existing: `ops.*` is absent. Every cell, every collection,
- * the chat's nine verbs, `edit.apply`, the two search questions and the two git
- * verbs are here because a page reads or presses them; the ops request vocabulary is
+ * the chat's nine verbs, `edit.apply`, the two search questions, the id lookup
+ * behind the transcript's backticks, the tag completion's vocabulary and the
+ * two git verbs are here because a page reads
+ * or presses them; the ops request vocabulary is
  * not, because a browser sends INTENTS and the placement is the server's
  * (`@olai/surface`'s `edit.ts`, argued at length and unchanged by any of this).
  *
@@ -165,6 +167,21 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  * for the same reason it is absent from {@link MCP}, inverted: a render-
  * shaped consumer genuinely needs the "has this directory ever loaded" bit that
  * a request-shaped one gets for free by blocking on the first frame.
+ *
+ * `pins` is a FOURTH, and the one that is a READING rather than a projection of
+ * the files: the sidebar's shelf, answered per revision (`@olai/format`'s
+ * `shelfOf`). An agent has no use for it and is not offered it — the shelf is an
+ * ordinary outline, `Pins.olai`, and an agent reads it with `read_subtree` and
+ * writes it with `add_node` / `move_node` / `trash_node`, which is the whole
+ * point of the convention being titles in a file (docs/format.md's Pins). What
+ * this member adds for a BROWSER is the resolution — a pin's node named as it
+ * is called right now — which is a paint instruction for a column somebody is
+ * looking at.
+ *
+ * It satisfies the cost rule the way `pending` does rather than trivially: the
+ * value is O(what somebody PINNED), which is a curated short list — it is
+ * exactly the rows the sidebar draws, so a shelf too big for this member is a
+ * shelf too big for the column it is drawn in.
  *
  * `heads` is a THIRD of that kind, and the sharpest: it is here and absent from
  * {@link MCP} because it answers a question only a render-shaped consumer asks.
@@ -193,6 +210,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   dated: "resource",
   owed: "resource",
   heads: "resource",
+  pins: "resource",
   transcript: "resource",
   errors: "resource",
   manifest: "resource",
@@ -213,6 +231,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "search.matching": "tool",
   "nodes.named": "tool",
   "nodes.homes": "tool",
+  "vocabulary.tags": "tool",
   "git.commit": "tool",
   "git.push": "tool",
 }
@@ -244,6 +263,11 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
  * about it. The third answers a file per id and a list of paths, for a browser
  * reconciling a memory of what it had collapsed: an agent that wants to know
  * where a node lives reads it, and is told beside everything else about it.
+ *
+ * `vocabulary.tags` is absent for the same kind of reason and is a whole GROUP
+ * rather than one member of one: it answers a POPUP — as many rows as the
+ * widget that asked has room for, ranked by how much this set uses each word —
+ * and an agent writing `#home` writes the word.
  *
  * What a commit is RECORDED AS does differ, and it is not a member's business:
  * this face is served under the writer the composition root bound

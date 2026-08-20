@@ -23,6 +23,7 @@
 
 import { derive, rowsOf, type Row } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
+import { NO_PINS } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import { armedNodes, releaseArmed } from "../chat/armed.ts"
@@ -54,6 +55,7 @@ const actionsFor = (
 ) =>
   nodeMenuActions({
     row: row(id),
+    pins: NO_PINS,
     derived,
     collapsed: false,
     foldable: [],

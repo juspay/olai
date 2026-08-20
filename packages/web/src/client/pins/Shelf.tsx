@@ -13,13 +13,15 @@
  * chrome charged to everyone. Its presence is therefore the fact a scenario
  * asserts.
  *
- * WHAT IT DRAWS IS THE DIRECTORY, never a local list. The pins come off the
- * same indexes every page is drawn from (`./pins.ts`), so a pin an AGENT wrote
- * — into `Pins.olai`, with `add_node`, from a terminal — is on the shelf on the
- * frame the store publishes it, exactly like a row appearing in an outline.
- * Nothing here is optimistic and nothing is echoed: a pin, an unpin and a
- * reorder each go to the write gate and the shelf redraws when the file says
- * so, which is the rule the whole editor is built on.
+ * WHAT IT DRAWS IS THE DIRECTORY, never a local list — the server's own
+ * reading of `Pins.olai`, re-answered on every revision that changes it
+ * (`./answered.tsx`, `./pins.ts`). So a pin an AGENT wrote — into `Pins.olai`,
+ * with `add_node`, from a terminal — is on the shelf on the frame the store
+ * publishes it, exactly like a row appearing in an outline, and a pinned node
+ * RENAMED anywhere says its new name on that same frame. Nothing here is
+ * optimistic and nothing is echoed: a pin, an unpin and a reorder each go to
+ * the write gate and the shelf redraws when the file says so, which is the rule
+ * the whole editor is built on.
  *
  * ## The reorder
  *
@@ -38,7 +40,6 @@
 
 import { createMemo, createSelector, createSignal, For, Show } from "solid-js"
 
-import { useDerived } from "../derived.tsx"
 import { useUndo } from "../edit/undoing.ts"
 import { REGION, REGION_LABEL } from "../layout/entry.ts"
 import { createDrags, TRAVEL_PX } from "../pointer.ts"
@@ -46,7 +47,7 @@ import { useRouter } from "../router.tsx"
 import { hrefOf } from "../routes.ts"
 import { selector, TESTID } from "../testids.ts"
 import { applying } from "../writes.ts"
-import { nameOf } from "../address/address.ts"
+import { usePins } from "./answered.tsx"
 import { Pin } from "./Pin.tsx"
 import { sayPin } from "./pinning.ts"
 import { type Pin as Pinned, pinsOf } from "./pins.ts"
@@ -88,12 +89,15 @@ interface Carrying {
 }
 
 export function Shelf() {
-  const derived = useDerived()
+  const shelf = usePins()
   const router = useRouter()
   const undo = useUndo()
   const drags = createDrags()
 
-  const pins = createMemo(() => pinsOf(derived()))
+  // A MEMO over the answer, so the titles are read when the SHELF moves rather
+  // than whenever this column redraws — and so the drag's arithmetic is over
+  // one list rather than a fresh one per frame.
+  const pins = createMemo(() => pinsOf(shelf()))
 
   const [carrying, setCarrying] = createSignal<Carrying | undefined>(undefined)
   /**
@@ -216,10 +220,6 @@ export function Shelf() {
             {(pin, at) => (
               <Pin
                 pin={pin}
-                // The row's own sentence — its tooltip, and the unpin's label.
-                // What is DRAWN is the face's (`../address/Face.tsx`), through
-                // the same resolver, so the two cannot disagree.
-                name={pin.named ?? nameOf(pin.route, derived())}
                 current={isHere(hrefOf(pin.route))}
                 lifted={carrying()?.from === at()}
                 onGrab={(event) => grab(at(), event)}

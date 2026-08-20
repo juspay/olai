@@ -22,13 +22,9 @@
  */
 
 import type { Axis } from "./pane/geometry.ts"
-import {
-  HOME_ROUTE,
-  hrefOf,
-  type Route,
-  routeOf,
-  splitAddress,
-} from "./routes.ts"
+import { splitAddress } from "@olai/format"
+
+import { HOME_ROUTE, hrefOf, type Route, routeOf } from "./routes.ts"
 
 export type { Axis } from "./pane/geometry.ts"
 

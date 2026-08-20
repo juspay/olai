@@ -31,6 +31,7 @@ import {
   owed,
   search,
   subtree,
+  tags,
 } from "./query.ts"
 
 /** The hits on RECORDS, which is what nearly every case below is about: a
@@ -143,6 +144,65 @@ describe("the edges a node carries", () => {
     const free = search(reading(), { text: "-is:blocked" }, TODAY).hits.filter(isNodeHit).map((hit) => hit.id)
     expect(free).not.toContain("sticky")
     expect(free).toContain("git")
+  })
+})
+
+/**
+ * The DERIVED half of the ordering graph, on a node read — what is standing in
+ * the way right now, rather than the ids the record happens to name.
+ *
+ * A page has drawn this since blockedness existed; an agent could not ask for
+ * it at all, and reconstructing it from `after` is not the same answer — it
+ * would count a `done` target and a bullet as obstacles, and would miss the
+ * edge the other record wrote as `blocks` entirely. Which is the whole reason
+ * it is a field: one derivation (`@olai/format`'s `blockersOf`, where the rule
+ * is argued and tested), answered at both faces.
+ *
+ * A set of its own rather than the ledger above, because the case that names
+ * the rule is a BULLET carrying an `after` — a shape `LEDGER` has no room for,
+ * and one every other test in this file would have to be re-read against.
+ */
+describe("what a node is waiting on", () => {
+  /** A slab, a cure, a frame and a shelf: the three answers this field has, in
+   *  one file. `frame` waits on both `pour` (its own `after`) and `cure`
+   *  (written from the other end as `blocks`); `pour` is unfinished work with
+   *  nothing before it; `chips` names the same unfinished target and is a
+   *  bullet, so nothing is telling it it cannot start. */
+  const WAITING = (): OutlineSet =>
+    setOf({
+      "build.olai": [
+        `{"id":"pour","ord":"a0","title":"pour the slab","todo":true}`,
+        `{"id":"cure","ord":"a1","title":"let it cure","doing":true,"blocks":["frame"]}`,
+        `{"id":"frame","ord":"a2","title":"frame the walls","todo":true,"after":["pour"]}`,
+        `{"id":"chips","ord":"a3","title":"paint chips on the shelf","after":["pour"]}`,
+      ].join("\n"),
+    })
+
+  const waiting = () => derivedOf(WAITING())
+
+  test("a blocked node names every blocker, situated and marked", () => {
+    // In the order the format promises: the node's own `after` first, then the
+    // `blocks` pointing back at it from elsewhere. And each blocker is a whole
+    // situated answer, so "has this moved" needs no second read.
+    expect(detail(waiting(), "frame")?.blockedBy).toEqual([
+      { id: "pour", title: "pour the slab", file: "build.olai", line: 1, status: "todo", path: [] },
+      { id: "cure", title: "let it cure", file: "build.olai", line: 2, status: "doing", path: [] },
+    ])
+  })
+
+  test("a node with nothing in its way does not say so with an empty list", () => {
+    // `pour` is the blocker itself — unfinished work, and nothing before it.
+    // Absence is how the format spells nothing, and an answer follows it.
+    expect(detail(waiting(), "pour")).not.toHaveProperty("blockedBy")
+  })
+
+  test("a bullet is waiting on nothing, whatever `after` it carries", () => {
+    // The one case that separates this field from the record's: `chips` names
+    // `pour`, which IS unfinished — but a bullet is not work, so nothing is
+    // telling it it cannot start. The record's own field still answers.
+    const chips = detail(waiting(), "chips")
+    expect(chips).toMatchObject({ after: ["pour"] })
+    expect(chips).not.toHaveProperty("blockedBy")
   })
 })
 
@@ -965,4 +1025,43 @@ describe("the sidebar's two date readings", () => {
     expect(owed(derivedOf(DAYS()), { today: "2026-09-01" }).today).toBe(0)
     expect(owed(derivedOf(DAYS()), { today: "2026-09-01" }).overdue).toBe(3)
   })
+})
+
+// ── the vocabulary a completion draws ──────────────────────────────────
+
+describe("which tags the set already uses", () => {
+  const HOUSE = (): OutlineSet =>
+    setOf({
+      "house.olai": [
+        `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order cabinets #home #shopping"}`,
+        `{"id":"ask","parent":"kitchen","ord":"a2","title":"ask @alice about the #hob"}`,
+      ].join("\n"),
+      "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"the old boiler #boiler"}`,
+    })
+
+  // The ENVELOPE, which is this layer's half: what the rules are is
+  // `@olai/format`'s `vocabulary.ts` and is pinned there, and what travels is
+  // this shape — a field dropped between the reading and the answer would fail
+  // nothing over there.
+  test("the answer is the shortlist, ranked, in the envelope the wire carries", () => {
+    expect(tags(derivedOf(HOUSE()), { sigil: "#", query: "ho", limit: 8 }))
+      .toEqual({
+        tags: [
+          { name: "home", count: 2 },
+          { name: "hob", count: 1 },
+          { name: "shopping", count: 1 },
+        ],
+      })
+  })
+
+  test("the sigil asked with is the only namespace answered", () => {
+    expect(tags(derivedOf(HOUSE()), { sigil: "@", query: "", limit: 8 }))
+      .toEqual({ tags: [{ name: "alice", count: 1 }] })
+  })
+
+  // What the trash does to the vocabulary is NOT re-asserted here: it is a rule
+  // about what a tag count means, pinned where the rule lives
+  // (`@olai/format`'s `vocabulary.test.ts`). The fixture keeps its trashed
+  // record so the two above are asked of a directory that has one.
 })

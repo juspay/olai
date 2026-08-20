@@ -123,7 +123,8 @@ export const Found = Schema.Struct({
    *  removes a target BY ID, so a reader that could not see the list could only
    *  change it by guessing. Not the derived blockedness — what is standing in
    *  the way right now is a question about marks, and this is what the record
-   *  says. */
+   *  says. A node read answers both, and {@link Detail.blockedBy} is the other
+   *  one; a hit answers this half alone, which is the half `set_after` takes. */
   after: RegularNode.fields.after,
   /**
    * The named facts this node carries that olai gives no meaning to — the
@@ -451,6 +452,53 @@ export const Detail = Schema.Struct({
    *  draws exactly this list under a zoomed node, which would make it a fact a
    *  person could see and an agent could not. */
   referencedBy: Schema.optionalKey(Schema.Array(Reference)),
+  /**
+   * What is standing in this node's WAY right now — the derived blockedness,
+   * each blocker situated the way every other list here situates a node.
+   * Absent when nothing is, which is nearly every node.
+   *
+   * NOT `after` read back. That field above is the record's own, verbatim:
+   * every target the line names, whether or not any of them is still work. This
+   * is which of them are — and it is a different SET at both ends. An edge
+   * spelled `blocks` on the OTHER record resolves into the same graph, so a
+   * node carrying no `after` at all can be waiting; and a target that is
+   * `done`, a target with no mark, and anything put away in an
+   * `_olai/Trash.olai` stand in nobody's way, so an `after` of three can show
+   * nothing here. Two fields because they answer two questions — "what does
+   * this record declare" is what `set_after` edits, "can this start" is what a
+   * reader is deciding on.
+   *
+   * ONE derivation, `./derive.ts`'s `blockersOf`, which is also what the app
+   * dims a row with and what `is:blocked` selects on. Nothing about it is
+   * spelled again here: what this declaration adds is the SHAPE the answer
+   * travels in, which is {@link Found} for {@link Reference}'s reason — a
+   * reader told only the ids of what it is waiting on is a reader making one
+   * more read per blocker to learn whether any of them has moved.
+   *
+   * A `Found` and not a narrower shape, and that choice is worth its sentence
+   * because two things pull the other way. Every entry here does carry a
+   * `status`, and it is `todo` or `doing` — what is in the way is unfinished
+   * WORK, which `InTheWay` says in its own type (`Exclude<Status, "done">`) —
+   * so `Found`'s OPTIONAL status is one notch wider than what this list can
+   * hold; and each blocker arrives with its `see`, its `after` and its whole
+   * `custom` map, none of which the "can this start" question has a use for.
+   * Both are paid deliberately. A struct that narrowed the mark would be the
+   * unfinished predicate spelled a SECOND time, in a module that argues none of
+   * it — the one duplication blockedness is most written against — and a struct
+   * that dropped the record's fields would be a second situated vocabulary for
+   * a list that is one or two entries long. Consistency with every other list
+   * on this shape costs less than either.
+   *
+   * A HIT does not carry this, and that is not the `custom` oversight read
+   * again: `custom` is the RECORD'S, so answering it only here made a query
+   * plus a read per row out of one query. This is DERIVED, like `progress`
+   * above it — and derived rollups wait for the node read, because a
+   * {@link Found} holding an array of `Found` is a recursive shape that would
+   * nest a blocker's blockers into every child list and every subtree row. What
+   * a hit answers instead is the question rather than the list: `is:blocked`
+   * selects on this same index, and the situated names are this read.
+   */
+  blockedBy: Schema.optionalKey(Schema.Array(Found)),
 })
 export type Detail = typeof Detail.Type
 

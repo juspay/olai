@@ -226,7 +226,7 @@ const unparsable = (
  * with a sharper edge on it: two benches quote figures about "the 1,000-file
  * vault" — what a patch costs the patcher ({@link ./patch.bench.ts}) and what
  * the tag index costs the completion above it (`@olai/web`'s
- * `complete/tags.bench.ts`) — and two numbers about two different generated
+ * `./vocabulary.bench.ts`) — and two numbers about two different generated
  * corpora are two numbers nobody may compare. One generator is what makes them
  * one vault.
  *

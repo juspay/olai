@@ -20,6 +20,14 @@
  * THE CLOCK IS DRIVEN rather than waited out: the settle is three quarters of a
  * second, and a suite that slept through it three times would be paying two and
  * a half seconds for a rule about ordering.
+ *
+ * `.browsertest.ts` FOR `../settled.browsertest.ts`'s REASON, which that file
+ * argues in full: `bun test` resolves SolidJS's server build, where an effect
+ * never runs and `isServer` turns `@solid-primitives/scheduled`'s `debounce`
+ * into a function that does nothing — so every case below would PASS under it,
+ * having run none of the door. The second command of the same `just test` leg
+ * names this path (the justfile says so), and bun's own discovery does not see
+ * this suffix.
  */
 
 import { expect, jest, test } from "bun:test"

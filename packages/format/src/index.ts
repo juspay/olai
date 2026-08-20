@@ -174,6 +174,7 @@ export {
   unkept,
 } from "./kinds.ts"
 export type { BodyKind, FileKind } from "./kinds.ts"
+export type { Split } from "./address.ts"
 /** WHAT A PLACE IS CALLED — `[document]#[element]`, the one grammar every
  *  feature that has to name something trades in
  *  (docs/brainstorming/first-class-documents.md). Exported whole, primitives
@@ -188,10 +189,20 @@ export {
   AtNode,
   addressOf,
   DocumentPath,
+  /** The address a TITLE carries, and the two halves of the one link it may be
+   *  written as — the shape a NAMED pin takes, read by the shelf reading down
+   *  here and by the browser drawing the same title (docs/format.md's Pins).
+   *  One spelling, because two readers cut it. */
+  addressWritten,
+  linkedTitle,
   NodeId,
   parseAddress,
   printAddress,
   Slug,
+  /** Path, query and fragment of an address, cut the way this app writes one —
+   *  the URL's own punctuation, read on both sides of the wire. What the halves
+   *  MEAN stays the browser's. */
+  splitAddress,
   Tag,
   writtenAddress,
 } from "./address.ts"
@@ -212,6 +223,12 @@ export {
   isTrashed,
   isLeftoverArchive,
   isMirror,
+  /** ...and the two of them as the one question every reading of the LIVE set
+   *  actually asks. Exported beside them rather than instead of them: the
+   *  writer half still names the trash on its own, and the sidebar still tells
+   *  a dormant Archive from it — what nobody has ever wanted is one without the
+   *  other in a READING (`./node.ts`). */
+  isPutAway,
   Located,
   MARKS,
   /** Where olai mints a file it named itself, and the directory it puts them
@@ -269,6 +286,18 @@ export {
   /** The crumbs' titles, outermost first — what every reader of an ancestry
    *  actually draws, said once. */
   ancestorTitles,
+  /** What one node is WAITING ON — the reading side of `Derived.blocked`, so no
+   *  caller has to know that absence is how that index spells "nothing".
+   *
+   *  On the surface because the answer left the package: every drawing of
+   *  blockedness in the browser rides a reading that already carries it (a
+   *  `Row`'s `blocked`, a `Zoomed`'s), and `read_node` answers it about ONE id
+   *  that is not a page — so the ops layer asks for it directly. Exported for
+   *  `standingBefore`'s reason below, arrived at from the other end of the same
+   *  arrow: the row a person sees dimmed and the `blockedBy` an agent is handed
+   *  must be one reading, and a second walk over `after` up there would be free
+   *  to disagree with this one about what unfinished work is. */
+  blockersOf,
   byOrd,
   countedChildren,
   derive,
@@ -295,11 +324,12 @@ export {
   siblingsOf,
   /** What a node's `after` targets hold up, asked of a node that is not work
    *  yet. Exported for the reason `drawnFrom` above is: two rules read
-   *  blockedness and they must agree. The web draws it with `blockersOf` and
-   *  the search grammar's `is:blocked` asks the same index for the yes-or-no
-   *  (`isBlocked`, one file over), so an agent's answer and the drawn row are
-   *  one reading; the ops layer refuses `set_doing` with THIS one, which is
-   *  the same reading from the other end of the arrow. */
+   *  blockedness and they must agree. The rows a page draws and `read_node`'s
+   *  `blockedBy` both come off `blockersOf` above, and the search grammar's
+   *  `is:blocked` asks the same index for the yes-or-no (`isBlocked`, one file
+   *  over), so an agent's answer and the drawn row are one reading; the ops
+   *  layer refuses `set_doing` with THIS one, which is the same reading from
+   *  the other end of the arrow. */
   standingBefore,
   isTagName,
   mayHoldTag,
@@ -617,6 +647,15 @@ export {
   SearchRequest,
 } from "./searching.ts"
 
+/** The set's own WORDS — every tag written down, counted, and which of them one
+ *  prefix under one sigil means. The reading over `Derived.taggedBy` rather than
+ *  the index, for `./backlinks.ts`'s reason: what a tag's COUNT means (one vote
+ *  per record, nothing the trash draws) is a decision, and it is made there. It
+ *  ran in the browser until `vault-in-browser`'s PR 2 took the vault out of it —
+ *  see `./vocabulary.ts`. ONE function, not the enumeration and the match as two
+ *  for a caller to compose: the composition is the primitive. */
+export { completingTags, TagCompletion, TagsAnswer, TagsRequest } from "./vocabulary.ts"
+
 /** The words a commit gets when nobody wrote any. Here rather than in the ops
  *  layer because the message is now a function of a SELECTION, and the
  *  selection is made in a browser — see `./message.ts`. */
@@ -664,3 +703,16 @@ export {
   stageOf,
 } from "./errors.ts"
 export type { ErrorCode, Stage } from "./errors.ts"
+
+/**
+ * THE PINNED SHELF, as a reading of the set rather than of a browser's copy of
+ * it (./shelf.ts): the rows of the directory's `Pins.olai` and the live name of
+ * whatever node each one addresses.
+ *
+ * Public because it crosses — the server answers it per revision and the
+ * sidebar draws it (`@olai/surface`'s `pins` cell). `pinTargetIn` is public
+ * beside the reading because the browser holds it up against its own address
+ * parser, which is what keeps one title from having two answers.
+ */
+export { NO_PINS, pinTargetIn, sameShelf, Shelf, shelfOf } from "./shelf.ts"
+export type { Pinned } from "./shelf.ts"

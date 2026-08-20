@@ -44,6 +44,12 @@
  *     commit worked. A directory that is not one, or a git that cannot be run,
  *     is news a reader is owed rather than a line in a server log
  *     ({@link GitState}).
+ *   - `pins` is a CELL, and it is the first member here that carries a READING
+ *     of the set rather than the set: the sidebar's shelf, recomputed per
+ *     revision and sent when it changed by value. It is where
+ *     `docs/brainstorming/vault-in-browser.md` is going — the browser is handed
+ *     what it draws instead of every record it would have had to walk to work
+ *     it out.
  *
  * Who is on the other end is NOT a member here, and it was for one commit. The
  * question is real — a page bound to a replaced server must know — but the
@@ -107,11 +113,16 @@ import {
   Located,
   NamedAnswer,
   NamedRequest,
+  NO_PINS,
   NOTHING_PENDING,
   OutlineError,
   Pending,
   PushResult,
   samePending,
+  sameShelf,
+  Shelf,
+  TagsAnswer,
+  TagsRequest,
 } from "@olai/format"
 import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
@@ -428,6 +439,43 @@ export const surface = defineSurface({
        *  `equals` every open tab would get a frame every thirty seconds
        *  saying exactly what it already knew. */
       equals: samePending,
+    },
+    /**
+     * THE PINNED SHELF — the rows of the directory's `Pins.olai`, and the live
+     * name of whatever node each one addresses (`@olai/format`'s {@link Shelf}).
+     *
+     * A CELL, which is to say a STANDING answer with no argument. The shelf is
+     * a reading of the whole vault — which file the shelf is, that file's top
+     * level, and a name that may live in any other file — and it was the
+     * browser's own walk over its copy of every outline until PR 5 of
+     * `docs/brainstorming/vault-in-browser.md`. Nothing about it depends on who
+     * is asking or on what they are looking at, so there is no input to give a
+     * stream and no question to make a procedure of: the server recomputes it
+     * on every published revision and sends it when it changed by value, which
+     * is §2's mechanism sentence exactly.
+     *
+     * RE-ANSWERED PER REVISION IS THE FEATURE, not an optimisation. A bare pin
+     * stores an address and never a name, so what the shelf draws for `/#herbs`
+     * is that node's title RIGHT NOW — rename it anywhere, by anyone, and the
+     * new name is on the shelf on the frame the store publishes, because there
+     * was never a second copy of it to go stale.
+     *
+     * `equals` is what keeps that from costing anything: the reading mints a
+     * fresh array per revision, and almost every revision has nothing new to
+     * say about a shelf of five doors.
+     *
+     * WIRE-READ-ONLY, like every other file-shaped member: a pin is a row in an
+     * ordinary outline, and the only way to write one is the ops layer — which
+     * is what a pin, a reorder and an unpin already resolve to.
+     *
+     * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`): an agent reads the
+     * shelf as the ordinary outline it is.
+     */
+    pins: {
+      schema: Shelf,
+      default: NO_PINS,
+      verbs: ["get"],
+      equals: sameShelf,
     },
   },
   collections: {
@@ -820,6 +868,32 @@ export const surface = defineSurface({
       },
     },
     /**
+     * THE SET'S OWN WORDS, as opposed to a question about them.
+     *
+     * A sibling of {@link search} rather than a third member of it, because
+     * nothing in here reads the query grammar: this answers which tags have
+     * been WRITTEN DOWN and how much each is used, where every member of that
+     * group is a caller of the one matcher. Two doors with two subjects, said
+     * in the shape rather than in a comment on a shared one — and the same
+     * division {@link nodes} above makes for a lookup that is not a search
+     * either.
+     *
+     * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`), like the filter's
+     * door: what it answers is a popup's worth of rows, capped by the popup.
+     */
+    vocabulary: {
+      /** The row editor's `#`/`@` completion — the vocabulary of one sigil,
+       *  narrowed by what has been typed after it, most-used first. Declared in
+       *  `@olai/format`'s `vocabulary.ts` beside the reading that produces it,
+       *  for {@link ./search.ts}'s reason: one spelling, so the shape cannot
+       *  drift from the answer. */
+      tags: {
+        input: TagsRequest,
+        output: TagsAnswer,
+        error: OpFailure,
+      },
+    },
+    /**
      * The other door to the same action the agent's `commit` tool opens.
      *
      * A PROCEDURE rather than a write verb on the cell above: committing is
@@ -918,9 +992,18 @@ export {
 export { NamedAnswer, NamedRequest } from "@olai/format"
 
 /** WHERE THE IDS A READER REMEMBERS NOW LIVE, and which of the files they were
- *  filed under the set still has anything from — the fold memory's batch, whose
- *  shapes are the floor's for the reason above. */
+ *  filed under this directory has actually read — the fold memory's batch,
+ *  whose shapes are the floor's for the reason above. */
 export { HomesAnswer, HomesRequest } from "@olai/format"
+
+/** THE PINNED SHELF as the `pins` cell carries it — the floor's shapes again,
+ *  re-exported for the same reason, so the sidebar draws the rows the reading
+ *  produced rather than a second description of them. `sameShelf` does NOT come
+ *  through this door: a cell declares its `equals` in the spec above, which is
+ *  the only place that answer is spent (`samePending` is imported here and
+ *  re-exported by nobody, for the same reason). */
+export { NO_PINS, Shelf } from "@olai/format"
+export type { Pinned } from "@olai/format"
 
 /** What the sidebar's two date readings ask and answer on the wire — see
  *  {@link ./dates.ts}. */
@@ -939,6 +1022,14 @@ export {
   SearchHit,
   SearchRequest,
 } from "./search.ts"
+
+/** What a tag COMPLETION asks and answers — `@olai/format`'s declarations,
+ *  carried rather than re-spelled, for {@link ./search.ts}'s reason. The
+ *  browser sends a sigil, a prefix and the number of rows its popup has; the
+ *  answer is the words this set already uses, most-used first. The reading
+ *  behind it is that package's `vocabulary.ts`, which is where it moved when
+ *  the browser stopped holding a vault to enumerate. */
+export { TagCompletion, TagsAnswer, TagsRequest } from "@olai/format"
 
 /** What an attachment may BE — the policy the browser gates on before encoding
  *  and the server gates on before writing. One module, for the same reason the
