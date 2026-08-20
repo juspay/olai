@@ -183,12 +183,14 @@ export const useEditor = (): Editor => {
 }
 
 export const createEditor = (
-  /** The rows on screen and what is folded — the two halves of "what is
-   *  drawn", which is what the arrows move through and where a row that has
-   *  moved is found again. */
+  /** The rows on screen, what is folded — the two halves of "what is drawn",
+   *  which is what the arrows move through and where a row that has moved is
+   *  found again — and how many FRAMES the page's reading has moved on, which
+   *  is what {@link settle} waits for. */
   page: {
     readonly rows: Accessor<ReadonlyArray<Row>>
     readonly collapsed: Accessor<ReadonlySet<string>>
+    readonly frames: Accessor<number>
   },
   /**
    * The page's multi-selection (`../select/selection.ts`). Handed in rather
@@ -283,7 +285,18 @@ export const createEditor = (
   const settle = () => {
     // Tracked, and read first: the frame that redrew the row is what this is
     // waiting for, and an effect runs after that row has been moved.
-    page.rows()
+    //
+    // THE FRAME COUNT and not the rows, which is a correction the page reading
+    // forced (`docs/brainstorming/vault-in-browser.md`'s PR 10). This used to
+    // read `page.rows()`, and it worked because the rows were a fresh array on
+    // every frame — the tab derived them from its own copy of the set. They
+    // arrive on a subscription now, whose value is a RECONCILED STORE: the
+    // array's identity survives every frame and its elements move underneath,
+    // so a shallow read of it notifies for nothing and a mark that did not move
+    // the row would leave this debt owing for ever — suppressing every later
+    // blur in the session. What this is waiting for is a FRAME, and that is
+    // what it now reads (`../reading.tsx`'s `Reading.at`).
+    page.frames()
     if (!settling) return
     settling = false
     setCaret((n) => n + 1)

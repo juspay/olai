@@ -125,14 +125,17 @@ export const createReading = (
 }
 
 const ReadingContext = createContext<Accessor<PageReading | undefined>>()
+const FramesContext = createContext<Accessor<number>>()
 
 export function ReadingProvider(props: {
-  readonly reading: Accessor<PageReading | undefined>
+  readonly reading: Reading
   readonly children: JSX.Element
 }) {
   return (
-    <ReadingContext.Provider value={props.reading}>
-      <NamesProvider reading={props.reading}>{props.children}</NamesProvider>
+    <ReadingContext.Provider value={props.reading.page}>
+      <FramesContext.Provider value={props.reading.at}>
+        <NamesProvider reading={props.reading.page}>{props.children}</NamesProvider>
+      </FramesContext.Provider>
     </ReadingContext.Provider>
   )
 }
@@ -143,6 +146,23 @@ export const useReading = (): Accessor<PageReading | undefined> => {
   const reading = useContext(ReadingContext)
   if (reading === undefined) throw new Error("a page reading outside <ReadingProvider>")
   return reading
+}
+
+/**
+ * HOW MANY FRAMES this pane's reading has moved on — see {@link Reading.at}.
+ *
+ * Its readers are the two that wait for a FRAME rather than for a value: the
+ * filter, whose answer about the set may not outlive it, and the row editor,
+ * which suppresses a blur while it is waiting for the frame that redraws a row
+ * it just moved (`./edit/editing.tsx`'s `settling`). Both used to read the
+ * derivation's identity, which was a fresh value per revision; neither can read
+ * the reading's, because a subscription's value is a store whose identity
+ * survives every frame.
+ */
+export const useFrames = (): Accessor<number> => {
+  const frames = useContext(FramesContext)
+  if (frames === undefined) throw new Error("a frame count outside <ReadingProvider>")
+  return frames
 }
 
 /** What the ids this page points at are called — see {@link NamesProvider}. */
@@ -161,15 +181,24 @@ const NamesContext = createContext<Accessor<Names>>()
  * means something honest by: a `see` onto a node the set does not declare draws
  * its own id (the dangling link, as it always did), and a title that addresses
  * one is drawn by its own address (docs/format.md's Pins).
+ *
+ * ONE SPELLING, and it is a function rather than a line inside the provider
+ * because there are two readers at two depths: everything inside a pane, which
+ * takes it off the context below, and the chrome OUTSIDE the panes, which reads
+ * the focused pane's reading out of the register and needs the same lookup over
+ * it (`./App.tsx`, for the palette's pin row). Written twice, the second copy
+ * would be the same table built a different way.
  */
+export const namesIn = (reading: PageReading | undefined): Names => {
+  const table = new Map((reading?.names ?? []).map((one) => [one.id, one]))
+  return (id) => table.get(id)
+}
+
 function NamesProvider(props: {
   readonly reading: Accessor<PageReading | undefined>
   readonly children: JSX.Element
 }) {
-  const named = createMemo<Names>(() => {
-    const table = new Map((props.reading()?.names ?? []).map((one) => [one.id, one]))
-    return (id) => table.get(id)
-  })
+  const named = createMemo<Names>(() => namesIn(props.reading()))
   return <NamesContext.Provider value={named}>{props.children}</NamesContext.Provider>
 }
 

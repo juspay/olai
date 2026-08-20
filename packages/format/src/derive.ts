@@ -1069,7 +1069,7 @@ export const drawnFrom = (
  * ({@link ./validate.ts}), the ops layer refuses the write that would close one
  * (`ops`' `showsInto`, both for a new mirror and for a MOVE that carries one
  * into what it shows), and the move-to picker refuses the destination at the
- * aim, before the key (`web`'s `move/destination.ts`).
+ * aim, before the key (`./moving.ts`).
  *
  * A PATH rather than a boolean, because every one of those refusals names the
  * loop: an agent told which chain it just tried to fold into itself can fix the

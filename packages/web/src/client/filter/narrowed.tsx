@@ -18,7 +18,7 @@
  * written: the fold memory (`../fold/memory.ts`) is untouched, and clearing the
  * filter restores every collapse exactly as it was.
  *
- * A context rather than a prop for the reason `../derived.tsx` is one: a tree
+ * A context rather than a prop for the reason `../reading.tsx` is one: a tree
  * of a thousand rows should not thread two more arguments through every level
  * to answer what one binding on each row asks. The default is the honest
  * "nothing is filtered", for a `<Tree>` drawn outside the provider — which no

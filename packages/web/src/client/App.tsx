@@ -41,7 +41,7 @@ import { Rail } from "./layout/Rail.tsx"
 import { only } from "./narrow.ts"
 import { OpensProvider } from "./opens.tsx"
 import { fileOf, opensAt } from "./page.ts"
-import { createReadings, ReadingsProvider } from "./reading.tsx"
+import { createReadings, namesIn, ReadingsProvider } from "./reading.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { PinsProvider } from "./pins/answered.tsx"
 import { pinSaid } from "./pins/pinning.ts"
@@ -199,10 +199,7 @@ export default function App() {
    * A LOOKUP rather than the array, for `./reading.tsx`'s reason: one row asks
    * one id, and the table is built where it is answered.
    */
-  const names = createMemo(() => {
-    const table = new Map((focused()?.names ?? []).map((one) => [one.id, one]))
-    return (id: string) => table.get(id)
-  })
+  const names = createMemo(() => namesIn(focused()))
 
   /** The day the calendar opens on, when the focused pane is a day page. */
   const openDay = createMemo(() => {

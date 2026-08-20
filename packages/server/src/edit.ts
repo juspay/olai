@@ -106,7 +106,7 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
     // to read off the snapshot, and every refusal is `planMove`'s own: a parent
     // in another file, a parent inside the subtree being moved, an id nothing
     // declares. The picker draws the first two before `Enter` as well
-    // (`web/src/client/move/destination.ts`), which is an aim and not a fence —
+    // (`@olai/format`'s `moving.ts`), which is an aim and not a fence —
     // this request is still the one an agent's `move_node` sends.
     case "under":
       return Result.succeed({ op: "move", id: edit.id, parent: edit.parent })

@@ -466,7 +466,7 @@ export const targetsOf = (
  *      (`./vocabulary.ts`, which that page asks for), because that count is a
  *      promise about rows; and
  *      the move-to picker refuses it as a DESTINATION in its own words
- *      (`move/destination.ts`) — a query that says `is:trashed` can reach the
+ *      (`./moving.ts`) — a query that says `is:trashed` can reach the
  *      Trash from there, and what is put away is not somewhere work is moved
  *      TO.
  *

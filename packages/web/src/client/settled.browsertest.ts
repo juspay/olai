@@ -7,7 +7,8 @@
  * `bun test` resolves SolidJS's SERVER build, whose `createResource` throws
  * outright (`getNextContextId cannot be used under non-hydrating context`) and
  * whose effects never re-run. That is not a quirk to work around: it is the
- * same trap `outlines.bench.ts`'s header names, and it is why every other Solid
+ * same trap the tab's own frame bench named in its header before it was deleted
+ * with the fold it timed, and it is why every other Solid
  * unit test in this client sticks to signals and memos. A primitive whose whole
  * subject is what a `createResource` does with a source that moved cannot be
  * asked under a build where there is no resource.

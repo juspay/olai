@@ -6,7 +6,7 @@
  * the node it belongs to is overdue (`@olai/format`'s `isOverdue`), and that
  * predicate needs today — so every row of a thousand-row tree needs today, and
  * threading it through `Tree` → `Row` → `NodeLine` would make three signatures
- * a function of what one leaf draws. That is the same argument `./derived.tsx`
+ * a function of what one leaf draws. That is the same argument `./reading.tsx`
  * makes about the indexes, and the same one the router makes about navigation.
  *
  * The value is an ACCESSOR, for the reason the derivation's is: today MOVES —

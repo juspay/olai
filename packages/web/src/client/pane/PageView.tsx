@@ -176,7 +176,7 @@ export function PageView() {
         go(next)
       }}
     >
-      <ReadingProvider reading={reading.page}>
+      <ReadingProvider reading={reading}>
       <NarrowedProvider narrowed={narrowing}>
         <Show when={narrowing.drawn().kind !== "none"}>
           <FilterBar narrowing={narrowing} asked={asked} onType={narrow} />

@@ -9,7 +9,7 @@
  * to ask for here and no generation to ask on: the server is the one that knows
  * when the directory moved.
  *
- * A CONTEXT rather than a prop, for `../derived.tsx`'s reason: the readers are
+ * A CONTEXT rather than a prop, for `../reading.tsx`'s reason: the readers are
  * scattered and none of them is near the sidebar. The shelf itself draws it,
  * the ⌘K row and the ⌘⇧P chord ask whether this page is on it
  * (`../palette/Palette.tsx`), and the `•••` of every row in a thousand-row tree
