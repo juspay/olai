@@ -372,7 +372,7 @@ const reap = (child: ChildProcess | undefined): Promise<void> =>
       return;
     }
     const timer = setTimeout(resolve, 2000);
-    child.once("exit", () => {
+    events(child).once("exit", () => {
       clearTimeout(timer);
       resolve();
     });
