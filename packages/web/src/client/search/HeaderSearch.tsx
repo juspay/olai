@@ -32,12 +32,13 @@
  *
  * ## On a phone: a magnifier that opens the palette
  *
- * The bar at 390pt already spends its last pixels on the pills (five things
- * that do not fit, and this would be a sixth), and a phone has no ⌘K at all —
- * so before this change a phone had NO door to search. The answer is not a
- * cramped box: it is the icon, and the icon opens the ⌘K palette, which is a
- * full-width modal built for exactly this and drawing exactly these rows. One
- * more door, still one reading, and no surface that exists only on a phone.
+ * A phone has no ⌘K at all, so before this change a phone had NO door to
+ * search. The answer is not a cramped box: it is the icon, and the icon opens
+ * the ⌘K palette, which is a full-width modal built for exactly this and
+ * drawing exactly these rows. One more door, still one reading, and no
+ * surface that exists only on a phone. The pills that used to crowd it out
+ * of the bar are gone from the phone header (`../AppHeader.tsx`); the
+ * magnifier stays because it is the door.
  *
  * ## The panel PORTALS
  *
@@ -63,7 +64,7 @@ import { refusalLines } from "../refusals.ts"
 import type { Route } from "../routes.ts"
 import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
-import { TARGET_BOX } from "../touch.ts"
+import { TARGET } from "../touch.ts"
 import { createCursor } from "./cursor.ts"
 import { createSearch } from "./nodes.ts"
 import { Result, type RowTestids } from "./Result.tsx"
@@ -203,10 +204,11 @@ export function HeaderSearch(props: {
       </div>
 
       {/* The phone's door: the same modal the chord opens, and the only door
-          a phone has. */}
+          a phone has. Height is a finger's; width is not a 44px square — that
+          square sat on the wordmark at 360pt. */}
       <button
         type="button"
-        class={`${TARGET_BOX} inline-flex items-center justify-center rounded text-paper/70 hover:text-paper md:hidden`}
+        class={`${TARGET} inline-flex w-8 shrink-0 items-center justify-center rounded text-paper/70 hover:text-paper md:hidden`}
         data-testid={TESTID.headerSearchOpen}
         aria-label="search the directory"
         onClick={() => openPalette()}

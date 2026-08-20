@@ -5,18 +5,21 @@ Feature: On a phone
   the sidebar in, so the DIRECTORY (calendar + file tree) goes behind a
   BURGER in the app header as a slide-over DRAWER with scrim: shut, the
   outline has the whole screen under the header; open, the drawer covers the
-  left with a dim scrim over the page. App chrome — connection, agent,
-  preferences — lives in the header and is never behind the burger. Chat is a bottom
-  sheet (half/full snap) rather than a side dock; minimized it is a strip
-  above the thumb. And what a finger aims at gets bigger: 44px, the number
-  both mobile platforms print in their guidelines.
+  left with a dim scrim over the page. The header itself is identity and
+  search — ☰, olai, the magnifier. Connection and git interrupt as banners
+  when they are news; a healthy phone does not advertise health. The agent
+  is the thumb strip (one tap); preferences live in the drawer. Chat is a
+  bottom sheet (half/full snap) rather than a side dock. And what a finger
+  aims at gets bigger: 44px, the number both mobile platforms print in their
+  guidelines.
 
   An always-open capped header of the whole sidebar was the first answer here
   and it was worse in both directions: it took a third of the screen from the
   outline to show a list nobody had asked for, and the one control that HAS
   to be reachable — the way into the agent — ended up somewhere down inside a
-  strip that scrolled. With the agent in the app header it is one tap; two
-  taps is still the budget for anything in the directory drawer.
+  strip that scrolled. Five chips in the bar was the second answer and it
+  crushed `live` and the commit mark. The strip is the one tap; two taps is
+  still the budget for anything in the directory drawer.
 
   The tree's gutter is the one exception, and it is a deliberate one: a
   44px-wide toggle AND a 44px-wide bullet at every level of indent leave a
@@ -45,49 +48,41 @@ Feature: On a phone
 
   @scratch:chat @phone
   Scenario: The agent is one tap away on a phone
-    # The one control that has to be reachable. It lives in the app header
-    # with the connection pill — never behind the burger — so a thumb can
-    # open the panel without opening the directory sheet first.
+    # The one control that has to be reachable. It is the thumb strip — never
+    # behind the burger, never a fifth chip in the bar — so a thumb can open
+    # the panel without opening the directory drawer first.
     Given I open the app
     Then the burger is on screen
+    And the chat strip is showing
     When I tap the agent toggle
     Then the agent panel is showing
     And I can type into the chat
 
   @scratch:good @phone
-  Scenario: Header chrome stays inside the bar while connecting
-    # `connecting` is the state of every first paint. A real dial races past it
-    # before a poll can sample (0/8 on the reviewer's machine), so this holds
-    # WebSocket in CONNECTING — the indicator must say connecting or the step
-    # fails, and only then is geometry checked.
-    When I open the app held at connecting
-    Then the connection is "connecting"
-    And the app chrome is inside the header
+  Scenario: A live phone does not advertise health
+    # WhatsApp's rule. The pills that used to crowd the bar — live, the commit
+    # mark, the agent toggle, prefs — are not in it. Search is. A dead wire is
+    # the freeze overlay, which the sister scenario holds.
+    Given I open the outline "garden.olai"
+    Then the burger is on screen
+    And the phone header is identity and search
 
   @scratch:good @phone
-  Scenario: Header chrome stays inside the bar after the wire is live
-    # live, reconnecting, and retired (the longest label, and the state that
-    # must never look healthy). Sister of the held-connecting scenario.
+  Scenario: Connecting freezes a phone too
+    # `connecting` is the state of every first paint. A real dial races past it
+    # before a poll can sample, so this holds WebSocket in CONNECTING. The
+    # freeze overlay is the news — there is no connecting pill in the bar.
+    When I open the app held at connecting
+    Then the app is frozen under the offline overlay
+
+  @scratch:good @phone
+  Scenario: A dead wire freezes a phone too
     Given I open the outline "garden.olai"
-    Then the connection is "live"
-    And the app chrome is inside the header
-    # Five things do not fit at 390pt, so the bar gives way in a stated order
-    # (AppHeader.tsx) and this label is the end of it. `one-git-indicator` first
-    # shipped with the order wrong — `live` squeezed to `l…` beside a theme name
-    # drawn in full — and a screenshot is how that was found. (The theme name is
-    # not in the bar at all any more; the order it broke still is.) This is the fence,
-    # and it is asserted in every state rather than only in the short one: the
-    # bar is not full at `live`, so `live` alone would pass with the rule
-    # removed. `reconnecting` and `server restarted` are what fill it.
-    And the connection's label is whole
     When the server stops
-    Then the connection is "reconnecting"
-    And the app chrome is inside the header
-    And the connection's label is whole
+    Then the app is frozen under the offline overlay
     When the server starts again on the same port
     Then the connection is "retired"
-    And the app chrome is inside the header
-    And the connection's label is whole
+    And the overlay offers a reload
 
   @corpus:good @phone
   Scenario: A tap on a bullet zooms into that node

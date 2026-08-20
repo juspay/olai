@@ -20,9 +20,9 @@
  *
  * Desktop: a resizable column when open, replaced by the icon rail when
  * minimized (./layout/Rail.tsx). Mobile: a slide-over drawer with scrim under
- * the header — not the old capped close-on-any-tap sheet. App chrome
- * (connection, agent, preferences) lives in the header; this column is only the
- * directory.
+ * the header — not the old capped close-on-any-tap sheet. The column is the
+ * directory. App chrome that sits at the foot of the phone drawer (preferences)
+ * arrives as {@link Sidebar.foot} so this module does not import it.
  *
  * Directory nodes fold client-locally like the outline tree's folds, and are
  * REMEMBERED the same way (./fold/folders.ts): nothing is written to the
@@ -158,6 +158,13 @@ export function Sidebar(props: {
    *  first frame is still arriving, and then the entry claims nothing. */
   readonly owed: Owed | undefined
   readonly children?: JSX.Element
+  /**
+   * Phone drawer footer. App chrome that is not the directory — preferences —
+   * is composed here by the caller so this column does not import it.
+   * Always mounted on a phone even while the drawer is `hidden`, so opening
+   * it and putting the drawer away does not unmount the panel.
+   */
+  readonly foot?: JSX.Element
   /**
    * Mobile drawer open. Desktop always draws the column when this component
    * is mounted (the parent swaps in the rail when minimized).
@@ -322,6 +329,13 @@ export function Sidebar(props: {
             <Trash />
           </div>
         </div>
+        <Show when={props.foot}>
+          {(foot) => (
+            <div class="shrink-0 border-t border-paper/15 p-3">
+              {foot()}
+            </div>
+          )}
+        </Show>
       </nav>
     </>
   )

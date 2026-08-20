@@ -65,6 +65,7 @@ import { releaseArmed, restoreArmed } from "../chat/armed.ts"
 
 import type { Names } from "../names.ts"
 import { SaidLine } from "../edit/SaidLine.tsx"
+import { desktop } from "../layout/media.ts"
 import {
   resetPanelWidths,
   setChatOpen,
@@ -242,9 +243,14 @@ export function Palette(props: {
    *  than a promise. */
   const boxSays = () => {
     const it = box()
-    return it.kind === "answering" && it.question.kind === "line"
-      ? it.question.placeholder
-      : "Jump, toggle, > ask the agent, + capture a line…"
+    if (it.kind === "answering" && it.question.kind === "line") {
+      return it.question.placeholder
+    }
+    // The full teaching line is wider than a 360pt box at this type size,
+    // and a placeholder that ends `agent, -` is worse than a shorter one.
+    return desktop()
+      ? "Jump, toggle, > ask the agent, + capture a line…"
+      : "Jump, toggle, ask…"
   }
 
   /**
@@ -783,8 +789,12 @@ export function Palette(props: {
     <>
     <Shortcuts open={keys()} onClose={() => setKeys(false)} />
     <Show when={paletteOpen()}>
+      {/* On a phone this is a sheet under the header, not a card hanging in
+          20vh of empty air: a `max-h-72` list under that padding sliced the
+          last row through the rounded clip, and the teaching placeholder
+          ended `agent, -`. Desktop keeps the floating card. */}
       <div
-        class={`fixed inset-0 ${LAYER.over} flex items-start justify-center bg-ink/40 px-4 pt-[min(20vh,8rem)]`}
+        class={`fixed inset-0 ${LAYER.over} flex items-stretch justify-center bg-ink/40 px-3 pt-[calc(var(--height-header)+0.5rem)] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] md:items-start md:px-4 md:pb-4 md:pt-[min(20vh,8rem)]`}
         data-testid={TESTID.palette}
         role="dialog"
         aria-modal="true"
@@ -808,12 +818,12 @@ export function Palette(props: {
           }}
         />
         <div
-          class={`relative ${WITHIN.raised} w-full max-w-lg overflow-hidden rounded-2xl border-0 bg-panel shadow-xl ring-1 ring-rule/40`}
+          class={`relative ${WITHIN.raised} flex h-full min-h-0 w-full max-w-lg flex-col overflow-hidden rounded-2xl border-0 bg-panel shadow-xl ring-1 ring-rule/40 md:h-auto`}
         >
           <input
             ref={input}
             type="text"
-            class="w-full border-b border-rule bg-transparent px-5 py-4 font-serif text-lg italic text-ink outline-none placeholder:text-muted"
+            class="w-full shrink-0 border-b border-rule bg-transparent px-4 py-3 font-serif text-base italic text-ink outline-none placeholder:text-muted md:px-5 md:py-4 md:text-lg"
             data-testid={TESTID.paletteInput}
             placeholder={boxSays()}
             value={query()}
@@ -908,7 +918,7 @@ export function Palette(props: {
               // to overflow; this makes that a property of the container
               // rather than of every future row.
               <ul
-                class="m-0 max-h-72 list-none overflow-x-hidden overflow-y-auto p-1"
+                class="m-0 min-h-0 flex-1 list-none overflow-x-hidden overflow-y-auto p-1 md:max-h-72 md:flex-none"
                 data-testid={TESTID.paletteList}
               >
                 {/* `<Key>` rather than `<For>`, for the reason the tree uses it

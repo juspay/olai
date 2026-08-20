@@ -11,56 +11,32 @@
  * the waiting page; the corner-pills special case those screens used to need is
  * gone because the header is always there.
  *
- * On a phone the burger joins the left edge next to the wordmark. The sheet it
- * opens is still only the directory: calendar + tree, nothing of the app's own.
- * The agent toggle sits in this bar too, so it is one tap away rather than two
- * (burger, then footer) — which is why the phone e2e no longer opens the sheet
- * to reach it.
+ * On a phone the burger joins the left edge next to the wordmark, and that is
+ * the WHOLE of the bar besides the magnifier. WhatsApp's rule: identity and
+ * search in the header; connection and git as banners under it, and only when
+ * there is news (the same Indicator and Commit, news-only faces); the agent as the thumb strip it already was;
+ * preferences in the directory drawer. A healthy phone does not advertise
+ * health — `live` and `✓ committed` stay off screen. A dead wire is the freeze
+ * overlay, which was already the stronger form of that banner. Desktop keeps
+ * the pills, because a bar of chips cannot be trusted if the healthy ones
+ * disappear.
  *
  * The bar is a fixed `--height-header` and the right-hand group is `flex-nowrap`: wrapping
  * inside a fixed height centred the second row off the top of the viewport on a
- * 390pt phone in every connection state longer than `live`.
+ * 390pt phone in every connection state longer than `live`. That squeeze is why
+ * the pills left the phone bar rather than learning a fifth give-way rule.
  *
- * FIVE things do not fit at 390pt, and this is the order they give way in. It
- * is stated here because it is one decision about the bar, made in four files,
- * and a bar that squeezes whatever happens to be squeezable is a bar that ends
- * up spending its last pixels on a label nobody came for while `live` dies at
- * `l…` — which is what it did:
- *
- *   0. The SEARCH BOX, first and completely: it is `md:` and up only, and on a
- *      phone the same door is a 44px magnifier that opens the ⌘K palette
- *      (`search/HeaderSearch.tsx` argues both halves). An input narrowed to a
- *      slot is still an input, so on desktop it is also the one control here
- *      that may shrink to nothing before any pill loses a character — which is
- *      what its `min-w-0` and its cap are for.
- *
- *   1. The last commit's AGE goes first (`commit/Commit.tsx`'s `· 3m ago`,
- *      `sm` and up only). It is the only piece of any label a reader can lose
- *      and still be told what they came for, and the panel has the exact
- *      instant a tap away.
- *   2. The agent's WORD and the preferences' word go next — `>_` and `⚙` are
- *      already icons, and the word stays in the accessible name (`sr-only`), so
- *      nothing is lost but pixels. Their HEIGHT does not go with them: both
- *      take `touch.ts`'s 44px, which the burger has had since #104 and the
- *      agent toggle never did (it measured 76×27 — wide, and never tall
- *      enough). Their WIDTH does: four 44px squares plus `live` plus a commit
- *      mark do not fit at 360pt, and a sideways miss in this cluster hits the
- *      neighbour (`readout.ts`'s `ICON_BUTTON`).
- *   3. Then the Commit pill's label truncates. It is the longest in the bar,
- *      and its first glyph (`✓`, `⚠`) is most of what it says. The glyph
- *      itself is a floor (`min-w-9`): past that the pill was an empty oval.
- *   4. The connection's label is LAST and in practice never: it has a floor
- *      (`shrink-0`), so `live` stays `live`. Its own `max-w` still caps the
- *      long states, which is that pill's own business.
+ * On DESKTOP the SEARCH BOX is the one control here that may shrink to nothing
+ * before any pill loses a character — an input narrowed to a slot is still an
+ * input, which is what its `min-w-0` and its cap are for. The last commit's AGE
+ * (`commit/Commit.tsx`'s `· 3m ago`) is `sm` and up only. On a phone the same
+ * search door is a 44px magnifier that opens the ⌘K palette
+ * (`search/HeaderSearch.tsx` argues both halves).
  *
  * The wordmark and the burger never give way at all: they are the app's
- * identity and the way back to the directory. There used to be a third — the
- * theme pill, which NAMED the theme in force and so could not be allowed to
- * shrink to `pi…`. It is gone from the bar entirely (`settings/`), and what it
- * promised is kept a gesture in, on the theme row's own hint. That is the trade
- * this bar could afford to make and the connection's cannot: the theme is
- * painted on every pixel of the page, while a dead socket looks exactly like a
- * live one.
+ * identity and the way back to the directory. The theme pill, which NAMED the
+ * theme in force, is gone from the bar entirely (`settings/`), and what it
+ * promised is kept a gesture in, on the theme row's own hint.
  *
  * The one screen without this bar is the fault card: `main.tsx`'s
  * `SurfaceFaultBoundary` sits above `App`, so a thrown render never reaches
@@ -123,6 +99,7 @@ import { WORDMARK } from "./look.ts"
 import { Commit } from "./commit/Commit.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
 import { LAYER } from "./layer.ts"
+import { desktop } from "./layout/media.ts"
 import type { Route } from "./routes.ts"
 import { HeaderSearch } from "./search/HeaderSearch.tsx"
 import { connectionReadout } from "./wire.ts"
@@ -150,6 +127,7 @@ export function AppHeader(props: {
   readonly go?: (route: Route) => void
 }) {
   return (
+    <>
     <header
       class={`sticky top-0 ${LAYER.header} olai-frame flex h-[var(--height-header)] shrink-0 items-center gap-2 border-b-2 border-accent px-3 font-sans md:px-6`}
       data-testid={TESTID.appHeader}
@@ -177,10 +155,12 @@ export function AppHeader(props: {
         </h1>
       </div>
 
-      {/* The pills that are about the app rather than about the page. Always
-          here, so a reader of the error report still has the connection
-          answer — which is the one they want most of all. Nowrap + truncate on
-          both labels keeps them inside the bar at 390pt.
+      {/* The pills that are about the app rather than about the page. On
+          desktop they are always here, so a reader of the error report still
+          has the connection answer — which is the one they want most of all.
+          On a phone they are not: search is the only control that stays, and
+          the rest become news under the bar or a row in the drawer
+          (`settings/` in the closet).
 
           The Commit pill sits BESIDE the connection because they are the same
           kind of promise about two halves of the same page: that it is still
@@ -211,11 +191,28 @@ export function AppHeader(props: {
         <Show when={props.go}>
           {(go) => <HeaderSearch go={go()} />}
         </Show>
-        <Indicator readout={connectionReadout()} />
-        <Commit />
-        <ChatToggle />
-        <Preferences />
+        <Show when={desktop()}>
+          <Indicator readout={connectionReadout()} />
+          <Commit />
+          <ChatToggle />
+          <Preferences />
+        </Show>
+        {/* Phone screens with no directory drawer (the error report, the
+            waiting page) still need a door into preferences. When the
+            drawer exists the trigger lives at the foot of it. */}
+        <Show when={!desktop() && props.menu === undefined}>
+          <Preferences />
+        </Show>
       </div>
     </header>
+    {/* Phone: the same two controls, news-only faces, in flow under the bar.
+        A wrapper named News was a third module for composition. The drawer
+        covers them (it starts at --height-header); scroll takes them with
+        the page. */}
+    <Show when={!desktop()}>
+      <Indicator readout={connectionReadout()} />
+      <Commit />
+    </Show>
+    </>
   )
 }

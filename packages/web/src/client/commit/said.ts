@@ -140,6 +140,41 @@ export const isInert = (face: Face): boolean =>
   face === "unknown" || face === "off" || face === "no-repo"
 
 /**
+ * Whether a phone should interrupt the page with this face.
+ *
+ * A healthy phone does not advertise health: `committed`, `never`, the two
+ * settings, and a page that has not heard yet stay off screen. The desktop
+ * pill is ALWAYS drawn, because absence and health look identical in a bar
+ * of chips; a banner that is only there when there is news can be trusted
+ * when it is absent, because the page itself is the healthy state.
+ */
+export const isNews = (face: Face, unpushed: number): boolean =>
+  face === "waiting" || face === "blocked" || face === "error" || unpushed > 0
+
+/**
+ * One line for the phone banner. The panel behind it has the sentence.
+ *
+ * Waiting outranks unpushed when both are true: not-recorded is the more
+ * urgent half of the same work, and the panel lists both.
+ */
+export const newsSays = (
+  face: Face,
+  waiting: number,
+  unpushed: number,
+): string => {
+  switch (face) {
+    case "waiting":
+      return `${waiting} uncommitted — tap to record`
+    case "blocked":
+      return `${waiting} uncommitted — repository busy`
+    case "error":
+      return "git error — tap to see"
+    default:
+      return unpushed > 0 ? `${unpushed} unpushed — tap to push` : ""
+  }
+}
+
+/**
  * The mark a face wears, or `null` for the faces that wear none.
  *
  * A table, so every face must be given one — including the ones whose answer is

@@ -27,8 +27,10 @@ import {
   HOW,
   HOW_TONE,
   isInert,
+  isNews,
   localOf,
   MARK,
+  newsSays,
   pushTrouble,
   scopeOf,
   unpushedOf,
@@ -144,6 +146,29 @@ test("the fault is reachable, because its whole point is the reason on it", () =
   // Inert means `aria-disabled`, which means no focus — and a reason a keyboard
   // cannot reach is a reason half the readers do not get.
   expect(isInert("error")).toBe(false)
+})
+
+test("a phone only interrupts the page when git has news", () => {
+  // The desktop pill is always drawn. A banner that vanished cannot be
+  // trusted either — so the healthy faces stay off screen and the page
+  // itself is the healthy state.
+  expect(isNews("committed", 0)).toBe(false)
+  expect(isNews("never", 0)).toBe(false)
+  expect(isNews("off", 0)).toBe(false)
+  expect(isNews("no-repo", 0)).toBe(false)
+  expect(isNews("unknown", 0)).toBe(false)
+  expect(isNews("waiting", 0)).toBe(true)
+  expect(isNews("blocked", 0)).toBe(true)
+  expect(isNews("error", 0)).toBe(true)
+  expect(isNews("committed", 3)).toBe(true)
+})
+
+test("the phone banner is one line, and waiting outranks unpushed", () => {
+  expect(newsSays("waiting", 6, 3)).toBe("6 uncommitted — tap to record")
+  expect(newsSays("blocked", 2, 0)).toBe("2 uncommitted — repository busy")
+  expect(newsSays("error", 0, 0)).toBe("git error — tap to see")
+  expect(newsSays("committed", 0, 3)).toBe("3 unpushed — tap to push")
+  expect(newsSays("committed", 0, 0)).toBe("")
 })
 
 // ── what it says ───────────────────────────────────────────────────────

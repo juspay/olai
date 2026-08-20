@@ -91,7 +91,7 @@ export function Panel(props: {
   return (
     <section
       ref={props.inside}
-      class={`fixed ${LAYER.over} flex flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-2xl border-0 bg-panel p-4 text-sm shadow-xl ring-1 ring-rule/40 focus:outline-none`}
+      class={`fixed ${LAYER.over} flex min-h-0 flex-col gap-4 overflow-y-auto overflow-x-hidden overscroll-contain rounded-2xl border-0 bg-panel p-4 text-sm shadow-xl ring-1 ring-rule/40 focus:outline-none`}
       style={styleOf(props.at)}
       // Focusable, and never in the tab order: opening puts the caret here so a
       // keyboard is standing IN the panel rather than beside it (`../popover.ts`

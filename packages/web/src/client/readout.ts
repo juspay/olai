@@ -72,3 +72,13 @@ export const ICON_BUTTON =
   "inline-flex shrink-0 items-center justify-center gap-1 rounded-full " +
   "border border-paper/20 bg-paper/10 px-2 py-1.5 font-mono text-xs text-paper/80 hover:text-paper sm:px-3 " +
   "min-h-11 md:min-h-0"
+
+/**
+ * Phone news, under the bar: a full-width strip, paper on the page, 44px
+ * tall. The PILL is a chip in a toolbar; this is an interruption of the
+ * page. Tone (`text-doing`, `text-alarm`) is the state's, not this shape's
+ * — same split as {@link ICON_BUTTON}'s border.
+ */
+export const BANNER =
+  "flex min-h-11 w-full items-center gap-2 border-b border-rule bg-paper " +
+  "px-4 py-2.5 text-left text-sm"

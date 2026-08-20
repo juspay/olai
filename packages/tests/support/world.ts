@@ -739,6 +739,7 @@ export const FONT_SELECT = selector(TESTID.fontSelect);
  *  retired into it), and that is what a scenario asserts on. What git SAID is
  *  its `aria-label` and its tip, never a colour. */
 export const COMMIT_PILL = selector(TESTID.commitPill);
+export const GIT_NEWS = selector(TESTID.gitNews);
 export const COMMIT_PANEL = selector(TESTID.commitPanel);
 /** What olai last recorded here, in the panel — or the words that say it never
  *  has, which is a fact no count of what is pending can express. */
@@ -787,6 +788,8 @@ export const SHORTCUTS = selector(TESTID.shortcuts);
 /** The header box's panel of results, and the shelf of pins in the sidebar —
  *  here rather than spelled at a step file, which is where the rest of the
  *  suite's selectors live. */
+export const HEADER_SEARCH = selector(TESTID.headerSearch);
+export const HEADER_SEARCH_OPEN = selector(TESTID.headerSearchOpen);
 export const HEADER_SEARCH_RESULTS = selector(TESTID.headerSearchResults);
 export const PIN_SHELF = selector(TESTID.pinShelf);
 

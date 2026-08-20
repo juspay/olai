@@ -209,7 +209,7 @@ A spawned agent can stop and ask — permission for a tool nothing recognises, o
 │ grep for worktops
 ```
 
-That name is drawn on a form wherever it sits, which is the one place the *once per stretch* rule above does not apply. The reason is what a form is: the one row here where being wrong about who is speaking changes what you press. And you rarely meet it by reading down to it — a blocked question is announced in the composer, in the header and on the app's agent toggle, so you come looking for a form that may be anywhere, including scrolled off the top of a long turn with nothing above it you have read.
+That name is drawn on a form wherever it sits, which is the one place the *once per stretch* rule above does not apply. The reason is what a form is: the one row here where being wrong about who is speaking changes what you press. And you rarely meet it by reading down to it — a blocked question is announced in the composer, in the header and on the app's agent toggle (the thumb strip, on a phone), so you come looking for a form that may be anywhere, including scrolled off the top of a long turn with nothing above it you have read.
 
 Before this, the form was drawn in the ordinary column and read as the agent you are talking to. The second half was louder: a row in nobody's lane, landing between two of one subagent's calls, **ends the stretch** — so the lane opened again and introduced itself a second time under the form, and one agent's run read as two.
 

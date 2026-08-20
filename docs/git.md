@@ -1,12 +1,12 @@
 # Git integration
 
-Git is how you see what olai did to your files — an audit trail, not sync and not undo. Writes land on disk and WAIT to be committed: from the pill in the app header, or by the agent's own `commit` tool, which is the better one to use — it knows where a train of thought ended, so its message can say `olai: reconcile the roadmap with the #70–#81 merges` instead of describing edits.
+Git is how you see what olai did to your files — an audit trail, not sync and not undo. Writes land on disk and WAIT to be committed: from the pill in the app header (or, on a phone, from a banner when there is something to record), or by the agent's own `commit` tool, which is the better one to use — it knows where a train of thought ended, so its message can say `olai: reconcile the roadmap with the #70–#81 merges` instead of describing edits.
 
 **The one place that "not undo" is load-bearing is the emptied Trash** ([editing.md](editing.md)). Emptying it is a write like any other — the archive is rewritten holding no records, and the change waits here with everything else — so the history holds those rows to exactly the extent it had already recorded them, and no further. A directory that is not a repository, or one served `--no-commit`, holds none of them. A directory whose archive had been committed holds all of them, and `git show HEAD:_olai/Trash.olai` is how you read them back. Olai will not do that for you: nothing in the app reads a commit onto disk.
 
 ## The pill
 
-The pill is always there, because *there is no audit trail here* is the most important thing it can say and a control that vanished is how you would never find that out. It reads:
+The desktop pill is always there, because *there is no audit trail here* is the most important thing it can say and a control that vanished is how you would never find that out. On a phone a healthy tree is silent and uncommitted work is a banner under the header. It reads:
 
 - `✓ committed · 12m ago` when everything is recorded;
 - `no commits yet` when olai has never committed in this directory — a different fact, and not one an empty list can express;

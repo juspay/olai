@@ -73,6 +73,7 @@ import {
   CHAT_SESSIONS_REFUSED,
   CHAT_SPAWN,
   CHAT_SPAWN_WORKING,
+  CHAT_STRIP,
   CHAT_TITLE,
   CHAT_TOGGLE,
   CHAT_TOOL,
@@ -100,12 +101,15 @@ import type { OlaiWorld } from "../support/world.ts";
 Given("the agent panel is open", async function (this: OlaiWorld) {
   const toggle = this.page.locator(CHAT_TOGGLE);
   const panel = this.page.locator(CHAT_PANEL);
-  // The toggle is always in the header (pressed while open). Open-ness is
-  // remembered in localStorage, so a reload inside a scenario may come back
-  // already open.
-  await toggle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  // Desktop: the toggle is always in the header (pressed while open). Phone:
+  // the thumb strip is the door. Open-ness is remembered in localStorage, so
+  // a reload inside a scenario may come back already open.
   if (!(await panel.isVisible())) {
-    await toggle.click();
+    if (await toggle.isVisible()) {
+      await toggle.click();
+    } else {
+      await this.page.locator(CHAT_STRIP).click();
+    }
     await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   }
   // Settled means the agent has finished handshaking — or that there is no
@@ -120,14 +124,16 @@ Given("the agent panel is open", async function (this: OlaiWorld) {
     "the agent panel to settle (idle, or off with no agent configured)",
     HYDRATION_TIMEOUT,
   );
-  // Visibility semantics of the permanent toggle: still on screen, and pressed
-  // while the drawer is open — not the old pill that vanished once open.
-  await this.expectAttribute(
-    CHAT_TOGGLE,
-    "aria-pressed",
-    "true",
-    "the agent toggle",
-  );
+  // Desktop: the permanent toggle stays on screen, pressed while open. A
+  // phone has no toggle; the sheet being visible is the whole of the claim.
+  if (await toggle.count()) {
+    await this.expectAttribute(
+      CHAT_TOGGLE,
+      "aria-pressed",
+      "true",
+      "the agent toggle",
+    );
+  }
 });
 
 // ── talking ────────────────────────────────────────────────────────────

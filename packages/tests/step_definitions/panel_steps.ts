@@ -19,7 +19,6 @@ import {
   CHAT_PILL,
   CHAT_SHEET,
   CHAT_SHEET_HANDLE,
-  CHAT_SHEET_SCRIM,
   CHAT_STRIP,
   CHAT_TOGGLE,
   HYDRATION_TIMEOUT,
@@ -438,9 +437,35 @@ When("I drag the chat sheet handle up", async function (this: OlaiWorld) {
   await this.waitForFrame();
 });
 
-When("I tap the header agent toggle", async function (this: OlaiWorld) {
-  // Must work while the sheet is open — the scrim must not cover the header.
-  await this.press(this.page.locator(CHAT_TOGGLE), "tap");
+When("I drag the chat sheet handle down", async function (this: OlaiWorld) {
+  const handle = this.page.locator(CHAT_SHEET_HANDLE);
+  await handle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const box = await handle.boundingBox();
+  assert.ok(box !== null);
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await this.page.mouse.move(x, y);
+  await this.page.mouse.down();
+  // Drag well past the full→half threshold. At full the sheet covers the
+  // scrim, so half is where a thumb can tap the dim to put it away.
+  await this.page.mouse.move(x, y + 200, { steps: 12 });
+  await this.page.mouse.up();
+  await this.waitForFrame();
+});
+
+When("I tap the chat sheet scrim", async function (this: OlaiWorld) {
+  // The scrim is `inset-0` behind the sheet, so a tap on its own box lands
+  // on the transcript. Aim at the dim above the sheet, the way a thumb
+  // actually puts a half-open sheet away.
+  const host = await this.box(this.page.locator(CHAT_SHEET), "the chat sheet host");
+  const sheet = await this.box(this.page.locator(CHAT_PANEL), "the chat sheet");
+  const gap = sheet.y - host.y;
+  assert.ok(
+    gap > 8,
+    `the sheet starts ${Math.round(gap)}px below the host — at full snap the ` +
+      "scrim is covered, so drag it to half first",
+  );
+  await this.page.mouse.click(host.x + host.width / 2, host.y + gap / 2);
   await this.page
     .locator(CHAT_PANEL)
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
