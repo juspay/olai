@@ -65,7 +65,7 @@ import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { agoOf, createNow } from "./ago.ts"
-import { createAuto } from "./auto.ts"
+import { createAuto, pausedIn } from "./auto.ts"
 import { createElected } from "./elected.ts"
 import {
   AUTO_PAUSED,
@@ -95,13 +95,9 @@ export function Commit() {
   // shut it. `createElected` is which tab of this browser records
   // (`./elected.ts`).
   const auto = createAuto({ on: autoCommit, alone: createElected(), commit })
-  /** Why the loop stopped, or `null` — the one arm of {@link Auto} the words
-   *  and the chrome both ask about, read once rather than at each of its four
-   *  readers. */
-  const paused = () => {
-    const state = auto()
-    return state._tag === "paused" ? state.said : null
-  }
+  /** Why the loop stopped, or `null` — the arm the words and the chip both
+   *  ask about, through the union's own accessor (`./auto.ts`). */
+  const paused = () => pausedIn(auto())
   // Whether the panel is up, where it goes, and the ways it shuts
   // (`../popover.ts`, shared with the preferences at the other end of the bar).
   // It used to be `note/expand.ts` — the row note's "open until you click

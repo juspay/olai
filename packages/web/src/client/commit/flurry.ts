@@ -23,7 +23,7 @@
  * restarted on those would be one a busy repository could hold open forever.
  */
 
-import { isReady, type Pending, type RepoState } from "@olai/format"
+import type { Pending } from "@olai/format"
 import type { GitState } from "@olai/surface"
 
 import { canRecord } from "./record.ts"
@@ -89,7 +89,12 @@ export interface Standing {
    *  which is what makes "there is something to record" ONE spelling rather
    *  than a count here and an empty string there. */
   readonly flurry: string
-  readonly repo: RepoState
+  /** Whether the repository can take a commit at all — `@olai/format`'s
+   *  `isReady`, read for us. A BOOLEAN rather than the `RepoState` it came
+   *  from, so the loop can memoise it: the pending value is republished when a
+   *  commit lands and when a push does, and an effect reading the state OBJECT
+   *  would restart the quiet window on both. */
+  readonly ready: boolean
   readonly git: GitState
   readonly working: boolean
   readonly pushing: boolean
@@ -116,7 +121,7 @@ export const mayRecord = (standing: Standing): boolean =>
   standing.alone &&
   standing.heard &&
   standing.flurry !== "" &&
-  isReady(standing.repo) &&
+  standing.ready &&
   standing.git.status === "repo" &&
   canRecord(standing.working, standing.pushing)
 
@@ -134,9 +139,7 @@ export const mayRecord = (standing: Standing): boolean =>
  * a second sentence to keep true.
  */
 export const stoppedBy = (attempt: Attempt | null): string | null =>
-  attempt !== null && (attempt._tag === "Failed" || attempt._tag === "Refused")
-    ? trouble(attempt)
-    : null
+  attempt !== null && isFault(attempt) ? trouble(attempt) : null
 
 /**
  * ... and the same for the push, which is where a DIVERGENCE arrives.
@@ -150,6 +153,12 @@ export const stoppedBy = (attempt: Attempt | null): string | null =>
  * resolution worse, so ONE stop covers both verbs.
  */
 export const stoppedByPush = (attempt: PushAttempt | null): string | null =>
-  attempt !== null && (attempt._tag === "Failed" || attempt._tag === "Refused")
-    ? pushTrouble(attempt)
-    : null
+  attempt !== null && isFault(attempt) ? pushTrouble(attempt) : null
+
+/** WHICH answers are a fault, spelled once for both verbs — so a sixth thing
+ *  either of them can answer is one decision rather than two, and the two
+ *  cannot come to disagree about what stops the loop. The WORDS stay with the
+ *  verb ({@link stoppedBy}, {@link stoppedByPush}), because a refused commit
+ *  and a refused push are read in two different places on screen. */
+const isFault = (attempt: { readonly _tag: string }): boolean =>
+  attempt._tag === "Failed" || attempt._tag === "Refused"

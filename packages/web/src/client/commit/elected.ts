@@ -26,6 +26,17 @@
  * away from a directory served over a LAN, which is a worse answer than the
  * rare double commit it would prevent.
  *
+ * EVERY TAB ASKS, whether or not this browser has Auto-commit on, and the lock
+ * is never released while the document lives. That is safe because the
+ * preference is the BROWSER's: it is stored once and carried to the other tabs
+ * by the `storage` event (`../preference.ts`), so the holder is armed exactly
+ * when its siblings are. The one arrangement it does not cover is a browser
+ * whose storage refuses — the preference then holds for the tab that set it
+ * alone, and a tab with Auto-commit off could sit on the lock while another
+ * waits. That browser is already told its settings will not persist, and an
+ * election that armed and disarmed itself would be a lock request to abort and
+ * a promise to resolve, for a case that has already lost preferences.
+ *
  * This says nothing about the Commit BUTTON. A person pressing it in either tab
  * is a person who meant it, and two people pressing at once is not a case a
  * lock is entitled to arbitrate.
@@ -45,6 +56,10 @@ import { type Accessor, createSignal } from "solid-js"
 /** The name the tabs contend for, namespaced like the preference it serves —
  *  locks are per origin, and a page served from a host that has other things on
  *  it must not be able to collide. */
+/** The same word as the preference's storage key (`../settings/autocommit.ts`)
+ *  and deliberately so: one subject, and two namespaces that cannot see each
+ *  other. Neither is derived from the other — a lock name and a storage key
+ *  changing together is a coincidence, not a rule. */
 export const AUTOCOMMIT_LOCK = "olai.git.autocommit"
 
 /**

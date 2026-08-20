@@ -43,7 +43,7 @@ import { type Accessor, createSignal, Show } from "solid-js"
 
 import { agoOf } from "./ago.ts"
 import { type Anchor, styleOf } from "../anchor.ts"
-import type { Auto } from "./auto.ts"
+import { type Auto, pausedIn } from "./auto.ts"
 import { LAYER } from "../layer.ts"
 import {
   AUTO_ARMED,
@@ -112,6 +112,13 @@ export function Panel(props: {
    *  `NothingToCommit`, which is a correct answer to a question nobody meant to
    *  ask. */
   const nothingTicked = () => selection.paths()?.length === 0
+
+  /** Whether Auto-commit would record this list on its own — the loop's own
+   *  gate, read off the value it publishes (`./auto.ts`). */
+  const willRecord = () => {
+    const auto = props.auto()
+    return auto._tag === "armed" && auto.willRecord
+  }
 
   return (
     <section
@@ -204,7 +211,7 @@ export function Panel(props: {
           person reads it — and this popover printed that paragraph twice.
           The HEADER's own sentence carries the words, because the header has
           nowhere else to put them (`./said.ts`). */}
-      <Show when={props.auto()._tag === "paused"}>
+      <Show when={pausedIn(props.auto()) !== null}>
         <p class="text-xs text-alarm" data-testid={TESTID.commitAutoPaused}>
           ⚠ {AUTO_STOPPED}
         </p>
@@ -259,11 +266,16 @@ export function Panel(props: {
       <Unpushed commit={props.commit} />
 
       {/* What is about to happen to this list without anybody pressing
-          anything. Drawn only while the loop is really going to do it — armed,
-          running, and a repository that can take a commit — so it is a promise
-          rather than a description of a setting. The button stays: a person who
-          does not want to wait out the window is a person who meant it. */}
-      <Show when={anything() && ready() && props.auto()._tag === "armed"}>
+          anything — a promise rather than a description of a setting, so it is
+          drawn only while the loop really would keep it.
+
+          THE LOOP'S OWN VERDICT and never a shorter version of it: `willRecord`
+          is `mayRecord` (`./flurry.ts`) published on the value, which is the
+          same eight terms the timer is armed on. A hand-rolled "waiting, and
+          the repository is Ready" would promise this over a git that answers
+          every probe and refuses every commit. The button stays either way: a
+          person who does not want to wait out the window meant it. */}
+      <Show when={willRecord()}>
         <p class="text-xs text-muted" data-testid={TESTID.commitAutoArmed}>
           {AUTO_ARMED}
         </p>

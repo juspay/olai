@@ -7,7 +7,7 @@
  */
 
 import type { Pending } from "@olai/format"
-import { BusyFailure, NOTHING_PENDING } from "@olai/format"
+import { BusyFailure, isReady, NOTHING_PENDING, type RepoState } from "@olai/format"
 import { GIT_OFF, type GitState } from "@olai/surface"
 import { expect, test } from "bun:test"
 
@@ -39,7 +39,7 @@ const GOING: Standing = {
   alone: true,
   heard: true,
   flurry: flurryOf(WAITING),
-  repo: WAITING.repo,
+  ready: true,
   git: READY,
   working: false,
   pushing: false,
@@ -97,9 +97,7 @@ test("every reason to hold off holds off", () => {
     { alone: false },
     { heard: false },
     { flurry: "" },
-    { repo: { _tag: "Blocked", reason: "rebase", said: "mid-rebase" } },
-    { repo: { _tag: "NoRepo" } },
-    { repo: { _tag: "Off" } },
+    { ready: false },
     { git: GIT_OFF },
     { git: { status: "error", said: "no user.email" } },
     { working: true },
@@ -108,6 +106,21 @@ test("every reason to hold off holds off", () => {
   for (const one of held) {
     expect(mayRecord({ ...GOING, ...one })).toBe(false)
   }
+})
+
+// ... and `ready` is the repository's own three refusals, through the one
+// predicate the whole app judges them by rather than a fourth reading of the
+// state here.
+test("a repository that cannot take a commit is not recorded into", () => {
+  const cannot: ReadonlyArray<RepoState> = [
+    { _tag: "Blocked", reason: "rebase", said: "mid-rebase" },
+    { _tag: "NoRepo" },
+    { _tag: "Off" },
+  ]
+  for (const repo of cannot) {
+    expect(mayRecord({ ...GOING, ready: isReady(repo) })).toBe(false)
+  }
+  expect(mayRecord({ ...GOING, ready: isReady({ _tag: "Ready", branch: "main" }) })).toBe(true)
 })
 
 // ── what stops the loop ────────────────────────────────────────────────

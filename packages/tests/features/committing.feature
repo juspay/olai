@@ -205,7 +205,7 @@ Feature: Committing on purpose
   Scenario: A flurry of edits records itself as one commit, and is pushed
     # The whole of Auto-commit, end to end, with Auto-push beside it: the
     # human's goal in his own words — "with both enabled, all changes sync to
-    # Git automatically". FIVE writes go in inside the window and ONE commit
+    # Git automatically". THREE writes go in inside the window and ONE commit
     # comes out, which is the claim the debounce exists to make and the one no
     # amount of chrome can show. The last two are documents nobody edited
     # through olai's ops, so what is being swept is the whole repository.

@@ -42,6 +42,8 @@
 import { debounce } from "@solid-primitives/scheduled"
 import { type Accessor, createEffect, createMemo, createSignal, untrack } from "solid-js"
 
+import { isReady } from "@olai/format"
+
 import { flurryOf, mayRecord, QUIET_MS, type Standing, stoppedBy, stoppedByPush } from "./flurry.ts"
 import type { Commit } from "./state.ts"
 
@@ -62,12 +64,30 @@ import type { Commit } from "./state.ts"
  */
 export type Auto =
   | { readonly _tag: "off" }
-  | { readonly _tag: "armed" }
+  | {
+    readonly _tag: "armed"
+    /**
+     * Whether the loop would record RIGHT NOW if the edits stopped — the one
+     * gate ({@link mayRecord}), published rather than left to be re-derived.
+     *
+     * The panel makes a promise off this ("Auto-commit will record all of
+     * this"), and a promise is exactly the thing that must not be made out of
+     * three of the gate's eight terms: a git that answers every probe and
+     * refuses every commit leaves the repository `Ready` with work waiting,
+     * which passes any short version of the question and fails the real one.
+     */
+    readonly willRecord: boolean
+  }
   | { readonly _tag: "paused"; readonly said: string }
 
 /** A loop nobody armed, spelled once. */
 const OFF: Auto = { _tag: "off" }
-const ARMED: Auto = { _tag: "armed" }
+
+/** Why the loop stopped, or `null` while it is running — the one arm every
+ *  reader outside this module asks about, beside the type it reads, so the
+ *  union is never taken apart by hand at a fourth call site. */
+export const pausedIn = (auto: Auto): string | null =>
+  auto._tag === "paused" ? auto.said : null
 
 export const createAuto = (input: {
   /** The preference (`../settings/autocommit.ts`), handed in as an accessor so
@@ -94,13 +114,24 @@ export const createAuto = (input: {
    */
   const flurry = createMemo(() => flurryOf(input.commit.pending()))
 
+  /**
+   * The other two reads that come off the pending value, memoised for the same
+   * reason and it is the same reason twice: a commit landing and a push landing
+   * both republish it, and an effect that read either of them straight through
+   * would re-arm the window on a frame nobody typed. Both are BOOLEANS, so the
+   * memo can actually swallow the frame — a `RepoState` object is fresh every
+   * time and `===` would never hold.
+   */
+  const heard = createMemo(() => input.commit.heard())
+  const ready = createMemo(() => isReady(input.commit.pending().repo))
+
   const standing = (): Standing => ({
     armed: input.on(),
     paused: paused(),
     alone: input.alone(),
-    heard: input.commit.heard(),
+    heard: heard(),
     flurry: flurry(),
-    repo: input.commit.pending().repo,
+    ready: ready(),
     git: input.commit.git(),
     working: input.commit.working(),
     pushing: input.commit.pushing(),
@@ -147,9 +178,11 @@ export const createAuto = (input: {
     if (!input.on()) setPaused(null)
   })
 
-  return () => {
+  return createMemo(() => {
     if (!input.on()) return OFF
     const said = paused()
-    return said === null ? ARMED : { _tag: "paused", said }
-  }
+    return said === null
+      ? { _tag: "armed", willRecord: mayRecord(standing()) } as const
+      : { _tag: "paused", said } as const
+  })
 }

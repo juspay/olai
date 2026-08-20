@@ -20,6 +20,8 @@ import { GIT_OFF, type GitState } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import {
+  AUTO_PAUSED,
+  AUTO_STOPPED,
   because,
   DETAIL,
   explain,
@@ -169,6 +171,48 @@ test("the phone banner is one line, and waiting outranks unpushed", () => {
   expect(newsSays("error", 0, 0)).toBe("git error — tap to see")
   expect(newsSays("committed", 0, 3)).toBe("3 unpushed — tap to push")
   expect(newsSays("committed", 0, 0)).toBe("")
+})
+
+// ── Auto-commit, which is a claim about the READER ─────────────────────
+//
+// It rides beside the faces rather than being one of them (the module's own
+// argument, and `alsoUnpushed`'s): eight faces are eight things about the
+// DIRECTORY, and whether this browser records on its own is true in one tab and
+// false in the next. So what is asserted here is that it reaches a reader on
+// EVERY face — including the healthy ones, which is the whole risk: a loop that
+// stopped is silent by design.
+
+test("a stopped loop reaches a reader on every face, healthy ones included", () => {
+  const said = "gpg failed to sign the data"
+  for (const face of ["committed", "never", "waiting", "error", "blocked"] as const) {
+    expect(explain(face, surveyed(READY), GIT_OFF, said)).toContain(said)
+  }
+  // ... and a running loop adds nothing at all, so the ordinary sentence is
+  // exactly what it was.
+  expect(explain("committed", surveyed(READY), GIT_OFF, null))
+    .toBe(explain("committed", surveyed(READY), GIT_OFF))
+})
+
+test("the sentence a stopped loop leaves says how to start it again", () => {
+  // The one thing a reader cannot work out for themselves — and the panel's own
+  // line says it too, so the two cannot drift on it.
+  const said = explain("committed", surveyed(READY), GIT_OFF, "no upstream")
+  expect(said).toContain("off and on again")
+  expect(AUTO_STOPPED).toContain("off and on again")
+})
+
+test("a phone is interrupted by a stopped loop, on a face that is otherwise quiet", () => {
+  expect(isNews("committed", 0, null)).toBe(false)
+  expect(isNews("committed", 0, "no upstream")).toBe(true)
+  expect(isNews("never", 0, "no upstream")).toBe(true)
+})
+
+test("the banner says the loop stopped ahead of whatever else is true", () => {
+  // It outranks every face, because it is the one line about a promise having
+  // broken rather than about work waiting.
+  expect(newsSays("waiting", 6, 3, "no upstream")).toContain(AUTO_PAUSED)
+  expect(newsSays("committed", 0, 0, "no upstream")).toContain(AUTO_PAUSED)
+  expect(newsSays("waiting", 6, 3, null)).toBe("6 uncommitted — tap to record")
 })
 
 // ── what it says ───────────────────────────────────────────────────────

@@ -21,7 +21,7 @@ import { GIT_OFF, type GitState } from "@olai/surface"
 import { expect, test } from "bun:test"
 import { type Accessor, createRoot, createSignal } from "solid-js"
 
-import { type Auto, createAuto } from "./auto.ts"
+import { type Auto, createAuto, pausedIn } from "./auto.ts"
 import { afterCommit } from "./record.ts"
 import type { Attempt, Commit, PushAttempt } from "./state.ts"
 
@@ -48,7 +48,9 @@ const CLEAN: Pending = { ...NOTHING_PENDING, repo: { _tag: "Ready", branch: "mai
 interface Stub {
   readonly commit: Commit
   readonly edit: (n: number) => void
-  readonly settle: () => void
+  /** Republish what is waiting with the COUNTERS moved and the work untouched
+   *  — what a landed commit or push looks like from the browser. */
+  readonly count: () => void
   readonly commits: () => number
   readonly pushes: () => number
   readonly refuse: (said: string | null) => void
@@ -59,8 +61,9 @@ const stub = (autoPush = false): Stub => {
   const [pending, setPending] = createSignal<Pending>(CLEAN)
   const [attempt, setAttempt] = createSignal<Attempt | null>(null)
   const [pushed, setPushed] = createSignal<PushAttempt | null>(null)
-  const [working, setWorking] = createSignal(false)
-  const [pushing, setPushing] = createSignal(false)
+  // Never move: this stand-in answers both verbs synchronously, so nothing is
+  // ever in flight when the loop looks.
+  const idle = (): boolean => false
   let commits = 0
   let pushes = 0
   let refusal: string | null = null
@@ -80,7 +83,7 @@ const stub = (autoPush = false): Stub => {
     heard: () => true,
     git: () => READY,
     waiting: () => pending().changes.length,
-    working,
+    working: idle,
     attempt,
     // The real one's shape: record, then follow with the push when this
     // browser asks for one (`./record.ts`).
@@ -93,7 +96,7 @@ const stub = (autoPush = false): Stub => {
       if (refusal === null) setPending(CLEAN)
       afterCommit(autoPush, result._tag, push)
     },
-    pushing,
+    pushing: idle,
     pushed,
     push,
   }
@@ -101,10 +104,12 @@ const stub = (autoPush = false): Stub => {
   return {
     commit,
     edit: (n) => setPending(waiting(n)),
-    settle: () => {
-      setWorking(false)
-      setPushing(false)
-    },
+    count: () =>
+      setPending((was) => ({
+        ...was,
+        wrote: [{ writer: "web", ops: was.wrote.length + 1 }],
+        unpushed: { upstream: "origin/main", commits: was.wrote.length + 1 },
+      })),
     commits: () => commits,
     pushes: () => pushes,
     refuse: (said) => {
@@ -120,11 +125,6 @@ const QUIET = 20
 
 const rest = (ms: number): Promise<void> => new Promise((done) => setTimeout(done, ms))
 
-/** Why the loop stopped, or `null` — the one arm the stop tests ask about. */
-const pausedIn = (auto: Accessor<Auto>): string | null => {
-  const state = auto()
-  return state._tag === "paused" ? state.said : null
-}
 
 /** One loop over one stand-in, disposed when the body is done — a Solid root is
  *  what a component's lifetime is. */
@@ -132,11 +132,20 @@ const loop = async (
   on: Accessor<boolean>,
   it: Stub,
   body: (auto: Accessor<Auto>) => Promise<void>,
+  /** The two things a test moves about the loop's SURROUNDINGS rather than
+   *  about the flurry: whether this is the tab that records, and a Commit
+   *  answering from a repository nothing can be committed to. */
+  around: { alone?: Accessor<boolean>; commit?: Commit } = {},
 ): Promise<void> => {
   let dispose = (): void => {}
   const auto = createRoot((stop) => {
     dispose = stop
-    return createAuto({ on: on, alone: () => true, commit: it.commit, quiet: QUIET })
+    return createAuto({
+      on,
+      alone: around.alone ?? (() => true),
+      commit: around.commit ?? it.commit,
+      quiet: QUIET,
+    })
   })
   try {
     await body(auto)
@@ -221,7 +230,7 @@ test("a commit git refused stops the loop and says so, and nothing retries", asy
     it.edit(1)
     await rest(QUIET * 3)
     expect(it.commits()).toBe(1)
-    expect(pausedIn(auto)).toBe("gpg failed to sign the data")
+    expect(pausedIn(auto())).toBe("gpg failed to sign the data")
     // The work is still waiting, and the loop does not go round again.
     it.edit(2)
     await rest(QUIET * 3)
@@ -236,7 +245,7 @@ test("a push git refused stops the loop too — the divergence is the conflict",
     it.edit(1)
     await rest(QUIET * 3)
     expect(it.commits()).toBe(1)
-    expect(pausedIn(auto)).toBe("Updates were rejected (non-fast-forward)")
+    expect(pausedIn(auto())).toBe("Updates were rejected (non-fast-forward)")
     it.edit(2)
     await rest(QUIET * 3)
     expect(it.commits()).toBe(1)
@@ -250,9 +259,9 @@ test("turning the preference off and on again is what resumes it", async () => {
   await loop(on, it, async (auto) => {
     it.edit(1)
     await rest(QUIET * 3)
-    expect(pausedIn(auto)).not.toBe(null)
+    expect(pausedIn(auto())).not.toBe(null)
     setOn(false)
-    expect(pausedIn(auto)).toBe(null)
+    expect(pausedIn(auto())).toBe(null)
     it.refuse(null)
     setOn(true)
     it.edit(2)
@@ -267,7 +276,7 @@ test("a loop nobody armed keeps no pause, whatever a hand-pressed button did", a
   await loop(() => false, it, async (auto) => {
     it.commit.commit("by hand")
     await rest(QUIET)
-    expect(pausedIn(auto)).toBe(null)
+    expect(pausedIn(auto())).toBe(null)
   })
 })
 
@@ -275,18 +284,11 @@ test("a loop nobody armed keeps no pause, whatever a hand-pressed button did", a
 
 test("a tab that is not the one recording keeps its hands off", async () => {
   const it = stub()
-  let dispose = (): void => {}
-  createRoot((stop) => {
-    dispose = stop
-    return createAuto({ on: ON, alone: () => false, commit: it.commit, quiet: QUIET })
-  })
-  try {
+  await loop(ON, it, async () => {
     it.edit(1)
     await rest(QUIET * 3)
     expect(it.commits()).toBe(0)
-  } finally {
-    dispose()
-  }
+  }, { alone: () => false })
 })
 
 // A page that has heard nothing, a repository that cannot take a commit, and a
@@ -295,19 +297,29 @@ test("a tab that is not the one recording keeps its hands off", async () => {
 test("nothing is recorded into a repository that cannot take it", async () => {
   for (const git of [GIT_OFF, { status: "error", said: "no user.email" } as GitState]) {
     const it = stub()
-    const held: Commit = { ...it.commit, git: () => git }
-    let dispose = (): void => {}
-    createRoot((stop) => {
-      dispose = stop
-      return createAuto({ on: ON, alone: () => true, commit: held, quiet: QUIET })
-    })
-    try {
+    await loop(ON, it, async (auto) => {
       it.edit(1)
       await rest(QUIET * 3)
       expect(it.commits()).toBe(0)
-    } finally {
-      dispose()
-    }
+      // ... and the panel's promise is not made either: the value says the
+      // loop would NOT record, which is the one gate both read.
+      const state = auto()
+      expect(state._tag === "armed" && state.willRecord).toBe(false)
+    }, { commit: { ...it.commit, git: () => git } })
   }
+})
+
+// The memo's whole job: a frame that moves the counters and not the work must
+// not start the window again. Without it a repository that is pushed to often
+// enough would never reach the end of one.
+test("a frame that is not an edit does not start the window again", async () => {
+  const it = stub()
+  await loop(ON, it, async () => {
+    it.edit(1)
+    await rest(QUIET * 0.7)
+    it.count()
+    await rest(QUIET * 0.7)
+    expect(it.commits()).toBe(1)
+  })
 })
 

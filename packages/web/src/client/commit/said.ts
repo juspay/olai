@@ -337,14 +337,16 @@ export const AUTO_PAUSED = "auto-commit paused"
  * of its own down there, beside the verb that produced it, and one paragraph
  * printed twice in one popover is a popover nobody reads either copy of.
  */
-export const autoSays = (paused: string): string =>
-  `auto-commit is paused — ${paused}. Turn Auto-commit off and on again in ` +
-  `preferences to resume.`
+/** The one gesture that starts the loop again, spelled once for both lines
+ *  below: the header and the panel drifting on how to restart it is the one
+ *  sentence a reader cannot work out for themselves. */
+const RESUME = "Turn Auto-commit off and on again in preferences to resume."
+
+const autoSays = (paused: string): string =>
+  `auto-commit is paused — ${paused}. ${RESUME}`
 
 /** ... and the PANEL's line, which does not repeat git — see {@link autoSays}. */
-export const AUTO_STOPPED =
-  "auto-commit is paused, and what git said is below. Turn Auto-commit off " +
-  "and on again in preferences to resume."
+export const AUTO_STOPPED = `auto-commit is paused, and what git said is below. ${RESUME}`
 
 /** What an ARMED loop is about to do with what the panel is listing. Drawn only
  *  while it is really going to happen, so it is a promise rather than a
