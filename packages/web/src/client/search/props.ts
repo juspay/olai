@@ -51,7 +51,7 @@
  * highlighted it would be drawing a lie the matcher never told.
  */
 
-import type { HasCustom } from "@olai/format"
+import { type Custom, customOf } from "@olai/format"
 import type { DocumentHit, NodeHit } from "@olai/surface"
 
 import { customEntries } from "../props/drawer.ts"
@@ -67,7 +67,7 @@ export interface NodeProp {
 }
 
 export const nodeProps = (hit: NodeHit): ReadonlyArray<NodeProp> =>
-  rowProps(hit, hit.matchedProps)
+  rowProps(customOf(hit), hit.matchedProps)
 
 /**
  * The same line for a DOCUMENT, off the frontmatter at the top of the `.md`
@@ -81,14 +81,17 @@ export const nodeProps = (hit: NodeHit): ReadonlyArray<NodeProp> =>
  * open field, or the record a document writes about itself.
  */
 export const documentProps = (hit: DocumentHit): ReadonlyArray<NodeProp> =>
-  rowProps({ custom: hit.props }, hit.matchedProps)
+  rowProps(hit.props ?? {}, hit.matchedProps)
 
+/** The rule, over the MAP — which is what lets there be one of it. Both kinds
+ *  of hit carry an open map under a field name of their own, and neither name
+ *  is a fact this ordering depends on. */
 const rowProps = (
-  hit: HasCustom,
+  custom: Custom,
   named: ReadonlyArray<string> | undefined,
 ): ReadonlyArray<NodeProp> => {
   const matched = named ?? []
-  const entries = customEntries(hit).map((entry) => ({
+  const entries = customEntries(custom).map((entry) => ({
     key: entry.key,
     value: entry.value,
     matched: matched.includes(entry.key),

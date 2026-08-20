@@ -36,7 +36,7 @@
  * and `Remove` for the custom keys and nothing for these (./drawer.ts).
  */
 
-import type { RegularNode } from "@olai/format"
+import { customOf, type RegularNode } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, Show } from "solid-js"
 
@@ -52,7 +52,7 @@ export function PropsDrawer(props: {
   readonly always?: boolean
 }) {
   const entries = createMemo(() =>
-    props.always === true ? drawerEntries(props.node) : customEntries(props.node)
+    props.always === true ? drawerEntries(props.node) : customEntries(customOf(props.node))
   )
 
   return (

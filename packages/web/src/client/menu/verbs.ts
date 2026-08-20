@@ -37,6 +37,7 @@
  */
 
 import {
+  customOf,
   isMirror,
   MARKS,
   type Node,
@@ -331,7 +332,7 @@ export const writeVerbs = (
       label: "Add property…",
       does: { kind: "pick-prop", editing: null },
     })
-    for (const entry of customEntries(shown.node)) {
+    for (const entry of customEntries(customOf(shown.node))) {
       if (!entry.listed) {
         verbs.push({
           id: `prop-edit-${entry.key}`,

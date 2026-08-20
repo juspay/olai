@@ -69,7 +69,7 @@
  * stays on the title line.
  */
 
-import { isOverdue, type Row, shownRecord } from "@olai/format"
+import { customOf, isOverdue, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
 
@@ -265,7 +265,7 @@ function Branch(props: {
     const shows = shown()
     if (shows === undefined) return false
     const desc = shows.node.desc
-    return (desc !== undefined && desc !== "") || customEntries(shows.node).length > 0
+    return (desc !== undefined && desc !== "") || customEntries(customOf(shows.node)).length > 0
   }
 
   /** Both doors to this row's `•••` menu, whether it is open, and the line all
