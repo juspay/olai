@@ -68,9 +68,27 @@ install:
 typecheck: install
     {{ nix_shell }} bun run typecheck
 
-# Unit tests
+# Unit tests. TWO commands, one leg — and the second is not a second suite.
+#
+# `bun test` resolves SolidJS's SERVER build, where a memo never re-runs and
+# `createResource` throws outright. That is fine for nearly everything (the
+# packages that are not the browser want that resolution, and the client's own
+# Solid tests stick to signals and memos), and it is why the tab's bench asks
+# for `--conditions browser` explicitly. But one primitive's whole subject is
+# what a `createResource` does with a source that moved — `settled.ts`, the
+# asker every shortlist door in the client is built on — and it cannot be asked
+# at all under a build that has no resource. So its cases run under the browser
+# condition, here, where they fail this leg like any other test rather than
+# living in a lane nobody runs.
+#
+# The FILENAME is what keeps the two runs apart: bun discovers `.test.` /
+# `_test_` / `.spec.` / `_spec_` and nothing else, so a `.browsertest.ts` is
+# invisible to the first command and named as a path by the second. Running the
+# WHOLE suite under the browser condition is not the alternative — it fails 59
+# tests in packages that legitimately resolve the other way.
 test: install
     {{ nix_shell }} bun test
+    {{ nix_shell }} bun test --conditions browser ./packages/web/src/client/settled.browsertest.ts
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json (bunfig.toml explains why they have to be there). Reads

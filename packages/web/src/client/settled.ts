@@ -35,7 +35,10 @@
  *   - **A question that goes away takes its answer with it, AT ONCE.** A list
  *     left standing behind a query the reader has already backspaced away from
  *     is a list that is lying for as long as it stands, and the settle would
- *     make it lie for 200ms longer.
+ *     make it lie for 200ms longer. The framework does NOT do this half — a
+ *     resource keeps what it last resolved through a falsy source and through
+ *     the refetch after it — so the clear is four statements rather than three
+ *     (`forget`, below).
  *   - **While the next answer is in flight, what is drawn is the LAST one's.**
  *     That is the right thing to draw and the wrong thing to leave unlabelled,
  *     so the answer CARRIES the question it answers ({@link Settled.answering})
@@ -89,12 +92,19 @@ export const SETTLE_MS = 200
  *  door draws. */
 export interface Settled<Q, A> {
   /**
-   * WHAT TO DRAW: whatever last answered, or `undefined` for "nothing has".
+   * WHAT TO DRAW: whatever last answered THIS session, or `undefined` for
+   * "nothing has".
    *
    * It HOLDS STILL across a question that has moved — the rows a reader is
-   * looking at stay until the next ones arrive — and goes `undefined` when the
-   * question goes away entirely, or when the call was refused. Neither of those
-   * two is an answer, so neither is drawn as one.
+   * looking at stay until the next ones arrive, which is the only honest thing
+   * to draw during a settle and a flight. It goes `undefined` when the call was
+   * refused, and when the question goes away entirely: a session that ENDED
+   * takes its answer with it, so the next one opens empty rather than showing
+   * what the last one found.
+   *
+   * The second of those is a clear this file makes rather than one the
+   * framework gives — see `forget` in {@link createSettled}, and
+   * `./settled.browsertest.ts`, which is the case that found it.
    */
   readonly answer: Accessor<A | undefined>
   /**
@@ -149,19 +159,6 @@ export const createSettled = <Q, A>(
    *  duplicate; the timer would not. */
   const wanted = createMemo<Q | null>(question, null, { equals: same })
 
-  createEffect(() => {
-    const asking = wanted()
-    if (asking !== null) {
-      settle(asking)
-      return
-    }
-    // Clearing takes effect AT ONCE rather than after the settle — see the
-    // header's third bullet.
-    settle.clear()
-    put(null)
-    setFailure(null)
-  })
-
   /** Is this fetcher still answering the question that is being asked?
    *  `untrack`, because this is read inside an async continuation: as a
    *  dependency it would make a fetcher's own resolution a reason to re-run
@@ -170,7 +167,7 @@ export const createSettled = <Q, A>(
 
   // THE ANSWER CARRIES ITS QUESTION, which is what makes {@link answering} a
   // fact of one value rather than an inference over three signals.
-  const [answer] = createResource(asked, async (one: Q) => {
+  const [answer, { mutate }] = createResource(asked, async (one: Q) => {
     const outcome = await runAsync(ask(one))
     if (Result.isFailure(outcome)) {
       if (current(one)) setFailure(outcome.failure.message)
@@ -178,6 +175,49 @@ export const createSettled = <Q, A>(
     }
     if (current(one)) setFailure(null)
     return { question: one, answer: outcome.success }
+  })
+
+  /**
+   * THROW THE ANSWER AWAY — the one thing a resource will not do for itself,
+   * and the reason this file touches `mutate` at all.
+   *
+   * Solid keeps the last resolved value when its source goes falsy (`load()`
+   * resolves with the value it already had rather than clearing it), and keeps
+   * it again through the refetch that follows. So a door reading the resource
+   * straight through re-opens on the PREVIOUS session's answer and goes on
+   * drawing it for a whole settle plus a flight — which for the tag completion
+   * is not merely stale but WRONG: `complete/completing.tsx` re-spells every
+   * row with the trigger armed NOW, so a `#` session's names would be offered,
+   * and written, under a later `@` (`@olai/format`'s `vocabulary.ts`: the two
+   * sigils are two lists, and offering one namespace's names under the other's
+   * is a widget inventing tags the set does not hold).
+   *
+   * Masking the read while `asked` is null is NOT the fix and was the first one
+   * tried: it covers the settle and not the flight after it, because by then a
+   * new question is outstanding and the old answer is still what the resource
+   * holds. The value has to actually go.
+   *
+   * `filter/asking.ts` reaches the same rule from the other side, under the
+   * words "the guard the resource does not give" — holding still is honest
+   * between two questions of ONE session, and across a clear there is nothing
+   * to hold. Found by opencode's review of PR #272, with a probe.
+   */
+  const forget = () => mutate(() => undefined)
+
+  createEffect(() => {
+    const asking = wanted()
+    if (asking !== null) {
+      settle(asking)
+      return
+    }
+    // Clearing takes effect AT ONCE rather than after the settle — see the
+    // header's third bullet — and it clears ALL FOUR things a session leaves
+    // behind: the settle that has not fired, the question, the bad news, and
+    // the answer.
+    settle.clear()
+    put(null)
+    setFailure(null)
+    forget()
   })
 
   return {
