@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: The ••• menu writes
   The row menu used to offer five ways of looking at an outline and no way of
@@ -10,7 +11,8 @@ Feature: The ••• menu writes
   Every one of them is ONE op through the same write gate the agent's tools go
   through, nothing is echoed, and what the ops layer refuses is quoted where
   the click happened rather than summarised. `@scratch:` because they write
-  the directory they are served — each scenario gets a private copy of it.
+  the directory they are served. They share one copy per worker
+  (`@share-scratch`); the corpus is restored between scenarios.
 
   Background:
     Given I open the outline "house.olai"

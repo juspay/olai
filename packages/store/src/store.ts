@@ -139,6 +139,19 @@ export interface Store<S, E> {
    *  watcher, which would make the delay a race with the file system. */
   readonly refresh: Effect.Effect<void, PlatformFailure>
   /**
+   * Forget every cached stamp, then {@link refresh}.
+   *
+   * The write gate already forgets the files it just put on disk, because
+   * stamps are mtime+size and a same-length rewrite in the same second is
+   * exactly what they cannot see. `refresh` still uses those stamps, so it
+   * is the wrong door for an OUTSIDE rewrite of the same shape — a `git
+   * checkout`, an rsync, a test harness putting the fixture back. This is
+   * that door: the next probe re-reads every file, whatever the file system
+   * says about mtime and size, and does not return until the result has
+   * been published.
+   */
+  readonly resync: Effect.Effect<void, PlatformFailure>
+  /**
    * The one way in. Writer-serialized against the probe, optimistic on
    * `baseRev`, all-or-none across files.
    *
@@ -414,6 +427,14 @@ export const make = <F, S, E>(
       sayUnreadable,
     )
     const refresh = gate.withPermit(cycle)
+    const resync = gate.withPermit(
+      Effect.gen(function*() {
+        // Inside the same permit the probe holds: a watcher-triggered cycle
+        // interleaved here would re-cache the stamps we are about to forget.
+        yield* probe.forget((yield* probe.current).keys())
+        yield* cycle
+      }),
+    )
 
     const commit = (write: Write) =>
       gate.withPermit(
@@ -608,5 +629,5 @@ export const make = <F, S, E>(
         (found) => found ? disk.read(path) : Effect.succeed(null),
       )
 
-    return { snapshot, errors, refresh, commit, body, resolve: disk.resolve }
+    return { snapshot, errors, refresh, resync, commit, body, resolve: disk.resolve }
   })

@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Dragging rows, and picking several
   Workflowy's two pointer gestures, on top of the keyboard loop `self-edit`
@@ -8,8 +9,9 @@ Feature: Dragging rows, and picking several
   parent and the sibling to sit after, which is the `move_node` an agent would
   send — and a bulk verb is the edit the single-row key already sends, once per
   row, in the order that produces the shape asked for. So these are `@scratch:`
-  for the reason the keyboard's are: they write the directory they are served,
-  and each gets a private copy of it (`support/hooks.ts`).
+  for the reason the keyboard's are: they write the directory they are served.
+  They share one copy per worker (`@share-scratch`); the corpus is restored
+  between scenarios.
 
   Background:
     Given I open the outline "house.olai"

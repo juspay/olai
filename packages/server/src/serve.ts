@@ -204,6 +204,7 @@ export const serve = (options: ServeOptions) =>
         port,
         bound: wired.bound,
         mcp: { transport, token },
+        resync: store.resync,
       }),
       () => runtime.stopped,
     )

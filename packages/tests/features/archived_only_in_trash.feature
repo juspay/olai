@@ -1,3 +1,4 @@
+@share-scratch
 Feature: What is put away is on the Trash and nowhere else
   Moving a row to the Trash used to change where it was READ and not whether it
   was read: an archived node kept its dates, so it went on lighting its day in
@@ -21,7 +22,8 @@ Feature: What is put away is on the Trash and nowhere else
   the suite writes to: `order the new cabinets` is dated the 10th of August and
   is the one overdue thing in it, `take out the old counters` is the only thing
   finished on the 3rd, and both of them go to the Trash by the same menu verb a
-  person uses.
+  person uses. They share one copy per worker (`@share-scratch`); the corpus
+  is restored between scenarios.
 
   @scratch:good
   Scenario: A task put away is owed nowhere, and the mark beside the page agrees

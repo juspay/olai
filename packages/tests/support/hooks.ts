@@ -19,13 +19,13 @@
  * each scratch scenario gets a fresh copy and a server of its very own, both
  * thrown away afterwards.
  *
- * Features whose scenarios write DISJOINT files opt into sharing with
- * `@share-scratch` (see `support/scratch.ts`): one copy and one server per
- * feature per worker, collision observed by hashing the tree after each
- * scenario and refused by name if two writers touch the same path. A scenario
- * that would collide, or that restarts the server, keeps a private copy with
- * `@own-scratch`. Sharing never crosses workers — the lock is still one olai
- * per directory.
+ * Features opt into sharing with `@share-scratch` (see `support/scratch.ts`):
+ * one copy and one server per feature per worker. After each sharing scenario
+ * the tree is restored to the fixture and the server re-reads
+ * (`POST /olai/resync`), so overlapping writers share too. A restore that
+ * cannot put the tree back fails naming the files. A scenario restore cannot
+ * make true (it restarts the server) keeps a private copy with `@own-scratch`.
+ * Sharing never crosses workers — the lock is still one olai per directory.
  *
  * WHAT A SHARED SERVER SERVES is a per-WORKER copy of the tracked corpus, never
  * the tracked directory itself, and that is not tidiness. `--parallel` is one
@@ -53,12 +53,15 @@ import type { Browser } from "playwright";
 import { BROWSER_ARGS } from "./browser.ts";
 import {
   alreadyShared,
+  askResync,
   DEFAULT_CORPUS,
   filesOf,
-  recordWrites,
+  leftovers,
   requestOf,
   restartGate,
-  type ScratchWriter,
+  restoreTree,
+  sameTree,
+  unrestoredError,
 } from "./scratch.ts";
 import { SCENARIO_SETUP_TIMEOUT, SERVER_START_TIMEOUT } from "./world.ts";
 import type { GitMode } from "./world.ts";
@@ -214,7 +217,10 @@ const servers = new Map<string, Promise<RunningServer>>();
  */
 interface SharedSlot {
   readonly server: RunningServer & { readonly root: string };
-  writers: ScratchWriter[];
+  /** Content hashes of the fixture this slot was copied from. After restores
+   *  to this origin; leftovers against it are a restore that did not take. */
+  readonly origin: Map<string, string>;
+  readonly fixture: string;
   readonly seenPickles: Set<string>;
 }
 
@@ -856,9 +862,11 @@ const sharedScratchFor = (
 ): Promise<SharedSlot> => {
   const cached = sharedScratches.get(key);
   if (cached) return cached;
+  const fixture = fixtureDir(corpus);
   const started = scratchServerFor(corpus, spawnOptions).then((server) => ({
     server,
-    writers: [] as ScratchWriter[],
+    origin: filesOf(fixture),
+    fixture,
     seenPickles: new Set<string>(),
   }));
   const entry: Promise<SharedSlot> = started.catch((cause: unknown) => {
@@ -937,7 +945,7 @@ Before(
           this.baseUrl = slot.server.baseUrl;
           this.served = slot.server.root;
           this.ownServer = slot.server.child;
-          this.scratchShare = { key: featureKey, was: filesOf(slot.server.root) };
+          this.scratchShare = { key: featureKey };
         }
       } else {
         await ownCopy();
@@ -1047,23 +1055,25 @@ After(async function (this: OlaiWorld, scenario) {
   // to be removed.
   this.terminalAgent?.stop();
 
-  // A feature-shared scratch outlives the scenario: After records what this
-  // one wrote, refuses if an earlier scenario on this worker already wrote
-  // the same path, and leaves the process running for the rest of the feature.
+  // A feature-shared scratch outlives the scenario: After puts the fixture
+  // back under the still-running server and asks it to re-read, so the next
+  // scenario starts from the original corpus. Leftovers after that restore
+  // are a restore that did not take, not a collision with an earlier writer.
   const share = this.scratchShare;
   const served = this.served;
   if (share !== undefined && served !== undefined) {
     const slot = await sharedScratches.get(share.key);
-    if (slot !== undefined) {
-      const next = recordWrites({
-        feature: path.basename(scenario.pickle.uri),
-        name: scenario.pickle.name,
-        before: share.was,
-        root: served,
-        writers: slot.writers,
-      });
-      slot.writers = [...next.writers];
-      if (next.error !== undefined) throw next.error;
+    if (slot !== undefined && !sameTree(filesOf(served), slot.origin)) {
+      restoreTree(served, slot.fixture);
+      await askResync(this.baseUrl, SERVER_START_TIMEOUT);
+      const left = leftovers(slot.origin, served);
+      if (left.length > 0) {
+        throw unrestoredError(
+          path.basename(scenario.pickle.uri),
+          scenario.pickle.name,
+          left,
+        );
+      }
     }
     return;
   }

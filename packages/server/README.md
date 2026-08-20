@@ -35,6 +35,7 @@ Talking to the agent is not here. It was, and it was four modules of domain insi
 | `listener.ts` | one `serveSurfaceApp` call, and the one decision it leaves that is a policy: whose port this is |
 | `report.ts` | the other one: how surface-layer trouble READS in olai's log — a stale tab, a refused origin, a faulted connection, and a live stream that could not re-read its answer. Two callers (the listener's narration arm and `runtime.ts`'s stream deps) and one voice, so the levels and the annotations are compared in one file rather than across two |
 | `media.ts` | `/media/*`: the pictures a document points at and the pages a preview shows, sealed — the only bytes that leave the served directory over HTTP without going through the store |
+| `resync.ts` | `POST /olai/resync`: look at the disk now, ignoring mtime+size stamps. Loopback only. The store is entitled not to notice a same-length rewrite; this is the override the e2e harness (and an operator after a `git checkout`) needs, not a test-only door |
 | `manifest.ts` | what an installed olai is: name, description, colours, and the mark |
 | `directory.ts` | the served directory, opened: resolved, annotated onto the log, CLAIMED, and a store over it — in the order the composition root needs and should not have to remember |
 | `lock.ts` | one brain per vault: the kernel-held claim on the served directory, keyed on its realpath, and the sentence a second olai gets instead of a store of its own |

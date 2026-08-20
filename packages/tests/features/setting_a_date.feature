@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Setting a date from the web
   An agent could set OR clear a node's `date` (`set_date`) and a person could
@@ -10,8 +11,9 @@ Feature: Setting a date from the web
   file says it changed. And the day it writes is TEXT: the ten characters that
   were picked, verbatim, never a value that has been through an instant.
 
-  `@scratch:` because these write the directory they are served — each
-  scenario gets a private copy of it.
+  `@scratch:` because these write the directory they are served. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   Background:
     Given I open the outline "house.olai"

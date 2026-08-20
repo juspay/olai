@@ -54,6 +54,8 @@ Two channels, and the split says who is at fault. `StaleWrite` is a FAILURE — 
 
 `afterPublish` is the caller's Effect, run after the snapshot moves and still inside the gate. It is how the git commit rides along without this package ever learning what git is. Typed as unfailing: the bytes are already on disk and already visible, so there is nothing here that could undo them.
 
+`resync` is the outside-writer analogue of that forget. `refresh` still uses stamps, so a same-length rewrite that landed in the same second is a change it is entitled not to see — the accepted trade for a `git pull`. An operator (or a test harness putting a fixture back under a live server) cannot take that trade. `resync` forgets every cached stamp, then probes, and does not return until the result has been published. The write gate's `forget` is for the files this process just wrote; this is the same signal for an unknown set of paths.
+
 ## Entry point
 
 `main`, `types` and `exports` all point at `src/index.ts`. Inside, one file per job: `codec.ts` is the contract with the caller, `disk.ts` is everything a directory is allowed to be asked, `probe.ts` is the stamp table and the decode cache, `store.ts` is the loop and the two refs.

@@ -1,8 +1,8 @@
 /**
- * Pins on feature-shared scratch: the tag grammar, the hash-diff, the
- * collision sentence, the restart gate, the retry fallback. Each test is a
+ * Pins on feature-shared scratch: the tag grammar, the restore, the
+ * leftover sentence, the restart gate, the retry fallback. Each test is a
  * sabotage target — if `@own-scratch` without `@share-scratch` is silently
- * ignored, if two writers of the same file do not name each other, if a
+ * ignored, if a restore that did not take does not name the files, if a
  * shared scratch can be restarted, the named assertion is what goes red.
  */
 
@@ -13,13 +13,18 @@ import * as path from "node:path";
 
 import {
   alreadyShared,
+  askResync,
   DEFAULT_CORPUS,
   filesOf,
+  leftovers,
   OWN_TAG,
-  recordWrites,
   requestOf,
+  RESYNC_PATH,
   restartGate,
+  restoreTree,
+  sameTree,
   SHARE_TAG,
+  unrestoredError,
 } from "./support/scratch.ts";
 
 const tags = (...names: string[]) => names.map((name) => ({ name }));
@@ -80,7 +85,7 @@ test("two corpus tags on one scenario are refused", () => {
 
 test("PIN (restart): a shared scratch may not be restarted", () => {
   expect(restartGate(undefined)).toBeUndefined();
-  const error = restartGate({ key: "html_previews.feature::good::off", was: new Map() });
+  const error = restartGate({ key: "html_previews.feature::good::off" });
   expect(error).toBeDefined();
   expect(error!.message).toContain(OWN_TAG);
   expect(error!.message).toContain(SHARE_TAG);
@@ -94,13 +99,18 @@ test("PIN (retry): a pickle already on the shared slot takes a private copy", ()
   expect(alreadyShared(new Set(), "pickle-1")).toBe(false);
 });
 
-test("PIN (hooks): stopOwnServer and the share path consult the gates", () => {
+test("PIN (hooks): After restores and asks the server to re-read", () => {
   const src = fs.readFileSync(
     path.join(import.meta.dirname, "support", "hooks.ts"),
     "utf8",
   );
   expect(src).toContain("restartGate(");
   expect(src).toContain("alreadyShared(");
+  expect(src).toContain("restoreTree(");
+  expect(src).toContain("askResync(");
+  expect(src).toContain("leftovers(");
+  expect(src).toContain("unrestoredError(");
+  expect(src).not.toContain("recordWrites(");
 });
 
 test("filesOf hashes contents, not mtimes, and walks nested paths with /", () => {
@@ -121,72 +131,66 @@ test("filesOf hashes contents, not mtimes, and walks nested paths with /", () =>
   }
 });
 
-test("PIN (collision): recordWrites names both scenarios and the file", () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-collide-"));
+test("PIN (restore): restoreTree puts the fixture back and deletes extras", () => {
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-fix-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-rst-"));
   try {
-    const file = path.join(root, "notes-first.html");
-    fs.writeFileSync(file, "a\n");
-    const beforeFirst = filesOf(root);
-    fs.writeFileSync(file, "b\n");
-    const first = recordWrites({
-      feature: "html_previews.feature",
-      name: "A relative link opens the page beside it, in olai",
-      before: beforeFirst,
-      root,
-      writers: [],
-    });
-    expect(first.error).toBeUndefined();
-    expect(first.writers[0]?.files).toEqual(["notes-first.html"]);
-    const beforeSecond = filesOf(root);
-    fs.writeFileSync(file, "c\n");
-    const second = recordWrites({
-      feature: "html_previews.feature",
-      name: "A link carrying a fragment opens the page AND lands on the section",
-      before: beforeSecond,
-      root,
-      writers: first.writers,
-    });
-    expect(second.error).toBeDefined();
-    expect(second.error!.message).toContain("notes-first.html");
-    expect(second.error!.message).toContain("relative link");
-    expect(second.error!.message).toContain("fragment");
-    expect(second.error!.message).toContain(OWN_TAG);
-    expect(second.error!.message).toContain(SHARE_TAG);
+    fs.mkdirSync(path.join(fixture, "notes"));
+    fs.writeFileSync(path.join(fixture, "house.olai"), "{}\n");
+    fs.writeFileSync(path.join(fixture, "notes", "a.md"), "a\n");
+    fs.writeFileSync(path.join(root, "house.olai"), "{x}\n");
+    fs.writeFileSync(path.join(root, "extra.olai"), "nope\n");
+    const origin = filesOf(fixture);
+    expect(sameTree(filesOf(root), origin)).toBe(false);
+    restoreTree(root, fixture);
+    expect(sameTree(filesOf(root), origin)).toBe(true);
+    expect(leftovers(origin, root)).toEqual([]);
+    expect(fs.existsSync(path.join(root, "extra.olai"))).toBe(false);
+    expect(fs.readFileSync(path.join(root, "house.olai"), "utf8")).toBe("{}\n");
   } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
-test("disjoint writers do not overlap", () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-disjoint-"));
+test("PIN (baseline): leftovers names the files restore did not put back", () => {
+  const originRoot = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-org-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-left-"));
   try {
-    const beforeFirst = filesOf(root);
-    fs.writeFileSync(path.join(root, "atlas.html"), "a\n");
-    const first = recordWrites({
-      feature: "html_previews.feature",
-      name: "earlier",
-      before: beforeFirst,
-      root,
-      writers: [],
-    });
-    expect(first.error).toBeUndefined();
-    const beforeSecond = filesOf(root);
-    fs.writeFileSync(path.join(root, "chart.html"), "c\n");
-    const second = recordWrites({
-      feature: "html_previews.feature",
-      name: "later",
-      before: beforeSecond,
-      root,
-      writers: first.writers,
-    });
-    expect(second.error).toBeUndefined();
-    expect(second.writers.map((w) => w.files)).toEqual([
-      ["atlas.html"],
-      ["chart.html"],
-    ]);
+    fs.writeFileSync(path.join(originRoot, "house.olai"), "{}\n");
+    fs.writeFileSync(path.join(root, "house.olai"), "{x}\n");
+    fs.writeFileSync(path.join(root, "extra.olai"), "nope\n");
+    const origin = filesOf(originRoot);
+    expect(leftovers(origin, root)).toEqual(["extra.olai", "house.olai"]);
+    const error = unrestoredError(
+      "keyboard_editing.feature",
+      "Typing a title writes it, and the page follows the file",
+      leftovers(origin, root),
+    );
+    expect(error.message).toContain("house.olai");
+    expect(error.message).toContain("extra.olai");
+    expect(error.message).toContain("Typing a title");
+    expect(error.message).toContain(OWN_TAG);
+    expect(error.message).toContain(SHARE_TAG);
   } finally {
+    fs.rmSync(originRoot, { recursive: true, force: true });
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("PIN (resync path): the harness and the server name the same door", () => {
+  const server = fs.readFileSync(
+    path.join(
+      import.meta.dirname,
+      "..",
+      "server",
+      "src",
+      "resync.ts",
+    ),
+    "utf8",
+  );
+  expect(server).toContain(`RESYNC_PATH = "${RESYNC_PATH}"`);
+  expect(askResync.name).toBe("askResync");
 });
 
 test("PIN (tags): README names the tags the harness honours", () => {
@@ -202,4 +206,5 @@ test("PIN (tags): README names the tags the harness honours", () => {
   );
   expect(src).toContain(`SHARE_TAG = "${SHARE_TAG}"`);
   expect(src).toContain(`OWN_TAG = "${OWN_TAG}"`);
+  expect(src).toContain(`RESYNC_PATH = "${RESYNC_PATH}"`);
 });

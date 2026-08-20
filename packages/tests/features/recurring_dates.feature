@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: A dated node that comes back
   A dated node may carry a REPEAT RULE, and completing it does two things: it
@@ -22,8 +23,9 @@ Feature: A dated node that comes back
   will ever run, so the agenda assertion is about the feature rather than about
   the calendar the machine happens to be on.
 
-  `@scratch:` because these write the directory they are served — each scenario
-  gets a private copy of it.
+  `@scratch:` because these write the directory they are served. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   Background:
     Given I open the outline "house.olai"

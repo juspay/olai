@@ -6,8 +6,9 @@
  * Cucumber `--parallel` is one process per worker. Each process already has
  * its own `servers` map, browser and scratch copies — including the
  * feature-shared scratches `@share-scratch` opts into, which are per-worker
- * for the same reason the corpus servers are: one olai per directory. What is
- * NOT isolated by
+ * for the same reason the corpus servers are: one olai per directory. After
+ * each sharing scenario the tree is restored and the server re-reads, so
+ * overlapping writers share too. What is NOT isolated by
  * that, and used to be shared mutable state across workers, is:
  *
  *   - the address a restarted server has to come back on, so the open page

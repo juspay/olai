@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Dragging a row from one pane into the other
   A drag was a fact about one page for as long as there was one page. With
@@ -15,7 +16,8 @@ Feature: Dragging a row from one pane into the other
   or landing it somewhere nobody was pointing.
 
   `@scratch:` for the reason the in-pane drag's scenarios are: these write the
-  directory they are served, and each gets a private copy of it.
+  directory they are served. They share one copy per worker (`@share-scratch`);
+  the corpus is restored between scenarios.
 
   # ── the same file in both panes ──────────────────────────────────────
 

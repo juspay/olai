@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Starting a new outline from the sidebar
   An agent could mint an outline — `create_outline` — and a person could not:
@@ -12,7 +13,9 @@ Feature: Starting a new outline from the sidebar
   what comes back for one it will not take is `create_outline`'s own sentence,
   drawn verbatim under the box.
 
-  `@scratch:` because these write the directory they are served.
+  `@scratch:` because these write the directory they are served. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   Background:
     Given I open the outline "house.olai"

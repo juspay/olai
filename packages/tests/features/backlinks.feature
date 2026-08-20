@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Referenced by — a zoomed node says what points at it
   Every reference in this format points ONE way on disk. `order` writes
@@ -21,8 +22,9 @@ Feature: Referenced by — a zoomed node says what points at it
     - a referrer written in an `_olai/Trash.olai` is left out, as it is everywhere
       else (#226).
 
-  `@scratch:` because the live scenarios write the directory they are served —
-  each scenario gets a private copy of it.
+  `@scratch:` because the live scenarios write the directory they are served.
+  They share one copy per worker (`@share-scratch`); the corpus is restored
+  between scenarios.
 
   Background:
     Given I open the node "herbs"
