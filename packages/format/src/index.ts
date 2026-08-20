@@ -204,6 +204,7 @@ export {
   isPicture,
   PICTURE_EXTENSIONS,
   pictureOf,
+  retargetRelative,
 } from "./documents.ts"
 export {
   INBOX,

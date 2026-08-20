@@ -86,6 +86,30 @@ export const resolveRelative = (from: string, to: string): string => {
 }
 
 /**
+ * The same attachment, said from a different outline. `rel` is a `doc` as
+ * stored on a node in `fromFile`; the answer is the spelling that still
+ * resolves to the same served path once the node lives in `toFile`.
+ *
+ * Needed because `doc` is relative to the NAMING outline's directory, so a
+ * node that leaves `house.olai` for `_olai/Trash.olai` would otherwise look
+ * for `finishes.md` under `_olai/` and the write gate would refuse the trash.
+ */
+export const retargetRelative = (fromFile: string, toFile: string, rel: string): string => {
+  const resolved = resolveRelative(fromFile, rel)
+  const fromDir = toFile.split("/").slice(0, -1)
+  const dest = resolved.split("/").filter((segment) => segment !== "")
+  let same = 0
+  while (same < fromDir.length && same < dest.length && fromDir[same] === dest[same]) {
+    same++
+  }
+  const parts = [
+    ...Array.from({ length: fromDir.length - same }, () => ".."),
+    ...dest.slice(same),
+  ]
+  return parts.join("/")
+}
+
+/**
  * The picture a markdown `![](…)` names, as a path relative to the served
  * directory — or `null` for a source this app does not draw at all.
  *

@@ -68,6 +68,7 @@ import {
   type Reading,
   type RegularNode,
   REPEAT_GRAMMAR,
+  retargetRelative,
   storedMarker,
   targetsOf,
   unfinished,
@@ -2789,11 +2790,12 @@ const planTrash = (
   // The root is re-parented onto the scaffold; everything under it keeps the
   // `parent` it had, so the subtree arrives shaped exactly as it left.
   const { existing, scaffold, buried } = buriedIn(scope, archive, node, file)
+  const moved = descendants.map((record) => carryingDoc(record, file, archive))
 
   return Result.succeed({
     files: [
       { file, nodes: source },
-      { file: archive, nodes: [...existing, ...scaffold, buried, ...descendants] },
+      { file: archive, nodes: [...existing, ...scaffold, buried, ...moved] },
     ],
     id: node.id,
     title: node.title,
@@ -2843,8 +2845,21 @@ const buriedIn = (
   return {
     existing,
     scaffold,
-    buried: { ...withParent(node, parent), ord: appendedOrd([existing, scaffold], parent) },
+    buried: carryingDoc(
+      { ...withParent(node, parent), ord: appendedOrd([existing, scaffold], parent) },
+      source,
+      archive,
+    ),
   }
+}
+
+/** A `doc` is relative to the outline that names it, so a node that changes
+ *  file has to rewrite the field or the write gate sees a missing attachment.
+ *  Mirrors carry none. */
+const carryingDoc = (node: Node, from: string, to: string): Node => {
+  if (isMirror(node) || node.doc === undefined) return node
+  const doc = retargetRelative(from, to, node.doc)
+  return doc === node.doc ? node : { ...node, doc }
 }
 
 /**
@@ -3095,10 +3110,11 @@ const planUntrash = (
   }
 
   const already = recordsOf(scope, destination)
-  const reparented: Node = {
+  const retarget = (record: Node) => carryingDoc(record, file, destination)
+  const reparented: Node = retarget({
     ...withParent(node, parent),
     ord: appendedOrd([already], parent),
-  }
+  })
 
   // DOOR TWO, at the one arrival the archive itself sends, and the only one
   // that has to be asked TWICE. What it comes back under may have been called
@@ -3114,7 +3130,7 @@ const planUntrash = (
     }, () => holdsOpenWork(scope, node), {
       files: [
         { file, nodes: keeps.filter((record) => !dropped.has(record.id)) },
-        { file: destination, nodes: [...already, reparented, ...descendants] },
+        { file: destination, nodes: [...already, reparented, ...descendants.map(retarget)] },
       ],
       id: node.id,
       title: node.title,

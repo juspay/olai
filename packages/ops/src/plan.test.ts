@@ -2417,7 +2417,7 @@ describe("merge", () => {
     expect(record(fileOf(result, "_olai/Trash.olai"), "b")).toMatchObject({
       done: "2026-08-01",
       date: "2026-09-01",
-      doc: "finishes.md",
+      doc: "../finishes.md",
       see: ["a"],
     })
     expect(record(fileOf(result, "house.olai"), "a").done).toBeUndefined()
@@ -2518,6 +2518,22 @@ describe("archive", () => {
     ])
     expect(result.file).toBe("_olai/Trash.olai")
     expect(result.summary).toBe("trash: order the cabinets")
+  })
+
+  test("a `doc` is rewritten so it still names the same file from the trash", () => {
+    const set = setOf({
+      "house.olai": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"install","parent":"kitchen","ord":"a0","title":"install them","doc":"finishes.md"}`,
+      ].join("\n"),
+    }, [["finishes.md", "# Finishes\n"]])
+    const { archive } = archived(set, "install")
+    expect(record(archive, "install").doc).toBe("../finishes.md")
+    const back = fileOf(
+      planned(after(set, { op: "trash", id: "install" }), { op: "untrash", id: "install" }),
+      "house.olai",
+    )
+    expect(record(back, "install").doc).toBe("finishes.md")
   })
 
   test("descendants come along, shaped as they were", () => {
