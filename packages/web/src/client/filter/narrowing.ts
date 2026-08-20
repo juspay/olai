@@ -84,10 +84,9 @@ export interface Narrowing {
    *  reading a query's terms apart from the matcher that owns them. */
   readonly refusals: Accessor<ReadonlyArray<Refusal>>
   /**
-   * The nodes the query selects across the whole set, each against WHY.
-   * Tested against what the page draws, which is what scopes it to the page.
+   * WHAT THE QUERY SELECTED, or `null` for a page with nothing to narrow BY.
    *
-   * A MAP where this was a `Set` of ids, and the whole of the change is what a
+   * A MAP where this was a `Set` of ids, and the whole of that change is what a
    * ROW can now ask. The prune only ever asked membership (`Selected`, the
    * question `keeping` takes) — but a row that draws why it is in front of
    * somebody has to know which FIELD carried the hit, since a match found only
@@ -95,25 +94,22 @@ export interface Narrowing {
    * second structure beside the set was the alternative, and two answers to one
    * question are free to disagree by a frame.
    *
-   * IT IS THE LAST ANSWER THAT ARRIVED, which is the honest thing for it to be
-   * while a newer one is in flight: the rows on screen were narrowed by this
-   * map, so a row asking why it is drawn must be answered out of the same map
-   * that drew it. Whether it answers what is TYPED is {@link answering}.
-   */
-  readonly matched: Accessor<Matches>
-  /**
-   * Has the query in the box been ANSWERED at all? False only in the beat
-   * between a fresh filter and its first answer, and every row-level fact is
-   * held back until it is true: without it each row would publish
-   * `data-match="false"` and wear the context dim for that beat, which is the
-   * page claiming an answer it has not got — a whole outline greyed out because
-   * somebody typed a letter.
+   * NULL IS THE THIRD STATE, and it is one accessor rather than a boolean
+   * beside the map because the readers are the ones who would have to remember
+   * the pair: no filter at all, and a filter nothing has answered YET, are both
+   * "there is nothing to narrow by" — and an empty MAP is a third thing
+   * entirely, a query that was answered and selected nothing. Spelled as a map
+   * plus an `answered` flag, every row-level question grew the same guard and a
+   * fourth one could forget it: a whole outline publishing
+   * `data-match="false"` and wearing the context dim, because somebody typed a
+   * letter and the answer had not landed.
    *
-   * NOT the same as {@link answering}, which is about WHICH question the rows
-   * answer: an answer to the query before last is still an answer, and the rows
-   * it drew are honest rows to keep facts on.
+   * A MAP THAT IS NOT NULL IS THE LAST ANSWER THAT ARRIVED, which is the honest
+   * thing for it to be while a newer one is in flight: the rows on screen were
+   * narrowed by it, so a row asking why it is drawn is answered out of the same
+   * map that drew it. Whether it answers what is TYPED is {@link answering}.
    */
-  readonly answered: Accessor<boolean>
+  readonly selected: Accessor<Matches | null>
   /** The words the query looks for, folded — what a matched row lights up in
    *  its title (`@olai/format`'s `needlesOf`, and `./lit.ts` for the split).
    *  Empty for a query that named none (`is:done`) and for no query at all. */
@@ -136,13 +132,6 @@ export interface Narrowing {
    * are read here, so there is nothing in flight and nothing to say.
    */
   readonly answering: Accessor<string | null>
-  /** A refused call, in the server's own words (`./asking.ts`) — `null` when
-   *  there is none. Never the same slot as a REFUSAL: one is the server saying
-   *  it could not answer, the other is an answer. */
-  readonly failure: Accessor<string | null>
-  /** Why the box cannot be asked anything right now — the connection pill's own
-   *  sentence — or `null` while it can. */
-  readonly offline: Accessor<string | null>
   /**
    * What this query found, in the three numbers the bar says it in — matched
    * and drawn, held by the page, held back as done (`./count.ts` owns the
@@ -184,10 +173,6 @@ export const createNarrowing = (source: {
   readonly matched: Accessor<Matches | undefined>
   /** Which query that answer answers, `null` while one is in flight. */
   readonly answering: Accessor<string | null>
-  /** A refused call, and why nothing can be asked — both straight from the
-   *  asking, because the bar draws them and the bar reads this. */
-  readonly failure: Accessor<string | null>
-  readonly offline: Accessor<string | null>
 }): Narrowing => {
   const active = createMemo(() => source.query().kind !== "nothing")
   /** Is there a question for the SERVER — which is not the same as there being
@@ -196,10 +181,17 @@ export const createNarrowing = (source: {
    *  already said. */
   const asking = createMemo(() => source.query().kind === "asking")
 
-  const answered = createMemo(() => !asking() || source.matched() !== undefined)
-  const matched = createMemo(() =>
-    asking() ? source.matched() ?? NOTHING_MATCHED : NOTHING_MATCHED
-  )
+  /**
+   * The three states, as one value. A query the grammar REFUSED is answered
+   * here and selects nothing, which is an empty map rather than a `null`: the
+   * page empties and the bar draws the reason, where `null` would leave it
+   * drawn whole as though nothing had been typed.
+   */
+  const selected = createMemo<Matches | null>(() => {
+    if (!active()) return null
+    if (!asking()) return NOTHING_MATCHED
+    return source.matched() ?? null
+  })
 
   /**
    * The ONE guard that is load-bearing: narrowing by an empty set is an empty
@@ -214,8 +206,8 @@ export const createNarrowing = (source: {
    * ({@link Narrowing.answering}).
    */
   const drawn = createMemo(() => {
-    if (!active() || !answered()) return source.visible()
-    return narrowed(source.visible(), matched())
+    const found = selected()
+    return found === null ? source.visible() : narrowed(source.visible(), found)
   })
 
   /**
@@ -242,7 +234,7 @@ export const createNarrowing = (source: {
   return {
     text: source.text,
     active,
-    answered,
+    selected,
     // A fact about the QUERY and so a memo of its own: it is read by every
     // matched row on the page, and re-deriving it per row per frame would be
     // the tree walking its own groups once for each of them.
@@ -251,7 +243,6 @@ export const createNarrowing = (source: {
       const asked = source.query()
       return asked.kind === "refused" ? asked.refusals : []
     }),
-    matched,
     drawn,
     // A query nobody has to ask answers itself, at once: the parse is the whole
     // answer for an empty box and for a refused query, so neither is ever a
@@ -262,8 +253,6 @@ export const createNarrowing = (source: {
       if (!asking()) return typed
       return source.answering() === typed ? typed : null
     }),
-    failure: source.failure,
-    offline: source.offline,
     /**
      * THE THREE NUMBERS AS ONE VALUE, because they are one fact — what this
      * query found on this page — and nothing ever asks for one of them alone.
@@ -293,13 +282,14 @@ export const createNarrowing = (source: {
      */
     counts: createMemo(() => {
       if (!active()) return NOTHING_COUNTED
-      const shown = matchesIn(drawn(), matched())
+      const found = selected() ?? NOTHING_MATCHED
+      const shown = matchesIn(drawn(), found)
       return {
         shown,
         held: held(),
         hiddenAsDone: source.all() === source.visible()
           ? 0
-          : matchesIn(source.all(), matched()) - shown,
+          : matchesIn(source.all(), found) - shown,
       }
     }, NOTHING_COUNTED, {
       equals: (was, is) =>

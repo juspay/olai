@@ -19,7 +19,7 @@
  * already says in its own words.
  */
 
-import type { SurfaceReadout, SurfaceReadoutStatus } from "./status.ts"
+import { lookOf, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
 
 const REACHES: Record<SurfaceReadoutStatus, boolean> = {
   /** The first dial has not answered yet — there is nowhere to send it. */
@@ -35,3 +35,16 @@ const REACHES: Record<SurfaceReadoutStatus, boolean> = {
 }
 
 export const reachable = (readout: SurfaceReadout): boolean => REACHES[readout.status]
+
+/**
+ * ...and WHY NOT, in the connection pill's own words — `null` while a question
+ * can be asked.
+ *
+ * The half a door actually draws, and it is here rather than in the door
+ * because it is the same sentence wherever it is said: the pill is where this
+ * app tells somebody what its wire is doing (`./status.ts`'s `lookOf`), and a
+ * second wording of it beside a disabled box would be two claims about one
+ * socket, free to disagree.
+ */
+export const unreachable = (readout: SurfaceReadout): string | null =>
+  reachable(readout) ? null : lookOf(readout).detail

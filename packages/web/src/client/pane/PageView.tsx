@@ -21,7 +21,6 @@ import { DayPage } from "../day/DayPage.tsx"
 import { DocumentPage } from "../document/DocumentPage.tsx"
 import { Broken } from "../errors/Broken.tsx"
 import { createAsked } from "../filter/asking.ts"
-import { showsTrashed } from "../filter/drawn.ts"
 import { FilterBar } from "../filter/FilterBar.tsx"
 import { NarrowedProvider } from "../filter/narrowed.tsx"
 import { createNarrowing } from "../filter/narrowing.ts"
@@ -90,15 +89,16 @@ export function PageView(props: {
    * this tab held; the tab is giving that copy up
    * (docs/brainstorming/vault-in-browser.md).
    *
-   * ASKED ONLY WHEN THERE IS A QUESTION: an empty box and a query the grammar
-   * refused are both answered by the parse above, so neither is worth a round
-   * trip. The `trashed` flag is this page saying its own rows are put-away ones
-   * — the one thing the matcher is told about the question rather than asked
-   * about the answer (`filter/narrowing.ts`'s header).
+   * IT IS HANDED THE PARSE AND THE PAGE, not conditions written here: whether
+   * there is a question at all, and whether this page's own rows are put-away
+   * ones — the one thing the matcher is told about the question rather than
+   * asked about the answer — are both one predicate over a value the pane
+   * already has, and a second spelling of either is a second answer to it.
    */
   const asked = createAsked({
-    question: () => (query().kind === "asking" ? filterOf(route()) : null),
-    trashed: () => showsTrashed(allDrawn()),
+    query,
+    text: () => filterOf(route()),
+    page: allDrawn,
   })
 
   const narrowing = createNarrowing({
@@ -108,8 +108,6 @@ export function PageView(props: {
     visible: shownDrawn,
     matched: asked.matched,
     answering: asked.answering,
-    failure: asked.failure,
-    offline: asked.offline,
   })
 
   const rows = () => only(narrowing.drawn(), "tree")?.rows ?? []
@@ -153,7 +151,7 @@ export function PageView(props: {
     >
       <NarrowedProvider narrowed={narrowing}>
         <Show when={narrowing.drawn().kind !== "none"}>
-          <FilterBar narrowing={narrowing} onType={narrow} />
+          <FilterBar narrowing={narrowing} asked={asked} onType={narrow} />
         </Show>
         <Show when={page()}>
           {(open) => (

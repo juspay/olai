@@ -19,13 +19,14 @@
  * DOM under `bun test`, so each case builds its own reading.
  */
 
-import { derive, litBy, matching, parseFilter, rowsOf } from "@olai/format"
+import { derive, litBy, parseFilter, rowsOf } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
 import type { Drawn } from "../page.ts"
 import { excerptOf } from "../note/excerpt.ts"
+import { answered } from "./answered.testlib.ts"
 import { runsIn } from "./lit.ts"
 import type { Narrowed } from "./narrowed.tsx"
 import { asContext, behindTheMark, lighting } from "./why.ts"
@@ -53,10 +54,9 @@ const TODAY = "2026-08-18"
 
 const tree: Drawn = { kind: "tree", rows: rowsOf(derived, "house.olai") }
 
-/** What the server would say — the matcher's own answer in the answer's own
-  *  shape, exactly as `./narrowing.test.ts` builds it and for its reason: the
-  *  `matched` field these three questions read has to be the matcher's, not one
-  *  invented here. */
+/** The page, at one query — with the answer the server would give
+ *  (`./answered.testlib.ts`), because the `matched` field these three questions
+ *  read has to be the matcher's rather than one invented here. */
 const page = (text: string): Narrowed =>
   createRoot(() =>
     createNarrowing({
@@ -64,19 +64,8 @@ const page = (text: string): Narrowed =>
       text: () => text,
       all: () => tree,
       visible: () => tree,
-      matched: () =>
-        new Map(
-          matching(derived, parseFilter(text, TODAY)).map(({ at, match }) => [
-            at.node.id,
-            {
-              id: at.node.id as never,
-              ...(match.field === null ? {} : { matched: match.field }),
-            },
-          ]),
-        ),
+      matched: () => answered(derived, tree, text, TODAY),
       answering: () => text.trim(),
-      failure: () => null,
-      offline: () => null,
     })
   )
 

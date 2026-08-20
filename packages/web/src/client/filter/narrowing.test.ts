@@ -34,7 +34,6 @@ import {
   type DayGroup,
   datedOn,
   derive,
-  matching,
   parseFilter,
   type Row,
   rowsIn,
@@ -49,8 +48,8 @@ import { createRoot } from "solid-js"
 
 import { only } from "../narrow.ts"
 import type { Drawn } from "../page.ts"
+import { answered } from "./answered.testlib.ts"
 import type { Matches } from "./asking.ts"
-import { showsTrashed } from "./drawn.ts"
 import { createNarrowing, type Narrowing } from "./narrowing.ts"
 
 const derived = derive(nodesOfFiles({
@@ -80,25 +79,10 @@ const derived = derive(nodesOfFiles({
  *  pass today and fail on Monday. */
 const TODAY = "2026-08-17"
 
-/**
- * WHAT THE SERVER WOULD SAY about this query on this page — the matcher, the
- * scope the pane sends, and the answer's shape, in one line each.
- *
- * A stand-in rather than a mock: every one of the three is the real thing
- * (`@olai/format`'s `matching`, `./drawn.ts`'s `showsTrashed`,
- * `MatchedNode`'s two fields), so a case below is asking what the page does
- * with a TRUE answer. What is not here is the wire, the debounce and the
- * staleness rule, which are `./asking.ts`'s and are a browser's to prove.
- */
-const answered = (drawn: Drawn, text: string, over = derived): Matches =>
-  new Map(
-    matching(over, parseFilter(text, TODAY), { trashed: showsTrashed(drawn) }).map((
-      { at, match },
-    ) => [at.node.id, {
-      id: at.node.id as never,
-      ...(match.field === null ? {} : { matched: match.field }),
-    }]),
-  )
+/** What the server would say about this query on this page
+ *  (`./answered.testlib.ts`, shared with `./why.test.ts`). */
+const said = (drawn: Drawn, text: string, over = derived): Matches =>
+  answered(over, drawn, text, TODAY)
 
 /** The page, at one query and one preference — the same inputs the pane hands
  *  over. The done preference reaches the TREE and nothing else, which is where
@@ -113,10 +97,8 @@ const narrowing = (drawn: Drawn, text: string, hideDone = false): Narrowing =>
         hideDone && drawn.kind === "tree"
           ? { kind: "tree", rows: withoutDone(drawn.rows) }
           : drawn,
-      matched: () => answered(drawn, text),
+      matched: () => said(drawn, text),
       answering: () => text.trim(),
-      failure: () => null,
-      offline: () => null,
     })
   )
 
@@ -451,8 +433,6 @@ const waiting = (
       visible: () => drawn,
       matched: () => said.matched,
       answering: () => said.answering,
-      failure: () => null,
-      offline: () => null,
     })
   )
 
@@ -462,7 +442,7 @@ const waiting = (
 test("a filter nothing has answered yet draws the whole page, and says so", () => {
   const reading = waiting(tree, "hinges", { answering: null })
   expect(reading.active()).toBe(true)
-  expect(reading.answered()).toBe(false)
+  expect(reading.selected()).toBe(null)
   expect(flat(treeRows(reading))).toEqual(["kitchen", "demo", "order", "install", "hinges"])
   // ...and no row wears a match fact either: `data-match="false"` on every row
   // of an unanswered page is the whole outline claiming to be context.
@@ -475,11 +455,11 @@ test("a filter nothing has answered yet draws the whole page, and says so", () =
 // is worse than being a question behind.
 test("an answer to the query before still narrows, and the page says it is behind", () => {
   const reading = waiting(tree, "hinges more", {
-    matched: answered(tree, "hinges"),
+    matched: said(tree, "hinges"),
     answering: null,
   })
   expect(flat(treeRows(reading))).toEqual(["kitchen", "install", "hinges"])
-  expect(reading.answered()).toBe(true)
+  expect(reading.selected()).not.toBe(null)
   // The one thing it must not do is claim the rows are about what is typed.
   expect(reading.answering()).toBe(null)
 })
@@ -490,10 +470,25 @@ test("an answer to the query before still narrows, and the page says it is behin
 test("a refused query answers itself rather than travelling", () => {
   const reading = waiting(tree, "is:open", { answering: null })
   expect(reading.active()).toBe(true)
-  expect(reading.answered()).toBe(true)
+  expect(reading.selected()).not.toBe(null)
   expect(reading.answering()).toBe("is:open")
   expect(treeRows(reading)).toEqual([])
   expect(reading.refusals().map((one) => one.token)).toEqual(["is:open"])
+})
+
+// A SPACE IS NOT A QUESTION. The box keeps what somebody typed — a filter is in
+// the address, and a trailing space is a keystroke on the way to the next word —
+// while what goes on the wire is the words (`./asking.ts` trims, once). If the
+// two ever stop agreeing about which string this is, the bar says `filtering…`
+// for as long as the space stands and every scenario that waits for the page to
+// answer waits forever.
+test("a trailing space is the box's, not the question's", () => {
+  const reading = waiting(tree, "hinges ", {
+    matched: said(tree, "hinges"),
+    answering: "hinges",
+  })
+  expect(reading.answering()).toBe("hinges")
+  expect(flat(treeRows(reading))).toEqual(["kitchen", "install", "hinges"])
 })
 
 // ...and so is an empty box, which is not a filter at all.
@@ -543,10 +538,8 @@ test("hiding finished work does not take the archive out of a zoom's scope", () 
       visible: () => ({ kind: "tree", rows: withoutDone(rows) }),
       // ASKED OF THE UNFILTERED PAGE: the scope is a fact about which page this
       // is, and the pane reads it off `all()` for exactly this reason.
-      matched: () => answered(whole, "#home", FINISHED),
+      matched: () => said(whole, "#home", FINISHED),
       answering: () => "#home",
-      failure: () => null,
-      offline: () => null,
     })
   )
   expect(treeRows(reading)).toEqual([])

@@ -13,6 +13,7 @@ import {
   type Derived,
   Found,
   isNodeHit,
+  NodeId,
   type NodeHit,
   type OutlineSet,
   type SearchAnswer,
@@ -643,29 +644,33 @@ describe("which nodes a query selects", () => {
       .matches.map((one) => one.id)
 
   test("every match comes back, past the cap a search would have applied", () => {
-    // Four of them where `search` answers twelve by default and a palette asks
-    // for eight: a page that pruned itself by a capped answer would draw the
-    // rows the cap kept and count the ones it did not.
+    // Three of them, where `search` answers twelve by default and a palette
+    // asks for eight: a page that pruned itself by a capped answer would draw
+    // the rows the cap kept and count the ones it did not.
     expect(ids("door")).toEqual(["order", "hinges", "tiles"])
-    expect(matches(derivedOf(PILE()), { text: "door" }, TODAY).matches.length).toBe(3)
   })
 
-  test("the order is the set's own, never the ranking", () => {
-    // `hinges` is finished and would sink under the done penalty in a
-    // shortlist; here it stays where the file puts it, because a page draws its
-    // rows in the page's order and a rank would be an answer nobody asked for.
+  test("the order is the SET's, where a search's is the ranking", () => {
+    // The two doors onto one matcher, over one query, side by side — which is
+    // what makes this a claim rather than a second spelling of the case above.
+    // `hinges` is finished, so the shortlist sinks it under the done penalty
+    // and this answer leaves it where the file puts it: a page draws its rows
+    // in the page's order and looks each one up here, and the day this starts
+    // ranking is the day a filtered outline reorders itself under a cursor.
     expect(ids("door")).toEqual(["order", "hinges", "tiles"])
+    expect(nodeHits(search(readingOf(PILE()), { text: "door" }, TODAY)).map((hit) => hit.id))
+      .toEqual(["order", "tiles", "hinges"])
   })
 
   test("why a node is here is the field that carried the words, or nothing", () => {
     // `walnut` is in `order`'s note and in no title anywhere — the row a
     // filtered page draws an excerpt for (`@olai/web`'s `filter/why.ts`).
     expect(matches(derivedOf(PILE()), { text: "walnut" }, TODAY).matches)
-      .toEqual([{ id: "order", matched: "desc" }])
+      .toEqual([{ id: NodeId.make("order"), matched: "desc" }])
     // ...and a query that named no words at all is carried by no field, so the
     // slot is ABSENT rather than filled with an invented reason.
     expect(matches(derivedOf(PILE()), { text: "is:done" }, TODAY).matches)
-      .toEqual([{ id: "hinges" }])
+      .toEqual([{ id: NodeId.make("hinges") }])
   })
 
   test("what was put away is out, unless the query or the PAGE says otherwise", () => {

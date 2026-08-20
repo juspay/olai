@@ -39,8 +39,14 @@ import { olai } from "../wire.ts"
 
 /** How long a keystroke waits for the next one. A whole round trip sits
  *  behind this, so it is pitched just past an ordinary inter-keystroke gap
- *  rather than under it, where it would collapse nothing. */
-const SETTLE_MS = 200
+ *  rather than under it, where it would collapse nothing.
+ *
+ *  EXPORTED, because the page filter settles on the same number
+ *  (`../filter/asking.ts`) and it is one fact about one pair of hands: two
+ *  boxes in one app settling at two speeds is a difference nobody could
+ *  account for. It was a sentence in both files saying so; a sentence is not
+ *  a constant. */
+export const SETTLE_MS = 200
 
 /** Below this the answer is noise: two characters match half an outline by
  *  substring. The shell items still filter locally, so the palette is never
@@ -48,10 +54,15 @@ const SETTLE_MS = 200
 const MIN_LENGTH = 3
 
 /** How many nodes a DOOR of this shows — every one of them, which is what
- *  makes it a constant here rather than an argument. Fewer than the tool's
+ *  makes it a constant here rather than an argument. EXPORTED for the one
+ *  caller that has to SHARE the answer with something else: the composer's
+ *  `@` list draws these rows beside its file rows and budgets the eight
+ *  between them (`../chat/naming.ts`), so a cap changed here without that
+ *  arithmetic hearing about it would hand the file half rows the node half
+ *  was still using. Fewer than the tool's
  *  twelve: each of these is a shortlist over a page a reader is standing on
  *  (a modal, a box in the header, a panel under a row), not a report. */
-const LIMIT = 8
+export const LIMIT = 8
 
 export interface Search<H extends SearchHit = SearchHit> {
   readonly hits: Accessor<ReadonlyArray<H>>
@@ -168,6 +179,13 @@ export function createSearch(
     // While a fetch is in flight the rows on screen are the LAST query's, so
     // they answer nothing anybody is asking — and during the debounce, before
     // `asked` moves, they still answer the query they were fetched for.
-    answering: () => (answer.loading ? null : asked()),
+    //
+    // A FAILED CALL ANSWERS NOTHING EITHER, which this used to claim it did: a
+    // refused call resolves the resource to `null` with `loading` false, so the
+    // rows went empty while this went on naming the query they were supposedly
+    // the answer to — and it is published into the markup for a scenario to
+    // wait on (`../edges/EdgePanel.tsx`), so a wait for a query's rows was
+    // satisfied by a call that never arrived.
+    answering: () => (answer.loading || answer() == null ? null : asked()),
   }
 }

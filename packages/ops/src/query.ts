@@ -334,6 +334,15 @@ export const search = (
  * roadmap node), which shrinks the WALK; nothing about this shape forces a
  * per-page protocol before then.
  *
+ * OVER THE WHOLE SET, and that is FORCED rather than a cost nobody thought
+ * about. A filtered page could name its own file — the request has no `file`
+ * and would not be wrong to — except that a page draws MIRRORS, and a mirror
+ * shows a node that lives in another outline (`@olai/format`'s `matching`
+ * skips placements and scopes by the canonical record's file). A curated list
+ * filtered under `file:` would silently lose every row it is made of. So the
+ * matcher answers over the set and the PAGE narrows by what it draws, which is
+ * the same division the browser's own filter always made.
+ *
  * NO DOCUMENTS, and that is the grammar rather than a narrowing chosen here: a
  * filter narrows rows of a page, a document is prose and is the one page that
  * carries no filter (`@olai/web`'s `routes.ts`). {@link search} is where the
@@ -359,7 +368,13 @@ export const matches = (
     matches: matching(derived, filter, { trashed: query.trashed }).map((
       { at, match },
     ) => ({
-      id: NodeId.make(at.node.id),
+      // CAST rather than `NodeId.make`, and it is the same call
+      // `@olai/format`'s `address.ts` argues for at its own hot spot: the brand
+      // is nominal, so `make` runs a parser with nothing to check — and this
+      // list is UNCAPPED, where {@link search} pays that parse twelve times
+      // behind its cap. One schema parse per selected node per settled
+      // keystroke is a real number on a large vault.
+      id: at.node.id as NodeId,
       // The format's own rule for absence: a query that named no words was
       // carried by no field, and naming one would be inventing the reason a row
       // is in front of somebody — which is precisely what the field is read for
@@ -368,7 +383,6 @@ export const matches = (
     })),
   }
 }
-
 
 // ── one node, and what is under it ─────────────────────────────────────
 

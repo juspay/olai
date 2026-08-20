@@ -60,9 +60,10 @@
  *     writes `@the/path ` or `@the-id ` into the sentence. It is the same
  *     gesture as the slash list and draws the same box
  *     ({@link ./CompletionMenu.tsx}); what differs is where the rows come from
- *     (the key sets this tab already holds, and the set it has already derived)
- *     and that the span it replaces is a WORD inside the message rather than
- *     the whole line ({@link ./completion.ts}).
+ *     (the key sets this tab already holds, and — since `search-server-side` —
+ *     the server's own search for the nodes) and that the span it replaces is a
+ *     WORD inside the message rather than the whole line
+ *     ({@link ./completion.ts}).
  *
  *     What it writes is TEXT, and deliberately not an attachment. The `+`
  *     button's files are copies in a temp directory that the agent is handed
@@ -284,7 +285,7 @@ export function Composer(props: {
    * OUTSIDE the rows memo, deliberately: a resource created inside a memo would
    * be a new resource per keystroke, which is the debounce undone.
    */
-  const named = createSearch(naming, "node")
+  const nodesNamed = createSearch(naming, "node")
 
   /** A SWITCH rather than a chain of `if`s whose last arm is a fall-through:
    *  the two kinds and the two lists are one table the compiler checks, so a
@@ -309,7 +310,7 @@ export function Composer(props: {
         // The paths are the key sets this tab holds, matched here; the nodes are
         // the server's answer to the same word, which arrives a beat later and
         // takes the slack the file half was not using.
-        return offers(files(), named.hits(), completing.query).map((offer) => ({
+        return offers(files(), nodesNamed.hits(), completing.query).map((offer) => ({
           value: offer.value,
           label: offer.label,
           hint: offer.hint,
@@ -572,11 +573,23 @@ export function Composer(props: {
           call now, and a call that did not arrive must not read as a word that
           named nothing (HACKING.md — an error reaches somebody). It is drawn
           while the box is naming something, beside the list it is about, and it
-          is not the send's refusal slot — two unrelated failures sharing one
+          it is not the send's refusal slot — two unrelated failures sharing one
           sentence is how a reader is told the wrong thing about the wrong
           thing (`../search/nodes.ts` argues it at the source). The FILE half
-          is unaffected and still answers. */}
-      <Show when={naming() !== null && named.failure()}>
+          is unaffected and still answers.
+
+          The BOX IS NEVER DISABLED for it, unlike the filter bar's, and the
+          difference is what each box is FOR: that one exists to ask a question,
+          so a wire that cannot carry one leaves nothing to type into; this one
+          is a sentence somebody is writing, and taking it away because the
+          directory cannot be searched would cost them the message (the
+          "NEVER disabled" argument below, kept).
+
+          BOTH conditions are load-bearing: `createSearch` clears its failure
+          when the query goes away, but a call already in flight can fail after
+          that — and a reason for a list nobody can see is a line about
+          nothing. */}
+      <Show when={naming() !== null && nodesNamed.failure()}>
         {(said) => (
           <SaidLine
             said={{ tone: "alarm", text: `the directory could not be searched — ${said()}` }}

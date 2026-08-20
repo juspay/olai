@@ -58,11 +58,15 @@
 import type { NodeHit } from "@olai/surface"
 
 import { dirOf, folded, matchFiles, nameOf } from "../file/matching.ts"
+/** How many rows the list offers — the eight every shortlist in this app shows
+ *  (`../complete/tags.ts`, `../file/matching.ts`), and since the node half
+ *  became a request it is the SAME eight the server was asked for: the
+ *  arithmetic below hands the file half whatever the node half did not use, so
+ *  a cap that differed from the one on the request would be giving away rows
+ *  that were never on offer. */
+import { LIMIT } from "../search/nodes.ts"
 import { nodeMatches, type NodeMatch } from "./nodes.ts"
 
-/** How many rows the list offers — the eight every shortlist in this app shows
- *  (`../complete/tags.ts`, `../file/matching.ts`). */
-const LIMIT = 8
 
 /** ...and how many of them belong to a kind that has rows, whatever the other
  *  kind found. Half the list each: any other split would be this file having an

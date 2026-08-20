@@ -30,27 +30,26 @@
 import { createContext, type JSX, useContext } from "solid-js"
 
 import { NO_NEEDLES } from "./lit.ts"
-import { NOTHING_MATCHED, type Narrowing } from "./narrowing.ts"
+import type { Narrowing } from "./narrowing.ts"
 
 /**
  * The three parts of the page's reading (`./narrowing.ts`) that a ROW asks for:
- * whether a filter is on, which nodes it selected and why, and the words to
- * light up in the one it selected.
+ * whether a filter is on, what it selected — or `null`, for a page with nothing
+ * to narrow by — and the words to light up in a row it selected.
  *
  * A VIEW of that one value rather than a second declaration of the same fields
  * — the page has exactly one narrowing, and a parallel interface saying the
  * same thing is a second place for the two to drift. What it adds is a DEFAULT
  * (below), which is the whole reason a row asks a context instead of the page.
  */
-export type Narrowed = Pick<Narrowing, "active" | "answered" | "matched" | "needles">
+export type Narrowed = Pick<Narrowing, "active" | "selected" | "needles">
 
 const NOTHING: Narrowed = {
   active: () => false,
-  // Nothing was asked, so nothing is outstanding: an unfiltered page is
-  // answered by definition, and a row outside a provider draws no match facts
-  // because there is no filter rather than because one is in flight.
-  answered: () => true,
-  matched: () => NOTHING_MATCHED,
+  // Nothing to narrow BY, which is what a row outside a provider is looking at:
+  // no query, so no match facts — the same `null` a filter waiting on its first
+  // answer hands out, and for the same reason (`./narrowing.ts`).
+  selected: () => null,
   needles: () => NO_NEEDLES,
 }
 

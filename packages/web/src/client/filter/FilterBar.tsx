@@ -41,6 +41,7 @@
 
 import { For, Show } from "solid-js"
 
+import type { Asked } from "./asking.ts"
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
@@ -57,26 +58,39 @@ const PLACEHOLDER =
   `filter — words, "a phrase", a OR b, #tag, is:done, has:desc, date:last-week, changed:today, -not`
 
 export function FilterBar(props: {
+  /** What the PAGE found — the count, the words, the rows behind it. */
   readonly narrowing: Narrowing
+  /** ...and what the WIRE is doing, which is a fact about the connection rather
+   *  than a reading of the page: the two are handed over separately because the
+   *  reading beside this one derives nothing from either, and a value carried
+   *  through a module that does not read it is a field two files have to keep
+   *  in step for nothing (`./asking.ts`). */
+  readonly asked: Pick<Asked, "failure" | "offline">
   readonly onType: (text: string) => void
 }) {
   /** A question cannot be asked, so the box takes none: an input that swallowed
    *  keystrokes into a page that could not narrow would be the door pretending
    *  (`../connection/reaching.ts`). What is already narrowed stays narrowed —
    *  the last thing the server said is still the last thing the server said. */
-  const inert = () => props.narrowing.offline() !== null
+  const inert = () => props.asked.offline() !== null
 
   return (
     <div
       class="mb-6"
       data-testid={TESTID.filterBar}
-      // WHICH QUERY THE PAGE ANSWERS, in the markup — the same fact the count
-      // line draws in words, published so something outside the browser can
-      // wait for it. Absent while the rows answer a question the reader has
+      // WHICH QUERY THE ROWS BELOW ANSWER, in the markup — the same fact the
+      // count line draws in words, published so something outside the browser
+      // can wait for it. Absent while they answer a question the reader has
       // moved on from, which is the whole of what a debounce and a round trip
       // added to this box: a scenario that read the rows in the beat between
       // the keystroke and the answer would be reading the page before it.
-      data-answering={props.narrowing.answering() ?? undefined}
+      //
+      // `data-asked`, which is what the shortlist under every other search box
+      // in this client already calls the identical fact
+      // (`../search/Shortlist.tsx`, off the same `answering`). One convention,
+      // two publishers; a second spelling would be a second thing to learn
+      // about one question.
+      data-asked={props.narrowing.answering() ?? undefined}
     >
       <div class="flex max-w-xl items-center gap-1">
         {/* `text`, not `search`: a `type="search"` input draws the browser's
@@ -94,7 +108,7 @@ export function FilterBar(props: {
           // The pill's sentence, on the control it disables — so a pointer
           // resting on a dead box gets the reason without hunting for the dot
           // in the header.
-          title={props.narrowing.offline() ?? undefined}
+          title={props.asked.offline() ?? undefined}
           value={props.narrowing.text()}
           onInput={(event) => props.onType(event.currentTarget.value)}
           // WHICH key empties it is the registry's (`../keys.ts`'s list layer,
@@ -163,7 +177,7 @@ export function FilterBar(props: {
       {/* THE CALL refusing, which is not the grammar refusing: its own slot, so
           a wire that fell over cannot be read as a query that found nothing.
           Alarmed, because the rows on screen are now older than the box. */}
-      <Show when={props.narrowing.failure()}>
+      <Show when={props.asked.failure()}>
         {(said) => (
           <SaidLine
             said={{ tone: "alarm", text: said() }}
@@ -177,7 +191,7 @@ export function FilterBar(props: {
           ASIDE rather than an alarm: nothing was refused and nothing was lost,
           the wire is simply not there — the connection pill is where that
           news belongs and this is it, repeated on the control it disables. */}
-      <Show when={props.narrowing.offline()}>
+      <Show when={props.asked.offline()}>
         {(said) => (
           <SaidLine
             said={{ tone: "aside", text: said() }}

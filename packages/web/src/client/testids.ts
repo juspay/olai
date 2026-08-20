@@ -861,9 +861,11 @@ export const TESTID = {
   /** The bar above a tree page: the box, the count, the refusals. Drawn on the
    *  two routes that may carry a filter and nowhere else.
    *
-   *  `data-answering` is WHICH query the rows below it answer — absent while
-   *  they answer one the reader has already moved on from, since the filter is
-   *  a debounce and a round trip now (`client/filter/asking.ts`). */
+   *  `data-asked` is WHICH query the rows below it answer — absent while they
+   *  answer one the reader has already moved on from, since the filter is a
+   *  debounce and a round trip now (`client/filter/asking.ts`). The same
+   *  attribute the shortlist under every other search box publishes, for the
+   *  same fact. */
   filterBar: "filter-bar",
   filterInput: "filter-input",
   /** "3 of 41", plus what the done-preference is holding back. */

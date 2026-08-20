@@ -19,6 +19,7 @@ import { Then, When } from "@cucumber/cucumber";
 
 import { saysThat } from "../support/said.ts";
 import {
+  attr,
   DESC_HIT,
   FILTER_BAR,
   FILTER_CLEAR,
@@ -65,11 +66,13 @@ When(
     const box = this.page.locator(FILTER_INPUT);
     await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await box.fill(text);
-    const bar = this.page.locator(FILTER_BAR).first();
-    await this.waitUntil(
-      async () => (await bar.getAttribute("data-answering")) === text.trim(),
-      `the page answers ${JSON.stringify(text)}`,
-    );
+    // A LOCATOR, because a selector can express this question — the suite's own
+    // rule, and the same one the move picker and the edge panel wait on their
+    // shortlists with (`data-asked`).
+    await this.page
+      .locator(`${FILTER_BAR}${attr("data-asked", text.trim())}`)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitForFrame();
   },
 );

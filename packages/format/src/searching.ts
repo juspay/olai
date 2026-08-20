@@ -206,11 +206,20 @@ export const SearchRequest = Schema.Struct({
     }),
   ),
   /**
-   * The two scopes a tree page can BE, and they are on the REQUEST rather than
-   * on any one caller for the reason this whole module exists: the browser's
-   * filter narrows to one outline or to one node's subtree, so a door that
-   * could not ask for that narrowing would be answering a smaller question than
-   * the other one.
+   * The two scopes a tree page can BE — an AGENT's, now, and the sentence they
+   * arrived under is worth correcting rather than deleting.
+   *
+   * They were put here for the browser's filter, "so a door that could not ask
+   * for that narrowing would be answering a smaller question than the other
+   * one". The filter is a door on the wire since `search-server-side` and does
+   * NOT use them, and could not: a page draws MIRRORS, and a mirror shows a
+   * node that lives in another outline, so a page filtered under `file` would
+   * lose every row a curated list is made of ({@link MatchingRequest}, and
+   * `@olai/ops`' `Query.matches` at length). What is left is what `search_nodes`
+   * documents them as — an agent asking exactly the question a person gets by
+   * filtering one page — which is why they stay on THIS request and are not
+   * spread onto the other: a field nobody sends is a field nobody can be held
+   * to.
    */
   file: Schema.optionalKey(
     Schema.String.annotate({
@@ -275,15 +284,16 @@ export const MatchingRequest = Schema.Struct({
   text: Schema.String,
   /**
    * Whether what was put AWAY is in this corner of the set at all — the
-   * matcher's own {@link Scope.trashed}, on the wire because the caller is the
-   * only one who knows.
+   * matcher's own {@link Scope.trashed} put on the wire, because the caller is
+   * the only one who knows.
    *
-   * The default (absent) is the grammar's rule: a query reaches the trash when
-   * it says `is:trashed` and not otherwise. `true` is a PAGE saying its own
-   * rows are already put-away ones — the trash, and a zoom onto a trashed node
-   * — where applying the default would take every row off the screen and leave
-   * the reader nothing to read the absence by. It is never a widening of a
-   * search of the directory: the page that sends it is the page that draws it.
+   * WHAT IT MEANS IS ARGUED WHERE THE MATCHER TAKES IT (`./filter.ts`'s
+   * `Scope`) and is deliberately not re-stated here: this package is a monument
+   * to a vocabulary that was spelled twice and drifted. The short of it, for a
+   * reader of the wire: absent is the grammar's own rule (the trash is reached
+   * by `is:trashed` and not otherwise), and `true` is a PAGE saying its own
+   * rows are already put-away ones — never a widening of a search of the
+   * directory, since the page that sends it is the page that draws it.
    */
   trashed: Schema.optionalKey(Schema.Boolean),
 })

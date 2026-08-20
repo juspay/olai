@@ -58,20 +58,19 @@ import { debounce } from "@solid-primitives/scheduled"
 import { Result } from "effect"
 import { type Accessor, createEffect, createMemo, createResource, createSignal } from "solid-js"
 
+import type { Filter } from "@olai/format"
 import type { MatchedNode } from "@olai/surface"
 
-import { lookOf } from "../connection/status.ts"
-import { reachable } from "../connection/reaching.ts"
+import { unreachable } from "../connection/reaching.ts"
+import type { Drawn } from "../page.ts"
 import { runAsync } from "../run.ts"
+import { SETTLE_MS } from "../search/nodes.ts"
 import { connectionReadout, olai } from "../wire.ts"
+import { showsTrashed } from "./drawn.ts"
 
-/** How long a keystroke waits for the next one — `../search/nodes.ts`'s
- *  number, because it is the same fact about the same fingers, and two boxes in
- *  one app settling at two speeds would be a difference nobody could account
- *  for. There is no MIN_LENGTH twin: a shortlist of eight over one letter is
- *  noise, where narrowing a page to what holds an `a` is a question with an
- *  answer the reader can see the size of. */
-const SETTLE_MS = 200
+/** No MIN_LENGTH twin to the settle this imports: a shortlist of eight over
+ *  one letter is noise, where narrowing a page to what holds an `a` is a
+ *  question with an answer the reader can see the size of. */
 
 /** What a query selected, ready for a row to look itself up in: id → why. The
  *  server's own answer rows, kept as they arrived rather than re-shaped — the
@@ -128,26 +127,63 @@ const sameAsk = (was: Ask | null, is: Ask | null): boolean =>
 /**
  * Ask as the question changes.
  *
- * `question` is `null` for "there is nothing to ask" — an empty box, or a query
- * the grammar refused, both of which the caller has already read for itself and
- * neither of which is worth a round trip to be told about.
+ * IT TAKES THE PARSE, not a conditional the caller wrote: whether there is a
+ * question at all is one predicate over one parsed value, and spelling it in
+ * the pane as well would be two places that have to agree about when the wire
+ * is worth a trip. An empty box and a query the grammar refused are both
+ * answered by the parse — the first selects nothing and the second is a
+ * refusal already on screen — so neither travels.
  */
 export const createAsked = (source: {
-  readonly question: Accessor<string | null>
-  readonly trashed: Accessor<boolean>
+  /** What the grammar made of the box (`@olai/format`'s `parseFilter`, done by
+   *  the caller because the reading beside this one needs the same value). */
+  readonly query: Accessor<Filter>
+  /** ...and the box itself, which is what actually goes on the wire: the parse
+   *  is a value, and what the server is asked is the words. */
+  readonly text: Accessor<string>
+  /**
+   * WHAT THE PAGE DRAWS, unfiltered — the two things about it this question
+   * depends on, taken from the page itself rather than as two thunks a caller
+   * had to remember to write.
+   *
+   * It answers whether the rows in front of somebody are put-away ones
+   * ({@link showsTrashed}, the one thing the matcher is told about the QUESTION)
+   * and whether there is anything to narrow at all: a pane whose page has not
+   * arrived yet draws `none`, and asking then would spend a walk of the whole
+   * set on a scope that is about to change under the answer.
+   */
+  readonly page: Accessor<Drawn>
 }): Asked => {
   const [failure, setFailure] = createSignal<string | null>(null)
   /** What has actually been asked for: the query, once it stopped moving. */
   const [asked, setAsked] = createSignal<string | null>(null)
   const settle = debounce(setAsked, SETTLE_MS)
 
-  const offline = createMemo(() => {
-    const readout = connectionReadout()
-    return reachable(readout) ? null : lookOf(readout).detail
-  })
+  const offline = createMemo(() => unreachable(connectionReadout()))
+
+  /** Whether this page's own rows are already put-away ones — a MEMO, because
+   *  the page it reads is a fresh value on every revision the store publishes
+   *  and the whole of what this takes from it is a boolean that is constant for
+   *  four of the five shapes. Read inline, every edit anywhere in the vault
+   *  would re-scan a page's roots to arrive at the answer it already had. */
+  const trashed = createMemo(() => showsTrashed(source.page()))
+
+  /** What goes on the wire, or `null` for a box that is not asking anything.
+   *
+   *  TRIMMED, and that is the one normalisation this file does: the box keeps
+   *  what somebody typed, spaces and all (a filter is in the ADDRESS, and a
+   *  trailing space is a keystroke on the way to the next word), while the
+   *  QUESTION is the words. Untrimmed, an answer would come back labelled
+   *  `"herb "` where every reader of it compares against `"herb"`, and the bar
+   *  would say it was still filtering for as long as that space stood. */
+  const question = createMemo(() =>
+    source.query().kind === "asking" && source.page().kind !== "none"
+      ? source.text().trim()
+      : null
+  )
 
   createEffect(() => {
-    const wanted = source.question()
+    const wanted = question()
     if (wanted === null) {
       // Clearing takes effect AT ONCE rather than after the settle: a page
       // narrowed by a query the reader has already backspaced away from is a
@@ -173,7 +209,7 @@ export const createAsked = (source: {
   const asking = createMemo<Ask | null>(
     () => {
       const text = asked()
-      return text === null ? null : { text, trashed: source.trashed() }
+      return text === null ? null : { text, trashed: trashed() }
     },
     null,
     { equals: sameAsk },
@@ -195,14 +231,14 @@ export const createAsked = (source: {
       return info.value ?? null
     }
     setFailure(null)
-    return {
-      text: ask.text,
-      // Keyed by the node's own id, which is what a row looks itself up by
-      // (`@olai/format`'s `Selected`).
-      matches: new Map<string, MatchedNode>(
-        outcome.success.matches.map((one) => [one.id, one]),
-      ),
-    }
+    // Keyed by the node's own id, which is what a row looks itself up by
+    // (`@olai/format`'s `Selected`). Filled by a loop rather than from an array
+    // of pairs: this is the one allocation in the feature that is the size of
+    // the answer, and the pairs would be a second one of the same size, thrown
+    // away by the line that reads them.
+    const matches = new Map<string, MatchedNode>()
+    for (const one of outcome.success.matches) matches.set(one.id, one)
+    return { text: ask.text, matches }
   })
 
   /**
