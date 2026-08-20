@@ -46,10 +46,9 @@ const foldsOf = (entry: Record<string, ReadonlyArray<string>>) =>
  *
  * It is here so that the laws below can be stated the way they were before the
  * walk became a question: this is what the set SAYS, and the assertion is what
- * the memory does about it. `asked` is every id in the folds handed over,
- * which is what the door actually sends — {@link homesOf} is what pairs the two
- * back up, and using it here is what keeps this stand-in from inventing a
- * pairing rule of its own.
+ * the memory does about it. It answers the WIRE shape and hands it to
+ * {@link homesOf} exactly as the door does, so this stand-in cannot invent a
+ * reading of its own — what it stands in for is the walk, not the rule.
  */
 const answering = (
   folds: Folds,
@@ -274,15 +273,28 @@ test("an id the question did not name is left exactly where it is", () => {
 })
 
 test("the answer is read against the question, never on its own", () => {
-  // What `homesOf` is for: an id the set does not declare is simply absent from
-  // the answer, so an answer read alone cannot tell "the set denies this" from
-  // "nobody mentioned it". The folds that were SENT are what says which.
-  const asked = foldsOf({ "house.olai": ["kitchen", "deleted"] })
-  const homes = homesOf(asked, {
-    homes: [{ id: "kitchen", file: "house.olai" }],
-    declaring: ["house.olai"],
+  // What `homesOf` is for, and why it takes both. The set says NOTHING about an
+  // id it has no record for, so an answer read alone cannot tell "the set denies
+  // this" from "nobody mentioned it" — the folds that were sent say which, and
+  // the file a fold is under says whether the silence is evidence at all.
+  const asked = foldsOf({
+    "house.olai": ["kitchen", "deleted"],
+    "garden.olai": ["herbs"],
   })
-  expect(homes.asked).toEqual(new Set(["kitchen", "deleted"]))
-  expect(homes.at).toEqual(new Map([["kitchen", "house.olai"]]))
-  expect(homes.declaring).toEqual(new Set(["house.olai"]))
+  expect(
+    homesOf(asked, {
+      homes: [{ id: "kitchen", file: "_olai/Trash.olai" }],
+      // garden.olai is not here: it parses no more, so it testifies about
+      // nothing and `herbs` gets no entry at all.
+      declaring: ["house.olai"],
+    }),
+  ).toEqual(
+    new Map([
+      // where it is now...
+      ["kitchen", "_olai/Trash.olai"],
+      // ...gone, said by a file that can say it...
+      ["deleted", null],
+      // ...and `herbs` absent, which is the third answer.
+    ]),
+  )
 })

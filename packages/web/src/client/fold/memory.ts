@@ -126,47 +126,53 @@ export const withFolds = (
 }
 
 /**
- * WHAT THE SET SAID about the folds that were asked about — the answer that
- * stands where a whole id→file map used to.
+ * WHAT THE SET SAID about each folded id it was asked about: the file it is in
+ * NOW, or `null` for one the set has no record of and can say so about.
  *
- * Three fields because pruning is a three-way decision and a two-field answer
- * could only make it by guessing. {@link asked} is the QUESTION, kept beside
- * its answer: an id nobody asked about is not an id the set denied, and a fold
- * made between the question leaving and the answer landing is exactly that case
- * (./refiling.ts, which asks while the reader goes on folding).
+ * ONE MAP with three states rather than three fields, and the third state is
+ * the one worth naming: an id ABSENT from it is one nothing can be concluded
+ * about — either nobody asked (the reader folded it while the question was
+ * out), or its file is one the set declares nothing in and so cannot testify
+ * about. It is the shape `chat/declared.ts` reads its own batch through, for
+ * the same reason: three answers about one id, told apart without a fourth
+ * value.
+ *
+ * The point of collapsing them here is that {@link pruned} then cannot get the
+ * decision wrong. Kept as the answer's own three lists, "absent means gone"
+ * would be true only under a precondition about ANOTHER field — a rule every
+ * reader has to remember rather than a value it can read.
  */
-export interface Homes {
-  /** The ids the question named. Absent from {@link at} means "gone" only for
-   *  one of these. */
-  readonly asked: ReadonlySet<string>
-  /** ...and where each one the set declares a record for now lives, by the file
-   *  that record is written in. */
-  readonly at: ReadonlyMap<string, string>
-  /** The asked files the set declares ANY record in — the ones whose silence
-   *  about an id is evidence. */
-  readonly declaring: ReadonlySet<string>
-}
+export type Homes = ReadonlyMap<string, string | null>
 
-/** The answer, read against the question it answers.
+/**
+ * The answer, read against the question it answers.
  *
- *  `asked` comes from the FOLDS that were sent and never from the answer: the
- *  server says nothing about an id it does not declare, so an answer read alone
- *  cannot tell "the set denies this" from "nobody mentioned it". */
+ * BOTH HALVES ARE NEEDED and this is the only place that holds them: the set
+ * says nothing at all about an id it has no record for, so an answer read alone
+ * cannot tell "the set denies this" from "nobody mentioned it" — the folds that
+ * were SENT are what says which, and a file the set declares nothing in is what
+ * turns silence about one of its ids back into nothing.
+ */
 export const homesOf = (asked: Folds, answer: HomesAnswer): Homes => {
-  const ids = new Set<string>()
-  for (const own of asked.values()) for (const id of own) ids.add(id)
-  return {
-    asked: ids,
-    at: new Map(answer.homes.map((home) => [home.id, home.file])),
-    declaring: new Set(answer.declaring),
+  const at = new Map(answer.homes.map((home) => [home.id, home.file]))
+  const declaring = new Set(answer.declaring)
+  const said = new Map<string, string | null>()
+  for (const [file, ids] of asked) {
+    for (const id of ids) {
+      const home = at.get(id)
+      if (home !== undefined) said.set(id, home)
+      else if (declaring.has(file)) said.set(id, null)
+    }
   }
+  return said
 }
 
 /**
  * The same memory with the folds of nodes that are no longer there dropped —
  * and the folds of nodes that MOVED filed under where they moved to.
  *
- * Three rules, in the order they are asked.
+ * Three answers, three outcomes, and the map above is what makes them a
+ * lookup rather than a rule.
  *
  * WHERE THE SET SAYS IT IS is where the fold goes, whether that is the file it
  * was already under or another one. GONE MEANS GONE FROM THE SET, not from the
@@ -177,30 +183,21 @@ export const homesOf = (asked: Folds, answer: HomesAnswer): Homes => {
  * a fold precisely when the design promises to keep it (a place key could not
  * survive that move at all, which is why it is not the key).
  *
- * An id the set has no record for is dropped, and ONLY when two things are
- * true: it was asked about, and the set declares something in the file it is
- * filed under. A file missing from {@link Homes.declaring} is missing on
- * purpose — a file that would not parse, or one this directory does not serve
- * any more, is not evidence that its nodes are gone — and an id missing from
- * {@link Homes.asked} was never put to the set at all, so neither is evidence
- * of anything.
+ * And AN ID THE SET SAID NOTHING ABOUT IS LEFT EXACTLY WHERE IT IS. A file that
+ * would not parse, or one this directory does not serve any more, is not
+ * evidence that its nodes are gone; neither is a question that never named the
+ * id, which is what a fold made while the last one was in flight comes to.
  */
 export const pruned = (folds: Folds, homes: Homes): Folds => {
   const next = new Map<string, Set<string>>()
-  const keep = (file: string, id: string): void => {
-    const ids = next.get(file)
-    if (ids === undefined) next.set(file, new Set([id]))
-    else ids.add(id)
-  }
   for (const [file, ids] of folds) {
     for (const id of ids) {
-      const home = homes.at.get(id)
-      if (home !== undefined) {
-        keep(home, id)
-        continue
-      }
-      if (homes.asked.has(id) && homes.declaring.has(file)) continue
-      keep(file, id)
+      const home = homes.get(id)
+      if (home === null) continue
+      const into = home ?? file
+      const own = next.get(into)
+      if (own === undefined) next.set(into, new Set([id]))
+      else own.add(id)
     }
   }
   return next
@@ -321,8 +318,9 @@ export const setFolded = (given: ReadonlyArray<Fold>, collapsed: boolean): void 
  * Applied to the entry AS IT IS, never to the folds the question was built
  * from: the reader goes on folding while a question is out, and a sibling tab
  * may have written in the meantime. Every id those two added is one {@link
- * pruned} leaves alone, because it is not in {@link Homes.asked} — which is why
- * the question travels with its answer.
+ * pruned} leaves alone, because the set was never asked about it and so said
+ * nothing — which is why {@link homesOf} takes the question as well as the
+ * answer.
  *
  * NOTHING IS WRITTEN when nothing moved, which is most times it is asked: a
  * `setItem` per fold for a value that came back identical would wake every
@@ -330,9 +328,9 @@ export const setFolded = (given: ReadonlyArray<Fold>, collapsed: boolean): void 
  * Compared as the entry is SPELLED (`printFolds`), which is one canonical
  * string per reading rather than a walk of two maps.
  */
-export const refiled = (asked: Folds, answer: HomesAnswer): void => {
+export const refiled = (homes: Homes): void => {
   const now = standing()
-  const next = pruned(now, homesOf(asked, answer))
+  const next = pruned(now, homes)
   if (printFolds(next) === printFolds(now)) return
   pref.set(memoryOf(next))
 }

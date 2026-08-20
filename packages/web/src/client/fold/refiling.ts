@@ -59,12 +59,20 @@
 
 import { debounce } from "@solid-primitives/scheduled"
 import { Result } from "effect"
-import { createEffect, createMemo } from "solid-js"
+import { createEffect, createMemo, createResource, createSignal } from "solid-js"
 
 import { unreachable } from "../connection/reaching.ts"
 import { runAsync } from "../run.ts"
 import { connectionReadout, olai } from "../wire.ts"
-import { type Folds, foldedByFile, parseFolds, printFolds, refiled } from "./memory.ts"
+import {
+  type Folds,
+  foldedByFile,
+  type Homes,
+  homesOf,
+  parseFolds,
+  printFolds,
+  refiled,
+} from "./memory.ts"
 
 /**
  * How long a fold waits for the next one before the question goes.
@@ -87,39 +95,6 @@ const askedOf = (folds: Folds) => ({
 })
 
 /**
- * Ask, and re-file what comes back.
- *
- * WHICH ANSWER TO BELIEVE is the one piece of bookkeeping here, and the case is
- * real rather than theoretical: undo. A reader folds a branch, deletes it, and
- * undoes the delete — three writes inside one round trip is an ordinary
- * afternoon — and the answer to the question asked in the middle says the id is
- * gone. Applied after the question that followed it, it would drop a fold for a
- * node that is back on screen. So a question that has been overtaken is
- * dropped, exactly as `createResource` drops the answer to a source that moved:
- * the newest question is the one whose answer is about the directory as it now
- * is.
- */
-const createAsker = (): ((folds: Folds) => void) => {
-  let latest = 0
-  return (folds) => {
-    const mine = ++latest
-    void runAsync(olai.procedures.nodes.homes(askedOf(folds))).then((outcome) => {
-      if (mine !== latest) return
-      if (Result.isFailure(outcome)) {
-        // A record and not a banner — see the header. Nothing is written down
-        // as a no, so these ids are asked about again by the next fold.
-        console.warn(
-          "olai: could not ask where the folded nodes now live, so this browser's fold memory is not being tidied —",
-          outcome.failure.message,
-        )
-        return
-      }
-      refiled(folds, outcome.success)
-    })
-  }
-}
-
-/**
  * Keep this browser's fold memory filed against the set, for as long as the app
  * is up.
  *
@@ -134,23 +109,65 @@ export const createRefiling = (): void => {
   /** The memory as one canonical string — `null` for a browser holding no folds
    *  at all, which is nothing to ask about. */
   const question = createMemo(() => printFolds(foldedByFile()))
-  const ask = createAsker()
-  const settle = debounce((printed: string) => ask(parseFolds(printed)), SETTLE_MS)
+  /** ...and what has actually been put to the server: the memory once it
+   *  stopped moving, or `null` for "ask nothing", which is what a resource
+   *  reads a falsy source as. */
+  const [asked, setAsked] = createSignal<string | null>(null)
+  const settle = debounce(setAsked, SETTLE_MS)
 
   createEffect(() => {
     const wanted = question()
-    if (wanted === null) {
-      settle.clear()
-      return
-    }
     // NOTHING IS ASKED INTO A DEAD SOCKET and nothing is queued behind the
     // reader — `../filter/asking.ts`'s rule, and this door's for a smaller
     // reason: the memory is not wrong while the wire is down, only untidy.
-    // Tracking the readout is what asks again when it comes back.
-    if (unreachable(connectionReadout()) !== null) {
+    // BOTH branches drop the standing question rather than leaving it up, which
+    // is what makes the wire coming back a fresh one: the readout is tracked, so
+    // reachability returning re-asks the memory as it is at that moment.
+    if (wanted === null || unreachable(connectionReadout()) !== null) {
       settle.clear()
+      setAsked(null)
       return
     }
     settle(wanted)
+  })
+
+  /**
+   * The question, out — and its answer, or `null` for a call that did not
+   * arrive.
+   *
+   * A RESOURCE rather than a bare call with a sequence number on it, which is
+   * the shape `../filter/asking.ts` argues once for this whole client: it drops
+   * the answer to a source that has since moved, and the case that needs it is
+   * real rather than theoretical. Undo. A reader folds a branch, deletes it, and
+   * undoes the delete — three writes inside one round trip is an ordinary
+   * afternoon — and the answer to the question asked in the middle says the id
+   * is gone. Applied after the question that followed it, it would drop a fold
+   * for a node that is back on screen.
+   *
+   * The failure is a CONSOLE LINE and not a banner — see the header — and it is
+   * written down as nothing rather than as a no, so those ids are asked about
+   * again by the next fold or the next reload.
+   */
+  const [answer] = createResource(asked, async (printed): Promise<Homes | null> => {
+    const folds = parseFolds(printed)
+    const outcome = await runAsync(olai.procedures.nodes.homes(askedOf(folds)))
+    if (Result.isFailure(outcome)) {
+      console.warn(
+        "olai: could not ask where the folded nodes now live, so this browser's fold memory is not being tidied —",
+        outcome.failure.message,
+      )
+      return null
+    }
+    return homesOf(folds, outcome.success)
+  })
+
+  // Applied HERE rather than inside the fetcher, and that is what the resource
+  // buys: a fetcher that wrote would have written before the framework had a
+  // chance to drop it, which is the whole staleness argument above undone by
+  // where the line sits.
+  createEffect(() => {
+    const said = answer()
+    if (said === undefined || said === null) return
+    refiled(said)
   })
 }
