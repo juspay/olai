@@ -43,7 +43,9 @@
  * document was four characters of extension, and the only thing marking a
  * folder was a triangle every fold control in the app has. The glyph takes the
  * row's own ink rather than a colour per kind, which is what keeps this
- * Workflowy-quiet and not a file manager.
+ * Workflowy-quiet and not a file manager. A folder is not muted against a
+ * file: the glyph already says which is which, and two inks in one column
+ * was two lists. The name is the stem; the suffix is the glyph's.
  *
  * The AGENDA entry says one more thing, and it is the only news this column
  * carries: work that has slipped puts it in the app's alarm (a filled chip
@@ -128,12 +130,11 @@ import { atFile } from "./routes.ts"
  *  one and has a single child, where a gap is inert. */
 const ENTRY = `${ENTRY_SHAPE} ${ROW_GAP}`
 
-/** A directory row: folds, does not navigate. Same SHAPE as a file — the
- *  padding, the gap, the type — because a different left edge was the whole
- *  of why a folder's glyph sat in a different column from a file's. The ink
- *  is the folder's own (muted, brightening under the pointer); current-page
- *  wash is a file's, and a button does not carry it. */
-const DIR = `${ENTRY_SHAPE} ${ROW_GAP} text-paper/65 hover:text-paper`
+/** A directory row: folds, does not navigate. Same SHAPE and ink as a file —
+ *  the padding, the gap, the type — because a muted folder in a column of
+ *  files was two lists. Current-page wash is a file's, and a button does not
+ *  carry it. */
+const DIR = `${ENTRY_SHAPE} ${ROW_GAP}`
 
 interface TreeView {
   readonly isActive: (file: string) => boolean
@@ -460,21 +461,24 @@ function Dir(props: {
         data-testid={TESTID.fileDirToggle}
         aria-expanded={!folded()}
         aria-label={folded() ? `expand ${props.row.name}` : `collapse ${props.row.name}`}
+        title={props.row.path}
         onClick={(event) => {
           event.stopPropagation()
           props.view.toggle(props.row.path)
         }}
       >
-        <span
-          class={`${CONTROL} text-[0.55rem] leading-none text-paper/55`}
-          aria-hidden="true"
-        >
-          <span
-            class="inline-block transition-transform duration-100"
+        <span class={`${CONTROL} text-paper/55`} aria-hidden="true">
+          {/* Same weight as the glyphs beside it, not a font triangle at
+              0.55rem: that mark sat in the same cell and still read as a
+              different drawing. */}
+          <svg
+            class="size-2.5 shrink-0 transition-transform duration-100"
             classList={{ "-rotate-90": folded() }}
+            viewBox="0 0 10 10"
+            fill="currentColor"
           >
-            ▼
-          </span>
+            <path d="M2 3.25 L8 3.25 L5 7.25 Z" />
+          </svg>
         </span>
         {/* The triangle says whether it is OPEN; this says it is a folder at
             all — which the triangle cannot, because every fold control in the
@@ -482,7 +486,7 @@ function Dir(props: {
             a file row holds that same box empty, so this glyph and a file's
             occupy one column. */}
         <Glyph of="folder" />
-        <span class="break-all">{props.row.name}</span>
+        <span class="min-w-0 truncate">{props.row.name}</span>
       </button>
       <Show when={!folded()}>
         <ul class="m-0 ml-2 list-none border-l border-paper/20 p-0 pl-2">
@@ -512,6 +516,7 @@ function File(props: {
         testid={ROW_TESTID[props.row.of]}
         current={props.view.isActive(props.row.file)}
         broken={outline && props.view.broken.has(props.row.file)}
+        title={props.row.file}
       >
         {/* The fold control's box, empty: a file has no triangle, and leaving
             the cell out put its glyph where a folder's triangle sits — so the
@@ -522,7 +527,7 @@ function File(props: {
         {/* Which kind of file this is — the thing four characters of extension
             were carrying on their own (`./file/icons.tsx`). */}
         <Glyph of={props.row.of} />
-        {props.row.name}
+        <span class="min-w-0 truncate">{props.row.name}</span>
         <Show when={outline && props.view.broken.has(props.row.file)}>
           {/* No margin of its own: the row has one gap and this is on it. */}
           <span class="text-alarm" title="this file could not be read">

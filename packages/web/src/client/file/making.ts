@@ -3,10 +3,10 @@
  * is called, and the names a browser test finds it by.
  *
  * A table rather than props spelled at two call sites, for `../edges/
- * relation.ts`'s reason one directory over: the words are the whole of what
- * differs between the two doors, so they are the thing to keep in one place —
- * and a third kind of file would be a row here rather than a third copy of a
- * path box.
+ * relation.ts`'s reason one directory over: the words and the kind are the
+ * whole of what differs between the two doors, so they are the thing to keep
+ * in one place — and a third kind of file would be a row here rather than a
+ * third copy of a path box.
  *
  * The TESTIDS travel with the words rather than being derived from a `kind`,
  * because a `data-testid` is a contract between two packages that never import
@@ -15,9 +15,14 @@
  * in the other one for nothing.
  */
 
+import type { FileKind } from "@olai/format"
+
 import { type TestId, TESTID } from "../testids.ts"
 
 export interface Making {
+  /** Which kind of file this door mints — the tree's own glyph, so a row that
+   *  makes an outline looks like the outlines above it. */
+  readonly of: FileKind
   /** The affordance's own words, in the sidebar. */
   readonly label: string
   /** What the empty box suggests — a path, because a file's name IS its
@@ -34,6 +39,7 @@ export interface Making {
 }
 
 export const MAKING_OUTLINE: Making = {
+  of: "outline",
   label: "+ New outline",
   placeholder: "notes/plan.olai",
   aria: "path of the new outline, relative to the served directory",
@@ -45,6 +51,7 @@ export const MAKING_OUTLINE: Making = {
 }
 
 export const MAKING_DOCUMENT: Making = {
+  of: "document",
   label: "+ New document",
   placeholder: "notes/idea.md",
   aria: "path of the new document, relative to the served directory",

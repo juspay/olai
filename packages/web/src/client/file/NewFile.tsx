@@ -32,7 +32,10 @@
 
 import { createSignal, Show } from "solid-js"
 
+import { ENTRY_SHAPE, ROW_GAP } from "../layout/entry.ts"
 import { Refused } from "../Refused.tsx"
+import { CONTROL } from "../touch.ts"
+import { Glyph } from "./icons.tsx"
 import type { Making } from "./making.ts"
 
 export function NewFile(props: {
@@ -69,7 +72,7 @@ export function NewFile(props: {
         fallback={
           <button
             type="button"
-            class="cursor-pointer rounded-xl border-0 bg-transparent px-2.5 py-1 text-[0.8125rem] text-paper/65 hover:bg-paper/10 hover:text-paper"
+            class={`${ENTRY_SHAPE} ${ROW_GAP} w-full cursor-pointer border-0 bg-transparent text-left`}
             data-testid={props.making.testids.open}
             onClick={(event) => {
               // The sidebar body closes the mobile drawer on any click that
@@ -78,6 +81,10 @@ export function NewFile(props: {
               setOpen(true)
             }}
           >
+            {/* The fold-control's box, empty, so this glyph sits in the tree's
+                column rather than where a folder's triangle sits. */}
+            <span class={CONTROL} aria-hidden="true" />
+            <Glyph of={props.making.of} />
             {props.making.label}
           </button>
         }

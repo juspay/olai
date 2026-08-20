@@ -19,7 +19,8 @@ Feature: Serve a directory
 
   Scenario: Nested paths are folders, collapsed by default
     # Nested files live under folders, so the tree draws a folder and the
-    # BASENAME — never the wrapped path string the flat list used to spell.
+    # STEM — never the wrapped path string the flat list used to spell, and
+    # never the suffix the glyph already says.
     # Folders start shut so a deep corpus is not a wall of paths; a root
     # outline (house) has no ancestors, so both folders stay collapsed until
     # the reader opens one. Expanding shows the children; collapsing hides
@@ -35,13 +36,13 @@ Feature: Serve a directory
     When I expand the folder "notes"
     Then the folder "notes" is expanded
     And the document link "notes/palette.md" is shown
-    And the document link "notes/palette.md" reads "palette.md"
+    And the document link "notes/palette.md" reads "palette"
     When I collapse the folder "notes"
     Then the folder "notes" is collapsed
     And the document link "notes/palette.md" is hidden
     And the page has not reloaded
     When I expand the folder "Daily"
-    Then the outline link "Daily/2026-08.olai" reads "2026-08.olai"
+    Then the outline link "Daily/2026-08.olai" reads "2026-08"
 
   Scenario: Opening a nested file expands its folder chain
     # The selection must never hide under a shut parent. Landing on a nested

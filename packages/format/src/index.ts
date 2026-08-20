@@ -171,6 +171,7 @@ export {
   fileKind,
   holdsText,
   OUTLINE_EXT,
+  stemOf,
   unkept,
 } from "./kinds.ts"
 export type { BodyKind, FileKind } from "./kinds.ts"
