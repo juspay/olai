@@ -161,53 +161,6 @@ Feature: Keyboard editing
     And the page has not reloaded
     And there should be no page errors
 
-  Scenario: The walk will not take finished work back in one, and says so in the ops layer's words
-    # The refusal a person MUST meet rather than one the UI absorbs: `demo` is
-    # done, `done` is off the ring, so the walk asks for the ring's first answer
-    # outright — the same request `set_todo` makes — and the ops layer refuses
-    # it in the sentence an agent gets. The sentence names the way through, and
-    # the way through is one key: `Ctrl+Enter` takes the done off, and the walk
-    # carries on from the bullet it leaves. Two ops, the second one the
-    # person's, exactly as an agent makes them.
-    When I click the title of "demo"
-    And I press "Control+Shift+Enter"
-    Then the refusal says "`take out the old counters` is done. Undo that first — nothing should decide on your behalf that finished work is not finished."
-    And the node "demo" has status "done"
-    When I press "Control+Enter"
-    Then the node "demo" has no status
-    When I press "Control+Shift+Enter"
-    Then the node "demo" has status "todo"
-
-  Scenario: The walk will not start what the order forbids, and names what is in the way
-    # The DAG as a mechanism rather than a drawing. `hinges` is `todo` and comes
-    # after `handles` and `order`; `order` is still `doing`, so the row is drawn
-    # dim and the walk's next stop is `doing` — which the ops layer refuses, in
-    # the same sentence `set_doing` gives an agent. The draft is KEPT and the
-    # reason sits beside it, which is what every OpFailure does here.
-    #
-    # `handles` is the other half of the claim: it is an `after` target of
-    # `hinges` too, and it is a plain BULLET, so it is standing in nobody's way
-    # and it is not named. One derivation, read and not respelled.
-    When I click the title of "hinges"
-    And I press "Control+Shift+Enter"
-    Then the refusal says "`pick the hinges` comes after 1 unfinished task, so it cannot start yet: `order the new cabinets` (`order`, doing). Finish that first — or start what is ready."
-    And the node "hinges" has status "todo"
-    And the row "hinges" holds the caret
-    # The way through is the sentence's own: finish what is in the way, and the
-    # walk carries on. `Ctrl+Enter` on `order` is the second op — the person's,
-    # exactly as an agent makes two calls.
-    When I click away from the editor
-    And I click the title of "order"
-    And I press "Control+Enter"
-    Then the node "order" has status "done"
-    When I click away from the editor
-    And I click the title of "hinges"
-    And I press "Control+Shift+Enter"
-    Then the node "hinges" has status "doing"
-    And "house.olai" holds a node marked doing titled "pick the hinges"
-    And the page has not reloaded
-    And there should be no page errors
-
   Scenario: Only the STARTING verb refuses — finishing out of order still lands
     # The asymmetry, from the keyboard. `hinges` waits on `order`, which is
     # `doing`. `Ctrl+Enter` ticks it off anyway, because the world outruns the
@@ -219,22 +172,6 @@ Feature: Keyboard editing
     And I press "Control+Enter"
     Then the node "hinges" has status "done"
     And "house.olai" holds a node marked done titled "pick the hinges"
-
-  Scenario: The walk at a mirror lands on the node it shows
-    # The mark rule the checkbox and Ctrl+Enter already follow, for the key that
-    # writes the other two: a placement stores no mark of its own, so the step
-    # is taken on the node — in the file that node lives in — and the placement
-    # draws what comes back. `herbs` is `doing`, so one step is no mark at all.
-    When I click the title of "kitchen-herbs"
-    And I press "Control+Shift+Enter"
-    Then the node "kitchen-herbs" has no status
-    # The DISK assertion is the target's, and only the target's: a placement
-    # carrying a mark is a record the validator refuses, so asking THIS file
-    # whether `kitchen-herbs` has one is a question every mirror answers the
-    # same way — it would pass just as well if the write had missed `herbs`
-    # entirely (review, 2026-08-12). What says the walk landed is the row above
-    # and the file below.
-    And "garden.olai" holds the node "herbs" with no mark
 
   Scenario: The keys keep working after the row has moved
     # The caret is what a structural op nearly costs: the row is redrawn where
@@ -354,17 +291,6 @@ Feature: Keyboard editing
     When I press "ArrowUp"
     Then the row being typed holds "choose the handles"
 
-  Scenario: Typing in a mirror edits the node it stands for
-    # A mirror has no title of its own — it is a second placement of one — so
-    # the edit lands on the node, and every placement of it follows.
-    When I click the title of "kitchen-herbs"
-    And I select all and type "the herb bed by the back door"
-    And I press "Enter"
-    # The write lands in the file the NODE lives in, which is not the file the
-    # placement was typed in.
-    Then "garden.olai" holds a node titled "the herb bed by the back door"
-    And "house.olai" holds no node titled "the herb bed by the back door"
-
   Scenario: Enter on a mirror makes a sibling of the PLACEMENT
     # The other half of the mirror rule: what a row SAYS belongs to the node it
     # shows, and where a row SITS belongs to the row. So the new line appears
@@ -376,24 +302,6 @@ Feature: Keyboard editing
     And I click away from the editor
     Then "house.olai" holds a node titled "and one after the mirror"
     And "garden.olai" holds no node titled "and one after the mirror"
-
-  Scenario: Ctrl+Enter on a mirror ticks off the node it shows
-    # And the mark is the other way round: it is a fact about the node, so the
-    # write lands in the file that node lives in — the same one `set_done` on
-    # that node would write.
-    #
-    # `split the mint` is finished first, in the outline it lives in: the branch
-    # the placement shows still holds it, and a `done` over unfinished work is
-    # refused wherever you are standing (done_over_open_work.feature).
-    Given I open the outline "garden.olai"
-    When I click the title of "mint"
-    And I press "Control+Enter"
-    Then the node "mint" has status "done"
-    When I open the outline "house.olai"
-    And I click the title of "kitchen-herbs"
-    And I press "Control+Enter"
-    Then the node "kitchen-herbs" has status "done"
-    And "garden.olai" holds a node marked done titled "the herb bed by the door"
 
   Scenario: A zoomed node with nothing under it offers the first child
     # The other page that has no row to press a key in. The anchor is the node

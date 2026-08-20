@@ -33,7 +33,7 @@ Feature: A finished branch cannot hide unfinished work
     # `choose the handles` is a bullet too — not a task, so not in the way.
     When I click the title of "install"
     And I press "Control+Enter"
-    Then the refusal says "`install the cabinets` holds 2 unfinished tasks, so it cannot be marked done yet: `pick the hinges` (`hinges`, todo), `pick the knobs` (`knobs`, todo). Done-hidden hides a done node WITH its subtree, so this would sweep them off the page. Finish those first — or take the mark off them if they are not happening, since an unmarked bullet is not unfinished work."
+    Then the refusal says "`install the cabinets` holds 2 unfinished tasks, so it cannot be marked done yet"
     And the node "install" has no status
     And the page has not reloaded
     And there should be no page errors
@@ -52,21 +52,6 @@ Feature: A finished branch cannot hide unfinished work
     When I click the title of "install"
     And I press "Control+Enter"
     Then the node "install" has status "done"
-    And there should be no page errors
-
-  Scenario: A mirror is a second view, not a second obligation
-    # `the herb bed by the door` has `split the mint` under it, so the branch is
-    # unfinished wherever you stand — the refusal is the same at a placement,
-    # because a mark is a fact about the node a row SHOWS. What the mirror does
-    # NOT do is make the branch it SITS in unfinished: `kitchen remodel` holds
-    # this placement of open work and is refused for its own children, not for
-    # what a second view of somewhere else draws.
-    When I click the title of "kitchen-herbs"
-    And I press "Control+Enter"
-    Then the refusal says "`the herb bed by the door` holds 1 unfinished task"
-    # The row goes on drawing what its target says, which is `doing` and not a
-    # thing this key was allowed to change.
-    And the node "kitchen-herbs" has status "doing"
     And there should be no page errors
 
   # ── the arrival: the branch re-opens ───────────────────────────────

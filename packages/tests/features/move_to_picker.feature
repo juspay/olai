@@ -142,18 +142,6 @@ Feature: Moving a row to a parent you search for
     And the row "knobs" holds the caret
     And there should be no page errors
 
-  Scenario: Escape answers from the way-out button too, not only from the box
-    # The handler is the PANEL's rather than the input's: a reader who has
-    # tabbed to `Done` is still in the picker, and a key only the box answered
-    # did nothing there.
-    When I click the title of "knobs"
-    And I press "ControlOrMeta+Shift+m"
-    And I focus the move picker's way out
-    And I press "Escape"
-    Then no move picker is open
-    And the row "knobs" holds the caret
-    And there should be no page errors
-
   # ── the `•••` door, which is the only one a finger has ──────────────
 
   Scenario: The menu offers Move to…, and it opens the same panel

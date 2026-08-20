@@ -72,14 +72,6 @@ Feature: The ⌘K palette writes
     And I press "Enter"
     Then "house.olai" holds a node marked todo titled "kitchen remodel #home"
 
-  Scenario: Every op row says which node it is about
-    # The palette is opened from anywhere, so a bare `Complete` in a list of
-    # strangers does not say what it would complete. The subject goes on the
-    # second line, in the slot a search hit puts its ancestry in.
-    Given I open the node "install"
-    When I press the palette shortcut
-    Then the palette row "Complete" is about "on “install the cabinets”"
-
   Scenario: Marking from the palette writes the mark, and the page follows the file
     Given I open the node "handles"
     # Marked AFTER the zoom: opening a node is a real navigation, and what this

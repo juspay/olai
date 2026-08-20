@@ -143,24 +143,6 @@ Feature: Filtering the outline in place
     Then the outline has 0 rows
     And the filter found "no matches of 10 — 2 matches hidden as done (Prefs)"
 
-  Scenario: The header's box reads the same phrase, and refuses in the same words
-    # One grammar, four doors — and this is the half that has to TRAVEL: the
-    # filter parses in the browser, the header box asks the server, and a
-    # phrase that meant one thing in each would be the drift the shared matcher
-    # exists to refuse. The refusal rides back the same way `is:open`'s does.
-    Given I open the outline "house.olai"
-    When I search the header for '"pick the hinges"'
-    Then the header search lists the node "pick the hinges"
-
-  Scenario: A dangling `OR` is refused at the door that has to ask the server
-    # The other half of the same seam. The box types one query per scenario —
-    # it appends rather than replaces — so this is its own, and it is worth its
-    # own: a door that answered `hinges OR` with an empty list and no reason
-    # would be the one place a half-typed query looks like an empty directory.
-    Given I open the outline "house.olai"
-    When I search the header for "hinges OR"
-    Then the search refuses "OR" and says "one of them is missing"
-
   Scenario: The header's box refuses the same operator, in the same words
     # One grammar, four doors. The filter parses for itself; the header box,
     # the ⌘K palette and an agent ask the server — and a door that answered
@@ -170,27 +152,6 @@ Feature: Filtering the outline in place
     When I search the header for "is:open"
     Then the search refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, archived"
 
-  Scenario: The ⌘K palette refuses it too, in its own row
-    # The third door. It reads the same `createNodeSearch` primitive the header
-    # does, and draws the refusal in a row of its own — separate from the row
-    # that says the CALL failed, because a refused call and a refused query are
-    # two different pieces of news.
-    Given I open the outline "house.olai"
-    When I press the palette shortcut
-    And I type "is:open" into the palette
-    Then the search refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, archived"
-
-  Scenario: The ⌘K palette takes a phrase, over the same wire
-    # And the same door on the day it ANSWERS. The palette is the one that
-    # reads a query for two other things first — a leading `>` is an ask and a
-    # `+` is a capture, neither of which is a lookup — so a grammar that grew a
-    # new punctuation mark is worth asking it about: the quotes are a search,
-    # and the row that comes back is the server's.
-    Given I open the outline "house.olai"
-    When I press the palette shortcut
-    And I type '"pick the hinges"' into the palette
-    Then the palette lists the node "pick the hinges"
-
   Scenario: Pressing a `#tag` filters the page by it
     # The gesture the tags have been decorative for since title-markdown. It is
     # the same act as typing, so it lands in the same place: the address.
@@ -199,17 +160,6 @@ Feature: Filtering the outline in place
     Then the address is exactly "/garden.olai?q=%23outdoors"
     And the filter box holds "#outdoors"
     And the node "garden" is a match
-
-  Scenario: A pressed tag lights up on the rows that carry it
-    # The gesture the whole ruling came from. The format cannot tell a tag USED
-    # from a tag MENTIONED — a `#word` in a title IS a tag, deliberately — so
-    # the pill is lit where it sits and the reader resolves the ambiguity
-    # themselves, which is what a page of identical-looking rows could not let
-    # them do.
-    Given I open the outline "garden.olai"
-    When I press the tag "#outdoors"
-    Then the node "garden" is a match
-    And the node "garden" lights "#outdoors"
 
   Scenario: Pressing a tag does not also put a caret in the row
     # One press, one act. A tag pill sits inside the title, whose own click

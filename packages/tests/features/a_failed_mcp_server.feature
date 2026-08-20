@@ -36,8 +36,8 @@ Feature: A failed MCP server is a visible fact
     # second conversation onwards.
     # A turn first, so the transcript emptying below is a change rather than a
     # state it was already in — and so the conversation being left is one the
-    # agent had actually opened. Which servers it got is `kolu_terminals`'
-    # claim, not this one's.
+    # agent had actually opened. Which servers it got is the scripted agent's
+    # `servers` answer, not this panel's.
     When I ask the agent "hello"
     Then the agent is idle
     When I start a new conversation
@@ -56,10 +56,10 @@ Feature: A failed MCP server is a visible fact
 
   @scratch:chat @kolu
   Scenario: A conversation that got everything says nothing new
-    # The first two lines look like `kolu_terminals`' and are load-bearing
-    # here: without them "the panel says nothing" would also pass for a session
-    # that silently lacked kolu, which is the exact state this whole feature
-    # exists to make impossible. The two facts have to be asserted together.
+    # The first two lines are load-bearing here: without them "the panel says
+    # nothing" would also pass for a session that silently lacked kolu, which
+    # is the exact state this whole feature exists to make impossible. The two
+    # facts have to be asserted together.
     When I ask the agent "servers"
     Then the agent's answer mentions "servers: [olai kolu]"
     And the panel says nothing about a missing server

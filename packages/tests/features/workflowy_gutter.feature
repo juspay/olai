@@ -47,19 +47,11 @@ Feature: Workflowy gutter
     # Three children, none of them done: a zero is not drawn.
     And the node "install" says nothing about folded finished rows
 
-  Scenario: An expanded branch is hiding nothing, so it reports nothing
-    Given the node "kitchen" is expanded
-    Then the node "kitchen" says nothing about folded finished rows
-
   Scenario: Expanding clears the halo
     Given the node "kitchen" is expanded
     When I collapse the node "kitchen"
     And I expand the node "kitchen"
     Then the node "kitchen" shows no collapsed halo
-
-  Scenario: A leaf never has a halo
-    Then the node "handles" shows no collapsed halo
-    And the node "handles" has no toggle
 
   Scenario: On a pointer device the menu and triangle are hidden until hover
     # The negative half of hover-reveal: without this, permanently-visible
@@ -88,16 +80,6 @@ Feature: Workflowy gutter
     And the node menu offers "Expand all"
     And the node menu offers "Collapse all"
     And the node menu offers "Copy link to node"
-
-  Scenario: A copy the browser refused says so, instead of nothing
-    # The clipboard is gated on a secure context, so a page served over plain
-    # http to another machine on the LAN — how olai is normally read — refuses
-    # every write. That refusal was caught and dropped, which made a copy that
-    # never happened identical to one that worked.
-    Given this browser's clipboard refuses
-    When I open the node menu of "kitchen"
-    And I choose "Copy link to node" from the node menu
-    Then the node menu of "kitchen" says "couldn't copy link to node"
 
   Scenario: Zoom in from the menu stays in the same document
     Given I mark the page

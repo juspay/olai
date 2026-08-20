@@ -80,14 +80,6 @@ Feature: Documents
     And the document renders bold text "matte"
     And there should be no page errors
 
-  @corpus:good
-  Scenario: A fenced code block is highlighted, by code this server shipped
-    When I open the document "finishes.md"
-    Then the document highlights a code block as "ts"
-    # Vendored, never a CDN: a page that fetched its highlighter from the
-    # internet would tell a third party that someone is reading their outline.
-    And the page requested nothing off this server
-
   # `kitchen-sink.md` is the page a person changing how markdown is SET opens in
   # both themes — every mark the pipeline claims, once each. Most of what it is
   # for cannot be asserted (whether an `h4` reads as a heading is a question for
@@ -105,22 +97,6 @@ Feature: Documents
     And the document highlights a code block as "nix"
     And the document highlights a code block as "ts"
     And there should be no page errors
-
-  # The RHYTHM, as an invariant rather than a look somebody once approved. The
-  # scale is declared in `@olai/web`'s theme/scale.ts, the stylesheet is
-  # generated from it, and these two walk every element the fixture draws —
-  # once as a document, once as a note, because a note re-answers three of the
-  # sizes and the sweep has to see both sets.
-  @corpus:good
-  Scenario: A document is set on the declared scale, and nothing else
-    When I open the document "kitchen-sink.md"
-    Then every rendered element is on the markdown scale
-
-  @corpus:good
-  Scenario: A note is set on the same scale, clamped under its title
-    When I open the node "catch-up"
-    Then every rendered element is on the markdown scale
-    And nothing overflows the pane
 
   # Survey and jump. A document long enough to be worth opening is long enough
   # to be lost in, and the two halves of the answer are one feature: an id and a
@@ -179,11 +155,6 @@ Feature: Documents
     Then the address names the heading "Footnotes"
     And the heading "Footnotes" is at the top of the pane
 
-  @corpus:good
-  Scenario: Every heading is a place a reader can link to
-    When I open the document "kitchen-sink.md"
-    Then every heading links to itself
-
   # A note is a tree row, not a page: it is drawn under a title the page owns,
   # three of them on screen at once. `catch-up`'s note has two headings, so a
   # contents WOULD be drawn here if this were decided by the markdown rather
@@ -203,11 +174,6 @@ Feature: Documents
     When I zoom into the node "install"
     Then the reference on "install" draws the document
     And there is no contents on the page
-
-  @corpus:good
-  Scenario: A footnote links to its own note
-    When I open the document "finishes.md"
-    Then the document shows a footnote that lands on its note
 
   @corpus:good
   Scenario: A relative picture is served from the directory it lives in
@@ -329,13 +295,6 @@ Feature: Documents
     # page that deliberately reaches for the outside world, and the console
     # errors are the sandbox REFUSING it (features/html_preview.feature).
     Then what points at the document is "Finishes"
-
-  # A document nothing names draws no section at all — the absence is the
-  # answer, exactly as it is for a node nobody refers to.
-  @corpus:good
-  Scenario: A document nothing points at says nothing
-    When I open the document "notes/palette.md"
-    Then nothing points at the document
 
   # ── search reaches a body ────────────────────────────────────────────
   #

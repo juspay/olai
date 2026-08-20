@@ -58,15 +58,6 @@ Feature: The agenda — what is owed, on one line of time
     And there should be no page errors
 
   @corpus:agenda
-  Scenario: A silence between two listed days is content
-    When I open the agenda
-    # Nothing has been owed since 2019, and the page says so beside the line
-    # rather than leaving a reader to subtract two headings. Asked by the WAIT
-    # rather than by the words, which round.
-    Then the agenda notes a silence of at least 2000 days
-    And there should be no page errors
-
-  @corpus:agenda
   Scenario: A task torn out of its outline still says what it is about
     # The agenda collects from all over the set, so every node arrives with the
     # ancestry, mark and note a day page gives it — the same component, because

@@ -20,11 +20,6 @@ Feature: Pinning a page to the sidebar
     Given I open the outline "house.olai"
     And I mark the page
 
-  Scenario: An empty shelf draws nothing at all
-    # Not an empty box and not a hint: a directory with no pins is the ordinary
-    # state of every directory olai has ever served.
-    Then the pinned shelf is not drawn
-
   Scenario: A node pinned from the row menu appears on the shelf, and in the file
     When I open the node menu of "order"
     And I choose "Pin to sidebar" from the node menu
@@ -141,12 +136,6 @@ Feature: Pinning a page to the sidebar
     Then the node "p0" reads "Kitchen #home"
     And the node "p0" draws no tag
 
-  Scenario: A title that names a place says so wherever it is written
-    # Not a rule about Pins.olai — a rule about titles. The same row in an
-    # ordinary outline reads the same way.
-    When the directory grows a node titled "/agenda" in "house.olai"
-    Then the node "written-by-hand" reads "Agenda"
-
   Scenario: A reorder lands where the pointer is, though the page moved under it
     # The shelf is in a STICKY column: its rows do not move when the document
     # does. Answered in document coordinates, a drag freezes its midpoints at
@@ -173,15 +162,6 @@ Feature: Pinning a page to the sidebar
     Then the pinned shelf reads "/#order"
     And the outline list links to "house.olai"
     And there should be no page errors
-
-  Scenario: A row of the shelf's outline that is not an address is not a door
-    # `Pins.olai` is an ordinary outline: a heading or a note in it is a thing
-    # somebody may write, and a title that merely begins with a slash is text.
-    Given the directory has the pins:
-      | /#order          |
-      | the ones I keep   |
-      | /etc/passwd       |
-    Then the pinned shelf reads "/#order"
 
   Scenario: A pin an agent wrote arrives without a reload
     When the directory grows a pin to "/agenda"

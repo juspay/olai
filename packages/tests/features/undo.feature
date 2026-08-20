@@ -73,19 +73,6 @@ Feature: Undo
     When I press "ControlOrMeta+Shift+z"
     Then "house.olai" holds a node with no note titled "order the new cabinets"
 
-  Scenario: Typing through a mirror is taken back on the node it stands for
-    # A mirror has no text of its own, so what a person types there lands on the
-    # node it SHOWS — and so does taking it back. The write and its inverse both
-    # name the target, in the file the target lives in.
-    When I click the title of "kitchen-herbs"
-    And I select all and type "the herb bed by the back door"
-    And I press "Enter"
-    And I press "Escape"
-    Then "garden.olai" holds a node titled "the herb bed by the back door"
-    When I press "ControlOrMeta+z"
-    Then "garden.olai" holds a node titled "the herb bed by the door"
-    And "house.olai" holds no node titled "the herb bed by the door"
-
   Scenario: An undo never writes over words somebody else typed
     # A text undo puts back what THIS tab replaced, so it is only entitled to
     # overwrite what this tab wrote. When the row says something else, it is

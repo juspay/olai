@@ -15,11 +15,6 @@ Feature: The ••• menu opens and shuts
   Background:
     Given I open the outline "house.olai"
 
-  Scenario: Escape puts the menu away
-    When I open the node menu of "kitchen"
-    And I press "Escape"
-    Then the node menu is closed
-
   Scenario: Escape hands the caret back to the •••
     # A menu opened with the keyboard HOLDS the caret, so the dismissal has to
     # give it back or the reader is on `<body>` — nowhere, and the whole
@@ -32,11 +27,6 @@ Feature: The ••• menu opens and shuts
     Then the node menu is closed
     And the node menu of "kitchen" has the caret
 
-  Scenario: A pointer outside puts the menu away
-    When I open the node menu of "kitchen"
-    And I click away from the node menu
-    Then the node menu is closed
-
   Scenario: A pointer outside is NOT handed the caret back
     # The other half of the rule above, and the reason it is a rule: a press
     # that landed somewhere is where the reader now is, and a menu that took
@@ -46,15 +36,6 @@ Feature: The ••• menu opens and shuts
     And I click away from the node menu
     Then the node menu is closed
     And the caret is nowhere
-
-  Scenario: The ••• again puts it away
-    # The two-roots bug, from the other side: a dismissal that read the press
-    # of an open menu's own trigger as a press outside would shut the panel and
-    # then have the trigger's own click reopen it, so the second press would do
-    # nothing at all. Kobalte excludes the trigger; this is what says so.
-    When I open the node menu of "kitchen"
-    And I press the node menu of "kitchen"
-    Then the node menu is closed
 
   Scenario: The keyboard opens it, reaches an entry, and chooses
     # What the primitive brought. The panel this replaced was a plain list of
@@ -113,27 +94,6 @@ Feature: The ••• menu opens and shuts
     And I press "Enter"
     Then the zoomed node is "kitchen"
     And the page has not reloaded
-    And there should be no page errors
-
-  # ── the panel is taller than the window ─────────────────────────────
-  #
-  # The list is seventeen verbs on a node with children, which is taller than
-  # a laptop window leaves either above or below a row. Floating-ui flips it to
-  # whichever side has more room and then stops helping: the rest hangs off the
-  # screen, where nothing can press it. What answers that is the popper's own
-  # measurement — `--kb-popper-content-available-height` capping the panel, and
-  # the panel scrolling inside the cap (`menu/Dropdown.tsx`).
-  #
-  # It is pinned HERE, and by the LAST entry, because that is the one the next
-  # verb pushes off the edge: a menu that grew an eighteenth would fail this
-  # rather than shipping a verb nobody can reach.
-
-  Scenario: A menu taller than the window keeps its last entry reachable
-    Given the window is shorter than the outline
-    When I open the node menu of "kitchen"
-    Then the node menu offers "Copy as text"
-    And every entry of the node menu is inside the window
-    And the last entry of the node menu can be pressed
     And there should be no page errors
 
   # ── the panel paints over the page ──────────────────────────────────

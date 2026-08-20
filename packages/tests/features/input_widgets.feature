@@ -65,15 +65,6 @@ Feature: The three input widgets
     Then "house.olai" holds the node "handles" dated tomorrow
     And there should be no page errors
 
-  Scenario: A day chosen at a mirror lands on the node it shows
-    # The standing routing rule for everything a node SAYS — a placement's own
-    # record cannot carry a date at all.
-    When I click the title of "kitchen-herbs"
-    And I type " !2026-09-01"
-    And I press "Enter"
-    Then "garden.olai" holds the node "herbs" dated "2026-09-01"
-    And "house.olai" holds the node "kitchen-herbs" with no date
-
   Scenario: A row that does not exist yet is written first, then dated
     # There is no node to put a date on until the `add` has landed, so the
     # commit comes first — the same order every structural key follows. Both

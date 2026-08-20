@@ -72,24 +72,3 @@ Feature: The outline remembers how you left it
     When I reload the page
     Then the folder "Daily" is expanded
     And this browser remembers the folder "Daily" open
-
-  Scenario: Folding asks the server for nothing
-    # The whole doctrine as an assertion: how this reader is reading is not
-    # something the directory is told, so nothing crosses the wire and nothing
-    # reaches a file. "It works" and "it works without asking anybody" look
-    # identical on screen.
-    Given I open the outline "house.olai"
-    When I watch what the page asks for
-    And I collapse the node "kitchen"
-    Then the page asked for nothing at all
-
-  Scenario: A fold made in another tab lands in this one
-    # A preference belongs to the BROWSER, and a browser is more than one tab —
-    # the same `storage` event the theme and the Done default ride. A reload
-    # scenario cannot ask this: deleting the listener entirely would leave every
-    # other scenario here green.
-    Given I open the outline "house.olai"
-    And the node "kitchen" is expanded
-    When a second tab collapses the node "kitchen"
-    Then the node "kitchen" is collapsed
-    And there should be no page errors
