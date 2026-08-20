@@ -189,18 +189,28 @@ export const sameTree = (
 ): boolean => changedFiles(a, b).length === 0;
 
 /**
- * Put `root` back to `fixture`: delete everything under it, then copy the
- * fixture in. The directory itself stays — a server is watching that path.
- * Missing `root` is recreated, so a scenario that took the served directory
- * away still has a place to land; whether the WATCHER on the old inode can
- * follow is a different question, and that scenario keeps {@link OWN_TAG}.
+ * Put `root` back to `fixture` WITHOUT replacing directory inodes.
+ *
+ * A recursive watch is armed on the inodes it saw at boot. Deleting `notes/`
+ * and copying it back is a new inode; the watcher stays on the old one, and
+ * the next scenario's `I rewrite notes/from.html` is a create the store never
+ * hears. Files that are extras are removed; fixture files are written in
+ * place; directories that exist in both trees stay. Missing `root` is
+ * recreated. A scenario that takes the served directory away (the inode
+ * itself) still keeps {@link OWN_TAG}.
  */
 export const restoreTree = (root: string, fixture: string): void => {
   fs.mkdirSync(root, { recursive: true });
-  for (const name of fs.readdirSync(root)) {
-    fs.rmSync(path.join(root, name), { recursive: true, force: true });
+  const want = filesOf(fixture);
+  const have = filesOf(root);
+  for (const file of have.keys()) {
+    if (!want.has(file)) fs.rmSync(path.join(root, file), { force: true });
   }
-  fs.cpSync(fixture, root, { recursive: true });
+  for (const file of want.keys()) {
+    const dest = path.join(root, file);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(path.join(fixture, file), dest);
+  }
 };
 
 /** Paths that still differ from `origin` after a restore. Empty is success. */

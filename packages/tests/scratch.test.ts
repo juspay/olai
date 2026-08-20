@@ -163,15 +163,20 @@ test("PIN (restore): restoreTree puts the fixture back and deletes extras", () =
     fs.mkdirSync(path.join(fixture, "notes"));
     fs.writeFileSync(path.join(fixture, "house.olai"), "{}\n");
     fs.writeFileSync(path.join(fixture, "notes", "a.md"), "a\n");
+    fs.mkdirSync(path.join(root, "notes"));
     fs.writeFileSync(path.join(root, "house.olai"), "{x}\n");
     fs.writeFileSync(path.join(root, "extra.olai"), "nope\n");
+    fs.writeFileSync(path.join(root, "notes", "extra.md"), "gone\n");
+    const notesIno = fs.statSync(path.join(root, "notes")).ino;
     const origin = filesOf(fixture);
     expect(sameTree(filesOf(root), origin)).toBe(false);
     restoreTree(root, fixture);
     expect(sameTree(filesOf(root), origin)).toBe(true);
     expect(leftovers(origin, root)).toEqual([]);
     expect(fs.existsSync(path.join(root, "extra.olai"))).toBe(false);
+    expect(fs.existsSync(path.join(root, "notes", "extra.md"))).toBe(false);
     expect(fs.readFileSync(path.join(root, "house.olai"), "utf8")).toBe("{}\n");
+    expect(fs.statSync(path.join(root, "notes")).ino).toBe(notesIno);
   } finally {
     fs.rmSync(fixture, { recursive: true, force: true });
     fs.rmSync(root, { recursive: true, force: true });
