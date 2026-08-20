@@ -29,11 +29,17 @@
  * ## Where each list comes from
  *
  *   - a DAY is read from the phrase and today, purely (`../date/natural.ts`).
- *   - a TAG is enumerated from the loaded set, off the derivation's own tag
- *     index (`./tags.ts`, which argues why this one is not the server's).
+ *   - a TAG is the SERVER's vocabulary — every tag the set writes, counted
+ *     and ranked beside the index it is read from (`@olai/format`'s
+ *     `vocabulary.ts`), asked through `./asking.ts`. It was the loaded set's
+ *     own until `vault-in-browser`'s PR 2, which took the loaded set away.
  *   - a NODE is the SERVER's search — `../search/nodes.ts`, the same primitive
  *     the ⌘K palette and the header box call, debounce and all. A third door
  *     onto one reading, which is the rule that file exists to keep.
+ *
+ * So two of the three are now questions, and the two askers are one shape:
+ * debounce, latest-wins, a refusal of its own. What is left local is the one
+ * list that is a function of a phrase and a calendar.
  *
  * ## What choosing one writes
  *
@@ -68,15 +74,16 @@ import {
   on,
 } from "solid-js"
 
+import { tagText } from "@olai/format"
+
 import { Completions } from "./Completions.tsx"
-import { useDerived } from "../derived.tsx"
 import { nodePlace } from "../search/place.ts"
 import { type NodeProp, nodeProps } from "../search/props.ts"
 import { createCursor } from "../search/cursor.ts"
 import { createSearch } from "../search/nodes.ts"
 import { useToday } from "../today.tsx"
 import { dayLabel, naturalDays } from "../date/natural.ts"
-import { matchTags, tagsOf } from "./tags.ts"
+import { createTags } from "./asking.ts"
 import { listKey } from "../keys.ts"
 import { triggerIn, type Trigger, type Written, written } from "./trigger.ts"
 
@@ -140,8 +147,9 @@ export interface Listing {
   readonly choices: Accessor<ReadonlyArray<Choice>>
   readonly active: Accessor<number>
   readonly hover: (at: number) => void
-  /** A refusal from the node search, in its own words — never dropped
-   *  (`../run.ts` forbids a silent handler). */
+  /** A refusal from whichever list is a question — the node search or the tag
+   *  vocabulary — in its own words, never dropped (`../run.ts` forbids a silent
+   *  handler). One slot, because one trigger is armed at a time. */
   readonly failure: Accessor<string | null>
 }
 
@@ -165,7 +173,6 @@ export const createCompletion = (field: {
   readonly dated: (day: string) => void
   readonly mirrored: (target: string) => void
 }): Completion => {
-  const derived = useDerived()
   const today = useToday()
   const [dismissed, setDismissed] = createSignal<string | null>(null)
 
@@ -187,6 +194,16 @@ export const createCompletion = (field: {
     const found = trigger()
     return found !== null && found.kind === "mirror" ? found.query : null
   }, "node")
+
+  // ...and the set's own vocabulary, asked only while a `#` or an `@` is what
+  // is armed (`./asking.ts`). The same debounce, the same latest-wins rule and
+  // no minimum: a bare `#` is a question with an answer.
+  const tags = createTags(() => {
+    const found = trigger()
+    return found !== null && found.kind === "tag"
+      ? { sigil: found.sigil, query: found.query }
+      : null
+  })
 
   /** Replace the trigger's span with `insert`, in the field and in the draft.
    *  Empty takes the span out, which is what the two op widgets do. */
@@ -212,12 +229,22 @@ export const createCompletion = (field: {
           },
         }))
       case "tag":
-        // The set's tags are READ off `Derived.taggedBy` once per derivation and
-        // cached against it (`./tags.ts`), so asking here — only while a tag is
-        // being typed — costs nothing on a session that never types one.
-        return matchTags(tagsOf(derived()), found.sigil, found.query).map((tag) => ({
-          id: `${tag.sigil}${tag.name}`,
-          label: `${tag.sigil}${tag.name}`,
+        // The SERVER's vocabulary — every tag the set writes, counted and
+        // ranked there (`@olai/format`'s `vocabulary.ts`), asked through
+        // `./asking.ts`. The rows carry the name and the count; the SIGIL is
+        // the question this widget asked, which is why it is read off the
+        // trigger here rather than off each row.
+        //
+        // PUT BACK TOGETHER BY `tagText`, which is the inverse of the `tagPart`
+        // the vocabulary took apart on the other side of the wire: that pair
+        // exists so that where the sigil sits is not a claim made at a call
+        // site, and re-spelling it here would be the round trip split across a
+        // helper and a template literal.
+        return tags.rows().map((tag) => {
+          const written = tagText({ sigil: found.sigil, tag: tag.name })
+          return {
+          id: written,
+          label: written,
           hint: `${tag.count}`,
           // The tag AND NOTHING ELSE — no trailing space, which is what
           // Workflowy adds and what this deliberately does not. A title is
@@ -230,10 +257,11 @@ export const createCompletion = (field: {
           // row's own ("commit and open the next line") rather than a second
           // press of the row that has already been taken.
           choose: () => {
-            replace(found, `${tag.sigil}${tag.name}`)
+            replace(found, written)
             setDismissed(tokenOf(found))
           },
-        }))
+          }
+        })
       case "mirror":
         // RECORDS, asked for on the request and answered in the type
         // (`../search/nodes.ts`): what this widget writes is a mirror, which
@@ -264,17 +292,42 @@ export const createCompletion = (field: {
   // it and hits arriving from the server do not either.
   createEffect(on(() => trigger()?.query ?? null, cursor.top))
 
+  /**
+   * A refused CALL, from whichever list is a question — one accessor, because
+   * the panel draws one sentence and which door could not be answered is not a
+   * distinction a reader of the popup has any use for.
+   *
+   * THE SAME TABLE {@link choices} is, rather than `a.failure() ?? b.failure()`:
+   * that spelling is right only while at most one asker holds a refusal at a
+   * time, which is true and is a rule nothing checks. Read off the armed trigger
+   * the answer is a fact the compiler keeps — a fourth widget could not quietly
+   * inherit the node search's error.
+   */
+  const failure = createMemo<string | null>(() => {
+    const found = trigger()
+    if (found === null) return null
+    switch (found.kind) {
+      // A day list is a pure function of a phrase and a calendar; there is
+      // nothing it could be refused by.
+      case "date":
+        return null
+      case "tag":
+        return tags.failure()
+      case "mirror":
+        return nodes.failure()
+    }
+  })
+
   const listing: Listing = {
     // A box is on screen when something is armed AND it has something to say —
-    // rows, or a refusal from the search. One rule, read by the panel and by
-    // the keys below.
-    showing: () =>
-      trigger() !== null && (choices().length > 0 || nodes.failure() !== null),
+    // rows, or a refusal from whichever list is the server's. One rule, read by
+    // the panel and by the keys below.
+    showing: () => trigger() !== null && (choices().length > 0 || failure() !== null),
     kind: () => trigger()?.kind ?? null,
     choices,
     active: cursor.at,
     hover: cursor.to,
-    failure: nodes.failure,
+    failure,
   }
 
   return {

@@ -41,7 +41,7 @@ import {
   dailyNotesOn,
   datedOn,
   fileKind,
-  isLeftoverArchive,
+  isPutAway,
   isTrashed,
   rowsOf,
   rowsUnder,
@@ -214,9 +214,7 @@ export const pageOf = (
   const outlines = outlinesOf(found)
   const named = address === null ? null : address.path
   const file = named === null
-    ? outlines.find((candidate) =>
-      !isTrashed(candidate) && !isLeftoverArchive(candidate)
-    )
+    ? outlines.find((candidate) => !isPutAway(candidate))
     : outlines.includes(named)
     ? named
     : undefined

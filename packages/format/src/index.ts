@@ -212,6 +212,12 @@ export {
   isTrashed,
   isLeftoverArchive,
   isMirror,
+  /** ...and the two of them as the one question every reading of the LIVE set
+   *  actually asks. Exported beside them rather than instead of them: the
+   *  writer half still names the trash on its own, and the sidebar still tells
+   *  a dormant Archive from it — what nobody has ever wanted is one without the
+   *  other in a READING (`./node.ts`). */
+  isPutAway,
   Located,
   MARKS,
   /** Where olai mints a file it named itself, and the directory it puts them
@@ -609,6 +615,15 @@ export {
   SearchHit,
   SearchRequest,
 } from "./searching.ts"
+
+/** The set's own WORDS — every tag written down, counted, and which of them one
+ *  prefix under one sigil means. The reading over `Derived.taggedBy` rather than
+ *  the index, for `./backlinks.ts`'s reason: what a tag's COUNT means (one vote
+ *  per record, nothing the trash draws) is a decision, and it is made there. It
+ *  ran in the browser until `vault-in-browser`'s PR 2 took the vault out of it —
+ *  see `./vocabulary.ts`. ONE function, not the enumeration and the match as two
+ *  for a caller to compose: the composition is the primitive. */
+export { completingTags, TagCompletion, TagsAnswer, TagsRequest } from "./vocabulary.ts"
 
 /** The words a commit gets when nobody wrote any. Here rather than in the ops
  *  layer because the message is now a function of a SELECTION, and the

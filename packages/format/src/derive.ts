@@ -37,6 +37,7 @@ import { Schema } from "effect"
 import { Tag } from "./address.ts"
 import {
   isLeftoverArchive,
+  isPutAway,
   isTrashed,
   isMirror,
   isRegular,
@@ -191,9 +192,10 @@ export interface Derived {
    * `#topic` and `@person` are two namespaces over one alphabet
    * ({@link titleTagRe}) — and it is what lets the two readers of this index
    * ask their own question of it without either one filtering for the other.
-   * Backlinks want the `@` half ({@link ./backlinks.ts}); the browser's tag
-   * completion wants the whole vocabulary and the sigil it was written with
-   * (`web/src/client/complete/tags.ts`). Sigil-stripped keys would collide the
+   * Backlinks want the `@` half ({@link ./backlinks.ts}); the tag COMPLETION
+   * wants the whole vocabulary and the sigil it was written with ({@link
+   * ./vocabulary.ts}, which the browser used to hold its own copy of and now
+   * asks for). Sigil-stripped keys would collide the
    * two namespaces and make both questions unanswerable from here.
    *
    * KEYED BY THE TAG rather than by a node, and that is the whole of why this
@@ -893,7 +895,7 @@ const inPlay = (
   id: string,
 ): InTheWay | undefined => {
   const at = nodeNamed(index, id)
-  if (at === undefined || isTrashed(at.file) || isLeftoverArchive(at.file)) {
+  if (at === undefined || isPutAway(at.file)) {
     return undefined
   }
   const mark = status.get(at.node.id)
@@ -1484,10 +1486,10 @@ export const tagPart = (written: string): TitleTag => ({
  * prose holds no tag at all; this file's own fold ({@link tagsIn}), the
  * search index and the client's two renderings of a pill all want the same
  * cheap negative. It was written three times before this existed, and the first
- * two had already drifted (one asked about `#` only). The browser's tag
+ * two had already drifted (one asked about `#` only). The tag
  * COMPLETION used to be a fourth caller and is not one any more — it reads
- * {@link Derived.taggedBy} rather than walking the corpus for itself, which is
- * this guard's argument taken all the way.
+ * {@link Derived.taggedBy} rather than walking the corpus for itself ({@link
+ * ./vocabulary.ts}), which is this guard's argument taken all the way.
  */
 export const mayHoldTag = (text: string): boolean =>
   text.includes("#") || text.includes("@")

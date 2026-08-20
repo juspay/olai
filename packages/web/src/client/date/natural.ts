@@ -15,7 +15,8 @@
  * The bulk of it — `today`, `tomorrow`, the seven weekdays, `next <weekday>`,
  * `next week` — is a list of phrases, each of which already knows its day, and
  * what typing does is FILTER that list by prefix. That is the same shape the
- * tag completion has one directory over (`../complete/tags.ts`), and it is why
+ * tag completion has one directory over (`../complete/asking.ts`, over the
+ * server's vocabulary), and it is why
  * "tom" offers `tomorrow` and "next f" offers `next friday` without a single
  * rule about abbreviations: the abbreviation is just a shorter prefix.
  *

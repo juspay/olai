@@ -36,6 +36,7 @@ import {
   brokenBy,
   brokenIn,
   bytesOf,
+  completingTags,
   countedChildren,
   DEFAULT_SEARCH_LIMIT,
   DEFAULT_SUBTREE_DEPTH,
@@ -85,6 +86,8 @@ import {
   type SearchRequest,
   type Stamps,
   type Subtree,
+  type TagsAnswer,
+  type TagsRequest,
   tagText,
   titleParts,
   ValidationFailure,
@@ -491,6 +494,40 @@ export const dated = (derived: Derived, request: DatedRequest): DatedAnswer =>
  */
 export const owed = (derived: Derived, request: OwedRequest): Owed =>
   owedOf(agendaOf(derived, request.today))
+// ── what the set already calls things ──────────────────────────────────
+
+/**
+ * The tag vocabulary, narrowed to what one popup under one caret can show.
+ *
+ * NOT A SEARCH, and it is next to two of them so the difference is worth
+ * saying: {@link search} and {@link matches} read a query LANGUAGE over the
+ * records — operators, fields, a score — and this reads none. It enumerates the
+ * words the set has already written down and answers which of them start with
+ * what somebody has typed. Nothing here can disagree with `search_nodes`,
+ * because nothing here is asked of the matcher.
+ *
+ * THE BROWSER'S, like {@link matches} and for a cousin of its reason (`./ops.ts`
+ * argues the membership at `Ops.matching`): what this answers is the shortlist a
+ * completion popup draws, capped at the number of rows that popup has. An agent
+ * writing a tag writes the word; it has no popup to fill, and a tool answering
+ * "the eight most used tags starting with ho" would be a report shaped like
+ * somebody else's widget.
+ *
+ * ONE CALL, and the ENVELOPE is the whole of what is added — exactly what
+ * {@link matches} adds over the matcher. The counting and the prefix test are
+ * two functions with two costs down there (the enumeration is memoised per
+ * derivation, so a directory that has not moved is counted once however many
+ * keystrokes are asked of it), and that split is that package's business:
+ * composing them here would be this layer holding a composition it has no
+ * opinion about.
+ */
+export const tags = (
+  /** The DERIVATION alone, like {@link matches}: a tag is written in a record's
+   *  title or its note, and a document body's `#tags` reach search rather than
+   *  this list (`@olai/format`'s `derive.ts` files records). */
+  derived: Derived,
+  request: TagsRequest,
+): TagsAnswer => ({ tags: completingTags(derived, request) })
 
 // ── one node, and what is under it ─────────────────────────────────────
 

@@ -62,8 +62,9 @@
  *
  * ## Why this is not a `createResource`
  *
- * The two doors beside it are (`../search/nodes.ts`, `../filter/asking.ts`),
- * and they ask a different KIND of question: one query, one answer, and an
+ * The doors beside it are (`../search/nodes.ts` and `../complete/asking.ts`
+ * through `../settled.ts`, and `../filter/asking.ts` with its own), and they
+ * ask a different KIND of question: one query, one answer, and an
  * answer to a query the reader has moved on from is worthless — which is
  * exactly what that primitive is for, since it drops the answer to a source
  * that has since moved. Nothing here is ever stale. Answers ACCUMULATE, in any
@@ -97,8 +98,9 @@ import { connectionReadout, olai } from "../wire.ts"
  * runs the effects of a render in one batch, so a conversation opening asks its
  * eighty messages' ids in one call. There is no keystroke here to settle
  * against and no reader waiting on a beat, which is why this is a gather and
- * not a debounce (`../search/nodes.ts`'s `SETTLE_MS` is the other kind, and
- * says so).
+ * not a debounce (`../settled.ts`'s `SETTLE_MS` is the other kind, and that
+ * file says so — it is where the settle and the latest-wins rule moved when a
+ * third keystroke-shaped door wanted them).
  */
 const GATHER_MS = 0
 

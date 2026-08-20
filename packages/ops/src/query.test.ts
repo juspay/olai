@@ -21,7 +21,17 @@ import {
 import { describe, expect, test } from "bun:test"
 
 import { readingOf, setOf } from "./fixtures.testlib.ts"
-import { dated, detail, matches, named, outlines, owed, search, subtree } from "./query.ts"
+import {
+  dated,
+  detail,
+  matches,
+  named,
+  outlines,
+  owed,
+  search,
+  subtree,
+  tags,
+} from "./query.ts"
 
 /** The hits on RECORDS, which is what nearly every case below is about: a
  *  search answers with both kinds now, and a reader that draws one says so. */
@@ -849,4 +859,43 @@ describe("the sidebar's two date readings", () => {
     expect(owed(derivedOf(DAYS()), { today: "2026-09-01" }).today).toBe(0)
     expect(owed(derivedOf(DAYS()), { today: "2026-09-01" }).overdue).toBe(3)
   })
+})
+
+// ── the vocabulary a completion draws ──────────────────────────────────
+
+describe("which tags the set already uses", () => {
+  const HOUSE = (): OutlineSet =>
+    setOf({
+      "house.olai": [
+        `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order cabinets #home #shopping"}`,
+        `{"id":"ask","parent":"kitchen","ord":"a2","title":"ask @alice about the #hob"}`,
+      ].join("\n"),
+      "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"the old boiler #boiler"}`,
+    })
+
+  // The ENVELOPE, which is this layer's half: what the rules are is
+  // `@olai/format`'s `vocabulary.ts` and is pinned there, and what travels is
+  // this shape — a field dropped between the reading and the answer would fail
+  // nothing over there.
+  test("the answer is the shortlist, ranked, in the envelope the wire carries", () => {
+    expect(tags(derivedOf(HOUSE()), { sigil: "#", query: "ho", limit: 8 }))
+      .toEqual({
+        tags: [
+          { name: "home", count: 2 },
+          { name: "hob", count: 1 },
+          { name: "shopping", count: 1 },
+        ],
+      })
+  })
+
+  test("the sigil asked with is the only namespace answered", () => {
+    expect(tags(derivedOf(HOUSE()), { sigil: "@", query: "", limit: 8 }))
+      .toEqual({ tags: [{ name: "alice", count: 1 }] })
+  })
+
+  // What the trash does to the vocabulary is NOT re-asserted here: it is a rule
+  // about what a tag count means, pinned where the rule lives
+  // (`@olai/format`'s `vocabulary.test.ts`). The fixture keeps its trashed
+  // record so the two above are asked of a directory that has one.
 })
