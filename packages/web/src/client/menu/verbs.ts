@@ -46,7 +46,7 @@ import {
   type Situated,
   type Status,
 } from "@olai/format"
-import type { Edit } from "@olai/surface"
+import type { Edit, Shelf } from "@olai/surface"
 
 import { datePick } from "../date/pick.ts"
 import { repeatPick } from "../date/repeat.ts"
@@ -188,6 +188,12 @@ export const writeVerbs = (
    *  that asks is then not offered rather than offered with a number nobody
    *  checked. */
   derived: Derived | undefined,
+  /** The shelf, as the server answered it — the other question a subject
+   *  cannot answer: whether this node's page is already a door in the sidebar
+   *  (`../pins/answered.tsx`). A SECOND value rather than a field on the first
+   *  because it is a second reading, and one of them no longer comes from the
+   *  browser's copy of anything. */
+  shelf: Shelf,
 ): ReadonlyArray<Verb> => {
   const verbs: Array<Verb> = []
   // The node this subject draws: the mark it carries, the date it has. A
@@ -212,7 +218,7 @@ export const writeVerbs = (
     // and a mirror's page is its target's; storing the placement's id instead
     // would leave a pin that stops resolving the day somebody retires that
     // placement, which is a write about a line and not about the shelf.
-    const pinned = pinnedAt(derived, atNode(shown.node.id))
+    const pinned = pinnedAt(shelf, atNode(shown.node.id))
     verbs.push(
       pinned === undefined
         ? {

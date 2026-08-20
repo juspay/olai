@@ -44,6 +44,12 @@
  *     commit worked. A directory that is not one, or a git that cannot be run,
  *     is news a reader is owed rather than a line in a server log
  *     ({@link GitState}).
+ *   - `pins` is a CELL, and it is the first member here that carries a READING
+ *     of the set rather than the set: the sidebar's shelf, recomputed per
+ *     revision and sent when it changed by value. It is where
+ *     `docs/brainstorming/vault-in-browser.md` is going — the browser is handed
+ *     what it draws instead of every record it would have had to walk to work
+ *     it out.
  *
  * Who is on the other end is NOT a member here, and it was for one commit. The
  * question is real — a page bound to a replaced server must know — but the
@@ -105,11 +111,14 @@ import {
   Located,
   NamedAnswer,
   NamedRequest,
+  NO_PINS,
   NOTHING_PENDING,
   OutlineError,
   Pending,
   PushResult,
   samePending,
+  sameShelf,
+  Shelf,
   TagsAnswer,
   TagsRequest,
 } from "@olai/format"
@@ -428,6 +437,43 @@ export const surface = defineSurface({
        *  `equals` every open tab would get a frame every thirty seconds
        *  saying exactly what it already knew. */
       equals: samePending,
+    },
+    /**
+     * THE PINNED SHELF — the rows of the directory's `Pins.olai`, and the live
+     * name of whatever node each one addresses (`@olai/format`'s {@link Shelf}).
+     *
+     * A CELL, which is to say a STANDING answer with no argument. The shelf is
+     * a reading of the whole vault — which file the shelf is, that file's top
+     * level, and a name that may live in any other file — and it was the
+     * browser's own walk over its copy of every outline until PR 5 of
+     * `docs/brainstorming/vault-in-browser.md`. Nothing about it depends on who
+     * is asking or on what they are looking at, so there is no input to give a
+     * stream and no question to make a procedure of: the server recomputes it
+     * on every published revision and sends it when it changed by value, which
+     * is §2's mechanism sentence exactly.
+     *
+     * RE-ANSWERED PER REVISION IS THE FEATURE, not an optimisation. A bare pin
+     * stores an address and never a name, so what the shelf draws for `/#herbs`
+     * is that node's title RIGHT NOW — rename it anywhere, by anyone, and the
+     * new name is on the shelf on the frame the store publishes, because there
+     * was never a second copy of it to go stale.
+     *
+     * `equals` is what keeps that from costing anything: the reading mints a
+     * fresh array per revision, and almost every revision has nothing new to
+     * say about a shelf of five doors.
+     *
+     * WIRE-READ-ONLY, like every other file-shaped member: a pin is a row in an
+     * ordinary outline, and the only way to write one is the ops layer — which
+     * is what a pin, a reorder and an unpin already resolve to.
+     *
+     * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`): an agent reads the
+     * shelf as the ordinary outline it is.
+     */
+    pins: {
+      schema: Shelf,
+      default: NO_PINS,
+      verbs: ["get"],
+      equals: sameShelf,
     },
   },
   collections: {
@@ -898,6 +944,15 @@ export {
  *  exactly as the search shapes below are and for the same reason: this package
  *  is a spec, and the read vocabulary is the floor's. */
 export { NamedAnswer, NamedRequest } from "@olai/format"
+
+/** THE PINNED SHELF as the `pins` cell carries it — the floor's shapes again,
+ *  re-exported for the same reason, so the sidebar draws the rows the reading
+ *  produced rather than a second description of them. `sameShelf` does NOT come
+ *  through this door: a cell declares its `equals` in the spec above, which is
+ *  the only place that answer is spent (`samePending` is imported here and
+ *  re-exported by nobody, for the same reason). */
+export { NO_PINS, Shelf } from "@olai/format"
+export type { Pinned } from "@olai/format"
 
 /** What the sidebar's two date readings ask and answer on the wire — see
  *  {@link ./dates.ts}. */

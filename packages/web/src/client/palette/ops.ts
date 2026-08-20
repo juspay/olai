@@ -47,6 +47,7 @@
  */
 
 import type { Derived, Situated } from "@olai/format"
+import { NO_PINS } from "@olai/surface"
 
 import { subjectOfZoom, writeVerbs } from "../menu/verbs.ts"
 import type { PaletteItem } from "./items.ts"
@@ -63,7 +64,10 @@ export const opItems = (
 ): ReadonlyArray<PaletteItem> => {
   if (zoomed === undefined) return []
   const title = zoomed.shows.node.title
-  return writeVerbs(subjectOfZoom(zoomed), derived).flatMap((verb) =>
+  // THE SHELF IS NOT ASKED FOR, and cannot matter: the one verb in that
+  // catalog that reads it is the pin, and the pin is dropped one line below —
+  // so an empty shelf is not a stub here, it is the honest argument.
+  return writeVerbs(subjectOfZoom(zoomed), derived, NO_PINS).flatMap((verb) =>
     // AND THE SHELF'S VERB IS LEFT OUT, which is the one exclusion by NAME in
     // this file and needs its own sentence because of that. The palette
     // already carries a pin row, and that one is about the PAGE

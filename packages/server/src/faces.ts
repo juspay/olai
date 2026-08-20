@@ -168,6 +168,21 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  * shaped consumer genuinely needs the "has this directory ever loaded" bit that
  * a request-shaped one gets for free by blocking on the first frame.
  *
+ * `pins` is a FOURTH, and the one that is a READING rather than a projection of
+ * the files: the sidebar's shelf, answered per revision (`@olai/format`'s
+ * `shelfOf`). An agent has no use for it and is not offered it — the shelf is an
+ * ordinary outline, `Pins.olai`, and an agent reads it with `read_subtree` and
+ * writes it with `add_node` / `move_node` / `trash_node`, which is the whole
+ * point of the convention being titles in a file (docs/format.md's Pins). What
+ * this member adds for a BROWSER is the resolution — a pin's node named as it
+ * is called right now — which is a paint instruction for a column somebody is
+ * looking at.
+ *
+ * It satisfies the cost rule the way `pending` does rather than trivially: the
+ * value is O(what somebody PINNED), which is a curated short list — it is
+ * exactly the rows the sidebar draws, so a shelf too big for this member is a
+ * shelf too big for the column it is drawn in.
+ *
  * `heads` is a THIRD of that kind, and the sharpest: it is here and absent from
  * {@link MCP} because it answers a question only a render-shaped consumer asks.
  * A tab keeps a `.html` on screen and has to notice the file moving underneath
@@ -195,6 +210,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   dated: "resource",
   owed: "resource",
   heads: "resource",
+  pins: "resource",
   transcript: "resource",
   errors: "resource",
   manifest: "resource",

@@ -84,6 +84,7 @@ import {
   SHELL_ITEMS,
 } from "./items.ts"
 import { opItems } from "./ops.ts"
+import { usePins } from "../pins/answered.tsx"
 import { pinItem } from "../pins/palette.ts"
 import { sayPin, togglePin } from "../pins/pinning.ts"
 import { createCursor } from "../search/cursor.ts"
@@ -148,6 +149,7 @@ export function Palette(props: {
   // handed down as two props — same object, one access path.
   const undo = useUndo()
   const derived = useDerived()
+  const pins = usePins()
   const router = useRouter()
   const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
@@ -263,7 +265,7 @@ export function Palette(props: {
     // about the zoomed node, so it belongs with the contextual half and not
     // with the fixed ones — and it is the one door a document or a filtered
     // page has that a reader can find by looking (../pins/palette.ts).
-    const commands = [...opRows(), pinItem(router.route(), derived()), ...SHELL_ITEMS]
+    const commands = [...opRows(), pinItem(router.route(), pins(), derived()), ...SHELL_ITEMS]
     // THEN THE HITS, which is the order they can be ANSWERED in: the commands
     // are matched in this tab off a list it already holds, and a hit is a
     // debounce and a round trip away. A block that arrives late must not push
@@ -405,7 +407,7 @@ export function Palette(props: {
    * here (`../pins/pinning.ts`).
    */
   const pin = (): Promise<Said | undefined> =>
-    togglePin(router.route(), derived(), undo.record)
+    togglePin(router.route(), pins(), undo.record)
 
   /** The question answered: it goes, and the verb behind it does. */
   const answer = (question: Asking) => {

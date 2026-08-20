@@ -14,7 +14,7 @@ import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { atFile, atNode, HOME_ROUTE, hrefOf } from "../routes.ts"
-import { addressIn, labelIn, nameOf } from "./address.ts"
+import { addressIn, labelIn, nameOf, shownIn } from "./address.ts"
 
 // ── what is an address ─────────────────────────────────────────────────
 
@@ -95,21 +95,46 @@ test("the label somebody wrote is a name; a blank one is not", () => {
   expect(labelIn("/#herbs")).toBeUndefined()
 })
 
+
 // ── what a place is called ─────────────────────────────────────────────
+//
+// The switch is PURE: exactly one address is not called what it says it is —
+// a node, which is called whatever that node is called right now — so that
+// one fact is handed in. Who asks it is the caller's, and the two callers ask
+// it on opposite sides of the wire (the shelf's is the server's answer, an
+// outline row's is `shownIn` below).
+
+test("a node address is called whatever that node is called right now", () => {
+  expect(nameOf(atNode("herbs"), "the herb bed")).toBe("the herb bed")
+  // The same address, after somebody renamed the node somewhere else entirely.
+  expect(nameOf(atNode("herbs"), "the herb spiral")).toBe("the herb spiral")
+})
+
+test("an address nobody can name says the address rather than a blank", () => {
+  expect(nameOf(atNode("gone"), undefined)).toBe("/#gone")
+})
+
+test("a file is called by its own name, not by its path", () => {
+  expect(nameOf(atFile("notes/finishes.md"), undefined)).toBe("finishes.md")
+  expect(nameOf(atFile("a/b/garden.olai"), undefined)).toBe("garden.olai")
+})
+
+test("the pages that are not files are called what a reader calls them", () => {
+  expect(nameOf(HOME_ROUTE, undefined)).toBe("Home")
+  expect(nameOf({ kind: "day", date: "2026-08-18" }, undefined)).toBe("2026-08-18")
+  expect(nameOf({ kind: "today" }, undefined)).toBe("Today")
+  expect(nameOf({ kind: "agenda" }, undefined)).toBe("Agenda")
+  expect(nameOf({ kind: "trash" }, undefined)).toBe("Trash")
+})
+
+// ── the one lookup still answered in the browser ───────────────────────
 
 const named = (title: string) =>
   derive(recordsOf(setOf({ "garden.olai": `{"id":"herbs","ord":"a0","title":"${title}"}` })))
 
-test("a node address is called whatever that node is called right now", () => {
-  expect(nameOf(atNode("herbs"), named("the herb bed"))).toBe("the herb bed")
-  // The same address, after somebody renamed the node somewhere else entirely.
-  expect(nameOf(atNode("herbs"), named("the herb spiral")))
-    .toBe("the herb spiral")
-})
-
-test("an address at an id nothing declares says the address rather than a blank", () => {
-  expect(nameOf(atNode("gone"), named("the herb bed"))).toBe("/#gone")
-  expect(nameOf(atNode("herbs"), undefined)).toBe("/#herbs")
+test("a node address asked of the local reading is that node's title", () => {
+  expect(shownIn(named("the herb bed"), atNode("herbs"))).toBe("the herb bed")
+  expect(shownIn(named("the herb spiral"), atNode("herbs"))).toBe("the herb spiral")
 })
 
 test("a mirror's id resolves to the node it stands for", () => {
@@ -119,20 +144,14 @@ test("a mirror's id resolves to the node it stands for", () => {
       "house.olai": `{"id":"here","ord":"a0","mirror":"herbs"}`,
     })),
   )
-  expect(nameOf(atNode("here"), set)).toBe("the herb bed")
+  expect(shownIn(set, atNode("here"))).toBe("the herb bed")
 })
 
-test("a file is called by its own name, not by its path", () => {
-  const set = named("the herb bed")
-  expect(nameOf(atFile("notes/finishes.md"), set)).toBe("finishes.md")
-  expect(nameOf(atFile("a/b/garden.olai"), set)).toBe("garden.olai")
-})
-
-test("the pages that are not files are called what a reader calls them", () => {
-  const set = named("the herb bed")
-  expect(nameOf(HOME_ROUTE, set)).toBe("Home")
-  expect(nameOf({ kind: "day", date: "2026-08-18" }, set)).toBe("2026-08-18")
-  expect(nameOf({ kind: "today" }, set)).toBe("Today")
-  expect(nameOf({ kind: "agenda" }, set)).toBe("Agenda")
-  expect(nameOf({ kind: "trash" }, set)).toBe("Trash")
+test("nothing to say, said the same way three times", () => {
+  // An id the set does not declare, an address that is not a node's, and the
+  // frame before the first one arrives.
+  expect(shownIn(named("the herb bed"), atNode("gone"))).toBeUndefined()
+  expect(shownIn(named("the herb bed"), atFile("notes/finishes.md"))).toBeUndefined()
+  expect(shownIn(named("the herb bed"), { kind: "agenda" })).toBeUndefined()
+  expect(shownIn(undefined, atNode("herbs"))).toBeUndefined()
 })

@@ -9,6 +9,7 @@
  */
 
 import { derive, rowsOf, type Row } from "@olai/format"
+import { NO_PINS, type Shelf } from "@olai/surface"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -42,10 +43,11 @@ const row = (id: string): Row => {
 }
 
 const labels = (id: string): ReadonlyArray<string> =>
-  writeVerbs(subjectOfRow(row(id)), derived).map((verb) => verb.label)
+  writeVerbs(subjectOfRow(row(id)), derived, NO_PINS).map((verb) => verb.label)
 
 const verb = (id: string, label: string) => {
-  const found = writeVerbs(subjectOfRow(row(id)), derived).find((one) => one.label === label)
+  const found = writeVerbs(subjectOfRow(row(id)), derived, NO_PINS)
+    .find((one) => one.label === label)
   if (found === undefined) {
     throw new Error(`\`${id}\` offers no ${JSON.stringify(label)}: ${labels(id).join(", ")}`)
   }
@@ -75,16 +77,8 @@ test("a mirror pins the node it SHOWS, never the placement standing there", () =
 })
 
 test("a node the shelf already holds is offered the way OFF it instead", () => {
-  const withShelf = derive(
-    recordsOf(setOf({
-      "house.olai": HOUSE,
-      "garden.olai": GARDEN,
-      "Pins.olai": `{"id":"p-install","ord":"a0","title":"/#install"}`,
-    })),
-  )
-  const shelved = rowsOf(withShelf, "house.olai")
-  const installed = flatten(shelved, new Set()).find((one) => one.at.node.id === "install")!
-  const offered = writeVerbs(subjectOfRow(installed), withShelf)
+  const shelf: Shelf = [{ id: "p-install", title: "/#install" }]
+  const offered = writeVerbs(subjectOfRow(row("install")), derived, shelf)
   expect(offered.map((one) => one.label)).toContain("Unpin from sidebar")
   expect(offered.map((one) => one.label)).not.toContain("Pin to sidebar")
   // The PIN's own node — the row on the shelf — and archived rather than
@@ -242,7 +236,7 @@ test("a repeating row says CHANGE, and gains the entry that stops it", () => {
   const found = flatten(rowsOf(repeating, "house.olai"), new Set())
     .find((one) => one.at.node.id === "order")
   if (found === undefined) throw new Error("no row for `order`")
-  const verbs = writeVerbs(subjectOfRow(found), repeating)
+  const verbs = writeVerbs(subjectOfRow(found), repeating, NO_PINS)
   const said = verbs.map((one) => one.label)
   expect(said).toContain("Change repeat…")
   expect(said).not.toContain("Set repeat…")
@@ -383,7 +377,8 @@ test("a childless row is asked about on its own", () => {
 
 test("nothing but the put-away asks a question first", () => {
   expect(
-    writeVerbs(subjectOfRow(row("kitchen")), derived).filter((verb) => verb.confirm !== undefined)
+    writeVerbs(subjectOfRow(row("kitchen")), derived, NO_PINS)
+      .filter((verb) => verb.confirm !== undefined)
       .map((verb) => verb.label),
   ).toEqual(["Move to Trash"])
 })
@@ -392,7 +387,7 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
   // A moment no row is drawn in — the first frame has not arrived — but the
   // one verb whose question is about the SET may not be offered with a number
   // read off something else.
-  expect(writeVerbs(subjectOfRow(row("kitchen")), undefined).map((verb) => verb.label))
+  expect(writeVerbs(subjectOfRow(row("kitchen")), undefined, NO_PINS).map((verb) => verb.label))
     .toEqual([
       "Pin to sidebar",
       "Mark todo",

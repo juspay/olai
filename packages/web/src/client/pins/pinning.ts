@@ -33,8 +33,9 @@
  * around it and a prop through the app.
  */
 
-import type { Derived } from "@olai/format"
 import { type Accessor, createRoot } from "solid-js"
+
+import type { Shelf } from "@olai/surface"
 
 import type { Said, Undo } from "../edit/undoing.ts"
 import { hrefOf, type Route } from "../routes.ts"
@@ -78,10 +79,13 @@ export const sayPin = (message: Said | null | void): void => line.say(message)
  */
 export const togglePin = async (
   route: Route,
-  derived: Derived | undefined,
+  /** The shelf as the server last answered it — which way this address's
+   *  answer goes is a fact about the DIRECTORY, and this is where the tab
+   *  holds it (`./answered.tsx`). */
+  shelf: Shelf,
   record: Undo["record"],
 ): Promise<Said | undefined> => {
-  const already = pinnedAt(derived, route)
+  const already = pinnedAt(shelf, route)
   return already === undefined
     ? applying({ verb: "pin", at: hrefOf(route) }, record)
     : applying({ verb: "trash", id: already.id }, record)

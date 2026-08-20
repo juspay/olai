@@ -125,6 +125,8 @@ import {
   addressOf,
   fileKind,
   parseAddress,
+  type Split,
+  splitAddress,
   writtenAddress,
 } from "@olai/format"
 
@@ -377,41 +379,6 @@ export const fileNamed = (route: Route): string | undefined => {
  */
 export const routeIn = (href: string): Route | null =>
   href.startsWith("/") ? routeNamed(splitAddress(href)) : null
-
-/**
- * Path, query and fragment of an address, cut the way this app writes them.
- *
- * ONE split, so a lone page (`routeOf`) and a workspace that embeds those
- * pages (`workspaceOf`) cannot disagree about where the query ends and
- * the fragment starts. The fragment comes off first: a `#` ends the
- * query, so cutting on `?` before it would leave `#beds` inside a filter
- * and a page narrowed by a word nobody typed.
- *
- * The fragment comes back AS WRITTEN, unescaped, because it is half of an
- * address and the address grammar is what reads it (`@olai/format`'s
- * `parseAddress`). Decoding it here would be this module holding an opinion
- * about a name, and re-joining a decoded half to a written one is how a `#`
- * inside somebody's heading becomes a second cut.
- */
-/** An address cut into the three things a URL keeps apart. Named, because the
- *  parser is now handed one rather than a string to cut again. */
-export interface Split {
-  readonly pathname: string
-  readonly search: string
-  readonly fragment: string | undefined
-}
-
-export const splitAddress = (address: string): Split => {
-  const hash = address.indexOf("#")
-  const whole = hash === -1 ? address : address.slice(0, hash)
-  const fragment = hash === -1 ? undefined : address.slice(hash + 1)
-  const cut = whole.indexOf("?")
-  return {
-    pathname: cut === -1 ? whole : whole.slice(0, cut),
-    search: cut === -1 ? "" : whole.slice(cut + 1),
-    fragment,
-  }
-}
 
 /**
  * Anything this does not recognise is the default outline: an unknown path is

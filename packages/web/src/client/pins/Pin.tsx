@@ -10,10 +10,16 @@
  * drag (`../drag/Handle.tsx`), because by the time it bubbled the browser
  * would already be following the link a reader used as a handle.
  *
- * WHAT IT IS CALLED IS NOT STORED ANYWHERE (`./name.ts`): a pin holds an
- * address, and the name is read off the set on the frame it is drawn. That is
- * the whole of "a node renamed elsewhere updates on the shelf" — there is no
- * second copy to update.
+ * WHAT IT IS CALLED IS NOT STORED ANYWHERE: a pin holds an address, and the
+ * name is what the SERVER says that address is called on the frame this is
+ * drawn (`./answered.tsx`, `./pins.ts`). That is the whole of "a node renamed
+ * elsewhere updates on the shelf" — there is no second copy to update, on
+ * either side of the wire.
+ *
+ * ONE NAME, read three times here — the face, the row's tooltip and the unpin's
+ * label — and resolved once, in `./pins.ts`. It used to arrive as a prop beside
+ * the pin, computed by the shelf, with a comment promising it matched what the
+ * face would draw.
  */
 
 import { Show } from "solid-js"
@@ -38,9 +44,6 @@ const ROW = `group/pin relative ${ENTRY_SHAPE} ${ROW_GAP} w-full`
 
 export function Pin(props: {
   readonly pin: Pin
-  /** What this pin is CALLED, for the row's own `title` and the unpin's
-   *  label — the same answer the face draws, through the same resolver. */
-  readonly name: string
   readonly current: boolean
   /** True while this row is the one being carried. */
   readonly lifted: boolean
@@ -91,13 +94,13 @@ export function Pin(props: {
         class={ROW}
         testid={TESTID.pinLink}
         current={props.current}
-        title={props.name}
+        title={props.pin.name}
       >
         {/* The address, drawn as the page it names — the SAME face an outline
             row draws when its title is one (`../address/Face.tsx`). The shelf
             resolving its rows while the file's own page drew the raw address
             was one title with two answers (maintainer, 2026-08-18). */}
-        <Face route={props.pin.route} named={props.pin.named} />
+        <Face route={props.pin.route} name={props.pin.name} />
       </Link>
       {/* OUTSIDE the link, because a control inside an anchor is a control
           whose activation is also a navigation. It sits on top of the row's
@@ -110,7 +113,7 @@ export function Pin(props: {
           "text-paper/55 opacity-0 transition-opacity hover:text-alarm " +
           "focus-visible:opacity-100 group-hover/pin:opacity-100"}
         data-testid={TESTID.pinRemove}
-        aria-label={`unpin ${props.name}`}
+        aria-label={`unpin ${props.pin.name}`}
         title="unpin"
         onClick={(event) => {
           event.preventDefault()

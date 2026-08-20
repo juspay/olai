@@ -41,6 +41,16 @@
  *     procedure that also echoed its result would be a second answer to what
  *     the directory says, arriving first and occasionally disagreeing.
  *
+ * One member is neither the directory nor a fact about it but a READING of it,
+ * and it is the first: the pinned SHELF, which the sidebar draws and used to
+ * work out for itself over a copy of every outline in the browser
+ * (`docs/brainstorming/vault-in-browser.md` §6's item 5). Its connector is the
+ * whole of it — recompute `@olai/format`'s `shelfOf` on every published
+ * revision and write the cell, whose `equals` keeps a revision that moved no pin
+ * from sending anything. That is §2's mechanism, and the reason the browser
+ * needs no token to ask on: the server is the one that knows when the directory
+ * moved.
+ *
  * And two facts belong to neither: what GIT is doing for the directory, and
  * what is WAITING to be committed to it. Both are the ops layer's — the only
  * thing here that commits — and both are recomputed by one connector, from one
@@ -56,7 +66,14 @@
  * the wire.
  */
 
-import { NOTHING_PENDING, sameDated, sameOwed } from "@olai/format"
+import {
+  NO_PINS,
+  NOTHING_PENDING,
+  sameDated,
+  sameOwed,
+  type Shelf,
+  shelfOf,
+} from "@olai/format"
 import { type Ops, Query, type Request, type Status, type Store } from "@olai/ops"
 import type {
   CommitRequest,
@@ -522,6 +539,39 @@ export const bind = (
                 Effect.forever(Effect.andThen(Effect.sleep(SWEEP), republishGit)),
               ], { concurrency: 3 })
             }),
+        },
+        /**
+         * THE PINNED SHELF, recomputed per published revision.
+         *
+         * ITS OWN CONNECTOR rather than a line in the directory binding below,
+         * and the difference is what it reads: that one PROJECTS a revision —
+         * this file's per-file slices, written in one order for one reason —
+         * where this one asks a QUESTION of the set (`@olai/format`'s
+         * `shelfOf`) and publishes the answer. A tab tolerates the skew between
+         * them the way it tolerates every other cross-member skew (the design
+         * doc's cross-file consistency paragraph); what it would not tolerate is
+         * the two being one statement whose order somebody has to reason about.
+         *
+         * A revision that moved no pin writes the same value, which the cell's
+         * `equals` swallows (`@olai/surface`'s spec) — so the frames a tab gets
+         * are the times its shelf actually changed, which includes a node it
+         * pins being RETITLED in some other file.
+         *
+         * A store that has never published has no shelf rather than an unknown
+         * one: an empty shelf draws nothing, which is what a directory with no
+         * `Pins.olai` draws and what the column showed while the first frame was
+         * arriving before any of this.
+         */
+        pins: {
+          store: inMemoryStore<Shelf>(NO_PINS),
+          connect: (cell) =>
+            Stream.runForEach(
+              SubscriptionRef.changes(wiring.store.snapshot),
+              (snapshot) =>
+                Effect.sync(() =>
+                  cell.set(snapshot === null ? NO_PINS : shelfOf(snapshot.value.derived))
+                ),
+            ),
         },
         /** The whole directory binding, because one revision is one write of
          *  everything it moved: for each collection the entries that changed

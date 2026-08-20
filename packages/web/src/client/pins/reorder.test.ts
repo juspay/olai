@@ -13,7 +13,7 @@ import { expect, test } from "bun:test"
 import type { Pin } from "./pins.ts"
 import { gapAt, placing } from "./reorder.ts"
 
-const pin = (id: string): Pin => ({ id, route: { kind: "agenda" }, named: undefined })
+const pin = (id: string): Pin => ({ id, route: { kind: "agenda" }, name: "Agenda" })
 const SHELF = ["a", "b", "c", "d"].map(pin)
 
 /** Four rows, 20px tall, starting at 100 — midpoints at 110, 130, 150, 170. */

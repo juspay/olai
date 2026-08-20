@@ -42,6 +42,7 @@ import { OpensProvider } from "./opens.tsx"
 import { createOutlines } from "./outlines.ts"
 import { fileOf, opensAt, pageOf } from "./page.ts"
 import { Palette } from "./palette/Palette.tsx"
+import { PinsProvider } from "./pins/answered.tsx"
 import { pinSaid } from "./pins/pinning.ts"
 import { Panes } from "./pane/Panes.tsx"
 import { SHEET, SHELL_LONE, SHELL_SPLIT } from "./layout/sheet.ts"
@@ -198,6 +199,11 @@ export default function App() {
     <UndoContext.Provider value={undo}>
       <RouterProvider router={router}>
       <DerivedProvider derived={outlines.derived()}>
+      {/* THE SHELF, as the server answers it — a subscription and a context,
+          around everything that reads it: the sidebar draws it, the palette's
+          row and the ⌘⇧P chord ask whether this page is on it, and every row's
+          ••• asks the same about its node (./pins/answered.tsx). */}
+      <PinsProvider>
       <FieldsProvider value={fields}>
       <AirProvider value={air}>
       <OpensProvider opens={(path, at) => opensAt(found(), path, at)}>
@@ -300,6 +306,7 @@ export default function App() {
       </OpensProvider>
       </AirProvider>
       </FieldsProvider>
+      </PinsProvider>
       </DerivedProvider>
       </RouterProvider>
     </UndoContext.Provider>

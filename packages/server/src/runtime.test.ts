@@ -19,7 +19,7 @@
  */
 
 import { codec, make as makeOps, type Ops, type Store as OutlineStore } from "@olai/ops"
-import type { DocumentEntry, Head } from "@olai/surface"
+import type { DocumentEntry, Head, Shelf } from "@olai/surface"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, test } from "bun:test"
@@ -316,3 +316,99 @@ test("a reader holding a key across a file's birth is handed the body", () =>
       expect(yield* open.frame).toEqual({ rev: 2, text: null })
       expect(yield* open.frame).toEqual({ rev: 2, text: "<h1>Born</h1>\n" })
     })))
+
+/**
+ * THE PINNED SHELF, published: the resolution happens here, and it happens
+ * again when the directory moves.
+ *
+ * The claim is `docs/brainstorming/vault-in-browser.md`'s mechanism sentence
+ * made concrete for the one member that carries a reading rather than a file: a
+ * pin stores an ADDRESS and no name, so what the shelf says a node is called is
+ * true of the revision it was answered at — and a rename in some OTHER file
+ * has to reach the sidebar with no reload and nothing asked.
+ *
+ * Proven from OUTSIDE the reading (`@olai/format`'s `shelf.test.ts` has that
+ * function's own suite) and without a browser, which is what makes it a unit
+ * test: what is under test is the wiring — that the cell is recomputed per
+ * published revision, over the set that revision holds.
+ */
+test("the shelf is answered per revision, so a rename elsewhere renames the pin", () =>
+  withRuntime(
+    {
+      "a.olai": OUTLINE,
+      "Pins.olai": `{"id":"p","ord":"a0","title":"/#a"}\n`,
+    },
+    ({ wired, store, root }) =>
+      Effect.gen(function*() {
+        const get = wired.bound.handlers["surface/pins/get"]
+        if (get === undefined) throw new Error("the pins cell has no `get`")
+
+        // TWO frames: the one this subscription opens with, and the one the
+        // rewrite below produces. On a fiber of its own, because the second
+        // cannot arrive until the probe has run.
+        const watching = yield* Effect.forkChild(
+          Stream.runCollect(Stream.take(get({}) as Stream.Stream<Shelf>, 2)),
+        )
+
+        // The pinned node is retitled in the file it lives in — which is not
+        // the shelf's file, and is the whole point: nothing about `Pins.olai`
+        // changed.
+        fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"b"}\n`)
+        yield* store.refresh
+
+        expect([...yield* Fiber.join(watching)]).toEqual([
+          [{ id: "p", title: "/#a", shows: { id: "a", name: "a" } }],
+          [{ id: "p", title: "/#a", shows: { id: "a", name: "b" } }],
+        ])
+      }),
+  ))
+
+
+/**
+ * …and a revision that moved no pin sends NOTHING, which is what the cell's
+ * `equals` is for (`@olai/surface`'s spec).
+ *
+ * The shelf is recomputed on every revision — that is what the test above buys
+ * — and the reading mints a fresh array each time, so without the guard every
+ * open tab would get a frame for every keystroke anybody makes anywhere in the
+ * vault, saying exactly what it already knew.
+ *
+ * PROVEN BY ORDER rather than by waiting, because there is nothing to wait for:
+ * a frame that is never sent has no arrival to miss, and the shelf's own
+ * connector is not the fiber any other barrier here synchronises with. So two
+ * revisions are published — one that cannot change the shelf, then one that
+ * must — and the NEXT frame is read: if the neutral revision had sent one, this
+ * take would hand back the shelf as it already was.
+ */
+test("a revision that changes no pin sends no frame", () =>
+  withRuntime(
+    {
+      "a.olai": OUTLINE,
+      "Pins.olai": `{"id":"p","ord":"a0","title":"/#a"}\n`,
+      "report.html": "<h1>Before</h1>\n",
+    },
+    ({ wired, store, root }) =>
+      Effect.gen(function*() {
+        const get = wired.bound.handlers["surface/pins/get"]
+        if (get === undefined) throw new Error("the pins cell has no `get`")
+        const frames = yield* Queue.unbounded<Shelf>()
+        yield* Effect.forkChild(
+          Stream.runForEach(get({}) as Stream.Stream<Shelf>, (frame) =>
+            Queue.offer(frames, frame)),
+        )
+        expect(yield* Queue.take(frames)).toEqual([
+          { id: "p", title: "/#a", shows: { id: "a", name: "a" } },
+        ])
+
+        // A revision the shelf has nothing to say about: another file's bytes.
+        fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
+        yield* store.refresh
+        // …and one it does: the pinned node, retitled where it lives.
+        fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"b"}\n`)
+        yield* store.refresh
+
+        expect(yield* Queue.take(frames)).toEqual([
+          { id: "p", title: "/#a", shows: { id: "a", name: "b" } },
+        ])
+      }),
+  ))
