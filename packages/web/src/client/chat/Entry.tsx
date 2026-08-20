@@ -46,7 +46,6 @@
  * gap now, because the list is what has rows to put gaps between.
  */
 
-import { nodeNamed } from "@olai/format"
 import type { ChatEntry, Delivery } from "@olai/surface"
 import { createScheduled, throttle } from "@solid-primitives/scheduled"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
@@ -54,11 +53,12 @@ import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 
 import { Attachments } from "./Attachments.tsx"
 import { ContextChips } from "./ContextChips.tsx"
-import { useDerived } from "../derived.tsx"
 import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { TESTID } from "../testids.ts"
+
 import { AskForm } from "./AskForm.tsx"
+import { createDeclared } from "./declared.ts"
 import { markNodeRefs } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import type { Chat } from "./state.ts"
@@ -126,7 +126,14 @@ export function Entry(props: {
   readonly chat: Chat
 }) {
   const due = createScheduled((run) => throttle(run, FRAME_MS))
-  const derived = useDerived()
+  /** What the SET says about the ids this message names — a question now,
+   *  asked once per message ({@link ./declared.ts}).
+   *
+   *  ONLY FOR THE AGENT's own prose, which is the only row with rendered
+   *  markdown in it, and `kind` never changes for an entry — so this is asked
+   *  once rather than leaving every user message and every tool frame of a long
+   *  transcript holding an asker with nothing to ask about. */
+  const declared = props.entry.kind === "agent" ? createDeclared() : undefined
   /** The element the agent's rendered answer lands in, so the ids it names can
    *  be found in it ({@link ./refs.ts}). A ref rather than a query on the pane:
    *  the pass is over ONE message, and it re-runs while that message streams. */
@@ -140,33 +147,37 @@ export function Entry(props: {
     return due() ? text : previous
   })
   // ONLY for the agent's own prose, which is the only row that has rendered
-  // markdown in it — and `kind` never changes for an entry, so this is a
-  // question asked once rather than a `said === undefined` bail inside an
-  // effect every row of a long transcript would keep live. It also keeps the
-  // markdown chunk's fetch where it was: reading `markdownReady()` is what
-  // ASKS for the pipeline (`../markdown/chunk.ts`), and a panel of user
-  // messages should no more request it than a page of outline rows does.
+  // markdown in it — asked once, off the same `kind` the asker above was, so
+  // this is not a `said === undefined` bail inside an effect every row of a
+  // long transcript would keep live. It also keeps the markdown chunk's fetch
+  // where it was: reading `markdownReady()` is what ASKS for the pipeline
+  // (`../markdown/chunk.ts`), and a panel of user messages should no more
+  // request it than a page of outline rows does.
+
   //
   // It re-runs on three things, because three things move: the sentence as it
-  // streams, the SET (an id is a reference because a node with that id is
-  // loaded, and files are written while a panel is open), and the pipeline
-  // landing — until which the element holds the answer's own text, `pre-wrap`
-  // and with no code spans in it at all, so a pass that did not track it would
-  // run once against that text and never again.
-  if (props.entry.kind === "agent") {
+  // streams, the ANSWER (which of these ids the set declares is a question now,
+  // and it lands a beat after the words do), and the pipeline landing — until
+  // which the element holds the answer's own text, `pre-wrap` and with no code
+  // spans in it at all, so a pass that did not track it would run once against
+  // that text and never again.
+  if (declared !== undefined) {
     createEffect(() => {
       shown()
       markdownReady()
-      const indexes = derived()
-      if (said === undefined || indexes === undefined) return
-      // The format's own rule for what an id names, and what it RESOLVES TO —
-      // the one a `see` link and the composer's chip use. `nodeNamed` follows
-      // a placement to the node standing at it, so a span saying `echo` is
-      // marked with `order`: rows carry the node they SHOW, so the placement's
-      // own id names no row and every press of it would leave the page for a
-      // node that is right there. Asking whether it merely resolved (`!==
-      // undefined`, or `byId.has`) is the same bug one step earlier.
-      markNodeRefs(said, (id) => nodeNamed(indexes, id)?.node.id ?? null)
+      if (said === undefined) return
+      // ASK FIRST, THEN MARK, and both off the same spans: the ids in this
+      // message go as one question ({@link ./declared.ts}), and what has been
+      // answered so far is what marks. A span nothing has answered about yet is
+      // PLAIN — never marked on a guess and un-marked when the answer arrives.
+      // ONE PASS: it marks with what has been answered and hands back every id
+      // the message asked about, which is what goes on the wire. What an id
+      // RESOLVES TO is the format's `nodeNamed`, run server-side — a span
+      // saying `echo` is marked with `order`, because rows carry the node they
+      // SHOW and a mark on the placement's own id would leave the page for a
+      // node that is right there. Reading the answer inside this effect is what
+      // re-runs the pass when one lands.
+      declared.want(markNodeRefs(said, declared.named))
     })
   }
 

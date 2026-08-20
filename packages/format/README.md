@@ -132,7 +132,7 @@ It is never a text diff, and that is the format paying for itself in the other d
 
 ## What a read of the set asks, and what it says back
 
-`src/reading.ts` and `src/searching.ts` are the same argument applied to the other vocabulary that crosses this floor. There are six reads: four over NODES with one atom between them, and two over the other kind of file.
+`src/reading.ts` and `src/searching.ts` are the same argument applied to the other vocabulary that crosses this floor. There are seven reads: four over NODES with one atom between them, one that is a BATCH of ids and shares that atom with nothing, and two over the other kind of file.
 
 | declaration | what answers with it |
 |---|---|
@@ -144,6 +144,8 @@ It is never a text diff, and that is the format paying for itself in the other d
 | `SearchHit`, `SearchAnswer` | `search_nodes` and the ⌘K palette |
 | `DocumentSummary`, `DocumentAnswer` | `list_documents` — every served `.md` with the line it opens with and what it weighs |
 | `DocumentRequest`, `DocumentBody` | `read_document` — one body, whole and verbatim |
+| `NamedRequest`, `NamedAnswer` | `nodes.named` — which of these ids the set declares, and the node each one names. The one read that shares no atom with the others, because it says nothing about a node except that it is there: the chat panel asks it once per message about the ids an agent wrote in backticks, and what it needs back is a lookup rather than a record |
+
 
 `OutlineSummary`'s torn-file row is FLAT and knowingly so: `unreadable` beside a `nodes: 0` and a `roots: []` — a count nobody counted and a claim that the outline is about nothing, on the one file where neither could be known. Every field reads honestly alone; what is untrue is the combination, held apart by a convention a reader has to know. Splitting it into two arms, so the dependent facts exist only on the arm that grounds them the way `NodeAnswer` already does, was written and reviewed on this branch and then reverted: it changes what `list_outlines` answers, and that is the human's ruling to make. A roadmap question, not a defect.
 

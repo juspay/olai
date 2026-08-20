@@ -147,7 +147,14 @@ Three things in the conversation are ids, and none of them is a syntax anybody h
 
 - the **chips on your own message**, which are the nodes you asked about;
 - **what a write changed** — every edit the agent makes through olai's tools draws a line naming the node, and that name is the node;
-- **an id the agent wrote in backticks**, which is how it spells one anyway, because that is how every one of these tools describes its own arguments. A backticked word becomes pressable exactly when the outlines you have loaded declare it: `notes.md` and `--commit=off` stay what they are. An id that names a MIRROR shows you the node it is a placement of — the same place a `see` to that mirror lands, and the only one there is: a mirror is drawn wherever its target is, and it is the target a row stands for.
+- **an id the agent wrote in backticks**, which is how it spells one anyway, because that is how every one of these tools describes its own arguments. A backticked word becomes pressable exactly when the set declares it: `notes.md` and `--commit=off` stay what they are. An id that names a MIRROR shows you the node it is a placement of — the same place a `see` to that mirror lands, and the only one there is: a mirror is drawn wherever its target is, and it is the target a row stands for.
+
+**Which of them are ids is asked of the server**, once per message — the browser used to answer it out of its own copy of the whole directory, and that copy is what it is giving up ([brainstorming/vault-in-browser.md](brainstorming/vault-in-browser.md)). Two things follow, and both are visible:
+
+- a backtick is **plain until the answer lands**, a beat after the words. It is never marked on a guess and unmarked afterwards: a reference that vanishes under your cursor is worse than one that arrives a millisecond late.
+- the answer is **what the set said when the message was drawn**. A message is a record of something that happened; a node named an hour ago and put away since keeps its mark in that paragraph, and pressing it takes you to its page, which says where it now is. The next message that names it asks again.
+
+If the lookup itself fails, the panel says so at the end of the conversation — one line, because one question carries every message's ids. The words are all still there; what is missing is which of them can be pressed.
 
 ## What it shows when it changes something
 

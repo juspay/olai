@@ -29,6 +29,8 @@ import {
   type DatedRequest,
   type MatchingAnswer,
   type MatchingRequest,
+  type NamedAnswer,
+  type NamedRequest,
   type OpFailure,
   type Owed,
   type OwedRequest,
@@ -125,6 +127,20 @@ export interface Ops extends Asking {
   readonly matching: (
     request: MatchingRequest,
   ) => Effect.Effect<MatchingAnswer, OpFailure>
+  /**
+   * WHICH of these ids the set declares, and what each one names ({@link
+   * ./query.ts}'s `named`).
+   *
+   * HERE FOR {@link matching}'s REASON, one door over: an agent that wants to
+   * know whether an id is real reads it (`read_node` answers the node or the id
+   * it does not hold), and is told everything about it. This answers a dozen
+   * ids with nothing but the node each names, which is useful only to a caller
+   * already looking at the words those ids are written in — the chat panel,
+   * deciding which of an agent's backticks are pressable.
+   */
+  readonly named: (
+    request: NamedRequest,
+  ) => Effect.Effect<NamedAnswer, OpFailure>
   /**
    * THE CALENDAR'S DOTS and WHAT IS OWED — the two date readings the sidebar
    * used to take off the browser's own copy of the set
@@ -387,6 +403,9 @@ export const make = (options: Options): Ops => {
     // the set is prose (prose is the one page that carries no filter).
     matching: (request) =>
       Effect.map(read, (at) => Query.matches(at.derived, request, context.now())),
+    // The transcript's backticks, over the same gated read and with no clock in
+    // it: an id names what it names whatever day it is asked on.
+    named: (request) => Effect.map(read, (at) => Query.named(at.derived, request)),
     // The SIDEBAR's two date readings, over the same gated read and over the
     // derivation alone: a dot and a count are both about records, and the other
     // half of the set is prose. The day they are counted against is the

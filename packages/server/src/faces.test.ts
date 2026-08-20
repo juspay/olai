@@ -265,6 +265,13 @@ test("the agent's face is what it can SEE plus the doors its tools land through"
   // `search_nodes` and is answered with the nodes (`./faces.ts`).
   expect(Object.keys(BROWSER)).toContain("search.matching")
   expect(Object.keys(AGENT)).not.toContain("search.matching")
+  // ...and so is the transcript's id lookup, for a reason of the same shape: it
+  // answers a dozen ids with the node each names, which is what a panel drawing
+  // an agent's own backticks needs. An agent asking whether an id is real asks
+  // `read_node` and is told everything about it.
+  expect(Object.keys(BROWSER)).toContain("nodes.named")
+  expect(Object.keys(AGENT)).not.toContain("nodes.named")
+
   // And the human's session is the human's, on this face as on the MCP one.
   expect(Object.keys(AGENT)).not.toContain("chat")
   expect(Object.keys(AGENT)).not.toContain("transcript")
