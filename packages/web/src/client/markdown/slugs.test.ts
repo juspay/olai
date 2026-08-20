@@ -13,7 +13,7 @@
  * app writes and cannot open.
  */
 
-import { slugsIn } from "@olai/format"
+import { proseIn, slugsIn } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { installPipeline } from "./chunk.ts"
@@ -91,9 +91,15 @@ test("a heading inside a fenced block is neither drawn nor promised", () => {
  * not know about frontmatter sees a setext `<h2>` — and that is exactly what
  * the page drew: `title: x` as a heading, with an anchor on it and a row in the
  * table of contents, naming a section the face (which skipped the block) never
- * promised existed. Both sides read the block now — `remark-frontmatter` in
- * `./pipeline.ts`, `@olai/format`'s `frontmatter.ts` in the face — and this is
- * where they are held to the same answer.
+ * promised existed.
+ *
+ * A DOCUMENT IS DRAWN FROM ITS PROSE now (`proseIn`, spent by the three faces
+ * that hold a whole file — `../document/faces.tsx`, `../document/DocRef.tsx`,
+ * `../day/DayNote.tsx`), so the two readings cannot disagree: they are the same
+ * function. What this pins is that the pipeline, handed that prose, draws
+ * exactly the headings the face promises — and that the pipeline itself is
+ * still innocent of frontmatter, which is what keeps a NOTE's own `---` on the
+ * screen (`./pipeline.ts` argues it).
  */
 test("frontmatter is a heading to neither reading", () => {
   const body = [
@@ -106,12 +112,16 @@ test("frontmatter is a heading to neither reading", () => {
     "",
     "## Next steps",
   ].join("\n")
-  expect(drawn(body)).toEqual(slugsIn(body).map(String))
-  expect(drawn(body)).toEqual(["the-plan", "next-steps"])
+  expect(drawn(proseIn(body))).toEqual(slugsIn(body).map(String))
+  expect(drawn(proseIn(body))).toEqual(["the-plan", "next-steps"])
   // …and the block is not on the page at all — no rule, no phantom heading.
-  const html = renderMarkdown(body, FROM)
+  const html = renderMarkdown(proseIn(body), FROM)
   expect(html).not.toContain("<hr")
   expect(html).not.toContain("title: The kitchen plan")
+  // The pipeline HAS NOT LEARNED about the block, which is the other half:
+  // handed the whole body — as a note's own text is handed to it — it draws
+  // the thematic break and the setext heading markdown says are there.
+  expect(renderMarkdown(body, FROM)).toContain("<hr")
 })
 
 /**
@@ -122,9 +132,9 @@ test("frontmatter is a heading to neither reading", () => {
  */
 test("an unclosed fence is a thematic break to both readings", () => {
   const body = ["---", "title: x", "", "# Real", "", "## Also"].join("\n")
-  expect(drawn(body)).toEqual(slugsIn(body).map(String))
-  expect(drawn(body)).toEqual(["real", "also"])
-  expect(renderMarkdown(body, FROM)).toContain("<hr")
+  expect(drawn(proseIn(body))).toEqual(slugsIn(body).map(String))
+  expect(drawn(proseIn(body))).toEqual(["real", "also"])
+  expect(renderMarkdown(proseIn(body), FROM)).toContain("<hr")
 })
 
 /** A setext heading — underlined rather than hashed — is a heading to both. */

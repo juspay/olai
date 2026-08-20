@@ -361,6 +361,11 @@ describe("the properties a node carries", () => {
     })
     // No words in that query, so no field carried it.
     expect(hit).not.toHaveProperty("matched")
+    // …and the keys arrive in the FILE's canonical order — alphabetical, not
+    // the order the block happens to write them (`heldCustom`). A node hit's
+    // `custom` has always come back that way, and two orderings of one open
+    // map inside one ranked answer is a difference a reader would see.
+    expect(Object.keys((hit as { props: object }).props)).toEqual(["agent", "pr"])
     // A document with no block says nothing, exactly as a node with no map
     // does — absence has one spelling here too.
     const [plain] = search(vault, { text: "brief" }, TODAY).hits

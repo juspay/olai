@@ -23,7 +23,7 @@
  * kind's own component rather than about a props type shared with another.
  */
 
-import type { BodyKind } from "@olai/format"
+import { type BodyKind, proseIn } from "@olai/format"
 import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
 
 import { markdownReady } from "../markdown/chunk.ts"
@@ -99,10 +99,25 @@ export const FACES: Record<BodyKind, Face> = {
 function Rendered(props: Reading) {
   const here = useHere()
   const served = useDocument(() => props.file)
-  /** The body, or the empty document there is nothing to draw yet — every
-   *  reader below wants a string and none of them can do anything useful with
-   *  a body that has not landed. */
-  const text = () => served()?.text ?? ""
+  /**
+   * The body's PROSE, or the empty document there is nothing to draw yet —
+   * every reader below wants a string and none of them can do anything useful
+   * with a body that has not landed.
+   *
+   * `proseIn` is where a document's `---` block comes off, and it comes off
+   * HERE rather than in the pipeline because this is the one place that knows
+   * the source is a whole FILE (`../markdown/pipeline.ts` says why a plugin
+   * there would be wrong: it is one pipeline for notes and chat replies too,
+   * and neither of those has frontmatter to hide). One accessor serves all
+   * three readers below — the contents, the landing id and the body — so they
+   * cannot come to disagree about which lines this document has, and neither
+   * can they disagree with the FACE, which is built by the same function.
+   *
+   * The EDITOR is untouched by this and must be: a draft is a change to the
+   * file's whole text, block and all, and `../document/DocEditor.tsx` reads
+   * the served body directly.
+   */
+  const text = () => proseIn(served()?.text ?? "")
   // Empty until the markdown chunk lands, for the same reason the body is the
   // file's own text until then: there is nothing to make a contents out of
   // until something has read the headings. The `<Markdown>` under it is what

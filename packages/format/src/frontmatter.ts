@@ -21,15 +21,17 @@
  *     which is what a document's PROPERTIES are ({@link ./document.ts}'s
  *     `Face.props`, and `prop:` in the query grammar).
  *
- * ## Where the block ENDS is micromark's rule, spelled here
+ * ## Where the block ENDS is THE ECOSYSTEM's rule, spelled here
  *
- * Not "a `---` somewhere near the top": the browser renders through
- * `remark-frontmatter`, so what counts as frontmatter is decided by
- * micromark's frontmatter construct, and a second answer here would be a
- * document whose page hides a block its face read — or worse, the other way
- * round. So {@link matterIn} is that construct's rule, written out and pinned
- * against the real pipeline (`@olai/web`'s `markdown/slugs.test.ts`, which
- * holds the two readings to each other over bodies that carry one):
+ * Not "a `---` somewhere near the top", and the reason is not internal: a `.md`
+ * in somebody's vault is read by other things too — GitHub renders it, an
+ * editor colours it, a static site builds from it — and every one of them uses
+ * micromark's frontmatter construct or a copy of it. A vault whose owner sees
+ * the block hidden on GitHub and drawn as a phantom heading here has met two
+ * answers about their own file. So {@link matterIn} is that construct's rule,
+ * written out, and held to it by a test (`@olai/web`'s
+ * `markdown/frontmatter.test.ts`, which renders each corner below through
+ * `remark-frontmatter` and through this function and requires the same page):
  *
  *   - it OPENS only on the very first line of the file, and only when that
  *     line is exactly three dashes with nothing after it but spaces or tabs.
@@ -138,13 +140,29 @@ import { nothing } from "./write.ts"
  * scan below answers `null` on the first character of the first line, so this
  * costs a `startsWith` per document and allocates nothing.
  *
- * It is the one spelling of the skip, and the three callers are the three
- * readings that used to have zero, one and no copies of it between them:
- * {@link ./documents.ts}'s `firstLine` and {@link ./slug.ts}'s `headingsIn`
- * ask it themselves, because a BODY is the only thing either is ever about;
- * {@link ./document.ts}'s `bodiedDocument` asks it on behalf of `tagsIn` and
- * `linksIn`, because those two are also asked of a record's title and note,
- * where a leading `---` is a thematic break like any other.
+ * IT IS THE ONE SPELLING OF THE SKIP, in this package and in the browser
+ * alike. {@link ./documents.ts}'s `firstLine` and {@link ./slug.ts}'s
+ * `headingsIn` ask it themselves, because a BODY is the only thing either is
+ * ever about; {@link ./document.ts}'s `bodiedDocument` asks it on behalf of
+ * `tagsIn` and `linksIn`, because those two are also asked of a record's title
+ * and note, where a leading `---` is a thematic break like any other; and
+ * `./filter.ts`'s document fold asks it so a word only the block holds is
+ * found by `prop:` rather than by typing it.
+ *
+ * AND THE BROWSER SPENDS IT TOO, which is why it is exported from the package
+ * (`./index.ts`): the three faces that draw a whole file strip the block with
+ * this call before the markdown pipeline ever sees it (`@olai/web`'s
+ * `document/faces.tsx`, `document/DocRef.tsx`, `day/DayNote.tsx`). So the page
+ * and the face cannot disagree about which lines a document has — they are the
+ * same function, rather than two rules held together by a test.
+ *
+ * A `remark-frontmatter` in that pipeline was the other way to do it, and it
+ * is wrong for a reason worth keeping written down: that is ONE pipeline for
+ * every piece of markdown the app draws, so the plugin would change the dialect
+ * for a node's NOTE and for the agent's replies as well — hiding a leading
+ * `---` block off the screen while `tagsIn` and `linksIn` went on reading it as
+ * the prose it is. Two readings of one block, which is the thing this module
+ * exists to end.
  */
 export const proseIn = (body: string): string => {
   const matter = matterIn(body)
@@ -180,12 +198,11 @@ const matterIn = (body: string): { readonly text: string; readonly from: number 
   // one character decides it.
   if (body.charCodeAt(0) !== DASH) return null
   const opens = body.indexOf("\n")
-  if (opens === -1 || !isFence(body.slice(0, opens))) return null
+  if (opens === -1 || !isFence(body, 0, opens)) return null
   let at = opens + 1
-  while (at <= body.length) {
+  while (at < body.length) {
     const end = body.indexOf("\n", at)
-    const line = end === -1 ? body.slice(at) : body.slice(at, end)
-    if (isFence(line)) {
+    if (isFence(body, at, end === -1 ? body.length : end)) {
       return { text: body.slice(opens + 1, at), from: end === -1 ? body.length : end + 1 }
     }
     if (end === -1) break
@@ -197,18 +214,31 @@ const matterIn = (body: string): { readonly text: string; readonly from: number 
 }
 
 const DASH = "-".charCodeAt(0)
+const SPACE = " ".charCodeAt(0)
+const TAB = "\t".charCodeAt(0)
+const RETURN = "\r".charCodeAt(0)
 
-/** Is this line the block's fence — exactly three dashes at the left margin,
- *  and after them nothing a line ending may carry? */
-const isFence = (line: string): boolean =>
-  line.length >= 3 && line.charCodeAt(0) === DASH && line.charCodeAt(1) === DASH &&
-  line.charCodeAt(2) === DASH && blank(line.slice(3))
+/**
+ * Is the span `[from, to)` of `text` the block's fence — exactly three dashes
+ * at the left margin, and after them nothing a line ending may carry?
+ *
+ * OVER OFFSETS rather than over a line, which is what keeps the walk above
+ * allocation-free on the path that matters: an UNCLOSED `---` is scanned to
+ * the end of the file before it can be refused, and a line materialised per
+ * line of a whole document is the cost `./documents.ts`'s `firstLine` and
+ * `./slug.ts`'s `headingsIn` both refuse by name. Every line of that walk now
+ * costs three `charCodeAt`s and stops on the first one that is not a dash.
+ */
+const isFence = (text: string, from: number, to: number): boolean =>
+  to - from >= 3 && text.charCodeAt(from) === DASH && text.charCodeAt(from + 1) === DASH &&
+  text.charCodeAt(from + 2) === DASH && blank(text, from + 3, to)
 
-/** Whether what is left of a line is only the whitespace a line ending may
- *  drag along — spaces, tabs, and the `\r` of a file written on Windows. */
-const blank = (rest: string): boolean => {
-  for (const char of rest) {
-    if (char !== " " && char !== "\t" && char !== "\r") return false
+/** Whether the span holds only the whitespace a line ending may drag along —
+ *  spaces, tabs, and the `\r` of a file written on Windows. */
+const blank = (text: string, from: number, to: number): boolean => {
+  for (let at = from; at < to; at++) {
+    const char = text.charCodeAt(at)
+    if (char !== SPACE && char !== TAB && char !== RETURN) return false
   }
   return true
 }
@@ -227,15 +257,18 @@ const blank = (rest: string): boolean => {
  */
 const propsIn = (region: string): Custom => {
   const props: Record<string, CustomValue> = {}
-  // The key a `- item` line would belong to, and what it has collected. `null`
-  // means no key is open, so a stray item is an item under nothing and is
-  // dropped with everything else this reading refuses.
-  let open: string | null = null
-  let items: Array<string> | null = null
+  // THE KEY A `- item` LINE WOULD BELONG TO, and what it has collected — one
+  // value, because they are one fact: a list of items under no key is not a
+  // state this reading has. `null` is "no key is open", so a stray item is an
+  // item under nothing and is dropped with everything else that is refused.
+  //
+  // A key that collected NOTHING is dropped by {@link claim}, which refuses a
+  // value that is nothing and `[]` is one — so `owners:` with no sequence
+  // under it needs no case of its own here.
+  let open: { readonly key: string; readonly items: Array<string> } | null = null
   const close = (): void => {
-    if (open !== null && items !== null) claim(props, open, items)
+    if (open !== null) claim(props, open.key, open.items)
     open = null
-    items = null
   }
   for (const raw of region.split("\n")) {
     const line = raw.replace(TRAILING, "")
@@ -257,10 +290,9 @@ const propsIn = (region: string): Custom => {
       const value = scalarOf(item)
       if (value === null || value === "") {
         open = null
-        items = null
         continue
       }
-      ;(items ??= []).push(value)
+      open.items.push(value)
       continue
     }
     close()
@@ -274,7 +306,7 @@ const propsIn = (region: string): Custom => {
     // No inline value: the key is waiting for a block sequence, and holds
     // nothing if none follows.
     if (rest === "") {
-      open = key
+      open = { key, items: [] }
       continue
     }
     const value = valueIn(rest)
@@ -345,13 +377,13 @@ const splitKey = (text: string): readonly [key: string, rest: string] | null => 
  * had to remember to write.
  */
 const valueIn = (text: string): CustomValue | null =>
-  text.startsWith("[")
-    // A flow sequence, and only when the bracket it opened is the very last
-    // character: `[a, b] # note` is refused rather than half-read, because
-    // taking a comment off the inside of a flow context correctly is having a
-    // YAML parser, and guessing at it is how a reader ends up with a value
-    // nobody wrote.
-    ? (text.endsWith("]") ? flowSequence(text.slice(1, -1)) : null)
+  // A flow sequence, and only when the bracket it opened is the very last
+  // character. `[a, b] # note` falls through to {@link scalarOf}, which refuses
+  // a leading `[` — so it is refused rather than half-read, because taking a
+  // comment off the inside of a flow context correctly is having a YAML parser,
+  // and guessing at it is how a reader ends up with a value nobody wrote.
+  text.startsWith("[") && text.endsWith("]")
+    ? flowSequence(text.slice(1, -1))
     : scalarOf(text)
 
 /**
@@ -372,7 +404,7 @@ const scalarOf = (text: string): string | null => {
   if (first === "[" || first === "{" || first === "&" || first === "*" || first === "!") {
     return null
   }
-  if ((first === "|" || first === ">") && blank(text.slice(1))) return null
+  if ((first === "|" || first === ">") && blank(text, 1, text.length)) return null
   // A `#` HERE is a comment and not a value, because the colon already put a
   // space in front of it: `pr: #176` says the key holds nothing, and
   // `pr: "#176"` is how that value is written. It is {@link plain}'s own rule,
@@ -447,6 +479,12 @@ const quoted = (text: string, quote: string): string | null => {
  * file does not carry — the same answer `[]` gets on a record (`./write.ts`).
  */
 const flowSequence = (inside: string): ReadonlyArray<string> | null => {
+  // THE EMPTY LIST, decided before the walk rather than by a sentinel inside
+  // it: `[]` holds no member, and {@link claim} reads a list of nothing as a
+  // key the file does not carry — the same answer `[]` gets on a record
+  // (`./write.ts`). Whitespace-only input can hold no comma and no quote, so
+  // this is the only way it could ever have left the loop.
+  if (inside.trim() === "") return []
   const members: Array<string> = []
   let from = 0
   let quote: string | null = null
@@ -463,10 +501,8 @@ const flowSequence = (inside: string): ReadonlyArray<string> | null => {
       continue
     }
     if (char !== "," && char !== undefined) continue
-    const member = inside.slice(from, at).trim()
+    const value = scalarOf(inside.slice(from, at).trim())
     from = at + 1
-    if (member === "" && char === undefined && members.length === 0) break
-    const value = scalarOf(member)
     if (value === null || value === "") return null
     members.push(value)
   }

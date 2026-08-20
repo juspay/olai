@@ -1383,7 +1383,15 @@ const matchedBy = <F extends string>(
  * keeps `holds` a predicate. The cost is a second walk of a handful of entries,
  * on the things a query actually selected.
  */
-const propsOf = (props: Custom, filter: Extract<Filter, { kind: "asking" }>) => {
+const propsOf = (
+  props: Custom,
+  filter: Extract<Filter, { kind: "asking" }>,
+): ReadonlyArray<string> => {
+  // "No work at all" said in the code as well as in the sentence below: this
+  // is called for everything the clauses let through, so the array it used to
+  // mint before looking was an allocation per hit of every query in the app —
+  // and nearly every query names no property.
+  if (filter.namedProps.length === 0) return NO_KEYS
   const keys: Array<string> = []
   // The clauses the query NAMED, in the reader's own order and without walking
   // the groups it is tested through — {@link Filter}'s `namedProps` argues both
@@ -1401,6 +1409,11 @@ const propsOf = (props: Custom, filter: Extract<Filter, { kind: "asking" }>) => 
   }
   return keys
 }
+
+/** One empty list for every hit of every query that named no property, which
+ *  is nearly all of them — `./documents.ts`'s `NO_LINKS` next door, for its
+ *  reason. */
+const NO_KEYS: ReadonlyArray<string> = []
 
 /** The best a single word does across the four fields: the score it earns, and
  *  the highest-weighted field that held it. */
