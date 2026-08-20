@@ -152,19 +152,19 @@ test("hypertext is a face and no body", () => {
 // it true of every caller. The one in the tree that does not walk a directory
 // is the write gate: it assembles what the last probe held with the files it is
 // about to write swapped in, so a path that did not exist before sits at the
-// END of that map — and until #208 a created `Archive.olai` was published after
+// END of that map — and until #208 a created `_olai/Trash.olai` was published after
 // the `house.olai` it sorts before, which `list_outlines` answers with and a
 // search tie breaks on.
 test("documents come out in path order, whatever order the map holds", () => {
   const set = assemble(decoded({
     "zeta.olai": outline("zeta.olai", `{"id":"z","ord":"a","title":"z"}`),
     "notes/zebra.md": document("notes/zebra.md", "z\n"),
-    "Archive.olai": outline("Archive.olai", `{"id":"arch","ord":"a","title":"arch"}`),
+    "_olai/Trash.olai": outline("_olai/Trash.olai", `{"id":"arch","ord":"a","title":"arch"}`),
     "notes/apple.md": document("notes/apple.md", "a\n"),
     "middle.olai": outline("middle.olai", `{"id":"mid","ord":"a","title":"mid"}`),
   }))
   expect(paths(set)).toEqual([
-    "Archive.olai",
+    "_olai/Trash.olai",
     "middle.olai",
     "notes/apple.md",
     "notes/zebra.md",

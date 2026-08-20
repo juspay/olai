@@ -10,7 +10,7 @@
  *
  * The generator writes the awkward sets on purpose — duplicate ids, mirrors of
  * mirrors, chains that dangle, edges that name a placement, parents in another
- * file, an `Archive.olai` — because those are exactly the corners where an
+ * file, an `_olai/Trash.olai` — because those are exactly the corners where an
  * incremental index and a rebuilt one can quietly disagree, and because
  * `derive` itself is written to answer over sets the validator has condemned.
  * The corners it reaches only by luck are pinned by hand below, each with the
@@ -124,7 +124,7 @@ const pick = <T>(random: () => number, from: ReadonlyArray<T>): T =>
  *  compare and a walk that descends — disagree about which comes first, which
  *  is slice 4's landmine and is now one answer, `byPath`), and the archive,
  *  whose records are exempt from blockedness at both ends of an arrow. */
-const FILES = ["a.olai", "a/inner.olai", "b.olai", "deep/c.olai", "Archive.olai"] as const
+const FILES = ["a.olai", "a/inner.olai", "b.olai", "deep/c.olai", "_olai/Trash.olai"] as const
 /** The names records are drawn from — small enough that a target often names a
  *  record that is really there, and often one that is not. */
 const IDS = Array.from({ length: 24 }, (_, at) => `n${at}`)

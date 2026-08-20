@@ -450,7 +450,7 @@ describe("apply", () => {
   })
 
   test("an op after an archive is planned against the file the archive made", () => {
-    // `archive` mints an `Archive.olai` that the set has never held, so the
+    // `archive` mints an `_olai/Trash.olai` that the set has never held, so the
     // reading the NEXT op is judged against carries a file the derivation was
     // not built from. That is the one case the fold's patched view has to get
     // right — and the proof is that the second op can name the node that has
@@ -458,15 +458,15 @@ describe("apply", () => {
     const result = planned(
       house(),
       batch(
-        { op: "archive", id: "order" },
+        { op: "trash", id: "order" },
         { op: "title", id: "order", title: "order the walnut cabinets" },
       ),
     )
     expect(result.files.map((one) => one.file).sort()).toEqual([
-      "Archive.olai",
+      "_olai/Trash.olai",
       "house.olai",
     ])
-    expect(record(fileOf(result, "Archive.olai"), "order").title)
+    expect(record(fileOf(result, "_olai/Trash.olai"), "order").title)
       .toBe("order the walnut cabinets")
     expect(fileOf(result, "house.olai").some((one) => one.id === "order")).toBe(false)
   })

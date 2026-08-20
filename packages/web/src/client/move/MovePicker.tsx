@@ -22,7 +22,7 @@
  * cannot drift, and neither can this door and the one next to it.
  *
  * The query is the full grammar, so `is:todo`, `#home` and `file:garden.olai`
- * all narrow the destinations — and `is:archived` reaches into the Trash, where
+ * all narrow the destinations — and `is:trashed` reaches into the Trash, where
  * every hit is refused by name rather than quietly missing. Archived nodes are
  * out of the default answer already (the matcher's own rule), so that refusal
  * is for the reader who asked for them on purpose.

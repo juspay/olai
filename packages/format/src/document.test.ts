@@ -172,7 +172,7 @@ test("a document linking its own heading is not its own referrer", () => {
 // standing rule, read once more over the other kind of referrer.
 test("a referrer written in an archive is left out", () => {
   const set = setOf(
-    { "Archive.olai": `{"id":"old","ord":"a0","title":"was here","doc":"brief.md"}\n` },
+    { "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"was here","doc":"brief.md"}\n` },
     [["brief.md", "# Brief\n"]],
   )
   expect(pointingAt(set, "brief.md")).toEqual([])

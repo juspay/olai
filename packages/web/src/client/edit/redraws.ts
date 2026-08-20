@@ -57,8 +57,8 @@ const MOVES: ReadonlySet<Edit["verb"]> = new Set<Edit["verb"]>([
   "mark",
   // The row leaves the page entirely, or comes back to it.
   "remove",
-  "archive",
-  "unarchive",
+  "trash",
+  "untrash",
   "unmirror",
   // A new row appears where the draft was standing.
   "add",

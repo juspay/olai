@@ -1,7 +1,7 @@
 Feature: What is put away is on the Trash and nowhere else
   Moving a row to the Trash used to change where it was READ and not whether it
   was read: an archived node kept its dates, so it went on lighting its day in
-  the calendar, sat on that day's page under an `Archive.olai` heading, and — if
+  the calendar, sat on that day's page under an `_olai/Trash.olai` heading, and — if
   somebody had scheduled it and never finished it — went on being owed on the
   agenda. That was a deliberate rule (2026-08-11: work that was put away is
   still work that happened) and the human reversed it on 2026-08-17 after
@@ -14,7 +14,7 @@ Feature: What is put away is on the Trash and nowhere else
   not a day, not the calendar's dots, not the agenda, not the count beside it in
   the sidebar. Nothing on disk moves for that: the record keeps its dates and
   its mark, Put back returns it to its days along with its outline, and
-  `is:archived` reaches it from every search box in the meantime. What was taken
+  `is:trashed` reaches it from every search box in the meantime. What was taken
   away is the DEFAULT presence, never the way to ask.
 
   These scenarios are that rule read once per page, over the vault the rest of
@@ -81,7 +81,7 @@ Feature: What is put away is on the Trash and nowhere else
     And there should be no page errors
 
   @scratch:good
-  Scenario: The Trash is where it went, and `is:archived` still reaches it
+  Scenario: The Trash is where it went, and `is:trashed` still reaches it
     # The other half of the ruling: what went is the DEFAULT presence, never the
     # way to ask. How the Trash lists a pile is `trash.feature`'s, and how a
     # query searches within it is `filter_everywhere.feature`'s — what is this
@@ -97,10 +97,10 @@ Feature: What is put away is on the Trash and nowhere else
     Then the day lists "catch-up"
     # On the day itself there is nothing archived to find — the page draws none
     # of it, and a filter narrows the page rather than re-asking its question.
-    When I filter the page by "is:archived"
+    When I filter the page by "is:trashed"
     Then the filter found "no matches of 1"
     When I clear the filter
     And I press the palette shortcut
-    And I type "is:archived" into the palette
+    And I type "is:trashed" into the palette
     Then the palette lists the node "order the new cabinets"
     And there should be no page errors

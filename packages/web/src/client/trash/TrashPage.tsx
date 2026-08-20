@@ -1,12 +1,12 @@
 /**
  * The trash: what was put away, kept whole, and the one way back out.
  *
- * This is `Archive.olai` made visible — every archive under the directory,
+ * This is `_olai/Trash.olai` made visible — every archive under the directory,
  * drawn as the tree the archive op wrote: the scaffold of ancestor titles,
  * and the subtrees hanging off it exactly as they left. The web calls it
  * TRASH because that is what it is to a person (Workflowy's word, and the
  * confirm's promise); the file keeps its name, the ops vocabulary keeps
- * `archive_node`, and only this human-facing surface renames anything.
+ * `trash_node`, and only this human-facing surface renames anything.
  *
  * IT IS NOT A PLACE YOU EDIT, and that is drawn rather than fenced: no
  * editor mounts here, no `•••`, no checkbox, no date pill — a row is its
@@ -15,7 +15,7 @@
  * layer's own answer (the recorded chain of ancestor titles, matched back
  * against the live outlines), a refusal comes back in the ops layer's own
  * words under the row, and ⌘Z after a put-back archives it again — the
- * inverse the server records. An agent's `unarchive_node` is the same call,
+ * inverse the server records. An agent's `untrash_node` is the same call,
  * which is what HACKING.md's consistency rule demands of a new verb.
  *
  * THE PAGE HAS ONE VERB OF ITS OWN, and it is the app's only delete:
@@ -28,7 +28,7 @@
  * too.
  *
  * An EMPTY trash is a page that says so, not an error: the archive tool
- * re-creates `Archive.olai` on first use, so a directory with no archive
+ * re-creates `_olai/Trash.olai` on first use, so a directory with no archive
  * file and one whose archives hold nothing are the same fact, and both are
  * drawn the same way — and that is also what takes the **Empty trash** verb
  * off the page, since a control offering to delete nothing teaches a reader
@@ -38,7 +38,7 @@
  *
  * The filter box narrows this page like any other, and the one thing that had
  * to be said out loud for it to work is that the archive is IN SCOPE here: a
- * query normally leaves what was put away alone unless it says `is:archived`
+ * query normally leaves what was put away alone unless it says `is:trashed`
  * (docs/search.md), and a matcher applying that rule to the page that IS the
  * archive would take away every row and give the reader nothing to read it by.
  * So the scope is the page (`../filter/narrowing.ts`), and a word typed here
@@ -86,7 +86,7 @@ export function TrashPage(props: {
       <header class="mb-8">
         <h1 class={`${PAGE_TITLE} italic text-ink`}>Trash</h1>
         <p class="m-0 mt-1 text-sm text-muted">
-          What was archived, kept whole. Put a row back and it returns where it
+          What was put away, kept whole. Put a row back and it returns where it
           came from, everything under it included.
         </p>
         {/* The PAGE's verb, and the only one here that is not about a row —
@@ -100,7 +100,7 @@ export function TrashPage(props: {
       <Show
         when={props.groups.length > 0}
         fallback={
-          // "The Trash is empty." is a claim about the ARCHIVE; a query that
+          // "The Trash is empty." is a claim about the TRASH; a query that
           // found none of it is a claim about the query, and the bar makes
           // that one (`../filter/narrowed.tsx` holds the division).
           <Show when={unfiltered(narrowed)}>
@@ -151,12 +151,12 @@ function Branch(props: {
   const { said, say } = createSaying()
 
   // The id the verb names is the ROW's own record — for the one row that
-  // offers it, a regular node, so it is the id `unarchive_node` takes. A
+  // offers it, a regular node, so it is the id `untrash_node` takes. A
   // placement in the trash draws as the footnote it is and offers nothing:
   // the way to take a mirror out is to put its node back.
   const putBack = async () => {
     const answer = await applying(
-      { verb: "unarchive", id: props.row.at.node.id },
+      { verb: "untrash", id: props.row.at.node.id },
       undo.record,
     )
     // A landed put-back removes this row on the next frame, so what lingers

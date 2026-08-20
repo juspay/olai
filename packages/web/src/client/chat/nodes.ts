@@ -24,7 +24,7 @@
  *
  * What that buys, free and unasked for: `@is:blocked` names something waiting,
  * `@#home` names by tag, `@date:today` names something scheduled — and
- * `@is:archived` reaches what was put away, which is the only way to reach it
+ * `@is:trashed` reaches what was put away, which is the only way to reach it
  * (below). What it does NOT buy is a survey: an operator with no word in it
  * scores every match the same, so all that orders the eight is the rule that
  * puts finished work last, and then the directory's own order. That is honest
@@ -56,14 +56,14 @@
  * already has covers it — an `@` that matches nothing draws nothing and types
  * straight through.
  *
- * ## What was put away is not offered, and `@is:archived` is how you ask
+ * ## What was put away is not offered, and `@is:trashed` is how you ask
  *
  * Zero lines here, which is the point: {@link matching} reads the query's own
- * `speaksOfArchive` before it walks, so #226's ruling ("what is put away is
+ * `speaksOfTrash` before it walks, so #226's ruling ("what is put away is
  * drawn on the Trash and nowhere else", docs/search.md's one-page rule) arrives
  * inherited. A door that respelled it is a door that can drift from it.
  *
- * The FILE half of the same list goes the other way — `Archive.olai` is in it —
+ * The FILE half of the same list goes the other way — `_olai/Trash.olai` is in it —
  * and the two are right for their own reasons rather than by oversight: a path
  * names bytes an agent will read, where a node names a row of a reading, and
  * "what did we put away last month" is answered by naming the file or by

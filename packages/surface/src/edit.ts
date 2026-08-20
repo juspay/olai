@@ -47,13 +47,13 @@
  * standing deviation (`editor-op-parity`), not editor growth. `date`,
  * `unmirror` and `archive` close it for ops that already exist on the other
  * face: each resolves to the request `set_date` / `remove_mirror` /
- * `archive_node` would have sent, judged by the same planner, refused in the
+ * `trash_node` would have sent, judged by the same planner, refused in the
  * same words. Two of them are chosen from the `•••` menu; `date` is sent by
  * that menu (`Clear date`) and by the picker a row's date pill opens.
  * `unarchive` is the fourth and the one exception to "already exist": no face
  * had it (`parity-unarchive`), so the op was born in the ops layer and both
  * faces got it in the same change — the Trash view's `Put back` sends it, and
- * `unarchive_node` is the same call.
+ * `untrash_node` is the same call.
  *
  * `repeat` IS THE FIFTH OF THAT GROUP, and it is `unarchive`'s case rather
  * than `date`'s: nothing had it. A dated node that comes back is one op born in
@@ -101,7 +101,7 @@
  * where the shelf IS is read on the server exactly as the inbox is. What it
  * does NOT have is a twin: unpinning is `archive` of the pin's own node,
  * because the shelf is a file of ordinary nodes and a removal it did not share
- * with `archive_node` would be a verb only one face knew.
+ * with `trash_node` would be a verb only one face knew.
  *
  * AND ONE IS BOTH THEIRS. `mark` names the mark a node should carry, which is
  * what a menu entry means ("this is doing now") and what an undo means ("it
@@ -128,7 +128,7 @@
  * under it, which is a rule about what an UNDO is entitled to. `archive` is the
  * ops layer's own put-away, which the human ruled may take a subtree WITH a
  * confirm naming what goes (2026-08-12); the ids come along, so a mirror or an
- * `after` that named any of it goes on resolving. Both are `archive_node`
+ * `after` that named any of it goes on resolving. Both are `trash_node`
  * underneath and neither erases anything. A KEY that erases a branch is still
  * not spellable here, and the deferral #109 recorded (human, 2026-08-11) is
  * still the human's to close — what it is about is work leaving an outline
@@ -525,22 +525,22 @@ export const Edit = Schema.Union([
     at: Anchor,
   }),
   /**
-   * Put a node and everything under it away — `archive_node`, from the menu.
+   * Put a node and everything under it away — `trash_node`, from the menu.
    *
-   * A TRASH, not a shredder: the subtree moves to `Archive.olai` under a
+   * A TRASH, not a shredder: the subtree moves to `_olai/Trash.olai` under a
    * scaffold of its ancestors' titles, keeping every id, so a mirror, an
    * `after` or a `see` that named any of it goes on resolving. It is one op —
    * the subtree is the op's unit, not this verb's arithmetic — and the fence
    * around it is not on the wire at all: it is the CONFIRM the menu asks
    * first, naming how many rows go with it (human, 2026-08-12). A fence in
-   * this schema would be a rule an agent's `archive_node` does not have, which
+   * this schema would be a rule an agent's `trash_node` does not have, which
    * is the deviation read backwards.
    *
    * AND IT COMES BACK: `unarchive` below is the way out, so the trash really
    * is one — the confirm can promise a bin somebody can open, because the
    * Trash view opens it and `Put back` is on every row.
    */
-  Schema.Struct({ verb: Schema.Literal("archive"), id: Id }),
+  Schema.Struct({ verb: Schema.Literal("trash"), id: Id }),
   /**
    * COPY a node and everything under it, as the sibling below — `duplicate_node`,
    * from the row menu and from ⌘⇧D.
@@ -632,7 +632,7 @@ export const Edit = Schema.Union([
   }),
   /**
    * Take a node and everything under it back OUT of the archive —
-   * `unarchive_node`, from the Trash view's `Put back`, and the other half of
+   * `untrash_node`, from the Trash view's `Put back`, and the other half of
    * `parity-unarchive`: the op was born in the ops layer and reached both
    * faces together, so neither face can do what the other cannot.
    *
@@ -646,7 +646,7 @@ export const Edit = Schema.Union([
    * ids an agent would have named — the same rule `place` follows.
    */
   Schema.Struct({
-    verb: Schema.Literal("unarchive"),
+    verb: Schema.Literal("untrash"),
     id: Id,
     /** The live node it goes back under — an undo's record of where it sat.
      *  Absent, the archive's own chain decides. */
@@ -659,7 +659,7 @@ export const Edit = Schema.Union([
    * EMPTY THE TRASH — permanently delete everything in it, and the ONE write
    * on this surface that destroys.
    *
-   * IT NAMES NO ARCHIVE, and that is the shape of it. Which archives the
+   * IT NAMES NO TRASH, and that is the shape of it. Which archives the
    * directory holds, and which of them have anything in them, are facts about
    * the SET — so they are read where the write is judged
    * ({@link ../../server/src/edit.ts}), exactly as the inbox `capture` lands in
@@ -776,7 +776,7 @@ export const Edit = Schema.Union([
    * (`web/src/client/routes.ts`'s bijection), and a node's title is text. So a
    * pin is an ordinary node whose title is the address, in an ordinary outline
    * — and an agent pins, reorders and unpins with `add_node`, `move_node` and
-   * `archive_node`, which is the consistency rule paid up front rather than
+   * `trash_node`, which is the consistency rule paid up front rather than
    * closed later (HACKING.md).
    *
    * WHERE IT LANDS IS THE SERVER'S, exactly as {@link capture}'s inbox is and
@@ -792,7 +792,7 @@ export const Edit = Schema.Union([
    * THERE IS NO `unpin`, deliberately: taking a pin off the shelf is
    * {@link archive} of that pin's own node, which is the removal the set
    * already has — reversible from the Trash, and undoable with ⌘Z like every
-   * other write here. A second verb would be `archive_node` under a name only
+   * other write here. A second verb would be `trash_node` under a name only
    * one face knew.
    */
   Schema.Struct({
@@ -925,11 +925,11 @@ export const Edit = Schema.Union([
    * sends it, and the deferral #109 recorded is not this PR's to close.
    *
    * It resolves to `archive`, because that is the only removal the SET has: a
-   * node goes to `Archive.olai` keeping its id, which is a trash rather than
-   * a shredder and is exactly what `archive_node` does for an agent.
+   * node goes to `_olai/Trash.olai` keeping its id, which is a trash rather than
+   * a shredder and is exactly what `trash_node` does for an agent.
    *
    * What the WIRE guarantees is the narrowing, and it is worth saying in those
-   * terms rather than in the client's: this is `archive_node` minus every node
+   * terms rather than in the client's: this is `trash_node` minus every node
    * that has anything under it. That nothing but an inverse produces one today
    * is a fact about the editor, and a fact about the editor is not a fence —
    * the fence is the refusal, and it is the ops layer's rule about what an

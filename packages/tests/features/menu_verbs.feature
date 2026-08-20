@@ -234,9 +234,9 @@ Feature: The ••• menu writes
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
     Then "house.olai" no longer holds the node "install"
-    And "Archive.olai" holds the node "install"
-    And "Archive.olai" holds the node "hinges"
-    And "Archive.olai" holds a node titled "install the cabinets"
+    And "_olai/Trash.olai" holds the node "install"
+    And "_olai/Trash.olai" holds the node "hinges"
+    And "_olai/Trash.olai" holds a node titled "install the cabinets"
     And the node "install" is not shown
     And there should be no page errors
 

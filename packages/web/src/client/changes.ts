@@ -29,7 +29,7 @@ import type { Sort } from "@olai/format"
  */
 export const SAID: Readonly<Record<Sort, string>> = {
   created: "created",
-  archived: "archived",
+  trashed: "trashed",
   gone: "gone from the file",
   done: "marked done",
   undone: "no longer done",
@@ -54,7 +54,7 @@ export const SAID: Readonly<Record<Sort, string>> = {
  */
 export const GLYPH: Readonly<Record<Sort, string>> = {
   created: "+",
-  archived: "⌦",
+  trashed: "⌦",
   gone: "⌦",
   done: "✓",
   undone: "○",

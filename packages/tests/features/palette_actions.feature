@@ -186,8 +186,8 @@ Feature: The ⌘K palette writes
     And I choose "Move to Trash" from the palette
     And I choose "Move to Trash" from the palette
     Then "house.olai" no longer holds the node "install"
-    And "Archive.olai" holds the node "install"
-    And "Archive.olai" holds the node "hinges"
+    And "_olai/Trash.olai" holds the node "install"
+    And "_olai/Trash.olai" holds the node "hinges"
     And there should be no page errors
 
   Scenario: ⌘Z takes back an op chosen from the palette

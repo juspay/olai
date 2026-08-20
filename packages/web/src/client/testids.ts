@@ -690,7 +690,7 @@ export const TESTID = {
   trashLink: "trash-link",
   /** The trash, as a page. Every archive the directory holds, read-only. */
   trashPage: "trash-page",
-  /** One archive's worth of rows on it; `data-file` is which `Archive.olai`.
+  /** One archive's worth of rows on it; `data-file` is which `_olai/Trash.olai`.
    *  Drawn per archive that holds anything; its heading appears only when the
    *  directory holds more than one, the way the day page groups by file. */
   trashGroup: "trash-group",

@@ -67,7 +67,8 @@ import {
 } from "./derive.ts"
 import { fileKind, stemOf } from "./kinds.ts"
 import {
-  isArchived,
+  isLeftoverArchive,
+  isTrashed,
   isMirror,
   type LocatedRegular,
   type RegularNode,
@@ -206,31 +207,39 @@ export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
  * field to carry a date or a mark — so a node on the 10th is on the 10th once,
  * however many places it is shown.
  *
- * THE ARCHIVE IS EXCLUDED, and this is the one place that says so for every
+ * THE TRASH IS EXCLUDED, and this is the one place that says so for every
  * date reading there is (ruled 2026-08-17, human, reversing 2026-08-11): what
  * was put away is drawn on the TRASH PAGE AND NOWHERE ELSE. The earlier rule
  * kept archived work on the day it happened — a journal asks what happened, and
  * archiving is what people do with work after they finish it — and what that
  * cost in practice was the other half of the sentence: a day and the agenda
  * went on drawing rows a reader had already swept off the page, under an
- * `Archive.olai` heading that explained where they lived without explaining why
+ * `_olai/Trash.olai` heading that explained where they lived without explaining why
  * they were still there. Putting something away is that reader saying they are
  * done looking at it, and the trash is where it is looked at again.
+ *
+ * Leftover `Archive.olai` is the same exclusion one basename over (human,
+ * 2026-08-19): left on disk and stop being read — orphaned. Those files are
+ * not trash, so they are not this walk's trash-page remainder; they are also
+ * not live work, so a date in one lights no day. {@link isLeftoverArchive} is
+ * the predicate; a kind-registry skip would have been a tombstone.
  *
  * ONE EXCLUSION, HERE, because there is one walk: the day page, the calendar's
  * dots and the agenda's three sections ({@link datedByDay}, {@link datedDays},
  * ./agenda.ts) are all readings of this list, so a rule spelled here cannot
  * come to mean something different on one of them.
  *
- * What it does NOT touch is the grammar: `is:archived` still selects archived
+ * What it does NOT touch is the grammar: `is:trashed` still selects archived
  * nodes at every door, including a `date:` clause beside it, because that
  * reading asks {@link datesOf} of a record rather than asking this for a day
  * (./filter.ts). The default presence is what was taken away; the reachability
- * was not (docs/search.md).
+ * was not (docs/search.md). Leftover `Archive.olai` is not that remainder:
+ * `is:trashed` does not reach it either.
  */
 const datedNodes = (derived: Derived): ReadonlyArray<Dated> =>
   derived.nodes.flatMap((located) =>
-    isMirror(located.node) || isArchived(located.file)
+    isMirror(located.node) || isTrashed(located.file) ||
+        isLeftoverArchive(located.file)
       ? []
       : datesOf(located.node).map((dated) => ({
         at: located as LocatedRegular,

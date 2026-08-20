@@ -20,16 +20,16 @@
  * agenda are flat rows that arrive carrying their own ancestry, the trash is a
  * tree per archive.
  *
- * THE ARCHIVE IS ASKED FOR, ONCE, HERE — and it is the one thing this file
+ * THE TRASH IS ASKED FOR, ONCE, HERE — and it is the one thing this file
  * tells the matcher about the question rather than about the answer. Archived
- * nodes are out of every reading unless a query says `is:archived`
+ * nodes are out of every reading unless a query says `is:trashed`
  * (docs/search.md), because the doors that rule is written for are searching
  * the DIRECTORY. This door is not: it tests the rows in front of somebody, and
  * the TRASH is the page that draws what was put away — applying the default
  * there would take away every row and leave the reader nothing to read the
  * absence by — and so is a TREE that is a zoom onto an archived node, which is
- * where an `is:archived` hit lands when it is clicked (`./drawn.ts`'s
- * {@link showsArchived} names both, and the mirror case it cannot rule out).
+ * where an `is:trashed` hit lands when it is clicked (`./drawn.ts`'s
+ * {@link showsTrashed} names both, and the mirror case it cannot rule out).
  * A day and the agenda were two more until 2026-08-17, when the human ruled
  * that what is put away is drawn on the trash and nowhere else
  * (`@olai/format`'s `dates.ts` is where they stopped drawing it), and the
@@ -50,7 +50,7 @@ import { type Accessor, createMemo } from "solid-js"
 
 import type { Drawn } from "../page.ts"
 import { type Counts, NOTHING_COUNTED } from "./count.ts"
-import { matchesIn, narrowed, placesIn, showsArchived } from "./drawn.ts"
+import { matchesIn, narrowed, placesIn, showsTrashed } from "./drawn.ts"
 
 /** What an unfiltered page has selected — ONE value, shared by every reading of
  *  it. A fresh `new Map()` per read would be a new value every frame, and every
@@ -145,15 +145,15 @@ export const createNarrowing = (source: {
   // draws is a fresh value on every revision the store publishes and on every
   // navigation — and the whole of what this reading takes from it is a boolean
   // that is constant for four of the five shapes — only a tree is scanned
-  // (`./drawn.ts`'s {@link showsArchived}). Read inline, every one of those
+  // (`./drawn.ts`'s {@link showsTrashed}). Read inline, every one of those
   // frames re-ran the matcher over the entire set to arrive at the same answer.
-  const archived = createMemo(() => showsArchived(source.all()))
+  const archived = createMemo(() => showsTrashed(source.all()))
 
   const matched = createMemo(() => {
     const indexes = source.derived()
     if (indexes === undefined || !active()) return NOTHING_MATCHED
     return new Map(
-      matching(indexes, query(), { archived: archived() }).map((
+      matching(indexes, query(), { trashed: archived() }).map((
         { at, match },
       ) => [at.node.id, match]),
     )

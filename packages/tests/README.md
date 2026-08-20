@@ -227,8 +227,8 @@ The names are not written down twice. `support/world.ts` imports the client's ow
 | `[data-testid="toggle"]` | the collapse/expand control on an outline node (hover-reveal on a pointer device; always drawn on a phone) |
 | `[data-testid="node-menu"]` | the `•••` menu trigger left of the triangle — pointer devices only (not laid out on a phone, where a long press on the row opens the same menu) |
 | `[data-testid="node-menu-panel"]` | the open menu panel (`absolute` under the trigger, or under the row itself on a phone) |
-| `[data-testid="node-menu-item"][data-action]` | one verb in that panel: the reads (zoom, expand/collapse, expand/collapse all, copy link), then the writes it applies to (the marks, clear date, remove placement, archive) and `Copy as text`. The two buttons of a confirm are items too (`data-action="cancel"` is the way out) |
-| `[data-testid="node-menu-confirm"]` | the question that panel asks before `Archive`, naming the row and how many rows go with it — present only while it is asking |
+| `[data-testid="node-menu-item"][data-action]` | one verb in that panel: the reads (zoom, expand/collapse, expand/collapse all, copy link), then the writes it applies to (the marks, clear date, remove placement, trash) and `Copy as text`. The two buttons of a confirm are items too (`data-action="cancel"` is the way out) |
+| `[data-testid="node-menu-confirm"]` | the question that panel asks before `Move to Trash`, naming the row and how many rows go with it — present only while it is asking |
 | `[data-testid="node-menu-said"][data-tone]` | what the last verb said, beside the `•••`: `alarm` for a refusal (the ops layer's own words, or a clipboard the browser refused), `aside` for news about something that happened — a nudge from a write that landed, or a copy confirming it reached the clipboard (`link copied` / `text copied`), which is the one case where the page itself shows nothing |
 | `[data-testid="file-dir"][data-path]` | one folder in the sidebar file tree; `data-collapsed` says whether its children are hidden |
 | `[data-testid="file-dir-toggle"]` | the fold control on that folder |
@@ -300,7 +300,7 @@ This suite runs parallel, on machines that are also doing something else, so eve
 
 Asking the holding form of a write passes only when the round trip happens to land inside one animation frame. Asking the waiting form of "nothing was written" passes instantly and proves nothing. Where a count is the claim, it is both: wait for the number, then hold it, because the second of two writes lands a moment after the first.
 
-**A file the write has not minted yet** — `Archive.olai`, which the first archive creates. A waiting reader goes through `world.servedNodesSoFar`, which answers "nothing there yet" for a file that is not there; a step that WRITES the served directory goes through `world.servedNodes`, which throws. The reason either is right is on the method.
+**A file the write has not minted yet** — `_olai/Trash.olai`, which the first trash creates. A waiting reader goes through `world.servedNodesSoFar`, which answers "nothing there yet" for a file that is not there; a step that WRITES the served directory goes through `world.servedNodes`, which throws. The reason either is right is on the method.
 
 **A key pressed before the page has answered the last one.** The one that costs the most to debug, because it fails four steps later on something that reads nothing like the cause: `Escape` closes a draft that has not opened yet and the draft opens behind it, so every ⌘Z after that is dead; `Tab` walks the browser's focus ring out of the row, so the next key finds no editor; `⌘A` selects the page, so the title typed after it lands beside the old one instead of replacing it. The receipt this suite waits on — and why nothing else it can see will do — is `support/caret.ts`. What that buys each step:
 

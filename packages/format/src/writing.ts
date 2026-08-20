@@ -537,7 +537,7 @@ export const SplitRequest = Schema.Struct({
  * which then adopts everything that hung under this one.
  *
  * `split` read backwards, and one op for the same reason: the merge is a
- * retitle, a note, N reparentings and an archive, and a sequence of those can
+ * retitle, a note, N reparentings and a trash, and a sequence of those can
  * stop in the middle with the outline saying something nobody wrote. One plan,
  * one validation, one rename.
  *
@@ -553,12 +553,12 @@ export const SplitRequest = Schema.Struct({
  *     them (Workflowy's own join — the two halves were one line);
  *   - the NOTES are concatenated too, one blank line apart, and a node with
  *     none simply takes the other's. A note that vanished from the page would
- *     be the silent loss this codebase refuses, and the archive is not where
+ *     be the silent loss this codebase refuses, and the trash is not where
  *     anybody looks for it;
  *   - the CHILDREN move, in order, to the end of the sibling's own — nothing
  *     may be orphaned by a keystroke;
  *   - the MARK, the DATE and the EDGES of the node being merged go WITH ITS
- *     RECORD into `Archive.olai`, because the format allows one mark per node
+ *     RECORD into `_olai/Trash.olai`, because the format allows one mark per node
  *     and the surviving row already has its own answer. Nothing is destroyed —
  *     the record is in the trash with its ids intact — and the answer's `nudge`
  *     says what went, so a `done` never disappears silently.
@@ -567,12 +567,12 @@ export const MergeRequest = Schema.Struct({
   op: Schema.Literal("merge"),
   id: Schema.String.annotate({
     description:
-      "The `id` of the node to merge INTO THE SIBLING ABOVE IT. Its title is appended to that sibling's, its note joined to that sibling's, its children moved under it — and its own record goes to `Archive.olai`, keeping its id, mark, date and edges.",
+      "The `id` of the node to merge INTO THE SIBLING ABOVE IT. Its title is appended to that sibling's, its note joined to that sibling's, its children moved under it — and its own record goes to `_olai/Trash.olai`, keeping its id, mark, date and edges.",
   }),
 })
 
-export const ArchiveRequest = Schema.Struct({
-  op: Schema.Literal("archive"),
+export const TrashRequest = Schema.Struct({
+  op: Schema.Literal("trash"),
   id: Id,
 })
 
@@ -630,7 +630,7 @@ export const DuplicateRequest = Schema.Struct({
 })
 
 /**
- * Take a subtree back OUT of an `Archive.olai` — the inverse `archive` never
+ * Take a subtree back OUT of an `_olai/Trash.olai` — the inverse `archive` never
  * had, built once here and exposed on both faces together (HACKING.md's
  * consistency rule; `parity-unarchive`).
  *
@@ -645,11 +645,11 @@ export const DuplicateRequest = Schema.Struct({
  * past them, and they are {@link LANDING}'s own pair: under that node, or at
  * the top level of that outline.
  */
-export const UnarchiveRequest = Schema.Struct({
-  op: Schema.Literal("unarchive"),
+export const UntrashRequest = Schema.Struct({
+  op: Schema.Literal("untrash"),
   id: Schema.String.annotate({
     description:
-      "The `id` of a node in an `Archive.olai`. It comes back out with everything under it.",
+      "The `id` of a node in an `_olai/Trash.olai`. It comes back out with everything under it.",
   }),
   file: Schema.optionalKey(
     Schema.String.annotate({
@@ -669,76 +669,58 @@ export const UnarchiveRequest = Schema.Struct({
  * THE TRASH, EMPTIED — the one write in this vocabulary that destroys rather
  * than moves, and the only one the trash has ever had.
  *
- * `archive` made a trash rather than a shredder, and `unarchive` made it one
+ * `trash` made a trash rather than a shredder, and `untrash` made it one
  * you can reach back into; what neither of them gave anybody is a way to stop
  * carrying what was put away. This is that way, and it is deliberately the
- * SMALLEST shape that can be: archives named outright, every record in them
- * removed, the files left behind holding nothing. There is no `id` here and
+ * SMALLEST shape that can be: the one trash named outright, every record in
+ * it removed, the file left behind holding nothing. There is no `id` here and
  * there never will be — deleting ONE node out of the trash is a shredder aimed
  * at a row, which is the gesture #109's deferral is about and is still the
  * human's to rule on. What this op can say is "stop keeping the pile", which
  * is what emptying a bin means.
  *
- * **`files` IS A LIST, AND THAT IS THE WHOLE OF THE OP'S SHAPE.** It was one
- * path — a file op names a file, `create_outline`'s decision — with the whole
- * trash spelled as an `apply` of one `empty` per archive. That shape has a hole
- * in it, and the hole is the refusal below rather than the write: each op in a
- * batch is planned against the set the op before it left, so an archive's
- * holders are judged against ONE pile while the emptying is about several. A
- * `see` from `garden/Archive.olai` into `Archive.olai` then reads as a holder —
- * it is outside the pile in hand — and the same two ops refuse in path order,
- * succeed in the reverse, and refuse BOTH ways round when the two piles name
- * each other. Every one of those is a record the write deletes, and the set it
- * would leave is one the validator accepts.
- *
- * A sort does not fix it and neither does a rule inside the fold: what is
- * wrong is that the op's SUBJECT was one file when the thing being emptied is
- * several. Named together, the union is the going set by construction, the
- * cycle is not a special case, and the order of the list means nothing. It
- * also takes `apply` off the browser's path entirely — the Trash page's
- * `Empty trash` is one op now, not a batch — which is the difference between
- * answering the ordering question and not having one.
+ * **THERE IS ONE TRASH, SO THE SUBJECT IS ONE FILE.** The list that used to
+ * sit here was the shape of a union of per-directory piles; with one
+ * `_olai/Trash.olai` that union is a single path, and an array that can name
+ * the same file twice (or none) is a fossil of the old convention. A leftover
+ * `Archive.olai` is not the trash and is refused.
  *
  * **WHAT IT IS REFUSED FOR is the rule `remove_mirror` already keeps**, read
- * over that union instead of over one record: a record that is still NAMED by
+ * over every record this write deletes: a record that is still NAMED by
  * something staying behind — a mirror placed in a live outline, a `see`, an
  * `after` — is not deletable, because the set it would leave is one the
  * validator condemns (`unknown-target`). So the call is refused naming what
  * still points in, and the way through is to re-point or retire those first.
- * References BETWEEN records in the same emptying are not dependents, whichever
- * of the named archives each one lives in: they go when they go.
+ * References BETWEEN records in the same emptying are not dependents: they go
+ * when they go.
  *
  * **AND {@link EmptyRequest.was} IS THE OTHER HALF OF THAT HONESTY.** A write
  * is re-planned against a newer snapshot when the store moves under it, and a
- * re-plan of this one silently widens: a record archived in between is a record
+ * re-plan of this one silently widens: a record put away in between is a record
  * the retry deletes, and nobody agreed to it. The field is the count — the very
  * number the web's confirm puts in front of somebody — checked on every attempt
  * against the snapshot that attempt is judged on, which is where `set_title`'s
  * own `was` learned to live. Optional, because an agent sweeping a directory
  * means "whatever is there" and a caller that showed a number means the number.
  *
- * **AND IT DESTROYS EXACTLY AS MUCH AS IT SAYS.** Each `.olai` is rewritten
- * with no records in it, through the same gate, in the same all-or-none rename,
- * and the write is committed by whichever door commits every other write — so
- * the bytes are recoverable from git to exactly the extent git had already
- * recorded them, and no further. A `doc` an archived node named is a FILE and
- * is not touched: a document is not a node, nothing here names bytes, and a
- * `.md` left without a referrer is a file a person can see and remove.
+ * **AND IT DESTROYS EXACTLY AS MUCH AS IT SAYS.** The file is rewritten with no
+ * records in it, through the same gate, in the same all-or-none rename, and
+ * the write is committed by whichever door commits every other write — so the
+ * bytes are recoverable from git to exactly the extent git had already recorded
+ * them, and no further. A `doc` a trashed node named is a FILE and is not
+ * touched: a document is not a node, nothing here names bytes, and a `.md` left
+ * without a referrer is a file a person can see and remove.
  */
 export const EmptyRequest = Schema.Struct({
   op: Schema.Literal("empty"),
-  files: Schema.Array(
-    Schema.String.annotate({
-      description: "An `Archive.olai` the served directory holds, root-relative.",
-    }),
-  ).annotate({
+  file: Schema.String.annotate({
     description:
-      "Every archive this write empties, named together — root-relative paths, exactly as `list_outlines` spells them. Every record in each goes, the scaffold of ancestor titles included, and the files stay behind empty. NAME THEM ALL IN ONE CALL when you mean to empty more than one: what may still point into them is judged against the UNION, so a `see` from one of these piles into another is a record this write deletes rather than a holder, and splitting the same emptying across two calls (or two `apply` entries) refuses on edges that would have been fine. Refused for an outline that is not an archive, for one the set does not hold, for a list that is empty or holds nothing at all, and while anything outside EVERY archive named still points into one — naming what to re-point first.",
+      "The trash this write empties — `_olai/Trash.olai`, root-relative, exactly as `list_outlines` spells it. Every record in it goes, the source-file signposts and ancestor-title scaffold included, and the file stays behind empty. A leftover `Archive.olai` is not the trash and is refused. Refused for an outline that is not the trash, for one the set does not hold, for a trash that holds nothing, and while anything outside it still points into it — naming what to re-point first.",
   }),
   was: Schema.optionalKey(
     Schema.Int.annotate({
       description:
-        "How many records these archives are expected to hold RIGHT NOW, together. Absent empties whatever is there, which is what a sweep means. Supply it when a number was shown to somebody — the web's confirm names one — and the write is refused, naming both counts, if a record arrived in the meantime: the alternative is deleting something nobody agreed to and reporting the count they read.",
+        "How many records the named trash is expected to hold RIGHT NOW. Absent empties whatever is there, which is what a sweep means. Supply it when a number was shown to somebody — the web's confirm names one — and the write is refused, naming both counts, if a record arrived in the meantime: the alternative is deleting something nobody agreed to and reporting the count they read.",
     }),
   ),
 })
@@ -1146,9 +1128,9 @@ const BATCHED = [
   arm(MoveRequest),
   arm(SplitRequest),
   arm(MergeRequest),
-  arm(ArchiveRequest),
+  arm(TrashRequest),
   arm(DuplicateRequest),
-  arm(UnarchiveRequest),
+  arm(UntrashRequest),
   arm(EmptyRequest),
   arm(SeeRequest),
   arm(MirrorRequest),
@@ -1230,9 +1212,9 @@ export const WriteRequest = Schema.Union([
   MoveRequest,
   SplitRequest,
   MergeRequest,
-  ArchiveRequest,
+  TrashRequest,
   DuplicateRequest,
-  UnarchiveRequest,
+  UntrashRequest,
   EmptyRequest,
   CreateRequest,
   SeeRequest,

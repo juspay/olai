@@ -77,7 +77,7 @@ test("a row carries the edit it will send, and the archive carries its question"
   const trash = rows.find((row) => row.label === "Move to Trash")
   expect(trash?.action).toMatchObject({
     kind: "edit",
-    edit: { verb: "archive", id: "install" },
+    edit: { verb: "trash", id: "install" },
   })
   // The MENU's sentence, verbatim — not a second wording of the same warning.
   expect(
@@ -92,7 +92,7 @@ test("the ids are namespaced, so a shell row and an op row cannot collide", () =
       "op-mark-done",
       "op-clear-mark",
       "op-duplicate",
-      "op-archive",
+      "op-trash",
     ])
 })
 

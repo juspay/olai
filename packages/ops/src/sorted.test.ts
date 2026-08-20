@@ -75,7 +75,7 @@ describe("what a write is called", () => {
   test("archiving reads as one node archived, not a departure and an arrival", () => {
     // The node leaves `house.olai` for the archive, and both ends are in the
     // plan — which is what lets the comparison match it across the two files.
-    expect(sorting(house(), { op: "archive", id: "order" })).toBe("archived")
+    expect(sorting(house(), { op: "trash", id: "order" })).toBe("trashed")
   })
 
   test("clearing a date is the opposite event of setting one, on one op", () => {

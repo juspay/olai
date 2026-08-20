@@ -204,13 +204,13 @@ export {
   isPicture,
   PICTURE_EXTENSIONS,
   pictureOf,
+  retargetRelative,
 } from "./documents.ts"
 export {
-  ARCHIVE,
-  archiveBeside,
   INBOX,
   inboxIn,
-  isArchived,
+  isTrashed,
+  isLeftoverArchive,
   isMirror,
   Located,
   MARKS,
@@ -219,6 +219,11 @@ export {
    *  where it sits (`./node.ts`). */
   mintedInto,
   OLAI_DIR,
+  /** The one trash — the filename, the path it is minted at, and the
+   *  predicate a reading asks (`./node.ts`). Leftover `Archive.olai` is a
+   *  different question (`isLeftoverArchive`): parsed, openable, not trash. */
+  TRASH,
+  TRASH_FILE,
   /** The shelf's own filename, and the walk that finds a directory's — the
    *  pin convention, read the way the inbox one is (`./node.ts`). */
   PINS,
@@ -539,7 +544,7 @@ export {
   AddRequest,
   AfterRequest,
   ApplyRequest,
-  ArchiveRequest,
+  TrashRequest,
   BATCH_AT_MOST,
   type BatchedRequest,
   type Capture,
@@ -560,7 +565,7 @@ export {
   SeeRequest,
   SplitRequest,
   TitleRequest,
-  UnarchiveRequest,
+  UntrashRequest,
   UnmirrorRequest,
   UpdateRequest,
   WriteDocumentRequest,

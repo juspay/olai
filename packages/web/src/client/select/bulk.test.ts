@@ -53,7 +53,7 @@ test("a placement is not something this face may put away", () => {
   const mixed = [row("a"), row("mirror-of-herbs", "herbs", "mirror")]
   // The verb itself leaves it out — the node it shows lives somewhere else,
   // and archiving from here would put away a subtree nobody is looking at.
-  expect(bulkEdits("archive", mixed)).toEqual([{ verb: "archive", id: "a" }])
+  expect(bulkEdits("trash", mixed)).toEqual([{ verb: "trash", id: "a" }])
   // ...and the bar refuses the whole gesture rather than quietly doing three
   // of four rows.
   expect(archivable(mixed)).toBe(false)

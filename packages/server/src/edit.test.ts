@@ -509,25 +509,25 @@ test("unarchive passes through, destination and all — the chain is the op's to
   // chain; an undo sends the place it read off this seam. Neither is resolved
   // here — there is nothing about siblings or marks to read — so both travel
   // as they are, and every refusal met is the planner's own.
-  expect(asked({ verb: "unarchive", id: "handles" }))
-    .toEqual({ op: "unarchive", id: "handles" })
-  expect(asked({ verb: "unarchive", id: "handles", parent: "install" }))
-    .toEqual({ op: "unarchive", id: "handles", parent: "install" })
-  expect(asked({ verb: "unarchive", id: "loose", file: "house.olai" }))
-    .toEqual({ op: "unarchive", id: "loose", file: "house.olai" })
+  expect(asked({ verb: "untrash", id: "handles" }))
+    .toEqual({ op: "untrash", id: "handles" })
+  expect(asked({ verb: "untrash", id: "handles", parent: "install" }))
+    .toEqual({ op: "untrash", id: "handles", parent: "install" })
+  expect(asked({ verb: "untrash", id: "loose", file: "house.olai" }))
+    .toEqual({ op: "untrash", id: "loose", file: "house.olai" })
 })
 
 test("the inverse of a put-back is the archive that made the row a trash row", () => {
-  expect(inverse({ verb: "unarchive", id: "handles" }))
-    .toEqual([{ verb: "archive", id: "handles" }])
+  expect(inverse({ verb: "untrash", id: "handles" }))
+    .toEqual([{ verb: "trash", id: "handles" }])
 })
 
 test("archive is the op, subtree and all — the fence is the menu's question", () => {
   // `kitchen` has three children and a placement under it. Nothing here counts
   // them: the reader was asked, in the panel, before this was ever sent, and a
-  // fence in this layer would be a rule `archive_node` does not have.
-  expect(asked({ verb: "archive", id: "kitchen" }))
-    .toEqual({ op: "archive", id: "kitchen" })
+  // fence in this layer would be a rule `trash_node` does not have.
+  expect(asked({ verb: "trash", id: "kitchen" }))
+    .toEqual({ op: "trash", id: "kitchen" })
 })
 
 test("duplicate is the op and nothing else — the copy is the op's to build", () => {
@@ -580,7 +580,7 @@ test("putting back a row nothing declares is not found", () => {
 
 test("a row taken back is archived, which is the only removal the set has", () => {
   expect(asked({ verb: "remove", id: "handles" }))
-    .toEqual({ op: "archive", id: "handles" })
+    .toEqual({ op: "trash", id: "handles" })
 })
 
 test("a row somebody has put work under is not an undo's to take back", () => {
@@ -604,69 +604,41 @@ test("a merge names the row and nothing else — the sibling above is the set's"
 
 // ── the trash, emptied ─────────────────────────────────────────────────
 
-/** A house with an archive beside it, and a second pile in a subdirectory —
- *  the shape that makes "empty the trash" more than one file. */
+/** A house with the one trash, filled. */
 const ARCHIVED = [
-  `{"id":"sc1","ord":"a0","title":"Kitchen remodel"}`,
-  `{"id":"knobs","parent":"sc1","ord":"a0","title":"pick the knobs"}`,
+  `{"id":"sc1","ord":"a0","title":"house.olai"}`,
+  `{"id":"sc2","parent":"sc1","ord":"a0","title":"Kitchen remodel"}`,
+  `{"id":"knobs","parent":"sc2","ord":"a0","title":"pick the knobs"}`,
 ].join("\n")
 
-/** Two piles, and whatever the second one's record points at — the parameter
- *  is the cross-pile edge grok's objection is about (#250). */
-const twoPiles = (points = ""): Reading =>
-  reading(setOf({
-    "house.olai": HOUSE,
-    "Archive.olai": ARCHIVED,
-    "garden/plot.olai": `{"id":"beds","ord":"a0","title":"the beds"}`,
-    "garden/Archive.olai": [
-      `{"id":"sc2","ord":"a0","title":"the beds"}`,
-      `{"id":"quote","parent":"sc2","ord":"a0","title":"a quote"${points}}`,
-    ].join("\n"),
-  }))
-
-test("one pile resolves to one `empty`, naming the archive the SET holds", () => {
-  const at = reading(setOf({ "house.olai": HOUSE, "Archive.olai": ARCHIVED }))
+test("emptying resolves to one `empty`, naming the one trash", () => {
+  const at = reading(setOf({ "house.olai": HOUSE, "_olai/Trash.olai": ARCHIVED }))
   expect(asked({ verb: "emptyTrash" }, at))
-    .toEqual({ op: "empty", files: ["Archive.olai"] })
+    .toEqual({ op: "empty", file: "_olai/Trash.olai" })
 })
 
-test("several piles resolve to ONE op naming them all, never a batch of one each", () => {
-  // THE FIX FOR #250, at the seam that produced the bug. A batch plans each op
-  // against the set the one before it left, so a `see` from one pile into
-  // another reads as a holder of whichever pile is planned first: the same two
-  // archives refused in path order, planned in the reverse, and refused both
-  // ways round when they named each other. One op naming both makes the going
-  // set the union by construction, so the order of the list means nothing.
-  expect(asked({ verb: "emptyTrash" }, twoPiles())).toEqual({
-    op: "empty",
-    files: ["Archive.olai", "garden/Archive.olai"],
-  })
+test("a leftover Archive.olai is not emptied — it is not the trash", () => {
+  const at = reading(setOf({
+    "house.olai": HOUSE,
+    "_olai/Trash.olai": ARCHIVED,
+    "Archive.olai": `{"id":"old","ord":"a0","title":"something left behind"}`,
+    "garden/Archive.olai": `{"id":"older","ord":"a0","title":"another leftover"}`,
+  }))
+  expect(asked({ verb: "emptyTrash" }, at))
+    .toEqual({ op: "empty", file: "_olai/Trash.olai" })
 })
 
-test("the cross-pile edge is inside the same request, which is the whole point", () => {
-  // Grok's topology at this seam: `quote`, bound for `garden/Archive.olai`,
-  // names `knobs` in `Archive.olai`. The resolver puts BOTH archives in one
-  // request, so the planner judges that edge against the union and it is a
-  // record the write deletes rather than a holder that refuses it
-  // (`@olai/ops`' `plan.test.ts` holds the planning half).
-  expect(asked({ verb: "emptyTrash" }, twoPiles(`,"see":["knobs"]`))).toEqual({
-    op: "empty",
-    files: ["Archive.olai", "garden/Archive.olai"],
-  })
-})
-
-test("an archive that holds nothing is not in the list at all", () => {
-  // An emptied archive is a file the directory still serves — `unarchive`
+test("an empty trash file is not in the list at all", () => {
+  // An emptied trash is a file the directory still serves — `untrash`
   // tidies its scaffold away and leaves it standing — so the resolution has to
   // skip it rather than send a path the planner is about to refuse.
   const at = reading(setOf({
     "house.olai": HOUSE,
-    "Archive.olai": "",
-    "garden/plot.olai": `{"id":"beds","ord":"a0","title":"the beds"}`,
-    "garden/Archive.olai": `{"id":"sc2","ord":"a0","title":"the beds"}`,
+    "_olai/Trash.olai": "",
   }))
-  expect(asked({ verb: "emptyTrash" }, at))
-    .toEqual({ op: "empty", files: ["garden/Archive.olai"] })
+  const failure = refused({ verb: "emptyTrash" }, at)
+  expect(failure._tag).toBe("UsageFailure")
+  expect(failure.message).toBe("the Trash is empty, so there is nothing to delete")
 })
 
 test("the count the confirm showed travels, and is never re-derived here", () => {
@@ -674,16 +646,16 @@ test("the count the confirm showed travels, and is never re-derived here", () =>
   // avoid — and a useless guard besides, since a count taken from THIS reading
   // would always agree with itself. What it guards is the retry, which the
   // planner checks on every attempt.
-  const at = reading(setOf({ "house.olai": HOUSE, "Archive.olai": ARCHIVED }))
+  const at = reading(setOf({ "house.olai": HOUSE, "_olai/Trash.olai": ARCHIVED }))
   expect(asked({ verb: "emptyTrash", was: 9 }, at))
-    .toEqual({ op: "empty", files: ["Archive.olai"], was: 9 })
+    .toEqual({ op: "empty", file: "_olai/Trash.olai", was: 9 })
 })
 
 test("an empty trash is refused HERE, in terms of the trash", () => {
   // The button is not drawn over an empty trash, so what reaches this is a
   // stale tab — and a stale tab deserves the true sentence rather than
-  // `empty`'s "name at least one archive", which teaches a reader about the
-  // wrong thing entirely.
+  // the planner's already-empty refusal, which names the file rather than
+  // the stale tab.
   const failure = refused({ verb: "emptyTrash" }, reading())
   expect(failure._tag).toBe("UsageFailure")
   expect(failure.message).toBe("the Trash is empty, so there is nothing to delete")
@@ -941,7 +913,7 @@ test("a duplicate is taken back by putting the COPY away, never the original", (
   // when the reading was taken — and the original is untouched by both the
   // write and its undo. ⌘⇧Z is the `unarchive` that answers the archive.
   expect(inverse({ verb: "duplicate", id: "install" }, "copy"))
-    .toEqual([{ verb: "archive", id: "copy" }])
+    .toEqual([{ verb: "trash", id: "copy" }])
 })
 
 test("an archive records the place the row is about to stop having", () => {
@@ -949,14 +921,14 @@ test("an archive records the place the row is about to stop having", () => {
   // not the title chain the archive is about to write in its place. An undo
   // that leaned on the chain would be a title match where the server had the
   // fact in hand.
-  expect(inverse({ verb: "archive", id: "install" }))
-    .toEqual([{ verb: "unarchive", id: "install", parent: "kitchen" }])
+  expect(inverse({ verb: "trash", id: "install" }))
+    .toEqual([{ verb: "untrash", id: "install", parent: "kitchen" }])
   expect(inverse({ verb: "remove", id: "handles" }))
-    .toEqual([{ verb: "unarchive", id: "handles", parent: "install" }])
+    .toEqual([{ verb: "untrash", id: "handles", parent: "install" }])
   // A row at top level has no parent to come back under, so its FILE is the
   // recorded fact — the same pair the op takes.
-  expect(inverse({ verb: "archive", id: "loose" }))
-    .toEqual([{ verb: "unarchive", id: "loose", file: "house.olai" }])
+  expect(inverse({ verb: "trash", id: "loose" }))
+    .toEqual([{ verb: "untrash", id: "loose", file: "house.olai" }])
 })
 
 test("a split is taken back by merging the half it made", () => {
@@ -974,7 +946,7 @@ test("a merge is taken back by a whole sequence, and every step is already a ver
   // child back under it, and the survivor's two texts put back GUARDED by what
   // the merge made them.
   expect(inverse({ verb: "merge", id: "install" })).toEqual([
-    { verb: "unarchive", id: "install", parent: "kitchen" },
+    { verb: "untrash", id: "install", parent: "kitchen" },
     { verb: "place", id: "install", parent: "kitchen", after: "order" },
     { verb: "place", id: "handles", parent: "install", after: null },
     {
@@ -1180,6 +1152,6 @@ test("nothing takes a minted outline back either", () => {
  *  this surface cannot spell; this one is about records that have left the set,
  *  which no op reaches. */
 test("nothing takes an emptied trash back, and it says so by answering nothing", () => {
-  const at = reading(setOf({ "house.olai": HOUSE, "Archive.olai": ARCHIVED }))
-  expect(inverse({ verb: "emptyTrash" }, "Archive.olai", at)).toEqual([])
+  const at = reading(setOf({ "house.olai": HOUSE, "_olai/Trash.olai": ARCHIVED }))
+  expect(inverse({ verb: "emptyTrash" }, "_olai/Trash.olai", at)).toEqual([])
 })

@@ -18,30 +18,30 @@ const derivedOf = (files: Record<string, string>) => derive(recordsOf(setOf(file
 test("it counts the records of every archive, signposts included", () => {
   const derived = derivedOf({
     "house.olai": `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-    "Archive.olai": [
+    "_olai/Trash.olai": [
       // The scaffold title `archive` wrote, and the subtree under it.
       `{"id":"sc1","ord":"a0","title":"Kitchen remodel"}`,
       `{"id":"install","parent":"sc1","ord":"a0","title":"install them"}`,
       `{"id":"knobs","parent":"install","ord":"a0","title":"pick the knobs"}`,
     ].join("\n"),
   })
-  expect(inTrash(derived, ["Archive.olai"])).toBe(3)
+  expect(inTrash(derived, ["_olai/Trash.olai"])).toBe(3)
   // The live outline is not one of the files it is asked about, and would not
   // be counted if it were handed one by mistake — it is asked per FILE.
   expect(inTrash(derived, [])).toBe(0)
 })
 
-test("several archives add up, and an emptied one contributes nothing", () => {
+test("a leftover Archive.olai is not in the count — it is not the trash", () => {
   const derived = derivedOf({
     "house.olai": `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-    "Archive.olai": "",
-    "garden/plot.olai": `{"id":"beds","ord":"a0","title":"the beds"}`,
-    "garden/Archive.olai": [
+    "_olai/Trash.olai": [
       `{"id":"sc2","ord":"a0","title":"garden"}`,
       `{"id":"slugs","parent":"sc2","ord":"a0","title":"the slugs"}`,
     ].join("\n"),
+    "Archive.olai": `{"id":"old","ord":"a0","title":"something left behind"}`,
   })
-  expect(inTrash(derived, ["Archive.olai", "garden/Archive.olai"])).toBe(2)
+  expect(inTrash(derived, ["_olai/Trash.olai"])).toBe(2)
+  expect(inTrash(derived, ["_olai/Trash.olai", "Archive.olai"])).toBe(3)
 })
 
 test("a MIRROR in an archive counts as the one record it is", () => {
@@ -54,7 +54,7 @@ test("a MIRROR in an archive counts as the one record it is", () => {
       `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil"}`,
       `{"id":"mint","parent":"herbs","ord":"a1","title":"split the mint"}`,
     ].join("\n"),
-    "Archive.olai": `{"id":"echo","ord":"a0","mirror":"herbs"}`,
+    "_olai/Trash.olai": `{"id":"echo","ord":"a0","mirror":"herbs"}`,
   })
-  expect(inTrash(derived, ["Archive.olai"])).toBe(1)
+  expect(inTrash(derived, ["_olai/Trash.olai"])).toBe(1)
 })

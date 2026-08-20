@@ -33,7 +33,7 @@
  *     second copy of the tree rather than a row of doors. A pin says GO THERE.
  *
  * What the chosen shape buys is that pinning grew no verb on the agent's face:
- * `add_node` pins, `move_node` reorders, `archive_node` unpins, and
+ * `add_node` pins, `move_node` reorders, `trash_node` unpins, and
  * `read_subtree` reads the shelf. The one verb the BROWSER grew (`pin`) resolves
  * to the `add` an agent would have sent — it exists so a tab does not have to
  * work out which file the shelf is (`@olai/surface`'s `edit.ts`).
