@@ -38,7 +38,8 @@
  * forced layout for an answer that cannot have changed.
  */
 
-import { createMemo, createSelector, createSignal, For, Show } from "solid-js"
+import { Key } from "@solid-primitives/keyed"
+import { createMemo, createSelector, createSignal, Show } from "solid-js"
 
 import { useUndo } from "../edit/undoing.ts"
 import { REGION, REGION_LABEL } from "../layout/entry.ts"
@@ -216,18 +217,26 @@ export function Shelf() {
             looking at the whole column actually needs (human, 2026-08-19). */}
         <h2 class={REGION_LABEL}>Pinned</h2>
         <ul class="m-0 list-none p-0" ref={list}>
-          <For each={pins()}>
+          {/* `<Key>` BY THE PIN NODE'S OWN ID, not `<For>`: the shelf arrives
+              off the wire and `pinsOf` mints a fresh `Pin` per row, so every
+              pins frame — one pin added, one reorder, one pinned node retitled
+              anywhere in the vault — replaced every element of this array. A
+              `<For>` compares by reference, so the whole column was torn down
+              and rebuilt for a rename nobody made here, which is the flicker a
+              reader sees in the corner of their eye while typing somewhere
+              else. */}
+          <Key each={pins()} by="id">
             {(pin, at) => (
               <Pin
-                pin={pin}
-                current={isHere(hrefOf(pin.route))}
+                pin={pin()}
+                current={isHere(hrefOf(pin().route))}
                 lifted={carrying()?.from === at()}
                 onGrab={(event) => grab(at(), event)}
                 dragged={() => travelled}
-                onRemove={() => unpin(pin)}
+                onRemove={() => unpin(pin())}
               />
             )}
-          </For>
+          </Key>
           {/* Where it would land: drawn only while something is carried,
               positioned against the LIST rather than the page (so it does not
               have to know where in the column the shelf sits), and read off

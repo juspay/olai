@@ -11,7 +11,7 @@
 import { NO_PINS, type Shelf } from "@olai/surface"
 import { expect, test } from "bun:test"
 
-import type { Names } from "../reading.tsx"
+import type { Names } from "../names.ts"
 import { pinItem } from "./palette.ts"
 import { atFile, atNode } from "../routes.ts"
 

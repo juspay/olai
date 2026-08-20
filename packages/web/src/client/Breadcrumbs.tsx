@@ -17,7 +17,8 @@
  */
 
 import type { LocatedRegular } from "@olai/format"
-import { For, Show } from "solid-js"
+import { Key } from "@solid-primitives/keyed"
+import { Show } from "solid-js"
 
 import { NodeTitle } from "./NodeTitle.tsx"
 import { Link } from "./router.tsx"
@@ -59,7 +60,15 @@ export function Breadcrumbs(props: {
           </Link>
         )}
       </Show>
-      <For each={props.trail}>
+      {/* `<Key>`, not `<For>`, for the reason the tree and the refs row use it
+          (./Tree.tsx, ./NodeRefs.tsx): the trail comes off the wire, and every
+          frame the page publishes replaces every element of that array with a
+          fresh object (docs/brainstorming/reactivity-after-the-flip.md §2). A
+          `<For>` compares by reference, so the whole trail — each link and the
+          title inside it — was torn down and rebuilt on every keystroke
+          committed anywhere on the page. Keyed by the node's id, which is what
+          a crumb IS: a canonical ancestry names each ancestor once. */}
+      <Key each={props.trail} by={(crumb) => crumb.node.id}>
         {(crumb, index) => (
           <>
             {/* Between crumbs only: with no file crumb above it, the first
@@ -68,17 +77,17 @@ export function Breadcrumbs(props: {
               <Separator />
             </Show>
             <Link
-              route={atNode(crumb.node.id)}
+              route={atNode(crumb().node.id)}
               class={CRUMB}
               testid={TESTID.crumb}
             >
               {/* links=false: already inside Link — a markdown [a](url) in the
                   title must not nest a second <a>. */}
-              <NodeTitle title={crumb.node.title} from={crumb.file} links={false} />
+              <NodeTitle title={crumb().node.title} from={crumb().file} links={false} />
             </Link>
           </>
         )}
-      </For>
+      </Key>
     </nav>
   )
 }

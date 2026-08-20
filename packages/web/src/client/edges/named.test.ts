@@ -15,7 +15,7 @@ import { derive, nodeNamed } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import type { Names } from "../reading.tsx"
+import type { Names } from "../names.ts"
 import { namedBy } from "./named.ts"
 import type { Relation } from "./relation.ts"
 

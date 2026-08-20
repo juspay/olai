@@ -296,6 +296,19 @@ Then(
     );
   },
 );
+/** The BAR's own refusal line, which is the grammar refusing in this tab: the
+ *  filter parses what is typed here rather than asking, so this line is up
+ *  before any wire is touched. Its own slot, and so its own step — the one
+ *  below is the three doors that had to ask (`client/filter/FilterBar.tsx`
+ *  against `client/search/nodes.ts`). */
+Then(
+  "the filter refuses {string} and says {string}",
+  async function (this: OlaiWorld, token: string, teaching: string) {
+    await saysThat(this, FILTER_REFUSAL, token, "filter refusal", "alarm");
+    await saysThat(this, FILTER_REFUSAL, teaching, "filter refusal", "alarm");
+  },
+);
+
 /** The SAME refusal, on a door that had to ask the server for it. One step for
  *  both of those doors, because it is one sentence about one grammar. */
 Then(

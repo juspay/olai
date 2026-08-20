@@ -26,7 +26,7 @@
 import type { Shelf } from "@olai/surface"
 
 import type { PaletteItem } from "../palette/items.ts"
-import type { Names } from "../reading.tsx"
+import type { Names } from "../names.ts"
 import type { Route } from "../routes.ts"
 import { nameOf, shownIn } from "../address/address.ts"
 import { pinnedAt } from "./pins.ts"

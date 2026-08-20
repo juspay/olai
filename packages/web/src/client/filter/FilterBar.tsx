@@ -45,11 +45,12 @@
  * page is a link, and Back leaves the filter rather than un-typing it.
  */
 
-import { For, Show } from "solid-js"
+import { Index, Show } from "solid-js"
 
 import type { Asked } from "./asking.ts"
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { listKey } from "../keys.ts"
+import { refusalLines } from "../refusals.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
 import { countSaid } from "./count.ts"
@@ -83,6 +84,13 @@ export function FilterBar(props: {
       failure: props.asked.failure(),
       counts: props.narrowing.counts(),
     })
+
+  /** What the grammar could not read, as the sentences it is announced in.
+   *  A memo over the STRINGS rather than a list of parses, because this box is
+   *  re-parsed on every keystroke and this line is `aria-live="assertive"`:
+   *  drawn by identity, a query that goes on refusing the same token was read
+   *  out loud again for every character typed after it (`../refusals.ts`). */
+  const refused = refusalLines(props.narrowing.refusals)
 
   return (
     <div
@@ -171,15 +179,15 @@ export function FilterBar(props: {
           `role`/`aria-live` pair — is that component's, once, for every
           surface in this client that has to say one. Only the LAYOUT is
           here. */}
-      <For each={[...props.narrowing.refusals()]}>
-        {(refusal) => (
+      <Index each={refused()}>
+        {(line) => (
           <SaidLine
-            said={{ tone: "alarm", text: `${refusal.token} — ${refusal.reason}` }}
+            said={{ tone: "alarm", text: line() }}
             class="m-0 mt-1 font-mono text-xs"
             testid={TESTID.filterRefusal}
           />
         )}
-      </For>
+      </Index>
 
       {/* THE CALL refusing, which is not the grammar refusing: its own slot, so
           a wire that fell over cannot be read as a query that found nothing.

@@ -37,11 +37,12 @@
  */
 
 import type { Referrer } from "@olai/format"
-import { createMemo, createSignal, For, Show } from "solid-js"
+import { Key } from "@solid-primitives/keyed"
+import { createMemo, createSignal, Show } from "solid-js"
 
 import { only } from "../narrow.ts"
 import { useReading } from "../reading.tsx"
-import { atFile, atNode, hrefOf } from "../routes.ts"
+import { atFile, atNode, hrefOf, type Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 
 export function Referrers(props: {
@@ -94,33 +95,57 @@ function Section(props: { readonly found: ReadonlyArray<Referrer> }) {
       </summary>
       <Show when={open()}>
         <ul class="m-0 mt-2 flex list-none flex-wrap gap-x-3 gap-y-1 p-0">
-          <For each={props.found}>
+          {/* `<Key>`, not `<For>`: this list rides on the page's reading, and
+              every frame the page publishes replaces every element of that
+              array with a fresh object (../NodeRefs.tsx says it in full). A
+              `<For>` keys by reference, so an open section rebuilt every row
+              on every frame — under a reader's pointer, mid-scroll. */}
+          <Key each={props.found} by={keyOf}>
             {(one) => (
               <li class="min-w-0">
                 <a
                   class="text-sm text-accent no-underline hover:underline"
                   data-testid={TESTID.documentReferrer}
-                  href={one.at === undefined
-                    ? hrefOf(atFile(one.face.path))
-                    : hrefOf(atNode(one.at.node.id))}
+                  href={hrefOf(opens(one()))}
                 >
-                  {one.at === undefined ? one.face.title : one.at.node.title}
+                  {calls(one())}
                 </a>
                 {/* WHERE it was written, muted beside it — a title in a list of
                     strangers means nothing, and for a record it is the outline
                     the reference is in. A document's own row says the file
                     twice otherwise, so it says it once. */}
-                <Show when={one.at !== undefined}>
-                  <span class="ml-1 font-mono text-xs text-muted">{one.face.path}</span>
+                <Show when={one().at !== undefined}>
+                  <span class="ml-1 font-mono text-xs text-muted">{one().face.path}</span>
                 </Show>
               </li>
             )}
-          </For>
+          </Key>
         </ul>
       </Show>
     </details>
   )
 }
+
+/**
+ * WHAT IDENTIFIES A ROW, for the key above — the record that wrote the
+ * reference, or the document whose own body did.
+ *
+ * The two arms are two namespaces and the key says which, because that is the
+ * only spelling that is honest without a second belief: a path and a node id
+ * are both strings, `referrersTo` walks each document once and each of its
+ * records once, and a key that collided would hand one element to the
+ * framework twice — the crash `../edges/named.ts` argues at length.
+ */
+const keyOf = (one: Referrer): string =>
+  one.at === undefined ? `doc:${one.face.path}` : `node:${one.at.node.id}`
+
+/** Where a row OPENS: the record, or the document itself. */
+const opens = (one: Referrer): Route =>
+  one.at === undefined ? atFile(one.face.path) : atNode(one.at.node.id)
+
+/** ...and what it is CALLED there — the same division, drawn. */
+const calls = (one: Referrer): string =>
+  one.at === undefined ? one.face.title : one.at.node.title
 
 /** The summary line: a count in a sentence rather than a bare number, because
  *  it is the whole of what a shut section says. */

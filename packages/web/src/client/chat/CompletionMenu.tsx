@@ -20,7 +20,7 @@
  * same thing for the times a hand is already there.
  */
 
-import { createEffect, For, on, onCleanup, onMount, Show } from "solid-js"
+import { createEffect, Index, on, onCleanup, onMount, Show } from "solid-js"
 
 import { listKey } from "../keys.ts"
 import { WITHIN } from "../layer.ts"
@@ -199,7 +199,15 @@ export function CompletionMenu(props: {
       data-testid={TESTID.chatCompletion}
       data-kind={props.kind}
     >
-      <For each={props.rows}>
+      {/* `<Index>` rather than `<For>`, which is `../search/Shortlist.tsx`'s
+          rule over the identical rows and the one this list needed most: the
+          rows are positional (the cursor above walks them by index, and the
+          section heading is a comparison with the row ABOVE), there are at
+          most eight, and the composer mints fresh ones on every keystroke and
+          again when the node half of the answer lands. Keyed by reference,
+          the file rows a reader was already looking at were torn down and
+          rebuilt the moment the server's rows arrived beside them. */}
+      <Index each={props.rows}>
         {(row, index) => (
           <>
             {/* The block's own word, over the row that opens it — which is
@@ -209,37 +217,37 @@ export function CompletionMenu(props: {
                 children are list items and a reader with a screen reader is
                 told how many there are; not a cursor position, because it is a
                 label rather than something to take. */}
-            <Show when={row.section !== props.rows[index() - 1]?.section}>
+            <Show when={row().section !== props.rows[index - 1]?.section}>
               <li
                 class="px-2 pb-0.5 pt-1 font-mono text-[0.625rem] uppercase tracking-wide text-muted"
                 data-testid={TESTID.chatCompletionSection}
-                data-section={row.section}
+                data-section={row().section}
               >
-                {row.section}
+                {row().section}
               </li>
             </Show>
             <li>
               <button
                 type="button"
                 class={`block w-full truncate rounded px-2 py-1 text-left text-xs ${
-                  index() === cursor.at() ? "bg-rule" : ""
+                  index === cursor.at() ? "bg-rule" : ""
                 }`}
                 data-testid={TESTID.chatCompletionRow}
-                data-value={row.value}
-                data-active={index() === cursor.at()}
+                data-value={row().value}
+                data-active={index === cursor.at()}
                 // THE ROW, not its position: see {@link MenuRow.take}.
-                onClick={() => row.take()}
+                onClick={() => row().take()}
               >
                 {/* The space between them is a real character as well as a
                     margin: what the eye reads as two words has to be two words
                     when the row is copied or read aloud, and `ml-2` is neither. */}
-                <span class="font-mono">{row.label}</span>{" "}
-                <span class="ml-1 text-muted">{row.hint}</span>
+                <span class="font-mono">{row().label}</span>{" "}
+                <span class="ml-1 text-muted">{row().hint}</span>
               </button>
             </li>
           </>
         )}
-      </For>
+      </Index>
     </ul>
   )
 }

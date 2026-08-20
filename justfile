@@ -94,7 +94,8 @@ test: install
     {{ nix_shell }} bun test
     {{ nix_shell }} bun test --conditions browser \
       ./packages/web/src/client/settled.browsertest.ts \
-      ./packages/web/src/client/fold/refiling.browsertest.ts
+      ./packages/web/src/client/fold/refiling.browsertest.ts \
+      ./packages/web/src/client/names.browsertest.ts
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json (bunfig.toml explains why they have to be there). Reads
