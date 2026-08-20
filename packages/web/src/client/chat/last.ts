@@ -48,19 +48,20 @@ export const rememberAgentText = (text: string | undefined): void => {
  * hands back THE SAME ARRAY for a frame that added no row (`./order.ts`). A
  * row's `kind` and `seq` are fixed the moment it exists, so nothing but
  * membership can move this answer — hence the `untrack` around the entries a
- * scan does resolve. The one entry it may NOT resolve is a key whose value has
- * not landed yet, and that read is left TRACKED on purpose: it is what wakes
- * this again when the row arrives.
+ * scan does resolve.
  */
 export const createLastAgent = (chat: Chat): void => {
   const last = createMemo<string | undefined>(() => {
     let bestKey: string | undefined
     let bestSeq = -1
     for (const key of chat.rows()) {
-      const row = untrack(() => chat.entry(key)())
+      const entry = chat.entry(key)
+      const row = untrack(entry)
+      // A key whose value has not landed is the one thing membership cannot
+      // say, so THAT read is tracked: it is what wakes this when the row
+      // arrives. Everything else about a row is fixed the moment it exists.
       if (row === undefined) {
-        // Tracked, deliberately — see the header.
-        chat.entry(key)()
+        entry()
         continue
       }
       if (row.kind !== "agent") continue
