@@ -17,9 +17,10 @@
  * document, so a scrolled page puts the menu a scroll-height below its
  * trigger. Mounted HERE, the same numbers are viewport coordinates.
  *
- * Completions measure a title cell in viewport pixels and need the same
- * origin. Drop lines and the sweep band compute document coordinates and
- * stay on the body.
+ * Completions hang from Kobalte's popper (absolute, so this socket is the
+ * origin). The line beside the `•••` measures in viewport pixels and needs
+ * the same origin. Drop lines and the sweep band compute document
+ * coordinates and stay on the body.
  */
 
 import { LAYER } from "./layer.ts"
