@@ -90,13 +90,12 @@ export function Toggle() {
     <button
       type="button"
       // The bar's icon-button shape (`../readout.ts`), which the preferences
-      // trigger beside it wears too — 44px included, and it is what keeps the
-      // line below from being a bad trade: dropping the word to its mark takes
-      // this button's WIDTH with it, and a primary control a thumb has to aim
-      // at is not somewhere to save 12px. This bar's other tap targets have
-      // measured 44×44 since #104 and this one was 76×27 — wide, and never tall
-      // enough. The BORDER is this button's own news: a turn running, or the
-      // panel open.
+      // trigger beside it wears too — 44px tall on a phone, wide enough for the
+      // mark. The HEIGHT is what was missing: this button measured 76×27
+      // before, wide and never tall enough. The WIDTH is not forced to a
+      // square, because four of those plus `live` plus the commit mark do not
+      // fit at 360pt (`../readout.ts`). The BORDER is this button's own news:
+      // a turn running, or the panel open.
       class={`${ICON_BUTTON} border ${
         working()
           ? "animate-pulse border-doing text-doing"

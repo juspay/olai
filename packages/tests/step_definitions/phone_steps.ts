@@ -18,6 +18,9 @@ import {
   APP_HEADER,
   CHAT_INPUT,
   CHAT_PANEL,
+  CHAT_SESSION,
+  CHAT_SESSION_LIST,
+  CHAT_SESSIONS,
   CHAT_TOGGLE,
   COMMIT_PILL,
   CONNECTION,
@@ -213,6 +216,95 @@ Then("the app chrome is inside the header", async function (this: OlaiWorld) {
       `which ends at x=${Math.round(wordmark.x + wordmark.width)}`,
   );
 });
+
+/**
+ * A 360pt phone (iPhone 12/13 mini), which is narrower than the 390pt context
+ * `@phone` starts in. Reflow, not a reload: the bar has to survive the width
+ * it did not boot at, the way a rotation does.
+ */
+Given("the screen is {int} points wide", async function (this: OlaiWorld, width: number) {
+  const { height } = this.viewport();
+  await this.page.setViewportSize({ width, height });
+  await this.waitForFrame();
+});
+
+/**
+ * The Commit pill still has a word (or a mark) in it. The 360pt bar used to
+ * clip the glyph with `overflow: hidden` on the chip, leaving an empty oval
+ * between `live` and the agent toggle.
+ */
+Then("the commit pill still says something", async function (this: OlaiWorld) {
+  const pill = this.page.locator(COMMIT_PILL);
+  await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const box = await this.box(pill, "the commit pill");
+  const said = (await pill.innerText()).replace(/\s+/g, " ").trim();
+  assert.ok(
+    box.width >= 36,
+    `the commit pill is ${Math.round(box.width)}px wide — crushed to an empty oval`,
+  );
+  assert.ok(
+    said.length > 0,
+    "the commit pill is on screen and says nothing",
+  );
+});
+
+/** The session list sits on the screen, below `chats`, not hanging off the
+ *  left of a phone sheet the way a `w-80` dropdown hung from the button did. */
+Then("the session picker is on the screen", async function (this: OlaiWorld) {
+  const list = await this.box(
+    this.page.locator(CHAT_SESSION_LIST),
+    "the session picker",
+  );
+  const trigger = await this.box(
+    this.page.locator(CHAT_SESSIONS),
+    "the chats button",
+  );
+  const viewport = this.viewport();
+  assert.ok(
+    list.x >= -0.5 && list.x + list.width <= viewport.width + 0.5,
+    `the session picker is at x=${Math.round(list.x)} ` +
+      `w=${Math.round(list.width)} on a ${viewport.width}px screen — ` +
+      "a list that runs off the left clips every title to its last letters",
+  );
+  assert.ok(
+    list.y + 0.5 >= trigger.y + trigger.height,
+    `the session picker starts at y=${Math.round(list.y)}, through the ` +
+      `chats button which ends at y=${Math.round(trigger.y + trigger.height)}`,
+  );
+  assert.ok(
+    list.width >= 200,
+    `the session picker is ${Math.round(list.width)}px wide — a sliver, not a list`,
+  );
+});
+
+/**
+ * A stored title is visible from the START, not from whichever letters a
+ * left-clipped box happened to leave. Truncate cuts the right; overflowing
+ * the viewport cut the left, which is how `an older conversation` drew as
+ * `versation`.
+ */
+Then(
+  "the picker shows the start of {string}",
+  async function (this: OlaiWorld, title: string) {
+    const row = this.page.locator(CHAT_SESSION, { hasText: title }).first();
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const text = (await row.innerText()).replace(/\s+/g, " ");
+    assert.ok(
+      text.startsWith(title.slice(0, Math.min(8, title.length))),
+      `the picker row says "${text}", which does not begin with "${title}"`,
+    );
+    const box = await this.box(row, `the picker row "${title}"`);
+    const viewport = this.viewport();
+    assert.ok(
+      box.x >= -0.5,
+      `the picker row "${title}" starts at x=${Math.round(box.x)}, off the left of the screen`,
+    );
+    assert.ok(
+      box.x + Math.min(box.width, 24) <= viewport.width,
+      `the picker row "${title}" starts past the right edge of the screen`,
+    );
+  },
+);
 
 /**
  * The connection still says a word, at whatever width this is.

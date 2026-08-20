@@ -35,10 +35,22 @@ export interface Look {
 
 /** The pill both readouts wear, minus the width each one caps itself at. Quiet
  *  by construction — a border, paper and muted text — because chrome that
- *  competes with the outline is chrome a reader learns to skip. */
+ *  competes with the outline is chrome a reader learns to skip.
+ *
+ *  No `truncate` here, and no `min-w-0` either. Those belong on the LABEL
+ *  inside — the connection's words, the Commit pill's sentence — because
+ *  putting them on this box was how a 360pt bar crushed the Commit pill to an
+ *  empty oval: `min-w-0` let the box shrink past its mark, and `overflow:
+ *  hidden` (what `truncate` is) clipped the mark that `shrink-0` had promised
+ *  would stay. The label already truncates. The box is a chip.
+ *
+ *  Height matches {@link ICON_BUTTON} below 48rem, so a live pill and the
+ *  agent toggle are one toolbar rather than a compact chip beside two 44px
+ *  circles. Released on a pointer, same as that button. */
 export const PILL =
-  "flex min-w-0 items-center gap-1.5 truncate rounded-full border border-paper/20 " +
-  "bg-paper/10 px-2 py-1.5 text-xs text-paper/80 sm:gap-2 sm:px-3"
+  "flex items-center gap-1.5 rounded-full border border-paper/20 " +
+  "bg-paper/10 px-2 py-1.5 text-xs text-paper/80 sm:gap-2 sm:px-3 " +
+  "min-h-11 md:min-h-0"
 
 /** The dot itself, which the state's own `dot` utility colours. */
 export const DOT = "inline-block size-2 shrink-0 rounded-full"
@@ -47,14 +59,16 @@ export const DOT = "inline-block size-2 shrink-0 rounded-full"
  * The other shape in the bar: a BUTTON with a glyph on it — the agent toggle
  * and the preferences trigger.
  *
- * Same argument as {@link PILL} one paragraph up, and the same geometry to keep
- * in step: both take `touch.ts`'s 44px minimum below 48rem, because a glyph on
- * its own is a target a finger misses sideways as well as vertically, and both
- * release it on a pointer. What is NOT here is the border colour: the agent
- * toggle's says whether a turn is running and the preferences' says whether the
- * panel is open, which is each button's own news rather than this shape's.
+ * Height is `touch.ts`'s 44px below 48rem, same as {@link PILL}, because a
+ * miss vertically lands on the outline under the bar. WIDTH is not: four 44px
+ * squares plus `live` plus the commit mark do not fit on a 360pt phone, and a
+ * sideways miss in this cluster hits the neighbour, not nothing — the same
+ * exception the gutter already makes (`touch.ts`). What is NOT here is the
+ * border colour: the agent toggle's says whether a turn is running and the
+ * preferences' says whether the panel is open, which is each button's own
+ * news rather than this shape's.
  */
 export const ICON_BUTTON =
   "inline-flex shrink-0 items-center justify-center gap-1 rounded-full " +
   "border border-paper/20 bg-paper/10 px-2 py-1.5 font-mono text-xs text-paper/80 hover:text-paper sm:px-3 " +
-  "min-h-11 min-w-11 md:min-h-0 md:min-w-0"
+  "min-h-11 md:min-h-0"

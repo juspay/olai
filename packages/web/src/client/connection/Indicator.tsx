@@ -70,9 +70,9 @@ export function Indicator(props: { readonly readout: SurfaceReadout }) {
       // No position of its own: it is a READOUT and not a control — nothing
       // here is tappable — so all it needs is to be legible wherever the layout
       // decides to put it. The pill itself is `../readout.ts`'s, shared with
-      // the Commit pill beside it: `min-w-0` + truncate is what lets the header
-      // keep a single row when a label is long, and one copy of that geometry
-      // is one place for it to be got right.
+      // the Commit pill beside it. The LABEL truncates against this cap; the
+      // box does not (`readout.ts`), so a long state still says a word rather
+      // than becoming an empty chip.
       class={`${PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}
       data-testid={TESTID.connection}
       // The state as an attribute, so a test asserts on the STATE rather than

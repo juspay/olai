@@ -89,6 +89,34 @@ Feature: On a phone
     And the app chrome is inside the header
     And the connection's label is whole
 
+  @scratch:good @phone
+  Scenario: Header chrome stays inside the bar on a 360pt phone
+    # iPhone 12/13 mini. The 390pt scenarios above are an iPhone 13, which is
+    # the roomiest common handset; at 360 the same five things used to crush
+    # the Commit pill to an empty oval and overlap the agent toggle. The
+    # give-way order still holds — `live` is whole, the commit pill still
+    # says a word — and nothing has left the bar.
+    Given I open the outline "garden.olai"
+    And the screen is 360 points wide
+    Then the connection is "live"
+    And the app chrome is inside the header
+    And the connection's label is whole
+    And the commit pill still says something
+
+  @agent-stored @scratch:chat @phone
+  Scenario: The session picker fits the sheet
+    # A `w-80` list hung from `chats` ran off the left of the sheet: titles
+    # clipped to their last letters, the list overlapping the trigger. Hung
+    # from the header instead, it is as wide as the conversation and below
+    # the two-line title — so a stored name is readable, and on screen.
+    Given I open the app
+    When I tap the agent toggle
+    Then the agent panel is showing
+    When I open the session picker
+    Then the picker lists "an older conversation"
+    And the session picker is on the screen
+    And the picker shows the start of "an older conversation"
+
   @corpus:good @phone
   Scenario: A tap on a bullet zooms into that node
     Given I open the outline "house.olai"
