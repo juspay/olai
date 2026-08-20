@@ -40,8 +40,7 @@
  * ## The step
  *
  * Every value below is a whole multiple of 0.125rem (2px at the default root),
- * which is what makes "is this on the scale" a question with an answer. The
- * one exception is the compact heading ceiling — see `UNDER_TITLE`.
+ * which is what makes "is this on the scale" a question with an answer.
  *
  * ## Where this deviates from the reference, and why
  *
@@ -179,15 +178,16 @@ export const TYPE = {
  * re-stating those would be a second copy of the scale to keep in step for no
  * effect.
  *
- * 1.0625rem is the one half-step in the whole table (8.5 × 0.125rem). It is
- * spent here because the number it has to sit under is the node title's 1.5rem
- * and the number it has to stay above is the body's 1rem: a full step either
- * way is either shouting or invisible. A half-step is cheaper than a second
- * grid.
+ * The ceiling IS the row title (`ROW_TITLE` in `../touch.ts`, 1rem). A note
+ * heading that out-shouts the line it hangs from is a heading nobody can
+ * skim. The body's own size is also 1rem on the reading scale; compact
+ * prose inherits the note's 0.875rem from the row, so a heading at 1rem
+ * still sits above the sentences around it. No half-step: the title it
+ * has to sit under is on the grid, so this is too.
  */
 export const UNDER_TITLE = {
-  h1: 1.0625,
-  h2: 1.0625,
+  h1: 1,
+  h2: 1,
   h3: 1,
 } as const
 

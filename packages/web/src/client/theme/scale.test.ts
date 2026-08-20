@@ -42,19 +42,22 @@ const lengths = [
 
 // The property that makes the scale a scale rather than a list of numbers
 // somebody liked. Stated in the module's own comment, and true here or the
-// comment is a lie — with exactly one exception, which the next test names.
-test("every value is a whole multiple of the step, but for the named exception", () => {
+// comment is a lie.
+test("every value is a whole multiple of the step", () => {
   const off = lengths
     .filter(([, value]) => !Number.isInteger(value / STEP_REM))
     .map(([name, value]) => `${name}: ${value}rem is ${value / STEP_REM} steps`)
-  expect(off).toEqual(["h1: 1.0625rem is 8.5 steps", "h2: 1.0625rem is 8.5 steps"])
+  expect(off).toEqual([])
 })
 
-// A half-step nobody wrote down would be the beginning of a second grid. This
-// one is written down, and it is one number rather than two.
-test("the compact ceiling spends its half-step once", () => {
-  expect(UNDER_TITLE.h1).toBe(UNDER_TITLE.h2)
-  expect(Number.isInteger(UNDER_TITLE.h3 / STEP_REM)).toBe(true)
+// The ceiling is the row title: three levels, one size, on the grid. A
+// heading that out-shouts the line it hangs from is the bug this exists
+// to prevent; splitting h1 from h2 here would be a second scale inside
+// a note nobody opened to read as a document.
+test("the compact ceiling is one size, at the row title", () => {
+  expect(UNDER_TITLE.h1).toBe(1)
+  expect(UNDER_TITLE.h2).toBe(UNDER_TITLE.h1)
+  expect(UNDER_TITLE.h3).toBe(UNDER_TITLE.h1)
 })
 
 // A ceiling that is not below what it clamps is not a ceiling.
