@@ -78,8 +78,15 @@ const SEARCH_CAP = 48
  *
  * The SIGIL is compared as well as the three fields every arm has, because `#`
  * and `@` are two different lists asked of the same door; `kind` alone would
- * hold a `#ho` popup open over an `@ho` one. Nothing else is on a trigger, and
- * the switch below is what keeps that true as arms are added.
+ * hold a `#ho` popup open over an `@ho` one. It is spelled as a disjunction
+ * rather than a narrowed branch because TypeScript will not narrow `is` from a
+ * comparison against `was` — the second clause is unreachable given the first,
+ * and it is what lets `was.sigil` and `is.sigil` both be read.
+ *
+ * A FOURTH ARM ADDED TO {@link Trigger} would compile here without being
+ * compared, which is the one thing this predicate cannot check for itself:
+ * whatever that arm carries beyond `kind`, `from` and `query` belongs in the
+ * line below, the way `sigil` is.
  */
 export const sameTrigger = (was: Trigger | null, is: Trigger | null): boolean =>
   was === is ||

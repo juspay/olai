@@ -78,10 +78,10 @@ export const refound = (
  *  a wrap-around would be a surprise rather than a convenience.
  *
  *  It takes the page ALREADY FLATTENED, as {@link refound} does and for the
- *  same reason: both callers ask this beside one of the other two walkers, off
- *  a tree that has to be walked once per frame rather than once per question
- *  (`./editing.tsx`'s `drawn`, `../select/selection.ts`'s). Flattening for
- *  itself, this made a third walk of the whole visible tree per call
+ *  same reason: both callers ask this beside one of the other two walkers, and
+ *  a gesture that asks two questions of one page should walk it once
+ *  (`./editing.tsx`'s `drawn`, `../select/selection.ts`'s `grow`). Flattening
+ *  for itself, this made that walk a second one every time
  *  (docs/brainstorming/reactivity-after-the-flip.md §4.8). */
 export const neighbour = (
   drawn: ReadonlyArray<Row>,

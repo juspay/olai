@@ -270,10 +270,12 @@ export const createEditor = (
    * Three things in this file need it and each used to walk the tree for
    * itself: `follow` re-finds the row a draft is drawn at, `row` looks that row
    * up, and `step` takes the next one along. `flatten` is the whole VISIBLE
-   * tree, and every frame of a page re-runs it — a keystroke anywhere in the
-   * vault, a mark somebody else set — so an open draft cost three walks of the
-   * page per frame for one answer
-   * (docs/brainstorming/reactivity-after-the-flip.md §4.8).
+   * tree, so an open draft paid it once per FRAME for `follow` — which is an
+   * effect, so a keystroke anywhere in the vault or a mark somebody else set
+   * runs it — and again per CALL for the other two, which arrive from key
+   * handlers outside any tracking scope
+   * (docs/brainstorming/reactivity-after-the-flip.md §4.8). One memo is one
+   * walk per frame, and the other two read what it already answered.
    *
    * GATED ON {@link where}, which is what keeps this from being a fourth cost
    * rather than a saving: a page with no caret in it walks nothing, and `where`

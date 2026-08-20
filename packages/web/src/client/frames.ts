@@ -42,7 +42,10 @@
  * What is left to visit, therefore, is the object spine ABOVE the arrays — for
  * a `PageReading` a handful of nodes, whatever the page holds — so this is O(1)
  * in the size of the page where the tracker it replaces was O(page) three times
- * over.
+ * over. The bound is the SCHEMA's object nesting rather than the data's: a page
+ * reading that one day carried a record keyed by node ids would put the size of
+ * that record back into this walk, because a record is an object and objects are
+ * what the spine is made of.
  *
  * **That is a claim about the framework, and `./frames.browsertest.ts` pins
  * it.** The day `@kolu/surface` lets a stream DECLARE an array key
@@ -62,18 +65,48 @@
  * still a write, every array element in it is still replaced, and every reader
  * of the store sees that — so this counts what the STORE did, which is the
  * honest thing for a counter whose readers are downstream of the store.
+ *
+ * WHAT THAT COSTS, named rather than implied: a transparent reconnect whose
+ * snapshot changed nothing now moves this count, so a filtered page asks the
+ * matcher once more than it strictly had to. That is the direction
+ * `./filter/asking.ts`'s own header already asks for — "a reconnect re-opens
+ * the subscription with a full snapshot… and the question this door is standing
+ * on is asked again against the wire that came back" — and it is one call, once,
+ * on an event a reader can see happen.
+ *
+ * ## And the day it can go
+ *
+ * THIS FILE IS A STAND-IN, which is the other half of the same doc:
+ * `reactivity-after-the-flip.md` §3.5's **5.2** asks kolu for a tracker mode
+ * that COUNTS WITHOUT CLONING, and `createSubscription.ts`'s `noteFrame` already
+ * sees every frame — a counter bumped there is O(1), reads no store, and cannot
+ * be wrong about a merge policy or about a reconnect. The plan (§5's PR 4)
+ * allowed a store version on this side if that had not landed, on condition of
+ * saying so; this is the saying-so. When 5.2 lands, `createReading` reads the
+ * framework's counter and this file and its browsertest go with it.
  */
 
 import { $TRACK, type Accessor, createMemo } from "solid-js"
+import { unwrap } from "solid-js/store"
 
 /**
  * Subscribe to every node of a store value that a frame could write to — see
  * the header for why the arrays are where this stops.
  *
  * `[$TRACK]` is read for its side effect (Solid's proxy subscribes the running
- * computation to that node's own signal) and the value is discarded; the
- * property reads that find the children subscribe to those as well, which is
- * harmless and unavoidable — they are how the spine is walked.
+ * computation to that node's own signal) and the value is discarded. It is the
+ * WHOLE subscription: `setProperty` bumps the changed property's node and its
+ * object's `$SELF` together, so one `$SELF` per node covers every scalar under
+ * it and a per-property subscription would be a second link to the same fact.
+ *
+ * THE CHILDREN ARE FOUND ON THE RAW VALUE, which is the difference between this
+ * costing the spine and costing the page. Every read through a store proxy is a
+ * trap: `Object.keys` runs `[[GetOwnProperty]]` per key, which mints a
+ * descriptor object and a bound getter each time, and every scalar read creates
+ * a signal node this does not need. `unwrap` is O(1) — the proxy hands back the
+ * object it wraps — so the walk enumerates plain properties and reaches through
+ * the proxy only for the handful that are objects, which is exactly the set that
+ * has to be tracked anyway.
  */
 const track = (value: unknown): void => {
   if (value === null || typeof value !== "object") return
@@ -81,7 +114,13 @@ const track = (value: unknown): void => {
   // An array's own node is the whole of it — every element is replaced per
   // frame, so nothing inside one can change without this having heard.
   if (Array.isArray(value)) return
-  for (const key of Object.keys(value)) track((value as Record<string, unknown>)[key])
+  const raw = unwrap(value) as Record<string, unknown>
+  for (const key of Object.keys(raw)) {
+    const child = raw[key]
+    if (child !== null && typeof child === "object") {
+      track((value as Record<string, unknown>)[key])
+    }
+  }
 }
 
 /**

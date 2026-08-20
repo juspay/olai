@@ -155,12 +155,12 @@ const outlineAt = (file: number, rows: number): string => {
 
 const corpus = (
   write: (file: string, text: string) => void,
-  { outlines, rows, documents: DOCUMENTS }: Size,
+  { outlines, rows, documents }: Size,
 ): void => {
   for (let file = 0; file < outlines; file += 1) {
     write(outlineFile(file), outlineAt(file, rows))
   }
-  for (let doc = 0; doc < DOCUMENTS; doc += 1) {
+  for (let doc = 0; doc < documents; doc += 1) {
     write(
       `notes/doc-${String(doc).padStart(2, "0")}.md`,
       `# Document ${doc}\n\n${"prose about the work. ".repeat(200)}\n`,
@@ -237,7 +237,7 @@ const main = async () => {
   }
 
   if (SESSION === "pages") await pages(page, mark)
-  else if (SESSION === "filter") await filtered(page, mark)
+  else if (SESSION === "filter") await filtered(page, mark, () => searches)
   else await preview(page, mark, write)
 
   await browser.close()
@@ -365,6 +365,7 @@ const PICKED = 30
 const filtered = async (
   page: Page,
   mark: (what: string) => Promise<void>,
+  counted: () => number,
 ): Promise<void> => {
   const title = (id: string) =>
     page.locator(`[data-testid="node"][data-node-id="${id}"]`)
@@ -381,6 +382,19 @@ const filtered = async (
     `a filtered outline is opened (${BIG.rows} rows of ${BIG.outlines} outlines — ` +
       `${(BIG.outlines * BIG.rows).toLocaleString("en")} nodes)`,
   )
+  // THE INSTRUMENT PROVES ITSELF FIRST. Everything else in this file fails
+  // loudly (a `waitFor` that times out); a counter keyed on a protocol string
+  // fails SILENTLY — the day that tag is renamed on one of the two worktrees
+  // `ROOT=` points at, the run reports zero searches, which reads as a
+  // spectacular win rather than a broken driver. A narrowed page that has drawn
+  // its rows has asked at least once.
+  if (counted() === 0) {
+    throw new Error(
+      `a filtered page was opened and no ${MATCHING} was seen on the wire — ` +
+        "the request tag this driver counts has moved, so every number below " +
+        "it would be a zero that means nothing",
+    )
+  }
 
   // The pick: one row, then everything down to the last of the section.
   await title("n0-1").click({ modifiers: ["ControlOrMeta"] })

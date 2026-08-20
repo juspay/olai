@@ -49,42 +49,39 @@ const page = (title: string, second = "two") => ({
 })
 
 /** A store written the way the wire writes one, plus the counter over it. */
-const live = <A>(body: (
-  write: (value: unknown) => void,
-  blank: () => void,
-  frames: () => number,
-) => A): A =>
+const live = () =>
   createRoot((dispose) => {
     const [store, setStore] = createStore<{ v: unknown }>({ v: undefined })
     const frames = createFrames(() => store.v)
     // A subscriber, because a memo nobody reads is a memo Solid is free to
     // leave cold — and every reader of this count in the client is one.
     createEffect(() => frames())
-    const answer = body(
-      (value) => writeWrappedValue(setStore, value),
-      () => setStore("v", undefined),
+    return {
       frames,
-    )
-    dispose()
-    return answer
+      write: (value: unknown) => writeWrappedValue(setStore, value),
+      // What the framework does to every subscription the moment its input
+      // moves, before the new question's first frame.
+      blank: () => setStore("v", undefined),
+      stop: dispose,
+    }
   })
 
 test("a first frame is a value, not a change", () => {
-  live((write, _blank, frames) => {
-    expect(frames()).toBe(0)
-    write(page("one"))
-    expect(frames()).toBe(0)
-  })
+  const store = live()
+  expect(store.frames()).toBe(0)
+  store.write(page("one"))
+  expect(store.frames()).toBe(0)
+  store.stop()
 })
 
 test("every frame after the first counts once", () => {
-  live((write, _blank, frames) => {
-    write(page("one"))
-    write(page("two"))
-    expect(frames()).toBe(1)
-    write(page("three"))
-    expect(frames()).toBe(2)
-  })
+  const store = live()
+  store.write(page("one"))
+  store.write(page("two"))
+  expect(store.frames()).toBe(1)
+  store.write(page("three"))
+  expect(store.frames()).toBe(2)
+  store.stop()
 })
 
 test("a change buried in an array element is a frame", () => {
@@ -93,27 +90,27 @@ test("a change buried in an array element is a frame", () => {
   // inside `rows` reaches the counter through the ARRAY's own node — which is
   // why the walk stops at arrays and the page is not walked per frame. If
   // `@kolu/surface` ever declares an array key, this is the test that says so.
-  live((write, _blank, frames) => {
-    write(page("one"))
-    write(page("one", "two changed"))
-    expect(frames()).toBe(1)
-  })
+  const store = live()
+  store.write(page("one"))
+  store.write(page("one", "two changed"))
+  expect(store.frames()).toBe(1)
+  store.stop()
 })
 
 test("a blank re-arms the first-frame rule instead of counting", () => {
   // What the framework does to every subscription the moment its input moves:
   // `setStore("v", undefined)`, then the new question's first frame.
-  live((write, blank, frames) => {
-    write(page("one"))
-    write(page("two"))
-    expect(frames()).toBe(1)
-    blank()
-    expect(frames()).toBe(1)
-    write(page("elsewhere"))
-    expect(frames()).toBe(1)
-    write(page("elsewhere moved"))
-    expect(frames()).toBe(2)
-  })
+  const store = live()
+  store.write(page("one"))
+  store.write(page("two"))
+  expect(store.frames()).toBe(1)
+  store.blank()
+  expect(store.frames()).toBe(1)
+  store.write(page("elsewhere"))
+  expect(store.frames()).toBe(1)
+  store.write(page("elsewhere moved"))
+  expect(store.frames()).toBe(2)
+  store.stop()
 })
 
 test("an identical frame still counts — it is still a write", () => {
@@ -121,11 +118,11 @@ test("an identical frame still counts — it is still a write", () => {
   // reconnect snapshot replaces every array element, so every `<For>` by
   // reference in the client sees it. A counter downstream of the store says
   // what the store did.
-  live((write, _blank, frames) => {
-    write(page("one"))
-    write(page("one"))
-    expect(frames()).toBe(1)
-  })
+  const store = live()
+  store.write(page("one"))
+  store.write(page("one"))
+  expect(store.frames()).toBe(1)
+  store.stop()
 })
 
 test("counting a frame does not clone the page", () => {
@@ -139,11 +136,11 @@ test("counting a frame does not clone the page", () => {
     return real(value)
   }) as typeof structuredClone
   try {
-    live((write, _blank, frames) => {
-      write(page("one"))
-      for (let n = 0; n < 20; n += 1) write(page(`title ${n}`))
-      expect(frames()).toBe(20)
-    })
+    const store = live()
+    store.write(page("one"))
+    for (let n = 0; n < 20; n += 1) store.write(page(`title ${n}`))
+    expect(store.frames()).toBe(20)
+    store.stop()
   } finally {
     globalThis.structuredClone = real
   }

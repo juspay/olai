@@ -61,7 +61,7 @@ import {
   useContext,
 } from "solid-js"
 
-import { sameList } from "../lists.ts"
+import { sameList } from "../same.ts"
 import { olai } from "../wire.ts"
 
 /**

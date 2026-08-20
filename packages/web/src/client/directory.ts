@@ -49,6 +49,7 @@ import type { Head, Manifest } from "@olai/surface"
 import { type Accessor, createMemo } from "solid-js"
 
 import { facesOf, sortByPath } from "./paths.ts"
+import { sameMap } from "./same.ts"
 
 export interface Directory {
   /** The set-wide facts: `undefined` before the first frame, `null` for a
@@ -99,39 +100,36 @@ export interface HeadEntries {
   readonly byKey: (key: string) => Accessor<Head | undefined> | undefined
 }
 
-/**
- * Whether two readings of the unreadable files say the same thing — the paths
- * AND what each one is wrong about.
- *
- * A `Map` minted per run is a new value on every head the directory publishes,
- * and what reads it is every `<File>` row of the sidebar asking `broken.has`
- * (`./Sidebar.tsx`) and the pane that draws a bad file's errors. So a rename
- * three folders away re-ran all of them for an answer that is almost always
- * the empty map it already was (docs/brainstorming/reactivity-after-the-flip.md
- * §4.2).
- *
- * The ERRORS are compared as well as the keys, and by identity: a file that is
- * still broken for a different reason is a different answer for the pane that
- * draws it, and the entry object is only replaced when its head is. Comparing
- * the key sets alone would leave that pane showing the previous parse failure.
- */
-const sameBroken = (
-  was: ReadonlyMap<string, BrokenFile>,
-  is: ReadonlyMap<string, BrokenFile>,
-): boolean => {
-  if (was.size !== is.size) return false
-  for (const [file, broken] of was) if (is.get(file) !== broken) return false
-  return true
-}
-
 export const createDirectory = (
   entries: HeadEntries,
   manifest: Accessor<Manifest | undefined>,
 ): Directory => {
+  // NO `equals` ON THE FILE LIST, and that is somebody else's node rather than
+  // an oversight: what `faces` and `broken` cost by walking every key per frame
+  // is `perf-faces-broken-walk` on the roadmap, measured and filed with its own
+  // number. This diff is about what happens BELOW them — a walk that answers the
+  // same thing waking every reader of it.
   const files = createMemo(() => sortByPath(entries.keys()))
   return {
     manifest,
     faces: createMemo(() => facesOf(files(), (file) => entries.byKey(file)?.()?.face)),
+    /**
+     * THE UNREADABLE FILES, HELD BY VALUE — the paths AND what each one is
+     * wrong about.
+     *
+     * A `Map` minted per run is a new value on every head the directory
+     * publishes, and what reads it is every `<File>` row of the sidebar asking
+     * `broken.has` (`./Sidebar.tsx`) and the pane that draws a bad file's
+     * errors. So a rename three folders away re-ran all of them for an answer
+     * that is almost always the empty map it already was
+     * (docs/brainstorming/reactivity-after-the-flip.md §4.2).
+     *
+     * The ERRORS are compared as well as the keys, and by IDENTITY — which is
+     * `sameMap`'s default, and right here because an entry is replaced exactly
+     * when the head carrying it is. Comparing the key sets alone would leave a
+     * pane showing the previous parse failure of a file that is still broken
+     * for a new reason.
+     */
     broken: createMemo(() => {
       const found = new Map<string, BrokenFile>()
       for (const file of files()) {
@@ -139,7 +137,7 @@ export const createDirectory = (
         if (broken !== undefined && broken !== null) found.set(file, broken)
       }
       return found
-    }, new Map<string, BrokenFile>(), { equals: sameBroken }),
+    }, new Map<string, BrokenFile>(), { equals: sameMap }),
     head: (file) => () => entries.byKey(file())?.()?.rev,
   }
 }

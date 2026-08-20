@@ -10,6 +10,8 @@
 
 import type { MatchedNode } from "@olai/surface"
 
+import { sameMap } from "../same.ts"
+
 /** What a query selected, ready for a row to look itself up in: id → why. The
  *  server's own answer rows, kept as they arrived rather than re-shaped — the
  *  `matched` field is what `./why.ts` reads to draw a note excerpt, and a
@@ -40,13 +42,7 @@ export type Matches = ReadonlyMap<string, MatchedNode>
 export const sameMatches = (
   was: Matches | undefined,
   is: Matches | undefined,
-): boolean => {
-  if (was === is) return true
-  if (was === undefined || is === undefined) return false
-  if (was.size !== is.size) return false
-  for (const [id, one] of was) {
-    const other = is.get(id)
-    if (other === undefined || other.matched !== one.matched) return false
-  }
-  return true
-}
+): boolean =>
+  was === is ||
+  (was !== undefined && is !== undefined &&
+    sameMap(was, is, (one, other) => one.matched === other.matched))

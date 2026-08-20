@@ -36,72 +36,74 @@ const unreadable = (file: string, message: string): BrokenFile => ({
   errors: [{ code: "not-json", file, line: 1, message }],
 })
 
-/** The collection, as two signals: which paths there are, and what each holds.
- *  `byKey` hands back an accessor per call, exactly as the framework's does. */
-const heads = () => {
+/**
+ * A live directory over a collection made of two signals: which paths there
+ * are, and what each holds. `byKey` hands back an accessor per call, exactly as
+ * the framework's does.
+ *
+ * `put` is a frame — the whole head set as it stands after it — and `broken` is
+ * the reading under test, so a case is its two frames and what it says about
+ * the answer between them.
+ */
+const live = () => {
   const [held, setHeld] = createSignal<ReadonlyMap<string, Head>>(new Map())
   const entries: HeadEntries = {
     keys: () => [...held().keys()],
     byKey: (file: string): Accessor<Head | undefined> | undefined =>
       held().has(file) ? () => held().get(file) : undefined,
   }
-  return { entries, put: (next: ReadonlyMap<string, Head>) => setHeld(next) }
+  return createRoot((dispose) => {
+    const directory = createDirectory(entries, () => ({}))
+    return {
+      broken: directory.broken,
+      put: (next: ReadonlyMap<string, Head>) => setHeld(next),
+      stop: dispose,
+    }
+  })
 }
 
 test("a frame that broke nothing leaves the broken map where it was", () => {
-  createRoot((dispose) => {
-    const { entries, put } = heads()
-    put(new Map([["house.olai", head(1)], ["garden.olai", head(1)]]))
-    const directory = createDirectory(entries, () => ({}))
-    const first = directory.broken()
-    // One file rewritten — a new head, a new entry, a new frame — and nothing
-    // about it unreadable.
-    put(new Map([["house.olai", head(2)], ["garden.olai", head(1)]]))
-    expect(directory.broken()).toBe(first)
-    dispose()
-  })
+  const directory = live()
+  directory.put(new Map([["house.olai", head(1)], ["garden.olai", head(1)]]))
+  const first = directory.broken()
+  // One file rewritten — a new head, a new entry, a new frame — and nothing
+  // about it unreadable.
+  directory.put(new Map([["house.olai", head(2)], ["garden.olai", head(1)]]))
+  expect(directory.broken()).toBe(first)
+  directory.stop()
 })
 
 test("a file that stops parsing is a new answer", () => {
-  createRoot((dispose) => {
-    const { entries, put } = heads()
-    put(new Map([["house.olai", head(1)]]))
-    const directory = createDirectory(entries, () => ({}))
-    const first = directory.broken()
-    put(new Map([["house.olai", head(2, unreadable("house.olai", "not JSON"))]]))
-    const now = directory.broken()
-    expect(now).not.toBe(first)
-    expect([...now.keys()]).toEqual(["house.olai"])
-    dispose()
-  })
+  const directory = live()
+  directory.put(new Map([["house.olai", head(1)]]))
+  const first = directory.broken()
+  directory.put(new Map([["house.olai", head(2, unreadable("house.olai", "not JSON"))]]))
+  const now = directory.broken()
+  expect(now).not.toBe(first)
+  expect([...now.keys()]).toEqual(["house.olai"])
+  directory.stop()
 })
 
 test("a file that is still broken for another reason is a new answer", () => {
   // The case a key-set comparison would miss, and it is the pane drawing the
   // errors that would go on showing the previous parse failure.
-  createRoot((dispose) => {
-    const { entries, put } = heads()
-    put(new Map([["house.olai", head(1, unreadable("house.olai", "not JSON"))]]))
-    const directory = createDirectory(entries, () => ({}))
-    const first = directory.broken()
-    put(new Map([["house.olai", head(2, unreadable("house.olai", "no id"))]]))
-    const now = directory.broken()
-    expect(now).not.toBe(first)
-    expect(now.get("house.olai")?.errors[0]?.message).toBe("no id")
-    dispose()
-  })
+  const directory = live()
+  directory.put(new Map([["house.olai", head(1, unreadable("house.olai", "not JSON"))]]))
+  const first = directory.broken()
+  directory.put(new Map([["house.olai", head(2, unreadable("house.olai", "no id"))]]))
+  const now = directory.broken()
+  expect(now).not.toBe(first)
+  expect(now.get("house.olai")?.errors[0]?.message).toBe("no id")
+  directory.stop()
 })
 
 test("a file that parses again is a new answer", () => {
-  createRoot((dispose) => {
-    const { entries, put } = heads()
-    put(new Map([["house.olai", head(1, unreadable("house.olai", "not JSON"))]]))
-    const directory = createDirectory(entries, () => ({}))
-    const first = directory.broken()
-    put(new Map([["house.olai", head(2)]]))
-    const now = directory.broken()
-    expect(now).not.toBe(first)
-    expect(now.size).toBe(0)
-    dispose()
-  })
+  const directory = live()
+  directory.put(new Map([["house.olai", head(1, unreadable("house.olai", "not JSON"))]]))
+  const first = directory.broken()
+  directory.put(new Map([["house.olai", head(2)]]))
+  const now = directory.broken()
+  expect(now).not.toBe(first)
+  expect(now.size).toBe(0)
+  directory.stop()
 })

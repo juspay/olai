@@ -41,7 +41,7 @@
 import type { Face } from "@olai/format"
 import { type Accessor, createContext, createMemo, type JSX, useContext } from "solid-js"
 
-import { sameList } from "./lists.ts"
+import { sameList } from "./same.ts"
 
 const ServedContext = createContext<Accessor<ReadonlyArray<string>>>()
 

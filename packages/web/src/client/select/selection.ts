@@ -88,6 +88,10 @@ export interface Selection {
   readonly say: (said: Said | null) => void
 }
 
+/** What nothing picked answers with — one array, so a page nobody has picked on
+ *  hands the bar and the key listener the same reference every frame. */
+const NOTHING_PICKED: ReadonlyArray<Row> = []
+
 const SelectionContext = createContext<Selection>()
 
 /** The page's selection. A throw outside the provider, for the reason
@@ -144,9 +148,16 @@ export const createSelection = (
    * worked.
    */
   createEffect(() => {
-    const rows = drawn()
+    // THE PICK IS READ FIRST, and that ordering is the whole cost of this
+    // effect on a page nobody has picked anything on: `drawn` FLATTENS the
+    // visible tree, and it ran before the guard — so every frame of every page
+    // in the app walked the whole tree to discover there was nothing to
+    // re-find. Tracking is unchanged either way (a pick landing is what re-runs
+    // this and subscribes it to the rows); what changes is that the walk
+    // happens when there is something to walk for.
     const held = keys()
     if (held.size === 0) return
+    const rows = drawn()
     // THE ORDINARY FRAME IS THE FAST ONE, and it has to be: this runs on every
     // revision the store publishes, and `refound` scans the drawn rows — asking
     // it per picked row per frame would be the pick times the tree for an answer
@@ -168,8 +179,16 @@ export const createSelection = (
   /** A MEMO, because three readers ask for it and one of them is a window key
    *  listener: the bar draws it, the verbs are asked of it, and every keystroke
    *  on the page asks whether anything is picked at all. Recomputed only when
-   *  the pick or the rows move. */
-  const rows = createMemo<ReadonlyArray<Row>>(() => topmost(drawn(), keys()))
+   *  the pick or the rows move.
+   *
+   *  EMPTY IS ANSWERED BEFORE THE WALK, for the effect above's reason and one
+   *  more of its own: `topmost` over no keys is empty whatever the page holds,
+   *  so flattening the tree to arrive there was a walk per frame on every page
+   *  in the app — and it handed back a FRESH empty array each time, which woke
+   *  the bar and the key listener for nothing. */
+  const rows = createMemo<ReadonlyArray<Row>>(() =>
+    keys().size === 0 ? NOTHING_PICKED : topmost(drawn(), keys())
+  )
 
   const run = async (verb: Bulk): Promise<void> => {
     const chosen = rows()
@@ -199,10 +218,13 @@ export const createSelection = (
     grow: (by) => {
       const end = focus() ?? anchor()
       if (end === null) return
-      const next = neighbour(drawn(), end, by)
+      // ONE WALK for the two questions a grow asks of the page — which row is
+      // next, and what lies between the anchor and it.
+      const rows = drawn()
+      const next = neighbour(rows, end, by)
       if (next === undefined) return
       const at = anchor() ?? end
-      pick(spanning(drawn(), at, next.key), at, next.key)
+      pick(spanning(rows, at, next.key), at, next.key)
     },
     widen: (from) => {
       const step = widened
