@@ -17,6 +17,15 @@
  *     (`keySchema`) rather than inherited from a client library's default.
  *     Every subscription opens with a full snapshot and a reconnect is a fresh
  *     one — the framework's own contract — so there is nothing to resume.
+ *
+ *     NO BROWSER READS IT any more, and that is PR 10 of
+ *     `docs/brainstorming/vault-in-browser.md` landing: a tab held every record
+ *     of every file and answered every page out of its own copy, which is the
+ *     ruling this arc reversed ("the browser may hold at most the current
+ *     page's data"). What a tab reads now is the `page` stream below and the
+ *     `heads` beside it. The member stays, on the AGENT's face
+ *     (`@olai/server`'s `faces.ts`): watching one outline's records is exactly
+ *     what a request-shaped reader wants, and it was never the problem.
  *   - `documents` is a COLLECTION keyed the same way, one entry per BODIED file
  *     — every `.md` and every `.html` — and it is subscribed KEYS-FIRST: the sidebar draws paths, so the key set is
  *     the whole of what a first paint needs, and a body travels when a document
@@ -76,14 +85,21 @@
  * the session is handed, and what a reader sees of them is the outline stream
  * moving — server-authoritative, never an optimistic echo.
  *
- * Two members are STREAMS, which this surface had none of until PR 4 of
- * `docs/brainstorming/vault-in-browser.md`: `dated` and `owed`, the sidebar's
- * month of dots and its count of what is late. A stream is a CELL WITH AN
+ * Four members are STREAMS, which this surface had none of until PR 4 of
+ * `docs/brainstorming/vault-in-browser.md`. A stream is a CELL WITH AN
  * ARGUMENT — read, listen, re-read on every published revision, send only when
- * the answer moved — and an argument is exactly what those two need and a cell
- * cannot have: a month somebody paged to, and the day somebody is standing on.
- * They are declared with the spec below and their vocabulary is {@link
- * ./dates.ts}.
+ * the answer moved — and an argument is exactly what each of them needs and a
+ * cell cannot have:
+ *
+ *   - `dated` and `owed` are the sidebar's month of dots and its count of what
+ *     is late: a month somebody paged to, and the day somebody is standing on.
+ *     Their vocabulary is {@link ./dates.ts}.
+ *   - `page` is THE member of this whole design — what one open page shows, for
+ *     the address it is showing. Its vocabulary, and the argument for the
+ *     shape, is {@link ./page.ts}.
+ *   - `moving` is beside it: whether a row can go where somebody is pointing,
+ *     which is the one question left in the app that is about the vault and not
+ *     about any page.
  *
  * The last group is the KEYBOARD's ({@link ./edit.ts}), and it is the one
  * place a browser may cause a write. It changes nothing about the paragraph
@@ -141,6 +157,7 @@ import {
 import { editProcedures } from "./edit.ts"
 import { opsProcedures } from "./ops.ts"
 import { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
+import { MovingAnswer, MovingRequest, PageReading, PageRequest } from "./page.ts"
 import { MatchingAnswer, MatchingRequest, SearchAnswer, SearchRequest } from "./search.ts"
 
 /**
@@ -266,8 +283,9 @@ export const DocumentEntry = Schema.Struct({
 export type DocumentEntry = typeof DocumentEntry.Type
 
 /**
- * One bodied file's HEAD: which revision of the directory its file is at, and
- * nothing else. {@link DocumentEntry} with the body taken out.
+ * One SERVED FILE's HEAD: which revision of the directory it is at, what it is
+ * called, and whether it could be read at all. Everything about a file except
+ * its content.
  *
  * It exists because "the file on disk MOVED" and "here is what it says" are
  * two different questions, and until this member there was one way to ask
@@ -277,6 +295,15 @@ export type DocumentEntry = typeof DocumentEntry.Type
  * megabytes to a tab that drew none of them, on every open and on every edit,
  * ahead of the fetch that actually drew it. That was PR #206's standing
  * deferral, and this is the member it named.
+ *
+ * EVERY served file since PR 10 of `docs/brainstorming/vault-in-browser.md`,
+ * where it was every BODIED one. That is the design's §3 Sidebar row arriving:
+ * the file tree is paths and faces, which is key-set-sized, and it was the only
+ * thing a browser still read the whole `outlines` collection for. An outline's
+ * head is exactly what a document's always was — a revision and a face, no
+ * content — so this is one member widened rather than a second one built beside
+ * it, and the browser now learns the DIRECTORY here and each PAGE from its own
+ * reading (`./page.ts`).
  *
  * `rev` is {@link OutlineEntry}'s and {@link DocumentEntry}'s, unchanged and on
  * purpose: it MOVES when the file does and stays put when it does not, so a
@@ -315,6 +342,26 @@ export const Head = Schema.Struct({
    *  about. It moves when `rev` moves and by the same act, since both are cut
    *  from one document in one function (`@olai/server`'s `published.ts`). */
   face: Face,
+  /**
+   * Why this file could not be READ — `null` for every file that parsed, and
+   * for every file that has no parsing to do.
+   *
+   * The one field here that is not about a file's identity, and it is here for
+   * the reason the face is: it is what a browser cannot derive without the
+   * content. A `.olai` that stopped parsing keeps its key and carries its
+   * errors — the per-entity half of the error scope expressed as DATA rather
+   * than by absence, which is the same sentence {@link OutlineEntry.broken}
+   * makes and the same value, cut from the same set. The sidebar marks such a
+   * file and its own page draws the errors instead of a tree; a reader holding
+   * only the `errors` cell would have to guess which outline a `file:line`
+   * belonged to and hope the two lists agreed.
+   *
+   * It rides on the HEAD rather than on the page's reading because the sidebar
+   * marks every broken file in the directory, not the one somebody is looking
+   * at — and it is a boolean's worth of weight per file, which is what the rest
+   * of this entry already costs.
+   */
+  broken: Schema.NullOr(BrokenFile),
 })
 export type Head = typeof Head.Type
 
@@ -534,31 +581,39 @@ export const surface = defineSurface({
       verbs: ["keys", "get"],
     },
     /**
-     * The same files as {@link documents}, one HEAD each and no body — see
-     * {@link Head}.
+     * EVERY SERVED FILE, one HEAD each and no content — see {@link Head}.
+     *
+     * THE DIRECTORY, as a browser holds it. This is the whole of what a tab
+     * knows about the vault since PR 10 of `docs/brainstorming/
+     * vault-in-browser.md`: the sidebar's tree is these paths, a page model
+     * asks these for membership, the palette draws these titles, and everything
+     * else a screen shows comes from that page's own reading (`./page.ts`).
+     * `outlines` used to answer the first four of those, by handing every tab
+     * every record of every file.
      *
      * `deltas` here, and the omission next door, are the same decision read
      * twice. The batched verb is a push of every entry, which for `documents`
      * is every body and is exactly what that collection exists to stop
-     * sending; for this one it is a path and an integer per bodied file, which
-     * is what the key set already costs. So the cheap member takes the cheap
+     * sending; for this one it is a path, an integer and a face per file, which
+     * is what a key set plus a title costs. So the cheap member takes the cheap
      * verb, and a tab watching one file for changes opens no stream of its own:
      * it reads the entry it wants out of the one snapshot-then-delta stream the
      * sidebar's paths already arrive on.
      *
-     * WHICH IS WHY THE KEY SET IS THE SAME KEY SET, and not merely similar: a
-     * reader takes its file list from HERE (`@olai/web`'s `documents.tsx`), so
-     * a head missing for a file the directory holds is a file the sidebar
-     * stops listing. Both slices are cut in one function, from one binding of
-     * one list, through one `keyOf` (`@olai/server`'s `published.ts`, where
-     * that is spelled out and asserted) — so breaking it takes an edit rather
-     * than a drift.
+     * IT IS A SUPERSET OF {@link documents}' KEYS, and that direction is what a
+     * reader may rely on: the file list comes from HERE, so a head missing for
+     * a file the directory holds is a file the sidebar stops listing, and a
+     * bodied file's head is always here to open its body against. Every slice
+     * is cut in one function, from one binding of one list, through one `keyOf`
+     * (`@olai/server`'s `published.ts`, where that is spelled out and asserted)
+     * — so breaking it takes an edit rather than a drift.
      *
      * Read-only on the wire, like every other file-shaped member: what a head
      * says is what the disk said.
      */
     heads: {
-      /** Root-relative, `/`-spelled — {@link documents}' own keys. */
+      /** Root-relative, `/`-spelled — the same spelling every other member
+       *  here is keyed by, and the one every `file:line` names. */
       keySchema: Schema.String,
       schema: Head,
       verbs: ["keys", "get", "deltas"],
@@ -625,12 +680,50 @@ export const surface = defineSurface({
     },
     /** What is owed as of the reader's own today — `@olai/format`'s
      *  `OwedRequest` and `Owed`, with `sameOwed` beside them. The counts and
-     *  not the agenda: what crosses is the two numbers a mark prints, so the
-     *  three stretches the PAGE lists stay the page's own reading (which is
-     *  PR 10's row, not this one's). */
+     *  not the agenda: what crosses is the two numbers a mark prints, and the
+     *  three stretches the PAGE lists arrive on {@link page} below. */
     owed: {
       inputSchema: OwedRequest,
       outputSchema: Owed,
+    },
+    /**
+     * WHAT ONE PAGE SHOWS — the member this whole design was for. See
+     * {@link ./page.ts}, which argues the shape, the stream, and what
+     * deliberately does not ride here.
+     *
+     * One subscription per open pane, keyed by the address that pane is
+     * drawing: the server computes the reading over the set it already holds
+     * and re-sends it whenever a revision changes it by value. What the browser
+     * used to do instead was hold every record of every file and answer the
+     * same question locally.
+     *
+     * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`), like the two readings
+     * above and for their reason: what comes back is a screen — rows with their
+     * fold keys, a rollup, the blockers a checkbox draws. An agent asking what
+     * an outline holds asks `list_outlines` and `read_subtree`, and is answered
+     * in nodes.
+     */
+    page: {
+      inputSchema: PageRequest,
+      outputSchema: PageReading,
+    },
+    /**
+     * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING — the move-to picker's
+     * preview of the planner's verdict, for the destinations its search just
+     * offered ({@link ./page.ts}'s closing paragraph).
+     *
+     * A STREAM beside {@link page} rather than a procedure, for the reason that
+     * one is: the panel stands open while anybody writes, and what it judges
+     * has to be where the row has actually got to.
+     *
+     * THE BROWSER'S ALONE, like `search.matching` next door and for the same
+     * reason: what comes back is a dim and a sentence for a list of rows on a
+     * screen. An agent moving a node asks `move_node` and is refused by the
+     * planner, in the planner's own words.
+     */
+    moving: {
+      inputSchema: MovingRequest,
+      outputSchema: MovingAnswer,
     },
   },
   procedures: {
@@ -1008,6 +1101,10 @@ export type { Pinned } from "@olai/format"
 /** What the sidebar's two date readings ask and answer on the wire — see
  *  {@link ./dates.ts}. */
 export { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
+
+/** What a PAGE asks and answers, and what the move picker does — see
+ *  {@link ./page.ts}. */
+export { MovingAnswer, MovingRequest, PageReading, PageRequest } from "./page.ts"
 
 /** What a search asks and answers on the wire — see {@link ./search.ts}. */
 export {

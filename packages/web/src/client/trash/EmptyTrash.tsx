@@ -13,12 +13,15 @@
  * write, which is the division `../saying.ts` already keeps for the line
  * underneath.
  *
- * **THE COUNT IS THE POINT**, and it is not this file's arithmetic:
- * `./counting.ts` answers it over the SET, and carries the argument for why the
- * rows on screen are not an answer. What this component owns is only WHEN to
- * ask — which is every frame, through the live indexes, so a pile that arrives
- * while somebody is reading the question puts the question away rather than
- * silently re-wording it.
+ * **THE COUNT IS THE POINT**, and it is not this file's arithmetic: it arrives
+ * on the trash page's own reading, counted over the SET where the records are
+ * (`@olai/format`'s `page.ts`, the trash arm's `records`), and the prop's own
+ * docstring below carries the argument for why the rows on screen are not an
+ * answer. It was `./counting.ts` over the tab's copy of the vault until PR 10
+ * of `docs/brainstorming/vault-in-browser.md`; the rule did not move, the set
+ * did. What this component owns is only WHEN to ask — which is every frame the
+ * reading moves on, so a pile that arrives while somebody is reading the
+ * question puts the question away rather than silently re-wording it.
  *
  * **THE VERB IS NOT DRAWN OVER AN EMPTY TRASH**, and it is not taken away by a
  * filter either — those are the same rule read twice. Whether there is anything
@@ -37,33 +40,36 @@
 import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { createConfirming } from "../confirming.ts"
-import { useDerived } from "../derived.tsx"
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
 import { ALARM_PILL, QUIET_PILL } from "../pill.ts"
 import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
 import { applying } from "../writes.ts"
-import { inTrash } from "./counting.ts"
 import { emptyQuestion } from "./question.ts"
 
 export function EmptyTrash(props: {
-  /** Every archive the directory holds, in path order — the page's own list
-   *  (`../page.ts`), including the ones holding nothing, because what this
-   *  counts is the SET and not what survived a filter. */
-  readonly files: ReadonlyArray<string>
+  /**
+   * How many RECORDS emptying would delete, across every archive the directory
+   * holds — the trash page's own reading (`@olai/format`'s `page.ts`).
+   *
+   * COUNTED IN THE SET and not over the rows, which is the whole reason it is a
+   * number rather than something this component works out: the filter box
+   * narrows this page like any other, and a mirror inside an archive draws the
+   * children of a live outline's node that emptying does not touch. Either one
+   * alone would make a count read off the page an understatement. It was the
+   * browser's own walk of its copy of the directory until PR 10 of
+   * `docs/brainstorming/vault-in-browser.md`; the rule did not move, the set
+   * did.
+   *
+   * Zero is what takes the control off the page entirely.
+   */
+  readonly going: number
 }) {
-  const derived = useDerived()
   const undo = useUndo()
   const { said, say } = createSaying()
 
-  /** How many records go — {@link ./counting.ts}, which is where the argument
-   *  for asking the SET rather than the page lives, and where it is tested.
-   *  Zero is what takes the control off the page entirely. */
-  const going = createMemo(() => {
-    const indexes = derived()
-    return indexes === undefined ? 0 : inTrash(indexes, props.files)
-  })
+  const going = () => props.going
 
   /** The question, and the rule that it does not outlive what it is about
    *  (`../confirming.ts`, which is where that trap is written down). The

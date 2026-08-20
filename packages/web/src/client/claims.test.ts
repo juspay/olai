@@ -118,18 +118,17 @@ test("only pill.ts spells the alarm pill button", () => {
 // one-value panels share (`Cancel`), and the two that search (`Done`) — and it
 // was written out three times before it was a constant. A fourth file retyping
 // the string fails here rather than drifting a pixel at a time.
-// across.ts's claim — one spelling of the LAW two gestures refuse by. A row
-// dragged over another outline's pane and a destination picked out of a search
-// of the whole set are told the same thing about the format, and they lead into
-// it differently (a pane has a file, a picked row has a title), so the sentence
-// itself is the shared part. Its own test file is the other legitimate speller,
-// for the reason `status.test.ts` is one above: an assertion that the words
-// reach a reader has to utter them.
-test("only across.ts spells the same-file law", () => {
-  expect(filesSpelling(/Every outline is an independent tree/)).toEqual([
-    "across.ts",
-    path.join("move", "destination.test.ts"),
-  ])
+// The LAW two gestures refuse by — one spelling, and it is not in this package
+// any more. A row dragged over another outline's pane and a destination picked
+// out of a search of the whole set are told the same thing about the format,
+// and they lead into it differently (a pane has a file, a picked row has a
+// title), so the sentence itself is the shared part. It moved to
+// `@olai/format`'s `moving.ts` when the second of those two readings did
+// (`docs/brainstorming/vault-in-browser.md`'s PR 10): one of its readers is on
+// the other side of the wire now, and a browser-side copy would be the second
+// spelling this claim exists to forbid.
+test("no file here spells the same-file law — it is the format's", () => {
+  expect(filesSpelling(/Every outline is an independent tree/)).toEqual([])
 })
 
 test("only pill.ts spells a panel's way out", () => {

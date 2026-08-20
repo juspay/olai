@@ -11,10 +11,11 @@
  * already, so the reading agrees with it here rather than deciding anything.
  */
 
-import { derive } from "@olai/format"
+import { derive, nodeNamed } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
+import type { Names } from "../reading.tsx"
 import { namedBy } from "./named.ts"
 import type { Relation } from "./relation.ts"
 
@@ -31,15 +32,30 @@ const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`
 
 const derived = derive(recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
 
-/** One node's field, resolved — the indexes always here, which is the frame
- *  every one of these claims is about. The absent-indexes frame is its own
- *  answer and `./named.ts` says why. */
+/**
+ * THE NAMES a page carrying these rows would have been sent with — every id
+ * this fixture points at, resolved through the same `nodeNamed` the server's
+ * own reading builds the table with (`@olai/format`'s `page.ts`).
+ *
+ * Built here rather than hand-written so this file keeps testing the READING
+ * rather than a table somebody typed: what these claims are about is the set
+ * semantics of an edge field, and the resolution behind them is the format's.
+ */
+const names: Names = (id) => {
+  const found = nodeNamed(derived, id)
+  return found === undefined
+    ? undefined
+    : { id, title: found.node.title, file: found.file }
+}
+
+/** One node's field, resolved — the names always here, which is the frame every
+ *  one of these claims is about. */
 const refs = (id: string, relation: Relation) => {
   const found = derived.byId.get(id)
   if (found === undefined || "mirror" in found.node) {
     throw new Error(`no regular node \`${id}\` in the fixture`)
   }
-  return namedBy(found.node, relation, () => derived)
+  return namedBy(found.node, relation, () => names)
 }
 
 const targets = (id: string, relation: Relation): ReadonlyArray<string> =>

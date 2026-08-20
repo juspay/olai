@@ -83,7 +83,26 @@ PRs 1–9 can land in any order among themselves (PR 1 first, since it is alread
 
 Said honestly: **PR 10 is big and cannot be split** — the law forbids landing the wire member before its readers (unused code) and forbids flipping routes one at a time (the old wire kept beside the new). PRs 1–9 exist to shrink it: by the time it comes, every non-route reader of the local vault copy is already gone, and PR 10 is mostly rewiring and deletion — the shape #263 proved, where the installation is the deletion.
 
-## 7. What this does NOT change
+## 7. It landed, and what it cost
+
+**All ten shipped.** PR 10 is the `page` stream (`@olai/format`'s `page.ts` over the wire, one subscription per open pane) plus the `moving` stream beside it, the `heads` collection widened from every bodied file to every SERVED file, and the deletion of the browser's fold, `DerivedProvider`, the page model, the `faces`/`broken` walks, `seedOf`, `outlines.bench.ts` and the `outlines` collection's place on the browser's face.
+
+Three things are worth recording against what was predicted above.
+
+**The tail was one field, not a list.** §2 warned of "a handful of client features that read across the vault without being a page", and PRs 1–6 took most of them. What was left at PR 10 turned out to be one shape rather than several: a row's `see` and `after` strips, a title that IS an address, and the palette's pin row all ask *what does this id name*, so the reading carries a `names` table — the ids that page points at, resolved, once each — and every one of those readers is a lookup in it. The two that were not that shape got a field apiece: `Row.under` (what an archive would move, which a page's rows cannot say because done-hiding and the filter both prune them) and the trash's `records`.
+
+**One question was genuinely not a page**, and it is the one this design did not foresee: the move-to picker judges an arbitrary node the SEARCH just offered against the row being moved, and neither is on the page. It became a stream of its own (`moving`), on the same three legs as `page` — read, listen to the revision pulse, send when it changed by value — because a panel left open while an agent writes has to judge against where the row has actually got to.
+
+**The number.** Measured with one driver on both sides (`packages/tests/wire.ts`'s `pages` session, `wire.sh`'s `ROOT=` pointed at master and at the branch), over 40 outlines × 200 rows and 60 documents:
+
+| | before | after |
+|---|---|---|
+| the app opens | 1,679 kB | **135 kB** |
+| …and a whole eight-step reading session | 1,679 kB | **641 kB** |
+
+So the first frame is **12×** smaller, and walking two outlines, a zoom, a document, a day, the agenda and the trash still costs less than the old first frame did. Navigation is no longer free — §5a ruled that acceptable — and what it costs is one page each: an outline of 200 rows with notes ~104 kB, a zoom 5 kB, a document 0.3 kB, a day 24 kB, the trash 0.2 kB, and the agenda 270 kB, which is the largest page here because its three stretches reach across every outline at once. The derivation also left the browser bundle, worth ~14 kB of uncompressed JavaScript.
+
+## 8. What this does NOT change
 
 - **Agents and MCP.** The server always had everything; the ops table (`read_node`, `search_nodes`, …) and `/mcp` are untouched.
 - **The format.** No field, no file shape, no validation rule. `packages/format` stays isomorphic — what changes is who calls its reading functions.

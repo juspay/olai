@@ -33,13 +33,14 @@
  * for a second answer to "what puts a node on a day" to come from.
  */
 
+import { Schema } from "effect"
+
 import {
   isPutAway,
   isRegular,
   type Located,
   type LocatedRegular,
   type RegularNode,
-  type Status,
   storedMarker,
 } from "./node.ts"
 
@@ -98,17 +99,23 @@ export const timeOf = (value: string): string | undefined =>
  * 11th under every item captured that morning. The values stay legal and stay
  * on disk untouched; these views simply do not ask about them.
  */
-export type Occasion = "date" | Extract<Status, "done">
+export const Occasion = Schema.Literals(["date", "done"])
+export type Occasion = typeof Occasion.Type
 
 /** A date a record carries, and the field that carried it — the pair, named
  *  once, because everything below passes them together and a row that had one
- *  without the other would be a date nobody could say the meaning of. */
-export interface Occasioned {
-  readonly occasion: Occasion
+ *  without the other would be a date nobody could say the meaning of.
+ *
+ *  A SCHEMA rather than an interface since `vault-in-browser`'s PR 10: a day's
+ *  entries and the agenda's stretches are page readings now, so this rides to
+ *  the browser rather than being derived there. */
+export const Occasioned = Schema.Struct({
+  occasion: Occasion,
   /** The value, verbatim: for a node here because it was finished today, the
    *  completion instant, and not whatever it was scheduled for. */
-  readonly date: string
-}
+  date: Schema.String,
+})
+export type Occasioned = typeof Occasioned.Type
 
 /** One of a node's dates, with the node it belongs to — what `Derived.byDay`
  *  holds, and what every reading of that index hands on.
@@ -122,6 +129,7 @@ export interface Occasioned {
 export interface Dated extends Occasioned {
   readonly at: LocatedRegular
 }
+
 
 /**
  * The dates one record puts on a calendar, in PRECEDENCE order: what it is

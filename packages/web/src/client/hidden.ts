@@ -24,9 +24,11 @@
 
 import type { Progress, Status } from "@olai/format"
 
-/** As much of a row as counting needs. `Row` satisfies it. */
+/** As much of a row as counting needs. `Row` satisfies it — its mark is an
+ *  OPTIONAL key since the row shape became a schema the wire carries, so this
+ *  says the same, and a row with nothing marked reads the same either way. */
 export interface Branch {
-  readonly status: Status | undefined
+  readonly status?: Status | undefined
   readonly children: ReadonlyArray<Branch>
 }
 

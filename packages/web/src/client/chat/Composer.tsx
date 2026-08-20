@@ -96,12 +96,11 @@
  * fight over one box.
  */
 
-import { nodeNamed } from "@olai/format"
 import { ATTACHMENT_EXTENSIONS } from "@olai/surface"
 import { batch, createEffect, createMemo, createSignal, on, Show } from "solid-js"
 
 import type { Written } from "../complete/trigger.ts"
-import { useDerived } from "../derived.tsx"
+import { createChipTitles } from "./chips.ts"
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { createSearch } from "../search/nodes.ts"
 import { useServed } from "../served.tsx"
@@ -182,7 +181,7 @@ export function Composer(props: {
 
   const working = () => props.chat.state().status === "thinking"
 
-  const derived = useDerived()
+
 
   /**
    * WHICH NODES THIS MESSAGE IS ABOUT, from the two doors onto one strip.
@@ -204,18 +203,15 @@ export function Composer(props: {
   )
 
   /** ...as chips: the id is what was armed and what will be sent, and the TITLE
-   *  is read out of the live set here — through the format's own rule for what
-   *  an id names, the one `see` links resolve with. So a row armed and then
-   *  retitled by anybody says the new title, and nothing about the chip is a
-   *  copy. An id the set does not declare reads as the id, which is what a
-   *  dangling `see` does and for the same reason: the strip says what is armed
-   *  rather than going blank about it. */
+   *  is asked of the server — through the format's own rule for what an id
+   *  names, the one `see` links resolve with, run where the set is
+   *  ({@link ./chips.ts}). Nothing about the chip is a copy of anything the
+   *  page holds. An id the set does not declare reads as the id, which is what
+   *  a dangling `see` does and for the same reason: the strip says what is
+   *  armed rather than going blank about it. */
+  const titles = createChipTitles(subjects)
   const armed = createMemo<ReadonlyArray<Chip>>(() =>
-    subjects().map((id) => {
-      const indexes = derived()
-      const named = indexes === undefined ? undefined : nodeNamed(indexes, id)
-      return { id, title: named?.node.title ?? id }
-    })
+    subjects().map((id) => ({ id, title: titles().get(id) ?? id }))
   )
 
   /**

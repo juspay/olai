@@ -42,7 +42,7 @@ import { Schema } from "effect"
 
 import { daysBetween, MONTHS, WEEKDAYS, weekdayOf } from "./calendar.ts"
 
-import { datedIn, type DayGroup, groupedOn } from "./dates.ts"
+import { datedIn, DayGroup, groupedOn } from "./dates.ts"
 import type { Derived } from "./derive.ts"
 import { keepingDated, type Selected } from "./filter.ts"
 import { type RegularNode, storedMarker } from "./node.ts"
@@ -81,10 +81,11 @@ export const isOverdue = (node: RegularNode, today: string): boolean => {
 /** One day ahead, and what is on it. The date is a HEADING here rather than a
  *  page — the day's own page is where it is read in full, note and finished
  *  work and all — so it travels as the text it will be printed and linked as. */
-export interface AgendaDay {
-  readonly date: string
-  readonly groups: ReadonlyArray<DayGroup>
-}
+export const AgendaDay = Schema.Struct({
+  date: Schema.String,
+  groups: Schema.Array(DayGroup),
+})
+export type AgendaDay = typeof AgendaDay.Type
 
 /**
  * What is owed, as the three stretches of ONE LINE: what has gone, now, and
@@ -102,17 +103,18 @@ export interface AgendaDay {
  * shape a box wants: a day is where a node goes on the line, so late work has
  * to bring the day it was owed on with it.
  */
-export interface Agenda {
+export const Agenda = Schema.Struct({
   /** The days that have gone and still owe something, oldest first. Every node
    *  on one of them is overdue, by construction ({@link behind}). */
-  readonly overdue: ReadonlyArray<AgendaDay>
+  overdue: Schema.Array(AgendaDay),
   /** What today's day page holds, minus finished work — GROUPS rather than a
    *  day, because the page already knows which day today is and draws now on
    *  the line whether or not anything is owed on it. */
-  readonly today: ReadonlyArray<DayGroup>
+  today: Schema.Array(DayGroup),
   /** The next days that have anything. Days with nothing are absent. */
-  readonly upcoming: ReadonlyArray<AgendaDay>
-}
+  upcoming: Schema.Array(AgendaDay),
+})
+export type Agenda = typeof Agenda.Type
 
 /**
  * How far ahead Upcoming looks: the next seven days that HAVE something, not

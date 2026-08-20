@@ -64,6 +64,9 @@ import {
   type NamedRequest,
   NodeId,
   matching,
+  type MovingAnswer,
+  type MovingRequest,
+  movingOf,
   nodeNamed,
   nodesOf,
   nothing,
@@ -74,7 +77,10 @@ import {
   type OutlineSet,
   outlinePaths,
   type OutlineSummary,
+  type PageReading,
+  type PageRequest,
   parseFilter,
+  pageOf,
   rankedTogether,
   type Placed,
   type Placement,
@@ -443,7 +449,7 @@ export const named = (
   for (const id of new Set(request.ids)) {
     const at = nodeNamed(derived, id)
     if (at === undefined) continue
-    named.push({ asked: id, id: at.node.id })
+    named.push({ asked: id, id: at.node.id, title: at.node.title })
   }
   return { named }
 }
@@ -565,6 +571,46 @@ export const dated = (derived: Derived, request: DatedRequest): DatedAnswer =>
  */
 export const owed = (derived: Derived, request: OwedRequest): Owed =>
   owedOf(agendaOf(derived, request.today))
+
+// ── one page, and one gesture over the whole set ───────────────────────
+
+/**
+ * WHAT ONE PAGE SHOWS — the envelope, and nothing else.
+ *
+ * `@olai/format`'s `pageOf` over the whole reading, exactly as {@link homes}
+ * takes it and for that member's reason: two of the questions a page asks are
+ * about FILES rather than about records — which paths the directory serves at
+ * all, and which of them is a day's note — and answering those off the
+ * derivation alone is the near miss `homes` exists to have avoided.
+ *
+ * NOTHING IS DECIDED HERE, which is the same restraint {@link matches} and
+ * {@link tags} keep and the reason this function is three lines: which page an
+ * address names, what that page draws, and what the ids it points at are called
+ * are all the format's, over the records the format assembled. This layer's
+ * whole contribution is that the read is the GATED one — the same snapshot a
+ * keystroke's write is judged against and the same one an agent's tool is
+ * answered from.
+ *
+ * THE FACES are the set's own documents, handed over as they stand: a
+ * `Document` IS a `Face` plus its content (`@olai/format`'s `document.ts`), so
+ * there is no projection per page per revision and no second list to keep in
+ * step with the one the directory was assembled from.
+ */
+export const page = (at: Reading, request: PageRequest): PageReading =>
+  pageOf(at.derived, at.set.documents, at.set.broken, request)
+
+/**
+ * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING — the move picker's preview
+ * of this layer's own planner, over the derivation alone.
+ *
+ * A SECOND READING and never a second POLICY: every sentence it can produce is
+ * about a rule {@link ./plan.ts}'s `planMove` enforces, the write still goes
+ * through that planner, and a destination it says nothing about can still be
+ * refused there. `@olai/format`'s `movingOf` is where that is argued and
+ * tested; this is the envelope.
+ */
+export const moving = (derived: Derived, request: MovingRequest): MovingAnswer =>
+  movingOf(derived, request)
 // ── what the set already calls things ──────────────────────────────────
 
 /**

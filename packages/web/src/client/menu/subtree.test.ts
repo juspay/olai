@@ -1,18 +1,22 @@
 /**
- * What the menu says about a subtree — the count it puts in a confirm, and the
- * text it puts on the clipboard.
+ * What the menu puts on the clipboard when it copies a subtree.
  *
  * Over REAL rows: the fixture goes through `@olai/format`'s own assembly and
- * walk, because both answers turn on how a mirror is expanded and a hand-built
+ * walk, because the answer turns on how a mirror is expanded and a hand-built
  * row would be this file's opinion of that rather than the format's.
+ *
+ * ITS SIBLING CLAIM IS PINNED ELSEWHERE. How MUCH an archive would move is a
+ * count over the SET, and it rides on the row now (`Row.under`), so it is
+ * asserted where it is produced — `@olai/format`'s `derive.test.ts`, including
+ * the case that decides the split: hiding what is done must not shrink it.
  */
 
-import { derive, rowsOf, type Row, withoutDone } from "@olai/format"
+import { derive, rowsOf, type Row } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { flatten } from "../edit/order.ts"
-import { asText, under } from "./subtree.ts"
+import { asText } from "./subtree.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
@@ -40,30 +44,6 @@ const row = (id: string, of: ReadonlyArray<Row> = rows): Row => {
   if (found === undefined) throw new Error(`no row for \`${id}\` in the fixture`)
   return found
 }
-
-// ── how much goes with it ──────────────────────────────────────────────
-
-test("the count is the records the archive would move", () => {
-  // demo, order, install, handles, and the PLACEMENT of the herb bed — five.
-  // The herb bed's own child hangs under that placement on screen and is not
-  // among them: it lives in another file, and `archive` moves what a `parent`
-  // chain reaches.
-  expect(under(derived, "kitchen")).toBe(5)
-})
-
-test("a leaf takes nothing with it", () => {
-  expect(under(derived, "handles")).toBe(0)
-})
-
-test("hiding what is done does not shrink what an archive would take", () => {
-  // The reason the count is asked of the SET and not of the rows. With done
-  // hidden, `withoutDone` has already dropped `demo` and everything under it
-  // from the tree — so a count taken from the drawn children would have
-  // promised four and moved five.
-  const showing = withoutDone(rows)
-  expect(flatten(showing, new Set()).some((one) => one.at.node.id === "demo")).toBe(false)
-  expect(under(derived, "kitchen")).toBe(5)
-})
 
 // ── what it reads as ───────────────────────────────────────────────────
 

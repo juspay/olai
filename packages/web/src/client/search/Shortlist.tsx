@@ -51,7 +51,7 @@
  */
 
 import type { NodeHit } from "@olai/surface"
-import { createMemo, createSignal, Index, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, Index, Show } from "solid-js"
 
 import { listKey } from "../keys.ts"
 import { Refused } from "../Refused.tsx"
@@ -106,6 +106,19 @@ export function Shortlist(props: {
   readonly refusing?: {
     readonly why: (hit: NodeHit) => string | null
     readonly testid: TestId
+    /**
+     * WHICH HITS are on screen, told to the door as the search answers —
+     * absent for a door whose verdicts are pure over the hit it is handed.
+     *
+     * It exists because one of them is not: the move picker's verdict is a
+     * reading of the SET (can this row go under that node), which is the
+     * server's since `docs/brainstorming/vault-in-browser.md`'s PR 10 — so it
+     * has to say which nodes it wants judged before it can answer about any of
+     * them (`../move/moving.tsx`). Reported rather than the door reaching in:
+     * the list is what knows its hits, and this is the one line between the
+     * two.
+     */
+    readonly asked?: (hits: ReadonlyArray<NodeHit>) => void
   }
 }) {
   const [query, setQuery] = createSignal("")
@@ -139,6 +152,15 @@ export function Shortlist(props: {
   /** The row at `index`. `<Index>` walks the same list this is built from, so
    *  there is always one; the `!` is that, said. */
   const row = (index: number): HitRow => rows()[index]!
+
+  // WHAT IS BEING JUDGED, told to the door as the answer moves — an effect
+  // rather than a line in the memo below, because it is a report and not a
+  // reading: a door that asks the server what it thinks of these hits sets a
+  // signal the verdicts then arrive on, and writing to it inside the memo that
+  // reads them would be that memo depending on its own answer.
+  createEffect(() => {
+    props.refusing?.asked?.(hits())
+  })
 
   const verdicts = createMemo<ReadonlyArray<string | null>>(() => {
     const judge = props.refusing

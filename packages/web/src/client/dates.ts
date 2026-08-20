@@ -82,7 +82,7 @@ import { type Accessor, createMemo } from "solid-js"
 import { dailyNoteDays } from "@olai/format"
 import type { Owed } from "@olai/surface"
 
-import { usePaths } from "./document/documents.tsx"
+import { useServed } from "./served.tsx"
 import { olai } from "./wire.ts"
 
 /**
@@ -126,7 +126,7 @@ export const createDated = (month: Accessor<string>): Accessor<ReadonlySet<strin
  * rather than in the shape of a component's props.
  */
 export const createNoted = (month: Accessor<string>): Accessor<ReadonlySet<string>> => {
-  const paths = usePaths()
+  const paths = useServed()
   return createMemo(() => dailyNoteDays(paths(), month()))
 }
 

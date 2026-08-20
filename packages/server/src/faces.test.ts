@@ -177,6 +177,31 @@ test("the two date streams are the browser's alone", () => {
   expect(keys).not.toContain("owed")
 })
 
+test("the page and moving streams are the browser's alone", () => {
+  // The same fence one more time, and the sharpest instance of it: what `page`
+  // answers is a SCREEN — rows carrying the fold keys of the places they are
+  // drawn at, a rollup beside a checkbox, the titles of the ids those rows
+  // point at. An agent asking what an outline holds asks `list_outlines` and
+  // `read_subtree` and is answered in NODES, which is what it can act on.
+  expect(BROWSER["page"]).toBe("resource")
+  expect(BROWSER["moving"]).toBe("resource")
+  expect(Object.keys(MCP)).not.toContain("page")
+  expect(Object.keys(MCP)).not.toContain("moving")
+  const keys = resolved().resources.map((r) => r.key)
+  expect(keys).not.toContain("page")
+  expect(keys).not.toContain("moving")
+})
+
+test("the outlines collection is the AGENT's, and no browser reads it", () => {
+  // The whole of `vault-in-browser`: a tab held every record of every file and
+  // answered every page out of that copy, which is the ruling that arc
+  // reversed. What a tab reads is `heads` for the directory and `page` for the
+  // page it is drawing; the member is untouched for a request-shaped reader,
+  // where watching one outline's records is exactly what is wanted.
+  expect(Object.keys(BROWSER)).not.toContain("outlines")
+  expect(MCP["outlines"]).toBe("resource")
+})
+
 test("the chat's state and transcript are not exposed", () => {
   const keys = resolved().resources.map((r) => r.key)
   expect(keys).not.toContain("chat")

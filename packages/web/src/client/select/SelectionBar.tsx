@@ -48,11 +48,10 @@
 import { createMemo, type JSX, Match, Show, Switch } from "solid-js"
 
 import { createConfirming } from "../confirming.ts"
-import { useDerived } from "../derived.tsx"
+
 import { LAYER } from "../layer.ts"
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
-import { under } from "../menu/subtree.ts"
 import type { TestId } from "../testids.ts"
 import { trashQuestion } from "../trash/question.ts"
 import { archivable } from "./bulk.ts"
@@ -80,7 +79,7 @@ function Pill(props: {
 
 export function SelectionBar() {
   const selection = useSelection()
-  const derived = useDerived()
+
 
   const rows = () => selection.rows()
 
@@ -95,18 +94,13 @@ export function SelectionBar() {
    */
   const confirm = createConfirming(() => rows().map((row) => row.key).join(" "))
 
-  /** How many rows hang UNDER the picked ones. Asked of the SET rather than of
-   *  the tree, for the reason the `•••` menu's own confirm asks it there — a
-   *  page hiding what is done is drawing fewer rows than the write moves
-   *  (`../menu/subtree.ts`). */
-  const hanging = createMemo(() => {
-    const indexes = derived()
-    if (indexes === undefined) return 0
-    return rows().reduce(
-      (count, row) => count + (row.kind === "node" ? under(indexes, row.shows.node.id) : 0),
-      0,
-    )
-  })
+  /** How many rows hang UNDER the picked ones. Counted in the SET rather than
+   *  over the tree, for the reason the `•••` menu's own confirm is — a page
+   *  hiding what is done is drawing fewer rows than the write moves — and read
+   *  off each row, where the server put it (`@olai/format`'s `Row.under`). */
+  const hanging = createMemo(() =>
+    rows().reduce((count, row) => count + row.under, 0)
+  )
 
   /** The pick is NOT cleared here, and that is the bug this line replaced: the
    *  run is queued, so a `clear()` beside it empties the pick before the step

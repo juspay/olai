@@ -9,10 +9,9 @@
  * a slash reads as text.
  */
 
-import { derive } from "@olai/format"
-import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
+import type { Names } from "../reading.tsx"
 import { atFile, atNode, HOME_ROUTE, hrefOf } from "../routes.ts"
 import { addressIn, labelIn, nameOf, shownIn } from "./address.ts"
 
@@ -127,31 +126,25 @@ test("the pages that are not files are called what a reader calls them", () => {
   expect(nameOf({ kind: "trash" }, undefined)).toBe("Trash")
 })
 
-// ── the one lookup still answered in the browser ───────────────────────
+// ── the lookup, over the names the page was sent with ──────────────────
+//
+// What an id NAMES is the server's answer now (`@olai/format`'s `page.ts`
+// resolves every id a page points at, through the same `nodeNamed` this used
+// to call locally). What is left here is the reading of that table against an
+// address — which arm of the route asks a question about the set at all.
 
-const named = (title: string) =>
-  derive(recordsOf(setOf({ "garden.olai": `{"id":"herbs","ord":"a0","title":"${title}"}` })))
+const named = (title: string): Names => (id) =>
+  id === "herbs" ? { id: "herbs", title, file: "garden.olai" } : undefined
 
-test("a node address asked of the local reading is that node's title", () => {
+test("a node address asked of the page's names is that node's title", () => {
   expect(shownIn(named("the herb bed"), atNode("herbs"))).toBe("the herb bed")
   expect(shownIn(named("the herb spiral"), atNode("herbs"))).toBe("the herb spiral")
 })
 
-test("a mirror's id resolves to the node it stands for", () => {
-  const set = derive(
-    recordsOf(setOf({
-      "garden.olai": `{"id":"herbs","ord":"a0","title":"the herb bed"}`,
-      "house.olai": `{"id":"here","ord":"a0","mirror":"herbs"}`,
-    })),
-  )
-  expect(shownIn(set, atNode("here"))).toBe("the herb bed")
-})
-
 test("nothing to say, said the same way three times", () => {
-  // An id the set does not declare, an address that is not a node's, and the
-  // frame before the first one arrives.
+  // An id the table does not hold — nothing declares it, or the page does not
+  // point at it — and two addresses that are not a node's at all.
   expect(shownIn(named("the herb bed"), atNode("gone"))).toBeUndefined()
   expect(shownIn(named("the herb bed"), atFile("notes/finishes.md"))).toBeUndefined()
   expect(shownIn(named("the herb bed"), { kind: "agenda" })).toBeUndefined()
-  expect(shownIn(undefined, atNode("herbs"))).toBeUndefined()
 })

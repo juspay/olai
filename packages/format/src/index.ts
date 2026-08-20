@@ -723,3 +723,38 @@ export type { ErrorCode, Stage } from "./errors.ts"
  */
 export { NO_PINS, pinTargetIn, sameShelf, Shelf, shelfOf } from "./shelf.ts"
 export type { Pinned } from "./shelf.ts"
+
+/**
+ * WHAT ONE PAGE SHOWS (./page.ts) — the reading the browser is handed in place
+ * of the vault it used to walk, and the request that asks for one.
+ *
+ * Public because it crosses, which is the whole of what PR 10 of
+ * `docs/brainstorming/vault-in-browser.md` is: the server computes this per
+ * open page per published revision and sends it when it changed by value, and
+ * every page in the app is drawn out of it.
+ */
+export {
+  Named,
+  PageReading,
+  PageRequest,
+  /** WHAT ONE PAGE SHOWS, over one revision of one set. */
+  pageOf,
+  samePageReading,
+  samePageRequest,
+  Shown,
+  TrashGroup,
+} from "./page.ts"
+
+/**
+ * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING (./moving.ts) — the move-to
+ * picker's preview of the planner's verdict, and the law it quotes.
+ *
+ * Public for the reason above: the picker judges an arbitrary node of the
+ * directory against another one, which is a question about the SET and not
+ * about any page, so it is asked over the wire and re-answered per revision.
+ * `SAME_FILE` comes through the same door because the app's other cross-file
+ * gesture — a row dragged over another outline's pane — reads it in the
+ * browser, and two copies of a sentence is how two faces of one rule start
+ * disagreeing in the small words.
+ */
+export { Moved, MovingAnswer, MovingRequest, movingOf, SAME_FILE, sameMoving } from "./moving.ts"

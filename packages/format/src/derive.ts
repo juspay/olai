@@ -41,13 +41,14 @@ import {
   isTrashed,
   isMirror,
   isRegular,
-  type Located,
-  type LocatedRegular,
+  Located,
+  LocatedRegular,
   type Node,
-  type Status,
+  Status,
   storedMarker,
   type TargetField,
   targetsOf,
+  Unfinished,
 } from "./node.ts"
 import { type Dated, dateInto } from "./occasion.ts"
 import { byPath } from "./paths.ts"
@@ -820,10 +821,13 @@ export const unfinishedWithin = (
  * both this and {@link unfinishedWithin} are built from, about the two
  * different kinds of edge.
  */
-export interface InTheWay {
-  readonly at: LocatedRegular
-  readonly status: Exclude<Status, "done">
-}
+export const InTheWay = Schema.Struct({
+  at: LocatedRegular,
+  /** `./node.ts`'s {@link Unfinished}, which is {@link Status} minus `done` —
+   *  the rule in the type, read off the one list rather than written out. */
+  status: Unfinished,
+})
+export type InTheWay = typeof InTheWay.Type
 
 /**
  * The ordering graph of the set: the node an edge holds up → the ids it must
@@ -1065,7 +1069,7 @@ export const drawnFrom = (
  * ({@link ./validate.ts}), the ops layer refuses the write that would close one
  * (`ops`' `showsInto`, both for a new mirror and for a MOVE that carries one
  * into what it shows), and the move-to picker refuses the destination at the
- * aim, before the key (`web`'s `move/destination.ts`).
+ * aim, before the key (`./moving.ts`).
  *
  * A PATH rather than a boolean, because every one of those refusals names the
  * loop: an agent told which chain it just tried to fold into itself can fix the
@@ -1184,26 +1188,62 @@ export const standingBefore = (
 
 // ── the drawable tree ──────────────────────────────────────────────────
 
-/** Fields every row has, whatever it turned out to be. */
+/**
+ * Fields every row has, whatever it turned out to be.
+ *
+ * A SCHEMA rather than the interface it was, for {@link LocatedRegular}'s
+ * reason: since `vault-in-browser`'s PR 10 the rows of a page are what the WIRE
+ * carries, so the shape a walk produces and the shape an encoder reads have to
+ * be one declaration. Nothing about a row changed with that — the browser
+ * draws the value this walk has always built, computed on the side that holds
+ * the set.
+ */
 interface Place {
-  /** The record occupying this place — the mirror itself, for a mirror. */
   readonly at: Located
+  readonly status?: Status | undefined
+  readonly blocked: ReadonlyArray<InTheWay>
+  readonly progress?: Progress | undefined
+  readonly key: string
+  readonly under: number
+  readonly children: ReadonlyArray<Row>
+}
+
+const PLACE = {
+  /** The record occupying this place — the mirror itself, for a mirror. */
+  at: Located,
   /** Absent when this place draws a plain bullet — there is no mark, and no
    *  box to draw one in. */
-  readonly status: Status | undefined
+  status: Schema.optional(Status),
   /** What this place is waiting on, and empty when nothing is. Asked of the
    *  node the place SHOWS, so a mirror says what its target says — the rule
    *  its status already follows — and a place drawing no node at all is
    *  waiting on nothing. */
-  readonly blocked: ReadonlyArray<InTheWay>
+  blocked: Schema.Array(InTheWay),
   /** The rollup, for a row that has tasks under it: an annotation beside the
    *  title, never a second answer to what the checkbox shows. */
-  readonly progress: Progress | undefined
+  progress: Schema.optional(Progress),
   /** Stable identity of this PLACE, not of the node. The same node reached
    *  through two mirrors is two rows on screen, and folding one must not fold
    *  the other. */
-  readonly key: string
-  readonly children: ReadonlyArray<Row>
+  key: Schema.String,
+  /**
+   * How many records hang under the node this place SHOWS, in the set —
+   * {@link under}, answered once where the walk already is.
+   *
+   * A FACT ABOUT THE SET rather than about the rows below, and the difference
+   * is the whole reason it rides here. What a reader is asked to agree to when
+   * they archive a row must be what the write moves, and the children under
+   * this one are a READING: done-hiding has already dropped branches from
+   * them, a filter may have pruned more, and a mirror among them draws records
+   * of some live outline that archiving this row does not touch. Counting the
+   * rows would understate every one of those.
+   *
+   * It was the browser's own walk of its copy of the set, per row, on every
+   * menu opened (`@olai/web`'s `menu/subtree.ts`). The rule did not move; the
+   * set did.
+   */
+  under: Schema.Int,
+  children: Schema.Array(Schema.suspend((): Schema.Codec<Row> => Row)),
 }
 
 /**
@@ -1220,11 +1260,62 @@ export type Row =
   | (Place & { readonly kind: "dangling"; readonly missing: string })
   | (Place & { readonly kind: "cycle"; readonly through: string })
 
+export const Row: Schema.Codec<Row> = Schema.Union([
+  Schema.Struct({
+    ...PLACE,
+    kind: Schema.Literals(["node", "mirror"]),
+    shows: LocatedRegular,
+  }),
+  Schema.Struct({ ...PLACE, kind: Schema.Literal("dangling"), missing: Schema.String }),
+  Schema.Struct({ ...PLACE, kind: Schema.Literal("cycle"), through: Schema.String }),
+])
+
+/**
+ * HOW MANY RECORDS HANG UNDER A NODE — every descendant, however deep, counted
+ * in the set rather than on a screen.
+ *
+ * The number a `Move to Trash` has to name: an archive takes the whole subtree,
+ * and a page hiding what is done — or narrowed by a filter — is drawing fewer
+ * rows than the write moves. It was `@olai/web`'s `menu/subtree.ts`, walking
+ * the browser's own copy of the directory per row per opened menu, and it is
+ * here for the reason every other reading moved here: this is where the set is.
+ *
+ * TOTAL over a set the validator would condemn. Parent links form a forest in
+ * any set that validates, so the memo below is a cache; in one whose links
+ * close a loop it is also the guard, since a node is filed at zero before its
+ * own walk and a second arrival reads that rather than recursing for ever.
+ */
+export const under = (derived: Pick<Derived, "children">, id: string): number =>
+  descendants(derived, id, new Map())
+
+/** {@link under}, sharing one memo across a whole walk — which is what makes
+ *  a row per node cost the tree once rather than once per row. */
+const descendants = (
+  derived: Pick<Derived, "children">,
+  id: string,
+  memo: Map<string, number>,
+): number => {
+  const held = memo.get(id)
+  if (held !== undefined) return held
+  memo.set(id, 0)
+  const count = (derived.children.get(id) ?? []).reduce(
+    (total, child) => total + 1 + descendants(derived, child.node.id, memo),
+    0,
+  )
+  memo.set(id, count)
+  return count
+}
+
 /** The rows of one outline: the roots of `file`, expanded. Mirrors are
  *  expanded in place, because a pointer the reader has to go and follow is not
  *  a second location — it is a footnote. */
-export const rowsOf = (derived: Derived, file: string): ReadonlyArray<Row> =>
-  siblingsOf(derived, file, undefined).map((root) => expand(derived, root, [], ""))
+export const rowsOf = (derived: Derived, file: string): ReadonlyArray<Row> => {
+  // ONE memo for the file's whole tree — see {@link descendants}.
+  const counting = new Map<string, number>()
+  return siblingsOf(derived, file, undefined).map((root) =>
+    expand(derived, root, [], "", counting)
+  )
+}
 
 /**
  * The rows UNDER one node: what a zoomed page draws below its heading.
@@ -1242,8 +1333,9 @@ export const rowsUnder = (
   ancestors: ReadonlyArray<LocatedRegular>,
 ): ReadonlyArray<Row> => {
   const within = [...ancestors.map((crumb) => crumb.node.id), shows.node.id]
+  const counting = new Map<string, number>()
   return (derived.children.get(shows.node.id) ?? []).map((child) =>
-    expand(derived, child, within, "")
+    expand(derived, child, within, "", counting)
   )
 }
 
@@ -1252,18 +1344,28 @@ const expand = (
   at: Located,
   ancestors: ReadonlyArray<string>,
   parentKey: string,
+  counting: Map<string, number>,
 ): Row => {
   const key = `${parentKey}/${at.node.id}`
   const found = follow(derived, at)
-  // The fields every branch shares, including the rollup a stub has none of —
-  // the drawn branch below overrides it, and no branch has to remember to say
-  // it has nothing. What a place is WAITING ON is asked of the node it shows,
-  // which a stub has none of either.
+  const status = derived.status.get(at.node.id)
+  // The fields every branch shares. What a place is WAITING ON is asked of the
+  // node it shows, which a stub has none of — and so is what hangs UNDER it,
+  // which is nothing at all for a place drawing no node.
+  //
+  // AN ABSENT MARK IS AN ABSENT KEY, not a key holding `undefined`, and that is
+  // the rule every answer in this package keeps (`./reading.ts`'s `Found`
+  // spells it the same way). It matters here because a row TRAVELS: the wire
+  // drops an undefined value on the way out, so a value built with the key
+  // present would compare unequal to the same value read back — and the
+  // comparison is what decides whether a frame is sent at all.
   const place = {
     at,
-    status: derived.status.get(at.node.id),
+    ...(status === undefined ? {} : { status }),
     blocked: found.kind === "found" ? blockersOf(derived, found.shows.node.id) : [],
-    progress: undefined,
+    under: found.kind === "found"
+      ? descendants(derived, found.shows.node.id, counting)
+      : 0,
     key,
   }
 
@@ -1275,15 +1377,17 @@ const expand = (
   }
 
   const within = [...ancestors, found.shows.node.id]
+  // The rollup of what this place SHOWS: a mirror's row draws its target's
+  // children, so it draws its target's progress too. Absent when nothing under
+  // it is a task, for the reason the mark above is.
+  const progress = progressOf(derived, found.shows.node.id)
   return {
     ...place,
-    // The rollup of what this place SHOWS: a mirror's row draws its target's
-    // children, so it draws its target's progress too.
-    progress: progressOf(derived, found.shows.node.id),
+    ...(progress === undefined ? {} : { progress }),
     kind: isMirror(at.node) ? "mirror" : "node",
     shows: found.shows,
     children: (derived.children.get(found.shows.node.id) ?? []).map((child) =>
-      expand(derived, child, within, key)
+      expand(derived, child, within, key, counting)
     ),
   }
 }
@@ -1369,27 +1473,35 @@ export const ancestorTitles = (
  * remodel` than under `the office move` — so "the node plus its context" is a
  * thing, and it is this one.
  */
-export interface Situated {
+export const Situated = Schema.Struct({
   /** The regular node at the end of the chain, whatever record was addressed
    *  to reach it. */
-  readonly shows: LocatedRegular
+  shows: LocatedRegular,
   /** Absent when the node carries no mark. */
-  readonly status: Status | undefined
+  status: Schema.optional(Status),
   /** What it is waiting on, and empty when nothing is. */
-  readonly blocked: ReadonlyArray<InTheWay>
+  blocked: Schema.Array(InTheWay),
   /** The rollup of its task children, for the same reason a row carries one. */
-  readonly progress: Progress | undefined
+  progress: Schema.optional(Progress),
   /** The canonical parent chain, root first, `shows` excluded. */
-  readonly trail: ReadonlyArray<LocatedRegular>
-}
-
-export const situate = (derived: Derived, shows: LocatedRegular): Situated => ({
-  shows,
-  status: derived.status.get(shows.node.id),
-  blocked: blockersOf(derived, shows.node.id),
-  progress: progressOf(derived, shows.node.id),
-  trail: ancestorsOf(derived, shows.node.id),
+  trail: Schema.Array(LocatedRegular),
 })
+export type Situated = typeof Situated.Type
+
+export const situate = (derived: Derived, shows: LocatedRegular): Situated => {
+  // Absent rather than present-and-undefined, for the reason a row's are
+  // ({@link Row}'s `place`): these travel, and a key the wire drops on the way
+  // out must not be a key the value was built with.
+  const status = derived.status.get(shows.node.id)
+  const progress = progressOf(derived, shows.node.id)
+  return {
+    shows,
+    ...(status === undefined ? {} : { status }),
+    blocked: blockersOf(derived, shows.node.id),
+    ...(progress === undefined ? {} : { progress }),
+    trail: ancestorsOf(derived, shows.node.id),
+  }
+}
 
 /**
  * What a record actually shows: itself, or — following as many mirror hops as

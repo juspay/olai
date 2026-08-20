@@ -1,25 +1,29 @@
 /**
  * The five things the move-to picker will not do, and the words it says about
- * each.
+ * each — plus the ANSWER the wire carries them on.
  *
- * The rules are the ops layer's (`ops/src/plan.ts`'s `planMove`) read one
+ * The rules are the ops layer's (`@olai/ops`' `plan.ts`'s `planMove`) read one
  * gesture earlier, so what is worth pinning here is not that they exist — the
  * write would be refused either way — but that the picker says the RIGHT one.
  * Four of them are true at once about a node in the Trash (it is archived, it
  * is in another file, it is not this row's parent, it is not this row), and a
  * reader who is told the wrong true thing has been told nothing.
  *
- * Over a REAL derivation of a real corpus (`derive` + the format's own
- * `setOf`), because the walk this module asks for is the format's own: a `Map`
- * of parents would be a second answer to what "inside" means, in the one test
- * that exists to hold this file to the first.
+ * It moved here with the reading (`docs/brainstorming/vault-in-browser.md`'s
+ * PR 10): the picker judges an arbitrary node the SEARCH offered against the
+ * row being moved, which is a question about the set and about no page, so it
+ * is asked over the wire and answered where the records are.
+ *
+ * Over a REAL derivation of a real corpus, because the walk this module asks
+ * for is the format's own: a `Map` of parents would be a second answer to what
+ * "inside" means, in the one test that exists to hold this file to the first.
  */
 
-import { derive } from "@olai/format"
-import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { type Destination, type Moved, whyNot } from "./destination.ts"
+import { derive } from "./derive.ts"
+import { nodesOfFiles } from "./fixtures.testlib.ts"
+import { type Destination, type Moved, movingOf, whyNot } from "./moving.ts"
 
 /**
  * The browser suite's own `house.olai` plus a NOW SECTION, which is the
@@ -54,11 +58,11 @@ const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed"}`
 const AWAY = `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`
 
 const derived = derive(
-  recordsOf(setOf({
+  nodesOfFiles({
     "house.olai": HOUSE,
     "garden.olai": GARDEN,
     "_olai/Trash.olai": AWAY,
-  })),
+  }),
 )
 
 /** A node the search offered, as the three fields a verdict reads — off the
@@ -152,7 +156,7 @@ test("a destination in another outline is refused, naming both files", () => {
   const why = whyNot(INSTALL, at("herbs"), derived) ?? ""
   expect(why).toContain("`garden.olai`")
   expect(why).toContain("`house.olai`")
-  // The LAW, in the one spelling this app has for it (`../across.ts`) — the
+  // The LAW, in the one spelling this app has for it (`SAME_FILE`) — the
   // same sentence a row dragged over another file's pane is refused with.
   expect(why).toContain("Every outline is an independent tree")
 })
@@ -175,4 +179,54 @@ test("the row's CURRENT parent is refused, and says what it would have done", ()
   const why = whyNot(INSTALL, at("kitchen"), derived) ?? ""
   expect(why).toContain("already this row's parent")
   expect(why).toContain("reorder")
+})
+
+// ── the ANSWER, which is what actually crosses ─────────────────────────
+//
+// `whyNot` above is the rule; this is the envelope the picker reads it
+// through — the row as the set says it NOW, and a verdict per destination IN
+// THE ORDER ASKED. The order is the whole contract: the caller pairs the
+// answers back up with the ids it sent, so an answer that reordered them would
+// dim the wrong rows.
+
+test("the answer carries the row as the set says it now, and a verdict per destination", () => {
+  const said = movingOf(derived, { record: "install", to: ["demo", "handles", "herbs"] })
+  expect(said.moved).toEqual({
+    id: "install",
+    title: "install the cabinets",
+    file: "house.olai",
+    parent: "kitchen",
+  })
+  expect(said.refusals).toHaveLength(3)
+  expect(said.refusals[0]).toBeNull()
+  expect(said.refusals[1]).toContain("inside the row you are moving")
+  expect(said.refusals[2]).toContain("Every outline is an independent tree")
+})
+
+test("a MIRROR is moved as the placement it is, and called by what it shows", () => {
+  // The row's own record is what the write names; the title is the node it
+  // DRAWS, which is the one thing `follow` is asked for.
+  const said = movingOf(derived, { record: "kitchen-install", to: [] })
+  expect(said.moved).toEqual({
+    id: "kitchen-install",
+    title: "install the cabinets",
+    file: "house.olai",
+    parent: "kitchen",
+  })
+})
+
+test("a record the set no longer declares answers nothing — which closes the panel", () => {
+  expect(movingOf(derived, { record: "gone", to: ["demo"] }))
+    .toEqual({ moved: null, refusals: [] })
+})
+
+test("a destination the set does not declare is said nothing about, not refused", () => {
+  // This is a PREVIEW of the planner's verdict, and a destination it cannot see
+  // is the planner's to answer. A refusal invented here would be a fence.
+  expect(movingOf(derived, { record: "install", to: ["nowhere"] }).refusals)
+    .toEqual([null])
+})
+
+test("nothing aimed at is a row and no verdicts — the panel before its search answers", () => {
+  expect(movingOf(derived, { record: "install", to: [] }).refusals).toEqual([])
 })

@@ -19,24 +19,49 @@
  * dies on a missing target, or the chain closes on itself.
  */
 
+import { Schema } from "effect"
+
 import {
   type Derived,
   follow,
-  type Row,
+  Row,
   rowsUnder,
-  type Situated,
+  Situated,
   situate,
+  under,
 } from "./derive.ts"
 
-/** What `/#<id>` shows: a node, or the reason it cannot. */
-export type Zoomed =
-  | (Situated & {
-    readonly kind: "node"
-    readonly children: ReadonlyArray<Row>
-  })
-  | { readonly kind: "unknown"; readonly id: string }
-  | { readonly kind: "dangling"; readonly id: string; readonly missing: string }
-  | { readonly kind: "cycle"; readonly id: string; readonly through: string }
+/**
+ * What `/#<id>` shows: a node, or the reason it cannot.
+ *
+ * A SCHEMA since `vault-in-browser`'s PR 10, for the reason every drawable
+ * shape here is one: this IS the node page's reading, computed where the set
+ * is and carried to the tab that draws it.
+ */
+export const Zoomed = Schema.Union([
+  Schema.Struct({
+    ...Situated.fields,
+    kind: Schema.Literal("node"),
+    children: Schema.Array(Row),
+    /** How many records hang under this node in the set — a row's own
+     *  {@link Row.under} asked of the heading, because a zoomed node has no
+     *  `•••` and the palette offers its write verbs instead
+     *  (`@olai/web`'s `palette/ops.ts`). */
+    under: Schema.Int,
+  }),
+  Schema.Struct({ kind: Schema.Literal("unknown"), id: Schema.String }),
+  Schema.Struct({
+    kind: Schema.Literal("dangling"),
+    id: Schema.String,
+    missing: Schema.String,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("cycle"),
+    id: Schema.String,
+    through: Schema.String,
+  }),
+])
+export type Zoomed = typeof Zoomed.Type
 
 export const zoom = (derived: Derived, id: string): Zoomed => {
   const at = derived.byId.get(id)
@@ -55,5 +80,6 @@ export const zoom = (derived: Derived, id: string): Zoomed => {
     ...situated,
     kind: "node",
     children: rowsUnder(derived, situated.shows, situated.trail),
+    under: under(derived, situated.shows.node.id),
   }
 }

@@ -12,8 +12,7 @@
 
 import { createMemo, Match, Show, Switch } from "solid-js"
 
-import { parseFilter } from "@olai/format"
-import type { Agenda, Derived } from "@olai/format"
+import { parseFilter, samePageRequest } from "@olai/format"
 
 import { AgendaPage } from "../agenda/AgendaPage.tsx"
 import { CLEARANCE } from "../connection/Indicator.tsx"
@@ -28,9 +27,11 @@ import { tagPressed } from "../filter/tag.ts"
 import { desktop } from "../layout/media.ts"
 import { chatOpen } from "../layout/prefs.ts"
 import { only } from "../narrow.ts"
+import { useToday } from "../today.tsx"
 import { NodePage } from "../NodePage.tsx"
 import { Nothing } from "../Nothing.tsx"
-import { drawnBy, type Found, NOTHING_DRAWN, pageOf } from "../page.ts"
+import { drawnBy, requestFor } from "../page.ts"
+import { createReading, ReadingProvider, useReadings } from "../reading.tsx"
 import { OutlinePage } from "../OutlinePage.tsx"
 import { followed, followedSplit, useGo, useHere, useRouter } from "../router.tsx"
 import { filterOf, hrefOf, narrowable, narrowedTo, samePage } from "../routes.ts"
@@ -39,31 +40,45 @@ import { visibleIn } from "../settings/done.ts"
 import { TESTID } from "../testids.ts"
 import { TrashPage } from "../trash/TrashPage.tsx"
 
-export function PageView(props: {
-  readonly derived: Derived | undefined
-  readonly found: Found
-  readonly today: string
-  readonly agenda: Agenda | undefined
-}) {
+export function PageView() {
   const router = useRouter()
   const here = useHere()
   const go = useGo()
+  const today = useToday()
   const route = createMemo(() => panesOf(router.workspace())[here()]!.route)
   const opened = createMemo(route, undefined, { equals: samePage })
 
-  const page = createMemo(() => {
-    const indexes = props.derived
-    return indexes === undefined
-      ? undefined
-      : pageOf(indexes, props.found, opened(), props.today)
+  /**
+   * THIS PANE'S OWN QUESTION, and its own subscription to the answer
+   * (`../reading.tsx`).
+   *
+   * `opened` rather than `route()`, which is the same memo the pane has always
+   * held and now decides a subscription rather than a re-render: a stream
+   * re-opens whenever its input NOTIFIES, and `samePage` is what says a change
+   * that was only the `?q=` is not a different page. Without it every keystroke
+   * in the filter box would tear this stream down and re-ask the server for the
+   * page it is already drawing.
+   *
+   * The DAY is the tab's own clock (`../clock.ts`), because `/today` names the
+   * day it IS and `/agenda` counts against the day the reader is standing on.
+   */
+  // BY VALUE, which is what keeps the subscription open across a navigation
+  // that did not change which page this is: `opened` moves for a link to a
+  // heading inside the document already on screen, and the request it produces
+  // is the same one (`../page.ts`'s `requestFor`). A memo comparing by
+  // reference would re-open the stream for it, blank the pane and unmount the
+  // body the reader was being scrolled into.
+  const request = createMemo(() => requestFor(opened(), today()), undefined, {
+    equals: samePageRequest,
   })
+  const reading = createReading(request)
+  // …and the pane joins the workspace's register with it, so the chrome outside
+  // the panes can read whichever one is focused (`../App.tsx`).
+  useReadings().join(here, reading.page)
 
-  const allDrawn = createMemo(() => {
-    const indexes = props.derived
-    return indexes === undefined
-      ? NOTHING_DRAWN
-      : drawnBy(indexes, page(), props.agenda)
-  })
+  const page = createMemo(() => reading.page()?.shows)
+
+  const allDrawn = createMemo(() => drawnBy(page()))
 
   const shownDrawn = createMemo(() => visibleIn(allDrawn()))
 
@@ -81,7 +96,7 @@ export function PageView(props: {
    * differ only for a tab left open across midnight or sitting in another time
    * zone, and one answer about what day it is beats a query resolved twice.
    */
-  const query = createMemo(() => parseFilter(filterOf(route()), props.today))
+  const query = createMemo(() => parseFilter(filterOf(route()), today()))
 
   /**
    * WHICH NODES the query selects — the server's answer, debounced and
@@ -100,12 +115,17 @@ export function PageView(props: {
     query,
     text: () => filterOf(route()),
     page: allDrawn,
-    // THE SET, as the generation the question carries: a filter is a standing
-    // view, so an answer that outlived the set it was computed over is a wrong
-    // answer that looks like a right one (`filter/asking.ts`'s `Ask.at`). The
-    // derivation is a fresh value per published revision, which is exactly "the
-    // directory moved" — and it goes over as a TOKEN, read by nothing.
-    at: () => props.derived,
+    // THE GENERATION the question carries: a filter is a standing view, so an
+    // answer that outlived the set it was computed over is a wrong answer that
+    // looks like a right one (`filter/asking.ts`'s `Ask.at`). It used to be the
+    // tab's derivation, a fresh value per published revision; what says the
+    // same thing now is a count of the frames THIS PAGE's reading moved on
+    // (`../reading.tsx`'s `Reading.at`, which is why it is a number rather than
+    // the value: a subscription's value is a store whose identity survives
+    // every frame). Narrower and more honest than what it replaced — a revision
+    // that moved nothing on this page sends no frame, so it cannot invalidate
+    // an answer about it — and read by nothing, as it always was.
+    at: reading.at,
   })
 
   const narrowing = createNarrowing({
@@ -156,11 +176,21 @@ export function PageView(props: {
         go(next)
       }}
     >
+      <ReadingProvider reading={reading}>
       <NarrowedProvider narrowed={narrowing}>
         <Show when={narrowing.drawn().kind !== "none"}>
           <FilterBar narrowing={narrowing} asked={asked} onType={narrow} />
         </Show>
-        <Show when={page()}>
+        {/* NOTHING YET, and the pane says so where it is: navigation asks the
+            server now (the design's §5a ruling — round-tripping is acceptable
+            and nothing is cached), so there is one honest beat between an
+            address and its page. The line is minimal on purpose: a loopback
+            answer arrives inside a frame, and a spinner for a millisecond is a
+            flicker rather than news. */}
+        <Show
+          when={page()}
+          fallback={<p class="m-0 py-8 text-muted">Reading…</p>}
+        >
           {(open) => (
             <Switch>
               <Match when={only(open(), "broken")}>
@@ -183,15 +213,15 @@ export function PageView(props: {
                     date={open().date}
                     groups={day()?.groups ?? []}
                     notes={day()?.notes ?? []}
-                    today={props.today}
+                    today={today()}
                   />
                 )}
               </Match>
               <Match when={only(open(), "agenda")}>
                 {(open) => (
                   <Show when={owed()}>
-                    {(reading) => (
-                      <AgendaPage agenda={reading()} today={open().date} />
+                    {(stretches) => (
+                      <AgendaPage agenda={stretches()} today={open().date} />
                     )}
                   </Show>
                 )}
@@ -200,6 +230,7 @@ export function PageView(props: {
                 <TrashPage
                   files={trash()?.files ?? []}
                   groups={trash()?.groups ?? []}
+                  records={only(open(), "trash")?.records ?? 0}
                 />
               </Match>
               <Match when={only(open(), "nothing")}>
@@ -214,6 +245,7 @@ export function PageView(props: {
           )}
         </Show>
       </NarrowedProvider>
+      </ReadingProvider>
     </main>
   )
 }

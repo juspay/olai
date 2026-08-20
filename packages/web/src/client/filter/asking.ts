@@ -174,12 +174,14 @@ interface Ask {
    * is what this door did between the first commit of this branch and this one,
    * and a probe printed "1 of 11" over a page holding two matches.)
    *
-   * The derivation is a fresh value per published revision (`../outlines.ts`
-   * patches it), so its identity is exactly "the directory moved" — the
-   * cheapest true generation this tab has, and the same one the local matcher
-   * used to re-run on. It is NOT dereferenced here, deliberately: this file's
-   * whole point is that the browser stopped reading the vault, and what it
-   * holds is a token that changes when the answer would.
+   * What the caller hands over is a count of the frames THIS PAGE's reading
+   * moved on (`../reading.tsx`'s `Reading.at`) — narrower than the token it
+   * replaced, which was the identity of the tab's own derivation and therefore
+   * moved on every write anywhere in the vault. A revision that changed nothing
+   * on this page sends no frame at all, so it cannot invalidate an answer about
+   * it. It is NOT dereferenced here, deliberately: this file's whole point is
+   * that the browser stopped reading the vault, and what it holds is a token
+   * that changes when the answer would.
    */
   readonly at: unknown
 }

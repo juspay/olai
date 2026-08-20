@@ -38,7 +38,7 @@
  * is the shape a drop over the wrong pane already has (`../drag/Refusal.tsx`,
  * #238). `Enter` there sends nothing: the answer is already on screen.
  *
- * Which destinations those are, and in what words, is `./destination.ts` —
+ * Which destinations those are, and in what words, is `@olai/format`'s `moving.ts` —
  * pure, and unit-tested, because a sentence a reader depends on is not a thing
  * to check by hand. It is the one thing this component hands the shortlist that
  * the other door does not.
@@ -55,11 +55,11 @@
 
 import type { Edit } from "@olai/surface"
 
-import { useDerived } from "../derived.tsx"
+import type { Moved } from "@olai/format"
+
 import { Shortlist, type ShortlistTestids } from "../search/Shortlist.tsx"
 import { TESTID } from "../testids.ts"
 import { PANEL_OUT } from "../pill.ts"
-import { type Moved, whyNot } from "./destination.ts"
 
 /** What this door calls the parts of its shortlist. */
 const MOVE_LIST: ShortlistTestids = {
@@ -77,13 +77,20 @@ export function MovePicker(props: {
    *  host, so a panel standing open while another writer moves the row is
    *  judging against where it has actually got to. */
   readonly moved: Moved
+  /** Why each destination cannot take the row, by id — the server's verdicts,
+   *  for the hits this list is drawing (`./moving.tsx`, which owns the one
+   *  subscription both halves of this gesture read). A hit with no entry is one
+   *  that can take it. */
+  readonly refusals: ReadonlyMap<string, string>
+  /** WHICH DESTINATIONS are on screen, told to the host as the search answers —
+   *  the argument its subscription is re-asked with. The list is what knows
+   *  them, and the host is what asks; this is the one line between the two. */
+  readonly onAimed: (ids: ReadonlyArray<string>) => void
   /** Send it. The host knows the write gate, the undo stack and where the
    *  answer is drawn (`./moving.tsx`); this knows which destination. */
   readonly onWrite: (edit: Edit) => void
   readonly onClose: () => void
 }) {
-  const derived = useDerived()
-
   return (
     <div
       class="my-1 w-[min(28rem,90vw)] rounded border border-rule/70 bg-panel p-2"
@@ -116,16 +123,15 @@ export function MovePicker(props: {
         testids={MOVE_LIST}
         refusing={{
           testid: TESTID.moveRefused,
-          why: (hit) => {
-            const indexes = derived()
-            // NO INDEXES is the frame before the first one arrives — which no
-            // row is drawn in, so no panel is open over it either. The answer
-            // if it ever were is `null` rather than a refusal: this rule is a
-            // preview of the planner's verdict, and with nothing to preview
-            // from, the planner is the one that answers. A refusal invented
-            // here would be a fence.
-            return indexes === undefined ? null : whyNot(props.moved, hit, indexes)
-          },
+          // WHICH HITS are being judged, reported up so the host can ask about
+          // exactly these (`./moving.tsx`).
+          asked: (hits) => props.onAimed(hits.map((hit) => hit.id)),
+          // NOTHING SAID is the frame before the verdicts for this list have
+          // come back, and the answer then is `null` rather than a refusal:
+          // this is a preview of the planner's verdict, and with nothing to
+          // preview from, the planner is the one that answers. A refusal
+          // invented here would be a fence.
+          why: (hit) => props.refusals.get(hit.id) ?? null,
         }}
         onTake={(hit) => props.onWrite({ verb: "under", id: props.moved.id, parent: hit.id })}
       />

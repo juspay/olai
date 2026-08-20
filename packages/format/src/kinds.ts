@@ -39,6 +39,8 @@
  * grep for it.
  */
 
+import { Schema } from "effect"
+
 /** What is true of a kind of served file, for every kind, in the three respects
  *  all of them have an answer to. */
 interface Claim {
@@ -106,6 +108,14 @@ export const FILE_KINDS = {
 /** What a served file can be. Derived from the table rather than declared
  *  beside it, so the union cannot name a kind the table does not claim. */
 export type FileKind = keyof typeof FILE_KINDS
+
+/** ...and the SCHEMA of that union, read off the same table for the same
+ *  reason — because a page reading says which kind a reader ASKED for when the
+ *  directory holds nothing by that name (`./page.ts`), and that answer travels.
+ *  Two derivations of one table, never a list beside it. */
+export const FileKind = Schema.Literals(
+  Object.keys(FILE_KINDS) as ReadonlyArray<FileKind>,
+)
 
 /**
  * The kinds whose content is a BODY — everything a reader opens as a rendered

@@ -62,7 +62,7 @@ export interface Undo {
 /**
  * The context itself, published rather than wrapped in a provider component of
  * its own — which is the one place this module differs from its neighbours
- * (`./editing.tsx`'s `EditorProvider`, `../derived.tsx`), and it differs for a
+ * (`./editing.tsx`'s `EditorProvider`, `../reading.tsx`), and it differs for a
  * reason worth the inconsistency: a file with JSX in it cannot be imported by
  * a unit test in this repo (no transform in `bun test`), and the rules this
  * module holds — what a new op does to the redo side while a replay is still

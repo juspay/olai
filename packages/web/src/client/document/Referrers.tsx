@@ -36,27 +36,26 @@
  * element alone does not give.
  */
 
-import { addressOf, type Referrer, referrersTo } from "@olai/format"
+import type { Referrer } from "@olai/format"
 import { createMemo, createSignal, For, Show } from "solid-js"
 
-import { useDerived } from "../derived.tsx"
+import { only } from "../narrow.ts"
+import { useReading } from "../reading.tsx"
 import { atFile, atNode, hrefOf } from "../routes.ts"
-import { useFaces } from "../served.tsx"
 import { TESTID } from "../testids.ts"
 
-export function Referrers(props: { readonly file: string }) {
-  const derived = useDerived()
-  const faces = useFaces()
+export function Referrers(props: {
+  /** The document this page is about — read for the KEY below rather than for
+   *  a lookup: who points here rides on the page's own reading, which is a
+   *  reading OF this file. */
+  readonly file: string
+}) {
+  const reading = useReading()
   const found = createMemo(() => {
-    const indexes = derived()
-    const here = addressOf(props.file, null)
-    // A first frame has no indexes yet and nothing that needs them is drawn
-    // (`../derived.tsx`), so this answers empty rather than waiting. `here` is
-    // `null` only for a path the grammar cannot name, which a page model let
-    // through cannot be — asked rather than asserted, so the rule stays the
-    // grammar's.
-    if (indexes === undefined || here === null) return []
-    return referrersTo(here, faces(), indexes)
+    const shows = reading()?.shows
+    // A page whose reading has not arrived draws no section rather than
+    // waiting, which is the same nothing the `<Show>` below already means.
+    return (shows === undefined ? undefined : only(shows, "document")?.referrers) ?? []
   })
 
   // KEYED ON THE FILE, for the reason the node's section is keyed on its node:

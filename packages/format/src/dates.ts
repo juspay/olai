@@ -59,10 +59,10 @@
 
 import { Order, Schema } from "effect"
 
-import { type Derived, type Situated, situate } from "./derive.ts"
+import { type Derived, Situated, situate } from "./derive.ts"
 import { fileKind, stemOf } from "./kinds.ts"
 import type { LocatedRegular } from "./node.ts"
-import { type Dated, monthOf, type Occasioned } from "./occasion.ts"
+import { type Dated, monthOf, Occasioned } from "./occasion.ts"
 import { byPath } from "./paths.ts"
 
 /**
@@ -165,17 +165,23 @@ export const datedAnswer = (derived: Derived, month: string): DatedAnswer => ({
  * over the set and a title torn out of its outline says nothing — plus which
  * of its dates put it here.
  */
-export interface DayEntry extends Situated, Occasioned {}
+export const DayEntry = Schema.Struct({ ...Situated.fields, ...Occasioned.fields })
+export type DayEntry = typeof DayEntry.Type
 
 /** The nodes of one outline on the same day.
  *
  *  The day view groups by file because a `parent` never crosses one: two nodes
  *  in two outlines have no common ancestry to draw them under, and the file is
- *  the only heading that is true. */
-export interface DayGroup {
-  readonly file: string
-  readonly nodes: ReadonlyArray<DayEntry>
-}
+ *  the only heading that is true.
+ *
+ *  A SCHEMA since `vault-in-browser`'s PR 10 — the day page and the agenda are
+ *  readings the server computes and the wire carries, so what the walk produces
+ *  and what the encoder reads are one declaration. */
+export const DayGroup = Schema.Struct({
+  file: Schema.String,
+  nodes: Schema.Array(DayEntry),
+})
+export type DayGroup = typeof DayGroup.Type
 
 /**
  * Everything on `day`, grouped by outline.

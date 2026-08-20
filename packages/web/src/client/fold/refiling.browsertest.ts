@@ -82,7 +82,7 @@ const driving = <A>(
 ): Promise<A> => running({ answer }, body)
 
 const running = <A>(
-  wiring: { readonly answer?: HomesAnswer; readonly offline?: string },
+  wiring: { readonly answer?: HomesAnswer; readonly offline?: boolean },
   body: (asked: ReadonlyArray<HomesRequest>, store: Map<string, string>) => Promise<A>,
 ): Promise<A> => {
   const storage = shimmed()
@@ -95,7 +95,7 @@ const running = <A>(
         Result.succeed(wiring.answer ?? { homes: [], loaded: [] }),
       )
     },
-    offline: () => wiring.offline ?? null,
+    reachable: () => wiring.offline !== true,
   }
   emptied()
   const dispose = createRoot((dispose) => {
@@ -171,7 +171,7 @@ test("an answer that has been overtaken says nothing", () => {
   jest.useFakeTimers()
   const wire: Asking = {
     ask: () => new Promise((settle) => answers.push((a) => settle(Result.succeed(a)))),
-    offline: () => null,
+    reachable: () => true,
   }
   emptied()
   const dispose = createRoot((dispose) => {
@@ -205,7 +205,7 @@ test("an answer that has been overtaken says nothing", () => {
 })
 
 test("a wire that cannot be reached is not asked, and nothing is written", () =>
-  running({ offline: "olai is not connected" }, async (asked, store) => {
+  running({ offline: true }, async (asked, store) => {
     setFolded([INSTALL], true)
     await tidied()
     expect(asked).toEqual([])

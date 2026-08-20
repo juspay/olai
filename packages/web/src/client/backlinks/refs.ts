@@ -10,14 +10,14 @@
  * Same reading, two shapes, and the arithmetic between them lives here rather
  * than inside a component's JSX.
  *
- * TWO FUNCTIONS RATHER THAN ONE ANSWER, and that is what makes a shut section
- * cost nothing: {@link referringTo} is what the summary needs (a count), and
- * {@link rowsOf} is what the rows need. A `<details>` renders its children
- * whether or not it is open, so a single call answering both would build a
- * `NodeRef` per referrer and an anchor per `NodeRef` on every frame the store
- * publishes — on exactly the hub node this feature exists for, several hundred
- * of each, none of them on screen. The component calls the second inside the
- * `<Show>` that the reader's own toggle opens.
+ * THE SHAPING IS SEPARATE FROM THE ANSWER, and that is what makes a shut
+ * section cost nothing: the referrers themselves ride on the page's reading (a
+ * count is all the summary needs), and {@link rowsOf} is what the ROWS need. A
+ * `<details>` renders its children whether or not it is open, so building the
+ * rows eagerly would mint a `NodeRef` per referrer and an anchor per `NodeRef`
+ * on every frame the server publishes — on exactly the hub node this feature
+ * exists for, several hundred of each, none of them on screen. The component
+ * calls this inside the `<Show>` that the reader's own toggle opens.
  *
  * A ROW PER `Way`, keyed by the format's own closed list rather than one field
  * per way: two fields carry a presence rule nothing enforces ("if a referrer
@@ -46,21 +46,16 @@
  * that this row is spending it.
  */
 
-import { type Backlink, backlinksOf, type Derived, type Way } from "@olai/format"
+import type { Backlink, Way } from "@olai/format"
 
 import { type NodeRef, refOf } from "../ref.ts"
 
-/** The referrers of one node, or nothing at all. A first frame has no indexes
- *  yet and nothing that needs them is drawn (`../derived.tsx`), so this answers
- *  empty rather than waiting. */
-export const referringTo = (
-  derived: Derived | undefined,
-  id: string,
-): ReadonlyArray<Backlink> => (derived === undefined ? NOTHING : backlinksOf(derived, id))
-
-const NOTHING: ReadonlyArray<Backlink> = []
-
-/** ...and the rows they are drawn as, once somebody has opened the section. */
+/** The rows the referrers are drawn as, once somebody has opened the section.
+ *
+ *  WHO REFERS is not worked out here any more: it rides on the node page's own
+ *  reading, computed by the same `backlinksOf` over the set the server holds
+ *  (`@olai/format`'s `page.ts`). What is left in this module is the shaping —
+ *  one row per WAY, which is a fact about how the section is drawn. */
 export const rowsOf = (
   found: ReadonlyArray<Backlink>,
 ): Record<Way, ReadonlyArray<NodeRef>> => ({

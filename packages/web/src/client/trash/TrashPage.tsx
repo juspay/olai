@@ -64,7 +64,7 @@ import { PAGE_TITLE } from "../look.ts"
 import { CONTEXT_DIM, lighting, matchedAttr, unfiltered } from "../filter/why.ts"
 import { EmptyTrash } from "./EmptyTrash.tsx"
 import { NodeTitle } from "../NodeTitle.tsx"
-import type { TrashGroup } from "../page.ts"
+import type { TrashGroup } from "@olai/format"
 import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
 import { applying } from "../writes.ts"
@@ -78,6 +78,10 @@ export function TrashPage(props: {
   /** The archives with rows in them, narrowed by whatever is in the box
    *  (`../filter/narrowing.ts`). */
   readonly groups: ReadonlyArray<TrashGroup>
+  /** How many RECORDS emptying would delete, across every archive — the set's
+   *  own count, off the page's reading (`./EmptyTrash.tsx` argues why it can be
+   *  neither the rows' nor the groups'). */
+  readonly records: number
 }) {
   const narrowed = useNarrowed()
 
@@ -92,10 +96,10 @@ export function TrashPage(props: {
         {/* The PAGE's verb, and the only one here that is not about a row —
             emptying is about every archive at once, so it hangs off the heading
             rather than off anything in the pile (`./EmptyTrash.tsx`). It is
-            handed the FILES rather than the groups, deliberately: what it
-            counts and what it deletes is what the archives hold, and the groups
-            are what survived the filter box. */}
-        <EmptyTrash files={props.files} />
+            handed the SET's count rather than anything drawn, deliberately:
+            what it deletes is what the archives hold, and the groups are what
+            survived the filter box. */}
+        <EmptyTrash going={props.records} />
       </header>
       <Show
         when={props.groups.length > 0}

@@ -7,19 +7,24 @@
  * doing both things appearing in both rows, and the count being records rather
  * than links, because that number is the whole of what a shut section says.
  *
- * The count and the rows are two calls, and the test asks them that way: the
- * rows are built only once a reader has opened the section (`./Backlinks.tsx`),
- * so a suite that could only get the count out of the same call as the rows
- * would be pinning a shape the component had already stopped using.
+ * WHO REFERS is the page's own reading now — the server walks it with the same
+ * `backlinksOf` and sends it with the node page (`@olai/format`'s `page.ts`) —
+ * so this file calls that function directly, which is exactly what the browser
+ * is handed. What is asserted is still the client's half: the shaping into rows,
+ * and the count a shut section says out loud.
  */
 
-import { derive } from "@olai/format"
+import { backlinksOf, derive } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { referringTo, rowsOf } from "./refs.ts"
+import { rowsOf } from "./refs.ts"
 
 const viewOf = (files: Record<string, string>) => derive(recordsOf(setOf(files)))
+
+/** What refers to `id`, exactly as a node page's reading carries it. */
+const referringTo = (files: Record<string, string>, id: string) =>
+  backlinksOf(viewOf(files), id)
 
 const HOUSE = {
   "house.olai": [
@@ -32,7 +37,7 @@ const HOUSE = {
 }
 
 test("the rows are keyed by the way, and a record doing both is in each", () => {
-  const rows = rowsOf(referringTo(viewOf(HOUSE), "herbs"))
+  const rows = rowsOf(referringTo(HOUSE, "herbs"))
   expect(rows.see.map((ref) => ref.id)).toEqual(["order", "both"])
   expect(rows.mention.map((ref) => ref.id)).toEqual(["install", "both"])
 })
@@ -40,20 +45,19 @@ test("the rows are keyed by the way, and a record doing both is in each", () => 
 test("the count is the RECORDS referring, not the links they are drawn as", () => {
   // THREE, not four: `both` points and mentions, and it is one thing referring.
   // This is the number the shut section says out loud.
-  expect(referringTo(viewOf(HOUSE), "herbs")).toHaveLength(3)
+  expect(referringTo(HOUSE, "herbs")).toHaveLength(3)
 })
 
 test("a link carries the referrer's own title and the outline it is written in", () => {
   // Read off the record rather than resolved again: this list is already
   // records, so nothing here can disagree with the page the link opens.
-  expect(rowsOf(referringTo(viewOf(HOUSE), "herbs")).see[0]).toEqual({
+  expect(rowsOf(referringTo(HOUSE, "herbs")).see[0]).toEqual({
     id: "order",
     title: "order the cabinets",
     from: "house.olai",
   })
 })
 
-test("a node nothing refers to, and a first frame with no indexes, are both empty", () => {
-  expect(referringTo(viewOf(HOUSE), "kitchen")).toEqual([])
-  expect(referringTo(undefined, "herbs")).toEqual([])
+test("a node nothing refers to draws nothing", () => {
+  expect(referringTo(HOUSE, "kitchen")).toEqual([])
 })

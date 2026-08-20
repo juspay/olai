@@ -13,8 +13,9 @@
  * call revising its progress. A thousand-row conversation paid a thousand
  * reads and a sort for each of them.
  *
- * It is a fold now (`@kolu/surface`'s collection `fold` — the same socket
- * `../outlines.ts` hands the format's patcher), and the shape of the saving is
+ * It is a fold now (`@kolu/surface`'s collection `fold` — the same socket the
+ * outlines' own fold used, when a tab still held one), and the shape of the
+ * saving is
  * the shape of the frame: a frame that changes no key's `seq` and adds no key
  * costs the length of the FRAME, and the list it answers with is the very
  * array it answered with last time.

@@ -25,7 +25,7 @@
  * to `@olai/format` to prevent one layer lower.
  */
 
-import type { Selected } from "@olai/format"
+import type { Selected, TrashGroup } from "@olai/format"
 import {
   datedIn,
   isTrashed,
@@ -38,7 +38,7 @@ import {
   shownRecord,
 } from "@olai/format"
 
-import type { Drawn, TrashGroup } from "../page.ts"
+import type { Drawn } from "../page.ts"
 
 /**
  * The same page with everything that did not match taken out of it — one arm

@@ -1,63 +1,30 @@
 /**
- * What hangs under a row, answered twice: how MUCH of it there is, and what it
- * READS as.
+ * WHAT A SUBTREE READS AS — the plain text the `•••` menu's Copy verb puts on
+ * the clipboard.
  *
- * Both questions are the `•••` menu's, and they are asked of DIFFERENT THINGS
- * — which is the whole content of this module:
+ * It is asked of the ROWS — the tree the format expanded for this page, mirrors
+ * resolved, order settled — because what a person copies is what a person can
+ * see.
  *
- *   - the COUNT is about the write, so it is asked of the SET
- *     ({@link Derived}, the same index the ops layer's own subtree walk
- *     descends). What a person is being asked to agree to is how much
- *     `archive` will move, and that is a fact about the records on disk.
- *   - the TEXT is about the reading, so it is asked of the ROWS — the tree the
- *     format expanded for this page, mirrors resolved, order settled. What a
- *     person copies is what a person can see.
+ * ITS SIBLING QUESTION IS ASKED SOMEWHERE ELSE, and the split is worth keeping
+ * written down. How MUCH hangs under a row — the number the archive's confirm
+ * names — is about the WRITE, so it is asked of the SET, and the rows a page
+ * hands the tree are a reading: with done hidden, `withoutDone` has already
+ * dropped every finished branch from them (`settings/done.ts`), so a count
+ * taken from the rows would say "and the 3 rows under it" over a branch of nine
+ * and archive all nine. That count used to live here, walking the browser's own
+ * copy of the directory; it rides on the row now (`@olai/format`'s
+ * `Row.under`), counted where the set is
+ * (`docs/brainstorming/vault-in-browser.md`). The rule did not move — the set
+ * did — and the sentence above is why the two answers may never be the same
+ * walk.
  *
- * That split is not a nicety. The rows a page hands the tree are a READING:
- * with done hidden, `withoutDone` has already dropped every finished branch
- * from them (`settings/done.ts`), so a count taken from the rows would have said "and
- * the 3 rows under it" over a branch of nine and archived all nine. The
- * sentence the confirm exists to be honest about was the one thing that could
- * not be read off the picture.
- *
- * Pure over its inputs, both of them, so the two things most easily got wrong
- * — a count that differs from what the write moves, and an indent that does
- * not survive a paste — are unit tests rather than a browser gesture nobody
+ * Pure over the rows, so the thing most easily got wrong — an indent that does
+ * not survive a paste — is a unit test rather than a browser gesture nobody
  * repeats.
  */
 
-import type { Derived, Row } from "@olai/format"
-
-/**
- * How many records a subtree write would take with it — the number the archive
- * confirm names, and it has to be the number the op actually moves.
- *
- * The same edges `@olai/ops`' `subtreeOf` descends, over the same index: the
- * records whose `parent` chain reaches this node, which is same-file by the
- * format. A PLACEMENT among them goes as the one line it is and is not
- * descended into — not by a rule spelled here, but because a mirror cannot be
- * a parent (the validator refuses one), so it has no children in this index.
- * A kitchen holding a mirror of the herb bed therefore says "and the 5 rows
- * under it" rather than counting the basil and the mint somebody else is
- * growing.
- *
- * The `seen` guard is the ops walk's too, and for its reason: a `parent` loop
- * is a set the validator condemns, but this runs in a browser holding whatever
- * the store published, and the worst answer to a malformed set is a tab that
- * stops responding.
- */
-export const under = (derived: Derived, id: string): number => {
-  const seen = new Set<string>()
-  const walk = (at: string): number => {
-    if (seen.has(at)) return 0
-    seen.add(at)
-    return (derived.children.get(at) ?? []).reduce(
-      (count, child) => count + 1 + walk(child.node.id),
-      0,
-    )
-  }
-  return walk(id)
-}
+import type { Row } from "@olai/format"
 
 /** One level of indent. A TAB, which is what every outliner reads back as a
  *  level — Workflowy's plain-text export, and what a paste-in parser will look

@@ -54,13 +54,13 @@ import {
   Switch,
 } from "solid-js"
 
-import type { Situated } from "@olai/format"
+import type { Zoomed } from "@olai/format"
 import type { Edit, OpFailure } from "@olai/surface"
 import { Result as Outcome } from "effect"
 
 import { releaseArmed, restoreArmed } from "../chat/armed.ts"
 
-import { useDerived } from "../derived.tsx"
+import type { Names } from "../reading.tsx"
 import { SaidLine } from "../edit/SaidLine.tsx"
 import {
   resetPanelWidths,
@@ -136,11 +136,16 @@ export function Palette(props: {
    * The node this tab has ZOOMED, and the whole of what the op rows are about
    * — `undefined` on every other page, which is what makes them absent there.
    *
-   * Handed down rather than zoomed again from the route: `App.tsx` has already
-   * resolved the address into a page, and a second `zoom()` here would be a
-   * second answer to "what is open" that could differ from the one on screen.
+   * Handed down rather than zoomed again from the route: the FOCUSED pane's
+   * reading has already resolved the address into a page (`App.tsx`), and a
+   * second answer to "what is open" could differ from the one on screen. It
+   * carries `under` with it, which is the number the archive row's confirm
+   * names — counted where the set is, like every other fact on a reading.
    */
-  readonly zoomed: Situated | undefined
+  readonly zoomed: Extract<Zoomed, { readonly kind: "node" }> | undefined
+  /** What the ids the FOCUSED page points at are called — the one thing the
+   *  shelf's row needs that an address cannot say (`../pins/palette.ts`). */
+  readonly names: Names
 }) {
   // ⌘Z / ⌘⇧Z belong to the outline's undo stack; what this file owns is the
   // ONE window listener the global layer has (../keys.ts), and a second one
@@ -148,7 +153,6 @@ export function Palette(props: {
   // to make impossible. Reached the way the row editor reaches it rather than
   // handed down as two props — same object, one access path.
   const undo = useUndo()
-  const derived = useDerived()
   const pins = usePins()
   const router = useRouter()
   const [keys, setKeys] = createSignal(false)
@@ -242,16 +246,15 @@ export function Palette(props: {
    * The zoomed node's verbs — its OWN memo, and guarded on the palette being
    * open, which is what keeps them from being rebuilt for nobody.
    *
-   * Both halves of that matter. `opItems` walks the node's subtree to count
-   * what an archive would move (`../menu/subtree.ts`), and everything it reads
-   * — `props.zoomed`, the indexes — is minted afresh on every revision the
-   * store publishes, so a memo that read them beside the query would do that
-   * walk on every write to the directory with the modal shut, and again on
-   * every keystroke typed into it. Solid re-tracks per run, so while the
-   * palette is closed this depends on `paletteOpen()` and nothing else.
+   * Both halves of that matter. `props.zoomed` is minted afresh on every
+   * revision the server publishes a new reading for, so a memo that read it
+   * beside the query would rebuild this catalog on every write to the page with
+   * the modal shut, and again on every keystroke typed into it. Solid re-tracks
+   * per run, so while the palette is closed this depends on `paletteOpen()` and
+   * nothing else.
    */
   const opRows = createMemo(() =>
-    paletteOpen() ? opItems(props.zoomed, derived()) : []
+    paletteOpen() ? opItems(props.zoomed, props.zoomed?.under) : []
   )
 
   const items = createMemo(() => {
@@ -265,7 +268,11 @@ export function Palette(props: {
     // about the zoomed node, so it belongs with the contextual half and not
     // with the fixed ones — and it is the one door a document or a filtered
     // page has that a reader can find by looking (../pins/palette.ts).
-    const commands = [...opRows(), pinItem(router.route(), pins(), derived()), ...SHELL_ITEMS]
+    const commands = [
+      ...opRows(),
+      pinItem(router.route(), pins(), props.names),
+      ...SHELL_ITEMS,
+    ]
     // THEN THE HITS, which is the order they can be ANSWERED in: the commands
     // are matched in this tab off a list it already holds, and a hit is a
     // debounce and a round trip away. A block that arrives late must not push

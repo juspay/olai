@@ -142,6 +142,12 @@ export const sameShelf: (a: Shelf, b: Shelf) => boolean = Schema.toEquivalence(S
  * from the set. So this is not "is that a pin" — it is "is there a node here
  * whose title only the set knows".
  *
+ * WHICH IS WHY IT HAS A SECOND CALLER, and the name is the shelf's only
+ * because the shelf asked first: `./page.ts` reads it over every title a PAGE
+ * draws, so a row of any outline whose title is an address is named by the same
+ * rule the sidebar's shelf is (`@olai/web`'s `NodeTitle.tsx` draws one face for
+ * both). One question, one function, two readings.
+ *
  * TOTAL over any string, because {@link parseAddress} is: a title spelled with
  * an escape nothing can read names nothing, rather than throwing on the server
  * that is answering every open tab.

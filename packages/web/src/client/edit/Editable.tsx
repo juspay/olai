@@ -67,6 +67,7 @@ import { SweepBand } from "../drag/Sweep.tsx"
 import { createSweeping } from "../drag/sweeping.ts"
 import { isEditingTarget, type SelectAction, selectKey } from "../keys.ts"
 import { createMoving, MovingProvider } from "../move/moving.tsx"
+import { useFrames } from "../reading.tsx"
 import { createSelection, type Selection, SelectionProvider } from "../select/selection.ts"
 import { SelectionBar } from "../select/SelectionBar.tsx"
 import { createEditor, EditorProvider } from "./editing.tsx"
@@ -102,6 +103,12 @@ export function Editable(props: {
     // and offer a drop among rows nobody can see. The tree reads the same
     // accessor.
     collapsed: createFoldReading(),
+    // …and how many frames this pane's reading has moved on, which is the ONE
+    // thing the editor waits for that neither of the two above can say: the
+    // rows arrive on a subscription whose value is reconciled in place, so
+    // "the frame that redraws this row landed" is a count rather than a new
+    // array (`../reading.tsx`'s `useFrames`).
+    frames: useFrames(),
   }
   const selection = createSelection(page)
   // The two know each other one way round each: the editor's `⌘⇧M` opens the
