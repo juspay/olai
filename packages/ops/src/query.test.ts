@@ -167,21 +167,23 @@ describe("what a node is waiting on", () => {
    *  (written from the other end as `blocks`); `pour` is unfinished work with
    *  nothing before it; `chips` names the same unfinished target and is a
    *  bullet, so nothing is telling it it cannot start. */
-  const WAITING = () =>
-    derivedOf(setOf({
+  const WAITING = (): OutlineSet =>
+    setOf({
       "build.olai": [
         `{"id":"pour","ord":"a0","title":"pour the slab","todo":true}`,
         `{"id":"cure","ord":"a1","title":"let it cure","doing":true,"blocks":["frame"]}`,
         `{"id":"frame","ord":"a2","title":"frame the walls","todo":true,"after":["pour"]}`,
         `{"id":"chips","ord":"a3","title":"paint chips on the shelf","after":["pour"]}`,
       ].join("\n"),
-    }))
+    })
+
+  const waiting = () => derivedOf(WAITING())
 
   test("a blocked node names every blocker, situated and marked", () => {
     // In the order the format promises: the node's own `after` first, then the
     // `blocks` pointing back at it from elsewhere. And each blocker is a whole
     // situated answer, so "has this moved" needs no second read.
-    expect(detail(WAITING(), "frame")?.blockedBy).toEqual([
+    expect(detail(waiting(), "frame")?.blockedBy).toEqual([
       { id: "pour", title: "pour the slab", file: "build.olai", line: 1, status: "todo", path: [] },
       { id: "cure", title: "let it cure", file: "build.olai", line: 2, status: "doing", path: [] },
     ])
@@ -190,15 +192,16 @@ describe("what a node is waiting on", () => {
   test("a node with nothing in its way does not say so with an empty list", () => {
     // `pour` is the blocker itself — unfinished work, and nothing before it.
     // Absence is how the format spells nothing, and an answer follows it.
-    expect(detail(WAITING(), "pour")).not.toHaveProperty("blockedBy")
+    expect(detail(waiting(), "pour")).not.toHaveProperty("blockedBy")
   })
 
   test("a bullet is waiting on nothing, whatever `after` it carries", () => {
     // The one case that separates this field from the record's: `chips` names
     // `pour`, which IS unfinished — but a bullet is not work, so nothing is
     // telling it it cannot start. The record's own field still answers.
-    expect(detail(WAITING(), "chips")).toMatchObject({ after: ["pour"] })
-    expect(detail(WAITING(), "chips")).not.toHaveProperty("blockedBy")
+    const chips = detail(waiting(), "chips")
+    expect(chips).toMatchObject({ after: ["pour"] })
+    expect(chips).not.toHaveProperty("blockedBy")
   })
 })
 

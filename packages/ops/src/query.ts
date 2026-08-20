@@ -599,7 +599,7 @@ export const detail = (derived: Derived, id: string): Detail | null => {
  * app's rows dim from and `is:blocked` selects on), and `foundOf` is what turns
  * each blocker into the answer every other list here is made of.
  *
- * NOTHING IS DECIDED HERE, which is the point of it being three lines: a second
+ * NOTHING IS DECIDED HERE, which is the point of it being one expression: a second
  * spelling of "is this still in the way" would be a node an agent is told it
  * can start while the page it is drawn on says it cannot. The mark each entry
  * carries is `foundOf`'s read of `derived.status` — the very map the blockedness

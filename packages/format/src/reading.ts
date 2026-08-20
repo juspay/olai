@@ -475,12 +475,28 @@ export const Detail = Schema.Struct({
    * reader told only the ids of what it is waiting on is a reader making one
    * more read per blocker to learn whether any of them has moved.
    *
-   * Every entry carries a `status`, and it is `todo` or `doing`: what is in the
-   * way is unfinished WORK by that derivation's own rule (`InTheWay`'s
-   * `Exclude<Status, "done">` says it in the type). The optionality on `Found`
-   * above is that shape's, held for the hits and children where a bullet is a
-   * fair answer; in this list a blocker without a mark is not a value the
-   * derivation can produce.
+   * A `Found` and not a narrower shape, and that choice is worth its sentence
+   * because two things pull the other way. Every entry here does carry a
+   * `status`, and it is `todo` or `doing` — what is in the way is unfinished
+   * WORK, which `InTheWay` says in its own type (`Exclude<Status, "done">`) —
+   * so `Found`'s OPTIONAL status is one notch wider than what this list can
+   * hold; and each blocker arrives with its `see`, its `after` and its whole
+   * `custom` map, none of which the "can this start" question has a use for.
+   * Both are paid deliberately. A struct that narrowed the mark would be the
+   * unfinished predicate spelled a SECOND time, in a module that argues none of
+   * it — the one duplication blockedness is most written against — and a struct
+   * that dropped the record's fields would be a second situated vocabulary for
+   * a list that is one or two entries long. Consistency with every other list
+   * on this shape costs less than either.
+   *
+   * A HIT does not carry this, and that is not the `custom` oversight read
+   * again: `custom` is the RECORD'S, so answering it only here made a query
+   * plus a read per row out of one query. This is DERIVED, like `progress`
+   * above it — and derived rollups wait for the node read, because a
+   * {@link Found} holding an array of `Found` is a recursive shape that would
+   * nest a blocker's blockers into every child list and every subtree row. What
+   * a hit answers instead is the question rather than the list: `is:blocked`
+   * selects on this same index, and the situated names are this read.
    */
   blockedBy: Schema.optionalKey(Schema.Array(Found)),
 })

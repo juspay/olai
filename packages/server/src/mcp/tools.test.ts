@@ -1577,24 +1577,20 @@ test("set_after writes a dependency, and a loop is refused naming it", async () 
  * to a search field the palette's encoder ate (`@olai/format`'s `searching.ts`
  * header). So this reads the structured answer an agent actually receives.
  *
- * It walks the rule an agent reconstructing this from `after` would get wrong:
- * `install` comes after `order` the whole time, and it is only WHILE `order` is
- * unfinished work that anything is in the way. A bullet is not work, and a
- * finished task is not in the way of anything.
+ * TWO assertions, and the second is not the rule read again: what an optional
+ * field does when it empties is a WIRE question of its own — `Schema.optionalKey`
+ * has to drop the key rather than send `[]`, which is the promise the four
+ * fields above it make and the one a browser and an agent both read as
+ * "nothing". Which marks block and which do not is the derivation's, and is
+ * pinned one layer down against the function that decides it.
  */
-test("read_node says what a node is waiting on, and only while that is work", async () => {
+test("read_node says what a node is waiting on, and drops the field when it clears", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     await call(client, "set_after", { id: "install", add: ["order"] })
-
-    // The edge is written and nothing is waiting: `order` carries no mark, so
-    // there is nothing under it to finish.
-    const bullet = (await call(client, "read_node", { id: "install" })).structured
-    expect(bullet).toMatchObject({ after: ["order"] })
-    expect(bullet).not.toHaveProperty("blockedBy")
-
-    // Filing the target as work is what blocks the node — and the blocker
-    // arrives situated, with the mark that makes it one.
     await call(client, "set_todo", { id: "order" })
+
+    // The blocker arrives SITUATED — with its title, its place, its ancestors
+    // and the mark that makes it one — not as the id the record already holds.
     expect((await call(client, "read_node", { id: "install" })).structured["blockedBy"])
       .toEqual([{
         id: "order",
