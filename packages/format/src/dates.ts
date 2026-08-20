@@ -329,7 +329,14 @@ export type DatedAnswer = typeof DatedAnswer.Type
 
 /** When two answers name the same days, so the subscription carrying them can
  *  stay quiet — `./agenda.ts`'s `sameOwed` one reading over, and derived from
- *  the schema for the same reason. */
+ *  the schema for the same reason.
+ *
+ *  IT COMPARES THE LIST IN ORDER, which is why {@link DatedAnswer} says the
+ *  days are sorted and why the one producer sorts them (`@olai/ops`'
+ *  `Query.dated`, pinned there). An unsorted producer would only ever be wrong
+ *  in the harmless direction — a frame sent for a month whose dots did not move
+ *  — but the precondition is stated here rather than left to be inferred from
+ *  the caller, because the two are a pair. */
 export const sameDated: (a: DatedAnswer, b: DatedAnswer) => boolean = Schema
   .toEquivalence(DatedAnswer)
 

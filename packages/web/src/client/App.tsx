@@ -83,9 +83,19 @@ export default function App() {
 
   const problems = () => errors.value() ?? []
 
-  /** Whether there is a set at all — the manifest's three states (no frame,
-   *  never loaded, a directory) folded to the one bit a reading has to know
-   *  before it is worth asking for. */
+  /**
+   * Whether there is a set at all — the manifest's three states (no frame yet,
+   * never loaded, a directory) folded to the one bit every reader below needs.
+   *
+   * ONE SPELLING, and it is worth a name because there were about to be two:
+   * a question worth asking the server about (`owed`, below) and the chrome
+   * that only draws over a directory (`docked`) are the same bit, and the two
+   * predicates this replaces differed on the frame before the first — the
+   * exact shape of divergence a second spelling exists to produce. The one
+   * reader that genuinely needs all THREE states is the `Switch` below, which
+   * has to tell "still reading" from "never loaded"; it asks the manifest
+   * itself, because folding is what this is and that reader is not folding.
+   */
   const loaded = () => {
     const manifest = outlines.manifest()
     return manifest !== undefined && manifest !== null
@@ -172,7 +182,7 @@ export default function App() {
   })
   createEffect(on(openFile, () => undo.clear(), { defer: true }))
 
-  const docked = () => outlines.manifest() !== null && focusedPage() !== undefined
+  const docked = () => loaded() && focusedPage() !== undefined
   const split = () => !isLone(router.workspace())
 
   return (
