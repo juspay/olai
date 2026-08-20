@@ -35,10 +35,10 @@ import { annotated } from "./prompt.ts"
  * scripted agent parses it, the panel makes the same spelling pressable), and
  * half of it drifting is not a thing to leave to two arms of a ternary.
  *
- * `; archived` is the one clause that is not a fact about WHERE the node is but
+ * `; trashed` is the one clause that is not a fact about WHERE the node is but
  * about what to do with it. A node that was put away can be named on a message
  * — that is deliberate, and it is how "why did we put this away?" gets asked —
- * and no tool refuses a write into an archive, so a row that arrived reading
+ * and no tool refuses a write into the trash, so a row that arrived reading
  * exactly like live work would be ticked off like live work. The `file:line`
  * carries `_olai/Trash.olai` already; a filename is a thing to notice, and this is
  * a thing that was said.
