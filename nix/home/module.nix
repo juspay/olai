@@ -67,21 +67,16 @@ in
         };
         Service = {
           ExecStart = lib.escapeShellArgs webArgs;
-          # always, not on-failure: Effect's runMain exits 130 on SIGTERM,
-          # SuccessExitStatus below declares that a success, and on-failure
-          # does not restart a successful exit. A stray kill -TERM then
-          # left the ledger dark for hours (docs/RCA/2026-08-20-olai-service-sigterm.md).
-          # systemd never restarts a unit whose death was a systemd stop or
-          # restart (man systemd.service, Restart=), so systemctl stop stays
-          # a stop.
+          # One policy, three knobs. Effect's runMain exits 130 on SIGTERM.
+          # SuccessExitStatus=130 keeps systemctl stop out of failed.
+          # Restart=always (not on-failure) still brings a stray kill -TERM
+          # back: on-failure does not restart a successful exit, which is
+          # how two outside SIGTERMs left the ledger dark for hours
+          # (docs/RCA/2026-08-20-olai-service-sigterm.md). systemd never
+          # restarts a unit whose death was a systemd stop or restart
+          # (man systemd.service, Restart=).
           Restart = "always";
           RestartSec = "1s";
-          # Effect's runMain exits 130 when the main fiber is interrupted
-          # (SIGTERM from systemctl stop / session teardown / an outside
-          # signal). Without this, every clean stop lands the unit in failed.
-          # The process writes `olai web: received SIGTERM` to stderr first,
-          # so a non-systemctl SIGTERM is still a successful unit but is not
-          # a silent one.
           SuccessExitStatus = 130;
         };
         Install = {

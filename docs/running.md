@@ -54,7 +54,7 @@ Put it behind a reverse proxy or `tailscale serve` and the browser's origin will
 
 It says what it is doing on stdout, one line per event, quietly: the address it bound, the agent it started, and anything that went wrong. `--log-level debug` turns on the rest, including everything the agent itself writes.
 
-A SIGINT or SIGTERM writes `olai web: received SIGTERM` (or `SIGINT`) to stderr before the process unwinds. Effect still treats the interrupt as a successful stop and exits 130 — the shipped user unit counts 130 as success so `systemctl stop` is not a failed unit. On Linux the unit is `Restart=always` with `RestartSec=1s`, so a SIGTERM that did not come from systemd comes back in a second; systemd never restarts a unit it stopped itself (`man systemd.service`, `Restart=` — `systemctl stop` / `restart` stay deliberate). That one line on stderr is still what lets a journal tell a signaled death from a deliberate stop. On macOS, launchd's `KeepAlive.SuccessfulExit=false` already restarts a 130 exit (it is non-zero); `launchctl bootout` is the deliberate stop.
+A SIGINT or SIGTERM writes `olai web: received SIGTERM` (or `SIGINT`) to stderr before the process unwinds. Effect still treats the interrupt as a successful stop and exits 130 — the shipped user unit counts 130 as success so `systemctl stop` is not a failed unit, and on Linux `Restart=always` still brings a stray SIGTERM back (see [As a user service](#as-a-user-service-home-manager)). That one line is what lets a journal tell a signaled death from a deliberate stop.
 
 ## As a user service (home-manager)
 

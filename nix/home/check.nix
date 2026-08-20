@@ -100,9 +100,8 @@ let
     assert darwinAgent.enable == true;
     assert darwinAgent.config.RunAtLoad == true;
     # launchd.plist(5): SuccessfulExit=false restarts on a non-zero exit,
-    # so a 130 (Effect's SIGTERM) already comes back — unlike systemd's
-    # on-failure + SuccessExitStatus=130, which treated 130 as success
-    # and did not restart. Crashed=true is the signal-death arm.
+    # so a 130 (Effect's SIGTERM) already comes back. Crashed=true is the
+    # signal-death arm.
     assert darwinAgent.config.KeepAlive.SuccessfulExit == false;
     assert darwinAgent.config.KeepAlive.Crashed == true;
     assert darwinAgent.config.StandardOutPath == "/home/alice/Library/Logs/olai.out.log";
