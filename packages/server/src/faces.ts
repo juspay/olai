@@ -203,12 +203,33 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  * the thing it can act on, and the thing neither of these carries. They also
  * take an INPUT, which the `surface://` resource vocabulary has no place to
  * put: an agent could not name a month if it wanted one.
+ *
+ * `page` and `moving` are a SIXTH and SEVENTH of exactly that kind, and they
+ * are the design's own last row (PR 10). What `page` answers is a SCREEN: rows
+ * carrying the fold keys of the places they are drawn at, a rollup beside a
+ * checkbox, the blockers a mark draws, and the titles of the ids those rows
+ * point at. An agent asking what an outline holds asks `list_outlines` and
+ * `read_subtree` and is answered in NODES — which is what it can act on, and
+ * what none of this is. `moving` is a dim and a sentence for a list of rows
+ * somebody is arrowing through; an agent moving a node calls `move_node` and is
+ * refused by the planner, in the planner's own words.
+ *
+ * **`outlines` IS ABSENT, and that absence is what this whole arc was for.** It
+ * was the first member in this map, and every page in the app was a pure
+ * function over the tab's own copy of it — which is the ruling that was
+ * reversed: the browser may hold at most the current page's data, never the
+ * whole vault. A tab now reads `heads` for the directory and `page` for the
+ * page it is drawing, and asks for no record it does not draw. The member is
+ * untouched on {@link MCP} below: watching ONE outline's records, keyed, with
+ * deltas, is exactly what a request-shaped reader wants, and it was never the
+ * problem.
  */
 export const BROWSER: ExposeMap<typeof surface.spec> = {
-  outlines: "resource",
   documents: "resource",
   dated: "resource",
   owed: "resource",
+  page: "resource",
+  moving: "resource",
   heads: "resource",
   pins: "resource",
   transcript: "resource",

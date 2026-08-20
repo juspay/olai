@@ -62,18 +62,24 @@ export interface Published {
   readonly outlines: Change<OutlineEntry>
   readonly documents: Change<DocumentEntry>
   /**
-   * The same files as {@link documents}, one revision each and no body
-   * (`@olai/surface`'s `Head`).
+   * EVERY served file, one revision each, its face, and whether it could be
+   * read — no content of any kind (`@olai/surface`'s `Head`).
    *
-   * WHAT MAKES THAT "the same files" rather than "similar files" is worth being
-   * exact about, because a reader takes its FILE LIST from the heads and a key
-   * missing here is a file the sidebar stops showing. It is not one loop: it is
-   * two `changeOf` calls, because these are two collections with two held
-   * revisions of their own. What holds them together is that both are given the
-   * same `sources` binding and the same `keyOf`, in one function, three lines
-   * apart — so the way to break it is to hand one of them a different list,
-   * which is a visible edit rather than a drift. `./published.test.ts` asserts
-   * the equality, and that is the belt to this brace.
+   * THE DIRECTORY AS A BROWSER HOLDS IT since PR 10 of
+   * `docs/brainstorming/vault-in-browser.md`: the sidebar's tree, the page
+   * model's membership test and the palette's titles all come from here, where
+   * the first three used to come from every record of every outline. So its
+   * source list is {@link OutlineSet.documents} itself — every file the
+   * directory holds, in the set's own order — rather than the bodied half.
+   *
+   * IT IS A SUPERSET OF {@link documents}' KEYS, and that direction is what a
+   * reader relies on: a head missing for a file the directory holds is a file
+   * the sidebar stops showing, and a bodied file's head is always here to open
+   * its body against. It is two `changeOf` calls, because these are two
+   * collections with two held revisions of their own; what holds them together
+   * is that the bodied list is a FILTER of this one, taken through one `keyOf`
+   * in one function. `./published.test.ts` asserts the containment, and that is
+   * the belt to this brace.
    */
   readonly heads: Change<Head>
   /**
@@ -134,35 +140,16 @@ export interface Published {
 const documentsOf = (
   snapshot: Snapshot<Reading>,
   held: Published | null,
-): Pick<Published, "documents" | "heads" | "unread"> => {
-  // The BODIED half of the one collection: this member is what a reader opens
-  // as a page, and an outline is published as its records next door.
+): Pick<Published, "documents" | "unread"> => {
+  // The BODIED half of the directory: this member is what a reader opens as a
+  // page, and an outline is published as its records next door.
   const documents = bodiedIn(snapshot.value.set)
-  const keyOf = (document: (typeof documents)[number]) => document.path
   const change = changeOf(
     documents,
-    keyOf,
+    (document) => document.path,
     (document) => ({ rev: snapshot.rev, text: bodyOf(document) }),
     snapshot,
     held?.documents,
-  )
-  // THE HEAD OF EVERY ONE OF THEM, withheld from nobody. This is the half a
-  // reader watches for "the file moved": it carries no body, so there is
-  // nothing to blank and nothing to wait for, and the arm below that keeps a
-  // bodyless `null` off an open key has no counterpart here. It is also the
-  // only place a `.html`'s change reaches a browser now — the body it used to
-  // ride on is not asked for at all (`@olai/web`'s `documents.tsx`).
-  const heads = changeOf(
-    documents,
-    keyOf,
-    // The FACE rides here — the cheap half of a document, cut from the same
-    // value the body was cut from, one line up. That is what makes the two
-    // slices one fact rather than two: a head whose face disagreed with the
-    // body beside it would be a title the palette draws for prose the page
-    // does not have.
-    (document) => ({ rev: snapshot.rev, face: faceOf(document) }),
-    snapshot,
-    held?.heads,
   )
   // One pass, two lists: what to send, and what somebody has to read. A file is
   // in exactly one of them unless it is BOTH new and bodyless, which is a key
@@ -176,7 +163,7 @@ const documentsOf = (
       if (held?.documents.entries.has(path) !== true) upserts.push([path, entry])
     }
   }
-  return { documents: { ...change, upserts }, heads, unread }
+  return { documents: { ...change, upserts }, unread }
 }
 
 /**
@@ -257,6 +244,26 @@ export const publishedOf = (
       }),
       snapshot,
       published?.outlines,
+    ),
+    // THE HEAD OF EVERY FILE, withheld from nobody and cut from the SET's own
+    // document list. This is what a reader watches for "the file moved" and
+    // what it takes its file list from: no content of any kind, so there is
+    // nothing to blank and nothing to wait for. The FACE and the BREAKAGE ride
+    // here — the cheap halves of a document, cut from the same value the body
+    // and the records are cut from below and above, which is what makes the
+    // slices one fact rather than three: a head whose face disagreed with the
+    // body beside it would be a title the palette draws for prose the page does
+    // not have.
+    heads: changeOf(
+      set.documents,
+      (document) => document.path,
+      (document) => ({
+        rev: snapshot.rev,
+        face: faceOf(document),
+        broken: broken.get(document.path) ?? null,
+      }),
+      snapshot,
+      published?.heads,
     ),
     ...documentsOf(snapshot, published),
   }

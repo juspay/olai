@@ -43,10 +43,10 @@ const row = (id: string): Row => {
 }
 
 const labels = (id: string): ReadonlyArray<string> =>
-  writeVerbs(subjectOfRow(row(id)), derived, NO_PINS).map((verb) => verb.label)
+  writeVerbs(subjectOfRow(row(id)), row(id).under, NO_PINS).map((verb) => verb.label)
 
 const verb = (id: string, label: string) => {
-  const found = writeVerbs(subjectOfRow(row(id)), derived, NO_PINS)
+  const found = writeVerbs(subjectOfRow(row(id)), row(id).under, NO_PINS)
     .find((one) => one.label === label)
   if (found === undefined) {
     throw new Error(`\`${id}\` offers no ${JSON.stringify(label)}: ${labels(id).join(", ")}`)
@@ -78,7 +78,7 @@ test("a mirror pins the node it SHOWS, never the placement standing there", () =
 
 test("a node the shelf already holds is offered the way OFF it instead", () => {
   const shelf: Shelf = [{ id: "p-install", title: "/#install" }]
-  const offered = writeVerbs(subjectOfRow(row("install")), derived, shelf)
+  const offered = writeVerbs(subjectOfRow(row("install")), row("install").under, shelf)
   expect(offered.map((one) => one.label)).toContain("Unpin from sidebar")
   expect(offered.map((one) => one.label)).not.toContain("Pin to sidebar")
   // The PIN's own node — the row on the shelf — and archived rather than
@@ -236,7 +236,7 @@ test("a repeating row says CHANGE, and gains the entry that stops it", () => {
   const found = flatten(rowsOf(repeating, "house.olai"), new Set())
     .find((one) => one.at.node.id === "order")
   if (found === undefined) throw new Error("no row for `order`")
-  const verbs = writeVerbs(subjectOfRow(found), repeating, NO_PINS)
+  const verbs = writeVerbs(subjectOfRow(found), found.under, NO_PINS)
   const said = verbs.map((one) => one.label)
   expect(said).toContain("Change repeat…")
   expect(said).not.toContain("Set repeat…")
@@ -377,7 +377,7 @@ test("a childless row is asked about on its own", () => {
 
 test("nothing but the put-away asks a question first", () => {
   expect(
-    writeVerbs(subjectOfRow(row("kitchen")), derived, NO_PINS)
+    writeVerbs(subjectOfRow(row("kitchen")), row("kitchen").under, NO_PINS)
       .filter((verb) => verb.confirm !== undefined)
       .map((verb) => verb.label),
   ).toEqual(["Move to Trash"])

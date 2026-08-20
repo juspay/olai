@@ -23,6 +23,7 @@ import {
   tagText,
   titleParts,
   titleTagRe,
+  under,
   unfinishedWithin,
 
   withoutDone,
@@ -1373,4 +1374,78 @@ test("a cyclic set derives without hanging", () => {
   // A mirror whose target was never declared is the other walk that could have
   // gone looking for a node that is not there.
   expect(statusesOf(`{"id":"m","ord":"a","mirror":"gone"}`).get("m")).toBeUndefined()
+})
+
+// ── how much hangs under a node ────────────────────────────────────────
+//
+// The number an archive's confirm names — and the reason it is a fact about the
+// SET rather than about the rows drawn from it. It rides on every row
+// (`Row.under`) so a browser holding one page can say it without holding a
+// vault (`docs/brainstorming/vault-in-browser.md`'s PR 10); it was the client's
+// own walk of its copy of the directory until then.
+
+const UNDER_HOUSE = [
+  `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
+  `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":"2026-08-03"}`,
+  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
+  `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
+  `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles"}`,
+  `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
+].join("\n")
+const UNDER_GARDEN = [
+  `{"id":"herbs","ord":"a0","title":"the herb bed"}`,
+  `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil"}`,
+].join("\n")
+
+const UNDER = derive(
+  nodesOfFiles({ "house.olai": UNDER_HOUSE, "garden.olai": UNDER_GARDEN }),
+)
+
+/** One row of that fixture, by the id of the record it draws. */
+const underRow = (rows: ReadonlyArray<Row>, id: string): Row => {
+  for (const row of rows) {
+    if (row.at.node.id === id) return row
+    const deeper = underRowOrNone(row.children, id)
+    if (deeper !== undefined) return deeper
+  }
+  throw new Error(`no row for \`${id}\``)
+}
+const underRowOrNone = (rows: ReadonlyArray<Row>, id: string): Row | undefined => {
+  for (const row of rows) {
+    if (row.at.node.id === id) return row
+    const deeper = underRowOrNone(row.children, id)
+    if (deeper !== undefined) return deeper
+  }
+  return undefined
+}
+
+test("the count is the records an archive would move", () => {
+  // demo, order, install, handles, and the PLACEMENT of the herb bed — five.
+  // The herb bed's own child hangs under that placement on screen and is not
+  // among them: it lives in another file, and `archive` moves what a `parent`
+  // chain reaches.
+  expect(under(UNDER, "kitchen")).toBe(5)
+  expect(underRow(rowsOf(UNDER, "house.olai"), "kitchen").under).toBe(5)
+})
+
+test("a leaf takes nothing with it", () => {
+  expect(under(UNDER, "handles")).toBe(0)
+  expect(underRow(rowsOf(UNDER, "house.olai"), "handles").under).toBe(0)
+})
+
+test("a mirror's row counts what its TARGET holds, which is what it draws", () => {
+  // The placement itself has no children in the set; the row draws the herb
+  // bed's, so what an archive of the herb bed would move is what its row says.
+  expect(underRow(rowsOf(UNDER, "house.olai"), "kitchen-herbs").under).toBe(1)
+})
+
+test("hiding what is done does not shrink what an archive would take", () => {
+  // The whole reason this is counted in the set and not over the rows: with
+  // done hidden, `withoutDone` has already dropped `demo` from the tree, and a
+  // count taken from the drawn children would have promised four and moved
+  // five. The row carries the number it was built with.
+  const showing = withoutDone(rowsOf(UNDER, "house.olai"))
+  expect(underRow(showing, "kitchen").children.some((row) => row.at.node.id === "demo"))
+    .toBe(false)
+  expect(underRow(showing, "kitchen").under).toBe(5)
 })

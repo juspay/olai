@@ -2,22 +2,23 @@
  * THE ⌘K ROW that pins the page: which of its two labels it wears, and that
  * what it names is the ADDRESS rather than a node.
  *
- * The two facts it reads come from two places, which is what the fixtures here
- * say out loud: the SHELF is the server's answer, and what the page is CALLED
- * is still this tab's own reading of the set.
+ * Both facts are the server's and they arrive on two different members, which
+ * is what the fixtures here say out loud: the SHELF is the `pins` cell, and
+ * what the page is CALLED — when it is a node — is a name off the focused
+ * page's own reading.
  */
 
-import { derive } from "@olai/format"
-import { recordsOf, setOf } from "@olai/format/testlib"
 import { NO_PINS, type Shelf } from "@olai/surface"
 import { expect, test } from "bun:test"
 
+import type { Names } from "../reading.tsx"
 import { pinItem } from "./palette.ts"
 import { atFile, atNode } from "../routes.ts"
 
-const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed"}`
-
-const set = derive(recordsOf(setOf({ "garden.olai": GARDEN })))
+/** The names the focused page was sent with — one node, the one these
+ *  fixtures address. */
+const set: Names = (id) =>
+  id === "herbs" ? { id, title: "the herb bed", file: "garden.olai" } : undefined
 
 test("a page the shelf does not hold is offered the way ON", () => {
   const item = pinItem({ kind: "agenda", filter: "is:todo" }, NO_PINS, set)

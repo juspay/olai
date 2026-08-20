@@ -13,18 +13,20 @@
  * a state, the shelf already knows which way this page's answer goes, and a
  * palette offering both would make a reader choose between two words.
  *
- * TWO THINGS ARE ASKED HERE AND THEY COME FROM DIFFERENT PLACES, which is worth
- * saying out loud while that is true: whether this page is already on the shelf
- * is the SERVER's answer (`./pins.ts` over the `pins` cell), and what this page
- * is CALLED is still the tab's own reading of the set — this row names a page a
- * reader is standing on, and a page's reading is what PR 10 moves
- * (`docs/brainstorming/vault-in-browser.md` §6).
+ * BOTH THINGS IT ASKS ARE THE SERVER'S, and they arrive on two different
+ * members because they are two different questions: whether this page is
+ * already on the shelf is the `pins` cell (`./pins.ts`), a reading of the whole
+ * vault that depends on nobody's address; what this page is CALLED, when it is
+ * a node, rides on the FOCUSED PAGE's own reading (`../reading.tsx`), because
+ * that is the page whose ids were resolved. The second half was the tab's own
+ * walk of its copy of the set until PR 10 of
+ * `docs/brainstorming/vault-in-browser.md`.
  */
 
-import type { Derived } from "@olai/format"
 import type { Shelf } from "@olai/surface"
 
 import type { PaletteItem } from "../palette/items.ts"
+import type { Names } from "../reading.tsx"
 import type { Route } from "../routes.ts"
 import { nameOf, shownIn } from "../address/address.ts"
 import { pinnedAt } from "./pins.ts"
@@ -32,7 +34,11 @@ import { pinnedAt } from "./pins.ts"
 export const pinItem = (
   route: Route,
   shelf: Shelf,
-  derived: Derived | undefined,
+  /** What the ids the FOCUSED page points at are called — the table that page
+   *  was sent with (`../reading.tsx`). The one thing here that is a question
+   *  about the vault: a `/#id` page is called whatever that node is called
+   *  right now. */
+  names: Names,
 ): PaletteItem => {
   const already = pinnedAt(shelf, route)
   return {
@@ -43,7 +49,7 @@ export const pinItem = (
     // in, and wanted here for the same reason a write row wants it: the
     // palette is opened from anywhere, and a bare "Pin this page" in a list of
     // strangers does not say which page it means.
-    place: nameOf(route, shownIn(derived, route)),
+    place: nameOf(route, shownIn(names, route)),
     action: { kind: "pin" },
     search: "pin unpin shelf sidebar bookmark save this page keep",
   }

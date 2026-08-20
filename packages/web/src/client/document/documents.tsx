@@ -1,58 +1,31 @@
 /**
- * The documents of the set: the paths, the revision each of them is at, and one
- * body at a time.
+ * The BODIES of the served documents — one at a time, for whoever is showing
+ * one.
  *
- * ONE module owns `olai.collections.documents` AND the `heads` beside it, and
- * that is the point of it being one. `documents` is served `keys` + `get` with
- * no `deltas` (`@olai/surface`), so a plain `.use()` — which opens the key
- * stream AND a value stream per key — would pull every `.md` body in the
- * directory onto the first paint, which is the defect `snapshot-scale`
- * removed. That rule is enforceable only where the member is reached, so the
- * members are reached here and nowhere else:
+ * ONE module owns `olai.collections.documents`, and that is the point of it
+ * being one. The member is served `keys` + `get` with no `deltas`
+ * (`@olai/surface`), so a plain `.use()` — which opens the key stream AND a
+ * value stream per key — would pull every `.md` body in the directory onto the
+ * first paint, which is the defect `snapshot-scale` removed. That rule is
+ * enforceable only where the member is reached, so the member is reached here
+ * and nowhere else.
  *
- *   - {@link Documents.paths} and {@link Documents.head} are ONE subscription
- *     on `heads`, the member that is every bodied file's key with the body left
- *     off. It is cheap enough per entry to carry `deltas`, so a plain `.use()`
- *     opens the single coalesced snapshot-then-delta stream and every file's
- *     path and revision arrive on it — and being a `.use()` rather than a raw
- *     reach means it is in `client.health()` for free, so this stream stopping
- *     is a pill that says `partly live` and names it.
+ * WHAT IT NO LONGER OWNS is the file list. The paths, the faces and the
+ * revisions used to be this module's too, off the `heads` collection beside
+ * this one — and `heads` has since become the DIRECTORY, every served file
+ * rather than every bodied one (`docs/brainstorming/vault-in-browser.md`'s PR
+ * 10). A module named for documents holding the list of outlines as well would
+ * be a module named for half of what it does, so the list moved to
+ * `../directory.ts` and what is left here is the subject this file always had:
+ * a body, fetched per key, by whoever is showing it.
  *
- *     It replaced a `rawStream` on `documents.keys`, which carried the same
- *     paths and no revisions. Both at once would have been the same list twice
- *     on every first paint; a revision per path is the same list plus an
- *     integer each, and it is what lets a page watch ONE file for changes
- *     without opening a stream — or asking for a body — of its own.
- *
- *     WHAT THE BATCHED VERB COST, and no longer does — kept as a paragraph
- *     rather than deleted, because the trade was named here when it was real
- *     and a reader deserves to be told which way it went. It WAS this: a
- *     `deltas` frame was folded into a keyed store by copying the whole dict
- *     and reconciling the copy, so a revision that touched any bodied file cost
- *     every open tab one pass over the directory's paths — where the key stream
- *     this replaced only ever fired on a file appearing or going. The framework
- *     now writes the keys the frame NAMES, one leaf replacement per upsert
- *     (kolu #2187), so the pass over the paths is gone and a head arrives for
- *     the cost of the head. NOT ONE LINE HERE CHANGED for that: the same
- *     `.use()`, the same `{keys, byKey}`, the same enrolment — which is the
- *     whole argument for the tax having been the client library's to fix rather
- *     than this module's to work around. What is left is the honest floor: the
- *     alternative shape — a per-key stream for each file being watched — buys
- *     nothing over it now and still costs a second subscription per open
- *     document and a file list from somewhere else.
- *   - {@link Documents.read} is the BODY of one document, from a narrowed
- *     subscription whose keys are the documents somebody is showing. A body
- *     reaches this tab when a component asks for it and stops arriving when
- *     the last one that asked goes away.
- *
- * THE TWO ARE ASKED SEPARATELY ON PURPOSE, and a `.html` is why. A preview
- * frame fetches the file over HTTP from `/media/` (`./Hypertext.tsx`), so
- * nothing on that page is drawn out of the body — what it needs from this
- * module is the revision, so that a file rewritten on disk re-points the frame.
- * Reading the body to learn that sent a saved page's megabytes to a tab that
- * drew none of them, and made the server read the file to send them; asking the
- * head instead costs a number. That was PR #206's standing deferral and this is
- * the shape it named.
+ * THE TWO WERE ALWAYS ASKED SEPARATELY, and a `.html` is why. A preview frame
+ * fetches the file over HTTP from `/media/` (`./Hypertext.tsx`), so nothing on
+ * that page is drawn out of the body — what it needs is the revision, so that a
+ * file rewritten on disk re-points the frame. Reading the body to learn that
+ * sent a saved page's megabytes to a tab that drew none of them, and made the
+ * server read the file to send them; asking the head instead costs a number.
+ * That was PR #206's standing deferral, and the head is where it landed.
  *
  * ONE subscription per PATH, however many components ask: `askers` is what
  * decides membership, so two rows attached to the same document share the
@@ -76,7 +49,6 @@
  * the same reason the router is a context.
  */
 
-import type { Face } from "@olai/format"
 import type { DocumentEntry } from "@olai/surface"
 import {
   type Accessor,
@@ -89,7 +61,6 @@ import {
   useContext,
 } from "solid-js"
 
-import { facesOf } from "../paths.ts"
 import { olai } from "../wire.ts"
 
 /**
@@ -115,28 +86,6 @@ import { olai } from "../wire.ts"
 export type Served = DocumentEntry & { readonly text: string }
 
 export interface Documents {
-  /** Every BODIED file the directory holds — every `.md` and every `.html`,
-   *  which is what both collections are keyed by (`@olai/surface`) — by path.
-   *  ARRIVAL order, deliberately:
-   *  the sidebar's tree sorts each of its own levels (`../fileTree.ts`) and the
-   *  page model only asks whether a path is in here, so an order imposed on a
-   *  corpus-sized list every time one file arrives would be work nobody reads. */
-  readonly paths: Accessor<ReadonlyArray<string>>
-  /** The same files as their FACES — what each is called, the addresses it
-   *  points at, the tags its prose writes (`@olai/format`'s `Face`).
-   *
-   *  ON THE HEADS, which is the member that carries a file's key without its
-   *  body, and it is the only way a tab can have this at all: a body is
-   *  fetched by whoever is showing one, so a browser holding only the key set
-   *  knew a document's PATH and nothing else about it. In arrival order, like
-   *  {@link Documents.paths} and for the same reason. */
-  readonly faces: Accessor<ReadonlyArray<Face>>
-  /** Which revision of the directory one file is at, or `undefined` for a path
-   *  this directory does not hold (and for every path before the first frame).
-   *  It MOVES when the file does and stays put when it does not, which is the
-   *  whole of what a reader watching one file needs — no body, no subscription
-   *  of its own, no read of the disk at the other end. */
-  readonly head: (file: Accessor<string>) => Accessor<number | undefined>
   /** One document's body, for as long as the calling owner lives — and for as
    *  long as `file()` names one: `undefined` is a caller that has nothing it
    *  would do with a body (a page whose face cannot be written — see
@@ -157,16 +106,6 @@ const arrived = (entry: DocumentEntry | undefined): entry is Served =>
   entry !== undefined && entry.text !== null
 
 export const createDocuments = (): Documents => {
-  // THE HEADS, whole: one batched stream carrying every bodied file's path and
-  // the revision it is at. A reconnect opens with a fresh snapshot — the
-  // framework's own contract for this verb — so there is nothing to resume and
-  // nothing to clear in the gap.
-  const heads = olai.collections.heads.use()
-  // The framework's own memo over the key set, handed on rather than wrapped: a
-  // memo around it could dedup nothing its own could not, and this is a module
-  // about not paying for a thing twice.
-  const paths = heads.keys
-
   /** Who wants what: a path is wanted while at least one owner is showing it.
    *  ONE value, so membership cannot disagree with the count that decides it —
    *  a path stuck in the key set is a stream that never closes, and one missing
@@ -190,9 +129,6 @@ export const createDocuments = (): Documents => {
   const entries = olai.collections.documents.use({ keys: wanted })
 
   return {
-    paths,
-    faces: createMemo(() => facesOf(paths(), (path) => heads.byKey(path)?.()?.face)),
-    head: (file) => () => heads.byKey(file())?.()?.rev,
     read: (file) => {
       // An EFFECT, so the interest follows a component whose `file` moves (a
       // doc reference re-keyed onto another node) and is dropped when the
@@ -215,16 +151,15 @@ export const createDocuments = (): Documents => {
   }
 }
 
-/** THE READER ITSELF, not one of its two questions. A context per question
- *  would be two providers to keep in step for one value that already answers
- *  both, and a page asks both of them about the same file. */
+/** THE READER ITSELF. One context for one question, and the module next door
+ *  answers the other one (`../directory.ts`: which files there are, and which
+ *  revision each is at). */
 const DocumentsContext = createContext<Documents>()
 
 export function DocumentsProvider(props: {
   /** The app's one reader of the documents collection. Handed in rather than
-   *  created here for the reason `DerivedProvider`'s value is: the sidebar and
-   *  the page model need the PATHS above this provider, and one module owning
-   *  the member is the whole arrangement (see the note at the top). */
+   *  created here for the reason the directory's own reader is: the composition
+   *  root owns the members (`../App.tsx`). */
   readonly documents: Documents
   readonly children: JSX.Element
 }) {
@@ -243,28 +178,9 @@ const reader = (): Documents => {
   return documents
 }
 
-/** THE PATHS of every bodied file this directory holds, for a reader below
- *  the provider — see {@link Documents.paths}.
- *
- *  A narrow door onto the one context rather than a second context, which is
- *  the note above: this member is READ in two places at two depths. `App.tsx`
- *  needs it above the provider, where the reader is composed, to join the two
- *  key sets into the directory every page model is asked of; and the calendar's
- *  NOTE marks are a question about a filename asked per month, which is a
- *  question the grid that shows the month has to ask (`../dates.ts`). Handing
- *  the second one the whole `Documents` would be handing a date reading a body
- *  fetcher. */
-export const usePaths = (): Accessor<ReadonlyArray<string>> => reader().paths
-
 /** One served document, by its path — see {@link Documents.read}. A `file()`
  *  of `undefined` asks for nothing, which is what a page whose face draws
  *  without a body passes. */
 export const useDocument = (
   file: () => string | undefined,
 ): Accessor<Served | undefined> => reader().read(file)
-
-/** Which revision one served file is at — see {@link Documents.head}. The
- *  question a reader asks when what it needs to know is that the file MOVED. */
-export const useHead = (
-  file: () => string,
-): Accessor<number | undefined> => reader().head(file)

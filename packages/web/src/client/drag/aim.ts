@@ -35,7 +35,7 @@
  * and this is it saying so out loud instead of saying nothing.
  */
 
-import { SAME_FILE } from "../across.ts"
+import { SAME_FILE } from "@olai/format"
 import type { Box } from "./lines.ts"
 import { type Landing, type Placed, planDrop } from "./plan.ts"
 
@@ -120,7 +120,7 @@ const aimedAt = (
  * with a hole in it. A page of ANOTHER FILE is the format's rule, and it is
  * said in the ops layer's own terms (`ops/src/plan.ts` refuses the same move in
  * nearly these words) so a person who then reads a refusal from an agent's
- * `move_node` reads one story — and the law half of it is `../across.ts`,
+ * `move_node` reads one story — and the law half of it is `@olai/format`'s `moving.ts`,
  * shared with the move-to picker, which has to say the same thing about a
  * destination it found in another outline. A page of the SAME file with nothing left is the
  * gesture having eaten its own candidates — every row drawn there is inside

@@ -647,6 +647,23 @@ const NamedNode = Schema.Struct({
   /** The node that id names: the record at the end of whatever mirror chain it
    *  addresses. */
   id: Schema.String,
+  /**
+   * ...and what that node is CALLED, right now.
+   *
+   * The transcript's marking does not read it — a code span is drawn as the
+   * words the agent wrote — and it is here for the OTHER caller of this lookup:
+   * the chat composer's strip of armed nodes, which draws a chip per node the
+   * message is about and has nothing but the id to draw one from
+   * (`@olai/web`'s `chat/Composer.tsx`). It was a lookup in the browser's own
+   * copy of every record until PR 10 of
+   * `docs/brainstorming/vault-in-browser.md`.
+   *
+   * ONE FIELD rather than a second member, because it is one more fact about
+   * the node this row already names: a lookup that answered "which ids are
+   * real" and a lookup that answered "and what is each called" would be two
+   * calls over one `nodeNamed`.
+   */
+  title: Schema.String,
 })
 
 /**

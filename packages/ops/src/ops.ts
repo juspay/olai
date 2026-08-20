@@ -31,11 +31,15 @@ import {
   type HomesRequest,
   type MatchingAnswer,
   type MatchingRequest,
+  type MovingAnswer,
+  type MovingRequest,
   type NamedAnswer,
   type NamedRequest,
   type OpFailure,
   type Owed,
   type OwedRequest,
+  type PageReading,
+  type PageRequest,
   type Pending,
   type PushResult,
   type Reading,
@@ -182,6 +186,38 @@ export interface Ops extends Asking {
     request: DatedRequest,
   ) => Effect.Effect<DatedAnswer, OpFailure>
   readonly owed: (request: OwedRequest) => Effect.Effect<Owed, OpFailure>
+  /**
+   * WHAT ONE PAGE SHOWS — the reading a browser draws, for the address it is
+   * drawing (`@olai/format`'s `page.ts`, and `docs/brainstorming/
+   * vault-in-browser.md`'s PR 10).
+   *
+   * HERE RATHER THAN ON {@link Asking} for {@link dated}'s reason, and it is
+   * the sharpest instance of it: what comes back is a SCREEN — rows carrying
+   * their own fold keys, a rollup beside a checkbox, the blockers a mark draws.
+   * An agent asking what an outline holds asks `list_outlines` and
+   * `read_subtree` and is answered in nodes, which is the thing it can act on.
+   *
+   * ONE MEMBER for seven routes, because they are one question asked with
+   * different words: which page does this address name, and what does it put on
+   * the screen. Splitting it per route would be seven doors onto one walk, each
+   * free to answer a different revision.
+   */
+  readonly page: (
+    request: PageRequest,
+  ) => Effect.Effect<PageReading, OpFailure>
+  /**
+   * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING — the move picker's preview
+   * of this layer's own planner, for the destinations a search just offered
+   * (`@olai/format`'s `moving.ts`).
+   *
+   * HERE for the reason above, and NOT beside the write it previews: the write
+   * is `move_node`, which refuses in its own words on the way through
+   * {@link ./plan.ts}. This is what a person reads a moment earlier, over the
+   * same set, and it may never refuse something the planner would allow.
+   */
+  readonly moving: (
+    request: MovingRequest,
+  ) => Effect.Effect<MovingAnswer, OpFailure>
   /**
    * WHICH TAGS the set already uses, for one sigil and one prefix — the row
    * editor's completion popup, answered ({@link ./query.ts}'s `tags`).
@@ -454,6 +490,15 @@ export const make = (options: Options): Ops => {
     // that can say what is late for them (`./query.ts`'s `owed`).
     dated: (request) => Effect.map(read, (at) => Query.dated(at.derived, request)),
     owed: (request) => Effect.map(read, (at) => Query.owed(at.derived, request)),
+    // THE PAGE, over the same gated read — the WHOLE reading rather than the
+    // derivation alone, because two of the questions a page asks are about
+    // files rather than about records: which paths the directory serves, and
+    // which of them is a day's note (`Query.homes`' argument, one door along).
+    page: (request) => Effect.map(read, (at) => Query.page(at, request)),
+    // The move picker's preview, over the same gated read and over the
+    // derivation alone: every rule it previews is about records and where they
+    // are drawn.
+    moving: (request) => Effect.map(read, (at) => Query.moving(at.derived, request)),
     // The COMPLETION's door, over the same gated read: the vocabulary the set
     // has already written down, ranked and capped for a popup. Also the
     // browser's alone, and also nothing decided here — what counts as a tag,

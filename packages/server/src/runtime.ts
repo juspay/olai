@@ -70,7 +70,9 @@ import {
   NO_PINS,
   NOTHING_PENDING,
   sameDated,
+  sameMoving,
   sameOwed,
+  samePageReading,
   type Shelf,
   shelfOf,
 } from "@olai/format"
@@ -806,6 +808,31 @@ export const bind = (
           read: (input) => Effect.runPromise(wiring.ops.owed(input)),
           install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
           isEqual: sameOwed,
+        },
+        /**
+         * ONE OPEN PAGE, re-read per revision — the member
+         * `docs/brainstorming/vault-in-browser.md` was written for, and three
+         * lines because everything above it was built to make it three.
+         *
+         * The read is the ops layer's gated one, the install is the same pulse
+         * the two date readings use, and the equivalence is the schema's
+         * (`@olai/format`'s `samePageReading`). Nothing is decided here: which
+         * page an address names and what it draws is the format's, and a second
+         * walk of the set on this side of the wire is exactly what the browser
+         * has just stopped doing.
+         */
+        page: {
+          read: (input) => Effect.runPromise(wiring.ops.page(input)),
+          install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
+          isEqual: samePageReading,
+        },
+        /** The move picker's preview, on the same three legs — standing rather
+         *  than asked once, because a panel left open while an agent writes has
+         *  to judge against where the row has actually got to. */
+        moving: {
+          read: (input) => Effect.runPromise(wiring.ops.moving(input)),
+          install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
+          isEqual: sameMoving,
         },
       },
       // What a re-read of a live stream failed with, in olai's own voice

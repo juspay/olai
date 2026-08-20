@@ -35,7 +35,6 @@
  */
 
 import type { Row } from "@olai/format"
-import { follow } from "@olai/format"
 import type { Edit } from "@olai/surface"
 import {
   type Accessor,
@@ -48,14 +47,13 @@ import {
   useContext,
 } from "solid-js"
 
-import { useDerived } from "../derived.tsx"
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { flatten, refound } from "../edit/order.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
+import { olai } from "../wire.ts"
 import { applying } from "../writes.ts"
-import type { Moved } from "./destination.ts"
 import { MovePicker } from "./MovePicker.tsx"
 
 export interface Moving {
@@ -171,9 +169,19 @@ export const createMoving = (
    */
   back: (row: Row) => void,
 ): Moving => {
-  const derived = useDerived()
   const undo = useUndo()
   const [standing, setStanding] = createSignal<Standing | null>(null)
+  /**
+   * THE DESTINATIONS BEING JUDGED — the ids the picker's shortlist is drawing
+   * right now, reported up by the panel as its search answers.
+   *
+   * They are the STREAM'S ARGUMENT, which is why they live here rather than
+   * inside the panel: one subscription answers both halves of what this gesture
+   * needs to know — where the row now is, and which of these hits could take it
+   * — out of one revision of one set, so a refusal can never name a file the
+   * row has since left (`@olai/format`'s `moving.ts`).
+   */
+  const [aimed, setAimed] = createSignal<ReadonlyArray<string>>([])
   /** How long the line lingers, and what clears it, is the client's ONE
    *  receptacle for that (`../saying.ts`) rather than a fourth timer here. */
   const saying = createSaying()
@@ -208,30 +216,44 @@ export const createMoving = (
     setStanding(moved === undefined ? null : { ...held, place: moved })
   })
 
-  /** The row being moved, as the SET says it now — re-read per frame rather
-   *  than captured at open, so a panel left standing while an agent writes is
-   *  judging destinations against where the row has actually got to. */
-  const moved = createMemo<Moved | undefined>(() => {
+  /**
+   * WHAT THE SET SAYS ABOUT THIS MOVE — the row as it stands, and a verdict per
+   * destination.
+   *
+   * A SUBSCRIPTION rather than a question asked once, which is the same shape
+   * the reading of a page is and for the same reason: a panel stands open while
+   * anybody writes, and what it judges has to be where the row has actually got
+   * to. It was a walk of the tab's own copy of the vault
+   * (`docs/brainstorming/vault-in-browser.md`); the rules did not move, the set
+   * did (`@olai/format`'s `moving.ts`).
+   *
+   * A `null` INPUT with no panel open, which is the framework's own way of
+   * holding a subscription closed: a row nobody is moving is a question nobody
+   * is asking.
+   */
+  const answer = olai.streams.moving.use(() => {
     const held = standing()
-    const indexes = derived()
-    if (held === null || indexes === undefined) return undefined
-    const located = indexes.byId.get(held.record)
-    if (located === undefined) return undefined
-    // The TITLE is the one thing here that is about the node a row SHOWS
-    // rather than about its record, so it is the one thing `follow` is asked
-    // for. What the row DRAWS is not read here at all: the rule walks the
-    // drawing graph from the record itself (`./destination.ts`), which follows
-    // a placement to its target without being handed one.
-    const shown = follow(indexes, located)
-    return {
-      id: located.node.id,
-      // A placement whose chain died draws no title anywhere, so the row is
-      // called by the one thing it still is: its id. The panel says what a
-      // reader can see, and there is nothing else to see.
-      title: shown.kind === "found" ? shown.shows.node.title : held.record,
-      file: located.file,
-      parent: located.node.parent ?? null,
-    }
+    return held === null ? null : { record: held.record, to: aimed() }
+  })
+
+  /** The row being moved — `undefined` for a record the set no longer declares,
+   *  which is what closes the panel rather than leaving it pointing at
+   *  nothing. */
+  const moved = createMemo(() => answer()?.moved ?? undefined)
+
+  /** …and why each destination cannot take it, by id. The answer's verdicts are
+   *  IN THE ORDER ASKED, so they are paired back up with the ids that were
+   *  sent — and with the ids on the ANSWER's own reading of that request rather
+   *  than with whatever the shortlist is showing a frame later. */
+  const refusals = createMemo<ReadonlyMap<string, string>>(() => {
+    const said = answer()?.refusals ?? []
+    const asked = aimed()
+    const found = new Map<string, string>()
+    asked.forEach((id, at) => {
+      const why = said[at]
+      if (why !== undefined && why !== null) found.set(id, why)
+    })
+    return found
   })
 
   const write = (edit: Edit): void => {
@@ -303,7 +325,13 @@ export const createMoving = (
         <Show when={standing()?.kind === "picking"}>
           <Show when={moved()}>
             {(at) => (
-              <MovePicker moved={at()} onWrite={write} onClose={close} />
+              <MovePicker
+                moved={at()}
+                refusals={refusals()}
+                onAimed={setAimed}
+                onWrite={write}
+                onClose={close}
+              />
             )}
           </Show>
         </Show>

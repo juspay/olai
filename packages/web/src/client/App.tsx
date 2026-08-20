@@ -10,12 +10,12 @@
  * page this app has always been; two or more are the same page component
  * side by side, never a stripped copy.
  *
- * This file is the composition and nothing else — the subscription, the
- * workspace, the clock, the one derivation of the set, and the chrome
- * that sits outside every pane.
+ * This file is the composition and nothing else — the subscriptions, the
+ * workspace, the clock, the directory, and the chrome that sits outside every
+ * pane. What each PANE shows is a subscription of its own
+ * (`./reading.tsx`), asked of the address that pane is drawing.
  */
 
-import { agendaOf } from "@olai/format"
 import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from "solid-js"
 
 import { AppHeader } from "./AppHeader.tsx"
@@ -25,7 +25,7 @@ import { createToday } from "./clock.ts"
 import { createOwed } from "./dates.ts"
 import { Commit } from "./commit/Commit.tsx"
 import { Offline } from "./connection/Offline.tsx"
-import { DerivedProvider } from "./derived.tsx"
+import { createDirectory } from "./directory.ts"
 import { AirProvider, createAir } from "./drag/air.ts"
 import { createFields, FieldsProvider } from "./drag/fields.ts"
 import { reachable } from "./connection/reaching.ts"
@@ -39,10 +39,9 @@ import { desktop } from "./layout/media.ts"
 import { chatOpen, sidebarOpen, toggleSidebar } from "./layout/prefs.ts"
 import { Rail } from "./layout/Rail.tsx"
 import { only } from "./narrow.ts"
-import { byFacePath } from "./paths.ts"
 import { OpensProvider } from "./opens.tsx"
-import { createOutlines } from "./outlines.ts"
-import { fileOf, opensAt, pageOf } from "./page.ts"
+import { fileOf, opensAt } from "./page.ts"
+import { createReadings, ReadingsProvider } from "./reading.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { PinsProvider } from "./pins/answered.tsx"
 import { pinSaid } from "./pins/pinning.ts"
@@ -57,10 +56,19 @@ import { connectionReadout, olai } from "./wire.ts"
 import { isLone } from "./workspace.ts"
 
 export default function App() {
-  const outlines = createOutlines(
-    olai.collections.outlines.use(),
+  /** THE DIRECTORY — every served file's path, title and breakage, and nothing
+   *  else about the vault (`./directory.ts`). What this replaced was a
+   *  subscription to every record of every outline, folded into a second copy
+   *  of the whole set. */
+  const directory = createDirectory(
+    olai.collections.heads.use(),
     olai.cells.manifest.use().value,
   )
+  /** Every open pane's own reading, for the chrome that has to agree with the
+   *  FOCUSED one — the sidebar entry that lights up, the palette's write verbs,
+   *  undo's idea of the open file (`./reading.tsx`). Each pane joins as it
+   *  mounts, exactly as it joins the drag register below. */
+  const readings = createReadings()
   /** Every editable page on screen, for the one gesture that is about more
    *  than the page it began in: a row dragged out of one pane and dropped in
    *  the next (`./drag/fields.ts`). The WORKSPACE owns it because the drag is
@@ -100,62 +108,23 @@ export default function App() {
    * itself, because folding is what this is and that reader is not folding.
    */
   const loaded = () => {
-    const manifest = outlines.manifest()
+    const manifest = directory.manifest()
     return manifest !== undefined && manifest !== null
   }
 
   /**
-   * THE DIRECTORY, as one collection of faces — what every page model question
-   * is asked of (`./page.ts`).
+   * THE FOCUSED PANE's reading — what the sidebar lights up, what the palette
+   * may write about, what undo treats as the open file.
    *
-   * The two collections stay two on the wire, because an outline's records
-   * travel with it and a document's body does not; they are ONE list from here
-   * up, in the directory's own order, so nothing above has to pick which half
-   * of a directory it was thinking about.
+   * READ OFF THE PANE rather than asked for again here, which is the whole
+   * reason the register exists: each pane subscribes to the address it is
+   * drawing, and a second subscription to the focused one would be the same
+   * page fetched twice, on every revision, for the length of every split
+   * workspace. `undefined` is a pane that has not mounted or has not been
+   * answered yet — the frame where the chrome knows no file, which is what it
+   * drew before the first snapshot in any case.
    */
-  const found = createMemo(() => ({
-    documents: byFacePath([...outlines.faces(), ...documents.faces()]),
-    broken: outlines.broken(),
-  }))
-
-  // The FOCUSED pane's page — what the sidebar lights up, what the palette
-  // may write about, what undo treats as the open file. Each pane resolves
-  // its own page inside `./pane/PageView.tsx`; this is the one the chrome
-  // beside the workspace has to agree with, and it is asked of the focused
-  // route so a click in the directory never targets "leftmost".
-  const focusedPage = createMemo(() => {
-    const indexes = outlines.derived()
-    return indexes === undefined
-      ? undefined
-      : pageOf(indexes, found(), router.route(), today())
-  })
-
-  /**
-   * THE AGENDA PAGE's own reading, and nothing else's.
-   *
-   * It used to feed the sidebar's mark as well, through `owedOf`. That half is
-   * the server's now (`./dates.ts`, and `docs/brainstorming/vault-in-browser.md`
-   * §3's Sidebar row): the column and the rail wear two integers off the wire,
-   * so nothing outside the page walks the set to count late work.
-   *
-   * WHAT IS LEFT IS THE PAGE, and it is left DELIBERATELY rather than missed.
-   * `/agenda` is one of the seven ROUTES, and the design's law forbids flipping
-   * routes one at a time — the old wire kept beside the new — so every page
-   * reading moves in PR 10 or none of them does. Until then the badge and the
-   * page it leads to are two callers of one function (`owedOf` over
-   * `agendaOf`) over one directory, which is why they can differ by at most a
-   * frame and never by an opinion.
-   *
-   * IT RE-RUNS ON EVERY DERIVATION CHANGE, which is every edit anywhere in the
-   * directory, and that is no longer what it was: `agendaOf` reads the day
-   * index the fold this memo depends on already maintains (`perf-dates-index`),
-   * so a keystroke three files away costs this a walk of the days that owe
-   * something rather than a pass over every record in the vault.
-   */
-  const agenda = createMemo(() => {
-    const indexes = outlines.derived()
-    return indexes === undefined ? undefined : agendaOf(indexes, today())
-  })
+  const focused = createMemo(() => readings.at(router.workspace().focus))
 
   /**
    * The day the counts are asked FOR, or `undefined` while there is nothing to
@@ -208,26 +177,53 @@ export default function App() {
   })
 
   const zoomed = createMemo(() => {
-    const open = focusedPage()
-    if (open === undefined) return undefined
-    const node = only(open, "node")
+    const shows = focused()?.shows
+    if (shows === undefined) return undefined
+    const node = only(shows, "node")
     return node === undefined ? undefined : only(node.zoomed, "node")
   })
 
   const undo = createUndo((edit) => runAsync(olai.procedures.edit.apply(edit)))
   const openFile = createMemo(() => {
-    const open = focusedPage()
-    return open === undefined ? undefined : fileOf(open)
+    const shows = focused()?.shows
+    return shows === undefined ? undefined : fileOf(shows)
   })
   createEffect(on(openFile, () => undo.clear(), { defer: true }))
 
-  const docked = () => loaded() && focusedPage() !== undefined
+  /**
+   * What the ids the FOCUSED page points at are called — the one field of a
+   * reading the chrome outside the panes needs, for the shelf's ⌘K row: a
+   * `/#id` page is called whatever that node is called right now
+   * (`./pins/palette.ts`).
+   *
+   * A LOOKUP rather than the array, for `./reading.tsx`'s reason: one row asks
+   * one id, and the table is built where it is answered.
+   */
+  const names = createMemo(() => {
+    const table = new Map((focused()?.names ?? []).map((one) => [one.id, one]))
+    return (id: string) => table.get(id)
+  })
+
+  /** The day the calendar opens on, when the focused pane is a day page. */
+  const openDay = createMemo(() => {
+    const shows = focused()?.shows
+    return shows === undefined ? undefined : only(shows, "day")?.date
+  })
+
+  /** Whether the chrome that only draws over a directory is drawn. The page's
+   *  own existence used to be half of this; it is the manifest's bit alone now,
+   *  which is what it always resolved to — a page could not exist before a
+   *  directory had loaded. */
+  const docked = () => loaded()
   const split = () => !isLone(router.workspace())
 
   return (
     <UndoContext.Provider value={undo}>
       <RouterProvider router={router}>
-      <DerivedProvider derived={outlines.derived()}>
+      {/* EVERY OPEN PANE'S READING, for the chrome that is about more than one
+          page: the sidebar's active entry, the palette's verbs, undo's file
+          (./reading.tsx). */}
+      <ReadingsProvider value={readings}>
       {/* THE SHELF, as the server answers it — a subscription and a context,
           around everything that reads it: the sidebar draws it, the palette's
           row and the ⌘⇧P chord ask whether this page is on it, and every row's
@@ -235,8 +231,8 @@ export default function App() {
       <PinsProvider>
       <FieldsProvider value={fields}>
       <AirProvider value={air}>
-      <OpensProvider opens={(path, at) => opensAt(found(), path, at)}>
-      <ServedProvider faces={found().documents}>
+      <OpensProvider opens={(path, at) => opensAt(directory.faces(), path, at)}>
+      <ServedProvider faces={directory.faces()} head={directory.head}>
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
           the TAB (`./clock.ts`), and the panel reads it too — the `@` list's
           node half is matched by the format's own grammar, whose relative words
@@ -256,6 +252,7 @@ export default function App() {
       <ChatPanel />
       <Palette
         zoomed={zoomed()}
+        names={names()}
         go={(route) => router.go(route)}
         toggleDirectory={() => {
           if (desktop()) toggleSidebar()
@@ -295,11 +292,17 @@ export default function App() {
           }}
         >
           <Switch fallback={<p class={`${SHEET} p-8 text-muted`}>Reading…</p>}>
-          <Match when={outlines.manifest() === null}>
+          <Match when={directory.manifest() === null}>
             <ErrorPage errors={problems()} />
           </Match>
-          <Match when={focusedPage()}>
-            {(open) => (
+          {/* THE GATE IS THE DIRECTORY, not the page. It used to be the focused
+              page's own existence, which was the same bit said in a longer way:
+              a page could only be resolved once the tab held a derivation, and a
+              derivation only existed once the manifest had loaded. Each pane
+              waits for its OWN answer now, where its own `Reading…` line is
+              (./pane/PageView.tsx) — so a second pane opening does not blank the
+              sidebar the first one is drawn beside. */}
+          <Match when={loaded()}>
                 <DocumentsProvider documents={documents}>
                   <div
                     class="relative md:grid md:grid-cols-[var(--width-sidebar)_1fr]"
@@ -313,25 +316,18 @@ export default function App() {
                     </Show>
                     <Show when={desktop() ? sidebarOpen() : true}>
                       <Sidebar
-                        active={fileOf(open())}
-                        broken={outlines.broken()}
+                        active={openFile()}
+                        broken={directory.broken()}
                         owed={owed()}
                         open={desktop() ? true : menuOpen()}
                         onClose={() => setMenuOpen(false)}
                       >
-                        <Calendar today={today()} open={only(open(), "day")?.date} />
+                        <Calendar today={today()} open={openDay()} />
                       </Sidebar>
                     </Show>
-                    <Panes
-                      derived={outlines.derived()}
-                      found={found()}
-                      today={today()}
-                      agenda={agenda()}
-                      problems={problems()}
-                    />
+                    <Panes problems={problems()} />
                   </div>
                 </DocumentsProvider>
-            )}
             </Match>
           </Switch>
         </div>
@@ -342,7 +338,7 @@ export default function App() {
       </AirProvider>
       </FieldsProvider>
       </PinsProvider>
-      </DerivedProvider>
+      </ReadingsProvider>
       </RouterProvider>
     </UndoContext.Provider>
   )

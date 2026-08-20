@@ -299,11 +299,14 @@ test("a bodyless entry is upserted only when its key is new", () => {
 
 // ── the heads ──────────────────────────────────────────────────────────
 
-// The other slice of the same list, and the property the wire promises about
-// it: the same keys as `documents`, at the same revisions, with no body on any
-// of them. A reader takes its FILE LIST from here, so a head missing for a file
-// the directory holds is a file the sidebar stops listing.
-test("every bodied file has a head, and it is that file's revision alone", () => {
+// EVERY SERVED FILE has a head, and the property the wire promises about it: a
+// reader takes its FILE LIST from here, so a head missing for a file the
+// directory holds is a file the sidebar stops listing — and a bodied file's
+// head is always here to open its body against. It is a SUPERSET of the
+// documents' keys since `docs/brainstorming/vault-in-browser.md`'s PR 10, where
+// it was the same list: the browser stopped reading the outlines collection, so
+// this is where it learns an outline exists at all.
+test("every served file has a head, and it is that file's revision alone", () => {
   const { documents, heads } = publishedOf(
     revision(
       setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"]),
@@ -313,15 +316,18 @@ test("every bodied file has a head, and it is that file's revision alone", () =>
     NOTHING_HELD,
   )
 
-  expect([...heads.entries.keys()]).toEqual([...documents.entries.keys()])
+  for (const path of documents.entries.keys()) expect(heads.entries.has(path)).toBe(true)
+  expect([...heads.entries.keys()]).toEqual(["house.olai", "notes.md", "report.html"])
   expect(heads.entries.get("notes.md")).toMatchObject({ rev: 4 })
   expect(heads.entries.get("report.html")).toMatchObject({ rev: 4 })
-  // The head carries the face, which is the whole of what a browser knows
-  // about a document it has not opened.
+  expect(heads.entries.get("house.olai")).toMatchObject({ rev: 4 })
+  // The head carries the face, which is the whole of what a browser knows about
+  // a file it has not opened — and, for an outline, whether it parsed at all.
   expect(heads.entries.get("notes.md")?.face.title).toBe("hello")
-  // An outline is not a bodied file: it has an entry of its own, with its own
-  // revision on it.
-  expect(heads.entries.has("house.olai")).toBe(false)
+  expect(heads.entries.get("house.olai")?.broken).toBe(null)
+  // …and no content of any kind, which is the whole point of the member.
+  expect(heads.entries.get("house.olai")).not.toHaveProperty("nodes")
+  expect(heads.entries.get("notes.md")).not.toHaveProperty("text")
 })
 
 // The half `documents` cannot do, and the reason this member exists. A `.html`
@@ -335,6 +341,7 @@ test("a `.html` that changed is upserted here even though its body is not", () =
     NOTHING_HELD,
   )
   expect(first.heads.upserts.map(([path]) => path)).toEqual([
+    "house.olai",
     "notes.md",
     "report.html",
   ])

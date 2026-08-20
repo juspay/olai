@@ -41,7 +41,7 @@
 import type { RegularNode } from "@olai/format"
 import { createMemo } from "solid-js"
 
-import { useDerived } from "../derived.tsx"
+import { useNames } from "../reading.tsx"
 import { NodeRefs } from "../NodeRefs.tsx"
 import { namedBy } from "./named.ts"
 import { type Relation, relating } from "./relation.ts"
@@ -57,11 +57,11 @@ export function EdgeRefs(props: {
    *  change, the rule a title's own `onEdit` already follows. */
   readonly onRemove?: (id: string) => void
 }) {
-  const derived = useDerived()
+  const names = useNames()
   /** The field, resolved — one reading, shared with the panel that writes it
    *  (`./named.ts`), which is also where the rule about reading the cheap field
    *  before the whole set lives. */
-  const refs = createMemo(() => namedBy(props.node, props.relation, derived))
+  const refs = createMemo(() => namedBy(props.node, props.relation, names))
 
   return (
     <NodeRefs

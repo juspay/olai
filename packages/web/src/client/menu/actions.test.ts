@@ -56,7 +56,6 @@ const actionsFor = (
   nodeMenuActions({
     row: row(id),
     pins: NO_PINS,
-    derived,
     collapsed: false,
     foldable: [],
     go: () => {},

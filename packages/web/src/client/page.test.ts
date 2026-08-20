@@ -1,389 +1,165 @@
-import type { BrokenFile, Face } from "@olai/format"
-import { agendaOf, derive, DocumentPath, type Located } from "@olai/format"
+/**
+ * The two ends of the page seam that are still the browser's: the QUESTION a
+ * route turns into, and the reading folded into the shape a filter narrows.
+ *
+ * WHICH PAGE AN ADDRESS NAMES is not here any more, and that is PR 10 of
+ * `docs/brainstorming/vault-in-browser.md`: it was a pure function over the
+ * tab's copy of every record in the directory, and it is now a reading the
+ * server sends. Every claim that model made is made in `@olai/format`'s
+ * `page.test.ts`, over the same shape of fixture, beside the parity that says
+ * the answer equals what a browser would have derived.
+ */
+
+import { addressOf } from "@olai/format"
+import type { Agenda, Row, Shown } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { only } from "./narrow.ts"
-import { type Drawn, drawnBy, fileOf, type Page, pageOf, rowsFor } from "./page.ts"
-import { atFile, atNode, HOME_ROUTE, type Route } from "./routes.ts"
+import { drawnBy, fileOf, opensAt, requestFor } from "./page.ts"
+import { atElement, atFile, atNode, HOME_ROUTE } from "./routes.ts"
 
-const located = (file: string, line: number, node: Located["node"]): Located => ({
-  file,
-  line,
-  node,
-})
-
-/** The records, kept beside the derivation they make: one case below derives a
- *  SECOND set out of them, with an archive in it, because what the trash draws
- *  is a question about files this directory does not otherwise have. */
-const NODES: ReadonlyArray<Located> = [
-  located("house.olai", 1, { id: "kitchen", ord: "a0", title: "kitchen" }),
-  located("house.olai", 2, {
-    id: "install",
-    parent: "kitchen",
-    ord: "a0",
-    title: "install",
-    date: "2026-08-10",
-  }),
-  located("house.olai", 3, {
-    id: "herbs-here",
-    parent: "kitchen",
-    ord: "a1",
-    mirror: "herbs",
-  }),
-  located("garden.olai", 1, { id: "garden", ord: "a0", title: "garden" }),
-  located("garden.olai", 2, {
-    id: "herbs",
-    parent: "garden",
-    ord: "a0",
-    title: "herbs",
-    date: "2026-08-10T09:00",
-  }),
-]
-const SET = derive(NODES)
-/** The served directory, as one collection of faces — the shape the app hands
- *  the page model (`./page.ts`'s `Found`). A face's title, links and tags are
- *  no business of this model, so the fixtures below say only what a path is. */
-const facesOf = (paths: ReadonlyArray<string>): ReadonlyArray<Face> =>
-  paths.map((path) => ({
-    path: DocumentPath.make(path),
-    title: path,
-    links: [],
-    tags: [],
-  }))
-
-const FILES = ["garden.olai", "house.olai"]
-/** The paths, the way the app holds them: a document's TEXT travels to the tab
- *  that opens one, so it is no business of the page model.
- *
- *  Two of them are about the day arm below: one named for a date, which IS that
- *  day's note, and one merely naming a date, which is a document about a day
- *  and nobody's note. */
-const DOCUMENTS: ReadonlyArray<string> = [
-  "notes/finishes.md",
-  "Daily/2026-08-10.md",
-  "notes/2026-08-10-recap.md",
-]
-
-/** What day it is, for the arm that has to be told. Fixed, because a page
- *  model that read a clock would be a page model whose tests expire. */
 const TODAY = "2026-08-10"
 
-/** No file in these fixtures failed to parse — the broken arm has its own
- *  cases below, where one did. */
-const READABLE: ReadonlyMap<string, BrokenFile> = new Map()
+// ── what the server is asked ───────────────────────────────────────────
 
-const pageAt = (
-  route: Route,
-  files = FILES,
-  broken = READABLE,
-): Page => pageOf(SET, { documents: facesOf([...files, ...DOCUMENTS]), broken }, route, TODAY)
-
-/** The ids a page's rows start from — what its screen would show. */
-const roots = (page: Page): ReadonlyArray<string> =>
-  rowsFor(SET, page).map((row) => row.at.node.id)
-
-test("a bare `/` opens the first outline found", () => {
-  const page = pageAt(HOME_ROUTE)
-  expect(only(page, "outline")?.file).toBe("garden.olai")
-  expect(roots(page)).toEqual(["garden"])
+test("an address goes over as the address the parser read", () => {
+  expect(requestFor(atFile("house.olai"), TODAY))
+    .toEqual({ kind: "at", address: addressOf("house.olai", null) })
+  expect(requestFor(HOME_ROUTE, TODAY)).toEqual({ kind: "at", address: null })
 })
 
-test("a named outline opens that one, with its own rows", () => {
-  const page = pageAt(atFile("house.olai"))
-  expect(only(page, "outline")?.file).toBe("house.olai")
-  expect(roots(page)).toEqual(["kitchen"])
+// `/today` names no date, and the clock that says which day it is belongs to
+// the reader — so the two routes reach the server as ONE question.
+test("`/today` is the day it is, and `/d/<date>` is the same question", () => {
+  expect(requestFor({ kind: "today" }, TODAY))
+    .toEqual(requestFor({ kind: "day", date: TODAY }, TODAY))
 })
 
-// The two nothings are decided HERE rather than by a view counting files, so
-// the screen that says them has one thing to say and no reasoning to do.
-test("an outline the directory does not have is a nothing that names it", () => {
-  expect(pageAt(atFile("shed.olai"))).toEqual({
-    kind: "nothing",
-    sought: "outline",
-    requested: "shed.olai",
-  })
+// The agenda counts against the reader's own today, for `OwedRequest`'s reason:
+// what is late is late where the person is standing.
+test("the agenda carries the day it is counted against", () => {
+  expect(requestFor({ kind: "agenda" }, TODAY)).toEqual({ kind: "agenda", today: TODAY })
 })
 
-test("a directory with no outlines at all is the other nothing", () => {
-  expect(pageAt(atFile("shed.olai"), [])).toEqual({
-    kind: "nothing",
-    sought: "outline",
-    requested: null,
-  })
-  expect(pageAt(HOME_ROUTE, [])).toEqual({
-    kind: "nothing",
-    sought: "outline",
-    requested: null,
-  })
-})
-
-// ── documents ──────────────────────────────────────────────────────────
-
-// A document is a page of the set like any other, and what this model settles
-// is that the address names one the directory HAS. The body is read by the
-// page that draws it, one per-key subscription, so a corpus of thousands is
-// thousands of paths here and one body on screen.
-test("a document route opens that document, by path", () => {
-  const page = pageAt(atFile("notes/finishes.md"))
-  expect(only(page, "document")?.file).toBe("notes/finishes.md")
-})
-
-// The same two-nothings rule as an outline's, and it says which kind was being
-// looked for: "no such document" and "no such outline" send a reader to two
-// different places.
-test("a document the directory does not have is a nothing that names it", () => {
-  expect(pageAt(atFile("gone.md"))).toEqual({
-    kind: "nothing",
-    sought: "document",
-    requested: "gone.md",
-  })
+// A `?q=` is a second question with a door of its own (`filter/asking.ts`), so
+// it must not reach this one — a page reading that carried the query would be
+// the whole page re-asked on every keystroke.
+test("the narrowing is dropped: it is not part of which page this is", () => {
+  expect(requestFor({ ...atFile("house.olai"), filter: "is:todo" }, TODAY))
+    .toEqual(requestFor(atFile("house.olai"), TODAY))
+  expect(requestFor({ kind: "trash", filter: "is:todo" }, TODAY)).toEqual({ kind: "trash" })
 })
 
 // ── which sidebar entry lights up ──────────────────────────────────────
 
+const ROW: Row = {
+  at: { file: "garden.olai", line: 1, node: { id: "herbs", ord: "a0", title: "herbs" } },
+  blocked: [],
+  under: 0,
+  key: "/herbs",
+  children: [],
+  kind: "node",
+  shows: { file: "garden.olai", line: 1, node: { id: "herbs", ord: "a0", title: "herbs" } },
+}
+
+const OUTLINE: Shown = { kind: "outline", file: "house.olai", rows: [ROW] }
+
 test("the open outline is the one the page is of", () => {
-  expect(fileOf(pageAt(atFile("house.olai")))).toBe("house.olai")
-})
-
-// The point of asking the model rather than the URL: `/#herbs-here` is a
-// mirror living in house.olai, and the page it opens is in garden.olai.
-test("a zoomed node lights up the file its CANONICAL record is in", () => {
-  expect(fileOf(pageAt(atNode("herbs-here")))).toBe("garden.olai")
-  expect(fileOf(pageAt(atNode("install")))).toBe("house.olai")
-})
-
-// A file that would not parse has no tree to draw, so its outline route is a
-// different page — but it is still that file's page, and the sidebar says so.
-test("an outline whose file did not parse is the broken page, not an empty one", () => {
-  const unreadable: BrokenFile = {
-    file: "house.olai",
-    errors: [
-      {
-        code: "not-json",
-        file: "house.olai",
-        line: 2,
-        message: "not JSON",
-      },
-    ],
-  }
-  const page = pageAt(
-    atFile("house.olai"),
-    FILES,
-    new Map([["house.olai", unreadable]]),
-  )
-  expect(only(page, "broken")?.file).toEqual(unreadable)
-  expect(fileOf(page)).toBe("house.olai")
-})
-
-test("an open document lights up its own entry", () => {
-  expect(fileOf(pageAt(atFile("notes/finishes.md"))))
+  expect(fileOf(OUTLINE)).toBe("house.olai")
+  expect(fileOf({ kind: "document", file: "notes/finishes.md", referrers: [] }))
     .toBe("notes/finishes.md")
 })
 
+// The point of asking the reading rather than the URL: `/#herbs-here` may be a
+// mirror living in house.olai, and the page it opens is in garden.olai.
+test("a zoomed node lights up the file its CANONICAL record is in", () => {
+  expect(fileOf({
+    kind: "node",
+    backlinks: [],
+    zoomed: {
+      kind: "node",
+      shows: ROW.at as never,
+      blocked: [],
+      trail: [],
+      children: [],
+      under: 0,
+    },
+  })).toBe("garden.olai")
+})
+
 test("a page that names no node lights up nothing", () => {
-  expect(fileOf(pageAt(atNode("nope")))).toBeUndefined()
-  expect(fileOf(pageAt(atFile("shed.olai")))).toBeUndefined()
-})
-
-// A zoomed page draws the node's children, and it draws them FRESH — the row
-// store reconciles into whatever it is handed, and reconciling writes into the
-// objects, so a cached array would come back filtered the next time it was
-// asked for.
-test("a zoomed node's rows are its children, built new every time", () => {
-  const page = pageAt(atNode("kitchen"))
-  expect(roots(page)).toEqual(["install", "herbs-here"])
-  expect(rowsFor(SET, page)[0]).not.toBe(rowsFor(SET, page)[0]!)
-})
-
-// ── the day ────────────────────────────────────────────────────────────
-
-// A day is not a file and not a node: it collects whatever is dated it, from
-// every outline at once, which is what makes the journal a query rather than a
-// place (docs/roadmap.olai, resolved 2026-08-09).
-test("a day collects the dated nodes of every outline", () => {
-  const page = pageAt({ kind: "day", date: "2026-08-10" })
-  expect(only(page, "day")?.groups.map((group) => group.file)).toEqual([
-    "garden.olai",
-    "house.olai",
-  ])
-})
-
-test("a day with nothing dated it is an empty day, not a nothing", () => {
-  const page = pageAt({ kind: "day", date: "2026-08-11" })
-  expect(only(page, "day")?.date).toBe("2026-08-11")
-  expect(only(page, "day")?.groups).toEqual([])
-  expect(only(page, "day")?.notes).toEqual([])
-})
-
-// The day's other half: a document named for the date is that day's note, and
-// it JOINS the query's answer rather than replacing it — the groups above are
-// unchanged by its being there. A document merely NAMING the date is not one.
-test("a day carries the documents named for it, beside its dated nodes", () => {
-  const page = pageAt({ kind: "day", date: "2026-08-10" })
-  expect(only(page, "day")?.notes).toEqual(["Daily/2026-08-10.md"])
-  expect(only(page, "day")?.groups.length).toBe(2)
-})
-
-// `/today` names no date, so the page model is told which day it is. That is
-// the whole of the difference: the two routes are one page.
-test("`/today` is the day it is", () => {
-  expect(pageAt({ kind: "today" })).toEqual(pageAt({ kind: "day", date: TODAY }))
-})
-
-// A day belongs to no outline — it crosses all of them — so nothing in the
-// sidebar's list is the page you are on. Which day the calendar fills in is
-// the page's own `date`, and `/today` is where that is worth saying: the route
-// spells no date, and the page it opened does.
-test("a day lights up no outline, and says which day it turned out to be", () => {
-  expect(fileOf(pageAt({ kind: "day", date: "2026-08-10" }))).toBeUndefined()
-  expect(only(pageAt({ kind: "today" }), "day")?.date).toBe(TODAY)
-})
-
-// ── the agenda ─────────────────────────────────────────────────────────
-
-// The forward half of the same question: no file, no node, and — since the
-// directory column marks what is owed on every screen — no sections either. The
-// reading is the app's one `agendaOf` (`App.tsx`), so what this model settles is
-// the DAY alone: the address spells no date, and a page saying what is overdue
-// owes the reader the day it is overdue as of.
-test("the agenda is answered for today, and says which day that was", () => {
-  const page = pageAt({ kind: "agenda" })
-  expect(only(page, "agenda")?.date).toBe(TODAY)
-  expect(only(page, "agenda")).toEqual({ kind: "agenda", date: TODAY })
-})
-
-test("the agenda lights up no outline, and draws no tree", () => {
-  expect(fileOf(pageAt({ kind: "agenda" }))).toBeUndefined()
-  expect(rowsFor(SET, pageAt({ kind: "agenda" }))).toEqual([])
-})
-
-// ── the trash ──────────────────────────────────────────────────────────
-
-/** The same directory once something has been archived: the archives are in
- *  the file list like anything else, and only this model treats them apart. */
-const WITH_TRASH = ["_olai/Trash.olai", ...FILES]
-const WITH_LEFTOVER = ["Archive.olai", ...FILES, "garden/Archive.olai"]
-
-test("the trash is the one `_olai/Trash.olai`, and an empty one is a page", () => {
-  expect(pageAt({ kind: "trash" }, WITH_TRASH)).toEqual({
-    kind: "trash",
-    files: ["_olai/Trash.olai"],
-  })
-  // Nothing put away yet — trash_node creates the file on first use, so
-  // an absent trash is an empty page, never a missing one.
-  expect(pageAt({ kind: "trash" })).toEqual({ kind: "trash", files: [] })
-})
-
-test("the trash file's own address opens the trash — it is not a place you edit", () => {
-  expect(pageAt(atFile("_olai/Trash.olai"), WITH_TRASH)).toEqual({
-    kind: "trash",
-    files: ["_olai/Trash.olai"],
-  })
-})
-
-test("a leftover Archive.olai opens as an outline, not the trash", () => {
-  expect(pageAt(atFile("Archive.olai"), WITH_LEFTOVER)).toEqual({
-    kind: "outline",
-    file: "Archive.olai",
-  })
-  expect(pageAt({ kind: "trash" }, WITH_LEFTOVER)).toEqual({
-    kind: "trash",
-    files: [],
-  })
-})
-
-test("a bare `/` never opens a leftover Archive.olai, even one that sorts first", () => {
-  expect(pageAt(HOME_ROUTE, WITH_LEFTOVER))
-    .toEqual({ kind: "outline", file: "garden.olai" })
-})
-
-test("a bare `/` never opens an archive, even one that sorts first", () => {
-  expect(pageAt(HOME_ROUTE, WITH_TRASH))
-    .toEqual({ kind: "outline", file: "garden.olai" })
-})
-
-test("the trash lights up no outline, and holds no row store", () => {
-  expect(fileOf(pageAt({ kind: "trash" }, WITH_TRASH))).toBeUndefined()
-  expect(rowsFor(SET, pageAt({ kind: "trash" }, WITH_TRASH))).toEqual([])
-})
-
-// A day draws no TREE. It is a list of nodes from all over the set, each with
-// its own ancestry — so the row store, which holds whichever tree is on screen,
-// holds nothing while one is open.
-test("a page with nothing to draw has no rows", () => {
-  expect(rowsFor(SET, pageAt(atNode("nope")))).toEqual([])
-  expect(rowsFor(SET, pageAt(atFile("shed.olai")))).toEqual([])
-  expect(rowsFor(SET, pageAt({ kind: "day", date: "2026-08-10" }))).toEqual([])
-  expect(rowsFor(SET, undefined)).toEqual([])
+  expect(fileOf({ kind: "agenda", date: TODAY, agenda: NOTHING_OWED })).toBeUndefined()
+  expect(fileOf({ kind: "nothing", sought: "outline", requested: "shed.olai" }))
+    .toBeUndefined()
 })
 
 // ── what the page DRAWS, which is what a filter narrows ────────────────
-//
-// `Page` is which page the address named; `Drawn` is what that page put on the
-// screen, in the one shape the filter can prune and count (`filter/
-// narrowing.ts`). One arm per shape, and `none` for a page a query has nothing
-// to say about — which is also what the filter box is drawn on the absence of,
-// so these two cases are what keeps the box off a document.
 
-/** The agenda, as the app hands it over: one reading of the set at today. */
-const OWED = agendaOf(SET, TODAY)
-
-const drawnAt = (route: Route, files = FILES, set = SET): Drawn =>
-  drawnBy(
-    set,
-    pageOf(set, { documents: facesOf([...files, ...DOCUMENTS]), broken: READABLE }, route, TODAY),
-    OWED,
-  )
+const NOTHING_OWED: Agenda = { overdue: [], today: [], upcoming: [] }
 
 test("an outline and a zoomed node are one shape: the tree they draw", () => {
-  const outline = drawnAt(atFile("house.olai"))
-  expect(outline.kind === "tree" ? outline.rows.map((row) => row.at.node.id) : [])
-    .toEqual(["kitchen"])
-  const zoomed = drawnAt(atNode("kitchen"))
-  expect(zoomed.kind === "tree" ? zoomed.rows.map((row) => row.at.node.id) : [])
-    .toEqual(["install", "herbs-here"])
+  expect(drawnBy(OUTLINE)).toEqual({ kind: "tree", rows: [ROW] })
+  // A zoomed page's rows are its `children` — the same array `zoom` already
+  // walked, rather than the walk run a second time beside it.
+  expect(drawnBy({
+    kind: "node",
+    backlinks: [],
+    zoomed: {
+      kind: "node",
+      shows: ROW.at as never,
+      blocked: [],
+      trail: [],
+      children: [ROW],
+      under: 0,
+    },
+  })).toEqual({ kind: "tree", rows: [ROW] })
 })
 
-test("a day draws the groups it was answered with, and the agenda the reading it was handed", () => {
-  const day = drawnAt({ kind: "day", date: "2026-08-10" })
-  expect(day.kind === "day" ? day.groups.map((group) => group.file) : [])
-    .toEqual(["garden.olai", "house.olai"])
-  // The one reading, not a second `agendaOf` under the page model — the entry
-  // in the directory column is marked from the very same value (`App.tsx`).
-  const agenda = drawnAt({ kind: "agenda" })
-  expect(agenda.kind === "agenda" ? agenda.agenda : undefined).toBe(OWED)
+test("a day and the agenda draw what they were answered with", () => {
+  expect(drawnBy({ kind: "day", date: TODAY, groups: [], notes: ["Daily/x.md"] }))
+    .toEqual({ kind: "day", groups: [], notes: ["Daily/x.md"] })
+  expect(drawnBy({ kind: "agenda", date: TODAY, agenda: NOTHING_OWED }))
+    .toEqual({ kind: "agenda", agenda: NOTHING_OWED })
 })
 
-test("the trash draws each archive that has something in it, and no others", () => {
-  const set = derive([
-    ...NODES,
-    located("_olai/Trash.olai", 1, { id: "old", ord: "a0", title: "the old kitchen" }),
-    located("_olai/Trash.olai", 2, {
-      id: "tiles",
-      parent: "old",
-      ord: "a0",
-      title: "choose the tiles",
-    }),
-  ])
-  const drawn = drawnAt(
-    { kind: "trash" },
-    ["_olai/Trash.olai", ...FILES],
-    set,
-  )
-  // `_olai/Trash.olai` holds nothing, so it is not a heading over no rows —
-  // which is also what makes "the trash is empty" this list being empty.
-  expect(drawn.kind === "trash" ? drawn.groups.map((group) => group.file) : [])
-    .toEqual(["_olai/Trash.olai"])
-  expect(
-    drawn.kind === "trash"
-      ? drawn.groups.flatMap((group) => group.rows.map((row) => row.at.node.id))
-      : [],
-  ).toEqual(["old"])
+test("the trash draws its groups, and keeps the FILES beside them", () => {
+  // Not the same list: what is drawn narrows with the query, and whether a pile
+  // is worth a file heading is a fact about the directory.
+  expect(drawnBy({
+    kind: "trash",
+    files: ["_olai/Trash.olai"],
+    groups: [],
+    records: 3,
+  })).toEqual({ kind: "trash", files: ["_olai/Trash.olai"], groups: [] })
 })
 
 test("a page a query has nothing to say about draws none of it", () => {
-  expect(drawnAt(atFile("notes/finishes.md")))
+  expect(drawnBy({ kind: "document", file: "notes/finishes.md", referrers: [] }))
     .toEqual({ kind: "none" })
-  expect(drawnAt(atFile("shed.olai"))).toEqual({ kind: "none" })
-  expect(drawnBy(SET, undefined, OWED)).toEqual({ kind: "none" })
+  expect(drawnBy({ kind: "nothing", sought: "outline", requested: null }))
+    .toEqual({ kind: "none" })
+  // …and the frame before the reading has arrived at all, which is the same
+  // nothing rather than a state of its own.
+  expect(drawnBy(undefined)).toEqual({ kind: "none" })
+})
+
+// ── where a path of this vault opens ───────────────────────────────────
+
+const FACES = [
+  { path: "house.olai", title: "house.olai", links: [], tags: [] },
+  { path: "notes/finishes.md", title: "finishes", links: [], tags: [] },
+] as never
+
+test("a path the directory holds opens at its own route; one it does not opens nowhere", () => {
+  expect(opensAt(FACES, "house.olai")).toEqual(atFile("house.olai"))
+  expect(opensAt(FACES, "shed.olai")).toBeUndefined()
+})
+
+test("a fragment is read by the grammar that would have written it", () => {
+  // In a BODY it is a heading — the ids a rendered document has.
+  expect(opensAt(FACES, "notes/finishes.md", "install"))
+    .toEqual(atElement("notes/finishes.md", "install"))
+  // After an OUTLINE it is a node, because an outline's places are node ids —
+  // which is the grammar's own answer (`@olai/format`'s `address.ts`), asked
+  // here rather than re-decided.
+  expect(opensAt(FACES, "house.olai", "install")).toEqual(atNode("install"))
 })

@@ -110,7 +110,7 @@ import { useOpens } from "../opens.tsx"
 import { useGo, useHere, useRouter } from "../router.tsx"
 import { fileNamed } from "../routes.ts"
 import { TESTID } from "../testids.ts"
-import { useHead } from "./documents.tsx"
+import { useHead } from "../served.tsx"
 import { rungs } from "./rungs.ts"
 
 /**

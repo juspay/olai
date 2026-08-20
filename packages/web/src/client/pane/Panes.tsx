@@ -12,14 +12,13 @@
  * second-to-last returns to that.
  */
 
-import type { Agenda, Derived, OutlineError } from "@olai/format"
+import type { OutlineError } from "@olai/format"
 import { createSignal, For, Index, Show } from "solid-js"
 import { onCleanup } from "solid-js"
 
 import { Banner } from "../errors/Banner.tsx"
 import { WITHIN } from "../layer.ts"
 import { desktop } from "../layout/media.ts"
-import { type Found } from "../page.ts"
 import { drag as pointerDrag } from "../pointer.ts"
 import { useRouter } from "../router.tsx"
 import { TESTID } from "../testids.ts"
@@ -39,10 +38,6 @@ import { SHELL_LONE, SHELL_SPLIT } from "../layout/sheet.ts"
 export { PANE_MIN_PX, PANE_RAIL_PX } from "./geometry.ts"
 
 export function Panes(props: {
-  readonly derived: Derived | undefined
-  readonly found: Found
-  readonly today: string
-  readonly agenda: Agenda | undefined
   readonly problems: ReadonlyArray<OutlineError>
 }) {
   const router = useRouter()
@@ -68,54 +63,24 @@ export function Panes(props: {
       <Show when={split() && !desktop()}>
         <TabStrip />
       </Show>
-      <Show
-        when={split() && desktop()}
-        fallback={
-          <FocusedOrLone
-            derived={props.derived}
-            found={props.found}
-            today={props.today}
-            agenda={props.agenda}
-          />
-        }
-      >
-        <DesktopRow
-          derived={props.derived}
-          found={props.found}
-          today={props.today}
-          agenda={props.agenda}
-        />
+      <Show when={split() && desktop()} fallback={<FocusedOrLone />}>
+        <DesktopRow />
       </Show>
     </div>
   )
 }
 
-function FocusedOrLone(props: {
-  readonly derived: Derived | undefined
-  readonly found: Found
-  readonly today: string
-  readonly agenda: Agenda | undefined
-}) {
+function FocusedOrLone() {
   const router = useRouter()
   const index = () => router.workspace().focus
   return (
     <PaneProvider index={index()}>
-      <PageView
-        derived={props.derived}
-        found={props.found}
-        today={props.today}
-        agenda={props.agenda}
-      />
+      <PageView />
     </PaneProvider>
   )
 }
 
-function DesktopRow(props: {
-  readonly derived: Derived | undefined
-  readonly found: Found
-  readonly today: string
-  readonly agenda: Agenda | undefined
-}) {
+function DesktopRow() {
   const router = useRouter()
   let row: HTMLDivElement | undefined
   // Live fractions while a divider is held — committed to the address only
@@ -148,15 +113,7 @@ function DesktopRow(props: {
                   <Rail index={i} pane={pane()} />
                 }
               >
-                <Column
-                  index={i}
-                  pane={pane()}
-                  grow={share()}
-                  derived={props.derived}
-                  found={props.found}
-                  today={props.today}
-                  agenda={props.agenda}
-                />
+                <Column index={i} pane={pane()} grow={share()} />
               </Show>
             </>
           )
@@ -170,10 +127,6 @@ function Column(props: {
   readonly index: number
   readonly pane: Pane
   readonly grow: number
-  readonly derived: Derived | undefined
-  readonly found: Found
-  readonly today: string
-  readonly agenda: Agenda | undefined
 }) {
   const router = useRouter()
   const focused = () => router.workspace().focus === props.index
@@ -187,12 +140,7 @@ function Column(props: {
     >
       <Header index={props.index} pane={props.pane} />
       <PaneProvider index={props.index}>
-        <PageView
-          derived={props.derived}
-          found={props.found}
-          today={props.today}
-          agenda={props.agenda}
-        />
+        <PageView />
       </PaneProvider>
     </div>
   )

@@ -45,21 +45,28 @@
  * appears in both, which is what it is doing.
  */
 
+import type { Backlink } from "@olai/format"
 import { createMemo, createSignal, For, Show } from "solid-js"
 
-import { useDerived } from "../derived.tsx"
+import { only } from "../narrow.ts"
 import { NodeRefs } from "../NodeRefs.tsx"
+import { useReading } from "../reading.tsx"
 import { TESTID } from "../testids.ts"
-import { referringTo, rowsOf } from "./refs.ts"
+import { rowsOf } from "./refs.ts"
 import { REFERRINGS } from "./way.ts"
 
 export function Backlinks(props: {
   /** The node the page is about — canonical, since a zoom resolves a mirror's
-   *  chain before it draws anything (`@olai/format`'s `zoom`). */
+   *  chain before it draws anything (`@olai/format`'s `zoom`). Read for the
+   *  KEY below rather than for the lookup: what refers to it rides on this
+   *  page's own reading, which is a reading OF that node. */
   readonly id: string
 }) {
-  const derived = useDerived()
-  const found = createMemo(() => referringTo(derived(), props.id))
+  const reading = useReading()
+  const found = createMemo(() => {
+    const shows = reading()?.shows
+    return (shows === undefined ? undefined : only(shows, "node")?.backlinks) ?? []
+  })
 
   return (
     // ONE `<Show>`, keyed on the node while there is anything to say about it.
@@ -80,7 +87,7 @@ export function Backlinks(props: {
  * one node's answer onto the next, which is the very thing the key is for.
  */
 function Section(props: {
-  readonly found: () => ReadonlyArray<ReturnType<typeof referringTo>[number]>
+  readonly found: () => ReadonlyArray<Backlink>
 }) {
   const [open, setOpen] = createSignal(false)
   return (
@@ -113,7 +120,7 @@ function Section(props: {
 }
 
 function Rows(props: {
-  readonly found: ReadonlyArray<ReturnType<typeof referringTo>[number]>
+  readonly found: ReadonlyArray<Backlink>
 }) {
   const rows = createMemo(() => rowsOf(props.found))
   return (

@@ -33,7 +33,7 @@
  * report rather than an assumption.
  */
 
-import type { Derived, Row } from "@olai/format"
+import type { Row } from "@olai/format"
 import type { Shelf } from "@olai/surface"
 
 import { armNode } from "../chat/armed.ts"
@@ -76,12 +76,6 @@ const copied = (what: "link" | "text"): Said => ({ tone: "aside", text: `${what}
  */
 export const nodeMenuActions = (args: {
   readonly row: Row
-  /** The set's indexes, which two verbs need and the ROWS cannot answer: how
-   *  much an archive moves is a fact about the records rather than about the
-   *  tree this reading happens to be drawing (`./subtree.ts`), and a fold that
-   *  is REMEMBERED drops the ids of nodes the set no longer declares as it is
-   *  written (`../fold/memory.ts`). */
-  readonly derived: Derived | undefined
   /** The shelf as the server answered it, for the ONE verb that is about the
    *  sidebar rather than about the row: whether this node is already a door on
    *  it (`../pins/answered.tsx`). */
@@ -201,9 +195,13 @@ export const nodeMenuActions = (args: {
   // — turned into the running of it. Spread rather than copied field by field:
   // a hand-written list of names here is the list that goes stale the day a
   // verb grows a field, silently, because both shapes still compile.
+  // HOW MUCH AN ARCHIVE MOVES rides on the row itself: it is a fact about the
+  // records rather than about the tree this reading happens to be drawing, so
+  // it is counted where the set is and sent with the page
+  // (`@olai/format`'s `Row.under`).
   const writes: MenuAction[] = writeVerbs(
     subjectOfRow(args.row),
-    args.derived,
+    args.row.under,
     args.pins,
   ).map(
     ({ does, ...verb }) => ({

@@ -1348,16 +1348,21 @@ const expand = (
 ): Row => {
   const key = `${parentKey}/${at.node.id}`
   const found = follow(derived, at)
-  // The fields every branch shares, including the rollup a stub has none of —
-  // the drawn branch below overrides it, and no branch has to remember to say
-  // it has nothing. What a place is WAITING ON is asked of the node it shows,
-  // which a stub has none of either — and so is what hangs UNDER it, which is
-  // nothing at all for a place drawing no node.
+  const status = derived.status.get(at.node.id)
+  // The fields every branch shares. What a place is WAITING ON is asked of the
+  // node it shows, which a stub has none of — and so is what hangs UNDER it,
+  // which is nothing at all for a place drawing no node.
+  //
+  // AN ABSENT MARK IS AN ABSENT KEY, not a key holding `undefined`, and that is
+  // the rule every answer in this package keeps (`./reading.ts`'s `Found`
+  // spells it the same way). It matters here because a row TRAVELS: the wire
+  // drops an undefined value on the way out, so a value built with the key
+  // present would compare unequal to the same value read back — and the
+  // comparison is what decides whether a frame is sent at all.
   const place = {
     at,
-    status: derived.status.get(at.node.id),
+    ...(status === undefined ? {} : { status }),
     blocked: found.kind === "found" ? blockersOf(derived, found.shows.node.id) : [],
-    progress: undefined,
     under: found.kind === "found"
       ? descendants(derived, found.shows.node.id, counting)
       : 0,
@@ -1372,11 +1377,13 @@ const expand = (
   }
 
   const within = [...ancestors, found.shows.node.id]
+  // The rollup of what this place SHOWS: a mirror's row draws its target's
+  // children, so it draws its target's progress too. Absent when nothing under
+  // it is a task, for the reason the mark above is.
+  const progress = progressOf(derived, found.shows.node.id)
   return {
     ...place,
-    // The rollup of what this place SHOWS: a mirror's row draws its target's
-    // children, so it draws its target's progress too.
-    progress: progressOf(derived, found.shows.node.id),
+    ...(progress === undefined ? {} : { progress }),
     kind: isMirror(at.node) ? "mirror" : "node",
     shows: found.shows,
     children: (derived.children.get(found.shows.node.id) ?? []).map((child) =>
@@ -1481,13 +1488,20 @@ export const Situated = Schema.Struct({
 })
 export type Situated = typeof Situated.Type
 
-export const situate = (derived: Derived, shows: LocatedRegular): Situated => ({
-  shows,
-  status: derived.status.get(shows.node.id),
-  blocked: blockersOf(derived, shows.node.id),
-  progress: progressOf(derived, shows.node.id),
-  trail: ancestorsOf(derived, shows.node.id),
-})
+export const situate = (derived: Derived, shows: LocatedRegular): Situated => {
+  // Absent rather than present-and-undefined, for the reason a row's are
+  // ({@link Row}'s `place`): these travel, and a key the wire drops on the way
+  // out must not be a key the value was built with.
+  const status = derived.status.get(shows.node.id)
+  const progress = progressOf(derived, shows.node.id)
+  return {
+    shows,
+    ...(status === undefined ? {} : { status }),
+    blocked: blockersOf(derived, shows.node.id),
+    ...(progress === undefined ? {} : { progress }),
+    trail: ancestorsOf(derived, shows.node.id),
+  }
+}
 
 /**
  * What a record actually shows: itself, or — following as many mirror hops as

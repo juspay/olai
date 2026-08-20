@@ -819,14 +819,14 @@ describe("which of these ids the set declares", () => {
   const asked = (...ids: ReadonlyArray<string>) => named(derivedOf(HOUSE()), { ids }).named
 
   test("an id the set declares comes back with the node it names", () => {
-    expect(asked("order")).toEqual([{ asked: "order", id: "order" }])
+    expect(asked("order")).toEqual([{ asked: "order", id: "order", title: "order the cabinets" }])
   })
 
   test("a PLACEMENT names the node it shows, not itself", () => {
     // The whole reason this answers with a pair. A row in the tree carries the
     // node it SHOWS, so a span marked `echo` would name no row and every press
     // of it would leave the page for a node that is right there.
-    expect(asked("echo")).toEqual([{ asked: "echo", id: "order" }])
+    expect(asked("echo")).toEqual([{ asked: "echo", id: "order", title: "order the cabinets" }])
   })
 
   test("what the set does not declare is not in the answer at all", () => {
@@ -840,22 +840,22 @@ describe("which of these ids the set declares", () => {
     // The batch is the point: one message's backticks are one question, and
     // most of them are not ids.
     expect(asked("true", "order", "npm test", "echo")).toEqual([
-      { asked: "order", id: "order" },
-      { asked: "echo", id: "order" },
+      { asked: "order", id: "order", title: "order the cabinets" },
+      { asked: "echo", id: "order", title: "order the cabinets" },
     ])
 
   })
 
   test("an id repeated is asked once", () => {
     // A caller builds a lookup out of this, and a lookup has one entry per key.
-    expect(asked("order", "order", "order")).toEqual([{ asked: "order", id: "order" }])
+    expect(asked("order", "order", "order")).toEqual([{ asked: "order", id: "order", title: "order the cabinets" }])
   })
 
   test("what was put away is still declared", () => {
     // A lookup is not a search, so the grammar's rule about `is:trashed` has
     // nothing to say here: the id names the node it names, and a reader
     // pressing it is shown where it now is.
-    expect(asked("old")).toEqual([{ asked: "old", id: "old" }])
+    expect(asked("old")).toEqual([{ asked: "old", id: "old", title: "the old counters" }])
   })
 
   test("nothing asked is nothing answered", () => {

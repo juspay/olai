@@ -17,19 +17,15 @@
  *
  * PURE — over a title, and over the ONE fact about the directory a title cannot
  * carry ({@link nameOf}'s `shows`) — so what counts as an address and what an
- * address is called are decided in a unit test rather than in a component. The
- * lookup that answers that fact locally is {@link shownIn}, at the bottom of
- * this file, and it has one caller left: the shelf's is the server's now.
+ * address is called are decided in a unit test rather than in a component. That
+ * fact is the server's for both faces now: the shelf takes it off the `pins`
+ * member and a row takes it off its page's own reading, which {@link shownIn}
+ * at the bottom of this file is the reader for.
  */
 
-import {
-  addressWritten,
-  basenameOf,
-  type Derived,
-  linkedTitle,
-  nodeNamed,
-} from "@olai/format"
+import { addressWritten, basenameOf, linkedTitle } from "@olai/format"
 
+import type { Names } from "../reading.tsx"
 import { hrefOf, type Route, routeIn } from "../routes.ts"
 
 /**
@@ -167,9 +163,9 @@ export const titleFace = (
  *   - the pinned SHELF takes it off the server's answer (`../pins/pins.ts`,
  *     the `pins` cell), because a shelf is a reading of the whole vault and
  *     the browser no longer holds one (`docs/brainstorming/vault-in-browser.md`);
- *   - an ORDINARY OUTLINE ROW whose title is an address asks the page it is
- *     already drawn from ({@link shownIn}), which is the local reading PR 10
- *     moves.
+ *   - an ORDINARY OUTLINE ROW whose title is an address takes it off the
+ *     reading of the page it is drawn in ({@link shownIn}), which the same
+ *     design moved with the rest of a page's readings.
  *
  * One switch, one set of words, two ways of learning the one fact it cannot
  * work out for itself.
@@ -211,37 +207,32 @@ export const nameOf = (
 }
 
 /**
- * WHAT THE SET SAYS A NODE ADDRESS NAMES — the local lookup, and the one place
- * it is left.
+ * WHAT THE SET SAYS A NODE ADDRESS NAMES — {@link nameOf}'s missing fact, read
+ * off the names the PAGE was sent with.
  *
- * {@link nameOf}'s missing fact, asked of the reading this tab holds. It has
- * exactly one caller — an ordinary outline row whose title turns out to be an
- * address (`../NodeTitle.tsx`) — because the other face that draws addresses,
- * the pinned shelf, is answered by the server now and reads no set at all.
+ * Its one caller is an ordinary outline row whose title turns out to be an
+ * address (`../NodeTitle.tsx`); the other face that draws addresses, the pinned
+ * shelf, takes the same fact off its own member (`../pins/pins.ts`). Both are
+ * the server's answer now — the same `nodeNamed`, run where the set is — which
+ * is what keeps the shelf and the file's own page from having two answers about
+ * one title, and it is what PR 10 of `docs/brainstorming/vault-in-browser.md`
+ * took: this was the last address resolution a browser did over a copy of the
+ * vault.
  *
- * SO THIS IS WHAT PR 10 TAKES, and it is named here rather than left implicit:
- * the row is part of a PAGE, every page reading moves in one diff, and a title
- * resolved against a copy of the vault is exactly the reading that diff
- * replaces (`docs/brainstorming/vault-in-browser.md` §6). Until then it is the
- * same function the server calls (`@olai/format`'s `nodeNamed`) over the same
- * records, so the shelf and the file's own page cannot come to two answers
- * about one title — which is the property that made the resolver one module in
- * the first place.
+ * THE TABLE IS THE PAGE'S, which is the bound worth naming: it holds the ids
+ * THIS page points at, so a title that addresses a node no row here mentions is
+ * not in it — and cannot be, since the reading is built by walking exactly the
+ * records this page draws. A row's own title is one of those.
  *
  * `undefined` for every address that is not a node's, for a node the set does
- * not declare, and for the frame before the first one arrives — three states
- * with one answer, because a name nobody can say is a name nobody can say.
+ * not declare, and for the frame before the reading arrives — three states with
+ * one answer, because a name nobody can say is a name nobody can say.
  */
 export const shownIn = (
-  derived: Derived | undefined,
+  names: Names,
   route: Route,
 ): string | undefined => {
   const address = route.kind === "at" ? route.address : null
-  if (address === null || address.kind !== "node" || derived === undefined) {
-    return undefined
-  }
-  // The node at the end of whatever chain the id addresses — the set's one
-  // answer to "what does this id mean", the same one a `see` link's text comes
-  // from.
-  return nodeNamed(derived, address.id)?.node.title
+  if (address === null || address.kind !== "node") return undefined
+  return names(address.id)?.title
 }

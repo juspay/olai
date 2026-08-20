@@ -37,33 +37,36 @@
 import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { createConfirming } from "../confirming.ts"
-import { useDerived } from "../derived.tsx"
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
 import { ALARM_PILL, QUIET_PILL } from "../pill.ts"
 import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
 import { applying } from "../writes.ts"
-import { inTrash } from "./counting.ts"
 import { emptyQuestion } from "./question.ts"
 
 export function EmptyTrash(props: {
-  /** Every archive the directory holds, in path order — the page's own list
-   *  (`../page.ts`), including the ones holding nothing, because what this
-   *  counts is the SET and not what survived a filter. */
-  readonly files: ReadonlyArray<string>
+  /**
+   * How many RECORDS emptying would delete, across every archive the directory
+   * holds — the trash page's own reading (`@olai/format`'s `page.ts`).
+   *
+   * COUNTED IN THE SET and not over the rows, which is the whole reason it is a
+   * number rather than something this component works out: the filter box
+   * narrows this page like any other, and a mirror inside an archive draws the
+   * children of a live outline's node that emptying does not touch. Either one
+   * alone would make a count read off the page an understatement. It was the
+   * browser's own walk of its copy of the directory until PR 10 of
+   * `docs/brainstorming/vault-in-browser.md`; the rule did not move, the set
+   * did.
+   *
+   * Zero is what takes the control off the page entirely.
+   */
+  readonly going: number
 }) {
-  const derived = useDerived()
   const undo = useUndo()
   const { said, say } = createSaying()
 
-  /** How many records go — {@link ./counting.ts}, which is where the argument
-   *  for asking the SET rather than the page lives, and where it is tested.
-   *  Zero is what takes the control off the page entirely. */
-  const going = createMemo(() => {
-    const indexes = derived()
-    return indexes === undefined ? 0 : inTrash(indexes, props.files)
-  })
+  const going = () => props.going
 
   /** The question, and the rule that it does not outlive what it is about
    *  (`../confirming.ts`, which is where that trap is written down). The

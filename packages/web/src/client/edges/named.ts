@@ -18,12 +18,18 @@
  * falls back to the id, so the page says what the file says rather than drawing
  * a blank.
  *
- * THE INDEXES ARRIVE AS AN ACCESSOR and are read LAST, which is a reactivity
+ * THE NAMES ARRIVE AS AN ACCESSOR and are read LAST, which is a reactivity
  * decision rather than a signature accident: a node carrying nothing on this
- * field — almost every node — must not subscribe to the whole set, or every row
- * of a large outline re-runs on every frame the store publishes. Called inside
- * the caller's own memo, this reads the cheap field first and the set only when
- * there is something to look up.
+ * field — almost every node — must not subscribe to the page's whole reading,
+ * or every row of a large outline re-runs on every frame the server publishes.
+ * Called inside the caller's own memo, this reads the cheap field first and the
+ * table only when there is something to look up.
+ *
+ * WHAT THE TABLE IS: the ids THIS PAGE points at, resolved where the set is and
+ * sent with the page (`@olai/format`'s `page.ts`, and `../reading.tsx`). It was
+ * a lookup in the tab's own copy of every record in the directory until PR 10
+ * of `docs/brainstorming/vault-in-browser.md`; the rule for what an id names is
+ * the same one, `nodeNamed`, run on the side that holds the vault.
  *
  * A TARGET NAMED TWICE IS NAMED ONCE, and that is decided here, at the read,
  * because it is what the WRITE already says: `set_see` / `set_after` treat the
@@ -49,28 +55,28 @@
  * deciding something no writer has.
  */
 
-import { type Derived, nodeNamed, type RegularNode } from "@olai/format"
+import type { RegularNode } from "@olai/format"
 import type { Accessor } from "solid-js"
 
+import type { Names } from "../reading.tsx"
 import type { NodeRef } from "../ref.ts"
 import type { Relation } from "./relation.ts"
 
 export const namedBy = (
   node: RegularNode,
   relation: Relation,
-  indexes: Accessor<Derived | undefined>,
+  names: Accessor<Names>,
 ): ReadonlyArray<NodeRef> => {
   const named = node[relation]
   if (named === undefined || named.length === 0) return []
-  const at = indexes()
-  if (at === undefined) return []
+  const table = names()
   // A `Set` keeps insertion order, so a repeat is dropped where the SECOND
   // one stands and the list still reads as the file wrote it.
   return [...new Set(named)].map((id) => {
-    const found = nodeNamed(at, id)
+    const found = table(id)
     return {
       id,
-      title: found?.node.title ?? id,
+      title: found?.title ?? id,
       // from "" when dangling: the title is the id, not outline prose.
       from: found?.file ?? "",
     }

@@ -51,7 +51,7 @@ import { createMemo, Show } from "solid-js"
 
 import { addressIn, shownIn, titleFace } from "./address/address.ts"
 import { Face } from "./address/Face.tsx"
-import { useDerived } from "./derived.tsx"
+import { useNames } from "./reading.tsx"
 import { renderTitle } from "./markdown/title.ts"
 
 export function NodeTitle(props: {
@@ -68,7 +68,7 @@ export function NodeTitle(props: {
    *  on every title drawn for a row the query did not select. */
   readonly needles?: ReadonlyArray<string>
 }) {
-  const derived = useDerived()
+  const names = useNames()
   /** The place this title names, for the titles that name one. Cheap for every
    *  other title in the directory: the test short-circuits on the first
    *  character (`./address/address.ts`). */
@@ -93,13 +93,14 @@ export function NodeTitle(props: {
     >
       {(route) => {
         /** WHAT THIS FACE SAYS AND WHAT IT MAY BE, from the one reading both
-         *  faces make of a title (`./address/address.ts`) — asked here of the
-         *  page this row is drawn from, which is the last address resolution
-         *  answered in the browser and the one PR 10 takes with the rest of a
-         *  page's readings (`shownIn`). The shelf's identical question is
-         *  answered on the server. */
+         *  faces make of a title (`./address/address.ts`) — and the set's half
+         *  of it read off the names this PAGE was sent with (`./reading.tsx`).
+         *  It was a lookup in the tab's own copy of the vault until PR 10 of
+         *  `docs/brainstorming/vault-in-browser.md`; both faces are answered by
+         *  the server now, the shelf's on its own member and this one on the
+         *  reading of the page the row is drawn in. */
         const face = createMemo(() =>
-          titleFace(props.title, route(), shownIn(derived(), route()))
+          titleFace(props.title, route(), shownIn(names(), route()))
         )
         return (
           // The needles are deliberately not carried into a face: what a filter

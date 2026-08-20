@@ -37,7 +37,6 @@
  */
 
 import {
-  type Derived,
   isMirror,
   MARKS,
   type Node,
@@ -55,7 +54,6 @@ import { pinnedAt } from "../pins/pins.ts"
 import { customEntries } from "../props/drawer.ts"
 import { atNode, hrefOf } from "../routes.ts"
 import { trashQuestion } from "../trash/question.ts"
-import { under } from "./subtree.ts"
 
 /**
  * What a write verb is ABOUT: one record, and whatever it shows.
@@ -182,12 +180,15 @@ const MARK_LABEL: ReadonlyArray<readonly [Status, string]> = [
 
 export const writeVerbs = (
   subject: Subject,
-  /** The set's own indexes, for the one question a SUBJECT cannot answer: how
-   *  much an archive would move. `undefined` only while the first frame is
-   *  still arriving, which is a moment no row is drawn in — and the one verb
-   *  that asks is then not offered rather than offered with a number nobody
-   *  checked. */
-  derived: Derived | undefined,
+  /** How many records hang under the node this subject shows, IN THE SET — the
+   *  one question a subject cannot answer, and the number the archive's confirm
+   *  has to name. It rides on the row now (`@olai/format`'s `Row.under`),
+   *  counted where the set is, because the browser stopped holding one
+   *  (`docs/brainstorming/vault-in-browser.md`). `undefined` only while a
+   *  page's first reading is still arriving, which is a moment no row is drawn
+   *  in — and the one verb that asks is then not offered rather than offered
+   *  with a number nobody checked. */
+  under: number | undefined,
   /** The shelf, as the server answered it — the other question a subject
    *  cannot answer: whether this node's page is already a door in the sidebar
    *  (`../pins/answered.tsx`). A SECOND value rather than a field on the first
@@ -420,7 +421,7 @@ export const writeVerbs = (
     // frame before the first snapshot arrives, where a count nobody checked
     // would be worse than a missing entry. The verb above needs no index, and
     // is drawn in that frame like every other one.
-    if (derived === undefined) return verbs
+    if (under === undefined) return verbs
 
     // It is drawn on a node's own row and not on a mirror of it,
     // which is the same split as the verb above rather than a missing case:
@@ -442,10 +443,7 @@ export const writeVerbs = (
       // this file's: the human's 2026-08-12 ruling is about the TRASH, and a
       // multi-selection's Move to Trash makes the same promise about the same
       // op. Two spellings of it could only ever drift.
-      confirm: trashQuestion(
-        { kind: "row", title: shown.node.title },
-        under(derived, shown.node.id),
-      ),
+      confirm: trashQuestion({ kind: "row", title: shown.node.title }, under),
     })
   }
 

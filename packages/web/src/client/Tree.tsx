@@ -83,7 +83,7 @@ import { DatePicker } from "./date/DatePicker.tsx"
 import { RepeatPicker } from "./date/RepeatPicker.tsx"
 import { datePick } from "./date/pick.ts"
 import { repeatPick } from "./date/repeat.ts"
-import { useDerived } from "./derived.tsx"
+
 import { createEdgeEditing } from "./edges/editing.tsx"
 import { useEditor } from "./edit/editing.tsx"
 import { useMoving } from "./move/moving.tsx"
@@ -220,14 +220,11 @@ function Branch(props: {
   // SPA navigate for the menu's "Zoom in" — same path as the bullet, never
   // location.assign (which reloads the document and kills the reading).
   const go = useGo()
-  // The SET's own indexes, for the one menu verb whose question the rows
-  // cannot answer: how much an archive takes with it. These rows are a
-  // reading — done-hidden has already dropped branches from them — and the
-  // confirm has to name what the write moves (./menu/subtree.ts).
-  const derived = useDerived()
-  // …and the SHELF, for the other one: whether this row is already a door in
-  // the sidebar. Answered by the server now, so this reads the tab's copy of
-  // that answer rather than a walk of the directory (./pins/answered.tsx).
+  // THE SHELF, for the one menu verb whose question is about the sidebar rather
+  // than about this row: whether this node is already a door on it. Answered by
+  // the server, like everything else a menu asks about the vault — how much an
+  // archive takes with it rides on the row itself now (`Row.under`), counted
+  // where the set is.
   const pins = usePins()
   // ⌘Z is one stack for this page, whichever hand wrote: a menu verb files
   // what would take it back exactly as a keystroke does (./writes.ts).
@@ -542,7 +539,6 @@ function Branch(props: {
             door={menu}
             actions={nodeMenuActions({
               row: props.row,
-              derived: derived(),
               pins: pins(),
               collapsed: collapsed(),
               foldable: foldable(),

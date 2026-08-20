@@ -69,7 +69,7 @@ import type { RegularNode } from "@olai/format"
 import type { Edit } from "@olai/surface"
 import { createMemo, For, Show } from "solid-js"
 
-import { useDerived } from "../derived.tsx"
+import { useNames } from "../reading.tsx"
 import { Shortlist, type ShortlistTestids } from "../search/Shortlist.tsx"
 import { TESTID } from "../testids.ts"
 import { PANEL_OUT } from "../pill.ts"
@@ -102,15 +102,15 @@ export function EdgePanel(props: {
   readonly onWrite: (edit: Edit) => void
   readonly onClose: () => void
 }) {
-  const derived = useDerived()
+  const names = useNames()
   /** A table index, not a computation: a memo here would cost a reactive node
    *  to cache a property read whose key cannot change under it. */
   const words = () => relating(props.relation)
 
   /** What the node says NOW — the same reading the row of links draws
    *  (`./named.ts`), so the panel and the page cannot disagree about what an id
-   *  names or about the frame before the indexes arrive. */
-  const held = createMemo(() => namedBy(props.node, props.relation, derived))
+   *  names or about the frame before the page's reading arrives. */
+  const held = createMemo(() => namedBy(props.node, props.relation, names))
 
   return (
     <div
