@@ -1245,15 +1245,13 @@ export class OlaiWorld extends World {
    *  sets this: the copy is private to this worker, shared with the other
    *  scratch scenarios of that feature on this worker. */
   served?: string;
-  /** True when this scenario is on a feature-shared scratch. After must not
-   *  kill the server or delete the tree; a restart must refuse. */
-  scratchShared = false;
-  /** Content hashes of the scratch tree at Before, so After can name the
-   *  files this scenario actually wrote. Undefined when not sharing. */
-  scratchWas?: Map<string, string>;
-  /** Cache key of the shared slot this scenario is on, for After's collision
-   *  check. Undefined when not sharing. */
-  scratchKey?: string;
+  /**
+   * Set only while this scenario is on a feature-shared scratch. One record
+   * rather than a boolean plus two optionals: a shared run that has no key,
+   * or a key with no snapshot, is not a state After can be asked to interpret.
+   * Absent means the copy is private (killed in After) or there is no copy.
+   */
+  scratchShare?: { readonly key: string; readonly was: Map<string, string> };
   /** Where this scenario PUSHES to, once it has asked for one: a bare
    *  repository in a temp directory, wired up as `origin`. Undefined for every
    *  scenario that is not about pushing, which is all but one of them. */

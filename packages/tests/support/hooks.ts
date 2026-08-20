@@ -544,7 +544,7 @@ const startServerChild = async (
  * is not.
  */
 export const stopOwnServer = async (world: OlaiWorld): Promise<void> => {
-  if (world.scratchShared) {
+  if (world.scratchShare !== undefined) {
     throw new Error(
       `this scenario restarts the server it is served by, so it must own ` +
         `that server: tag it ${OWN_TAG} rather than sharing (${SHARE_TAG}) — ` +
@@ -925,30 +925,29 @@ Before(
         kolu: this.hasKolu,
         ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
       };
-      // A retry of a sharing scenario would inherit its first attempt's
-      // writes; give it a private copy instead (CUCUMBER_RETRY, default 0).
-      const pickleId = scenario.pickle.id;
-      const featureKey = `${scenario.pickle.uri}::${asked.corpus}::${spawnFingerprint(spawnOptions)}`;
-      let share = asked.mode === "share";
-      if (share) {
-        const slot = await sharedScratchFor(featureKey, asked.corpus, spawnOptions);
-        if (slot.seenPickles.has(pickleId)) {
-          share = false;
-        } else {
-          slot.seenPickles.add(pickleId);
-          this.baseUrl = slot.server.baseUrl;
-          this.served = slot.server.root;
-          this.ownServer = slot.server.child;
-          this.scratchShared = true;
-          this.scratchKey = featureKey;
-          this.scratchWas = filesOf(slot.server.root);
-        }
-      }
-      if (!share) {
+      const ownCopy = async (): Promise<void> => {
         const own = await scratchServerFor(asked.corpus, spawnOptions);
         this.baseUrl = own.baseUrl;
         this.served = own.root;
         this.ownServer = own.child;
+      };
+      if (asked.mode === "share") {
+        const featureKey = `${scenario.pickle.uri}::${asked.corpus}::${spawnFingerprint(spawnOptions)}`;
+        const slot = await sharedScratchFor(featureKey, asked.corpus, spawnOptions);
+        // A retry of a sharing scenario would inherit its first attempt's
+        // writes; a private copy is a different server, not a flag on this one
+        // (CUCUMBER_RETRY, default 0).
+        if (slot.seenPickles.has(scenario.pickle.id)) {
+          await ownCopy();
+        } else {
+          slot.seenPickles.add(scenario.pickle.id);
+          this.baseUrl = slot.server.baseUrl;
+          this.served = slot.server.root;
+          this.ownServer = slot.server.child;
+          this.scratchShare = { key: featureKey, was: filesOf(slot.server.root) };
+        }
+      } else {
+        await ownCopy();
       }
     } else {
       this.baseUrl = (await serverFor(this.corpus)).baseUrl;
@@ -1058,10 +1057,10 @@ After(async function (this: OlaiWorld, scenario) {
   // A feature-shared scratch outlives the scenario: After records what this
   // one wrote, refuses if an earlier scenario on this worker already wrote
   // the same path, and leaves the process running for the rest of the feature.
-  if (this.scratchShared && this.scratchKey !== undefined && this.served) {
-    const slot = await sharedScratches.get(this.scratchKey);
+  if (this.scratchShare !== undefined && this.served) {
+    const slot = await sharedScratches.get(this.scratchShare.key);
     if (slot !== undefined) {
-      const changed = changedFiles(this.scratchWas ?? new Map(), filesOf(this.served));
+      const changed = changedFiles(this.scratchShare.was, filesOf(this.served));
       const hit = overlapWith(changed, slot.writers);
       const feature = path.basename(scenario.pickle.uri);
       slot.writers.push({ name: scenario.pickle.name, files: changed });
