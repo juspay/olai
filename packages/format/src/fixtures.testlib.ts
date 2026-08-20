@@ -26,10 +26,13 @@
 
 import { Result } from "effect"
 
-import { derive } from "./derive.ts"
+import { type Agenda, type AgendaDay, isOverdue, UPCOMING_DAYS } from "./agenda.ts"
+import { type DayGroup, groupedOn } from "./dates.ts"
+import { byDayKey, derive, type Derived } from "./derive.ts"
 import type { OutlineError } from "./errors.ts"
 import { unkept } from "./kinds.ts"
-import type { Located } from "./node.ts"
+import { isMirror, isPutAway, type Located, type LocatedRegular, storedMarker } from "./node.ts"
+import { type Dated, datesOf, dayOf, monthOf } from "./occasion.ts"
 import { parseOutline } from "./parse.ts"
 import { bodiedDocument, type Document, type Outline } from "./document.ts"
 import { assemble, outlinesIn, type OutlineSet } from "./set.ts"
@@ -242,7 +245,10 @@ const unparsable = (
  * the first spelling of this used a modulo that never fired; and `#tags` in the
  * titles ({@link titleTags}), because the index files BOTH sigils and a vault
  * whose titles hold none of the commoner one would measure the half nobody
- * writes. Paths are mostly flat, some nested, and a few in a
+ * writes; and DATES ({@link dateFor}) on a quarter of the records, spread over
+ * two years, because the day index is the third one a bench prints a number
+ * about and a vault where nothing is scheduled would print its fold as free.
+ * Paths are mostly flat, some nested, and a few in a
  * directory named after a file beside it: the pair the two readings of path
  * order used to disagree about.
  *
@@ -291,7 +297,16 @@ const fileOf = (random: () => number, at: number, records: number): string => {
       title: `record ${which} of file ${at}${titleTags(at, which)}`,
     }
     if (random() < 0.3) record["todo"] = true
-    else if (random() < 0.15) record["done"] = true
+    // A finished record carries the INSTANT it was finished at half the time,
+    // which is the second of the two fields a day is keyed by (`./occasion.ts`)
+    // and the one a vault of `done: true` leaves unreached. Counted off
+    // `which` rather than drawn, for the reason the note below is.
+    else if (random() < 0.15) record["done"] = which % 2 === 0 ? true : dateFor(at, which + 3)
+    // A DATE on every fourth record — what `Derived.byDay` is keyed by, and the
+    // reason it is here at all: a vault where nothing is scheduled measures the
+    // day index's fold as costing nothing and its readings as answering
+    // nothing, which is the *was never asked* `./vault.test.ts` was minted over.
+    if (which % 4 === 0) record["date"] = dateFor(at, which)
     if (which > 1 && random() < 0.1) record["after"] = [`f${at}n${which - 1}`]
     // A NOTE on every fifth record, and every TENTH naming another by its
     // `@id` — because a vault whose records hold no prose at all measures none
@@ -330,6 +345,38 @@ const fileOf = (random: () => number, at: number, records: number): string => {
   }
   return lines.join("\n")
 }
+
+/**
+ * The DAY a record is filed on — one of two years' worth, chosen so that a
+ * file's records cluster within a few weeks of each other and the vault as a
+ * whole spreads over the span.
+ *
+ * COUNTED rather than DRAWN, exactly as the note and the tags are and for their
+ * reason: a `random()` call here would shift the rest of the seeded stream and
+ * rename every figure the docs quote. Which files exist, which records they
+ * hold and which of them are mirrors is the vault it has always been, with days
+ * added to it.
+ *
+ * EVERY DAY IN THE LIST IS A REAL ONE, and that is why the month is 28 days
+ * long: a generator that counted to 31 would write `2025-02-30`, which
+ * `./parse.ts` refuses — and a fixture file that does not parse is a bench
+ * measuring a corpus it does not hold.
+ */
+const dateFor = (at: number, which: number): string => {
+  const day = DAYS[(at * 7 + which) % DAYS.length] as string
+  // A quarter of them carry a TIME, because a datetime lands on its DAY and an
+  // index keyed by the stored value would grow a key per appointment.
+  return which % 8 === 0 ? `${day}T09:30:00-04:00` : day
+}
+
+/** Two years of days, twenty-eight to the month — see {@link dateFor}. */
+const DAYS: ReadonlyArray<string> = Array.from({ length: 24 * 28 }, (_, at) => {
+  const month = Math.floor(at / 28)
+  const printed = (value: number): string => String(value).padStart(2, "0")
+  return `${2025 + Math.floor(month / 12)}-${printed((month % 12) + 1)}-${
+    printed((at % 28) + 1)
+  }`
+})
 
 /**
  * The `#tags` one record's title carries — a broad one on every third record
@@ -504,3 +551,102 @@ export const runtimeSaid = (): string =>
  *  holds is the derivation, which carries these already. */
 export const recordsOf = (set: OutlineSet): ReadonlyArray<Located> =>
   outlinesIn(set).flatMap((outline) => outline.nodes)
+
+// ── the day readings as they STOOD, before `Derived.byDay` ─────────────
+//
+// `perf-dates-index` deleted a pass over every record of every outline and put
+// an index in its place. What is written out below is that pass, in the shape
+// it had, and it has exactly two callers: `./occasion.test.ts`, where it is the
+// ORACLE every generated corpus is asked against, and `./dates.bench.ts`, where
+// it is the arm the index's number is divided by.
+//
+// ONE COPY, and that is this module's own argument read once more (its header:
+// a helper a test and a benchmark were about to hold byte-identical copies of
+// belongs here). It matters more here than it did for `seeded`: two
+// reconstructions of one deleted walk could disagree, and then the ratio a
+// bench printed would be about the difference between them rather than about
+// the index — while the property test went on passing against the other one.
+//
+// It is an ORACLE and not legacy, which is the line the no-legacy law draws:
+// nothing that ships calls any of it, and nothing here is in the package's
+// exports.
+
+/** Every date of every node of the set, in file order, a node contributing one
+ *  for each date it carries — the deleted `dates.ts`'s `datedNodes`. */
+export const datedNodes = (derived: Derived): ReadonlyArray<Dated> =>
+  derived.nodes.flatMap((located) =>
+    isMirror(located.node) || isPutAway(located.file)
+      ? []
+      : datesOf(located.node).map((dated) => ({
+        at: located as LocatedRegular,
+        ...dated,
+      }))
+  )
+
+/** ...bucketed by the day each falls on — the deleted `datedByDay`. */
+export const walkedByDay = (
+  derived: Derived,
+): ReadonlyMap<string, ReadonlyArray<Dated>> => {
+  const days = new Map<string, Array<Dated>>()
+  for (const dated of datedNodes(derived)) {
+    const day = dayOf(dated.date)
+    const bucket = days.get(day)
+    if (bucket === undefined) days.set(day, [dated])
+    else bucket.push(dated)
+  }
+  return days
+}
+
+/** The days of one month that had anything on them — the deleted `datedDays`,
+ *  which answered a SET and left the order to whoever printed it. Sorted here,
+ *  because what the two arms must agree about is WHICH days. */
+export const walkedDays = (
+  derived: Derived,
+  month: string,
+): ReadonlyArray<string> => {
+  const days = new Set<string>()
+  for (const dated of datedNodes(derived)) {
+    const day = dayOf(dated.date)
+    if (monthOf(day) === month) days.add(day)
+  }
+  return [...days].sort(byDayKey)
+}
+
+/** One day's rows, walked — the deleted `datedOn`. */
+export const walkedOn = (
+  derived: Derived,
+  day: string,
+): ReadonlyArray<DayGroup> => groupedOn(derived, walkedByDay(derived).get(day) ?? [])
+
+/**
+ * The agenda as it stood: every day the set has, sorted per read, then filtered
+ * per half.
+ *
+ * BOTH COMPARISONS ARE KEPT AS THEY WERE — `dayOf(today)` behind, the caller's
+ * own value ahead and for today's own bucket — because an oracle that quietly
+ * corrected one of them would be asserting a change rather than the absence of
+ * one, which is the only thing it is for.
+ */
+export const walkedAgenda = (derived: Derived, today: string): Agenda => {
+  const walked = walkedByDay(derived)
+  const days = [...walked.keys()].sort(byDayKey)
+  const overdue: Array<AgendaDay> = []
+  for (const date of days.filter((day) => day < dayOf(today))) {
+    const owed = (walked.get(date) ?? []).filter((one) => isOverdue(one.at.node, today))
+    if (owed.length > 0) overdue.push({ date, groups: groupedOn(derived, owed) })
+  }
+  const upcoming: Array<AgendaDay> = []
+  for (const date of days.filter((day) => day > today)) {
+    if (upcoming.length === UPCOMING_DAYS) break
+    const groups = owedWalk(derived, walked.get(date) ?? [])
+    if (groups.length > 0) upcoming.push({ date, groups })
+  }
+  return { overdue, today: owedWalk(derived, walked.get(today) ?? []), upcoming }
+}
+
+/** What is OWED on one day: the day's records minus what is finished. */
+const owedWalk = (
+  derived: Derived,
+  dated: ReadonlyArray<Dated>,
+): ReadonlyArray<DayGroup> =>
+  groupedOn(derived, dated.filter((one) => storedMarker(one.at.node) !== "done"))

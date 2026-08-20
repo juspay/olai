@@ -32,7 +32,7 @@
  * spelling again.
  */
 
-import { Schema } from "effect"
+import { Order, Schema } from "effect"
 
 import { Tag } from "./address.ts"
 import {
@@ -43,12 +43,13 @@ import {
   isRegular,
   type Located,
   type LocatedRegular,
-  MARKS,
   type Node,
   type Status,
+  storedMarker,
   type TargetField,
   targetsOf,
 } from "./node.ts"
+import { type Dated, dateInto } from "./occasion.ts"
 import { byPath } from "./paths.ts"
 
 /** What a node's checkbox shows, re-exported rather than declared: it is one
@@ -242,6 +243,41 @@ export interface Derived {
    * order the directory holds them.
    */
   readonly taggedBy: ReadonlyMap<string, ReadonlyArray<LocatedRegular>>
+  /**
+   * A DAY (`YYYY-MM-DD`) → the dates that land on it, each with the record that
+   * carries it: {@link ./occasion.ts}'s `datesOf` read backwards over the set.
+   *
+   * The journal, as an index. A day used to be a QUESTION asked of every node in
+   * every live outline — the agenda, the calendar's dots and a day page each
+   * walked the whole directory per call, and since `vault-in-browser`'s PR 4 two
+   * of those walks ran per subscriber per published revision on the server. This
+   * is the same reading with the walk done once, at the fold, and maintained by
+   * the patcher at what an edit touched (roadmap `perf-dates-index`).
+   *
+   * KEYS IN DAY ORDER, which is plain code-point order on `YYYY-MM-DD` — the
+   * only index here that promises an order its keys are read in for a reason
+   * that is not the corpus's. Three readers spend it and none of them may sort
+   * to get it: the calendar's month walks the keys that fall inside it and stops
+   * (`./dates.ts`'s `datedDays`), and the agenda walks back from today for what
+   * has slipped and forward for the next few days that have anything
+   * (`./agenda.ts`). Sorting per read is what those three did before there was
+   * an index at all, and a decade of daily notes is three and a half thousand
+   * keys to sort — per subscriber, per revision. The patcher pays for it the way
+   * {@link Derived.byFile} pays for path order: only an edit that ADDS or DROPS
+   * a day re-sorts, which nearly none do.
+   *
+   * VALUES IN CORPUS ORDER, like the reverse indexes above, and within one
+   * record its own dates in `datesOf` precedence — which is what lets a day page
+   * decide, for a node scheduled and finished on one day, which of the two names
+   * the row without asking the record again.
+   *
+   * A MIRROR IS NEVER IN IT and WHAT WAS PUT AWAY IS NEVER IN IT, both at the
+   * fold rather than at the read, which is where this index parts company with
+   * `taggedBy` above — {@link ./occasion.ts}'s `dateInto` argues both, and the
+   * second is the older ruling that every date reading in this package inherits
+   * rather than restates.
+   */
+  readonly byDay: ReadonlyMap<string, ReadonlyArray<Dated>>
 }
 
 /**
@@ -431,18 +467,20 @@ export const tagInto = (
 export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   // `Map.groupBy` is the language's own group-by-key, and grouping by file is
   // exactly that — a hand-rolled accumulator here would be a second spelling
-  // of a built-in (the same note #198 took). The three tables below are not
+  // of a built-in (the same note #198 took). The five tables below are not
   // that shape: one keeps the FIRST claim rather than every one, one skips the
-  // records with no key at all, one keys a record by every id it names and one
-  // by every tag its prose writes — so they share one walk, since none of them
-  // reads what another builds and splitting them is four passes to ask four
-  // things about a record already in hand.
+  // records with no key at all, one keys a record by every id it names, one by
+  // every tag its prose writes, and one by every DAY its dates fall on (which
+  // is 0, 1 or 2 keys per record, so not a grouping at all) — so they share one
+  // walk, since none of them reads what another builds and splitting them is
+  // five passes to ask five things about a record already in hand.
   const byFile = Map.groupBy(nodes, (located) => located.file)
 
   const byId = new Map<string, Located>()
   const children = new Map<string, Array<Located>>()
   const namedBy = new Map<string, Array<{ at: Located; fields: Array<TargetField> }>>()
   const taggedBy = new Map<string, Array<LocatedRegular>>()
+  const days = new Map<string, Array<Dated>>()
 
   for (const located of nodes) {
     if (!byId.has(located.node.id)) byId.set(located.node.id, located)
@@ -456,6 +494,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
 
     nameInto(namedBy, located)
     tagInto(taggedBy, located)
+    dateInto(days, located)
   }
 
   // Sorted rather than trusted: a set assembled file by file already arrives
@@ -466,6 +505,10 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   // `ord` is a fractional index over base62, so plain string comparison IS the
   // sort; file order breaks ties rather than leaving them to the engine.
   for (const siblings of children.values()) siblings.sort(byOrd)
+  // The one index here whose KEYS are promised in an order the walk does not
+  // already give ({@link Derived.byDay}): a set is in corpus order, and the days
+  // its records name arrive in no order at all.
+  const byDay = new Map([...days].sort(([one], [other]) => byDayKey(one, other)))
 
   const { status, mirrorsOf } = resolutions(nodes, byId)
   const { after, edgesTo } = orderings(byId, nodes)
@@ -481,8 +524,17 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
     edgesTo,
     namedBy,
     taggedBy,
+    byDay,
   }
 }
+
+/** Ascending by day — {@link Derived.byDay}'s promised key order, and effect's
+ *  own comparator rather than a hand-rolled one, for the reason every other day
+ *  comparison in this package reaches for it (`./dates.ts`): a day is TEXT, and
+ *  `localeCompare` would put the same one in two orders on two machines.
+ *  Exported for the patcher, which re-sorts the keys an edit added rather than
+ *  re-deciding what day order is. */
+export const byDayKey: (a: string, b: string) => number = Order.String
 
 /** The order the records are on disk — {@link Derived.byFile}'s promise, and
  *  the only comparator here that is not about meaning. Exported for the
@@ -627,14 +679,6 @@ const resolutions = (
   }
   return { status, mirrorsOf }
 }
-
-/** What a record claims about itself, which IS its status — and `undefined`
- *  for one claiming nothing, the one spelling of absence this module has. Read
- *  in {@link MARKS} order, which is precedence: the three are mutually
- *  exclusive on disk, so it only decides what a set the validator has already
- *  condemned looks like. */
-export const storedMarker = (node: LocatedRegular["node"]): Status | undefined =>
-  MARKS.find((mark) => node[mark] !== undefined)
 
 /**
  * Whether a mark is work that is NOT finished — the ONE spelling of it.

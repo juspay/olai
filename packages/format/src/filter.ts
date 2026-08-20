@@ -44,14 +44,14 @@ import {
   isMirrored,
   mayHoldTag,
   type Row,
-  storedMarker,
   tagText,
   titleParts,
 } from "./derive.ts"
 import type { Hypertext, Markdown } from "./document.ts"
 import { customOf } from "./custom.ts"
 import { shiftDay, shiftMonth, weekdayOf } from "./calendar.ts"
-import { type DayGroup, datesOf, dayOf, monthOf } from "./dates.ts"
+import type { DayGroup } from "./dates.ts"
+import { datesOf, dayOf, monthOf } from "./occasion.ts"
 import { basenameOf } from "./paths.ts"
 import { nothing } from "./write.ts"
 import {
@@ -61,6 +61,7 @@ import {
   type Located,
   type LocatedRegular,
   type RegularNode,
+  storedMarker,
 } from "./node.ts"
 
 // ── the four fields a word is looked for in ────────────────────────────

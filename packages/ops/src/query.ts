@@ -524,25 +524,25 @@ export const homes = (
  * The browser used to walk its own copy of the set for this, once per month
  * drawn and again on every published revision. It cannot any more
  * (`docs/brainstorming/vault-in-browser.md`: the browser may hold at most the
- * page in front of somebody), so the walk runs here and the answer travels —
- * which is the whole of what changed. The WALK is `@olai/format`'s
+ * page in front of somebody), so the reading runs here and the answer travels —
+ * which is the whole of what changed. The READING is `@olai/format`'s
  * {@link datedDays}, unmoved: what is dated, what a mark's own date counts for
  * and what a put-away outline is excluded from are that module's rulings, read
  * once for the day page, the agenda and this.
  *
- * NOTHING IS ADDED HERE, which is the shape rather than an omission: the walk
- * and the ORDER it is answered in are both `@olai/format`'s
- * ({@link datedAnswer}, which is the one way to build one, beside the
- * equivalence that rests on it). What this layer contributes is the gate the
- * request arrives through, which is the whole of what a query door is.
+ * NOTHING IS ADDED HERE, which is the shape rather than an omission: the answer
+ * and the ORDER it comes in are both `@olai/format`'s ({@link datedAnswer},
+ * which is the one way to build one, beside the equivalence that rests on it).
+ * What this layer contributes is the gate the request arrives through, which is
+ * the whole of what a query door is.
  *
- * THE WALK IS THE WHOLE SET, per call, and that is true of every date reading
- * this layer has (`@olai/format`'s `datedNodes`). It was already true when the
- * browser made the call; what is new is that it now runs per subscriber per
- * revision, which is exactly the pressure the roadmap's `perf-dates-index`
- * node exists to answer. Nothing about this shape forces an index first, and
- * nothing about it gets in one's way: an index changes what `datedDays` costs,
- * not what it means.
+ * IT WAS A WALK OF THE WHOLE SET per call, as every date reading this layer has
+ * was, and running it per subscriber per revision is exactly the pressure the
+ * roadmap's `perf-dates-index` node was filed on. That node has landed: the
+ * derivation carries a day index and this is a walk of one month's keys. NOTHING
+ * HERE MOVED WITH IT, which is what the paragraph above predicted and is worth
+ * leaving as the record of a seam that held — an index changes what a reading
+ * COSTS, never what it means.
  */
 export const dated = (derived: Derived, request: DatedRequest): DatedAnswer =>
   datedAnswer(derived, request.month)

@@ -418,21 +418,24 @@ const lever = (
 }
 
 /**
- * `byId` cloned, against all NINE other indexes cloned together — the number
+ * `byId` cloned, against all TEN other indexes cloned together — the number
  * behind "`byId` is the one that gets a layer", measured as a pair rather than
  * as two figures from two moments, for {@link walked}'s reason.
  *
- * Clones on both sides, because the nine are what the patcher GOES ON doing:
- * eight of them delete keys across a patch, which a layer keeping the base's
+ * Clones on both sides, because the ten are what the patcher GOES ON doing:
+ * nine of them delete keys across a patch, which a layer keeping the base's
  * key set cannot, and the one that does not is walked whole by the validator.
  *
- * `taggedBy` joined the list when it joined the view, and it is named here
- * rather than left out because the arm is "what a patch still pays": an index
- * missing from it is a clone the pair silently does not count.
+ * `taggedBy` joined the list when it joined the view, and `byDay` with the day
+ * index; both are named here rather than left out because the arm is "what a
+ * patch still pays", and an index missing from it is a clone the pair silently
+ * does not count.
  */
 const beside = (): readonly [byId: number, others: number] => {
   const others = (["children", "status", "after", "blocked", "byFile", "mirrorsOf", "edgesTo",
-    "namedBy", "taggedBy"] as const).map((key) => first[key] as ReadonlyMap<string, unknown>)
+    "namedBy", "taggedBy", "byDay"] as const).map((key) =>
+      first[key] as ReadonlyMap<string, unknown>
+    )
   const arms = [
     () => {
       new Map(first.byId)
@@ -656,7 +659,7 @@ lever("the same file every time", typing)
 const [byIdClone, othersClone] = beside()
 console.log(
   `\none clone of each index: ${byIdClone.toFixed(3)}ms for byId,` +
-    ` ${othersClone.toFixed(3)}ms for all nine others together` +
+    ` ${othersClone.toFixed(3)}ms for all ten others together` +
     ` — which is the work a patch still does`,
 )
 const [narrowFold, wideFold] = folds()

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { dayOf } from "./dates.ts"
+import { dayOf } from "./occasion.ts"
 import { inZone, outlineOf, STAMP_SHAPE } from "./fixtures.testlib.ts"
 import { offsetOf, stampOf } from "./stamp.ts"
 

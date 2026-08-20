@@ -145,6 +145,12 @@ export default function App() {
    * page it leads to are two callers of one function (`owedOf` over
    * `agendaOf`) over one directory, which is why they can differ by at most a
    * frame and never by an opinion.
+   *
+   * IT RE-RUNS ON EVERY DERIVATION CHANGE, which is every edit anywhere in the
+   * directory, and that is no longer what it was: `agendaOf` reads the day
+   * index the fold this memo depends on already maintains (`perf-dates-index`),
+   * so a keystroke three files away costs this a walk of the days that owe
+   * something rather than a pass over every record in the vault.
    */
   const agenda = createMemo(() => {
     const indexes = outlines.derived()

@@ -253,6 +253,10 @@ export {
    *  request that writes one, the keystroke that toggles one and the read that
    *  answers with one are one derivation of that list rather than five. */
   Status,
+  /** What a record CLAIMS about itself, which is its status — read off the
+   *  MARKS list beside it, so the checkbox, the journal and the planner all ask
+   *  one question about a record rather than three (`./node.ts`). */
+  storedMarker,
   /** Which words a `custom` key may not take, and what writes each of them
    *  instead — asked of the record's own field names, so a new field cannot
    *  arrive without one. `set_prop` is its only caller. */
@@ -333,7 +337,6 @@ export {
   standingBefore,
   isTagName,
   mayHoldTag,
-  storedMarker,
   TAG_SIGILS,
   tagOpensAt,
   tagPart,
@@ -422,18 +425,22 @@ export {
   DatedAnswer,
   datedAnswer,
   DatedRequest,
-  datedDays,
   datedIn,
   datedOn,
-  dayOf,
   isDay,
   sameDated,
-  /** The TIME a datetime names, where `dayOf` takes the day off the front of
-   *  the same value. Public because the agenda's spine keeps a pill for it and
-   *  drops one for everything else the day heading already said. */
-  timeOf,
 } from "./dates.ts"
-export type { DayEntry, DayGroup, Occasion } from "./dates.ts"
+export type { DayEntry, DayGroup } from "./dates.ts"
+/** THE DAY an ISO value falls on (./occasion.ts, which is where the two fields
+ *  that put a node on a day are read and the derivation's day index is folded).
+ *  Public because a browser compares days it was handed against the one its own
+ *  clock says, and a date somebody typed is a datetime as often as not — one
+ *  slicing rule, or two that disagree about half past two. Its neighbours
+ *  `monthOf` and `timeOf` stay inside: what asks about a month asks
+ *  `datedAnswer`, and the only reader of a TIME is the pill `owedFact` already
+ *  prints. */
+export { dayOf } from "./occasion.ts"
+export type { Occasion } from "./occasion.ts"
 /** The one place a date is COUNTED rather than compared (./calendar.ts): which
  *  weekday a day falls on, the day before or after one, the days a month holds.
  *  Public because two packages ask it — the query grammar's relative words are

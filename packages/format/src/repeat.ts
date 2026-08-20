@@ -45,7 +45,7 @@
  */
 
 import { comingWeekday, shiftDay, shiftDayByMonth, WEEKDAYS } from "./calendar.ts"
-import { dayOf } from "./dates.ts"
+import { dayOf } from "./occasion.ts"
 
 /**
  * A rule, taken apart.

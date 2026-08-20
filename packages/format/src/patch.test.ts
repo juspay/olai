@@ -79,11 +79,20 @@ const deltaOf = (before: Corpus, after: Corpus): SetDelta => ({
  * exactly what lets the patcher add and drop keys in place — so comparing key
  * order here would be this test holding the patcher to a promise the index does
  * not make, and the two would have to be changed together to relax it.
+ *
+ * `byDay` is in the OTHER half, and it is the one index there that is not read
+ * in order by the corpus: its keys are days, promised ascending, because the
+ * calendar's month and the agenda's two directions all step them and none of
+ * them may sort (`./derive.ts`). A patcher that added a day to the end of the
+ * map would answer every one of those three correctly on the first read and
+ * wrongly on the next, which is exactly the class of bug a key-order comparison
+ * catches and a by-key one cannot.
  */
 const readable = (derived: Derived): unknown => ({
   nodes: derived.nodes,
   byId: [...derived.byId],
   byFile: [...derived.byFile],
+  byDay: [...derived.byDay],
   namedBy: [...derived.namedBy],
   children: byKey(derived.children),
   status: byKey(derived.status),
@@ -172,6 +181,62 @@ const tagged = (random: () => number): string => {
   return roll < 0.96 ? " @nobody" : " #topic"
 }
 
+/**
+ * A day for a record to carry, drawn from a SMALL span — what `byDay` is keyed
+ * by, and the reason the span is small.
+ *
+ * Ten days over two months, so several records land on ONE day (a bucket with
+ * members to order, which is where the corpus-order promise lives) and a month
+ * boundary falls inside the range (the key order the calendar steps). A day
+ * drawn from a year would give nearly every record a bucket of its own, and
+ * every one of those promises would go untested at five hundred rounds.
+ *
+ * Half of them carry a TIME, because a datetime lands on its day and the key is
+ * a prefix of the value — a fold that filed the raw value would pass every
+ * bucket-membership assertion here and produce a calendar with a dot per
+ * appointment.
+ *
+ * The values are ISO the way `./parse.ts` means it, because a corpus this
+ * generator writes has to be one the format APPROVES: a fixture that failed to
+ * parse would take the whole round out of the comparison rather than failing an
+ * assertion about it, which is what the builder below refuses over.
+ */
+const dateFor = (random: () => number): string => {
+  const day = DAYS[Math.floor(random() * DAYS.length)] as string
+  return random() < 0.5 ? day : `${day}T0${Math.floor(random() * 9)}:30:00-04:00`
+}
+
+/** The days records are drawn from — see {@link dateFor}. Two months, so the
+ *  boundary the calendar's month walk stops at is inside the corpus. */
+const DAYS = [
+  "2026-07-30",
+  "2026-07-31",
+  "2026-08-01",
+  "2026-08-02",
+  "2026-08-05",
+  "2026-08-11",
+  "2026-08-12",
+  "2026-08-20",
+  "2026-08-21",
+  "2026-09-01",
+] as const
+
+/**
+ * A record's MARK, and what it carries — `true`, or the instant it was reached.
+ *
+ * A dated `done` is one of the two fields that put a node on a day, so a
+ * generator that only ever wrote `true` left half of `byDay`'s fold unreached:
+ * every node would have been on its `date` and nothing on the day it was
+ * finished, and the precedence rule between the two (`./occasion.ts`'s
+ * `datesOf`) would never have decided anything. It writes an instant on every
+ * mark, not only on `done`, because a dated `doing` is a legal record the fold
+ * must pass OVER — the one shape that is in the format and out of the journal.
+ */
+const marked = (random: () => number, record: Record<string, unknown>): void => {
+  const mark = pick(random, ["done", "doing", "todo"])
+  record[mark] = random() < 0.5 ? true : dateFor(random)
+}
+
 const fileOf = (random: () => number, used: Set<string>): string => {
   const lines: Array<string> = []
   const own: Array<string> = []
@@ -189,7 +254,12 @@ const fileOf = (random: () => number, used: Set<string>): string => {
     if (random() < 0.25) record["mirror"] = pick(random, IDS)
     else {
       record["title"] = `line ${at}${tagged(random)}`
-      if (random() < 0.4) record[pick(random, ["done", "doing", "todo"])] = true
+      if (random() < 0.4) marked(random, record)
+      // A `date` on a third of them — the other field a day is keyed by, and
+      // the one a repeat rule would ride. Without it `byDay` is an empty map
+      // over every generated corpus and this suite says nothing about the index
+      // it now compares (`./vault.test.ts`'s reason, one seed over).
+      if (random() < 0.33) record["date"] = dateFor(random)
       if (random() < 0.3) record["after"] = [pick(random, IDS)]
       if (random() < 0.3) record["blocks"] = [pick(random, IDS)]
       if (random() < 0.2) record["see"] = [pick(random, IDS)]
@@ -254,9 +324,18 @@ const tweak = (random: () => number, text: string): string => {
     const written = `edited note${tagged(random)}`
     if (written === "edited note" && random() < 0.5) delete record["desc"]
     else record["desc"] = written
-  } else if (roll < 0.65) {
+  } else if (roll < 0.6) {
     for (const mark of ["done", "doing", "todo"]) delete record[mark]
-    if (random() < 0.75) record[pick(random, ["done", "doing", "todo"])] = true
+    if (random() < 0.75) marked(random, record)
+  } else if (roll < 0.65) {
+    // THE DATE REWRITTEN, which is a record moving between two of `byDay`'s
+    // keys — and, when it is the last one on a day, a key going away and the
+    // promised key order having to be restored. Beside the mark edit because
+    // completing a repeating node is both at once (`@olai/ops`' `planMark`
+    // dates the `done` and advances the `date`), which is the delta this index
+    // sees most often in a directory anybody schedules anything in.
+    if (random() < 0.75) record["date"] = dateFor(random)
+    else delete record["date"]
   } else if (roll < 0.85) {
     if (random() < 0.5) record["after"] = [pick(random, IDS)]
     else delete record["after"]
@@ -320,6 +399,12 @@ const ROUNDS = 500
 test("the patched view is the derived view, for any corpus and any delta", () => {
   const random = seeded(20260816)
   let declined = 0
+  /** Rounds whose corpus put anything on a day at all, and rounds whose edit
+   *  moved which DAYS exist — the two claims `byDay`'s comparison rests on.
+   *  Asserted below for `./vault.test.ts`'s reason: an index nothing exercises
+   *  compares equal on every round and says nothing while doing it. */
+  let dated = 0
+  let daysMoved = 0
   for (let round = 0; round < ROUNDS; round++) {
     const { files: before, used } = corpusOf(random)
     const after = editOf(random, before, used)
@@ -329,6 +414,9 @@ test("the patched view is the derived view, for any corpus and any delta", () =>
     const story = () =>
       `round ${round}\nbefore: ${JSON.stringify(before, null, 2)}\n` +
       `after: ${JSON.stringify(after, null, 2)}`
+
+    if (view.byDay.size > 0) dated++
+    if ([...view.byDay.keys()].join() !== [...oracle.byDay.keys()].join()) daysMoved++
 
     const incremental = patched(view, delta)
     if (incremental === undefined) declined++
@@ -342,7 +430,7 @@ test("the patched view is the derived view, for any corpus and any delta", () =>
   // Not a performance assertion — a claim that the assertions above are about
   // the patcher at all. Left unchecked, a patcher that declined everything
   // would pass this whole file.
-  // 86 of 500 as this is written, and BOTH bounds are the claim. The ceiling is
+  // 83 of 500 as this is written, and BOTH bounds are the claim. The ceiling is
   // what fails when the patcher stops patching — the whole suite would go on
   // passing otherwise, since a decline is answered by `derive` and `derive` is
   // the oracle. The floor is what fails when the generator stops writing the
@@ -351,6 +439,14 @@ test("the patched view is the derived view, for any corpus and any delta", () =>
   // generator that grows another arm, not for a patcher that loses one.
   expect(declined).toBeGreaterThan(ROUNDS / 20)
   expect(declined).toBeLessThan(ROUNDS / 4.5)
+  // ...and the same claim for the day index, which has one promise no other
+  // index here makes: its KEYS are compared in order. Both numbers are load
+  // bearing — the first says the corpora put something on a day at all, the
+  // second says the edits really added and emptied days, which is the only
+  // thing that can make the patcher's key order wrong.
+  // 381 and 131 of 500 as this is written.
+  expect(dated).toBeGreaterThan(ROUNDS / 2)
+  expect(daysMoved).toBeGreaterThan(ROUNDS / 5)
 })
 
 // ── what the reverse indexes are for ───────────────────────────────────
