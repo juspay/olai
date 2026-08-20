@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { afterCommit } from "./record.ts"
+import { afterCommit, canRecord } from "./record.ts"
 
 /** The op, mocked: the same push the panel's button runs. */
 const callsOf = (run: (push: () => void) => void): number => {
@@ -23,4 +23,11 @@ test("a commit that did not record is not pushed, even with Auto-push on", () =>
   for (const tag of ["Failed", "Blocked", "NothingToCommit", "Refused"]) {
     expect(callsOf((push) => afterCommit(true, tag, push))).toBe(0)
   }
+})
+
+test("a commit may not start while a push is in flight", () => {
+  expect(canRecord(false, false)).toBe(true)
+  expect(canRecord(true, false)).toBe(false)
+  expect(canRecord(false, true)).toBe(false)
+  expect(canRecord(true, true)).toBe(false)
 })

@@ -47,6 +47,7 @@ import { LAYER } from "../layer.ts"
 import { because, scopeOf, trouble, verbatim, waitingIn, WHO } from "./said.ts"
 import { Others } from "./Others.tsx"
 import { Outlines } from "./Outlines.tsx"
+import { canRecord } from "./record.ts"
 import { createSelection } from "./selection.ts"
 import type { Commit } from "./state.ts"
 import { TESTID } from "../testids.ts"
@@ -231,7 +232,11 @@ export function Panel(props: {
           type="button"
           class="self-end rounded border border-rule px-3 py-1.5 text-xs hover:text-ink disabled:opacity-50"
           data-testid={TESTID.commitNow}
-          disabled={!ready() || props.commit.working() || nothingTicked()}
+          disabled={
+            !ready() ||
+            !canRecord(props.commit.working(), props.commit.pushing()) ||
+            nothingTicked()
+          }
           onClick={() => props.commit.commit(draft(), selection.paths())}
         >
           {props.commit.working()

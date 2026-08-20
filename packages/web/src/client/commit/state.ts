@@ -30,7 +30,7 @@ import {
 import { GIT_OFF, type GitState } from "@olai/surface"
 import { type Accessor, createSignal } from "solid-js"
 
-import { afterCommit } from "./record.ts"
+import { afterCommit, canRecord } from "./record.ts"
 import { waitingIn } from "./said.ts"
 import { run } from "../run.ts"
 import { olai } from "../wire.ts"
@@ -100,6 +100,10 @@ export interface Commit {
    * commit the same files and mean something narrower: a piecemeal commit
    * deliberately leaves the per-writer counters alone, because an op cannot be
    * attributed to a file.
+   *
+   * Refused while a push is in flight, same as the button: Auto-push would
+   * then call `send` and `send` would return at the door
+   * ({@link canRecord}).
    */
   readonly commit: (message: string, paths?: ReadonlyArray<string>) => void
   /** True while a push is in flight, for the same reason {@link working} is. */
@@ -160,7 +164,7 @@ export const createCommit = (
     working,
     attempt,
     commit: (message, paths) => {
-      if (working()) return
+      if (!canRecord(working(), pushing())) return
       setWorking(true)
       setAttempt(null)
       run(

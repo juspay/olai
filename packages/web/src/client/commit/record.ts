@@ -26,3 +26,15 @@ export const afterCommit = (
 ): void => {
   if (autoPush && tag === "Committed") push()
 }
+
+/**
+ * Whether a Commit press may start.
+ *
+ * Working is a commit already in flight. Pushing is the last one's send still
+ * in the air — `send` returns at the door if a push is in flight, so a
+ * recorded commit then would be left unpushed with nothing said, which is
+ * Auto-push's promise broken quietly. The Push button already waits; Commit
+ * waits for the same reason.
+ */
+export const canRecord = (working: boolean, pushing: boolean): boolean =>
+  !working && !pushing
