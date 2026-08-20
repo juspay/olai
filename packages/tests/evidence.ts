@@ -653,6 +653,12 @@ const PALETTE_HIT = '[data-testid="palette-item"][data-id^="node-"]'
  *  why the pair is spelled here together. */
 const PALETTE_DOC = '[data-testid="palette-item"][data-id^="doc-"]'
 const HEADER_DOC = '[data-testid="header-search-item"][data-id^="doc-"]'
+/** One SEARCH HIT row of the header box, by the address it stands for — the
+ *  `hit-<address>` id `palette/items.ts` mints, which for a document is its
+ *  path. Distinct from {@link HEADER_DOC}, which is the palette's own file-row
+ *  family (`doc-<path>`): the header box answers with hits and nothing else. */
+const headerHit = (at: string) =>
+  `[data-testid="header-search-item"][data-id="hit-${at}"]`
 const DOCUMENT_PAGE = '[data-testid="document-page"]'
 const DOCUMENT_BODY = '[data-testid="document-body"]'
 /** One line of a document's contents — the survey the frontmatter section
@@ -2148,20 +2154,17 @@ const SECTIONS = {
       const box = page.locator('[data-testid="header-search"]')
       await box.click()
       await box.fill("plan")
-      await page.locator(HEADER_DOC).first().waitFor()
+      const row = page.locator(headerHit("notes/plan.md"))
+      await row.waitFor()
       await page.waitForTimeout(400)
-      console.log(
-        `  the row is called:  ${
-          oneLine(await page.locator(HEADER_DOC).first().innerText())
-        }`,
-      )
+      console.log(`  the row is called:  ${oneLine(await row.innerText())}`)
       await shot(page, `the-title-is-the-first-real-line${suffix}`)
 
       // …AND THE DOOR THIS ITEM IS: a property query, selecting a `.md`. The
       // key it matched leads the row's third line, exactly as it does on a
       // node's.
       await box.fill("prop:agent=claude-opus")
-      await page.locator(HEADER_DOC).first().waitFor()
+      await page.locator(headerHit("notes/plan.md")).waitFor()
       await page.waitForTimeout(400)
       const rows = await page.locator('[data-testid="header-search-item"]')
         .evaluateAll((all) => all.map((one) => one.getAttribute("data-id")))
