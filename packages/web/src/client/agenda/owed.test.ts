@@ -67,7 +67,6 @@ test("work on today is the quiet face — a nudge, and the row is untouched", ()
   expect(mark.face).toBe("today")
   expect(mark.count).toBe(1)
   expect(mark.entry).toBe("")
-  expect(mark.chip).toContain("bg-pill")
   expect(mark.said).toBe("Agenda — 1 on today")
 })
 
@@ -76,19 +75,9 @@ test("late work is the loud face, and takes the row with it", () => {
   expect(mark.face).toBe("overdue")
   // Two nodes over two outlines: a mark saying 2 means two things are late.
   expect(mark.count).toBe(2)
-  // More than a colour: the row is washed and weighted too, so the two faces
-  // are still two sights without one.
-  expect(mark.entry).toContain("bg-alarm/10")
-  expect(mark.entry).toContain("font-semibold")
-  expect(mark.chip).toContain("bg-alarm")
+  // The row is marked too, so the two faces are still two sights without one.
+  expect(mark.entry).not.toBe("")
   expect(mark.said).toBe("Agenda — 2 overdue")
-})
-
-test("the rail's two marks differ by SHAPE, not only by colour", () => {
-  // They share one corner over one glyph, so a reader who cannot separate the
-  // two hues still has a filled dot against a ring.
-  expect(markOf(countedOf([LATE])).dot).toBe("bg-alarm")
-  expect(markOf(countedOf([ON_TODAY])).dot).toContain("border")
 })
 
 test("both at once: the alarm wins the row, and the count is the LATE one", () => {

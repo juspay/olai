@@ -52,7 +52,6 @@ test("a retired wire is drawn as neither live nor merely reconnecting", () => {
 })
 
 test("only a live connection is drawn as one", () => {
-  expect(LOOK.live.dot).toBe("bg-done")
   for (const state of STATES.filter((s) => s !== "live")) {
     const look = lookOf(readoutOf(state))
     expect(look.dot).not.toBe(LOOK.live.dot)

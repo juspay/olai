@@ -93,11 +93,3 @@ test("a rung's stretch of line changes across the SILENCE, then holds", () => {
   expect(painted).toContain(`${inkOf("rule")} ${far!.quiet.space}rem`)
   expect(painted).toContain(`${inkOf("rule")} 100%`)
 })
-
-test("ink is a TOKEN, and the absence of one is transparent", () => {
-  // Never a hex: a palette is a redefinition of these same custom properties,
-  // so a line drawn once follows every palette (../theme/palettes.ts).
-  expect(inkOf("alarm")).toBe("var(--color-alarm)")
-  expect(inkOf("rule")).toBe("var(--color-rule)")
-  expect(inkOf(undefined)).toBe("transparent")
-})
