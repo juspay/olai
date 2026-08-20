@@ -22,7 +22,12 @@
  * optical box, chosen by a value the tree already carries. That is a table,
  * and a table wants a home — inline, the folder's box and the folder's shape
  * would sit in one file while the document's sat in another, and the rule that
- * they match would be nowhere.
+ * they match would be nowhere. The box is the folder's (18×16): it is the
+ * widest of the four, and a square `size-*` letterboxes it — the drawing sits
+ * in a cell it does not fill, so a column of "the same size" was a column of
+ * different optical sizes. The others meet against the left of that cell and
+ * fill its height. The tree still has to reserve the fold-control's width on
+ * a file row (`../Sidebar.tsx`) or the cell never becomes a column.
  *
  * And two of them are not ours. Vendored path data carries an attribution
  * obligation, which is a fact about specific bytes; one file holding all of
@@ -39,29 +44,26 @@
  *
  * ## Where they come from
  *
- * The folder and the text document are VERBATIM from Pierre Computer Company's
- * icon set (https://github.com/pierrecomputer/icons, Apache-2.0):
- * `IconFolder.svg` and `IconFileText.svg`. What changed on the way in is the
- * wrapper and nothing inside it — `fill="black"` becomes `currentColor` so a
- * row's own ink reaches the glyph (see below), the `width`/`height` attributes
- * give way to a Tailwind size so the glyph tracks the type scale, and
- * `aria-hidden` is added because the word beside it already says the name. The
- * paths are untouched; that is what makes the third one drawable.
+ * The folder is VERBATIM from Pierre Computer Company's icon set
+ * (https://github.com/pierrecomputer/icons, Apache-2.0): `IconFolder.svg`.
+ * What changed on the way in is the wrapper and nothing inside it —
+ * `fill="black"` becomes `currentColor` so a row's own ink reaches the glyph
+ * (see below), the `width`/`height` attributes give way to a Tailwind size so
+ * the glyph tracks the type scale, and `aria-hidden` is added because the word
+ * beside it already says the name. The paths are untouched.
  *
  * That paragraph is the licence being satisfied and not merely a courtesy:
- * Apache-2.0 §4 wants the notices retained and the changes stated, and for two
- * path strings shipped inside a browser bundle, the source, the licence and the
- * sentence above are where a reader will actually look. **The rule if a third
- * arrives** — and it is written here rather than remembered, because the
- * habit is what rots: two vendored snippets in one file is a header; vendored
- * bytes in a SECOND file is the moment this repo owes a real `NOTICE`,
- * collected at the dist root by `../build.ts` so the shipped artifact carries
- * it and not just the source. Reviewer's nit, adopted as the trigger rather
- * than as the file, because a `NOTICE` naming one file is the drift it exists
- * to prevent.
+ * Apache-2.0 §4 wants the notices retained and the changes stated, and for a
+ * path string shipped inside a browser bundle, the source, the licence and the
+ * sentence above are where a reader will actually look. **The rule if a second
+ * arrives** — and it is written here rather than remembered, because the habit
+ * is what rots: one vendored snippet in one file is a header; vendored bytes
+ * in a SECOND file is the moment this repo owes a real `NOTICE`, collected at
+ * the dist root by `../build.ts` so the shipped artifact carries it and not
+ * just the source.
  *
- * The OTHER TWO have no upstream, for two different reasons, and each says its
- * own at the function that draws it.
+ * The OTHER THREE have no upstream, for three different reasons, and each says
+ * its own at the function that draws it.
  *
  * The outline, because no icon set has an olai outline in it.
  * It is drawn here, to the set's own metrics rather than to a guess at them:
@@ -69,12 +71,16 @@
  * `rx=0.75`, and this is that with the second and third rows indented — which
  * is the whole of what an outline is and the whole of what distinguishes it
  * from the flat list it was traced from. It is spelled with `<circle>` and
- * `<rect>` where the vendored two carry exported `<path>` data: same shapes,
- * and the source says what it draws.
+ * `<rect>` where the vendored folder carries exported `<path>` data: same
+ * shapes, and the source says what it draws.
+ *
+ * The markdown, because a page with lines on it is a generic file, and the
+ * tree no longer writes `.md` after the name. What is drawn instead is the
+ * markdown mark — an M and a down-arrow — the one shape in a directory that
+ * can only mean markdown, the way `</>` can only mean markup.
  *
  * The hypertext mark, because the icon a set WOULD have for a `.html` is a page
- * with something on it — and a page is the document, three rows down. What is
- * drawn instead is `</>`, the one mark in a directory that can only mean markup.
+ * with something on it. What is drawn instead is `</>`.
  *
  * ## They take the row's ink, and that is a decision
  *
@@ -82,11 +88,10 @@
  * icons per file type (a green markdown, an orange JSON — the probe in this
  * PR's evidence shows it), and that is right for a code host with forty
  * extensions to tell apart. This directory has THREE, and it is Workflowy-quiet:
- * a folder row is `text-muted`, a file row is `text-ink`, the open file's row
- * is `text-accent` and semibold, and the glyph is simply part of whichever of
- * those the row already is. It also means no second utility setting `color` on
- * a row that has one — the trap `../Sidebar.tsx`'s `ENTRY_SHAPE` is split in
- * two to avoid.
+ * every row is the column's own ink, the open file's row is the wash, and the
+ * glyph is simply part of whichever of those the row already is. It also means
+ * no second utility setting `color` on a row that has one — the trap
+ * `../Sidebar.tsx`'s `ENTRY_SHAPE` is split in two to avoid.
  */
 
 import type { FileKind } from "@olai/format"
@@ -124,12 +129,24 @@ interface Drawn {
  *  thing no table can derive — rather than a row that quietly draws whatever
  *  the last arm of a chain of ternaries was. */
 export const GLYPHS: Record<DirectoryKind, Drawn> = {
-  // Wider than tall, as a folder is; the square box would letterbox it.
+  // Wider than tall, as a folder is. The TREE cell below is this aspect, so
+  // the square that used to wrap every glyph cannot letterbox it.
   folder: { box: "0 0 18 16", shape: FolderPaths },
   document: { box: "0 0 16 16", shape: DocumentPaths },
   outline: { box: "0 0 16 16", shape: OutlinePaths },
   hypertext: { box: "0 0 16 16", shape: HypertextPaths },
 }
+
+/** The cell every tree glyph occupies. Height is the tree's 0.875rem; width
+ *  follows the folder's 18×16 viewBox (`0.875rem * 18/16`). A square of that
+ *  height letterboxes the folder — `size-3.5` was that square, and the four
+ *  drawings that were supposed to share an optical box did not. The others
+ *  meet against the left (`xMinYMid`) and fill the height, so the left edge
+ *  is one edge and the names after the cell start in one column.
+ *
+ *  The rail passes a square of its own (`size-4`) and does not draw the
+ *  folder, so this is the default and not the only size. */
+const TREE_CELL = "h-3.5 w-[calc(0.875rem*18/16)]"
 
 /** One kind's glyph. `data-glyph` is the fact a test reads; the shape is the
  *  fact a reader reads, and neither is the colour it happens to be painted.
@@ -144,8 +161,9 @@ export function Glyph(props: { readonly of: DirectoryKind; readonly size?: strin
 
   return (
     <svg
-      class={`${props.size ?? "size-3.5"} shrink-0`}
+      class={`${props.size ?? TREE_CELL} shrink-0`}
       viewBox={glyph().box}
+      preserveAspectRatio="xMinYMid meet"
       fill="currentColor"
       aria-hidden="true"
       data-testid={TESTID.fileGlyph}
@@ -168,14 +186,28 @@ function FolderPaths() {
   )
 }
 
-/** pierrecomputer/icons `IconFileText.svg`, verbatim (Apache-2.0) — a page
- *  with lines on it, which is what a `.md` under this directory is. */
+/** The markdown mark — an M and a down-arrow — drawn here for the outline's
+ *  reason and for one more: a page WITH LINES ON IT is a generic file, and
+ *  this row no longer writes `.md` after the name, so the drawing has to say
+ *  markdown and nothing else.
+ *
+ *  STROKED where the folder is filled, at the set's own 1.5, for the
+ *  hypertext's reason: the outline's bars are 1.5 units thick, so a 1.5 stroke
+ *  lands at the same weight. Inset to `2.5..14.5` for the same reason the
+ *  outline is — it sits in a column beside a folder that occupies `1..17`. */
 function DocumentPaths() {
   return (
-    <>
-      <path d="M11.25 10C11.6642 10 12 10.3358 12 10.75C12 11.1642 11.6642 11.5 11.25 11.5H4.75C4.33579 11.5 4 11.1642 4 10.75C4 10.3358 4.33579 10 4.75 10H11.25ZM11.25 7C11.6642 7 12 7.33579 12 7.75C12 8.16421 11.6642 8.5 11.25 8.5H4.75C4.33579 8.5 4 8.16421 4 7.75C4 7.33579 4.33579 7 4.75 7H11.25ZM7.25 4C7.66421 4 8 4.33579 8 4.75C8 5.16421 7.66421 5.5 7.25 5.5H4.75C4.33579 5.5 4 5.16421 4 4.75C4 4.33579 4.33579 4 4.75 4H7.25Z" />
-      <path d="M10.75 0C10.9489 0 11.1396 0.0790743 11.2803 0.219727L14.7803 3.71973C14.9209 3.86038 15 4.05109 15 4.25V13.25C15 14.7688 13.7688 16 12.25 16H3.75C2.23122 16 1 14.7688 1 13.25V2.75C1 1.23122 2.23122 0 3.75 0H10.75ZM3.75 1.5C3.05964 1.5 2.5 2.05964 2.5 2.75V13.25C2.5 13.9404 3.05964 14.5 3.75 14.5H12.25C12.9404 14.5 13.5 13.9404 13.5 13.25V5H12.25C11.0074 5 10 3.99264 10 2.75V1.5H3.75Z" />
-    </>
+    <g
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M2.5 12.25 V3.75 L5.75 9.75 L9 3.75 V12.25" />
+      <path d="M12.5 3.75 V10.5" />
+      <path d="M10.5 8.5 L12.5 11.5 L14.5 8.5" />
+    </g>
   )
 }
 
@@ -203,11 +235,11 @@ function OutlinePaths() {
 /** Hypertext: `</>`, the mark every editor on earth uses for markup, drawn
  *  here for the reason the outline is — and for one more.
  *
- *  A page WITH LINES ON IT is taken: that is the document, three rows down the
- *  vendored page above, and a `.html` drawn as a page with something else on it
- *  would be the same glyph at a glance, which is exactly the complaint #174 was
- *  filed against. So the drawing says what the file IS rather than what shape
- *  it comes in — angle brackets are markup and nothing else in a directory is.
+ *  A page WITH LINES ON IT is taken: that used to be the document, and a
+ *  `.html` drawn as a page with something else on it would be the same glyph
+ *  at a glance, which is exactly the complaint #174 was filed against. So the
+ *  drawing says what the file IS rather than what shape it comes in — angle
+ *  brackets are markup and nothing else in a directory is.
  *
  *  STROKED where the other three are filled, at the set's own 1.5: the document's
  *  rules and the outline's bars are 1.5 units thick, so a 1.5 stroke lands at the

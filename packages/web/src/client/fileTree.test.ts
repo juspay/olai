@@ -7,21 +7,21 @@ test("a flat directory is one list of files, outlines and documents mixed", () =
     {
       kind: "file",
       key: "file:finishes.md",
-      name: "finishes.md",
+      name: "finishes",
       file: "finishes.md",
       of: "document",
     },
     {
       kind: "file",
       key: "file:garden.olai",
-      name: "garden.olai",
+      name: "garden",
       file: "garden.olai",
       of: "outline",
     },
     {
       kind: "file",
       key: "file:house.olai",
-      name: "house.olai",
+      name: "house",
       file: "house.olai",
       of: "outline",
     },
@@ -38,33 +38,33 @@ test("a row's kind is read off its name, and an unclaimed path is not a row", ()
     {
       kind: "file",
       key: "file:a.olai",
-      name: "a.olai",
+      name: "a",
       file: "a.olai",
       of: "outline",
     },
     {
       kind: "file",
       key: "file:b.md",
-      name: "b.md",
+      name: "b",
       file: "b.md",
       of: "document",
     },
   ])
 })
 
-test("a nested path becomes a directory node with the basename as the leaf", () => {
+test("a nested path becomes a directory node with the stem as the leaf", () => {
   expect(fileTree(["house.olai", "notes/palette.md", "finishes.md"])).toEqual([
     {
       kind: "file",
       key: "file:finishes.md",
-      name: "finishes.md",
+      name: "finishes",
       file: "finishes.md",
       of: "document",
     },
     {
       kind: "file",
       key: "file:house.olai",
-      name: "house.olai",
+      name: "house",
       file: "house.olai",
       of: "outline",
     },
@@ -77,7 +77,7 @@ test("a nested path becomes a directory node with the basename as the leaf", () 
         {
           kind: "file",
           key: "file:notes/palette.md",
-          name: "palette.md",
+          name: "palette",
           file: "notes/palette.md",
           of: "document",
         },
@@ -107,14 +107,14 @@ test("a directory mixes outlines and documents under one node", () => {
         {
           kind: "file",
           key: "file:Daily/2026-08.olai",
-          name: "2026-08.olai",
+          name: "2026-08",
           file: "Daily/2026-08.olai",
           of: "outline",
         },
         {
           kind: "file",
           key: "file:Daily/notes.md",
-          name: "notes.md",
+          name: "notes",
           file: "Daily/notes.md",
           of: "document",
         },
@@ -123,14 +123,14 @@ test("a directory mixes outlines and documents under one node", () => {
     {
       kind: "file",
       key: "file:finishes.md",
-      name: "finishes.md",
+      name: "finishes",
       file: "finishes.md",
       of: "document",
     },
     {
       kind: "file",
       key: "file:house.olai",
-      name: "house.olai",
+      name: "house",
       file: "house.olai",
       of: "outline",
     },
@@ -154,7 +154,7 @@ test("depth is preserved: a chain of directories is a chain of dir nodes", () =>
             {
               kind: "file",
               key: "file:a/b/c.olai",
-              name: "c.olai",
+              name: "c",
               file: "a/b/c.olai",
               of: "outline",
             },
@@ -173,14 +173,14 @@ test("children sort by name, dirs and files together", () => {
     {
       kind: "file",
       key: "file:alpha.md",
-      name: "alpha.md",
+      name: "alpha",
       file: "alpha.md",
       of: "document",
     },
     {
       kind: "file",
       key: "file:house.olai",
-      name: "house.olai",
+      name: "house",
       file: "house.olai",
       of: "outline",
     },
@@ -193,7 +193,7 @@ test("children sort by name, dirs and files together", () => {
         {
           kind: "file",
           key: "file:notes/inner.olai",
-          name: "inner.olai",
+          name: "inner",
           file: "notes/inner.olai",
           of: "outline",
         },
@@ -202,7 +202,7 @@ test("children sort by name, dirs and files together", () => {
     {
       kind: "file",
       key: "file:zebra.md",
-      name: "zebra.md",
+      name: "zebra",
       file: "zebra.md",
       of: "document",
     },

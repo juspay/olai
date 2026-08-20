@@ -74,7 +74,7 @@ export function Sessions(props: { readonly chat: Chat }) {
   const up = () => picker()._tag !== "shut"
 
   /** The `chats` button and the list it opens — two roots, because the list is
-   *  laid out BESIDE the button rather than inside it (see the header). */
+   *  hung from the header rather than nested in the button. */
   let trigger: HTMLButtonElement | undefined
   let list: HTMLUListElement | undefined
 
@@ -114,7 +114,7 @@ export function Sessions(props: { readonly chat: Chat }) {
   const current = () => props.chat.state().session?.id ?? null
 
   return (
-    <div class="relative">
+    <>
       <button
         ref={trigger}
         type="button"
@@ -139,7 +139,13 @@ export function Sessions(props: { readonly chat: Chat }) {
               list = undefined
             })
           }}
-          class={`absolute right-0 top-full ${WITHIN.pop} mt-1 max-h-80 w-80 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}
+          // Hung from the HEADER (`relative` on `Header.tsx`), not from this
+          // button: a `w-80` list `right-0` of `chats` runs off the left of a
+          // phone sheet — titles clipped to their last letters, the list
+          // overlapping the trigger it opened from. `inset-x-3 top-full` is
+          // the header's own box, so the list is as wide as the conversation
+          // and starts below the two-line title rather than through it.
+          class={`absolute inset-x-3 top-full ${WITHIN.pop} mt-1 max-h-80 list-none overflow-x-hidden overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}
           data-testid={TESTID.chatSessionList}
         >
           {/* A `<Switch>` over the one signal, because the picker IS one: the
@@ -212,7 +218,7 @@ export function Sessions(props: { readonly chat: Chat }) {
           </Switch>
         </ul>
       </Show>
-    </div>
+    </>
   )
 }
 

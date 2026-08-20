@@ -23,6 +23,7 @@
 
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
+import { TESTID } from "@olai/web/src/client/testids.ts";
 
 import {
   AFTER_REFS,
@@ -40,6 +41,7 @@ import {
   SEE_REFS,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
+import { focusedOn } from "../support/caret.ts";
 import { saysThat } from "../support/said.ts";
 
 /** The open panel, waited for. Every step here starts from it, so there is one
@@ -249,6 +251,31 @@ Then(
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
+
+/**
+ * THE CARET ON THE `×`, and whether it is still there afterwards.
+ *
+ * The panel is a writing surface somebody keyboards around, and its chips ride
+ * on the page's reading: every frame the store publishes replaces the node they
+ * are drawn from, so a list keyed by reference rebuilt them all, and the caret
+ * of a reader who had tabbed onto an `×` went to the document body with the
+ * element it was on. That is not visible in anything the panel SAYS — which is
+ * why the question is asked of `document.activeElement`
+ * (`docs/brainstorming/reactivity-after-the-flip.md` §3.2, finding 2.3).
+ */
+When("I put the caret on the edge panel's ×", async function (this: OlaiWorld) {
+  await (await panelOf(this)).locator(EDGE_DROP).first().focus();
+});
+
+Then("the caret is still on the edge panel's ×", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await focusedOn(this),
+    TESTID.edgeDrop,
+    "the caret left the × while somebody else wrote to the file. The chips " +
+      "were torn down and drawn again for a frame that said nothing about " +
+      "them, and a control that is replaced takes the focus with it.",
+  );
+});
 
 /** The panel's own `×`. Waits for the chip to GO, for the reason the choose
  *  above waits for one to arrive. */

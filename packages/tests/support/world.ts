@@ -776,6 +776,7 @@ export const CHAT_SHEET_SCRIM = selector(TESTID.chatSheetScrim);
 export const CHAT_SHEET_HANDLE = selector(TESTID.chatSheetHandle);
 export const PALETTE = selector(TESTID.palette);
 export const PALETTE_ITEM = selector(TESTID.paletteItem);
+export const PALETTE_LIST = selector(TESTID.paletteList);
 export const PALETTE_ASK_ERROR = selector(TESTID.paletteAskError);
 export const PALETTE_INPUT = selector(TESTID.paletteInput);
 export const PALETTE_CAPTURE = selector(TESTID.paletteCapture);
@@ -783,6 +784,11 @@ export const PALETTE_CONFIRM = selector(TESTID.paletteConfirm);
 export const PALETTE_SAID = selector(TESTID.paletteSaid);
 export const PALETTE_SCRIM = selector(TESTID.paletteScrim);
 export const SHORTCUTS = selector(TESTID.shortcuts);
+/** The header box's panel of results, and the shelf of pins in the sidebar —
+ *  here rather than spelled at a step file, which is where the rest of the
+ *  suite's selectors live. */
+export const HEADER_SEARCH_RESULTS = selector(TESTID.headerSearchResults);
+export const PIN_SHELF = selector(TESTID.pinShelf);
 
 export const CHAT_TITLE = selector(TESTID.chatTitle);
 export const CHAT_WORKING = selector(TESTID.chatWorking);

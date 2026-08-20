@@ -32,7 +32,7 @@ export function Row(props: {
 }) {
   return (
     <div data-testid={TESTID.prefsRow} data-pref={props.pref}>
-      {/* Wraps rather than clips: the theme row's control is fifteen chips, and
+      {/* Wraps rather than clips: the theme row's control is a strip of chips, and
           a panel narrow enough to be a phone's has to put them under the label
           instead of off the edge. */}
       <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">

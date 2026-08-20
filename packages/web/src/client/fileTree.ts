@@ -19,7 +19,7 @@
  * reference and rebuild the whole sidebar on one membership change.
  */
 
-import { type FileKind, fileKind } from "@olai/format"
+import { type FileKind, fileKind, stemOf } from "@olai/format"
 
 /** One row of the tree. A directory carries its own root-relative path so
  *  collapse state can key on it without re-walking parents; a file carries
@@ -39,6 +39,8 @@ export type FileRow =
       readonly kind: "file"
       /** Stable place id for `<Key by="key">` — `file:<path>`. */
       readonly key: string
+      /** The stem the row draws — the suffix that claimed the file is the
+       *  glyph's to say (`stemOf`), so `AGENTS.md` is `AGENTS`. */
       readonly name: string
       /** Root-relative path the page routes already use. */
       readonly file: string
@@ -86,20 +88,28 @@ const freeze = (node: Building, prefix: string): ReadonlyArray<FileRow> => {
       children: freeze(child, path),
     })
   }
-  for (const [name, entry] of node.files) {
+  for (const [, entry] of node.files) {
     rows.push({
       kind: "file",
       key: `file:${entry.file}`,
-      name,
+      name: stemOf(entry.file),
       file: entry.file,
       of: entry.of,
     })
   }
-  rows.sort((left, right) =>
-    left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
-  )
+  // Sorted by the on-disk basename, not the stem: `a.md` and `a.olai` are two
+  // files and the glyph is what tells them apart, so the order still has to
+  // see the suffix. Folders sort as their own name, among those basenames.
+  rows.sort((left, right) => {
+    const a = sortKey(left)
+    const b = sortKey(right)
+    return a < b ? -1 : a > b ? 1 : 0
+  })
   return rows
 }
+
+const sortKey = (row: FileRow): string =>
+  row.kind === "dir" ? row.name : row.file.slice(row.file.lastIndexOf("/") + 1)
 
 /**
  * Build the tree from the paths the wire hands the client.

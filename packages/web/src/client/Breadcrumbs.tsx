@@ -17,7 +17,8 @@
  */
 
 import type { LocatedRegular } from "@olai/format"
-import { For, Show } from "solid-js"
+import { Key } from "@solid-primitives/keyed"
+import { Show } from "solid-js"
 
 import { NodeTitle } from "./NodeTitle.tsx"
 import { Link } from "./router.tsx"
@@ -59,7 +60,12 @@ export function Breadcrumbs(props: {
           </Link>
         )}
       </Show>
-      <For each={props.trail}>
+      {/* `<Key>`, not `<For>`, for the reason the tree uses it (./Tree.tsx):
+          the trail comes off the wire, so drawn by reference the whole thing
+          was rebuilt on every frame of the page. Keyed by the node's id, which
+          is what a crumb IS — a canonical ancestry names each ancestor once,
+          so the key is honest. */}
+      <Key each={props.trail} by={(crumb) => crumb.node.id}>
         {(crumb, index) => (
           <>
             {/* Between crumbs only: with no file crumb above it, the first
@@ -68,17 +74,17 @@ export function Breadcrumbs(props: {
               <Separator />
             </Show>
             <Link
-              route={atNode(crumb.node.id)}
+              route={atNode(crumb().node.id)}
               class={CRUMB}
               testid={TESTID.crumb}
             >
               {/* links=false: already inside Link — a markdown [a](url) in the
                   title must not nest a second <a>. */}
-              <NodeTitle title={crumb.node.title} from={crumb.file} links={false} />
+              <NodeTitle title={crumb().node.title} from={crumb().file} links={false} />
             </Link>
           </>
         )}
-      </For>
+      </Key>
     </nav>
   )
 }

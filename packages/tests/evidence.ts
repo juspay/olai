@@ -208,6 +208,16 @@ const EDGE_DROP = '[data-testid="edge-drop"]'
 const EDGE_SAID = '[data-testid="edge-said"]'
 const EDGE_VERB = '[data-testid="edge-verb"]'
 
+/** What has the caret, by the name this suite names controls with — `"nothing"`
+ *  for the body, which is where a control that is REPLACED sends the focus it
+ *  was holding. The steps read it the same way (`support/caret.ts`). */
+const focused = (page: Page): Promise<string> =>
+  page.evaluate(() => {
+    const element = document.activeElement
+    if (element === null || element === document.body) return "nothing"
+    return element.getAttribute("data-testid") ?? element.tagName.toLowerCase()
+  })
+
 /** The `•••` of a row, revealed and pressed — the gutter is `opacity-0` until
  *  the row is hovered, which a screenshot has to go through like anybody. */
 const openMenu = async (page: Page, id: string) => {
@@ -336,7 +346,7 @@ const whyDrawn = async (page: Page) =>
  *  page keeps it and the tab is reloaded — which is also the honest way to
  *  photograph it, since the boot script is what paints the first frame. */
 const inTheDark = async (page: Page) => {
-  await page.evaluate(() => localStorage.setItem("olai.theme", "dark"))
+  await page.evaluate(() => localStorage.setItem("olai.theme", "aurora"))
   await page.reload()
   await page.locator(OUTLINE_TREE).first().waitFor()
   await page.waitForTimeout(DRAWN)
@@ -1677,6 +1687,43 @@ const SECTIONS = {
     await shot(page, "unlinked")
   },
 
+  /**
+   * WHAT A REBUILT LIST COSTS (`the-caret-holds-the-cross`): the caret on an
+   * edge panel's `×` while somebody else writes to the same file.
+   *
+   * The whole of `reactivity-for-by-reference` is invisible in a still frame by
+   * construction — a list torn down and drawn again is drawn with the same tags
+   * and the same words as one that was patched. This is the one place the cost
+   * surfaces as something a person can see: the panel's chips ride on the
+   * page's reading, so a frame arriving replaced them, and a reader who had
+   * tabbed onto an `×` to take a link off lost the caret to the document body
+   * for a write they did not make.
+   *
+   * So the section prints `document.activeElement` on either side of a write
+   * made ON DISK, which is the same door `pin-to-sidebar`'s rename uses and for
+   * its reason: an agent's `set_title`, a `git pull`, another tab — anything at
+   * all, which is the point.
+   */
+  "the-caret-holds-the-cross": async (page) => {
+    await openMenu(page, "order")
+    await page.locator('[data-testid="node-menu-item"]')
+      .filter({ hasText: "Link to a node…" }).first().click()
+    await page.locator(EDGE_PANEL).first().waitFor()
+    await page.locator(`${EDGE_DROP}[data-ref="herbs"]`).first().focus()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the caret is on:      ${await focused(page)}`)
+    await shot(page, "the-caret-on-the-cross")
+
+    // Somebody else, writing — another row of the same file, retitled.
+    retitle("house.olai", "handles", "choose the handles today")
+    await page.waitForFunction(
+      () => document.body.textContent?.includes("choose the handles today") === true,
+    )
+    await page.waitForTimeout(SETTLE)
+    console.log(`  after somebody wrote: ${await focused(page)}`)
+    await shot(page, "and-it-is-still-there")
+  },
+
   "after-and-the-loop": async (page) => {
     await openMenu(page, "knobs")
     await page.locator('[data-testid="node-menu-item"]')
@@ -2099,7 +2146,7 @@ const SECTIONS = {
     // The other half of the palette table. Set before the pass, so the frames
     // that follow are painted by the boot script rather than by a swap
     // ({@link inTheDark} does the same for a section with nothing left to do).
-    await page.evaluate(() => localStorage.setItem("olai.theme", "dark"))
+    await page.evaluate(() => localStorage.setItem("olai.theme", "aurora"))
     await pass(true, "order")
   },
 

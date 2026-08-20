@@ -17,7 +17,7 @@
     <path stroke-width="14" d="M256 375 C298 360 334 358 362 370"/>
   </g>
   <!-- soft leaflet washes so the mark reads as a leaf, not a stick figure -->
-  <g fill="#3E7A3A" opacity="0.18">
+  <g fill="#2F642B" opacity="0.18">
     <ellipse cx="175" cy="155" rx="58" ry="22" transform="rotate(-18 175 155)"/>
     <ellipse cx="337" cy="155" rx="58" ry="22" transform="rotate(18 337 155)"/>
     <ellipse cx="155" cy="210" rx="68" ry="26" transform="rotate(-16 155 210)"/>

@@ -169,8 +169,10 @@ export function Commit() {
           // connection has a floor, the agent's word is already gone at this
           // width, and what is left is this label — the longest in the bar, and
           // the one whose first glyph (`✓`, `⚠`) carries most of its meaning
-          // when the rest of it goes.
-          class={`${PILL} max-w-[9rem] sm:max-w-none ${
+          // when the rest of it goes. `min-w-9` is the floor of THAT shrink:
+          // without it a 360pt bar (an iPhone mini) ate the glyph too and
+          // left an empty oval between `live` and the agent toggle.
+          class={`${PILL} min-w-9 max-w-[9rem] sm:max-w-none ${
             inert() ? "opacity-60" : "hover:text-ink"
           }`}
           data-testid={TESTID.commitPill}
