@@ -63,11 +63,16 @@ import { olai } from "./wire.ts"
 /**
  * One page, asked and kept live — and a token that moves when its answer did.
  *
- * `undefined` is "nothing has been answered yet" and is the state every reader
- * below already handles: the pane draws its `Reading…` line, the chrome draws
- * no file, and nothing invents a page that has not arrived. It is also what a
- * caller with no question gets — a `null` input holds the subscription closed,
- * which is the framework's own way of saying "do not ask yet".
+ * `undefined` is "this pane has never been answered" and is the state every
+ * reader below already handles: the pane draws its `Reading…` line, the chrome
+ * draws no file, and nothing invents a page that has not arrived. It is also
+ * what a caller with no question gets — a `null` input holds the subscription
+ * closed, which is the framework's own way of saying "do not ask yet".
+ *
+ * NEVER "the answer to the question just asked has not landed yet", and that is
+ * {@link createReading}'s one rule: the last answer STANDS while the next one is
+ * in flight, so a navigation SWAPS this page for the next rather than tearing it
+ * down to nothing and building one again.
  *
  * THE INPUT IS A MEMO'S JOB, not this function's: a subscription re-opens
  * whenever its input NOTIFIES, so a caller handing over a fresh object per read
@@ -121,7 +126,38 @@ export const createReading = (
   // changes after it.
   const stop = answer.updated?.(() => moved((count) => count + 1))
   onCleanup(() => stop?.())
-  return { page: answer, at }
+  /**
+   * THE LAST ANSWER, HELD ACROSS THE NEXT QUESTION.
+   *
+   * A subscription blanks its value the moment its INPUT moves: the framework
+   * writes `undefined`, resets the tracker, closes the old stream and opens the
+   * new one. So a reader taking the value raw sees `A → undefined → B` on every
+   * navigation. That beat is honest for a pane with nothing on screen yet, and
+   * it is a LIE for every other reader — what is on screen while B is in flight
+   * is still A, and the chrome that believed the blank spent one round trip per
+   * navigation saying no file is open, no day is open, no node is zoomed
+   * (docs/brainstorming/reactivity-after-the-flip.md §3.1: the folder chain
+   * folded and was rebuilt, the current wash went out, the page and its filter
+   * bar were torn down to `Reading…`).
+   *
+   * HELD HERE, at the seam that owns the subscription, rather than in each
+   * reader: the pane, the sidebar's active entry, the calendar's open day, the
+   * palette's names and undo's file all read this one answer, and a hold spelled
+   * per reader is one rule kept in five places.
+   *
+   * A MEMO OVER ITS OWN LAST VALUE, not a signal an effect writes: an effect
+   * runs AFTER the render that saw the blank, so the blank would be on screen
+   * for a frame before anything put it back — `./stamped.ts` makes that argument
+   * about the same frame from the other side. And holding is returning the same
+   * REFERENCE, so a blank notifies nobody at all.
+   *
+   * IT COSTS the previous page's value kept alive while the next is asked for,
+   * which is the page the pane is drawing anyway. The wire is untouched: the old
+   * stream is closed by the framework either way, and this is a reference to
+   * what it left behind.
+   */
+  const held = createMemo<PageReading | undefined>((was) => answer() ?? was, undefined)
+  return { page: held, at }
 }
 
 const ReadingContext = createContext<Accessor<PageReading | undefined>>()

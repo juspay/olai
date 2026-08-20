@@ -217,21 +217,39 @@ export const createAsked = (source: {
    *  is a value, and what the server is asked is the words. */
   readonly text: Accessor<string>
   /**
-   * WHAT THE PAGE DRAWS, unfiltered — the two things about it this question
-   * depends on, taken from the page itself rather than as two thunks a caller
-   * had to remember to write.
+   * WHAT THE PAGE DRAWS, unfiltered — taken from the page itself rather than as
+   * a thunk the caller had to remember to write.
    *
-   * It answers whether the rows in front of somebody are put-away ones
-   * ({@link showsTrashed}, the one thing the matcher is told about the QUESTION)
-   * and whether there is anything to narrow at all: a pane whose page has not
-   * arrived yet draws `none`, and asking then would spend a walk of the whole
-   * set on a scope that is about to change under the answer.
+   * ONE thing is read off it and it is the matcher's question about SCOPE:
+   * whether the rows in front of somebody are put-away ones
+   * ({@link showsTrashed}), which is the one thing the matcher is told about the
+   * QUESTION rather than asked about the answer.
+   *
+   * WHETHER TO ASK AT ALL IS NOT READ OFF IT any more, and that is
+   * `reactivity-after-the-flip` §3.1's 1.6. It used to gate the question on the
+   * page having rows — `none` while a pane's answer was in flight — which made
+   * every navigation clear the standing answer and re-debounce the query the
+   * address had already spelled. A page with nothing to narrow narrows nothing
+   * whatever this asks; what makes these words a question is the parse.
    */
   readonly page: Accessor<Drawn>
   /** THE SET, as a generation — see {@link Ask.at}. Whatever the tab holds that
    *  moves when the directory does; this file never reads it, and asks again
    *  when it changes because the answer would have. */
   readonly at: Accessor<unknown>
+  /**
+   * WHICH PAGE these words narrow, as an identity and never read — the caller's
+   * own answer to "is this the same page" (`../routes.ts`'s `samePage`, the memo
+   * the pane's subscription is opened on).
+   *
+   * It is here for ONE distinction, and it is the one {@link SETTLE_MS} is
+   * about: a settle is a fact about a pair of HANDS, and the words that arrive
+   * with an address were not typed. A `?q=` reached by a pin, by Back or by a
+   * cold load is final the moment it is on screen, so waiting 200ms to ask about
+   * it is 200ms of a page drawn WHOLE that the address said was narrowed. Same
+   * page, moving words: somebody is typing, and the debounce is the point.
+   */
+  readonly opened: Accessor<unknown>
 }): Asked => {
   const [failure, setFailure] = createSignal<string | null>(null)
   /** What has actually been asked for: the query, once it stopped moving. */
@@ -254,9 +272,7 @@ export const createAsked = (source: {
    *  `"herb "` where every reader of it compares against `"herb"`, and the bar
    *  would say it was still filtering for as long as that space stood. */
   const question = createMemo(() =>
-    source.query().kind === "asking" && source.page().kind !== "none"
-      ? source.text().trim()
-      : null
+    source.query().kind === "asking" ? source.text().trim() : null
   )
 
   // A NEW QUESTION CLEARS THE OLD ONE'S BAD NEWS, at the keystroke rather than
@@ -266,18 +282,44 @@ export const createAsked = (source: {
   // so the reachability tracking below cannot re-run it.
   createEffect(on(question, () => setFailure(null)))
 
-  createEffect(() => {
+  /**
+   * WHEN TO ASK: at once for a query nobody typed, after the settle for one
+   * somebody is typing.
+   *
+   * The PAGE is tracked as well as the words, and what it is for is that
+   * distinction. Every arrival — a pin, Back, a link with a `?q=` on it, the
+   * first paint of a filtered address — brings a query that is already final,
+   * and a debounce over it is a page drawn WHOLE for 200ms in front of somebody
+   * who asked for it narrowed. A keystroke changes the words and leaves the page
+   * where it was, which is the one case the settle exists for.
+   *
+   * It used to be the ARRIVAL that restarted the settle, not the words: the
+   * question also read whether the page had rows at all, that collapsed to
+   * `none` for the length of every navigation, and the clear below fired on the
+   * way past — so a `?q=` destination dropped the answer it had, drew whole, and
+   * re-debounced from the frame its page landed
+   * (docs/brainstorming/reactivity-after-the-flip.md §3.1's 1.6). What a page
+   * has in it is the matcher's question about SCOPE ({@link Ask.trashed}) and
+   * never whether to ask at all; whether these words are a question is the
+   * parse's answer, and the parse is a reading of the box.
+   */
+  createEffect<unknown>((was) => {
     const wanted = question()
+    const here = source.opened()
     if (wanted === null) {
       // Clearing takes effect AT ONCE rather than after the settle: a page
       // narrowed by a query the reader has already backspaced away from is a
       // page that is lying for as long as it stands.
       settle.clear()
       setAsked(null)
-      return
+    } else if (here !== was) {
+      settle.clear()
+      setAsked(wanted)
+    } else {
+      settle(wanted)
     }
-    settle(wanted)
-  })
+    return here
+  }, undefined)
 
   /**
    * WHAT IS BEING ASKED, as one value — the words once they stopped moving, the

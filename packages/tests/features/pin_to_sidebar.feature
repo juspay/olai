@@ -54,11 +54,20 @@ Feature: Pinning a page to the sidebar
     Then the pinned shelf holds "/house.olai?q=is%3Atodo"
     And "_olai/Pins.olai" holds a node titled "/house.olai?q=is%3Atodo"
     When I open the outline "garden.olai"
+    And I mark the screen
     And I follow the pin "/house.olai?q=is%3Atodo"
     # The WHOLE bar, not the path: a door that dropped the query would pass a
     # step that only read the path, and would open a different page.
     Then the address is exactly "/house.olai?q=is%3Atodo"
     And the filter box holds "is:todo"
+    # AND IT ARRIVES NARROWED. `demo` is done, so the query the pin carries
+    # leaves it out — and a page that drew it and took it away again is the
+    # whole outline on screen in front of somebody who asked for four rows of
+    # it. It used to be: the question was gated on the page having rows, that
+    # collapsed for the length of the navigation, and the query in the address
+    # was thrown away and re-debounced from the frame the page landed
+    # (docs/brainstorming/reactivity-after-the-flip.md §3.1's 1.6).
+    And the node "demo" was never drawn
 
   Scenario: A saved search is NAMED where the thought arrives, and comes back named
     # The gap this closes: a reader who has just narrowed a page had to pin it

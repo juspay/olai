@@ -64,9 +64,14 @@
  * being anybody's rule the day the offline overlay landed (`vault-in-browser`
  * §5b, `connection/Offline.tsx`), because a frozen app takes no keystroke and
  * there is no box to draw a reason on. What is left between the two files is
- * one knob, and it is worth saying which way that argument now runs: folding
- * the filter in here means a parameter on the shared asker that every caller
- * but one passes `false` for, which is the trade the day somebody makes it.
+ * two knobs — that one, and the ARRIVAL rule `reactivity-route-not-reading`
+ * added beside it: a filter asks AT ONCE for a query that came with an ADDRESS
+ * (a pin, Back, a cold load), because those words were not typed and nothing
+ * more is coming, where every question this file settles was typed into a box
+ * that is still open and a shortlist has no address to arrive from. It is worth
+ * saying which way that argument now runs: folding the filter in here means two
+ * parameters on the shared asker that every caller but one passes `false` for,
+ * which is the trade the day somebody makes it.
  */
 
 import { debounce } from "@solid-primitives/scheduled"

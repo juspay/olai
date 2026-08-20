@@ -126,6 +126,11 @@ export function PageView() {
     // that moved nothing on this page sends no frame, so it cannot invalidate
     // an answer about it — and read by nothing, as it always was.
     at: reading.at,
+    // WHICH PAGE these words narrow, as an identity that moves exactly when the
+    // reader went somewhere else — the same memo this pane's subscription is
+    // opened on, so "a navigation" means here what it means there. It is what
+    // tells a keystroke from an arrival (`filter/asking.ts`'s settle).
+    opened,
   })
 
   const narrowing = createNarrowing({
@@ -169,15 +174,32 @@ export function PageView() {
     >
       <ReadingProvider reading={reading}>
       <NarrowedProvider narrowed={narrowing}>
-        <Show when={narrowing.drawn().kind !== "none"}>
+        {/* THE BOX BELONGS TO THE ADDRESS, so it is drawn on what the ADDRESS
+            says: every page but a document's may carry a `?q=` (`../routes.ts`'s
+            `narrowable`, the one place that list is written down), and that is
+            true the frame the link is clicked rather than a round trip later.
+            Asked of the page's own rows instead, it was drawn on a value that
+            collapses to `none` while a navigation is in flight — so the bar and
+            the `<input>` somebody was typing in unmounted and were built again
+            on every click (docs/brainstorming/reactivity-after-the-flip.md
+            §3.1's 1.4). */}
+        <Show when={narrowable(route())}>
           <FilterBar narrowing={narrowing} asked={asked} onType={narrow} />
         </Show>
-        {/* NOTHING YET, and the pane says so where it is: navigation asks the
-            server now (the design's §5a ruling — round-tripping is acceptable
-            and nothing is cached), so there is one honest beat between an
-            address and its page. The line is minimal on purpose: a loopback
-            answer arrives inside a frame, and a spinner for a millisecond is a
-            flicker rather than news. */}
+        {/* NOTHING YET, AND ONLY EVER ONCE PER PANE: navigation asks the server
+            (the design's §5a ruling — round-tripping is acceptable and nothing
+            is cached), so there is one honest beat between an address and the
+            first page a pane ever draws. The line is minimal on purpose: a
+            loopback answer arrives inside a frame, and a spinner for a
+            millisecond is a flicker rather than news.
+
+            EVERY LATER NAVIGATION SWAPS instead. §5a accepted a WAIT, not a
+            teardown, and a pane that fell back here on each one tore its page
+            down to this line and built the next from nothing — filter bar,
+            editors and scroll included. What is on screen while the next answer
+            is in flight is the page that is on screen, and the reading holds it
+            (`../reading.tsx`); this arm is what a pane with nothing behind it
+            draws. */}
         <Show
           when={page()}
           fallback={<p class="m-0 py-8 text-muted">Reading…</p>}
