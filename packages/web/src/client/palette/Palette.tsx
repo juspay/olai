@@ -206,7 +206,7 @@ export function Palette(props: {
    * box AND the palette, so nothing visible has happened while the round trip
    * is out — which is exactly the moment a hand repeats the key. The second
    * send is judged against the reading the first has not landed in yet, so on
-   * a directory with no inbox both resolve to the same `create Inbox.olai`,
+   * a directory with no inbox both resolve to the same `create _olai/Inbox.olai`,
    * and the write gate re-plans that REQUEST rather than re-resolving the
    * edit: the second comes back refused in the words `create_outline` gets —
    * *already an outline … capture into this one with `add_node`* — over a line

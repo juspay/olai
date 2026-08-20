@@ -135,6 +135,24 @@ Feature: The files olai names for itself, and the doors onto them
     And the outline has 1 rows
     And there should be no page errors
 
+  Scenario: An inbox that will not parse says so on its own door
+    # THE DOOR'S OWN FENCE. With the rule in force this entry is the only way
+    # in to `_olai/Inbox.olai` — the tree does not draw it — so the ⚠ every
+    # unreadable outline gets has to be ON the door. Asserted on the door
+    # ALONE: the tree row keeping its mark is the scenario above, and a step
+    # that read a row would stay green with the door's mark dropped.
+    When I press the palette shortcut
+    And I capture "buy the walnut stain" from the palette
+    # The file FIRST, so the rewrite below lands on an inbox the capture has
+    # already minted rather than racing that write.
+    Then "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
+    When I close the palette
+    And I rewrite "_olai/Inbox.olai" as:
+      """
+      {"id":"i0","ord":"a0",title:"buy the walnut stain"}
+      """
+    Then the Inbox door is marked unreadable
+
   Scenario: An inbox the directory already keeps is the file the capture and the door both use
     # ONLY THE MINT MOVED. A vault that already keeps `Inbox.olai` at its top
     # level goes on capturing into it — the finding rule is unchanged, by NAME,

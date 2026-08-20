@@ -44,6 +44,23 @@ Then("the sidebar offers no Inbox", async function (this: OlaiWorld) {
   );
 });
 
+/** The ⚠ ON THE DOOR, and deliberately not on a tree row.
+ *
+ *  With the hiding rule in force this entry is the ONLY way in to
+ *  `_olai/Inbox.olai` — the tree does not draw it — so the mark every
+ *  unreadable outline gets has to be here. A step that read
+ *  `OUTLINE_LINK[data-broken="true"]` (`live_steps.ts`) would be asking about
+ *  a row this scenario has no reason to expect, and would stay green with the
+ *  door's own mark dropped. The literal attribute is spelled the way that
+ *  step spells it: nothing is interpolated, so there is no value to escape.
+ */
+Then("the Inbox door is marked unreadable", async function (this: OlaiWorld) {
+  await this.showSidebar();
+  await this.page
+    .locator(`${INBOX_LINK}[data-broken="true"]`)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
 When("I open the Inbox from the sidebar", async function (this: OlaiWorld) {
   await this.showSidebar();
   const link = this.page.locator(INBOX_LINK);
