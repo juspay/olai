@@ -37,6 +37,8 @@ import {
   PREFS_ROW,
   PREFS_SCOPE,
   PREFS_TRIGGER,
+  SIDEBAR_BODY,
+  SIDEBAR_TOGGLE,
   WORDMARK,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -48,6 +50,13 @@ export const showPreferences = async (page: Page): Promise<void> => {
   const panel = page.locator(PREFS_PANEL);
   if (await panel.isVisible().catch(() => false)) return;
   const trigger = page.locator(PREFS_TRIGGER);
+  if (!(await trigger.isVisible().catch(() => false))) {
+    // Phone: the trigger is a row in the directory drawer.
+    const burger = page.locator(SIDEBAR_TOGGLE);
+    await burger.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await burger.click();
+    await page.locator(SIDEBAR_BODY).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  }
   await trigger.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await trigger.click();
   await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

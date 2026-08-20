@@ -136,6 +136,8 @@ Feature: Toggleable & resizable panels
     And the chat sheet is at snap "half"
     When I drag the chat sheet handle up
     Then the chat sheet is at snap "full"
-    When I tap the header agent toggle
+    When I drag the chat sheet handle down
+    Then the chat sheet is at snap "half"
+    When I tap the chat sheet scrim
     Then the agent panel is minimized
     And the chat strip is showing

@@ -14,13 +14,14 @@ import { Given, Then, When } from "@cucumber/cucumber";
 import { PHONE_WIDTH, SHORT_PHONE_HEIGHT } from "../support/hooks.ts";
 
 import {
-  APP_CHROME,
   APP_HEADER,
   CHAT_INPUT,
   CHAT_PANEL,
+  CHAT_STRIP,
   CHAT_TOGGLE,
   COMMIT_PILL,
   CONNECTION,
+  HEADER_SEARCH_OPEN,
   NODE_GUTTER,
   NODE_TITLE,
   OUTLINE_LIST,
@@ -29,7 +30,6 @@ import {
   SIDEBAR_BODY,
   SIDEBAR_TOGGLE,
   TOGGLE,
-  WORDMARK,
   ZOOM,
 } from "../support/world.ts";
 import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "../support/world.ts";
@@ -176,9 +176,11 @@ Then("there is no burger", async function (this: OlaiWorld) {
 
 /** Every chrome pill's border box lies inside the header's own.
  *
- *  A fixed-height bar with flex-wrap used to centre a wrapped pill group so
- *  the first row sat above the viewport at 390pt. The assertion is geometry,
- *  not a colour: the header's own box is the clip region. */
+ *  Desktop: the connection, commit, agent and preferences chips. A
+ *  fixed-height bar with flex-wrap used to centre a wrapped pill group so
+ *  the first row sat above the viewport. The assertion is geometry, not a
+ *  colour: the header's own box is the clip region. Phone chrome is the
+ *  next step — those pills are not in the bar. */
 Then("the app chrome is inside the header", async function (this: OlaiWorld) {
   const header = await this.box(this.page.locator(APP_HEADER), "the app header");
   const pills = [
@@ -200,18 +202,36 @@ Then("the app chrome is inside the header", async function (this: OlaiWorld) {
         `${Math.round(header.width)}×${Math.round(header.height)}`,
     );
   }
+});
 
-  // And the wordmark is not underneath them. Inside-the-bar is not the whole
-  // claim: a row of pills wider than the room left beside `OLAI` overlaps it
-  // instead of overflowing the header, which is what a 390pt bar carrying a
-  // second row of text did — legible nowhere, and failing no assertion.
-  const chrome = await this.box(this.page.locator(APP_CHROME), "the app chrome");
-  const wordmark = await this.box(this.page.locator(WORDMARK), "the wordmark");
+/**
+ * WhatsApp's rule: the bar is ☰, olai, search. The pills that used to
+ * crowd it — connection, commit, agent, prefs — are not in it.
+ *
+ * Absence is the assertion, not geometry: a healthy phone does not
+ * advertise health, and the squeeze this used to measure is gone with the
+ * chips.
+ */
+Then("the phone header is identity and search", async function (this: OlaiWorld) {
+  const header = this.page.locator(APP_HEADER);
+  await header.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   assert.ok(
-    chrome.x >= wordmark.x + wordmark.width - 0.5,
-    `the app's chrome starts at x=${Math.round(chrome.x)}, over the wordmark, ` +
-      `which ends at x=${Math.round(wordmark.x + wordmark.width)}`,
+    await this.page.locator(HEADER_SEARCH_OPEN).isVisible(),
+    "the magnifier is not in the header, so a phone has no door to search",
   );
+  const pills = [
+    { name: "connection", sel: CONNECTION },
+    { name: "commit pill", sel: COMMIT_PILL },
+    { name: "agent toggle", sel: CHAT_TOGGLE },
+    { name: "preferences trigger", sel: PREFS_TRIGGER },
+  ];
+  for (const pill of pills) {
+    assert.strictEqual(
+      await this.page.locator(pill.sel).isVisible(),
+      false,
+      `${pill.name} is drawn on a live phone — a healthy phone does not advertise health`,
+    );
+  }
 });
 
 /**
@@ -296,20 +316,18 @@ When("I open the app held at connecting", async function (this: OlaiWorld) {
   await this.page
     .locator(APP_HEADER)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await this.expectAttribute(
-    CONNECTION,
-    "data-connection",
-    "connecting",
-    "the connection indicator",
-    HYDRATION_TIMEOUT,
-  );
   await this.waitForFrame();
 });
 
 // ── the agent, from a thumb ────────────────────────────────────────────
 
 When("I tap the agent toggle", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(CHAT_TOGGLE), "tap");
+  const toggle = this.page.locator(CHAT_TOGGLE);
+  if (await toggle.isVisible()) {
+    await this.press(toggle, "tap");
+    return;
+  }
+  await this.press(this.page.locator(CHAT_STRIP), "tap");
 });
 
 Then("the agent panel is showing", async function (this: OlaiWorld) {

@@ -42,6 +42,21 @@ Then(
     // The HYDRATION budget, not the interaction one: every state here is
     // reached by the wire itself — a dial, a backoff, a handshake — and none of
     // them are a render away.
+    //
+    // The freeze overlay publishes the same `data-connection` the pill does.
+    // A phone has no pill, and a frozen desktop has both; prefer the overlay
+    // while it is up so the two shapes of the app agree on the step.
+    const overlay = this.page.locator(OFFLINE);
+    if (await overlay.isVisible().catch(() => false)) {
+      await this.expectAttribute(
+        OFFLINE,
+        "data-connection",
+        state,
+        "the freeze overlay",
+        HYDRATION_TIMEOUT,
+      );
+      return;
+    }
     await this.expectAttribute(
       CONNECTION,
       "data-connection",
@@ -68,16 +83,27 @@ Then("the app is frozen under the offline overlay", async function (this: OlaiWo
   // The HYDRATION budget: getting here is a socket dying and a readout folding
   // behind it, which is a wire's clock rather than a render's.
   await overlay.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  const said = await this.page.locator(CONNECTION).getAttribute("title");
-  assert.ok(
-    said !== null && said.length > 0,
-    "the connection pill says nothing, so there is no wording for the overlay to share",
-  );
   const shown = (await overlay.innerText()).replace(/\s+/g, " ");
+  const pill = this.page.locator(CONNECTION);
+  if ((await pill.count()) > 0) {
+    const said = await pill.getAttribute("title");
+    assert.ok(
+      said !== null && said.length > 0,
+      "the connection pill says nothing, so there is no wording for the overlay to share",
+    );
+    assert.ok(
+      shown.includes(said.replace(/\s+/g, " ")),
+      `the overlay reads ${JSON.stringify(shown)}, which is not the pill's own sentence ` +
+        `${JSON.stringify(said)} — two wordings of one wire are two claims free to disagree`,
+    );
+    return;
+  }
+  // A phone has no pill. The overlay IS the connection news, and it still
+  // has to name the state — an empty card would be a freeze with no reason.
+  const label = (await overlay.locator("h2").innerText()).trim();
   assert.ok(
-    shown.includes(said.replace(/\s+/g, " ")),
-    `the overlay reads ${JSON.stringify(shown)}, which is not the pill's own sentence ` +
-      `${JSON.stringify(said)} — two wordings of one wire are two claims free to disagree`,
+    label.length > 0,
+    "the overlay names no connection state",
   );
 });
 
