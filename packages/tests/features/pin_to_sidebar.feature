@@ -80,6 +80,43 @@ Feature: Pinning a page to the sidebar
     And the filter box holds "is:todo"
     And there should be no page errors
 
+  Scenario: Escape backs out of the name, and out of the pin with it
+    # The third of the three keys this slice rules, and the only one whose
+    # claim is that NOTHING happened: the question is up BEFORE the write, so
+    # backing out of it backs out of the whole gesture (grok and opencode both
+    # asked for this one, on #282).
+    When I filter the page by "is:todo"
+    And I pin the page
+    Then the palette asks "a name for this pin — Enter with nothing pins it unnamed"
+    When I press "Escape"
+    Then the pinned shelf is not drawn
+    # The FILE, not just the column: a shelf olai never minted is the proof
+    # that no write went out — and a minted-but-empty one would be the file
+    # this resolver's ONE op exists to prevent.
+    And "_olai/Pins.olai" holds nothing
+    # …and backing out is not a mode: the chord still works after it.
+    When I pin the page
+    And I name the pin ""
+    Then the pinned shelf holds "/house.olai?q=is%3Atodo"
+    And there should be no page errors
+
+  Scenario: The question owns the modal, so a second press does not wipe the name
+    # ⌘⇧P is live while the caret is in the filter box, which is also where a
+    # hand is while it is typing a name — and pressing it again used to raise
+    # the same question a second time, handing the box back its opening words
+    # (opencode, on #282). A question is answered or backed out of; nothing
+    # pressed elsewhere becomes its answer or writes past it.
+    When I filter the page by "is:todo"
+    And I pin the page
+    And I type "What is late" into the palette
+    And I pin the page
+    Then the palette box holds "What is late"
+    And the palette asks "a name for this pin — Enter with nothing pins it unnamed"
+    # …and the words that survived are the ones that land.
+    When I name the pin "What is late"
+    Then the pin "/house.olai?q=is%3Atodo" is named "What is late"
+    And there should be no page errors
+
   Scenario: A pin is renamed from the shelf, and ⌘Z takes the name back
     # Renaming is `set_title` on the pin's own row — the op an agent sends and
     # the one the undo stack already knows — so the shelf's door onto it needs

@@ -462,6 +462,20 @@ export function Palette(props: {
    * under the header, and a row chosen in this palette has this box.
    */
   const pinPage = (said: (line: Said | undefined) => void): void => {
+    // A QUESTION OWNS THIS MODAL, so the chord is dead while one is up — which
+    // is the same rule the caret, Tab and Escape already keep here: a question
+    // is answered or backed out of, and nothing pressed elsewhere becomes its
+    // answer or writes past it. Read forwards it is the fix for what a REPEAT
+    // press did: this gesture's own question is already on screen, so raising
+    // it again is asking a second time, and the effect that raises one hands
+    // the box back its opening words — wiping the name half-typed into it
+    // (opencode, on #282). Read backwards it also keeps a chord from writing
+    // the directory while some OTHER question stands unanswered.
+    //
+    // Silent, deliberately: the question the press would have asked is the
+    // thing on screen, and a line saying so under the header would be this app
+    // telling a reader what they are looking at.
+    if (paletteAsking() !== null) return
     // ASKED ONCE and read twice: whether this page is already a door is a
     // parse of every row on the shelf, and both halves of the gesture — does
     // it ask for a name, and which write does it send — are readings of that

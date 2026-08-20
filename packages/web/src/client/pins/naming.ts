@@ -31,6 +31,13 @@
  * every other layer in this app. Pinning unnamed is Enter, which is less than
  * Escape; there is nothing a reader can lose by answering.
  *
+ * **And the press that asked it is dead while it stands.** The chord is live in
+ * the filter box, which is also where a hand is while it types a name, so a
+ * second ⌘⇧P is a real thing to press by accident — and it used to ask the same
+ * question again, which hands the box back its opening words
+ * (`../palette/Palette.tsx`'s `pinPage`). A question is answered or backed out
+ * of; nothing pressed elsewhere becomes its answer or writes past it.
+ *
  * **A rename is `set_title` on the pin's own row**, which is the op an agent
  * would send and the one ⌘Z already takes back. Typing the name away writes the
  * bare address back, so one box does all three — name, rename, un-name.

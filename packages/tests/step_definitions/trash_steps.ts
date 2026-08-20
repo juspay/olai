@@ -280,14 +280,23 @@ Then(
   },
 );
 
-/** The file, read off the disk the suite is serving: an emptied archive holds
- *  no records at all. The page having drawn nothing and the archive being
- *  empty are two claims, and this is the second one. */
+/**
+ * The file, read off the disk the suite is serving: an emptied archive holds
+ * no records at all. The page having drawn nothing and the archive being empty
+ * are two claims, and this is the second one.
+ *
+ * A FILE THAT IS NOT THERE holds nothing too, which is what the second caller
+ * needs (`pin_to_sidebar.feature`: a naming question backed out of leaves no
+ * shelf behind). The two states are different bugs and one answer here — a
+ * shelf olai never minted, and a shelf minted empty, which is what the pin
+ * resolver's ONE op exists to prevent (`@olai/server`'s `edit.ts`) — so
+ * `servedNodesSoFar` rather than a read that throws on the honest case.
+ */
 Then(
   "{string} holds nothing",
   async function (this: OlaiWorld, file: string) {
     await this.waitUntil(
-      async () => this.servedNodes(file).length === 0,
+      async () => this.servedNodesSoFar(file).length === 0,
       `${file} to hold no records`,
     );
   },

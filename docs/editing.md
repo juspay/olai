@@ -319,7 +319,9 @@ A **shelf of doors** in the directory column, between the calendar and the file 
 
 - **Enter with nothing pins it unnamed** — the bare address this app has always written, one keystroke from where your hand already is. Nothing derived is ever stored, so *Agenda* on the shelf goes on being read live.
 - **Enter with words pins it named**, as one write: the row's title becomes `[What is late](/agenda?q=is%3Atodo)`, which is the markdown link you would have typed into `Pins.olai` yourself.
-- **Escape writes nothing at all.** The question comes before the pin, so backing out of it backs out of the whole gesture.
+- **Escape writes nothing at all.** The question comes before the pin, so backing out of it backs out of the whole gesture. Backing out is not a mode, either: the chord works again on the next press.
+
+**A question owns the modal while it is up.** `⌘⇧P` pressed again over its own question does nothing at all — the question that press would ask is already on screen, and asking it a second time would hand the box back its opening words over the name you are half-way through typing. It is the same rule the caret, Tab and Escape already keep there: a question is answered or backed out of, and nothing pressed elsewhere becomes its answer or writes past it.
 
 **And a pin already on the shelf is renamed from the shelf.** Hovering a row shows a `✎` beside its `×`; pressing it asks the same question, holding the name it has now, and **Enter with nothing takes the name off** — the row goes back to a bare address, drawn by whatever it points at. Renaming is an ordinary title edit on that row (`set_title`, the op an agent sends), so `⌘Z` takes it back like anything else.
 
