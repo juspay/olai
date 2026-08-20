@@ -70,6 +70,15 @@
  * the session is handed, and what a reader sees of them is the outline stream
  * moving — server-authoritative, never an optimistic echo.
  *
+ * Two members are STREAMS, which this surface had none of until PR 4 of
+ * `docs/brainstorming/vault-in-browser.md`: `dated` and `owed`, the sidebar's
+ * month of dots and its count of what is late. A stream is a CELL WITH AN
+ * ARGUMENT — read, listen, re-read on every published revision, send only when
+ * the answer moved — and an argument is exactly what those two need and a cell
+ * cannot have: a month somebody paged to, and the day somebody is standing on.
+ * They are declared with the spec below and their vocabulary is {@link
+ * ./dates.ts}.
+ *
  * The last group is the KEYBOARD's ({@link ./edit.ts}), and it is the one
  * place a browser may cause a write. It changes nothing about the paragraph
  * above: an edit is a PROCEDURE, the collections stay read-only on the wire,
@@ -94,6 +103,8 @@ import {
   GIT_OFF,
   GitState,
   Located,
+  NamedAnswer,
+  NamedRequest,
   NOTHING_PENDING,
   OutlineError,
   Pending,
@@ -118,6 +129,7 @@ import {
 } from "./chat.ts"
 import { editProcedures } from "./edit.ts"
 import { opsProcedures } from "./ops.ts"
+import { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
 import { MatchingAnswer, MatchingRequest, SearchAnswer, SearchRequest } from "./search.ts"
 
 /**
@@ -513,6 +525,66 @@ export const surface = defineSurface({
       verbs: ["keys", "get", "deltas"],
     },
   },
+  /**
+   * THE TWO DATE READINGS THE SIDEBAR DRAWS — the shown month's dots, and how
+   * much is owed today.
+   *
+   * STREAMS, and this surface's first: a stream is a CELL WITH AN ARGUMENT.
+   * The design doc's mechanism paragraph (`docs/brainstorming/
+   * vault-in-browser.md` §2) says what "updates to that" has to mean — "on
+   * every published revision the server recomputes each open page's reading and
+   * sends it when it changed by value — the surface framework's
+   * `equals`-guarded cells already work exactly this way" — and that is
+   * precisely a stream's poll shape upstream: read, install a listener, re-read
+   * on every tick and emit only when `isEqual` says the answer moved
+   * (`@olai/server`'s `runtime.ts` supplies all three).
+   *
+   * SO WHY NOT CELLS. Because neither reading is a value the server owns. One
+   * is about the month a reader PAGED TO, which is chrome state living in the
+   * sidebar (`@olai/web`'s `calendar/Calendar.tsx`), and the other is counted
+   * against the reader's OWN today, which the server cannot know — the dates in
+   * the files are what a person wrote down, so what is late is late where they
+   * are standing, and two tabs either side of midnight are owed two different
+   * answers. A cell would have to pick one of them and be wrong for the other.
+   *
+   * AND WHY NOT PROCEDURES, which is what the two search doors are. A search is
+   * a question somebody asks once and reads the answer to; these are STANDING
+   * views — a date set anywhere in the directory has to light its day and move
+   * the count with no reload, which is what the calendar and the agenda's mark
+   * have always promised. Asked as procedures they would need a generation to
+   * re-ask on, and the only generation a browser has is its own copy of the
+   * derivation — the copy this whole design is taking away. A subscription
+   * needs no token at all: the server knows when the directory moved.
+   *
+   * READ-ONLY BY CONSTRUCTION: a stream has one verb (`get`) and no write
+   * shape to withhold, which is the right vocabulary for a reading of files
+   * that belong to the disk.
+   *
+   * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`), for the reason
+   * `search.matching` is: an agent asking what is late asks `search_nodes`
+   * with a date clause and is answered with the NODES. A month of dots is a
+   * paint instruction for a grid, and two integers about today are a badge —
+   * neither is an answer anything without a screen can act on.
+   */
+  streams: {
+    /** Which days of one month have something on them — see `@olai/format`'s
+     *  `DatedRequest` / `DatedAnswer`, and the `sameDated` beside them, which
+     *  the server binds as this member's `isEqual` and is what keeps a revision
+     *  that moved no dot from sending a frame. */
+    dated: {
+      inputSchema: DatedRequest,
+      outputSchema: DatedAnswer,
+    },
+    /** What is owed as of the reader's own today — `@olai/format`'s
+     *  `OwedRequest` and `Owed`, with `sameOwed` beside them. The counts and
+     *  not the agenda: what crosses is the two numbers a mark prints, so the
+     *  three stretches the PAGE lists stay the page's own reading (which is
+     *  PR 10's row, not this one's). */
+    owed: {
+      inputSchema: OwedRequest,
+      outputSchema: Owed,
+    },
+  },
   procedures: {
     chat: {
       /** Prompt the agent. Answers as soon as the turn is ACCEPTED, not when
@@ -675,13 +747,44 @@ export const surface = defineSurface({
       },
     },
     /**
+     * THE IDS AN AGENT WROTE IN BACKTICKS, looked up — which of them the set
+     * declares, and what each one names.
+     *
+     * ITS OWN NAMESPACE rather than a third member of {@link search}, because
+     * it is not a search: nothing here reads the filter grammar, ranks anything
+     * or decides what a word means. It asks about ids EXACTLY, which is the
+     * lookup an edge target and a `see` link already are (`@olai/format`'s
+     * `nodeNamed`) — spelled for a dozen at once, because the caller is one
+     * message of a transcript and a message holds every backtick the agent put
+     * in it.
+     *
+     * A BATCH is the whole shape: a `read_node` per span would be a dozen round
+     * trips carrying a dozen nodes in full to decide which two words in a
+     * paragraph are pressable.
+     *
+     * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`), for the reason the
+     * member above is: an agent asking whether an id is real asks `read_node`
+     * and is told everything about it. What comes back here is a node id per
+     * span, which is useful only to a caller already looking at the words those
+     * ids are written in.
+     */
+    nodes: {
+      named: {
+        input: NamedRequest,
+        output: NamedAnswer,
+        error: OpFailure,
+      },
+    },
+    /**
      * THE SET'S OWN WORDS, as opposed to a question about them.
      *
      * A sibling of {@link search} rather than a third member of it, because
      * nothing in here reads the query grammar: this answers which tags have
      * been WRITTEN DOWN and how much each is used, where every member of that
      * group is a caller of the one matcher. Two doors with two subjects, said
-     * in the shape rather than in a comment on a shared one.
+     * in the shape rather than in a comment on a shared one — and the same
+     * division {@link nodes} above makes for a lookup that is not a search
+     * either.
      *
      * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`), like the filter's
      * door: what it answers is a popup's worth of rows, capped by the popup.
@@ -789,6 +892,16 @@ export {
   sealPolicy,
   spellsHost,
 } from "./seal.ts"
+
+/** WHICH IDS THE SET DECLARES, and what each names — the transcript's batch
+ *  lookup. `@olai/format`'s own shapes, re-exported rather than re-declared,
+ *  exactly as the search shapes below are and for the same reason: this package
+ *  is a spec, and the read vocabulary is the floor's. */
+export { NamedAnswer, NamedRequest } from "@olai/format"
+
+/** What the sidebar's two date readings ask and answer on the wire — see
+ *  {@link ./dates.ts}. */
+export { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
 
 /** What a search asks and answers on the wire — see {@link ./search.ts}. */
 export {

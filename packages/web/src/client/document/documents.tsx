@@ -243,6 +243,19 @@ const reader = (): Documents => {
   return documents
 }
 
+/** THE PATHS of every bodied file this directory holds, for a reader below
+ *  the provider — see {@link Documents.paths}.
+ *
+ *  A narrow door onto the one context rather than a second context, which is
+ *  the note above: this member is READ in two places at two depths. `App.tsx`
+ *  needs it above the provider, where the reader is composed, to join the two
+ *  key sets into the directory every page model is asked of; and the calendar's
+ *  NOTE marks are a question about a filename asked per month, which is a
+ *  question the grid that shows the month has to ask (`../dates.ts`). Handing
+ *  the second one the whole `Documents` would be handing a date reading a body
+ *  fetcher. */
+export const usePaths = (): Accessor<ReadonlyArray<string>> => reader().paths
+
 /** One served document, by its path — see {@link Documents.read}. A `file()`
  *  of `undefined` asks for nothing, which is what a page whose face draws
  *  without a body passes. */

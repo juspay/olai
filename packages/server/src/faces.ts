@@ -143,8 +143,9 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  *
  * Written as the complement of one omission, and the omission is the whole
  * point of this map existing: `ops.*` is absent. Every cell, every collection,
- * the chat's nine verbs, `edit.apply`, the two search questions, the tag
- * completion's vocabulary and the two git verbs are here because a page reads
+ * the chat's nine verbs, `edit.apply`, the two search questions, the id lookup
+ * behind the transcript's backticks, the tag completion's vocabulary and the
+ * two git verbs are here because a page reads
  * or presses them; the ops request vocabulary is
  * not, because a browser sends INTENTS and the placement is the server's
  * (`@olai/surface`'s `edit.ts`, argued at length and unchanged by any of this).
@@ -176,10 +177,23 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  * `notifications/resources/updated` for the key it already holds; a second
  * resource carrying the revision it would then read anyway is a URI published
  * for nobody. It costs nothing to add the day something asks.
+ *
+ * `dated` and `owed` are a FOURTH and FIFTH, and they are the two STREAMS
+ * this surface grew for `vault-in-browser`'s PR 4 — the sidebar's month of
+ * dots and its count of what is late. Same test as `heads`, same answer: they
+ * are questions only a render-shaped consumer asks. A month of dots is a paint
+ * instruction for a grid somebody is looking at, and two integers about the
+ * reader's own today are a badge. An agent asking what is late asks
+ * `search_nodes` with a date clause and is answered with the NODES — which is
+ * the thing it can act on, and the thing neither of these carries. They also
+ * take an INPUT, which the `surface://` resource vocabulary has no place to
+ * put: an agent could not name a month if it wanted one.
  */
 export const BROWSER: ExposeMap<typeof surface.spec> = {
   outlines: "resource",
   documents: "resource",
+  dated: "resource",
+  owed: "resource",
   heads: "resource",
   transcript: "resource",
   errors: "resource",
@@ -199,6 +213,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "edit.apply": "tool",
   "search.nodes": "tool",
   "search.matching": "tool",
+  "nodes.named": "tool",
   "vocabulary.tags": "tool",
   "git.commit": "tool",
   "git.push": "tool",
@@ -220,18 +235,25 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
  * plus `search.nodes`, `git.commit` and `git.push` — the three members BOTH
  * doors call, because none of them has an agent-specific version.
  *
- * `search.matching` is the one member of a shared group that is NOT here, and
- * it is a fact about what an agent would do with it rather than a restriction:
- * it answers with a set of ids and why, which is only useful to a caller already
- * looking at the rows those ids name. An agent asking which nodes match asks
- * `search_nodes` and is answered with the nodes. `vocabulary.tags` is absent
- * for the same kind of reason and is a whole group rather than one member of
- * one: it answers a POPUP — as many rows as the widget that asked has room for,
- * ranked by how much this set uses each word — and an agent writing `#home`
- * writes the word. What a commit
- * is RECORDED AS does differ, and it is not a member's business: this face is
- * served under the writer the composition root bound (`./runtime.ts`'s
- * `writerAt`), which is where every other fact about a face is decided too.
+ * `search.matching` and `nodes.named` are the two members of shared groups that
+ * are NOT here, and both are a fact about what an agent would do with them
+ * rather than a restriction. The first answers with a set of ids and why, which
+ * is only useful to a caller already looking at the rows those ids name: an
+ * agent asking which nodes match asks `search_nodes` and is answered with the
+ * nodes. The second answers a dozen ids with the node each one names, for a
+ * panel deciding which of an agent's own backticks are pressable: an agent
+ * asking whether an id is real asks `read_node` and is told everything about
+ * it.
+ *
+ * `vocabulary.tags` is absent for the same kind of reason and is a whole GROUP
+ * rather than one member of one: it answers a POPUP — as many rows as the
+ * widget that asked has room for, ranked by how much this set uses each word —
+ * and an agent writing `#home` writes the word.
+ *
+ * What a commit is RECORDED AS does differ, and it is not a member's business:
+ * this face is served under the writer the composition root bound
+ * (`./runtime.ts`'s `writerAt`), which is where every other fact about a face
+ * is decided too.
  *
  * `"tool"` is the plain spelling throughout, and the `{ tool: { mutates } }`
  * hint is deliberately not used: a wire face reads MEMBERSHIP only, and

@@ -18,7 +18,8 @@ import * as path from "node:path";
 import { Given, Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
-import { NEAR } from "@olai/web/src/client/chat/Transcript.tsx";
+import { NEAR } from "@olai/web/src/client/chat/near.ts";
+
 import { selector, TESTID, type TestId } from "@olai/web/src/client/testids.ts";
 
 import {

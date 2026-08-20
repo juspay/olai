@@ -15,6 +15,11 @@ Do not add:
 
 This suite **is** for what only a real browser shows: stacking and overlap via `elementFromPoint`, real drag and touch sequencing, live-wire behaviour (watcher edits, reconnects, server death), multi-tab races, CSP and iframe sealing.
 
+## What a step definition may import
+
+The suite shares constants with `@olai/web` rather than retyping them — a number typed twice eventually disagrees with the app it asserts about. What it may not import is a client **component**: a `.tsx` drags its whole import graph into a process with no browser in it, and that graph reaches `wire.ts`, which dials at module scope and throws without a `location`. One such import once stopped the whole suite from booting, with an error naming `connectSurface` and nothing that looked like a test. `imports.test.ts` is the fence; the fix is always the same — move the constant into a module that holds a constant.
+
+
 Prefer a shared scratch corpus per **feature** over a private server per scenario when the scenarios write disjoint files. Private `@scratch:` servers are where the flakes live; sharing one is filed as roadmap `e2e-scratch-sharing` and is not this file's to solve by adding more of them.
 
 This suite is 59 features, 717 scenarios. A 2026-08-19 audit cut ~160 that did not earn the browser; the grammar, the destination refusals, the trash wording, the install fetch and the rest of that list live in the unit suites now. Four browser-only claims the first cut left unpinned (anchor jump, sidebar inner scroll, same-page never-inside-itself, late-picture rungs) are back.

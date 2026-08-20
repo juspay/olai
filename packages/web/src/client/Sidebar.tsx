@@ -89,7 +89,7 @@
  * scroll position rather than parked at the foot of the page.
  */
 
-import { type Agenda, type BrokenFile, isTrashed } from "@olai/format"
+import { type BrokenFile, isTrashed } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
   createMemo,
@@ -99,6 +99,8 @@ import {
   Show,
   Switch,
 } from "solid-js"
+
+import type { Owed } from "@olai/surface"
 
 import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
@@ -147,10 +149,11 @@ interface TreeView {
 export function Sidebar(props: {
   readonly active: string | undefined
   readonly broken: ReadonlyMap<string, BrokenFile>
-  /** What is owed as of today — the app's ONE reading of it (../App.tsx), the
-   *  same value the agenda page lists. `undefined` only while the first frame
-   *  is still arriving, and then the entry claims nothing. */
-  readonly agenda: Agenda | undefined
+  /** What is owed as of today, counted where the set is (./dates.ts's `owed`
+   *  stream) — the app's ONE subscription to it, so the column and the rail it
+   *  collapses into cannot say different numbers. `undefined` only while the
+   *  first frame is still arriving, and then the entry claims nothing. */
+  readonly owed: Owed | undefined
   readonly children?: JSX.Element
   /**
    * Mobile drawer open. Desktop always draws the column when this component
@@ -261,7 +264,7 @@ export function Sidebar(props: {
           // open several without reopening the drawer each time.
           onClick={() => props.onClose()}
         >
-          <Agenda agenda={props.agenda} />
+          <Agenda owed={props.owed} />
           {props.children}
 
           {/* THE SHELF, between the journal's two questions and the files —
@@ -329,11 +332,12 @@ export function Sidebar(props: {
  *  of them — so `active` has nothing to say about it, and the router is already
  *  what every link in this column goes through.
  *
- *  What it MARKS is not asked of anything: the reading arrives as a prop, from
- *  the one `agendaOf` this client makes (../App.tsx). A count derived here
- *  would be a second reading of the same directory, free to disagree with the
- *  page one click away — which is the whole of why this entry takes an
- *  `Agenda` and not a set to walk.
+ *  What it MARKS is not asked of anything: the two numbers arrive as a prop,
+ *  off the one `owed` subscription this client opens (../dates.ts). A count
+ *  derived here would be a second reading of the same directory, free to
+ *  disagree with the page one click away — which is the whole of why this entry
+ *  takes the COUNTS and not a set to walk, and since `vault-in-browser`'s PR 4
+ *  there is no set on this side to walk anyway.
  *
  *  The facts ride a WRAPPER rather than the link, the way a calendar cell
  *  carries its four (./calendar/Day.tsx): `<Link>` spells the `data-` it knows
@@ -345,14 +349,13 @@ export function Sidebar(props: {
  *  says "you are here" while the chip goes on saying how many. A reader standing
  *  on the page has the OVERDUE section itself in front of them; the alarm's job
  *  is to reach somebody who is somewhere else. */
-function Agenda(props: { readonly agenda: Agenda | undefined }) {
+function Agenda(props: { readonly owed: Owed | undefined }) {
   const router = useRouter()
-  // A memo, and it holds its answer by the COUNTS rather than by identity:
-  // `agenda` is minted afresh on every revision the store publishes, so a mark
-  // compared by reference would rewrite this entry's class, label, title and
-  // three `data-` facts every time somebody typed a character somewhere else
-  // (`./agenda/owed.ts`'s `unchanged`).
-  const mark = createMemo(() => markOf(props.agenda), undefined, { equals: unchanged })
+  // A memo, and it holds its answer by the COUNTS rather than by identity: a
+  // mark is minted afresh on every frame, so one compared by reference would
+  // rewrite this entry's class, label, title and three `data-` facts for a
+  // frame that said what the last one did (`./agenda/owed.ts`'s `unchanged`).
+  const mark = createMemo(() => markOf(props.owed), undefined, { equals: unchanged })
 
   return (
     <div
