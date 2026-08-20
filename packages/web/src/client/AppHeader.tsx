@@ -40,12 +40,15 @@
  *      instant a tap away.
  *   2. The agent's WORD and the preferences' word go next — `>_` and `⚙` are
  *      already icons, and the word stays in the accessible name (`sr-only`), so
- *      nothing is lost but pixels. Their BOXES do not go with them: both take
- *      `touch.ts`'s 44px minimum, which the burger has had since #104 and the
+ *      nothing is lost but pixels. Their HEIGHT does not go with them: both
+ *      take `touch.ts`'s 44px, which the burger has had since #104 and the
  *      agent toggle never did (it measured 76×27 — wide, and never tall
- *      enough). What a thumb aims at came out of this bigger than it went in.
+ *      enough). Their WIDTH does: four 44px squares plus `live` plus a commit
+ *      mark do not fit at 360pt, and a sideways miss in this cluster hits the
+ *      neighbour (`readout.ts`'s `ICON_BUTTON`).
  *   3. Then the Commit pill's label truncates. It is the longest in the bar,
- *      and its first glyph (`✓`, `⚠`) is most of what it says.
+ *      and its first glyph (`✓`, `⚠`) is most of what it says. The glyph
+ *      itself is a floor (`min-w-9`): past that the pill was an empty oval.
  *   4. The connection's label is LAST and in practice never: it has a floor
  *      (`shrink-0`), so `live` stays `live`. Its own `max-w` still caps the
  *      long states, which is that pill's own business.
