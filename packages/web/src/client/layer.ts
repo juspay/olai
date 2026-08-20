@@ -34,6 +34,20 @@
  * something else entirely (it is sealed inside the chat panel, which rides at
  * 30). Nothing was broken and nothing could be read.
  *
+ * ## The ONE thing above this table, and why it is not in it
+ *
+ * The offline overlay (`connection/Offline.tsx`) is a `<dialog>` opened with
+ * `showModal()`, which puts it in the browser's TOP LAYER — above every
+ * stacking context on the page at once, whatever number is on it — and makes
+ * the rest of the document inert. It has to be: the freeze's whole claim is
+ * that nothing underneath can be touched, and a `z-index` cannot make that
+ * claim against a panel that portals to `document.body` LATER at the same
+ * {@link LAYER.over} and paints over whatever was already there. So the freeze
+ * spells no layer, and this paragraph is the entry it would otherwise have
+ * had — a reader of this table needs to know that one thing sits over all of
+ * it, and `claims.test.ts` holds `showModal` to that single file so a second
+ * one cannot appear without an argument.
+ *
  * ## The order, and what each step is holding
  *
  * Three claims are held about the table, in the two places each belongs.

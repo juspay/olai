@@ -7,6 +7,13 @@
  * now (`../filter/asking.ts`), and a call sent down a socket that is not there
  * is not a slower answer, it is no answer.
  *
+ * IT IS ALSO THE FREEZE. `./Offline.tsx` draws its overlay over the whole app
+ * exactly while this says no — the human's §5b ruling — so "a door may not
+ * speak" and "the app is frozen" are one predicate rather than two lists of
+ * state names that could drift apart. That is why what is left here is a
+ * BOOLEAN: a door used to draw its own inert face wearing the pill's sentence,
+ * and under an overlay that covers the app there is no door to draw it on.
+ *
  * A `Record` over the readout's own states rather than a comparison, so a sixth
  * state arriving upstream is a type error here — a door that has to decide
  * whether to speak must not inherit a default about a state nobody has thought
@@ -16,10 +23,10 @@
  * means a subscription riding this socket stopped, not that the socket did, so
  * a procedure sent down it still lands and still answers. What is missing under
  * a degraded readout is whatever those subscriptions carry, which the pill
- * already says in its own words.
+ * already says in its own words — and the app is not frozen for it.
  */
 
-import { lookOf, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
+import type { SurfaceReadout, SurfaceReadoutStatus } from "./status.ts"
 
 const REACHES: Record<SurfaceReadoutStatus, boolean> = {
   /** The first dial has not answered yet — there is nowhere to send it. */
@@ -30,21 +37,8 @@ const REACHES: Record<SurfaceReadoutStatus, boolean> = {
    *  the server said, and a question asked now is asked into nothing. */
   reconnecting: false,
   /** The server that served this page has been replaced. There is nothing to
-   *  wait for — recovery is a reload. */
+   *  wait for — recovery is a reload, which the overlay offers. */
   retired: false,
 }
 
 export const reachable = (readout: SurfaceReadout): boolean => REACHES[readout.status]
-
-/**
- * ...and WHY NOT, in the connection pill's own words — `null` while a question
- * can be asked.
- *
- * The half a door actually draws, and it is here rather than in the door
- * because it is the same sentence wherever it is said: the pill is where this
- * app tells somebody what its wire is doing (`./status.ts`'s `lookOf`), and a
- * second wording of it beside a disabled box would be two claims about one
- * socket, free to disagree.
- */
-export const unreachable = (readout: SurfaceReadout): string | null =>
-  reachable(readout) ? null : lookOf(readout).detail
