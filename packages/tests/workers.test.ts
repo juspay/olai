@@ -17,6 +17,7 @@ import {
   holdPort,
   isolateEnv,
   releasePort,
+  spawnFingerprint,
   WORKER_CAP,
   workerCount,
   workerId,
@@ -101,6 +102,23 @@ test("PIN (profile): cucumber.js asks workerCount(); it does not hardcode 1", ()
   expect(src).toContain('from "./support/parallelism.js"');
   expect(src).toContain("workerCount()");
   expect(src).not.toMatch(/CUCUMBER_PARALLEL\s*\|\|\s*["']1["']/);
+});
+
+test("PIN (spawn shape): fingerprints differ when the server would start differently", () => {
+  const base = { stored: false, agent: true, kolu: false };
+  expect(spawnFingerprint(base)).toBe(spawnFingerprint({ ...base }));
+  expect(spawnFingerprint(base)).not.toBe(
+    spawnFingerprint({ ...base, kolu: true }),
+  );
+  expect(spawnFingerprint(base)).not.toBe(
+    spawnFingerprint({ ...base, git: "repo" }),
+  );
+  expect(spawnFingerprint(base)).not.toBe(
+    spawnFingerprint({ ...base, stored: true }),
+  );
+  expect(spawnFingerprint(base)).not.toBe(
+    spawnFingerprint({ ...base, agent: false }),
+  );
 });
 
 test("PIN (env): a spawned server does not inherit the host's padi or cache", () => {

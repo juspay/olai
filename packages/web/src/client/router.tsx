@@ -298,6 +298,60 @@ export const followed = (event: MouseEvent): Route | null =>
 export const followedSplit = (event: MouseEvent): Route | null =>
   routeFrom(event, (event) => splitClick(event) !== null)
 
+/**
+ * TAKE a click on a link inside rendered markdown — the pair above, answered.
+ *
+ * {@link followed} and {@link followedSplit} say what a press is ASKING FOR;
+ * this is the three lines every surface that draws markdown then writes to
+ * answer it, and they must not be three lines each such surface writes for
+ * itself: Alt opens to the right, a plain press goes in place, and everything
+ * else — an external link, a modified click, a press something deeper already
+ * answered — is left to the browser.
+ *
+ * {@link Link} answers the same question and does NOT come through here, which
+ * is honest rather than an oversight waiting to be tidied: a `<Link>` is handed
+ * the route it stands for, and reading one back off the `href` it just wrote
+ * would be a round trip through a string for a value already in hand. What the
+ * two must agree on is what a MODIFIER means, and that is `../press.ts`'s, read
+ * by both — which is why the force bit below is `splitClick`'s answer and not a
+ * second look at Shift.
+ *
+ * It lives here rather than in the pane because the pane is no longer the only
+ * one: the chat panel is mounted BESIDE the panes (`./App.tsx`) and its
+ * transcript renders the agent's markdown, so an anchor in an answer used to
+ * fall through to the browser's default and reload the app cold. {@link useHere}
+ * is what makes one function serve both — inside a pane it is that pane, and
+ * outside every pane it is the FOCUSED one, which is where a link pressed in a
+ * drawer belongs and where the palette and the sidebar already land.
+ *
+ * NOTHING COMES BACK. It either takes the press or leaves it, and there is no
+ * third answer a caller could branch on — a caller with a question of its own
+ * (the transcript's node chips) asks it BEFORE handing the event over, which is
+ * the order that reads correctly anyway.
+ */
+export const useFollow = (): ((event: MouseEvent) => void) => {
+  const router = useRouter()
+  const here = useHere()
+  const go = useGo()
+  return (event) => {
+    const split = followedSplit(event)
+    if (split !== null) {
+      event.preventDefault()
+      // `splitClick`'s own answer for "a new pane or the one already there".
+      // The line came out of the pane spelling it `event.shiftKey`, which was
+      // the shift⇒force rule written twice — once in `../press.ts` where
+      // `Link` reads it, once here — and free to disagree the day the gesture
+      // moves.
+      router.openRight(here(), split, splitClick(event) === "force")
+      return
+    }
+    const next = followed(event)
+    if (next === null) return
+    event.preventDefault()
+    go(next)
+  }
+}
+
 export function Link(props: LinkProps) {
   const router = useRouter()
   const here = useHere()

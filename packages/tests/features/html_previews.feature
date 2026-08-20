@@ -1,3 +1,4 @@
+@share-scratch
 Feature: A `.html` in the vault
   A served directory is somebody's folder, and what is in one is not only
   outlines and notes: a saved article, a report a build wrote, an export from
@@ -15,6 +16,11 @@ Feature: A `.html` in the vault
   rewrites its own paragraph (and must), then tries to write `localStorage`, set
   a cookie, mark the app's DOM and navigate the tab away (and must fail at every
   one). The paragraph it leaves behind is where both halves are read.
+
+  The `@scratch:good` scenarios each write a file of their own (a page the
+  fixture does not hold), so they share one scratch copy per worker
+  (`@share-scratch`). A scenario that rewrites a file an earlier one already
+  wrote, or that lists the whole vault, keeps a private copy (`@own-scratch`).
 
   What the seal is FOR, now that it is not for stopping code, is stopping BYTES.
   The file is served at its own address on the media route, behind a content
@@ -248,7 +254,7 @@ Feature: A `.html` in the vault
     # …and this is the outline's page rather than a preview showing an outline.
     And there is no preview on this page
 
-  @scratch:good
+  @scratch:good @own-scratch
   Scenario: A link carrying a fragment opens the page AND lands on the section
     # THE CARVE-OUT IS GONE, and this is what replaced it. `other.html#beds`
     # names two things — a file olai has a page for, and a place inside it — and
@@ -341,7 +347,7 @@ Feature: A `.html` in the vault
     # is itself off screen.
     And the section "beds" is on screen
 
-  @scratch:good
+  @scratch:good @own-scratch
   Scenario: A fragment naming nothing leaves the reader at the top
     # The other form of the same skip. A cross-file link whose anchor names no
     # id in the page it opens has nothing to land on — and the written rule is
@@ -556,7 +562,7 @@ Feature: A `.html` in the vault
     # the page's own scroll rather than as the address, since the address is
     # what the two lines above already say.
     And the document is scrolled to the heading "Slats"
-  @scratch:good
+  @scratch:good @own-scratch
   Scenario: Coming back to a section restores where the reader was, not the section
     # A LANDING HAPPENS ONCE, and this is the scenario that says so. A browser
     # applies a hash when you follow a link and does NOT re-apply it when you
@@ -727,7 +733,7 @@ Feature: A `.html` in the vault
     # never the thing that was wrong.
     And the address carries the anchor "#slats"
 
-  @scratch:good
+  @scratch:good @own-scratch
   Scenario: A page that sends the frame to its neighbour is left where it went
     # THE OTHER UNASKED-FOR NAVIGATION, and the last kept behaviour with no
     # scenario of its own. A click is not the only way a frame moves: a page can
@@ -773,7 +779,7 @@ Feature: A `.html` in the vault
     And the document open is "notes/sender.html"
     And the page has not reloaded
 
-  @scratch:good
+  @scratch:good @own-scratch
   Scenario: A click the page has already answered is not the seal's to claim
     # WHY THE HANDLER IS ON THE BUBBLE, pinned rather than described. The seal's
     # click handler refuses a press whose default is already prevented — that is
@@ -815,7 +821,7 @@ Feature: A `.html` in the vault
     And the page has not reloaded
     And the preview shows the heading "Spa"
 
-  @scratch:good
+  @scratch:good @own-scratch
   Scenario: A modified click is the browser's business, not olai's
     # The other half of the same rule, in a real browser rather than in a truth
     # table: a modified click is a reader asking for the BROWSER's own
@@ -873,7 +879,7 @@ Feature: A `.html` in the vault
     # home to the file, which is where the reader can see it.
     And the preview shows the heading "Gallery"
 
-  @scratch:good
+  @scratch:good @own-scratch
   Scenario: A link to a page the route serves and the directory does not list is dropped
     # THE SEAM THIS CHANGE COSTS, pinned rather than left to be met. The two ends
     # disagree about what the vault holds, and they disagree in one direction:
@@ -1078,7 +1084,7 @@ Feature: A `.html` in the vault
     Then the preview shows the heading "After"
     And the page has not reloaded
 
-  @scratch:good @wire
+  @scratch:good @own-scratch @wire
   Scenario: A previewed page's body reaches the frame and never the tab
     # The two wires, and the rule between them. The frame fetches this file over
     # HTTP from `/media/` and draws what it fetched; the SOCKET's business is
@@ -1353,7 +1359,7 @@ Feature: A `.html` in the vault
     Then the preview shows the heading "Hero"
     And the preview is shorter than the viewport
 
-  @scratch:good
+  @scratch:good @own-scratch
   Scenario: A `.html` dropped into the directory joins the sidebar
     # The same live path every other served file is on: one probe, one revision,
     # no reload. A `.html` is not a second read path.

@@ -46,6 +46,7 @@ import type {
 } from "playwright";
 
 import type { TerminalAgent } from "./mcp.ts";
+import type { ScratchShare } from "./scratch.ts";
 import { attr } from "./selectors.ts";
 
 /** Per-step budget for interaction polls against a settled UI — a click
@@ -1241,13 +1242,23 @@ export class OlaiWorld extends World {
   /** The directory being served, for a `@scratch:` scenario — a private copy
    *  of the corpus that this scenario is allowed to EDIT while the server
    *  watches it. Undefined for the shared corpora, which are the tracked
-   *  fixtures and must not be written to. */
+   *  fixtures and must not be written to. A `@share-scratch` feature still
+   *  sets this: the copy is private to this worker, shared with the other
+   *  scratch scenarios of that feature on this worker. */
   served?: string;
+  /**
+   * Set only while this scenario is on a feature-shared scratch. One record
+   * rather than a boolean plus two optionals: a shared run that has no key,
+   * or a key with no snapshot, is not a state After can be asked to interpret.
+   * Absent means the copy is private (killed in After) or there is no copy.
+   */
+  scratchShare?: ScratchShare;
   /** Where this scenario PUSHES to, once it has asked for one: a bare
    *  repository in a temp directory, wired up as `origin`. Undefined for every
    *  scenario that is not about pushing, which is all but one of them. */
   remote?: string;
-  /** The server process a `@scratch:` scenario owns, killed in `After`. */
+  /** The server process a `@scratch:` scenario is served by. Killed in
+   *  `After` when the copy is private; left running when `@share-scratch`. */
   ownServer?: ChildProcess;
   /** A listen on this scenario's port, held between stop and restart so
    *  another worker cannot steal it. Released by `startOwnServer`, or by
@@ -1531,10 +1542,21 @@ export class OlaiWorld extends World {
    *  mouse, and finding out that a control is reachable without one is the
    *  whole point of tapping it. Everything around it — waiting for the thing
    *  to be visible, waiting out the frame the click schedules — is the same
-   *  either way, and was three copies before it was a parameter. */
-  async press(target: Locator, gesture: "click" | "tap" = "click"): Promise<void> {
+   *  either way, and was three copies before it was a parameter.
+   *
+   *  MODIFIERS are the second parameter for the same reason, and they arrived
+   *  the same way: an Alt-click opens a pane to the right, and every step that
+   *  wanted one had written the trio out again with `{ modifiers }` on the end
+   *  — four copies of the wait and the settle, each with its own spelling of
+   *  the timeout. A tap takes them too (Playwright's own option on both), so
+   *  this stays one call rather than a branch. */
+  async press(
+    target: Locator,
+    gesture: "click" | "tap" = "click",
+    modifiers?: ReadonlyArray<"Alt" | "Shift">,
+  ): Promise<void> {
     await target.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await target[gesture]();
+    await target[gesture](modifiers === undefined ? {} : { modifiers: [...modifiers] });
     await this.waitForFrame();
   }
 
