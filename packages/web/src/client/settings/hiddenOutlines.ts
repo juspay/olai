@@ -71,7 +71,11 @@ export const setOutlinesHidden = (value: boolean): void => pref.set(value)
  *
  * WHICH files could not be read is the caller's, because it is a fact about
  * the SET rather than about this preference: the sidebar already holds the
- * map, and a second reading of it here would be a second answer.
+ * map, and a second reading of it here would be a second answer. It is that
+ * MAP rather than a set of paths for the same reason — it is the value the
+ * directory already publishes (`../directory.ts`) — and its values are
+ * `unknown` here because only `has` is ever asked: what a file is wrong about
+ * is the pane's business, not this rule's.
  */
 export const drawnInTree = (
   files: ReadonlyArray<string>,

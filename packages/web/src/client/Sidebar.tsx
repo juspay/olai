@@ -154,6 +154,13 @@ import { atFile } from "./routes.ts"
  *  one and has a single child, where a gap is inert. */
 const ENTRY = `${ENTRY_SHAPE} ${ROW_GAP}`
 
+/** A DOOR at the foot of the column: Inbox, then Trash. Neither is a row of
+ *  the tree above them — each opens a file that tree does not draw — and the
+ *  quiet ink is what says so, since a door drawn in the list's own ink would
+ *  read as one more file. Spelled once because there are two of them now, and
+ *  `_olai/` is where "whatever comes next" goes (docs/format.md). */
+const DOOR = `${ENTRY} text-paper/65`
+
 /** A directory row: folds, does not navigate. Same SHAPE and ink as a file —
  *  the padding, the gap, the type — because a muted folder in a column of
  *  files was two lists. Current-page wash is a file's, and a button does not
@@ -486,7 +493,7 @@ function Trash() {
   return (
     <Link
       route={{ kind: "trash" }}
-      class={`${ENTRY} text-paper/65`}
+      class={DOOR}
       testid={TESTID.trashLink}
       current={router.route().kind === "trash"}
     >
@@ -527,7 +534,7 @@ function Inbox(props: {
   return (
     <Link
       route={atFile(props.file)}
-      class={`${ENTRY} text-paper/65`}
+      class={DOOR}
       testid={TESTID.inboxLink}
       current={props.isActive(props.file)}
       broken={props.broken}
