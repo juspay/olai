@@ -28,6 +28,12 @@
  *     server-authored — `readAll` is the transcript itself and the writes come
  *     from `ctx`, never from the wire — because a transcript is something that
  *     HAPPENED and the only way to add to it is to prompt.
+ *   - the SIDEBAR's two DATE readings are the ops layer's as well, and they
+ *     are the one binding here that publishes nothing: a stream re-READS its
+ *     own answer when the directory moves, so what this file provides is the
+ *     read, a pulse saying something happened (`./revisions.ts`) and the
+ *     schema-derived equality that keeps a revision which moved no dot from
+ *     sending a frame. `vault-in-browser.md` §2's mechanism, wired.
  *   - the KEYBOARD is the ops layer's: one procedure, no member of its own,
  *     and nothing published from here when one lands. That absence IS the
  *     design — an edit changes a FILE, and a file reaches every open tab
@@ -50,7 +56,7 @@
  * the wire.
  */
 
-import { NOTHING_PENDING } from "@olai/format"
+import { NOTHING_PENDING, sameDated, sameOwed } from "@olai/format"
 import { type Ops, Query, type Request, type Status, type Store } from "@olai/ops"
 import type {
   CommitRequest,
@@ -85,6 +91,7 @@ import {
 import { Duration, Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
 
 import type { Change, Chat } from "@olai/chat"
+import { type Emit, emitter, prettyCause } from "@olai/log"
 import * as Bodies from "./bodies.ts"
 import { contextFor } from "./context.ts"
 import { inverseOf, requestFor } from "./edit.ts"
@@ -93,6 +100,7 @@ import {
   type Published,
   publishedOf,
 } from "./published.ts"
+import * as Revisions from "./revisions.ts"
 
 /** What a transport needs, and nothing else. `ctx` is the write face, which
  *  belongs to the bindings below rather than to whoever serves them. */
@@ -290,6 +298,14 @@ export const bind = (
     // would be the same read twice with a window between them.
     const errors = inMemoryStore<ReadonlyArray<OutlineError>>([])
     const chat = wiring.chat
+    /** This runtime's own log line, for the one place below that reports from
+     *  outside an Effect — a stream's re-read, which the framework calls on a
+     *  promise. */
+    const say: Emit = yield* emitter
+    /** WHO IS TOLD THE DIRECTORY MOVED ({@link ./revisions.ts}) — poked once
+     *  per published revision by the connector below, listened to by the two
+     *  date streams. */
+    const revisions = Revisions.make()
 
     /** The revision the wire is holding — `null` until the store has published
      *  one. Each collection's entries are that revision's own map, replaced
@@ -535,6 +551,14 @@ export const bind = (
                   // says whether there is a set, and its `equals` keeps every
                   // revision after the first one quiet.
                   cell.set(LOADED)
+                  // …and LAST of all, after the projection is in place and
+                  // every collection frame is queued, the readings that
+                  // publish nothing are told to go and look again
+                  // ({@link ./revisions.ts}). Last because a listener reads the
+                  // store the instant it is woken, and waking one before the
+                  // revision it is about is published would hand it the
+                  // previous answer and no reason to ask for the next.
+                  revisions.moved()
                 }),
             ),
         },
@@ -654,6 +678,63 @@ export const bind = (
           remove: () => {},
         },
       },
+      /**
+       * A poll-shape stream is three things and the framework wires them into
+       * one snapshot-then-deltas source: READ the answer, INSTALL a listener
+       * for "something happened", and say when two answers are the SAME so a
+       * tick that moved nothing sends nothing. That is the design doc's
+       * mechanism paragraph exactly — recompute on every published revision,
+       * send when it changed by value (`vault-in-browser.md` §2) — and it is
+       * why the sidebar's two date readings are streams rather than a pair of
+       * procedures a browser would have to know when to re-ask.
+       *
+       * THE READ IS THE OPS LAYER'S, which is the same gated read a keystroke's
+       * write is judged against and the same one an agent's tool is answered
+       * from: nothing is decided here, and there is no second walk of the set
+       * on this side of the wire to disagree with the first. `runPromise`
+       * because the framework's poll shape speaks promises; the effect it runs
+       * needs no services, so there is no runtime to thread.
+       *
+       * THE INSTALL IS ONE PULSE for both, and it carries nothing
+       * ({@link ./revisions.ts}): a listener is told the directory moved and
+       * goes back to the ops layer for what it now says.
+       *
+       * THE EQUIVALENCES ARE THE SCHEMAS' — `@olai/format`'s `sameDated` and
+       * `sameOwed`, derived from the declarations rather than written out, so a
+       * field added to either answer is compared without anybody remembering to
+       * compare it. Getting that wrong in this direction is a frame that is
+       * never sent: a browser holding a stale month under a healthy socket.
+       *
+       * AN INITIAL read failure propagates — the subscriber has no snapshot, so
+       * there is nothing honest to draw and the framework fails the stream,
+       * which the browser's own readout names as a stopped subscription. A
+       * LATER one is logged and the last good answer stands: a transient
+       * refusal is not a reason to tear down a subscription somebody is
+       * watching, and it is never silence.
+       */
+      streams: {
+        dated: {
+          read: (input) => Effect.runPromise(wiring.ops.dated(input)),
+          install: (_input, onEvent) => revisions.install(onEvent),
+          isEqual: sameDated,
+        },
+        owed: {
+          read: (input) => Effect.runPromise(wiring.ops.owed(input)),
+          install: (_input, onEvent) => revisions.install(onEvent),
+          isEqual: sameOwed,
+        },
+      },
+      /** What a re-read of a live stream failed with. Required by the framework
+       *  at wiring time rather than defaulted, which is the boot-time spelling
+       *  of HACKING.md's rule: a subscription that quietly stopped answering is
+       *  the failure nobody would ever see. */
+      onStreamReadError: (error, { stream }) =>
+        say(
+          Effect.annotateLogs(Effect.logWarning("a date reading could not be re-read"), {
+            stream,
+            why: prettyCause(error),
+          }),
+        ),
       procedures: {
         chat: {
           // The ids the composer was armed with become NODES here, over the

@@ -25,9 +25,13 @@ import {
   BusyFailure,
   type CommitRequest,
   type CommitResult,
+  type DatedAnswer,
+  type DatedRequest,
   type MatchingAnswer,
   type MatchingRequest,
   type OpFailure,
+  type Owed,
+  type OwedRequest,
   type Pending,
   type PushResult,
   type Reading,
@@ -121,6 +125,29 @@ export interface Ops extends Asking {
   readonly matching: (
     request: MatchingRequest,
   ) => Effect.Effect<MatchingAnswer, OpFailure>
+  /**
+   * THE CALENDAR'S DOTS and WHAT IS OWED — the two date readings the sidebar
+   * used to take off the browser's own copy of the set
+   * (`docs/brainstorming/vault-in-browser.md`, PR 4).
+   *
+   * HERE RATHER THAN ON {@link Asking}, beside {@link matching} and for its
+   * argument word for word: `Asking` is what a TOOL may ask, and neither of
+   * these is a tool. A month of dots is a paint instruction for a grid somebody
+   * is looking at, and two integers about today are a badge — an agent asking
+   * what is late asks `search_nodes` with a date clause and is answered with
+   * the nodes. So they hang off the layer the SERVER holds, are exposed on the
+   * browser face alone (`@olai/server`'s `faces.ts`), and `mcp-bridge`'s door
+   * is not obliged to implement members no agent face offers.
+   *
+   * TWO members and not one, though one sidebar draws both. They are answers to
+   * two different questions with two different arguments — a month somebody
+   * paged to, and the day somebody is standing on — and folding them into one
+   * would make paging the calendar a question about what is late.
+   */
+  readonly dated: (
+    request: DatedRequest,
+  ) => Effect.Effect<DatedAnswer, OpFailure>
+  readonly owed: (request: OwedRequest) => Effect.Effect<Owed, OpFailure>
   /** Perform one op. Fails only with an {@link OpFailure} — every internal
    *  failure mode (a stale base, a file system error) is either retried or
    *  translated, because a caller of this interface is a tool call or a
@@ -360,6 +387,13 @@ export const make = (options: Options): Ops => {
     // the set is prose (prose is the one page that carries no filter).
     matching: (request) =>
       Effect.map(read, (at) => Query.matches(at.derived, request, context.now())),
+    // The SIDEBAR's two date readings, over the same gated read and over the
+    // derivation alone: a dot and a count are both about records, and the other
+    // half of the set is prose. The day they are counted against is the
+    // REQUEST's, never `context.now()` — the reader's clock is the only one
+    // that can say what is late for them (`./query.ts`'s `owed`).
+    dated: (request) => Effect.map(read, (at) => Query.dated(at.derived, request)),
+    owed: (request) => Effect.map(read, (at) => Query.owed(at.derived, request)),
     status: commits.status,
     pending: commits.pending,
     commit: commits.commit,
