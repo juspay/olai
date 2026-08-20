@@ -283,7 +283,7 @@ The names are not written down twice. `support/world.ts` imports the client's ow
 | `[data-testid="outline-failure"][data-file]` | shown in ONE outline's place: that file will not parse |
 | `[data-testid="outline-link"][data-broken]` | the sidebar entry of a file that will not parse |
 | `[data-testid="connection"][data-connection]` | the connection dot, in every shape of the app: `connecting`, `live`, `reconnecting`, `retired` |
-| `[data-testid="restarted"]` | over everything: the server that served this page has been replaced |
+| `[data-testid="offline"][data-connection]` | THE FREEZE: over everything, with everything under it inert — the wire cannot carry a question, so the app takes no gesture at all. `data-connection` is the state that froze it |
 | `[data-testid="reload"]` | the button in that surface — the whole of the recovery |
 | `[data-testid="commit-pill"][data-state][data-uncommitted][data-repo]` | the Commit pill, ALWAYS drawn, and the header's ONE indicator for git; `data-state` is the face — `off`, `no-repo`, `error`, `never`, `committed`, `waiting`, `blocked`, or `unknown` before the first frame. What git SAID is its `aria-label` and its tip, never a colour; the inert faces carry `aria-disabled` and stay focusable |
 | `[data-testid="commit-last"]` | what olai last recorded here, or the words saying it never has |

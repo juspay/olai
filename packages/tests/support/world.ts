@@ -427,11 +427,6 @@ export const FILTER_CLEAR = selector(TESTID.filterClear);
  *  scenario asserts on the WORDS: a query that quietly found nothing is what
  *  this line exists to make impossible. */
 export const FILTER_REFUSAL = selector(TESTID.filterRefusal);
-/** Why the box is inert: the connection cannot carry a question, in the
- *  connection pill's own words (`client/filter/asking.ts`). A different line
- *  from the refusal above and from a failed call, because they are three
- *  different pieces of news. */
-export const FILTER_OFFLINE = selector(TESTID.filterOffline);
 export const PANE = selector(TESTID.pane);
 export const PANE_RAIL = selector(TESTID.paneRail);
 export const PANE_HEADER = selector(TESTID.paneHeader);
@@ -702,8 +697,11 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
 /** The attribute that readout carried. Kept as a selector so the fence catches
  *  a second git chip that carries no test id of its own. */
 export const RETIRED_GIT_READOUT = "[data-git]";
-/** Over everything: the server that served this page has been replaced. */
-export const RESTARTED = selector(TESTID.restarted);
+/** THE FREEZE: over everything, and everything under it inert — the wire
+ *  cannot carry a question, so the app takes no gesture at all
+ *  (`client/connection/Offline.tsx`). `data-connection` on it is the state that
+ *  froze it, in the pill's own spelling. */
+export const OFFLINE = selector(TESTID.offline);
 /** The button in that surface, and in the fault card — one control, one name. */
 export const RELOAD = selector(TESTID.reload);
 /** In the whole app's place: the CLIENT threw while drawing, and the boundary
