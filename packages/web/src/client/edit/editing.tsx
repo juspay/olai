@@ -156,8 +156,9 @@ const NOWHERE: Where = { place: null, after: null, field: null }
 
 /** What {@link createEditor}'s `drawn` answers with when there is no caret in
  *  a row — one array, so a page with nothing being typed in it hands back the
- *  same reference every frame and notifies nobody. */
-const NOTHING_DRAWN: ReadonlyArray<Row> = []
+ *  same reference every frame and notifies nobody. NOT `NOTHING_DRAWN`, which
+ *  is `../page.ts`'s and is a PAGE with nothing on it; this is a list. */
+const NO_ROWS: ReadonlyArray<Row> = []
 
 /** What a write that LANDED tells this editor: the node it turned out to be
  *  about, what that node says now, and whatever the rollup had to say. The
@@ -282,7 +283,7 @@ export const createEditor = (
    * the one state with a `field` on it.
    */
   const drawn = createMemo<ReadonlyArray<Row>>(() =>
-    where().field === null ? NOTHING_DRAWN : flatten(page.rows(), page.collapsed())
+    where().field === null ? NO_ROWS : flatten(page.rows(), page.collapsed())
   )
 
   /**

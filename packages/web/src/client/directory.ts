@@ -46,7 +46,6 @@
 
 import type { BrokenFile, Face } from "@olai/format"
 import type { Head, Manifest } from "@olai/surface"
-import type { ReadOnlyBoundDeltasCollectionResult } from "@kolu/surface/solid"
 import { type Accessor, createMemo } from "solid-js"
 
 import { facesOf, sortByPath } from "./paths.ts"
@@ -77,28 +76,23 @@ export interface Directory {
   readonly head: (file: Accessor<string>) => Accessor<number | undefined>
 }
 
-/** The heads collection as this composition asks for it: the keys, one entry
- *  per key, and the frame socket — the framework's own name for that shape, so
- *  a caller may hand this either the bound member or a raw hook and there is no
- *  second spelling of somebody else's contract to keep in step. */
-export type Heads = ReadOnlyBoundDeltasCollectionResult<string, Head>
-
 /**
- * THE TWO THINGS this file actually asks of that collection — which keys there
- * are, and what one of them holds.
+ * THE TWO THINGS this file asks of the heads collection — which keys there are,
+ * and what one of them holds. `App.tsx` hands over the bound member itself
+ * (`olai.collections.heads.use()`), which satisfies this structurally.
  *
  * Narrowed at the parameter for the reason every other seam in this client
  * narrows one (`./edit/editing.tsx` takes four verbs of a `Selection` and one
  * of a `Moving`): what a module is handed should be what it reads. What it buys
  * here is a suite — `./directory.browsertest.ts` stands one of these up out of
- * two signals, where {@link Heads} would have meant standing up the framework's
- * whole collection contract, lifecycle signals and all, to ask whether one memo
- * held its value.
+ * two signals, where the framework's whole collection type would have meant
+ * standing up its lifecycle signals and its frame socket as well to ask whether
+ * one memo held its value.
  *
- * SPELLED OUT rather than `Pick`ed off {@link Heads}, because the widening is
- * the point: the framework's `byKey` answers with a `Subscription`, and every
- * one of those IS an accessor — so the real member satisfies this, and a fake
- * need not carry an `error` and a `pending` this file never reads.
+ * SPELLED OUT rather than `Pick`ed off that type, because the widening is the
+ * point: the framework's `byKey` answers with a `Subscription`, and every one
+ * of those IS an accessor — so the real member satisfies this, and a fake need
+ * not carry an `error` and a `pending` this file never reads.
  */
 export interface HeadEntries {
   readonly keys: () => ReadonlyArray<string>
