@@ -319,7 +319,12 @@ export const createCompletion = (field: {
   })
 
   /**
-   * Do the rows on screen answer the trigger armed NOW?
+   * Have the rows on screen CAUGHT UP with the trigger armed now?
+   *
+   * Not `settled` — that word is `../settled.ts`'s, and it names the 200ms
+   * a keystroke waits before it is a question. This is the other end: the
+   * settle AND the round trip after it are over, and what is drawn is about
+   * what is armed.
    *
    * THE SAME TABLE {@link choices} and {@link failure} are, and for their
    * reason: which list a trigger draws from is a fact the compiler keeps, so a
@@ -335,7 +340,7 @@ export const createCompletion = (field: {
    * A DAY LIST is always settled: `naturalDays` is a pure function of a
    * phrase and a calendar, computed from the trigger in hand.
    */
-  const settled = createMemo<boolean>(() => {
+  const caughtUp = createMemo<boolean>(() => {
     const found = trigger()
     if (found === null) return false
     switch (found.kind) {
@@ -393,10 +398,10 @@ export const createCompletion = (field: {
           const taking = choices()[cursor.at()]
           if (taking === undefined) return false
           // ...and rows that answer an older prefix are not this key's to
-          // take ({@link settled}). CLAIMED all the same: a list is on screen
+          // take ({@link caughtUp}). CLAIMED all the same: a list is on screen
           // under the caret, and an `Enter` falling through to the row's own
           // handler would end the line the reader is still typing a tag into.
-          if (!settled()) return true
+          if (!caughtUp()) return true
           taking.choose()
           return true
         }

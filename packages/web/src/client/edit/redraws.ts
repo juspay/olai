@@ -32,6 +32,30 @@
  * it changes what the agenda and the day pages list, never this page's sibling
  * order — and a `mirror` cannot either, because the placement it makes is a new
  * row AFTER the one that made it.
+ *
+ * ## The finer question beside it: does the row get a new ADDRESS?
+ *
+ * {@link redraws} asks whether the row can MOVE. {@link rekeys} asks the
+ * sharper thing that follows from it — whether the row is drawn at a different
+ * `Row.key` afterwards — and they are two facts about one subject, which is
+ * why they are one file rather than a second table somewhere else.
+ *
+ * The difference is the whole of what the caret costs. A row that moves among
+ * its SIBLINGS keeps its key, so the tree's `<Key by="key">` moves the very
+ * element the editor is drawn in and the platform keeps the selection inside
+ * it. A row that changes PARENT does not: its key is the chain of ids down to
+ * it (`@olai/format`'s `derive.ts`), so the branch it was drawn in stops
+ * matching and a different branch starts — the editor is not moved but
+ * REPLACED, and a fresh editor opens at the end of the text, which throws
+ * somebody who pressed `Tab` mid-word to the end of their own title. So a
+ * write that rekeys carries the caret's offset on the draft, exactly as a
+ * split and a merge do (`./draft.ts`'s `caret`).
+ *
+ * It is a TABLE for {@link redraws}' reason word for word — the answer is a
+ * fact about the verb, and a per-call-site flag is something the next caller
+ * can get wrong in a way nothing notices — and it is a function over the EDIT
+ * rather than a set of verbs because the four moves split two ways: `in` and
+ * `out` change the parent, `up` and `down` shuffle siblings.
  */
 
 import type { Edit } from "@olai/surface"
@@ -67,3 +91,27 @@ const MOVES: ReadonlySet<Edit["verb"]> = new Set<Edit["verb"]>([
 ])
 
 export const redraws = (edit: Edit): boolean => MOVES.has(edit.verb)
+
+/**
+ * Whether this write leaves the row at a different `Row.key` — see the header.
+ *
+ * The verbs that end the row's life on this page are deliberately NOT here. A
+ * merge destroys the row and a split makes a second one; both hand the caret an
+ * offset of their own through `./draft.ts`'s `opening`, because what they are
+ * about is WHERE IN THE SENTENCE it lands rather than that it should not have
+ * moved. Two answers to one question is what a table is for avoiding, so each
+ * verb appears in exactly one of them.
+ */
+export const rekeys = (edit: Edit): boolean => {
+  switch (edit.verb) {
+    // A new parent, named outright: the picker's landing, and the undo that
+    // puts a row back where it sat.
+    case "place":
+    case "under":
+      return true
+    case "move":
+      return edit.how === "in" || edit.how === "out"
+    default:
+      return false
+  }
+}

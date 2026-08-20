@@ -164,8 +164,8 @@ function Rendered(props: Reading) {
       const root = document.querySelector(
         `[data-testid="${TESTID.pane}"][data-pane="${String(here())}"]`,
       )
-      const heading = root?.querySelector(`#${CSS.escape(id)}`)
-      if (heading === null || heading === undefined) return
+      const heading = root?.querySelector(`#${CSS.escape(id)}`) ?? null
+      if (heading === null) return
       heading.scrollIntoView({ block: "start" })
       landed = land
     })

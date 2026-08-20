@@ -81,7 +81,7 @@ import {
 } from "./draft.ts"
 import { flatten, neighbour, refound } from "./order.ts"
 import { serial } from "./queue.ts"
-import { redraws } from "./redraws.ts"
+import { redraws, rekeys } from "./redraws.ts"
 import { useUndo } from "./undoing.ts"
 
 export interface Editor {
@@ -441,37 +441,36 @@ export const createEditor = (
    */
   const structural = async (
     name: (draft: RowDraft) => Edit,
-    /**
-     * Where the caret was in the line, for the two keys that give the row a new
-     * ADDRESS — see the paragraph below.
-     */
+    /** Where the caret is in the line. Handed to every key that has one, and
+     *  read only by the writes {@link ./redraws.ts}'s `rekeys` names — which
+     *  is what keeps "does this key owe the caret its place" a fact about the
+     *  VERB rather than something each new key has to remember. */
     at?: Caret,
   ) => {
     if (!(await commit())) return
     const open = draft()
     if (open === null || open.kind !== "row") return
+    const edit = name(open)
     /**
-     * The caret's offset, written onto the draft BEFORE the write goes.
+     * WHERE THE CARET GOES if this row's editor is drawn again somewhere else,
+     * written onto the draft BEFORE the write goes.
      *
-     * An indent changes the row's `Row.key` (`@olai/format`'s `derive.ts`
-     * mints it as the chain of ids down to the row), so the branch the editor
-     * was drawn in stops matching and a DIFFERENT branch starts: the editor is
-     * not moved, it is a new one, and a new one opens at the end of the text —
-     * which is what a click means and is the wrong answer for somebody who
-     * pressed Tab in the middle of a word. The draft is what survives the row
-     * being redrawn, so the offset rides on it, exactly as a split's and a
-     * merge's do ({@link ./draft.ts}'s `caret`).
+     * A write that rekeys the row replaces the editor rather than moving it, so
+     * a fresh one opens at the end of the text and somebody who pressed `Tab`
+     * mid-word is thrown to the end of their own title
+     * ({@link ./redraws.ts} carries the argument). The draft is what survives
+     * the row being redrawn, so the offset rides on it, exactly as a split's
+     * and a merge's do ({@link ./draft.ts}'s `caret`).
      *
      * BEFORE the write, and that is the load-bearing half: the frame that
      * redraws the row can arrive while the call is still in flight, and by then
      * `follow` has already moved the draft and the new editor has already
-     * opened. A caret put on the draft after the write would be a caret set
-     * after the box that reads it was drawn.
+     * opened. A caret put on the draft afterwards would be a caret set after
+     * the box that reads it was drawn.
      */
-    const held: RowDraft = at === undefined ? open : { ...open, caret: at.start }
-    if (held !== open) setDraft(held)
+    const held: RowDraft = at !== undefined && rekeys(edit) ? { ...open, caret: at.start } : open
+    setDraft(held)
     const slot = slotOf(held)
-    const edit = name(held)
     const moved = redraws(edit)
       ? await redrawing(edit, slot)
       : await send(edit, slot)
@@ -659,16 +658,16 @@ export const createEditor = (
     // the mark and lets the server read the direction, `walk` sends neither
     // and lets it read both. What a row carries is a fact about the set, and
     // this tab is looking at a frame of it.
-    toggle: () =>
-      enqueue(() => structural((held) => ({ verb: "toggle", id: held.id, mark: "done" }))),
-    walk: () => enqueue(() => structural((held) => ({ verb: "walk", id: held.id }))),
+    toggle: (at) =>
+      enqueue(() => structural((held) => ({ verb: "toggle", id: held.id, mark: "done" }), at)),
+    walk: (at) => enqueue(() => structural((held) => ({ verb: "walk", id: held.id }), at)),
     // The DUPLICATE names the ROW's own record, where the two mark keys above
     // name what the row SHOWS — the same split `split` and `merge` make, and
     // the same argument: this key puts rows on the page a reader has open, and
     // a copy of a mirror's TARGET would be a subtree appearing in a file nobody
     // is looking at. So a placement is refused in the ops layer's own words.
-    duplicate: () =>
-      enqueue(() => structural((held) => ({ verb: "duplicate", id: held.row }))),
+    duplicate: (at) =>
+      enqueue(() => structural((held) => ({ verb: "duplicate", id: held.row }), at)),
     // The ONE key here that writes nothing: it opens the move-to picker on this
     // row (`../move/moving.tsx`), and what lands is chosen in it. It is the
     // three picking keys' shape rather than a write's — commit what is being
@@ -691,18 +690,18 @@ export const createEditor = (
       selection.grow(1)
     })),
     selectAll: () => enqueue(() => picking((from) => selection.widen(from))),
-    // THE TWO THAT CHANGE THE ROW'S ADDRESS, and so the only two that hand the
-    // caret's offset down: an indent draws the row in a branch that did not
-    // exist, where a reorder leaves it in the one it was in (`up`/`down`
-    // below keep the `Row.key`, so their editor is moved rather than replaced
-    // and the platform keeps the selection). `structural` says the rest.
+    // Every one of them hands the caret's offset down, and only the two that
+    // give the row a new parent read it — which is `./redraws.ts`'s `rekeys`,
+    // not a decision made here. An indent draws the row in a branch that did
+    // not exist; a reorder leaves it in the one it was in.
     in: (at) =>
       enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "in" }), at)),
     out: (at) =>
       enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "out" }), at)),
-    up: () => enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "up" }))),
-    down: () =>
-      enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "down" }))),
+    up: (at) =>
+      enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "up" }), at)),
+    down: (at) =>
+      enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "down" }), at)),
   }
 
   /**
