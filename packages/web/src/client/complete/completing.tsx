@@ -337,10 +337,15 @@ export const createCompletion = (field: {
    * take mints a placement and a `#` take rewrites the line, so `Enter`
    * pressed within 200ms of a keystroke would spend the PREVIOUS prefix's row.
    *
-   * A DAY LIST is always settled: `naturalDays` is a pure function of a
+   * A DAY LIST has always caught up: `naturalDays` is a pure function of a
    * phrase and a calendar, computed from the trigger in hand.
+   *
+   * A PLAIN FUNCTION rather than a memo, which {@link Listing.showing} beside
+   * it already is and for the same reason: nothing DRAWS this, its one reader
+   * is a keydown, and a memo would be a graph node recomputing on every
+   * keystroke and every caret move for a value wanted once per `Enter`.
    */
-  const caughtUp = createMemo<boolean>(() => {
+  const caughtUp = (): boolean => {
     const found = trigger()
     if (found === null) return false
     switch (found.kind) {
@@ -351,7 +356,7 @@ export const createCompletion = (field: {
       case "mirror":
         return nodes.answering() !== null
     }
-  })
+  }
 
   const listing: Listing = {
     // A box is on screen when something is armed AND it has something to say —
@@ -397,10 +402,16 @@ export const createCompletion = (field: {
           // keystroke that does nothing at all.
           const taking = choices()[cursor.at()]
           if (taking === undefined) return false
-          // ...and rows that answer an older prefix are not this key's to
-          // take ({@link caughtUp}). CLAIMED all the same: a list is on screen
-          // under the caret, and an `Enter` falling through to the row's own
-          // handler would end the line the reader is still typing a tag into.
+          // ...and rows that answer an older prefix are not this KEY's to
+          // take ({@link caughtUp}) — where a POINTER's press on one still is,
+          // which is why the guard is here rather than inside `choose`: a hand
+          // on a row is a hand on the row it can SEE, and taking it is what
+          // that hand asked for. Enter is the one that means "the row under the
+          // cursor", and the cursor's row is about to change underneath it.
+          //
+          // CLAIMED all the same: a list is on screen under the caret, and an
+          // `Enter` falling through to the row's own handler would end the
+          // line the reader is still typing a tag into.
           if (!caughtUp()) return true
           taking.choose()
           return true

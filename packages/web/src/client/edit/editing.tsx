@@ -467,6 +467,9 @@ export const createEditor = (
      * `follow` has already moved the draft and the new editor has already
      * opened. A caret put on the draft afterwards would be a caret set after
      * the box that reads it was drawn.
+     *
+     * Every other write puts the SAME draft back, which the signal absorbs —
+     * one statement rather than a branch around a write that does nothing.
      */
     const held: RowDraft = at !== undefined && rekeys(edit) ? { ...open, caret: at.start } : open
     setDraft(held)

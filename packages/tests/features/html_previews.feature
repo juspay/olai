@@ -735,15 +735,18 @@ Feature: A `.html` in the vault
 
   @scratch:good @own-scratch
   Scenario: A file rewritten under a reader does not land them a second time
-    # THE SAME RULE, disturbed the other way — and the way that is nobody's
-    # gesture at all. The effect that performs a landing TRACKS the document's
-    # text, and has to: the id in the address is the heading's own, the id in
-    # the page is minted from what was rendered (`markdown/render.ts`'s
-    # `landingId`), and the body arrives a frame behind the address. So a file
-    # REWRITTEN under an open page re-ran it — an agent's write, a `git pull`,
-    # another tab — and dragged whoever was reading it back to a heading they
-    # had asked for minutes ago
+    # THE SAME RULE as the scenario above, disturbed the other way — and the way
+    # that is nobody's gesture at all. The effect that performs a landing TRACKS
+    # the document's text, and has to: the id in the address is the heading's
+    # own, the id in the page is minted from what was rendered
+    # (`markdown/render.ts`'s `landingId`), and the body arrives a frame behind
+    # the address. So a file REWRITTEN under an open page re-ran it — an agent's
+    # write, a `git pull`, another tab — and dragged whoever was reading it back
+    # to a heading they had asked for minutes ago
     # (`docs/brainstorming/reactivity-after-the-flip.md`'s 4.9).
+    #
+    # A SHORT WINDOW rather than a long fixture: what this needs is a page with
+    # somewhere to be, and the height of the window is the cheaper half of that.
     Given the window is shorter than the page
     And I open the app
     And I mark the page
@@ -751,35 +754,23 @@ Feature: A `.html` in the vault
       """
       # Beds
 
-      Prose at the top of the page, line 1 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
+      Prose at the top of the page, line 1, so landing on the section
+      below is a real scroll and scrolling away from it is another.
 
-      Prose at the top of the page, line 2 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
+      Prose at the top of the page, line 2, so landing on the section
+      below is a real scroll and scrolling away from it is another.
 
-      Prose at the top of the page, line 3 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
+      Prose at the top of the page, line 3, so landing on the section
+      below is a real scroll and scrolling away from it is another.
 
-      Prose at the top of the page, line 4 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
+      Prose at the top of the page, line 4, so landing on the section
+      below is a real scroll and scrolling away from it is another.
 
-      Prose at the top of the page, line 5 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
+      Prose at the top of the page, line 5, so landing on the section
+      below is a real scroll and scrolling away from it is another.
 
-      Prose at the top of the page, line 6 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
-
-      Prose at the top of the page, line 7 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
-
-      Prose at the top of the page, line 8 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
-
-      Prose at the top of the page, line 9 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
-
-      Prose at the top of the page, line 10 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
+      Prose at the top of the page, line 6, so landing on the section
+      below is a real scroll and scrolling away from it is another.
 
       ## Slats
 
@@ -800,19 +791,6 @@ Feature: A `.html` in the vault
 
       More prose under the heading, line 6, so there is a page to be
       somewhere in.
-
-      More prose under the heading, line 7, so there is a page to be
-      somewhere in.
-
-      More prose under the heading, line 8, so there is a page to be
-      somewhere in.
-
-      More prose under the heading, line 9, so there is a page to be
-      somewhere in.
-
-      More prose under the heading, line 10, so there is a page to be
-      somewhere in.
-
       """
     And I rewrite "notes/index.html" as:
       """
@@ -828,76 +806,9 @@ Feature: A `.html` in the vault
     # The reader reads on, and scrolls somewhere of their own choosing.
     When I scroll to the bottom of the page
     And I remember where the page is scrolled
-    # …and then somebody else writes the file they are reading.
-    And I rewrite "notes/beds.md" as:
-      """
-      # Beds
-
-      Prose at the top of the page, line 1 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
-
-      Prose at the top of the page, line 2 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
-
-      Prose at the top of the page, line 3 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
-
-      Prose at the top of the page, line 4 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
-
-      Prose at the top of the page, line 5 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
-
-      Prose at the top of the page, line 6 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
-
-      Prose at the top of the page, line 7 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
-
-      Prose at the top of the page, line 8 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
-
-      Prose at the top of the page, line 9 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
-
-      Prose at the top of the page, line 10 of it, so that landing on the
-      section below is a real scroll and scrolling away from it is another.
-
-      ## Slats
-
-      More prose under the heading, line 1, so there is a page to be
-      somewhere in.
-
-      More prose under the heading, line 2, so there is a page to be
-      somewhere in.
-
-      More prose under the heading, line 3, so there is a page to be
-      somewhere in.
-
-      More prose under the heading, line 4, so there is a page to be
-      somewhere in.
-
-      More prose under the heading, line 5, so there is a page to be
-      somewhere in.
-
-      More prose under the heading, line 6, so there is a page to be
-      somewhere in.
-
-      More prose under the heading, line 7, so there is a page to be
-      somewhere in.
-
-      More prose under the heading, line 8, so there is a page to be
-      somewhere in.
-
-      More prose under the heading, line 9, so there is a page to be
-      somewhere in.
-
-      More prose under the heading, line 10, so there is a page to be
-      somewhere in.
-
-      One more slat, **added under the reader**.
-
-      """
+    # …and then somebody else writes the file they are reading. ONE LINE, so
+    # what changed is the only thing this scenario has to spell.
+    And another writer appends "One more slat, **added under the reader**." to the document "notes/beds.md"
     Then the document renders bold text "added under the reader"
     # THE ASSERTION: the write reached the page and moved nothing else.
     And the page is scrolled where it was left

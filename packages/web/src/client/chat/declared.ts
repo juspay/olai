@@ -213,6 +213,15 @@ let reported = 0
  * So the slot is TAGGED with the batch that set it, and an older batch cannot
  * take it back. `>=` rather than `>`, because a batch answers this once and
  * the equal case is that one answer.
+ *
+ * THE THIRD ANSWER IN THIS CLIENT to "which of several overlapping calls may
+ * write the one shared slot", and the two beside it are named so the next
+ * writer picks one rather than inventing a fourth: `../settled.ts` compares the
+ * answer's QUESTION against what is wanted now, and `../filter/asking.ts` does
+ * the same by identity. Neither fits here — there is no question the reader is
+ * typing and no settle to sit behind (the header says why this is not a
+ * `createResource` at all) — so what is left is the order the calls LEFT in,
+ * which is a counter.
  */
 const said = (seq: number, message: string | null): void => {
   if (seq < reported) return
@@ -280,17 +289,20 @@ export const createDeclared = (): Declared => {
     const fresh = ids.filter((id) => !told.has(id) && !asking.has(id))
     if (fresh.length === 0) return
     for (const id of fresh) asking.add(id)
-    const batch = askAll(fresh)
-    void batch.answer
+    // DESTRUCTURED, so what the continuation below holds for the length of a
+    // round trip is a number and a promise rather than the batch — whose `ids`
+    // is every backticked id on screen, retained once per message.
+    const { seq, answer } = askAll(fresh)
+    void answer
       .then((outcome) => {
         if (Result.isFailure(outcome)) {
           // NOT WRITTEN DOWN AS A NO — a call that did not arrive said nothing
           // about these ids, so they are asked again by the next frame of a
           // streaming answer or by the wire coming back.
-          said(batch.seq, outcome.failure.message)
+          said(seq, outcome.failure.message)
           return
         }
-        said(batch.seq, null)
+        said(seq, null)
         // EVERY ID ASKED ABOUT IS WRITTEN DOWN, the ones the set does not
         // declare included — which is most of the backticks in any paragraph,
         // and the whole reason a settled message stops asking. The batch

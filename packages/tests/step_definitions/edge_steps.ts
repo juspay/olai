@@ -43,6 +43,7 @@ import {
 import type { OlaiWorld } from "../support/world.ts";
 import { focusedOn } from "../support/caret.ts";
 import { saysThat } from "../support/said.ts";
+import { answering } from "../support/shortlist.ts";
 
 /** The open panel, waited for. Every step here starts from it, so there is one
  *  spelling of "wait for it" — the `•••` menu's steps keep the same rule. */
@@ -108,43 +109,17 @@ When(
 
 // ── choosing a target ──────────────────────────────────────────────────
 
-/**
- * The rows on screen answer THIS query, and there is a list under it.
- *
- * The search is the SERVER's, so the rows arrive a debounce and a round trip
- * later — and what has to be waited for is the rows of THIS query, not any rows
- * at all. The panel keeps the previous query's list standing while the next is
- * in flight (which is the right thing to draw), so a wait for a visible hit is
- * a wait the FIRST search in a scenario satisfies for the second — it passes
- * today only because no scenario searches twice, which is not a property a step
- * should depend on.
- *
- * `data-asked` is the SHORTLIST's own answer to "which query are these rows
- * for" (`client/search/Shortlist.tsx`, over `search/nodes.ts`), so this waits
- * for exactly that, and then for the list under it. Inside the panel rather
- * than on it: the attribute is a fact about the search, and the search is a
- * component this panel draws rather than something it is. Trimmed, because the
- * query the search is asked is the trimmed one.
- *
- * A HELPER because two steps want it: the one that types a query, and the one
- * that waits for a query somebody else typed to catch up.
- */
-const answering = async (world: OlaiWorld, text: string): Promise<void> => {
-  await world.page
-    .locator(`${EDGE_PANEL} ${attr("data-asked", text.trim())}`)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await world.page
-    .locator(EDGE_HIT)
-    .first()
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-};
+/** The rows of THIS query, under this panel — `../support/shortlist.ts`,
+ *  which is where that wait lives for every panel in this suite that searches. */
+const answered = (world: OlaiWorld, text: string): Promise<void> =>
+  answering(world, EDGE_PANEL, EDGE_HIT, text);
 
 When(
   "I search the edge panel for {string}",
   async function (this: OlaiWorld, text: string) {
     const box = (await panelOf(this)).locator(EDGE_SEARCH);
     await box.fill(text);
-    await answering(this, text);
+    await answered(this, text);
   },
 );
 
@@ -184,7 +159,7 @@ When(
 Then(
   "the edge panel's rows answer {string}",
   async function (this: OlaiWorld, text: string) {
-    await answering(this, text);
+    await answered(this, text);
   },
 );
 
