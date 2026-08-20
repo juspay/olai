@@ -644,3 +644,16 @@ export {
   stageOf,
 } from "./errors.ts"
 export type { ErrorCode, Stage } from "./errors.ts"
+
+/**
+ * THE PINNED SHELF, as a reading of the set rather than of a browser's copy of
+ * it (./shelf.ts): the rows of the directory's `Pins.olai` and the live name of
+ * whatever node each one addresses.
+ *
+ * Public because it crosses — the server answers it per revision and the
+ * sidebar draws it (`@olai/surface`'s `pins` cell). `pinTargetIn` is public
+ * beside the reading because the browser holds it up against its own address
+ * parser, which is what keeps one title from having two answers.
+ */
+export { NO_PINS, pinTargetIn, sameShelf, Shelf, shelfOf } from "./shelf.ts"
+export type { Pinned } from "./shelf.ts"
