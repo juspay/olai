@@ -199,7 +199,7 @@ export const createSelection = (
     grow: (by) => {
       const end = focus() ?? anchor()
       if (end === null) return
-      const next = neighbour(page.rows(), page.collapsed(), end, by)
+      const next = neighbour(drawn(), end, by)
       if (next === undefined) return
       const at = anchor() ?? end
       pick(spanning(drawn(), at, next.key), at, next.key)

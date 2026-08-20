@@ -19,7 +19,7 @@
 
 import { type Derived, matching, NodeId, parseFilter } from "@olai/format"
 
-import type { Matches } from "./asking.ts"
+import type { Matches } from "./matches.ts"
 import { showsTrashed } from "./drawn.ts"
 import type { Drawn } from "../page.ts"
 

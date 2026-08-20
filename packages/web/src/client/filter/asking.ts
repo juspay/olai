@@ -106,6 +106,7 @@ import { SETTLE_MS } from "../settled.ts"
 import type { Drawn } from "../page.ts"
 import { olai } from "../wire.ts"
 import { showsTrashed } from "./drawn.ts"
+import { type Matches, sameMatches } from "./matches.ts"
 
 // The settle is imported rather than restated (`../settled.ts` argues it: one
 // fact about one pair of hands). There is no MIN_LENGTH twin to it here: a
@@ -121,11 +122,28 @@ import { showsTrashed } from "./drawn.ts"
 // that primitive takes a value question with an `equals`, exactly as this one
 // does.
 
-/** What a query selected, ready for a row to look itself up in: id → why. The
- *  server's own answer rows, kept as they arrived rather than re-shaped — the
- *  `matched` field is what `./why.ts` reads to draw a note excerpt, and a
- *  second shape here would be a second reading of it. */
-export type Matches = ReadonlyMap<string, MatchedNode>
+// THERE IS NO COALESCE HERE, and that is a measurement rather than an omission
+// (`reactivity-after-the-flip` §3.5, which asked for one; PR 4 measured it and
+// did not ship it). The finding it was asked for is real: one whole-vault
+// `search.matching` goes out per page frame, so one bulk gesture over a 90,000
+// node vault — thirty rows picked and ticked off — costs nine of them
+// (`packages/tests/wire.ts`'s `filter` session, which is the instrument).
+//
+// What is NOT true is that a window here collapses them. A page frame arrives
+// at most once per PUBLISHED REVISION, and `@olai/store` already coalesces a
+// burst of writes into one probe behind a 75ms settle before publishing
+// anything (`packages/store/src/store.ts`'s sync loop, step 2) — so two frames
+// are never closer together than that, and every window short enough to keep a
+// filtered page's counts honest beside the tree they are drawn next to (which
+// is `./count.ts`'s whole argument, and why the revision was never put behind
+// {@link SETTLE_MS}) is far shorter than 75ms. Built and measured both ways —
+// leading-and-trailing throttle over a paint, plus a hold for the flight — the
+// same gesture cost 9 searches before and 8 after, which is the noise between
+// two runs. The coalescing this door wanted is a layer down and already there.
+//
+// What DID reproduce is the second half of that finding, and it is fixed below:
+// a fresh `Map` per answer made `./narrowing.ts` prune the whole page again for
+// a match set that had not moved. See {@link ./matches.ts}.
 
 /** What the page's filter has been told. */
 export interface Asked {
@@ -393,8 +411,25 @@ export const createAsked = (source: {
    */
   const held = () => (asked() === null ? undefined : answer.latest)
 
+  /**
+   * THE ANSWER, HELD BY VALUE — a memo rather than a thunk, and the whole of
+   * what it adds is {@link sameMatches}.
+   *
+   * The matcher mints a fresh `Map` of fresh rows for every answer, and a page
+   * re-asked because its set moved is overwhelmingly answered with the set of
+   * ids it already had. Handed straight out, each of those made
+   * `./narrowing.ts`'s `selected` a new value, which made `drawn` prune the
+   * whole tree again for a result identical to the one on screen — a second
+   * full walk of the page per frame, on top of the round trip
+   * (docs/brainstorming/reactivity-after-the-flip.md §3.5). Returning the same
+   * `Map` for the same answer stops all of it at the memo.
+   */
+  const matched = createMemo<Matches | undefined>(() => held()?.matches, undefined, {
+    equals: sameMatches,
+  })
+
   return {
-    matched: () => held()?.matches,
+    matched,
     /**
      * WHICH QUERY THE ROWS ANSWER — read off the answer's own text, and off
      * nothing else.

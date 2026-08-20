@@ -83,8 +83,55 @@ export interface Directory {
  *  second spelling of somebody else's contract to keep in step. */
 export type Heads = ReadOnlyBoundDeltasCollectionResult<string, Head>
 
+/**
+ * THE TWO THINGS this file actually asks of that collection — which keys there
+ * are, and what one of them holds.
+ *
+ * Narrowed at the parameter for the reason every other seam in this client
+ * narrows one (`./edit/editing.tsx` takes four verbs of a `Selection` and one
+ * of a `Moving`): what a module is handed should be what it reads. What it buys
+ * here is a suite — `./directory.browsertest.ts` stands one of these up out of
+ * two signals, where {@link Heads} would have meant standing up the framework's
+ * whole collection contract, lifecycle signals and all, to ask whether one memo
+ * held its value.
+ *
+ * SPELLED OUT rather than `Pick`ed off {@link Heads}, because the widening is
+ * the point: the framework's `byKey` answers with a `Subscription`, and every
+ * one of those IS an accessor — so the real member satisfies this, and a fake
+ * need not carry an `error` and a `pending` this file never reads.
+ */
+export interface HeadEntries {
+  readonly keys: () => ReadonlyArray<string>
+  readonly byKey: (key: string) => Accessor<Head | undefined> | undefined
+}
+
+/**
+ * Whether two readings of the unreadable files say the same thing — the paths
+ * AND what each one is wrong about.
+ *
+ * A `Map` minted per run is a new value on every head the directory publishes,
+ * and what reads it is every `<File>` row of the sidebar asking `broken.has`
+ * (`./Sidebar.tsx`) and the pane that draws a bad file's errors. So a rename
+ * three folders away re-ran all of them for an answer that is almost always
+ * the empty map it already was (docs/brainstorming/reactivity-after-the-flip.md
+ * §4.2).
+ *
+ * The ERRORS are compared as well as the keys, and by identity: a file that is
+ * still broken for a different reason is a different answer for the pane that
+ * draws it, and the entry object is only replaced when its head is. Comparing
+ * the key sets alone would leave that pane showing the previous parse failure.
+ */
+const sameBroken = (
+  was: ReadonlyMap<string, BrokenFile>,
+  is: ReadonlyMap<string, BrokenFile>,
+): boolean => {
+  if (was.size !== is.size) return false
+  for (const [file, broken] of was) if (is.get(file) !== broken) return false
+  return true
+}
+
 export const createDirectory = (
-  entries: Heads,
+  entries: HeadEntries,
   manifest: Accessor<Manifest | undefined>,
 ): Directory => {
   const files = createMemo(() => sortByPath(entries.keys()))
@@ -98,7 +145,7 @@ export const createDirectory = (
         if (broken !== undefined && broken !== null) found.set(file, broken)
       }
       return found
-    }),
+    }, new Map<string, BrokenFile>(), { equals: sameBroken }),
     head: (file) => () => entries.byKey(file())?.()?.rev,
   }
 }

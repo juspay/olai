@@ -139,6 +139,8 @@ LABEL=after bash wire.sh
 
 `wire.ts` / `wire.sh` are the same kind of thing as `evidence.ts` one section up — not part of the suite, never run by `just e2e` — and they answer the question a screenshot cannot: how many bytes a session cost, and down which of the two wires. It opens the app, opens a saved page of a megabyte, rewrites it three times while it is on screen and then opens a note, counting every websocket frame the tab was delivered and every byte fetched off `/media/`.
 
+That is `SESSION=preview`, the first of THREE. `SESSION=pages` walks an ordinary reading session over a generated vault, which is how `vault-in-browser`'s trade — a small first frame against a round trip per navigation — landed as a number. `SESSION=filter` counts CALLS rather than bytes: it opens a narrowed outline over a 90,000-node vault, picks thirty rows and ticks them off, and reports how many whole-vault `search.matching` the burst cost. That third one is the instrument `reactivity-after-the-flip` §3.5 was measured with, and it is what said the coalescing that finding asked for could not help — the ask is already one per published revision, and `@olai/store` coalesces the writes before it publishes.
+
 `ROOT=` is the knob it exists for: the driver imports nothing of olai, so pointing it at a second worktree measures THAT branch's server through the same session, and the two numbers are comparable. That is how `preview-body-not-shipped`'s were taken — a previewed page's body used to cross the socket as well as the route, so the same session read 3.9 MB on the socket before and about 50 kB after (which is the note, and only the note).
 
 ## Making it flake on purpose

@@ -58,6 +58,7 @@ import {
   useContext,
 } from "solid-js"
 
+import { createFrames } from "./frames.ts"
 import { olai } from "./wire.ts"
 
 /**
@@ -100,12 +101,18 @@ export interface Reading {
    * readings and answers it by handing out plain values; a page's reading is
    * too big to copy per frame, so this counts the frames instead.
    *
-   * THE FRAMEWORK'S OWN CHANGE SIGNAL (`Subscription.updated`), which fires
-   * under its change-iff-fired law: a first frame is a value rather than news,
-   * a reconnect snapshot equal to what was already held is silent, and a frame
-   * that DIFFERS fires once. That is precisely "the answer this page draws is
-   * not the one it was drawing", which is precisely when a filter's answer
-   * about it stopped being safe to trust.
+   * COUNTED OFF THE STORE (`./frames.ts`) rather than off the framework's own
+   * change signal, and that is a cost rather than a taste: registering ANY
+   * `Subscription.updated` handler switches kolu's tracker out of its O(1) path
+   * and into a deep compare of the whole page plus two `structuredClone`s of
+   * it, per frame, to hand over a payload this file discards
+   * (docs/brainstorming/reactivity-after-the-flip.md §3.6). The store is
+   * written by the same frame the handler would have reported, so the fact is
+   * there to be had for nothing. It keeps the two halves of that law its
+   * readers were written against — a first frame is a value rather than news,
+   * and the blank a new question opens with is not a frame — and drops the
+   * third: an identical reconnect snapshot still replaces every array element
+   * in the store, so it is still a frame every reader of that store can see.
    *
    * THE PAGE ITSELF is the right granularity, and narrower than what it
    * replaced: a revision that moved nothing on this page sends no frame at all
@@ -120,12 +127,7 @@ export const createReading = (
   request: Accessor<PageRequest | null>,
 ): Reading => {
   const answer = olai.streams.page.use(request)
-  const [at, moved] = createSignal(0)
-  // Registered at creation, which is what the change-iff-fired law asks of a
-  // consumer that wants every change: a handler added mid-stream sees only the
-  // changes after it.
-  const stop = answer.updated?.(() => moved((count) => count + 1))
-  onCleanup(() => stop?.())
+  const at = createFrames(answer)
   /**
    * THE LAST ANSWER, HELD ACROSS THE NEXT QUESTION.
    *

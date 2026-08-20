@@ -90,11 +90,21 @@ typecheck: install
 # invisible to the first command and named as a path by the second. Running the
 # WHOLE suite under the browser condition is not the alternative — it fails 59
 # tests in packages that legitimately resolve the other way.
+#
+# The list grew with `reactivity-after-the-flip`: three more of its subjects are
+# memos and effects over a store, and "a memo re-ran" is the very claim a
+# server-resolved run cannot make — it would pass having recomputed nothing.
+# `frames.ts` counts what a page frame writes, `directory.ts`'s broken map has
+# to hold its identity across a frame, `chat/last.ts` is about which rows an
+# effect subscribes to.
 test: install
     {{ nix_shell }} bun test
     {{ nix_shell }} bun test --conditions browser \
       ./packages/web/src/client/settled.browsertest.ts \
-      ./packages/web/src/client/fold/refiling.browsertest.ts
+      ./packages/web/src/client/fold/refiling.browsertest.ts \
+      ./packages/web/src/client/frames.browsertest.ts \
+      ./packages/web/src/client/directory.browsertest.ts \
+      ./packages/web/src/client/chat/last.browsertest.ts
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json (bunfig.toml explains why they have to be there). Reads
