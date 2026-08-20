@@ -22,7 +22,12 @@
  * optical box, chosen by a value the tree already carries. That is a table,
  * and a table wants a home — inline, the folder's box and the folder's shape
  * would sit in one file while the document's sat in another, and the rule that
- * they match would be nowhere.
+ * they match would be nowhere. The box is the folder's (18×16): it is the
+ * widest of the four, and a square `size-*` letterboxes it — the drawing sits
+ * in a cell it does not fill, so a column of "the same size" was a column of
+ * different optical sizes. The others meet against the left of that cell and
+ * fill its height. The tree still has to reserve the fold-control's width on
+ * a file row (`../Sidebar.tsx`) or the cell never becomes a column.
  *
  * And two of them are not ours. Vendored path data carries an attribution
  * obligation, which is a fact about specific bytes; one file holding all of
@@ -124,12 +129,24 @@ interface Drawn {
  *  thing no table can derive — rather than a row that quietly draws whatever
  *  the last arm of a chain of ternaries was. */
 export const GLYPHS: Record<DirectoryKind, Drawn> = {
-  // Wider than tall, as a folder is; the square box would letterbox it.
+  // Wider than tall, as a folder is. The TREE cell below is this aspect, so
+  // the square that used to wrap every glyph cannot letterbox it.
   folder: { box: "0 0 18 16", shape: FolderPaths },
   document: { box: "0 0 16 16", shape: DocumentPaths },
   outline: { box: "0 0 16 16", shape: OutlinePaths },
   hypertext: { box: "0 0 16 16", shape: HypertextPaths },
 }
+
+/** The cell every tree glyph occupies. Height is the tree's 0.875rem; width
+ *  follows the folder's 18×16 viewBox (`0.875rem * 18/16`). A square of that
+ *  height letterboxes the folder — `size-3.5` was that square, and the four
+ *  drawings that were supposed to share an optical box did not. The others
+ *  meet against the left (`xMinYMid`) and fill the height, so the left edge
+ *  is one edge and the names after the cell start in one column.
+ *
+ *  The rail passes a square of its own (`size-4`) and does not draw the
+ *  folder, so this is the default and not the only size. */
+const TREE_CELL = "h-3.5 w-[calc(0.875rem*18/16)]"
 
 /** One kind's glyph. `data-glyph` is the fact a test reads; the shape is the
  *  fact a reader reads, and neither is the colour it happens to be painted.
@@ -144,8 +161,9 @@ export function Glyph(props: { readonly of: DirectoryKind; readonly size?: strin
 
   return (
     <svg
-      class={`${props.size ?? "size-3.5"} shrink-0`}
+      class={`${props.size ?? TREE_CELL} shrink-0`}
       viewBox={glyph().box}
+      preserveAspectRatio="xMinYMid meet"
       fill="currentColor"
       aria-hidden="true"
       data-testid={TESTID.fileGlyph}
