@@ -12,6 +12,7 @@ import { followFolders } from "./fold/folders.ts"
 import { followFolds } from "./fold/memory.ts"
 import { trackDesktop } from "./layout/media.ts"
 import { followLayout } from "./layout/prefs.ts"
+import { followAutoCommit } from "./settings/autocommit.ts"
 import { followAutoPush } from "./settings/autopush.ts"
 import { followDensity } from "./settings/density.ts"
 import { followDoneHidden } from "./settings/done.ts"
@@ -53,6 +54,7 @@ followLayout()
 followDensity()
 followDoneHidden()
 followOutlinesHidden()
+followAutoCommit()
 followAutoPush()
 followFolds()
 followFolders()

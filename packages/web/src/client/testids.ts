@@ -783,6 +783,9 @@ export const TESTID = {
    *  thing it can say, and a control that disappeared is how nobody would
    *  ever find that out. On a phone the healthy faces are silent and the
    *  news faces are `gitNews`.
+   *  `data-auto` says what Auto-commit is doing in this browser — `off`,
+   *  `armed`, or `paused` — which is a fact about the READER rather than
+   *  about the directory, and so is its own attribute rather than a ninth face.
    *  `data-state` carries which face this is — `off`, `no-repo`, `error`,
    *  `never`, `committed`, `waiting`, `blocked`, and `unknown` for a page that
    *  has not heard from the server yet — `data-uncommitted` the count, and
@@ -837,6 +840,14 @@ export const TESTID = {
   commitNow: "commit-now",
   /** What the last attempt refused with, when it left anything to say. */
   commitRefused: "commit-refused",
+  /** Why Auto-commit stopped, when it has — git's own words, and the one
+   *  gesture that resumes it. Absent while the loop is running, and absent for
+   *  a browser that never asked for it. */
+  commitAutoPaused: "commit-auto-paused",
+  /** What Auto-commit is about to do with what is waiting. Drawn only while
+   *  the preference is on and the loop is running — a line that said so with
+   *  the loop stopped would be a promise the app is not keeping. */
+  commitAutoArmed: "commit-auto-armed",
 
   // ── the agent panel ──────────────────────────────────────────────────
   /** The header's agent toggle on desktop. Always on screen there;

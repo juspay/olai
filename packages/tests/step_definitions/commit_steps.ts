@@ -27,6 +27,8 @@ import {
   APP_CHROME_CONTROLS,
   APP_HEADER,
   attr,
+  COMMIT_AUTO_ARMED,
+  COMMIT_AUTO_PAUSED,
   COMMIT_BLOCKED,
   COMMIT_CHANGE,
   COMMIT_LAST,
@@ -41,7 +43,10 @@ import {
   COMMIT_UNPUSHED,
   HYDRATION_TIMEOUT,
   oneLine,
+  PAST_QUIET_WINDOW,
   POLL_TIMEOUT,
+  QUIET_WINDOW_STEP_TIMEOUT,
+  QUIET_WINDOW_TIMEOUT,
   RETIRED_GIT_READOUT,
   TIP,
 } from "../support/world.ts";
@@ -292,6 +297,128 @@ Then(
       ).trim(),
       writer,
     );
+  },
+);
+
+// ── Auto-commit ────────────────────────────────────────────────────────
+
+/**
+ * What the loop is doing IN THIS BROWSER — `off`, `armed`, `paused`.
+ *
+ * Its own attribute rather than one of the pill's eight faces, and the steps
+ * follow the app: the faces are claims about the DIRECTORY, and this is a claim
+ * about the reader, so a scenario that asserted "the pill says auto-commit" for
+ * a state two tabs could disagree about would be asserting the wrong thing.
+ */
+Then(
+  "the commit pill says auto-commit is {string}",
+  async function (this: OlaiWorld, state: string) {
+    await this.expectAttribute(
+      COMMIT_PILL,
+      "data-auto",
+      state,
+      "the commit pill",
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+/**
+ * The flurry landing — the one step in this suite that waits out the client's
+ * quiet window.
+ *
+ * Its own budget (`QUIET_WINDOW_TIMEOUT`) and its own step envelope, for the
+ * reason the world file gives: the window is a claim about the product and is
+ * not shortened to suit a test, and no other step should inherit a wait this
+ * wide.
+ */
+Then(
+  "the flurry records itself",
+  { timeout: QUIET_WINDOW_STEP_TIMEOUT },
+  async function (this: OlaiWorld) {
+    await this.expectAttribute(
+      COMMIT_PILL,
+      "data-state",
+      "committed",
+      "the commit pill",
+      QUIET_WINDOW_TIMEOUT,
+    );
+  },
+);
+
+/**
+ * Give the quiet window its full run and look afterwards — the only way to say
+ * a timer did NOT fire.
+ *
+ * A bare wait, and it is named as one: what follows it is whatever the scenario
+ * wanted to still be true, and the value of the step is that the window has
+ * demonstrably had its chance. The one scenario that needs it is the stop —
+ * "nothing goes round again" is a claim about a timer nobody re-armed, and an
+ * assertion made a moment after the edit would pass just as well against a loop
+ * that was about to record.
+ */
+When(
+  "the quiet window is given its full run",
+  { timeout: QUIET_WINDOW_STEP_TIMEOUT },
+  async function (this: OlaiWorld) {
+    await this.page.waitForTimeout(PAST_QUIET_WINDOW);
+  },
+);
+
+/**
+ * How many commits olai has made here — the whole claim of the debounce.
+ *
+ * Counted out of the log by the prefix every olai commit carries, because "one
+ * commit and not five" is the thing a burst of edits is being asked, and no
+ * amount of chrome can answer it.
+ */
+Then(
+  "olai has recorded {int} commit(s) here",
+  function (this: OlaiWorld, count: number) {
+    const log = this.git("log", "--format=%s", "--grep", "^olai").trim();
+    const commits = log === "" ? [] : log.split("\n");
+    assert.strictEqual(
+      commits.length,
+      count,
+      `olai's commits here are ${JSON.stringify(commits)}`,
+    );
+  },
+);
+
+/** The panel's promise while the loop is armed and something is waiting. */
+Then("the panel promises to record it on its own", async function (this: OlaiWorld) {
+  await this.page
+    .locator(COMMIT_AUTO_ARMED)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/**
+ * ... and the line a STOPPED loop leaves in the panel.
+ *
+ * It asserts the GESTURE rather than git's words, and that is the app's shape
+ * rather than a weaker test: git's refusal is a line of its own further down,
+ * beside the verb that produced it, and the header's own sentence carries it
+ * for a reader with no pointer — which is what "the commit pill explains" asks
+ * for. What is unique to this line is that a stopped loop can be started again.
+ */
+Then("the panel says auto-commit is paused", async function (this: OlaiWorld) {
+  const line = this.page.locator(COMMIT_AUTO_PAUSED);
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const said = oneLine(await line.innerText());
+  assert.ok(
+    said.includes("off and on again"),
+    `the paused line says "${said}", which never says how to resume it`,
+  );
+});
+
+/** THE CONFLICT, in the only shape a single user meets it: another machine —
+ *  or a colleague — has pushed, so this branch's upstream has moved and a push
+ *  from here is a non-fast-forward. Real git, a real bare remote, and no
+ *  network. */
+Given(
+  "somebody else has pushed to the remote",
+  function (this: OlaiWorld) {
+    this.advanceRemote("somebody else's work");
   },
 );
 

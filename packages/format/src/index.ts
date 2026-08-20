@@ -566,6 +566,7 @@ export {
   PushResult,
   Reason,
   RepoState,
+  sameGit,
   samePending,
   Unpushed,
   Writer,

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 
 import { Schema, SchemaAST } from "effect"
 
-import { LOADED, Manifest, surface } from "./index.ts"
+import { type GitState, LOADED, Manifest, surface } from "./index.ts"
 
 const tags = [...surface.group.requests.keys()].sort()
 
@@ -56,6 +56,30 @@ test("the manifest carries nothing, and knows when it has not changed", () => {
   expect(Schema.is(Manifest)(null)).toBe(true)
   expect(surface.spec.cells.manifest.equals?.(LOADED, {})).toBe(true)
   expect(surface.spec.cells.manifest.equals?.(LOADED, null)).toBe(false)
+})
+
+// The OTHER half of the one survey the header's git indicator draws.
+//
+// `pending` declares an `equals` so the server's thirty-second sweep does not
+// frame every open tab with what it already knew. This cell is recomputed by
+// the SAME statement on the SAME two clocks (`server/runtime.ts`'s
+// `republishGit` sets both), and a derivation is a fresh object every time — so
+// without one of its own it framed every tab twice a minute saying `repo`,
+// which is what restarted Auto-commit's quiet window on a frame nobody typed.
+test("what git is doing knows when it has not changed", () => {
+  const healthy: GitState = { status: "repo", said: null }
+  expect(surface.spec.cells.git.equals?.(healthy, { status: "repo", said: null }))
+    .toBe(true)
+  // ... and the two states it must still tell apart: the fault, and the words
+  // on it, which are the whole of what #108 fought for.
+  expect(surface.spec.cells.git.equals?.(healthy, { status: "error", said: null }))
+    .toBe(false)
+  expect(
+    surface.spec.cells.git.equals?.(
+      { status: "error", said: "no user.email" },
+      { status: "error", said: "gpg failed" },
+    ),
+  ).toBe(false)
 })
 
 // snapshot-scale, as a test of the DECLARATION. `deltas` opens with a snapshot

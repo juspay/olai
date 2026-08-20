@@ -139,6 +139,37 @@ export const BACKSTOP_TIMEOUT = 90_000;
  */
 export const STEER_DEADLINE_TIMEOUT = 45_000;
 
+/**
+ * Per-step budget for the one change only the client's AUTO-COMMIT QUIET WINDOW
+ * can deliver: a flurry of edits stopping, and what was waiting recording
+ * itself.
+ *
+ * A fifth axis, on the same argument as the third and the fourth. There is
+ * exactly one way to see a flurry recorded and it is to stop editing and wait
+ * out `@olai/web`'s own window (`commit/flurry.ts`'s `QUIET_MS`, fifteen
+ * seconds — the number is a claim about the product, not about this suite, so
+ * it is not shortened to suit a test), and folding that wait into
+ * `HYDRATION_TIMEOUT` would make every first paint in the suite wait on it.
+ *
+ * Kept as a literal beside the other budgets rather than imported from the
+ * client, exactly as `STEER_DEADLINE_TIMEOUT` is: this package imports NAMES
+ * from `@olai/*` and no BEHAVIOUR, and a duration is neither — it is a number
+ * this suite must wait PAST. The comment above is the contract; the scenario
+ * fails loudly and specifically if it stops holding.
+ */
+export const QUIET_WINDOW_TIMEOUT = 40_000;
+
+/**
+ * ... and how long a scenario waits to prove the window did NOT fire.
+ *
+ * A negative claim about a timer can only be made by outliving it, so this is
+ * the window itself plus room for the commit it would have made. Spelled rather
+ * than derived from the budget above: that one is a DEADLINE a poll may return
+ * early from, this one is a WAIT that is paid in full every time, and the two
+ * will not always want to move together.
+ */
+export const PAST_QUIET_WINDOW = 22_000;
+
 /** How long a freshly spawned server gets to print its listening line. Not a
  *  poll budget — it bounds a child process — but it is derived from the same
  *  scale so `hooks.ts` and this file cannot drift. */
@@ -175,6 +206,9 @@ export const BACKSTOP_STEP_TIMEOUT = BACKSTOP_TIMEOUT + STEP_GUARD;
  *  the same two reasons: the envelope must be wider than the wait it contains,
  *  and no other step should inherit a budget this wide. */
 export const STEER_DEADLINE_STEP_TIMEOUT = STEER_DEADLINE_TIMEOUT + STEP_GUARD;
+
+/** ... and once more for the step that waits out Auto-commit's quiet window. */
+export const QUIET_WINDOW_STEP_TIMEOUT = QUIET_WINDOW_TIMEOUT + STEP_GUARD;
 
 /** The `Before` hook may have to boot a server before it can open a page. */
 export const SCENARIO_SETUP_TIMEOUT = SERVER_START_TIMEOUT + STEP_GUARD;
@@ -766,6 +800,12 @@ export const COMMIT_SCOPE = selector(TESTID.commitScope);
 /** What is committed here and nowhere else; `data-commits` is how many. */
 export const COMMIT_UNPUSHED = selector(TESTID.commitUnpushed);
 export const COMMIT_PUSH = selector(TESTID.commitPush);
+/** Why Auto-commit stopped, in git's own words. Absent while the loop is
+ *  running, which is what makes its PRESENCE the fact a scenario asserts. */
+export const COMMIT_AUTO_PAUSED = selector(TESTID.commitAutoPaused);
+/** What Auto-commit is about to do with what the panel is listing. Drawn only
+ *  while it really is going to happen. */
+export const COMMIT_AUTO_ARMED = selector(TESTID.commitAutoArmed);
 
 /** The agent panel. Absent entirely when no ACP agent is configured, which is
  *  a state the suite never runs in: every server it spawns is pointed at the
@@ -2164,6 +2204,40 @@ export class OlaiWorld extends World {
     this.git("push", "--quiet", "--set-upstream", "origin", "main");
     this.remote = bare;
     return bare;
+  }
+
+  /**
+   * Somebody else's commit, landed on the remote — which is what a DIVERGENCE
+   * is, and the only shape of conflict a single user with two machines ever
+   * meets.
+   *
+   * A clone, a commit and a push, so what the served repository is up against
+   * is a real non-fast-forward rather than a simulated refusal: the words the
+   * app then shows are git's own, and those are the words being asserted.
+   */
+  advanceRemote(subject: string): void {
+    const remote = this.remote;
+    if (remote === undefined) {
+      throw new Error("this scenario has no remote — say the repository has one first");
+    }
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), "olai-e2e-other-"));
+    const run = (...argv: ReadonlyArray<string>): void => {
+      execFileSync("git", [...argv], { cwd: work, stdio: "ignore" });
+    };
+    execFileSync("git", ["clone", "--quiet", remote, work], { stdio: "ignore" });
+    run(
+      "-c",
+      "user.email=someone@olai.invalid",
+      "-c",
+      "user.name=somebody else",
+      "commit",
+      "--allow-empty",
+      "--quiet",
+      "--no-verify",
+      "-m",
+      subject,
+    );
+    run("push", "--quiet");
   }
 
   /** What the bare remote holds, once this scenario has given itself one. */

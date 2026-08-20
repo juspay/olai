@@ -1225,7 +1225,15 @@ The corner unit is the **risky one** — see
           agents read them unchanged.</p>
         </div>
         <div class="prow">
-          <div class="lbl">Git</div>
+          <div class="lbl">Git commit</div>
+          <div class="seg"><span>Off</span><span class="on">Auto-commit</span></div>
+          <p class="hint">What is waiting records itself when edits stop
+          arriving for 15 seconds, so a burst of work is one commit — including
+          writes an agent made. A commit or a push git refuses pauses it until
+          you set this Off and back On.</p>
+        </div>
+        <div class="prow">
+          <div class="lbl">Git push</div>
           <div class="seg"><span>Off</span><span class="on">Auto-push</span></div>
           <p class="hint">A commit from this browser is pushed after it is
           recorded.</p>
@@ -1386,8 +1394,11 @@ The corner unit is the **risky one** — see
     <p class="lead">Writes go to disk immediately and are committed when you
     choose — everything the repository has waiting, outlines and the files
     beside them, ticked one by one if you want a smaller commit, and pushed
-    from the same panel. Commit messages are prefixed with <code>olai:</code>,
-    so <code>git log --grep '^olai'</code> shows the audit trail.</p>
+    from the same panel. Or turn on Auto-commit and stop choosing: a burst of
+    work, yours and an agent’s together, becomes one commit fifteen seconds
+    after the edits stop — and, with Auto-push beside it, is already on the
+    remote. Commit messages are prefixed with <code>olai:</code>, so
+    <code>git log --grep '^olai'</code> shows the audit trail.</p>
     <div class="cols">
       <div>
         <pre><code>┌─ Changes ─────────────────────────────────┐

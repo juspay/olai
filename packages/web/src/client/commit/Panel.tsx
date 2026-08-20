@@ -39,12 +39,22 @@
  */
 
 import { isReady } from "@olai/format"
-import { createSignal, Show } from "solid-js"
+import { type Accessor, createSignal, Show } from "solid-js"
 
 import { agoOf } from "./ago.ts"
 import { type Anchor, styleOf } from "../anchor.ts"
+import { type Auto, pausedIn } from "./auto.ts"
 import { LAYER } from "../layer.ts"
-import { because, scopeOf, trouble, verbatim, waitingIn, WHO } from "./said.ts"
+import {
+  AUTO_ARMED,
+  AUTO_STOPPED,
+  because,
+  scopeOf,
+  trouble,
+  verbatim,
+  waitingIn,
+  WHO,
+} from "./said.ts"
 import { Others } from "./Others.tsx"
 import { Outlines } from "./Outlines.tsx"
 import { canRecord } from "./record.ts"
@@ -55,6 +65,10 @@ import { Unpushed } from "./Unpushed.tsx"
 
 export function Panel(props: {
   readonly commit: Commit
+  /** What Auto-commit is doing in this browser (`./auto.ts`) — one value, so
+   *  the promise this panel makes while the loop is running and the line it
+   *  draws when the loop has stopped cannot both be on screen. */
+  readonly auto: Accessor<Auto>
   readonly now: number
   /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
    *  a matter of CSS alone. */
@@ -98,6 +112,13 @@ export function Panel(props: {
    *  `NothingToCommit`, which is a correct answer to a question nobody meant to
    *  ask. */
   const nothingTicked = () => selection.paths()?.length === 0
+
+  /** Whether Auto-commit would record this list on its own — the loop's own
+   *  gate, read off the value it publishes (`./auto.ts`). */
+  const willRecord = () => {
+    const auto = props.auto()
+    return auto._tag === "armed" && auto.willRecord
+  }
 
   return (
     <section
@@ -179,6 +200,23 @@ export function Panel(props: {
         </p>
       </Show>
 
+      {/* Why nothing is recording itself, when this browser asked it to. Above
+          the list rather than beside the button, because it is the answer to
+          "why is this still waiting" — which is the question the list itself
+          raises. It names the one gesture that resumes the loop: a stop nobody
+          can undo is a feature that has quietly left.
+
+          It does NOT repeat git. Whatever refused is already a line of its own
+          further down — beside the verb that produced it, which is where a
+          person reads it — and this popover printed that paragraph twice.
+          The HEADER's own sentence carries the words, because the header has
+          nowhere else to put them (`./said.ts`). */}
+      <Show when={pausedIn(props.auto()) !== null}>
+        <p class="text-xs text-alarm" data-testid={TESTID.commitAutoPaused}>
+          ⚠ {AUTO_STOPPED}
+        </p>
+      </Show>
+
       {/* Why the button is disabled — said, rather than left for somebody to
           work out from a control that does nothing. Git's own words are the
           title, because they are what you would paste into a search.
@@ -226,6 +264,22 @@ export function Panel(props: {
           waiting — a clean tree with three unpushed commits is exactly when a
           person goes looking for this. */}
       <Unpushed commit={props.commit} />
+
+      {/* What is about to happen to this list without anybody pressing
+          anything — a promise rather than a description of a setting, so it is
+          drawn only while the loop really would keep it.
+
+          THE LOOP'S OWN VERDICT and never a shorter version of it: `willRecord`
+          is `mayRecord` (`./flurry.ts`) published on the value, which is the
+          same eight terms the timer is armed on. A hand-rolled "waiting, and
+          the repository is Ready" would promise this over a git that answers
+          every probe and refuses every commit. The button stays either way: a
+          person who does not want to wait out the window meant it. */}
+      <Show when={willRecord()}>
+        <p class="text-xs text-muted" data-testid={TESTID.commitAutoArmed}>
+          {AUTO_ARMED}
+        </p>
+      </Show>
 
       <Show when={anything()}>
         <button

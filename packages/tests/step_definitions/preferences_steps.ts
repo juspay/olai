@@ -16,6 +16,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 import type { Page } from "playwright";
 
+import { AUTOCOMMIT_KEY } from "@olai/web/src/client/settings/autocommit.ts";
 import { AUTOPUSH_KEY } from "@olai/web/src/client/settings/autopush.ts";
 import {
   DENSITY_KEY,
@@ -501,29 +502,66 @@ Then(
   },
 );
 
-// ── the Git preference: whether a commit from here is pushed ───────────
+// ── the two Git preferences ────────────────────────────────────────────
+//
+// TWO ROWS, because they are two independent facts: what is waiting can record
+// itself, and a recorded commit can be pushed. Either alone is a shipped case —
+// Auto-push with the Commit button is what #283 built — so the rows are asked
+// for separately here too.
 
 const asGit = (value: string): "off" | "on" => {
   if (value !== "off" && value !== "on") {
-    throw new Error(`Git is "off" or "on", not "${value}"`);
+    throw new Error(`a Git preference is "off" or "on", not "${value}"`);
   }
   return value;
 };
 
 When(
-  "I set Git to {string}",
+  "I set Git commit to {string}",
   async function (this: OlaiWorld, value: string) {
-    await pickChoice(this.page, "git", asGit(value));
+    await pickChoice(this.page, "git-commit", asGit(value));
+  },
+);
+
+When(
+  "I set Git push to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "git-push", asGit(value));
   },
 );
 
 Then(
-  "the Git row explains that a commit {string}",
+  "the Git commit row explains that a write {string}",
   async function (this: OlaiWorld, expected: string) {
-    const hint = await hintOf(this, "git");
+    const hint = await hintOf(this, "git-commit");
     assert.ok(
       hint.includes(expected),
-      `the Git row says "${hint}", which does not say a commit ${JSON.stringify(expected)}`,
+      `the Git commit row says "${hint}", which does not say a write ` +
+        JSON.stringify(expected),
+    );
+  },
+);
+
+Then(
+  "the Git push row explains that a commit {string}",
+  async function (this: OlaiWorld, expected: string) {
+    const hint = await hintOf(this, "git-push");
+    assert.ok(
+      hint.includes(expected),
+      `the Git push row says "${hint}", which does not say a commit ` +
+        JSON.stringify(expected),
+    );
+  },
+);
+
+Then(
+  "this browser has stored that auto-commit is {string}",
+  async function (this: OlaiWorld, state: string) {
+    const stored = await this.stored(AUTOCOMMIT_KEY);
+    assert.equal(
+      stored,
+      asGit(state) === "on" ? "true" : "false",
+      `this browser keeps "${stored}" under ${AUTOCOMMIT_KEY}`,
     );
   },
 );
