@@ -12,11 +12,32 @@
  * ## What being wrong costs, said precisely
  *
  * Less than it looks, and the overstatement is worth correcting rather than
- * repeating: `settling` is cleared by the frame every landed write publishes —
- * the store re-reads the paths it just wrote (`@olai/store`'s probe forgets
- * their stamps), so even bytes identical to the ones already on disk publish a
- * revision. It is a WINDOW, not a leak, and it was checked in a browser by
- * telling the editor a date redraws and driving it both ways.
+ * repeating — but the correction has itself been sharpened once, so what is
+ * written here is the exact statement and not the near one.
+ *
+ * A landed write publishes a REVISION: the store re-reads the paths it just
+ * wrote (`@olai/store`'s probe forgets their stamps), so even bytes identical
+ * to the ones already on disk publish one. `settling` is not cleared by a
+ * revision. It is cleared by the FRAME THIS PAGE receives, and a revision
+ * becomes one only if the page's reading CHANGED BY VALUE — the server
+ * re-derives it and drops the frame otherwise (`../reading.tsx`,
+ * `@olai/format`'s `samePageReading`). So a landed write that leaves this
+ * page's reading identical sends nothing here, and the debt would stand.
+ *
+ * It is a WINDOW rather than a leak for a narrower reason than "every write
+ * publishes something", then: no write this editor can send is that write.
+ * `redrawing` is reached for `move`, `toggle`, `walk`, `split` and `merge`
+ * alone, and each either changes this page's reading or is REFUSED at its
+ * boundary — and a refusal clears the debt in `redrawing` itself.
+ * `docs/brainstorming/reactivity-after-the-flip.md` §3.4's 4.11 footnote is
+ * that argument verb by verb, with the browser drives behind it. What is left
+ * is a hazard about a coincidence rather than a defect anybody can show: a verb
+ * added to the list below that is a NO-OP on the page it was pressed in would
+ * make the window a leak, and nothing here would say so.
+ *
+ * The older reading was checked in a browser, by telling the editor a `date`
+ * redraws and driving it both ways — but a `date` DOES change this page's
+ * reading, so what that proved is the window, not the sentence above it.
  *
  * What the window costs is the blur INSIDE it: somebody who clicks away while
  * the round trip is in flight has that blur dropped whole — the line is neither
