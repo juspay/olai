@@ -20,14 +20,14 @@
  * that is no repository, git's own words are still on screen rather than in the
  * server's log, and none of it blocks a write. What is gone is the second chip.
  *
- * **It is ALWAYS drawn**, in every state the directory can be in. That follows
- * directly from what it is for: if the job is to be an audit trail, then "there
- * is no audit trail here" — no repository, or commits turned off — is the single
- * most important thing it can say, and a control that disappeared is exactly how
- * a person would never find that out. The connection dot's header makes the same
- * argument in the same words: an indicator that is only there when something is
- * wrong cannot be trusted when it is absent, because healthy and not-rendered
- * look identical.
+ * **On desktop it is ALWAYS drawn**, in every state the directory can be in.
+ * That follows from what it is for: if the job is to be an audit trail, then
+ * "there is no audit trail here" is the most important thing it can say, and
+ * a chip that disappeared cannot be trusted when it is absent. On a phone the
+ * same control is a banner, and only while there is news (`isNews` in
+ * `./said.ts`): a banner that vanished CAN be trusted, because the page
+ * itself is the healthy state. Two faces of ONE control — not a second
+ * `News` that also called `createCommit` and opened this panel.
  *
  * Two of them are SETTINGS rather than faults — `--commit=off`, and a directory
  * that is not a work tree — so they are dim and inert, and they get no warning
@@ -65,9 +65,10 @@ import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { agoOf, createNow } from "./ago.ts"
-import { explain, faceOf, isInert, MARK } from "./said.ts"
+import { explain, faceOf, isInert, isNews, MARK, newsSays } from "./said.ts"
 import { Panel } from "./Panel.tsx"
-import { PILL } from "../readout.ts"
+import { desktop } from "../layout/media.ts"
+import { BANNER, PILL } from "../readout.ts"
 import { createPopover } from "../popover.ts"
 import { autoPush } from "../settings/autopush.ts"
 import { createCommit } from "./state.ts"
@@ -151,24 +152,13 @@ export function Commit() {
     }
   }
 
-  /** What the pill can still say when the bar has no room for the sentence.
-   *  `1 uncommitted` at 360pt became `1…`, which is worse than the number. A
-   *  face with a mark (`✓`, `⚠`) keeps the mark and drops the word. */
-  const saysPhone = () => {
-    switch (face()) {
-      case "waiting":
-      case "blocked":
-        return String(commit.waiting())
-      case "committed":
-      case "error":
-        return ""
-      default:
-        return says()
-    }
-  }
+  const showPill = () => desktop()
+  const showBanner = () => !desktop() && isNews(face(), unpushed())
+  const line = () => newsSays(face(), commit.waiting(), unpushed())
 
   return (
     <>
+      <Show when={showPill()}>
       <Tip text={said()}>
         <button
           type="button"
@@ -218,10 +208,7 @@ export function Commit() {
               </span>
             )}
           </Show>
-          <Show when={saysPhone() !== ""}>
-            <span class="min-w-0 truncate sm:hidden">{saysPhone()}</span>
-          </Show>
-          <span class="hidden min-w-0 truncate sm:inline">{says()}</span>
+          <span class="min-w-0 truncate">{says()}</span>
           {/* The first thing the bar gives up — see {@link ago}. */}
           <Show when={ago() !== ""}>
             <span class="hidden shrink-0 sm:block">· {ago()}</span>
@@ -244,6 +231,29 @@ export function Commit() {
           </Show>
         </button>
       </Tip>
+      </Show>
+      <Show when={showBanner()}>
+        <button
+          type="button"
+          ref={panel.setTrigger}
+          class={`${BANNER} justify-between ${
+            face() === "error" ? "text-alarm" : "text-doing"
+          }`}
+          data-testid={TESTID.gitNews}
+          data-state={face()}
+          data-uncommitted={commit.waiting()}
+          data-unpushed={unpushed()}
+          data-repo={commit.pending().repo._tag}
+          aria-expanded={inert() ? undefined : panel.open()}
+          aria-disabled={inert() ? true : undefined}
+          aria-label={said()}
+          onClick={() => {
+            if (!inert()) panel.toggle()
+          }}
+        >
+          {line()}
+        </button>
+      </Show>
       {/* Out of the header entirely — see the header comment. */}
       <Show when={panel.open() && !inert() ? panel.at() : null}>
         {(at) => (

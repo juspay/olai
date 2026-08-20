@@ -20,7 +20,7 @@
 
 import { Show } from "solid-js"
 
-import { GitNews } from "./commit/News.tsx"
+import { Commit } from "./commit/Commit.tsx"
 import { ConnectionNews } from "./connection/News.tsx"
 import { desktop } from "./layout/media.ts"
 import { connectionReadout } from "./wire.ts"
@@ -29,7 +29,7 @@ export function News() {
   return (
     <Show when={!desktop()}>
       <ConnectionNews readout={connectionReadout()} />
-      <GitNews />
+      <Commit />
     </Show>
   )
 }
