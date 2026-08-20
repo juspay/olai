@@ -213,6 +213,29 @@ Then(
 );
 
 /**
+ * …and what a question was ABOUT, which the count above cannot say: the
+ * destinations ride the request, so a tag plus an id is "this tab asked the set
+ * to judge this move against that row".
+ *
+ * A NEGATIVE, because what it is for is a panel asking about rows nobody is
+ * showing: the shortlist hands its own list up when it MOUNTS, which is after
+ * the picker opens, so a picker whose destinations were not put down opens by
+ * asking about the last one's — a verdict about a list that is off the screen,
+ * and a round trip spent on it.
+ */
+Then(
+  "the tab has never asked to judge a move against {string}",
+  function (this: OlaiWorld, id: string) {
+    assert.strictEqual(
+      this.socketAskedSince(MOVING, id),
+      0,
+      `this tab asked the set to judge a move against ${JSON.stringify(id)}, ` +
+        "which is a destination no open list is showing",
+    );
+  },
+);
+
+/**
  * …and the other half of the same claim, read off what ARRIVED: a subscription
  * nobody let go of goes on being answered, and that answer is the only trace it
  * leaves — nothing is drawn from it, and nothing is asked for it again.

@@ -249,3 +249,36 @@ Feature: Moving a row to a parent you search for
     # arrival of one is the whole evidence.
     And the set has said nothing more about moving "knobs"
     And there should be no page errors
+
+  @wire
+  Scenario: A second picker asks about its OWN list, not the last one's
+    # THE OTHER END OF THE SAME GESTURE'S LIFETIME, and the one the scenario
+    # above cannot reach. The panel's destinations come from the shortlist, and
+    # the shortlist hands its list up when it MOUNTS — which is after the picker
+    # has been opened. So the destinations a picker starts with are whatever was
+    # there before it, and unless opening one puts them down, the first thing a
+    # second picker does is ask the set to judge its row against the rows the
+    # LAST list was showing: a verdict about a list that is off the screen, and
+    # a round trip spent on it.
+    #
+    # `knobs` is moved under `demo` first, so there is a spent gesture to open
+    # the second picker on top of — its said line is still standing, and the
+    # destination it was judged against was `demo`.
+    When I click the title of "knobs"
+    And I press "ControlOrMeta+Shift+m"
+    And I search the move picker for "take out the old"
+    And I choose "take out the old counters" from the move picker
+    Then the move noted "marked done over work that is not finished"
+    When I mark the wire
+    And I open the node menu of "hinges"
+    And I choose "Move to…" from the node menu
+    # Waited for by the panel being DRAWN, which is what says its first question
+    # has been asked and answered: the picker draws off that answer.
+    Then the move picker is open on "hinges"
+    # The defect, said directly: `demo` is the destination the LAST list was
+    # judged against, and this panel has never shown it.
+    And the tab has never asked to judge a move against "demo"
+    # …and its cost, said as a count: one question for one panel, rather than a
+    # wrong one and then a right one.
+    And the tab has asked to judge this move 1 times
+    And there should be no page errors

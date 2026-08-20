@@ -38,6 +38,7 @@ import { type Moved, type MovingRequest, type Row, sameMovingRequest } from "@ol
 import type { Edit } from "@olai/surface"
 import {
   type Accessor,
+  batch,
   createContext,
   createEffect,
   createMemo,
@@ -192,10 +193,17 @@ export const createMoving = (
    * an accessor.
    *
    * TWO NAMES for the two halves, and they are two things rather than one
-   * spelled twice: `hitIds` is WHOSE reading this is — the open panel's, or
-   * {@link NONE} both before one opens and after it goes (the list hands the
-   * accessor back as it unmounts, so this never holds a closed list's) — and
-   * `aimed` is WHAT IT SAYS, by value.
+   * spelled twice: `hitIds` is WHOSE reading this is and `aimed` is WHAT IT
+   * SAYS, by value.
+   *
+   * WHOSE, exactly: {@link NONE} before any list has mounted; the open list's
+   * accessor while one is; a SPENT one after it goes, because a shortlist does
+   * not hand its list back as it unmounts (`../search/Shortlist.tsx` says why
+   * — the door's question would change at the moment the panel closes, which
+   * here is a subscription re-opened to say the gesture is over). A spent one
+   * is never read, because the request below asks nothing with no row standing
+   * — and `open` puts it down before the next row stands, so the panel that
+   * follows starts from nothing rather than from the last list's rows.
    */
   const [hitIds, setHitIds] = createSignal<Accessor<ReadonlyArray<string>>>(NONE)
   const aimed = createMemo<ReadonlyArray<string>, undefined>(() => hitIds()(), undefined, {
@@ -397,7 +405,21 @@ export const createMoving = (
       // just opened to make another one, is a sentence about nothing they can
       // see.
       saying.say(null)
-      setStanding({ kind: "picking", ...at })
+      // …and neither are the last panel's DESTINATIONS. The shortlist hands its
+      // own list up when it mounts, which is after this, so a picker that did
+      // not put the old ones down opens by asking the set to judge its row
+      // against rows nobody is showing — and then asks again, correctly, when
+      // the new list arrives. Opening is the moment the gesture starts, so it
+      // is the moment the question does.
+      //
+      // BATCHED so it is one question and not two: both of these feed the
+      // request, and written apart each would open a subscription of its own.
+      batch(() => {
+        // `() => NONE` and not `NONE`: a function handed to a setter is an
+        // updater, so an accessor is set through one that answers with it.
+        setHitIds(() => NONE)
+        setStanding({ kind: "picking", ...at })
+      })
     },
     showing: (key) => {
       const held = standing()
@@ -445,8 +467,9 @@ export const createMoving = (
   }
 }
 
-/** No destinations, because no panel is open — what {@link createMoving}'s
- *  `hitIds` holds before a shortlist has handed up its own reading. The array
- *  is fresh per call and that costs nothing: what reads it compares by value
+/** No destinations, because no list is showing — what {@link createMoving}'s
+ *  `hitIds` holds before the first shortlist has handed up its own reading, and
+ *  what `open` puts it back to for every panel after that. The array is fresh
+ *  per call and that costs nothing: what reads it compares by value
  *  ({@link ../ids.ts}), so an empty list is an empty list. */
 const NONE = (): ReadonlyArray<string> => []

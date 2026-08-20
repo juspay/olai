@@ -1212,23 +1212,29 @@ export class OlaiWorld extends World {
   }
 
   /**
-   * How many questions carrying `probe` this tab has asked since that mark.
+   * How many questions carrying all of `probes` this tab has asked since that
+   * mark.
    *
-   * THE PROBE IS A WIRE TAG — `<member>/<verb>`, which is how kolu addresses
-   * every member of a surface (`surfaceTag`, `<prefix><member>/<verb>`; the
-   * prefix is left off so this is a substring of whatever a composed surface
-   * makes the whole tag). A frame carrying it is this tab opening that
-   * subscription or calling that procedure, and the count is what a claim like
-   * "one call for the word, not one per letter" is made against.
+   * THE FIRST PROBE IS A WIRE TAG — `<member>/<verb>`, which is how kolu
+   * addresses every member of a surface (`surfaceTag`,
+   * `<prefix><member>/<verb>`; the prefix is left off so this is a substring of
+   * whatever a composed surface makes the whole tag). A frame carrying it is
+   * this tab opening that subscription or calling that procedure, and the count
+   * is what a claim like "one call for the word, not one per letter" is made
+   * against.
    *
-   * ONE probe, where {@link socketSaidSince} takes several, and the asymmetry
-   * is the protocol's: a question NAMES its member and an answer does not.
+   * ANOTHER PROBE BESIDE IT narrows the same question to the ARGUMENT: the
+   * payload rides the frame, so a tag plus an id is "did this tab ask that
+   * member about that node". That is how a claim about what a gesture asked
+   * ABOUT is made — a picker that opened asking about the last list's rows
+   * sends the right member with the wrong argument, and the tag alone cannot
+   * tell the two apart.
    */
-  socketAskedSince(probe: string): number {
+  socketAskedSince(...probes: ReadonlyArray<string>): number {
     return this.framesMatching(
       this.socketAsks,
       this.wireFrom?.asked,
-      [probe],
+      probes,
       "nothing is counting what this tab asks the surface; a step has to " +
         "mark the wire (and the scenario carry @wire) before the gesture it " +
         "is making a claim about",
