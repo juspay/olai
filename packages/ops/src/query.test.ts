@@ -23,7 +23,6 @@ import { describe, expect, test } from "bun:test"
 import { readingOf, setOf } from "./fixtures.testlib.ts"
 import { detail, matches, named, outlines, search, subtree } from "./query.ts"
 
-
 /** The hits on RECORDS, which is what nearly every case below is about: a
  *  search answers with both kinds now, and a reader that draws one says so. */
 const nodeHits = (answer: SearchAnswer): ReadonlyArray<NodeHit> =>

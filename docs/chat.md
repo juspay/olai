@@ -156,8 +156,6 @@ Three things in the conversation are ids, and none of them is a syntax anybody h
 
 If the lookup itself fails, the panel says so at the end of the conversation — one line, because one question carries every message's ids. The words are all still there; what is missing is which of them can be pressed.
 
-
-
 ## What it shows when it changes something
 
 A tool call is one folded line, and what the call CHANGED is not folded away — the arguments are what was asked for, and this is what happened to your files. There are two kinds of change and the panel draws them differently, because they are different things.

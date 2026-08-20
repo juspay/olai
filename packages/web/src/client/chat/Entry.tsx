@@ -178,11 +178,8 @@ export function Entry(props: {
       // node that is right there. Reading the answer inside this effect is what
       // re-runs the pass when one lands.
       declared.want(markNodeRefs(said, declared.named))
-
-
     })
   }
-
 
   return (
     <div

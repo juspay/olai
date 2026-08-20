@@ -73,7 +73,7 @@
  * effect over what is still unknown.
  *
  * A call that FAILS on a live socket is said out loud instead ({@link
- * Declared.failure}, drawn under the message by `./Entry.tsx`): an unmarked
+ * declaringFailure}, drawn once by `./Transcript.tsx`): an unmarked
  * paragraph is indistinguishable from a paragraph naming nothing, and a
  * reference that quietly never appears is the silent failure HACKING.md
  * forbids. Those ids stay unknown rather than being remembered as absent, so
@@ -84,7 +84,6 @@ import { Result } from "effect"
 import { type Accessor, createEffect, createSignal, untrack } from "solid-js"
 
 import type { OpFailure } from "@olai/surface"
-
 
 import { unreachable } from "../connection/reaching.ts"
 import { runAsync } from "../run.ts"
@@ -164,10 +163,17 @@ const askAll = (ids: ReadonlyArray<string>): Promise<Result.Result<Told, OpFailu
  * message would put the same sentence under every paragraph of a conversation
  * that had just opened.
  *
- * Set and cleared where the call is made, so the words on screen are about the
- * last question asked rather than about whichever message happened to read it
- * first.
+ * Set and cleared where the call is made, so the words on screen are about a
+ * QUESTION rather than about whichever message happened to read the answer
+ * first. Which question, said exactly: the last one to SETTLE, not the last one
+ * asked — batches overlap, so a late failure can take down a newer success's
+ * clearing and a late success can clear a newer failure's line. Both are one
+ * sentence out of date about a socket that is answering again a moment later,
+ * which is a smaller wrong than a line nobody can attribute; the state that has
+ * to be exactly right per message is the marks, and those are each message's
+ * own map.
  */
+
 const [failed, setFailed] = createSignal<string | null>(null)
 export const declaringFailure: Accessor<string | null> = failed
 

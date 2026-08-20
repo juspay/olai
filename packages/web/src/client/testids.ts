@@ -1138,9 +1138,7 @@ export const TESTID = {
    *  for the pane, because one call carries every message's ids
    *  (`client/chat/declared.ts`). */
   chatRefsFailure: "chat-refs-failure",
-
 } as const
-
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]
 

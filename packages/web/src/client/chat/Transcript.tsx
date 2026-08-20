@@ -80,7 +80,6 @@ import { Refusal } from "./Refusal.tsx"
 import { doingOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
-
 export function Transcript(props: { readonly chat: Chat }) {
   const show = useShowNode()
   let pane: HTMLDivElement | undefined

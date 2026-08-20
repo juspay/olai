@@ -114,7 +114,6 @@ interface Span {
   readonly id: string | null
 }
 
-
 /**
  * WHAT A SPAN ASKS ABOUT, before anything is known — the id it says, or `null`
  * for a span that is not a question at all.
@@ -208,7 +207,6 @@ export const markNodeRefs = (
   }
   return [...asked]
 }
-
 
 /** The id a press landed on, or `null` — the pane's listener asked of the
  *  event's target. Its own function so the rule ("the nearest marked span, and

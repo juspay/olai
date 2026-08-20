@@ -438,7 +438,6 @@ export const named = (
 
 // ── one node, and what is under it ─────────────────────────────────────
 
-
 /** Whichever marks the record carries, from the format's list — at most one
  *  by the format's own rule, but read as a set so this cannot be the place a
  *  new mark is missing from. The SHAPE of what comes back is the floor's, taken
