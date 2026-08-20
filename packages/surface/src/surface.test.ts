@@ -263,9 +263,29 @@ test("the page stream is keyed by the field a Row carries, on every arm", () => 
   // ...and the lists that carry no `key` merge BY POSITION, which is what the
   // declaration's docstring says they do and what their `<Key by=…>` consumers
   // read them as. `names` is the one the audit's 2.10 is about.
+  //
+  // EVERY ONE OF THEM IS NAMED, and the two that are easy to leave out are the
+  // reason: the crumb trail and a day's entries are `Situated` and `DayEntry`,
+  // which carry no `key` TODAY. A field of that name added to either would
+  // silently start keying them — the merge reads values, and a positional list
+  // quietly becoming a keyed one is exactly the kind of change nothing else
+  // here would notice. So the claim is the whole partition rather than the
+  // interesting half of it.
   expect(found.get("names")).toBe("positional")
   expect(found.get("shows.backlinks")).toBe("positional")
   expect(found.get("shows.referrers")).toBe("positional")
+  expect(found.get("shows.zoomed.trail")).toBe("positional")
+  expect(found.get("shows.groups[].nodes")).toBe("positional")
+  // The partition itself: every array this reading carries is one or the other,
+  // and the four keyed ones are the four named above. A new array arriving in a
+  // page reading lands in this list rather than nowhere.
+  expect([...found].filter(([, how]) => how === "keyed").map(([at]) => at).sort())
+    .toEqual([
+      "shows.groups[].rows",
+      "shows.rows",
+      "shows.rows[].children",
+      "shows.zoomed.children",
+    ])
 })
 
 test("the pins cell is keyed by the field a Pinned carries", () => {

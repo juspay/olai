@@ -12,8 +12,8 @@
  * that reads `props.row` — some twenty-five of them, plus `Glyph`, `NodeLine`,
  * `NodeTitle`, `Aside`, `customEntries`, `NodeBody`'s `plainLine` and
  * `doneUnder` — re-ran for EVERY row for a one-character change in ONE row.
- * The comment at `Tree.tsx:163-169` has said "fresh rows every frame" since the
- * flip.
+ * `Tree.tsx`'s own `<Key>` comment said as much in its own words from the flip
+ * until this PR, where it was rewritten to the law that replaced it.
  *
  * It is measured here rather than argued because the fix was upstream and this
  * is the side that has to show it landed: `@olai/surface`'s `page` stream
