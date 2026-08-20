@@ -47,15 +47,41 @@
  *
  * ## What a VALUE may be, and what this refuses
  *
- * This is not a YAML parser and does not become one, for the reason
- * {@link ./slug.ts} holds no markdown parser and {@link ./documents.ts}'s
- * `linksIn` is a scan: this package is the floor the write gate stands on.
- * What it reads is the subset a document property can BE — {@link CustomValue}
- * is text or a list of text, and nothing else — so the sliver of YAML that maps
- * onto it is the whole of what a wider reading could deliver anyway. A number,
- * a boolean and a date all arrive as the text somebody typed, which is
- * `./custom.ts`'s own standing ruling: "a value that wants to be a number can
- * be one the day a reading needs it rather than the day a writer guesses".
+ * This is not a YAML parser and does not become one. What it reads is the
+ * subset a document property can BE — {@link CustomValue} is text or a list of
+ * text, and nothing else — so the sliver of YAML that maps onto it is the whole
+ * of what a wider reading could deliver anyway. A number, a boolean and a date
+ * all arrive as the text somebody typed, which is `./custom.ts`'s own standing
+ * ruling: "a value that wants to be a number can be one the day a reading needs
+ * it rather than the day a writer guesses".
+ *
+ * **THE LIBRARY WAS WEIGHED, AND MEASURED, AND NOT TAKEN** — written down here
+ * so the next reader does not have to re-run it. `yaml` is already in
+ * `bun.lock` (cucumber's), and this repo's standing rule is that a focused
+ * library beats a hand-roll (`fastest-levenshtein` is here on exactly that
+ * argument). Three things put this one the other way:
+ *
+ *   - **It would ride in the EAGER browser bundle, for nothing.** This package
+ *     is bundled into the client, and `./filter.ts` reaches {@link proseIn} per
+ *     keystroke — so the module is in the client's graph whatever the split.
+ *     Adding `yaml` to it and rebuilding costs **+10.6 KB brotli** on the two
+ *     `main` chunks (250,956 → 261,577 B, measured), and the browser never
+ *     parses a block: a face is built at the DECODE and its props travel the
+ *     wire. That is the same cost the whole markdown pipeline is a lazy chunk
+ *     to avoid (`@olai/web`'s `markdown/pipeline.ts`, 94 KB brotli).
+ *   - **It replaces the lexing, not the decision.** A parse answers with maps,
+ *     nested arrays, numbers, booleans and dates; `Custom` holds two shapes. So
+ *     a projector from `unknown` down to text-or-list-of-text would still have
+ *     to be written and would still have to decide what each of those becomes —
+ *     the same judgment this file makes, one layer later and less legibly.
+ *   - **It fails the whole block.** `parse` THROWS on a malformed one, so a
+ *     typo would cost a document its entire record; the reading below refuses
+ *     ONE KEY at a time, which is the behaviour the design wants.
+ *
+ * The precedent it follows is in this package already, twice: {@link ./slug.ts}
+ * reads heading LINES rather than gaining a markdown parser, and
+ * {@link ./documents.ts}'s `linksIn` scans rather than parses — both because
+ * this package is the floor the write gate stands on.
  *
  * READ:
  *
@@ -224,10 +250,12 @@ const propsIn = (region: string): Custom => {
       // list with it: a list a reader would see one member short is worse than
       // a key they can see is missing.
       if (open === null) continue
+      // A member is a SCALAR — `./frontmatter.ts`'s two-function split, so a
+      // nested list is refused by the type rather than by a check here. An
+      // empty item is YAML's `null`, which a list of text has no member for,
+      // and refuses the list the same way.
       const value = scalarOf(item)
-      // An empty item is YAML's `null`, which a list of text has no member
-      // for — so it refuses the list exactly as a nested one does.
-      if (typeof value !== "string" || value === "") {
+      if (value === null || value === "") {
         open = null
         items = null
         continue
@@ -249,7 +277,7 @@ const propsIn = (region: string): Custom => {
       open = key
       continue
     }
-    const value = scalarOf(rest)
+    const value = valueIn(rest)
     if (value !== null) claim(props, key, value)
   }
   close()
@@ -306,24 +334,44 @@ const splitKey = (text: string): readonly [key: string, rest: string] | null => 
 }
 
 /**
- * One value, as far as a property can hold one — text, a list of text, or
- * `null` for a spelling this reading refuses.
+ * WHAT A KEY MAY HOLD — text, a list of text, or `null` for a spelling this
+ * reading refuses.
  *
- * The dispatch is on the FIRST character, and every arm that opens a bracket
- * or a quote requires the matching one at the very END: `[a, b] # note` is
- * refused rather than half-read, because taking a comment off the inside of a
- * flow context correctly is having a YAML parser, and guessing at it is how a
- * reader ends up with a value nobody wrote.
+ * TWO FUNCTIONS AND NOT ONE, and the split is the type doing the work rather
+ * than a comment: a value may be a list, and a MEMBER of a list may not. This
+ * one is the whole vocabulary; {@link scalarOf} below is the half a member is
+ * drawn from, so "a nested list is not a member" is a fact the compiler holds
+ * at both sites that need it, instead of a `typeof value !== "string"` each
+ * had to remember to write.
  */
-const scalarOf = (text: string): CustomValue | null => {
+const valueIn = (text: string): CustomValue | null =>
+  text.startsWith("[")
+    // A flow sequence, and only when the bracket it opened is the very last
+    // character: `[a, b] # note` is refused rather than half-read, because
+    // taking a comment off the inside of a flow context correctly is having a
+    // YAML parser, and guessing at it is how a reader ends up with a value
+    // nobody wrote.
+    ? (text.endsWith("]") ? flowSequence(text.slice(1, -1)) : null)
+    : scalarOf(text)
+
+/**
+ * ONE SCALAR — the value a key holds when it is not a list, and the only thing
+ * a list's member may be.
+ *
+ * The dispatch is on the FIRST character, and the quoted arm requires its
+ * closing quote at the very END for {@link valueIn}'s reason above.
+ */
+const scalarOf = (text: string): string | null => {
   const first = text[0]
   if (first === undefined) return ""
   if (first === '"' || first === "'") return quoted(text, first)
-  if (first === "[") return text.endsWith("]") ? flowSequence(text.slice(1, -1)) : null
-  // A flow map has no shape a property can hold; the four sigils are YAML
-  // constructs whose meaning is elsewhere in the document, and a block scalar
-  // is a value written on the lines below rather than on this one.
-  if (first === "{" || first === "&" || first === "*" || first === "!") return null
+  // A flow collection has no shape a member can hold and no shape a property
+  // can hold NESTED; the three sigils are YAML constructs whose meaning is
+  // elsewhere in the document, and a block scalar is a value written on the
+  // lines below rather than on this one.
+  if (first === "[" || first === "{" || first === "&" || first === "*" || first === "!") {
+    return null
+  }
   if ((first === "|" || first === ">") && blank(text.slice(1))) return null
   // A `#` HERE is a comment and not a value, because the colon already put a
   // space in front of it: `pr: #176` says the key holds nothing, and
@@ -389,11 +437,11 @@ const quoted = (text: string, quote: string): string | null => {
 /**
  * A flow sequence's members — `[a, b, c]` between the brackets.
  *
- * Split on the commas this reading can see, which are the ones at the top
- * level of the brackets: a member that opens a quote holds its commas, and a
- * member that opens a bracket or a brace is a nested collection, which is a
- * shape a property has nowhere to put. So a nesting refuses the whole list
- * rather than flattening it into members nobody wrote.
+ * Split on the commas this reading can see, which are the ones a quote does not
+ * hold. WHETHER A MEMBER IS ONE is {@link scalarOf}'s question and not a second
+ * test here: a nested collection opens a bracket or a brace, which that
+ * function already refuses, so `[a, [b]]` loses the whole list rather than
+ * being flattened into members nobody wrote.
  *
  * An empty `[]` is a list of nothing, which {@link claim} reads as a key the
  * file does not carry — the same answer `[]` gets on a record (`./write.ts`).
@@ -414,13 +462,12 @@ const flowSequence = (inside: string): ReadonlyArray<string> | null => {
       quote = char
       continue
     }
-    if (char === "[" || char === "{") return null
     if (char !== "," && char !== undefined) continue
     const member = inside.slice(from, at).trim()
     from = at + 1
     if (member === "" && char === undefined && members.length === 0) break
     const value = scalarOf(member)
-    if (value === null || typeof value !== "string" || value === "") return null
+    if (value === null || value === "") return null
     members.push(value)
   }
   return members
