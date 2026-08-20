@@ -48,6 +48,7 @@ import { hrefOf } from "../routes.ts"
 import { selector, TESTID } from "../testids.ts"
 import { applying } from "../writes.ts"
 import { usePins } from "./answered.tsx"
+import { askName } from "./naming.ts"
 import { Pin } from "./Pin.tsx"
 import { sayPin } from "./pinning.ts"
 import { type Pin as Pinned, pinsOf } from "./pins.ts"
@@ -225,6 +226,7 @@ export function Shelf() {
                 onGrab={(event) => grab(at(), event)}
                 dragged={() => travelled}
                 onRemove={() => unpin(pin)}
+                onRename={() => askName({ kind: "rename", pin })}
               />
             )}
           </For>

@@ -357,6 +357,67 @@ export const linkedTitle = (
 const LINKED = /^\[([^\]]*)\]\(([^()\s]+)\)$/
 
 /**
+ * A PIN'S TITLE, for a name somebody typed — the inverse of
+ * {@link linkedTitle}, and the one place a named pin is spelled.
+ *
+ * It is here because the reader is, and for the same argument: two writers cut
+ * this, on opposite sides of a wire — the SERVER, resolving the `pin` a
+ * browser sent into the row it adds to `Pins.olai`
+ * (`@olai/server`'s `edit.ts`), and the BROWSER, renaming a pin that is
+ * already up there with the `set_title` an agent would send
+ * (`@olai/web`'s `pins/naming.ts`). A title written one way and read another
+ * is a row that stops being a door, which is the one failure a shelf cannot
+ * show you.
+ *
+ * A BLANK NAME IS THE BARE ADDRESS, which is what makes this ONE function
+ * rather than two: naming nothing is the ordinary pin this app has always
+ * written, and un-naming one is typing the name away. Both callers want the
+ * title a pin should carry given the words somebody typed, and neither wants
+ * to hold the rule about which of the two that is.
+ *
+ * `undefined` IS A REFUSAL AND NOT A FALLBACK ({@link PIN_NAME_UNWRITABLE} is
+ * the sentence for it): the label reader above is deliberately narrow, so a
+ * `]` in the words would close the link early and leave a title that is no
+ * longer an address at all. Writing it anyway would take the row off the shelf
+ * without saying so — the silent failure this codebase is written against — and
+ * writing it MANGLED would be this function holding an opinion about somebody's
+ * name.
+ *
+ * THE TARGET IS ESCAPED where the link's own grammar cannot carry it, which is
+ * not the same kind of decision: a `(` in a path is unspellable INSIDE a link
+ * and means exactly what `%28` means to every reader of an address here — the
+ * path is decoded per segment, the query by `URLSearchParams`, the element by
+ * the grammar. So a named pin to `plan (old).olai` is a door, where a name with
+ * a bracket in it is refused. The bare form is untouched, because nothing about
+ * it is inside a link.
+ */
+export const pinTitle = (at: string, name: string): string | undefined => {
+  const label = name.trim()
+  const address = at.trim()
+  if (label === "") return address
+  if (UNWRITABLE.test(label)) return undefined
+  return `[${label}](${escaped(address)})`
+}
+
+/** Why a name was refused, in the words both faces spend — the browser's own
+ *  line under a rename, and the server's `UsageFailure` on a `pin` that
+ *  carried one. */
+export const PIN_NAME_UNWRITABLE =
+  "a pin's name is written as a link's label, so it cannot hold a “]” or a line break"
+
+/** The two things a label cannot hold: the bracket that would end it, and a
+ *  break — a title is one line, and {@link LINKED} is anchored to one. */
+const UNWRITABLE = /[\]\r\n]/
+
+/** The three characters {@link LINKED}'s target cannot carry, written the way
+ *  every reader of an address here already reads them. */
+const escaped = (address: string): string =>
+  address.replace(
+    /[()\s]/g,
+    (one) => `%${one.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}`,
+  )
+
+/**
  * WHICH KIND of file a path names — `null` for a path this grammar cannot
  * name at all.
  *

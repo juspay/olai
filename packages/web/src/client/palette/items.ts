@@ -28,6 +28,7 @@
 import type { BodyKind } from "@olai/format"
 import type { Edit, SearchHit } from "@olai/surface"
 
+import type { Asking } from "./asking.ts"
 import { HOME_ROUTE, type Route } from "../routes.ts"
 import type { NodeProp } from "../search/props.ts"
 import { hitRow } from "../search/row.ts"
@@ -264,6 +265,26 @@ export type Mode =
   | { readonly kind: "ask"; readonly text: string }
   /** `+` — the rest becomes a node in the inbox. */
   | { readonly kind: "capture"; readonly text: string }
+
+/**
+ * …AND THE FOURTH THING THE BOX CAN BE DOING: answering a question the palette
+ * put in place of its list (`./asking.ts`).
+ *
+ * It is an arm of {@link Mode}'s union rather than a flag beside it, and the
+ * reason is the bug that shaped `Mode` in the first place: a `+ …` typed
+ * behind a question sent a capture on an Enter the reader aimed at the
+ * question (review, 2026-08-14). Kept apart, "a question is up" and "the box
+ * carries a prefix" are two facts four readers have to compare in the same
+ * order — the search gate, the placeholder, Enter, and the panel the `Switch`
+ * draws. Read as ONE value, a question EXCLUDES a prefix and a filter by
+ * construction, and the ordering rule stops being a rule.
+ */
+export type Box = Mode | { readonly kind: "answering"; readonly question: Asking }
+
+/** What the box is doing, from the two things that decide it: the question
+ *  that is up, if any, and the words in it. */
+export const boxOf = (raw: string, question: Asking | null): Box =>
+  question === null ? modeOf(raw) : { kind: "answering", question }
 
 export const modeOf = (raw: string): Mode => {
   const asked = afterPrefix(raw, ASK_PREFIX)

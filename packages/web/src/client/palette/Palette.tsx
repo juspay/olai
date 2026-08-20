@@ -48,6 +48,7 @@ import {
   createSignal,
   For,
   Match,
+  on,
   onCleanup,
   onMount,
   Show,
@@ -70,27 +71,38 @@ import {
 import { LAYER, WITHIN } from "../layer.ts"
 import { topmostWhileOpen } from "../topmost.ts"
 import { only } from "../narrow.ts"
-import { ALARM_PILL, QUIET_PILL } from "../pill.ts"
 import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
 import { run } from "../run.ts"
 import {
+  boxOf,
   CAPTURE_PREFIX,
   filterItems,
-  modeOf,
   hitItem,
   type PaletteItem,
   SHELL_ITEMS,
 } from "./items.ts"
 import { opItems } from "./ops.ts"
 import { usePins } from "../pins/answered.tsx"
+import { askName, namingFor } from "../pins/naming.ts"
+import { pinnedAt } from "../pins/pins.ts"
 import { pinItem } from "../pins/palette.ts"
 import { sayPin, togglePin } from "../pins/pinning.ts"
+import { nameOf, shownIn } from "../address/address.ts"
+import { type Asking } from "./asking.ts"
+import { Question } from "./Question.tsx"
 import { createCursor } from "../search/cursor.ts"
 import { createSearch } from "../search/nodes.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
-import { paletteOpen, setPaletteOpen } from "./open.ts"
+import {
+  askInPalette,
+  closePalette,
+  dropQuestion,
+  openPalette,
+  paletteAsking,
+  paletteOpen,
+} from "./open.ts"
 import { type Said, useUndo } from "../edit/undoing.ts"
 import { applied, applying } from "../writes.ts"
 import { isEditingTarget, listKey, matchKey, paneKey } from "../keys.ts"
@@ -98,31 +110,12 @@ import { useRouter } from "../router.tsx"
 import { isLone } from "../workspace.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
 
-/**
- * A QUESTION THAT IS UP, and everything answering it needs — its words, the
- * verb's name for the button that goes ahead, and the edit that goes.
- *
- * Resolved at the ONE site that knows the row is a write with a question to
- * ask, rather than kept as the row itself. A row is a wider thing than this
- * panel can use: most of them are navigation, none of those has a question,
- * and holding one here would mean the panel asking `action.kind === "edit"`
- * again and needing an answer for the case it is never in. So the narrowing
- * happens once, where it is true, and the arm below cannot be entered with a
- * row that has nothing to confirm.
- */
 /** What this door calls its rows — see `../search/Result.tsx`'s `RowTestids`
  *  for why the three travel as one value. */
 const PALETTE_ROW: RowTestids = {
   row: TESTID.paletteItem,
   place: TESTID.paletteItemPlace,
   prop: TESTID.paletteItemProp,
-}
-
-interface Asking {
-  /** The verb's own words, on the button that goes ahead. */
-  readonly label: string
-  readonly question: string
-  readonly edit: Edit
 }
 
 export function Palette(props: {
@@ -182,11 +175,6 @@ export function Palette(props: {
   /** What the last write had to say — a refusal in the ops layer's own words,
    *  or a remark about one that landed. */
   const [said, setSaid] = createSignal<Said | null>(null)
-  /** The question that is up, RESOLVED — its words and the edit answering it
-   *  sends, taken off the row when it was raised. It replaces the list in the
-   *  same box, exactly as the `•••` menu's confirm does rather than as browser
-   *  chrome olai does not own. */
-  const [asking, setAsking] = createSignal<Asking | null>(null)
   /**
    * A WRITE IS IN FLIGHT — the date picker's rule, in the surface that needed
    * it most: "the gate is a round trip, and a second Enter while the first is
@@ -218,10 +206,25 @@ export function Palette(props: {
   let go: HTMLButtonElement | undefined
   let cancel: HTMLButtonElement | undefined
 
-  /** What the box is doing — one value, so "showing the list" and "composing a
-   *  line" cannot disagree ({@link ./items.ts}'s `Mode`). */
-  const mode = createMemo(() => modeOf(query()))
-  const listing = () => mode().kind === "filter"
+  /**
+   * WHAT THE BOX IS DOING — one value, so "showing the list", "composing a
+   * line" and "answering a question" cannot disagree ({@link ./items.ts}'s
+   * `Box`). A question that OWNS the box takes it out of both prefixes and out
+   * of the list by construction rather than by the order four readers ask in.
+   */
+  const box = createMemo(() => boxOf(query(), paletteAsking()))
+  const listing = () => box().kind === "filter"
+
+  /** What the box is FOR, said in it while it is empty — or, while a typed
+   *  question has borrowed it, what that door does with nothing typed, which
+   *  is how "Enter with nothing" becomes something a reader can see rather
+   *  than a promise. */
+  const boxSays = () => {
+    const it = box()
+    return it.kind === "answering" && it.question.kind === "line"
+      ? it.question.placeholder
+      : "Jump, toggle, > ask the agent, + capture a line…"
+  }
 
   /**
    * WHAT THIS BOX IS ASKING — the query, or `null` while it is asking nothing:
@@ -237,6 +240,17 @@ export function Palette(props: {
    * line nobody is searching with.
    */
   const asked = () => (paletteOpen() && listing() ? query() : null)
+
+  /**
+   * WHAT THE FOCUSED PAGE IS CALLED — asked once, here, because two things
+   * want the same answer: the shelf's row draws it on its second line, and the
+   * box that asks for a pin's name wears it as the placeholder
+   * (`../pins/naming.ts`). It is the one fact about a page an address cannot
+   * say on its own, and it rides on that page's own reading (`../reading.tsx`).
+   */
+  const called = createMemo(() =>
+    nameOf(router.route(), shownIn(props.names, router.route()))
+  )
 
   // The nodes, from the server — one primitive, its own failure, and no
   // request bookkeeping in this component ({@link ../search/nodes.ts}).
@@ -270,7 +284,7 @@ export function Palette(props: {
     // page has that a reader can find by looking (../pins/palette.ts).
     const commands = [
       ...opRows(),
-      pinItem(router.route(), pins(), props.names),
+      pinItem(router.route(), pins(), called()),
       ...SHELL_ITEMS,
     ]
     // THEN THE HITS, which is the order they can be ANSWERED in: the commands
@@ -300,11 +314,13 @@ export function Palette(props: {
     setChosen(false)
     setAskError(null)
     setSaid(null)
-    setAsking(null)
   }
 
   const close = () => {
-    setPaletteOpen(false)
+    // The question goes with it, because the question is PART of what the
+    // palette is showing (`./open.ts`) rather than a second thing this
+    // component has to remember to put down.
+    closePalette()
     blank()
     const back = previousFocus
     previousFocus = null
@@ -338,6 +354,25 @@ export function Palette(props: {
     queueMicrotask(() => input?.focus())
   })
 
+  /**
+   * …and a question that OWNS the box arrives with the words it starts with.
+   *
+   * Its own effect, on its own dependency, which is what keeps the two apart:
+   * opening is about the modal (blank the box, take the caret, remember where
+   * the reader came from) and this is about one question. Folded into the one
+   * above, a question raised over an ALREADY-OPEN palette would re-run the
+   * open — re-blanking the box it is about to fill and forgetting the focus to
+   * go back to — and a CONFIRM raised over a typed filter would wipe the
+   * filter it is drawn over, which is not what backing out of one has ever
+   * done.
+   */
+  createEffect(
+    on(paletteAsking, (question) => {
+      if (question?.kind !== "line") return
+      blank(question.initial)
+    }),
+  )
+
   const runItem = (item: PaletteItem) => {
     const action = item.action
     // The two that do not finish: a write may have something to say and a
@@ -353,7 +388,12 @@ export function Palette(props: {
       // word for word: "ask, then do" stays two call sites rather than one
       // function telling them apart by which row it was handed.
       setSaid(null)
-      setAsking({ label: item.label, question: action.confirm, edit: action.edit })
+      askInPalette({
+        kind: "confirm",
+        label: item.label,
+        question: action.confirm,
+        edit: action.edit,
+      })
       return
     }
     if (action.kind === "prefix") {
@@ -364,7 +404,7 @@ export function Palette(props: {
     if (action.kind === "pin") {
       // The palette STAYS UP while this one is in flight, exactly as an op row
       // does, because the answer belongs in the box the reader is looking at.
-      pin().then((line) => {
+      pinPage((line) => {
         if (line === undefined) close()
         else setSaid(line)
       })
@@ -411,15 +451,70 @@ export function Palette(props: {
    * — because that is what "this page" means in a workspace that may be split,
    * and it is the same reading the sidebar lights an entry from (`../App.tsx`).
    * Which of the two writes it is is the shelf's answer rather than a state
-   * here (`../pins/pinning.ts`).
+   * here (`../pins/pinning.ts`), and WHETHER it writes at all before asking
+   * what to call it is `../pins/naming.ts`'s.
+   *
+   * ONE FUNCTION for both doors, because that second decision is one rule and
+   * a rule spelled at two call sites is a rule that eventually differs — the
+   * chord would go on asking after the row stopped, or the other way round.
+   * What genuinely differs between them is only WHERE THE ANSWER GOES, which
+   * is why that is the parameter: a chord has nothing on screen but the line
+   * under the header, and a row chosen in this palette has this box.
    */
-  const pin = (): Promise<Said | undefined> =>
-    togglePin(router.route(), pins(), undo.record)
+  const pinPage = (said: (line: Said | undefined) => void): void => {
+    // A QUESTION OWNS THIS MODAL, so the chord is dead while one is up — which
+    // is the same rule the caret, Tab and Escape already keep here: a question
+    // is answered or backed out of, and nothing pressed elsewhere becomes its
+    // answer or writes past it. Read forwards it is the fix for what a REPEAT
+    // press did: this gesture's own question is already on screen, so raising
+    // it again is asking a second time, and the effect that raises one hands
+    // the box back its opening words — wiping the name half-typed into it
+    // (opencode, on #282). Read backwards it also keeps a chord from writing
+    // the directory while some OTHER question stands unanswered.
+    //
+    // Silent, deliberately: the question the press would have asked is the
+    // thing on screen, and a line saying so under the header would be this app
+    // telling a reader what they are looking at.
+    if (paletteAsking() !== null) return
+    // ASKED ONCE and read twice: whether this page is already a door is a
+    // parse of every row on the shelf, and both halves of the gesture — does
+    // it ask for a name, and which write does it send — are readings of that
+    // one answer (`../pins/pins.ts`).
+    const already = pinnedAt(pins(), router.route())
+    const naming = namingFor(router.route(), already, called())
+    if (naming !== null) {
+      askName(naming)
+      return
+    }
+    void togglePin(router.route(), already, undo.record).then(said)
+  }
 
-  /** The question answered: it goes, and the verb behind it does. */
+  /**
+   * The question answered: it goes, and the verb behind it does.
+   *
+   * A TYPED question is resolved into its op HERE rather than when it was
+   * raised, because the words do not exist yet then — and the refusal that
+   * resolution can carry keeps the question UP with the words still in the
+   * box, which is the same promise a refused capture makes to its line. The
+   * write that lands closes the palette through {@link sendEdit}, which is
+   * what takes the question down.
+   *
+   * What the answer MEANS is the asker's, carried on the question
+   * (`./asking.ts`): this knows that a typed one resolves to a write or to a
+   * sentence, and nothing about pins.
+   */
   const answer = (question: Asking) => {
-    setAsking(null)
-    sendEdit(question.edit)
+    if (question.kind === "confirm") {
+      dropQuestion()
+      sendEdit(question.edit)
+      return
+    }
+    const outcome = question.resolve(query())
+    if (Outcome.isFailure(outcome)) {
+      setSaid({ tone: "alarm", text: outcome.failure })
+      return
+    }
+    sendEdit(outcome.success)
   }
 
   /**
@@ -511,18 +606,17 @@ export function Palette(props: {
     // Reaching this from the BOX at all takes a deliberate click back into it,
     // because raising the question moves the caret onto its own button — so
     // the ordinary path is the button's own Enter, and this is the belt.
-    const question = asking()
-    if (question !== null) {
-      answer(question)
+    const it = box()
+    if (it.kind === "answering") {
+      answer(it.question)
       return
     }
-    const box = mode()
-    if (box.kind === "ask") {
-      sendAsk(box.text)
+    if (it.kind === "ask") {
+      sendAsk(it.text)
       return
     }
-    if (box.kind === "capture") {
-      sendCapture(box.text)
+    if (it.kind === "capture") {
+      sendCapture(it.text)
       return
     }
     // Nothing lit is nothing chosen — see {@link chosen}. No `?? list[0]`
@@ -570,12 +664,19 @@ export function Palette(props: {
    *  one key, the nearest thing it can dismiss, which is what it means
    *  everywhere else in this app. */
   const escape = () => {
-    if (asking() !== null) {
-      setAsking(null)
-      input?.focus()
+    const question = paletteAsking()
+    if (question === null) {
+      close()
       return
     }
-    close()
+    dropQuestion()
+    // A TYPED question hands the box back empty: the words were about the
+    // question, and a name backed out of must not become the filter over the
+    // list underneath it. A confirm never took the box, so what was typed
+    // behind it is still there — which is what backing out of one has always
+    // left.
+    if (question.kind === "line") setQuery("")
+    input?.focus()
   }
 
   onMount(() => {
@@ -600,9 +701,15 @@ export function Palette(props: {
         // is standing Tab cycles its two ways out and nothing else.
         if (paletteOpen() && event.key === "Tab") {
           event.preventDefault()
-          if (asking() === null) input?.focus()
+          const question = paletteAsking()
+          if (question === null) input?.focus()
           else if (document.activeElement === go) cancel?.focus()
-          else go?.focus()
+          // A TYPED question's answer is written in the box, so the box is one
+          // of its ways out and the cycle goes back through it. A confirm's is
+          // not: there is nothing to type, and Tab there is the two buttons.
+          else if (document.activeElement === cancel && question.kind === "line") {
+            input?.focus()
+          } else go?.focus()
         }
         return
       }
@@ -610,7 +717,7 @@ export function Palette(props: {
       event.preventDefault()
       if (match.action === "palette") {
         if (paletteOpen()) close()
-        else setPaletteOpen(true)
+        else openPalette()
         return
       }
       if (match.action === "sidebar") props.toggleDirectory()
@@ -625,7 +732,14 @@ export function Palette(props: {
       // the line under the header rather than to this component's, which is
       // the one this palette can draw and is not on screen when the chord is
       // pressed with the modal shut (`../pins/pinning.ts`).
-      if (match.action === "pin") void pin().then(sayPin)
+      //
+      // A NARROWED page is the one press that asks first: the chord is live in
+      // the filter box, which is exactly where "keep this, narrowed like this"
+      // is meant — and it is the one address nothing in the set can name
+      // (`../pins/naming.ts`). Asking opens this palette with the box holding
+      // the question, so Enter alone still writes the bare pin the chord always
+      // wrote.
+      if (match.action === "pin") pinPage(sayPin)
     }
     window.addEventListener("keydown", onKey)
     onCleanup(() => window.removeEventListener("keydown", onKey))
@@ -667,7 +781,7 @@ export function Palette(props: {
             type="text"
             class="w-full border-b border-rule bg-transparent px-5 py-4 font-serif text-lg italic text-ink outline-none placeholder:text-muted"
             data-testid={TESTID.paletteInput}
-            placeholder="Jump, toggle, > ask the agent, + capture a line…"
+            placeholder={boxSays()}
             value={query()}
             onInput={(e) => {
               setQuery(e.currentTarget.value)
@@ -797,62 +911,15 @@ export function Palette(props: {
             {/* THE QUESTION FIRST, above both prefixes: it is up because
                 somebody chose the verb that asks it, and nothing they type
                 next may quietly become the answer. */}
-            <Match when={asking()}>
-              {(question) => (
-                <div
-                  class="px-4 py-3"
-                  role="group"
-                  aria-label={question().question}
-                >
-                  {/* ANNOUNCED, and not only drawn. The caret is in the box
-                      when the verb is chosen, so without this a reader who
-                      cannot see the panel is told nothing at all and their
-                      next Enter archives a subtree. `alert` + `assertive` is
-                      the same pair a refusal gets one row up — this is the
-                      other sentence in this palette that must interrupt. */}
-                  <p
-                    class="m-0 text-xs leading-snug text-ink"
-                    data-testid={TESTID.paletteConfirm}
-                    role="alert"
-                    aria-live="assertive"
-                  >
-                    {question().question}
-                  </p>
-                  <div class="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      // AND THE CARET COMES IN, which is the `•••` menu's own
-                      // confirm rule (`../menu/Confirm.tsx`): a question
-                      // nobody's keyboard can reach is a question only a mouse
-                      // may answer, and the Tab trap above made that literal.
-                      // A microtask because the element is not in the document
-                      // at the instant the ref runs.
-                      ref={(element) => {
-                        go = element
-                        queueMicrotask(() => element.focus())
-                      }}
-                      class={`${ALARM_PILL} cursor-pointer`}
-                      data-testid={TESTID.paletteItem}
-                      data-id="go"
-                      onClick={() => answer(question())}
-                    >
-                      {question().label}
-                    </button>
-                    <button
-                      type="button"
-                      ref={cancel}
-                      class={`${QUIET_PILL} cursor-pointer`}
-                      data-testid={TESTID.paletteItem}
-                      data-id="cancel"
-                      onClick={() => {
-                        setAsking(null)
-                        input?.focus()
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
+            <Match when={only(box(), "answering")}>
+              {(it) => (
+                <Question
+                  asking={it().question}
+                  onGo={() => answer(it().question)}
+                  onCancel={escape}
+                  setGo={(element) => (go = element)}
+                  setCancel={(element) => (cancel = element)}
+                />
               )}
             </Match>
             {/* Both prefixes preview the SAME way, because they are the same
@@ -860,7 +927,7 @@ export function Palette(props: {
                 is never a guess. Two arms rather than one because the two
                 sentences and the two testids are all that differ, and the
                 slot a scenario waits on has to say which prefix it is. */}
-            <Match when={only(mode(), "ask")}>
+            <Match when={only(box(), "ask")}>
               {(box) => (
                 <Composing
                   text={box().text}
@@ -870,7 +937,7 @@ export function Palette(props: {
                 />
               )}
             </Match>
-            <Match when={only(mode(), "capture")}>
+            <Match when={only(box(), "capture")}>
               {(box) => (
                 <Composing
                   text={box().text}

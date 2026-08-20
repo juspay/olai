@@ -11,6 +11,11 @@
  * reader has to choose between while looking at a row that already says which
  * one applies.
  *
+ * WHO ASKS is the door, and it hands the answer over ({@link togglePin}'s
+ * `already`): a door draws its own label from it, and a chord reads it to know
+ * whether this press asks for a name first (`./naming.ts`) — so asking again
+ * here would be a third walk of the shelf for one press.
+ *
  * Which write that is, is the shelf's storage read backwards (`./pins.ts`):
  * pinning is a `pin` — one op at the write gate, resolved against the set
  * because which file the shelf is is a fact about the directory — and
@@ -35,13 +40,11 @@
 
 import { type Accessor, createRoot } from "solid-js"
 
-import type { Shelf } from "@olai/surface"
-
 import type { Said, Undo } from "../edit/undoing.ts"
 import { hrefOf, type Route } from "../routes.ts"
 import { createSaying } from "../saying.ts"
 import { applying } from "../writes.ts"
-import { pinnedAt } from "./pins.ts"
+import type { Pin } from "./pins.ts"
 
 /**
  * The line, and the one thing about it that is not `../saying.ts`'s: it has no
@@ -79,14 +82,16 @@ export const sayPin = (message: Said | null | void): void => line.say(message)
  */
 export const togglePin = async (
   route: Route,
-  /** The shelf as the server last answered it — which way this address's
-   *  answer goes is a fact about the DIRECTORY, and this is where the tab
-   *  holds it (`./answered.tsx`). */
-  shelf: Shelf,
+  /** The pin this page ALREADY has, or `undefined` — which way this address's
+   *  answer goes is a fact about the DIRECTORY, resolved by the door
+   *  (`./pins.ts`'s `pinnedAt`, over the shelf the tab holds in
+   *  `./answered.tsx`). Handed IN rather than asked here because the same
+   *  door has already asked: the ⌘K row draws its label from this answer, and
+   *  the chord reads it to know whether this press asks for a name first
+   *  (`./naming.ts`). One walk of the shelf per gesture, not three. */
+  already: Pin | undefined,
   record: Undo["record"],
-): Promise<Said | undefined> => {
-  const already = pinnedAt(shelf, route)
-  return already === undefined
+): Promise<Said | undefined> =>
+  already === undefined
     ? applying({ verb: "pin", at: hrefOf(route) }, record)
     : applying({ verb: "trash", id: already.id }, record)
-}

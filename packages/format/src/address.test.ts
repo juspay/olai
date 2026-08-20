@@ -3,9 +3,13 @@ import { expect, test } from "bun:test"
 import {
   type Address,
   addressOf,
+  addressWritten,
   DocumentPath,
+  linkedTitle,
   NodeId,
   parseAddress,
+  PIN_NAME_UNWRITABLE,
+  pinTitle,
   printAddress,
   Slug,
 } from "./address.ts"
@@ -165,4 +169,62 @@ test("the plain-path fast path prints what the walk would have printed", () => {
     if (address === null) continue
     expect(printAddress(address)).toBe(walked(name))
   }
+})
+
+// ── a pin's title, written and read back ───────────────────────────────
+
+/**
+ * The inverse pair, checked as a pair: what {@link pinTitle} writes is what
+ * {@link linkedTitle} reads, for every address this app mints and for the
+ * awkward ones a directory can hold. A name written one way and read another
+ * is a row that silently stops being a door on the shelf.
+ */
+test("a named pin round-trips through the reader that draws it", () => {
+  const names = ["What is late", "Kitchen #home", "an [unclosed bracket", "  padded  "]
+  const addresses = [
+    "/agenda?q=is%3Atodo",
+    "/#a1b2c3",
+    "/notes/README.md#install",
+    "/d/2026-08-20",
+    "/",
+  ]
+  for (const at of addresses) {
+    for (const name of names) {
+      const title = pinTitle(at, name)
+      expect(title).toBeDefined()
+      const read = linkedTitle(title ?? "")
+      expect(read?.label).toBe(name.trim())
+      expect(read?.at).toBe(at)
+      // …and the ADDRESS is what it always was: `addressWritten` is what both
+      // faces cut a title with, so a named pin and a bare one answer the same
+      // place.
+      expect(addressWritten(title ?? "")).toBe(at)
+    }
+  }
+})
+
+test("an address the link's grammar cannot carry is ESCAPED, not refused", () => {
+  // A `(` is unspellable inside a link and means `%28` to every reader of an
+  // address here — so a file with parentheses in its name is nameable, and the
+  // written form still reads back as the same path.
+  const title = pinTitle("/notes/plan%20(old).olai", "The old plan")
+  expect(title).toBe("[The old plan](/notes/plan%20%28old%29.olai)")
+  expect(parseAddress(addressWritten(title ?? "").slice(1)))
+    .toEqual(document("notes/plan (old).olai"))
+})
+
+test("a blank name is the BARE address — un-naming is typing the name away", () => {
+  expect(pinTitle("/agenda?q=is%3Atodo", "")).toBe("/agenda?q=is%3Atodo")
+  expect(pinTitle("/agenda?q=is%3Atodo", "   ")).toBe("/agenda?q=is%3Atodo")
+  expect(pinTitle("  /#order  ", "")).toBe("/#order")
+})
+
+test("a name that cannot be written is REFUSED rather than mangled", () => {
+  // The label reader ends at the first `]`, so writing one of these would
+  // leave a title that is no longer an address at all — the row would drop off
+  // the shelf with nothing said.
+  for (const name of ["late] things", "]", "two\nlines", "a\rb"]) {
+    expect(pinTitle("/agenda", name)).toBeUndefined()
+  }
+  expect(PIN_NAME_UNWRITABLE).toContain("]")
 })

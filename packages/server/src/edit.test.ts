@@ -205,6 +205,42 @@ test("the address is carried VERBATIM — nothing on the way parses one", () => 
     .toEqual({ op: "create", file: mintedInto(PINS), seed: { title: "/a b.olai" } })
 })
 
+test("a pin that carried a NAME lands as the link `Pins.olai` spells one with", () => {
+  // The row is still one ordinary node whose title is an address — inside a
+  // markdown link, which is the spelling an agent writes by hand and the one
+  // the shelf and the file's own page both draw (docs/format.md's Pins). No
+  // second write, so ⌘Z takes the whole intention back.
+  const set = setOf({ "house.olai": HOUSE, [PINS]: "" })
+  expect(asked({ verb: "pin", at: "/agenda?q=is%3Atodo", name: "What is late" }, reading(set)))
+    .toEqual({ op: "add", file: PINS, title: "[What is late](/agenda?q=is%3Atodo)" })
+  // …and into a directory with no shelf, the same title is the seed.
+  expect(asked({ verb: "pin", at: "/agenda?q=is%3Atodo", name: "What is late" }))
+    .toEqual({
+      op: "create",
+      file: mintedInto(PINS),
+      seed: { title: "[What is late](/agenda?q=is%3Atodo)" },
+    })
+})
+
+test("a BLANK name is the bare pin — naming nothing is what it always was", () => {
+  // The box a reader pressed Enter in with nothing typed sends the words it
+  // holds, and "no name" is not a second gesture.
+  const set = setOf({ "house.olai": HOUSE, [PINS]: "" })
+  for (const name of ["", "   "]) {
+    expect(asked({ verb: "pin", at: "/#order", name }, reading(set)))
+      .toEqual({ op: "add", file: PINS, title: "/#order" })
+  }
+})
+
+test("a name the link's grammar cannot hold is REFUSED, and nothing is written", () => {
+  // A `]` closes the label early, so the title written past it is no longer an
+  // address — the row would sit in the file and never appear on the shelf,
+  // which is the silent failure this refusal exists to prevent.
+  const failure = refused({ verb: "pin", at: "/#order", name: "late] things" })
+  expect(failure._tag).toBe("UsageFailure")
+  expect(failure.message).toContain("]")
+})
+
 // ── the four moves ─────────────────────────────────────────────────────
 
 test("Tab goes under the sibling above, last among its children", () => {
