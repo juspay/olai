@@ -380,7 +380,6 @@ export const fileNamed = (route: Route): string | undefined => {
 export const routeIn = (href: string): Route | null =>
   href.startsWith("/") ? routeNamed(splitAddress(href)) : null
 
-
 /**
  * Anything this does not recognise is the default outline: an unknown path is
  * a reader who typed something, and the app they wanted is the one at `/`.

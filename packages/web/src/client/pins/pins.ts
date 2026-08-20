@@ -127,9 +127,8 @@ export interface Pin {
 const pinOf = (row: Pinned): Pin | undefined => {
   const route = addressIn(row.title)
   if (route === undefined) return undefined
-  // `written` is dropped, and that is a fact about a SHELF rather than an
-  // omission: its row is a `<Link>` already, so its face is never the anchor an
-  // authored name would make it (`../address/Face.tsx`).
+  // The other half of what `titleFace` answers — whether those words are
+  // somebody's OWN — is dropped here, for the reason {@link Pin.name} gives.
   const { name } = titleFace(row.title, route, showing(route, row))
   return { id: row.id, route, name }
 }
