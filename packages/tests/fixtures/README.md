@@ -12,9 +12,11 @@ there is nothing at the end of it.
 
 These directories are **read-only to a scenario**. A scenario that has to edit
 the files — everything in `features/it_stays_live.feature` — asks for
-`@scratch:<name>` instead and is served a private temp copy by a server of its
-own. Writing into the tree below would leave the next scenario reading a
-fixture the repository does not contain.
+`@scratch:<name>` instead and is served a temp copy. By default that copy has
+a server of its own, thrown away with the scenario; a feature whose scenarios
+write disjoint files shares one copy per worker with `@share-scratch` (see
+`packages/tests/README.md`). Writing into the tree below would leave the next
+scenario reading a fixture the repository does not contain.
 
 The fixtures are meant to be read. A person who wants to know what a valid
 outline looks like should be able to answer it from `good/` in under a minute,

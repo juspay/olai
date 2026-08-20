@@ -15,10 +15,17 @@
  * A `@scratch:<name>` tag is the other half, and the reason it exists is the
  * live store: those scenarios EDIT the files while the server is watching them.
  * A shared corpus cannot survive that (the next scenario would inherit the
- * edit) and neither can the repository (the fixtures are tracked), so each
- * scratch scenario gets a fresh copy of the named corpus in a temp directory
- * and a server of its very own, both thrown away afterwards. It is the one case
- * where the per-scenario spawn is worth paying for.
+ * edit) and neither can the repository (the fixtures are tracked). By default
+ * each scratch scenario gets a fresh copy and a server of its very own, both
+ * thrown away afterwards.
+ *
+ * Features whose scenarios write DISJOINT files opt into sharing with
+ * `@share-scratch` (see `support/scratch.ts`): one copy and one server per
+ * feature per worker, collision observed by hashing the tree after each
+ * scenario and refused by name if two writers touch the same path. A scenario
+ * that would collide, or that restarts the server, keeps a private copy with
+ * `@own-scratch`. Sharing never crosses workers — the lock is still one olai
+ * per directory.
  *
  * WHAT A SHARED SERVER SERVES is a per-WORKER copy of the tracked corpus, never
  * the tracked directory itself, and that is not tidiness. `--parallel` is one
@@ -44,6 +51,18 @@ import { chromium } from "playwright";
 import type { Browser } from "playwright";
 
 import { BROWSER_ARGS } from "./browser.ts";
+import {
+  changedFiles,
+  collisionError,
+  DEFAULT_CORPUS,
+  filesOf,
+  OWN_TAG,
+  overlapWith,
+  requestOf,
+  SHARE_TAG,
+  spawnFingerprint,
+  type ScratchWriter,
+} from "./scratch.ts";
 import { SCENARIO_SETUP_TIMEOUT, SERVER_START_TIMEOUT } from "./world.ts";
 import type { GitMode } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
@@ -137,16 +156,6 @@ const NO_AGENT_TAG = "@no-agent";
  */
 const GIT_TAG = /^@git:(repo|none|broken)$/;
 
-/** The corpus a scenario gets when it names none. */
-const DEFAULT_CORPUS = "good";
-/** `@corpus:<name>` shares this WORKER's copy of the tracked fixture directory
- *  (see the header — nothing serves the tracked tree itself any more);
- *  `@scratch:<name>` gets a copy of its own that it may write to, thrown away
- *  with the scenario. One pattern rather than two, because they are one
- *  question — which corpus, and may I write to it — and two regexes is how the
- *  answer ends up parsed in two places. */
-const CORPUS_TAG = /^@(corpus|scratch):([A-Za-z0-9_-]+)$/;
-
 /** The screen a scenario is read on, and the pointer it is read with.
  *
  *  A `@phone` scenario gets a handset: 390×844 CSS pixels (an iPhone 13's, and
@@ -198,6 +207,23 @@ interface RunningServer {
  *  kill to. It is also what makes a `--parallel` run share one spawn instead
  *  of racing two onto one port. */
 const servers = new Map<string, Promise<RunningServer>>();
+
+/**
+ * Feature-shared scratch slots, keyed by feature URI + corpus + spawn
+ * fingerprint. One map per worker process (see the header). Not folded into
+ * `servers`: those are the read-only corpus servers, keyed by corpus name,
+ * and a shared scratch of `good` is not the `good` corpus server.
+ */
+interface SharedSlot {
+  readonly server: RunningServer & { readonly root: string };
+  readonly writers: ScratchWriter[];
+  readonly seenPickles: Set<string>;
+}
+
+const sharedScratches = new Map<string, Promise<SharedSlot>>();
+
+/** Successful `startServerChild` returns, for the before/after spawn census. */
+let spawned = 0;
 
 /** Every child spawned and not yet seen exit. The promises above are useless
  *  on the hard-exit path — `process.on("exit")` runs no microtasks, so a
@@ -474,6 +500,7 @@ const startServerChild = async (
         killChild(child);
         throw new Error(shuttingDown(label));
       }
+      spawned += 1;
       return { baseUrl: listening, child, said };
     }
 
@@ -517,6 +544,13 @@ const startServerChild = async (
  * is not.
  */
 export const stopOwnServer = async (world: OlaiWorld): Promise<void> => {
+  if (world.scratchShared) {
+    throw new Error(
+      `this scenario restarts the server it is served by, so it must own ` +
+        `that server: tag it ${OWN_TAG} rather than sharing (${SHARE_TAG}) — ` +
+        `the shared scratch is running for every other scenario in this feature too`,
+    );
+  }
   const child = ownServerOf(world);
   const port = Number(new URL(world.baseUrl).port);
   await new Promise<void>((resolve) => {
@@ -711,21 +745,39 @@ const killLive = (): void => {
   live.clear();
 };
 
+const forgetShared = async (
+  entry: Promise<SharedSlot>,
+): Promise<void> => {
+  try {
+    const slot = await entry;
+    killChild(slot.server.child);
+    fs.rmSync(slot.server.root, { recursive: true, force: true });
+    fs.rmSync(scratchState(slot.server.root), { recursive: true, force: true });
+  } catch {
+    // A failed start already cleaned its tree (scratchServerFor); nothing to
+    // kill, and re-throwing from teardown would hide the scenario's error.
+  }
+};
+
 /** Kill every server, spawned OR still spawning. A start in flight has no
  *  process to kill yet, so the only way to reach it is to wait for it — which
- *  is why the cache holds promises. */
+ *  is why the cache holds promises. Shared scratches live in a second map
+ *  and own their temp trees; those go here too, not in After. */
 const killAll = async (): Promise<void> => {
   const pending = [...servers.values()];
+  const pendingShared = [...sharedScratches.values()];
   servers.clear();
+  sharedScratches.clear();
   killLive();
-  await Promise.all(
-    pending.map((entry) =>
+  await Promise.all([
+    ...pending.map((entry) =>
       entry.then(
         (server) => killChild(server.child),
         () => undefined,
       ),
     ),
-  );
+    ...pendingShared.map(forgetShared),
+  ]);
 };
 // A cucumber run killed from the keyboard skips AfterAll; without this, every
 // interrupted run leaks a server holding a port.
@@ -784,6 +836,10 @@ AfterAll(async () => {
     fs.rmSync(workerState, { recursive: true, force: true });
     workerState = undefined;
   }
+  // One line per worker, grep-able, for the before/after spawn census. A
+  // sharing feature drops this number; a silent no-op would look like a
+  // win on wall time that was just the machine being quieter.
+  console.error(`olai-e2e: worker ${workerId()} spawned ${spawned} servers`);
 
   // LAST, and after the servers are down: a server still running is a server
   // still able to write, and this reading has to be of a tree nobody holds.
@@ -800,24 +856,24 @@ AfterAll(async () => {
   }
 });
 
-/** Which corpus a scenario asked for, and whether it wants its own copy. */
-const requestOf = (
-  tags: ReadonlyArray<{ readonly name: string }>,
-): { readonly corpus: string; readonly scratch: boolean } => {
-  const named = tags.flatMap((tag) => {
-    const asked = CORPUS_TAG.exec(tag.name);
-    return asked === null
-      ? []
-      : [{ corpus: asked[2]!, scratch: asked[1] === "scratch" }];
+const sharedScratchFor = (
+  key: string,
+  corpus: string,
+  spawnOptions: Omit<Spawn, "stateRoot">,
+): Promise<SharedSlot> => {
+  const cached = sharedScratches.get(key);
+  if (cached) return cached;
+  const started = scratchServerFor(corpus, spawnOptions).then((server) => ({
+    server,
+    writers: [] as ScratchWriter[],
+    seenPickles: new Set<string>(),
+  }));
+  const entry: Promise<SharedSlot> = started.catch((cause: unknown) => {
+    if (sharedScratches.get(key) === entry) sharedScratches.delete(key);
+    throw cause;
   });
-  if (named.length > 1) {
-    throw new Error(
-      `a scenario may serve one corpus; this one asks for ${
-        named.map((ask) => ask.corpus).join(", ")
-      }`,
-    );
-  }
-  return named[0] ?? { corpus: DEFAULT_CORPUS, scratch: false };
+  sharedScratches.set(key, entry);
+  return entry;
 };
 
 Before(
@@ -841,8 +897,11 @@ Before(
     // A shared corpus server serves every other scenario too, so whether it
     // commits — and into what — is not this one's to choose. Same rule as
     // `@kolu`, and said here rather than left to an assertion that would fail
-    // about a readout instead of about the tag.
-    if (this.gitMode !== undefined && !asked.scratch) {
+    // about a readout instead of about the tag. A feature-shared scratch is
+    // still a scratch: this scenario owns the write, even if it shares the
+    // process with the rest of its feature.
+    const writes = asked.mode !== "corpus";
+    if (this.gitMode !== undefined && !writes) {
       throw new Error(
         `@git:${this.gitMode} decides what its server commits to, so the scenario must own ` +
           `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
@@ -852,23 +911,45 @@ Before(
     // kolu it found is not this one's to choose. Said here rather than left to
     // the assertion, which would fail thirty seconds later about the transcript
     // instead of about the tag.
-    if (this.hasKolu && !asked.scratch) {
+    if (this.hasKolu && !writes) {
       throw new Error(
         `${KOLU_TAG} decides what its server finds on PATH, so the scenario must own that ` +
           `server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
 
-    if (asked.scratch) {
-      const own = await scratchServerFor(asked.corpus, {
+    if (writes) {
+      const spawnOptions = {
         stored: this.storedSessions,
         agent: this.hasAgent,
         kolu: this.hasKolu,
         ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
-      });
-      this.baseUrl = own.baseUrl;
-      this.served = own.root;
-      this.ownServer = own.child;
+      };
+      // A retry of a sharing scenario would inherit its first attempt's
+      // writes; give it a private copy instead (CUCUMBER_RETRY, default 0).
+      const pickleId = scenario.pickle.id;
+      const featureKey = `${scenario.pickle.uri}::${asked.corpus}::${spawnFingerprint(spawnOptions)}`;
+      let share = asked.mode === "share";
+      if (share) {
+        const slot = await sharedScratchFor(featureKey, asked.corpus, spawnOptions);
+        if (slot.seenPickles.has(pickleId)) {
+          share = false;
+        } else {
+          slot.seenPickles.add(pickleId);
+          this.baseUrl = slot.server.baseUrl;
+          this.served = slot.server.root;
+          this.ownServer = slot.server.child;
+          this.scratchShared = true;
+          this.scratchKey = featureKey;
+          this.scratchWas = filesOf(slot.server.root);
+        }
+      }
+      if (!share) {
+        const own = await scratchServerFor(asked.corpus, spawnOptions);
+        this.baseUrl = own.baseUrl;
+        this.served = own.root;
+        this.ownServer = own.child;
+      }
     } else {
       this.baseUrl = (await serverFor(this.corpus)).baseUrl;
     }
@@ -974,7 +1055,29 @@ After(async function (this: OlaiWorld, scenario) {
   // to be removed.
   this.terminalAgent?.stop();
 
-  // A scratch scenario owns its server and its directory, and both die here —
+  // A feature-shared scratch outlives the scenario: After records what this
+  // one wrote, refuses if an earlier scenario on this worker already wrote
+  // the same path, and leaves the process running for the rest of the feature.
+  if (this.scratchShared && this.scratchKey !== undefined && this.served) {
+    const slot = await sharedScratches.get(this.scratchKey);
+    if (slot !== undefined) {
+      const changed = changedFiles(this.scratchWas ?? new Map(), filesOf(this.served));
+      const hit = overlapWith(changed, slot.writers);
+      const feature = path.basename(scenario.pickle.uri);
+      slot.writers.push({ name: scenario.pickle.name, files: changed });
+      if (hit !== undefined) {
+        throw collisionError(
+          feature,
+          scenario.pickle.name,
+          hit.writer.name,
+          hit.files,
+        );
+      }
+    }
+    return;
+  }
+
+  // A private scratch owns its server and its directory, and both die here —
   // the server first, so nothing is watching the tree while it is removed.
   if (this.ownServer) {
     killChild(this.ownServer);

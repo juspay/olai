@@ -1241,13 +1241,25 @@ export class OlaiWorld extends World {
   /** The directory being served, for a `@scratch:` scenario — a private copy
    *  of the corpus that this scenario is allowed to EDIT while the server
    *  watches it. Undefined for the shared corpora, which are the tracked
-   *  fixtures and must not be written to. */
+   *  fixtures and must not be written to. A `@share-scratch` feature still
+   *  sets this: the copy is private to this worker, shared with the other
+   *  scratch scenarios of that feature on this worker. */
   served?: string;
+  /** True when this scenario is on a feature-shared scratch. After must not
+   *  kill the server or delete the tree; a restart must refuse. */
+  scratchShared = false;
+  /** Content hashes of the scratch tree at Before, so After can name the
+   *  files this scenario actually wrote. Undefined when not sharing. */
+  scratchWas?: Map<string, string>;
+  /** Cache key of the shared slot this scenario is on, for After's collision
+   *  check. Undefined when not sharing. */
+  scratchKey?: string;
   /** Where this scenario PUSHES to, once it has asked for one: a bare
    *  repository in a temp directory, wired up as `origin`. Undefined for every
    *  scenario that is not about pushing, which is all but one of them. */
   remote?: string;
-  /** The server process a `@scratch:` scenario owns, killed in `After`. */
+  /** The server process a `@scratch:` scenario is served by. Killed in
+   *  `After` when the copy is private; left running when `@share-scratch`. */
   ownServer?: ChildProcess;
   /** A listen on this scenario's port, held between stop and restart so
    *  another worker cannot steal it. Released by `startOwnServer`, or by

@@ -1,3 +1,4 @@
+@share-scratch
 Feature: Documents
   Some notes are not a line. A `.md` under the served directory is a document:
   it gets a page of its own, it is listed in the sidebar's file tree whether
@@ -9,7 +10,9 @@ Feature: Documents
   The markdown is the same pipeline a note goes through, so what is proved here
   is proved for notes too: fenced code highlighted without a byte fetched from
   anywhere but this server, footnotes that link to their own note, and pictures
-  that are files in the served directory and nowhere else.
+  that are files in the served directory and nowhere else. Two of the three
+  scratch scenarios write disjoint files, so they share a copy per worker
+  (`@share-scratch`); the one that lists every document keeps a private copy.
 
   @corpus:good
   Scenario: Every document found has a page, and the sidebar says so
@@ -250,7 +253,7 @@ Feature: Documents
     Then the document renders bold text "polished"
     And the page has not reloaded
 
-  @scratch:good
+  @scratch:good @own-scratch
   Scenario: A document dropped into the directory joins the sidebar
     Given I open the app
     And I expand the folder "notes"
