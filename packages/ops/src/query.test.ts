@@ -24,6 +24,7 @@ import { readingOf, setOf } from "./fixtures.testlib.ts"
 import {
   dated,
   detail,
+  homes,
   matches,
   named,
   outlines,
@@ -783,23 +784,38 @@ describe("which nodes a query selects", () => {
  * out of its own copy of the directory until `vib-3-transcript-ids`, so these
  * cases are the ones a chat panel used to prove by pressing a word.
  */
-describe("which of these ids the set declares", () => {
-  const HOUSE = (): OutlineSet =>
-    setOf({
-      "house.olai": [
-        `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
-        `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets"}`,
-        // A placement of `order`, which is the id an agent writes: `read_node`
-        // answers `mirrors` with it and `remove_mirror` takes it.
-        `{"id":"echo","ord":"a1","mirror":"order"}`,
-        // ...and one whose chain ends nowhere.
-        `{"id":"nowhere","ord":"a2","mirror":"gone"}`,
-      ].join("\n"),
-      "_olai/Trash.olai": [
-        `{"id":"old","ord":"a0","title":"the old counters"}`,
-      ].join("\n"),
-    })
+/**
+ * The house, for the TWO doors that ask about ids exactly — {@link named} and
+ * {@link homes}.
+ *
+ * ONE fixture and not one each, because the sharpest case in either describe is
+ * the CONTRAST: `nowhere` is a placement whose chain is dead, and what the two
+ * doors say about it is the whole reason they are two members. Over two sets
+ * that merely look alike, that contrast stops being one the day somebody edits
+ * the copy in front of them.
+ */
+const HOUSE = (): OutlineSet =>
+  setOf({
+    "house.olai": [
+      `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets"}`,
+      // A placement of `order`, which is the id an agent writes: `read_node`
+      // answers `mirrors` with it and `remove_mirror` takes it.
+      `{"id":"echo","ord":"a1","mirror":"order"}`,
+      // ...and one whose chain ends nowhere.
+      `{"id":"nowhere","ord":"a2","mirror":"gone"}`,
+    ].join("\n"),
+    "garden.olai": HERBS,
+    "_olai/Trash.olai": [
+      `{"id":"old","ord":"a0","title":"the old counters"}`,
+    ].join("\n"),
+  })
 
+/** One record in a file of its own, so a case can ask about a FILE it is not
+ *  asking about the ids of. */
+const HERBS = `{"id":"herbs","ord":"a0","title":"the herb bed"}`
+
+describe("which of these ids the set declares", () => {
   const asked = (...ids: ReadonlyArray<string>) => named(derivedOf(HOUSE()), { ids }).named
 
   test("an id the set declares comes back with the node it names", () => {
@@ -844,6 +860,97 @@ describe("which of these ids the set declares", () => {
 
   test("nothing asked is nothing answered", () => {
     expect(named(derivedOf(HOUSE()), { ids: [] })).toEqual({ named: [] })
+  })
+})
+
+/**
+ * `homes` is the FOLD MEMORY's door: where these ids are, and which of these
+ * files the set has anything from.
+ *
+ * The door beside it ({@link named}) is the same shape and a different
+ * question, which is what most of these cases hold apart: this one is the plain
+ * record table and follows no mirror chain, because its caller remembers
+ * RECORDS rather than what a reader would be shown. The browser answered both
+ * halves out of a walk of its own copy of the whole directory until
+ * `vib-6-refile`.
+ */
+describe("where these ids are, and which of these files the set has", () => {
+  const asking = (ids: ReadonlyArray<string>, files: ReadonlyArray<string> = []) =>
+    homes(readingOf(HOUSE()), { ids, files })
+
+  test("an id the set declares comes back with the file its record is written in", () => {
+    expect(asking(["order"]).homes).toEqual([{ id: "order", file: "house.olai" }])
+  })
+
+  test("a node that was PUT AWAY answers with the file it was moved to", () => {
+    // The case the whole member exists for: `archive` keeps the id and moves
+    // the record, so a fold filed under the source file is re-filed rather than
+    // read as a deletion.
+    expect(asking(["old"]).homes).toEqual([{ id: "old", file: "_olai/Trash.olai" }])
+  })
+
+  test("a PLACEMENT answers for ITSELF — no chain is followed", () => {
+    // The one decision in the function, and the difference from `named` one
+    // door over. A fold is of a record: a mirror whose chain has died shows
+    // nothing and is folded by its own id, so asked through `named` it would
+    // read as a node that is gone while its record sits in the file.
+    expect(asking(["echo", "nowhere"]).homes).toEqual([
+      { id: "echo", file: "house.olai" },
+      { id: "nowhere", file: "house.olai" },
+    ])
+    expect(named(derivedOf(HOUSE()), { ids: ["nowhere"] }).named).toEqual([])
+  })
+
+  test("an id no record carries is not in the answer at all", () => {
+    expect(asking(["deleted", "order"]).homes).toEqual([
+      { id: "order", file: "house.olai" },
+    ])
+  })
+
+  test("an id repeated is asked once", () => {
+    expect(asking(["order", "order"]).homes).toEqual([
+      { id: "order", file: "house.olai" },
+    ])
+  })
+
+  test("the files answered are the asked ones this directory READ", () => {
+    // The other half of the decision, and the half the ids cannot give: a file
+    // whose every remembered id has gone away looks exactly like a file that
+    // stopped parsing, from the ids alone. A path the directory does not serve
+    // is not one either.
+    expect(asking([], ["house.olai", "garden.olai", "gone.olai"]).loaded).toEqual([
+      "house.olai",
+      "garden.olai",
+    ])
+  })
+
+  test("an outline somebody EMPTIED was still read", () => {
+    // The near miss. `byFile` answers "holds a record", and a file with nothing
+    // of its own is absent from it rather than mapped to an empty list — so an
+    // outline whose last node was deleted would come back unreadable, and a
+    // caller reading that as "nothing can be concluded" would keep the folds of
+    // every node that used to be in it, for good.
+    const emptied = readingOf(setOf({ "house.olai": "", "garden.olai": HERBS }))
+    expect(homes(emptied, { ids: [], files: ["house.olai"] }).loaded).toEqual([
+      "house.olai",
+    ])
+  })
+
+  test("a file that would not parse is silent, and so is one nobody serves", () => {
+    // Both mean "nothing can be concluded", which is what leaving them out
+    // says. The broken one keeps its key on the wire and declares no nodes; the
+    // other is not there at all.
+    const torn = readingOf(
+      setOf({ "garden.olai": HERBS }, [], { "house.olai": `{"id":` }),
+    )
+    expect(homes(torn, { ids: ["herbs"], files: ["house.olai", "gone.olai"] })).toEqual({
+      homes: [{ id: "herbs", file: "garden.olai" }],
+      loaded: [],
+    })
+  })
+
+  test("nothing asked is nothing answered", () => {
+    expect(asking([], [])).toEqual({ homes: [], loaded: [] })
   })
 })
 

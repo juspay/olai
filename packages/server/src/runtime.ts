@@ -888,6 +888,13 @@ export const bind = (
          */
         nodes: {
           named: ({ input }) => wiring.ops.named(input),
+          // ...and where the ids a reader REMEMBERS now live, beside whether
+          // the set has anything from the files they were filed under. The
+          // browser's fold memory walked its own id→file map for both until
+          // now, per fold — the map `vault-in-browser` is taking away. What it
+          // does with the answer stays where it was: the memory is a
+          // preference of a browser, and nothing here has an opinion about one.
+          homes: ({ input }) => wiring.ops.homes(input),
         },
 
         /**

@@ -565,7 +565,7 @@ function Branch(props: {
               data-testid={TESTID.toggle}
               aria-expanded={!collapsed()}
               aria-label={collapsed() ? "expand" : "collapse"}
-              onClick={() => setFolded([foldOf(props.row)], !collapsed(), derived())}
+              onClick={() => setFolded([foldOf(props.row)], !collapsed())}
             >
               {/* Small filled triangle — Workflowy's chevron, rotated. */}
               <span

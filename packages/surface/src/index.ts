@@ -108,6 +108,8 @@ import {
   Face,
   GIT_OFF,
   GitState,
+  HomesAnswer,
+  HomesRequest,
   Located,
   NamedAnswer,
   NamedRequest,
@@ -820,6 +822,50 @@ export const surface = defineSurface({
         output: NamedAnswer,
         error: OpFailure,
       },
+      /**
+       * WHERE THE IDS A READER REMEMBERS NOW LIVE — and whether the set has
+       * anything at all from the files they were last seen in.
+       *
+       * A SECOND MEMBER of this namespace rather than a field on the first,
+       * because the two ask different questions of different tables. {@link
+       * named} FOLLOWS a mirror chain: a backtick in an agent's prose means the
+       * node a reader would be shown. This one is the plain record lookup, no
+       * chain walked, because its caller remembers RECORDS — a mirror whose
+       * chain has died shows nothing and is folded by its own id, and asked
+       * through `named` it would read as a node that is gone while its record
+       * sits in the file.
+       *
+       * THE CALLER is the browser's fold memory (`@olai/web`'s
+       * `fold/memory.ts`): collapsed node ids, grouped by the file each node
+       * is defined in, kept across reloads. Keeping that honest as the
+       * directory moves is three rules — a node that was ARCHIVED is the same
+       * node in another file and keeps its fold, a node somebody DELETED should
+       * stop being remembered, and a file that stopped parsing says NOTHING
+       * about its nodes — and answering all three used to mean walking the whole
+       * id→file map of the tab's own copy of the set, per fold. The rules did
+       * not move; the map did.
+       *
+       * TWO LISTS IN, TWO OUT, and no pairing between them
+       * (`@olai/format`'s `HomesRequest` argues it): which id was filed under
+       * which file is the caller's own bookkeeping, and this end holds no
+       * opinion about a browser's storage. They travel together because they
+       * are READ together — an id's absence means "deleted" only beside the
+       * fact that its file was read at all — and not because the second half is
+       * a secret: which files are served, and which would not parse, are on the
+       * wire already. What one answer buys is that the halves cannot be about
+       * two different revisions.
+       *
+       * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`), for the reason
+       * every member around it is: an agent that wants to know where a node
+       * lives reads it and is told, beside everything else about it. What comes
+       * back here is a path per id, useful only to somebody reconciling a
+       * memory of their own.
+       */
+      homes: {
+        input: HomesRequest,
+        output: HomesAnswer,
+        error: OpFailure,
+      },
     },
     /**
      * THE SET'S OWN WORDS, as opposed to a question about them.
@@ -944,6 +990,11 @@ export {
  *  exactly as the search shapes below are and for the same reason: this package
  *  is a spec, and the read vocabulary is the floor's. */
 export { NamedAnswer, NamedRequest } from "@olai/format"
+
+/** WHERE THE IDS A READER REMEMBERS NOW LIVE, and which of the files they were
+ *  filed under this directory has actually read — the fold memory's batch,
+ *  whose shapes are the floor's for the reason above. */
+export { HomesAnswer, HomesRequest } from "@olai/format"
 
 /** THE PINNED SHELF as the `pins` cell carries it — the floor's shapes again,
  *  re-exported for the same reason, so the sidebar draws the rows the reading

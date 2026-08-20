@@ -670,3 +670,95 @@ export const NamedAnswer = Schema.Struct({
   named: Schema.Array(NamedNode),
 })
 export type NamedAnswer = typeof NamedAnswer.Type
+
+/**
+ * WHERE THESE IDS NOW LIVE, and WHICH OF THESE FILES the set has anything from
+ * — one question, asked by a reader holding a memory of things it saw earlier.
+ *
+ * The caller is the browser's fold memory (`@olai/web`'s `fold/memory.ts`),
+ * which remembers collapsed node ids grouped by the file each node is DEFINED
+ * in, and has to keep that memory honest as the directory moves under it: a
+ * node that was archived is the same node in another file and keeps its fold,
+ * a node somebody deleted should stop being remembered, and a file that has
+ * stopped parsing says nothing at all about its nodes. It answered all three
+ * out of the whole id→file map of its own copy of the set, which is the copy
+ * `docs/brainstorming/vault-in-browser.md` is taking away.
+ *
+ * TWO LISTS, ANSWERED INDEPENDENTLY, and that is the shape rather than an
+ * accident: nothing here pairs an id with a file. Which of them was filed under
+ * which is the caller's own bookkeeping, and a request that carried the pairing
+ * would be asking this layer to hold an opinion about a browser's storage. What
+ * is asked here is two facts about the SET — where a record with this id is,
+ * and whether the set has this file LOADED at all.
+ *
+ * THEY TRAVEL TOGETHER BECAUSE THEY ARE READ TOGETHER, and that is the reason
+ * rather than the other one that suggests itself: the second half is not a
+ * secret — which files a directory serves, and which of them would not parse,
+ * are already on the wire as a key set and an error list. It rides here because
+ * an id's absence means "deleted" ONLY beside the fact that its file was read,
+ * and asking the two separately would leave a window in which the halves are
+ * about two different revisions.
+ *
+ * NOT {@link NamedRequest}, one door over, and the difference is exact:
+ * {@link nodeNamed} FOLLOWS a mirror chain, because a backtick in a paragraph
+ * means the node a reader would be shown. A fold is of a RECORD — including
+ * the record of a mirror whose chain has died, which shows nothing and folds by
+ * its own id — so this is the plain lookup in `Derived.byId` and no chain is
+ * walked. Asked through `named`, a fold on a dangling placement would read as a
+ * node that is gone while its record is sitting in the file.
+ */
+export const HomesRequest = Schema.Struct({
+  /** The ids to place, exactly as the caller has them. */
+  ids: Schema.Array(Schema.String),
+  /** The files to ask about — for the caller above, the ones its memory is
+   *  grouped by. Independent of {@link ids}: see the header. */
+  files: Schema.Array(Schema.String),
+})
+export type HomesRequest = typeof HomesRequest.Type
+
+/** One id, and the file the record carrying it is written in. */
+const Home = Schema.Struct({
+  id: Schema.String,
+  /** Root-relative, `/`-spelled — every `file` in this vocabulary. */
+  file: Schema.String,
+})
+
+/**
+ * Where the set has them, and which of the asked files it has anything from.
+ *
+ * ABSENCE IS THE ANSWER for an id no record carries, exactly as it is for
+ * {@link NamedAnswer}: a per-id arm saying "no" would be a list as long as
+ * whatever the caller happened to remember, mostly carrying the word "no". What
+ * absence MEANS is the caller's to decide, and it needs {@link loaded} to
+ * decide it.
+ *
+ * A LIST OF PAIRS rather than an object keyed by id, for {@link NamedAnswer}'s
+ * reason word for word: a key of an object is a name in a namespace that
+ * already holds `constructor`, and a lookup built on one would answer about ids
+ * the set never declared.
+ *
+ * At most one entry per id asked about, whatever the request repeated.
+ */
+export const HomesAnswer = Schema.Struct({
+  /** The asked ids the set declares a record for, each with its file. */
+  homes: Schema.Array(Home),
+  /**
+   * The asked files this directory SERVES AND HAS READ — served, and not among
+   * the ones that would not parse.
+   *
+   * The other half of the decision, and the half that cannot be inferred from
+   * {@link homes}: a file whose every remembered id has gone away is
+   * indistinguishable, from the ids alone, from a file that stopped parsing —
+   * and reading the second as the first is how a reader loses every fold in an
+   * outline that has a typo in it for a minute.
+   *
+   * READ, and not "declares a record", which is the near miss worth naming: an
+   * outline that is served, parses, and has had its last node deleted declares
+   * nothing, and answering it as unreadable would keep a fold for every node
+   * that was in it — for good, since nothing about that file would ever change
+   * the answer again. What is being asked is whether the set KNOWS about the
+   * file, which is what makes its silence about an id mean something.
+   */
+  loaded: Schema.Array(Schema.String),
+})
+export type HomesAnswer = typeof HomesAnswer.Type
