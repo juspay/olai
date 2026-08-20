@@ -1175,7 +1175,7 @@ Then(
   async function (this: OlaiWorld, text: string) {
     // The KIND is asserted rather than the colour: what tone an added line
     // wears is the whole subject here, and so the last thing to assert on —
-    // fifteen palettes paint it fifteen ways and all of them mean `add`.
+    // every palette paints it its own way and all of them mean `add`.
     const added = shownDiff(this).locator(`${CHAT_DIFF_LINE}[data-kind="add"]`);
     await this.waitUntil(
       async () => {

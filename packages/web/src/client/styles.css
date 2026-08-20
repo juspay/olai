@@ -56,12 +56,12 @@
   --color-desk: #C5E6DC;
   --color-panel: #E8F7F2;
   --color-pill: #B5DDD2;
-  --color-muted: #4E7A71;
+  --color-muted: #467269;
   --color-rule: #9CC9BE;
-  --color-accent: #C44E24;
-  --color-done: #1F7A58;
-  --color-doing: #C48418;
-  --color-alarm: #C13B4E;
+  --color-accent: #B34219;
+  --color-done: #1E7656;
+  --color-doing: #8F5A00;
+  --color-alarm: #C13349;
 
   /* Panel widths. Defaults match the pre-rework constants (16rem sidebar,
    * 26rem chat). The reader owns the live values: layout/css.ts writes pixel
@@ -324,7 +324,7 @@ mark.olai-hit {
 
   /* The tint a rendered block lifts a surface with: an inline code chip, a
    * table head. Derived from the rule colour rather than named in the palette,
-   * so it follows all fifteen without a sixteenth token to keep in step — and
+   * so it follows every palette without a twelfth token to keep in step — and
    * named here rather than spelled at each surface, because the two are one
    * decision and would have to be changed together. */
   --olai-md-tint: color-mix(in srgb, var(--color-rule) 45%, transparent);

@@ -427,7 +427,7 @@ const aheadOf = (
 export type Standing = "late" | "today" | "ahead"
 
 /** Which palette token the line and a day's dot take at that distance —
- *  NAMES, never values, so all fifteen palettes follow (`@olai/web`'s
+ *  NAMES, never values, so every palette follows (`@olai/web`'s
  *  theme/palettes.ts). The ramp is the flow of time: alarm above now, accent
  *  at it, then ink fading through muted to rule as the future recedes. */
 export type Tone = "alarm" | "accent" | "ink" | "muted" | "rule"

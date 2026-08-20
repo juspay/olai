@@ -162,8 +162,8 @@ export function Panel(props: {
 }
 
 /** The theme row NAMES the theme in force, which is the promise the retired
- *  header pill carried (`../theme/Chips.tsx`): fifteen chips wearing fifteen
- *  palettes say which is which and not which is ON, and the ring that says so
+ *  header pill carried (`../theme/Chips.tsx`): chips wearing their palettes
+ *  say which is which and not which is ON, and the ring that says so
  *  is a ring on a chip the size of a word. */
 const themeHint = (): string =>
   `${currentTheme()} is in force. Every colour on the page is this one table, ` +

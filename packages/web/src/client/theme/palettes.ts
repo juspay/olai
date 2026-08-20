@@ -5,57 +5,54 @@
  * one is adding a row, deleting one is deleting a row, and neither touches a
  * line of CSS — `./css.ts` generates every block in the sheet from what is
  * here, and `./Chips.tsx` draws one chip per row. Hand-written CSS would be
- * the same eleven lines copied fifteen times, and one place per theme for a new
- * token to be forgotten.
+ * the same eleven lines copied once per theme, and one place per theme for a
+ * new token to be forgotten.
  *
- * The first fifteen values are the racket implementation's, ported hex for hex
- * from `olai/web/theme.rkt` on the `master-racket` branch. Four of those are
- * that implementation's own (leaf, manuscript, chalk, pitch); the other eleven
- * are the WorkFlowy desktop themes' colour VALUES, and they were re-read off
- * those themes' own stylesheets rather than trusted second-hand — every row
- * below was checked against the `._theme-*` block it comes from, `var()` chains
- * resolved. Nothing else came across: their app draws a different app, and none
- * of its rules, names or markup are ours to keep. A hex is a fact about a
- * colour. Two rows after that — reef, aurora — are ours, and are not a port
- * of anything.
+ * The eleven WorkFlowy desktop themes that used to sit in this table are
+ * gone. They were another app's colour values, and olai paints a different
+ * app: the frame is ink, the page is paper. A palette that was not written
+ * for that inversion is a white bar over a dark page, or a shared blue
+ * sticker on every ground. Reef and aurora were the first two rows that
+ * were ours; the table is now only that kind of row.
  *
- * Four of their themes are not here, and it is the same reason for all four:
- * `wood`, `steel` and `glass` are a photograph or a pane of glass over the
- * ramp their default already uses, and `space` is that ramp one shade darker.
- * Without the image each is a duplicate row.
+ * Ten palettes. Lights first (reef leading, the default), then darks. Each
+ * occupies a cell of light/dark × paper hue, so the chips are a spectrum
+ * rather than a pile. Named for a place, a material or a phenomenon — never
+ * "light", "dark", or someone else's flavour.
  *
- * ## The vocabulary, and what it left behind
+ * ## The vocabulary
  *
- * The racket skin painted with fourteen tokens; this client paints with
- * eleven. Each row is that row's fourteen read through the one mapping below:
+ *   paper    the page itself — the outline, a document
+ *   desk     the workbench around it — a card's surround, a well
+ *   panel    a raised card: the month, a popover, a composer
+ *   pill     a filled chip: a date, a readout, a header control
+ *   ink      what is written on it, and the FRAME (header, sidebar, rail)
+ *   muted    a label, a timestamp, a note's chrome
+ *   rule     a border, and the surface a row lights up with
+ *   accent   a link, the entry in force, the focus ring
+ *   done     finished, and the live connection dot
+ *   doing    in flight
+ *   alarm    an error, a refusal
  *
- *   paper   <- paper       the page itself — the outline, a document
- *   desk    <- paper-2     the workbench around it — header, sidebar, dock
- *   panel   <- panel       a raised card: the month, a popover, a composer
- *   pill    <- pill-bg     a filled chip: a date, a readout, a header control
- *   ink     <- ink         what is written on it
- *   muted   <- dim         a label, a timestamp, a note's chrome
- *   rule    <- line        a border, and the surface a row lights up with
- *   accent  <- blue-fg     a link, the entry in force, the focus ring
- *   done    <- green       finished, and the live connection dot
- *   doing   <- amber-fg    in flight
- *   alarm   <- rose-fg     an error, a refusal
- *
- * which for the eleven imported rows is one more step back, to the slots their
- * own themes are written in — `paper` is their `background-primary`, `desk`
- * their `background-secondary`, `panel` their `background-tertiary`, `pill`
- * their `background-selected`, `ink` their `text-primary`, `muted` their
- * `text-tertiary`, `rule` their `border-primary`, and the four accents their
- * named colour ramp (`text-blue`, `text-green`, `text-yellow`, `text-red`)
- * rather than their semantic ones, which are pale mints and pinks that only
- * work on a dark ground. Three rows depart from that and each says so where
- * it is written.
+ * Ink is the page's family, so the frame belongs to the paper. Desk, panel
+ * and pill are lightness steps of paper, not a second ramp. Accent is the
+ * one foreign note — a complement, or the bright analogous of a dark ground.
+ * done / doing / alarm are retuned to that ground, never copied from a
+ * neighbour.
  *
  * The three accent GROUNDS did not come: a wash is the accent at an opacity,
  * and a token nothing paints with is a value nobody can check. When a
  * component wants another named surface, the way to give it one is to add a
  * column here and let the type error name every row that owes a value —
  * which is exactly what `Record<PaletteToken, string>` is for.
+ *
+ * ## Contrast
+ *
+ * Every row is held to a reading floor (`./contrast.test.ts`): ink on paper
+ * (and paper on ink, the frame) at least 7:1, and muted / accent / done /
+ * doing / alarm on paper, ink on desk / panel / pill / rule, and paper on
+ * accent, at least AA (4.5:1). `chalk` additionally promises AA over every
+ * pair this client paints, including muted on the raised surfaces.
  */
 
 /** Every token a palette names. The order is the order they are written in a
@@ -104,8 +101,28 @@ export interface Palette {
  *  wants the interface (`PALETTES` below); only the two derivations under it
  *  want the literals. */
 const TABLE = [
-  // The leaf the outline is written on: dried palm green, dark-green ink. The
-  // name is the palette; nothing here is "light".
+  // The lagoon under the palm: sea-glass paper, forest frame, coral accent.
+  // The default, and the first palette that was ours.
+  {
+    name: "reef",
+    scheme: "light",
+    colors: {
+      paper: "#D7F0E8",
+      desk: "#C5E6DC",
+      panel: "#E8F7F2",
+      pill: "#B5DDD2",
+      ink: "#14352F",
+      muted: "#467269",
+      rule: "#9CC9BE",
+      accent: "#B34219",
+      done: "#1E7656",
+      doing: "#8F5A00",
+      alarm: "#C13349",
+    },
+  },
+  // The leaf the outline is written on: dried palm green, dark-green ink.
+  // The name is the palette; nothing here is "light". Sea-blue accent is the
+  // water beside the palm.
   {
     name: "leaf",
     scheme: "light",
@@ -115,16 +132,17 @@ const TABLE = [
       panel: "#EFF4DC",
       pill: "#F5F8E6",
       ink: "#2C4222",
-      muted: "#74855F",
+      muted: "#536440",
       rule: "#CDD8AB",
       accent: "#2B6A8F",
-      done: "#3E7A3A",
-      doing: "#B9741B",
+      done: "#2F642B",
+      doing: "#885411",
       alarm: "#A84A5E",
     },
   },
   // Aged palm leaf, iron-gall ink: the outline as a manuscript. Warm paper,
-  // brown-black ink, and accents pulled back to what a dye would give.
+  // brown-black ink, verdigris for the one foreign note a copper dye would
+  // give.
   {
     name: "manuscript",
     scheme: "light",
@@ -134,12 +152,51 @@ const TABLE = [
       panel: "#F7F0E2",
       pill: "#FAF4E6",
       ink: "#3D2F1B",
-      muted: "#8C7B5C",
+      muted: "#65573E",
       rule: "#DCCEAC",
-      accent: "#2F6580",
-      done: "#5A7A34",
-      doing: "#A05A16",
+      accent: "#296559",
+      done: "#4A6529",
+      doing: "#884D11",
       alarm: "#9E4444",
+    },
+  },
+  // Dusty rose paper, plum frame, teal accent. The warm-pink cell of the
+  // wheel — a blush that still reads as a page, not as a wash on white.
+  {
+    name: "bloom",
+    scheme: "light",
+    colors: {
+      paper: "#F1DFE3",
+      desk: "#E6CCD2",
+      panel: "#F8EDEF",
+      pill: "#DDB6BF",
+      ink: "#381925",
+      muted: "#6C4251",
+      rule: "#CFAAB3",
+      accent: "#1E7166",
+      done: "#246B47",
+      doing: "#865C13",
+      alarm: "#992929",
+    },
+  },
+  // Morning sky: pale blue paper, ink-blue frame, terracotta accent. The
+  // light twin of aurora's navy, and the cool cell that a gray "vintage"
+  // never occupied.
+  {
+    name: "sky",
+    scheme: "light",
+    colors: {
+      paper: "#D2E2EF",
+      desk: "#BFD2E3",
+      panel: "#E4EEF6",
+      pill: "#A8C4DC",
+      ink: "#15263C",
+      muted: "#42556C",
+      rule: "#9CB4C9",
+      accent: "#9A4E13",
+      done: "#206F52",
+      doing: "#8A590F",
+      alarm: "#99293B",
     },
   },
   // Near-white, high contrast: every pair this client paints clears AA. Kept
@@ -163,8 +220,30 @@ const TABLE = [
       alarm: "#8E3348",
     },
   },
+
+  // ── darks ────────────────────────────────────────────────────────────
+
+  // Pitch with a sky: navy paper, pale-sky frame, teal lights. The first
+  // dark that was ours.
+  {
+    name: "aurora",
+    scheme: "dark",
+    colors: {
+      paper: "#0A1220",
+      desk: "#121C30",
+      panel: "#1A2742",
+      pill: "#243352",
+      ink: "#D5E8F5",
+      muted: "#6582A4",
+      rule: "#2A3C58",
+      accent: "#4EE0C8",
+      done: "#7EE0A8",
+      doing: "#F0C04A",
+      alarm: "#F07090",
+    },
+  },
   // True black: an OLED panel spends nothing on #000000, and the outline is
-  // mostly background.
+  // mostly background. Olive frame, the night of the leaf.
   {
     name: "pitch",
     scheme: "dark",
@@ -182,257 +261,41 @@ const TABLE = [
       alarm: "#D68B9A",
     },
   },
-
-  // ── the imported palettes ────────────────────────────────────────────
-  //
-  // Their default: white page, blue-gray ink.
+  // Walnut and cream, gold for the fire. The warm dark — manuscript's night,
+  // a cell nothing in the old table occupied.
   {
-    name: "light",
-    scheme: "light",
-    colors: {
-      paper: "#FFFFFF",
-      desk: "#F3F4F4",
-      panel: "#DCE0E2",
-      pill: "#C1E1F2",
-      ink: "#2A3135",
-      muted: "#868C90",
-      rule: "#DCE0E2",
-      accent: "#1C64F2",
-      done: "#057A55",
-      doing: "#9F580A",
-      alarm: "#E02424",
-    },
-  },
-  // Their dark: charcoal, white ink.
-  {
-    name: "dark",
+    name: "ember",
     scheme: "dark",
     colors: {
-      paper: "#2A3135",
-      desk: "#353C3F",
-      panel: "#5C6062",
-      pill: "#336677",
-      ink: "#FFFFFF",
-      muted: "#9EA1A2",
-      rule: "#5C6062",
-      accent: "#76A9FA",
-      done: "#31C48D",
-      doing: "#E3A008",
-      alarm: "#F98080",
+      paper: "#21140D",
+      desk: "#312017",
+      panel: "#3E2B1E",
+      pill: "#4D3728",
+      ink: "#EDE3D4",
+      muted: "#B39D89",
+      rule: "#4E392C",
+      accent: "#F29A36",
+      done: "#60C78B",
+      doing: "#EECB58",
+      alarm: "#E87382",
     },
   },
-  // Paper on a gray desk. EXCEPTION: paper is their `background-ambient`, the
-  // only body value vintage does not share with their default — the rest of
-  // what makes it vintage is a dark app frame, and olai has no frame.
+  // Plum paper, lilac frame, peach accent. The violet cell of the wheel.
   {
-    name: "vintage",
-    scheme: "light",
-    colors: {
-      paper: "#ECEEF0",
-      desk: "#F3F4F4",
-      panel: "#DCE0E2",
-      pill: "#C1E1F2",
-      ink: "#2A3135",
-      muted: "#868C90",
-      rule: "#DCE0E2",
-      accent: "#1C64F2",
-      done: "#057A55",
-      doing: "#9F580A",
-      alarm: "#E02424",
-    },
-  },
-  // The mocha one: plum-black page, lavender ink, pastel accents over it.
-  {
-    name: "catppuccin",
+    name: "dusk",
     scheme: "dark",
     colors: {
-      paper: "#1E1E2E",
-      desk: "#343546",
-      panel: "#45475A",
-      pill: "#313244",
-      ink: "#CDD6F4",
-      muted: "#9399B2",
-      rule: "#313244",
-      accent: "#89B4FA",
-      done: "#A6E3A1",
-      doing: "#F9E2AF",
-      alarm: "#F38BA8",
-    },
-  },
-  // Cocoa and cream: warm paper, near-black cocoa ink. Its rule is the one
-  // translucent value in the table, and it is theirs.
-  {
-    name: "chocolate",
-    scheme: "light",
-    colors: {
-      paper: "#FFEFE2",
-      desk: "#F0DAC9",
-      panel: "#E6CDBB",
-      pill: "#FBDA8A",
-      ink: "#281603",
-      muted: "#7D5E47",
-      rule: "#A1836B53",
-      accent: "#1A73E8",
-      done: "#2DA044",
-      doing: "#C99A00",
-      alarm: "#D93636",
-    },
-  },
-  // A phosphor terminal: black page, lime ink. The accents are the ones they
-  // hand every dark theme.
-  {
-    name: "hacker",
-    scheme: "dark",
-    colors: {
-      paper: "#000000",
-      desk: "#002200",
-      panel: "#003300",
-      pill: "#005500",
-      ink: "#00FF00",
-      muted: "#009900",
-      rule: "#005500",
-      accent: "#76A9FA",
-      done: "#31C48D",
-      doing: "#E3A008",
-      alarm: "#F98080",
-    },
-  },
-  // Tea powder: green page, darker green ink. EXCEPTION: muted is their
-  // `text-quinary`, because matcha writes `text-tertiary` in its primary ink —
-  // the rule as stated would leave nothing dim at all.
-  {
-    name: "matcha",
-    scheme: "light",
-    colors: {
-      paper: "#DDEABE",
-      desk: "#EEF6CF",
-      panel: "#EEF6CF",
-      pill: "#EEF6CF",
-      ink: "#415915",
-      muted: "#85AC41",
-      rule: "#85AC41",
-      accent: "#2868A0",
-      done: "#3D8828",
-      doing: "#A88510",
-      alarm: "#C43838",
-    },
-  },
-  // Moonlight: blush paper, lilac ink.
-  {
-    name: "moon",
-    scheme: "light",
-    colors: {
-      paper: "#FDF6F6",
-      desk: "#ECE7EE",
-      panel: "#DFDEF2",
-      pill: "#EFEEF5",
-      ink: "#615F7F",
-      muted: "#8B6FA8",
-      rule: "#E4D8EA",
-      accent: "#6B8BC9",
-      done: "#5FA876",
-      doing: "#C9A84F",
-      alarm: "#C85B5B",
-    },
-  },
-  // Neutral near-black, no hue in the grays at all.
-  {
-    name: "neo",
-    scheme: "dark",
-    colors: {
-      paper: "#141414",
-      desk: "#2D2D2D",
-      panel: "#373737",
-      pill: "#286C8E",
-      ink: "#DCDBDB",
-      muted: "#9EA1A2",
-      rule: "#242424",
-      accent: "#76A9FA",
-      done: "#8DBD6A",
-      doing: "#F1C068",
-      alarm: "#CF4653",
-    },
-  },
-  // The editor palette, by way of their port of it: blue-gray page, muted
-  // everything. Its one dim tone is dim on purpose and stays that way.
-  {
-    name: "one-dark",
-    scheme: "dark",
-    colors: {
-      paper: "#282C33",
-      desk: "#2F343E",
-      panel: "#3B4048",
-      pill: "#293B5B",
-      ink: "#C8CCD4",
-      muted: "#5D636F",
-      rule: "#3B4048",
-      accent: "#73ADE9",
-      done: "#A1C181",
-      doing: "#DFC184",
-      alarm: "#D07277",
-    },
-  },
-  // Black steel, orange readout, red frame. Its rule IS its alarm — the frame
-  // and the error are one colour in that palette, and pulling them apart would
-  // be inventing a value rather than porting one. EXCEPTION: muted is its own
-  // `--robot-gray` rather than the `text-tertiary` the rule asks for, which is
-  // that same red a third time.
-  {
-    name: "robot",
-    scheme: "dark",
-    colors: {
-      paper: "#000000",
-      desk: "#1A2B2B",
-      panel: "#FEA14320",
-      pill: "#151413",
-      ink: "#FEA143",
-      muted: "#7A8A8A",
-      rule: "#E8393F",
-      accent: "#3580D3",
-      done: "#4ED8A3",
-      doing: "#DFE361",
-      alarm: "#E8393F",
-    },
-  },
-
-  // ── ours, after the port ────────────────────────────────────────────
-  //
-  // The table used to end where the racket implementation ended. These two
-  // are not ports. They exist because a palette table that only remembers
-  // other people's rooms has no room that is ours to be in on purpose: reef
-  // is the lagoon under the palm, aurora is pitch with a sky.
-  {
-    name: "reef",
-    scheme: "light",
-    colors: {
-      paper: "#D7F0E8",
-      desk: "#C5E6DC",
-      panel: "#E8F7F2",
-      pill: "#B5DDD2",
-      ink: "#14352F",
-      muted: "#4E7A71",
-      rule: "#9CC9BE",
-      accent: "#C44E24",
-      done: "#1F7A58",
-      doing: "#C48418",
-      alarm: "#C13B4E",
-    },
-  },
-  {
-    name: "aurora",
-    scheme: "dark",
-    colors: {
-      paper: "#0A1220",
-      desk: "#121C30",
-      panel: "#1A2742",
-      pill: "#243352",
-      ink: "#D5E8F5",
-      muted: "#7A93B0",
-      rule: "#2A3C58",
-      accent: "#4EE0C8",
-      done: "#7EE0A8",
-      doing: "#F0C04A",
-      alarm: "#F07090",
+      paper: "#1C1023",
+      desk: "#291A32",
+      panel: "#352442",
+      pill: "#412E52",
+      ink: "#E0D4ED",
+      muted: "#A38FB7",
+      rule: "#463154",
+      accent: "#EE8F58",
+      done: "#6BC799",
+      doing: "#EEC658",
+      alarm: "#E87DA1",
     },
   },
 ] as const satisfies ReadonlyArray<Palette>
@@ -459,7 +322,7 @@ export const THEME_NAMES: ReadonlyArray<ThemeName> = TABLE.map(
  * The OS does not vote. `prefers-color-scheme` used to choose this, and it
  * meant two ways to be dark that could disagree; a theme is a PICK, and an
  * unpicked page reads in the default. That used to be `chalk` because it
- * promised AA. The default is now `reef` — the lagoon, which is ours — and
+ * promised AA. The default is `reef` — the lagoon, which is ours — and
  * `chalk` stays a pick for a page that wants the quietest reading.
  */
 export const DEFAULT_THEME: ThemeName = "reef"
@@ -480,7 +343,7 @@ export const paletteNamed = (name: string): Palette | undefined =>
 /** The palette a page is in when it names none.
  *
  *  `DEFAULT_THEME` is a `ThemeName`, so a row for it EXISTS — the day someone
- *  renames `chalk` this file stops compiling rather than starting a browser
+ *  renames `reef` this file stops compiling rather than starting a browser
  *  with no chip lit and no bare `:root` in the sheet. The throw is what says
  *  so to a checker that cannot see it through `find`. */
 export const DEFAULT_PALETTE: Palette = (() => {
