@@ -2309,7 +2309,7 @@ const documentMatchOf = (
 ): DocumentMatch | null => {
   const found = matchedBy(
     filter.groups,
-    (clause) => documentHolds(document, clause),
+    (clause) => documentHolds(document.props, clause),
     () => documentHay(document),
     DOCUMENT_FIELDS,
     DOCUMENT_WEIGHT,
@@ -2341,6 +2341,10 @@ const documentMatchOf = (
  * A NEGATED clause is satisfied by whatever this answers no to, and by the same
  * sentence read the other way ({@link matchedBy} applies the negation, so this
  * stays a plain question).
+ *
+ * IT TAKES THE MAP and not the document, which is the same move
+ * {@link propKeyOf} and {@link propsOf} make beside it: the map is the whole of
+ * what it reads, and a signature saying so is a signature a reader can believe.
  */
-const documentHolds = (document: Bodied, clause: Clause): boolean =>
-  clause.kind === "prop" && propKeyOf(document.props, clause) !== null
+const documentHolds = (props: Custom, clause: Clause): boolean =>
+  clause.kind === "prop" && propKeyOf(props, clause) !== null
