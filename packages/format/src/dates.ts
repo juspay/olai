@@ -62,7 +62,7 @@ import { Order, Schema } from "effect"
 import { type Derived, type Situated, situate } from "./derive.ts"
 import { fileKind, stemOf } from "./kinds.ts"
 import type { LocatedRegular } from "./node.ts"
-import { type Dated, dayOf, monthOf, type Occasioned, timeOf } from "./occasion.ts"
+import { type Dated, monthOf, type Occasioned } from "./occasion.ts"
 import { byPath } from "./paths.ts"
 
 /**

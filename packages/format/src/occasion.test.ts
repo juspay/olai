@@ -53,7 +53,7 @@ import { expect, test } from "bun:test"
 
 import { type Agenda, type AgendaDay, agendaOf, owedIn, owedOf } from "./agenda.ts"
 import { datedDays, datedOn, type DayGroup } from "./dates.ts"
-import { derive, type Derived } from "./derive.ts"
+import { byDayKey, derive, type Derived } from "./derive.ts"
 import {
   nodesOf,
   seeded,
@@ -183,6 +183,20 @@ const drawn = (groups: ReadonlyArray<DayGroup>): string =>
 const MONTHS = ["2026-07", "2026-08", "2026-09", "2026-10"] as const
 const ROUNDS = 300
 
+/** The assertions of one round, and — when one of them fails — the corpus that
+ *  did it. `./patch.test.ts`'s `same` one property over, and for the sentence
+ *  that file already writes down: a property test that says only "not equal"
+ *  over three hundred generated corpora is a test nobody can act on. */
+const saying = (story: () => string, asserted: () => void): void => {
+  try {
+    asserted()
+  } catch (cause) {
+    throw new Error(
+      `${cause instanceof Error ? cause.message : String(cause)}\n\n${story()}`,
+    )
+  }
+}
+
 test("every day reading answers what the walk it replaced answered", () => {
   const random = seeded(20260820)
   let dated = 0
@@ -199,31 +213,37 @@ test("every day reading answers what the walk it replaced answered", () => {
       const walked = walkedByDay(view)
       if (walked.size > 0) dated++
 
-      // The index holds the walk's buckets, in the walk's own order, under the
-      // walk's own keys — and its keys ASCENDING, which the walk never promised
-      // and three readings now spend.
-      expect([...view.byDay.keys()]).toEqual([...walked.keys()].sort())
-      for (const [day, bucket] of walked) {
-        expect(view.byDay.get(day)).toEqual(bucket as never)
-      }
+      saying(story, () => {
+        // The index holds the walk's buckets, in the walk's own order, under
+        // the walk's own keys — and its keys ASCENDING, which the walk never
+        // promised and three readings now spend. Sorted with the index's own
+        // comparator rather than the default one, which stringifies and
+        // compares: what is asserted is the promise `./derive.ts` makes.
+        expect([...view.byDay.keys()]).toEqual([...walked.keys()].sort(byDayKey))
+        for (const [day, bucket] of walked) {
+          expect(view.byDay.get(day)).toEqual(bucket as never)
+        }
 
-      // The calendar's dots, month by month — including one the corpus has
-      // nothing in, which must be an empty answer rather than a refusal.
-      for (const month of MONTHS) {
-        expect([...datedDays(view, month)]).toEqual([...walkedDays(view, month)])
-      }
+        // The calendar's dots, month by month — including one the corpus has
+        // nothing in, which must be an empty answer rather than a refusal.
+        for (const month of MONTHS) {
+          expect([...datedDays(view, month)]).toEqual([...walkedDays(view, month)])
+        }
 
-      // A day page, for every day the corpus can reach and one it cannot.
-      for (const day of [...DAYS, "2026-08-13"]) {
-        expect(drawn(datedOn(view, day))).toBe(drawn(walkedOn(view, day)))
-      }
+        // A day page, for every day the corpus can reach and one it cannot.
+        for (const day of [...DAYS, "2026-08-13"]) {
+          expect(drawn(datedOn(view, day))).toBe(drawn(walkedOn(view, day)))
+        }
+      })
 
       // ...and the forward reading, from a day in the middle of the span, so
       // there is something behind it and something ahead of it.
       for (const today of ["2026-08-11", "2026-08-20"]) {
         const agenda = agendaOf(view, today)
         if (owedIn(agenda) > 0) owed++
-        expect(agendaSaid(agenda)).toBe(agendaSaid(walkedAgenda(view, today)))
+        saying(story, () => {
+          expect(agendaSaid(agenda)).toBe(agendaSaid(walkedAgenda(view, today)))
+        })
       }
     }
   }
