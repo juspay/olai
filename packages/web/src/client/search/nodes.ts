@@ -15,11 +15,12 @@
  * SolidJS ecosystem rather than hand-roll it.
  *
  * WHEN to ask is not here either, and that is the change `vault-in-browser`'s
- * PR 2 made: the debounce, the latest-answer-wins rule and the failure slot are
- * `../asked.ts`, because a third door grew the same three (the row editor's tag
- * vocabulary) and a rule kept in three places is a rule kept in memory. What is
- * left in this file is the two things that are actually search's — WHICH
- * question is worth a trip, and what the answer means.
+ * PR 2 made: the settle, the latest-answer-wins rule, the failure slot and
+ * WHICH question the rows on screen answer are `../settled.ts`'s, because a
+ * third door grew the same four (the row editor's tag vocabulary) and a rule
+ * kept in three places is a rule kept in memory. What is left in this file is
+ * the two things that are actually search's — WHICH question is worth a trip,
+ * and what the answer means.
  *
  * The MATCHING is entirely the server's (`@olai/surface`'s search.ts says
  * why): the same reading an agent's `search_nodes` gets.
@@ -33,7 +34,7 @@ import type { Accessor } from "solid-js"
 
 import type { NodeHit, Refusal, SearchHit } from "@olai/surface"
 
-import { createAsked } from "../asked.ts"
+import { createSettled } from "../settled.ts"
 import { olai } from "../wire.ts"
 
 /** Below this the answer is noise: two characters match half an outline by
@@ -77,14 +78,10 @@ export interface Search<H extends SearchHit = SearchHit> {
    * A search is a round trip behind a debounce, so there are two moments when
    * what is drawn is not what was asked: the settle, and the flight. The
    * primitive under this refuses one of them outright — a query backspaced
-   * below the minimum clears AT ONCE — and this is the same fact for the other,
-   * said rather than acted on: a longer second query keeps the first one's rows
-   * until its own arrive, which is the right thing to DRAW and the wrong thing
-   * to leave unlabelled.
-   *
-   * DERIVED, never stored: "settled, and this is what was asked" is the whole of
-   * it. A second signal would be a second answer to the same question, wrong
-   * exactly while a fetch is in flight.
+   * below the minimum clears AT ONCE — and answers the other by CARRYING the
+   * query on the answer, so a longer second query keeps the first one's rows
+   * until its own arrive (the right thing to DRAW) without leaving them
+   * unlabelled (`../settled.ts`).
    *
    * What it is FOR is anything that has to tell one answer from the next — a
    * scenario waiting for the rows of the query it just typed rather than for
@@ -121,7 +118,7 @@ export function createSearch(
    *  `SearchRequest`). Absent is both, which is what a reading door wants. */
   kind?: "node" | "document",
 ): Search {
-  const asked = createAsked(
+  const asked = createSettled(
     // WHAT IS WORTH A TRIP, which is this file's half of the arrangement: the
     // words once trimmed, and only once there are enough of them to mean
     // something. Below the minimum this is `null`, which is what makes the rows
@@ -142,17 +139,13 @@ export function createSearch(
     hits: () => asked.answer()?.hits ?? [],
     failure: asked.failure,
     refusals: () => asked.answer()?.refusals ?? [],
-    // While a fetch is in flight the rows on screen are the LAST query's, so
-    // they answer nothing anybody is asking — and during the debounce, before
-    // the question moves, they still answer the query they were fetched for.
-    //
-    // A FAILED CALL ANSWERS NOTHING EITHER, which this used to claim it did: a
-    // refused call leaves no answer with `loading` false, so the rows went empty
-    // while this went on naming the query they were supposedly the answer to —
-    // and it is published into the markup for a scenario to wait on
-    // (`../edges/EdgePanel.tsx`), so a wait for a query's rows was satisfied by
-    // a call that never arrived.
-    answering: () =>
-      asked.loading() || asked.answer() === undefined ? null : asked.asked(),
+    // Straight through: which query the rows answer is the primitive's own
+    // fact, read off the value that holds them. This used to be a ternary here
+    // over a loading flag and the outstanding question — three signals for one
+    // statement, and it got the refused-call case wrong for a while (a call
+    // that never arrived went on naming the query it was supposedly the answer
+    // to, while the rows behind it were empty). It is published into the markup
+    // for a scenario to wait on (`../edges/EdgePanel.tsx`).
+    answering: asked.answering,
   }
 }

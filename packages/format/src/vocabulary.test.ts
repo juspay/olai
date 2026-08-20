@@ -13,7 +13,7 @@
 
 import { expect, test } from "bun:test"
 
-import { derive, type Derived } from "./derive.ts"
+import { derive, type Derived, tagText } from "./derive.ts"
 import { nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
 import {
   completingTags,
@@ -25,8 +25,8 @@ import {
 
 const set = (contents: string) => derive(nodesOf(contents))
 
-const written = (tags: ReadonlyArray<TagUse>) =>
-  tags.map((tag) => `${tag.sigil}${tag.name}`)
+const written = (tags: ReadonlyArray<TagUse>): ReadonlyArray<string> =>
+  tags.map((tag) => tagText({ sigil: tag.sigil, tag: tag.name }))
 
 /** What one popup asks — the widget's own cap, so these read the way the rows
  *  on screen do. */
@@ -41,7 +41,7 @@ const asking = (sigil: TagsRequest["sigil"], query: string): TagsRequest => ({
 const offered = (
   sigil: TagsRequest["sigil"],
   rows: ReadonlyArray<TagCompletion>,
-) => rows.map((row) => `${sigil}${row.name}`)
+): ReadonlyArray<string> => rows.map((row) => tagText({ sigil, tag: row.name }))
 
 const matched = (
   derived: Derived,

@@ -539,6 +539,24 @@ export const isTrashed = (file: string): boolean => file === TRASH_FILE
 export const isLeftoverArchive = (file: string): boolean =>
   file === "Archive.olai" || file.endsWith("/Archive.olai")
 
+/**
+ * WHAT WAS PUT AWAY — the one question every reading of the live set actually
+ * asks, which is the disjunction of the two above.
+ *
+ * They are two facts and stay two functions: one is a file this app mints and
+ * owns ({@link TRASH_FILE}), the other is a dead convention left readable on
+ * disk (the human's ruling, 2026-08-19). But no reading has ever wanted one
+ * without the other — "is this file out of the live set" is what backlinks,
+ * the blocked-status walk, the date readings, the tag vocabulary and the
+ * sidebar's first-outline pick each ask — and the disjunction was written out
+ * at every one of them. Half a dozen spellings of one rule is half a dozen
+ * places for a third kind of dormant file to be forgotten.
+ *
+ * Asked the way its two halves are: once per FILE per probe, never per record.
+ */
+export const isPutAway = (file: string): boolean =>
+  isTrashed(file) || isLeftoverArchive(file)
+
 /** The directory's shelf, or `undefined` when it has none — {@link inboxIn}'s
  *  question one convention over, answered by the same walk so that one
  *  directory cannot have two answers depending on who asked. */

@@ -173,7 +173,8 @@ const arms = { index: vocabularyOf, walk: walked, titles: titlesOnly } as const
 // timed — see the header. A benchmark whose fast arm answers a shorter list is
 // not a benchmark.
 const spelling = (tags: ReadonlyArray<TagUse>): string =>
-  tags.map((tag) => `${tag.sigil}${tag.name} ${tag.count}`).join("\n")
+  tags.map((tag) => `${tagText({ sigil: tag.sigil, tag: tag.name })} ${tag.count}`)
+    .join("\n")
 const found = spelling(arms.index(fresh()))
 const walkFound = spelling(arms.walk(fresh()))
 if (found !== walkFound) {

@@ -737,11 +737,8 @@ describe("which tags the set already uses", () => {
       .toEqual({ tags: [{ name: "alice", count: 1 }] })
   })
 
-  // The DERIVATION, like `matches` and unlike `search`: what is put away is not
-  // vocabulary, and the count beside a name is a promise about rows a reader
-  // can be shown.
-  test("a tag only the trash uses is not offered", () => {
-    expect(tags(derivedOf(HOUSE()), { sigil: "#", query: "boil", limit: 8 }))
-      .toEqual({ tags: [] })
-  })
+  // What the trash does to the vocabulary is NOT re-asserted here: it is a rule
+  // about what a tag count means, pinned where the rule lives
+  // (`@olai/format`'s `vocabulary.test.ts`). The fixture keeps its trashed
+  // record so the two above are asked of a directory that has one.
 })

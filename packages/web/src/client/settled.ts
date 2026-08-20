@@ -1,5 +1,5 @@
 /**
- * A QUESTION THE SERVER IS ASKED AS SOMEBODY TYPES — the debounce, the
+ * A QUESTION THE SERVER IS ASKED AS SOMEBODY TYPES — the settle, the
  * latest-answer-wins rule, and the one failure slot, named once.
  *
  * ## Why this exists
@@ -13,14 +13,15 @@
  * callers of it.
  *
  * What it encapsulates is one axis and it is worth naming it: HOW A KEYSTROKE
- * BECOMES A REQUEST. The settle, what an abandoned question does to the answer
- * on screen, and which of several in-flight calls is allowed to write the
- * failure slot are three facts about that one thing — three facts that must not
- * differ between two boxes in one app, and that a reader would otherwise have to
- * diff two files to compare. What a door ASKS and what it DRAWS stays the
- * door's, entirely: this takes a thunk and hands back a value.
+ * BECOMES A REQUEST. The settle, which of several in-flight calls may write the
+ * failure slot, what an abandoned question does to the answer on screen, and
+ * WHICH question the answer on screen is about are four facts about that one
+ * thing — four facts that must not differ between two boxes in one app, and
+ * that a reader would otherwise have to diff two files to compare. What a door
+ * ASKS and what it DRAWS stays the door's, entirely: this takes a thunk and
+ * hands back a value.
  *
- * ## The three things a round trip costs, and what is done about each
+ * ## The four things a round trip costs, and what is done about each
  *
  *   - **A keystroke may not be a request.** {@link SETTLE_MS} collapses a word
  *     into one question instead of six.
@@ -35,18 +36,29 @@
  *     left standing behind a query the reader has already backspaced away from
  *     is a list that is lying for as long as it stands, and the settle would
  *     make it lie for 200ms longer.
+ *   - **While the next answer is in flight, what is drawn is the LAST one's.**
+ *     That is the right thing to draw and the wrong thing to leave unlabelled,
+ *     so the answer CARRIES the question it answers ({@link Settled.answering})
+ *     rather than a caller reconstructing "have the rows caught up" out of a
+ *     loading flag and an outstanding question. `filter/asking.ts` makes that
+ *     argument for itself in its own words — "read off the same thing that
+ *     holds them rather than off a signal beside it that is free to be a frame
+ *     ahead" — and this is that rule where every caller inherits it.
  *
  * ## What is deliberately NOT here
  *
  * The page filter (`filter/asking.ts`) keeps its own, and the difference is a
  * difference in kind rather than a copy nobody got round to. A shortlist is a
  * question somebody opened, answered once and closed; a filter is a STANDING
- * VIEW of a page, and all three of its extra rules follow from that: its
- * question carries the set's own generation so a revision re-asks, its last
- * answer must survive a refused call (a narrowed page may not blank under
- * somebody because a socket blinked), and it must not be asked at all while the
- * wire is down — the box goes inert instead. Folding those in would be three
- * knobs on this, two of which every caller here would pass `false`.
+ * VIEW of a page, and the two rules it has that no shortlist wants follow from
+ * that: its last answer must survive a refused call (a narrowed page may not
+ * blank under somebody because a socket blinked), and it must not be asked at
+ * all while the wire is down — the box goes inert instead. Its generation-on-
+ * the-question is NOT one of them: that is just a value question with an
+ * `equals`, which is what {@link createSettled} takes. So it is two knobs, both
+ * of which every caller here would pass `false`, and the second stops being
+ * filter-specific the day `vault-in-browser` §5b's offline overlay lands — at
+ * which point this is the file the filter should fold into.
  */
 
 import { debounce } from "@solid-primitives/scheduled"
@@ -54,6 +66,7 @@ import { Result } from "effect"
 import {
   type Accessor,
   createEffect,
+  createMemo,
   createResource,
   createSignal,
   untrack,
@@ -72,22 +85,28 @@ import { type Call, runAsync } from "./run.ts"
  *  sentence is not a constant. */
 export const SETTLE_MS = 200
 
-/** What a door gets back: the question that is actually outstanding, whatever
- *  has answered it, and the two facts a caller needs to say whether the rows on
- *  screen are about the reader. */
-export interface Asked<Q, A> {
-  /** WHAT IS BEING ASKED — the question once it stopped moving, or `null` when
-   *  nothing is. Not what the reader has typed: that is the caller's, and the
-   *  two differ for the length of a settle. */
-  readonly asked: Accessor<Q | null>
-  /** Whatever has answered, or `undefined` for "nothing has" — which is both
-   *  "nothing asked yet" and "the last call was refused", because neither is an
-   *  answer and a door that drew a difference between them would be drawing the
-   *  absence of one. */
+/** What a door gets back — three accessors, and every one of them is a thing a
+ *  door draws. */
+export interface Settled<Q, A> {
+  /**
+   * WHAT TO DRAW: whatever last answered, or `undefined` for "nothing has".
+   *
+   * It HOLDS STILL across a question that has moved — the rows a reader is
+   * looking at stay until the next ones arrive — and goes `undefined` when the
+   * question goes away entirely, or when the call was refused. Neither of those
+   * two is an answer, so neither is drawn as one.
+   */
   readonly answer: Accessor<A | undefined>
-  /** Whether a call is in flight. What it is FOR is a door that has to say
-   *  which question its rows answer: during a fetch they are the LAST one's. */
-  readonly loading: Accessor<boolean>
+  /**
+   * WHICH QUESTION {@link answer} answers — and `null` the moment that is no
+   * longer the question being asked.
+   *
+   * The one fact a door needs to say whether what is on screen is about the
+   * reader: during the settle and the flight of a newer question it is `null`,
+   * and a refused call answers nothing and so names nothing. Read off the
+   * resolved value rather than off a signal beside it.
+   */
+  readonly answering: Accessor<Q | null>
   /** A refused call, in the server's own words — `null` when there is none, and
    *  never a stale one. Never silently dropped (`./run.ts` forbids a silent
    *  handler). */
@@ -104,7 +123,7 @@ export interface Asked<Q, A> {
  * function of what somebody typed and belongs to the door that read it. What is
  * here is only WHEN, and what to do with a stale answer.
  */
-export const createAsked = <Q, A>(
+export const createSettled = <Q, A>(
   question: Accessor<Q | null>,
   ask: (question: Q) => Call<A>,
   /** How two questions are compared — for a door whose question is a VALUE
@@ -112,21 +131,28 @@ export const createAsked = <Q, A>(
    *  be a fresh round trip for an answer already on screen. Absent is identity,
    *  which is what a string question wants. */
   equals?: (was: Q | null, is: Q | null) => boolean,
-): Asked<Q, A> => {
+): Settled<Q, A> => {
   const same = equals ?? Object.is
   const [failure, setFailure] = createSignal<string | null>(null)
+  /** What has actually been asked for: the question, once it stopped moving. */
   const [asked, setAsked] = createSignal<Q | null>(null, { equals: same })
   /** The setter through its UPDATER form, which is the one spelling that means
-   *  "this value" for a `Q` the compiler cannot prove is not a function: a bare
-   *  `setAsked(q)` is ambiguous with the updater overload, and the ambiguity is
-   *  a type error rather than a bug only because the signal is generic. */
+   *  "this value" for a `Q` the compiler cannot prove is not a function. */
   const put = (next: Q | null) => setAsked(() => next)
   const settle = debounce(put, SETTLE_MS)
 
+  /** The question, COMPARED BEFORE IT IS AN EVENT. A door's question is a fresh
+   *  value per keystroke and most keystrokes do not change it — a caret moved
+   *  inside `#home`, a trailing space typed after a search query — and without
+   *  this each of those restarts the settle, which under continuous unrelated
+   *  typing defers the answer indefinitely. The signal below would absorb the
+   *  duplicate; the timer would not. */
+  const wanted = createMemo<Q | null>(question, null, { equals: same })
+
   createEffect(() => {
-    const wanted = question()
-    if (wanted !== null) {
-      settle(wanted)
+    const asking = wanted()
+    if (asking !== null) {
+      settle(asking)
       return
     }
     // Clearing takes effect AT ONCE rather than after the settle — see the
@@ -140,17 +166,26 @@ export const createAsked = <Q, A>(
    *  `untrack`, because this is read inside an async continuation: as a
    *  dependency it would make a fetcher's own resolution a reason to re-run
    *  it. */
-  const answering = (one: Q) => same(untrack(asked), one)
+  const current = (one: Q) => same(untrack(asked), one)
 
+  // THE ANSWER CARRIES ITS QUESTION, which is what makes {@link answering} a
+  // fact of one value rather than an inference over three signals.
   const [answer] = createResource(asked, async (one: Q) => {
     const outcome = await runAsync(ask(one))
     if (Result.isFailure(outcome)) {
-      if (answering(one)) setFailure(outcome.failure.message)
+      if (current(one)) setFailure(outcome.failure.message)
       return undefined
     }
-    if (answering(one)) setFailure(null)
-    return outcome.success
+    if (current(one)) setFailure(null)
+    return { question: one, answer: outcome.success }
   })
 
-  return { asked, answer, loading: () => answer.loading, failure }
+  return {
+    answer: () => answer()?.answer,
+    answering: () => {
+      const got = answer()
+      return got !== undefined && same(got.question, asked()) ? got.question : null
+    },
+    failure,
+  }
 }

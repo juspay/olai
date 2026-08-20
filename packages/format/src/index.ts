@@ -212,6 +212,12 @@ export {
   isTrashed,
   isLeftoverArchive,
   isMirror,
+  /** ...and the two of them as the one question every reading of the LIVE set
+   *  actually asks. Exported beside them rather than instead of them: the
+   *  writer half still names the trash on its own, and the sidebar still tells
+   *  a dormant Archive from it — what nobody has ever wanted is one without the
+   *  other in a READING (`./node.ts`). */
+  isPutAway,
   Located,
   MARKS,
   /** Where olai mints a file it named itself, and the directory it puts them

@@ -37,6 +37,7 @@ import { Schema } from "effect"
 import { Tag } from "./address.ts"
 import {
   isLeftoverArchive,
+  isPutAway,
   isTrashed,
   isMirror,
   isRegular,
@@ -894,7 +895,7 @@ const inPlay = (
   id: string,
 ): InTheWay | undefined => {
   const at = nodeNamed(index, id)
-  if (at === undefined || isTrashed(at.file) || isLeftoverArchive(at.file)) {
+  if (at === undefined || isPutAway(at.file)) {
     return undefined
   }
   const mark = status.get(at.node.id)

@@ -69,7 +69,7 @@ import {
   type TagSigil,
   tagPart,
 } from "./derive.ts"
-import { isLeftoverArchive, isTrashed, type LocatedRegular } from "./node.ts"
+import { isPutAway, type LocatedRegular } from "./node.ts"
 
 /**
  * What a completion ASKS: one sigil's list, narrowed by what has been typed.
@@ -226,7 +226,7 @@ const counting = (derived: Derived): ReadonlyArray<TagUse> => {
 const putAway = (derived: Derived): ReadonlySet<string> => {
   const away = new Set<string>()
   for (const file of derived.byFile.keys()) {
-    if (isTrashed(file) || isLeftoverArchive(file)) away.add(file)
+    if (isPutAway(file)) away.add(file)
   }
   return away
 }
@@ -288,15 +288,21 @@ const offering = (
   const buried: Array<TagCompletion> = []
   for (const tag of vocabulary) {
     if (tag.sigil !== request.sigil) continue
-    // The row is built INSIDE each arm rather than once above them, because
-    // most of a set's vocabulary matches neither: an object per tag per
-    // question, thrown away by the next line, is the allocation the fold on
-    // {@link TagUse} exists to avoid a cousin of.
-    if (wanted === "" || tag.folded.startsWith(wanted)) {
-      starts.push({ name: tag.name, count: tag.count })
-    } else if (tag.folded.includes(wanted)) {
-      buried.push({ name: tag.name, count: tag.count })
-    }
+    // AN EMPTY QUERY NEEDS NO ARM OF ITS OWN: everything starts with nothing,
+    // so the head of the ranked list is what a bare `#` is answered with, by
+    // the same test every other prefix takes.
+    const into = tag.folded.startsWith(wanted)
+      ? starts
+      : tag.folded.includes(wanted)
+      ? buried
+      : null
+    // NEITHER BUCKET GROWS PAST THE CAP, which is a fact about the allocation
+    // rather than about the answer: a common substring (`o`, `e`) is inside
+    // hundreds of names on a large vault, and every row past the eighth was
+    // built here and thrown away by the slice. The prefix bucket is what ends
+    // the scan; the substring bucket just stops paying.
+    if (into === null || into.length >= request.limit) continue
+    into.push({ name: tag.name, count: tag.count })
     if (starts.length >= request.limit) break
   }
   return [...starts, ...buried].slice(0, request.limit)

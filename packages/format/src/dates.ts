@@ -67,8 +67,7 @@ import {
 } from "./derive.ts"
 import { fileKind, stemOf } from "./kinds.ts"
 import {
-  isLeftoverArchive,
-  isTrashed,
+  isPutAway,
   isMirror,
   type LocatedRegular,
   type RegularNode,
@@ -238,8 +237,7 @@ export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
  */
 const datedNodes = (derived: Derived): ReadonlyArray<Dated> =>
   derived.nodes.flatMap((located) =>
-    isMirror(located.node) || isTrashed(located.file) ||
-        isLeftoverArchive(located.file)
+    isMirror(located.node) || isPutAway(located.file)
       ? []
       : datesOf(located.node).map((dated) => ({
         at: located as LocatedRegular,

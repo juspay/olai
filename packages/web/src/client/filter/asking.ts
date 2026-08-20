@@ -27,7 +27,7 @@
  *   - **A keystroke may not be a request.** {@link SETTLE_MS} is the debounce,
  *     the same primitive and the same number as the shortlist doors' — just
  *     past an ordinary inter-keystroke gap, where it collapses a word into one
- *     question instead of six. It is IMPORTED (`../asked.ts`) rather than
+ *     question instead of six. It is IMPORTED (`../settled.ts`) rather than
  *     picked: one fact about one pair of hands.
  *   - **An old answer may not land on a new question.** `createResource` drops
  *     the answer to a source that has since moved — the reason the shortlist
@@ -82,23 +82,24 @@ import {
 import type { Filter } from "@olai/format"
 import type { MatchedNode } from "@olai/surface"
 
-import { SETTLE_MS } from "../asked.ts"
+import { runAsync } from "../run.ts"
+import { SETTLE_MS } from "../settled.ts"
 import { unreachable } from "../connection/reaching.ts"
 import type { Drawn } from "../page.ts"
-import { runAsync } from "../run.ts"
 import { connectionReadout, olai } from "../wire.ts"
 import { showsTrashed } from "./drawn.ts"
 
-// The settle is imported rather than restated (`../asked.ts` argues it: one
+// The settle is imported rather than restated (`../settled.ts` argues it: one
 // fact about one pair of hands). There is no MIN_LENGTH twin to it here: a
 // shortlist of eight over one letter is noise, where narrowing a page to what
 // holds an `a` is a question with an answer the reader can see the size of.
 //
 // THIS DOOR IS NOT A CALLER of that primitive, and that file says why from its
 // side: a shortlist is a question somebody opened and closed, where a filter is
-// a standing view of a page — which is where all three of the rules below that
-// it does not have come from (the set's generation on the question, an answer
-// that survives a refused call, and a question never asked over a dead wire).
+// a standing view of a page — which is where the two rules below that it does
+// not have come from (an answer that survives a refused call, and a question
+// never asked over a dead wire). The set's generation is NOT one of them: that
+// primitive takes a value question with an `equals`, exactly as this one does.
 
 /** What a query selected, ready for a row to look itself up in: id → why. The
  *  server's own answer rows, kept as they arrived rather than re-shaped — the

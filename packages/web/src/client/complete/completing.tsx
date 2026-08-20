@@ -74,6 +74,8 @@ import {
   on,
 } from "solid-js"
 
+import { tagText } from "@olai/format"
+
 import { Completions } from "./Completions.tsx"
 import { nodePlace } from "../search/place.ts"
 import { type NodeProp, nodeProps } from "../search/props.ts"
@@ -232,9 +234,17 @@ export const createCompletion = (field: {
         // `./asking.ts`. The rows carry the name and the count; the SIGIL is
         // the question this widget asked, which is why it is read off the
         // trigger here rather than off each row.
-        return tags.rows().map((tag) => ({
-          id: `${found.sigil}${tag.name}`,
-          label: `${found.sigil}${tag.name}`,
+        //
+        // PUT BACK TOGETHER BY `tagText`, which is the inverse of the `tagPart`
+        // the vocabulary took apart on the other side of the wire: that pair
+        // exists so that where the sigil sits is not a claim made at a call
+        // site, and re-spelling it here would be the round trip split across a
+        // helper and a template literal.
+        return tags.rows().map((tag) => {
+          const written = tagText({ sigil: found.sigil, tag: tag.name })
+          return {
+          id: written,
+          label: written,
           hint: `${tag.count}`,
           // The tag AND NOTHING ELSE — no trailing space, which is what
           // Workflowy adds and what this deliberately does not. A title is
@@ -247,10 +257,11 @@ export const createCompletion = (field: {
           // row's own ("commit and open the next line") rather than a second
           // press of the row that has already been taken.
           choose: () => {
-            replace(found, `${found.sigil}${tag.name}`)
+            replace(found, written)
             setDismissed(tokenOf(found))
           },
-        }))
+          }
+        })
       case "mirror":
         // RECORDS, asked for on the request and answered in the type
         // (`../search/nodes.ts`): what this widget writes is a mirror, which

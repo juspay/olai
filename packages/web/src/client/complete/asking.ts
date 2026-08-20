@@ -21,9 +21,9 @@
  * that is a reading, it belongs on both faces, and this file becomes its
  * caller."
  *
- * ## A SHORTLIST, so the asking is `../asked.ts`'s and not the filter's
+ * ## A SHORTLIST, so the asking is `../settled.ts`'s and not the filter's
  *
- * The debounce, the latest-answer-wins rule and the failure slot are the
+ * The settle, the latest-answer-wins rule and the failure slot are the
  * primitive's — this door was the third to want them, which is what moved them
  * out of `../search/nodes.ts` into a file of their own. What is left here is
  * the two things that are this widget's: WHICH question is worth asking, and
@@ -56,7 +56,7 @@ import type { Accessor } from "solid-js"
 
 import type { TagCompletion, TagsRequest } from "@olai/surface"
 
-import { createAsked } from "../asked.ts"
+import { createSettled } from "../settled.ts"
 import { olai } from "../wire.ts"
 
 /** How many rows the widget offers. A row's popup is a shortlist — and the
@@ -110,7 +110,7 @@ const same = (was: Asking | null, is: Asking | null): boolean =>
  * the list from before.
  */
 export const createTags = (asking: Accessor<Asking | null>): Tags => {
-  const asked = createAsked(
+  const asked = createSettled(
     asking,
     (one) => olai.procedures.vocabulary.tags({ ...one, limit: LIMIT }),
     same,
