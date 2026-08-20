@@ -41,7 +41,7 @@
    * place the table is spelled twice. Tailwind needs the NAMES here or it will
    * not emit `text-muted` at all; what it does with the VALUES is bake the
    * literal fallback beside every opacity utility (`.bg-alarm/5` gets both
-   * `#c13b4e0d` and, inside `@supports (color-mix…)`, the theme-aware form).
+   * `#c133490d` and, inside `@supports (color-mix…)`, the theme-aware form).
    * So on any browser this app runs in they are inert — the generated
    * unlayered `:root` block always wins — and on one too old for `color-mix`
    * they are what an opacity utility falls back to. Which is exactly why they

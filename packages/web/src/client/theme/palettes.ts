@@ -234,7 +234,7 @@ const TABLE = [
       panel: "#1A2742",
       pill: "#243352",
       ink: "#D5E8F5",
-      muted: "#6582A4",
+      muted: "#7A93B0",
       rule: "#2A3C58",
       accent: "#4EE0C8",
       done: "#7EE0A8",
