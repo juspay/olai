@@ -71,14 +71,22 @@ import { olai } from "../wire.ts"
  *  change to the palette's shortlist silently a change to this popup. */
 const LIMIT = 8
 
-/** What one asking is about: which namespace, and what has been typed after the
- *  sigil. ONE VALUE rather than two accessors, because the two halves of a
- *  trigger are one thing (`./trigger.ts` produces them together) and splitting
- *  them here would let a frame carry `@`'s namespace with `#`'s prefix. */
-export interface Asking {
-  readonly sigil: TagsRequest["sigil"]
-  readonly query: string
-}
+/**
+ * What one asking is about: which namespace, and what has been typed after the
+ * sigil.
+ *
+ * ONE VALUE rather than two accessors, because the two halves of a trigger are
+ * one thing (`./trigger.ts` produces them together) and splitting them here
+ * would let a frame carry `@`'s namespace with `#`'s prefix.
+ *
+ * ...and the REQUEST minus the cap, rather than a second declaration of two of
+ * its three fields: the question a widget asks per keystroke and the question
+ * that goes on the wire differ by exactly one number, and that number is this
+ * door's own constant rather than something the caret decides. Spelled as its
+ * own struct, a field added to `TagsRequest` would be a field this shape
+ * silently did not have.
+ */
+export type Asking = Omit<TagsRequest, "limit">
 
 export interface Tags {
   readonly rows: Accessor<ReadonlyArray<TagCompletion>>
@@ -104,12 +112,7 @@ const same = (was: Asking | null, is: Asking | null): boolean =>
 export const createTags = (asking: Accessor<Asking | null>): Tags => {
   const asked = createAsked(
     asking,
-    (one) =>
-      olai.procedures.vocabulary.tags({
-        sigil: one.sigil,
-        query: one.query,
-        limit: LIMIT,
-      }),
+    (one) => olai.procedures.vocabulary.tags({ ...one, limit: LIMIT }),
     same,
   )
   return { rows: () => asked.answer()?.tags ?? [], failure: asked.failure }

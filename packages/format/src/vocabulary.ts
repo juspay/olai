@@ -244,9 +244,25 @@ const alive = (
 }
 
 /**
- * The tags of one sigil that the request's query could be the start of, best
- * first.
+ * THE ONE DOOR: the tags of the request's sigil that its query could be the
+ * start of, best first.
  *
+ * The package's whole surface for this subject, and it is one function rather
+ * than two on purpose. {@link vocabularyOf} and {@link offering} are two
+ * concerns and stay two functions — they change at different rates, which is
+ * what makes the memo worth having — but a CONSUMER wiring them together would
+ * be a consumer holding the composition, and the composition is the primitive.
+ * There is nothing a caller could usefully do between them: the enumeration is
+ * memoised per derivation, so passing it in buys nothing it does not already
+ * have, and passing it in wrong (an older revision's list) is a way to be wrong
+ * that this shape does not admit.
+ */
+export const completingTags = (
+  derived: Derived,
+  request: TagsRequest,
+): ReadonlyArray<TagCompletion> => offering(vocabularyOf(derived), request)
+
+/**
  * A PREFIX first and a substring second, folded for case: asking `ho` puts
  * `#home` above `#household-of` and both above `#new-home`. That order is the
  * one property this needs — the tag somebody is typing towards is nearly always
@@ -261,9 +277,9 @@ const alive = (
  *
  * IT TAKES THE VOCABULARY rather than the derivation, which is what lets the
  * enumeration be memoised once per revision and this run per question — and
- * what makes it a pure function of a list, testable without a set.
+ * what makes it a pure function of a list, answerable without a set.
  */
-export const completingTags = (
+const offering = (
   vocabulary: ReadonlyArray<TagUse>,
   request: TagsRequest,
 ): ReadonlyArray<TagCompletion> => {

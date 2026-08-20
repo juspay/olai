@@ -81,7 +81,6 @@ import {
   tagText,
   titleParts,
   ValidationFailure,
-  vocabularyOf,
 } from "@olai/format"
 import { Result } from "effect"
 
@@ -407,10 +406,13 @@ export const matches = (
  * "the eight most used tags starting with ho" would be a report shaped like
  * somebody else's widget.
  *
- * TWO CALLS rather than one (`@olai/format`'s `vocabulary.ts`), because they
- * cost differently: the enumeration is memoised per derivation, so a directory
- * that has not moved is counted once however many keystrokes are asked of it,
- * and the match runs per question.
+ * ONE CALL, and the ENVELOPE is the whole of what is added — exactly what
+ * {@link matches} adds over the matcher. The counting and the prefix test are
+ * two functions with two costs down there (the enumeration is memoised per
+ * derivation, so a directory that has not moved is counted once however many
+ * keystrokes are asked of it), and that split is that package's business:
+ * composing them here would be this layer holding a composition it has no
+ * opinion about.
  */
 export const tags = (
   /** The DERIVATION alone, like {@link matches}: a tag is written in a record's
@@ -418,7 +420,7 @@ export const tags = (
    *  this list (`@olai/format`'s `derive.ts` files records). */
   derived: Derived,
   request: TagsRequest,
-): TagsAnswer => ({ tags: completingTags(vocabularyOf(derived), request) })
+): TagsAnswer => ({ tags: completingTags(derived, request) })
 
 // ── one node, and what is under it ─────────────────────────────────────
 

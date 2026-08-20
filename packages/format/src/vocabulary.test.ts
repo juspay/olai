@@ -13,7 +13,7 @@
 
 import { expect, test } from "bun:test"
 
-import { derive } from "./derive.ts"
+import { derive, type Derived } from "./derive.ts"
 import { nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
 import {
   completingTags,
@@ -44,10 +44,10 @@ const offered = (
 ) => rows.map((row) => `${sigil}${row.name}`)
 
 const matched = (
-  derived: Parameters<typeof vocabularyOf>[0],
+  derived: Derived,
   sigil: TagsRequest["sigil"],
   query: string,
-) => offered(sigil, completingTags(vocabularyOf(derived), asking(sigil, query)))
+) => offered(sigil, completingTags(derived, asking(sigil, query)))
 
 const HOUSE = set(`
 {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
@@ -189,7 +189,7 @@ test("the answer stops at the number of rows the asker said it had", () => {
     ).join("\n"),
   )
   expect(vocabularyOf(many)).toHaveLength(12)
-  expect(completingTags(vocabularyOf(many), { sigil: "#", query: "", limit: 3 }))
+  expect(completingTags(many, { sigil: "#", query: "", limit: 3 }))
     .toHaveLength(3)
 })
 
@@ -197,7 +197,7 @@ test("the answer stops at the number of rows the asker said it had", () => {
 // at the right of a row. Nothing else about a tag does: the sigil is the
 // question, and the fold is a cost of matching.
 test("an answer row is the name and the count, and nothing else", () => {
-  expect(completingTags(vocabularyOf(HOUSE), asking("#", "ho"))).toEqual([
+  expect(completingTags(HOUSE, asking("#", "ho"))).toEqual([
     { name: "home", count: 2 },
     { name: "hob", count: 1 },
     { name: "shopping", count: 1 },

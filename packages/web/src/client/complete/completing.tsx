@@ -281,12 +281,31 @@ export const createCompletion = (field: {
   // it and hits arriving from the server do not either.
   createEffect(on(() => trigger()?.query ?? null, cursor.top))
 
-  /** A refused CALL, from whichever of the two asks made one — and there can
-   *  only be one, because a trigger is one kind at a time and an asker with no
-   *  question clears its own slot. Read as one accessor because the panel draws
-   *  one sentence: which door could not be answered is not a distinction a
-   *  reader of the popup has any use for. */
-  const failure = () => nodes.failure() ?? tags.failure()
+  /**
+   * A refused CALL, from whichever list is a question — one accessor, because
+   * the panel draws one sentence and which door could not be answered is not a
+   * distinction a reader of the popup has any use for.
+   *
+   * THE SAME TABLE {@link choices} is, rather than `a.failure() ?? b.failure()`:
+   * that spelling is right only while at most one asker holds a refusal at a
+   * time, which is true and is a rule nothing checks. Read off the armed trigger
+   * the answer is a fact the compiler keeps — a fourth widget could not quietly
+   * inherit the node search's error.
+   */
+  const failure = createMemo<string | null>(() => {
+    const found = trigger()
+    if (found === null) return null
+    switch (found.kind) {
+      // A day list is a pure function of a phrase and a calendar; there is
+      // nothing it could be refused by.
+      case "date":
+        return null
+      case "tag":
+        return tags.failure()
+      case "mirror":
+        return nodes.failure()
+    }
+  })
 
   const listing: Listing = {
     // A box is on screen when something is armed AND it has something to say —
