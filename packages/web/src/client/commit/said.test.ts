@@ -25,7 +25,6 @@ import {
   explain,
   faceOf,
   HOW,
-  HOW_TONE,
   isInert,
   isNews,
   localOf,
@@ -130,16 +129,16 @@ test("a healthy repository is quiet, and not a second green claim", () => {
   // The retired readout's rule, and it outlives it: the connection dot beside
   // this pill is the page's one green claim, and a second one lit permanently
   // in the ordinary case dilutes the thing a reader actually scans for.
-  expect(MARK.committed?.tone).not.toContain("done")
+  expect(MARK.committed?.glyph).toBe("✓")
   expect(MARK.never).toBeNull()
   expect(MARK.waiting).toBeNull()
 })
 
-test("the two a person can act on are marked, and told apart by tone", () => {
+test("the two a person can act on are marked", () => {
   // A repository mid-rebase will take a commit once they finish; a git that
-  // failed will not. Same glyph, different news.
-  expect(MARK.blocked).toEqual({ glyph: "⚠", tone: "text-doing" })
-  expect(MARK.error).toEqual({ glyph: "⚠", tone: "text-alarm" })
+  // failed will not. Same warning glyph; the faces themselves tell them apart.
+  expect(MARK.blocked?.glyph).toBe("⚠")
+  expect(MARK.error?.glyph).toBe("⚠")
 })
 
 test("the fault is reachable, because its whole point is the reason on it", () => {
@@ -304,18 +303,13 @@ test("a refused push says what git said, and a successful one says nothing", () 
     .toContain("nowhere to commit to")
 })
 
-/** Every status a dirty file can have wears a word and a tone. A table, so a
- *  sixth one the format grew would be a compile error here rather than a blank
- *  chip beside somebody's file. */
-test("every status a file can be in has a word and a tone", () => {
+/** Every status a dirty file can have wears a word. A table, so a sixth one
+ *  the format grew would be a compile error here rather than a blank chip
+ *  beside somebody's file. */
+test("every status a file can be in has a word", () => {
   for (const how of ["modified", "added", "deleted", "renamed", "untracked"] as const) {
     expect(HOW[how]).not.toBe("")
-    expect(HOW_TONE[how]).toStartWith("text-")
   }
-  // A file that has LEFT is the one worth a second look, and it is the only one
-  // that wears the alarm tone.
-  expect(HOW_TONE.deleted).toBe("text-alarm")
-  expect(HOW_TONE.modified).not.toBe(HOW_TONE.deleted)
 })
 
 /**

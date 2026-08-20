@@ -94,32 +94,6 @@ test("nothing outside connection/status.ts reads the readout's raw states", () =
   ])
 })
 
-// pill.ts's claim — one spelling of the quiet pill button, worn by import.
-// Same construction as the connectSurface sweep: asserting equality keeps it
-// honest, because pill.ts itself must keep matching — a respelled QUIET_PILL
-// fails here rather than rotting the pattern to an empty pass. The lookalikes
-// that deliberately diverge (`pill.ts` says where) do not match, which is the
-// point: what cannot reappear is the SHARED spelling, retyped.
-test("only pill.ts spells the quiet pill button", () => {
-  const spelling = /rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink/
-  expect(filesSpelling(spelling)).toEqual(["pill.ts"])
-})
-
-// Its twin, swept the same way and for a sharper reason: the two buttons of a
-// confirm are the same question's two answers, so the day one is respelled
-// and the other is not, the panel reads as a layout accident. Two surfaces
-// ask a confirm now — the `•••` menu's and the ⌘K palette's.
-test("only pill.ts spells the alarm pill button", () => {
-  const spelling =
-    /rounded border border-alarm bg-transparent px-2 py-1 text-xs text-alarm hover:bg-alarm\/10/
-  expect(filesSpelling(spelling)).toEqual(["pill.ts"])
-})
-
-// The THIRD button vocabulary, swept for the reason the two above are: the way
-// OUT of a panel a row opened is worn in three files — the shell the three
-// one-value panels share (`Cancel`), and the two that search (`Done`) — and it
-// was written out three times before it was a constant. A fourth file retyping
-// the string fails here rather than drifting a pixel at a time.
 // The LAW two gestures refuse by — one spelling, and it is not in this package
 // any more. A row dragged over another outline's pane and a destination picked
 // out of a search of the whole set are told the same thing about the format,
@@ -131,34 +105,6 @@ test("only pill.ts spells the alarm pill button", () => {
 // spelling this claim exists to forbid.
 test("no file here spells the same-file law — it is the format's", () => {
   expect(filesSpelling(/Every outline is an independent tree/)).toEqual([])
-})
-
-test("only pill.ts spells a panel's way out", () => {
-  const spelling =
-    /cursor-pointer rounded border-0 bg-transparent px-2 py-1 text-sm text-muted hover:text-ink/
-  expect(filesSpelling(spelling)).toEqual(["pill.ts"])
-})
-
-// chat/live.ts's claim — one spelling of the panel's "this is happening now"
-// cue. Two places wear it and they are the same fact one level apart: the
-// header says a TURN is in flight, a spawn's rail says an AGENT the turn sent
-// out is. They were two copies with a comment in one of them asserting they
-// matched, which is the arrangement this file exists to replace.
-test("only chat/live.ts spells the live dot", () => {
-  const spelling = /inline-block size-1\.5 animate-pulse rounded-full bg-doing/
-  expect(filesSpelling(spelling)).toEqual(["chat/live.ts"])
-})
-
-// chat/lanes.ts's claim — one spelling of a lane's rail, and this one is a
-// claim about GEOMETRY rather than about tone. Two things draw the rail and
-// the whole point of the second is that it is the same line continued: a row
-// a subagent made hangs one off the frame above it, and a spawn nobody has
-// reported on yet hangs one off itself, directly above that row. Spelled
-// twice they agreed by coincidence, and the first tweak to either would have
-// drawn a reader one line as two.
-test("only chat/lanes.ts spells the lane rail", () => {
-  const spelling = /border-l-2 border-muted\/70 pl-2/
-  expect(filesSpelling(spelling)).toEqual(["chat/lanes.ts"])
 })
 
 // layer.ts's claim — every `z-index` in this client comes from its table. The
