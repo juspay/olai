@@ -76,7 +76,7 @@ With Auto-push on beside it, the flurry is committed and then pushed and there i
 
 ### When it stops
 
-A commit or a push that git REFUSED **pauses the loop**, and the pill says so — `· auto-commit paused`, with git's own words on the tip, on its `aria-label`, and in full in the panel. Nothing goes round again: the timer is not re-armed, and a second flurry sits waiting where you can see it.
+A commit or a push that git REFUSED **pauses the loop**, and the pill says so — `· auto-commit paused`, with git's own words on the tip, on its `aria-label`, and in full in the panel. On a phone the banner says it too, and keeps the count beside it (`3 uncommitted · auto-commit paused`), because a halted loop and a later edit is exactly when how much is sitting here is worth knowing. Nothing goes round again: the window is not re-armed, and a second flurry sits waiting where you can see it.
 
 The case that matters is a DIVERGENCE. Another machine of yours — or somebody else — has pushed, so your push is a non-fast-forward. olai does not pull, does not rebase and never forces (that is [Pushing](#pushing)'s rule and this does not get an exception), so the commit stands, the push does not happen, and you are told. Resolving it is a conversation in a terminal, which is what git's words are for.
 

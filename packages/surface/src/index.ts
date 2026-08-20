@@ -159,6 +159,7 @@ import {
   OutlineError,
   Pending,
   PushResult,
+  sameGit,
   samePending,
   sameShelf,
   Shelf,
@@ -516,6 +517,14 @@ export const surface = defineSurface({
       schema: GitState,
       default: GIT_OFF,
       verbs: ["get"],
+      /** The same `equals` the pending cell below declares, and the omission it
+       *  is fixing is the pair coming apart: both are recomputed from ONE
+       *  survey by ONE statement, on every revision AND on the server's
+       *  thirty-second sweep, and a derivation is a fresh object every time. So
+       *  without this a healthy repository framed every open tab twice a minute
+       *  saying `repo` — which is what restarted Auto-commit's quiet window on
+       *  a frame nobody typed (`web/src/client/commit/auto.ts`). */
+      equals: sameGit,
     },
     /**
      * What is waiting to be committed — the count in the chrome, and every row

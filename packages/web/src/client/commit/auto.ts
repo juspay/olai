@@ -115,15 +115,31 @@ export const createAuto = (input: {
   const flurry = createMemo(() => flurryOf(input.commit.pending()))
 
   /**
-   * The other two reads that come off the pending value, memoised for the same
-   * reason and it is the same reason twice: a commit landing and a push landing
-   * both republish it, and an effect that read either of them straight through
-   * would re-arm the window on a frame nobody typed. Both are BOOLEANS, so the
-   * memo can actually swallow the frame — a `RepoState` object is fresh every
-   * time and `===` would never hold.
+   * Everything else the gate reads off a CELL, memoised — and it is one reason
+   * three times: a cell is republished for reasons that are not edits, and an
+   * effect reading one straight through would re-arm the window on a frame
+   * nobody typed.
+   *
+   *   - a commit landing and a push landing both republish what is pending
+   *     ({@link heard}, {@link ready});
+   *   - and the server recomputes what git is DOING every thirty seconds
+   *     whether or not anything moved ({@link sound}), which is the one that
+   *     was live: a healthy repository put a fresh `repo` on the wire twice a
+   *     minute, and about half the quiet windows that sat across a sweep waited
+   *     from the sweep rather than from the last edit.
+   *
+   * All three are BOOLEANS, which is what lets the memo actually swallow the
+   * frame — a `RepoState` or a `GitState` is a fresh object every time and
+   * `===` would never hold.
+   *
+   * The git cell declares an `equals` now as well (`@olai/surface`), and both
+   * are wanted rather than one being the belt to the other's braces: that one
+   * is a frame not sent to any tab at all, this one is the loop declining to
+   * take its own timing on trust from a spec in another package.
    */
   const heard = createMemo(() => input.commit.heard())
   const ready = createMemo(() => isReady(input.commit.pending().repo))
+  const sound = createMemo(() => input.commit.git().status === "repo")
 
   const standing = (): Standing => ({
     armed: input.on(),
@@ -132,7 +148,7 @@ export const createAuto = (input: {
     heard: heard(),
     flurry: flurry(),
     ready: ready(),
-    git: input.commit.git(),
+    sound: sound(),
     working: input.commit.working(),
     pushing: input.commit.pushing(),
   })

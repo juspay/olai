@@ -215,6 +215,17 @@ test("the banner says the loop stopped ahead of whatever else is true", () => {
   expect(newsSays("waiting", 6, 3, null)).toBe("6 uncommitted — tap to record")
 })
 
+// ... and it does not take the COUNT with it. A halted loop plus a later edit
+// is exactly when how much is sitting here is worth knowing, and the desktop
+// pill says both beside each other — a phone that had to tap through to find
+// out is the same fact told to two readers differently.
+test("a stopped loop on a phone still says how much is waiting", () => {
+  expect(newsSays("waiting", 6, 0, "no upstream")).toContain("6 uncommitted")
+  expect(newsSays("waiting", 6, 0, "no upstream")).toContain(AUTO_PAUSED)
+  // Nothing waiting is nothing to count, and the line stays one line.
+  expect(newsSays("committed", 0, 0, "no upstream")).toBe(`${AUTO_PAUSED} — tap to see`)
+})
+
 // ── what it says ───────────────────────────────────────────────────────
 
 test("a git failure hands over git's own words", () => {

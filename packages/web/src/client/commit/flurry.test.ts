@@ -13,8 +13,6 @@ import { expect, test } from "bun:test"
 
 import { flurryOf, mayRecord, QUIET_MS, type Standing, stoppedBy, stoppedByPush } from "./flurry.ts"
 
-const READY: GitState = { status: "repo", said: null }
-
 const WAITING: Pending = {
   ...NOTHING_PENDING,
   repo: { _tag: "Ready", branch: "main" },
@@ -40,7 +38,7 @@ const GOING: Standing = {
   heard: true,
   flurry: flurryOf(WAITING),
   ready: true,
-  git: READY,
+  sound: true,
   working: false,
   pushing: false,
 }
@@ -98,14 +96,25 @@ test("every reason to hold off holds off", () => {
     { heard: false },
     { flurry: "" },
     { ready: false },
-    { git: GIT_OFF },
-    { git: { status: "error", said: "no user.email" } },
+    { sound: false },
     { working: true },
     { pushing: true },
   ]
   for (const one of held) {
     expect(mayRecord({ ...GOING, ...one })).toBe(false)
   }
+})
+
+// `sound` is the git cell's four states, read the one way the loop reads them:
+// a repository nothing has refused in, and everything else. It is a BOOLEAN in
+// the standing rather than the state itself, because the cell is republished by
+// the server's sweep whether or not anything moved — see {@link Standing.sound}.
+test("git is sound only where it is a repository that has refused nothing", () => {
+  const soundIn = (git: GitState): boolean => git.status === "repo"
+  expect(soundIn({ status: "repo", said: null })).toBe(true)
+  expect(soundIn(GIT_OFF)).toBe(false)
+  expect(soundIn({ status: "none", said: null })).toBe(false)
+  expect(soundIn({ status: "error", said: "no user.email" })).toBe(false)
 })
 
 // ... and `ready` is the repository's own three refusals, through the one

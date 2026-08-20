@@ -58,6 +58,10 @@ interface Stub {
   /** Republish WHAT GIT IS DOING, unchanged — the server's thirty-second sweep,
    *  which recomputes the same answer and sets the cell again. */
   readonly sweep: () => void
+  /** ... and the same cell saying something NEW: a commit git refused, which
+   *  the server remembers and publishes and no probe of the directory can
+   *  see. */
+  readonly fault: (said: string) => void
   readonly commits: () => number
   readonly pushes: () => number
   readonly refuse: (said: string | null) => void
@@ -113,6 +117,7 @@ const stub = (autoPush = false): Stub => {
     commit,
     edit: (n) => setPending(waiting(n)),
     sweep: () => setGit(ready()),
+    fault: (said) => setGit({ status: "error", said }),
     count: () =>
       setPending((was) => ({
         ...was,
@@ -335,6 +340,23 @@ test("the git sweep does not start the window again", async () => {
     it.sweep()
     await rest(QUIET * 0.7)
     expect(it.commits()).toBe(1)
+  })
+})
+
+// The other half of the same memo, and the half it must NOT swallow: the cell
+// saying something new is a reason to hold off, and it takes effect inside the
+// window rather than at the end of it. A git that refuses every commit is the
+// state a probe of the directory cannot see at all.
+test("a git that goes wrong inside the window disarms the loop", async () => {
+  const it = stub()
+  await loop(ON, it, async (auto) => {
+    it.edit(1)
+    await rest(QUIET * 0.5)
+    it.fault("no user.email")
+    await rest(QUIET * 2)
+    expect(it.commits()).toBe(0)
+    const state = auto()
+    expect(state._tag === "armed" && state.willRecord).toBe(false)
   })
 })
 

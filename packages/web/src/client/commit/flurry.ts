@@ -24,7 +24,6 @@
  */
 
 import type { Pending } from "@olai/format"
-import type { GitState } from "@olai/surface"
 
 import { canRecord } from "./record.ts"
 import { trouble, pushTrouble, waitingIn } from "./said.ts"
@@ -95,7 +94,25 @@ export interface Standing {
    *  commit lands and when a push does, and an effect reading the state OBJECT
    *  would restart the quiet window on both. */
   readonly ready: boolean
-  readonly git: GitState
+  /**
+   * Whether git is SOUND here: a repository, and nothing it has been asked has
+   * refused.
+   *
+   * Its own term beside {@link Standing.ready} rather than folded into it, and
+   * the difference is exactly one state — a repository that answers every probe
+   * happily and refuses every commit, which is what `user.email` unset looks
+   * like. The server remembers that refusal and publishes it; no reading of the
+   * directory can see it (`@olai/ops`' `gitOf`).
+   *
+   * A BOOLEAN, for the reason `ready` is one and then some: the cell it comes
+   * from is republished by the server's thirty-second sweep whether or not
+   * anything moved, so a `GitState` here would restart the quiet window twice a
+   * minute on a frame saying exactly what the last one did. The cell now
+   * declares an `equals` too (`@olai/surface`), and BOTH are wanted: that one
+   * stops the frame reaching every tab, this one is the loop refusing to depend
+   * on a spec in another package for its own timing.
+   */
+  readonly sound: boolean
   readonly working: boolean
   readonly pushing: boolean
 }
@@ -110,10 +127,10 @@ export interface Standing {
  * ruling's "stop rather than retry blindly" in the state where retrying is
  * exactly what would swallow somebody's conflict resolution.
  *
- * A git that FAILED is the other half and reads the same way here, because the
- * server remembers a refused commit and publishes it (`@olai/ops`' `gitOf`) —
- * so a repository nothing can be committed in is not asked again every fifteen
- * seconds.
+ * A git that FAILED is the other half and reads the same way here
+ * ({@link Standing.sound}), because the server remembers a refused commit and
+ * publishes it (`@olai/ops`' `gitOf`) — so a repository nothing can be
+ * committed in is not asked again every fifteen seconds.
  */
 export const mayRecord = (standing: Standing): boolean =>
   standing.armed &&
@@ -122,7 +139,7 @@ export const mayRecord = (standing: Standing): boolean =>
   standing.heard &&
   standing.flurry !== "" &&
   standing.ready &&
-  standing.git.status === "repo" &&
+  standing.sound &&
   canRecord(standing.working, standing.pushing)
 
 /**

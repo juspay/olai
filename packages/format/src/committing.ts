@@ -74,6 +74,26 @@ export type GitState = typeof GitState.Type
  *  claims.) */
 export const GIT_OFF: GitState = { status: "off", said: null }
 
+/**
+ * When two readings of what git is doing say the same thing.
+ *
+ * The same claim {@link samePending} makes below and for the same reason —
+ * these two are the OTHER halves of one survey, recomputed by one statement on
+ * one pair of clocks (`server/runtime.ts`'s `republishGit`), so a cell that
+ * swallowed a repeat on one side and framed it on the other is one survey
+ * arriving as two kinds of news. Without it a healthy repository put a fresh
+ * `repo` on every open tab's wire twice a minute, which is a frame saying
+ * exactly what the last one did.
+ *
+ * DERIVED from the schema, exactly as `samePending` is: written out by hand it
+ * would be two field comparisons beside the declaration of those same two
+ * fields, and the third field added to {@link GitState} would simply not be
+ * compared — a frame that is never sent, which is the failure an `equals` is
+ * here to prevent in the other direction.
+ */
+export const sameGit: (a: GitState, b: GitState) => boolean = Schema
+  .toEquivalence(GitState)
+
 /** Who asked for a write. Intent rather than identity — git only ever records
  *  the repository's own name and email, so without this an agent's edits are
  *  indistinguishable from the ones a person typed.

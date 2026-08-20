@@ -173,7 +173,17 @@ export const newsSays = (
 ): string => {
   // A stopped loop outranks every face, because it is the one line that is
   // about something having gone wrong with a promise rather than about work.
-  if (paused !== null) return `${AUTO_PAUSED} — tap to see`
+  //
+  // It KEEPS THE COUNT when there is one, and that is the whole of this arm
+  // being three words longer than it was: a halted loop plus a later edit is
+  // exactly when "how much is sitting here" is worth knowing, and a banner that
+  // dropped it made a phone tap through to the panel to find out something the
+  // desktop pill says beside the same chip.
+  if (paused !== null) {
+    return waiting > 0
+      ? `${waiting} uncommitted · ${AUTO_PAUSED} — tap to see`
+      : `${AUTO_PAUSED} — tap to see`
+  }
   switch (face) {
     case "waiting":
       return `${waiting} uncommitted — tap to record`
@@ -322,9 +332,14 @@ const alsoUnpushed = (said: string, pending: Pending): string => {
  *  `aria-label`, and in full in the panel. */
 export const AUTO_PAUSED = "auto-commit paused"
 
+/** The one gesture that starts the loop again, spelled once for both sentences
+ *  below: the header and the panel drifting on how to restart it is the one
+ *  sentence a reader cannot work out for themselves. */
+const RESUME = "Turn Auto-commit off and on again in preferences to resume."
+
 /**
- * ... and the sentence the HEADER carries, which is git's own words plus the
- * one gesture that resumes the loop.
+ * ... and the sentence the HEADER carries, which is git's own words plus that
+ * gesture.
  *
  * The gesture is named because a stopped loop is silent by design: without a
  * sentence saying how to start it again, "olai stopped committing" is something
@@ -337,11 +352,6 @@ export const AUTO_PAUSED = "auto-commit paused"
  * of its own down there, beside the verb that produced it, and one paragraph
  * printed twice in one popover is a popover nobody reads either copy of.
  */
-/** The one gesture that starts the loop again, spelled once for both lines
- *  below: the header and the panel drifting on how to restart it is the one
- *  sentence a reader cannot work out for themselves. */
-const RESUME = "Turn Auto-commit off and on again in preferences to resume."
-
 const autoSays = (paused: string): string =>
   `auto-commit is paused — ${paused}. ${RESUME}`
 

@@ -55,11 +55,13 @@ import { type Accessor, createSignal } from "solid-js"
 
 /** The name the tabs contend for, namespaced like the preference it serves —
  *  locks are per origin, and a page served from a host that has other things on
- *  it must not be able to collide. */
-/** The same word as the preference's storage key (`../settings/autocommit.ts`)
- *  and deliberately so: one subject, and two namespaces that cannot see each
- *  other. Neither is derived from the other — a lock name and a storage key
- *  changing together is a coincidence, not a rule. */
+ *  it must not be able to collide.
+ *
+ *  It is the same WORD as that preference's storage key
+ *  (`../settings/autocommit.ts`) and deliberately so: one subject, and two
+ *  namespaces that cannot see each other. Neither is derived from the other —
+ *  a lock name and a storage key changing together is a coincidence, not a
+ *  rule. */
 export const AUTOCOMMIT_LOCK = "olai.git.autocommit"
 
 /**
