@@ -29,6 +29,15 @@
  * This says nothing about the Commit BUTTON. A person pressing it in either tab
  * is a person who meant it, and two people pressing at once is not a case a
  * lock is entitled to arbitrate.
+ *
+ * POPULATION ONE, named rather than generalised: "exactly one tab of this
+ * browser does X" is a volatility (Web Locks, an insecure origin's absence of
+ * them, and whatever a browser without them needs) and it has one consumer. The
+ * day a second one arrives — a background sync, a single-tab poller — the
+ * receptacle is this file with the lock name as an argument, and its home is
+ * beside `../preference.ts`, which is the other thing here that is about the
+ * browser rather than about any one feature. Extracting it now would be a
+ * shape argued from one case.
  */
 
 import { type Accessor, createSignal } from "solid-js"

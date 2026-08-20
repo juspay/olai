@@ -1,11 +1,19 @@
 /**
  * Auto-commit: the timer that watches a flurry finish, and the stop.
  *
- * The rules are `./flurry.ts`; this is the plumbing over them, and it is one
- * effect and one `setTimeout`. Everything the effect reads is a signal, so the
+ * The rules are `./flurry.ts`; this is the plumbing over them, and it is ONE
+ * effect over the ecosystem's own debounce (`@solid-primitives/scheduled`,
+ * which `fold/refiling.ts` and the two search boxes already ride — HACKING.md's
+ * SolidJS rule, and it owns the timeout, the restart and the teardown so this
+ * file owns none of them). Everything the effect reads is a signal, so the
  * window is re-armed by the arrival of an edit rather than by a poll — and
- * disarmed by the same reading the moment there is nothing waiting, which is
+ * cleared by the same reading the moment there is nothing to record, which is
  * what a commit landing looks like from here.
+ *
+ * ONE GATE: the effect arms the window exactly when {@link mayRecord} says yes
+ * and clears it otherwise, so "is there a flurry" and "may it be recorded" are
+ * one question asked in one place rather than a condition here and a count
+ * there.
  *
  * **It drives the SAME committer the button drives.** `commit.commit("")` is
  * the panel's own verb with no message and no selection: no message so the
@@ -31,7 +39,8 @@
  * un-paused itself would be the retry wearing a different hat.
  */
 
-import { type Accessor, createEffect, createMemo, createSignal, onCleanup, untrack } from "solid-js"
+import { debounce } from "@solid-primitives/scheduled"
+import { type Accessor, createEffect, createMemo, createSignal, untrack } from "solid-js"
 
 import { flurryOf, mayRecord, QUIET_MS, type Standing, stoppedBy, stoppedByPush } from "./flurry.ts"
 import type { Commit } from "./state.ts"
@@ -74,32 +83,31 @@ export const createAuto = (input: {
     paused: paused(),
     alone: input.alone(),
     heard: input.commit.heard(),
-    waiting: input.commit.waiting(),
+    flurry: flurry(),
     repo: input.commit.pending().repo,
     git: input.commit.git(),
     working: input.commit.working(),
     pushing: input.commit.pushing(),
   })
 
-  let timer: ReturnType<typeof setTimeout> | undefined
+  /**
+   * The window itself, which this file does not own the timer of.
+   *
+   * Asked AGAIN at the moment it fires, untracked: a timer and a frame can land
+   * in the same tick, and the answer that matters is the one at the instant the
+   * commit would be made. `commit("")` is the panel's own verb with no message
+   * and no selection — see this file's header.
+   */
+  const record = debounce(() => {
+    if (untrack(() => mayRecord(standing()))) input.commit.commit("")
+  }, quiet)
 
   // ONE effect, and it is the whole trigger: every read in it is a reason to
-  // start the window again, and the window is only ever started here.
+  // start the window again, and the window is started nowhere else.
   createEffect(() => {
-    const waiting = flurry()
-    const may = mayRecord(standing())
-    clearTimeout(timer)
-    timer = undefined
-    if (waiting === "" || !may) return
-    timer = setTimeout(() => {
-      // Asked again at the moment it fires, untracked: a timer and a frame can
-      // land in the same tick, and the answer that matters is the one at the
-      // instant the commit would be made.
-      if (untrack(() => mayRecord(standing()))) input.commit.commit("")
-    }, quiet)
+    if (mayRecord(standing())) record()
+    else record.clear()
   })
-
-  onCleanup(() => clearTimeout(timer))
 
   /**
    * What a finished attempt did to the loop.

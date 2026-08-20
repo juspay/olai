@@ -85,7 +85,10 @@ export interface Standing {
   /** Whether the server has said anything yet. A page that has heard nothing
    *  knows nothing, and a commit is not a thing to guess at. */
   readonly heard: boolean
-  readonly waiting: number
+  /** What is waiting, as {@link flurryOf} says it — and `""` for nothing,
+   *  which is what makes "there is something to record" ONE spelling rather
+   *  than a count here and an empty string there. */
+  readonly flurry: string
   readonly repo: RepoState
   readonly git: GitState
   readonly working: boolean
@@ -112,7 +115,7 @@ export const mayRecord = (standing: Standing): boolean =>
   standing.paused === null &&
   standing.alone &&
   standing.heard &&
-  standing.waiting > 0 &&
+  standing.flurry !== "" &&
   isReady(standing.repo) &&
   standing.git.status === "repo" &&
   canRecord(standing.working, standing.pushing)
