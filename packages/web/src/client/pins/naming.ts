@@ -1,6 +1,5 @@
 /**
- * NAMING A PIN — which gesture asks for one, what an answer writes, and the
- * one channel a door outside the palette asks through.
+ * NAMING A PIN — which gesture asks for one, and what an answer writes.
  *
  * ## Why the app asks at all, and why only there
  *
@@ -39,24 +38,28 @@
  * ## Where the asking happens
  *
  * In the ⌘K palette, which is this app's one surface for a command that asks
- * something first (`../palette/Palette.tsx`, the Trash's confirm): it owns the
+ * something first (`../palette/asking.ts`, the Trash's confirm): it owns the
  * caret, Escape, the focus trap, the said-line and the one-write-at-a-time
  * guard, and none of those wanted a second implementation in a sidebar column
- * four characters wide. The shelf's own rename control reaches it through
- * {@link askName} — a module signal, in the shape this client already keeps
- * `../palette/open.ts` in, because the row that presses it and the panel that
- * draws it have no path between them.
+ * four characters wide. What this module hands it is a `line` question like
+ * any other — the words, and what an answer WRITES — so the palette's panel
+ * knows nothing about a pin, and the next thing that wants a line typed there
+ * is a function rather than a case in it.
+ *
+ * Both doors ask through {@link askName}: the shelf's rename control, which is
+ * in a sidebar with no path to the panel, and the palette's own two (the chord
+ * and the ⌘K row). One way in, and it is one write — the modal and the
+ * question it is about cannot arrive on two different frames.
  */
 
-import { type Accessor, batch, createSignal } from "solid-js"
-
 import { PIN_NAME_UNWRITABLE, pinTitle } from "@olai/format"
-import type { Edit, Shelf } from "@olai/surface"
+import type { Edit } from "@olai/surface"
 import { Result } from "effect"
 
-import { setPaletteOpen } from "../palette/open.ts"
+import type { Line } from "../palette/asking.ts"
+import { askInPalette } from "../palette/open.ts"
 import { filterOf, hrefOf, type Route } from "../routes.ts"
-import { type Pin, pinnedAt } from "./pins.ts"
+import type { Pin } from "./pins.ts"
 
 /** WHICH pin a name is being asked for — the page about to become one, or the
  *  row already on the shelf. Two arms because they write two different ops, and
@@ -73,55 +76,31 @@ export type Naming =
   | { readonly kind: "rename"; readonly pin: Pin }
 
 /**
- * A NAMING QUESTION, WHOLE — the words the panel draws and the pin they are
- * about, as one value.
+ * The question this naming raises — a `line` like any other the palette can
+ * ask (`../palette/asking.ts`), carrying what an answer WRITES rather than
+ * what it is about.
  *
- * One value because they are one thing: a question with no subject cannot be
- * answered and a subject with no words cannot be asked, and the alternative —
- * a bag of strings the palette spreads beside the {@link Naming} it was
- * resolved from — is one concept split across two, held together by a rule at
- * the call site that builds it. It is the palette's `Asking` union's other arm
- * (`../palette/Question.tsx`), declared HERE because what a naming question IS
- * belongs with what answering one writes; the panel owns how a question is
- * drawn, which is the same for both of them.
+ * Resolved in ONE place so the two arms cannot drift into two different
+ * promises about what an empty box does, and closed over the {@link Naming}
+ * rather than handing it across: the panel draws a question, and which pin
+ * this one is about is nobody's business but this module's.
  */
-export interface Named {
-  readonly kind: "name"
-  /** The words above the box. */
-  readonly question: string
-  /** The name this door takes with nothing typed — greyed in the box. */
-  readonly placeholder: string
-  /** What the box starts with: the name somebody WROTE, and nothing otherwise
-   *  (a derived name typed into the box would be a copy waiting to be
-   *  stored). */
-  readonly initial: string
-  /** The verb's own word, on the button that goes ahead. */
-  readonly label: string
-  /** Which pin it is about — the whole of what an answer writes
-   *  ({@link namedEdit}). */
-  readonly naming: Naming
-}
-
-/** The question this naming raises, resolved in ONE place so the two arms
- *  cannot drift into two different promises about what an empty box does. */
-export const askingFor = (naming: Naming): Named =>
-  naming.kind === "pin"
-    ? {
-      kind: "name",
-      question: "a name for this pin — Enter with nothing pins it unnamed",
-      placeholder: naming.bare,
-      initial: "",
-      label: "Pin",
-      naming,
-    }
-    : {
-      kind: "name",
-      question: "a name for this pin — Enter with nothing takes the name off",
-      placeholder: naming.pin.bare,
-      initial: naming.pin.written ? naming.pin.name : "",
-      label: "Rename",
-      naming,
-    }
+export const askingFor = (naming: Naming): Line => ({
+  kind: "line",
+  label: naming.kind === "pin" ? "Pin" : "Rename",
+  question: naming.kind === "pin"
+    ? "a name for this pin — Enter with nothing pins it unnamed"
+    : "a name for this pin — Enter with nothing takes the name off",
+  // WHAT NOTHING MEANS, shown rather than promised: the name this door takes
+  // with an empty box.
+  placeholder: naming.kind === "pin" ? naming.bare : naming.pin.bare,
+  // …and what it starts holding: the name somebody WROTE, and nothing
+  // otherwise — a derived name typed into the box would be a copy one Enter
+  // away from being stored, which is the one thing the shelf's storage design
+  // refuses.
+  initial: naming.kind === "pin" || !naming.pin.written ? "" : naming.pin.name,
+  resolve: (name) => namedEdit(naming, name),
+})
 
 /**
  * The WRITE an answered question sends — one op either way, or the sentence
@@ -160,11 +139,12 @@ export const namedEdit = (
  * The question this page's pin gesture raises, or `null` for the press that
  * simply writes.
  *
- * PURE over the two facts every door onto the shelf already holds — the route
- * and the answered shelf — so which gesture asks is decided in a unit test
- * rather than in a key handler. Both doors ask it: the chord, to know whether
- * to toggle or to open the box, and the ⌘K row, to know whether its label ends
- * in the ellipsis this app puts on a verb that asks something first.
+ * PURE over the two facts every door onto the shelf already holds — the route,
+ * and whether the shelf already holds it — so which gesture asks is decided in
+ * a unit test rather than in a key handler. Both doors ask it: the chord, to
+ * know whether to toggle or to open the box, and the ⌘K row, to know whether
+ * its label ends in the ellipsis this app puts on a verb that asks something
+ * first.
  *
  * A page ALREADY ON THE SHELF is never asked, because that press is an UNPIN —
  * the toggle is one gesture over one address (`./pinning.ts`), and a question
@@ -173,62 +153,19 @@ export const namedEdit = (
  */
 export const namingFor = (
   route: Route,
-  shelf: Shelf,
+  /** The pin this page ALREADY has, as the caller resolved it — the same
+   *  answer the door beside this one draws its label from, asked once
+   *  (`./pins.ts`'s `pinnedAt`). */
+  already: Pin | undefined,
   /** What this page is called — the placeholder, and the reason the caller
    *  passes it: what a NODE's page is called is a fact about the set, read off
    *  the focused page's own reading (`../reading.tsx`). */
   bare: string,
 ): Naming | null =>
-  filterOf(route) !== "" && pinnedAt(shelf, route) === undefined
+  filterOf(route) !== "" && already === undefined
     ? { kind: "pin", at: hrefOf(route), bare }
     : null
 
-/**
- * The question SOMEBODY ELSE asked — set by a door outside the palette, taken
- * by the palette when it opens.
- *
- * One signal rather than a prop, for `../palette/open.ts`'s reason word for
- * word: the shelf's rename control and the panel that asks the question have
- * no path between them, and a prop drilled from `App.tsx` through the sidebar
- * would say less than this does.
- *
- * IT IS A REQUEST AND NOT A STATE, which is the whole of why {@link askName}
- * writes both signals and why the palette DROPS one it finds over a closed
- * modal ({@link clearAsked}). Read as a pair, "the palette is open" and "a
- * question is pending" spell a fourth state nothing means — a question waiting
- * over a palette that is shut, which the next ⌘K would raise about a page the
- * reader left ten minutes ago. Nothing enforces its absence by CONVENTION
- * here: the palette's own effect reads both, and a pending question it finds
- * with the modal down is put down with it, so the state cannot outlive the
- * turn it was spelled in.
- *
- * (That is also why there is no clear at the close: closing IS the run that
- * drops it, and a second site spelling the same rule is the one that
- * eventually disagrees.)
- */
-const [asked, setAsked] = createSignal<Naming | null>(null)
-
-/**
- * Ask for a name in the palette, opening it if it is not up.
- *
- * BATCHED, and load-bearing rather than tidy: outside one, Solid flushes after
- * every write, so the palette's effect would run once on a request over a
- * modal that is not up yet — and that run is the one that PUTS A REQUEST DOWN
- * (see above). The two writes are one fact ("ask this, here"), so they arrive
- * as one. Found by `features/pin_to_sidebar.feature`, which is what an e2e is
- * for: no unit test holds two signals and an effect between them.
- */
-export const askName = (naming: Naming): void =>
-  batch(() => {
-    setAsked(naming)
-    setPaletteOpen(true)
-  })
-
-/** What was asked, for the palette to raise. */
-export const nameAsked: Accessor<Naming | null> = asked
-
-/** …and the palette putting it down — on raising it, and on finding one over a
- *  modal that is not up. */
-export const clearAsked = (): void => {
-  setAsked(null)
-}
+/** Ask for a name in the ⌘K palette, opening it if it is not up — the one door
+ *  onto the question, whichever control pressed it. */
+export const askName = (naming: Naming): void => askInPalette(askingFor(naming))

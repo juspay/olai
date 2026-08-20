@@ -46,12 +46,15 @@ export const pinItem = (
    *  right now. */
   called: string,
 ): PaletteItem => {
+  // ASKED ONCE, and handed to the rule beside it: whether this page is on the
+  // shelf is a parse of every row, and the label and the question are two
+  // readings of that one answer rather than two walks of the same list.
   const already = pinnedAt(shelf, route)
   return {
     id: "pin-page",
     label: already !== undefined
       ? "Unpin this page"
-      : namingFor(route, shelf, called) === null
+      : namingFor(route, already, called) === null
       ? "Pin this page"
       : "Pin this page…",
     hint: "⌘⇧P",

@@ -168,17 +168,17 @@ const pinOf = (row: Pinned): Pin | undefined => {
   // is one rule with one home (`../address/address.ts`) — the same one an
   // ordinary outline row is drawn by. So `name` and `written` cannot say two
   // different things about one title, because nothing here decides either.
-  // `bare` is the other half of the SAME reading, asked outright: the name
-  // this door would take with nothing written on it. It is asked rather than
-  // inferred from the pair, since a written name that happens to match the
-  // node's own is still a written name.
   const { name, written } = titleFace(row.title, route, shows)
   return {
     id: row.id,
     route,
     at: addressWritten(row.title),
     name,
-    bare: nameOf(route, shows),
+    // …and `bare` is the OTHER arm of that same rule, which is why it is only
+    // asked when a written name displaced it: with nothing written, the drawn
+    // name IS what the address answers, and asking twice would be two calls
+    // that have to agree rather than one that cannot disagree.
+    bare: written ? nameOf(route, shows) : name,
     written,
   }
 }

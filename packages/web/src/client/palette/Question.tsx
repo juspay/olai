@@ -1,64 +1,25 @@
 /**
- * THE PALETTE ASKING SOMETHING FIRST — the two questions it can put in place of
- * its list, and the one rule they share.
+ * A QUESTION, DRAWN — the words, and the two ways out of them.
  *
- * A command that needs a second thing before it can run stays in the box the
- * reader chose it in: the list goes, the words appear where it was, and Enter
- * answers THIS rather than whatever the list would have taken
- * (`./Palette.tsx`'s `confirm`). That is olai's own chrome and not the
- * browser's, for the reason every other panel here is: a modal drawn over a
- * refusal is the silent failure this app is written against.
+ * This is HOW a question looks; WHAT one is, and what answering it writes, is
+ * the value it is handed (`./asking.ts`). So the panel knows nothing about a
+ * trash, a pin or a name: it draws the sentence, the verb's own word on the
+ * button that goes ahead, and Cancel — for every question this palette will
+ * ever ask.
  *
- * ## Two kinds, and the difference is WHERE THE CARET GOES
+ * The one thing it reads the KIND for is the caret, and that is a fact about
+ * where an answer is written rather than about the verb: a CONFIRM is answered
+ * by a press, so the caret comes onto its button; a LINE is answered by typing,
+ * and the box above is already under the reader's hands, so this grabs nothing.
  *
- * A CONFIRM is a yes or a no about a write whose reach is bigger than the row
- * it was chosen on — `Move to Trash`, with the `•••` menu's sentence verbatim.
- * It takes the caret onto its own button, because the answer is a press and a
- * question nobody's keyboard can reach is one only a mouse may answer.
- *
- * A NAME is a line of text, and the caret belongs in the box it is typed in —
- * which is the palette's OWN box, already under the reader's hands
- * (`../pins/naming.ts`). So this arm draws the words and the two ways out and
- * deliberately grabs nothing: the input above is where the answer is being
- * written, and stealing focus from it would make the panel unusable by the one
- * gesture it exists for.
- *
- * The buttons are the same two either way, because a pointer needs both
+ * The two ways out are the same two either way, because a pointer needs both
  * whichever kind is up, and the Tab trap that cycles them is the palette's
  * (there is one focus trap for this dialog, not one per panel).
  */
 
-import { Show } from "solid-js"
-
-import type { Edit } from "@olai/surface"
-
-import type { Named } from "../pins/naming.ts"
+import type { Asking } from "./asking.ts"
 import { ALARM_PILL, QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
-
-/**
- * A QUESTION THAT IS UP, and everything answering it needs.
- *
- * Resolved at the ONE site that knows the row is a command with something to
- * ask, rather than kept as the row itself. A row is a wider thing than this
- * panel can use: most of them are navigation, none of those has a question,
- * and holding one here would mean the panel asking `action.kind === "edit"`
- * again and needing an answer for the case it is never in.
- */
-export type Asking =
-  | {
-    readonly kind: "confirm"
-    /** The verb's own words, on the button that goes ahead. */
-    readonly label: string
-    readonly question: string
-    readonly edit: Edit
-  }
-  // …and the other arm is the whole value the door that asks it resolves
-  // (`../pins/naming.ts`'s `Named`): the words, and the pin they are about.
-  // Declared there rather than restated here, because a question and its
-  // subject are one thing and this panel is the only part of it that is
-  // general.
-  | Named
 
 export function Question(props: {
   readonly asking: Asking
@@ -85,42 +46,32 @@ export function Question(props: {
         {props.asking.question}
       </p>
       <div class="mt-2 flex gap-2">
-        <Show
-          when={props.asking.kind === "confirm"}
-          fallback={
-            <button
-              type="button"
-              ref={props.setGo}
-              class={`${QUIET_PILL} cursor-pointer`}
-              data-testid={TESTID.paletteItem}
-              data-id="go"
-              onClick={() => props.onGo()}
-            >
-              {props.asking.label}
-            </button>
-          }
-        >
-          <button
-            type="button"
-            // AND THE CARET COMES IN, which is the `•••` menu's own confirm
-            // rule (`../menu/Confirm.tsx`): a question nobody's keyboard can
-            // reach is a question only a mouse may answer, and the palette's
-            // Tab trap made that literal. A microtask because the element is
-            // not in the document at the instant the ref runs. The naming arm
-            // above does NOT do this: its answer is typed, and the caret is
-            // already where it is typed.
-            ref={(element) => {
-              props.setGo(element)
+        {/* ONE BUTTON, in the two moods a question has. What differs between
+            them is the mood and the caret, and both read the same one fact —
+            which is what keeps two buttons from being two spellings of one
+            press with different testids. */}
+        <button
+          type="button"
+          // AND THE CARET COMES IN FOR A CONFIRM, which is the `•••` menu's
+          // own rule (`../menu/Confirm.tsx`): a question nobody's keyboard can
+          // reach is a question only a mouse may answer, and the palette's Tab
+          // trap made that literal. A microtask because the element is not in
+          // the document at the instant the ref runs. A LINE does not take it:
+          // its answer is typed, and the caret is already in the box where it
+          // is being typed.
+          ref={(element) => {
+            props.setGo(element)
+            if (props.asking.kind === "confirm") {
               queueMicrotask(() => element.focus())
-            }}
-            class={`${ALARM_PILL} cursor-pointer`}
-            data-testid={TESTID.paletteItem}
-            data-id="go"
-            onClick={() => props.onGo()}
-          >
-            {props.asking.label}
-          </button>
-        </Show>
+            }
+          }}
+          class={`${props.asking.kind === "confirm" ? ALARM_PILL : QUIET_PILL} cursor-pointer`}
+          data-testid={TESTID.paletteItem}
+          data-id="go"
+          onClick={() => props.onGo()}
+        >
+          {props.asking.label}
+        </button>
         <button
           type="button"
           ref={props.setCancel}

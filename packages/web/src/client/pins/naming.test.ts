@@ -7,7 +7,6 @@
  * write, and a rule about a write is testable without a browser.
  */
 
-import { NO_PINS, type Shelf } from "@olai/surface"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
@@ -41,24 +40,22 @@ const wrote = (naming: Parameters<typeof namedEdit>[0], name: string) => {
 // ── which press asks ───────────────────────────────────────────────────
 
 test("a NARROWED page is asked about — nothing in the set can name a query", () => {
-  expect(namingFor(NARROWED, NO_PINS, "Agenda"))
+  expect(namingFor(NARROWED, undefined, "Agenda"))
     .toEqual({ kind: "pin", at: "/agenda?q=is%3Atodo", bare: "Agenda" })
 })
 
 test("a page with no query pins in one press, exactly as it always did", () => {
   // Its name is derived and live — the node's own title, the file's own
   // filename, the word Agenda — so there is nothing to ask.
-  expect(namingFor(AGENDA, NO_PINS, "Agenda")).toBeNull()
-  expect(namingFor(atNode("herbs"), NO_PINS, "the herb bed")).toBeNull()
+  expect(namingFor(AGENDA, undefined, "Agenda")).toBeNull()
+  expect(namingFor(atNode("herbs"), undefined, "the herb bed")).toBeNull()
 })
 
 test("a page already on the shelf is never asked: that press is an UNPIN", () => {
-  const shelf: Shelf = [{ id: "p", title: "/agenda?q=is%3Atodo" }]
-  expect(namingFor(NARROWED, shelf, "Agenda")).toBeNull()
-  // …compared through the bijection, so a shelf that spells the query by hand
-  // is the same door (`./pins.ts`).
-  expect(namingFor(NARROWED, [{ id: "p", title: "/agenda?q=is:todo" }], "Agenda"))
-    .toBeNull()
+  // The door resolves that once and hands it over — the same answer its label
+  // is drawn from (`./pins.ts`'s `pinnedAt`, which compares through the
+  // bijection, so a shelf spelling the query by hand is the same door).
+  expect(namingFor(NARROWED, pinned(), "Agenda")).toBeNull()
 })
 
 // ── what the box says ──────────────────────────────────────────────────
@@ -67,11 +64,19 @@ test("the box opens EMPTY over a derived name, and holds a written one", () => {
   // A derived name typed into the box would be a copy one Enter away from
   // being stored — which is the one thing the shelf's storage design refuses.
   expect(askingFor({ kind: "pin", at: "/agenda?q=x", bare: "Agenda" }))
-    .toMatchObject({ initial: "", placeholder: "Agenda", label: "Pin" })
+    .toMatchObject({ kind: "line", initial: "", placeholder: "Agenda", label: "Pin" })
   expect(askingFor({ kind: "rename", pin: pinned() }))
     .toMatchObject({ initial: "", placeholder: "Agenda", label: "Rename" })
   expect(askingFor({ kind: "rename", pin: pinned({ name: "What is late", written: true }) }))
     .toMatchObject({ initial: "What is late", placeholder: "Agenda" })
+  // …and what it WRITES rides on the question, so the palette answers a line
+  // without knowing it is about a pin.
+  expect(askingFor({ kind: "rename", pin: pinned() }).resolve("What is late"))
+    .toEqual(Result.succeed({
+      verb: "title",
+      id: "p1",
+      title: "[What is late](/agenda?q=is%3Atodo)",
+    }))
 })
 
 // ── what an answer writes ──────────────────────────────────────────────
