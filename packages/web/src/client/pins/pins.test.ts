@@ -36,11 +36,6 @@ test("the doors are the answered rows whose titles name a page, in order", () =>
   ])
 })
 
-test("a named pin keeps its name; a bare address has none", () => {
-  expect(pinsOf(ANSWERED).map((pin) => pin.named))
-    .toEqual([undefined, undefined, "What is late", undefined])
-})
-
 test("what a door is CALLED: the written name, then the set's, then the address", () => {
   expect(pinsOf(ANSWERED).map((pin) => pin.name)).toEqual([
     // The node's own title, as the server answered it.

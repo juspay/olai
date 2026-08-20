@@ -14,8 +14,8 @@
  * ## What crosses, and the one thing that deliberately does not
  *
  * A row travels as the FILE's own two facts — the pin node's id and its title,
- * verbatim — plus the one fact only the SET can answer: what the node that
- * title addresses is called right now ({@link Pinned.name}).
+ * verbatim — plus the one fact only the SET can answer: the node that title
+ * addresses, and what it is called right now ({@link Pinned.shows}).
  *
  * What is NOT decided here is which page an address opens. That is ruled, and
  * the ruling is docs/format.md's own seam: *what an ADDRESS is* — `[document]
@@ -38,7 +38,7 @@
 
 import { Schema } from "effect"
 
-import { parseAddress } from "./address.ts"
+import { linkedTitle, parseAddress } from "./address.ts"
 import { type Derived, nodeNamed, siblingsOf } from "./derive.ts"
 import { isMirror, pinsIn } from "./node.ts"
 
@@ -114,36 +114,24 @@ export const sameShelf = (a: Shelf, b: Shelf): boolean =>
       was.shows?.id === is.shows?.id && was.shows?.name === is.shows?.name
   })
 
-/**
- * A title written as ONE markdown link, cut into its two halves — `null` for
- * every other title.
- *
- * Deliberately narrow, and the same narrowness the browser's own reading has:
- * exactly one link and nothing around it. A title with prose either side of a
- * link is a sentence somebody wrote, not a place with a name on it. What this
- * must NOT become is a markdown parser — titles are inline markdown in this
- * format and what one LOOKS like is decided when it is drawn.
- */
-const LINKED = /^\[([^\]]*)\]\(([^()\s]+)\)$/
-
 /** The address a pin title carries: the whole title, or the target of the one
- *  link it is written as. */
-const addressWritten = (title: string): string => {
-  const text = title.trim()
-  return LINKED.exec(text)?.[2] ?? text
-}
+ *  link it is written as ({@link linkedTitle}, which both sides of this reading
+ *  cut with). */
+const addressWritten = (title: string): string =>
+  linkedTitle(title)?.at ?? title.trim()
 
 /**
  * THE NODE A PIN TITLE ADDRESSES, or `undefined` — the one question about a
  * pin's address that is answered down here.
  *
- * A node address is the location-free half of this format's grammar: no
- * document, an element, and the element is the id (`./address.ts`). Written as
- * a pin it wears the app's leading slash and may wear the app's query, both of
- * which docs/format.md's Pins section spells — `/#<id>`, and `/?q=<filter>#<id>`
- * for the same node narrowed. Neither is interpreted here: the slash is skipped
- * and the query is what sits between the two halves of a URL, so what is left
- * of the document half must be empty for this to be a node at all.
+ * WHICH addresses name one is `./address.ts`'s answer and not this function's:
+ * the bare `#id` and the qualified `garden.olai#id` both do, and the second
+ * normalises to the same id, which is exactly why this asks the grammar rather
+ * than matching a shape. What is done here is the two things the app writes
+ * around an address in a title, both of which docs/format.md's Pins spells: the
+ * leading slash is skipped, and the `?q=` is taken out — it sits between the two
+ * halves of a URL, so cutting the fragment first leaves the path to cut at the
+ * `?`. Neither is interpreted; what a query MEANS is the browser's.
  *
  * EVERY OTHER ADDRESS ANSWERS `undefined`, and none of them is a mistake: a
  * document, a heading, a day and the pages that spell a word all name

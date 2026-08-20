@@ -269,6 +269,39 @@ export const parseAddress = (text: string): Address | null => {
 }
 
 /**
+ * A title written as ONE MARKDOWN LINK around an address, cut into its two
+ * halves — `undefined` for every other title.
+ *
+ * Here because two readers cut it, on opposite sides of a wire, and a regex
+ * spelled twice is a rule that eventually disagrees with itself. The SHELF's
+ * reading takes the target of it (`./shelf.ts`, resolving what a pin's node is
+ * called), and the BROWSER takes both halves — the target to read as a page,
+ * and the label as the name somebody chose (`@olai/web`'s `address/address.ts`,
+ * docs/format.md's Pins). Neither of them is the other's caller, and both are
+ * about one sentence of that convention.
+ *
+ * DELIBERATELY NARROW: exactly one link and nothing around it. A title with
+ * prose either side of a link is a sentence somebody wrote, not a place with a
+ * name on it — and reading it as one would make a door out of a note. What this
+ * must NOT become is a markdown parser: titles are inline markdown in this
+ * format, and what one LOOKS like is decided where it is drawn.
+ *
+ * The halves come back AS WRITTEN. What an empty label means, and what the
+ * target names, are the readers' own questions — this one is only where the
+ * brackets are.
+ */
+export const linkedTitle = (
+  title: string,
+): { readonly label: string; readonly at: string } | undefined => {
+  const linked = LINKED.exec(title.trim())
+  return linked === null ? undefined : { label: linked[1] ?? "", at: linked[2] ?? "" }
+}
+
+/** One markdown link and nothing else: `[label](target)`, with no whitespace or
+ *  parenthesis in the target — the shape {@link linkedTitle} reads. */
+const LINKED = /^\[([^\]]*)\]\(([^()\s]+)\)$/
+
+/**
  * WHICH KIND of file a path names — `null` for a path this grammar cannot
  * name at all.
  *

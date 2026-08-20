@@ -100,19 +100,19 @@ export interface Pin {
   /** Where it goes. Parsed once, here, so nothing downstream re-reads a
    *  title. */
   readonly route: Route
-  /** The name somebody GAVE this pin, or `undefined` for the ordinary bare
-   *  address. Kept beside {@link name} rather than folded into it because it
-   *  says something the drawn name cannot: that these words are AUTHORED, which
-   *  is what makes a face pressable (`../address/Face.tsx`). */
-  readonly named: string | undefined
   /**
-   * What this door is CALLED, as it is drawn — the written name, or what the
-   * address is called, which for a node is what the server says that node's
-   * title is right now and for everything else is the address's own answer.
+   * What this door is CALLED, as it is drawn — the name somebody WROTE on it,
+   * or what its address is called: for a node, what the server says that node's
+   * title is right now; for everything else, the address's own answer.
    *
-   * ONE spelling of that rule, here, because three surfaces read it: the face,
+   * ONE spelling of that rule, here, because three surfaces read it — the face,
    * the row's tooltip and the unpin's label. It used to be spelled in the shelf
    * component beside a comment promising it matched the face's.
+   *
+   * The written name is not kept beside it, and that is a fact about a SHELF
+   * rather than an omission: a shelf row is a `<Link>` already, so its face is
+   * never the anchor an authored name would make it (`../address/Face.tsx`) —
+   * and nothing else here asks which of the two spellings a row was written in.
    */
   readonly name: string
 }
@@ -125,8 +125,11 @@ export interface Pin {
 const pinOf = (row: Pinned): Pin | undefined => {
   const route = addressIn(row.title)
   if (route === undefined) return undefined
-  const named = labelIn(row.title)
-  return { id: row.id, route, named, name: named ?? nameOf(route, showing(route, row)) }
+  // A name somebody WROTE wins over anything derived: it is authored rather
+  // than read off the set, so nothing can disagree with it later
+  // (docs/format.md's Pins).
+  const name = labelIn(row.title) ?? nameOf(route, showing(route, row))
+  return { id: row.id, route, name }
 }
 
 /**

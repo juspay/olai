@@ -188,6 +188,11 @@ export {
   AtNode,
   addressOf,
   DocumentPath,
+  /** A title written as ONE markdown link around an address, cut into its two
+   *  halves — the shape a NAMED pin is written in, read by the shelf reading
+   *  down here and by the browser drawing the same title (docs/format.md's
+   *  Pins). One spelling, because two readers cut it. */
+  linkedTitle,
   NodeId,
   parseAddress,
   printAddress,

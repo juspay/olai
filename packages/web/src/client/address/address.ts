@@ -22,20 +22,9 @@
  * this file, and it has one caller left: the shelf's is the server's now.
  */
 
-import { basenameOf, type Derived, nodeNamed } from "@olai/format"
+import { basenameOf, type Derived, linkedTitle, nodeNamed } from "@olai/format"
 
 import { hrefOf, type Route, routeIn } from "../routes.ts"
-
-/**
- * A title written as one markdown link, cut into its two halves.
- *
- * Deliberately narrow: exactly one link and nothing around it. A title with
- * prose either side of a link is a sentence somebody wrote, not a place with a
- * name on it — and reading it as one would make a door out of a note. What
- * this must NOT become is a markdown parser: this module decides whether a
- * title names a place, and `../markdown/` decides what a title looks like.
- */
-const LINKED = /^\[([^\]]*)\]\(([^()\s]+)\)$/
 
 /**
  * The address a title names, or `undefined`.
@@ -68,8 +57,7 @@ export const addressIn = (title: string): Route | undefined => {
   // Cheap first: nearly every title in a directory is neither, and this runs
   // once per title per draw now that the tree reads it too.
   if (!text.startsWith("/") && !text.startsWith("[")) return undefined
-  const linked = LINKED.exec(text)
-  const address = linked === null ? text : (linked[2] ?? "")
+  const address = linkedTitle(text)?.at ?? text
   if (/\s/.test(address)) return undefined
   return routeIn(address) ?? undefined
 }
@@ -79,7 +67,7 @@ export const addressIn = (title: string): Route | undefined => {
  *  answers for. An empty label (`[](/#herbs)`) is no name: a door with a blank
  *  on it is worse than one the set can name. */
 export const labelIn = (title: string): string | undefined => {
-  const label = LINKED.exec(title.trim())?.[1]?.trim()
+  const label = linkedTitle(title)?.label.trim()
   return label === undefined || label === "" ? undefined : label
 }
 
