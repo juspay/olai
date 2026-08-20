@@ -33,7 +33,7 @@ import { Nothing } from "../Nothing.tsx"
 import { drawnBy, requestFor } from "../page.ts"
 import { createReading, ReadingProvider, useReadings } from "../reading.tsx"
 import { OutlinePage } from "../OutlinePage.tsx"
-import { followed, followedSplit, useGo, useHere, useRouter } from "../router.tsx"
+import { useFollow, useHere, useRouter } from "../router.tsx"
 import { filterOf, hrefOf, narrowable, narrowedTo, samePage } from "../routes.ts"
 import { panesOf } from "../workspace.ts"
 import { visibleIn } from "../settings/done.ts"
@@ -43,7 +43,7 @@ import { TrashPage } from "../trash/TrashPage.tsx"
 export function PageView() {
   const router = useRouter()
   const here = useHere()
-  const go = useGo()
+  const follow = useFollow()
   const today = useToday()
   const route = createMemo(() => panesOf(router.workspace())[here()]!.route)
   const opened = createMemo(route, undefined, { equals: samePage })
@@ -164,16 +164,7 @@ export function PageView() {
           narrow(tag)
           return
         }
-        const split = followedSplit(event)
-        if (split !== null) {
-          event.preventDefault()
-          router.openRight(here(), split, event.shiftKey)
-          return
-        }
-        const next = followed(event)
-        if (next === null) return
-        event.preventDefault()
-        go(next)
+        follow(event)
       }}
     >
       <ReadingProvider reading={reading}>

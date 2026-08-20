@@ -20,6 +20,9 @@
  * Behaviour is keyed on the prompt text, so a scenario asks for what it needs:
  *
  *   name <id>    say that id in backticks, and nothing else
+ *   links        write two LINKS in prose — a relative `.md` path and an
+ *                address of this app — which is what an agent asked about a
+ *                vault does unprompted, and what used to reload the whole app
  *   done <id>    call `set_done` on that node, then say so
  *   add <title>  call `add_node` under the first outline's first root
  *   edit [file]  report a DIRECT file edit, as a `diff` content block — an
@@ -1565,6 +1568,23 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // this exists for: `set_done` refuses one, and an agent still writes them).
   if (verb === "name") {
     say(`look at \`${argument}\`.`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // LINKS in prose, which is what an agent asked about a vault writes without
+  // being taught to: a relative path to a document (the renderer resolves it
+  // against the file the markdown was written in, and an agent's answer was
+  // written in no file, so it is resolved from the root) and an address of
+  // this app spelled out. Both are ANCHORS in rendered markdown belonging to
+  // no component — which is why they are worth a verb: the panel is mounted
+  // beside the panes, so nothing above them catches the click, and for a while
+  // one of these reloaded the whole app.
+  if (verb === "links") {
+    say(
+      "the note is [the cabinets note](notes/cabinets.md) " +
+        "and the row is [the order row](/#order).\n",
+    )
     respond(id, { stopReason: "end_turn" })
     return
   }

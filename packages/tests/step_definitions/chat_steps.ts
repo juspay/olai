@@ -244,6 +244,34 @@ Then(
   },
 );
 
+/** A link the agent WROTE, found by the words it is written under.
+ *
+ *  By its text and not by an attribute, because there is no attribute to find:
+ *  an anchor in rendered markdown is markup the pipeline produced and belongs
+ *  to no component, which is the whole reason a click on one had to be caught
+ *  by a listener on the panel rather than by a handler on the element. Scoped
+ *  to the ANSWER so a scenario cannot accidentally press a link somewhere else
+ *  in the transcript. */
+const answerLink = (world: OlaiWorld, text: string): Locator =>
+  world.page.locator(`${CHAT_SAID} a`).filter({ hasText: text }).first();
+
+When(
+  "I follow the link {string} in the agent's answer",
+  async function (this: OlaiWorld, text: string) {
+    await this.press(answerLink(this, text));
+  },
+);
+
+When(
+  "I alt-click the link {string} in the agent's answer",
+  async function (this: OlaiWorld, text: string) {
+    const link = answerLink(this, text);
+    await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await link.click({ modifiers: ["Alt"] });
+    await this.waitForFrame();
+  },
+);
+
 /** A bubble of my own, by what it says. Two steps ask for one — "the chat
  *  shows my message X" and "… as not sent" — and which element counts as mine
  *  is one answer, not two. */

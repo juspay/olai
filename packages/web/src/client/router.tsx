@@ -298,6 +298,46 @@ export const followed = (event: MouseEvent): Route | null =>
 export const followedSplit = (event: MouseEvent): Route | null =>
   routeFrom(event, (event) => splitClick(event) !== null)
 
+/**
+ * TAKE a click on a link inside rendered markdown — the pair above, answered.
+ *
+ * {@link followed} and {@link followedSplit} say what a press is ASKING FOR;
+ * this is the three lines every surface that draws markdown then writes to
+ * answer it, and they must not be three lines anyone can write differently:
+ * Alt opens to the right, a plain press goes in place, and everything else —
+ * an external link, a modified click, a press something deeper already
+ * answered — is left to the browser.
+ *
+ * It lives here rather than in the pane because the pane is no longer the only
+ * one: the chat panel is mounted BESIDE the panes (`./App.tsx`) and its
+ * transcript renders the agent's markdown, so an anchor in an answer used to
+ * fall through to the browser's default and reload the app cold. {@link useHere}
+ * is what makes one function serve both — inside a pane it is that pane, and
+ * outside every pane it is the FOCUSED one, which is where a link pressed in a
+ * drawer belongs and where the palette and the sidebar already land.
+ *
+ * Answers whether it CLAIMED the press, so a caller with a question of its own
+ * to ask first can tell a link it took from one it should go on ignoring.
+ */
+export const useFollow = (): ((event: MouseEvent) => boolean) => {
+  const router = useRouter()
+  const here = useHere()
+  const go = useGo()
+  return (event) => {
+    const split = followedSplit(event)
+    if (split !== null) {
+      event.preventDefault()
+      router.openRight(here(), split, event.shiftKey)
+      return true
+    }
+    const next = followed(event)
+    if (next === null) return false
+    event.preventDefault()
+    go(next)
+    return true
+  }
+}
+
 export function Link(props: LinkProps) {
   const router = useRouter()
   const here = useHere()

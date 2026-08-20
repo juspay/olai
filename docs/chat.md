@@ -156,6 +156,8 @@ Three things in the conversation are ids, and none of them is a syntax anybody h
 
 If the lookup itself fails, the panel says so at the end of the conversation — one line, because one question carries every message's ids. The words are all still there; what is missing is which of them can be pressed.
 
+**A link the agent writes is a link**, and it behaves like every other link in this app: a path to a document (`notes/plan.md`) or an address of olai's own (`/house.olai`, `/#order`, `/today`) opens in the pane you were last reading, in place, with the conversation still beside it — and Alt+click opens it in a pane to the right. A `https://` one opens in a new tab, so a click can never throw the app away.
+
 ## What it shows when it changes something
 
 A tool call is one folded line, and what the call CHANGED is not folded away — the arguments are what was asked for, and this is what happened to your files. There are two kinds of change and the panel draws them differently, because they are different things.
