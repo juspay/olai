@@ -58,7 +58,7 @@
 import type { RegularNode } from "@olai/format"
 import type { Accessor } from "solid-js"
 
-import type { Names } from "../reading.tsx"
+import type { Names } from "../names.ts"
 import type { NodeRef } from "../ref.ts"
 import type { Relation } from "./relation.ts"
 

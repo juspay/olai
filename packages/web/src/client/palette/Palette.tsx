@@ -42,11 +42,12 @@
  * same reason (run.ts forbids a silent handler).
  */
 
+import { Key } from "@solid-primitives/keyed"
 import {
   createEffect,
   createMemo,
   createSignal,
-  For,
+  Index,
   Match,
   on,
   onCleanup,
@@ -61,7 +62,7 @@ import { Result as Outcome } from "effect"
 
 import { releaseArmed, restoreArmed } from "../chat/armed.ts"
 
-import type { Names } from "../reading.tsx"
+import type { Names } from "../names.ts"
 import { SaidLine } from "../edit/SaidLine.tsx"
 import {
   resetPanelWidths,
@@ -71,6 +72,7 @@ import {
 import { LAYER, WITHIN } from "../layer.ts"
 import { topmostWhileOpen } from "../topmost.ts"
 import { only } from "../narrow.ts"
+import { refusalLines } from "../refusals.ts"
 import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
@@ -255,6 +257,10 @@ export function Palette(props: {
   // The nodes, from the server — one primitive, its own failure, and no
   // request bookkeeping in this component ({@link ../search/nodes.ts}).
   const nodes = createSearch(asked)
+  /** What the grammar could not read, as the sentences it is announced in —
+   *  compared by value so a query that keeps refusing the same token is not
+   *  read out loud again (`../refusals.ts`). */
+  const refused = refusalLines(nodes.refusals)
 
   /**
    * The zoomed node's verbs — its OWN memo, and guarded on the palette being
@@ -842,17 +848,17 @@ export function Palette(props: {
               read and one of them is an operator with a value the grammar does
               not take. Without this a typo in `is:` looks exactly like an empty
               directory (`../search/nodes.ts`). */}
-          <For each={[...nodes.refusals()]}>
-            {(refusal) => (
+          <Index each={refused()}>
+            {(line) => (
               <div
                 class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
                 data-testid={TESTID.searchRefusal}
                 role="alert"
               >
-                {refusal.token} — {refusal.reason}
+                {line()}
               </div>
             )}
-          </For>
+          </Index>
           {/* WHAT A WRITE SAID, in a row of its own for the same reason the
               two above have theirs: it is a third question. The mood — its
               colour, its `data-tone`, whether a screen reader is interrupted —
@@ -877,8 +883,18 @@ export function Palette(props: {
                 class="m-0 max-h-72 list-none overflow-x-hidden overflow-y-auto p-1"
                 data-testid={TESTID.paletteList}
               >
-                <For
-                  each={[...items()]}
+                {/* `<Key>` rather than `<For>`, for the reason the tree uses it
+                    (`../Tree.tsx`): the rows are minted fresh on every read, so
+                    every keystroke during the 200 ms settle rebuilt a list whose
+                    hits had not changed, under a cursor somebody was walking
+                    down. `<Key>` and not `<Index>`, unlike the shortlists, for
+                    the same reason the tree is keyed: these rows MOVE — the
+                    hits arrive under the commands and rank against each other —
+                    and {@link PaletteItem.id} already promises the id is unique
+                    in this list, which is what makes it a key. */}
+                <Key
+                  each={items()}
+                  by="id"
                   fallback={
                     <li class="px-3 py-2 font-mono text-xs text-muted">
                       no matches
@@ -888,23 +904,23 @@ export function Palette(props: {
                   {(item, index) => (
                     <li>
                       <Result
-                        label={item.label}
-                        of={item.of}
-                        hint={item.hint}
-                        place={item.place}
-                        props={item.props}
+                        label={item().label}
+                        of={item().of}
+                        hint={item().hint}
+                        place={item().place}
+                        props={item().props}
                         active={chosen() && index() === cursor.at()}
                         testids={PALETTE_ROW}
-                        id={item.id}
+                        id={item().id}
                         onHover={() => {
                           setChosen(true)
                           cursor.to(index())
                         }}
-                        onSelect={() => runItem(item)}
+                        onSelect={() => runItem(item())}
                       />
                     </li>
                   )}
-                </For>
+                </Key>
               </ul>
             }
           >

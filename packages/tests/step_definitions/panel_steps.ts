@@ -248,6 +248,16 @@ When(
   },
 );
 
+/** One letter back — the gesture of somebody who typed one too many. It WIDENS
+ *  the answer, which is what makes it worth its own step: the rows that were
+ *  already there are still there, so a scenario can say they were not drawn
+ *  again (`redraw_steps.ts`). */
+When("I take a letter off the header search", async function (this: OlaiWorld) {
+  const box = this.page.locator(HEADER_SEARCH);
+  await box.click();
+  await box.press("Backspace");
+});
+
 Then(
   "the header search lists the node {string}",
   async function (this: OlaiWorld, title: string) {

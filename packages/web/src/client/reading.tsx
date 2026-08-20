@@ -47,7 +47,7 @@
  * address does not.
  */
 
-import type { Named, PageReading, PageRequest } from "@olai/format"
+import type { PageReading, PageRequest } from "@olai/format"
 import {
   type Accessor,
   createContext,
@@ -58,6 +58,7 @@ import {
   useContext,
 } from "solid-js"
 
+import { createNames, type Names } from "./names.ts"
 import { olai } from "./wire.ts"
 
 /**
@@ -201,40 +202,15 @@ export const useFrames = (): Accessor<number> => {
   return frames
 }
 
-/** What the ids this page points at are called — see {@link NamesProvider}. */
-export type Names = (id: string) => Named | undefined
-
+/** The narrow door onto one field of a reading — what an id is CALLED. The
+ *  table itself, and the rule about when it may move, are `./names.ts`'s. */
 const NamesContext = createContext<Accessor<Names>>()
-
-/**
- * The names table, as a lookup.
- *
- * A MAP built per answer rather than a scan of the array per link: a page of a
- * thousand rows each drawing two `see`s asks this two thousand times per draw,
- * and the table it is asked of is the ids that page mentions.
- *
- * An id the table does not hold answers `undefined`, which every reader already
- * means something honest by: a `see` onto a node the set does not declare draws
- * its own id (the dangling link, as it always did), and a title that addresses
- * one is drawn by its own address (docs/format.md's Pins).
- *
- * ONE SPELLING, and it is a function rather than a line inside the provider
- * because there are two readers at two depths: everything inside a pane, which
- * takes it off the context below, and the chrome OUTSIDE the panes, which reads
- * the focused pane's reading out of the register and needs the same lookup over
- * it (`./App.tsx`, for the palette's pin row). Written twice, the second copy
- * would be the same table built a different way.
- */
-export const namesIn = (reading: PageReading | undefined): Names => {
-  const table = new Map((reading?.names ?? []).map((one) => [one.id, one]))
-  return (id) => table.get(id)
-}
 
 function NamesProvider(props: {
   readonly reading: Accessor<PageReading | undefined>
   readonly children: JSX.Element
 }) {
-  const named = createMemo<Names>(() => namesIn(props.reading()))
+  const named = createNames(() => props.reading())
   return <NamesContext.Provider value={named}>{props.children}</NamesContext.Provider>
 }
 

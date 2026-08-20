@@ -37,11 +37,12 @@
  */
 
 import type { Referrer } from "@olai/format"
-import { createMemo, createSignal, For, Show } from "solid-js"
+import { Key } from "@solid-primitives/keyed"
+import { createMemo, createSignal, Show } from "solid-js"
 
 import { only } from "../narrow.ts"
 import { useReading } from "../reading.tsx"
-import { atFile, atNode, hrefOf } from "../routes.ts"
+import { atFile, atNode, hrefOf, type Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 
 export function Referrers(props: {
@@ -76,6 +77,9 @@ export function Referrers(props: {
  */
 function Section(props: { readonly found: ReadonlyArray<Referrer> }) {
   const [open, setOpen] = createSignal(false)
+  /** The referrers as the ROWS they draw — the arm decided once per row rather
+   *  than once per fact the arm decides (see {@link rowOf}). */
+  const rows = createMemo(() => props.found.map(rowOf))
   return (
     <details
       class="mt-6 border-t border-rule pt-2"
@@ -94,33 +98,75 @@ function Section(props: { readonly found: ReadonlyArray<Referrer> }) {
       </summary>
       <Show when={open()}>
         <ul class="m-0 mt-2 flex list-none flex-wrap gap-x-3 gap-y-1 p-0">
-          <For each={props.found}>
-            {(one) => (
+          {/* `<Key>`, not `<For>`, for the reason the tree and the refs row use
+              it (../Tree.tsx, ../NodeRefs.tsx, which say it in full). Keyed by
+              which of the two arms the row is and what that arm names — see
+              {@link rowOf}, which is where the arm is decided. */}
+          <Key each={rows()} by="key">
+            {(row) => (
               <li class="min-w-0">
                 <a
                   class="text-sm text-accent no-underline hover:underline"
                   data-testid={TESTID.documentReferrer}
-                  href={one.at === undefined
-                    ? hrefOf(atFile(one.face.path))
-                    : hrefOf(atNode(one.at.node.id))}
+                  href={hrefOf(row().opens)}
                 >
-                  {one.at === undefined ? one.face.title : one.at.node.title}
+                  {row().calls}
                 </a>
                 {/* WHERE it was written, muted beside it — a title in a list of
                     strangers means nothing, and for a record it is the outline
                     the reference is in. A document's own row says the file
                     twice otherwise, so it says it once. */}
-                <Show when={one.at !== undefined}>
-                  <span class="ml-1 font-mono text-xs text-muted">{one.face.path}</span>
+                <Show when={row().where}>
+                  {(where) => (
+                    <span class="ml-1 font-mono text-xs text-muted">{where()}</span>
+                  )}
                 </Show>
               </li>
             )}
-          </For>
+          </Key>
         </ul>
       </Show>
     </details>
   )
 }
+
+/** One row of the section: what identifies it, where it opens, what it is
+ *  called there, and — for a record — the outline it was written in. */
+interface Row {
+  readonly key: string
+  readonly opens: Route
+  readonly calls: string
+  /** `undefined` for a document's own body, which has said its file already. */
+  readonly where?: string
+}
+
+/**
+ * A REFERRER, READ AS THE ROW IT DRAWS — which of the two arms it is, decided
+ * once.
+ *
+ * Four facts turn on that decision and they must all be about the same arm.
+ * Asked four times, that agreement is a rule somebody has to keep; asked once,
+ * it is the shape of the answer.
+ *
+ * THE KEY CARRIES ITS NAMESPACE, because a path and a node id are both strings
+ * and `referrersTo` walks each document once and each of its records once — so
+ * within an arm the key is unique by construction, and across the arms only the
+ * prefix says so. A key that collided would hand one element to the framework
+ * twice, which is the crash `../edges/named.ts` argues at length.
+ */
+const rowOf = (one: Referrer): Row =>
+  one.at === undefined
+    ? {
+      key: `doc:${one.face.path}`,
+      opens: atFile(one.face.path),
+      calls: one.face.title,
+    }
+    : {
+      key: `node:${one.at.node.id}`,
+      opens: atNode(one.at.node.id),
+      calls: one.at.node.title,
+      where: one.face.path,
+    }
 
 /** The summary line: a count in a sentence rather than a bare number, because
  *  it is the whole of what a shut section says. */

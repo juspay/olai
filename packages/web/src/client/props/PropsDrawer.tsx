@@ -37,9 +37,10 @@
  */
 
 import type { RegularNode } from "@olai/format"
-import { createMemo, For, Show } from "solid-js"
+import { Key } from "@solid-primitives/keyed"
+import { createMemo, Show } from "solid-js"
 
-import { customEntries, drawerEntries, isLink } from "./drawer.ts"
+import { customEntries, drawerEntries, type Entry, isLink } from "./drawer.ts"
 import { TESTID } from "../testids.ts"
 
 export function PropsDrawer(props: {
@@ -63,17 +64,23 @@ export function PropsDrawer(props: {
         class="mt-0.5 mb-1 flex flex-wrap items-baseline gap-x-2 text-[0.8125rem] leading-snug text-muted"
         data-testid={TESTID.props}
       >
-        <For each={entries()}>
+        {/* `<Key>`, not `<For>`, for the reason the tree uses it
+            (`../Tree.tsx`): `customEntries` mints fresh entries from a node
+            that is itself a fresh object per frame on a ROW, so drawn by
+            reference every chip of every open row was rebuilt on every frame
+            of the page. Keyed by {@link keyOf}, which is where the one thing
+            that could collide is answered. */}
+        <Key each={entries()} by={keyOf}>
           {(entry, index) => (
             <span
               class="inline-flex min-w-0 max-w-full items-baseline gap-1"
               data-testid={TESTID.prop}
-              data-key={entry.key}
-              data-system={entry.system ? "true" : undefined}
+              data-key={entry().key}
+              data-system={entry().system ? "true" : undefined}
             >
-              <span class="shrink-0 font-mono text-xs">{entry.key}</span>
+              <span class="shrink-0 font-mono text-xs">{entry().key}</span>
               <span class="min-w-0 break-words" data-testid={TESTID.propValue}>
-                <Show when={isLink(entry.value)} fallback={entry.value}>
+                <Show when={isLink(entry().value)} fallback={entry().value}>
                   {/* A link in the run is DIM like everything beside it and
                       takes the accent under the pointer — the tags' own rule,
                       one line down (`../styles.css`). It used to be accent ink
@@ -85,11 +92,11 @@ export function PropsDrawer(props: {
                       announce to the far end. */}
                   <a
                     class="underline decoration-rule underline-offset-2 hover:text-accent hover:decoration-current"
-                    href={entry.value}
+                    href={entry().value}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    {entry.value}
+                    {entry().value}
                   </a>
                 </Show>
               </span>
@@ -102,8 +109,21 @@ export function PropsDrawer(props: {
               </Show>
             </span>
           )}
-        </For>
+        </Key>
       </div>
     </Show>
   )
 }
+
+/**
+ * WHAT IDENTIFIES A CHIP, for the key above.
+ *
+ * The NAMESPACE and then the key, because `custom` is open all the way
+ * (`@olai/format`'s custom.ts): nothing stops a node from carrying a custom
+ * `date`, and on a page drawing both halves that would be one key over two
+ * chips — one element handed to the framework twice, which is a crash rather
+ * than a wrong draw (`../edges/named.ts` argues it where it first bit). Within
+ * each half the keys are a map's own and unique by construction.
+ */
+const keyOf = (entry: Entry): string =>
+  `${entry.system ? "system" : "custom"}:${entry.key}`

@@ -11,7 +11,7 @@
 
 import { expect, test } from "bun:test"
 
-import type { Names } from "../reading.tsx"
+import type { Names } from "../names.ts"
 import { atFile, atNode, HOME_ROUTE, hrefOf } from "../routes.ts"
 import { addressIn, labelIn, nameOf, shownIn } from "./address.ts"
 

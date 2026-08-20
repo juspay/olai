@@ -52,13 +52,14 @@
  * (`Result.tsx`'s `mousedown` guard) so the press lands before the blur.
  */
 
-import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, Index, onCleanup, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { type Anchor, anchoredTo, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
 import { hitItem } from "../palette/items.ts"
 import { openPalette } from "../palette/open.ts"
+import { refusalLines } from "../refusals.ts"
 import type { Route } from "../routes.ts"
 import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
@@ -108,11 +109,16 @@ export function HeaderSearch(props: {
    * rather than a matcher each, and a document is found by what its prose says
    * as well as by what it is called.
    *
-   * A MEMO of its own, because `<For>` keys a row by reference and the hits
-   * hold still while somebody types: re-mapping them per keystroke would be a
-   * teardown and a redraw of rows nothing had happened to.
+   * A MEMO of its own, because the hits hold still while somebody types and
+   * re-mapping them per keystroke would be a redraw of rows nothing had
+   * happened to: an unchanged answer returns the SAME array here, and the
+   * `<Index>` below then writes nothing at all.
    */
   const items = createMemo(() => nodes.hits().map(hitItem))
+  /** What the grammar could not read, as the sentences it is announced in —
+   *  compared by value so a query that keeps refusing the same token is not
+   *  read out loud again (`../refusals.ts`). */
+  const refused = refusalLines(nodes.refusals)
   // The panel is up when there is anything to say — rows, a refused call, or a
   // query the grammar could not read. That last one is why a typo in an
   // operator opens the panel at all rather than looking like an empty
@@ -237,37 +243,42 @@ export function HeaderSearch(props: {
                   name of and not the value. Its own row rather than the one
                   above, for the reason that one has its own: a refused call
                   and a refused query are two different pieces of news. */}
-              <For each={[...nodes.refusals()]}>
-                {(refusal) => (
+              <Index each={refused()}>
+                {(line) => (
                   <div
                     class="border-b border-alarm/40 bg-alarm/5 px-3 py-2 font-mono text-xs text-alarm"
                     data-testid={TESTID.searchRefusal}
                     role="alert"
                   >
-                    {refusal.token} — {refusal.reason}
+                    {line()}
                   </div>
                 )}
-              </For>
+              </Index>
               {/* Down, never sideways — the rows are built not to overflow
                   and this is what keeps that a property of the container. */}
               <ul class="m-0 max-h-72 list-none overflow-x-hidden overflow-y-auto p-1">
-                <For each={[...items()]}>
+                {/* `<Index>` rather than `<For>`, which is `./Shortlist.tsx`'s
+                    rule over the identical rows: they are positional, there
+                    are at most eight, and every answer mints fresh items —
+                    which by reference meant all eight rows torn down and
+                    rebuilt, taking the hover with them. */}
+                <Index each={items()}>
                   {(item, index) => (
                     <li>
                       <Result
-                        label={item.label}
-                        of={item.of}
-                        place={item.place}
-                        props={item.props}
-                        active={index() === cursor.at()}
+                        label={item().label}
+                        of={item().of}
+                        place={item().place}
+                        props={item().props}
+                        active={index === cursor.at()}
                         testids={HEADER_ROW}
-                        id={item.id}
-                        onHover={() => cursor.to(index())}
-                        onSelect={() => open(index())}
+                        id={item().id}
+                        onHover={() => cursor.to(index)}
+                        onSelect={() => open(index)}
                       />
                     </li>
                   )}
-                </For>
+                </Index>
               </ul>
             </div>
           </Portal>

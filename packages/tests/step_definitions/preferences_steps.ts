@@ -25,6 +25,7 @@ import { DONE_HIDDEN_KEY } from "@olai/web/src/client/settings/done.ts";
 import { TESTID } from "@olai/web/src/client/testids.ts";
 import { SIZE_STORAGE_KEY } from "@olai/web/src/client/theme/sizes.ts";
 
+import { focusedOn } from "../support/caret.ts";
 import {
   APP_HEADER,
   attr,
@@ -108,21 +109,9 @@ When("I press Shift+Tab", async function (this: OlaiWorld) {
   await this.page.keyboard.press("Shift+Tab");
 });
 
-/** What has the caret, named the way this suite names things: its test id, or
- *  — for a control inside a panel that has none of its own — enough of it to
- *  say which control it is. */
-const focused = (world: OlaiWorld): Promise<string> =>
-  world.page.evaluate(() => {
-    const el = document.activeElement;
-    if (el === null || el === document.body) return "nothing";
-    const id = el.getAttribute("data-testid");
-    const value = el.getAttribute("data-value");
-    return `${id ?? el.tagName.toLowerCase()}${value === null ? "" : `=${value}`}`;
-  });
-
 Then("the preferences panel has the focus", async function (this: OlaiWorld) {
   assert.equal(
-    await focused(this),
+    await focusedOn(this),
     TESTID.prefsPanel,
     "opening the panel left the caret outside it, so a keyboard reaches the " +
       "controls only after walking the whole page (the panel is portalled to " +
@@ -163,7 +152,7 @@ Then(
     const expected = await endControl(this, which);
     assert.notEqual(expected, "nothing", "the panel offers no controls at all");
     assert.equal(
-      await focused(this),
+      await focusedOn(this),
       expected,
       `Tab was supposed to land on the ${which} control in the panel`,
     );
@@ -171,17 +160,11 @@ Then(
 );
 
 Then("the preferences trigger has the focus", async function (this: OlaiWorld) {
-  const focused = await this.page.evaluate(
-    () =>
-      document.activeElement?.getAttribute("data-testid") ??
-        document.activeElement?.tagName.toLowerCase() ??
-        null,
-  );
+  const held = await focusedOn(this);
   assert.equal(
-    focused,
+    held,
     TESTID.prefsTrigger,
-    `the focus is on ${focused ?? "nothing"}, not on the control that opened ` +
-      "the panel",
+    `the focus is on ${held}, not on the control that opened the panel`,
   );
 });
 

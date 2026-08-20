@@ -67,7 +67,8 @@
 
 import type { RegularNode } from "@olai/format"
 import type { Edit } from "@olai/surface"
-import { createMemo, For, Show } from "solid-js"
+import { Key } from "@solid-primitives/keyed"
+import { createMemo, Show } from "solid-js"
 
 import { useNames } from "../reading.tsx"
 import { Shortlist, type ShortlistTestids } from "../search/Shortlist.tsx"
@@ -143,23 +144,30 @@ export function EdgePanel(props: {
           class="m-0 mb-1 flex list-none flex-wrap gap-1 p-0"
           data-testid={TESTID.edgeHeld}
         >
-          <For each={held()}>
+          {/* `<Key>` BY THE ID AS WRITTEN, which is the key the drawn row of
+              links is already keyed by and for the same reason word for word
+              (`./named.ts`, and `../Tree.tsx` for the mechanism). What it
+              costs here is a caret: drawn by reference, every chip was rebuilt
+              on every frame of the page, and a reader who had tabbed onto an
+              `×` lost it to the document body the moment somebody else
+              wrote. */}
+          <Key each={held()} by="id">
             {(one) => (
               <li class="flex items-center gap-1 rounded border border-rule/70 px-1.5 py-0.5 text-sm text-ink">
-                <span data-ref={one.id}>{one.title}</span>
+                <span data-ref={one().id}>{one().title}</span>
                 {/* The same × the drawn row carries, saying the same sentence
                     (`./DropRef.tsx`) — two doors onto one op, named once. */}
                 <DropRef
                   testid={TESTID.edgeDrop}
                   relation={props.relation}
-                  id={one.id}
-                  title={one.title}
+                  id={one().id}
+                  title={one().title}
                   onDrop={(target) =>
                     props.onWrite(unlinking(props.node.id, props.relation, target))}
                 />
               </li>
             )}
-          </For>
+          </Key>
         </ul>
       </Show>
 

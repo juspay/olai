@@ -25,7 +25,7 @@
 
 import { addressWritten, basenameOf, linkedTitle } from "@olai/format"
 
-import type { Names } from "../reading.tsx"
+import type { Names } from "../names.ts"
 import { hrefOf, type Route, routeIn } from "../routes.ts"
 
 /**
