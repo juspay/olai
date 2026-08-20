@@ -28,7 +28,13 @@
  * wrong sentence about the wrong thing.
  */
 
-import { type Accessor, createEffect, createResource, createSignal } from "solid-js"
+import {
+  type Accessor,
+  createEffect,
+  createResource,
+  createSignal,
+  untrack,
+} from "solid-js"
 import { debounce } from "@solid-primitives/scheduled"
 import { Result } from "effect"
 
@@ -154,6 +160,22 @@ export function createSearch(
     setFailure(null)
   })
 
+  /**
+   * Is this fetcher still answering the query that is being asked?
+   *
+   * `createResource` DROPS the return value of a fetcher whose source has moved
+   * on; it cannot un-run the fetcher. The answer is therefore safe and the
+   * FAILURE SLOT is not — it is a signal every query shares, written from inside
+   * the async function after the await — so a slow failure of query A landing
+   * after query B succeeded would put A's error under B's rows, and a slow
+   * success of A would clear an error that is B's. A box emptied while a call
+   * was in flight got the same treatment: a reason for a list nobody can see.
+   *
+   * `untrack`, because this is read inside an async continuation: as a
+   * dependency it would make a fetcher's own resolution a reason to re-run it.
+   */
+  const answering = (query: string) => untrack(asked) === query
+
   const [answer] = createResource(asked, async (query: string) => {
     const outcome = await runAsync(
       olai.procedures.search.nodes({
@@ -163,10 +185,10 @@ export function createSearch(
       }),
     )
     if (Result.isFailure(outcome)) {
-      setFailure(outcome.failure.message)
+      if (answering(query)) setFailure(outcome.failure.message)
       return null
     }
-    setFailure(null)
+    if (answering(query)) setFailure(null)
     return outcome.success
   })
 

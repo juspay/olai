@@ -21,7 +21,9 @@
  *     line: a filter settles and then flies, so for a beat the page is one
  *     query behind, and the count of the query before is a number about a
  *     question nobody asked. The rows hold still and this line says so
- *     (`./count.ts`'s `ANSWERING`);
+ *     (`./count.ts`'s `ANSWERING`) — unless the last call FAILED, in which
+ *     case it says nothing at all, because no answer is coming and the failure
+ *     line below is the news (`./count.ts`'s `countSaid` holds all three);
  *   - a REFUSAL, in the grammar's own words, for a known operator with an
  *     unknown value. Never silently downgraded to a substring search:
  *     HACKING.md's rule is that an error reaches somebody. It is drawn from
@@ -46,7 +48,7 @@ import { SaidLine } from "../edit/SaidLine.tsx"
 import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
-import { ANSWERING, countLine } from "./count.ts"
+import { countSaid } from "./count.ts"
 import type { Narrowing } from "./narrowing.ts"
 
 /** What the box says when it is empty — the whole grammar in one line, because
@@ -73,6 +75,17 @@ export function FilterBar(props: {
    *  (`../connection/reaching.ts`). What is already narrowed stays narrowed —
    *  the last thing the server said is still the last thing the server said. */
   const inert = () => props.asked.offline() !== null
+
+  /** What the one line under the box says, or nothing — the three states a
+   *  filtered page can be in, decided in `./count.ts` rather than in a binding
+   *  here. */
+  const said = () =>
+    countSaid({
+      answering: props.narrowing.answering(),
+      failure: props.asked.failure(),
+      offline: props.asked.offline(),
+      counts: props.narrowing.counts(),
+    })
 
   return (
     <div
@@ -136,25 +149,27 @@ export function FilterBar(props: {
         </Show>
       </div>
 
-      <Show when={props.narrowing.active()}>
-        <p
-          class="m-0 mt-1 font-mono text-xs text-muted"
-          data-testid={TESTID.filterCount}
-          // The three numbers, or the word that says they are not about what is
-          // typed yet — ONE element either way (`./count.ts` argues why).
-          //
-          // A READOUT rather than something said about a write, which is why
-          // it is not a `SaidLine` (`../edit/SaidLine.tsx` owns the two MOODS a
-          // write has, and a count has neither). Announced politely for the
-          // reason a remark is: it changes under a reader who is typing, and
-          // interrupting them with each keystroke is worse than the number is
-          // worth.
-          aria-live="polite"
-        >
-          {props.narrowing.answering() === null
-            ? ANSWERING
-            : countLine(props.narrowing.counts())}
-        </p>
+      {/* The three numbers, the word that says they are not about what is typed
+          yet, or NOTHING when the last call failed and the line under this one
+          is already the news — one element, and `./count.ts` decides which of
+          the three it is, so the decision is somewhere a test can ask about
+          it. */}
+      <Show when={props.narrowing.active() && said()}>
+        {(line) => (
+          <p
+            class="m-0 mt-1 font-mono text-xs text-muted"
+            data-testid={TESTID.filterCount}
+            // A READOUT rather than something said about a write, which is why
+            // it is not a `SaidLine` (`../edit/SaidLine.tsx` owns the two MOODS a
+            // write has, and a count has neither). Announced politely for the
+            // reason a remark is: it changes under a reader who is typing, and
+            // interrupting them with each keystroke is worse than the number is
+            // worth.
+            aria-live="polite"
+          >
+            {line()}
+          </p>
+        )}
       </Show>
 
       {/* The refusal IS a said-thing, and the one mood `SaidLine` calls a
