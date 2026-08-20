@@ -1,5 +1,9 @@
 @scratch:good
 Feature: A frame leaves the rest of the page standing
+  `the_chrome_holds_still.feature` asks this of a NAVIGATION. This is the same
+  question asked of a FRAME: what somebody else's write, arriving under a page
+  already on screen, was allowed to touch.
+
   The store publishes a whole frame whenever anything on the open page changes,
   and — because a frame is merged without an array key — every element of every
   array in it is a FRESH OBJECT (docs/brainstorming/reactivity-after-the-flip.md
