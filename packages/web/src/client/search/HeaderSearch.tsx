@@ -58,7 +58,7 @@ import { Portal } from "solid-js/web"
 import { type Anchor, anchoredTo, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
 import { hitItem } from "../palette/items.ts"
-import { setPaletteOpen } from "../palette/open.ts"
+import { openPalette } from "../palette/open.ts"
 import { refusalLines } from "../refusals.ts"
 import type { Route } from "../routes.ts"
 import { listKey } from "../keys.ts"
@@ -209,7 +209,7 @@ export function HeaderSearch(props: {
         class={`${TARGET_BOX} inline-flex items-center justify-center rounded text-paper/70 hover:text-paper md:hidden`}
         data-testid={TESTID.headerSearchOpen}
         aria-label="search the directory"
-        onClick={() => setPaletteOpen(true)}
+        onClick={() => openPalette()}
       >
         <span aria-hidden="true" class="text-base leading-none">⌕</span>
       </button>

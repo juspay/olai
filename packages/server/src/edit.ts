@@ -72,8 +72,10 @@ import {
   nodesOf,
   type OpFailure,
   outlinePaths,
+  PIN_NAME_UNWRITABLE,
   PINS,
   pinsIn,
+  pinTitle,
   type Reading,
   siblingsOf,
   type Status,
@@ -405,16 +407,37 @@ const captureRequest = (
  * is where a new bookmark goes, and is the ops layer's own default for an
  * `add` that names no sibling. Where it goes AFTERWARDS is the drag's, and
  * that is a `place` like every other reordering in this app.
+ *
+ * ## The NAME, when the gesture carried one
+ *
+ * The row's title is the address, and a named pin's is that address inside a
+ * markdown link — the spelling `Pins.olai` has always had and the one an agent
+ * writes by hand (docs/format.md's Pins). It is composed HERE, beside the
+ * placement, for the reason the placement is here: this is the one site that
+ * knows the whole row it is about to add, so there is no moment at which a
+ * half-named pin exists. `pinTitle` is `@olai/format`'s, the inverse of the
+ * reader that draws one, so the two cannot disagree about where the brackets
+ * go.
+ *
+ * A NAME THE LINK CANNOT HOLD IS REFUSED, in that function's own sentence — a
+ * `]` closes the label early, and a title written past it is not an address
+ * any more, so the row would leave the shelf with nothing said. That is a
+ * `usage` refusal: nothing was read and nothing was written, which is exactly
+ * what this is.
  */
 const pinRequest = (
   at: Reading,
   edit: Extract<Edit, { verb: "pin" }>,
 ): Resolved => {
+  const title = pinTitle(edit.at, edit.name ?? "")
+  if (title === undefined) {
+    return Result.fail(new UsageFailure({ reason: PIN_NAME_UNWRITABLE }))
+  }
   const shelf = pinsIn(outlinePaths(at.set))
   return Result.succeed(
     shelf === undefined
-      ? { op: "create", file: mintedInto(PINS), seed: { title: edit.at } }
-      : { op: "add", file: shelf, title: edit.at },
+      ? { op: "create", file: mintedInto(PINS), seed: { title } }
+      : { op: "add", file: shelf, title },
   )
 }
 

@@ -426,3 +426,25 @@ Feature: Undo
     And I press "ControlOrMeta+z"
     Then the undo says "nothing to undo"
     And there should be no page errors
+
+  Scenario: ...and a zoom into one of its own rows is not leaving it
+    # The other half of the rule above, and the one that used to be broken: a
+    # node of house.olai is house.olai, so zooming into it is the same outline
+    # at a narrower address. The stack was cleared anyway — what "the open
+    # file" was got asked of the PAGE, which blanks for one round trip on every
+    # navigation, so a same-file zoom read as house.olai → nothing → house.olai
+    # and the effect fired twice on the way through
+    # (docs/brainstorming/reactivity-after-the-flip.md §3.1's 1.7).
+    When I click the title of "knobs"
+    And I press "Tab"
+    And I click away from the editor
+    Then the node "knobs" is a child of "hinges"
+    # The zoomed page draws `install`’s children as its rows, so what the undo
+    # puts back is read as `knobs` leaving `hinges` rather than as a nesting
+    # under the heading.
+    When I zoom into the node "install"
+    And I press "ControlOrMeta+z"
+    Then nothing is said about the undo
+    And the node "knobs" is not a child of "hinges"
+    And the page has not reloaded
+    And there should be no page errors

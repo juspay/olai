@@ -64,6 +64,9 @@ export const TESTID = {
   addressFilter: "address-filter",
   /** Take this pin off the shelf. */
   pinRemove: "pin-remove",
+  /** Ask what this pin should be CALLED — the shelf's door onto the palette's
+   *  naming question (`pins/naming.ts`). */
+  pinRename: "pin-rename",
   /** The line that says where a dragged pin would land. */
   pinDropLine: "pin-drop-line",
   /** Rail icon: jump to today. */
@@ -462,7 +465,7 @@ export const TESTID = {
   /** The panel it opens (portalled out of the header). */
   prefsPanel: "prefs-panel",
   /** One preference on it; `data-pref` is which — `theme`, `font`, `size`,
-   *  `density`, `done`. */
+   *  `density`, `done`, `git`. */
   prefsRow: "prefs-row",
   /** That row's hint: what the choice IN FORCE means, re-read whenever the
    *  control moves. Its own name because it is the half of a settings row that
@@ -859,8 +862,11 @@ export const TESTID = {
    *  own words, or a remark about one that landed. `data-tone` says which,
    *  because the mood is a fact and the colour is a styling decision. */
   paletteSaid: "palette-said",
-  /** The question the one verb with a blast radius asks before it runs — the
-   *  `•••` menu's sentence, in the palette's own box. */
+  /** The QUESTION the palette is asking, whichever of the two it is: the
+   *  sentence the one verb with a blast radius asks before it runs (the `•••`
+   *  menu's own words), or the one a pin's name is typed under. One slot,
+   *  because "is the palette asking something" is one fact about this panel
+   *  (`palette/Question.tsx`). */
   paletteConfirm: "palette-confirm",
   // ── the filter over the page, which is not the header's box ──────────
   /** The bar above a tree page: the box, the count, the refusals. Drawn on the

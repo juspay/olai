@@ -90,6 +90,22 @@ Then(
   },
 );
 
+/** The same click one kind over from "I click the document": the entry in the
+ *  tree, pressed from wherever the reader already is. Its sibling below opens
+ *  the app first, which is what makes it a `Given`; this one is a gesture on a
+ *  page that is already up, and the difference is the whole subject of
+ *  `features/the_chrome_holds_still.feature`. */
+When(
+  "I click the outline {string}",
+  async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
+    const link = this.outlineLink(file);
+    await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await link.click();
+    await this.waitForFrame();
+  },
+);
+
 Given(
   "I open the outline {string}",
   async function (this: OlaiWorld, file: string) {

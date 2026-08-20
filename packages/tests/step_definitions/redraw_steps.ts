@@ -1,31 +1,30 @@
 /**
- * WHAT WAS PATCHED AND WHAT WAS TORN DOWN — the DOM-identity probe, as steps.
+ * WHAT WAS PATCHED AND WHAT WAS TORN DOWN, asked of one region of the screen.
  *
- * `chat_steps.ts` has marked ONE element and asked afterwards whether it is the
- * same one since the transcript needed it. These are the whole-subtree form,
- * and they exist for the class of defect
- * `docs/brainstorming/reactivity-after-the-flip.md` catalogues: the store
- * publishes a frame in which every array element is a fresh object, so a list
- * drawn by REFERENCE is rebuilt whether or not anything it draws changed. A
- * rebuilt list looks exactly like a patched one — same tags, same attributes,
- * same words — and costs the reader the caret they had in it, the row their
- * pointer was on, and, where it is a live region, a second announcement of a
- * sentence they already heard.
+ * `holding_still_steps.ts` asks the same question of a NAVIGATION, which is the
+ * gesture PR 1 of `docs/brainstorming/reactivity-after-the-flip.md` is about.
+ * These are the rest of that campaign's question: the lists that were rebuilt by
+ * something other than a navigation — a frame of the page arriving, an answer
+ * landing, a keystroke — because they were drawn by REFERENCE over an array the
+ * store replaces wholesale on every frame (§2, and §3.2's nine sites).
  *
- * So the question is asked of the elements themselves: serial every one of them
- * before, count the survivors after (§6's probe, and its numbers are the ones
- * the audit measured with).
+ * A rebuilt list looks exactly like a patched one: same tags, same attributes,
+ * same words. What it costs is what the elements were HOLDING — the caret
+ * somebody had tabbed onto an `×`, the row under a pointer, a scroll position,
+ * and, where the list is a live region, a second announcement of a sentence
+ * nobody changed. So the question is asked of the elements themselves, through
+ * the same probe the navigation steps read (`support/probe.ts`).
  *
  * ITS OWN FILE because it belongs to no feature — nine surfaces across the
  * client are asked the same question, and a copy of it under each would be nine
  * chances to ask it a slightly different way.
  */
 
-import * as assert from "node:assert";
 import { Given, Then } from "@cucumber/cucumber";
 
 import { selector, TESTID } from "@olai/web/src/client/testids.ts";
 
+import { markRegion, nothingAnnounced, regionHeld } from "../support/probe.ts";
 import {
   BREADCRUMBS,
   CHAT_COMPLETION,
@@ -72,40 +71,20 @@ const regionOf = (name: string): string => {
 Given(
   "I mark every element of the {string}",
   async function (this: OlaiWorld, name: string) {
-    const marked = await this.markElementsUnder(regionOf(name));
-    assert.ok(marked > 0, `the ${name} is drawn but holds nothing`);
+    await markRegion(this, regionOf(name), name);
   },
 );
 
 Then(
   "the {string} kept every element it had",
   async function (this: OlaiWorld, name: string) {
-    const lost = await this.elementsLostUnder(regionOf(name));
-    assert.strictEqual(
-      lost,
-      0,
-      `${lost} element(s) of the ${name} were torn down and drawn again for a ` +
-        `frame that did not change what they say. A list keyed by REFERENCE ` +
-        `over an array the store rebuilds every frame does that — see ` +
-        `docs/brainstorming/reactivity-after-the-flip.md §2 — and it costs the ` +
-        `reader the caret, the hover and the scroll position it was holding.`,
-    );
+    await regionHeld(this, regionOf(name), name);
   },
 );
 
 Then(
   "nothing in the {string} was announced again",
   async function (this: OlaiWorld, name: string) {
-    // The region is the one already being watched — naming it here is what
-    // makes the scenario readable, and the mismatch is worth refusing.
-    regionOf(name);
-    const announced = await this.alertsAnnouncedUnder();
-    assert.strictEqual(
-      announced,
-      0,
-      `a live region in the ${name} moved ${announced} time(s) without its ` +
-        `words changing, so a screen reader read the same refusal out loud ` +
-        `again for a keystroke that did not change the reader's mind.`,
-    );
+    await nothingAnnounced(this, regionOf(name), name);
   },
 );

@@ -916,15 +916,6 @@ export const SETTLED_SELECTOR =
  *  a reload" can prove it rather than assume it. */
 export const NO_RELOAD_MARK = "__olaiNoReloadMark";
 
-/** The serial one element carries while a region is being watched, the count
- *  of how many were given one, and the record of what a screen reader would
- *  have been told again — see {@link OlaiWorld.markElementsUnder}. Expandos
- *  and `window` keys rather than attributes, because an attribute is something
- *  a rebuilt element would be drawn with too. */
-export const ELEMENT_SERIAL = "__olaiElementSerial";
-export const ELEMENT_TALLY = "__olaiElementTally";
-export const ALERT_LOG = "__olaiAlertLog";
-
 /** Rendered text, flattened to one line.
  *
  *  Everything read out of the DOM goes through this before it is compared or
@@ -2052,105 +2043,6 @@ export class OlaiWorld extends World {
     await this.page.evaluate((key) => {
       (window as unknown as Record<string, unknown>)[key] = true;
     }, NO_RELOAD_MARK);
-  }
-
-  /**
-   * SERIAL EVERY ELEMENT under a region, and watch what happens to it.
-   *
-   * The whole-subtree form of `chat_steps.ts`'s one-element mark, and it exists
-   * for the same reason that one does: every attribute a rebuilt element is
-   * drawn with is one the old element had too, so nothing about how a list
-   * LOOKS says whether it was patched or torn down and built again. A property
-   * set from outside the framework survives a re-render and does not survive a
-   * remount — and a serial per element makes the answer a COUNT rather than a
-   * yes for the one element somebody thought to mark.
-   *
-   * The observer beside it is the other half: a live region that is rebuilt is
-   * read out loud again, and "was it announced twice" is a question about
-   * mutations rather than about what is on screen at the end
-   * (`docs/brainstorming/reactivity-after-the-flip.md` §6, which is where this
-   * probe comes from).
-   */
-  async markElementsUnder(selector: string): Promise<number> {
-    return this.page.evaluate(
-      ([selector, key, tally, log]) => {
-        const roots = [...document.querySelectorAll(selector)];
-        if (roots.length === 0) {
-          throw new Error(`nothing on the page matches ${selector}`);
-        }
-        const bag = window as unknown as Record<string, unknown>;
-        let serial = 0;
-        const serialise = (element: Element) => {
-          (element as unknown as Record<string, unknown>)[key] = ++serial;
-        };
-        for (const root of roots) {
-          serialise(root);
-          root.querySelectorAll("*").forEach(serialise);
-        }
-        bag[tally] = serial;
-        const seen: Array<string> = [];
-        bag[log] = seen;
-        const alarming = (node: Node): boolean =>
-          node instanceof Element &&
-          (node.getAttribute("role") === "alert" ||
-            node.closest('[role="alert"]') !== null ||
-            node.querySelector('[role="alert"]') !== null);
-        new MutationObserver((records) => {
-          for (const record of records) {
-            const touched = [
-              record.target,
-              ...record.addedNodes,
-              ...record.removedNodes,
-            ];
-            if (touched.some(alarming)) seen.push(record.type);
-          }
-        }).observe(roots[0]!, {
-          subtree: true,
-          childList: true,
-          characterData: true,
-        });
-        return serial;
-      },
-      [selector, ELEMENT_SERIAL, ELEMENT_TALLY, ALERT_LOG] as const,
-    );
-  }
-
-  /** How many of the serialled elements are no longer in the document — 0 for
-   *  a region that was patched in place. */
-  async elementsLostUnder(selector: string): Promise<number> {
-    return this.page.evaluate(
-      ([selector, key, tally]) => {
-        const still = new Set<number>();
-        for (const root of document.querySelectorAll(selector)) {
-          const own = (root as unknown as Record<string, unknown>)[key];
-          if (typeof own === "number") still.add(own);
-          root.querySelectorAll("*").forEach((element) => {
-            const serial = (element as unknown as Record<string, unknown>)[key];
-            if (typeof serial === "number") still.add(serial);
-          });
-        }
-        const total = (window as unknown as Record<string, unknown>)[tally];
-        if (typeof total !== "number") {
-          throw new Error("nothing was serialled — mark the region first");
-        }
-        let lost = 0;
-        for (let i = 1; i <= total; i++) if (!still.has(i)) lost++;
-        return lost;
-      },
-      [selector, ELEMENT_SERIAL, ELEMENT_TALLY] as const,
-    );
-  }
-
-  /** How many mutations since the mark touched something a screen reader is
-   *  told about — an announcement it would read again. */
-  async alertsAnnouncedUnder(): Promise<number> {
-    return this.page.evaluate((log) => {
-      const seen = (window as unknown as Record<string, unknown>)[log];
-      if (!Array.isArray(seen)) {
-        throw new Error("nothing is watching — mark the region first");
-      }
-      return seen.length;
-    }, ALERT_LOG);
   }
 
   /** How big the WINDOW is — the other half of {@link box}, and the thing

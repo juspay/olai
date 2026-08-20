@@ -195,6 +195,12 @@ export {
    *  One spelling, because two readers cut it. */
   addressWritten,
   linkedTitle,
+  /** ...and the other direction: the title a pin carries for a name somebody
+   *  typed, refused rather than mangled when the words cannot go in a link.
+   *  Two writers cut this too — the server resolving a `pin`, the browser
+   *  renaming one. */
+  PIN_NAME_UNWRITABLE,
+  pinTitle,
   NodeId,
   parseAddress,
   printAddress,

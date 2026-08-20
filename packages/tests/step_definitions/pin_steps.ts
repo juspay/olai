@@ -20,13 +20,14 @@ import { DataTable, Given, Then, When } from "@cucumber/cucumber";
 import { selector, TESTID } from "@olai/web/src/client/testids.ts";
 
 import { attr } from "../support/selectors.ts";
-import { POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";
+import { PALETTE_INPUT, POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 const SHELF = selector(TESTID.pinShelf);
 const PIN = selector(TESTID.pin);
 const PIN_LINK = selector(TESTID.pinLink);
 const PIN_REMOVE = selector(TESTID.pinRemove);
+const PIN_RENAME = selector(TESTID.pinRename);
 
 /** The file the shelf IS. Named once here, from the format's own constant, so
  *  a scenario naming it and a step reading it cannot disagree. */
@@ -114,6 +115,36 @@ When("I unpin {string}", async function (this: OlaiWorld, address: string) {
   await this.showSidebar();
   await pinAt(this, address).hover();
   await pinAt(this, address).locator(PIN_REMOVE).click({ force: true });
+  await this.waitForFrame();
+});
+
+/** The `✎` beside it — the shelf's door onto the palette's naming question
+ *  (`client/pins/naming.ts`). Revealed on hover like the `×`, and `force` for
+ *  the same reason. */
+When("I rename the pin {string}", async function (this: OlaiWorld, address: string) {
+  await this.showSidebar();
+  await pinAt(this, address).hover();
+  await pinAt(this, address).locator(PIN_RENAME).click({ force: true });
+  await this.page.locator(PALETTE_INPUT).waitFor({
+    state: "visible",
+    timeout: POLL_TIMEOUT,
+  });
+});
+
+/**
+ * The NAME, typed into the palette's own box and sent.
+ *
+ * The box is the palette's rather than a field of the question's own, which is
+ * the design being asserted here as much as anywhere: the caret is already in
+ * it, and Enter sends exactly what a reader can read. An EMPTY string is a
+ * step, not a no-op — "Enter with nothing" is the bare pin, and it is the
+ * keystroke that keeps the chord one press away from what it always did.
+ */
+When("I name the pin {string}", async function (this: OlaiWorld, name: string) {
+  const box = this.page.locator(PALETTE_INPUT);
+  await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await box.fill(name);
+  await box.press("Enter");
   await this.waitForFrame();
 });
 

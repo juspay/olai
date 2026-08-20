@@ -805,6 +805,32 @@ export const Edit = Schema.Union([
      * bijection that wrote it, in the browser, at view time.
      */
     at: Schema.String,
+    /**
+     * WHAT TO CALL IT, when somebody said — absent for the ordinary pin, which
+     * is a bare address drawn by whatever it points at.
+     *
+     * It is a field on this VERB and not a field on a record: what lands is
+     * still one ordinary node whose title is `[name](address)`, which is the
+     * spelling `Pins.olai` has always had for a named pin and the one an agent
+     * writes by hand (docs/format.md's Pins). So the format grew nothing, and
+     * the consistency rule is paid the way pinning itself paid it — an agent
+     * names a pin with the `add_node` it already has, and renaming one on
+     * either face is `set_title` on that row.
+     *
+     * WHY IT RIDES ALONG rather than being a `set_title` sent after the pin:
+     * one intention is one op. Two writes would be two rounds through the gate
+     * and two entries on the undo stack — so ⌘Z would leave a nameless pin
+     * standing — with a window between them in which the shelf holds a row
+     * nobody meant to leave bare.
+     *
+     * THE TITLE IS SPELLED WHERE THE ADDRESS IS RESOLVED
+     * ({@link ../../server/src/edit.ts}), with `@olai/format`'s `pinTitle` —
+     * the inverse of the reader that draws one. A browser that spelled it here
+     * would be writing a title past the one field this verb promises to carry
+     * verbatim, and a name the link's grammar cannot hold is refused there, in
+     * that function's own words.
+     */
+    name: Schema.optionalKey(Schema.String),
   }),
 
   // ── the documents' three ─────────────────────────────────────────────

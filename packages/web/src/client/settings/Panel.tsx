@@ -12,17 +12,20 @@
  *
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
- * theme, the typeface, how much of a row is drawn by default, and what this
- * browser does with finished work. The DENSITY belongs here for exactly the
- * reason the done preference does: it is a claim about the reader ("I read a
- * tree as a list of titles") rather than about any one outline, so a switch
- * bolted to the outline page would be a per-page control for a per-person fact —
- * and would have to be drawn on the zoomed page and the day page too. The layout
- * values in `../layout/prefs.ts` are stored the same way and are deliberately
- * NOT here — a sidebar width is set by dragging the sidebar, and a panel
- * being open is set by the control that opens it. Copying them into a
- * settings list would be a second control for something that already has
- * one, which is the redundancy `one-git-indicator` was filed over.
+ * theme, the typeface, how much of a row is drawn by default, what this
+ * browser does with finished work, and whether a commit from here is pushed.
+ * The DENSITY belongs here for exactly the reason the done preference does: it
+ * is a claim about the reader ("I read a tree as a list of titles") rather than
+ * about any one outline, so a switch bolted to the outline page would be a
+ * per-page control for a per-person fact — and would have to be drawn on the
+ * zoomed page and the day page too. Git's Auto-push is the same kind of claim
+ * ("I want a commit I make here to be sent"), so it is a row rather than a
+ * switch on the Commit panel. The layout values in `../layout/prefs.ts` are
+ * stored the same way and are deliberately NOT here — a sidebar width is set
+ * by dragging the sidebar, and a panel being open is set by the control that
+ * opens it. Copying them into a settings list would be a second control for
+ * something that already has one, which is the redundancy `one-git-indicator`
+ * was filed over.
  *
  * Every row is `./Row.tsx`: a label, a control, and a line under it read off
  * the choice in force.
@@ -36,6 +39,7 @@
 
 import { type Anchor, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
+import { autoPush, setAutoPush } from "./autopush.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
 import { Row } from "./Row.tsx"
@@ -68,6 +72,13 @@ const DENSITY_CHOICES: ReadonlyArray<{ value: Density; label: string }> = [
   { value: "cozy", label: "Cozy" },
   { value: "open", label: "Open" },
 ]
+
+/** Git: Off / Auto-push — today's wait, or a commit from this browser is
+ *  followed by the same push the panel already offers. */
+const GIT_CHOICES = [
+  { value: "off", label: "Off" },
+  { value: "on", label: "Auto-push" },
+] as const
 
 export function Panel(props: {
   /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
@@ -130,6 +141,14 @@ export function Panel(props: {
         />
       </Row>
 
+      <Row label="Git" pref="git" hint={gitHint()}>
+        <Segmented
+          choices={GIT_CHOICES}
+          value={autoPush() ? "on" : "off"}
+          onPick={(value) => setAutoPush(value === "on")}
+        />
+      </Row>
+
       {/* One sentence for the whole panel, because it is one fact about every
           row on it and repeating it per row would be three copies of the
           doctrine. It is here at all because "where did this go" is exactly
@@ -176,3 +195,8 @@ const doneHint = (): string =>
     ? "Finished work is hidden — a row not drawn, never a node marked or a " +
       "file written."
     : "Finished work is shown."
+
+const gitHint = (): string =>
+  autoPush()
+    ? "A commit from this browser is pushed after it is recorded."
+    : "A commit from here waits. Push it from the panel."

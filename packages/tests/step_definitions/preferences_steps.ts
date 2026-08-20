@@ -16,6 +16,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 import type { Page } from "playwright";
 
+import { AUTOPUSH_KEY } from "@olai/web/src/client/settings/autopush.ts";
 import {
   DENSITY_KEY,
   type Density,
@@ -240,10 +241,10 @@ Then("the preferences panel opens downward, clear of the bar", async function (t
 /**
  * Press one segment of one row, and wait for the panel to say it took.
  *
- * ONE spelling for every segmented row there is — Done, Notes, Size — because
- * they are one control (`client/settings/Segmented.tsx`) and the wait is the
- * subtle half: pressing and carrying on races the render, and each row having
- * its own copy of that wait is how the third one gets it slightly wrong.
+ * ONE spelling for every segmented row there is — Done, Notes, Size, Git —
+ * because they are one control (`client/settings/Segmented.tsx`) and the wait
+ * is the subtle half: pressing and carrying on races the render, and each row
+ * having its own copy of that wait is how the third one gets it slightly wrong.
  */
 const pickChoice = async (
   page: Page,
@@ -455,6 +456,45 @@ Then(
       stored,
       value,
       `this browser keeps "${stored}" under ${SIZE_STORAGE_KEY}`,
+    );
+  },
+);
+
+// ── the Git preference: whether a commit from here is pushed ───────────
+
+const asGit = (value: string): "off" | "on" => {
+  if (value !== "off" && value !== "on") {
+    throw new Error(`Git is "off" or "on", not "${value}"`);
+  }
+  return value;
+};
+
+When(
+  "I set Git to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "git", asGit(value));
+  },
+);
+
+Then(
+  "the Git row explains that a commit {string}",
+  async function (this: OlaiWorld, expected: string) {
+    const hint = await hintOf(this, "git");
+    assert.ok(
+      hint.includes(expected),
+      `the Git row says "${hint}", which does not say a commit ${JSON.stringify(expected)}`,
+    );
+  },
+);
+
+Then(
+  "this browser has stored that auto-push is {string}",
+  async function (this: OlaiWorld, state: string) {
+    const stored = await this.stored(AUTOPUSH_KEY);
+    assert.equal(
+      stored,
+      asGit(state) === "on" ? "true" : "false",
+      `this browser keeps "${stored}" under ${AUTOPUSH_KEY}`,
     );
   },
 );
