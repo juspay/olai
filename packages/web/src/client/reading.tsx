@@ -61,7 +61,7 @@ import {
 import { olai } from "./wire.ts"
 
 /**
- * One page, asked and kept live.
+ * One page, asked and kept live — and a token that moves when its answer did.
  *
  * `undefined` is "nothing has been answered yet" and is the state every reader
  * below already handles: the pane draws its `Reading…` line, the chrome draws
@@ -79,9 +79,50 @@ import { olai } from "./wire.ts"
  * handling this needs, and the reason the design could rule that a dead wire
  * freezes the app rather than half-drawing it.
  */
+export interface Reading {
+  readonly page: Accessor<PageReading | undefined>
+  /**
+   * A GENERATION: a number that moves exactly when this page's answer moved,
+   * for the one reader that needs to know THAT rather than what changed — the
+   * filter, whose answer about which nodes a query selects may not outlive the
+   * set it was computed over (`./filter/asking.ts`'s `Ask.at`).
+   *
+   * IT CANNOT BE THE VALUE'S IDENTITY, which is what it was when the tab held
+   * a derivation: a subscription's value is a RECONCILED STORE, so its identity
+   * survives every frame and its fields move underneath — a reader comparing
+   * two readings would be comparing one object with itself and concluding that
+   * nothing had changed. `./dates.ts` states that rule for the two date
+   * readings and answers it by handing out plain values; a page's reading is
+   * too big to copy per frame, so this counts the frames instead.
+   *
+   * THE FRAMEWORK'S OWN CHANGE SIGNAL (`Subscription.updated`), which fires
+   * under its change-iff-fired law: a first frame is a value rather than news,
+   * a reconnect snapshot equal to what was already held is silent, and a frame
+   * that DIFFERS fires once. That is precisely "the answer this page draws is
+   * not the one it was drawing", which is precisely when a filter's answer
+   * about it stopped being safe to trust.
+   *
+   * THE PAGE ITSELF is the right granularity, and narrower than what it
+   * replaced: a revision that moved nothing on this page sends no frame at all
+   * (the server's `samePageReading`), so it cannot invalidate an answer about
+   * it — where the old token, the whole derivation's identity, moved on every
+   * write anywhere in the vault.
+   */
+  readonly at: Accessor<number>
+}
+
 export const createReading = (
   request: Accessor<PageRequest | null>,
-): Accessor<PageReading | undefined> => olai.streams.page.use(request)
+): Reading => {
+  const answer = olai.streams.page.use(request)
+  const [at, moved] = createSignal(0)
+  // Registered at creation, which is what the change-iff-fired law asks of a
+  // consumer that wants every change: a handler added mid-stream sees only the
+  // changes after it.
+  const stop = answer.updated?.(() => moved((count) => count + 1))
+  onCleanup(() => stop?.())
+  return { page: answer, at }
+}
 
 const ReadingContext = createContext<Accessor<PageReading | undefined>>()
 

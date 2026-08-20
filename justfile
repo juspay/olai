@@ -197,23 +197,20 @@ nix:
 hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
-# What a keystroke costs, on a generated vault. FIVE of them, and each is a
+# What a keystroke costs, on a generated vault. FOUR of them, and each is a
 # LEG rather than a scratch file, because slice 3 of `model-indices` ran its
 # numbers as a one-off and a benchmark nobody can re-run is a number nobody can
 # check — and deliberately NOT a dependency of `check`, since a timing that
 # fails a lane on a busy machine teaches nobody anything.
 #
-#   - the TAB's own frame — what the browser pays between a `deltas` frame
-#     landing and having a view of the directory again, in three cumulative
-#     arms (the framework's store write alone, plus the fold, plus the walks
-#     `outlines.ts` keeps beside it), and what a link flap costs the search
-#     after it (`packages/web/src/client/outlines.bench.ts`). It drives the
-#     framework's real hook over a hand-pushed stream and reads the real
-#     `createOutlines`, which is what the bench it replaces did not: that one
-#     simulated the store write, so it could not feel the framework change
-#     under it. `--conditions browser` is load-bearing here: without it Bun
-#     resolves SolidJS's server build, whose memos never re-run, and every arm
-#     reports an empty loop;
+# THE FIFTH WAS THE TAB's own frame, and it is gone with what it timed: it
+# measured what a browser paid between a `deltas` frame of the whole set landing
+# and having a view of the directory again, and a browser holds no view of the
+# directory any more (`docs/brainstorming/vault-in-browser.md`'s PR 10). What
+# replaced it is not a timing at all but a WIRE measurement, which is the thing
+# that actually changed — `packages/tests/wire.ts`'s `pages` session, run
+# against two worktrees with `wire.sh`'s `ROOT=`.
+#
 #   - the PATCHER under every view — `derive` over the whole corpus, against
 #     `patched` on the view the last edit left, against that same patch paying
 #     the id-map clone the overlay replaced
@@ -245,10 +242,10 @@ hm-module:
 #     published revision, which is the unit the ratios are about. Each pair must
 #     answer the same value or the run fails.
 #
-# Four of the five run the SAME generated vault (`@olai/format/testlib`'s
-# `vaultOf` — the tab, the patcher, the tag completion and the day readings), so
-# what a frame costs a browser, the patch inside it and what a completion or a
-# calendar asks of the view it leaves are numbers about one directory; the
+# Three of the four run the SAME generated vault (`@olai/format/testlib`'s
+# `vaultOf` — the patcher, the tag completion and the day readings), so what a
+# write costs the view and what a completion or a calendar asks of the view it
+# leaves are numbers about one directory; the
 # matcher generates a corpus of its own, sized for keystrokes rather than for a
 # directory. The MERGE under all of
 # it is not timed here and should not be: it is the framework's, and
@@ -258,7 +255,6 @@ hm-module:
 # patcher's layer grow past half the id map and flatten, which it prints the
 # edit of.
 bench: install
-    {{ nix_shell }} bun --conditions browser packages/web/src/client/outlines.bench.ts
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
     {{ nix_shell }} bun packages/format/src/vocabulary.bench.ts

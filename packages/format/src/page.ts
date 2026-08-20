@@ -252,6 +252,22 @@ export const samePageReading: (a: PageReading, b: PageReading) => boolean = Sche
   .toEquivalence(PageReading)
 
 /**
+ * Whether two requests are the SAME QUESTION — what keeps a subscription open
+ * across a navigation that did not change which page is being drawn.
+ *
+ * Its caller is the browser (`@olai/web`'s `page.ts`), and what it is for is
+ * one case: a link to a HEADING inside the document already on screen. That is
+ * a place inside a page rather than a page, so it produces this same request —
+ * and a subscription re-opened for it would blank the pane, unmount the body,
+ * and take away the very element the reader was being scrolled to.
+ *
+ * Derived from the schema for `samePageReading`'s reason: an arm added to the
+ * request is compared without anybody remembering to compare it.
+ */
+export const samePageRequest: (a: PageRequest, b: PageRequest) => boolean = Schema
+  .toEquivalence(PageRequest)
+
+/**
  * THE READING — what the address names, over the set as it stands.
  *
  * THE FACES as well as the derivation, because two of the questions here are

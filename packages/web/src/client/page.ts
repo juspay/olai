@@ -54,8 +54,24 @@ export const requestFor = (
   today: string,
 ): PageRequest => {
   switch (route.kind) {
-    case "at":
-      return { kind: "at", address: route.address }
+    case "at": {
+      const address = route.address
+      // A HEADING IS NOT A PAGE, and dropping it here is the page model's own
+      // rule kept where it now matters: an arm holds what its screen needs, and
+      // what a `#section` decides is where the reader LANDS — an act, once, on
+      // arrival, answered by the router (`./router.tsx`'s `landing`). Sent, it
+      // would make two links to one document two different questions, and the
+      // subscription would re-open for the second: the pane blanks, the body
+      // unmounts, and the element being scrolled to goes with it.
+      //
+      // A NODE keeps its element, because for a node the element IS the page.
+      return {
+        kind: "at",
+        address: address?.kind === "heading"
+          ? { kind: "document", path: address.path }
+          : address,
+      }
+    }
     case "day":
       return { kind: "day", date: route.date }
     case "today":

@@ -739,6 +739,7 @@ export {
   PageRequest,
   readingOf,
   samePageReading,
+  samePageRequest,
   Shown,
   TrashGroup,
 } from "./page.ts"

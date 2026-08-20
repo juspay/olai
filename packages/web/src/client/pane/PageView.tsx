@@ -12,7 +12,7 @@
 
 import { createMemo, Match, Show, Switch } from "solid-js"
 
-import { parseFilter } from "@olai/format"
+import { parseFilter, samePageRequest } from "@olai/format"
 
 import { AgendaPage } from "../agenda/AgendaPage.tsx"
 import { CLEARANCE } from "../connection/Indicator.tsx"
@@ -62,13 +62,21 @@ export function PageView() {
    * The DAY is the tab's own clock (`../clock.ts`), because `/today` names the
    * day it IS and `/agenda` counts against the day the reader is standing on.
    */
-  const request = createMemo(() => requestFor(opened(), today()))
+  // BY VALUE, which is what keeps the subscription open across a navigation
+  // that did not change which page this is: `opened` moves for a link to a
+  // heading inside the document already on screen, and the request it produces
+  // is the same one (`../page.ts`'s `requestFor`). A memo comparing by
+  // reference would re-open the stream for it, blank the pane and unmount the
+  // body the reader was being scrolled into.
+  const request = createMemo(() => requestFor(opened(), today()), undefined, {
+    equals: samePageRequest,
+  })
   const reading = createReading(request)
   // …and the pane joins the workspace's register with it, so the chrome outside
   // the panes can read whichever one is focused (`../App.tsx`).
-  useReadings().join(here, reading)
+  useReadings().join(here, reading.page)
 
-  const page = createMemo(() => reading()?.shows)
+  const page = createMemo(() => reading.page()?.shows)
 
   const allDrawn = createMemo(() => drawnBy(page()))
 
@@ -111,11 +119,13 @@ export function PageView() {
     // answer that outlived the set it was computed over is a wrong answer that
     // looks like a right one (`filter/asking.ts`'s `Ask.at`). It used to be the
     // tab's derivation, a fresh value per published revision; what says the
-    // same thing now is THIS PAGE's reading, which the server re-sends exactly
-    // when the page changed. That is the narrower and more honest token — a
-    // revision that moved nothing on this page cannot invalidate an answer
-    // about it — and it goes over read by nothing, as it always did.
-    at: reading,
+    // same thing now is a count of the frames THIS PAGE's reading moved on
+    // (`../reading.tsx`'s `Reading.at`, which is why it is a number rather than
+    // the value: a subscription's value is a store whose identity survives
+    // every frame). Narrower and more honest than what it replaced — a revision
+    // that moved nothing on this page sends no frame, so it cannot invalidate
+    // an answer about it — and read by nothing, as it always was.
+    at: reading.at,
   })
 
   const narrowing = createNarrowing({
@@ -166,7 +176,7 @@ export function PageView() {
         go(next)
       }}
     >
-      <ReadingProvider reading={reading}>
+      <ReadingProvider reading={reading.page}>
       <NarrowedProvider narrowed={narrowing}>
         <Show when={narrowing.drawn().kind !== "none"}>
           <FilterBar narrowing={narrowing} asked={asked} onType={narrow} />

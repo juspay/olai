@@ -34,7 +34,7 @@
  * a refusal leaves the row exactly where it was with the reason under it.
  */
 
-import type { Row } from "@olai/format"
+import type { Moved, Row } from "@olai/format"
 import type { Edit } from "@olai/surface"
 import {
   type Accessor,
@@ -181,7 +181,14 @@ export const createMoving = (
    * — out of one revision of one set, so a refusal can never name a file the
    * row has since left (`@olai/format`'s `moving.ts`).
    */
-  const [aimed, setAimed] = createSignal<ReadonlyArray<string>>([])
+  const [aimed, setAimed] = createSignal<ReadonlyArray<string>>([], {
+    // BY VALUE, and this is not tidiness: the panel reports its hits on every
+    // answer, a fresh array each time, and this signal is a SUBSCRIPTION'S
+    // INPUT — so compared by reference the stream would tear down and re-open
+    // on every report, the answer would blink to `undefined` between the two,
+    // and the panel that renders off it would unmount and remount for ever.
+    equals: sameIds,
+  })
   /** How long the line lingers, and what clears it, is the client's ONE
    *  receptacle for that (`../saying.ts`) rather than a fourth timer here. */
   const saying = createSaying()
@@ -236,10 +243,27 @@ export const createMoving = (
     return held === null ? null : { record: held.record, to: aimed() }
   })
 
-  /** The row being moved — `undefined` for a record the set no longer declares,
-   *  which is what closes the panel rather than leaving it pointing at
-   *  nothing. */
-  const moved = createMemo(() => answer()?.moved ?? undefined)
+  /**
+   * The row being moved — `undefined` for a record the set no longer declares,
+   * which is what closes the panel rather than leaving it pointing at nothing.
+   *
+   * IT HOLDS ACROSS A RE-ASK, which is the difference between the two absences
+   * this memo has to tell apart. A subscription's value resets to `undefined`
+   * between an input change and the first frame of the new one, and the input
+   * changes every time the shortlist answers with different hits — so a memo
+   * that read it straight through would take the panel off the screen and put
+   * it back on every search, restarting the search that caused it. `null` is
+   * the set's own answer that this record is gone, and that one closes it.
+   */
+  const moved = createMemo<Moved | undefined>((held) => {
+    const record = standing()?.record
+    if (record === undefined) return undefined
+    const said = answer()
+    // …and a HELD row is only kept for the row it is about: opening the picker
+    // on another row must not draw the last one's title for a frame.
+    if (said === undefined) return held?.id === record ? held : undefined
+    return said.moved ?? undefined
+  })
 
   /** …and why each destination cannot take it, by id. The answer's verdicts are
    *  IN THE ORDER ASKED, so they are paired back up with the ids that were
@@ -353,3 +377,9 @@ export const createMoving = (
     ),
   }
 }
+
+/** The same destinations in the same order — what "the list is asking about
+ *  what it was asking about" means for a value the shortlist mints fresh on
+ *  every answer. See {@link createMoving}'s `aimed`. */
+const sameIds = (a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean =>
+  a.length === b.length && a.every((id, at) => id === b[at])
