@@ -6,13 +6,12 @@ import {
   dailyNotesOn,
   datedDays,
   datedOn,
-  dayOf,
   type DayEntry,
   isDay,
-  monthOf,
   noteDateOf,
 } from "./dates.ts"
 import { derive, type Derived } from "./derive.ts"
+import { dayOf, monthOf } from "./occasion.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
 
 /** Two outlines with dates spread over three months, which is what makes the
@@ -109,19 +108,19 @@ test("a month's days are the days of that month with something on them", () => {
 test("a day at the edge of a month belongs to that month alone", () => {
   expect([...datedDays(SET, "2026-07")]).toEqual(["2026-07-31"])
   expect([...datedDays(SET, "2026-09")]).toEqual(["2026-09-01"])
-  expect(datedDays(SET, "2026-08").has("2026-07-31")).toBe(false)
-  expect(datedDays(SET, "2026-08").has("2026-09-01")).toBe(false)
+  expect(datedDays(SET, "2026-08").includes("2026-07-31")).toBe(false)
+  expect(datedDays(SET, "2026-08").includes("2026-09-01")).toBe(false)
 })
 
 test("a month with nothing in it has no days", () => {
-  expect(datedDays(SET, "2026-06").size).toBe(0)
-  expect(datedDays(derive([]), "2026-08").size).toBe(0)
+  expect(datedDays(SET, "2026-06").length).toBe(0)
+  expect(datedDays(derive([]), "2026-08").length).toBe(0)
 })
 
 // A dot is drawn for the DAY, however many nodes sit on it, and a node whose
 // date carries a time still lights its own day.
 test("a day is lit once, whatever is on it", () => {
-  expect(datedDays(SET, "2026-08").has("2026-08-05")).toBe(true)
+  expect(datedDays(SET, "2026-08").includes("2026-08-05")).toBe(true)
 })
 
 // ── one day ────────────────────────────────────────────────────────────
@@ -174,7 +173,7 @@ test("an undated node is on no day", () => {
 // exactly as a scheduled one is, and it lights that day in the calendar.
 test("a node is on the day its mark was dated", () => {
   expect(idsOf(MARKED, "2026-08-11")).toContain("header")
-  expect(datedDays(MARKED, "2026-08").has("2026-08-11")).toBe(true)
+  expect(datedDays(MARKED, "2026-08").includes("2026-08-11")).toBe(true)
 })
 
 test("a node carrying two dates is on both days, once each", () => {
@@ -211,7 +210,7 @@ test("a mark with no date is on no day", () => {
 test("a dated `doing` or `todo` puts a node nowhere", () => {
   expect(idsOf(MARKED, "2026-08-11")).not.toContain("cabinets")
   expect(datedOn(MARKED, "2026-08-13")).toEqual([])
-  expect(datedDays(MARKED, "2026-08").has("2026-08-13")).toBe(false)
+  expect(datedDays(MARKED, "2026-08").includes("2026-08-13")).toBe(false)
 })
 
 // A node can carry both, and only the `date` half is read: one row, on the day
@@ -274,7 +273,7 @@ test("an archived node is on no day, and lights no day in the calendar", () => {
   )
   expect(idsOf(archived, "2026-08-11")).toEqual([])
   expect(datedOn(archived, "2026-08-11")).toEqual([])
-  expect(datedDays(archived, "2026-08").has("2026-08-11")).toBe(false)
+  expect(datedDays(archived, "2026-08").includes("2026-08-11")).toBe(false)
 })
 
 // The other half of the same rule: what a day loses is the archived rows and
@@ -292,7 +291,7 @@ test("the live outline keeps the day the archive was taken off", () => {
   expect(datedOn(beside, "2026-08-11").map((group) => group.file)).toEqual([
     "work.olai",
   ])
-  expect(datedDays(beside, "2026-08").has("2026-08-11")).toBe(true)
+  expect(datedDays(beside, "2026-08").includes("2026-08-11")).toBe(true)
 })
 
 // Leftover Archive.olai is the same exclusion one basename over (human,
@@ -313,7 +312,7 @@ test("a leftover Archive.olai is on no day, and lights no day in the calendar", 
   expect(datedOn(leftover, "2026-08-11").map((group) => group.file)).toEqual([
     "work.olai",
   ])
-  expect(datedDays(leftover, "2026-08").has("2026-08-11")).toBe(true)
+  expect(datedDays(leftover, "2026-08").includes("2026-08-11")).toBe(true)
 })
 
 // A mirror is a second PLACEMENT of a node, and the format gives it no field
@@ -329,7 +328,7 @@ test("a mirror of a dated node does not put it on the day twice", () => {
   expect(datedOn(mirrored, "2026-08-05").map((group) => group.file)).toEqual([
     "work.olai",
   ])
-  expect(datedDays(mirrored, "2026-08").size).toBe(1)
+  expect(datedDays(mirrored, "2026-08").length).toBe(1)
 })
 
 // ── the day's own note ─────────────────────────────────────────────────
@@ -436,11 +435,11 @@ test("a note and a dated node are two separate answers about one day", () => {
   const notes = ["2026-08-05.md", "2026-08-06.md"]
   // The 5th has both; the 6th has only a note; the 31st has only nodes.
   expect(dailyNoteDays(notes, "2026-08").has("2026-08-05")).toBe(true)
-  expect(datedDays(SET, "2026-08").has("2026-08-05")).toBe(true)
+  expect(datedDays(SET, "2026-08").includes("2026-08-05")).toBe(true)
   expect(dailyNoteDays(notes, "2026-08").has("2026-08-06")).toBe(true)
-  expect(datedDays(SET, "2026-08").has("2026-08-06")).toBe(false)
+  expect(datedDays(SET, "2026-08").includes("2026-08-06")).toBe(false)
   expect(dailyNoteDays(notes, "2026-08").has("2026-08-31")).toBe(false)
-  expect(datedDays(SET, "2026-08").has("2026-08-31")).toBe(true)
+  expect(datedDays(SET, "2026-08").includes("2026-08-31")).toBe(true)
 })
 
 // ── where a minted note goes ───────────────────────────────────────────
