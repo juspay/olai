@@ -372,24 +372,24 @@ Then("the panel promises to record it on its own", async function (this: OlaiWor
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/** ... and the words a STOPPED loop leaves, which have to carry git's own
- *  refusal and the gesture that resumes it. */
-Then(
-  "the panel says auto-commit is paused because {string}",
-  async function (this: OlaiWorld, words: string) {
-    const line = this.page.locator(COMMIT_AUTO_PAUSED);
-    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const said = oneLine(await line.innerText());
-    assert.ok(
-      said.includes(words),
-      `the paused line says "${said}", which does not mention "${words}"`,
-    );
-    assert.ok(
-      said.includes("off and on again"),
-      `the paused line says "${said}", which never says how to resume it`,
-    );
-  },
-);
+/**
+ * ... and the line a STOPPED loop leaves in the panel.
+ *
+ * It asserts the GESTURE rather than git's words, and that is the app's shape
+ * rather than a weaker test: git's refusal is a line of its own further down,
+ * beside the verb that produced it, and the header's own sentence carries it
+ * for a reader with no pointer — which is what "the commit pill explains" asks
+ * for. What is unique to this line is that a stopped loop can be started again.
+ */
+Then("the panel says auto-commit is paused", async function (this: OlaiWorld) {
+  const line = this.page.locator(COMMIT_AUTO_PAUSED);
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const said = oneLine(await line.innerText());
+  assert.ok(
+    said.includes("off and on again"),
+    `the paused line says "${said}", which never says how to resume it`,
+  );
+});
 
 /** THE CONFLICT, in the only shape a single user meets it: another machine —
  *  or a colleague — has pushed, so this branch's upstream has moved and a push

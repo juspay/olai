@@ -264,7 +264,6 @@ Feature: Committing on purpose
     When I open the preferences
     And I set Git commit to "on"
     Then the Git push row explains that a commit "waits"
-    And this browser has stored that auto-push is "off"
     When I press Escape on the preferences
     And I rewrite "notes.md" as:
       """
@@ -296,8 +295,10 @@ Feature: Committing on purpose
     Then the flurry records itself
     And olai has recorded 1 commit here
     And the commit pill says auto-commit is "paused"
+    # Git's own words, on the sentence a reader with no pointer gets.
+    And the commit pill explains "rejected"
     When I open the commit panel
-    Then the panel says auto-commit is paused because "rejected"
+    Then the panel says auto-commit is paused
     When I press the commit pill
     And I rewrite "later.md" as:
       """

@@ -47,7 +47,7 @@ import type { Auto } from "./auto.ts"
 import { LAYER } from "../layer.ts"
 import {
   AUTO_ARMED,
-  autoSays,
+  AUTO_STOPPED,
   because,
   scopeOf,
   trouble,
@@ -196,14 +196,18 @@ export function Panel(props: {
       {/* Why nothing is recording itself, when this browser asked it to. Above
           the list rather than beside the button, because it is the answer to
           "why is this still waiting" — which is the question the list itself
-          raises. Git's own words, whole, and the one gesture that resumes the
-          loop: a stop nobody can undo is a feature that has quietly left. */}
-      <Show when={props.auto.paused()}>
-        {(said) => (
-          <p class="wrap-anywhere text-xs text-alarm" data-testid={TESTID.commitAutoPaused}>
-            ⚠ {autoSays(said())}
-          </p>
-        )}
+          raises. It names the one gesture that resumes the loop: a stop nobody
+          can undo is a feature that has quietly left.
+
+          It does NOT repeat git. Whatever refused is already a line of its own
+          further down — beside the verb that produced it, which is where a
+          person reads it — and this popover printed that paragraph twice.
+          The HEADER's own sentence carries the words, because the header has
+          nowhere else to put them (`./said.ts`). */}
+      <Show when={props.auto.paused() !== null}>
+        <p class="text-xs text-alarm" data-testid={TESTID.commitAutoPaused}>
+          ⚠ {AUTO_STOPPED}
+        </p>
       </Show>
 
       {/* Why the button is disabled — said, rather than left for somebody to

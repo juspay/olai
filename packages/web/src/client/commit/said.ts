@@ -330,16 +330,28 @@ export const autoFaceOf = (armed: boolean, paused: string | null): AutoFace =>
 export const AUTO_PAUSED = "auto-commit paused"
 
 /**
- * ... and the sentence, which is git's own words plus the one gesture that
- * resumes the loop.
+ * ... and the sentence the HEADER carries, which is git's own words plus the
+ * one gesture that resumes the loop.
  *
  * The gesture is named because a stopped loop is silent by design: without a
  * sentence saying how to start it again, "olai stopped committing" is something
  * a person finds out days later from `git log`.
+ *
+ * The WORDS are in it because the header has nowhere else to put them: this is
+ * the pill's tip and its `aria-label`, and a reader with no pointer would
+ * otherwise be told a loop stopped and never told why. The PANEL is the other
+ * case and takes {@link AUTO_STOPPED} instead — git's refusal is already a line
+ * of its own down there, beside the verb that produced it, and one paragraph
+ * printed twice in one popover is a popover nobody reads either copy of.
  */
 export const autoSays = (paused: string): string =>
   `auto-commit is paused — ${paused}. Turn Auto-commit off and on again in ` +
   `preferences to resume.`
+
+/** ... and the PANEL's line, which does not repeat git — see {@link autoSays}. */
+export const AUTO_STOPPED =
+  "auto-commit is paused, and what git said is below. Turn Auto-commit off " +
+  "and on again in preferences to resume."
 
 /** What an ARMED loop is about to do with what the panel is listing. Drawn only
  *  while it is really going to happen, so it is a promise rather than a
