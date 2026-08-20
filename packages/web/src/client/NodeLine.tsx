@@ -54,12 +54,7 @@ import { NodeTitle } from "./NodeTitle.tsx"
 import { RepeatBadge } from "./RepeatBadge.tsx"
 import { TESTID } from "./testids.ts"
 import { toneOf } from "./tone.ts"
-import { ROW_TITLE } from "./touch.ts"
-
-/** A TOP-LEVEL row is a section, and its name carries the weight of one
- *  (./Tree.tsx says the rest of what a section is). Exported so the tree names
- *  the same thing it asks for. */
-export const SECTION_TITLE = "font-serif text-[1.3125rem] font-semibold tracking-tight"
+import { ROW_TITLE, SECTION_TITLE } from "./touch.ts"
 
 /** The first of the open state's three layers: the TITLE LINE says the row is
  *  open. What it does is brighten the `#tags` inside it (`./styles.css` — a tag
@@ -139,9 +134,8 @@ export function NodeLine(props: {
         onClick={(event) => props.onEdit?.(event)}
       >
         <span
-          class={`min-w-0 truncate ${ROW_TITLE} ${toneOf(props.status)}`}
+          class={`min-w-0 truncate ${props.section === true ? SECTION_TITLE : ROW_TITLE} ${toneOf(props.status)}`}
           classList={{
-            [SECTION_TITLE]: props.section === true,
             [TITLE_OPEN]: props.open === true,
           }}
           data-testid={TESTID.nodeTitle}
