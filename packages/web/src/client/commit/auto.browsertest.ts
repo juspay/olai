@@ -25,7 +25,11 @@ import { type Auto, createAuto, pausedIn } from "./auto.ts"
 import { afterCommit } from "./record.ts"
 import type { Attempt, Commit, PushAttempt } from "./state.ts"
 
-const READY: GitState = { status: "repo", said: null }
+/** What a healthy repository publishes. A FUNCTION rather than a constant,
+ *  because the point of {@link Stub.sweep} is a frame carrying a NEW object
+ *  that says exactly what the last one did — which is what the server's
+ *  thirty-second sweep puts on the wire (`server/runtime.ts`). */
+const ready = (): GitState => ({ status: "repo", said: null })
 
 /** One outline waiting, with `n` node changes in it — a flurry that grows. */
 const waiting = (n: number): Pending => ({
@@ -51,6 +55,9 @@ interface Stub {
   /** Republish what is waiting with the COUNTERS moved and the work untouched
    *  — what a landed commit or push looks like from the browser. */
   readonly count: () => void
+  /** Republish WHAT GIT IS DOING, unchanged — the server's thirty-second sweep,
+   *  which recomputes the same answer and sets the cell again. */
+  readonly sweep: () => void
   readonly commits: () => number
   readonly pushes: () => number
   readonly refuse: (said: string | null) => void
@@ -59,6 +66,7 @@ interface Stub {
 
 const stub = (autoPush = false): Stub => {
   const [pending, setPending] = createSignal<Pending>(CLEAN)
+  const [git, setGit] = createSignal<GitState>(ready())
   const [attempt, setAttempt] = createSignal<Attempt | null>(null)
   const [pushed, setPushed] = createSignal<PushAttempt | null>(null)
   // Never move: this stand-in answers both verbs synchronously, so nothing is
@@ -81,7 +89,7 @@ const stub = (autoPush = false): Stub => {
   const commit: Commit = {
     pending,
     heard: () => true,
-    git: () => READY,
+    git,
     waiting: () => pending().changes.length,
     working: idle,
     attempt,
@@ -104,6 +112,7 @@ const stub = (autoPush = false): Stub => {
   return {
     commit,
     edit: (n) => setPending(waiting(n)),
+    sweep: () => setGit(ready()),
     count: () =>
       setPending((was) => ({
         ...was,
@@ -307,6 +316,26 @@ test("nothing is recorded into a repository that cannot take it", async () => {
       expect(state._tag === "armed" && state.willRecord).toBe(false)
     }, { commit: { ...it.commit, git: () => git } })
   }
+})
+
+/**
+ * THE SWEEP, which is the second way a frame arrives saying nothing new.
+ *
+ * The server recomputes what git is doing every thirty seconds whether or not
+ * anything moved, and publishes it — so a healthy repository puts a fresh
+ * `{ status: "repo" }` on the wire twice a minute. A window that restarted on
+ * one would wait fifteen seconds from the last SWEEP rather than from the last
+ * edit, which is not what the preference, the hint or `docs/git.md` promise.
+ */
+test("the git sweep does not start the window again", async () => {
+  const it = stub()
+  await loop(ON, it, async () => {
+    it.edit(1)
+    await rest(QUIET * 0.7)
+    it.sweep()
+    await rest(QUIET * 0.7)
+    expect(it.commits()).toBe(1)
+  })
 })
 
 // The memo's whole job: a frame that moves the counters and not the work must
