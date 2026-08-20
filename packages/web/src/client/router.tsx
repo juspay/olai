@@ -316,10 +316,12 @@ export const followedSplit = (event: MouseEvent): Route | null =>
  * outside every pane it is the FOCUSED one, which is where a link pressed in a
  * drawer belongs and where the palette and the sidebar already land.
  *
- * Answers whether it CLAIMED the press, so a caller with a question of its own
- * to ask first can tell a link it took from one it should go on ignoring.
+ * NOTHING COMES BACK. It either takes the press or leaves it, and there is no
+ * third answer a caller could branch on — a caller with a question of its own
+ * (the transcript's node chips) asks it BEFORE handing the event over, which is
+ * the order that reads correctly anyway.
  */
-export const useFollow = (): ((event: MouseEvent) => boolean) => {
+export const useFollow = (): ((event: MouseEvent) => void) => {
   const router = useRouter()
   const here = useHere()
   const go = useGo()
@@ -328,13 +330,12 @@ export const useFollow = (): ((event: MouseEvent) => boolean) => {
     if (split !== null) {
       event.preventDefault()
       router.openRight(here(), split, event.shiftKey)
-      return true
+      return
     }
     const next = followed(event)
-    if (next === null) return false
+    if (next === null) return
     event.preventDefault()
     go(next)
-    return true
   }
 }
 
