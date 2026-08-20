@@ -671,7 +671,7 @@ Then("the menu's primitive was fetched once", function (this: OlaiWorld) {
 Then(
   "the node menu of {string} says its menu never came",
   async function (this: OlaiWorld, id: string) {
-    const line = await said(this, id);
+    const line = await said(this);
     assert.ok(
       line.text.startsWith("the ••• menu could not be loaded:") &&
         line.text.endsWith("reloading is the way to try again."),
