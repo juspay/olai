@@ -207,11 +207,6 @@ export default function App() {
     return shows === undefined ? undefined : only(shows, "day")?.date
   })
 
-  /** Whether the chrome that only draws over a directory is drawn. The page's
-   *  own existence used to be half of this; it is the manifest's bit alone now,
-   *  which is what it always resolved to — a page could not exist before a
-   *  directory had loaded. */
-  const docked = () => loaded()
   const split = () => !isLone(router.workspace())
 
   return (
@@ -270,10 +265,10 @@ export default function App() {
           than the viewport — is that same forest either way. */}
       <div class="flex min-h-dvh flex-col">
         <AppHeader
-          docked={docked()}
+          docked={loaded()}
           go={(route) => router.go(route)}
           menu={
-            docked()
+            loaded()
               ? {
                   open: menuOpen(),
                   onToggle: () => setMenuOpen(!menuOpen()),

@@ -55,13 +55,16 @@ export interface Directory {
   /** The set-wide facts: `undefined` before the first frame, `null` for a
    *  directory that has never loaded, a value otherwise. */
   readonly manifest: Accessor<Manifest | undefined>
-  /** Every served file, in path order. */
-  readonly files: Accessor<ReadonlyArray<string>>
-  /** The same files as their FACES — what each is called, the addresses it
-   *  points at, the tags its content writes (`@olai/format`'s `Face`). It rides
-   *  on each head rather than being derived here, because deriving one means
-   *  reading the file, and the file's content is the thing this member exists
-   *  to keep off the wire. */
+  /** Every served file as its FACE, in path order — what each is called, the
+   *  addresses it points at, the tags its content writes (`@olai/format`'s
+   *  `Face`). It rides on each head rather than being derived here, because
+   *  deriving one means reading the file, and the file's content is the thing
+   *  this member exists to keep off the wire.
+   *
+   *  THE PATHS are not a second member beside it: every reader that wants them
+   *  takes them off the faces (`./served.tsx` mints that list once, with an
+   *  `equals` over the membership), and a list of paths here would be the same
+   *  walk done twice per frame. */
   readonly faces: Accessor<ReadonlyArray<Face>>
   /** The files that did not parse, by path — the sidebar marks them and a pane
    *  opened on one draws its errors instead of a tree. */
@@ -87,7 +90,6 @@ export const createDirectory = (
   const files = createMemo(() => sortByPath(entries.keys()))
   return {
     manifest,
-    files,
     faces: createMemo(() => facesOf(files(), (file) => entries.byKey(file)?.()?.face)),
     broken: createMemo(() => {
       const found = new Map<string, BrokenFile>()
