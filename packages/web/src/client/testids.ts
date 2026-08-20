@@ -462,7 +462,7 @@ export const TESTID = {
   /** The panel it opens (portalled out of the header). */
   prefsPanel: "prefs-panel",
   /** One preference on it; `data-pref` is which — `theme`, `font`, `size`,
-   *  `density`, `done`. */
+   *  `density`, `done`, `git`. */
   prefsRow: "prefs-row",
   /** That row's hint: what the choice IN FORCE means, re-read whenever the
    *  control moves. Its own name because it is the half of a settings row that

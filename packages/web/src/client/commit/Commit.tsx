@@ -69,12 +69,13 @@ import { explain, faceOf, isInert, MARK } from "./said.ts"
 import { Panel } from "./Panel.tsx"
 import { PILL } from "../readout.ts"
 import { createPopover } from "../popover.ts"
+import { autoPush } from "../settings/autopush.ts"
 import { createCommit } from "./state.ts"
 import { TESTID } from "../testids.ts"
 import { Tip } from "../Tip.tsx"
 
 export function Commit() {
-  const commit = createCommit()
+  const commit = createCommit(autoPush)
   // Whether the panel is up, where it goes, and the ways it shuts
   // (`../popover.ts`, shared with the preferences at the other end of the bar).
   // It used to be `note/expand.ts` — the row note's "open until you click

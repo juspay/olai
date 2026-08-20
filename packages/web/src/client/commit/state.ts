@@ -12,6 +12,12 @@
  * two optionals with coupled presence is a state the panel would have to
  * reassemble. What the attempt is CALLED is not here either: this module knows
  * that a commit was refused, `said.ts` knows how to say so.
+ *
+ * Auto-push is this browser's, handed in as an accessor so this file does
+ * not import the preference: a recorded commit from the button here is
+ * followed by the same `send` the Push button runs (`./record.ts`). Off,
+ * nothing changes. A push that fails is still a push the panel already
+ * draws — the commit stands.
  */
 
 import {
@@ -24,6 +30,7 @@ import {
 import { GIT_OFF, type GitState } from "@olai/surface"
 import { type Accessor, createSignal } from "solid-js"
 
+import { afterCommit, canRecord } from "./record.ts"
 import { waitingIn } from "./said.ts"
 import { run } from "../run.ts"
 import { olai } from "../wire.ts"
@@ -93,6 +100,10 @@ export interface Commit {
    * commit the same files and mean something narrower: a piecemeal commit
    * deliberately leaves the per-writer counters alone, because an op cannot be
    * attributed to a file.
+   *
+   * Refused while a push is in flight, same as the button: Auto-push would
+   * then call `send` and `send` would return at the door
+   * ({@link canRecord}).
    */
   readonly commit: (message: string, paths?: ReadonlyArray<string>) => void
   /** True while a push is in flight, for the same reason {@link working} is. */
@@ -103,7 +114,13 @@ export interface Commit {
   readonly push: () => void
 }
 
-export const createCommit = (): Commit => {
+/** Whether this browser follows a recorded commit with a push is the
+ *  caller's: this factory does not import the preference, so the composition
+ *  (`./record.ts`) can be asked with any answer. Read at commit time. Off
+ *  is today's behaviour, for a caller that has not asked. */
+export const createCommit = (
+  autoPush: Accessor<boolean> = () => false,
+): Commit => {
   const cell = olai.cells.pending.use()
   // The spec declares `off` as this cell's default and the framework seeds the
   // subscription with it, so a page reads "say nothing" before the first frame
@@ -116,6 +133,26 @@ export const createCommit = (): Commit => {
 
   const pending = (): Pending => cell.value() ?? NOTHING_PENDING
 
+  /** The same verb the panel's Push button runs — and the one Auto-push
+   *  follows a recorded commit with (`./record.ts`). One function so the two
+   *  doors cannot drift. */
+  const send = (): void => {
+    if (pushing()) return
+    setPushing(true)
+    setPushed(null)
+    run(
+      olai.procedures.git.push({}),
+      (failure) => {
+        setPushing(false)
+        setPushed({ _tag: "Refused", failure })
+      },
+      (result) => {
+        setPushing(false)
+        setPushed(result)
+      },
+    )
+  }
+
   return {
     pending,
     heard: () => cell.value() !== undefined,
@@ -127,7 +164,7 @@ export const createCommit = (): Commit => {
     working,
     attempt,
     commit: (message, paths) => {
-      if (working()) return
+      if (!canRecord(working(), pushing())) return
       setWorking(true)
       setAttempt(null)
       run(
@@ -142,26 +179,12 @@ export const createCommit = (): Commit => {
         (result) => {
           setWorking(false)
           setAttempt(result)
+          afterCommit(autoPush(), result._tag, send)
         },
       )
     },
     pushing,
     pushed,
-    push: () => {
-      if (pushing()) return
-      setPushing(true)
-      setPushed(null)
-      run(
-        olai.procedures.git.push({}),
-        (failure) => {
-          setPushing(false)
-          setPushed({ _tag: "Refused", failure })
-        },
-        (result) => {
-          setPushing(false)
-          setPushed(result)
-        },
-      )
-    },
+    push: send,
   }
 }

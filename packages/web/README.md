@@ -209,6 +209,7 @@ The read→signal→write→watch circuit over that storage is wired ONCE (`crea
 
 - **Theme** — one chip per palette (`theme/Chips.tsx`), moved in from the header pill. The row's hint names the theme in force, which is what the pill promised.
 - **Done** — `Visible` / `Hidden`, and it is THE switch (`settings/done.ts`). The floating pill that sat above the outline was a second door for the same preference, and it retired into this row the way the theme pill retired into the Theme row. "I do not want to look at finished work" is a claim about the READER, so it belongs here, applies to every page, and follows across tabs.
+- **Git** — `Off` / `Auto-push` (`settings/autopush.ts`). Off is today's behaviour: a commit waits and the panel's Push sends it. On, a commit from this browser's Commit button is followed by that same verb. It is this browser's, so an agent's `commit` and `--commit=auto` are not it; a push that fails is still a push the panel already draws.
 
 The layout values in `layout/prefs.ts` are stored the same way and are deliberately not here: a sidebar width is set by dragging the sidebar, and a panel being open is set by the control that opens it. Copying them into a settings list would be a second control for something that already has one.
 
