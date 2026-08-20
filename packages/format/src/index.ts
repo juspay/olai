@@ -275,6 +275,18 @@ export {
   /** The crumbs' titles, outermost first — what every reader of an ancestry
    *  actually draws, said once. */
   ancestorTitles,
+  /** What one node is WAITING ON — the reading side of `Derived.blocked`, so no
+   *  caller has to know that absence is how that index spells "nothing".
+   *
+   *  On the surface because the answer left the package: every drawing of
+   *  blockedness in the browser rides a reading that already carries it (a
+   *  `Row`'s `blocked`, a `Zoomed`'s), and `read_node` answers it about ONE id
+   *  that is not a page — so the ops layer asks for it directly. Exported for
+   *  `standingBefore`'s reason below, arrived at from the other end of the same
+   *  arrow: the row a person sees dimmed and the `blockedBy` an agent is handed
+   *  must be one reading, and a second walk over `after` up there would be free
+   *  to disagree with this one about what unfinished work is. */
+  blockersOf,
   byOrd,
   countedChildren,
   derive,
@@ -301,11 +313,12 @@ export {
   siblingsOf,
   /** What a node's `after` targets hold up, asked of a node that is not work
    *  yet. Exported for the reason `drawnFrom` above is: two rules read
-   *  blockedness and they must agree. The web draws it with `blockersOf` and
-   *  the search grammar's `is:blocked` asks the same index for the yes-or-no
-   *  (`isBlocked`, one file over), so an agent's answer and the drawn row are
-   *  one reading; the ops layer refuses `set_doing` with THIS one, which is
-   *  the same reading from the other end of the arrow. */
+   *  blockedness and they must agree. The rows a page draws and `read_node`'s
+   *  `blockedBy` both come off `blockersOf` above, and the search grammar's
+   *  `is:blocked` asks the same index for the yes-or-no (`isBlocked`, one file
+   *  over), so an agent's answer and the drawn row are one reading; the ops
+   *  layer refuses `set_doing` with THIS one, which is the same reading from
+   *  the other end of the arrow. */
   standingBefore,
   isTagName,
   mayHoldTag,

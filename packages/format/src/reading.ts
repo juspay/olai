@@ -123,7 +123,8 @@ export const Found = Schema.Struct({
    *  removes a target BY ID, so a reader that could not see the list could only
    *  change it by guessing. Not the derived blockedness — what is standing in
    *  the way right now is a question about marks, and this is what the record
-   *  says. */
+   *  says. A node read answers both, and {@link Detail.blockedBy} is the other
+   *  one; a hit answers this half alone, which is the half `set_after` takes. */
   after: RegularNode.fields.after,
   /**
    * The named facts this node carries that olai gives no meaning to — the
@@ -451,6 +452,37 @@ export const Detail = Schema.Struct({
    *  draws exactly this list under a zoomed node, which would make it a fact a
    *  person could see and an agent could not. */
   referencedBy: Schema.optionalKey(Schema.Array(Reference)),
+  /**
+   * What is standing in this node's WAY right now — the derived blockedness,
+   * each blocker situated the way every other list here situates a node.
+   * Absent when nothing is, which is nearly every node.
+   *
+   * NOT `after` read back. That field above is the record's own, verbatim:
+   * every target the line names, whether or not any of them is still work. This
+   * is which of them are — and it is a different SET at both ends. An edge
+   * spelled `blocks` on the OTHER record resolves into the same graph, so a
+   * node carrying no `after` at all can be waiting; and a target that is
+   * `done`, a target with no mark, and anything put away in an
+   * `_olai/Trash.olai` stand in nobody's way, so an `after` of three can show
+   * nothing here. Two fields because they answer two questions — "what does
+   * this record declare" is what `set_after` edits, "can this start" is what a
+   * reader is deciding on.
+   *
+   * ONE derivation, `./derive.ts`'s `blockersOf`, which is also what the app
+   * dims a row with and what `is:blocked` selects on. Nothing about it is
+   * spelled again here: what this declaration adds is the SHAPE the answer
+   * travels in, which is {@link Found} for {@link Reference}'s reason — a
+   * reader told only the ids of what it is waiting on is a reader making one
+   * more read per blocker to learn whether any of them has moved.
+   *
+   * Every entry carries a `status`, and it is `todo` or `doing`: what is in the
+   * way is unfinished WORK by that derivation's own rule (`InTheWay`'s
+   * `Exclude<Status, "done">` says it in the type). The optionality on `Found`
+   * above is that shape's, held for the hits and children where a bullet is a
+   * fair answer; in this list a blocker without a mark is not a value the
+   * derivation can produce.
+   */
+  blockedBy: Schema.optionalKey(Schema.Array(Found)),
 })
 export type Detail = typeof Detail.Type
 
