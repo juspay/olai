@@ -671,8 +671,9 @@ export const TESTID = {
    *  not an alarm) or `quiet` (nothing owed, nothing said) — while
    *  `data-overdue` and `data-today` are the two counts THEMSELVES, so a
    *  scenario can hold the number that is shown and the one that is only
-   *  spoken. They are the agenda page's own rows counted (`owedOf`), never a
-   *  second reading of the directory. */
+   *  spoken. They are the agenda page's own rows counted (`owedOf`) — on the
+   *  SERVER since `vault-in-browser`'s PR 4, over the same set the page reads —
+   *  never a second reading of the directory. */
   agendaOwed: "agenda-owed",
   /** The number ON that entry — the chip itself, so "the count is drawn" is a
    *  promise a scenario can hold rather than an attribute it infers. Absent

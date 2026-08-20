@@ -15,13 +15,14 @@
  * that sits outside every pane.
  */
 
-import { agendaOf, dailyNoteDays, datedDays } from "@olai/format"
+import { agendaOf, dailyNoteDays } from "@olai/format"
 import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from "solid-js"
 
 import { AppHeader } from "./AppHeader.tsx"
 import { Calendar } from "./calendar/Calendar.tsx"
 import { Panel as ChatPanel } from "./chat/Panel.tsx"
 import { createToday } from "./clock.ts"
+import { createOwed } from "./dates.ts"
 import { Commit } from "./commit/Commit.tsx"
 import { Connection } from "./connection/Connection.tsx"
 import { DerivedProvider } from "./derived.tsx"
@@ -82,6 +83,14 @@ export default function App() {
 
   const problems = () => errors.value() ?? []
 
+  /** Whether there is a set at all — the manifest's three states (no frame,
+   *  never loaded, a directory) folded to the one bit a reading has to know
+   *  before it is worth asking for. */
+  const loaded = () => {
+    const manifest = outlines.manifest()
+    return manifest !== undefined && manifest !== null
+  }
+
   /**
    * THE DIRECTORY, as one collection of faces — what every page model question
    * is asked of (`./page.ts`).
@@ -108,15 +117,43 @@ export default function App() {
       : pageOf(indexes, found(), router.route(), today())
   })
 
+  /**
+   * THE AGENDA PAGE's own reading, and nothing else's.
+   *
+   * It used to feed the sidebar's mark as well, through `owedOf`. That half is
+   * the server's now (`./dates.ts`, and `docs/brainstorming/vault-in-browser.md`
+   * §3's Sidebar row): the column and the rail wear two integers off the wire,
+   * so nothing outside the page walks the set to count late work.
+   *
+   * WHAT IS LEFT IS THE PAGE, and it is left DELIBERATELY rather than missed.
+   * `/agenda` is one of the seven ROUTES, and the design's law forbids flipping
+   * routes one at a time — the old wire kept beside the new — so every page
+   * reading moves in PR 10 or none of them does. Until then the badge and the
+   * page it leads to are two callers of one function (`owedOf` over
+   * `agendaOf`) over one directory, which is why they can differ by at most a
+   * frame and never by an opinion.
+   */
   const agenda = createMemo(() => {
     const indexes = outlines.derived()
     return indexes === undefined ? undefined : agendaOf(indexes, today())
   })
 
-  const dated = (month: string): ReadonlySet<string> => {
-    const indexes = outlines.derived()
-    return indexes === undefined ? new Set() : datedDays(indexes, month)
-  }
+  /**
+   * What the column and the rail wear — the app's ONE subscription to it, so
+   * the two faces of the directory cannot say different numbers (`./dates.ts`).
+   *
+   * ASKED ONLY OF A DIRECTORY THAT LOADED, which is the gate the walk it
+   * replaced carried inline: a set that never loaded gets the error report
+   * instead of a column, so there is no mark on screen to answer and a question
+   * asked anyway would be a refused subscription ambering the connection pill
+   * over a page where nothing is missing.
+   *
+   * The MONTH's dots are not here: their question is the month the calendar
+   * itself is showing, so that subscription lives with the state that decides
+   * it (`./calendar/Calendar.tsx`) — and the calendar is only ever mounted
+   * under the same gate, one branch down.
+   */
+  const owed = createOwed(() => (loaded() ? today() : undefined))
 
   const noted = (month: string): ReadonlySet<string> =>
     dailyNoteDays(documents.paths(), month)
@@ -212,20 +249,19 @@ export default function App() {
                     }}
                   >
                     <Show when={desktop() && !sidebarOpen()}>
-                      <Rail go={(route) => router.go(route)} agenda={agenda()} />
+                      <Rail go={(route) => router.go(route)} owed={owed()} />
                     </Show>
                     <Show when={desktop() ? sidebarOpen() : true}>
                       <Sidebar
                         active={fileOf(open())}
                         broken={outlines.broken()}
-                        agenda={agenda()}
+                        owed={owed()}
                         open={desktop() ? true : menuOpen()}
                         onClose={() => setMenuOpen(false)}
                       >
                         <Calendar
                           today={today()}
                           open={only(open(), "day")?.date}
-                          days={dated}
                           noted={noted}
                         />
                       </Sidebar>

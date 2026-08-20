@@ -22,7 +22,7 @@
  * buttons rather than clipping the last of them.
  */
 
-import type { Agenda } from "@olai/format"
+import type { Owed } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
 import { type Face, markOf, unchanged } from "../agenda/owed.ts"
@@ -43,14 +43,15 @@ export function Rail(props: {
   /** Navigate without a full Link tree — the rail is outside the router
    *  provider on some screens, so it takes a callback the shell already has. */
   readonly go: (route: Route) => void
-  /** The app's one reading of what is owed (../App.tsx), so the collapsed face
-   *  of the column carries the same news the open one does — an alarm that went
-   *  out when the sidebar was put away would be an alarm nobody could trust. */
-  readonly agenda: Agenda | undefined
+  /** The app's one subscription to what is owed (../dates.ts), so the collapsed
+   *  face of the column carries the same news the open one does — an alarm that
+   *  went out when the sidebar was put away would be an alarm nobody could
+   *  trust. */
+  readonly owed: Owed | undefined
 }) {
   // Held by the counts rather than by identity, for the reason the column's own
   // entry holds it that way (../agenda/owed.ts's `unchanged`).
-  const mark = createMemo(() => markOf(props.agenda), undefined, { equals: unchanged })
+  const mark = createMemo(() => markOf(props.owed), undefined, { equals: unchanged })
 
   return (
     <div
