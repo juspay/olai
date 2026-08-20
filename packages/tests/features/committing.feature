@@ -163,7 +163,13 @@ Feature: Committing on purpose
       """
     And I open the commit panel
     And I commit with the message "the herb bed needs splitting"
-    Then the commit pill says 0 unpushed
+    # The pill first, because it is the thing that POLLS: `committed` is the
+    # commit having landed (without it, `0 unpushed` is the count from BEFORE
+    # the write, and a skipped push would pass), then `0 unpushed` is the
+    # push having landed.
+    Then the commit pill says "committed"
+    And the last commit is "olai: the herb bed needs splitting" by "web"
+    And the commit pill says 0 unpushed
     And the remote has "olai: the herb bed needs splitting"
     And there should be no page errors
 
