@@ -77,8 +77,11 @@ let
   execPlain = builtins.unsafeDiscardStringContext execStart;
   _linux =
     assert linuxService.Unit.Description == "olai web view";
-    assert linuxService.Service.Restart == "on-failure";
+    assert linuxService.Service.Restart == "always";
+    assert linuxService.Service.RestartSec == "1s";
     # Effect runMain exits 130 on SIGTERM; without this, clean stops are failed.
+    # Kept with Restart=always: a stray SIGTERM must come back, and a
+    # systemctl stop must not land the unit in failed.
     assert linuxService.Service.SuccessExitStatus == 130;
     assert linuxService.Install.WantedBy == [ "default.target" ];
     assert lib.hasInfix exePlain execPlain;
@@ -96,6 +99,10 @@ let
   _darwin =
     assert darwinAgent.enable == true;
     assert darwinAgent.config.RunAtLoad == true;
+    # launchd.plist(5): SuccessfulExit=false restarts on a non-zero exit,
+    # so a 130 (Effect's SIGTERM) already comes back — unlike systemd's
+    # on-failure + SuccessExitStatus=130, which treated 130 as success
+    # and did not restart. Crashed=true is the signal-death arm.
     assert darwinAgent.config.KeepAlive.SuccessfulExit == false;
     assert darwinAgent.config.KeepAlive.Crashed == true;
     assert darwinAgent.config.StandardOutPath == "/home/alice/Library/Logs/olai.out.log";

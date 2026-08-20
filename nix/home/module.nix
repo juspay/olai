@@ -67,12 +67,21 @@ in
         };
         Service = {
           ExecStart = lib.escapeShellArgs webArgs;
-          Restart = "on-failure";
+          # always, not on-failure: Effect's runMain exits 130 on SIGTERM,
+          # SuccessExitStatus below declares that a success, and on-failure
+          # does not restart a successful exit. A stray kill -TERM then
+          # left the ledger dark for hours (docs/RCA/2026-08-20-olai-service-sigterm.md).
+          # systemd never restarts a unit whose death was a systemd stop or
+          # restart (man systemd.service, Restart=), so systemctl stop stays
+          # a stop.
+          Restart = "always";
+          RestartSec = "1s";
           # Effect's runMain exits 130 when the main fiber is interrupted
-          # (SIGTERM from systemctl stop / session teardown). Without this,
-          # every clean stop lands the unit in failed. The process writes
-          # `olai web: received SIGTERM` to stderr first, so a non-systemctl
-          # SIGTERM is still a successful unit but is not a silent one.
+          # (SIGTERM from systemctl stop / session teardown / an outside
+          # signal). Without this, every clean stop lands the unit in failed.
+          # The process writes `olai web: received SIGTERM` to stderr first,
+          # so a non-systemctl SIGTERM is still a successful unit but is not
+          # a silent one.
           SuccessExitStatus = 130;
         };
         Install = {
@@ -87,8 +96,12 @@ in
         config = {
           ProgramArguments = webArgs;
           RunAtLoad = true;
-          # Match systemd's on-failure: restart on a non-zero exit OR a crash
-          # signal, not only a successful one.
+          # A 130 exit is non-zero, so SuccessfulExit=false already restarts
+          # it — the Linux incident's case, without needing KeepAlive=true
+          # (which would also restart a clean 0 that `olai web` never does;
+          # it waits until interrupted). Crashed=true covers a signal death
+          # that never became an exit status. launchctl bootout stays a
+          # deliberate stop either way.
           KeepAlive = {
             SuccessfulExit = false;
             Crashed = true;
