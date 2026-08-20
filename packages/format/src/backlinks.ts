@@ -67,13 +67,13 @@ import { Schema } from "effect"
 
 import type { Address } from "./address.ts"
 import { byCorpus, type Derived, tagText } from "./derive.ts"
-import type { Face } from "./document.ts"
+import { Face } from "./document.ts"
 import { recordLinks } from "./documents.ts"
 import {
   isPutAway,
   isRegular,
   type Located,
-  type LocatedRegular,
+  LocatedRegular,
 } from "./node.ts"
 
 /**
@@ -106,12 +106,13 @@ export type Way = typeof Way.Type
  * The ways come in {@link WAYS} order rather than in the order they were
  * discovered.
  */
-export interface Backlink {
+export const Backlink = Schema.Struct({
   /** The referring record — always a REGULAR node, since a mirror can carry
    *  neither an edge nor prose. */
-  readonly at: LocatedRegular
-  readonly ways: ReadonlyArray<Way>
-}
+  at: LocatedRegular,
+  ways: Schema.Array(Way),
+})
+export type Backlink = typeof Backlink.Type
 
 /** The answer for a node nobody talks about, which is most of them: ONE list,
  *  shared, for {@link targetsOf}'s reason — a page asks this per frame. */
@@ -195,14 +196,15 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
  * answer is "the node `kitchen` attaches it" would be the coarser answer
  * offered because it was the easier one.
  */
-export interface Referrer {
+export const Referrer = Schema.Struct({
   /** The document the reference is written in — what it is called and where it
    *  is, which is what a row draws. */
-  readonly face: Face
+  face: Face,
   /** The RECORD that wrote it, for an outline. Absent for a document's body,
    *  which has no records. */
-  readonly at?: LocatedRegular
-}
+  at: Schema.optionalKey(LocatedRegular),
+})
+export type Referrer = typeof Referrer.Type
 
 /**
  * WHO POINTS AT AN ADDRESS — every document's forward `links`, read backwards.

@@ -70,6 +70,24 @@ export const Status = Schema.Literals(MARKS)
 export type Status = typeof Status.Type
 
 /**
+ * The marks that mean WORK NOBODY HAS FINISHED — {@link MARKS} without `done`.
+ *
+ * FILTERED from that list rather than spelled beside it, which is the same
+ * restraint {@link Status} keeps one line up: two literal lists is two places a
+ * fourth mark would have to be added, and the one that was forgotten would fail
+ * silently — a mark that blocks nothing, in a shape whose whole subject is what
+ * is standing in the way (`./derive.ts`'s `InTheWay`).
+ *
+ * It is a SCHEMA because that shape travels now: what a row is waiting on rides
+ * to the browser on a page's reading since `vault-in-browser`'s PR 10, and a
+ * type alone cannot be encoded.
+ */
+export const Unfinished = Schema.Literals(
+  MARKS.filter((mark): mark is Exclude<Status, "done"> => mark !== "done"),
+)
+export type Unfinished = typeof Unfinished.Type
+
+/**
  * The three MARK fields a record may carry, at most one of them.
  *
  * ONE declaration, spread into {@link RegularNode} below and read back by
@@ -289,10 +307,28 @@ export const Located = Schema.Struct({
 })
 export type Located = typeof Located.Type
 
-/** A located record already known to be a regular node — what a mirror chain
- *  resolves to, and what a row displays. Carrying the narrowing in the type
- *  is what saves every consumer from re-deriving it with a field test. */
-export type LocatedRegular = Located & { readonly node: RegularNode }
+/**
+ * A located record already known to be a regular node — what a mirror chain
+ * resolves to, and what a row displays. Carrying the narrowing in the type is
+ * what saves every consumer from re-deriving it with a field test.
+ *
+ * A SCHEMA rather than the intersection it was (`Located & { node: RegularNode }`),
+ * and what that buys is that it can TRAVEL. Every drawable shape in this
+ * package is built out of this pair — a row, a crumb, a blocker, a day's entry
+ * — and since `vault-in-browser`'s PR 10 those ARE what the wire carries to a
+ * page, in place of the records a browser would have walked to build them. An
+ * intersection of two declarations is a type and nothing more; this is a
+ * declaration, so `@olai/surface` can name it and the encoder can carry it.
+ *
+ * Structurally what it always was, which is what keeps {@link isRegular} a
+ * narrowing of {@link Located} rather than a cast: the same `Site` fields, the
+ * regular record.
+ */
+export const LocatedRegular = Schema.Struct({
+  ...Site.fields,
+  node: RegularNode,
+})
+export type LocatedRegular = typeof LocatedRegular.Type
 
 /**
  * ...and the guard that NARROWS to it, which {@link isMirror} cannot do on its

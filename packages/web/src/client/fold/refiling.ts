@@ -114,10 +114,10 @@ export interface Asking {
   readonly ask: (
     request: HomesRequest,
   ) => Promise<Result.Result<HomesAnswer, OpFailure>>
-  /** ...and why it cannot be put right now — the connection pill's own
-   *  sentence — or `null` while it can. READ REACTIVELY, so the wire coming
-   *  back is itself a reason to ask. */
-  readonly offline: () => string | null
+  /** ...and whether it can be put at all right now — `../connection/
+   *  reaching.ts`'s one predicate, which is the same bit the freeze is drawn
+   *  on. READ REACTIVELY, so the wire coming back is itself a reason to ask. */
+  readonly reachable: () => boolean
 }
 
 /**
@@ -196,7 +196,7 @@ export const createRefiling = (wire: Asking): void => {
     // browser holding no folds has nothing to ask about either. Tracking the
     // readout is what asks again when the wire comes back, with the memory as
     // it is at that moment.
-    if (memory.printed === null || wire.offline() !== null) {
+    if (memory.printed === null || !wire.reachable()) {
       settle.clear()
       return
     }

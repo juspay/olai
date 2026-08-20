@@ -28,7 +28,7 @@ import { Offline } from "./connection/Offline.tsx"
 import { DerivedProvider } from "./derived.tsx"
 import { AirProvider, createAir } from "./drag/air.ts"
 import { createFields, FieldsProvider } from "./drag/fields.ts"
-import { unreachable } from "./connection/reaching.ts"
+import { reachable } from "./connection/reaching.ts"
 import { createRefiling } from "./fold/refiling.ts"
 import { createDocuments, DocumentsProvider } from "./document/documents.tsx"
 import { createUndo, UndoContext } from "./edit/undoing.ts"
@@ -204,7 +204,7 @@ export default function App() {
    */
   createRefiling({
     ask: (request) => runAsync(olai.procedures.nodes.homes(request)),
-    offline: () => unreachable(connectionReadout()),
+    reachable: () => reachable(connectionReadout()),
   })
 
   const zoomed = createMemo(() => {
