@@ -1,6 +1,6 @@
 # RCA: olai.service died by outside SIGTERM, twice in one night, and stayed down (2026-08-20)
 
-**Status**: unit fixed (`Restart=always` + `RestartSec=1s`, `SuccessExitStatus=130` kept); sender of the SIGTERM unknown after ruling out every kill path in this repo (and the odu/kolu tooling the overnight lanes were running).
+**Status**: module fixed (`Restart=always` + `RestartSec=1s`, `SuccessExitStatus=130` kept) — the live unit gains `Restart=always` at the host's next home-manager switch; sender of the SIGTERM unknown after ruling out every kill path in this repo (and the odu/kolu tooling the overnight lanes were running).
 
 ## Timeline (host journal, 2026-08-19 evening → 2026-08-20 morning)
 
