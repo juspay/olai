@@ -12,7 +12,8 @@ Feature: Documents
   anywhere but this server, footnotes that link to their own note, and pictures
   that are files in the served directory and nowhere else. Two of the three
   scratch scenarios write disjoint files, so they share a copy per worker
-  (`@share-scratch`); the one that lists every document keeps a private copy.
+  (`@share-scratch`); the one that lists every document, and the spaced-name
+  outline whose examples all write the same two files, keep a private copy.
 
   @corpus:good
   Scenario: Every document found has a page, and the sidebar says so
@@ -266,6 +267,41 @@ Feature: Documents
       """
     Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md, notes/wiring.md"
     And the page has not reloaded
+
+  # A filename with a space in it is still a document a vault can point at.
+  # The three spellings are the ones markdown actually writes: a percent-
+  # encoded destination, the angle-bracketed form that lets the space sit
+  # in the source, and the space left raw. What earns the browser is the
+  # click: the parser has to emit a link, the click has to stay in this
+  # app, and the address bar has to name the file.
+  @scratch:good @own-scratch
+  Scenario Outline: A markdown link to a document whose name has spaces opens it
+    Given I open the app
+    And I rewrite "the brief.md" as:
+      """
+      # The brief
+
+      Oak counters.
+      """
+    And I rewrite "spaced-linker.md" as:
+      """
+      # Linker
+
+      See [the brief](<destination>).
+      """
+    And I click the document "spaced-linker.md"
+    And I mark the page
+    When I follow the link "the brief" in the rendered markdown
+    Then the document open is "the brief.md"
+    And the address is "/the%20brief.md"
+    And the page has not reloaded
+    And there should be no page errors
+
+    Examples:
+      | destination     |
+      | the%20brief.md  |
+      | <the brief.md>  |
+      | the brief.md    |
 
   # ── the half a document could not have ───────────────────────────────
   #

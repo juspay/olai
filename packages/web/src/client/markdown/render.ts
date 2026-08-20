@@ -39,6 +39,7 @@
  * path entirely.
  */
 
+import { bracketSpacedLinks } from "@olai/format"
 import type { Root } from "hast"
 
 import { pipelineNow } from "./chunk.ts"
@@ -153,7 +154,7 @@ export const renderToTree = (
   shape: "block" | "inline",
 ): Root => {
   const key = keyFor(shape, from, source)
-  const tree = pipelineNow().treeOf(source)
+  const tree = pipelineNow().treeOf(bracketSpacedLinks(source))
   if (shape === "inline") toInline(tree)
   rewrite(tree, { from, ids: idsFor(key) })
   return tree
@@ -196,7 +197,7 @@ const render = (
   shape: "block" | "inline",
 ): Rendered => {
   const pipeline = pipelineNow()
-  const tree = pipeline.treeOf(source)
+  const tree = pipeline.treeOf(bracketSpacedLinks(source))
   if (shape === "inline") toInline(tree)
   const headings = rewrite(tree, { from, ids: idsFor(key) })
   return { html: pipeline.htmlOf(tree), headings }
