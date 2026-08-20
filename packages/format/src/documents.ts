@@ -143,11 +143,42 @@ export const pictureOf = (from: string, src: string): string | null => {
  * absolute path, no bare fragment: everything on that list is either somewhere
  * else's business or a way of naming something that is not a file in this
  * directory. A `..` is not refused but CLAMPED by {@link resolveRelative}.
+ *
+ * A `%20` is a space in the filename, not a filename that contains a percent
+ * sign. Markdown's portable spelling of a space in a destination is the
+ * encoding, and the parser writes it into the href; decoding HERE — once,
+ * per segment, the way a written address is read — is what stops the page
+ * printer from encoding the percent again.
  */
 const relativeTo = (from: string, to: string): string | null => {
-  if (to === "" || to.startsWith("/") || to.startsWith("#")) return null
-  if (SCHEME.test(to)) return null
-  return resolveRelative(from, to)
+  if (refusedHref(to)) return null
+  const decoded = decodeHref(to)
+  if (decoded === null || (decoded !== to && refusedHref(decoded))) return null
+  return resolveRelative(from, decoded)
+}
+
+/** The refusals {@link relativeTo} applies to the href as written and again
+ *  after decoding, so `%2Fetc/passwd.md` cannot sneak past as a relative path. */
+const refusedHref = (href: string): boolean =>
+  href === "" || href.startsWith("/") || href.startsWith("#") || SCHEME.test(href)
+
+/**
+ * Percent-decode one path, per segment — or `null` for an escape nothing
+ * could have written. Per segment so `%2F` is a slash in a name rather than
+ * a separator, matching how a written address is read.
+ */
+const decodeHref = (href: string): string | null => {
+  if (!href.includes("%")) return href
+  const segments = href.split("/").map(decodedSegment)
+  return segments.includes(null) ? null : segments.join("/")
+}
+
+const decodedSegment = (segment: string): string | null => {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -424,14 +455,58 @@ export const linksIn = (from: string, text: string): ReadonlyArray<Address> => {
  * directory and every note in it, which is exactly the input that is not
  * this app's to trust.
  *
- * The scan keeps the same reading the pattern had: the label may not hold a
- * `]`, the target may hold no whitespace (what follows a space is markdown's
- * optional title, which is dropped), and a link whose target is written in
- * angle brackets is not read — that is the spelling for a filename with a
- * space in it, and unwrapping them would be a scan pretending to be a parser.
+ * The scan still does not parse: the label may not hold a `]`, and a
+ * `[…](…)` inside a fence is still a link to this function. What it now
+ * reads, that the pattern would not, is a filename with a space in it —
+ * CommonMark's angle-bracketed destination, and the space left raw, which
+ * is the spelling people write. An optional title is still dropped: a
+ * space that opens `"…"` / `'…'` / `(…)` is markdown's title, not part of
+ * the path.
  */
 const writtenLinks = (text: string): ReadonlyArray<string> => {
   const found: Array<string> = []
+  eachTarget(text, (target) => {
+    found.push(destinationOf(target))
+  })
+  return found
+}
+
+/**
+ * Rewrite a `[…](…)` whose destination holds a space into the angle-bracket
+ * form CommonMark's parser will read.
+ *
+ * The scan above already names those files. The renderer goes through a
+ * parser that will not: a space inside parentheses is not a destination, so
+ * `[the brief](the brief.md)` never becomes an `<a>` and there is nothing
+ * for {@link bodiedOf} to rewrite. Wrapping the destination — and only the
+ * destination, so an optional title stays a title — is the one edit that
+ * makes the two readings agree, and it is this scan's inverse rather than
+ * a second parser.
+ *
+ * Identity when nothing needs wrapping, so a cache keyed on the source
+ * does not churn.
+ */
+export const bracketSpacedLinks = (text: string): string => {
+  if (!text.includes("](")) return text
+  let out = ""
+  let last = 0
+  let changed = false
+  eachTarget(text, (target, open, close) => {
+    const dest = destinationOf(target)
+    if (!SPACE.test(dest) || target.startsWith("<")) return
+    out += text.slice(last, open) + `<${dest}>` + target.slice(dest.length)
+    last = close
+    changed = true
+  })
+  return changed ? out + text.slice(last) : text
+}
+
+/** Every parenthesised target, in document order. `open` is the character
+ *  after `(`, `close` is the matching `)`. */
+const eachTarget = (
+  text: string,
+  visit: (target: string, open: number, close: number) => void,
+): void => {
   let label = -1
   for (let at = 0; at < text.length; at++) {
     const char = text[at]
@@ -440,22 +515,33 @@ const writtenLinks = (text: string): ReadonlyArray<string> => {
       if (label !== -1 && text[at + 1] === "(") {
         const close = text.indexOf(")", at + 2)
         if (close !== -1) {
-          const target = text.slice(at + 2, close)
-          // What a space opens is markdown's optional title, and what it cannot
-          // be is part of the address.
-          const space = target.search(SPACE)
-          found.push(space === -1 ? target : target.slice(0, space))
+          visit(text.slice(at + 2, close), at + 2, close)
           at = close
         }
       }
       label = -1
     }
   }
-  return found
 }
 
-/** Where a written target stops. A single class rather than a repetition, so
- *  the search is one pass over the characters between the parentheses. */
+/**
+ * The destination inside a parenthesised target: unwrap `<…>`, else take
+ * the path up to markdown's optional title.
+ */
+const destinationOf = (target: string): string => {
+  if (target.startsWith("<")) {
+    const end = target.indexOf(">")
+    return end === -1 ? target.slice(1) : target.slice(1, end)
+  }
+  const title = target.search(TITLE)
+  return title === -1 ? target : target.slice(0, title)
+}
+
+/** Markdown's optional title: whitespace, then a quoted or parenthesised
+ *  string. A space that is not this is a character of the filename. */
+const TITLE = /\s+["'(]/
+
+/** A space in a destination, as a class rather than a repetition. */
 const SPACE = /\s/
 
 /** The answer for prose that points nowhere and for a record that does — which

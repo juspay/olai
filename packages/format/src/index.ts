@@ -215,6 +215,7 @@ export {
 } from "./address.ts"
 export {
   bodiedOf,
+  bracketSpacedLinks,
   bytesOf,
   docOf,
   firstLine,

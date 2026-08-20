@@ -186,6 +186,31 @@ test("a document link keeps the fragment it was written with", () => {
     .toContain(`href="/garden.md#beds"`)
 })
 
+// A filename with a space in it is still a document this vault can point at.
+// The href is this app's document route, with the space encoded the way an
+// address is printed.
+
+test("a percent-encoded link to a spaced name points at that document's page", () => {
+  expect(renderMarkdown("[the brief](the%20brief.md)", "finishes.md"))
+    .toContain(`href="/the%20brief.md"`)
+  expect(renderMarkdown("[the brief](../the%20brief.md)", "notes/palette.md"))
+    .toContain(`href="/the%20brief.md"`)
+  expect(renderMarkdown("[scope](the%20brief.md#scope)", NOTE))
+    .toContain(`href="/the%20brief.md#scope"`)
+})
+
+test("an angle-bracketed link to a spaced name points at that document's page", () => {
+  expect(renderMarkdown("[the brief](<the brief.md>)", "finishes.md"))
+    .toContain(`href="/the%20brief.md"`)
+  expect(renderMarkdown("[scope](<the brief.md#scope>)", NOTE))
+    .toContain(`href="/the%20brief.md#scope"`)
+})
+
+test("a raw-space link to a spaced name points at that document's page", () => {
+  expect(renderMarkdown("[the brief](the brief.md)", "finishes.md"))
+    .toContain(`href="/the%20brief.md"`)
+})
+
 // Everything else goes where it says. There is no allowlist widened here and
 // nothing refused: this pass narrows one shape of link and leaves the rest of
 // the reader's markdown alone.
