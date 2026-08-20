@@ -100,15 +100,15 @@ function Section(props: { readonly found: ReadonlyArray<Referrer> }) {
               array with a fresh object (../NodeRefs.tsx says it in full). A
               `<For>` keys by reference, so an open section rebuilt every row
               on every frame — under a reader's pointer, mid-scroll. */}
-          <Key each={props.found} by={keyOf}>
+          <Key each={props.found} by={(one) => rowOf(one).key}>
             {(one) => (
               <li class="min-w-0">
                 <a
                   class="text-sm text-accent no-underline hover:underline"
                   data-testid={TESTID.documentReferrer}
-                  href={hrefOf(opens(one()))}
+                  href={hrefOf(rowOf(one()).opens)}
                 >
-                  {calls(one())}
+                  {rowOf(one()).calls}
                 </a>
                 {/* WHERE it was written, muted beside it — a title in a list of
                     strangers means nothing, and for a record it is the outline
@@ -127,25 +127,34 @@ function Section(props: { readonly found: ReadonlyArray<Referrer> }) {
 }
 
 /**
- * WHAT IDENTIFIES A ROW, for the key above — the record that wrote the
- * reference, or the document whose own body did.
+ * A REFERRER, READ AS THE ROW IT DRAWS — which of the two arms it is, decided
+ * once.
  *
- * The two arms are two namespaces and the key says which, because that is the
- * only spelling that is honest without a second belief: a path and a node id
- * are both strings, `referrersTo` walks each document once and each of its
- * records once, and a key that collided would hand one element to the
- * framework twice — the crash `../edges/named.ts` argues at length.
+ * Three facts turn on that decision (what identifies the row, where it opens,
+ * what it is called) and they must all be about the same arm. Asked three
+ * times, that agreement is a rule somebody has to keep; asked once, it is the
+ * shape of the answer.
+ *
+ * THE KEY CARRIES ITS NAMESPACE, because a path and a node id are both strings
+ * and `referrersTo` walks each document once and each of its records once — so
+ * within an arm the key is unique by construction, and across the arms only the
+ * prefix says so. A key that collided would hand one element to the framework
+ * twice, which is the crash `../edges/named.ts` argues at length.
  */
-const keyOf = (one: Referrer): string =>
-  one.at === undefined ? `doc:${one.face.path}` : `node:${one.at.node.id}`
-
-/** Where a row OPENS: the record, or the document itself. */
-const opens = (one: Referrer): Route =>
-  one.at === undefined ? atFile(one.face.path) : atNode(one.at.node.id)
-
-/** ...and what it is CALLED there — the same division, drawn. */
-const calls = (one: Referrer): string =>
-  one.at === undefined ? one.face.title : one.at.node.title
+const rowOf = (
+  one: Referrer,
+): { readonly key: string; readonly opens: Route; readonly calls: string } =>
+  one.at === undefined
+    ? {
+      key: `doc:${one.face.path}`,
+      opens: atFile(one.face.path),
+      calls: one.face.title,
+    }
+    : {
+      key: `node:${one.at.node.id}`,
+      opens: atNode(one.at.node.id),
+      calls: one.at.node.title,
+    }
 
 /** The summary line: a count in a sentence rather than a bare number, because
  *  it is the whole of what a shut section says. */

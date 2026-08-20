@@ -16,10 +16,18 @@
  * A memo over the sentences is compared BY VALUE: an identical refusal returns
  * an equal string, `<Index>` writes nothing, and nothing is announced twice.
  *
- * `<Index>` rather than `<Key>` at the sites, for the reason `../search/
+ * `<Index>` rather than `<Key>` at the sites, for the reason `./search/
  * Shortlist.tsx` gives about hits: these lines are positional and there are a
  * handful of them — and a token can be refused twice in one query (`is:OPEN
  * is:OPEN`), so the token is not a key.
+ *
+ * HERE rather than under any of the three, because none of them owns it. The
+ * bar's refusals are `./filter/narrowing.ts`'s parse and the two doors' are
+ * `./search/nodes.ts`'s answer, so a home under either would be one reader
+ * lending its module to the other two; the concept's own generative side is
+ * `@olai/format`'s `Refusal`, which is a package away. What is left is the top
+ * level, where the client's other rules about how something is SAID already
+ * live.
  */
 
 import type { Refusal } from "@olai/format"

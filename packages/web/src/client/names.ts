@@ -40,6 +40,15 @@
  * ITS OWN MODULE, and not a corner of `./reading.tsx`, because the rule above
  * is a fact about VALUES rather than about who hands what to whom — and a rule
  * about values is checkable without a browser (`./names.browsertest.ts`).
+ *
+ * THE SHAPE HAS A NAME AND ONE OCCUPANT: hold the last value while a by-value
+ * comparison says nothing changed, over a source whose own identity is stable.
+ * The ordinary spelling for "did this change" is `equals` on a memo, and it
+ * does not reach here — the array off the store is the SAME array frame after
+ * frame, so an `equals` would be handed one value to compare with itself and
+ * every frame would look unchanged. That is what makes the held plain copy the
+ * mechanism rather than a nicety. One occupant is not a receptacle; a second
+ * reader of the same shape is when it graduates.
  */
 
 import type { Named, PageReading } from "@olai/format"
