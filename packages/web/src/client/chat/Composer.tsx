@@ -102,6 +102,7 @@ import { batch, createEffect, createMemo, createSignal, on, Show } from "solid-j
 import type { Written } from "../complete/trigger.ts"
 import { createChipTitles } from "./chips.ts"
 import { SaidLine } from "../edit/SaidLine.tsx"
+import { sameIds } from "../ids.ts"
 import { createSearch } from "../search/nodes.ts"
 import { useServed } from "../served.tsx"
 import { TESTID } from "../testids.ts"
@@ -195,11 +196,19 @@ export function Composer(props: {
    * Deduped with the armed door winning its place: a node armed from a row and
    * then also named in the sentence is one node, and one chip.
    */
-  const subjects = createMemo<ReadonlyArray<string>>(
+  const subjects = createMemo<ReadonlyArray<string>, undefined>(
     // A `Set` keeps insertion order and the FIRST occurrence wins, which is the
     // dedupe rule stated above without a filter to spell it (`../edges/named.ts`
     // leans on the same guarantee).
     () => [...new Set([...armedNodes(), ...namedIn(draft(), taken())])],
+    undefined,
+    // BY VALUE, because this list is a QUESTION and not a rendering: what reads
+    // it asks the server what these ids are called ({@link ./chips.ts}), and
+    // what feeds it is the DRAFT — so every keystroke of a sentence with one
+    // chip armed mints an array that is a new object and the same set, and a
+    // typed word costs a wire call per letter. The chip's own rule says the
+    // question goes when the ARMING moves; this is what makes that true.
+    { equals: sameIds },
   )
 
   /** ...as chips: the id is what was armed and what will be sent, and the TITLE

@@ -167,6 +167,15 @@ export const NOT_MOVING: MovingAnswer = { moved: null, refusals: [] }
 export const sameMoving: (a: MovingAnswer, b: MovingAnswer) => boolean = Schema
   .toEquivalence(MovingAnswer)
 
+/** …and whether two REQUESTS ask the same thing, on the same terms and for the
+ *  mirror-image reason: a browser holds this one open as a subscription while a
+ *  panel stands (`@olai/web`'s `move/moving.tsx`), and an input rebuilt without
+ *  this would tear the stream down and blank the answer every time another
+ *  writer moved the row — asking again for exactly what it was already
+ *  watching. */
+export const sameMovingRequest: (a: MovingRequest, b: MovingRequest) => boolean =
+  Schema.toEquivalence(MovingRequest)
+
 /** The whole answer, over one revision of one set. */
 export const movingOf = (derived: Derived, request: MovingRequest): MovingAnswer => {
   const located = derived.byId.get(request.record)

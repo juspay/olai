@@ -51,7 +51,7 @@
  */
 
 import type { NodeHit } from "@olai/surface"
-import { createEffect, createMemo, createSignal, Index, Show } from "solid-js"
+import { type Accessor, createMemo, createSignal, Index, onMount, Show } from "solid-js"
 
 import { listKey } from "../keys.ts"
 import { Refused } from "../Refused.tsx"
@@ -107,18 +107,24 @@ export function Shortlist(props: {
     readonly why: (hit: NodeHit) => string | null
     readonly testid: TestId
     /**
-     * WHICH HITS are on screen, told to the door as the search answers —
-     * absent for a door whose verdicts are pure over the hit it is handed.
+     * WHICH HITS are on screen — absent for a door whose verdicts are pure over
+     * the hit it is handed.
      *
      * It exists because one of them is not: the move picker's verdict is a
      * reading of the SET (can this row go under that node), which is the
      * server's since `docs/brainstorming/vault-in-browser.md`'s PR 10 — so it
      * has to say which nodes it wants judged before it can answer about any of
-     * them (`../move/moving.tsx`). Reported rather than the door reaching in:
-     * the list is what knows its hits, and this is the one line between the
-     * two.
+     * them (`../move/moving.tsx`). Handed rather than the door reaching in: the
+     * list is what knows its hits, and this is the one line between the two.
+     *
+     * AN ACCESSOR, called ONCE when the list mounts, rather than the hits
+     * pushed on every answer. What the door does with them is a DERIVATION —
+     * an argument it asks about — and a push made it a report: an effect here,
+     * a signal there, and a resource off that, which is three hops for a value
+     * that is a function of one and reads to the next person as state that
+     * could disagree with the list.
      */
-    readonly asked?: (hits: ReadonlyArray<NodeHit>) => void
+    readonly asked?: (hits: Accessor<ReadonlyArray<NodeHit>>) => void
   }
 }) {
   const [query, setQuery] = createSignal("")
@@ -153,13 +159,13 @@ export function Shortlist(props: {
    *  there is always one; the `!` is that, said. */
   const row = (index: number): HitRow => rows()[index]!
 
-  // WHAT IS BEING JUDGED, told to the door as the answer moves — an effect
-  // rather than a line in the memo below, because it is a report and not a
-  // reading: a door that asks the server what it thinks of these hits sets a
-  // signal the verdicts then arrive on, and writing to it inside the memo that
-  // reads them would be that memo depending on its own answer.
-  createEffect(() => {
-    props.refusing?.asked?.(hits())
+  // WHAT IS BEING JUDGED, handed to the door once — the accessor, not the
+  // answer. `onMount` rather than the component body so the hand-off is outside
+  // the render pass, and once rather than per answer because what the door
+  // needs is the list itself: it derives its question from this, and the
+  // verdicts it sends back arrive as `refusing.why`.
+  onMount(() => {
+    props.refusing?.asked?.(hits)
   })
 
   const verdicts = createMemo<ReadonlyArray<string | null>>(() => {

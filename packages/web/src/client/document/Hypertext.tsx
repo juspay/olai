@@ -102,7 +102,15 @@
  */
 
 import { heard, mediaHref } from "@olai/surface"
-import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js"
 
 import { SaidLine } from "../edit/SaidLine.tsx"
 import type { Said } from "../edit/undoing.ts"
@@ -581,6 +589,28 @@ export function Hypertext(props: { readonly file: string }) {
     if (custody.at === "stray") clearTimeout(custody.until)
   })
 
+  /**
+   * WHAT THE FRAME IS POINTED BY, as one string — the two facts the effect
+   * below acts on, joined so that "they are the same two facts" is a
+   * comparison a memo can make.
+   *
+   * A STRING, and this is not tidiness. `on` has no equality of its own: it
+   * re-runs whenever anything its input reads NOTIFIES, and an input returning
+   * a fresh array notifies on every one of them. `router.landing()` is a fresh
+   * `{index, at}` on every push in ANY pane ({@link ../router.tsx}), and this
+   * component asks it a question about THIS pane — so pane B opening a heading
+   * would notify pane A's input, whose answer is `undefined` before and after,
+   * and reload a preview nobody touched. Two panes previewing two files is the
+   * whole point of the split, and yanking one of them because the other
+   * navigated is the same class of bug the landing's `index` exists to prevent.
+   *
+   * The join is unambiguous because of which half is FIRST: a revision is an
+   * integer or nothing, so the first `|` is always the separator and whatever a
+   * heading's slug happens to hold cannot be read as a revision. Two different
+   * pairs cannot spell one string.
+   */
+  const asking = createMemo(() => `${rev() ?? ""}|${landingAt() ?? ""}`)
+
   // DEFERRED, because the first document is pointed at by the `ref` below —
   // before the element is in the page, so it arrives with its address already
   // on it and costs exactly one load.
@@ -620,7 +650,7 @@ export function Hypertext(props: { readonly file: string }) {
   // stopped being true the cost is one re-pointing at the file already shown,
   // which is what a walk-off already does and what the budget above bounds.
   createEffect(
-    on(() => [rev(), landingAt()], () => {
+    on(asking, () => {
       walkOffs = 0
       show()
     }, { defer: true }),
