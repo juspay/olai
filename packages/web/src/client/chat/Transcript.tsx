@@ -71,16 +71,12 @@ import { TESTID } from "../testids.ts"
 import { Entry } from "./Entry.tsx"
 import { laneOf, RAIL } from "./lanes.ts"
 import { LIVE_DOT } from "./live.ts"
+import { NEAR } from "./near.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import { doingOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
-/** How close to the bottom still counts as "at the bottom". Anything under a
- *  line or two of slack and a smooth scroll mid-flight reads as "the reader
- *  scrolled away". Exported so the scenarios that measure the same slack
- *  (`chat_steps.ts`) cannot drift from the pane that defined it. */
-export const NEAR = 64
 
 export function Transcript(props: { readonly chat: Chat }) {
   const show = useShowNode()
