@@ -21,14 +21,14 @@
 import { Show } from "solid-js"
 
 import { Commit } from "./commit/Commit.tsx"
-import { ConnectionNews } from "./connection/News.tsx"
+import { Indicator } from "./connection/Indicator.tsx"
 import { desktop } from "./layout/media.ts"
 import { connectionReadout } from "./wire.ts"
 
 export function News() {
   return (
     <Show when={!desktop()}>
-      <ConnectionNews readout={connectionReadout()} />
+      <Indicator readout={connectionReadout()} />
       <Commit />
     </Show>
   )

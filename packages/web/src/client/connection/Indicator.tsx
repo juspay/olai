@@ -44,8 +44,11 @@
  * claim per page, or neither is scanned.
  */
 
-import { lookOf, type SurfaceReadout } from "./status.ts"
-import { DOT, PILL } from "../readout.ts"
+import { Show } from "solid-js"
+
+import { isDegraded, lookOf, type SurfaceReadout } from "./status.ts"
+import { desktop } from "../layout/media.ts"
+import { BANNER, DOT, PILL } from "../readout.ts"
 import { TESTID } from "../testids.ts"
 
 /** The room a page keeps at the bottom of its reading column: the phone's home
@@ -66,32 +69,38 @@ export function Indicator(props: { readonly readout: SurfaceReadout }) {
   // while its answer is unchanged.
   const look = () => lookOf(props.readout)
   return (
-    <div
-      // No position of its own: it is a READOUT and not a control — nothing
-      // here is tappable — so all it needs is to be legible wherever the layout
-      // decides to put it. The pill itself is `../readout.ts`'s, shared with
-      // the Commit pill beside it. The LABEL truncates against this cap; the
-      // box does not (`readout.ts`), so a long state still says a word rather
-      // than becoming an empty chip.
-      class={`${PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}
-      data-testid={TESTID.connection}
-      // The state as an attribute, so a test asserts on the STATE rather than
-      // on a colour: which utility paints "live" is a styling decision and this
-      // is a contract (see ../testids.ts). It is the READOUT's state and not
-      // the transport's: `live` here has always meant "the files on disk reach
-      // this page", and a socket that is up under a dead subscription does not.
-      data-connection={props.readout.status}
-      // What stopped, for a test and for anybody reading the DOM. Absent when
-      // nothing has — which is every state but `degraded`, where the names are
-      // non-empty by type.
-      data-stopped={props.readout.stopped?.join(" ")}
-      title={look().detail}
-      // Announced when it changes, never focus-stealing: a screen reader should
-      // hear "disconnected" without losing its place in the outline.
-      aria-live="polite"
-    >
-      <span class={`${DOT} ${look().dot}`} aria-hidden="true" />
-      <span class="min-w-0 truncate">{look().label}</span>
-    </div>
+    <>
+      <Show when={desktop()}>
+        <div
+          // No position of its own: it is a READOUT and not a control — nothing
+          // here is tappable — so all it needs is to be legible wherever the layout
+          // decides to put it. The pill itself is `../readout.ts`'s, shared with
+          // the Commit pill beside it. The LABEL truncates against this cap; the
+          // box does not (`readout.ts`), so a long state still says a word rather
+          // than becoming an empty chip.
+          class={`${PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}
+          data-testid={TESTID.connection}
+          data-connection={props.readout.status}
+          data-stopped={props.readout.stopped?.join(" ")}
+          title={look().detail}
+          aria-live="polite"
+        >
+          <span class={`${DOT} ${look().dot}`} aria-hidden="true" />
+          <span class="min-w-0 truncate">{look().label}</span>
+        </div>
+      </Show>
+      <Show when={!desktop() && isDegraded(props.readout)}>
+        <div
+          class={`${BANNER} text-doing`}
+          data-testid={TESTID.connection}
+          data-connection={props.readout.status}
+          data-stopped={props.readout.stopped?.join(" ")}
+          title={look().detail}
+          aria-live="polite"
+        >
+          {look().label} — {look().detail}
+        </div>
+      </Show>
+    </>
   )
 }
