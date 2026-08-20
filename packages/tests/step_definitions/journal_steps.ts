@@ -67,7 +67,7 @@ Then("the day is empty", async function (this: OlaiWorld) {
 Then(
   "the day groups are {string}",
   async function (this: OlaiWorld, expected: string) {
-    await expectDrawn(this.page.locator(DAY_GROUP), "data-file", expected);
+    await expectDrawn(this, this.page.locator(DAY_GROUP), "data-file", expected);
   },
 );
 
@@ -77,6 +77,7 @@ Then(
   "the day lists {string}",
   async function (this: OlaiWorld, expected: string) {
     await expectDrawn(
+      this,
       this.page.locator(`${DAY_PAGE} ${NODE}`),
       "data-node-id",
       expected,

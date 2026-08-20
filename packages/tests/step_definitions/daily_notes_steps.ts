@@ -71,7 +71,7 @@ Then("the day shows today's note", async function (this: OlaiWorld) {
 Then(
   "the day shows the notes {string}",
   async function (this: OlaiWorld, expected: string) {
-    await expectDrawn(this.page.locator(DAY_NOTE), "data-file", expected);
+    await expectDrawn(this, this.page.locator(DAY_NOTE), "data-file", expected);
   },
 );
 

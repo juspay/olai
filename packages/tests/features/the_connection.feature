@@ -28,6 +28,28 @@ Feature: The connection is visible, and a replaced server is recoverable
     When the server stops
     Then the connection is "reconnecting"
 
+  Scenario: A dead wire takes the filter box with it, and leaves the rows standing
+    # The filter is a QUESTION now (`search-server-side`): the browser stopped
+    # holding the vault, so which nodes a query selects is the server's answer.
+    # A box that went on taking keystrokes with nowhere to send them would be a
+    # door that pretends — so it goes inert wearing the pill's own words, and
+    # what the server DID answer stays on screen, which is exactly what the
+    # pill promises about everything else on a reconnecting page.
+    #
+    # It earns a browser because nothing else can show it: a real socket dying
+    # under a page that was mid-question.
+    Given the connection is "live"
+    When I filter the page by "herb"
+    Then the filter found "1 of 11"
+    When the server stops
+    Then the connection is "reconnecting"
+    And the filter box is inert
+    And the filter says it cannot be asked
+    # The rows the server answered are still the rows in front of the reader:
+    # `herbs`, the `garden` above it, and the two under it that a match keeps
+    # with it — exactly as before the wire went.
+    And the outline has 4 rows
+
   Scenario: A restarted server retires the tab, and reloading recovers it
     # No "there should be no page errors" here, and deliberately: a browser
     # whose server is gone logs its own failed WebSocket dials, and asserting

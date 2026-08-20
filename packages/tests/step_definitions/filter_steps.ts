@@ -24,6 +24,7 @@ import {
   FILTER_CLEAR,
   FILTER_COUNT,
   FILTER_INPUT,
+  FILTER_OFFLINE,
   FILTER_REFUSAL,
   HIT,
   NODE,
@@ -43,12 +44,32 @@ const rows = (world: OlaiWorld) => world.page.locator(`${OUTLINE_TREE} ${NODE}`)
 
 // ── typing ─────────────────────────────────────────────────────────────
 
+/**
+ * Type it, and WAIT FOR THE PAGE TO ANSWER IT.
+ *
+ * The filter is a question to the server now (`search-server-side`): a
+ * debounce, then a round trip. So "I filtered the page" is not done when the
+ * keystrokes land — it is done when the rows in front of the reader are the
+ * answer to what was typed, which the bar publishes as `data-answering`
+ * (`client/filter/FilterBar.tsx`, the same fact its count line says in words).
+ *
+ * Waited for HERE, once, rather than in every step that reads a row afterwards:
+ * a page mid-question is a real state with its own rules — the rows hold still
+ * and the bar says so — and the scenario that is ABOUT that state waits for it
+ * deliberately. Every other scenario is about what the query found, and none of
+ * them should have to know there is a wire under the box.
+ */
 When(
   "I filter the page by {string}",
   async function (this: OlaiWorld, text: string) {
     const box = this.page.locator(FILTER_INPUT);
     await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await box.fill(text);
+    const bar = this.page.locator(FILTER_BAR).first();
+    await this.waitUntil(
+      async () => (await bar.getAttribute("data-answering")) === text.trim(),
+      `the page answers ${JSON.stringify(text)}`,
+    );
     await this.waitForFrame();
   },
 );
@@ -101,6 +122,31 @@ Then(
     );
   },
 );
+
+/**
+ * THE BOX WITH NOWHERE TO SEND A QUESTION — disabled, since the filter is a
+ * round trip and the wire is gone (`client/filter/asking.ts`).
+ *
+ * Asked of the control rather than of a class: `isDisabled` is what a person's
+ * keystroke actually meets, and it is the same fact the browser uses to refuse
+ * one.
+ */
+Then("the filter box is inert", async function (this: OlaiWorld) {
+  const box = this.page.locator(FILTER_INPUT);
+  await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(
+    async () => await box.isDisabled(),
+    "the filter box is disabled",
+  );
+});
+
+/** ...and it says WHY, in the connection pill's own words — never silently, and
+ *  never in the grammar's refusal slot, which is a different piece of news. */
+Then("the filter says it cannot be asked", async function (this: OlaiWorld) {
+  await this.page
+    .locator(FILTER_OFFLINE)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
 
 /** SELECTED by the query, rather than kept as the ancestry that leads to one.
  *  The distinction is the whole of "filter in place": a page of matches with
