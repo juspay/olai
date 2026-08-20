@@ -94,18 +94,19 @@ typecheck: install
 # The list grew with `reactivity-after-the-flip`, whose subjects are memos and
 # effects over a store — and "a memo re-ran" is the very claim a server-resolved
 # run cannot make, so each of these would PASS having recomputed nothing.
-# `names.ts` is the table every title resolver reads (PR 2), `frames.ts` counts
-# what a page frame writes, `directory.ts`'s broken map has to hold its identity
-# across a frame, `chat/last.ts` is about which rows an effect subscribes to
-# (PR 4), and `chat/declared.ts` is an ASKING that is an effect, over a failure
-# slot every message on screen shares (PR 5).
+# `names.ts` is the table every title resolver reads (PR 2), `Tree.tsx` is what
+# one frame costs every row of the page (PR 6, over the real store merge),
+# `directory.ts`'s broken map has to hold its identity across a frame,
+# `chat/last.ts` is about which rows an effect subscribes to (PR 4), and
+# `chat/declared.ts` is an ASKING that is an effect, over a failure slot every
+# message on screen shares (PR 5).
 test: install
     {{ nix_shell }} bun test
     {{ nix_shell }} bun test --conditions browser \
       ./packages/web/src/client/settled.browsertest.ts \
       ./packages/web/src/client/fold/refiling.browsertest.ts \
       ./packages/web/src/client/names.browsertest.ts \
-      ./packages/web/src/client/frames.browsertest.ts \
+      ./packages/web/src/client/Tree.browsertest.ts \
       ./packages/web/src/client/directory.browsertest.ts \
       ./packages/web/src/client/chat/last.browsertest.ts \
       ./packages/web/src/client/chat/declared.browsertest.ts

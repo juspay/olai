@@ -101,6 +101,31 @@
  *     which is the one question left in the app that is about the vault and not
  *     about any page.
  *
+ * FOUR MEMBERS DECLARE WHAT IDENTIFIES A ROW — `page` by `key`, `pins` by
+ * `id`, `pending` by `path`, `chat` by `name` — and that is the one thing about
+ * this spec that is not about the wire at all. `arrayKey` is read where a
+ * browser MERGES a frame into its store (`@kolu/surface`'s `writeValue.ts`,
+ * juspay/kolu#2190): undeclared, a frame replaces every element of every array
+ * it merges, so a frame that merely repeats what a tab already holds still
+ * notifies every reader of every row — which is the whole of
+ * `docs/brainstorming/reactivity-after-the-flip.md` §2's Fact B. Declared, an
+ * identical frame notifies nothing and a reorder moves the objects a keyed view
+ * follows. It is one field per member, reaching every array at every depth;
+ * arrays whose elements do not carry it merge by POSITION, which is silent on a
+ * repeated frame just the same. The members that declare NOTHING each say why
+ * where they are declared, and three of them share one reason worth stating
+ * here: `outlines`, `heads` and `transcript` are read through the batched
+ * `deltas` delivery, which replaces each named leaf WHOLE rather than merging
+ * into it — a `fold` consumer may be holding that very object — so there is no
+ * merge there for a key to govern. `documents` is served per key and would
+ * honour one; a document entry is a revision and a body, and holds no array.
+ * `manifest`, `git`, `dated`, `owed` and `moving` carry no array of OBJECTS at
+ * all — an empty struct, two strings, a list of day strings, two integers, and
+ * a nullable row beside a list of nullable strings — so there is nothing there
+ * for identity to be about. `surface.test.ts` reads the declaring set off this
+ * spec rather than off a list, so the sentence above is checked rather than
+ * kept by hand.
+ *
  * The last group is the KEYBOARD's ({@link ./edit.ts}), and it is the one
  * place a browser may cause a write. It changes nothing about the paragraph
  * above: an edit is a PROCEDURE, the collections stay read-only on the wire,
@@ -435,6 +460,23 @@ export const surface = defineSurface({
       schema: Schema.Array(OutlineError),
       default: [],
       verbs: ["get"],
+      /** NO `arrayKey`, and it is a decision rather than an omission — the one
+       *  cell here with a list a `<For>` draws by reference (`errors/Report.tsx`)
+       *  and nothing to identify a row by. An `OutlineError` is a site, a code
+       *  and a sentence; `file` is the only required, non-nullable field that
+       *  looks like an identity and a broken outline reports several errors
+       *  against the same one. A key that repeats inside its own array is a key
+       *  that decides identity by collision, so this list merges the way an
+       *  undeclared list does: replaced.
+       *
+       *  WHAT IT WOULD ACTUALLY WANT is a third mode `arrayKey` has no spelling
+       *  for — `{ key: null, merge: true }`, positional, no identity claimed,
+       *  and silent on a repeated frame — where undeclared is
+       *  `{ key: null }` and replaces. It is not worth a spec change for this
+       *  member: the two are indistinguishable for an empty list merging into an
+       *  empty one, which is what this cell holds on every directory that
+       *  validates, and a non-empty one means the set stopped parsing and nobody
+       *  is holding a caret in the report. */
     },
     /** Whether there is a set — see {@link Manifest}. Wire-read-only for the
      *  same reason the entries are: the directory is the disk's.
@@ -452,6 +494,19 @@ export const surface = defineSurface({
       schema: ChatState,
       default: CHAT_OFF,
       verbs: ["get"],
+      /** A COMMAND AND A MISSING SERVER ARE EACH THEIR `name` — the two arrays
+       *  this cell carries, and both spell their identity the same way
+       *  (`./chat.ts`'s `Command.name` and `MissingServer.name`, required and
+       *  non-nullable).
+       *
+       *  This cell has no `equals`, and it moves for reasons that have nothing
+       *  to do with either list: a turn going `idle → thinking`, a `usage`
+       *  update per report, an `asking` count. Every one of those frames used
+       *  to replace every command and every missing-server row — so
+       *  `chat/Missing.tsx`'s `<For each={missing()}>`, which is keyed by
+       *  reference, rebuilt the panel a reader was in the middle of reading,
+       *  mid-turn, on every token report. */
+      arrayKey: "name",
     },
     /** What git is doing for this directory — see {@link GitState}. Wire-read-only:
      *  it is the server's reading of somebody's working tree, and nothing a
@@ -486,6 +541,28 @@ export const surface = defineSurface({
        *  `equals` every open tab would get a frame every thirty seconds
        *  saying exactly what it already knew. */
       equals: samePending,
+      /** A DIRTY ROW IS ITS `path` — and the two lists of rows this cell
+       *  carries agree about that already, deliberately: `@olai/format`'s
+       *  `Other` docstring says `path` "is spelled the same as
+       *  {@link DirtyOutline}'s `path` and means the same thing… the two lists
+       *  are two kinds of ROW and one namespace of keys". One declaration
+       *  therefore keys both, which is what one field per member needs.
+       *
+       *  What it stops: `commit/Outlines.tsx` and `commit/Others.tsx` both draw
+       *  `<For>`, which is keyed by REFERENCE, so a frame that named one newly
+       *  dirty file tore down and rebuilt every other row of the panel — every
+       *  tick somebody had put in it among them. `changes` and `wrote` carry no
+       *  `path` and merge by position, which is what their consumers read them
+       *  as.
+       *
+       *  `file` IS THE NEAR-MISS, and it is refused for `errors`' reason rather
+       *  than on taste: it keys `outlines` too, and it REPEATS inside `changes`
+       *  — `@olai/format`'s `changesOf` matches by id ACROSS files, so several
+       *  node changes share one — which is a key deciding identity by
+       *  collision. `surface.test.ts` pins that it would have keyed `changes`,
+       *  so the reason this field and not that one is a fact rather than a
+       *  memory. */
+      arrayKey: "path",
     },
     /**
      * THE PINNED SHELF — the rows of the directory's `Pins.olai`, and the live
@@ -523,6 +600,28 @@ export const surface = defineSurface({
       default: NO_PINS,
       verbs: ["get"],
       equals: sameShelf,
+      /** A PIN IS ITS NODE'S ID — `@olai/format`'s `Pinned.id`, the pin
+       *  record's own id, required and non-nullable.
+       *
+       *  `equals` above and this are the two halves of one sentence, and they
+       *  are not the same half. `equals` decides whether a frame is SENT: a
+       *  revision that moved no pin says nothing to anybody. This decides what
+       *  a frame that IS sent is allowed to disturb — one pin added, one
+       *  reordered, or one pinned node retitled in the file it lives in, and
+       *  without a key every other row of the shelf was replaced with it. The
+       *  sidebar keys the shelf by this same id (`pins/Shelf.tsx`'s
+       *  `<Key each={pins()} by="id">`), so a reorder now MOVES the rows it
+       *  reorders.
+       *
+       *  IT IS THE ONE DECLARATION HERE WHOSE FIELD ALSO LIVES OUTSIDE THE ROWS
+       *  it was chosen for, and kolu warns about exactly that: a declared key is
+       *  identity WHEREVER it appears, so `Pinned.shows` — a nested object that
+       *  happens to carry an `id` of its own — is merged in place while that id
+       *  reads the same and replaced whole the moment it reads different. Which
+       *  is the behaviour this member wants: a row whose address comes to name a
+       *  different node should get a fresh answer rather than a field-merged
+       *  one. The other three declarations have no such object. */
+      arrayKey: "id",
     },
   },
   collections: {
@@ -706,6 +805,36 @@ export const surface = defineSurface({
     page: {
       inputSchema: PageRequest,
       outputSchema: PageReading,
+      /**
+       * A ROW IS ITS `key`, and this is the declaration that says so — the one
+       * thing `solid-js/store`'s `reconcile` cannot be told anywhere else, and
+       * the member where it pays most in this whole spec.
+       *
+       * Without it a frame REPLACES every element of every array it merges, so
+       * a frame that merely repeats what a tab already holds still notifies
+       * every reader of every row: `Tree.tsx`'s `<Key each={rows} by="key">`
+       * keeps its DOM, but `keyArray` hands every `Branch` a new object, and
+       * some twenty-five bindings per row re-run for a one-character change in
+       * one row (`docs/brainstorming/reactivity-after-the-flip.md`'s 2.11 — the
+       * one finding of that audit with no client-side fix). With it, an
+       * identical frame notifies nothing at all, a changed row notifies that
+       * row, and a REORDER moves the row objects the keyed view is following
+       * rather than rewriting them.
+       *
+       * `key` and not `id`, and the choice is forced: one field per member,
+       * reaching every array at every depth. `@olai/format`'s `Row.key` is a
+       * required, non-nullable string and the identity a place is drawn under
+       * (the chain of ids from the page's roots — the same key the fold, the
+       * editor's `refound` and every `<Key>` in the tree already follow), where
+       * `id` names the NODE and a mirror draws one node in two places. The
+       * arrays whose elements carry no `key` — `names`, the crumb trail,
+       * `backlinks`, `referrers`, a day's groups — merge BY POSITION, which is
+       * the declared reach of this key rather than a fallback around it, and
+       * which is silent on a repeated frame just the same. Their consumers all
+       * key by VALUE (`<Key by="id">`, `by={placeOf}`, `by="file"`), so
+       * position is exactly the right amount of identity to give them.
+       */
+      arrayKey: "key",
     },
     /**
      * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING — the move-to picker's
