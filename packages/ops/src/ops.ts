@@ -27,6 +27,8 @@ import {
   type CommitResult,
   type DatedAnswer,
   type DatedRequest,
+  type HomesAnswer,
+  type HomesRequest,
   type MatchingAnswer,
   type MatchingRequest,
   type NamedAnswer,
@@ -143,6 +145,20 @@ export interface Ops extends Asking {
   readonly named: (
     request: NamedRequest,
   ) => Effect.Effect<NamedAnswer, OpFailure>
+  /**
+   * WHERE these ids now live, and which of these FILES the set has anything
+   * from ({@link ./query.ts}'s `homes`).
+   *
+   * HERE FOR {@link named}'s REASON, one door further along: what comes back is
+   * a file per id and a list of paths, which is useful only to a caller holding
+   * a memory of records it saw earlier and deciding what is still worth
+   * remembering — the browser's fold memory, which kept a whole id→file map of
+   * its own to answer this. An agent that wants to know where a node is reads
+   * it and is told, beside everything else about it.
+   */
+  readonly homes: (
+    request: HomesRequest,
+  ) => Effect.Effect<HomesAnswer, OpFailure>
   /**
    * THE CALENDAR'S DOTS and WHAT IS OWED — the two date readings the sidebar
    * used to take off the browser's own copy of the set
@@ -425,6 +441,12 @@ export const make = (options: Options): Ops => {
     // The transcript's backticks, over the same gated read and with no clock in
     // it: an id names what it names whatever day it is asked on.
     named: (request) => Effect.map(read, (at) => Query.named(at.derived, request)),
+    // The fold memory's two facts, over the same gated read and with no clock
+    // in it either: where a record is and whether a file was read is true
+    // whatever day it is asked on. The WHOLE reading rather than the derivation
+    // alone — `Query.homes` argues it, and it is the near miss this member
+    // exists to avoid.
+    homes: (request) => Effect.map(read, (at) => Query.homes(at, request)),
     // The SIDEBAR's two date readings, over the same gated read and over the
     // derivation alone: a dot and a count are both about records, and the other
     // half of the set is prose. The day they are counted against is the

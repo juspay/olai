@@ -28,6 +28,8 @@ import { Connection } from "./connection/Connection.tsx"
 import { DerivedProvider } from "./derived.tsx"
 import { AirProvider, createAir } from "./drag/air.ts"
 import { createFields, FieldsProvider } from "./drag/fields.ts"
+import { unreachable } from "./connection/reaching.ts"
+import { createRefiling } from "./fold/refiling.ts"
 import { createDocuments, DocumentsProvider } from "./document/documents.tsx"
 import { createUndo, UndoContext } from "./edit/undoing.ts"
 import { UndoSaid } from "./edit/UndoSaid.tsx"
@@ -183,6 +185,27 @@ export default function App() {
    * under the same gate, one branch down.
    */
   const owed = createOwed(askedOn)
+
+  /**
+   * This browser's fold memory, kept filed against the set — a node that moved
+   * keeps its fold under the file it moved to, and a node that is gone stops
+   * being remembered (`./fold/refiling.ts`).
+   *
+   * HERE rather than beside `followFolds()` in `main.tsx`, which is where the
+   * rest of the fold's wiring is started: this one is a computation over two
+   * signals and Solid only owns a computation inside a render. Nothing on
+   * screen reads it and it returns nothing — the memory it tidies is read
+   * wherever a row asks `collapsedNodes`, exactly as before.
+   *
+   * THE WIRE IS HANDED IN, exactly as `createUndo` below is handed its write:
+   * that module is a rule about when to ask and what to believe, and one that
+   * could only be exercised by pressing a triangle in a browser is one nothing
+   * checks. This is the caller that has a wire.
+   */
+  createRefiling({
+    ask: (request) => runAsync(olai.procedures.nodes.homes(request)),
+    offline: () => unreachable(connectionReadout()),
+  })
 
   const zoomed = createMemo(() => {
     const open = focusedPage()

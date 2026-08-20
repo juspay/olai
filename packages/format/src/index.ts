@@ -566,7 +566,12 @@ export {
  *  {@link NamedAnswer} is the fifth and is a BATCH of the second — which of
  *  these ids the set declares, and what each one names — asked by a panel
  *  holding a paragraph full of backticks rather than by somebody reading one
- *  node. */
+ *  node.
+ *
+ *  {@link HomesAnswer} is the sixth and is a batch of a smaller question still:
+ *  WHERE these ids are, and whether the set has anything from these files —
+ *  asked by a reader holding a memory of records it saw earlier and needing to
+ *  tell a node that MOVED from one that is gone. */
 
 export {
   DEFAULT_SUBTREE_DEPTH,
@@ -576,6 +581,8 @@ export {
   DocumentRequest,
   DocumentSummary,
   Found,
+  HomesAnswer,
+  HomesRequest,
   NamedAnswer,
   NamedRequest,
   NodeAnswer,
