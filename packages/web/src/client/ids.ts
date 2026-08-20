@@ -18,13 +18,20 @@
  * come back in the order asked — so a list re-ordered is a different question
  * and has to read as one.
  *
- * A module of its own rather than a private function in either caller, because
- * a rule two modules keep is a rule that drifts in one of them (`./ref.ts`
- * makes the same move for the same reason, and a `.ts` is what lets the law be
- * unit tested without a JSX runtime behind it).
+ * NOT HAND-ROLLED: it is `effect`'s own array equivalence, which is the same
+ * law (same length, elements pairwise equivalent) written where nobody here has
+ * to maintain it — the move the format makes one door over, deriving
+ * `sameMoving` from the schema rather than spelling its fields twice.
+ *
+ * A module of its own rather than a private line in either caller, because a
+ * rule two modules keep is a rule that drifts in one of them (`./ref.ts` makes
+ * the same move for the same reason, and a `.ts` is what lets the law be unit
+ * tested without a JSX runtime behind it).
  */
 
-export const sameIds = (
+import { Array, Equivalence } from "effect"
+
+export const sameIds: (
   a: ReadonlyArray<string>,
   b: ReadonlyArray<string>,
-): boolean => a.length === b.length && a.every((id, at) => id === b[at])
+) => boolean = Array.makeEquivalence(Equivalence.String)

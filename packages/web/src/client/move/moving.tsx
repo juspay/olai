@@ -38,6 +38,7 @@ import { type Moved, type MovingRequest, type Row, sameMovingRequest } from "@ol
 import type { Edit } from "@olai/surface"
 import {
   type Accessor,
+  batch,
   createContext,
   createEffect,
   createMemo,
@@ -396,7 +397,18 @@ export const createMoving = (
       // just opened to make another one, is a sentence about nothing they can
       // see.
       saying.say(null)
-      setStanding({ kind: "picking", ...at })
+      // …and neither are the last panel's destinations. The shortlist hands its
+      // own up when it mounts, which is after this: without the reset, the
+      // first question a new picker asks is about the ids the LAST one was
+      // showing — a verdict about rows nobody can see, for one round trip.
+      // BATCHED so it is one question and not two: both of these feed the
+      // request below, and written separately each would open a subscription.
+      batch(() => {
+        // `() => NONE` and not `NONE`: a function handed to a setter is an
+        // updater, so an accessor is set through one that answers with it.
+        setAiming(() => NONE)
+        setStanding({ kind: "picking", ...at })
+      })
     },
     showing: (key) => {
       const held = standing()
