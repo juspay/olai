@@ -66,21 +66,19 @@
 
 import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "solid-js"
 
+import { SaidLine } from "../edit/SaidLine.tsx"
 import { useShowNode } from "../focus.ts"
 import { TESTID } from "../testids.ts"
+import { declaringFailure } from "./declared.ts"
 import { Entry } from "./Entry.tsx"
+
 import { laneOf, RAIL } from "./lanes.ts"
 import { LIVE_DOT } from "./live.ts"
+import { NEAR } from "./near.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import { doingOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
-
-/** How close to the bottom still counts as "at the bottom". Anything under a
- *  line or two of slack and a smooth scroll mid-flight reads as "the reader
- *  scrolled away". Exported so the scenarios that measure the same slack
- *  (`chat_steps.ts`) cannot drift from the pane that defined it. */
-export const NEAR = 64
 
 export function Transcript(props: { readonly chat: Chat }) {
   const show = useShowNode()
@@ -359,6 +357,30 @@ export function Transcript(props: { readonly chat: Chat }) {
             </p>
           )}
         </Show>
+
+        {/* THE ID LOOKUP'S OWN BAD NEWS, once for the pane. Which of the
+            agent's backticks are nodes is a call now ({@link ./declared.ts}),
+            and a call that did not arrive must not read as prose that named
+            none of them (HACKING.md — an error reaches somebody). The words are
+            untouched and every span still says what the agent wrote; what is
+            missing is which of them can be pressed.
+
+            HERE rather than under the message, because the CALL is the pane's:
+            one question carries the ids of every message on screen, so a line
+            per message would put the same sentence under eighty paragraphs of a
+            conversation that had just opened. It is not the refusal row above
+            either — a refused WRITE is something that did not happen, and this
+            is a question about something that did. */}
+        <Show when={declaringFailure()}>
+          {(why) => (
+            <SaidLine
+              said={{ tone: "alarm", text: `some ids could not be looked up — ${why()}` }}
+              class="m-0 mt-2 font-mono text-xs"
+              testid={TESTID.chatRefsFailure}
+            />
+          )}
+        </Show>
+
       </div>
     </div>
   )

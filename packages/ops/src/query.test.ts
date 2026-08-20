@@ -21,7 +21,7 @@ import {
 import { describe, expect, test } from "bun:test"
 
 import { readingOf, setOf } from "./fixtures.testlib.ts"
-import { detail, matches, outlines, search, subtree } from "./query.ts"
+import { detail, matches, named, outlines, search, subtree } from "./query.ts"
 
 /** The hits on RECORDS, which is what nearly every case below is about: a
  *  search answers with both kinds now, and a reader that draws one says so. */
@@ -702,4 +702,78 @@ describe("which nodes a query selects", () => {
   // the directory that is prose is not in reach of it. Which is the honest
   // arrangement — the page that draws prose is the one page that carries no
   // filter at all (`@olai/web`'s `routes.ts`).
+})
+
+/**
+ * `named` is the TRANSCRIPT's door: which of these ids the set declares, and
+ * what each one names.
+ *
+ * A lookup and not a query, which is what every case here is about — an id is
+ * matched exactly, a placement is followed to the node it shows, and what the
+ * set does not declare is simply not in the answer. The browser answered this
+ * out of its own copy of the directory until `vib-3-transcript-ids`, so these
+ * cases are the ones a chat panel used to prove by pressing a word.
+ */
+describe("which of these ids the set declares", () => {
+  const HOUSE = (): OutlineSet =>
+    setOf({
+      "house.olai": [
+        `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets"}`,
+        // A placement of `order`, which is the id an agent writes: `read_node`
+        // answers `mirrors` with it and `remove_mirror` takes it.
+        `{"id":"echo","ord":"a1","mirror":"order"}`,
+        // ...and one whose chain ends nowhere.
+        `{"id":"nowhere","ord":"a2","mirror":"gone"}`,
+      ].join("\n"),
+      "_olai/Trash.olai": [
+        `{"id":"old","ord":"a0","title":"the old counters"}`,
+      ].join("\n"),
+    })
+
+  const asked = (...ids: ReadonlyArray<string>) => named(derivedOf(HOUSE()), { ids }).named
+
+  test("an id the set declares comes back with the node it names", () => {
+    expect(asked("order")).toEqual([{ asked: "order", id: "order" }])
+  })
+
+  test("a PLACEMENT names the node it shows, not itself", () => {
+    // The whole reason this answers with a pair. A row in the tree carries the
+    // node it SHOWS, so a span marked `echo` would name no row and every press
+    // of it would leave the page for a node that is right there.
+    expect(asked("echo")).toEqual([{ asked: "echo", id: "order" }])
+  })
+
+  test("what the set does not declare is not in the answer at all", () => {
+    // Every other backticked thing an agent writes — a flag, a file, a
+    // command — and a placement whose chain is dead, which has nothing to
+    // point at either.
+    expect(asked("true", "house.olai", "bun test", "nowhere")).toEqual([])
+  })
+
+  test("one question, one answer per id — the rest of the batch is unaffected", () => {
+    // The batch is the point: one message's backticks are one question, and
+    // most of them are not ids.
+    expect(asked("true", "order", "npm test", "echo")).toEqual([
+      { asked: "order", id: "order" },
+      { asked: "echo", id: "order" },
+    ])
+
+  })
+
+  test("an id repeated is asked once", () => {
+    // A caller builds a lookup out of this, and a lookup has one entry per key.
+    expect(asked("order", "order", "order")).toEqual([{ asked: "order", id: "order" }])
+  })
+
+  test("what was put away is still declared", () => {
+    // A lookup is not a search, so the grammar's rule about `is:trashed` has
+    // nothing to say here: the id names the node it names, and a reader
+    // pressing it is shown where it now is.
+    expect(asked("old")).toEqual([{ asked: "old", id: "old" }])
+  })
+
+  test("nothing asked is nothing answered", () => {
+    expect(named(derivedOf(HOUSE()), { ids: [] })).toEqual({ named: [] })
+  })
 })
