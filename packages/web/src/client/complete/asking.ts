@@ -21,26 +21,20 @@
  * that is a reading, it belongs on both faces, and this file becomes its
  * caller."
  *
- * ## A SHORTLIST, so it is `../search/nodes.ts`'s shape and not the filter's
+ * ## A SHORTLIST, so the asking is `../asked.ts`'s and not the filter's
  *
- * There are two askers in this client already and they differ in exactly one
- * way, which is the way that decides which one this is. The page filter
- * (`../filter/asking.ts`) is a STANDING VIEW: it re-asks on every published
- * revision, because a row retitled into the query has to appear. A shortlist
- * under a caret is not that — it is a question somebody opened, answered once,
- * and closed by choosing a row or typing past it — so this carries no generation
- * and no revision re-ask, exactly like the `((` search this widget's third
- * trigger already calls. Two askers, not three.
+ * The debounce, the latest-answer-wins rule and the failure slot are the
+ * primitive's — this door was the third to want them, which is what moved them
+ * out of `../search/nodes.ts` into a file of their own. What is left here is
+ * the two things that are this widget's: WHICH question is worth asking, and
+ * what the rows mean.
  *
- * What it takes from both is the pair of disciplines a round trip per keystroke
- * costs, and neither is restated here because both are argued there:
- *
- *   - {@link SETTLE_MS} is the debounce, IMPORTED rather than picked — one fact
- *     about one pair of hands, and this popup and the box in the header are the
- *     same hands.
- *   - `createResource` drops the answer to a source that has since moved, so
- *     the ROWS cannot be stale; the failure slot is a signal every question
- *     shares and gets the guard the framework only gives to the answer.
+ * The page filter (`../filter/asking.ts`) is not that primitive's caller and
+ * says why: it is a STANDING VIEW that re-asks on every published revision,
+ * where a shortlist under a caret is a question somebody opened, answered once
+ * and closed by choosing a row or typing past it. So nothing here carries the
+ * set's generation and nothing re-asks on a revision — exactly like the `((`
+ * search this widget's third trigger already calls.
  *
  * NO MINIMUM LENGTH, which is where it parts from the node search: a bare `#`
  * is a question with an answer — "what does this set even use" — where two
@@ -58,20 +52,11 @@
  * answered simply has nothing to offer.
  */
 
-import { debounce } from "@solid-primitives/scheduled"
-import { Result } from "effect"
-import {
-  type Accessor,
-  createEffect,
-  createResource,
-  createSignal,
-  untrack,
-} from "solid-js"
+import type { Accessor } from "solid-js"
 
 import type { TagCompletion, TagsRequest } from "@olai/surface"
 
-import { runAsync } from "../run.ts"
-import { SETTLE_MS } from "../search/nodes.ts"
+import { createAsked } from "../asked.ts"
 import { olai } from "../wire.ts"
 
 /** How many rows the widget offers. A row's popup is a shortlist — and the
@@ -87,8 +72,9 @@ import { olai } from "../wire.ts"
 const LIMIT = 8
 
 /** What one asking is about: which namespace, and what has been typed after the
- *  sigil. The two halves of a trigger, and the whole of the question — the
- *  cap is this file's. */
+ *  sigil. ONE VALUE rather than two accessors, because the two halves of a
+ *  trigger are one thing (`./trigger.ts` produces them together) and splitting
+ *  them here would let a frame carry `@`'s namespace with `#`'s prefix. */
 export interface Asking {
   readonly sigil: TagsRequest["sigil"]
   readonly query: string
@@ -101,6 +87,11 @@ export interface Tags {
   readonly failure: Accessor<string | null>
 }
 
+/** BY VALUE, because the trigger is a fresh object per keystroke and most
+ *  keystrokes in a line are not about the tag in it: moving the caret along
+ *  `#home`, or typing anywhere else in the title, is the same sigil and the
+ *  same prefix in a new object, and identity would make each of those a round
+ *  trip for an answer already on screen. */
 const same = (was: Asking | null, is: Asking | null): boolean =>
   was === is ||
   (was !== null && is !== null && was.sigil === is.sigil && was.query === is.query)
@@ -109,63 +100,17 @@ const same = (was: Asking | null, is: Asking | null): boolean =>
  * Ask as the trigger changes. `null` is "no tag is being typed" — the popup is
  * shut, or the caret moved off it — and answers with no rows rather than with
  * the list from before.
- *
- * IT TAKES THE TRIGGER, not two accessors: the sigil and the prefix are one
- * value in the widget that produces them (`./trigger.ts`), and splitting them
- * here would let a frame carry `@`'s namespace with `#`'s prefix.
  */
 export const createTags = (asking: Accessor<Asking | null>): Tags => {
-  const [failure, setFailure] = createSignal<string | null>(null)
-  /** What has actually been asked for: the trigger, once it stopped moving.
-   *
-   *  COMPARED BY VALUE, because the trigger is a fresh object per keystroke and
-   *  most keystrokes in a line are not about the tag in it: moving the caret
-   *  along `#home`, or typing anywhere else in the title, hands this the same
-   *  sigil and the same prefix in a new object. Without `equals` each of those
-   *  would be a round trip for an answer already on screen. */
-  const [asked, setAsked] = createSignal<Asking | null>(null, { equals: same })
-  const settle = debounce(setAsked, SETTLE_MS)
-
-  createEffect(() => {
-    const wanted = asking()
-    if (wanted !== null) {
-      settle(wanted)
-      return
-    }
-    // Clearing takes effect AT ONCE rather than after the settle: a list left
-    // standing under a caret that has moved off the tag is a list that is lying
-    // for as long as it stands — and the keys it claims while it stands are the
-    // row editor's (`./completing.tsx`'s `showing`).
-    settle.clear()
-    setAsked(null)
-    setFailure(null)
-  })
-
-  /** Is this fetcher still answering the question that is being asked? The
-   *  answer is the framework's to drop; the failure slot is shared by every
-   *  question and is not, so a slow refusal of one prefix must not land under
-   *  the next one's rows. `untrack`, because this is read inside an async
-   *  continuation: as a dependency it would make a fetcher's own resolution a
-   *  reason to re-run it. */
-  const answering = (ask: Asking) => same(untrack(asked), ask)
-
-  const [answer] = createResource(asked, async (ask: Asking) => {
-    const outcome = await runAsync(
+  const asked = createAsked(
+    asking,
+    (one) =>
       olai.procedures.vocabulary.tags({
-        sigil: ask.sigil,
-        query: ask.query,
+        sigil: one.sigil,
+        query: one.query,
         limit: LIMIT,
       }),
-    )
-    if (Result.isFailure(outcome)) {
-      if (answering(ask)) setFailure(outcome.failure.message)
-      return null
-    }
-    if (answering(ask)) setFailure(null)
-    return outcome.success
-  })
-
-  // `undefined` is the resource's "nothing asked for yet"; a popup shows no
-  // rows in that state, which is the same thing an empty answer shows.
-  return { rows: () => answer()?.tags ?? [], failure }
+    same,
+  )
+  return { rows: () => asked.answer()?.tags ?? [], failure: asked.failure }
 }

@@ -25,12 +25,14 @@
  * ## The four things a round trip costs, and what is done about each
  *
  *   - **A keystroke may not be a request.** {@link SETTLE_MS} is the debounce,
- *     the same primitive and the same reasoning as `../search/nodes.ts`'s: just
+ *     the same primitive and the same number as the shortlist doors' — just
  *     past an ordinary inter-keystroke gap, where it collapses a word into one
- *     question instead of six.
+ *     question instead of six. It is IMPORTED (`../asked.ts`) rather than
+ *     picked: one fact about one pair of hands.
  *   - **An old answer may not land on a new question.** `createResource` drops
- *     the answer to a source that has since moved — the reason that file gave
- *     up its sequence counter, and the reason this one never grew one. The
+ *     the answer to a source that has since moved — the reason the shortlist
+ *     doors gave up their sequence counter, and the reason this one never grew
+ *     one. The
  *     answer also CARRIES the query it answers, so "which question are these
  *     rows an answer to" is read off the value rather than off a second signal
  *     that could disagree with it by a frame.
@@ -80,17 +82,23 @@ import {
 import type { Filter } from "@olai/format"
 import type { MatchedNode } from "@olai/surface"
 
+import { SETTLE_MS } from "../asked.ts"
 import { unreachable } from "../connection/reaching.ts"
 import type { Drawn } from "../page.ts"
 import { runAsync } from "../run.ts"
-import { SETTLE_MS } from "../search/nodes.ts"
 import { connectionReadout, olai } from "../wire.ts"
 import { showsTrashed } from "./drawn.ts"
 
-// The settle is imported rather than restated (`../search/nodes.ts` argues it:
-// one fact about one pair of hands). There is no MIN_LENGTH twin to it here: a
+// The settle is imported rather than restated (`../asked.ts` argues it: one
+// fact about one pair of hands). There is no MIN_LENGTH twin to it here: a
 // shortlist of eight over one letter is noise, where narrowing a page to what
 // holds an `a` is a question with an answer the reader can see the size of.
+//
+// THIS DOOR IS NOT A CALLER of that primitive, and that file says why from its
+// side: a shortlist is a question somebody opened and closed, where a filter is
+// a standing view of a page — which is where all three of the rules below that
+// it does not have come from (the set's generation on the question, an answer
+// that survives a refused call, and a question never asked over a dead wire).
 
 /** What a query selected, ready for a row to look itself up in: id → why. The
  *  server's own answer rows, kept as they arrived rather than re-shaped — the
