@@ -13,10 +13,11 @@
  * reassemble. What the attempt is CALLED is not here either: this module knows
  * that a commit was refused, `said.ts` knows how to say so.
  *
- * Auto-push (`../settings/autopush.ts`) is this browser's: a recorded commit
- * from the button here is followed by the same `send` the Push button runs
- * (`./record.ts`). Off, nothing changes. A push that fails is still a push
- * the panel already draws — the commit stands.
+ * Auto-push is this browser's, handed in as an accessor so this file does
+ * not import the preference: a recorded commit from the button here is
+ * followed by the same `send` the Push button runs (`./record.ts`). Off,
+ * nothing changes. A push that fails is still a push the panel already
+ * draws — the commit stands.
  */
 
 import {
@@ -32,7 +33,6 @@ import { type Accessor, createSignal } from "solid-js"
 import { afterCommit } from "./record.ts"
 import { waitingIn } from "./said.ts"
 import { run } from "../run.ts"
-import { autoPush } from "../settings/autopush.ts"
 import { olai } from "../wire.ts"
 
 /**
@@ -110,7 +110,13 @@ export interface Commit {
   readonly push: () => void
 }
 
-export const createCommit = (): Commit => {
+/** Whether this browser follows a recorded commit with a push is the
+ *  caller's: this factory does not import the preference, so the composition
+ *  (`./record.ts`) can be asked with any answer. Read at commit time. Off
+ *  is today's behaviour, for a caller that has not asked. */
+export const createCommit = (
+  autoPush: Accessor<boolean> = () => false,
+): Commit => {
   const cell = olai.cells.pending.use()
   // The spec declares `off` as this cell's default and the framework seeds the
   // subscription with it, so a page reads "say nothing" before the first frame
