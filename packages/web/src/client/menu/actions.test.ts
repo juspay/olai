@@ -54,6 +54,7 @@ const actionsFor = (
 ) =>
   nodeMenuActions({
     row: row(id),
+    pins: [],
     derived,
     collapsed: false,
     foldable: [],

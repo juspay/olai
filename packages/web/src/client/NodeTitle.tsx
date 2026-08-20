@@ -49,8 +49,9 @@
 
 import { createMemo, Show } from "solid-js"
 
-import { addressIn, labelIn } from "./address/address.ts"
+import { addressIn, labelIn, nameOf, shownIn } from "./address/address.ts"
 import { Face } from "./address/Face.tsx"
+import { useDerived } from "./derived.tsx"
 import { renderTitle } from "./markdown/title.ts"
 
 export function NodeTitle(props: {
@@ -67,6 +68,7 @@ export function NodeTitle(props: {
    *  on every title drawn for a row the query did not select. */
   readonly needles?: ReadonlyArray<string>
 }) {
+  const derived = useDerived()
   /** The place this title names, for the titles that name one. Cheap for every
    *  other title in the directory: the test short-circuits on the first
    *  character (`./address/address.ts`). */
@@ -98,7 +100,19 @@ export function NodeTitle(props: {
         // drawn, and still says it is a match in the ways that are about the
         // row (`./filter/why.ts`).
         <span class="flex min-w-0 flex-1 items-center gap-1.5">
-          <Face route={route()} named={named()} pressable={props.links !== false} />
+          <Face
+            route={route()}
+            // WHAT IT IS CALLED, asked of the reading this page is drawn from
+            // — the one address resolution still answered in the browser, and
+            // the one PR 10 takes with the rest of a page's readings
+            // (`./address/address.ts`'s `shownIn`). The shelf's identical
+            // question is answered on the server; both go through the same
+            // switch, so one title cannot have two answers.
+            name={named() ?? nameOf(route(), shownIn(derived(), route()))}
+            // A written name is what may be pressed — a bare address is left as
+            // it was, so a click there opens the editor on the address itself.
+            pressable={named() !== undefined && props.links !== false}
+          />
         </span>
       )}
     </Show>

@@ -47,6 +47,7 @@
  */
 
 import type { Derived, Situated } from "@olai/format"
+import type { Shelf } from "@olai/surface"
 
 import { subjectOfZoom, writeVerbs } from "../menu/verbs.ts"
 import type { PaletteItem } from "./items.ts"
@@ -60,10 +61,14 @@ import type { PaletteItem } from "./items.ts"
 export const opItems = (
   zoomed: Situated | undefined,
   derived: Derived | undefined,
+  /** The shelf, for the one verb in that catalog that reads it — and which
+   *  this file then drops on the floor (see below). Handed over rather than
+   *  reached for, because everything here is pure over what it was asked. */
+  pins: Shelf,
 ): ReadonlyArray<PaletteItem> => {
   if (zoomed === undefined) return []
   const title = zoomed.shows.node.title
-  return writeVerbs(subjectOfZoom(zoomed), derived).flatMap((verb) =>
+  return writeVerbs(subjectOfZoom(zoomed), derived, pins).flatMap((verb) =>
     // AND THE SHELF'S VERB IS LEFT OUT, which is the one exclusion by NAME in
     // this file and needs its own sentence because of that. The palette
     // already carries a pin row, and that one is about the PAGE

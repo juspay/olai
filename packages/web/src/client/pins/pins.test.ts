@@ -1,45 +1,76 @@
 /**
- * WHAT IS ON THE SHELF, over records the format itself walked.
+ * WHAT IS ON THE SHELF, over the answer the server sends.
  *
  * WHICH TITLES ARE DOORS is one module over and has its own suite
- * (`../address/address.test.ts`); what is here is the SHELF's own reading —
- * which file it is, which of its rows count, in what order, and whether a
- * given page is already on it.
+ * (`../address/address.test.ts`); WHICH ROWS TRAVEL and what a pinned node is
+ * called are the reading's, on the other side of the wire, and have theirs
+ * (`@olai/format`'s `shelf.test.ts`). What is here is what this module is left
+ * holding: reading each answered row into a door, and whether a given page is
+ * already one.
  */
 
-import { derive } from "@olai/format"
-import { recordsOf, setOf } from "@olai/format/testlib"
+import type { Shelf } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import { pinnedAt, pinsOf } from "./pins.ts"
 import { atNode } from "../routes.ts"
 
-const PINS = [
-  `{"id":"p-herbs","ord":"a0","title":"/#herbs"}`,
-  `{"id":"p-doc","ord":"a1","title":"/notes/finishes.md"}`,
-  `{"id":"p-late","ord":"a2","title":"[What is late](/agenda?q=is%3Atodo)"}`,
-  `{"id":"p-note","ord":"a3","title":"the ones I keep coming back to"}`,
-  `{"id":"p-under","parent":"p-herbs","ord":"a0","title":"/#kitchen"}`,
-].join("\n")
+/** The shelf as the `pins` cell carries it — the file's own rows, with the one
+ *  fact only the set could answer already on them. */
+const ANSWERED: Shelf = [
+  { id: "p-herbs", title: "/#herbs", shows: { id: "herbs", name: "the herb bed" } },
+  { id: "p-doc", title: "/notes/finishes.md" },
+  { id: "p-late", title: "[What is late](/agenda?q=is%3Atodo)" },
+  { id: "p-note", title: "the ones I keep coming back to" },
+  { id: "p-gone", title: "/#gone" },
+]
 
-const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed"}`
+// ── reading the answer ─────────────────────────────────────────────────
 
-const setWith = (pins: string) =>
-  derive(recordsOf(setOf({ "Pins.olai": pins, "garden.olai": GARDEN })))
-
-// ── the shelf ──────────────────────────────────────────────────────────
-
-test("the shelf is the top level of Pins.olai, in ord order, doors only", () => {
-  expect(pinsOf(setWith(PINS)).map((pin) => pin.id)).toEqual([
+test("the doors are the answered rows whose titles name a page, in order", () => {
+  expect(pinsOf(ANSWERED).map((pin) => pin.id)).toEqual([
     "p-herbs",
     "p-doc",
     "p-late",
+    "p-gone",
   ])
 })
 
 test("a named pin keeps its name; a bare address has none", () => {
-  const pins = pinsOf(setWith(PINS))
-  expect(pins.map((pin) => pin.named)).toEqual([undefined, undefined, "What is late"])
+  expect(pinsOf(ANSWERED).map((pin) => pin.named))
+    .toEqual([undefined, undefined, "What is late", undefined])
+})
+
+test("what a door is CALLED: the written name, then the set's, then the address", () => {
+  expect(pinsOf(ANSWERED).map((pin) => pin.name)).toEqual([
+    // The node's own title, as the server answered it.
+    "the herb bed",
+    // A file names itself — the server says nothing about one, and never did.
+    "finishes.md",
+    // A name somebody wrote wins over anything derived.
+    "What is late",
+    // The honest dead row: an address this app can read, at a node the set does
+    // not declare.
+    "/#gone",
+  ])
+})
+
+test("a node RENAMED is a new answer, and the shelf says the new name", () => {
+  const renamed = ANSWERED.map((row) =>
+    row.id === "p-herbs" ? { ...row, shows: { id: "herbs", name: "the herb spiral" } } : row
+  )
+  expect(pinsOf(renamed)[0]?.name).toBe("the herb spiral")
+})
+
+// The two sides read one title with two parsers, each its own half of the seam
+// (`./target.test.ts`). Where they agree there is nothing to say; this is what
+// the row draws if they ever did not — its own address, never a name for
+// somewhere else.
+test("a name is spent only where THIS parser agrees the row addresses that node", () => {
+  const crossed: Shelf = [
+    { id: "p", title: "/#herbs", shows: { id: "elsewhere", name: "the kitchen" } },
+  ]
+  expect(pinsOf(crossed)[0]?.name).toBe("/#herbs")
 })
 
 // A title an escape nothing can read is not a door
@@ -47,48 +78,26 @@ test("a named pin keeps its name; a bare address has none", () => {
 // surviving one: the parse runs during render, so a throw took the sidebar
 // down rather than skipping a row (review, 2026-08-18).
 test("…and the shelf drawn over one is the shelf without it", () => {
-  const shelf = derive(
-    recordsOf(setOf({
-      "Pins.olai": [
-        `{"id":"p-bad","ord":"a0","title":"/%"}`,
-        `{"id":"p-good","ord":"a1","title":"/agenda"}`,
-      ].join("\n"),
-      "garden.olai": GARDEN,
-    })),
-  )
+  const shelf: Shelf = [
+    { id: "p-bad", title: "/%" },
+    { id: "p-good", title: "/agenda" },
+  ]
   expect(pinsOf(shelf).map((pin) => pin.id)).toEqual(["p-good"])
 })
 
 test("a directory with no shelf, and one whose shelf holds nothing, both draw none", () => {
-  expect(pinsOf(derive(recordsOf(setOf({ "garden.olai": GARDEN }))))).toEqual([])
-  expect(pinsOf(undefined)).toEqual([])
-})
-
-test("the shelf is found by NAME, wherever the directory keeps it", () => {
-  const nested = derive(recordsOf(setOf({ "notes/pins.olai": `{"id":"p","ord":"a0","title":"/agenda"}` })))
-  expect(pinsOf(nested).map((pin) => pin.id)).toEqual(["p"])
-})
-
-test("a mirror on the shelf is not a pin — a placement is not a door", () => {
-  const withMirror = derive(
-    recordsOf(setOf({
-      "Pins.olai": `{"id":"p-mirror","ord":"a0","mirror":"herbs"}`,
-      "garden.olai": GARDEN,
-    })),
-  )
-  expect(pinsOf(withMirror)).toEqual([])
+  expect(pinsOf([])).toEqual([])
 })
 
 // ── is this page already on it ─────────────────────────────────────────
 
 test("a page is pinned when the shelf holds its address, however either is spelled", () => {
-  const set = setWith(PINS)
-  expect(pinnedAt(set, atNode("herbs"))?.id).toBe("p-herbs")
-  expect(pinnedAt(set, { kind: "agenda", filter: "is:todo" })?.id).toBe("p-late")
+  expect(pinnedAt(ANSWERED, atNode("herbs"))?.id).toBe("p-herbs")
+  expect(pinnedAt(ANSWERED, { kind: "agenda", filter: "is:todo" })?.id).toBe("p-late")
   // The SAME page without its query is a different page, and a different pin.
-  expect(pinnedAt(set, { kind: "agenda" })).toBeUndefined()
-  expect(pinnedAt(set, atNode("kitchen"))).toBeUndefined()
-  // And a directory with no shelf at all has nothing pinned, rather than a
+  expect(pinnedAt(ANSWERED, { kind: "agenda" })).toBeUndefined()
+  expect(pinnedAt(ANSWERED, atNode("kitchen"))).toBeUndefined()
+  // And a shelf that has answered nothing has nothing pinned, rather than a
   // caller having to ask whether there is one first.
-  expect(pinnedAt(undefined, { kind: "agenda" })).toBeUndefined()
+  expect(pinnedAt([], { kind: "agenda" })).toBeUndefined()
 })

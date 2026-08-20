@@ -108,6 +108,7 @@ import { PropEditor } from "./props/PropEditor.tsx"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { nodeMenuActions } from "./menu/actions.ts"
+import { usePins } from "./pins/answered.tsx"
 import { createMenuDoor } from "./menu/door.ts"
 import { NodeMenu } from "./menu/NodeMenu.tsx"
 import { followed, followedSplit, useGo } from "./router.tsx"
@@ -224,6 +225,10 @@ function Branch(props: {
   // reading — done-hidden has already dropped branches from them — and the
   // confirm has to name what the write moves (./menu/subtree.ts).
   const derived = useDerived()
+  // …and the SHELF, for the other one: whether this row is already a door in
+  // the sidebar. Answered by the server now, so this reads the tab's copy of
+  // that answer rather than a walk of the directory (./pins/answered.tsx).
+  const pins = usePins()
   // ⌘Z is one stack for this page, whichever hand wrote: a menu verb files
   // what would take it back exactly as a keystroke does (./writes.ts).
   const undo = useUndo()
@@ -538,6 +543,7 @@ function Branch(props: {
             actions={nodeMenuActions({
               row: props.row,
               derived: derived(),
+              pins: pins(),
               collapsed: collapsed(),
               foldable: foldable(),
               go,

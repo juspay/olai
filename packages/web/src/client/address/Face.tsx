@@ -11,11 +11,11 @@
  * resolved its rows and the page did not, which is one title with two answers.
  *
  * SO THE RESOLUTION IS NOT A PROPERTY OF THE PAGE. It is a property of the
- * TITLE, and both callers hand this the same two facts — the route, and the
- * name somebody wrote on it if they wrote one — and get the same three things
- * back: the mark, the name, and the query when there is one.
+ * TITLE, and both callers hand this the same two facts — the route, and what
+ * that address is called — and get the same three things back: the mark, the
+ * name, and the query when there is one.
  *
- * ## The name: written, or read off the set
+ * ## The name: written, or read off the set — and asked by the CALLER
  *
  * A title spelled as a bare address has no name in it, so the set is asked and
  * the answer is live: rename the node anywhere and every face drawn from that
@@ -24,6 +24,14 @@
  * one wins — it is authored rather than derived, so nothing can disagree with
  * it later (human, 2026-08-19: renaming a pin is editing the row's text, and
  * that is the whole of the feature — no op, no field).
+ *
+ * WHO ASKS is the caller, and that is the one thing this component stopped
+ * doing when the shelf moved to the server (`vault-in-browser`'s PR 5): the
+ * SHELF's name comes off the wire, resolved where the set is, and an ORDINARY
+ * ROW's is still asked of the page's own reading. Both go through the one
+ * switch that decides what an address is called (`./address.ts`'s `nameOf`), so
+ * there is still exactly one answer per title — it is now reachable from either
+ * side of a wire, which is a resolution this component could not have held.
  *
  * IT IS DRAWN AS THE WORDS THEY CHOSE, and that is the decision behind the
  * plainest line of code here: the label is text, not markdown. A `#home` in it
@@ -50,37 +58,37 @@
  * `pressable` is the CALLER's, because two of them may not hold an anchor at
  * all: the shelf's row is already a `<Link>`, and a breadcrumb or a `see`
  * reference draws a title inside one — which is the same fact `NodeTitle`'s
- * `links` prop has always carried for markdown.
+ * `links` prop has always carried for markdown. It carries the WHOLE of that
+ * question now, authored-ness included: the caller is the one that knows
+ * whether the name it just handed over is a name somebody wrote or one the
+ * address answered for itself.
  */
 
 import { Show } from "solid-js"
 
-import { useDerived } from "../derived.tsx"
 import { filterOf, hrefOf, type Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
-import { nameOf } from "./address.ts"
 
 export function Face(props: {
   readonly route: Route
-  /** The name somebody GAVE this address, or `undefined` for the bare form —
-   *  in which case the set is asked. */
-  readonly named?: string | undefined
-  /** May this draw an anchor? Only a NAMED face ever does; a caller that is
-   *  already inside a link says no whatever the title said. */
+  /** What this address is CALLED — the name somebody wrote on it, or what the
+   *  address itself is called (`./address.ts`'s `nameOf`). Resolved by the
+   *  caller, because the two callers learn it from opposite sides of the wire. */
+  readonly name: string
+  /** Draw the name as an anchor to its address. Only a caller holding an
+   *  AUTHORED name ever says true — a bare address is left as it was, so a
+   *  click there is the row's own — and one already inside a link says no
+   *  whatever the title said. */
   readonly pressable?: boolean
 }) {
-  const derived = useDerived()
-  const name = () => props.named ?? nameOf(props.route, derived())
-  const press = () => props.named !== undefined && props.pressable === true
-
   return (
     <>
       <Mark />
       <Show
-        when={press()}
+        when={props.pressable === true}
         fallback={
           <span class="min-w-0 flex-1 truncate" data-testid={TESTID.addressName}>
-            {name()}
+            {props.name}
           </span>
         }
       >
@@ -94,7 +102,7 @@ export function Face(props: {
           class="min-w-0 flex-1 truncate underline decoration-rule underline-offset-2 hover:decoration-accent"
           data-testid={TESTID.addressName}
         >
-          {name()}
+          {props.name}
         </a>
       </Show>
       <Show when={filterOf(props.route) !== ""}>

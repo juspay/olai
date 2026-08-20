@@ -1,5 +1,5 @@
 /**
- * WHAT IS ON THE SHELF, read off the directory.
+ * WHAT IS ON THE SHELF, read off the SERVER'S ANSWER.
  *
  * ## A pin is an ADDRESS, and that is the whole storage design
  *
@@ -41,7 +41,7 @@
  * ## And a pin may be NAMED
  *
  * A bare address is the ordinary case and the only one this app writes, because
- * every address already has a name somebody can derive from the set
+ * every address already has a name somebody can derive from it or from the set
  * (`../address/address.ts`) — a node's own live title, a file's name, the word
  * *Agenda*. A copy of that name stored beside the address would be the second
  * answer the format spends its whole mirror argument avoiding: rename the node
@@ -53,6 +53,24 @@
  * format already (docs/format.md's Fields), so `Pins.olai` opened as an
  * ordinary outline draws it as an ordinary link.
  *
+ * ## WHERE THE SHELF COMES FROM, since PR 5 of `vault-in-browser`
+ *
+ * From the wire, whole: the `pins` cell carries the rows of `Pins.olai` in the
+ * order they are drawn, each with the live name of whatever node it addresses,
+ * re-answered on every published revision (`@olai/format`'s `shelfOf`). This
+ * module used to walk the browser's copy of every outline to work that out —
+ * find the shelf file among the paths, sort its top level, look each id up in
+ * the vault-wide index — and that copy is what the design is taking away.
+ *
+ * WHAT IS LEFT HERE IS A PARSE, and the difference is the one the search door
+ * draws (`../filter/asking.ts`): reading a title to see whether it names a page
+ * of this app costs the title, where resolving it cost the vault. It stays in
+ * the browser because it IS the browser's — which page an address opens, and
+ * what a `?q=` on it means, is ruled to be view-time and this app's own
+ * bijection (docs/format.md's Pins, the last paragraph). The server reads the
+ * one half of a title that is a statement about the directory — the node an
+ * address names — and hands the rest over as it found it.
+ *
  * ## WHAT COUNTS AS A DOOR IS NOT THIS MODULE'S ANY MORE
  *
  * `../address/address.ts` owns it, and the move is the maintainer's finding
@@ -60,21 +78,22 @@
  * drew the raw address, which is one title with two answers. The rule was the
  * shelf's while the shelf was its only reader; the outline is the second, so
  * the rule moved to where both can read it and this module kept what is
- * genuinely about a SHELF — which file it is, which rows of it are pins, and
- * whether a given page is already on it.
+ * genuinely about a SHELF — which of the answered rows are doors, what each is
+ * called, and whether a given page is already on it.
  *
- * Everything here is pure over the indexes, so what counts as a pin is decided
+ * Everything here is pure over the answer, so what counts as a pin is decided
  * in a unit test rather than in a sidebar.
  */
 
-import { type Derived, isMirror, type Node, pinsIn, siblingsOf } from "@olai/format"
+import type { Pinned, Shelf } from "@olai/surface"
 
-import { addressIn, labelIn } from "../address/address.ts"
+import { addressIn, labelIn, nameOf } from "../address/address.ts"
 import { hrefOf, type Route } from "../routes.ts"
 
-/** One door on the shelf: the node that IS the pin, and where it goes. */
+/** One door on the shelf: the node that IS the pin, where it goes, and what it
+ *  is called. */
 export interface Pin {
-  /** The pin NODE's own id — what an unpin archives and what a reorder moves.
+  /** The pin NODE's own id — what an unpin trashes and what a reorder moves.
    *  Never the id of whatever the address names: the shelf's rows are the
    *  shelf's own records. */
   readonly id: string
@@ -82,21 +101,51 @@ export interface Pin {
    *  title. */
   readonly route: Route
   /** The name somebody GAVE this pin, or `undefined` for the ordinary bare
-   *  address — in which case the shelf derives one (`./name.ts`). */
+   *  address. Kept beside {@link name} rather than folded into it because it
+   *  says something the drawn name cannot: that these words are AUTHORED, which
+   *  is what makes a face pressable (`../address/Face.tsx`). */
   readonly named: string | undefined
+  /**
+   * What this door is CALLED, as it is drawn — the written name, or what the
+   * address is called, which for a node is what the server says that node's
+   * title is right now and for everything else is the address's own answer.
+   *
+   * ONE spelling of that rule, here, because three surfaces read it: the face,
+   * the row's tooltip and the unpin's label. It used to be spelled in the shelf
+   * component beside a comment promising it matched the face's.
+   */
+  readonly name: string
 }
 
-/** One record of the shelf as a pin, or `undefined` when it is not one — a
- *  mirror (which carries no title at all), or a row whose title says something
- *  other than a place. Such a row is left alone rather than drawn: `Pins.olai`
- *  is an ordinary outline, and a heading or a note in it is a thing somebody
- *  may write. */
-const pinOf = (node: Node): Pin | undefined => {
-  if (isMirror(node)) return undefined
-  const route = addressIn(node.title)
-  return route === undefined
-    ? undefined
-    : { id: node.id, route, named: labelIn(node.title) }
+/** One answered row as a pin, or `undefined` when it is not one — a row whose
+ *  title says something other than a place. Such a row is left alone rather
+ *  than drawn: `Pins.olai` is an ordinary outline, and a heading or a note in
+ *  it is a thing somebody may write. (A MIRROR never reaches here: it carries
+ *  no title to address with, and the reading leaves it out.) */
+const pinOf = (row: Pinned): Pin | undefined => {
+  const route = addressIn(row.title)
+  if (route === undefined) return undefined
+  const named = labelIn(row.title)
+  return { id: row.id, route, named, name: named ?? nameOf(route, showing(route, row)) }
+}
+
+/**
+ * The answered name, spent only where THIS parser agrees the row addresses
+ * THAT node.
+ *
+ * The two sides read one title with two parsers, each reading its own half of
+ * the seam (`./target.test.ts` holds them against each other), and this is what
+ * makes a disagreement harmless rather than a lie: a name is drawn on a door,
+ * and a name for some other place is the one wrong thing a door can say. Where
+ * they agree — every spelling either of them mints, which is what that test
+ * pins — this is the answer; where they somehow did not, the row draws its own
+ * address, which is what a pin with nothing to show has always drawn.
+ */
+const showing = (route: Route, row: Pinned): string | undefined => {
+  const address = route.kind === "at" ? route.address : null
+  return address !== null && address.kind === "node" && address.id === row.shows?.id
+    ? row.shows.name
+    : undefined
 }
 
 /**
@@ -104,41 +153,34 @@ const pinOf = (node: Node): Pin | undefined => {
  * `Pins.olai`, when the file holds nothing, and while the first frame is still
  * arriving.
  *
- * THE TOP LEVEL ONLY, and that is a rule rather than a shortcut: a shelf is a
- * flat row of doors, so what is nested under a pin is that pin's business
- * (notes about it, a checklist) and not a second row in the sidebar. The order
- * is the outline's own — `ord`, the sort every other reading of a file uses —
- * so a drag on the shelf is the same `move_node` a drag in the tree is.
+ * The ORDER and the ROWS are the answer's (`ord`, the sort every other reading
+ * of a file uses — so a drag on the shelf is the same `move_node` a drag in the
+ * tree is). What this adds is the reading of each title, which is why the list
+ * can be shorter than the answer: a row that names no page of this app is not
+ * a door.
  */
-export const pinsOf = (derived: Derived | undefined): ReadonlyArray<Pin> => {
-  if (derived === undefined) return []
-  const file = pinsIn([...derived.byFile.keys()])
-  if (file === undefined) return []
-  return siblingsOf(derived, file, undefined).flatMap((located) => {
-    const pin = pinOf(located.node)
+export const pinsOf = (shelf: Shelf): ReadonlyArray<Pin> =>
+  shelf.flatMap((row) => {
+    const pin = pinOf(row)
     return pin === undefined ? [] : [pin]
   })
-}
 
 /**
  * The pin that already stands for this page, or `undefined` — what every door
  * onto the shelf draws its label from, so "Pin" and "Unpin" are one control
  * reading one answer.
  *
- * OVER THE INDEXES rather than over a list of pins, because that is what every
- * caller has: the `•••` menu, the ⌘K row and the chord each hold the app's one
- * derivation and nothing else, and a version taking the list had exactly one
- * consumer — a wrapper, one module over, that read the shelf and handed it
- * straight back. Two names for one question is one too many.
+ * OVER THE ANSWER rather than over a list of pins, because that is what every
+ * caller has: the `•••` menu, the ⌘K row and the chord each hold the shelf the
+ * server sent and nothing else, and a version taking the parsed list had
+ * exactly one consumer — a wrapper, one module over, that read the shelf and
+ * handed it straight back. Two names for one question is one too many.
  *
  * COMPARED THROUGH THE BIJECTION rather than as text, so a pin written
  * `?q=is:todo` by hand and the address a browser would mint for the same page
  * are one pin.
  */
-export const pinnedAt = (
-  derived: Derived | undefined,
-  route: Route,
-): Pin | undefined => {
+export const pinnedAt = (shelf: Shelf, route: Route): Pin | undefined => {
   const address = hrefOf(route)
-  return pinsOf(derived).find((pin) => hrefOf(pin.route) === address)
+  return pinsOf(shelf).find((pin) => hrefOf(pin.route) === address)
 }

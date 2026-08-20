@@ -33,13 +33,13 @@ const at = (id: string) => {
 }
 
 const labels = (id: string): ReadonlyArray<string> =>
-  opItems(at(id), derived).map((item) => item.label)
+  opItems(at(id), derived, []).map((item) => item.label)
 
 test("a page that is not a zoom offers no op rows at all", () => {
   // An outline, a day, the agenda, the trash — and the frame before the first
   // snapshot. A command aimed at a node the reader cannot see is a command
   // nobody can predict.
-  expect(opItems(undefined, derived)).toEqual([])
+  expect(opItems(undefined, derived, [])).toEqual([])
 })
 
 test("the zoomed node's own verbs, minus the one that opens a picker", () => {
@@ -57,7 +57,7 @@ test("the zoomed node's own verbs, minus the one that opens a picker", () => {
 })
 
 test("every row says which node it is about, on the place line", () => {
-  const rows = opItems(at("order"), derived)
+  const rows = opItems(at("order"), derived, [])
   expect(rows.every((row) => row.place === "on “order the cabinets”")).toBe(true)
   // The title is the WHOLE haystack — the filter already matches a row's own
   // label, so repeating it would search one word twice. What this adds is that
@@ -68,7 +68,7 @@ test("every row says which node it is about, on the place line", () => {
 })
 
 test("a row carries the edit it will send, and the archive carries its question", () => {
-  const rows = opItems(at("install"), derived)
+  const rows = opItems(at("install"), derived, [])
   const complete = rows.find((row) => row.label === "Complete")
   expect(complete?.action).toEqual({
     kind: "edit",
@@ -86,7 +86,7 @@ test("a row carries the edit it will send, and the archive carries its question"
 })
 
 test("the ids are namespaced, so a shell row and an op row cannot collide", () => {
-  expect(opItems(at("kitchen"), derived).map((row) => row.id))
+  expect(opItems(at("kitchen"), derived, []).map((row) => row.id))
     .toEqual([
       "op-mark-todo",
       "op-mark-done",
@@ -101,7 +101,7 @@ test("with no indexes yet the archive is not offered, rather than uncounted", ()
   // verbs rather than an inconsistency: what a copy would make is decided
   // where the write is judged, so this one has no number to read off an index
   // it has not been given.
-  expect(opItems(at("kitchen"), undefined).map((row) => row.label))
+  expect(opItems(at("kitchen"), undefined, []).map((row) => row.label))
     .toEqual(["Mark todo", "Complete", "Clear mark", "Duplicate"])
 })
 

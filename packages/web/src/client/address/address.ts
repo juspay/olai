@@ -15,8 +15,11 @@
  * 2026-08-18, on a screenshot). One resolver, read by whoever is drawing, is
  * what keeps the shelf and the tree from having two answers about one title.
  *
- * PURE, over the indexes it is handed, so what counts as an address and what
- * an address is called are decided in a unit test rather than in a component.
+ * PURE — over a title, and over the ONE fact about the directory a title cannot
+ * carry ({@link nameOf}'s `shows`) — so what counts as an address and what an
+ * address is called are decided in a unit test rather than in a component. The
+ * lookup that answers that fact locally is {@link shownIn}, at the bottom of
+ * this file, and it has one caller left: the shelf's is the server's now.
  */
 
 import { basenameOf, type Derived, nodeNamed } from "@olai/format"
@@ -113,10 +116,35 @@ export const labelIn = (title: string): string | undefined => {
  *     over it, so a seventh kind of page is two compile errors rather than one
  *     table quietly falling behind the other.
  *
- * Where the set has nothing to say — an address at a node that was deleted —
- * this answers the ADDRESS, which is at least the truth about where it goes.
+ * Where nothing can say — an address at a node that was deleted — this answers
+ * the ADDRESS, which is at least the truth about where it goes.
+ *
+ * ## It is PURE over the address, and `shows` is why
+ *
+ * Exactly ONE arm of this switch is a question about the directory rather than
+ * about the address: a bare `#id` is called whatever that node is called right
+ * now, and everything else names itself — a file by its own filename, a day by
+ * its date, the pages that spell a word by the word. So the node's title is
+ * handed IN, and who asked it is the caller's business, which is what let the
+ * two callers end up on opposite sides of the wire:
+ *
+ *   - the pinned SHELF takes it off the server's answer (`../pins/pins.ts`,
+ *     the `pins` cell), because a shelf is a reading of the whole vault and
+ *     the browser no longer holds one (`docs/brainstorming/vault-in-browser.md`);
+ *   - an ORDINARY OUTLINE ROW whose title is an address asks the page it is
+ *     already drawn from ({@link shownIn}), which is the local reading PR 10
+ *     moves.
+ *
+ * One switch, one set of words, two ways of learning the one fact it cannot
+ * work out for itself.
  */
-export const nameOf = (route: Route, derived: Derived | undefined): string => {
+export const nameOf = (
+  route: Route,
+  /** What the node this address names is CALLED, when it names one and
+   *  somebody could say — `undefined` for every other address, and for a node
+   *  the set does not declare. */
+  shows: string | undefined,
+): string => {
   switch (route.kind) {
     case "at": {
       const address = route.address
@@ -124,13 +152,11 @@ export const nameOf = (route: Route, derived: Derived | undefined): string => {
       // has no filename to draw, so it takes the word a reader would use for
       // it.
       if (address === null) return "Home"
-      if (address.kind === "node") {
-        // The node at the end of whatever chain the id addresses — the set's
-        // one answer to "what does this id mean" (`@olai/format`'s
-        // `nodeNamed`), the same one a `see` link's text comes from.
-        const shows = derived === undefined ? undefined : nodeNamed(derived, address.id)
-        return shows?.node.title ?? hrefOf(route)
-      }
+      // A NODE is the one address that does not name itself: what it is called
+      // is a fact about the set, so what is drawn is what somebody answered —
+      // and its own address when nothing did, which is the honest dead row
+      // (docs/format.md's Pins).
+      if (address.kind === "node") return shows ?? hrefOf(route)
       // A FILE is its own name, through the format's own spelling of "the last
       // segment of a path" rather than a second slice — and a heading is
       // named by the file it is in, because a pin to a section of a document is
@@ -146,4 +172,40 @@ export const nameOf = (route: Route, derived: Derived | undefined): string => {
     case "trash":
       return "Trash"
   }
+}
+
+/**
+ * WHAT THE SET SAYS A NODE ADDRESS NAMES — the local lookup, and the one place
+ * it is left.
+ *
+ * {@link nameOf}'s missing fact, asked of the reading this tab holds. It has
+ * exactly one caller — an ordinary outline row whose title turns out to be an
+ * address (`../NodeTitle.tsx`) — because the other face that draws addresses,
+ * the pinned shelf, is answered by the server now and reads no set at all.
+ *
+ * SO THIS IS WHAT PR 10 TAKES, and it is named here rather than left implicit:
+ * the row is part of a PAGE, every page reading moves in one diff, and a title
+ * resolved against a copy of the vault is exactly the reading that diff
+ * replaces (`docs/brainstorming/vault-in-browser.md` §6). Until then it is the
+ * same function the server calls (`@olai/format`'s `nodeNamed`) over the same
+ * records, so the shelf and the file's own page cannot come to two answers
+ * about one title — which is the property that made the resolver one module in
+ * the first place.
+ *
+ * `undefined` for every address that is not a node's, for a node the set does
+ * not declare, and for the frame before the first one arrives — three states
+ * with one answer, because a name nobody can say is a name nobody can say.
+ */
+export const shownIn = (
+  derived: Derived | undefined,
+  route: Route,
+): string | undefined => {
+  const address = route.kind === "at" ? route.address : null
+  if (address === null || address.kind !== "node" || derived === undefined) {
+    return undefined
+  }
+  // The node at the end of whatever chain the id addresses — the set's one
+  // answer to "what does this id mean", the same one a `see` link's text comes
+  // from.
+  return nodeNamed(derived, address.id)?.node.title
 }
