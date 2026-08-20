@@ -130,16 +130,22 @@ import { type Matches, sameMatches } from "./matches.ts"
 // (`packages/tests/wire.ts`'s `filter` session, which is the instrument).
 //
 // What is NOT true is that a window here collapses them. A page frame arrives
-// at most once per PUBLISHED REVISION, and `@olai/store` already coalesces a
-// burst of writes into one probe behind a 75ms settle before publishing
-// anything (`packages/store/src/store.ts`'s sync loop, step 2) — so two frames
-// are never closer together than that, and every window short enough to keep a
-// filtered page's counts honest beside the tree they are drawn next to (which
-// is `./count.ts`'s whole argument, and why the revision was never put behind
-// {@link SETTLE_MS}) is far shorter than 75ms. Built and measured both ways —
-// leading-and-trailing throttle over a paint, plus a hold for the flight — the
-// same gesture cost 9 searches before and 8 after, which is the noise between
-// two runs. The coalescing this door wanted is a layer down and already there.
+// at most once per PUBLISHED REVISION, and the two ways a burst of writes
+// reaches this tab are both already spaced further apart than any window this
+// door could honestly hold. Writes that arrive OFF THE DISK — a `git pull`, an
+// agent rewriting a file — are collapsed into one probe behind `@olai/store`'s
+// 75ms settle before a revision is published at all
+// (`packages/store/src/store.ts`'s sync loop, step 2). Writes made HERE are not
+// that case and are the one measured: a bulk gesture sends its edits one at a
+// time through the editor's own queue (`../writes.ts`'s `applyingAll`), each
+// answered before the next goes out, so the frames come back a procedure round
+// trip apart — which on a 90,000-node vault is already longer than a paint.
+// Every window short enough to keep a filtered page's counts honest beside the
+// tree they are drawn next to (which is `./count.ts`'s whole argument, and why
+// the revision was never put behind {@link SETTLE_MS}) is shorter than either
+// gap. Built and measured both ways — leading-and-trailing throttle over a
+// paint, plus a hold for the flight — the same gesture cost 9 searches before
+// and 8 after, which is the noise between two runs of it.
 //
 // What DID reproduce is the second half of that finding, and it is fixed below:
 // a fresh `Map` per answer made `./narrowing.ts` prune the whole page again for
