@@ -1204,6 +1204,24 @@ test("a scope that is already the archive is answered rather than overruled", ()
   ).toEqual(["gone"])
 })
 
+// Leftover Archive.olai is orphaned from every query, including `is:trashed`
+// (human, 2026-08-19: left on disk and stop being read). It is not trash, and
+// it is not live work either.
+test("a leftover Archive.olai is in no query, including is:trashed", () => {
+  const leftover = derive(nodesOfFiles({
+    "house.olai":
+      `{"id":"live","ord":"a0","title":"live leftover work","todo":true,"date":"2026-08-11"}`,
+    "Archive.olai":
+      `{"id":"old","ord":"a0","title":"put away leftover","todo":true,"date":"2026-08-11"}`,
+    "notes/Archive.olai":
+      `{"id":"older","ord":"a0","title":"nested leftover"}`,
+  }))
+  expect(selectsIn(leftover, "leftover")).toEqual(["live"])
+  expect(selectsIn(leftover, "is:trashed")).toEqual([])
+  expect(selectsIn(leftover, "is:todo")).toEqual(["live"])
+  expect(selectsIn(leftover, "date:2026-08-11")).toEqual(["live"])
+})
+
 // ── which field carried it ─────────────────────────────────────────────
 
 test("the field a match is reported under is the highest-weighted one that held it", () => {

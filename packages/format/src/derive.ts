@@ -36,6 +36,7 @@ import { Schema } from "effect"
 
 import { Tag } from "./address.ts"
 import {
+  isLeftoverArchive,
   isTrashed,
   isMirror,
   isRegular,
@@ -613,6 +614,11 @@ const resolutions = (
     // Only a MIRROR stands for something: a regular record resolves to itself,
     // and filing it under its own id would say every node mirrors itself.
     if (!isMirror(located.node)) continue
+    // A leftover Archive.olai is not a live placement: it is not drawn on
+    // the trash page (unlike `_olai/Trash.olai`, which still counts) and it
+    // is not a live outline. Filing it here would make `is:mirrored` re-enter
+    // an orphaned file.
+    if (isLeftoverArchive(located.file)) continue
     const mirrors = mirrorsOf.get(found.shows.node.id)
     if (mirrors === undefined) mirrorsOf.set(found.shows.node.id, new Set([located.node.id]))
     else mirrors.add(located.node.id)
@@ -887,7 +893,9 @@ const inPlay = (
   id: string,
 ): InTheWay | undefined => {
   const at = nodeNamed(index, id)
-  if (at === undefined || isTrashed(at.file)) return undefined
+  if (at === undefined || isTrashed(at.file) || isLeftoverArchive(at.file)) {
+    return undefined
+  }
   const mark = status.get(at.node.id)
   return unfinished(mark) ? { at, status: mark } : undefined
 }

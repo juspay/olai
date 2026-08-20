@@ -550,6 +550,29 @@ test("archived work neither blocks nor is blocked", () => {
   expect(derived.status.get("put-away")).toBe("doing")
 })
 
+// Leftover Archive.olai is the same exemption (human, 2026-08-19): orphaned
+// from live readings, so it neither blocks nor is blocked, and a leftover
+// mirror does not make a live node `is:mirrored`.
+test("leftover Archive.olai work neither blocks nor is blocked", () => {
+  const derived = derive(nodesOfFiles({
+    "house.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["old"]}`,
+    "Archive.olai":
+      `{"id":"old","ord":"a","title":"leftover half-finished","doing":true}\n` +
+        `{"id":"waiting","ord":"b","title":"waiting","todo":true,"after":["a"]}`,
+  }))
+  expect(waiting(derived, "a")).toEqual([])
+  expect(waiting(derived, "waiting")).toEqual([])
+  expect(derived.status.get("old")).toBe("doing")
+})
+
+test("a leftover Archive.olai mirror does not make a node is:mirrored", () => {
+  const derived = derive(nodesOfFiles({
+    "house.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+    "Archive.olai": `{"id":"m","ord":"a","mirror":"herbs"}`,
+  }))
+  expect(derived.mirrorsOf.has("herbs")).toBe(false)
+})
+
 /**
  * The other end of the arrow, asked of a node that is not work yet.
  *

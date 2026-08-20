@@ -8,6 +8,7 @@ import {
   ID_SHAPE,
   INBOX,
   inboxIn,
+  isLeftoverArchive,
   isTrashed,
   isMirror,
   mintedInto,
@@ -133,6 +134,20 @@ test("the trash is one file under _olai/, and the inbox stays at the root", () =
   expect(isTrashed("notes/Archive.olai")).toBe(false)
   expect(isTrashed("Trash.olai")).toBe(false)
   expect(INBOX).toBe("Inbox.olai")
+})
+
+// Leftover per-directory Archive.olai: basename exactly, not trash, not an
+// ordinary live outline. `archive.olai` is a different file.
+test("a leftover Archive.olai is dormant by basename, and is not the trash", () => {
+  expect(isLeftoverArchive("Archive.olai")).toBe(true)
+  expect(isLeftoverArchive("notes/Archive.olai")).toBe(true)
+  expect(isLeftoverArchive("garden/plot/Archive.olai")).toBe(true)
+  expect(isLeftoverArchive("archive.olai")).toBe(false)
+  expect(isLeftoverArchive("Archive.olai.bak")).toBe(false)
+  expect(isLeftoverArchive("notes/archive.olai")).toBe(false)
+  expect(isLeftoverArchive(TRASH_FILE)).toBe(false)
+  expect(isLeftoverArchive("house.olai")).toBe(false)
+  expect(isTrashed("Archive.olai")).toBe(false)
 })
 
 // The two conventions are two files and never one, which is what a directory

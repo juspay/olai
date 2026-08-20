@@ -58,6 +58,7 @@
 
 import {
   type Derived,
+  isLeftoverArchive,
   isTrashed,
   type LocatedRegular,
   type TagSigil,
@@ -153,16 +154,17 @@ const counting = (derived: Derived): ReadonlyArray<Tag> => {
 }
 
 /**
- * Which of the served files are archives — judged ONCE per derivation, off the
- * file index, rather than per index entry.
+ * Which of the served files are out of the live vocabulary — judged ONCE per
+ * derivation, off the file index, rather than per index entry.
  *
- * `isTrashed` is a question about a PATH, and `@olai/format`'s own note beside
- * it says it is meant to be asked once per file per probe. This reading has an
- * entry per (record, tag) pair to get through — more entries than the directory
- * has files, by a lot, on a set where a name is written on a thousand rows — so
- * asking it there would put a string comparison where the whole point of the
- * index is that there is no walk left. The saving is measured: 0.63ms → 0.34ms
- * per derivation on the bench vault (`./tags.bench.ts`).
+ * `isTrashed` / `isLeftoverArchive` are questions about a PATH, and
+ * `@olai/format`'s own note beside them says they are meant to be asked once
+ * per file per probe. This reading has an entry per (record, tag) pair to get
+ * through — more entries than the directory has files, by a lot, on a set where
+ * a name is written on a thousand rows — so asking them there would put a
+ * string comparison where the whole point of the index is that there is no
+ * walk left. The saving is measured: 0.63ms → 0.34ms per derivation on the
+ * bench vault (`./tags.bench.ts`).
  *
  * WHAT IS LEFT is one map lookup per entry, and the honest word for the shape
  * of this reading is not "a handful": it is one pass over every (record, tag)
@@ -171,7 +173,9 @@ const counting = (derived: Derived): ReadonlyArray<Tag> => {
  */
 const archives = (derived: Derived): ReadonlySet<string> => {
   const away = new Set<string>()
-  for (const file of derived.byFile.keys()) if (isTrashed(file)) away.add(file)
+  for (const file of derived.byFile.keys()) {
+    if (isTrashed(file) || isLeftoverArchive(file)) away.add(file)
+  }
   return away
 }
 

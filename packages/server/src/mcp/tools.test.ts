@@ -423,7 +423,7 @@ test("initialize tells a host what olai is, and nothing the tools disprove", asy
     expect(tools.map((tool) => tool.name).filter((name) => name.includes("document")).sort())
       .toEqual(["create_document", "list_documents", "read_document", "write_document"])
 
-    // THE SAME PIN, ONE UNIT ALONG. `empty_trash` names `.olai` archives, so an
+    // THE SAME PIN, ONE UNIT ALONG. `empty_trash` empties `_olai/Trash.olai`, so an
     // enumeration that stopped at nodes and documents would be the same
     // disprovable sentence in a newer coat — and this one is worse to get
     // wrong, because the verb it leaves out is the only one that DELETES. The
@@ -1418,7 +1418,7 @@ test("empty_trash deletes the pile, and refuses while something still points int
     const filled = read("_olai/Trash.olai")
     expect(filled).toContain(`"id":"order"`)
 
-    const held = await call(client, "empty_trash", { files: ["_olai/Trash.olai"] })
+    const held = await call(client, "empty_trash", { file: "_olai/Trash.olai" })
     expect(held.isError).toBe(true)
     expect(held.structured["kind"]).toBe("usage")
     expect(String(held.structured["reason"])).toContain("`demo`")
@@ -1431,7 +1431,7 @@ test("empty_trash deletes the pile, and refuses while something still points int
     // named, taken.
     const freed = await call(client, "set_see", { id: "demo", remove: ["order"] })
     expect(freed.isError).toBe(false)
-    const gone = await call(client, "empty_trash", { files: ["_olai/Trash.olai"] })
+    const gone = await call(client, "empty_trash", { file: "_olai/Trash.olai" })
     expect(gone.isError).toBe(false)
     expect(gone.structured).toMatchObject({
       summary: "empty: _olai/Trash.olai (3 records)",
@@ -1446,7 +1446,7 @@ test("empty_trash deletes the pile, and refuses while something still points int
 
 test("empty_trash refuses a live outline, and an archive with nothing in it", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
-    const live = await call(client, "empty_trash", { files: ["house.olai"] })
+    const live = await call(client, "empty_trash", { file: "house.olai" })
     expect(live.isError).toBe(true)
     expect(String(live.structured["reason"])).toContain("is not the trash")
     expect(read("house.olai")).toBe(HOUSE)
@@ -1456,7 +1456,7 @@ test("empty_trash refuses a live outline, and an archive with nothing in it", as
     await call(client, "trash_node", { id: "order" })
     await call(client, "untrash_node", { id: "order" })
     expect(read("_olai/Trash.olai")).toBe("")
-    const twice = await call(client, "empty_trash", { files: ["_olai/Trash.olai"] })
+    const twice = await call(client, "empty_trash", { file: "_olai/Trash.olai" })
     expect(twice.isError).toBe(true)
     expect(String(twice.structured["reason"])).toContain("already empty")
   })
@@ -1488,7 +1488,7 @@ test("empty_trash over two piles judges the edge between them as a record that g
     expect(read("_olai/Trash.olai")).toContain(`"id":"quote"`)
 
     const gone = await call(client, "empty_trash", {
-      files: ["_olai/Trash.olai"],
+      file: "_olai/Trash.olai",
     })
     expect(gone.isError).toBe(false)
     expect(String(gone.structured["summary"]))
@@ -1506,7 +1506,7 @@ test("empty_trash still refuses for a namer in a leftover Archive.olai", async (
     "Archive.olai": `{"id":"quote","ord":"a0","title":"a leftover quote","see":["order"]}`,
   }, async ({ client, read }) => {
     await call(client, "trash_node", { id: "order" })
-    const held = await call(client, "empty_trash", { files: ["_olai/Trash.olai"] })
+    const held = await call(client, "empty_trash", { file: "_olai/Trash.olai" })
     expect(held.isError).toBe(true)
     expect(String(held.structured["reason"])).toContain("`quote`")
     expect(read("_olai/Trash.olai")).toContain(`"id":"order"`)
@@ -1522,12 +1522,12 @@ test("empty_trash with a stale `was` deletes nothing and names both counts", asy
     await call(client, "trash_node", { id: "order" })
     const filled = read("_olai/Trash.olai")
 
-    const stale = await call(client, "empty_trash", { files: ["_olai/Trash.olai"], was: 1 })
+    const stale = await call(client, "empty_trash", { file: "_olai/Trash.olai", was: 1 })
     expect(stale.isError).toBe(true)
     expect(String(stale.structured["reason"])).toContain("held 1 record when this was asked for")
     expect(read("_olai/Trash.olai")).toBe(filled)
 
-    const right = await call(client, "empty_trash", { files: ["_olai/Trash.olai"], was: 3 })
+    const right = await call(client, "empty_trash", { file: "_olai/Trash.olai", was: 3 })
     expect(right.isError).toBe(false)
     expect(read("_olai/Trash.olai")).toBe("")
   })

@@ -295,6 +295,27 @@ test("the live outline keeps the day the archive was taken off", () => {
   expect(datedDays(beside, "2026-08").has("2026-08-11")).toBe(true)
 })
 
+// Leftover Archive.olai is the same exclusion one basename over (human,
+// 2026-08-19): left on disk and stop being read. A dated leftover lights no
+// day, is on no day's page, and is owed on no agenda — and it is still not
+// the trash, so `is:trashed` is not the door back in (./filter.ts).
+test("a leftover Archive.olai is on no day, and lights no day in the calendar", () => {
+  const leftover = derive(
+    nodesOfFiles({
+      "Archive.olai":
+        `{"id":"old","ord":"a0","title":"the old deck","done":"2026-08-11T09:00:00-04:00"}`,
+      "notes/Archive.olai":
+        `{"id":"older","ord":"a0","title":"the older deck","date":"2026-08-11"}`,
+      "work.olai": `{"id":"rails","ord":"a0","title":"paint the rails","date":"2026-08-11"}`,
+    }),
+  )
+  expect(idsOf(leftover, "2026-08-11")).toEqual(["rails"])
+  expect(datedOn(leftover, "2026-08-11").map((group) => group.file)).toEqual([
+    "work.olai",
+  ])
+  expect(datedDays(leftover, "2026-08").has("2026-08-11")).toBe(true)
+})
+
 // A mirror is a second PLACEMENT of a node, and the format gives it no field
 // to carry a date. So a dated node that is mirrored elsewhere appears on its
 // day once, at the record that actually declares it.

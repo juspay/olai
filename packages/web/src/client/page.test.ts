@@ -281,7 +281,7 @@ test("the trash file's own address opens the trash — it is not a place you edi
   })
 })
 
-test("a leftover Archive.olai is an ordinary outline, not the trash", () => {
+test("a leftover Archive.olai opens as an outline, not the trash", () => {
   expect(pageAt(atFile("Archive.olai"), WITH_LEFTOVER)).toEqual({
     kind: "outline",
     file: "Archive.olai",
@@ -290,6 +290,11 @@ test("a leftover Archive.olai is an ordinary outline, not the trash", () => {
     kind: "trash",
     files: [],
   })
+})
+
+test("a bare `/` never opens a leftover Archive.olai, even one that sorts first", () => {
+  expect(pageAt(HOME_ROUTE, WITH_LEFTOVER))
+    .toEqual({ kind: "outline", file: "garden.olai" })
 })
 
 test("a bare `/` never opens an archive, even one that sorts first", () => {

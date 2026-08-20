@@ -377,10 +377,12 @@ export const targetsOf = (
  *
  *  There used to be one `Archive.olai` per directory, beside the outline it
  *  left. That convention is dead (human, 2026-08-19): those files stay on disk
- *  as ordinary outlines, are not the trash, are not drawn on the trash page,
- *  and `is:trashed` does not reach them. No migration. The kind registry still
- *  parses them — they are `.olai` — because a skip for a dead name would keep
- *  that name load-bearing; a leftover is orphaned until a human hand-moves it.
+ *  and stop being read — not trash, not drawn on the trash page, invisible to
+ *  `is:trashed`, and dormant in every live reading until a human opens one and
+ *  hand-moves it. No migration. The kind registry still parses them — they are
+ *  `.olai` — because a skip for a dead name would keep that name load-bearing;
+ *  {@link isLeftoverArchive} is the predicate the readings ask, the same way
+ *  {@link isTrashed} is asked of the one trash.
  *
  *  THE CENSUS IS KEPT because it is what makes the one spelling honest, and it
  *  is longer than it looks — nine rules in three packages, which is exactly why
@@ -520,6 +522,21 @@ export const TRASH_FILE = mintedInto(TRASH)
 /** Whether `file` is the one trash — asked once per file per probe, compared
  *  against a constant so the hot path allocates nothing. */
 export const isTrashed = (file: string): boolean => file === TRASH_FILE
+
+/**
+ * Leftover per-directory `Archive.olai`: parsed as an outline so a human can
+ * open it and hand-move, but dormant — not trash, not live readings.
+ *
+ * Basename exactly `Archive.olai` (human, 2026-08-19: left on disk and stop
+ * being read — orphaned). Exact, not a kind-registry skip: a tombstone for a
+ * dead convention would keep the name load-bearing. `archive.olai` is a
+ * different file and an ordinary outline.
+ *
+ * Asked the way {@link isTrashed} is — once per file, compared against a
+ * constant so the hot path allocates nothing.
+ */
+export const isLeftoverArchive = (file: string): boolean =>
+  file === "Archive.olai" || file.endsWith("/Archive.olai")
 
 /** The directory's shelf, or `undefined` when it has none — {@link inboxIn}'s
  *  question one convention over, answered by the same walk so that one

@@ -60,6 +60,7 @@ import {
   INBOX,
   inboxIn,
   isTrashed,
+  TRASH_FILE,
   isDay,
   isMirror,
   type Located,
@@ -449,11 +450,11 @@ const pinRequest = (
  * itself and could never refuse. What it guards against is the write widening
  * under a retry, and that is checked in the planner, on every attempt.
  *
- * AN EMPTY TRASH IS REFUSED HERE rather than sent as an op with no files, and
- * the sentence is this resolver's own for the reason `docDay`'s day-shape check
- * is: an `empty` with an empty list is refused in terms of the list ("name at
- * least one archive"), which teaches a reader about the wrong thing. The button
- * is not drawn over an empty trash, so nothing a person can press reaches this
+ * AN EMPTY TRASH IS REFUSED HERE rather than sent as an `empty` of a file that
+ * holds nothing, and the sentence is this resolver's own for the reason
+ * `docDay`'s day-shape check is: the planner's already-empty refusal names the
+ * file, which is true but not what a stale tab needs to hear. The button is
+ * not drawn over an empty trash, so nothing a person can press reaches this
  * — what does is a stale tab, and a stale tab deserves the true sentence.
  */
 const emptyTrashRequest = (
@@ -468,7 +469,7 @@ const emptyTrashRequest = (
   }
   return Result.succeed({
     op: "empty",
-    files: piles,
+    file: TRASH_FILE,
     ...(edit.was === undefined ? {} : { was: edit.was }),
   })
 }

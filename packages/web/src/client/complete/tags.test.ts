@@ -87,6 +87,19 @@ test("what is in the trash is not counted, and a tag only it used is not offered
   expect(tags.find((tag) => tag.name === "home")?.count).toBe(1)
 })
 
+test("a leftover Archive.olai is not counted in the live vocabulary either", () => {
+  const withLeftover = derive(nodesOfFiles({
+    "house.olai": `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
+    "Archive.olai": [
+      `{"id":"old","ord":"a0","title":"the old kitchen #home"}`,
+      `{"id":"gone","ord":"a1","title":"the old boiler #boiler"}`,
+    ].join("\n"),
+  }))
+  const tags = tagsOf(withLeftover)
+  expect(written(tags)).toEqual(["#home"])
+  expect(tags.find((tag) => tag.name === "home")?.count).toBe(1)
+})
+
 test("no set is no tags rather than a throw", () => {
   expect(tagsOf(undefined)).toEqual([])
 })

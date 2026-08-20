@@ -114,8 +114,8 @@ export interface Plan {
    *  made a subtree — {@link Applied}'s own field says why. */
   readonly captured?: ReadonlyArray<Minted>
   /** The git commit subject, in the convention `olai` has always used:
-   *  `capture:` / `done:` / `doing:` / `todo:` / `move:` / `archive:` /
-   *  `unarchive:` / `create:` / `see:` / `after:` / `mirror:` / `unmirror:` and
+   *  `capture:` / `done:` / `doing:` / `todo:` / `move:` / `trash:` /
+   *  `untrash:` / `create:` / `see:` / `after:` / `mirror:` / `unmirror:` and
    *  a title (or a path, when an outline is born empty). A placement's subject
    *  names what it SHOWS — the target's title — since a mirror has none of its
    *  own. */
@@ -2805,14 +2805,14 @@ const planTrash = (
 }
 
 /**
- * A record ARRIVING in an archive: what the archive already holds, the chain of
+ * A record ARRIVING in the trash: what the trash already holds, the chain of
  * ancestor titles it has to hang off, and the record re-parented onto the end
  * of that chain.
  *
- * ONE spelling, because two ops put a record into an archive: `archive` takes a
+ * ONE spelling, because two ops put a record into the trash: `trash` takes a
  * subtree (and appends its descendants after this record), and `merge` puts the
  * record it merged away there alone. Two copies would be two answers to "where
- * does this node hang in the archive" — and the second reader is exactly the one
+ * does this node hang in the trash" — and the second reader is exactly the one
  * who would not notice the first had changed.
  *
  * It answers the three PIECES rather than the whole file entry, because the two
@@ -3373,56 +3373,31 @@ const planEmpty = (
   scope: Scope,
   request: Extract<Request, { op: "empty" }>,
 ): Planned => {
-  // NAMED ONCE EACH. A path repeated is not a second archive, and it would
-  // otherwise count its records twice into everything below — the number the
-  // `was` guard is checked against, and the number the summary reports.
-  const files = [...new Set(request.files)]
-  if (files.length === 0) {
+  const file = request.file
+  // "Is this a file the directory serves, and can it be written?" is
+  // {@link landsIn}'s own pair, asked with no `parent` — the same two
+  // refusals `add_node` gives for a file it cannot reach, in the same words.
+  // Spelling them again here would be one wording for an unserved path in
+  // `add` and another in `empty`, drifting the first time either is edited.
+  const named = landsIn(scope, { file })
+  if (Result.isFailure(named)) return Result.fail(named.failure)
+
+  if (!isTrashed(file)) {
     return Result.fail(
       new UsageFailure({
         reason:
-          "name at least one trash to empty — `list_outlines` says which files " +
-          "are `_olai/Trash.olai`, and every one you mean goes in `files` together",
+          `\`${file}\` is not the trash, and \`empty_trash\` empties \`${TRASH_FILE}\` ` +
+          `— the one file \`trash_node\` writes. Nothing here deletes out of a ` +
+          `live outline; \`trash_node\` is how a node leaves one.`,
       }),
     )
   }
 
-  for (const file of files) {
-    // "Is this a file the directory serves, and can it be written?" is
-    // {@link landsIn}'s own pair, asked with no `parent` — the same two
-    // refusals `add_node` gives for a file it cannot reach, in the same words.
-    // Spelling them again here would be one wording for an unserved path in
-    // `add` and another in `empty`, drifting the first time either is edited.
-    const named = landsIn(scope, { file })
-    if (Result.isFailure(named)) return Result.fail(named.failure)
-
-    if (!isTrashed(file)) {
-      return Result.fail(
-        new UsageFailure({
-          reason:
-            `\`${file}\` is not the trash, and \`empty_trash\` empties \`${TRASH_FILE}\` ` +
-            `— the one file \`trash_node\` writes. Nothing here deletes out of a ` +
-            `live outline; \`trash_node\` is how a node leaves one.`,
-        }),
-      )
-    }
-  }
-
-  // THE UNION, and it is the whole of what this op's shape buys. Everything
-  // below — the count, the guard, and the holder sweep — is asked of every
-  // record this write deletes rather than of one pile at a time, so a `see`
-  // from one of these archives into another is a record that GOES rather than
-  // a holder that refuses. Judged per file, the same two archives refuse in
-  // one order, plan in the other, and refuse both ways round when they name
-  // each other; `../../format/src/writing.ts` argues it where the field is
-  // declared.
-  const going = files.flatMap((file) => recordsOf(scope, file))
+  const going = recordsOf(scope, file)
   if (going.length === 0) {
     return Result.fail(
       new UsageFailure({
-        reason: `${capped(files, (file) => `\`${file}\``)} ${
-          files.length === 1 ? "is" : "are"
-        } already empty, so there is nothing to delete`,
+        reason: `\`${file}\` is already empty, so there is nothing to delete`,
       }),
     )
   }
@@ -3431,7 +3406,7 @@ const planEmpty = (
   // and therefore checked on every retry, against the snapshot that retry is
   // judged on, which is the TOCTOU lesson the undo's own `was` records
   // (`@olai/server`'s `edit.ts`). A write re-planned against a newer snapshot
-  // silently WIDENS this one: a record archived in between is a record the
+  // silently WIDENS this one: a record put away in between is a record the
   // retry deletes, and the person who agreed to a number never saw it.
   if (request.was !== undefined && request.was !== going.length) {
     return Result.fail(
@@ -3439,7 +3414,7 @@ const planEmpty = (
         reason: `the Trash held ${request.was} ${
           request.was === 1 ? "record" : "records"
         } when this was asked for and holds ${going.length} now, so nothing was ` +
-          `deleted — something was archived or put back in between. Look again and ` +
+          `deleted — something was put away or put back in between. Look again and ` +
           `ask again.`,
       }),
     )
@@ -3447,7 +3422,7 @@ const planEmpty = (
 
   // Every record STAYING that names one that is going — {@link heldBy}, the
   // one question `remove_mirror` asks about a single placement, asked here
-  // about every pile at once.
+  // about the whole emptying.
   const held = heldBy(scope, new Set(going.map((record) => record.id)))
   if (held.length > 0) {
     // The agreement, spelled out once each above the sentence rather than five
@@ -3461,9 +3436,7 @@ const planEmpty = (
     const itNames = one ? "it names" : "they name"
     return Result.fail(
       new UsageFailure({
-        reason: `${capped(files, (file) => `\`${file}\``)} still ${
-          files.length === 1 ? "has" : "have"
-        } ${record} pointed INTO ${files.length === 1 ? "it" : "them"} from ` +
+        reason: `\`${file}\` still has ${record} pointed INTO it from ` +
           `outside: ${capped(held, (naming) => naming)}. Deleting what ${thatNames} ` +
           `would leave ${it} pointing at nothing, so nothing was written — re-point ` +
           `or retire ${it} first, or \`untrash_node\` what ${itNames} back out.`,
@@ -3471,24 +3444,16 @@ const planEmpty = (
     )
   }
 
-  const first = files[0] as string
   return Result.succeed({
-    files: files.map((file) => ({ file, nodes: [] })),
+    files: [{ file, nodes: [] }],
     // A file op answers with its PATH where a node op answers with an id and a
     // title, which is `create_outline`'s own shape and for its reason: there is
     // no node here for either field to be about, and inventing one would be a
     // reply naming a record this write has just deleted.
-    //
-    // WITH SEVERAL ARCHIVES IT IS A STAND-IN, and one worth saying out loud
-    // rather than leaving to be found — `apply`'s own `id` is the same
-    // admission (`./sorted.ts`). The subject of this write is a SET of files
-    // and `WriteResult` has one `file`, so it names the first the caller
-    // listed; what actually says what happened is the {@link summary}, which
-    // names every one of them and the count.
-    id: first,
-    title: first,
-    file: first,
-    summary: `empty: ${capped(files, (file) => file)} (${going.length} ${
+    id: file,
+    title: file,
+    file,
+    summary: `empty: ${file} (${going.length} ${
       going.length === 1 ? "record" : "records"
     })`,
   })

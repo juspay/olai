@@ -403,6 +403,22 @@ test("nothing put away is owed: the archive is the trash's and no page else's", 
   expect(owedOf(agenda)).toEqual({ overdue: 0, today: 0 })
 })
 
+test("a leftover Archive.olai is owed on no agenda either", () => {
+  const leftover: Derived = derive(
+    nodesOfFiles({
+      "Archive.olai": [
+        `{"id":"gate","ord":"a0","title":"the old gate","todo":true,"date":"2026-08-01"}`,
+        `{"id":"bell","ord":"a1","title":"the bell","doing":true,"date":"2026-08-12"}`,
+        `{"id":"hedge","ord":"a2","title":"the hedge","todo":true,"date":"2026-08-14"}`,
+      ].join("\n"),
+    }),
+  )
+  const agenda = agendaOf(leftover, TODAY)
+  expect(agenda.overdue).toEqual([])
+  expect(nothingDue(agenda)).toBe(true)
+  expect(owedOf(agenda)).toEqual({ overdue: 0, today: 0 })
+})
+
 // ── the agenda, narrowed ───────────────────────────────────────────────
 //
 // The filter over the page (`@olai/web`), which is this answer with rows taken

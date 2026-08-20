@@ -55,6 +55,7 @@ import { type DayGroup, datesOf, dayOf, monthOf } from "./dates.ts"
 import { basenameOf } from "./paths.ts"
 import { nothing } from "./write.ts"
 import {
+  isLeftoverArchive,
   isTrashed,
   isMirror,
   type Located,
@@ -1822,6 +1823,11 @@ export const matching = (
   for (const located of derived.nodes) {
     if (isMirror(located.node)) continue
     const at = located as LocatedRegular
+    // Leftover Archive.olai is orphaned from every query, including
+    // `is:trashed`: it is not trash, and it is not live work either. The
+    // file's own page still draws unfiltered (the filter box is inactive
+    // then); a query over the directory does not re-enter it.
+    if (isLeftoverArchive(at.file)) continue
     if (!putAway && isTrashed(at.file)) continue
     if (!inScope(at)) continue
     const match = matchOf(derived, at, filter)

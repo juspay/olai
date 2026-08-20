@@ -69,7 +69,13 @@ import type { Address } from "./address.ts"
 import { byCorpus, type Derived, tagText } from "./derive.ts"
 import type { Face } from "./document.ts"
 import { recordLinks } from "./documents.ts"
-import { isTrashed, isRegular, type Located, type LocatedRegular } from "./node.ts"
+import {
+  isLeftoverArchive,
+  isTrashed,
+  isRegular,
+  type Located,
+  type LocatedRegular,
+} from "./node.ts"
 
 /**
  * How one record refers to another: an edge somebody wrote with `set_see`, or a
@@ -144,7 +150,9 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
     // A record never refers to ITSELF: a node whose note says `@` its own id is
     // talking about the page it is on, and a `see` onto one of its own
     // placements is the same sentence through a mirror.
-    if (at.node.id === id || isTrashed(at.file)) return
+    if (at.node.id === id || isTrashed(at.file) || isLeftoverArchive(at.file)) {
+      return
+    }
     // A REFERRER IS A REGULAR NODE. `taggedBy` says so in its TYPE, so this
     // is asked only of the naming side, where `Located` is honest because
     // `mirror` is one of the fields that index files — and asked through the
@@ -256,7 +264,9 @@ export const referrersTo = (
   }
   const found: Array<Referrer> = []
   for (const face of faces) {
-    if (face.path === here || isTrashed(face.path)) continue
+    if (face.path === here || isTrashed(face.path) || isLeftoverArchive(face.path)) {
+      continue
+    }
     if (!face.links.some(points)) continue
     const records = derived.byFile.get(face.path)
     // A face with no records behind it is a BODY — the link is the document's

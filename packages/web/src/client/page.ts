@@ -41,6 +41,7 @@ import {
   dailyNotesOn,
   datedOn,
   fileKind,
+  isLeftoverArchive,
   isTrashed,
   rowsOf,
   rowsUnder,
@@ -204,14 +205,18 @@ export const pageOf = (
   }
 
   // What is left is an OUTLINE, or the front page — which is whichever outline
-  // was found first, skipping the archives, since those are the trash's to show
-  // and nobody's front page. A named one has to be served, and naming an
-  // archive opens the trash: an archive is not a place you edit, so the address
-  // a sidebar used to link goes where the entry went.
+  // was found first, skipping the trash and leftover Archive.olai: the trash
+  // is the trash page's to show, and a leftover is dormant, so neither is
+  // anybody's front page. A named leftover still opens as an outline — that is
+  // how a human hand-moves it. Naming the trash opens the trash: it is not a
+  // place you edit, so the address a sidebar used to link goes where the entry
+  // went.
   const outlines = outlinesOf(found)
   const named = address === null ? null : address.path
   const file = named === null
-    ? outlines.find((candidate) => !isTrashed(candidate))
+    ? outlines.find((candidate) =>
+      !isTrashed(candidate) && !isLeftoverArchive(candidate)
+    )
     : outlines.includes(named)
     ? named
     : undefined

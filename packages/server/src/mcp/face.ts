@@ -155,13 +155,13 @@ const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
  * it, no shell and no grep. That is what the closed table enforces
  * (`@olai/ops`' `tools.ts`), so this sentence and that list say one thing.
  *
- * THE THIRD UNIT IS THE SAME LESSON READ ONCE MORE. `empty_trash` names
- * `.olai` archives and empties them, so an enumeration that stopped at nodes
- * and documents would be disprovable by an agent's second tool call in exactly
- * the way the paragraph above is about. It changes none of the claims that do
- * the work: the path is one the set already serves, what is named is a whole
- * file's records rather than any part of one, and nothing about it reaches
- * outside this directory.
+ * THE THIRD UNIT IS THE SAME LESSON READ ONCE MORE. `empty_trash` empties
+ * `_olai/Trash.olai`, so an enumeration that stopped at nodes and documents
+ * would be disprovable by an agent's second tool call in exactly the way the
+ * paragraph above is about. It changes none of the claims that do the work:
+ * the path is one the set already serves, what is named is a whole file's
+ * records rather than any part of one, and nothing about it reaches outside
+ * this directory.
  */
 const INSTRUCTIONS =
   "olai serves a directory of outlines and the documents beside them. Everything here " +

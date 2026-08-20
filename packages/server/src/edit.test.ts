@@ -614,7 +614,7 @@ const ARCHIVED = [
 test("emptying resolves to one `empty`, naming the one trash", () => {
   const at = reading(setOf({ "house.olai": HOUSE, "_olai/Trash.olai": ARCHIVED }))
   expect(asked({ verb: "emptyTrash" }, at))
-    .toEqual({ op: "empty", files: ["_olai/Trash.olai"] })
+    .toEqual({ op: "empty", file: "_olai/Trash.olai" })
 })
 
 test("a leftover Archive.olai is not emptied — it is not the trash", () => {
@@ -625,7 +625,7 @@ test("a leftover Archive.olai is not emptied — it is not the trash", () => {
     "garden/Archive.olai": `{"id":"older","ord":"a0","title":"another leftover"}`,
   }))
   expect(asked({ verb: "emptyTrash" }, at))
-    .toEqual({ op: "empty", files: ["_olai/Trash.olai"] })
+    .toEqual({ op: "empty", file: "_olai/Trash.olai" })
 })
 
 test("an empty trash file is not in the list at all", () => {
@@ -648,14 +648,14 @@ test("the count the confirm showed travels, and is never re-derived here", () =>
   // planner checks on every attempt.
   const at = reading(setOf({ "house.olai": HOUSE, "_olai/Trash.olai": ARCHIVED }))
   expect(asked({ verb: "emptyTrash", was: 9 }, at))
-    .toEqual({ op: "empty", files: ["_olai/Trash.olai"], was: 9 })
+    .toEqual({ op: "empty", file: "_olai/Trash.olai", was: 9 })
 })
 
 test("an empty trash is refused HERE, in terms of the trash", () => {
   // The button is not drawn over an empty trash, so what reaches this is a
   // stale tab — and a stale tab deserves the true sentence rather than
-  // `empty`'s "name at least one trash", which teaches a reader about the
-  // wrong thing entirely.
+  // the planner's already-empty refusal, which names the file rather than
+  // the stale tab.
   const failure = refused({ verb: "emptyTrash" }, reading())
   expect(failure._tag).toBe("UsageFailure")
   expect(failure.message).toBe("the Trash is empty, so there is nothing to delete")

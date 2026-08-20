@@ -67,6 +67,7 @@ import {
 } from "./derive.ts"
 import { fileKind, stemOf } from "./kinds.ts"
 import {
+  isLeftoverArchive,
   isTrashed,
   isMirror,
   type LocatedRegular,
@@ -217,6 +218,12 @@ export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
  * they were still there. Putting something away is that reader saying they are
  * done looking at it, and the trash is where it is looked at again.
  *
+ * Leftover `Archive.olai` is the same exclusion one basename over (human,
+ * 2026-08-19): left on disk and stop being read — orphaned. Those files are
+ * not trash, so they are not this walk's trash-page remainder; they are also
+ * not live work, so a date in one lights no day. {@link isLeftoverArchive} is
+ * the predicate; a kind-registry skip would have been a tombstone.
+ *
  * ONE EXCLUSION, HERE, because there is one walk: the day page, the calendar's
  * dots and the agenda's three sections ({@link datedByDay}, {@link datedDays},
  * ./agenda.ts) are all readings of this list, so a rule spelled here cannot
@@ -226,11 +233,13 @@ export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
  * nodes at every door, including a `date:` clause beside it, because that
  * reading asks {@link datesOf} of a record rather than asking this for a day
  * (./filter.ts). The default presence is what was taken away; the reachability
- * was not (docs/search.md).
+ * was not (docs/search.md). Leftover `Archive.olai` is not that remainder:
+ * `is:trashed` does not reach it either.
  */
 const datedNodes = (derived: Derived): ReadonlyArray<Dated> =>
   derived.nodes.flatMap((located) =>
-    isMirror(located.node) || isTrashed(located.file)
+    isMirror(located.node) || isTrashed(located.file) ||
+        isLeftoverArchive(located.file)
       ? []
       : datesOf(located.node).map((dated) => ({
         at: located as LocatedRegular,

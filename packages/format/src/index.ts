@@ -210,6 +210,7 @@ export {
   INBOX,
   inboxIn,
   isTrashed,
+  isLeftoverArchive,
   isMirror,
   Located,
   MARKS,
@@ -219,7 +220,8 @@ export {
   mintedInto,
   OLAI_DIR,
   /** The one trash — the filename, the path it is minted at, and the
-   *  predicate a reading asks (`./node.ts`). */
+   *  predicate a reading asks (`./node.ts`). Leftover `Archive.olai` is a
+   *  different question (`isLeftoverArchive`): parsed, openable, not trash. */
   TRASH,
   TRASH_FILE,
   /** The shelf's own filename, and the walk that finds a directory's — the

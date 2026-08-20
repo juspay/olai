@@ -128,6 +128,15 @@ test("what is put away is on the Trash and nowhere else", () => {
   expect(said(view, "herbs")).toEqual(["live see"])
 })
 
+test("a leftover Archive.olai is not a referrer either", () => {
+  const view = viewOf({
+    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+      `{"id":"live","ord":"b","title":"live","see":["herbs"]}`,
+    "Archive.olai": `{"id":"old","ord":"a","title":"about @herbs","see":["herbs"]}`,
+  })
+  expect(said(view, "herbs")).toEqual(["live see"])
+})
+
 test("the referrers come in corpus order, whichever index found them", () => {
   // Two files and two ways, deliberately crossed: the mention is in the file
   // that sorts FIRST and the edge in the one that sorts last, so a reading that

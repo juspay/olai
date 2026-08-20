@@ -2894,7 +2894,7 @@ describe("empty", () => {
     // two subtrees plus the one scaffold title they share.
     expect(nodesOf(derive(recordsOf(set)), "_olai/Trash.olai")).toHaveLength(4)
 
-    const result = planned(set, { op: "empty", files: ["_olai/Trash.olai"] })
+    const result = planned(set, { op: "empty", file: "_olai/Trash.olai" })
     expect(fileOf(result, "_olai/Trash.olai")).toEqual([])
     // ONE file, which is the whole blast radius: the live outline is not in
     // the plan at all, so nothing outside the archive can be touched.
@@ -2914,20 +2914,20 @@ describe("empty", () => {
       { op: "untrash", id: "order" },
     )
     expect(nodesOf(derive(recordsOf(set)), "_olai/Trash.olai")).toEqual([])
-    const failure = refused(set, { op: "empty", files: ["_olai/Trash.olai"] })
+    const failure = refused(set, { op: "empty", file: "_olai/Trash.olai" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("already empty")
   })
 
   test("a live outline is not deletable, and the refusal points at the put-away", () => {
-    const failure = refused(filled(), { op: "empty", files: ["house.olai"] })
+    const failure = refused(filled(), { op: "empty", file: "house.olai" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("is not the trash")
     expect(failure.message).toContain("trash_node")
   })
 
   test("a file the set does not hold is a miss, naming what there is", () => {
-    const failure = refused(filled(), { op: "empty", files: ["notes/Archive.olai"] })
+    const failure = refused(filled(), { op: "empty", file: "notes/Archive.olai" })
     expect(failure._tag).toBe("NotFoundFailure")
     expect(failure.message).toContain("house.olai")
   })
@@ -2940,7 +2940,7 @@ describe("empty", () => {
       after(house(), { op: "see", id: "loose", add: ["order"] }),
       { op: "trash", id: "order" },
     )
-    const failure = refused(set, { op: "empty", files: ["_olai/Trash.olai"] })
+    const failure = refused(set, { op: "empty", file: "_olai/Trash.olai" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("`loose`")
     expect(failure.message).toContain("`see`")
@@ -2952,7 +2952,7 @@ describe("empty", () => {
     const held = (request: Request): string =>
       refused(
         after(after(house(), request), { op: "trash", id: "order" }),
-        { op: "empty", files: ["_olai/Trash.olai"] },
+        { op: "empty", file: "_olai/Trash.olai" },
       ).message
     expect(held({ op: "after", id: "loose", add: ["order"] })).toContain("`after`")
     expect(held({ op: "mirror", target: "order", parent: "loose" })).toContain("`mirror`")
@@ -2970,7 +2970,7 @@ describe("empty", () => {
       ].join("\n"),
     })
     const set = after(start, { op: "trash", id: "order" })
-    expect(fileOf(planned(set, { op: "empty", files: ["_olai/Trash.olai"] }), "_olai/Trash.olai"))
+    expect(fileOf(planned(set, { op: "empty", file: "_olai/Trash.olai" }), "_olai/Trash.olai"))
       .toEqual([])
   })
 
@@ -2981,7 +2981,7 @@ describe("empty", () => {
       after(house(), { op: "see", id: "install", add: ["install"] }),
       { op: "trash", id: "install" },
     )
-    expect(fileOf(planned(set, { op: "empty", files: ["_olai/Trash.olai"] }), "_olai/Trash.olai"))
+    expect(fileOf(planned(set, { op: "empty", file: "_olai/Trash.olai" }), "_olai/Trash.olai"))
       .toEqual([])
   })
 
@@ -2989,15 +2989,15 @@ describe("empty", () => {
     const set = twoPiles()
     const result = planned(set, {
       op: "empty",
-      files: ["_olai/Trash.olai"],
+      file: "_olai/Trash.olai",
     })
     expect(fileOf(result, "_olai/Trash.olai")).toEqual([])
     expect(result.summary).toMatch(/^empty: _olai\/Trash\.olai \(\d+ records\)$/)
 
-    const leftover = after(set, { op: "empty", files: ["_olai/Trash.olai"] })
+    const leftover = after(set, { op: "empty", file: "_olai/Trash.olai" })
     const stopped = refused(leftover, {
       op: "empty",
-      files: ["garden/plot.olai"],
+      file: "garden/plot.olai",
     })
     expect(stopped.message).toContain("is not the trash")
   })
@@ -3016,19 +3016,9 @@ describe("empty", () => {
     const set = crossPiles(`"see":["order"]`, "")
     const result = planned(set, {
       op: "empty",
-      files: ["_olai/Trash.olai", "_olai/Trash.olai"],
+      file: "_olai/Trash.olai",
     })
     expect(fileOf(result, "_olai/Trash.olai")).toEqual([])
-    expect(fileOf(result, "_olai/Trash.olai")).toEqual([])
-
-    // The order of the list says nothing at all, which is the property the
-    // shape buys and the one a sort could only have faked.
-    const reversed = planned(set, {
-      op: "empty",
-      files: ["_olai/Trash.olai", "_olai/Trash.olai"],
-    })
-    expect(fileOf(reversed, "_olai/Trash.olai")).toEqual([])
-    expect(fileOf(reversed, "_olai/Trash.olai")).toEqual([])
   })
 
   test("two piles naming EACH OTHER empty too, which no ordering could reach", () => {
@@ -3039,9 +3029,8 @@ describe("empty", () => {
     const set = crossPiles(`"see":["order"]`, `,"see":["quote"]`)
     const result = planned(set, {
       op: "empty",
-      files: ["_olai/Trash.olai", "_olai/Trash.olai"],
+      file: "_olai/Trash.olai",
     })
-    expect(fileOf(result, "_olai/Trash.olai")).toEqual([])
     expect(fileOf(result, "_olai/Trash.olai")).toEqual([])
   })
 
@@ -3055,26 +3044,10 @@ describe("empty", () => {
       "Archive.olai": `{"id":"quote","ord":"a0","title":"a leftover quote","see":["order"]}`,
     })
     const trashed = after(set, { op: "trash", id: "order" })
-    const failure = refused(trashed, { op: "empty", files: ["_olai/Trash.olai"] })
+    const failure = refused(trashed, { op: "empty", file: "_olai/Trash.olai" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("`quote`")
     expect(failure.message).toContain("`see`")
-  })
-
-  test("a path named twice is one archive, and is counted once", () => {
-    const set = filled()
-    const result = planned(set, {
-      op: "empty",
-      files: ["_olai/Trash.olai", "_olai/Trash.olai"],
-    })
-    expect(result.files.map((entry) => entry.file)).toEqual(["_olai/Trash.olai"])
-    expect(result.summary).toBe("empty: _olai/Trash.olai (4 records)")
-  })
-
-  test("naming no archive at all is refused in terms of the list", () => {
-    const failure = refused(filled(), { op: "empty", files: [] })
-    expect(failure._tag).toBe("UsageFailure")
-    expect(failure.message).toContain("name at least one trash")
   })
 
   test("`was` refuses a trash that has moved, and never a trash that has not", () => {
@@ -3083,10 +3056,10 @@ describe("empty", () => {
     // somebody read and the write landing is one this would delete under a
     // sentence that named a smaller number.
     const set = filled()
-    expect(planned(set, { op: "empty", files: ["_olai/Trash.olai"], was: 4 }).summary)
+    expect(planned(set, { op: "empty", file: "_olai/Trash.olai", was: 4 }).summary)
       .toContain("(4 records)")
 
-    const stale = refused(set, { op: "empty", files: ["_olai/Trash.olai"], was: 2 })
+    const stale = refused(set, { op: "empty", file: "_olai/Trash.olai", was: 2 })
     expect(stale._tag).toBe("UsageFailure")
     expect(stale.message).toContain("held 2 records when this was asked for")
     expect(stale.message).toContain("holds 4 now")
@@ -3096,14 +3069,14 @@ describe("empty", () => {
     expect(
       planned(twoPiles(), {
         op: "empty",
-        files: ["_olai/Trash.olai"],
+        file: "_olai/Trash.olai",
         was: 6,
       }).files.map((entry) => entry.file),
     ).toEqual(["_olai/Trash.olai"])
     expect(
       refused(twoPiles(), {
         op: "empty",
-        files: ["_olai/Trash.olai"],
+        file: "_olai/Trash.olai",
         was: 2,
       }).message,
     ).toContain("holds 6 now")
@@ -3123,7 +3096,7 @@ describe("empty", () => {
       [],
       { "_olai/Trash.olai": `{"id":"sc","ord":"a0"` },
     )
-    const failure = refused(set, { op: "empty", files: ["_olai/Trash.olai"] })
+    const failure = refused(set, { op: "empty", file: "_olai/Trash.olai" })
     expect(failure._tag).toBe("ValidationFailure")
     expect(failure.message).toContain("do not parse")
   })
