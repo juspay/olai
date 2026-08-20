@@ -45,7 +45,7 @@
 
 import { Schema } from "effect"
 
-import { AtDocument, AtNode } from "./address.ts"
+import { AtDocument, AtNode, NodeId } from "./address.ts"
 import { DOCUMENT_FIELDS, Refusal, SEARCH_FIELDS } from "./filter.ts"
 import { Found } from "./reading.ts"
 
@@ -244,3 +244,78 @@ export const SearchRequest = Schema.Struct({
   ),
 })
 export type SearchRequest = typeof SearchRequest.Type
+
+// ── the other question a search answers ────────────────────────────────
+
+/**
+ * WHAT A PAGE'S FILTER ASKS: not "the best twelve", but "which of them, and
+ * why" — every node the query selects, uncapped and unranked.
+ *
+ * A SECOND SHAPE beside {@link SearchRequest} rather than a flag on it, because
+ * the two doors want two different things out of one matcher and neither is the
+ * other cut short. A SEARCH is a shortlist somebody reads: it is ranked, it is
+ * capped, and every hit carries what a row of results draws — the title, the
+ * `file:line`, the ancestors, the properties. A FILTER is a membership test
+ * over rows already on a screen: what it needs is the SET of ids, whole,
+ * because the page prunes itself by it and counts itself against it ("3 of 41"
+ * is a lie if the answer was capped at twelve), and what it needs about each is
+ * one fact — which field carried the words, so a row found only behind its ¶
+ * can say so. A capped, ranked, situated answer would be the wrong answer with
+ * more bytes in it.
+ *
+ * It is the browser's door and only the browser's: an agent asking "which nodes
+ * match" is asking `search_nodes`, which answers with the nodes rather than
+ * with a set of ids to look up. Said here because the two live in one file and
+ * the difference between them is not the wire's to guess.
+ */
+export const MatchingRequest = Schema.Struct({
+  /** The same grammar, the same words — {@link SearchRequest.text}, and
+   *  deliberately not a second spelling of that sentence: what a query MEANS is
+   *  one paragraph, and this door reads it with the same `parseFilter`. */
+  text: Schema.String,
+  /**
+   * Whether what was put AWAY is in this corner of the set at all — the
+   * matcher's own {@link Scope.trashed}, on the wire because the caller is the
+   * only one who knows.
+   *
+   * The default (absent) is the grammar's rule: a query reaches the trash when
+   * it says `is:trashed` and not otherwise. `true` is a PAGE saying its own
+   * rows are already put-away ones — the trash, and a zoom onto a trashed node
+   * — where applying the default would take every row off the screen and leave
+   * the reader nothing to read the absence by. It is never a widening of a
+   * search of the directory: the page that sends it is the page that draws it.
+   */
+  trashed: Schema.optionalKey(Schema.Boolean),
+})
+export type MatchingRequest = typeof MatchingRequest.Type
+
+/** One node the query selected, and why — the id, and the field that carried
+ *  the words. `matched` is ABSENT for a query that named none (`is:done` on its
+ *  own), which is {@link NodeHit}'s own rule for absence: nothing carried it,
+ *  and saying "title" would be inventing a reason. */
+export const MatchedNode = Schema.Struct({
+  id: NodeId,
+  matched: Schema.optionalKey(Schema.Literals(SEARCH_FIELDS)),
+})
+export type MatchedNode = typeof MatchedNode.Type
+
+/**
+ * Every node the query selects, in the set's own file-then-line order.
+ *
+ * NO `total`, because the list IS the total — nothing was capped. No hits and
+ * no situating: the caller is looking at these rows already, and an ancestor
+ * walk per selected node is exactly the cost {@link ranked} was moved below a
+ * cap to avoid.
+ *
+ * NO `refusals` either, and that one is a decision rather than an omission. A
+ * refusal is what the GRAMMAR made of the words, and the door that asks this
+ * reads the same grammar itself (`parseFilter`, one function, both sides) —
+ * so it draws the refusal the moment somebody types it rather than a round trip
+ * later, and never asks a question it has already been told is unreadable. The
+ * three doors that DO carry refusals on the wire ({@link SearchAnswer}) are the
+ * ones that do not parse for themselves.
+ */
+export const MatchingAnswer = Schema.Struct({
+  matches: Schema.Array(MatchedNode),
+})
+export type MatchingAnswer = typeof MatchingAnswer.Type

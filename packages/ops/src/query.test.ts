@@ -20,7 +20,7 @@ import {
 import { describe, expect, test } from "bun:test"
 
 import { readingOf, setOf } from "./fixtures.testlib.ts"
-import { detail, outlines, search, subtree } from "./query.ts"
+import { detail, matches, outlines, search, subtree } from "./query.ts"
 
 /** The hits on RECORDS, which is what nearly every case below is about: a
  *  search answers with both kinds now, and a reader that draws one says so. */
@@ -612,4 +612,89 @@ describe("the directory", () => {
       { file: "torn.olai", nodes: 0, roots: [], unreadable: [expect.any(String)] },
     ])
   })
+})
+
+// ── the other question the matcher answers ─────────────────────────────
+
+/**
+ * `matches` is the PAGE FILTER's door: which nodes a query selects, all of
+ * them, ids and why. Every case here is about the ways it is deliberately NOT
+ * {@link search} — uncapped, unranked, records only, no situating — because
+ * that is the whole of the shape (`@olai/format`'s `searching.ts` argues it),
+ * and a hit list quietly answering here would fail nothing in a browser until
+ * somebody counted "3 of 41" off twelve rows.
+ */
+describe("which nodes a query selects", () => {
+  const PILE = (): OutlineSet =>
+    setOf({
+      "house.olai": [
+        `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order the doors","desc":"walnut, or birch"}`,
+        `{"id":"hinges","parent":"kitchen","ord":"a1","title":"pick the door hinges","done":"2026-08-02"}`,
+        `{"id":"tiles","parent":"kitchen","ord":"a2","title":"the door mat"}`,
+      ].join("\n"),
+      "_olai/Trash.olai": [
+        `{"id":"old","ord":"a0","title":"the old door"}`,
+      ].join("\n"),
+    })
+
+  const ids = (text: string, trashed?: boolean): ReadonlyArray<string> =>
+    matches(derivedOf(PILE()), { text, ...(trashed === undefined ? {} : { trashed }) }, TODAY)
+      .matches.map((one) => one.id)
+
+  test("every match comes back, past the cap a search would have applied", () => {
+    // Four of them where `search` answers twelve by default and a palette asks
+    // for eight: a page that pruned itself by a capped answer would draw the
+    // rows the cap kept and count the ones it did not.
+    expect(ids("door")).toEqual(["order", "hinges", "tiles"])
+    expect(matches(derivedOf(PILE()), { text: "door" }, TODAY).matches.length).toBe(3)
+  })
+
+  test("the order is the set's own, never the ranking", () => {
+    // `hinges` is finished and would sink under the done penalty in a
+    // shortlist; here it stays where the file puts it, because a page draws its
+    // rows in the page's order and a rank would be an answer nobody asked for.
+    expect(ids("door")).toEqual(["order", "hinges", "tiles"])
+  })
+
+  test("why a node is here is the field that carried the words, or nothing", () => {
+    // `walnut` is in `order`'s note and in no title anywhere — the row a
+    // filtered page draws an excerpt for (`@olai/web`'s `filter/why.ts`).
+    expect(matches(derivedOf(PILE()), { text: "walnut" }, TODAY).matches)
+      .toEqual([{ id: "order", matched: "desc" }])
+    // ...and a query that named no words at all is carried by no field, so the
+    // slot is ABSENT rather than filled with an invented reason.
+    expect(matches(derivedOf(PILE()), { text: "is:done" }, TODAY).matches)
+      .toEqual([{ id: "hinges" }])
+  })
+
+  test("what was put away is out, unless the query or the PAGE says otherwise", () => {
+    expect(ids("door")).not.toContain("old")
+    // The grammar's own door, at every caller.
+    expect(ids("is:trashed door")).toEqual(["old"])
+    // ...and the page's: the trash, and a zoom onto a trashed node, are pages
+    // whose rows are already put-away ones, and a matcher applying the default
+    // there would take every row off the screen.
+    // In the SET's own file-then-line order, which is what this answers in and
+    // why `_olai/Trash.olai` comes first — a page draws its rows in the page's
+    // order and looks each one up here, so nothing about this list is a
+    // presentation.
+    expect(ids("door", true)).toEqual(["old", "order", "hinges", "tiles"])
+  })
+
+  test("a query nobody could read selects nothing, and says nothing about it", () => {
+    // No `refusals` on this answer, deliberately: the door that asks it reads
+    // the same grammar itself, so it has already drawn the sentence by the time
+    // a round trip could carry one (`@olai/format`'s `MatchingAnswer`).
+    expect(matches(derivedOf(PILE()), { text: "is:open" }, TODAY))
+      .toEqual({ matches: [] })
+    // Nothing typed is not a question either.
+    expect(matches(derivedOf(PILE()), { text: "  " }, TODAY)).toEqual({ matches: [] })
+  })
+
+  // A DOCUMENT IS NEVER ONE, and it is structural rather than a case: this takes
+  // the DERIVATION where {@link search} takes the whole reading, so the half of
+  // the directory that is prose is not in reach of it. Which is the honest
+  // arrangement — the page that draws prose is the one page that carries no
+  // filter at all (`@olai/web`'s `routes.ts`).
 })

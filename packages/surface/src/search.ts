@@ -53,6 +53,13 @@ export {
    *  in its type ({@link isNodeHit}). */
   DocumentHit,
   isNodeHit,
+  /** ONE NODE THE PAGE FILTER SELECTED, and the whole list of them: the other
+   *  question the same matcher answers, for the box that narrows what is
+   *  already on screen rather than listing hits beside it. Ids and why, uncapped
+   *  and unranked — that file argues why a shortlist is the wrong answer to it. */
+  MatchedNode,
+  MatchingAnswer,
+  MatchingRequest,
   NodeHit,
   Refusal,
   SearchAnswer,

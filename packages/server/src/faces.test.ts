@@ -241,6 +241,12 @@ test("the agent's face is what it can SEE plus the doors its tools land through"
   // intents about a screen it cannot see would be the one thing this whole
   // split exists to prevent.
   expect(Object.keys(AGENT)).not.toContain("edit.apply")
+  // ...and so is the page filter's half of the search, for its own reason: it
+  // answers with a set of ids and why, which is useful only to somebody already
+  // looking at the rows those ids name. An agent asking which nodes match asks
+  // `search_nodes` and is answered with the nodes (`./faces.ts`).
+  expect(Object.keys(BROWSER)).toContain("search.matching")
+  expect(Object.keys(AGENT)).not.toContain("search.matching")
   // And the human's session is the human's, on this face as on the MCP one.
   expect(Object.keys(AGENT)).not.toContain("chat")
   expect(Object.keys(AGENT)).not.toContain("transcript")

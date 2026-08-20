@@ -25,6 +25,8 @@ import {
   BusyFailure,
   type CommitRequest,
   type CommitResult,
+  type MatchingAnswer,
+  type MatchingRequest,
   type OpFailure,
   type Pending,
   type PushResult,
@@ -46,6 +48,7 @@ import {
   type Status,
 } from "./pending.ts"
 import { type Context, plan } from "./plan.ts"
+import * as Query from "./query.ts"
 import { sortOfWrite } from "./sorted.ts"
 import { asking, type Asking } from "./tools.ts"
 
@@ -97,6 +100,27 @@ export interface Options {
  * two are interfaces rather than methods this file happens to have.
  */
 export interface Ops extends Asking {
+  /**
+   * WHICH nodes a query selects — all of them, ids and why ({@link
+   * ./query.ts}'s `matches`).
+   *
+   * HERE RATHER THAN ON {@link Asking}, and the line is worth arguing because
+   * everything else about search is on that one. `Asking` is what a TOOL may
+   * ask, which is why something that is not this layer at all can satisfy it —
+   * `mcp-bridge`'s door, a surface client with no store behind it. This is not
+   * a tool and never will be: it answers with a set of ids to look up, useful
+   * only to a caller already looking at the rows those ids name, which is the
+   * browser narrowing a page in front of somebody. An agent asking which nodes
+   * match asks `search_nodes` and is answered with the nodes.
+   *
+   * So it hangs off the layer the SERVER holds (`@olai/server`'s `runtime.ts`
+   * binds it to the `search.matching` procedure, exposed on the browser face
+   * alone) and the agent's bridge is not obliged to implement a member no agent
+   * face exposes.
+   */
+  readonly matching: (
+    request: MatchingRequest,
+  ) => Effect.Effect<MatchingAnswer, OpFailure>
   /** Perform one op. Fails only with an {@link OpFailure} — every internal
    *  failure mode (a stale base, a file system error) is either retried or
    *  translated, because a caller of this interface is a tool call or a
@@ -331,6 +355,11 @@ export const make = (options: Options): Ops => {
     // gets through a surface procedure and the answer a local tool call gets
     // are the same statement rather than two that agree.
     ...asking(read, context.now),
+    // The BROWSER's half of the same matcher, over the same gated read: the
+    // derivation alone, because a filter selects records and the other half of
+    // the set is prose (prose is the one page that carries no filter).
+    matching: (request) =>
+      Effect.map(read, (at) => Query.matches(at.derived, request, context.now())),
     status: commits.status,
     pending: commits.pending,
     commit: commits.commit,

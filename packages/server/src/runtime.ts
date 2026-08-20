@@ -706,6 +706,12 @@ export const bind = (
         // carries.
         search: {
           nodes: ({ input }) => wiring.ops.search(input),
+          // The page filter's half of the same reading, and the same restraint
+          // one door over: the browser used to answer this out of its own copy
+          // of the set, which is the copy `vault-in-browser` is taking away.
+          // Nothing is decided here either — which nodes a query selects is the
+          // matcher's, and how much of the answer travels is the shape's.
+          matching: ({ input }) => wiring.ops.matching(input),
         },
         /**
          * The agent's door — the ops vocabulary itself

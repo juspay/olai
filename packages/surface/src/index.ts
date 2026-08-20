@@ -116,7 +116,7 @@ import {
 } from "./chat.ts"
 import { editProcedures } from "./edit.ts"
 import { opsProcedures } from "./ops.ts"
-import { SearchAnswer, SearchRequest } from "./search.ts"
+import { MatchingAnswer, MatchingRequest, SearchAnswer, SearchRequest } from "./search.ts"
 
 /**
  * One outline file's slice of the set, as published at set revision `rev`.
@@ -638,14 +638,37 @@ export const surface = defineSurface({
      *  with `SurfaceMemberNotExposed`. Until juspay/kolu#2170 that could not be
      *  said, which is why these verbs were not here. */
     ops: opsProcedures,
-    /** The palette's search — the same reading `search_nodes` answers an
-     *  agent with, reached as a question rather than re-implemented over the
-     *  nodes the browser already holds. See {@link ./search.ts} for why that
-     *  restraint is the point. */
+    /** THE TWO DOORS onto the one matcher, and neither of them holds a matcher
+     *  of its own: the palette's search — the same reading `search_nodes`
+     *  answers an agent with — and the page filter's membership question, both
+     *  reached as questions rather than re-implemented over the nodes the
+     *  browser already holds. See {@link ./search.ts} for why that restraint is
+     *  the point. */
     search: {
       nodes: {
         input: SearchRequest,
         output: SearchAnswer,
+        error: OpFailure,
+      },
+      /**
+       * The PAGE FILTER's door onto the same matcher — which nodes the query
+       * selects, all of them, ids and why.
+       *
+       * A SECOND MEMBER rather than a flag on the first, because the two
+       * answers are two shapes and neither is the other cut short
+       * ({@link ./search.ts}). What a palette wants is a ranked shortlist of
+       * situated hits; what a filtered page wants is the whole membership, since
+       * it prunes itself by the ids and counts itself against them — "3 of 41"
+       * is not sayable off an answer that stopped at twelve.
+       *
+       * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`): an agent asking which
+       * nodes match asks {@link nodes}, which answers with the nodes. This one
+       * hands back a set of ids to look up, which is only useful to somebody
+       * already looking at the rows.
+       */
+      matching: {
+        input: MatchingRequest,
+        output: MatchingAnswer,
         error: OpFailure,
       },
     },
@@ -745,6 +768,9 @@ export {
 export {
   DocumentHit,
   isNodeHit,
+  MatchedNode,
+  MatchingAnswer,
+  MatchingRequest,
   NodeHit,
   Refusal,
   SearchAnswer,
