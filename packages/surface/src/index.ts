@@ -99,6 +99,8 @@ import {
   Pending,
   PushResult,
   samePending,
+  TagsAnswer,
+  TagsRequest,
 } from "@olai/format"
 import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
@@ -673,6 +675,30 @@ export const surface = defineSurface({
       },
     },
     /**
+     * THE SET'S OWN WORDS, as opposed to a question about them.
+     *
+     * A sibling of {@link search} rather than a third member of it, because
+     * nothing in here reads the query grammar: this answers which tags have
+     * been WRITTEN DOWN and how much each is used, where every member of that
+     * group is a caller of the one matcher. Two doors with two subjects, said
+     * in the shape rather than in a comment on a shared one.
+     *
+     * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`), like the filter's
+     * door: what it answers is a popup's worth of rows, capped by the popup.
+     */
+    vocabulary: {
+      /** The row editor's `#`/`@` completion — the vocabulary of one sigil,
+       *  narrowed by what has been typed after it, most-used first. Declared in
+       *  `@olai/format`'s `vocabulary.ts` beside the reading that produces it,
+       *  for {@link ./search.ts}'s reason: one spelling, so the shape cannot
+       *  drift from the answer. */
+      tags: {
+        input: TagsRequest,
+        output: TagsAnswer,
+        error: OpFailure,
+      },
+    },
+    /**
      * The other door to the same action the agent's `commit` tool opens.
      *
      * A PROCEDURE rather than a write verb on the cell above: committing is
@@ -777,6 +803,14 @@ export {
   SearchHit,
   SearchRequest,
 } from "./search.ts"
+
+/** What a tag COMPLETION asks and answers — `@olai/format`'s declarations,
+ *  carried rather than re-spelled, for {@link ./search.ts}'s reason. The
+ *  browser sends a sigil, a prefix and the number of rows its popup has; the
+ *  answer is the words this set already uses, most-used first. The reading
+ *  behind it is that package's `vocabulary.ts`, which is where it moved when
+ *  the browser stopped holding a vault to enumerate. */
+export { TagCompletion, TagsAnswer, TagsRequest } from "@olai/format"
 
 /** What an attachment may BE — the policy the browser gates on before encoding
  *  and the server gates on before writing. One module, for the same reason the

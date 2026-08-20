@@ -203,9 +203,11 @@ hm-module:
 #     keystroke (`packages/format/src/filter.bench.ts`, added when a reviewer
 #     asked where the milliseconds in its header came from);
 #   - the TAG COMPLETION, timed as an index read against the corpus walk it
-#     replaced (`packages/web/src/client/complete/tags.bench.ts`, added with
+#     replaced (`packages/format/src/vocabulary.bench.ts`, added with
 #     `taggedBy` — the roadmap deferred that index until somebody measured this
-#     walk, so the measurement is a leg rather than a paragraph). Its two arms
+#     walk, so the measurement is a leg rather than a paragraph). It moved down
+#     from the browser with the reading it times, which the server now runs per
+#     settled keystroke instead of the tab running it per frame. Its two arms
 #     must answer the same list or the run fails, and a third times the walk as
 #     it literally stood; what the wider index costs the FOLD, and what the tag
 #     WALK under it costs in the three shapes it has been written in, are the
@@ -226,7 +228,7 @@ bench: install
     {{ nix_shell }} bun --conditions browser packages/web/src/client/outlines.bench.ts
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
-    {{ nix_shell }} bun packages/web/src/client/complete/tags.bench.ts
+    {{ nix_shell }} bun packages/format/src/vocabulary.bench.ts
 
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
 # instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees

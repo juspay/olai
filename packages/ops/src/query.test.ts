@@ -21,7 +21,7 @@ import {
 import { describe, expect, test } from "bun:test"
 
 import { readingOf, setOf } from "./fixtures.testlib.ts"
-import { detail, matches, outlines, search, subtree } from "./query.ts"
+import { detail, matches, outlines, search, subtree, tags } from "./query.ts"
 
 /** The hits on RECORDS, which is what nearly every case below is about: a
  *  search answers with both kinds now, and a reader that draws one says so. */
@@ -702,4 +702,46 @@ describe("which nodes a query selects", () => {
   // the directory that is prose is not in reach of it. Which is the honest
   // arrangement — the page that draws prose is the one page that carries no
   // filter at all (`@olai/web`'s `routes.ts`).
+})
+
+// ── the vocabulary a completion draws ──────────────────────────────────
+
+describe("which tags the set already uses", () => {
+  const HOUSE = (): OutlineSet =>
+    setOf({
+      "house.olai": [
+        `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order cabinets #home #shopping"}`,
+        `{"id":"ask","parent":"kitchen","ord":"a2","title":"ask @alice about the #hob"}`,
+      ].join("\n"),
+      "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"the old boiler #boiler"}`,
+    })
+
+  // The ENVELOPE, which is this layer's half: what the rules are is
+  // `@olai/format`'s `vocabulary.ts` and is pinned there, and what travels is
+  // this shape — a field dropped between the reading and the answer would fail
+  // nothing over there.
+  test("the answer is the shortlist, ranked, in the envelope the wire carries", () => {
+    expect(tags(derivedOf(HOUSE()), { sigil: "#", query: "ho", limit: 8 }))
+      .toEqual({
+        tags: [
+          { name: "home", count: 2 },
+          { name: "hob", count: 1 },
+          { name: "shopping", count: 1 },
+        ],
+      })
+  })
+
+  test("the sigil asked with is the only namespace answered", () => {
+    expect(tags(derivedOf(HOUSE()), { sigil: "@", query: "", limit: 8 }))
+      .toEqual({ tags: [{ name: "alice", count: 1 }] })
+  })
+
+  // The DERIVATION, like `matches` and unlike `search`: what is put away is not
+  // vocabulary, and the count beside a name is a promise about rows a reader
+  // can be shown.
+  test("a tag only the trash uses is not offered", () => {
+    expect(tags(derivedOf(HOUSE()), { sigil: "#", query: "boil", limit: 8 }))
+      .toEqual({ tags: [] })
+  })
 })

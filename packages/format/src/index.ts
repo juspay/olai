@@ -589,6 +589,21 @@ export {
   SearchRequest,
 } from "./searching.ts"
 
+/** The set's own WORDS — every tag written down, counted, and which of them one
+ *  prefix under one sigil means. The reading over `Derived.taggedBy` rather than
+ *  the index, for `./backlinks.ts`'s reason: what a tag's COUNT means (one vote
+ *  per record, nothing the trash draws) is a decision, and it is made there. It
+ *  ran in the browser until `vault-in-browser`'s PR 2 took the vault out of it —
+ *  see `./vocabulary.ts`. */
+export {
+  completingTags,
+  TagCompletion,
+  TagsAnswer,
+  TagsRequest,
+  vocabularyOf,
+} from "./vocabulary.ts"
+export type { TagUse } from "./vocabulary.ts"
+
 /** The words a commit gets when nobody wrote any. Here rather than in the ops
  *  layer because the message is now a function of a SELECTION, and the
  *  selection is made in a browser — see `./message.ts`. */

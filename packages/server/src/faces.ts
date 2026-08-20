@@ -143,8 +143,9 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  *
  * Written as the complement of one omission, and the omission is the whole
  * point of this map existing: `ops.*` is absent. Every cell, every collection,
- * the chat's nine verbs, `edit.apply`, the two search questions and the two git
- * verbs are here because a page reads or presses them; the ops request vocabulary is
+ * the chat's nine verbs, `edit.apply`, the two search questions, the tag
+ * completion's vocabulary and the two git verbs are here because a page reads
+ * or presses them; the ops request vocabulary is
  * not, because a browser sends INTENTS and the placement is the server's
  * (`@olai/surface`'s `edit.ts`, argued at length and unchanged by any of this).
  *
@@ -198,6 +199,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "edit.apply": "tool",
   "search.nodes": "tool",
   "search.matching": "tool",
+  "vocabulary.tags": "tool",
   "git.commit": "tool",
   "git.push": "tool",
 }
@@ -222,7 +224,11 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
  * it is a fact about what an agent would do with it rather than a restriction:
  * it answers with a set of ids and why, which is only useful to a caller already
  * looking at the rows those ids name. An agent asking which nodes match asks
- * `search_nodes` and is answered with the nodes. What a commit
+ * `search_nodes` and is answered with the nodes. `vocabulary.tags` is absent
+ * for the same kind of reason and is a whole group rather than one member of
+ * one: it answers a POPUP — as many rows as the widget that asked has room for,
+ * ranked by how much this set uses each word — and an agent writing `#home`
+ * writes the word. What a commit
  * is RECORDED AS does differ, and it is not a member's business: this face is
  * served under the writer the composition root bound (`./runtime.ts`'s
  * `writerAt`), which is where every other fact about a face is decided too.

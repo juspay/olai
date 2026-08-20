@@ -713,6 +713,12 @@ export const bind = (
           // matcher's, and how much of the answer travels is the shape's.
           matching: ({ input }) => wiring.ops.matching(input),
         },
+        // The COMPLETION's door, and the same restraint a third time: the row
+        // editor used to enumerate the tag vocabulary out of the browser's own
+        // copy of the set, which is the copy `vault-in-browser` is taking away.
+        // What a tag is, and what the trash does to its count, is
+        // `@olai/format`'s `vocabulary.ts` — nothing is decided here.
+        vocabulary: { tags: ({ input }) => wiring.ops.tags(input) },
         /**
          * The agent's door — the ops vocabulary itself
          * (`@olai/surface`'s `ops.ts`), and the ONE group no browser face

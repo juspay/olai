@@ -9,17 +9,26 @@
  * number nobody can re-run is a number nobody can check, so the before and the
  * after are arms of one run rather than two paragraphs.
  *
- * THREE ARMS over one generated vault (`@olai/format/testlib`'s `vaultOf`, the
- * SAME corpus `packages/format/src/patch.bench.ts` runs on, so this leg's
- * numbers and the patcher's are about one directory):
+ * IT MEASURES THE SAME THING FROM THE OTHER SIDE OF THE WIRE now. The reading
+ * ran in the browser, once per published frame, until `vault-in-browser`'s PR 2
+ * moved it beside the index it reads ({@link ./vocabulary.ts}); it now runs on
+ * the server, once per settled keystroke of a tag being typed, memoised per
+ * derivation. Which side pays has changed and the arms have not: it is the same
+ * index read against the same corpus walks, over the same generated vault, so
+ * the numbers this printed before the move and the numbers it prints after are
+ * about one function.
  *
- *   - `index` — {@link tagsOf}, which reads `Derived.taggedBy`: the keys of a
- *     map and the length of each entry, with the archive taken off;
+ * THREE ARMS over one generated vault (`./fixtures.testlib.ts`'s `vaultOf`, the
+ * SAME corpus `./patch.bench.ts` runs on, so this leg's numbers and the
+ * patcher's are about one directory):
+ *
+ *   - `index` — {@link vocabularyOf}, which reads `Derived.taggedBy`: the keys of a
+ *     map and the length of each entry, with the trash taken off;
  *   - `walk` — the SAME ANSWER derived from the corpus instead: every node of
  *     the set, `titleParts` over its title and its note, one vote per record.
  *     This is the honest A/B, because two arms that answer different lists are
  *     two numbers nobody may divide;
- *   - `titles` — the walk AS IT LITERALLY STOOD before this branch: titles
+ *   - `titles` — the walk AS IT LITERALLY STOOD before `taggedBy`: titles
  *     only, a vote per tag PART. It is here because `walk` is not what the file
  *     said, and a ratio quoted against a reconstruction that does more work
  *     than the code it stands for is a flattering ratio. It answers a
@@ -36,22 +45,19 @@
  * id-map clone it replaced: a before/after the harness cannot print is exactly
  * the unreproducible laptop sample these legs exist to retire.
  *
- * A FRESH DERIVED PER MEASUREMENT, because `tagsOf` holds one answer per
- * derivation in a `WeakMap` and the question is what a NEW frame costs. A
+ * A FRESH DERIVED PER MEASUREMENT, because `vocabularyOf` holds one answer per
+ * derivation in a `WeakMap` and the question is what a NEW REVISION costs. A
  * shallow copy of the view is a new key over the same indexes, which is exactly
- * what the tab is handed when one file moves.
+ * what a server is left holding when one file changes.
  */
 
 import {
   derive,
   type Derived,
-  isLeftoverArchive,
-  isTrashed,
-  isMirror,
   mayHoldTag,
   tagText,
   titleParts,
-} from "@olai/format"
+} from "./derive.ts"
 import {
   median,
   recordsOf,
@@ -60,9 +66,9 @@ import {
   timed,
   timesSaid,
   vaultOf,
-} from "@olai/format/testlib"
-
-import { type Tag, tagsOf } from "./tags.ts"
+} from "./fixtures.testlib.ts"
+import { isLeftoverArchive, isMirror, isTrashed } from "./node.ts"
+import { type TagUse, vocabularyOf } from "./vocabulary.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 21)
@@ -75,16 +81,16 @@ const ROUNDS = Number(process.env["OLAI_BENCH_ROUNDS"] ?? 20)
  *  holds. */
 const view = derive(recordsOf(setOf(Object.fromEntries(vaultOf({ files: FILES, records: RECORDS })))))
 
-/** One row of the widget's list, built the way both walks below build one —
+/** One row of the vocabulary, built the way both walks below build one —
  *  they differ in what they walk, never in what they answer with. */
-const rowFor = (sigil: Tag["sigil"], name: string, count: number): Tag => ({
+const rowFor = (sigil: TagUse["sigil"], name: string, count: number): TagUse => ({
   sigil,
   name,
   folded: name.toLowerCase(),
   count,
 })
 
-const ranked = (counts: ReadonlyMap<string, Tag>): ReadonlyArray<Tag> =>
+const ranked = (counts: ReadonlyMap<string, TagUse>): ReadonlyArray<TagUse> =>
   [...counts.values()].sort((one, other) =>
     other.count - one.count || one.name.localeCompare(other.name)
   )
@@ -94,12 +100,12 @@ const ranked = (counts: ReadonlyMap<string, Tag>): ReadonlyArray<Tag> =>
  * this arm and the index arm are two ways to one answer.
  *
  * A record's title AND its note, and one vote per record — neither of which the
- * walk on master spelled ({@link titlesOnly} is that one). This is the arm the
+ * walk this replaced spelled ({@link titlesOnly} is that one). This is the arm the
  * published ratio is against, because a comparison is only a comparison when
  * both sides answer the same question.
  */
-const walked = (derived: Derived): ReadonlyArray<Tag> => {
-  const counts = new Map<string, Tag>()
+const walked = (derived: Derived): ReadonlyArray<TagUse> => {
+  const counts = new Map<string, TagUse>()
   for (const located of derived.nodes) {
     if (
       isMirror(located.node) || isTrashed(located.file) ||
@@ -127,7 +133,7 @@ const walked = (derived: Derived): ReadonlyArray<Tag> => {
 }
 
 /**
- * ...and the walk as the file ACTUALLY held it before this branch: titles only,
+ * ...and the walk as the browser ACTUALLY held it before `taggedBy`: titles only,
  * a vote per tag part rather than per record.
  *
  * It answers a smaller list than either arm above — a tag written only in a
@@ -136,8 +142,8 @@ const walked = (derived: Derived): ReadonlyArray<Tag> => {
  * say: how much of the saving is the index, and how much is that the arm
  * standing in for the old code was asked to do more than the old code did.
  */
-const titlesOnly = (derived: Derived): ReadonlyArray<Tag> => {
-  const counts = new Map<string, Tag>()
+const titlesOnly = (derived: Derived): ReadonlyArray<TagUse> => {
+  const counts = new Map<string, TagUse>()
   for (const located of derived.nodes) {
     if (
       isMirror(located.node) || isTrashed(located.file) ||
@@ -158,15 +164,15 @@ const titlesOnly = (derived: Derived): ReadonlyArray<Tag> => {
 }
 
 /** A view the arm under test has never been handed: the same indexes under a
- *  new identity, which is what `tagsOf`'s per-derivation memo keys on. */
+ *  new identity, which is what `vocabularyOf`'s per-derivation memo keys on. */
 const fresh = (): Derived => ({ ...view })
 
-const arms = { index: tagsOf, walk: walked, titles: titlesOnly } as const
+const arms = { index: vocabularyOf, walk: walked, titles: titlesOnly } as const
 
 // THE SAME ANSWER for the two that must have one, asserted before anything is
 // timed — see the header. A benchmark whose fast arm answers a shorter list is
 // not a benchmark.
-const spelling = (tags: ReadonlyArray<Tag>): string =>
+const spelling = (tags: ReadonlyArray<TagUse>): string =>
   tags.map((tag) => `${tag.sigil}${tag.name} ${tag.count}`).join("\n")
 const found = spelling(arms.index(fresh()))
 const walkFound = spelling(arms.walk(fresh()))

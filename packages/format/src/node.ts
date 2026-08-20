@@ -410,7 +410,8 @@ export const targetsOf = (
  *      Trash entry at the foot of the column is where it is read; the
  *      filter widens its scope only on a page already drawing trashed rows
  *      (`filter/narrowing.ts`); the tag vocabulary does not count them
- *      (`complete/tags.ts`), because that count is a promise about rows; and
+ *      (`./vocabulary.ts`, which that page asks for), because that count is a
+ *      promise about rows; and
  *      the move-to picker refuses it as a DESTINATION in its own words
  *      (`move/destination.ts`) — a query that says `is:trashed` can reach the
  *      Trash from there, and what is put away is not somewhere work is moved

@@ -98,9 +98,9 @@ const FIELD_WEIGHT = { title: 1000, id: 750, tag: 500, desc: 250 } as const
  * more is collectable with the record it was about. There is no frame, no
  * revision and no clearing.
  *
- * The two completions in the browser each keep a fold of their own for the same
- * reason (`web/src/client/file/matching.ts` over the served paths, `complete/tags.ts` over the
- * set's tags). This one is HERE rather than beside them because the text it
+ * The two other completions keep a fold of their own for the same reason
+ * (`web/src/client/file/matching.ts` over the served paths, `./vocabulary.ts`
+ * over the set's tags). This one is HERE rather than beside them because the text it
  * folds is this file's own question, and a cache in a caller would be a second
  * answer for the four other doors to miss.
  *

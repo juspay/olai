@@ -247,6 +247,11 @@ test("the agent's face is what it can SEE plus the doors its tools land through"
   // `search_nodes` and is answered with the nodes (`./faces.ts`).
   expect(Object.keys(BROWSER)).toContain("search.matching")
   expect(Object.keys(AGENT)).not.toContain("search.matching")
+  // ...and so is the tag completion's vocabulary, a whole group of it: what it
+  // answers is a POPUP's worth of rows, as many as the widget that asked has
+  // room for. An agent writing `#home` writes the word (`./faces.ts`).
+  expect(Object.keys(BROWSER)).toContain("vocabulary.tags")
+  expect(Object.keys(AGENT)).not.toContain("vocabulary.tags")
   // And the human's session is the human's, on this face as on the MCP one.
   expect(Object.keys(AGENT)).not.toContain("chat")
   expect(Object.keys(AGENT)).not.toContain("transcript")
