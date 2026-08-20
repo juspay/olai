@@ -125,6 +125,16 @@ export interface Settled<Q, A> {
    * reader: during the settle and the flight of a newer question it is `null`,
    * and a refused call answers nothing and so names nothing. Read off the
    * resolved value rather than off a signal beside it.
+   *
+   * BOTH WINDOWS, and the settle is the half that was missing: this compared
+   * the answer against what had been ASKED, and `asked` does not move until
+   * the debounce fires — so for 200ms after a keystroke the rows were labelled
+   * as answering a question the reader had already typed past. What a door does
+   * with the label is take a row on `Enter`, so the gap was a keystroke that
+   * wrote the wrong node (the audit's 4.12 in
+   * `docs/brainstorming/reactivity-after-the-flip.md`). It is compared
+   * against what is WANTED now, which is the sentence above as it was always
+   * written.
    */
   readonly answering: Accessor<Q | null>
   /** A refused call, in the server's own words — `null` when there is none, and
@@ -234,7 +244,7 @@ export const createSettled = <Q, A>(
     answer: () => answer()?.answer,
     answering: () => {
       const got = answer()
-      return got !== undefined && same(got.question, asked()) ? got.question : null
+      return got !== undefined && same(got.question, wanted()) ? got.question : null
     },
     failure,
   }

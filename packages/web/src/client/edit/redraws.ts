@@ -12,11 +12,32 @@
  * ## What being wrong costs, said precisely
  *
  * Less than it looks, and the overstatement is worth correcting rather than
- * repeating: `settling` is cleared by the frame every landed write publishes —
- * the store re-reads the paths it just wrote (`@olai/store`'s probe forgets
- * their stamps), so even bytes identical to the ones already on disk publish a
- * revision. It is a WINDOW, not a leak, and it was checked in a browser by
- * telling the editor a date redraws and driving it both ways.
+ * repeating — but the correction has itself been sharpened once, so what is
+ * written here is the exact statement and not the near one.
+ *
+ * A landed write publishes a REVISION: the store re-reads the paths it just
+ * wrote (`@olai/store`'s probe forgets their stamps), so even bytes identical
+ * to the ones already on disk publish one. `settling` is not cleared by a
+ * revision. It is cleared by the FRAME THIS PAGE receives, and a revision
+ * becomes one only if the page's reading CHANGED BY VALUE — the server
+ * re-derives it and drops the frame otherwise (`../reading.tsx`,
+ * `@olai/format`'s `samePageReading`). So a landed write that leaves this
+ * page's reading identical sends nothing here, and the debt would stand.
+ *
+ * It is a WINDOW rather than a leak for a narrower reason than "every write
+ * publishes something", then: no write this editor can send is that write.
+ * `redrawing` is reached for `move`, `toggle`, `walk`, `split` and `merge`
+ * alone, and each either changes this page's reading or is REFUSED at its
+ * boundary — and a refusal clears the debt in `redrawing` itself.
+ * `docs/brainstorming/reactivity-after-the-flip.md` §3.4's 4.11 footnote is
+ * that argument verb by verb, with the browser drives behind it. What is left
+ * is a hazard about a coincidence rather than a defect anybody can show: a verb
+ * added to the list below that is a NO-OP on the page it was pressed in would
+ * make the window a leak, and nothing here would say so.
+ *
+ * The older reading was checked in a browser, by telling the editor a `date`
+ * redraws and driving it both ways — but a `date` DOES change this page's
+ * reading, so what that proved is the window, not the sentence above it.
  *
  * What the window costs is the blur INSIDE it: somebody who clicks away while
  * the round trip is in flight has that blur dropped whole — the line is neither
@@ -32,6 +53,30 @@
  * it changes what the agenda and the day pages list, never this page's sibling
  * order — and a `mirror` cannot either, because the placement it makes is a new
  * row AFTER the one that made it.
+ *
+ * ## The finer question beside it: does the row get a new ADDRESS?
+ *
+ * {@link redraws} asks whether the row can MOVE. {@link rekeys} asks the
+ * sharper thing that follows from it — whether the row is drawn at a different
+ * `Row.key` afterwards — and they are two facts about one subject, which is
+ * why they are one file rather than a second table somewhere else.
+ *
+ * The difference is the whole of what the caret costs. A row that moves among
+ * its SIBLINGS keeps its key, so the tree's `<Key by="key">` moves the very
+ * element the editor is drawn in and the platform keeps the selection inside
+ * it. A row that changes PARENT does not: its key is the chain of ids down to
+ * it (`@olai/format`'s `derive.ts`), so the branch it was drawn in stops
+ * matching and a different branch starts — the editor is not moved but
+ * REPLACED, and a fresh editor opens at the end of the text, which throws
+ * somebody who pressed `Tab` mid-word to the end of their own title. So a
+ * write that rekeys carries the caret's offset on the draft, exactly as a
+ * split and a merge do (`./draft.ts`'s `caret`).
+ *
+ * It is a TABLE for {@link redraws}' reason word for word — the answer is a
+ * fact about the verb, and a per-call-site flag is something the next caller
+ * can get wrong in a way nothing notices — and it is a function over the EDIT
+ * rather than a set of verbs because the four moves split two ways: `in` and
+ * `out` change the parent, `up` and `down` shuffle siblings.
  */
 
 import type { Edit } from "@olai/surface"
@@ -67,3 +112,27 @@ const MOVES: ReadonlySet<Edit["verb"]> = new Set<Edit["verb"]>([
 ])
 
 export const redraws = (edit: Edit): boolean => MOVES.has(edit.verb)
+
+/**
+ * Whether this write leaves the row at a different `Row.key` — see the header.
+ *
+ * The verbs that end the row's life on this page are deliberately NOT here. A
+ * merge destroys the row and a split makes a second one; both hand the caret an
+ * offset of their own through `./draft.ts`'s `opening`, because what they are
+ * about is WHERE IN THE SENTENCE it lands rather than that it should not have
+ * moved. Two answers to one question is what a table is for avoiding, so each
+ * verb appears in exactly one of them.
+ */
+export const rekeys = (edit: Edit): boolean => {
+  switch (edit.verb) {
+    // A new parent, named outright: the picker's landing, and the undo that
+    // puts a row back where it sat.
+    case "place":
+    case "under":
+      return true
+    case "move":
+      return edit.how === "in" || edit.how === "out"
+    default:
+      return false
+  }
+}

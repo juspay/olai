@@ -64,6 +64,24 @@ When(
   },
 );
 
+/**
+ * Somebody else, writing a DOCUMENT — the same door as the step above, one
+ * file-kind over.
+ *
+ * A LINE ADDED rather than the file replaced, and that is what makes it usable
+ * in a scenario whose subject is the page NOT MOVING: the claim is about the
+ * same document with one more line in it, and a second copy of the doc string
+ * in the feature would be sixty lines a later editor has to keep byte-identical
+ * by hand — or the scenario quietly stops testing a rewrite and starts testing
+ * a different file.
+ */
+When(
+  "another writer appends {string} to the document {string}",
+  function (this: OlaiWorld, line: string, file: string) {
+    this.appendServedLine(file, line);
+  },
+);
+
 /** A row RETITLED under everybody's feet. What it is for is the one thing a
  *  text undo must never do: put back what this tab replaced, on top of words
  *  somebody else has since written. */

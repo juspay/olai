@@ -2109,6 +2109,20 @@ export class OlaiWorld extends World {
     this.writeServed(file, [...lines, JSON.stringify(record)].join("\n"));
   }
 
+  /** One more LINE at the end of a served document, which is the same door
+   *  {@link appendServed} is one file-kind over: a `.md` is a text, not a set
+   *  of records, so it appends a line rather than a JSON object.
+   *
+   *  It exists for the same reason that one does — a rewrite would undo
+   *  whatever else the scenario has done — and for a second: a scenario whose
+   *  subject is a file CHANGING under an open page has to say what changed in
+   *  one line, or the feature carries two copies of a long document that a
+   *  future editor must keep identical by hand. */
+  appendServedLine(file: string, line: string): void {
+    const held = fs.readFileSync(path.join(this.scratch(), file), "utf8");
+    this.writeServed(file, `${held}\n${line}\n`);
+  }
+
   removeServed(file: string): void {
     fs.rmSync(path.join(this.scratch(), file));
   }

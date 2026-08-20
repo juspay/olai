@@ -77,15 +77,17 @@ test("only wire.ts dials: connectSurface( is called exactly once in the client",
 // else about them" is only safe if nothing else READS them raw. Everything
 // downstream takes the readout whole (a prop, a `data-` attribute) or goes
 // through `lookOf`; the day a component branches on `"retired"` itself, the
-// sixth state lands everywhere status.ts is not. The test file is the one
-// other legitimate speller: its fixtures must utter the states to hold the
-// table to them — and so must `reaching.test.ts`, for the same reason one step
-// along: WHICH states cannot carry a question is the freeze's own table, and a
-// test of it has to name them. Neither branches on a state in the app; they
-// assert about the two tables that do.
+// sixth state lands everywhere status.ts is not. The test files are the
+// legitimate spellers: their fixtures must utter the states to hold the tables
+// to them — `status.test.ts` over the look table, `reaching.test.ts` over
+// WHICH states cannot carry a question, and `chat/declared.browsertest.ts`
+// because a module that asks nothing into a dead socket has to be handed a
+// live one to be asked at all. None of the three branches on a state in the
+// app; they assert about, or stand in for, the tables that do.
 test("nothing outside connection/status.ts reads the readout's raw states", () => {
   const states = /["'`](connecting|live|degraded|reconnecting|retired)["'`]/
   expect(filesSpelling(states)).toEqual([
+    path.join("chat", "declared.browsertest.ts"),
     path.join("connection", "reaching.test.ts"),
     path.join("connection", "status.test.ts"),
     path.join("connection", "status.ts"),

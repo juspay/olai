@@ -96,8 +96,9 @@ typecheck: install
 # run cannot make, so each of these would PASS having recomputed nothing.
 # `names.ts` is the table every title resolver reads (PR 2), `frames.ts` counts
 # what a page frame writes, `directory.ts`'s broken map has to hold its identity
-# across a frame, and `chat/last.ts` is about which rows an effect subscribes to
-# (PR 4).
+# across a frame, `chat/last.ts` is about which rows an effect subscribes to
+# (PR 4), and `chat/declared.ts` is an ASKING that is an effect, over a failure
+# slot every message on screen shares (PR 5).
 test: install
     {{ nix_shell }} bun test
     {{ nix_shell }} bun test --conditions browser \
@@ -106,7 +107,8 @@ test: install
       ./packages/web/src/client/names.browsertest.ts \
       ./packages/web/src/client/frames.browsertest.ts \
       ./packages/web/src/client/directory.browsertest.ts \
-      ./packages/web/src/client/chat/last.browsertest.ts
+      ./packages/web/src/client/chat/last.browsertest.ts \
+      ./packages/web/src/client/chat/declared.browsertest.ts
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json (bunfig.toml explains why they have to be there). Reads

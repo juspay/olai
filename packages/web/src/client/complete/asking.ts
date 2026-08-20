@@ -93,6 +93,13 @@ export interface Tags {
   /** A refusal from the server, in its own words — `null` when there is none.
    *  Never silently dropped (`../run.ts` forbids a silent handler). */
   readonly failure: Accessor<string | null>
+  /** WHICH asking the rows on screen answer — `null` while they answer one
+   *  the caret has already typed past. Straight through from `../settled.ts`,
+   *  for the reason `../search/nodes.ts` publishes the same fact: the rows
+   *  hold still through a settle and a flight, and the widget that takes one on
+   *  `Enter` has to be able to tell "these are yours" from "these are the
+   *  last prefix's". */
+  readonly answering: Accessor<Asking | null>
 }
 
 /** BY VALUE, because the trigger is a fresh object per keystroke and most
@@ -115,5 +122,9 @@ export const createTags = (asking: Accessor<Asking | null>): Tags => {
     (one) => olai.procedures.vocabulary.tags({ ...one, limit: LIMIT }),
     same,
   )
-  return { rows: () => asked.answer()?.tags ?? [], failure: asked.failure }
+  return {
+    rows: () => asked.answer()?.tags ?? [],
+    failure: asked.failure,
+    answering: asked.answering,
+  }
 }

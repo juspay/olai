@@ -34,6 +34,27 @@ Feature: Writing a node's edges — `see` and `after`
     And the page has not reloaded
     And there should be no page errors
 
+  # A shortlist HOLDS STILL through a settle and a round trip — the rows a
+  # reader is looking at stay until the next ones arrive, which is the only
+  # honest thing to draw. It is not an honest thing to WRITE from: `Enter`
+  # inside that window took the row the LAST query found, and a take here puts
+  # a `see` on somebody's node
+  # (`docs/brainstorming/reactivity-after-the-flip.md`'s 4.12).
+  Scenario: Enter does not take a row the query has already moved past
+    When I open the node menu of "handles"
+    And I choose "Link to a node…" from the node menu
+    And I search the edge panel for "compost"
+    When I retype the edge panel's search as "mint" and press Enter at once
+    # Waited out whole: by the time the rows answer the new query, anything
+    # that key wrongly sent has landed and the disk would say so.
+    And the edge panel's rows answer "mint"
+    Then "house.olai" holds the node "handles" seeing nothing
+    # ...and the key is not lost to the reader, only to the wrong row: pressed
+    # again, over rows that are theirs, it takes the one they were looking at.
+    When I press "Enter"
+    Then "house.olai" holds the node "handles" seeing "mint"
+    And there should be no page errors
+
   Scenario: The panel lists what the node says now, and its `×` takes one off
     # The removal half, and the reason it is IN the panel: a tree row draws its
     # `see` links inside the note it expands, so a node with references and no

@@ -100,10 +100,25 @@ Two B-grade fan-outs from the same fact:
 | 4.7 | `search/Shortlist.tsx:32-34` `createEffect(() => props.refusing?.asked?.(hits()))` → `move/MovePicker.tsx:128` `setAimed` → `moving.tsx:272` resource | A derivation expressed as effect → parent signal → resource (works — `aimed` has `equals` — but it is the shape that hides 3.4) | Hand `hits` up as an accessor; derive `aimed` with a memo | B | R |
 | 4.8 | `edit/editing.tsx:105-112, 136-140` + `edit/order.ts` | `follow` reads `page.rows()` + `page.collapsed()` and `flatten`s the whole visible tree per frame while a draft is open; `row()` and `neighbour` flatten again per call (keystrokes do not trigger it — `where` has field-wise `equals`, `draft` is untracked — frames do) | One per-frame memo `Map<key, Row>` shared by the three | B | R |
 | 4.9 | `document/faces.tsx:139-154` landing effect tracks `text()` | A file rewritten on disk (an agent write, `git pull`) while `router.landing()` still names this pane re-runs `scrollIntoView`, yanking a reader who had scrolled away back to the heading | `on(() => [router.landing(), markdownReady()], …)` with `text()` untracked, or clear `landing` after the first successful scroll | C | R |
-| 4.10 | `format/src/derive.ts:1349` `Row.key = ${parentKey}/${id}` + `editing.tsx:105-112` `follow` → `refound` + `Tree.tsx:605` `<Match when={typing("title")}>` | Indent/outdent (`move in/out`) changes the row's key → old row's editor Match flips false, new row's flips true → a new `TitleEditor` whose `opening` path (`RowEditor.tsx:149-156`) uses `props.caret ?? field.value.length`, and a `kept` draft has no `caret` (`editing.tsx:162`) → caret jumps to the end of the title on every indent while typing. `up`/`down` keep the key | Carry the caret in the draft for structural ops (as `split`/`merge` do via `opening(done, caret)`), or key the editor on the node id | C | r |
-| 4.11 | `edit/editing.tsx:97-104, 147-152, 313` `settling = true` before `send`, cleared only by the next frame or a refused send | A redraw verb the server accepts but that produces no frame for this page leaves `settling` true and `blur` ignored until some unrelated frame — a hazard that rests on the server's no-frame-for-a-no-op behaviour | Clear on the procedure's reply, not on the next frame | C | r |
+| 4.10 | `format/src/derive.ts:1349` `Row.key = ${parentKey}/${id}` + `editing.tsx:105-112` `follow` → `refound` + `Tree.tsx:605` `<Match when={typing("title")}>` | Indent/outdent (`move in/out`) changes the row's key → old row's editor Match flips false, new row's flips true → a new `TitleEditor` whose `opening` path (`RowEditor.tsx:149-156`) uses `props.caret ?? field.value.length`, and a `kept` draft has no `caret` (`editing.tsx:162`) → caret jumps to the end of the title on every indent while typing. `up`/`down` keep the key | Carry the caret in the draft for structural ops (as `split`/`merge` do via `opening(done, caret)`), or key the editor on the node id | C | M |
+| 4.11 | `edit/editing.tsx:97-104, 147-152, 313` `settling = true` before `send`, cleared only by the next frame or a refused send | A redraw verb the server accepts but that produces no frame for this page leaves `settling` true and `blur` ignored until some unrelated frame — a hazard that rests on the server's no-frame-for-a-no-op behaviour. **Not reachable today** — see below | Clear on the procedure's reply, not on the next frame | C | M† |
 | 4.12 | `settled.ts:52` + `search/Shortlist.tsx:77-78` / `complete/completing.tsx:144-148` `take` | The previous answer is held while a new question settles (by design: rows hold still) but `take` does not check `answering()`, so Enter within 200 ms + RTT of typing picks the **previous** query's row | Gate `take` on `answering() !== null`, or dim stale rows | C | R |
 | 4.13 | `chat/declared.ts:186, 255, 258` | The failure slot is last-to-settle-wins: a late failure from an older batch can overwrite a newer success's clear (acknowledged in the comment at `:177-183`). Per-message `known` maps are safe | Tag the slot with the batch that set it | C | R |
+
+**† 4.11 does not reproduce, and PR 5 dropped it.** Driven in a browser five
+ways (a mirror's `Ctrl+Enter` and `Ctrl+Shift+Enter`, whose write lands in
+another file; a refused `Tab`; a `Ctrl+Enter` on a row that is already done; a
+plain `Tab`), each followed by typing and a click away: the blur was honoured
+every time, so `settling` was never left standing. The premise is sound —
+`page.frames()` moves only when the page's reading CHANGED (`reading.tsx`: the
+server "sends a frame only when it changed BY VALUE"), so a landed write that
+leaves this page identical would indeed leave the debt owing — but no such write
+is reachable from the editor. `redraws()` names five verbs it can send
+(`move`, `toggle`, `walk`, `split`, `merge`), and each either changes
+this page's reading or is REFUSED at the boundary (`packages/server/src/edit.ts`
+refuses all four moves at their edges), and a refusal clears the debt in
+`redrawing` itself. It stays a hazard about a coincidence rather than a defect,
+and `edit/redraws.ts`'s header already says as much in its own words.
 
 ### 3.5 Upstream (kolu)
 
@@ -186,4 +201,6 @@ The Fact B replay, for PR 2's browsertests: build a store with `createStore({ v:
 
 ## 7. What this does not claim
 
-The audit covered the 107 client files the ten PRs touched plus what they import; it did not re-audit the server, `packages/format`, or files the flip left alone. Items marked **r** were not run. The auditors were four parallel readers with the same brief; findings that two of them reached independently (1.4, 1.7, 2.10, 3.5) are reported once. Nothing here changes the ruling of `vault-in-browser.md`: the browser still holds only the current page; what changes is that the chrome stops *asking the page* for what the address already says, and that a page arriving replaces the last one rather than a blank.
+The audit covered the 107 client files the ten PRs touched plus what they import; it did not re-audit the server, `packages/format`, or files the flip left alone. Items marked **r** were not run. Items marked **M†** were run afterwards by the PR that owned them: 4.10 and
+4.11 were driven in a browser by PR 5, which confirmed the first and dropped the
+second (§3.4). The auditors were four parallel readers with the same brief; findings that two of them reached independently (1.4, 1.7, 2.10, 3.5) are reported once. Nothing here changes the ruling of `vault-in-browser.md`: the browser still holds only the current page; what changes is that the chrome stops *asking the page* for what the address already says, and that a page arriving replaces the last one rather than a blank.

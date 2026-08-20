@@ -95,16 +95,25 @@ export interface Editing extends Said {
    *  already says this. */
   readonly saved: string
   /**
-   * Where the caret goes when this draft's editor OPENS — absent everywhere
-   * but after a split or a merge.
+   * Where the caret goes when this draft's editor OPENS — absent unless a key
+   * has an opinion about it, which three of them do.
    *
-   * Those two keys are the only ones whose whole point is that the caret stays
-   * in the sentence: a split leaves it at the head of the half that came off,
-   * a merge at the seam the two halves were joined at. Neither is the end of
-   * the text (a click's answer) and neither is where the caret was in the
-   * editor that has just gone away (a move's answer), so it is a fact the
-   * DRAFT has to carry — the row it names is redrawn by a frame that arrives
-   * later, in an element that does not exist yet.
+   * A SPLIT and a MERGE are the two whose whole point is that the caret stays
+   * in the sentence: a split leaves it at the head of the half that came off, a
+   * merge at the seam the two halves were joined at.
+   *
+   * An INDENT (`Tab`, `Shift+Tab`) has the opinion for a different reason —
+   * that the caret should not move AT ALL. It changes the row's `Row.key`, so
+   * the editor is not the same box moved but a new box in a new branch, and a
+   * new box opens at the end of the text; somebody who indents mid-word is
+   * thrown to the end of their own title. A reorder is not on the list, because
+   * it keeps the key and so keeps the box, and the platform keeps the selection
+   * inside it.
+   *
+   * None of the three is the end of the text (a click's answer) and none is
+   * where the caret was in an editor that has gone away (which nothing can
+   * read), so it is a fact the DRAFT has to carry — the row it names is redrawn
+   * by a frame that arrives later, in an element that does not exist yet.
    */
   readonly caret?: number
   /**

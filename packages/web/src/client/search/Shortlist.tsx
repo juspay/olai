@@ -200,6 +200,21 @@ export function Shortlist(props: {
    * Nothing to take at all is not claimed: swallowing `Enter` over an empty
    * list would be a key that does nothing.
    */
+  /**
+   * Do the rows answer the query being TYPED, or the one before it?
+   *
+   * They hold still through the settle and the round trip after it — the rows
+   * a reader is looking at stay until the next ones arrive, which is the only
+   * honest thing to DRAW (`../settled.ts`) and the wrong thing to write from.
+   *
+   * It is not inside {@link take}, and that is the whole of where it belongs:
+   * a PRESS is a hand on the row it can SEE, and taking that row is exactly
+   * what the hand asked for, however far the box has moved on. `Enter` is the
+   * one that means "the row under the cursor" — and the cursor's row is about
+   * to change underneath it.
+   */
+  const behind = (): boolean => hits().length > 0 && found.answering() === null
+
   const take = (index: number): boolean => {
     const hit = hits()[index]
     if (hit === undefined) return false
@@ -257,7 +272,11 @@ export function Shortlist(props: {
               cursor.step(-1)
               return
             case "take":
-              if (take(cursor.at())) event.preventDefault()
+              // A key that spends nothing is still a key this panel CLAIMED:
+              // a list is on screen under the reader's hands, and an `Enter`
+              // falling past it would do something else entirely. The rows
+              // catch up a moment later and the same press means what it says.
+              if (behind() || take(cursor.at())) event.preventDefault()
               return
             case null:
               return

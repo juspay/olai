@@ -322,6 +322,46 @@ export const createCompletion = (field: {
     }
   })
 
+  /**
+   * Have the rows on screen CAUGHT UP with the trigger armed now?
+   *
+   * Not `settled` — that word is `../settled.ts`'s, and it names the 200ms
+   * a keystroke waits before it is a question. This is the other end: the
+   * settle AND the round trip after it are over, and what is drawn is about
+   * what is armed.
+   *
+   * THE SAME TABLE {@link choices} and {@link failure} are, and for their
+   * reason: which list a trigger draws from is a fact the compiler keeps, so a
+   * fourth widget cannot quietly inherit the node search's answer about
+   * staleness either.
+   *
+   * It exists because a list HOLDS STILL through a settle and a flight — the
+   * rows a reader is looking at stay until the next ones arrive
+   * (`../settled.ts`) — which is right to draw and wrong to write from. A `((`
+   * take mints a placement and a `#` take rewrites the line, so `Enter`
+   * pressed within 200ms of a keystroke would spend the PREVIOUS prefix's row.
+   *
+   * A DAY LIST has always caught up: `naturalDays` is a pure function of a
+   * phrase and a calendar, computed from the trigger in hand.
+   *
+   * A PLAIN FUNCTION rather than a memo, which {@link Listing.showing} beside
+   * it already is and for the same reason: nothing DRAWS this, its one reader
+   * is a keydown, and a memo would be a graph node recomputing on every
+   * keystroke and every caret move for a value wanted once per `Enter`.
+   */
+  const caughtUp = (): boolean => {
+    const found = trigger()
+    if (found === null) return false
+    switch (found.kind) {
+      case "date":
+        return true
+      case "tag":
+        return tags.answering() !== null
+      case "mirror":
+        return nodes.answering() !== null
+    }
+  }
+
   const listing: Listing = {
     // A box is on screen when something is armed AND it has something to say —
     // rows, or a refusal from whichever list is the server's. One rule, read by
@@ -366,6 +406,17 @@ export const createCompletion = (field: {
           // keystroke that does nothing at all.
           const taking = choices()[cursor.at()]
           if (taking === undefined) return false
+          // ...and rows that answer an older prefix are not this KEY's to
+          // take ({@link caughtUp}) — where a POINTER's press on one still is,
+          // which is why the guard is here rather than inside `choose`: a hand
+          // on a row is a hand on the row it can SEE, and taking it is what
+          // that hand asked for. Enter is the one that means "the row under the
+          // cursor", and the cursor's row is about to change underneath it.
+          //
+          // CLAIMED all the same: a list is on screen under the caret, and an
+          // `Enter` falling through to the row's own handler would end the
+          // line the reader is still typing a tag into.
+          if (!caughtUp()) return true
           taking.choose()
           return true
         }

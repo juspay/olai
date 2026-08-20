@@ -32,6 +32,7 @@ import {
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 import { saysThat } from "../support/said.ts";
+import { answering } from "../support/shortlist.ts";
 
 /** The open picker, waited for. Every step here starts from it, so there is one
  *  spelling of "wait for it" — the edge panel's steps keep the same rule. */
@@ -81,16 +82,11 @@ When(
     const box = (await pickerOf(this)).locator(MOVE_SEARCH);
     await box.fill(text);
     // The rows of THIS query, by the panel's own answer to "which query are
-    // these for" — the edge panel's rule, and the reason it is a rule: a
+    // these for" — `../support/shortlist.ts`, which is that wait for every
+    // panel in this suite that searches, and the reason it is one place: a
     // scenario that searches twice would otherwise assert against the first
-    // search's list.
-    await this.page
-      .locator(`${MOVE_PICKER} ${attr("data-asked", text.trim())}`)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await this.page
-      .locator(MOVE_HIT)
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // search's list, and two spellings of the wait is one of them stopping.
+    await answering(this, MOVE_PICKER, MOVE_HIT, text);
   },
 );
 
