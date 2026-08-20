@@ -60,6 +60,18 @@
  * what drives it. The app-wide answer to a dead wire is the offline overlay
  * (`vault-in-browser.md` §5b), which is its own PR.
  *
+ * ## Why this is not a `createResource`
+ *
+ * The two doors beside it are (`../search/nodes.ts`, `../filter/asking.ts`),
+ * and they ask a different KIND of question: one query, one answer, and an
+ * answer to a query the reader has moved on from is worthless — which is
+ * exactly what that primitive is for, since it drops the answer to a source
+ * that has since moved. Nothing here is ever stale. Answers ACCUMULATE, in any
+ * order, into one map of what this message has been told; an id answered a
+ * second later is as true as one answered at once, and the last answer must
+ * not replace the one before it. So the state is a map and the asking is an
+ * effect over what is still unknown.
+ *
  * A call that FAILS on a live socket is said out loud instead ({@link
  * Declared.failure}, drawn under the message by `./Entry.tsx`): an unmarked
  * paragraph is indistinguishable from a paragraph naming nothing, and a
@@ -128,11 +140,18 @@ const askAll = (
 
 /** What one message has been told about the ids in it. */
 export interface Declared {
-  /** The node an id names, or `null` — for the ids answered so far, and `null`
-   *  for everything else: an id the set does not declare and an id nothing has
-   *  answered about yet are the same span on screen (`./refs.ts` argues why
-   *  there is no third state). Reactive: the marking pass re-runs on it. */
-  readonly named: Accessor<(id: string) => string | null>
+  /**
+   * The node an id names, or `null` — which is the answer for an id the set
+   * does not declare AND for one nothing has answered about yet, because they
+   * are the same span on screen (`./refs.ts` argues why there is no third
+   * state).
+   *
+   * The rule's own `resolve` shape, so it is handed straight to
+   * `markNodeRefs` rather than unwrapped at the call site. Reading it is what
+   * SUBSCRIBES the caller: the marking pass runs inside an effect, so the pass
+   * re-runs when an answer lands.
+   */
+  readonly named: (id: string) => string | null
   /** These are the ids this message is asking about — the whole current list,
    *  not an addition, since a message's spans are re-read from its rendered
    *  answer on every frame. Asking twice about one id costs nothing. */
@@ -150,18 +169,28 @@ const sameIds = (was: ReadonlyArray<string>, is: ReadonlyArray<string>): boolean
 
 /** One message's asker. */
 export const createDeclared = (): Declared => {
-  /** What the set declared: asked id → the node it names. A fresh map per
-   *  answer, because it is what the marking pass reads and a mutation in place
-   *  is a change nothing hears about. */
-  const [declared, setDeclared] = createSignal<ReadonlyMap<string, string>>(new Map())
+  /**
+   * WHAT THIS MESSAGE HAS BEEN TOLD, whole: asked id → the node it names, or
+   * `null` for an id the set does not declare.
+   *
+   * ONE map and not two, because "what did the set say about this id" is one
+   * fact with three states and splitting the no's off would be a rule nothing
+   * enforces — an id must be in at most one of them. The three are told apart
+   * without a third value: ABSENT is "nothing asked yet", `null` is "asked, and
+   * the set does not declare it", and a string is the node. Which is why
+   * {@link Declared.named} can be `get(id) ?? null` — the two that draw the
+   * same span answer the same thing.
+   *
+   * A fresh map per answer, because it is what the marking pass reads and a
+   * mutation in place is a change nothing hears about.
+   */
+  const [known, setKnown] = createSignal<ReadonlyMap<string, string | null>>(new Map())
   const [failure, setFailure] = createSignal<string | null>(null)
-  /** Ids the answer did not name — the other half of what is known, and a
-   *  plain set rather than a signal because it changes NOTHING on screen: a
-   *  span nothing declares looks exactly like a span nothing has answered
-   *  about. What it is for is not asking twice. */
-  const undeclared = new Set<string>()
-  /** Ids in a call that has not come back. */
+  /** Ids in a call that has not come back — a fact about a CALL rather than
+   *  about what an id means, which is why it is beside the map and not in it.
+   *  A plain set: nothing on screen changes when a question leaves. */
   const asking = new Set<string>()
+
   const [wanted, setWanted] = createSignal<ReadonlyArray<string>>([], { equals: sameIds })
 
   createEffect(() => {
@@ -172,46 +201,41 @@ export const createDeclared = (): Declared => {
     if (unreachable(connectionReadout()) !== null) return
     // `untrack`: what is known is read to decide what to ask, and an answer
     // landing is not a reason to ask again.
-    const known = untrack(declared)
-    const fresh = ids.filter((id) =>
-      !known.has(id) && !undeclared.has(id) && !asking.has(id)
-    )
+    const told = untrack(known)
+    const fresh = ids.filter((id) => !told.has(id) && !asking.has(id))
     if (fresh.length === 0) return
     for (const id of fresh) asking.add(id)
     const mine = new Set(fresh)
     void askAll(fresh).then((outcome) => {
       for (const id of fresh) asking.delete(id)
       if (Result.isFailure(outcome)) {
-        // NOT REMEMBERED AS ABSENT — a call that did not arrive said nothing
+        // NOT WRITTEN DOWN AS A NO — a call that did not arrive said nothing
         // about these ids, so they are asked again by the next frame of a
         // streaming answer or by the wire coming back.
         setFailure(outcome.failure.message)
         return
       }
       setFailure(null)
-      const named = new Map(untrack(declared))
+      // The batch carried other messages' ids too; this one keeps its own, so
+      // a message holds the answers to the questions it asked.
+      const named = new Map<string, string>()
       for (const one of outcome.success.named) {
-        // The batch carried other messages' ids too; this one keeps its own,
-        // so a message holds the answers to the questions it asked.
         if (mine.has(one.asked)) named.set(one.asked, one.id)
       }
-      // Everything asked about and not named is not a node, and is not asked
-      // about again: that is the answer, and it is most of the backticks in
-      // any paragraph.
-      for (const id of fresh) if (!named.has(id)) undeclared.add(id)
-      setDeclared(named)
+      // EVERY ID ASKED ABOUT IS WRITTEN DOWN, the ones the set does not declare
+      // included — which is most of the backticks in any paragraph, and the
+      // whole reason a settled message stops asking.
+      const next = new Map(untrack(known))
+      for (const id of fresh) next.set(id, named.get(id) ?? null)
+      setKnown(next)
     })
   })
 
   return {
-    named: () => {
-      const known = declared()
-      return (id) => known.get(id) ?? null
-    },
+    named: (id) => known().get(id) ?? null,
     want: (ids) => {
       setWanted(ids)
     },
-
     failure,
   }
 }

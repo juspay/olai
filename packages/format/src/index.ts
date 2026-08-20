@@ -527,9 +527,9 @@ export {
   DocumentSummary,
   Found,
   NamedAnswer,
-  NamedNode,
   NamedRequest,
   NodeAnswer,
+
   NodeRequest,
   OutlineAnswer,
   OutlineSummary,

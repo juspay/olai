@@ -165,19 +165,19 @@ export function Entry(props: {
     createEffect(() => {
       shown()
       markdownReady()
-      const named = declared.named()
       if (said === undefined) return
       // ASK FIRST, THEN MARK, and both off the same spans: the ids in this
       // message go as one question ({@link ./declared.ts}), and what has been
       // answered so far is what marks. A span nothing has answered about yet is
       // PLAIN — never marked on a guess and un-marked when the answer arrives.
       declared.want(askedIn(said))
-
       // What an id RESOLVES TO is the format's `nodeNamed`, run server-side: a
       // span saying `echo` is marked with `order`, because rows carry the node
       // they SHOW and a mark on the placement's own id would leave the page for
-      // a node that is right there.
-      markNodeRefs(said, named)
+      // a node that is right there. Reading the answer inside this effect is
+      // what re-runs the pass when one lands.
+      markNodeRefs(said, declared.named)
+
     })
   }
 

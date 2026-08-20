@@ -586,8 +586,13 @@ export type NamedRequest = typeof NamedRequest.Type
  * MIRROR, and the node standing at that placement is what a reader can be shown
  * ({@link nodeNamed} follows the chain). A caller handed back only its own
  * spelling would point at a placement no row in the tree carries.
+ *
+ * Not on the package's surface, for {@link Missing}'s reason and by its
+ * precedent: a consumer holds a {@link NamedAnswer} and reads its rows, which
+ * needs no name. It is exported the day something wants to say the row out
+ * loud.
  */
-export const NamedNode = Schema.Struct({
+const NamedNode = Schema.Struct({
   /** The id as asked — the caller's own spelling, echoed so an answer can be
    *  looked up by the thing that was asked about. */
   asked: Schema.String,
@@ -595,7 +600,6 @@ export const NamedNode = Schema.Struct({
    *  addresses. */
   id: Schema.String,
 })
-export type NamedNode = typeof NamedNode.Type
 
 /**
  * The ones the set declares, and NOTHING about the rest.

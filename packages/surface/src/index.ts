@@ -799,7 +799,8 @@ export {
  *  lookup. `@olai/format`'s own shapes, re-exported rather than re-declared,
  *  exactly as the search shapes below are and for the same reason: this package
  *  is a spec, and the read vocabulary is the floor's. */
-export { NamedAnswer, NamedNode, NamedRequest } from "@olai/format"
+export { NamedAnswer, NamedRequest } from "@olai/format"
+
 
 /** What a search asks and answers on the wire — see {@link ./search.ts}. */
 
