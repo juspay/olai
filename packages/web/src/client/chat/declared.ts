@@ -83,7 +83,8 @@
 import { Result } from "effect"
 import { type Accessor, createEffect, createSignal, untrack } from "solid-js"
 
-import type { NamedAnswer, OpFailure } from "@olai/surface"
+import type { OpFailure } from "@olai/surface"
+
 
 import { unreachable } from "../connection/reaching.ts"
 import { runAsync } from "../run.ts"
@@ -102,34 +103,49 @@ import { connectionReadout, olai } from "../wire.ts"
  */
 const GATHER_MS = 0
 
+/** What a batch came back as: the ids the set declares, as a lookup. Built ONCE
+ *  per call rather than per asker — the answer is every message's, and eighty
+ *  askers each scanning the whole list to find their own rows is the batch paid
+ *  for eighty times. */
+type Told = ReadonlyMap<string, string>
+
 /** The ids gathered for the next question, and the one answer they all ride.
  *  Module-level because the batch is every asker on screen — one message
  *  cannot see the others, and this is what they share. */
 let gathering: {
   readonly ids: Set<string>
-  readonly answer: Promise<Result.Result<NamedAnswer, OpFailure>>
+  readonly answer: Promise<Result.Result<Told, OpFailure>>
 } | null = null
 
 /**
  * Ask about these ids, on the call the rest of this tick is riding.
  *
- * Every caller gets the SAME promise, which is what makes one call answer
- * everybody: an asker reads its own ids out of the answer and ignores the rest
- * ({@link createDeclared}), so nothing here has to know whose question was
+ * Every caller gets the SAME promise and the same lookup, which is what makes
+ * one call answer everybody: an asker reads the ids it asked about out of it
+ * ({@link createDeclared}) and nothing here has to know whose question was
  * whose.
  */
-const askAll = (
-  ids: ReadonlyArray<string>,
-): Promise<Result.Result<NamedAnswer, OpFailure>> => {
+const askAll = (ids: ReadonlyArray<string>): Promise<Result.Result<Told, OpFailure>> => {
   if (gathering === null) {
     const wanted = new Set<string>()
-    const answer = new Promise<Result.Result<NamedAnswer, OpFailure>>((settle) => {
+    const answer = new Promise<Result.Result<Told, OpFailure>>((settle) => {
       setTimeout(() => {
         // Cleared BEFORE the call goes, so ids wanted while it is in flight
         // gather for the next one rather than joining a question that has
         // already left.
         gathering = null
-        settle(runAsync(olai.procedures.nodes.named({ ids: [...wanted] })))
+        settle(
+          runAsync(olai.procedures.nodes.named({ ids: [...wanted] })).then((outcome) =>
+            Result.isFailure(outcome)
+              // Re-made rather than passed through: a `Result`'s failure arm
+              // carries the success type too, and this one's changed shape.
+              ? Result.fail(outcome.failure)
+              : Result.succeed<Told>(
+
+                new Map(outcome.success.named.map((one) => [one.asked, one.id])),
+              )
+          ),
+        )
       }, GATHER_MS)
     })
     gathering = { ids: wanted, answer }
@@ -137,6 +153,23 @@ const askAll = (
   for (const id of ids) gathering.ids.add(id)
   return gathering.answer
 }
+
+/**
+ * THE LAST CALL'S BAD NEWS, in the server's own words — `null` when there is
+ * none.
+ *
+ * ONE signal for the tab, and that is the altitude the CALL is at: a batch is
+ * every message on screen, so a refusal is one fact about one question and not
+ * eighty. Drawn once, by the transcript pane (`./Transcript.tsx`) — a line per
+ * message would put the same sentence under every paragraph of a conversation
+ * that had just opened.
+ *
+ * Set and cleared where the call is made, so the words on screen are about the
+ * last question asked rather than about whichever message happened to read it
+ * first.
+ */
+const [failed, setFailed] = createSignal<string | null>(null)
+export const declaringFailure: Accessor<string | null> = failed
 
 /** What one message has been told about the ids in it. */
 export interface Declared {
@@ -156,16 +189,7 @@ export interface Declared {
    *  not an addition, since a message's spans are re-read from its rendered
    *  answer on every frame. Asking twice about one id costs nothing. */
   readonly want: (ids: ReadonlyArray<string>) => void
-  /** A refused call, in the server's own words — `null` when there is none.
-   *  Drawn under the message it is about. */
-  readonly failure: Accessor<string | null>
 }
-
-/** Whether two lists of ids are the same question. Order included, because
- *  `askedIn` reads the spans in the order they are written and a message whose
- *  prose has not changed hands back the same list. */
-const sameIds = (was: ReadonlyArray<string>, is: ReadonlyArray<string>): boolean =>
-  was.length === is.length && was.every((id, at) => id === is[at])
 
 /** One message's asker. */
 export const createDeclared = (): Declared => {
@@ -185,13 +209,15 @@ export const createDeclared = (): Declared => {
    * mutation in place is a change nothing hears about.
    */
   const [known, setKnown] = createSignal<ReadonlyMap<string, string | null>>(new Map())
-  const [failure, setFailure] = createSignal<string | null>(null)
   /** Ids in a call that has not come back — a fact about a CALL rather than
    *  about what an id means, which is why it is beside the map and not in it.
    *  A plain set: nothing on screen changes when a question leaves. */
   const asking = new Set<string>()
-
-  const [wanted, setWanted] = createSignal<ReadonlyArray<string>>([], { equals: sameIds })
+  /** What this message is asking about, as its rendered answer last read. A
+   *  plain signal with no equality of its own: a list that has not changed
+   *  costs one filter that finds nothing fresh, where a custom `equals` would
+   *  cost a rule about the order `markNodeRefs` returns spans in. */
+  const [wanted, setWanted] = createSignal<ReadonlyArray<string>>([])
 
   createEffect(() => {
     const ids = wanted()
@@ -205,30 +231,32 @@ export const createDeclared = (): Declared => {
     const fresh = ids.filter((id) => !told.has(id) && !asking.has(id))
     if (fresh.length === 0) return
     for (const id of fresh) asking.add(id)
-    const mine = new Set(fresh)
-    void askAll(fresh).then((outcome) => {
-      for (const id of fresh) asking.delete(id)
-      if (Result.isFailure(outcome)) {
-        // NOT WRITTEN DOWN AS A NO — a call that did not arrive said nothing
-        // about these ids, so they are asked again by the next frame of a
-        // streaming answer or by the wire coming back.
-        setFailure(outcome.failure.message)
-        return
-      }
-      setFailure(null)
-      // The batch carried other messages' ids too; this one keeps its own, so
-      // a message holds the answers to the questions it asked.
-      const named = new Map<string, string>()
-      for (const one of outcome.success.named) {
-        if (mine.has(one.asked)) named.set(one.asked, one.id)
-      }
-      // EVERY ID ASKED ABOUT IS WRITTEN DOWN, the ones the set does not declare
-      // included — which is most of the backticks in any paragraph, and the
-      // whole reason a settled message stops asking.
-      const next = new Map(untrack(known))
-      for (const id of fresh) next.set(id, named.get(id) ?? null)
-      setKnown(next)
-    })
+    void askAll(fresh)
+      .then((outcome) => {
+        if (Result.isFailure(outcome)) {
+          // NOT WRITTEN DOWN AS A NO — a call that did not arrive said nothing
+          // about these ids, so they are asked again by the next frame of a
+          // streaming answer or by the wire coming back.
+          setFailed(outcome.failure.message)
+          return
+        }
+        setFailed(null)
+        // EVERY ID ASKED ABOUT IS WRITTEN DOWN, the ones the set does not
+        // declare included — which is most of the backticks in any paragraph,
+        // and the whole reason a settled message stops asking. The batch
+        // answered every message on screen; this one reads the ids it asked.
+        const next = new Map(untrack(known))
+        for (const id of fresh) next.set(id, outcome.success.get(id) ?? null)
+        setKnown(next)
+      })
+      // WHATEVER HAPPENED, THE QUESTION IS OVER. A `runAsync` rejects only on a
+      // DEFECT, which belongs in the console loudly (`../run.ts`) and is not
+      // caught here — but ids left in flight for a promise that will never
+      // settle are a message that stops asking and never marks again, silently,
+      // which is a bug hiding a bug.
+      .finally(() => {
+        for (const id of fresh) asking.delete(id)
+      })
   })
 
   return {
@@ -236,6 +264,6 @@ export const createDeclared = (): Declared => {
     want: (ids) => {
       setWanted(ids)
     },
-    failure,
   }
 }
+

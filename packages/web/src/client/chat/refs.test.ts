@@ -52,28 +52,28 @@ const resolve = (id: string): string | null =>
 
 describe("an id the agent named", () => {
   test("a span the set declares is a reference", () => {
-    expect(nodeNamedBy("order", false, resolve)).toBe("order")
+    expect(nodeNamedBy("order", false, resolve).id).toBe("order")
   })
 
   test("a span the set does not declare is left as what it is", () => {
     // Everything else an agent writes in backticks: a flag, a file, a word.
-    expect(nodeNamedBy("true", false, resolve)).toBeNull()
-    expect(nodeNamedBy("house.olai", false, resolve)).toBeNull()
-    expect(nodeNamedBy("bun test", false, resolve)).toBeNull()
+    expect(nodeNamedBy("true", false, resolve).id).toBeNull()
+    expect(nodeNamedBy("house.olai", false, resolve).id).toBeNull()
+    expect(nodeNamedBy("bun test", false, resolve).id).toBeNull()
   })
 
   test("a fence is a quotation, not a pointer", () => {
-    expect(nodeNamedBy("order", true, resolve)).toBeNull()
+    expect(nodeNamedBy("order", true, resolve).id).toBeNull()
   })
 
   test("an empty span names nothing, and is not asked about", () => {
-    expect(nodeNamedBy("", false, resolve)).toBeNull()
-    expect(nodeNamedBy(null, false, resolve)).toBeNull()
-    expect(nodeNamedBy("   ", false, resolve)).toBeNull()
+    expect(nodeNamedBy("", false, resolve).id).toBeNull()
+    expect(nodeNamedBy(null, false, resolve).id).toBeNull()
+    expect(nodeNamedBy("   ", false, resolve).id).toBeNull()
   })
 
   test("the id is what the span says, less the space around it", () => {
-    expect(nodeNamedBy(" order ", false, resolve)).toBe("order")
+    expect(nodeNamedBy(" order ", false, resolve).id).toBe("order")
   })
 
   test("a PLACEMENT the agent named points at the node it shows", () => {
@@ -82,14 +82,14 @@ describe("an id the agent named", () => {
     // the node a reader can be SHOWN — no row in the tree is `echo` (a row
     // carries the node it shows), so a span marked `echo` could only ever fail
     // to find a row and leave the page for a node that is right there.
-    expect(nodeNamedBy("echo", false, resolve)).toBe("order")
+    expect(nodeNamedBy("echo", false, resolve).id).toBe("order")
   })
 
   test("a placement whose chain is dead names nothing", () => {
     // The format resolves it to nothing, so there is nothing to point at —
     // and the span stays a span rather than becoming a control that cannot
     // work.
-    expect(nodeNamedBy("nowhere", false, resolve)).toBeNull()
+    expect(nodeNamedBy("nowhere", false, resolve).id).toBeNull()
   })
 })
 
@@ -104,6 +104,34 @@ describe("before the set has answered", () => {
     // when the answer arrives is a control that was never there, under a cursor
     // that has already moved to it. Both directions of the pass then agree —
     // marking is what an ANSWER does.
-    expect(nodeNamedBy("order", false, nothingYet)).toBeNull()
+    expect(nodeNamedBy("order", false, nothingYet).id).toBeNull()
+  })
+})
+
+describe("what the set is asked about", () => {
+  /** The OTHER half of the same reading — the id that goes on the wire, which
+   *  is not always the one the span is marked with. Nothing resolves here: what
+   *  is asked about is decided before any answer exists. */
+  const nothing = (): string | null => null
+
+  test("the id is the span's own spelling, never the resolved one", () => {
+    // `echo` is a placement of `order`. The SET is asked about `echo` — that is
+    // the string in the paragraph — and the span is marked with `order`.
+    // Asking about the resolved id would be asking about an answer.
+    expect(nodeNamedBy("echo", false, resolve)).toEqual({ asked: "echo", id: "order" })
+  })
+
+  test("a span that could never be marked is never asked about", () => {
+    // A fence, an empty span, a span of spaces: a round trip spent on a span
+    // that has no answer to draw.
+    expect(nodeNamedBy("order", true, resolve).asked).toBeNull()
+    expect(nodeNamedBy("   ", false, resolve).asked).toBeNull()
+    expect(nodeNamedBy(null, false, resolve).asked).toBeNull()
+  })
+
+  test("a span IS asked about before anything has answered", () => {
+    // The two halves happen at different times: what to ask is known at once,
+    // and the mark waits for the answer.
+    expect(nodeNamedBy(" order ", false, nothing)).toEqual({ asked: "order", id: null })
   })
 })

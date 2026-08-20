@@ -154,7 +154,8 @@ Three things in the conversation are ids, and none of them is a syntax anybody h
 - a backtick is **plain until the answer lands**, a beat after the words. It is never marked on a guess and unmarked afterwards: a reference that vanishes under your cursor is worse than one that arrives a millisecond late.
 - the answer is **what the set said when the message was drawn**. A message is a record of something that happened; a node named an hour ago and put away since keeps its mark in that paragraph, and pressing it takes you to its page, which says where it now is. The next message that names it asks again.
 
-If the lookup itself fails, the message says so under it — the words are all still there, and what is missing is which of them can be pressed.
+If the lookup itself fails, the panel says so at the end of the conversation — one line, because one question carries every message's ids. The words are all still there; what is missing is which of them can be pressed.
+
 
 
 ## What it shows when it changes something

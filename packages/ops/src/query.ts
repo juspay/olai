@@ -422,19 +422,18 @@ export const named = (
   derived: Derived,
   request: NamedRequest,
 ): NamedAnswer => {
-  const named: Array<{ readonly asked: string; readonly id: string }> = []
-  // ONE ANSWER PER ID ASKED ABOUT, whatever the request repeated: this is a
-  // lookup, and a caller building a map out of it would otherwise be handed
-  // the same key twice for no reason.
-  const asked = new Set<string>()
-  for (const id of request.ids) {
-    if (asked.has(id)) continue
-    asked.add(id)
+  const named: Array<NamedAnswer["named"][number]> = []
+  // ONE ANSWER PER ID ASKED ABOUT, whatever the request repeated — a `Set` of
+  // what was asked rather than a guard the loop carries: this is a lookup, and
+  // a caller building a map out of it would otherwise be handed the same key
+  // twice for no reason.
+  for (const id of new Set(request.ids)) {
     const at = nodeNamed(derived, id)
     if (at === undefined) continue
     named.push({ asked: id, id: at.node.id })
   }
   return { named }
+
 }
 
 // ── one node, and what is under it ─────────────────────────────────────

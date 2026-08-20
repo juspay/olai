@@ -227,9 +227,10 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
  * nodes. The second answers a dozen ids with the node each one names, for a
  * panel deciding which of an agent's own backticks are pressable: an agent
  * asking whether an id is real asks `read_node` and is told everything about
- * it. What a commit
-
- * is RECORDED AS does differ, and it is not a member's business: this face is
+ * it.
+ *
+ * What a commit is RECORDED AS does differ
+, and it is not a member's business: this face is
  * served under the writer the composition root bound (`./runtime.ts`'s
  * `writerAt`), which is where every other fact about a face is decided too.
  *

@@ -1132,11 +1132,13 @@ export const TESTID = {
    *  a word that named nothing. Its own line, never the send's refusal
    *  (`client/chat/Composer.tsx`). */
   chatNamingFailure: "chat-naming-failure",
-  /** One message saying the ids IN it could not be looked up — the same kind of
-   *  line one door over, about the other call the panel makes. The words are
-   *  still there; what is missing is which of the backticks are pressable
+  /** The transcript saying the ids in it could not be looked up — the same kind
+   *  of line one door over, about the other call the panel makes. The words are
+   *  still there; what is missing is which of the backticks are pressable. Once
+   *  for the pane, because one call carries every message's ids
    *  (`client/chat/declared.ts`). */
   chatRefsFailure: "chat-refs-failure",
+
 } as const
 
 

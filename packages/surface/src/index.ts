@@ -801,9 +801,7 @@ export {
  *  is a spec, and the read vocabulary is the floor's. */
 export { NamedAnswer, NamedRequest } from "@olai/format"
 
-
 /** What a search asks and answers on the wire — see {@link ./search.ts}. */
-
 export {
   DocumentHit,
   isNodeHit,

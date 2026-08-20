@@ -55,11 +55,11 @@ import { Attachments } from "./Attachments.tsx"
 import { ContextChips } from "./ContextChips.tsx"
 import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
-import { SaidLine } from "../edit/SaidLine.tsx"
 import { TESTID } from "../testids.ts"
+
 import { AskForm } from "./AskForm.tsx"
 import { createDeclared } from "./declared.ts"
-import { askedIn, markNodeRefs } from "./refs.ts"
+import { markNodeRefs } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import type { Chat } from "./state.ts"
 import { ToolFrame } from "./ToolFrame.tsx"
@@ -170,13 +170,15 @@ export function Entry(props: {
       // message go as one question ({@link ./declared.ts}), and what has been
       // answered so far is what marks. A span nothing has answered about yet is
       // PLAIN — never marked on a guess and un-marked when the answer arrives.
-      declared.want(askedIn(said))
-      // What an id RESOLVES TO is the format's `nodeNamed`, run server-side: a
-      // span saying `echo` is marked with `order`, because rows carry the node
-      // they SHOW and a mark on the placement's own id would leave the page for
-      // a node that is right there. Reading the answer inside this effect is
-      // what re-runs the pass when one lands.
-      markNodeRefs(said, declared.named)
+      // ONE PASS: it marks with what has been answered and hands back every id
+      // the message asked about, which is what goes on the wire. What an id
+      // RESOLVES TO is the format's `nodeNamed`, run server-side — a span
+      // saying `echo` is marked with `order`, because rows carry the node they
+      // SHOW and a mark on the placement's own id would leave the page for a
+      // node that is right there. Reading the answer inside this effect is what
+      // re-runs the pass when one lands.
+      declared.want(markNodeRefs(said, declared.named))
+
 
     })
   }
@@ -289,28 +291,7 @@ export function Entry(props: {
                 `::after` is reaching into it, which is exactly what was
                 wanted. */}
           </div>
-          {/* THE LOOKUP'S OWN BAD NEWS, under the message it is about. Which of
-              this answer's backticks are nodes is a call now, and a call that
-              did not arrive must not read as a paragraph that named none of
-              them (HACKING.md — an error reaches somebody). The words are
-              untouched and every span still says what the agent wrote; what is
-              missing is which of them can be pressed, and that is what this
-              says. It is not the transcript's refusal row: a refused WRITE is
-              something that did not happen, and this is a question about
-              something that did. */}
-          <Show when={declared?.failure()}>
-
-            {(why) => (
-              <SaidLine
-                said={{ tone: "alarm", text: `the ids here could not be looked up — ${why()}` }}
-
-                class="m-0 mt-1 font-mono text-xs"
-                testid={TESTID.chatRefsFailure}
-              />
-            )}
-          </Show>
         </Match>
-
 
         <Match when={props.entry.kind === "tool"}>
           <ToolFrame entry={props.entry} />
