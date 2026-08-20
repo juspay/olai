@@ -62,9 +62,12 @@ import type { Matches } from "./asking.ts"
 import { type Counts, NOTHING_COUNTED } from "./count.ts"
 import { matchesIn, narrowed, placesIn } from "./drawn.ts"
 
-/** What an unfiltered page has selected — ONE value, shared by every reading of
- *  it. A fresh `new Map()` per read would be a new value every frame, and every
- *  row of the tree memoises against this one. */
+/** WHAT A QUERY THAT SELECTED NOTHING SELECTED — the answer a refused query
+ *  gets here, and the fallback the counts read. ONE value, shared: a fresh
+ *  `new Map()` per read would be a new value every frame, and every row of the
+ *  tree memoises against this one. (A page with nothing to narrow BY is
+ *  `null` rather than this — {@link Narrowing.selected} argues the difference,
+ *  and it is the whole of what a round trip added to this reading.) */
 export const NOTHING_MATCHED: Matches = new Map()
 
 /** What a filtered page knows about itself. */
@@ -194,16 +197,16 @@ export const createNarrowing = (source: {
   })
 
   /**
-   * The ONE guard that is load-bearing: narrowing by an empty set is an empty
-   * page, and an unfiltered page draws the whole one.
+   * ONE GUARD, over the one value that has all three states in it: with nothing
+   * to narrow BY the page is drawn whole, and with a map — even an empty one —
+   * it is narrowed.
    *
-   * THE SECOND GUARD IS THE ROUND TRIP'S, and it is the difference between two
-   * empties: a query that has been ANSWERED with nothing empties the page, and
-   * a query nothing has answered YET may not — a page that blanked on the first
-   * keystroke and filled back in 200ms later would be a page that says "no
-   * matches" about a question nobody has answered. So an unanswered filter
-   * draws the page whole, and the bar says the rows are a question behind
-   * ({@link Narrowing.answering}).
+   * WHICH IS THE DIFFERENCE BETWEEN TWO EMPTIES, and the whole of what a round
+   * trip added here: a query ANSWERED with nothing empties the page, and a
+   * query nothing has answered YET may not — a page that blanked on the first
+   * keystroke and filled back in 200ms later would be saying "no matches" about
+   * a question nobody has answered. The bar says the rows are a question behind
+   * instead ({@link Narrowing.answering}).
    */
   const drawn = createMemo(() => {
     const found = selected()

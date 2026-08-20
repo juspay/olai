@@ -51,8 +51,9 @@ const rows = (world: OlaiWorld) => world.page.locator(`${OUTLINE_TREE} ${NODE}`)
  * The filter is a question to the server now (`search-server-side`): a
  * debounce, then a round trip. So "I filtered the page" is not done when the
  * keystrokes land — it is done when the rows in front of the reader are the
- * answer to what was typed, which the bar publishes as `data-answering`
- * (`client/filter/FilterBar.tsx`, the same fact its count line says in words).
+ * answer to what was typed, which the bar publishes as `data-asked`
+ * (`client/filter/FilterBar.tsx`, the same fact its count line says in words,
+ * and the same attribute every other search box in that client uses for it).
  *
  * Waited for HERE, once, rather than in every step that reads a row afterwards:
  * a page mid-question is a real state with its own rules — the rows hold still
