@@ -9,16 +9,26 @@
  * `setFolded` against real (shimmed) storage, because no pure test of
  * `combined` can notice `setFolded` forgetting to call it. The e2e feature is
  * what says a fold survives a reload.
+ *
+ * PRUNING IS ASKED NOW, not walked (`./refiling.ts`), and the laws below are
+ * the same three they always were — a node that moved keeps its fold under the
+ * file it moved to, gone means gone from the SET, and a file nothing can speak
+ * about keeps its folds. What changed is their INPUT: the whole id→file map of
+ * a copy of the directory became the answer to a question about the ids this
+ * browser actually remembers. {@link answering} below is what the server does
+ * with such a question, so each law still reads as "the set says this, the
+ * memory becomes that". The fourth law is new and is the one the question
+ * brought with it: an id nobody asked about is not an id the set denied.
  */
 
-import { derive } from "@olai/format"
-import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import {
   combined,
+  type Folds,
   FOLDS_KEY,
-  idsByFile,
+  type Homes,
+  homesOf,
   parseFolds,
   printFolds,
   pruned,
@@ -28,6 +38,39 @@ import {
 
 const foldsOf = (entry: Record<string, ReadonlyArray<string>>) =>
   new Map(Object.entries(entry).map(([file, ids]) => [file, new Set(ids)]))
+
+/**
+ * The server's side of the question, in four lines — `@olai/ops`' `homes`
+ * over a `live` map instead of over a derivation (its own test is beside it,
+ * on a real one).
+ *
+ * It is here so that the laws below can be stated the way they were before the
+ * walk became a question: this is what the set SAYS, and the assertion is what
+ * the memory does about it. `asked` is every id in the folds handed over,
+ * which is what the door actually sends — {@link homesOf} is what pairs the two
+ * back up, and using it here is what keeps this stand-in from inventing a
+ * pairing rule of its own.
+ */
+const answering = (
+  folds: Folds,
+  live: ReadonlyMap<string, ReadonlySet<string>>,
+): Homes => {
+  const homes: Array<{ id: string; file: string }> = []
+  for (const own of folds.values()) {
+    for (const id of own) {
+      for (const [file, ids] of live) {
+        if (ids.has(id)) {
+          homes.push({ id, file })
+          break
+        }
+      }
+    }
+  }
+  return homesOf(folds, {
+    homes,
+    declaring: [...folds.keys()].filter((file) => live.has(file)),
+  })
+}
 
 test("what is stored is collapsed ids, grouped by file", () => {
   const folds = withFolds(new Map(), [
@@ -102,7 +145,8 @@ test("a node that MOVED to another file keeps its fold, under the new file", () 
     ["house.olai", new Set(["kitchen", "order"])],
     ["_olai/Trash.olai", new Set(["install"])],
   ])
-  expect(pruned(foldsOf({ "house.olai": ["kitchen", "install"] }), live)).toEqual(
+  const folds = foldsOf({ "house.olai": ["kitchen", "install"] })
+  expect(pruned(folds, answering(folds, live))).toEqual(
     foldsOf({ "house.olai": ["kitchen"], "_olai/Trash.olai": ["install"] }),
   )
 })
@@ -114,7 +158,8 @@ test("the fold of a node that is gone is dropped", () => {
     ["house.olai", new Set(["kitchen"])],
     ["garden.olai", new Set(["herbs"])],
   ])
-  expect(pruned(foldsOf({ "house.olai": ["kitchen", "deleted"] }), live)).toEqual(
+  const folds = foldsOf({ "house.olai": ["kitchen", "deleted"] })
+  expect(pruned(folds, answering(folds, live))).toEqual(
     foldsOf({ "house.olai": ["kitchen"] }),
   )
 })
@@ -125,11 +170,13 @@ test("a file this browser cannot see keeps its folds", () => {
   // its nodes exist — and pruning against a set that does not contain it would
   // throw away the folds of every outline the reader is not looking at.
   const live = new Map([["house.olai", new Set(["kitchen"])]])
-  expect(pruned(foldsOf({ "garden.olai": ["herbs"] }), live)).toEqual(
+  const unseen = foldsOf({ "garden.olai": ["herbs"] })
+  expect(pruned(unseen, answering(unseen, live))).toEqual(
     foldsOf({ "garden.olai": ["herbs"] }),
   )
   // Nothing loaded at all prunes nothing.
-  expect(pruned(foldsOf({ "house.olai": ["gone"] }), new Map())).toEqual(
+  const nothing = foldsOf({ "house.olai": ["gone"] })
+  expect(pruned(nothing, answering(nothing, new Map()))).toEqual(
     foldsOf({ "house.olai": ["gone"] }),
   )
 })
@@ -190,13 +237,13 @@ test("a write starts from the ENTRY: a sibling tab's fold this tab never saw sur
   }
   try {
     // This tab folds herbs; the signal now holds it.
-    setFolded([{ id: "herbs", file: "garden.olai" }], true, undefined)
+    setFolded([{ id: "herbs", file: "garden.olai" }], true)
     // A sibling tab rewrites the entry with a fold of its own. No `storage`
     // event reaches this tab (`followFolds` was never started), so the signal
     // still knows only about herbs — exactly the window the union covers.
     store.set(FOLDS_KEY, `{"house.olai":["kitchen"]}`)
     // This tab's next write must not throw the sibling's fold away.
-    setFolded([{ id: "install", file: "house.olai" }], true, undefined)
+    setFolded([{ id: "install", file: "house.olai" }], true)
     expect(store.get(FOLDS_KEY)).toBe(
       `{"garden.olai":["herbs"],"house.olai":["install","kitchen"]}`,
     )
@@ -208,27 +255,34 @@ test("a write starts from the ENTRY: a sibling tab's fold this tab never saw sur
         { id: "kitchen", file: "house.olai" },
       ],
       false,
-      undefined,
     )
   } finally {
     delete g.localStorage
   }
 })
 
-test("what a file declares is read off the set the browser is holding", () => {
-  const derived = derive(
-    recordsOf(setOf({
-      "house.olai": `{"id":"kitchen","ord":"a0","title":"kitchen"}`,
-      "garden.olai": [
-        `{"id":"garden","ord":"a0","title":"garden"}`,
-        `{"id":"herbs","parent":"garden","ord":"a0","title":"herbs"}`,
-      ].join("\n"),
-    })),
-  )
-  expect(idsByFile(derived)).toEqual(
-    new Map([
-      ["house.olai", new Set(["kitchen"])],
-      ["garden.olai", new Set(["garden", "herbs"])],
-    ]),
-  )
+test("an id the question did not name is left exactly where it is", () => {
+  // The law the ROUND TRIP brought with it, and the one a walk never needed: a
+  // reader goes on folding while a question is out, and a sibling tab may write
+  // in the meantime. The set said nothing about `fresh` because nobody asked it
+  // — which is not the same as saying it does not have it, and reading the two
+  // the same way would drop a fold made a moment ago.
+  const asked = foldsOf({ "house.olai": ["kitchen"] })
+  const live = new Map([["house.olai", new Set(["kitchen"])]])
+  const since = foldsOf({ "house.olai": ["kitchen", "fresh"] })
+  expect(pruned(since, answering(asked, live))).toEqual(since)
+})
+
+test("the answer is read against the question, never on its own", () => {
+  // What `homesOf` is for: an id the set does not declare is simply absent from
+  // the answer, so an answer read alone cannot tell "the set denies this" from
+  // "nobody mentioned it". The folds that were SENT are what says which.
+  const asked = foldsOf({ "house.olai": ["kitchen", "deleted"] })
+  const homes = homesOf(asked, {
+    homes: [{ id: "kitchen", file: "house.olai" }],
+    declaring: ["house.olai"],
+  })
+  expect(homes.asked).toEqual(new Set(["kitchen", "deleted"]))
+  expect(homes.at).toEqual(new Map([["kitchen", "house.olai"]]))
+  expect(homes.declaring).toEqual(new Set(["house.olai"]))
 })

@@ -50,6 +50,8 @@ import {
   follow,
   type Found,
   heldCustom,
+  type HomesAnswer,
+  type HomesRequest,
   isMirror,
   type LocatedRegular,
   markdownAt,
@@ -440,6 +442,59 @@ export const named = (
     named.push({ asked: id, id: at.node.id })
   }
   return { named }
+}
+
+// ── where the ids a reader remembers now live ──────────────────────────
+
+/**
+ * WHERE THESE IDS ARE, and WHICH OF THESE FILES the set has anything from —
+ * the two facts a reader holding a memory of records needs to keep it honest.
+ *
+ * The caller is the browser's fold memory (`@olai/web`'s `fold/memory.ts`),
+ * which remembers collapsed node ids grouped by the file each node is defined
+ * in. It used to answer both out of the whole id→file map of its own copy of
+ * the set — a scan of every record in the directory per fold — which is the
+ * copy `docs/brainstorming/vault-in-browser.md` is taking away. Nothing about
+ * the RULE moved with it: what the caller does with a home, an absence and an
+ * unheard-of file is still the caller's, and is still spelled once, in the
+ * module that owns the memory.
+ *
+ * `byId` AND NOT {@link nodeNamed}, which is the one decision in this
+ * function. The lookup one door over ({@link named}) follows a mirror chain,
+ * because a backtick in a paragraph means the node a reader would be SHOWN. A
+ * fold is of a RECORD — the record of a mirror whose chain has died folds by
+ * its own id, since it shows nothing — so this is the plain table and no chain
+ * is walked. Through `nodeNamed` a fold on a dangling placement would read as
+ * a node that is gone while its record sits in the file, and the caller would
+ * drop a fold the set never stopped carrying.
+ *
+ * TWO LISTS, ANSWERED INDEPENDENTLY (`@olai/format`'s {@link HomesRequest}
+ * argues it): nothing here knows which id was filed under which file, and a
+ * request that said so would be this layer holding an opinion about a
+ * browser's storage.
+ *
+ * NEITHER HALF IS A WALK. An id is a `byId` lookup and a file is a `byFile`
+ * one, both over indexes the derivation already carries — so what this costs is
+ * the size of the QUESTION, which is what one reader has actually collapsed,
+ * rather than the size of the directory. That is the whole of the change: the
+ * scan did not move to the server, it stopped existing.
+ */
+export const homes = (
+  /** The DERIVATION alone — an id names a record, and no body has one. */
+  derived: Derived,
+  request: HomesRequest,
+): HomesAnswer => {
+  const homes: Array<HomesAnswer["homes"][number]> = []
+  // ONE ANSWER PER ID ASKED ABOUT, whatever the request repeated — {@link
+  // named}'s rule and for its reason: this is a lookup, and a caller building a
+  // map out of it would otherwise be handed the same key twice.
+  for (const id of new Set(request.ids)) {
+    const at = derived.byId.get(id)
+    if (at === undefined) continue
+    homes.push({ id, file: at.file })
+  }
+  const declaring = [...new Set(request.files)].filter((file) => derived.byFile.has(file))
+  return { homes, declaring }
 }
 
 // ── the directory's dates, as the sidebar asks them ────────────────────

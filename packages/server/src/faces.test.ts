@@ -271,6 +271,11 @@ test("the agent's face is what it can SEE plus the doors its tools land through"
   // `read_node` and is told everything about it.
   expect(Object.keys(BROWSER)).toContain("nodes.named")
   expect(Object.keys(AGENT)).not.toContain("nodes.named")
+  // ...and so is the fold memory's, one door along: a file per id and a list of
+  // paths is what a browser reconciling what it had collapsed needs, and an
+  // agent that wants to know where a node lives reads it.
+  expect(Object.keys(BROWSER)).toContain("nodes.homes")
+  expect(Object.keys(AGENT)).not.toContain("nodes.homes")
 
   // And the human's session is the human's, on this face as on the MCP one.
   expect(Object.keys(AGENT)).not.toContain("chat")

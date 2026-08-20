@@ -159,18 +159,18 @@ export const nodeMenuActions = (args: {
       // triangle beside it presses (`../fold/rows.ts`), sent to the same
       // memory (`../fold/memory.ts`), which is what makes the two controls one
       // switch rather than two that agree.
-      run: () => setFolded([foldOf(args.row)], !args.collapsed, args.derived),
+      run: () => setFolded([foldOf(args.row)], !args.collapsed),
     })
     items.push(
       {
         id: "expand-all",
         label: "Expand all",
-        run: () => setFolded(args.foldable, false, args.derived),
+        run: () => setFolded(args.foldable, false),
       },
       {
         id: "collapse-all",
         label: "Collapse all",
-        run: () => setFolded(args.foldable, true, args.derived),
+        run: () => setFolded(args.foldable, true),
       },
     )
   }

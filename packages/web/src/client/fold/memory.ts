@@ -18,10 +18,19 @@
  * Grouped by the file the node is DEFINED in (./rows.ts) for two reasons that
  * are one reason: an id means a node, so folding a mirror while reading another
  * outline is a fact about the file the target lives in; and PRUNING is a
- * question that can only be asked per file — the ids of a file this browser can
- * currently see are known, so what is left over in ITS bucket is a node that
- * has been deleted, while a file that is broken or not served right now is one
- * this app knows nothing about and must not throw away folds for.
+ * question that can only be asked per file — a file the set declares nodes in
+ * can say that one of them is gone, while a file that is broken or not served
+ * right now is one nothing can say anything about and whose folds must not be
+ * thrown away.
+ *
+ * WHAT THE SET SAYS IS ASKED, not walked. This module used to take a whole
+ * `Derived` and read the id→file map of every record in the directory out of
+ * it, per fold; the browser is giving that copy up
+ * (`docs/brainstorming/vault-in-browser.md` — it may hold at most the page in
+ * front of somebody), so the two facts pruning needs are a question with an
+ * answer ({@link Homes}, asked by ./refiling.ts). The RULE did not move: what a
+ * home, an absence and an unheard-of file each mean is still spelled once, in
+ * {@link pruned}, right here beside the memory they are about.
  *
  * A stored value this app did not write — an older olai, something typed into a
  * console — is not an error to report; it is nothing, and the reader gets the
@@ -30,8 +39,9 @@
  * remember at all — is already said once per key by `writePreference`.
  */
 
-import type { Derived } from "@olai/format"
 import type { Accessor } from "solid-js"
+
+import type { HomesAnswer } from "@olai/format"
 
 import { createPreference, parsedJson } from "../preference.ts"
 import type { Fold } from "./rows.ts"
@@ -70,7 +80,10 @@ export const parseFolds = (raw: string | null): Folds => {
  *  Sorted, both halves. Nothing reads the order, but a preference somebody may
  *  open a devtools panel on is worth being able to read, and a stable spelling
  *  is what lets a test say what a fold wrote rather than what it happened to
- *  iterate. */
+ *  iterate. Since ./refiling.ts it is load-bearing beyond that: a printed
+ *  memory is what that door compares two readings of the entry by, so "has this
+ *  changed" is one string comparison over a canonical spelling rather than a
+ *  deep walk of two maps. */
 export const printFolds = (folds: Folds): string | null => {
   if (folds.size === 0) return null
   const out: Record<string, ReadonlyArray<string>> = {}
@@ -88,8 +101,8 @@ export const printFolds = (folds: Folds): string | null => {
  *  is the storage half of "one node, one fold state": a node has one home at a
  *  time, so a copy left under the file it used to live in would be a second
  *  answer — and the one that wins, since the id set every row reads is the
- *  union. It can be left behind: a bucket for a file this browser cannot
- *  currently see is deliberately never pruned ({@link pruned}), so a node that
+ *  union. It can be left behind: a bucket for a file nothing can currently say
+ *  anything about is deliberately never pruned ({@link pruned}), so a node that
  *  moved out of a file that then stopped parsing is exactly the case. */
 export const withFolds = (
   folds: Folds,
@@ -113,30 +126,66 @@ export const withFolds = (
 }
 
 /**
+ * WHAT THE SET SAID about the folds that were asked about — the answer that
+ * stands where a whole id→file map used to.
+ *
+ * Three fields because pruning is a three-way decision and a two-field answer
+ * could only make it by guessing. {@link asked} is the QUESTION, kept beside
+ * its answer: an id nobody asked about is not an id the set denied, and a fold
+ * made between the question leaving and the answer landing is exactly that case
+ * (./refiling.ts, which asks while the reader goes on folding).
+ */
+export interface Homes {
+  /** The ids the question named. Absent from {@link at} means "gone" only for
+   *  one of these. */
+  readonly asked: ReadonlySet<string>
+  /** ...and where each one the set declares a record for now lives, by the file
+   *  that record is written in. */
+  readonly at: ReadonlyMap<string, string>
+  /** The asked files the set declares ANY record in — the ones whose silence
+   *  about an id is evidence. */
+  readonly declaring: ReadonlySet<string>
+}
+
+/** The answer, read against the question it answers.
+ *
+ *  `asked` comes from the FOLDS that were sent and never from the answer: the
+ *  server says nothing about an id it does not declare, so an answer read alone
+ *  cannot tell "the set denies this" from "nobody mentioned it". */
+export const homesOf = (asked: Folds, answer: HomesAnswer): Homes => {
+  const ids = new Set<string>()
+  for (const own of asked.values()) for (const id of own) ids.add(id)
+  return {
+    asked: ids,
+    at: new Map(answer.homes.map((home) => [home.id, home.file])),
+    declaring: new Set(answer.declaring),
+  }
+}
+
+/**
  * The same memory with the folds of nodes that are no longer there dropped —
  * and the folds of nodes that MOVED filed under where they moved to.
  *
- * `live` is what this browser can currently SEE, file → the ids it declares,
- * and two rules come out of it.
+ * Three rules, in the order they are asked.
  *
- * A file missing from `live` is missing on purpose: a file that would not
- * parse, or one this directory does not serve any more, is not evidence that
- * its nodes are gone, so its bucket is left exactly as it was.
+ * WHERE THE SET SAYS IT IS is where the fold goes, whether that is the file it
+ * was already under or another one. GONE MEANS GONE FROM THE SET, not from the
+ * file the fold is filed under, and that is the whole point of keying by id:
+ * `archive` is a MOVE — the record lands in `_olai/Trash.olai` with its id kept
+ * while the file it left goes on being served with the rest of its nodes — and
+ * reading "house.olai does not declare it any more" as a deletion would forget
+ * a fold precisely when the design promises to keep it (a place key could not
+ * survive that move at all, which is why it is not the key).
  *
- * And GONE MEANS GONE FROM THE SET, not from the file the fold is filed under.
- * That is the whole point of keying by id: `archive` is a MOVE — the record
- * lands in `_olai/Trash.olai` with its id kept while the file it left goes on
- * being served with the rest of its nodes — and reading "house.olai does not
- * declare it any more" as a deletion would forget a fold precisely when the
- * design promises to keep it (a place key could not survive that move at all,
- * which is why it is not the key). So an id its own file no longer declares is
- * looked for in the others, and re-homed when one of them has it. Only an id no
- * live file declares is dropped.
+ * An id the set has no record for is dropped, and ONLY when two things are
+ * true: it was asked about, and the set declares something in the file it is
+ * filed under. A file missing from {@link Homes.declaring} is missing on
+ * purpose — a file that would not parse, or one this directory does not serve
+ * any more, is not evidence that its nodes are gone — and an id missing from
+ * {@link Homes.asked} was never put to the set at all, so neither is evidence
+ * of anything.
  */
-export const pruned = (
-  folds: Folds,
-  live: ReadonlyMap<string, ReadonlySet<string>>,
-): Folds => {
+export const pruned = (folds: Folds, homes: Homes): Folds => {
   const next = new Map<string, Set<string>>()
   const keep = (file: string, id: string): void => {
     const ids = next.get(file)
@@ -144,66 +193,17 @@ export const pruned = (
     else ids.add(id)
   }
   for (const [file, ids] of folds) {
-    const known = live.get(file)
-    if (known === undefined) {
-      for (const id of ids) keep(file, id)
-      continue
-    }
     for (const id of ids) {
-      const home = known.has(id) ? file : homeOf(id, live)
-      if (home !== undefined) keep(home, id)
+      const home = homes.at.get(id)
+      if (home !== undefined) {
+        keep(home, id)
+        continue
+      }
+      if (homes.asked.has(id) && homes.declaring.has(file)) continue
+      keep(file, id)
     }
   }
   return next
-}
-
-/** The live file that declares `id`, or nothing — which is the answer that
- *  makes {@link pruned} drop it. A scan, and it can be: it runs only for an id
- *  its own file has stopped declaring, which is a node somebody moved or
- *  deleted since this browser folded it. */
-const homeOf = (
-  id: string,
-  live: ReadonlyMap<string, ReadonlySet<string>>,
-): string | undefined => {
-  for (const [file, ids] of live) if (ids.has(id)) return file
-  return undefined
-}
-
-/** file → the ids the served set says it declares. The other half of
- *  {@link pruned}, and the only thing the derivation is asked for here.
- *
- *  Read off `byFile` rather than grouped again: the derivation already carries
- *  the records of each file, so what is left here is turning them into ids —
- *  which is this module's question, and the only part of it the floor has no
- *  opinion about. */
-export const idsByFile = (derived: Derived): ReadonlyMap<string, ReadonlySet<string>> =>
-  new Map(
-    [...derived.byFile].map((
-      [file, own],
-    ) => [file, new Set(own.map((located) => located.node.id))]),
-  )
-
-/**
- * ...and the one above, remembered for as long as the derivation it is of.
- *
- * The walk is over EVERY node in the directory, and a reader shutting a branch
- * shuts several in a row — so a fresh walk per click is the corpus walked once
- * per triangle, on the feature whose whole reason is somebody with a big one. A
- * `Derived` is immutable and minted per published frame (`../outlines.ts`), so
- * its identity is exactly the right key: N folds between two frames pay for one
- * walk, and a frame that arrives drops the old answer with the old set.
- *
- * Weak, so nothing here is what keeps a retired revision of the whole directory
- * alive.
- */
-const declared = new WeakMap<Derived, ReadonlyMap<string, ReadonlySet<string>>>()
-
-const declaredIn = (derived: Derived): ReadonlyMap<string, ReadonlySet<string>> => {
-  const known = declared.get(derived)
-  if (known !== undefined) return known
-  const fresh = idsByFile(derived)
-  declared.set(derived, fresh)
-  return fresh
 }
 
 /** Every folded id, whichever file it came from. Ids are unique across the
@@ -282,15 +282,27 @@ const pref = createPreference(FOLDS_KEY, {
 /** The nodes that are folded right now, by id. */
 export const collapsedNodes: Accessor<ReadonlySet<string>> = () => pref.value().ids
 
+/** ...and the same memory grouped, which is what the QUESTION is built out of
+ *  (./refiling.ts): what to ask about is the ids, and what their absence would
+ *  mean is the files. */
+export const foldedByFile: Accessor<Folds> = () => pref.value().byFile
+
+/** What a write starts from: the entry as it is now, unioned with what this tab
+ *  holds. Its own name because both writers use it — the fold below and the
+ *  re-filing beside it — and starting from either half alone is the flattening
+ *  {@link combined} exists to forbid. */
+const standing = (): Folds => combined(pref.stored().byFile, pref.value().byFile)
+
 /**
  * Fold the nodes `given`, or unfold them, and remember which.
  *
- * `live` is the set as this browser currently has it, and it is here rather
- * than on a timer or a load because a write is exactly when the answer is both
- * known and cheap: the reader has just folded something, so the derivation is
- * in hand and the entry is being rewritten anyway. `undefined` — a page that
- * has not loaded a set — prunes nothing, which is the same rule as a file
- * that is not in it.
+ * IT PRUNES NOTHING, which is what changed: pruning needs the set, the set is
+ * not in this browser any more, and a fold that waited for a round trip would
+ * be a triangle that lags behind the finger on it. The tidy is a question
+ * asked beside the write and applied when it lands (./refiling.ts), so what a
+ * reader presses is instant and what the entry HOLDS catches up a moment
+ * later — which is the right way round for a chore nothing on screen is
+ * waiting for.
  *
  * The base is the ENTRY unioned with what this tab holds ({@link combined}),
  * not the held map alone, so a sibling tab's folds are not thrown away by this
@@ -299,19 +311,29 @@ export const collapsedNodes: Accessor<ReadonlySet<string>> = () => pref.value().
  * replace. The read costs one `getItem` and one parse per fold, over a value
  * bounded by what the reader has actually shut.
  */
-export const setFolded = (
-  given: ReadonlyArray<Fold>,
-  collapsed: boolean,
-  live: Derived | undefined,
-): void => {
-  const next = pruned(
-    withFolds(
-      combined(pref.stored().byFile, pref.value().byFile),
-      given,
-      collapsed,
-    ),
-    live === undefined ? new Map() : declaredIn(live),
-  )
+export const setFolded = (given: ReadonlyArray<Fold>, collapsed: boolean): void => {
+  pref.set(memoryOf(withFolds(standing(), given, collapsed)))
+}
+
+/**
+ * ...and the same memory re-filed against what the set just said.
+ *
+ * Applied to the entry AS IT IS, never to the folds the question was built
+ * from: the reader goes on folding while a question is out, and a sibling tab
+ * may have written in the meantime. Every id those two added is one {@link
+ * pruned} leaves alone, because it is not in {@link Homes.asked} — which is why
+ * the question travels with its answer.
+ *
+ * NOTHING IS WRITTEN when nothing moved, which is most times it is asked: a
+ * `setItem` per fold for a value that came back identical would wake every
+ * other tab of this browser through the `storage` event for no news at all.
+ * Compared as the entry is SPELLED (`printFolds`), which is one canonical
+ * string per reading rather than a walk of two maps.
+ */
+export const refiled = (asked: Folds, answer: HomesAnswer): void => {
+  const now = standing()
+  const next = pruned(now, homesOf(asked, answer))
+  if (printFolds(next) === printFolds(now)) return
   pref.set(memoryOf(next))
 }
 

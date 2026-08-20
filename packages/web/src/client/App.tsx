@@ -28,6 +28,7 @@ import { Connection } from "./connection/Connection.tsx"
 import { DerivedProvider } from "./derived.tsx"
 import { AirProvider, createAir } from "./drag/air.ts"
 import { createFields, FieldsProvider } from "./drag/fields.ts"
+import { createRefiling } from "./fold/refiling.ts"
 import { createDocuments, DocumentsProvider } from "./document/documents.tsx"
 import { createUndo, UndoContext } from "./edit/undoing.ts"
 import { UndoSaid } from "./edit/UndoSaid.tsx"
@@ -176,6 +177,19 @@ export default function App() {
    * under the same gate, one branch down.
    */
   const owed = createOwed(askedOn)
+
+  /**
+   * This browser's fold memory, kept filed against the set — a node that moved
+   * keeps its fold under the file it moved to, and a node that is gone stops
+   * being remembered (`./fold/refiling.ts`).
+   *
+   * HERE rather than beside `followFolds()` in `main.tsx`, which is where the
+   * rest of the fold's wiring is started: this one is a computation over two
+   * signals and Solid only owns a computation inside a render. Nothing on
+   * screen reads it and it returns nothing — the memory it tidies is read
+   * wherever a row asks `collapsedNodes`, exactly as before.
+   */
+  createRefiling()
 
   const zoomed = createMemo(() => {
     const open = focusedPage()
