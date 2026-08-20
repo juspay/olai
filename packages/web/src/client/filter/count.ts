@@ -99,10 +99,9 @@ export const countLine = ({ shown, held, hiddenAsDone }: Counts): string => {
  * `null` for the state where the honest thing is to say nothing.
  *
  *   - the rows answer what is typed → the numbers;
- *   - nothing has answered it, and either the last call FAILED or the wire
- *     cannot carry one → nothing, because the line beside it is already the
- *     news and a wait word would be a promise nobody is keeping: no answer is
- *     coming until something changes;
+ *   - nothing has answered it and the last call FAILED → nothing, because the
+ *     line beside it is already the news and a wait word would be a promise
+ *     nobody is keeping: no answer is coming until something changes;
  *   - nothing has answered it yet → {@link ANSWERING}, which is true.
  *
  * A FUNCTION rather than a ternary in the bar, for the reason `countLine` is
@@ -115,16 +114,15 @@ export const countSaid = (said: {
   readonly answering: string | null
   /** The last call's refusal, in the server's own words. */
   readonly failure: string | null
-  /** ...and why one cannot even be made — a dead wire, in the connection pill's
-   *  own words. The same shape of news as a failure, from one step earlier. */
-  readonly offline: string | null
   readonly counts: Counts
 }): string | null => {
   if (said.answering !== null) return countLine(said.counts)
   // THE WAIT WORD IS A PROMISE, so it may only be said while something is
-  // actually on its way. A failed call and a dead wire are both "no answer is
-  // coming until something changes", and each already has its own line under
-  // this one; `filtering…` over either would be the page waiting for a fetch
-  // nobody is making.
-  return said.failure === null && said.offline === null ? ANSWERING : null
+  // actually on its way. A failed call is "no answer is coming until something
+  // changes", and it has its own line under this one; `filtering…` over it
+  // would be the page waiting for a fetch nobody is making. A DEAD WIRE used to
+  // be the second half of this sentence, and it is the offline overlay's now
+  // (`../connection/Offline.tsx`): the whole page is behind it, this line
+  // included.
+  return said.failure === null ? ANSWERING : null
 }

@@ -72,7 +72,9 @@
  * failure slot and an offline slot of its own. What is on screen meanwhile is
  * the last frame the server sent, which is exactly what the pill promises. The
  * app-wide answer — an overlay that freezes everything on a dead wire — is
- * §5b's ruling and its own PR.
+ * §5b's ruling and is drawn now (`./connection/Offline.tsx`); a degraded
+ * readout is not one of the states it covers, which is why this file still has
+ * the paragraph above.
  */
 
 import { type Accessor, createMemo } from "solid-js"

@@ -33,9 +33,13 @@
  *     the grammar refusing a word is an answer, the server not answering is
  *     not, and a reader shown one in the other's sentence has been told
  *     something untrue;
- *   - WHY THE BOX IS INERT, when the connection cannot carry a question. In
- *     the connection pill's own words (`../connection/reaching.ts`), because
- *     two sentences about one wire are two chances to disagree about it.
+ *
+ * WHAT IT NO LONGER DRAWS is a face for a dead wire. The box used to go inert
+ * wearing the connection pill's sentence, because a filter that is a question
+ * has nothing to answer a keystroke with while the socket is gone. The app-wide
+ * ruling landed instead (§5b): a wire that cannot carry a question freezes the
+ * WHOLE app under an overlay (`../connection/Offline.tsx`), so this box is
+ * behind it, takes no keystroke, and has no reason left to explain itself.
  *
  * The value lives in the ADDRESS (`../routes.ts`), not here — so a narrowed
  * page is a link, and Back leaves the filter rather than un-typing it.
@@ -62,20 +66,14 @@ const PLACEHOLDER =
 export function FilterBar(props: {
   /** What the PAGE found — the count, the words, the rows behind it. */
   readonly narrowing: Narrowing
-  /** ...and what the WIRE is doing, which is a fact about the connection rather
-   *  than a reading of the page: the two are handed over separately because the
-   *  reading beside this one derives nothing from either, and a value carried
-   *  through a module that does not read it is a field two files have to keep
-   *  in step for nothing (`./asking.ts`). */
-  readonly asked: Pick<Asked, "failure" | "offline">
+  /** ...and the one thing the CALL has to say, which is a fact about the wire
+   *  rather than a reading of the page: the two are handed over separately
+   *  because the reading beside this one derives nothing from either, and a
+   *  value carried through a module that does not read it is a field two files
+   *  have to keep in step for nothing (`./asking.ts`). */
+  readonly asked: Pick<Asked, "failure">
   readonly onType: (text: string) => void
 }) {
-  /** A question cannot be asked, so the box takes none: an input that swallowed
-   *  keystrokes into a page that could not narrow would be the door pretending
-   *  (`../connection/reaching.ts`). What is already narrowed stays narrowed —
-   *  the last thing the server said is still the last thing the server said. */
-  const inert = () => props.asked.offline() !== null
-
   /** What the one line under the box says, or nothing — the three states a
    *  filtered page can be in, decided in `./count.ts` rather than in a binding
    *  here. */
@@ -83,7 +81,6 @@ export function FilterBar(props: {
     countSaid({
       answering: props.narrowing.answering(),
       failure: props.asked.failure(),
-      offline: props.asked.offline(),
       counts: props.narrowing.counts(),
     })
 
@@ -113,15 +110,10 @@ export function FilterBar(props: {
             no cross of its own to collide with. */}
         <input
           type="text"
-          class="min-w-0 flex-1 rounded-full border-0 bg-desk/70 px-4 py-2 font-mono text-xs text-ink outline-none placeholder:text-muted ring-1 ring-rule/40 focus:ring-2 focus:ring-accent/40 disabled:opacity-60"
+          class="min-w-0 flex-1 rounded-full border-0 bg-desk/70 px-4 py-2 font-mono text-xs text-ink outline-none placeholder:text-muted ring-1 ring-rule/40 focus:ring-2 focus:ring-accent/40"
           data-testid={TESTID.filterInput}
           placeholder={PLACEHOLDER}
           aria-label="filter this page"
-          disabled={inert()}
-          // The pill's sentence, on the control it disables — so a pointer
-          // resting on a dead box gets the reason without hunting for the dot
-          // in the header.
-          title={props.asked.offline() ?? undefined}
           value={props.narrowing.text()}
           onInput={(event) => props.onType(event.currentTarget.value)}
           // WHICH key empties it is the registry's (`../keys.ts`'s list layer,
@@ -198,20 +190,6 @@ export function FilterBar(props: {
             said={{ tone: "alarm", text: said() }}
             class="m-0 mt-1 font-mono text-xs"
             testid={TESTID.filterFailure}
-          />
-        )}
-      </Show>
-
-      {/* ...and why nothing can be asked at all, in the pill's own words. An
-          ASIDE rather than an alarm: nothing was refused and nothing was lost,
-          the wire is simply not there — the connection pill is where that
-          news belongs and this is it, repeated on the control it disables. */}
-      <Show when={props.asked.offline()}>
-        {(said) => (
-          <SaidLine
-            said={{ tone: "aside", text: said() }}
-            class="m-0 mt-1 font-mono text-xs"
-            testid={TESTID.filterOffline}
           />
         )}
       </Show>

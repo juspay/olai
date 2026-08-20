@@ -58,7 +58,7 @@ test("nothing drawn and something hidden drops the word `more`", () => {
 const COUNTS = { shown: 8, held: 57, hiddenAsDone: 0 }
 
 test("rows that answer what is typed are described by the numbers", () => {
-  expect(countSaid({ answering: "walnut", failure: null, offline: null, counts: COUNTS }))
+  expect(countSaid({ answering: "walnut", failure: null, counts: COUNTS }))
     .toBe("8 of 57")
 })
 
@@ -67,7 +67,7 @@ test("rows that answer what is typed are described by the numbers", () => {
 // was typed, and "8 of 57" over rows that answer the query before it is the
 // arithmetic-from-two-moments this file exists to refuse.
 test("rows that answer an older query say so instead of counting", () => {
-  expect(countSaid({ answering: null, failure: null, offline: null, counts: COUNTS }))
+  expect(countSaid({ answering: null, failure: null, counts: COUNTS }))
     .toBe(ANSWERING)
 })
 
@@ -76,25 +76,13 @@ test("rows that answer an older query say so instead of counting", () => {
 // way: the failure line beside this one is the news, and `filtering…` left up
 // over it would be the page waiting for something nobody is fetching.
 test("a failed call says nothing here, because the line below is the news", () => {
-  expect(countSaid({ answering: null, failure: "the wire is gone", offline: null, counts: COUNTS }))
+  expect(countSaid({ answering: null, failure: "the wire is gone", counts: COUNTS }))
     .toBe(null)
 })
 
 // A failure BESIDE an answer keeps the answer: the rows are still the rows the
 // server sent for these words, and the call that failed was the next one.
 test("a failure after an answer does not take the answer's numbers away", () => {
-  expect(countSaid({ answering: "walnut", failure: "the wire is gone", offline: null, counts: COUNTS }))
+  expect(countSaid({ answering: "walnut", failure: "the wire is gone", counts: COUNTS }))
     .toBe("8 of 57")
-})
-
-// ...and the same for the step before a failure: a wire that cannot carry a
-// question is not one somebody is waiting on. The box is inert and the pill's
-// words are already under it (`./FilterBar.tsx`).
-test("a dead wire says nothing here either, for the failure's reason", () => {
-  expect(countSaid({
-    answering: null,
-    failure: null,
-    offline: "the connection dropped and is being retried",
-    counts: COUNTS,
-  })).toBe(null)
 })

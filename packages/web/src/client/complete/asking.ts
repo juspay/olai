@@ -45,11 +45,11 @@
  *
  * Nothing special, deliberately. A refused call is a refusal in its own words,
  * drawn on the popup where the `((` search's already is (`./Completions.tsx`),
- * and the ruling for the app as a whole is an overlay that freezes it on a dead
- * socket (`vault-in-browser.md` §5b, its own PR). The filter's inert-box
- * treatment is not copied here for the reason above: a filter left a PAGE
- * standing that had to say what it was showing, and a completion that cannot be
- * answered simply has nothing to offer.
+ * and a dead socket is not this door's question at all: the app freezes under
+ * an overlay while the wire cannot carry one (`../connection/Offline.tsx`,
+ * §5b's ruling), so nothing is typed at this popup and no keystroke of it ever
+ * meets a dead wire. The filter's inert box was the other answer to that, and
+ * the overlay deleted it.
  */
 
 import type { Accessor } from "solid-js"
