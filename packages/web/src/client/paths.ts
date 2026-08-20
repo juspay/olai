@@ -24,16 +24,15 @@
 
 import { byPath } from "@olai/format"
 
-/** Paths in that order. */
 /**
  * THE FACES OF A KEYED COLLECTION, in the order its keys came — skipping a key
  * whose entry has not arrived yet.
  *
- * Both wire collections carry a face per file (`@olai/surface`) and both are
- * read the same way: keys, then an entry per key, which may not be there for
- * the frame between a key set and the entry that fills it. Written twice it was
- * the same five lines with two collection names in them — the copy-paste this
- * whole arc is about, one layer down.
+ * Its one caller is the DIRECTORY (`./directory.ts`, over the wire's `heads`),
+ * and the absence it exists for is the frame between a key set and the entry
+ * that fills it. It was two callers when the browser read a second collection
+ * of faces; the sort that joined their two answers went with the second one
+ * (`vault-in-browser`'s PR 10 — one collection, already in path order).
  */
 export const facesOf = <T>(
   keys: ReadonlyArray<string>,
@@ -44,9 +43,6 @@ export const facesOf = <T>(
     return face === undefined ? [] : [face]
   })
 
-export const byFacePath = <T extends { readonly path: string }>(
-  faces: ReadonlyArray<T>,
-): ReadonlyArray<T> => [...faces].sort((one, other) => byPath(one.path, other.path))
 
 export const sortByPath = (paths: Iterable<string>): ReadonlyArray<string> =>
   [...paths].sort(byPath)
