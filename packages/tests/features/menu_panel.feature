@@ -151,3 +151,15 @@ Feature: The ••• menu opens and shuts
     When I open the node menu of "order"
     Then the node menu takes the pointer where it crosses the section heading of "install"
     And there should be no page errors
+
+  # The line beside the `•••` was the one overlay #233 left in the row. A
+  # later heading still painted through it — the same stacking context, the
+  # same `elementFromPoint` question, a different box. `demo` is done, so
+  # `Mark doing` is refused and the line hangs under that row over `order`.
+  Scenario: A refusal paints over a later section heading
+    Given I zoom into the node "kitchen"
+    When I open the node menu of "demo"
+    And I choose "Mark doing" from the node menu
+    Then the node menu of "demo" says "`take out the old counters` is done. Undo that first — nothing should decide on your behalf that finished work is not finished."
+    And the node menu's said line takes the pointer where it crosses the section heading of "order"
+    And there should be no page errors

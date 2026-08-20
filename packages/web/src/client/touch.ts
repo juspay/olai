@@ -165,8 +165,23 @@ export const PAST_CONTROLS = "ml-16 md:ml-15"
  * must be the same box (`../client/edit/RowEditor.tsx`) — a row that shifted
  * by a pixel when the caret arrived would be this file's kind of bug, and
  * three literals were three chances for one of them to miss a change.
+ *
+ * THE SIZE IS THE ROOT'S. Large already notches the page up from the browser's
+ * 16px; stacking 1.125rem on top of that made every row a heading, which is
+ * display type used as a list. A row is a line. `1rem` is the line. The Size
+ * preference is how a reader who wants them bigger asks.
  */
-export const ROW_TITLE = "font-serif text-[1.125rem] leading-snug"
+export const ROW_TITLE = "font-serif text-[1rem] leading-snug"
+
+/**
+ * A TOP-LEVEL row is a section. One step above a row title — weight and a
+ * step, not a second heading size. A section is still a line of the outline.
+ *
+ * ITS OWN TYPE, not a patch on {@link ROW_TITLE}: two `text-[…]` utilities on
+ * one span are a coin toss, settled by the order Tailwind emitted them.
+ */
+export const SECTION_TITLE =
+  "font-serif text-[1.125rem] font-semibold leading-snug tracking-tight"
 
 /**
  * A row's NOTE, as type: what the clamped line, the rendered note and the
@@ -174,8 +189,11 @@ export const ROW_TITLE = "font-serif text-[1.125rem] leading-snug"
  * title's scale is here — the note edits in place, and a note that changed
  * size or colour when the caret arrived would be a different thing appearing
  * rather than the same thing becoming editable.
+ *
+ * One step under the title (`STEP_REM` in `theme/scale.ts`), so a preview
+ * stays a byline and does not collide with the line it hangs from.
  */
-export const ROW_NOTE = "text-[0.9375rem] leading-snug text-muted"
+export const ROW_NOTE = "text-[0.875rem] leading-snug text-muted"
 
 /**
  * THERE IS NO MEASURE, and its absence is a ruling rather than an omission.

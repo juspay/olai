@@ -51,11 +51,12 @@
  */
 
 import { type BrokenFile, derive, type Derived, type Face, patch } from "@olai/format"
-import type { Manifest } from "@olai/surface"
-import { type Accessor, createMemo } from "solid-js"
+import type { Manifest, OutlineEntry } from "@olai/surface"
+import type { ReadOnlyBoundDeltasCollectionResult } from "@kolu/surface/solid"
+import { type Accessor, createMemo, untrack } from "solid-js"
+import { unwrap } from "solid-js/store"
 
 import { facesOf, sortByPath } from "./paths.ts"
-import { olai } from "./wire.ts"
 
 export interface Outlines {
   /** The set-wide facts: `undefined` before the first frame, `null` for a
@@ -78,10 +79,31 @@ export interface Outlines {
   readonly derived: Accessor<Derived | undefined>
 }
 
-export const createOutlines = (): Outlines => {
-  const entries = olai.collections.outlines.use()
-  const manifest = olai.cells.manifest.use()
+/** The outlines collection as this composition asks for it: the keys, one entry
+ *  per key, and the FRAME SOCKET. The framework's own name for exactly that
+ *  shape — deliberately without the batched stream's health, which under a
+ *  `.use()` belongs to `client.health()` — so a caller may hand this either the
+ *  bound member or a raw `useCollectionDeltas`, and there is no second spelling
+ *  of somebody else's contract to keep in step at the next pin. */
+export type OutlineEntries = ReadOnlyBoundDeltasCollectionResult<string, OutlineEntry>
 
+/**
+ * The composition, over the two members rather than over the wire.
+ *
+ * They are ARGUMENTS because the app has exactly one place where a member is
+ * reached — `App.tsx`, the composition root, which already names the wire for
+ * the errors cell beside this call — and because a module that reaches
+ * `./wire.ts` itself can only ever be read by a browser: importing it opens a
+ * websocket at module scope. That is what left the tab's own per-frame cost
+ * unmeasurable and is why #263 had to file it as a deferral rather than close
+ * it. `./outlines.bench.ts` drives THIS function over the framework's real
+ * `deltas` hook, which is a measurement of the composition rather than of a
+ * re-spelling of it.
+ */
+export const createOutlines = (
+  entries: OutlineEntries,
+  manifest: Accessor<Manifest | undefined>,
+): Outlines => {
   const files = createMemo(() => sortByPath(entries.keys()))
 
   /**
@@ -112,9 +134,44 @@ export const createOutlines = (): Outlines => {
    * preceded by an upsert is a real frame rather than a hypothetical one. It
    * costs one wasted wake — such a file lands in `touched`, so a frame carrying
    * only it answers with a fresh `Derived` identity — and nothing else.
+   *
+   * THE SEED IS THE STORE'S ENTRIES AND NOT THE FRAME'S, which is the whole of
+   * what a reconnect costs and was #263's first standing deferral. A snapshot
+   * re-initialises this fold — the design ruled that, and it is right: one
+   * honest full rebuild per reconnect — but the entries the frame carries are
+   * FRESHLY DECODED, so a link flap handed the rebuild new record objects for
+   * every file in the directory even though not a byte had changed. The store
+   * beside it does not: it value-diffs a snapshot and keeps the object it
+   * already had, precisely so that an unchanged entry does not re-notify its
+   * readers. Reading the seed from there costs one dictionary read per file and
+   * keeps every unchanged record's IDENTITY — which is what every per-record
+   * cache downstream is keyed by, `@olai/format`'s per-record search fold
+   * above all (a `WeakMap` on the record, so an object nobody holds any more is
+   * a fold nobody can reach). Without this, the first search after a link flap
+   * pays the corpus cold; `./outlines.bench.ts` is where that is a number.
+   *
+   * `unwrap` because the accessor hands back a READ PROXY over the held value,
+   * and a proxy is a different object from the one the last view was built out
+   * of — which is the only thing this line is about. The fallback to the
+   * frame's own entry is for a key the store cannot answer, which is a state
+   * the framework does not have (the snapshot is applied to the store before
+   * any fold is seeded) and is written as a total function rather than as an
+   * assertion about somebody else's ordering. `untrack` because a seed is not a
+   * READ: `init` also runs at registration time, in whatever scope called
+   * `createOutlines`, and a dependency taken there would belong to that
+   * computation rather than to this fold. It is here and not on
+   * `./chat/order.ts`'s fold because this is the only `init` in the tree that
+   * reads anything reactive at all — that one answers out of the entries it is
+   * handed.
    */
   const view = entries.fold({
-    init: (all) => patch(EMPTY, { upserts: all, removes: [] }),
+    init: (all) =>
+      untrack(() =>
+        patch(EMPTY, {
+          upserts: seedOf(all, (file) => unwrap(entries.byKey(file)?.())),
+          removes: [],
+        })
+      ),
     step: patch,
   })
 
@@ -133,13 +190,14 @@ export const createOutlines = (): Outlines => {
    * never a record — and they are NOT folded here, deliberately: a second and
    * third accumulator over the same frames would be three things to keep in
    * step with one wire, where the socket's own argument is that a consumer
-   * should hold ONE. If a directory large enough to feel this turns up, the
-   * honest first move is to measure a frame end to end in a browser — which
-   * nothing in this tree does any more, and which is this PR's own standing
-   * deferral rather than a claim that it would not matter.
+   * should hold ONE. What they cost is no longer an argument either way:
+   * `./outlines.bench.ts` drives this whole composition through the
+   * framework's own `deltas` hook and prints the frame, the fold and the two
+   * walks as three arms of one run, so a directory large enough to feel them
+   * is a number somebody can produce rather than a thing to guess at.
    */
   return {
-    manifest: manifest.value,
+    manifest,
     files,
     faces: createMemo(() => facesOf(files(), (file) => entries.byKey(file)?.()?.face)),
     broken: createMemo(() => {
@@ -170,12 +228,52 @@ export const createOutlines = (): Outlines => {
      * absent was always a coincidence of where the state was kept.
      */
     derived: createMemo(() => {
-      const loaded = manifest.value()
+      const loaded = manifest()
       if (loaded === undefined || loaded === null) return undefined
       return view()
     }),
   }
 }
+
+/**
+ * THE SEED a full-set frame is patched onto: every key the frame names, each
+ * carrying the entry the STORE holds for it rather than the one the frame
+ * arrived with.
+ *
+ * This module's half of the reconnect rule, and the only half that is its own —
+ * the framework's half is that the store keeps the object it already had when a
+ * re-serialized entry is value-equal to it, which is pinned upstream
+ * (`collectionDeltasStore.test.ts`, "re-serialized-but-equal entries do not
+ * re-notify"). What is decided HERE is which of the two objects the derivation
+ * is built out of, and the answer is the held one, so that a link flap does not
+ * hand every record in the directory a new identity and cool every per-record
+ * cache keyed by one.
+ *
+ * IT IS A STOPGAP AND SAYS SO. The framework has this function already —
+ * `syntheticSnapshot`, which rebuilds a full-set frame out of the held store
+ * and is what a fold registered MID-STREAM is seeded from — and does not use it
+ * on the wire-snapshot path, so which of the two answers a fold gets depends on
+ * when it registered. That is one line upstream (`slot.seed(syntheticSnapshot())`)
+ * and it would be strictly cheaper than this, since the framework reads its raw
+ * dictionary where a consumer can only go through `byKey`. When it lands, THIS
+ * FUNCTION, its test, and `./outlines.bench.ts`'s `wire` arm are all deleted
+ * together.
+ *
+ * A pure function of the frame and a lookup, because that is the whole of the
+ * rule and because it is the one shape of this a test can hold: the fold around
+ * it needs a reactive runtime the unit suite does not have (`bun test` resolves
+ * SolidJS's server build, where a memo is computed once and never invalidated).
+ *
+ * TOTAL over a lookup that answers nothing, which the framework's own ordering
+ * says cannot happen — a snapshot is applied to the store before any fold is
+ * seeded — and is written as a fallback rather than as an assertion about
+ * somebody else's ordering.
+ */
+export const seedOf = (
+  all: ReadonlyArray<readonly [file: string, entry: OutlineEntry]>,
+  held: (file: string) => OutlineEntry | undefined,
+): ReadonlyArray<readonly [file: string, entry: OutlineEntry]> =>
+  all.map(([file, arrived]) => [file, held(file) ?? arrived] as const)
 
 /** The view of a directory with nothing in it — what a full-set frame is patched
  *  onto, so the first frame and a reconnect are one arm rather than two. Minted

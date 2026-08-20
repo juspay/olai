@@ -482,6 +482,22 @@ export const timesSaid = (
     `, min ${ms(Math.min(...times))}, max ${ms(Math.max(...times))}`
 }
 
+/**
+ * What ran the numbers, as the line every `just bench` leg prints under its
+ * corpus.
+ *
+ * Here for {@link timesSaid}'s reason, at the moment it became true a third
+ * time: two legs spelled this ternary out and a third said `bun ${Bun.version}`
+ * instead, so the four headers had already started to drift. A number's
+ * provenance is part of the number — these legs exist because a figure nobody
+ * can re-run is a figure nobody can check — and which runtime produced it is
+ * the first thing a reader comparing two of them has to know.
+ */
+export const runtimeSaid = (): string =>
+  `runtime: ${
+    process.versions.bun !== undefined ? `bun ${process.versions.bun}` : `node ${process.version}`
+  }`
+
 /** Every record of a set, flat — the shape the rules and the walks want, out of
  *  the one collection the set serves. A test's own flattening, deliberately:
  *  the format exports none (`./set.ts` says why), and what a production caller

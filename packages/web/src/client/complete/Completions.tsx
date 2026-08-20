@@ -27,15 +27,19 @@
  * same {@link LAYER.row} this list rides (`../layer.ts`), and a box left in
  * the title cell is cut in two the moment the next section arrives — the
  * `•••` menu's own bug (`menu-under-headers`). The portal is the same escape
- * that menu takes; the measure below is what "scrolls with the row" costs
- * once the box has left the cell.
+ * that menu takes. Placement is `@kobalte/core/popper` — flip, shift and
+ * autoUpdate, the primitive the menu already hangs from — so a scrolled page
+ * does not leave this list where the cell was. Kobalte's popper is
+ * `strategy: "absolute"` and cannot be talked out of it; mounted on
+ * {@link ../overlay.ts} those numbers are viewport coordinates.
  *
  * The caret never leaves the input, so nothing here takes focus: the rows are
  * chosen by the arrows and Enter (`./completing.tsx`), and a pointer press is
  * defaulted-away by the row itself so a click cannot blur the line being typed.
  */
 
-import { createEffect, createSignal, Index, onCleanup, Show } from "solid-js"
+import { Popper } from "@kobalte/core/popper"
+import { createSignal, Index, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { LAYER } from "../layer.ts"
@@ -51,61 +55,51 @@ const COMPLETION_ROW: RowTestids = {
 import { TESTID } from "../testids.ts"
 import type { Listing } from "./completing.tsx"
 
-/** Where the list hangs, in viewport pixels — the title cell's left edge
- *  and the line under it. */
-interface At {
-  readonly left: number
-  readonly top: number
-}
-
-const sameAt = (a: At | null, b: At | null): boolean =>
-  a === b || (a !== null && b !== null && a.left === b.left && a.top === b.top)
-
 export function Completions(props: { readonly listing: Listing }) {
-  /** The title cell this list belongs to. `contents` so it adds no box of
-   *  its own; the parent is the `relative` span `../edit/RowEditor.tsx`
-   *  wraps the input in. */
-  let host: HTMLSpanElement | undefined
-  const [at, setAt] = createSignal<At | null>(null, { equals: sameAt })
+  /** The host is `contents` and has no box of its own; the parent is the
+   *  title cell `../edit/RowEditor.tsx` wraps the input in. Popper observes
+   *  this node for scroll/resize; `rectOf` is what it actually hangs from. */
+  const [host, setHost] = createSignal<HTMLElement>()
+  const [content, setContent] = createSignal<HTMLElement>()
 
-  const measure = (): void => {
-    const cell = host?.parentElement
-    if (cell === undefined || cell === null) return
-    const box = cell.getBoundingClientRect()
-    setAt({ left: box.left, top: box.bottom + 4 })
+  /** The cell as it is NOW. Popper calls this on every autoUpdate; a missing
+   *  parent is a bug, not a skip. The bind does not throw: this component
+   *  mounts with the editor, before a list is showing, and a contents span's
+   *  parent can still be unset in the ref. */
+  const rectOf = (): DOMRect | undefined => {
+    const el = host()
+    if (el === undefined) return undefined
+    const cell = el.parentElement
+    if (cell === null) {
+      throw new Error("completions: the title cell is gone — the list cannot hang")
+    }
+    return cell.getBoundingClientRect()
   }
 
-  createEffect(() => {
-    if (!props.listing.showing()) {
-      setAt(null)
-      return
-    }
-    measure()
-    window.addEventListener("resize", measure)
-    // Capture: the pane that moves under a list is not the window.
-    document.addEventListener("scroll", measure, true)
-    onCleanup(() => {
-      window.removeEventListener("resize", measure)
-      document.removeEventListener("scroll", measure, true)
-    })
-  })
-
   return (
-    <span ref={host} class="contents">
+    <span ref={setHost} class="contents">
     {/* WHETHER there is a box is the listing's own answer, not a second
         formula here — see `Listing.showing`. */}
-    <Show when={props.listing.showing() ? at() : undefined}>
-      {(spot) => (
+    <Show when={props.listing.showing()}>
+      <Popper
+        anchorRef={host}
+        contentRef={content}
+        getAnchorRect={rectOf}
+        placement="bottom-start"
+        gutter={4}
+      >
       <Portal mount={overlayRoot()}>
+      <Popper.Positioner>
       <div
+        ref={setContent}
         // `LAYER.row` is the whole stacking claim, and it is the `•••` menu's
         // (`../layer.ts`): this hangs off a ROW, so it covers the rows under
         // it and gives way to every piece of chrome. The portal is what
         // makes the number mean that against a later sticky heading. A bare
         // number here would be the twentieth call site that could only be
-        // read by looking at the other nineteen.
-        class={`fixed ${LAYER.row} w-[min(24rem,80vw)] overflow-hidden rounded-md border border-rule/70 bg-panel shadow-lg`}
-        style={{ left: `${spot().left}px`, top: `${spot().top}px` }}
+        // read by looking at the other nineteen. `relative` so the layer
+        // bites on the positioner's absolute box, the same as the menu.
+        class={`relative ${LAYER.row} w-[min(24rem,80vw)] overflow-hidden rounded-md border border-rule/70 bg-panel shadow-lg`}
         data-testid={TESTID.completions}
         // WHICH widget this is, as a fact in the markup rather than as a guess
         // from what is in it — the same contract every other panel in this
@@ -153,8 +147,9 @@ export function Completions(props: { readonly listing: Listing }) {
           </Index>
         </ul>
       </div>
+      </Popper.Positioner>
       </Portal>
-      )}
+      </Popper>
     </Show>
     </span>
   )

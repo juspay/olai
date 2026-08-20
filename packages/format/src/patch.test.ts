@@ -660,6 +660,58 @@ test("a file that goes away takes its records with it", () => {
   expect(next.status.has("three")).toBe(false)
 })
 
+test("a file arrives holding nothing, fills, empties, and goes", () => {
+  // THE WHOLE LIFE OF AN EMPTY FILE, and the one claim this file makes in its
+  // own words that nothing pinned: {@link SetDelta} says "an upsert carrying NO
+  // records leaves the file holding nothing, which is what `Derived.byFile`
+  // spells as absence". It was pinned client-side, by the reconstruction
+  // `deriving.test.ts` tested, and went with it (#263) — so it is pinned here,
+  // beside the docstring that makes it.
+  //
+  // Every step is a REAL frame rather than a corner: a probe tick publishes a
+  // new file's entry before anybody has typed into it, and selecting a file's
+  // records and deleting them empties one without removing it. The generator
+  // reaches neither — it writes files with records in them — which is why this
+  // is by hand.
+  const before: Corpus = {
+    "a.olai": `{"id":"one","ord":"a","title":"one","todo":true}`,
+    "deep/c.olai": `{"id":"far","ord":"a","title":"far"}`,
+  }
+  const view = viewOf(before)
+
+  // ARRIVES holding nothing: the key is on the wire and no record is.
+  const arrived = patched(view, editing("b.olai", ""))
+  expect(arrived).toBeDefined()
+  same(arrived as Derived, viewOf({ ...before, "b.olai": "" }), () => "an empty file arrives")
+  // ABSENCE, not an empty list — the two are different answers to "what does
+  // this file hold", and only one of them is the one a rebuild gives.
+  expect((arrived as Derived).byFile.has("b.olai")).toBe(false)
+
+  // FILLS.
+  const written = `{"id":"two","ord":"a","title":"two","after":["one"]}`
+  const filled = patched(arrived as Derived, editing("b.olai", written))
+  expect(filled).toBeDefined()
+  same(filled as Derived, viewOf({ ...before, "b.olai": written }), () => "the file fills")
+  expect((filled as Derived).byFile.get("b.olai")?.map((at) => at.node.id)).toEqual(["two"])
+  expect([...((filled as Derived).edgesTo.get("one") ?? [])]).toEqual(["two"])
+
+  // EMPTIES — the arm the arrival cannot reach, because this one has records to
+  // take back out: every index the file wrote into has to lose what it filed,
+  // and an upsert carrying nothing is the only frame that says so.
+  const emptied = patched(filled as Derived, editing("b.olai", ""))
+  expect(emptied).toBeDefined()
+  same(emptied as Derived, viewOf({ ...before, "b.olai": "" }), () => "the file empties")
+  expect((emptied as Derived).byFile.has("b.olai")).toBe(false)
+  expect((emptied as Derived).byId.has("two")).toBe(false)
+  expect((emptied as Derived).edgesTo.has("one")).toBe(false)
+
+  // AND GOES. The remove lands on a file the view already holds nothing for,
+  // which is the no-op the patcher promises for a key it has nothing filed
+  // under — and what it answers with is the directory as it stands.
+  const gone = patch(emptied as Derived, { upserts: [], removes: ["b.olai"] })
+  same(gone, viewOf(before), () => "the file goes")
+})
+
 test("an empty delta is the same view, and says so by being it", () => {
   const view = viewOf(KITCHEN)
   expect(patch(view, { upserts: [], removes: [] })).toBe(view)

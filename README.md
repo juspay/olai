@@ -10,7 +10,7 @@ An outliner whose file format is a git-reviewable one, and whose editor is a bro
 
 Outlines are `.olai` files. A vault written before the rename is renamed once, by hand — olai reads the one extension and migrates nothing for you: [the one-liner](docs/format.md#the-outline-format).
 
-A coding agent in a terminal reaches the same tools over HTTP, against a running server — `just run` binds this repo on `127.0.0.1:7714`:
+A coding agent in a terminal reaches the same tools over HTTP, against a running server. Production (the home-manager user service) binds `127.0.0.1:7714`; `just run` in a worktree asks the OS for a port and writes it to `.olai-dev/url`, so it cannot squat that address:
 
 ```json
 {

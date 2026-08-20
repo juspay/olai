@@ -166,8 +166,8 @@ When(
  * capture of a BLANK line — refused in the ops layer's own words, over the
  * remark the scenario is asserting on. Measured at 2 in 15 loaded runs, and it
  * got MORE likely rather than less when this suite's port bands stopped being
- * shared, because an exclusive band is a faster `freePortIn` and so a faster
- * round trip to beat.
+ * shared (they used to be; `freePortIn` walked an exclusive band, and an
+ * exclusive band is a faster spawn and so a faster round trip to beat).
  *
  * Issued together, the two keydowns reach the page with no round trip between
  * them, which is the claim `without waiting` was always making.

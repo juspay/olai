@@ -52,7 +52,15 @@ import {
   tagText,
   titleParts,
 } from "@olai/format"
-import { median, recordsOf, setOf, timed, timesSaid, vaultOf } from "@olai/format/testlib"
+import {
+  median,
+  recordsOf,
+  runtimeSaid,
+  setOf,
+  timed,
+  timesSaid,
+  vaultOf,
+} from "@olai/format/testlib"
 
 import { type Tag, tagsOf } from "./tags.ts"
 
@@ -199,9 +207,7 @@ const run = (name: keyof typeof arms): ReadonlyArray<number> => {
 console.log(
   `vault: ${view.byFile.size} files, ${view.nodes.length} records, ${tags} tags` +
     ` in the index — the completion asked ${ROUNDS} times\n` +
-    `runtime: ${
-      process.versions.bun !== undefined ? `bun ${process.versions.bun}` : `node ${process.version}`
-    }\n`,
+    `${runtimeSaid()}\n`,
 )
 const timings = new Map(
   (["index", "walk", "titles"] as const).map((name) => [name, run(name)]),

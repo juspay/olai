@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Measure one edit-while-previewing session against a WORKTREE's own server.
 #
-#   ROOT=/path/to/a/worktree LABEL=before PORT=7802 bash wire.sh
+#   ROOT=/path/to/a/worktree LABEL=before bash wire.sh
+#   PORT=7802 …               # pin a port (optional; the default asks the OS)
 #
 # Expects to be run from packages/tests, inside `nix develop .#e2e`, with the
 # named worktree's client already built there (`just build-client` in it).
@@ -14,16 +15,17 @@
 #
 # How a server is stood up is `support/serve.sh`'s, shared with evidence.sh:
 # one spelling of the boot, so a driver cannot end up measuring a server that
-# was never started.
+# was never started — or another worktree's, which a shared PORT= used to do.
 set -euo pipefail
 
 . support/serve.sh
 
 root=${ROOT:-$(cd ../.. && pwd)}
-port=${PORT:-7802}
 label=${LABEL:-$(basename "$root")}
 
-olai_port_free "$port" "the numbers"
+if [ -n "${PORT:-}" ]; then
+  olai_port_free "$PORT" "the numbers"
+fi
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -33,7 +35,7 @@ mkdir -p "$work/vault"
 # driver's own.
 printf '{"id":"house","ord":"a0","title":"house"}\n' > "$work/vault/house.olai"
 
-olai_serve "$root" "$work/vault" "$port" "$work/server.log"
+olai_serve "$root" "$work/vault" "$work/server.log"
 trap 'kill "$OLAI_SERVER" 2>/dev/null || true; rm -rf "$work"' EXIT
 
-LABEL="$label" BASE="http://127.0.0.1:$port" VAULT="$work/vault" bun wire.ts
+LABEL="$label" BASE="$OLAI_URL" VAULT="$work/vault" bun wire.ts

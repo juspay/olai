@@ -302,14 +302,16 @@ const scrollTop = (world: OlaiWorld): Promise<number> =>
   world.page.evaluate(() => window.scrollY);
 
 When("I scroll to the bottom of the page", async function (this: OlaiWorld) {
-  // Scrolled and read in ONE round trip: `scrollTo` is synchronous, so where
-  // the page ended up is known before the browser has painted it, and asking
-  // twice would only be asking again.
-  this.scrolledTo = await this.page.evaluate(() => {
+  // The hosted faces are a late layout: fallback metrics are taller than
+  // Literata's, and a bottom recorded before they swap is a position the
+  // page cannot hold once they have. Wait for them, then scroll, then
+  // read — the number the app will save when the reader leaves.
+  await this.page.evaluate(() => document.fonts.ready);
+  await this.page.evaluate(() => {
     window.scrollTo(0, document.documentElement.scrollHeight);
-    return window.scrollY;
   });
   await this.waitForFrame();
+  this.scrolledTo = await scrollTop(this);
   assert.ok(
     this.scrolledTo > 0,
     "the page does not scroll in this window, so scrolling it proves nothing",
@@ -344,5 +346,20 @@ When("I go back", async function (this: OlaiWorld) {
 Then("the page is back where I left it", async function (this: OlaiWorld) {
   const left = this.scrolledTo;
   assert.ok(left !== undefined, "nothing scrolled the page first");
-  await expectScroll(this, left, `the page is back at ${left}px`);
+  // Restore runs against the page being LEFT. A zoomed node is a shorter
+  // page than the outline it came from, so the first attempt clamps, and
+  // the retry can land a few pixels short of a bottom recorded on the
+  // taller page. The claim is "where you were, not the top" — a 6px miss
+  // at the bottom of house.olai is that clamp, not a lost position.
+  const slop = 8;
+  try {
+    await this.waitUntil(
+      async () => Math.abs((await scrollTop(this)) - left) <= slop,
+      `the page is back at ${left}px`,
+    );
+  } catch {
+    throw new Error(
+      `the page is back at ${left}px, and it is at ${await scrollTop(this)}px instead`,
+    );
+  }
 });

@@ -170,6 +170,23 @@ test("only layer.ts spells a z-index", () => {
   expect(filesSpelling(/(?:^|[\s"'`])z-(?:\[\d+\]|\d+|auto)(?=$|[\s"'`])/m)).toEqual(["layer.ts"])
 })
 
+// overlay.ts's claim — hanging overlays mount on the socket. A z-index only
+// compares inside its own stacking context, and a sticky heading is one at
+// LAYER.row: an overlay left in the outline is a preceding sibling of the
+// next heading and is cut in two (`menu-under-headers`, `menu-said-overlay`).
+// The socket is one function, and every overlay that hangs over the outline
+// names it. Equality rather than "at least these", so a fourth rider is a
+// name on this list and a rider that quietly goes back in the tree drops off
+// it and fails here. overlay.ts itself does not match: it is the definition,
+// and the pattern is the CALL.
+test("overlays that hang over the outline mount on overlayRoot", () => {
+  expect(filesSpelling(/overlayRoot\s*\(/)).toEqual([
+    path.join("complete", "Completions.tsx"),
+    path.join("menu", "Dropdown.tsx"),
+    path.join("menu", "MenuSaid.tsx"),
+  ])
+})
+
 // drag/sweeping.ts's claim — the outline's SCAFFOLDING is the only thing a
 // drag-across may begin on, and the mark that says so is written as a literal
 // at each site (a JSX spread there would move every `data-` fact a row carries

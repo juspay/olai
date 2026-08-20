@@ -18,10 +18,13 @@ import * as assert from "node:assert";
 
 import { Then, When } from "@cucumber/cucumber";
 
+import { TESTID } from "@olai/web/src/client/testids.ts";
+
 import {
   COMPLETION_ITEM,
   COMPLETION_ITEM_PLACE,
   COMPLETIONS,
+  NODE_GUTTER,
   oneLine,
   POLL_TIMEOUT,
 } from "../support/world.ts";
@@ -52,6 +55,49 @@ Then(
 Then("no completions are open", async function (this: OlaiWorld) {
   await theListIsGone(this);
 });
+
+/**
+ * WHAT PAINTS AT THE OVERLAP — the same stacking question the `•••` panel
+ * and its said line ask (`menu_steps.ts`). A bounding box cannot see a
+ * layer: the heading is still laid out, still `visible` to Playwright, and
+ * still what a pointer would reach if the list were left in the title cell.
+ *
+ * `topmostTestidAt` walks to the nearest `data-testid`, so a hit on a row
+ * reports `completion-item` rather than the list — both are the shortlist.
+ * The heading is `node-gutter`.
+ */
+Then(
+  "the completions take the pointer where they cross the section heading of {string}",
+  async function (this: OlaiWorld, id: string) {
+    const list = panel(this);
+    await list.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const heading = this.within(id, NODE_GUTTER);
+    const over = await this.box(list, "the completions");
+    const under = await this.box(heading, `the section heading "${id}"`);
+    const left = Math.max(over.x, under.x);
+    const right = Math.min(over.x + over.width, under.x + under.width);
+    const top = Math.max(over.y, under.y);
+    const bottom = Math.min(over.y + over.height, under.y + under.height);
+    assert.ok(
+      right > left && bottom > top,
+      `the completions (${Math.round(over.x)},${Math.round(over.y)} ` +
+        `${Math.round(over.width)}×${Math.round(over.height)}) do not ` +
+        `cross the section heading of "${id}" ` +
+        `(${Math.round(under.x)},${Math.round(under.y)} ` +
+        `${Math.round(under.width)}×${Math.round(under.height)}) — ` +
+        "without an overlap this step cannot see a layer",
+    );
+    const found = await this.topmostTestidAt(
+      (left + right) / 2,
+      (top + bottom) / 2,
+    );
+    assert.ok(
+      found === TESTID.completions || found === TESTID.completionItem,
+      `the element at the overlap is ${found} — a sticky heading ` +
+        "painting through the list is the bug this scenario holds",
+    );
+  },
+);
 
 // ── what is in it ──────────────────────────────────────────────────────
 

@@ -79,6 +79,7 @@ import {
   nodesOf,
   retitled,
   retitledIn,
+  runtimeSaid,
   timed,
   timesSaid,
   vaultOf,
@@ -633,7 +634,7 @@ const say = (name: string, times: ReadonlyArray<number>): void => {
 console.log(
   `vault: ${corpus.size} files, ${records} records, ` +
     `${EDITS} one-file edits, each to a different file\n` +
-    `runtime: bun ${Bun.version}\n`,
+    `${runtimeSaid()}\n`,
 )
 say("rebuild", rebuilt)
 say("patch+clone", patchedCloneMs)
