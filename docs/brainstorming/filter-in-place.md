@@ -23,6 +23,8 @@ A filter cannot be a fourth door to that procedure, and the reason is not taste:
 - it needs **every** match, not twelve — the cap `Query.search` exists to apply is exactly wrong here;
 - and it needs the answer as a **set of ids to test rows against**, not a ranked list of situated hits.
 
+> **Read the three bullets against the banner above.** The first is the one that was reversed: the tree is not in the browser any more, so the round trip is what a filter costs, with the debounce and the stale-answer rule as its price (`@olai/web`'s `filter/asking.ts`). The other two were never objections — they are the SHAPE of the member the reversal added: `search.matching` answers every match, uncapped and unranked, as ids to test rows against. And one thing the bullets do not say, which the move made load-bearing: a filter is a STANDING view of a page, so the question carries the set's own generation and a revision re-asks it.
+
 So the matcher moves DOWN rather than being copied sideways. `@olai/format` is the package both the validator and the view already read the format through — `derive`, `rowsOf`, `zoom`, `withoutDone`, the date derivations — and "does this node match this query" is a derivation of exactly that kind. It becomes `format/src/filter.ts`:
 
 - `parseFilter(text)` — the grammar below, into a value;

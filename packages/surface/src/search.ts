@@ -11,11 +11,14 @@
  * in the browser and never asks the server at all. So `is:done` means one thing
  * everywhere because there is one thing for it to mean.
  *
- * **One matcher.** The three doors that DO ask are callers of `@olai/ops`'
- * `Query.search`, over the same `Reading`. The browser holds every node and
- * could grep them itself; it deliberately does not, because a client-side
- * ranking would be a second implementation of it — and the first place the
- * faces of search quietly stopped being the same product.
+ * **One matcher.** Every door that lists hits is a caller of `@olai/ops`'
+ * `Query.search`, over the same `Reading`, and the page filter is a caller of
+ * the other half of the same matcher (`Query.matches`, the member below). A
+ * client-side ranking would have been a second implementation of it — and the
+ * first place the faces of search quietly stopped being the same product. That
+ * used to be restraint over a browser holding every node; since
+ * `search-server-side` the browser holds no vault to grep, so what is left of
+ * the sentence is the rule rather than the discipline.
  *
  * **And one SHAPE, which is what this file is now.** These are `@olai/format`'s
  * declarations, re-exported rather than re-declared, exactly as `GitState`,
