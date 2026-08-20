@@ -14,7 +14,7 @@
  * On a phone the burger joins the left edge next to the wordmark, and that is
  * the WHOLE of the bar besides the magnifier. WhatsApp's rule: identity and
  * search in the header; connection and git as banners under it, and only when
- * there is news (`./News.tsx`); the agent as the thumb strip it already was;
+ * there is news (the same Indicator and Commit, news-only faces); the agent as the thumb strip it already was;
  * preferences in the directory drawer. A healthy phone does not advertise
  * health — `live` and `✓ committed` stay off screen. A dead wire is the freeze
  * overlay, which was already the stronger form of that banner. Desktop keeps
@@ -160,7 +160,7 @@ export function AppHeader(props: {
           has the connection answer — which is the one they want most of all.
           On a phone they are not: search is the only control that stays, and
           the rest become news under the bar or a row in the drawer
-          (`./News.tsx`, `settings/` in the closet).
+          (`settings/` in the closet).
 
           The Commit pill sits BESIDE the connection because they are the same
           kind of promise about two halves of the same page: that it is still
