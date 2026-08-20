@@ -1388,3 +1388,34 @@ Feature: A `.html` in the vault
     Then the document open is "report.html"
     And the address is "/report.html"
     And the page has not reloaded
+
+  @scratch:good
+  Scenario: A heading opened in the OTHER pane leaves this preview where it is
+    # Two panes previewing two things is what the split is for (#219), and a
+    # LANDING is a fact about the pane it was asked of — which is why it carries
+    # one. The preview watched the landing for the case it exists for (arriving
+    # at another section of the file already open), and watched it through an
+    # input with no equality: the router notifies EVERY pane on every push, so a
+    # question whose answer was `undefined` before and after re-ran anyway and
+    # re-pointed the frame. What a reader saw was a saved page flashing white
+    # and losing its scroll because they clicked a link next door — and, for a
+    # page that draws itself, its script running again.
+    #
+    # The address the frame is pointed at carries the component's own visit
+    # counter, so "pointed where it was" is exactly "not navigated" — there is
+    # no window to race and nothing to count.
+    Given I open the app
+    When I rewrite "linker.md" as:
+      """
+      # Linker
+
+      [a section of the sink](kitchen-sink.md#nowhere-at-all)
+      """
+    And I click the document "linker.md"
+    And I open the address "/s/quarter.html/linker.md?f=1"
+    Then the preview shows the heading "Q3 fitting revenue"
+    When I remember where the preview is pointed
+    And I follow the link "a section of the sink" in the rendered markdown
+    Then pane 1 is showing "/kitchen-sink.md#nowhere-at-all"
+    And the preview is pointed where it was
+    And there should be no page errors

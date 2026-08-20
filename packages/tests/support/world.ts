@@ -1158,45 +1158,155 @@ export class OlaiWorld extends World {
   socketFrames?: string[];
 
   /**
+   * …and every frame the tab SENT down it — every question this reader asked —
+   * under the same `@wire` tag, `undefined` without it.
+   *
+   * The mirror of {@link socketFrames}, and the half that answers a different
+   * kind of claim: not "what did the server choose to send" but HOW OFTEN THIS
+   * TAB ASKED. Nothing else here can say it. `requests` is what the page
+   * fetched, and the surface fetches nothing — every procedure call and every
+   * subscription this client opens is a frame on this socket
+   * (`@kolu/surface`'s links), so a claim that a gesture costs ONE call, or
+   * that a spent panel stopped watching, is a claim about this list.
+   *
+   * Read through {@link socketAskedSince}, which counts them from a mark: a
+   * count over the scenario's whole life is a count of everything the boot did
+   * too, and the questions worth counting are the ones a gesture caused.
+   */
+  socketAsks?: string[];
+
+  /**
    * Whether anything the socket delivered carried this text — see {@link
    * socketFrames}.
    *
-   * TWO ways this could quietly say "no" are refused rather than documented.
-   *
-   * A scenario that never armed the recorder throws, in `requestsWatched`'s
-   * voice and for its reason.
-   *
-   * And a probe this cannot honestly look for throws too. The frames are raw,
-   * so a probe only appears in them if the encoding carrying it left it alone —
-   * `"a \"quote\""` is not in a JSON frame however squarely the body was sent,
-   * and a "never carried" assertion over such a probe is a sentence about
-   * nothing. What is admitted is therefore narrower than any one encoding's
-   * rule and deliberately so: PRINTABLE ASCII with no `"` and no `\`
-   * ({@link PLAIN_PROBE}), which no text encoding this wire could use escapes.
-   * A conservative test is the right shape here because the assertion it guards
-   * is a negative — being refused a probe costs a scenario one rewording, and
-   * accepting one costs a passing test that proves nothing. Non-ASCII is
-   * refused for that reason rather than because JSON escapes it (JSON does not):
-   * whether `é` survives a frame is the encoder's business, and this is not the
-   * place to find out.
+   * Over the WHOLE scenario, which is what tells it from {@link
+   * socketSaidSince}: this asks whether a body ever crossed, and that one asks
+   * what a gesture caused. The two ways either could quietly say "no" — a
+   * recorder nobody armed, and a probe the framing could have rewritten — are
+   * refused rather than documented, in {@link framesMatching}.
    */
   socketCarried(text: string): boolean {
-    const frames = this.socketFrames;
-    if (frames === undefined) {
+    return this.framesMatching(
+      this.socketFrames,
+      0,
+      [text],
+      "nothing recorded what the socket delivered; a scenario asking about " +
+        "the wire has to carry the @wire tag",
+    ).length > 0;
+  }
+
+  /** Where in {@link socketAsks} and {@link socketFrames} a scenario started
+   *  counting — both at once, because they are one act ({@link markWire}) and
+   *  a scenario that marked one but not the other is not a state that
+   *  exists. */
+  private wireFrom?: { readonly asked: number; readonly said: number };
+
+  /** Start counting what crosses this tab's socket, in both directions, so a
+   *  later step can say what a gesture cost. `watchRequests`' arrangement one
+   *  wire over: a MARK into the recordings rather than a second listener. */
+  markWire(): void {
+    if (this.socketAsks === undefined || this.socketFrames === undefined) {
       throw new Error(
-        "nothing recorded what the socket delivered; a scenario asking about " +
-          "the wire has to carry the @wire tag",
+        "nothing recorded this tab's socket; a scenario counting wire calls " +
+          "has to carry the @wire tag",
       );
     }
-    if (!PLAIN_PROBE.test(text)) {
+    this.wireFrom = {
+      asked: this.socketAsks.length,
+      said: this.socketFrames.length,
+    };
+  }
+
+  /**
+   * How many questions carrying all of `probes` this tab has asked since that
+   * mark.
+   *
+   * THE FIRST PROBE IS A WIRE TAG — `<member>/<verb>`, which is how kolu
+   * addresses every member of a surface (`surfaceTag`,
+   * `<prefix><member>/<verb>`; the prefix is left off so this is a substring of
+   * whatever a composed surface makes the whole tag). A frame carrying it is
+   * this tab opening that subscription or calling that procedure, and the count
+   * is what a claim like "one call for the word, not one per letter" is made
+   * against.
+   *
+   * ANOTHER PROBE BESIDE IT narrows the same question to the ARGUMENT: the
+   * payload rides the frame, so a tag plus an id is "did this tab ask that
+   * member about that node". That is how a claim about what a gesture asked
+   * ABOUT is made — a picker that opened asking about the last list's rows
+   * sends the right member with the wrong argument, and the tag alone cannot
+   * tell the two apart.
+   */
+  socketAskedSince(...probes: ReadonlyArray<string>): number {
+    return this.framesMatching(
+      this.socketAsks,
+      this.wireFrom?.asked,
+      probes,
+      "nothing is counting what this tab asks the surface; a step has to " +
+        "mark the wire (and the scenario carry @wire) before the gesture it " +
+        "is making a claim about",
+    ).length;
+  }
+
+  /**
+   * …and the answer to the same question in the other direction: how many
+   * frames the server has DELIVERED since that mark carrying all of `probes`.
+   *
+   * SEVERAL probes rather than one, because what identifies a subscription's
+   * answer is a field name and the thing it is about together — either alone
+   * is a substring of frames from other members. It is how a claim that a tab
+   * STOPPED WATCHING is made: a subscription nobody let go of goes on being
+   * answered, and the answer arriving is the only trace it leaves.
+   */
+  socketSaidSince(...probes: ReadonlyArray<string>): number {
+    return this.framesMatching(
+      this.socketFrames,
+      this.wireFrom?.said,
+      probes,
+      "nothing is counting what this tab's socket delivered; a step has to " +
+        "mark the wire (and the scenario carry @wire) before the gesture it " +
+        "is making a claim about",
+    ).length;
+  }
+
+  /**
+   * The frames from `from` on that carry ALL of `probes` — the one matcher the
+   * three questions above are asked through, so the rule about what a probe may
+   * be is written once.
+   *
+   * TWO REFUSALS rather than a quiet answer, because every caller's assertion
+   * is a NEGATIVE and a negative over nothing recorded passes for the wrong
+   * reason. A scenario that never armed the recorder (or never marked) throws
+   * in `unarmed`'s words, the way `requestsWatched` does for the same class of
+   * mistake. And a probe this cannot honestly look for throws too: the frames
+   * are raw, so a probe only appears in them if the encoding carrying it left
+   * it alone — `"a \"quote\""` is not in a JSON frame however squarely the body
+   * was sent. What is admitted is therefore narrower than any one encoding's
+   * rule and deliberately so: PRINTABLE ASCII with no `"` and no `\`
+   * ({@link PLAIN_PROBE}), which no text encoding this wire could use escapes.
+   * Being refused a probe costs a scenario one rewording; accepting one costs a
+   * passing test that proves nothing. Non-ASCII is refused for that reason
+   * rather than because JSON escapes it (JSON does not): whether `é` survives a
+   * frame is the encoder's business, and this is not the place to find out.
+   */
+  private framesMatching(
+    frames: ReadonlyArray<string> | undefined,
+    from: number | undefined,
+    probes: ReadonlyArray<string>,
+    unarmed: string,
+  ): ReadonlyArray<string> {
+    if (frames === undefined || from === undefined) throw new Error(unarmed);
+    for (const probe of probes) {
+      if (PLAIN_PROBE.test(probe)) continue;
       throw new Error(
-        `${JSON.stringify(text)} is not a probe this can look for: only plain ` +
+        `${JSON.stringify(probe)} is not a probe this can look for: only plain ` +
           "printable ASCII without a quote or a backslash is certain to appear " +
           "in a raw frame verbatim, so anything else would be absent from the " +
           "recording whether or not the server sent it",
       );
     }
-    return frames.some((frame) => frame.includes(text));
+    return frames
+      .slice(from)
+      .filter((frame) => probes.every((probe) => frame.includes(probe)));
   }
 
   /** How far down the page a scenario deliberately scrolled, so a later step
@@ -2189,6 +2299,13 @@ export class OlaiWorld extends World {
       await this.page.waitForTimeout(100);
     }
   }
+
+  /** Where a `.html` preview's frame was pointed when a scenario looked, so a
+   *  later step can claim the frame was NOT re-pointed by something that
+   *  happened elsewhere. The address carries the component's own visit counter
+   *  (`client/document/Hypertext.tsx`), so "the same address" is exactly "the
+   *  frame was not navigated" and nothing weaker. */
+  previewPointedAt?: string;
 
   /** The paper the page was painted in before a theme was picked. The only
    *  colour any scenario holds on to, and it is compared against itself: what

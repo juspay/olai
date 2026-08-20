@@ -113,3 +113,26 @@ Feature: The outline and the chat point at each other
     And I press the node "order" in the write
     Then the address is "/#order"
     And the zoomed node is "order"
+
+  @scratch:chat @wire
+  Scenario: Typing beside an armed chip does not ask again what the node is called
+    # WHAT THE CHIP COSTS, which nothing on screen can say. The title is a fact
+    # about the vault, asked of the server when the ARMING moves and not when a
+    # letter is typed (`client/chat/chips.ts` states the bound). What it was
+    # asked of is derived from the DRAFT — the words are the last word about
+    # which nodes a sentence is about — so without an equality every keystroke
+    # minted the same one id in a new array, and a sentence cost one lookup per
+    # letter for a strip that could not have changed.
+    #
+    # Counted on the wire because a chip drawn from a title asked for once and a
+    # chip drawn from the same title asked for twenty times are the same chip.
+    When I open the node menu of "order"
+    And I choose "Ask agent" from the node menu
+    Then the composer is armed with "order"
+    When I mark the wire
+    And I type "what about the cabinets" into the chat a letter at a time
+    Then the chat input reads "what about the cabinets"
+    And the tab has asked what the armed nodes are called 0 times
+    # …and the strip still says what it says: the point is that the answer was
+    # already had, not that the question stopped being asked.
+    And the composer is armed with "order"

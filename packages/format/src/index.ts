@@ -764,4 +764,12 @@ export {
  * browser, and two copies of a sentence is how two faces of one rule start
  * disagreeing in the small words.
  */
-export { Moved, MovingAnswer, MovingRequest, movingOf, SAME_FILE, sameMoving } from "./moving.ts"
+export {
+  Moved,
+  MovingAnswer,
+  MovingRequest,
+  movingOf,
+  SAME_FILE,
+  sameMoving,
+  sameMovingRequest,
+} from "./moving.ts"
