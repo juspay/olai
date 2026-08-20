@@ -23,9 +23,10 @@
  *
  * WHAT A DEAD WIRE DRAWS is the last answer that arrived, which is what the
  * connection pill already promises for everything else on screen ("what is on
- * screen is the last thing the server said"). The app-wide answer to a dropped
- * connection is the offline overlay, and it is its own PR (§5b) — nothing here
- * pretends in the meantime, and nothing here is queued.
+ * screen is the last thing the server said") — and the reader is looking at it
+ * through the offline overlay, which freezes the app while the wire cannot
+ * carry a question (`../connection/Offline.tsx`, §5b's ruling). Nothing here
+ * pretends, and nothing here is queued.
  */
 
 import { createContext, type JSX, useContext } from "solid-js"

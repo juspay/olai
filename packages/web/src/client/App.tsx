@@ -24,7 +24,7 @@ import { Panel as ChatPanel } from "./chat/Panel.tsx"
 import { createToday } from "./clock.ts"
 import { createOwed } from "./dates.ts"
 import { Commit } from "./commit/Commit.tsx"
-import { Connection } from "./connection/Connection.tsx"
+import { Offline } from "./connection/Offline.tsx"
 import { DerivedProvider } from "./derived.tsx"
 import { AirProvider, createAir } from "./drag/air.ts"
 import { createFields, FieldsProvider } from "./drag/fields.ts"
@@ -240,7 +240,13 @@ export default function App() {
           second answer to what day it is, in a tab that is supposed to have
           one. */}
       <TodayProvider today={today()}>
-      <Connection readout={connectionReadout()} />
+      {/* THE FREEZE, over everything — the app takes no gesture at all while
+          the wire cannot carry a question (`./connection/Offline.tsx`, the
+          human's §5b ruling). It is drawn beside the chrome rather than inside
+          the page's arm because it covers the chrome too; WHERE it sits in this
+          composition decides nothing about what it paints over, because it is a
+          `<dialog>` in the top layer rather than a box with a number on it. */}
+      <Offline readout={connectionReadout()} />
       <ChatPanel />
       <Palette
         zoomed={zoomed()}

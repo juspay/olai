@@ -79,10 +79,14 @@ test("only wire.ts dials: connectSurface( is called exactly once in the client",
 // through `lookOf`; the day a component branches on `"retired"` itself, the
 // sixth state lands everywhere status.ts is not. The test file is the one
 // other legitimate speller: its fixtures must utter the states to hold the
-// table to them.
+// table to them — and so must `reaching.test.ts`, for the same reason one step
+// along: WHICH states cannot carry a question is the freeze's own table, and a
+// test of it has to name them. Neither branches on a state in the app; they
+// assert about the two tables that do.
 test("nothing outside connection/status.ts reads the readout's raw states", () => {
   const states = /["'`](connecting|live|degraded|reconnecting|retired)["'`]/
   expect(filesSpelling(states)).toEqual([
+    path.join("connection", "reaching.test.ts"),
     path.join("connection", "status.test.ts"),
     path.join("connection", "status.ts"),
   ])
@@ -192,6 +196,21 @@ test("overlays that hang over the outline mount on overlayRoot", () => {
     path.join("complete", "Completions.tsx"),
     path.join("menu", "Dropdown.tsx"),
     path.join("menu", "MenuSaid.tsx"),
+  ])
+})
+
+// layer.ts's other claim, from the far end of the same table: ONE thing in
+// this client is above every layer in it, and it is above them because the
+// browser puts it there rather than because it out-numbered anybody. The
+// offline overlay opens as a modal `<dialog>` — the top layer, and the rest of
+// the document inert — which is the only way to promise that nothing
+// underneath is interactive: a panel portalled to the body after it, at the
+// same `LAYER.over`, would paint straight over a z-index that tried. A second
+// file reaching for the top layer is a second thing claiming to cover the app,
+// and it must argue with this list first.
+test("only the offline overlay takes the top layer", () => {
+  expect(filesSpelling(/showModal\s*\(/)).toEqual([
+    path.join("connection", "Offline.tsx"),
   ])
 })
 

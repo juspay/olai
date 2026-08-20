@@ -53,15 +53,20 @@
  * The page filter (`filter/asking.ts`) keeps its own, and the difference is a
  * difference in kind rather than a copy nobody got round to. A shortlist is a
  * question somebody opened, answered once and closed; a filter is a STANDING
- * VIEW of a page, and the two rules it has that no shortlist wants follow from
- * that: its last answer must survive a refused call (a narrowed page may not
- * blank under somebody because a socket blinked), and it must not be asked at
- * all while the wire is down — the box goes inert instead. Its generation-on-
- * the-question is NOT one of them: that is just a value question with an
- * `equals`, which is what {@link createSettled} takes. So it is two knobs, both
- * of which every caller here would pass `false`, and the second stops being
- * filter-specific the day `vault-in-browser` §5b's offline overlay lands — at
- * which point this is the file the filter should fold into.
+ * VIEW of a page, and ONE rule follows from that which no shortlist wants: its
+ * last answer must survive a refused call, because a narrowed page may not
+ * blank under somebody because a socket blinked. Its generation-on-the-question
+ * is not a second one — that is just a value question with an `equals`, which
+ * is what {@link createSettled} takes.
+ *
+ * IT USED TO BE TWO, and the second went the way this file predicted: "must not
+ * be asked at all while the wire is down — the box goes inert instead" stopped
+ * being anybody's rule the day the offline overlay landed (`vault-in-browser`
+ * §5b, `connection/Offline.tsx`), because a frozen app takes no keystroke and
+ * there is no box to draw a reason on. What is left between the two files is
+ * one knob, and it is worth saying which way that argument now runs: folding
+ * the filter in here means a parameter on the shared asker that every caller
+ * but one passes `false` for, which is the trade the day somebody makes it.
  */
 
 import { debounce } from "@solid-primitives/scheduled"

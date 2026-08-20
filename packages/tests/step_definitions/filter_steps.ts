@@ -25,7 +25,6 @@ import {
   FILTER_CLEAR,
   FILTER_COUNT,
   FILTER_INPUT,
-  FILTER_OFFLINE,
   FILTER_REFUSAL,
   HIT,
   NODE,
@@ -126,31 +125,6 @@ Then(
     );
   },
 );
-
-/**
- * THE BOX WITH NOWHERE TO SEND A QUESTION — disabled, since the filter is a
- * round trip and the wire is gone (`client/filter/asking.ts`).
- *
- * Asked of the control rather than of a class: `isDisabled` is what a person's
- * keystroke actually meets, and it is the same fact the browser uses to refuse
- * one.
- */
-Then("the filter box is inert", async function (this: OlaiWorld) {
-  const box = this.page.locator(FILTER_INPUT);
-  await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await this.waitUntil(
-    async () => await box.isDisabled(),
-    "the filter box is disabled",
-  );
-});
-
-/** ...and it says WHY, in the connection pill's own words — never silently, and
- *  never in the grammar's refusal slot, which is a different piece of news. */
-Then("the filter says it cannot be asked", async function (this: OlaiWorld) {
-  await this.page
-    .locator(FILTER_OFFLINE)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-});
 
 /** SELECTED by the query, rather than kept as the ancestry that leads to one.
  *  The distinction is the whole of "filter in place": a page of matches with

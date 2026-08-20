@@ -6,7 +6,17 @@
  * a scenario is being served by. They belong to `@scratch:` scenarios alone —
  * the shared corpus servers are running for every other scenario in the run —
  * and `support/hooks.ts` enforces that rather than trusting the tag.
+ *
+ * TWO WAYS TO CUT A WIRE live here and they are not interchangeable. `the
+ * server stops` kills the process, so the tab that comes back presents a
+ * process id nobody minted and is RETIRED at the handshake — which is the only
+ * way to reach that state, and the reason a page can never be watched coming
+ * back live through it. `the browser goes offline` cuts the socket and leaves
+ * the process alive, so the redial is accepted and the freeze lifts: the other
+ * half of §5b's ruling, unreachable any other way.
  */
+
+import * as assert from "node:assert";
 
 import { Then, When } from "@cucumber/cucumber";
 import { findLogfmt } from "@olai/log/testlib";
@@ -14,10 +24,12 @@ import { findLogfmt } from "@olai/log/testlib";
 import { startOwnServer, stopOwnServer } from "../support/hooks.ts";
 import {
   CONNECTION,
+  FILTER_INPUT,
   HYDRATION_TIMEOUT,
+  OFFLINE,
+  PALETTE,
   POLL_TIMEOUT,
   RELOAD,
-  RESTARTED,
   SETTLED_SELECTOR,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -39,19 +51,144 @@ Then(
     );
   },
 );
-Then("the restart notice is shown", async function (this: OlaiWorld) {
+
+// ── the freeze ─────────────────────────────────────────────────────────
+
+/**
+ * THE OVERLAY IS UP, and it says what the pill says.
+ *
+ * The wording is asserted against the PILL rather than against a sentence
+ * written down here: `client/connection/status.ts` owns what each state is
+ * called, the overlay and the dot are two readers of it, and a scenario that
+ * quoted the words would be a third — free to pass while the two on screen
+ * disagreed with each other.
+ */
+Then("the app is frozen under the offline overlay", async function (this: OlaiWorld) {
+  const overlay = this.page.locator(OFFLINE);
+  // The HYDRATION budget: getting here is a socket dying and a readout folding
+  // behind it, which is a wire's clock rather than a render's.
+  await overlay.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const said = await this.page.locator(CONNECTION).getAttribute("title");
+  assert.ok(
+    said !== null && said.length > 0,
+    "the connection pill says nothing, so there is no wording for the overlay to share",
+  );
+  const shown = (await overlay.innerText()).replace(/\s+/g, " ");
+  assert.ok(
+    shown.includes(said.replace(/\s+/g, " ")),
+    `the overlay reads ${JSON.stringify(shown)}, which is not the pill's own sentence ` +
+      `${JSON.stringify(said)} — two wordings of one wire are two claims free to disagree`,
+  );
+});
+
+/**
+ * ...and the app under it is FROZEN — the whole of §5b's ruling, probed the
+ * three ways a page can be touched.
+ *
+ * It earns the browser and nothing else can show it: what is on top at a point
+ * (`elementFromPoint`, over the box that took keystrokes a moment ago), whether
+ * a real press at that point reaches what is under it, and whether a chord
+ * heard on the WINDOW still fires while the document is inert. The last is the
+ * one a reviewer should look at hardest: the top layer makes the page inert,
+ * which stops a press but not a listener that was never on an element.
+ */
+Then("the page under it takes neither a press nor a chord", async function (this: OlaiWorld) {
+  const box = this.page.locator(FILTER_INPUT);
+  const where = await box.boundingBox();
+  assert.ok(where !== null, "the filter box is not on screen, so there is nothing to press");
+  const at = { x: where.x + where.width / 2, y: where.y + where.height / 2 };
+
+  // WHAT A PRESS WOULD LAND ON. The dim is the overlay's own backdrop, so the
+  // topmost box at a point over the page belongs to the dialog — never to the
+  // control drawn there.
+  const topmost = await this.page.evaluate(
+    (point) => {
+      const found = document.elementFromPoint(point.x, point.y);
+      return found === null ? null : found.closest("dialog") !== null;
+    },
+    at,
+  );
+  assert.strictEqual(
+    topmost,
+    true,
+    "the filter box, not the overlay, is what a press at its own centre would land on",
+  );
+
+  // ...and the press itself, because "covered" and "cannot be used" are two
+  // claims and only the second one is the ruling. The box must not even take
+  // the caret.
+  await this.page.mouse.click(at.x, at.y);
+  const focused = await this.page.evaluate(() =>
+    document.activeElement?.getAttribute("data-testid") ?? null,
+  );
+  assert.notStrictEqual(
+    focused,
+    "filter-input",
+    "the frozen page gave the caret to the filter box",
+  );
+
+  // The chord, which no amount of inertness silences on its own: ⌘K is heard on
+  // the window (`client/palette/Palette.tsx`), and a palette opening over a
+  // frozen page would be a door offering to search a directory nothing can ask
+  // about.
+  await this.page.keyboard.press("ControlOrMeta+k");
+  await this.page.waitForTimeout(250);
+  assert.strictEqual(
+    await this.page.locator(PALETTE).count(),
+    0,
+    "⌘K opened the command palette while the app was frozen",
+  );
+});
+
+/** The overlay lifting is the whole of the recovery: nothing else dismisses it,
+ *  so its absence is the wire's own answer. */
+Then("the overlay is gone", async function (this: OlaiWorld) {
   await this.page
-    .locator(RESTARTED)
+    .locator(OFFLINE)
+    .waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
+});
+
+/** The retired wire's own half: the one state that has something to offer
+ *  besides waiting keeps offering it, on the overlay rather than on a screen of
+ *  its own (`client/connection/Offline.tsx`). */
+Then("the overlay offers a reload", async function (this: OlaiWorld) {
+  await this.page
+    .locator(OFFLINE)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.page
+    .locator(`${OFFLINE} ${RELOAD}`)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-When("I reload from the restart notice", async function (this: OlaiWorld) {
-  // Wait for the notice on the HYDRATION budget before clicking: getting there
+// ── the wire under the page ────────────────────────────────────────────
+
+/**
+ * THE NETWORK ITSELF, cut and restored under an open tab — the browser's, not
+ * the server's.
+ *
+ * The difference from `the server stops` is the whole reason this exists: a
+ * server that dies and comes back retires the tab at the handshake (the `?pid`
+ * echo), so a restart can never show a page coming back LIVE. Taking the
+ * browser offline kills the socket while leaving the process that minted the id
+ * alive, so the redial is accepted and the page resumes — which is the half of
+ * §5b's ruling ("the overlay lifts and the page resumes live") that nothing
+ * else in this suite can reach.
+ */
+When("the browser goes offline", async function (this: OlaiWorld) {
+  await this.page.context().setOffline(true);
+});
+
+When("the browser comes back online", async function (this: OlaiWorld) {
+  await this.page.context().setOffline(false);
+});
+
+When("I reload from the overlay", async function (this: OlaiWorld) {
+  // Wait for the overlay on the HYDRATION budget before clicking: getting there
   // is a wire re-dialling through its backoff and being refused, so a bare
   // click would time out on Playwright's own clock and report a missing button
   // rather than a retirement that never happened.
   await this.page
-    .locator(RESTARTED)
+    .locator(OFFLINE)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.page.locator(RELOAD).click();
   // The click navigates, so wait for the app to commit to a shape again —

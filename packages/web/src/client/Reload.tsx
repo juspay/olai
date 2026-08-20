@@ -1,17 +1,19 @@
 /**
  * The button that ends a page that is over.
  *
- * Two surfaces draw it and they are the two states a reload is the only way out
- * of: the server that served this page has been replaced
- * (./connection/Restarted.tsx), and this client threw while drawing
- * (./errors/Fault.tsx). They already share `TESTID.reload`, because to a reader
- * — and to a test — it is one control; this is the rest of that sharing, so the
- * label and the look cannot drift apart between two screens a person will only
- * ever see one of.
+ * Two surfaces draw it and they are the two states a reload is the only way
+ * out of: the server that served this page has been replaced — the one frozen
+ * state with something to offer besides waiting, so the button rides the
+ * offline overlay (./connection/Offline.tsx) — and this client threw while
+ * drawing (./errors/Fault.tsx). They already share `TESTID.reload`, because to
+ * a reader — and to a test — it is one control; this is the rest of that
+ * sharing, so the label and the look cannot drift apart between two screens a
+ * person will only ever see one of.
  *
- * A BUTTON, never automatic, and the argument is Restarted.tsx's: a reload
- * lands a different bundle and throws away what is on screen, and doing that to
- * somebody mid-sentence without asking is how a live app becomes a rude one.
+ * A BUTTON, never automatic, and the argument came from the screen the overlay
+ * replaced: a reload lands a different bundle and throws away what is on
+ * screen, and doing that to somebody mid-sentence without asking is how a live
+ * app becomes a rude one.
  *
  * WHAT it reloads is the caller's, not this component's. Both callers pass
  * `reloadForUpdate` today — the framework's, so the browser lands on the

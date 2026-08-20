@@ -738,11 +738,15 @@ export const TESTID = {
   /** In one outline's place: that file could not be read, the rest are live. */
   outlineFailure: "outline-failure",
   /** The connection dot, always on screen. Its `data-connection` attribute
-   *  carries the state itself — `live`, `lost`, `restarted`, `connecting` — so a
-   *  scenario asserts on the state and never on the colour it is painted. */
+   *  carries the state itself — `connecting`, `live`, `degraded`,
+   *  `reconnecting`, `retired` — so a scenario asserts on the state and never
+   *  on the colour it is painted. */
   connection: "connection",
-  /** Over everything: the server that served this page has been replaced. */
-  restarted: "restarted",
+  /** THE FREEZE: over everything, and nothing under it is interactive — the
+   *  wire cannot carry a question, so the app takes no gesture at all
+   *  (`client/connection/Offline.tsx`). `data-connection` carries the state
+   *  that froze it, the same spelling the pill publishes. */
+  offline: "offline",
   /** The button in that surface — the whole of the recovery. Shared with the
    *  fault card below, which recovers the same way and for the same reason. */
   reload: "reload",
@@ -879,9 +883,6 @@ export const TESTID = {
    *  different piece of news from a query it read and refused
    *  (`client/filter/asking.ts`). */
   filterFailure: "filter-failure",
-  /** Why the box is inert: the connection cannot carry a question, in the
-   *  connection pill's own words. */
-  filterOffline: "filter-offline",
 
   // ── split panes ──────────────────────────────────────────────────────
   /** One pane of a split workspace. `data-pane` is its index,

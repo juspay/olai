@@ -34,6 +34,20 @@
  * something else entirely (it is sealed inside the chat panel, which rides at
  * 30). Nothing was broken and nothing could be read.
  *
+ * ## The ONE thing above this table, and why it is not in it
+ *
+ * The offline overlay (`connection/Offline.tsx`) is a `<dialog>` opened with
+ * `showModal()`, which puts it in the browser's TOP LAYER — above every
+ * stacking context on the page at once, whatever number is on it — and makes
+ * the rest of the document inert. It has to be: the freeze's whole claim is
+ * that nothing underneath can be touched, and a `z-index` cannot make that
+ * claim against a panel that portals to `document.body` LATER at the same
+ * {@link LAYER.over} and paints over whatever was already there. So the freeze
+ * spells no layer, and this paragraph is the entry it would otherwise have
+ * had — a reader of this table needs to know that one thing sits over all of
+ * it, and `claims.test.ts` holds `showModal` to that single file so a second
+ * one cannot appear without an argument.
+ *
  * ## The order, and what each step is holding
  *
  * Three claims are held about the table, in the two places each belongs.
@@ -102,13 +116,13 @@ export const LAYER = {
    */
   header: "z-[45]",
   /**
-   * Over the bar as well: the two full-screen modals (the command palette, the
-   * restarted card), and the panels that are PORTALLED out of the header —
-   * the commit panel, preferences, the search results. Those three are drawn
-   * against the viewport rather than inside the 3rem box they belong to, so
-   * they need a layer of their own up here; the modals need one because a
-   * question about the whole app may not have the app's own chrome on top of
-   * it.
+   * Over the bar as well: the two full-screen modals (the command palette and
+   * the keyboard-shortcut list it opens), and the panels that are PORTALLED out
+   * of the header — the commit panel, preferences, the search results. Those
+   * three are drawn against the viewport rather than inside the 3rem box they
+   * belong to, so they need a layer of their own up here; the modals need one
+   * because a question about the whole app may not have the app's own chrome on
+   * top of it.
    */
   over: "z-50",
 } as const

@@ -52,13 +52,20 @@
  *
  * ## What a dead wire does
  *
- * Nothing is asked and nothing is queued behind the reader, which is
- * `../filter/asking.ts`'s rule and this door's for the same reason: a question
- * sent down a socket that is not there is not a slower answer, it is no answer.
- * The spans stay plain — which is what they are before any answer — and the
+ * Nothing is asked and nothing is queued behind the reader: a question sent
+ * down a socket that is not there is not a slower answer, it is no answer. The
+ * spans stay plain — which is what they are before any answer — and the
  * question is asked when the wire comes back, because the readout is part of
- * what drives it. The app-wide answer to a dead wire is the offline overlay
- * (`vault-in-browser.md` §5b), which is its own PR.
+ * what drives it.
+ *
+ * THE OVERLAY DOES NOT MAKE THIS REDUNDANT, which is worth saying because it
+ * made the filter's inert box redundant and both were the same guard. A frozen
+ * app takes no keystroke, so a door somebody TYPES at needs no rule about a
+ * dead wire any more; this door is not typed at. Its questions are asked BY
+ * arriving prose, and the ids of a batch in flight when the socket died are
+ * answered by nothing else — tracking the readout is what asks them again when
+ * the wire returns, and without it those spans would stay plain for as long as
+ * the message is on screen.
  *
  * ## Why this is not a `createResource`
  *
@@ -86,7 +93,7 @@ import { type Accessor, createEffect, createSignal, untrack } from "solid-js"
 
 import type { OpFailure } from "@olai/surface"
 
-import { unreachable } from "../connection/reaching.ts"
+import { reachable } from "../connection/reaching.ts"
 import { runAsync } from "../run.ts"
 import { connectionReadout, olai } from "../wire.ts"
 
@@ -232,7 +239,7 @@ export const createDeclared = (): Declared => {
     // NOTHING IS ASKED INTO A DEAD SOCKET, and nothing is queued: the spans
     // stay plain, which is what they are before any answer, and tracking the
     // readout is what asks again when the wire comes back.
-    if (unreachable(connectionReadout()) !== null) return
+    if (!reachable(connectionReadout())) return
     // `untrack`: what is known is read to decide what to ask, and an answer
     // landing is not a reason to ask again.
     const told = untrack(known)

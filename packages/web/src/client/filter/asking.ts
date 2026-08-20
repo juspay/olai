@@ -54,17 +54,36 @@
  *     bar says which of the two a reader is looking at, so nothing on screen is
  *     unlabelled — what it must never do is show the wrong rows silently.
  *
- * ## What a dead wire does, decided rather than inherited
+ * ## What a dead wire does, and why there is nothing here about it
  *
  * A filter over a local copy kept working with the socket down; a filter that
- * is a question does not. The ruling for the app as a whole is an offline
- * overlay that freezes it (`vault-in-browser.md` §5b), and that is its own PR.
- * Until it lands, this door does the honest small thing: while the connection
- * cannot carry a question, none is asked, the last answer stands (which is what
- * the pill already promises — "what is on screen is the last thing the server
- * said"), and the box goes inert wearing the pill's own words
- * ({@link Asked.offline}, drawn by `./FilterBar.tsx`). Nothing pretends: an
- * unreachable server never gets a question queued behind somebody's typing.
+ * is a question does not. This door used to answer that for itself — no
+ * question asked while the wire was down, the box inert wearing the pill's own
+ * words. It does not any more, because the app-wide ruling landed: a wire that
+ * cannot carry a question FREEZES THE APP under an overlay
+ * (`vault-in-browser.md` §5b, `../connection/Offline.tsx`), so no keystroke
+ * ARRIVES to be refused and there is no box on screen to draw a reason on. What
+ * is left here is the one rule the freeze does not make: the last answer stands
+ * through a refused call, because a narrowed page may not blank under somebody
+ * because a socket blinked.
+ *
+ * ONE QUESTION CAN STILL BE SENT INTO A DEAD SOCKET, and it is worth naming
+ * rather than implying it away: the settle already ticking when the wire drops
+ * ({@link SETTLE_MS}) fires into it, where the deleted guard used to clear the
+ * timer. Both branches are honest. If the call is refused, the failure lands in
+ * its own slot with the answered rows still standing — the rule above — and it
+ * is drawn BEHIND the overlay, where nobody is reading it; when the wire
+ * returns, the generation below re-asks and a successful answer clears it. If
+ * the socket comes back first, the call simply lands. Clearing the timer
+ * instead would mean this door reading the connection again — the exact thing
+ * the overlay took away from it — to suppress a line nobody can see, so the
+ * tail is documented rather than closed. (opencode, review of #277.)
+ *
+ * COMING BACK IS ALREADY WRITTEN, and it is the set's generation that writes
+ * it ({@link Ask.at}): a reconnect re-opens the subscription with a full
+ * snapshot, the derivation is a fresh value, and the question this door is
+ * standing on is asked again against the wire that came back. Nothing had to
+ * be added for the reconnect; the standing-view rule already covered it.
  */
 
 import { debounce } from "@solid-primitives/scheduled"
@@ -84,9 +103,8 @@ import type { MatchedNode } from "@olai/surface"
 
 import { runAsync } from "../run.ts"
 import { SETTLE_MS } from "../settled.ts"
-import { unreachable } from "../connection/reaching.ts"
 import type { Drawn } from "../page.ts"
-import { connectionReadout, olai } from "../wire.ts"
+import { olai } from "../wire.ts"
 import { showsTrashed } from "./drawn.ts"
 
 // The settle is imported rather than restated (`../settled.ts` argues it: one
@@ -96,10 +114,12 @@ import { showsTrashed } from "./drawn.ts"
 //
 // THIS DOOR IS NOT A CALLER of that primitive, and that file says why from its
 // side: a shortlist is a question somebody opened and closed, where a filter is
-// a standing view of a page — which is where the two rules below that it does
-// not have come from (an answer that survives a refused call, and a question
-// never asked over a dead wire). The set's generation is NOT one of them: that
-// primitive takes a value question with an `equals`, exactly as this one does.
+// a standing view of a page — which is where the ONE rule below that it does not
+// have comes from: an answer that survives a refused call. There were two until
+// the offline overlay landed, and the second ("never asked over a dead wire") is
+// the freeze's job now, as the header says. The set's generation is NOT a third:
+// that primitive takes a value question with an `equals`, exactly as this one
+// does.
 
 /** What a query selected, ready for a row to look itself up in: id → why. The
  *  server's own answer rows, kept as they arrived rather than re-shaped — the
@@ -127,9 +147,6 @@ export interface Asked {
    *  nothing. Its own slot, never the grammar's refusals: a refused CALL is the
    *  server saying it could not answer, and a refused QUERY is an answer. */
   readonly failure: Accessor<string | null>
-  /** Why a question cannot be asked at all right now — the connection pill's
-   *  own sentence — or `null` while it can. */
-  readonly offline: Accessor<string | null>
 }
 
 /**
@@ -219,8 +236,6 @@ export const createAsked = (source: {
   const [asked, setAsked] = createSignal<string | null>(null)
   const settle = debounce(setAsked, SETTLE_MS)
 
-  const offline = createMemo(() => unreachable(connectionReadout()))
-
   /** Whether this page's own rows are already put-away ones — a MEMO, because
    *  the page it reads is a fresh value on every revision the store publishes
    *  and the whole of what this takes from it is a boolean that is constant for
@@ -257,16 +272,6 @@ export const createAsked = (source: {
       // page that is lying for as long as it stands.
       settle.clear()
       setAsked(null)
-      return
-    }
-    // A QUESTION THAT CANNOT REACH THE SERVER IS NOT ASKED, and nothing is
-    // queued behind the reader's typing to be sent when it can: what is on
-    // screen stays the last thing the server said, the box is inert, and the
-    // pill's words say why. Tracking the readout is what re-asks when the wire
-    // comes back — the current question, not the one that was typed while it
-    // was down.
-    if (offline() !== null) {
-      settle.clear()
       return
     }
     settle(wanted)
@@ -361,6 +366,5 @@ export const createAsked = (source: {
      */
     answering: () => held()?.text ?? null,
     failure,
-    offline,
   }
 }
