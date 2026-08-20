@@ -28,17 +28,22 @@
  * about a class name.
  */
 
+import type { JSX } from "solid-js"
+
 import type { Said } from "./undoing.ts"
 
 export function SaidLine(props: {
   readonly said: Said
   /** Where this line sits, and how it is boxed — the caller's. */
   readonly class?: string
+  /** Viewport coordinates, when the caller has portalled the line. */
+  readonly style?: JSX.CSSProperties
   readonly testid: string
 }) {
   return (
     <p
       class={props.class}
+      style={props.style}
       classList={{
         "text-alarm": props.said.tone === "alarm",
         "text-muted": props.said.tone === "aside",

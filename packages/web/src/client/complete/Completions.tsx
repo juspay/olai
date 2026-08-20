@@ -69,8 +69,11 @@ export function Completions(props: { readonly listing: Listing }) {
   const [at, setAt] = createSignal<At | null>(null, { equals: sameAt })
 
   const measure = (): void => {
-    const cell = host?.parentElement
-    if (cell === undefined || cell === null) return
+    if (host === undefined) return
+    const cell = host.parentElement
+    if (cell === null) {
+      throw new Error("completions: the title cell is gone — the list cannot hang")
+    }
     const box = cell.getBoundingClientRect()
     setAt({ left: box.left, top: box.bottom + 4 })
   }

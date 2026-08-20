@@ -59,8 +59,9 @@ export const LAYER = {
    *     this same layer paint over earlier ones, which is how a heading holds
    *     the seam.
    *   - **out of the tree**: anything that HANGS off a row — the `•••` menu,
-   *     the title-cell completions, the drop line, the sweep band. These must
-   *     PORTAL to the document. A `z-index` only compares inside its own
+   *     the line beside it, the title-cell completions, the drop line, the
+   *     sweep band. These must PORTAL to the document. A `z-index` only
+   *     compares inside its own
    *     stacking context, and a sticky heading is one: an overlay left in the
    *     row is cut in two the moment the next section arrives
    *     (`menu-under-headers`). The number is the same; the tree position is

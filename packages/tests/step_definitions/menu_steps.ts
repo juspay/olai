@@ -37,7 +37,6 @@ import {
   NODE_MENU_ITEM,
   NODE_MENU_PANEL,
   NODE_MENU_SAID,
-  nodeSelector,
   oneLine,
   POLL_TIMEOUT,
   ZOOM,
@@ -281,6 +280,42 @@ Then(
   },
 );
 
+/** The same question, asked of the line a verb leaves behind. The panel
+ *  is gone by then; the line is what a later heading used to swallow. */
+Then(
+  "the node menu's said line takes the pointer where it crosses the section heading of {string}",
+  async function (this: OlaiWorld, id: string) {
+    const said = this.page.locator(NODE_MENU_SAID);
+    await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const heading = this.within(id, NODE_GUTTER);
+    const over = await this.box(said, "the node menu's said line");
+    const under = await this.box(heading, `the section heading "${id}"`);
+    const left = Math.max(over.x, under.x);
+    const right = Math.min(over.x + over.width, under.x + under.width);
+    const top = Math.max(over.y, under.y);
+    const bottom = Math.min(over.y + over.height, under.y + under.height);
+    assert.ok(
+      right > left && bottom > top,
+      `the said line (${Math.round(over.x)},${Math.round(over.y)} ` +
+        `${Math.round(over.width)}×${Math.round(over.height)}) does not ` +
+        `cross the section heading of "${id}" ` +
+        `(${Math.round(under.x)},${Math.round(under.y)} ` +
+        `${Math.round(under.width)}×${Math.round(under.height)}) — ` +
+        "without an overlap this step cannot see a layer",
+    );
+    const found = await this.topmostTestidAt(
+      (left + right) / 2,
+      (top + bottom) / 2,
+    );
+    assert.strictEqual(
+      found,
+      TESTID.nodeMenuSaid,
+      `the element at the overlap is ${found} — a sticky heading ` +
+        "painting through the said line is the bug this scenario holds",
+    );
+  },
+);
+
 /**
  * THE PANEL FITS THE WINDOW — the geometric half of the overflow fix, which no
  * other step in this suite can see.
@@ -409,12 +444,15 @@ Then("the node menu is not asking anything", async function (this: OlaiWorld) {
 /** What the line beside the `•••` reads, and which MOOD it is in. Both at
  *  once, because the two steps below differ in nothing else — and the tone is
  *  a `data-` fact rather than a colour, the same contract the row editor's
- *  line keeps. */
+ *  line keeps.
+ *
+ *  The line is PORTALLED onto `overlay.ts` (`menu/MenuSaid.tsx`), so it is
+ *  not a descendant of the row. The page holds at most one at a time: a new
+ *  sentence replaces the one before it. */
 const said = async (
   world: OlaiWorld,
-  id: string,
 ): Promise<{ readonly text: string; readonly tone: string | null }> => {
-  const line = world.within(id, NODE_MENU_SAID);
+  const line = world.page.locator(NODE_MENU_SAID);
   await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   return { text: oneLine(await line.innerText()), tone: await line.getAttribute("data-tone") };
 };
@@ -425,7 +463,7 @@ const said = async (
 Then(
   "the node menu of {string} says {string}",
   async function (this: OlaiWorld, id: string, text: string) {
-    const line = await said(this, id);
+    const line = await said(this);
     assert.strictEqual(line.text, text);
     assert.strictEqual(
       line.tone,
@@ -457,7 +495,7 @@ Then(
 Then(
   "the node menu of {string} says nothing",
   async function (this: OlaiWorld, id: string) {
-    const line = this.page.locator(`${nodeSelector(id)} ${NODE_MENU_SAID}`);
+    const line = this.page.locator(NODE_MENU_SAID);
     const said = await line.count();
     assert.strictEqual(
       said,
@@ -477,7 +515,7 @@ Then(
 Then(
   "the node menu of {string} remarks {string}",
   async function (this: OlaiWorld, id: string, text: string) {
-    const line = await said(this, id);
+    const line = await said(this);
     assert.ok(
       line.text.includes(text),
       `"${id}" remarked ${JSON.stringify(line.text)}, which does not mention ${
