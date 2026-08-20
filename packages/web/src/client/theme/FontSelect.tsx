@@ -3,7 +3,7 @@
  * puts it in force.
  *
  * A select rather than a strip of chips, because twenty names never fit the
- * way fifteen colour chips do, and because this is the control Workflowy's
+ * way the colour chips do, and because this is the control Workflowy's
  * list is. The panel STAYS OPEN on a pick — a face is judged by looking at
  * the page it sets, and shutting the surface after every change would make
  * comparing two of them a matter of reopening it.

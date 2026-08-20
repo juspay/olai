@@ -31,7 +31,7 @@ export function Segmented<T extends string>(props: {
   // A plain comparison, and deliberately not the `createSelector` the theme
   // chips use: a selector earns its keep by notifying only the entries that
   // changed, and in a strip of two or three EVERY entry changes when the pick
-  // does. Fifteen chips are the case it was written for.
+  // does. The theme chips are the case it was written for.
   const isInForce = (value: T): boolean => props.value === value
 
   return (

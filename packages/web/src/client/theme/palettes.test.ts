@@ -15,25 +15,19 @@ import {
  *  here is the things a type cannot say: that no two rows answer to the same
  *  name, that the values are colours, and that the default is one of them. */
 describe("the palette table", () => {
-  test("keeps the fifteen the racket implementation did, and the two after them", () => {
-    expect(THEME_NAMES.slice(0, 15)).toEqual([
+  test("is the ten, lights then darks, reef leading", () => {
+    expect(THEME_NAMES).toEqual([
+      "reef",
       "leaf",
       "manuscript",
+      "bloom",
+      "sky",
       "chalk",
+      "aurora",
       "pitch",
-      "light",
-      "dark",
-      "vintage",
-      "catppuccin",
-      "chocolate",
-      "hacker",
-      "matcha",
-      "moon",
-      "neo",
-      "one-dark",
-      "robot",
+      "ember",
+      "dusk",
     ])
-    expect(THEME_NAMES.slice(15)).toEqual(["reef", "aurora"])
   })
 
   test("no two themes share a name", () => {
@@ -62,12 +56,17 @@ describe("the palette table", () => {
 
   test("chalk is the one that promises AA", () => {
     expect(paletteNamed("chalk")?.aa).toBe(true)
+    expect(
+      PALETTES.filter((palette) => palette.aa === true).map((palette) => palette.name),
+    ).toEqual(["chalk"])
   })
 
   test("a name no row offers resolves to nothing, rather than to something", () => {
     // What a value stored by an older olai looks like after a rename — the
-    // client forgets it, and can only do that if this answers honestly.
+    // client forgets it, and can only do that if this answers honestly. The
+    // WorkFlowy ports that left this table are that case.
     expect(paletteNamed("no-such-theme")).toBeUndefined()
+    expect(paletteNamed("matcha")).toBeUndefined()
     expect(paletteNamed(DEFAULT_THEME)).toBe(DEFAULT_PALETTE)
   })
 
@@ -79,12 +78,11 @@ describe("the palette table", () => {
     expect(THEME_STORAGE_KEY).toBe("olai.theme")
   })
 
-  test("the ported values reach the table verbatim (spot check)", () => {
-    // A canary over the port itself, in the same spirit as the racket suite's:
-    // the first palette's paper and the last one's alarm, read off
-    // master-racket's olai/web/theme.rkt.
-    expect(paletteNamed("leaf")?.colors.paper).toBe("#E4ECCA")
+  test("the values reach the table verbatim (spot check)", () => {
+    // A canary over the table itself: the default's paper (also the
+    // manifest's chrome), the AA palette's desk, and a new row's paper.
+    expect(paletteNamed("reef")?.colors.paper).toBe("#D7F0E8")
     expect(paletteNamed("chalk")?.colors.desk).toBe("#F2F2EC")
-    expect(paletteNamed("robot")?.colors.alarm).toBe("#E8393F")
+    expect(paletteNamed("dusk")?.colors.paper).toBe("#1C1023")
   })
 })

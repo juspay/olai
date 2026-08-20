@@ -346,7 +346,7 @@ const whyDrawn = async (page: Page) =>
  *  page keeps it and the tab is reloaded — which is also the honest way to
  *  photograph it, since the boot script is what paints the first frame. */
 const inTheDark = async (page: Page) => {
-  await page.evaluate(() => localStorage.setItem("olai.theme", "dark"))
+  await page.evaluate(() => localStorage.setItem("olai.theme", "aurora"))
   await page.reload()
   await page.locator(OUTLINE_TREE).first().waitFor()
   await page.waitForTimeout(DRAWN)
@@ -2146,7 +2146,7 @@ const SECTIONS = {
     // The other half of the palette table. Set before the pass, so the frames
     // that follow are painted by the boot script rather than by a swap
     // ({@link inTheDark} does the same for a section with nothing left to do).
-    await page.evaluate(() => localStorage.setItem("olai.theme", "dark"))
+    await page.evaluate(() => localStorage.setItem("olai.theme", "aurora"))
     await pass(true, "order")
   },
 

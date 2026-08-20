@@ -53,7 +53,7 @@ When("I pick the default theme", async function (this: OlaiWorld) {
 });
 
 /** Open the preferences if the chips are not already on screen. The strip is
- *  the panel's Theme row: fifteen names never crowded the bar, because the bar
+ *  the panel's Theme row: the chips never crowded the bar, because the bar
  *  never held them — what changed with `preferences-panel` is that the pill in
  *  front of them is gone and this is the one door. */
 const showChips = async (
@@ -101,8 +101,8 @@ Then("the page names no theme", async function (this: OlaiWorld) {
  * This is the promise the retired header pill carried, kept where the rest of
  * the preferences are said. It is worth its own step for the reason it was
  * worth one there: mutation-tested, hard-coding the name to "chalk" passed
- * every theming scenario until something asserted it. Fifteen chips wearing
- * fifteen palettes say which is which and not which is ON.
+ * every theming scenario until something asserted it. Chips wearing their
+ * palettes say which is which and not which is ON.
  */
 Then(
   "the theme row names the theme in force",

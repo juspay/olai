@@ -43,14 +43,52 @@ describe("contrast", () => {
   })
 
   test("an alpha is dropped rather than misread", () => {
-    // `chocolate`'s rule is translucent, which is theirs and stays theirs. A
-    // ratio against a colour that is partly what is behind it is not a fact,
-    // so the alpha is ignored — and no palette that makes the AA claim has one.
+    // A ratio against a colour that is partly what is behind it is not a
+    // fact, so the alpha is ignored — and no palette that makes the AA claim
+    // has one.
     expect(relativeLuminance("#A1836B53")).toBe(relativeLuminance("#A1836B"))
   })
 
   test("a value that is not a colour is refused, not silently NaN", () => {
     expect(() => relativeLuminance("rebeccapurple")).toThrow()
+  })
+
+  test("every palette clears the reading floor, pair by pair", () => {
+    // Ink on the page (and paper on the frame) at least 7:1, because this is
+    // an outliner a person lives in. The rest of the pairs this client paints
+    // on the paper, and ink on the raised surfaces, at least AA. `chalk`
+    // additionally promises the full PAINTED set, including muted on a pill.
+    const FLOOR: ReadonlyArray<
+      readonly [PaletteToken, PaletteToken, number]
+    > = [
+      ["ink", "paper", 7],
+      ["paper", "ink", 7],
+      ["muted", "paper", AA],
+      ["accent", "paper", AA],
+      ["done", "paper", AA],
+      ["doing", "paper", AA],
+      ["alarm", "paper", AA],
+      ["ink", "desk", AA],
+      ["ink", "panel", AA],
+      ["ink", "pill", AA],
+      ["paper", "accent", AA],
+      ["ink", "rule", AA],
+    ]
+    const under = PALETTES.flatMap((palette) =>
+      FLOOR.flatMap(([foreground, background, floor]) => {
+        const ratio = contrastRatio(
+          palette.colors[foreground],
+          palette.colors[background],
+        )
+        return ratio >= floor
+          ? []
+          : [
+              `${palette.name}: ${foreground} on ${background} is ` +
+                `${ratio.toFixed(2)}:1, under ${floor}:1`,
+            ]
+      }),
+    )
+    expect(under).toEqual([])
   })
 
   test("a palette that promises AA keeps it, pair by pair", () => {

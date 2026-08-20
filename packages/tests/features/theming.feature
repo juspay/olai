@@ -88,7 +88,7 @@ Feature: The theme is a pick, and it is yours
     # page that picked repaints it from the same table that painted the page.
     When I open the app
     Then the browser chrome matches the paper
-    When I pick the theme "matcha"
+    When I pick the theme "bloom"
     Then the browser chrome matches the paper
 
   Scenario: The manifest opens the app in the paper an unpicked page paints
@@ -101,6 +101,6 @@ Feature: The theme is a pick, and it is yours
   Scenario: Picking a theme asks the server for nothing
     When I open the app
     And I watch what the page asks for
-    And I pick the theme "hacker"
-    Then the page is in the theme "hacker"
+    And I pick the theme "ember"
+    Then the page is in the theme "ember"
     And the page asked for nothing at all
