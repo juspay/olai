@@ -159,6 +159,55 @@ Feature: Documents
     Then the address names the heading "Footnotes"
     And the heading "Footnotes" is at the top of the pane
 
+  # A `.md` may open with a `---` block, and the block is the document's own
+  # RECORD rather than the first thing it says. It was neither: the parser had
+  # no frontmatter extension, so the fence came out as a thematic break and
+  # `agent: claude-opus` as a setext `<h2>` — with an anchor on it, and a line
+  # in the contents naming a section the document does not have.
+  #
+  # `notes/palette.md` carries one now, and the contents is asked for its LINES
+  # rather than held to the headings the page drew: a phantom heading is in
+  # both, so the comparison next door is satisfied by it.
+  @corpus:good
+  Scenario: A document's frontmatter is a record and not part of its page
+    When I open the document "notes/palette.md"
+    Then the document does not draw the text "agent: claude-opus"
+    And the document draws no rule
+    And the contents lines are "Palette, What the block above has to do"
+    And there should be no page errors
+
+  # The other half of the same block: what the document is CALLED. The title is
+  # the first line of its PROSE — the sidebar, the palette and every row that
+  # names a document said `---` before, because the fence was the first line
+  # with anything on it.
+  #
+  # …and the door this whole item is. A document's frontmatter keys are the
+  # same open namespace a node's properties are, so `prop:` selects one, and
+  # the row says which key was the reason exactly as a node's row does.
+  @corpus:good
+  Scenario: A document is found by a property its frontmatter writes
+    Given I open the outline "house.olai"
+    When I search the header for "prop:agent=claude-opus"
+    Then the header search lists the document "notes/palette.md"
+    And the header search result for the document "notes/palette.md" is called "Palette"
+    And the header search result "Palette" shows the property "agent" holding "claude-opus"
+    And the header search result "Palette" marks "agent" as why it matched
+    And there should be no page errors
+
+  # A property is a property and NOT a record. The block carries a `date:` and a
+  # `#`-looking value on purpose: neither becomes the thing it resembles, and
+  # both are still findable by the name they actually have.
+  @corpus:good
+  Scenario: A frontmatter key is not a tag and not a day
+    Given I open the outline "house.olai"
+    When I press the palette shortcut
+    And I type "#swatches" into the palette
+    Then the palette lists no document "notes/palette.md"
+    When I type "date:2026-09-01" into the palette
+    Then the palette lists no document "notes/palette.md"
+    When I type "prop:date=2026-09-01" into the palette
+    Then the palette lists the document "notes/palette.md"
+
   # A note is a tree row, not a page: it is drawn under a title the page owns,
   # three of them on screen at once. `catch-up`'s note has two headings, so a
   # contents WOULD be drawn here if this were decided by the markdown rather

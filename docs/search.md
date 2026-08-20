@@ -110,7 +110,13 @@ Title hits outrank id, tag and note; a field that starts with the word beats one
 
 The weights are the SAME numbers, which is what puts both kinds in one ranked list rather than two blocks that only look interleaved: a document whose title holds the word outranks a node that only mentions it in a note.
 
-**An operator over a field a document does not have selects no document.** There is nowhere on a `.md` to write a mark, a date or a property, and it carries neither stamp — a document is a file, and when a file was written is the filesystem's answer rather than something this format records. So the honest answer to "which documents are done", and to `created:last-week`, is none of them — and that is the hole [frontmatter](brainstorming/first-class-documents.md) is the named next step for, rather than something patched per operator. A NEGATED one is satisfied, by the same sentence read the other way: `-is:done` asks for what is not finished, and a document is not.
+### Properties
+
+**`prop:` selects documents, out of their frontmatter.** A `.md` writes named facts about itself in the `---` block at the top of the file ([format.md](format.md#documents)), and those are the same open namespace a node's custom properties are — one map, no key given a meaning by olai, text or a list of text. So `prop:pr`, `prop:agent=claude-opus` and `prop:stage="in review"` are asked of both kinds and answer in one ranked list, folded on both halves exactly as they are for a record, and a list value matches on any member. The row says which key was the reason, and carries the rest of the map beside it, the way a node's row does.
+
+**The frontmatter is not the document's prose.** A word only the block holds is found by `prop:` and not by typing it: otherwise every file in a vault that uses frontmatter would be a hit for `title`, and a row would say a word was found in a document's body when what held it was a property.
+
+**An operator over a field a document still does not have selects no document.** There is nowhere on a `.md` to write a mark or a day, and it carries neither stamp — a document is a file, and when a file was written is the filesystem's answer rather than something this format records. So the honest answer to "which documents are done", and to `created:last-week`, is none of them. A frontmatter `date:` does not change that: it is a property named `date`, found by `prop:date`, and reading it as the journal's day would put a document in a search that the day page, the agenda and the calendar do not draw it in. A NEGATED clause is satisfied, by the same sentence read the other way: `-is:done` asks for what is not finished, and a document is not.
 
 **A scoped query selects no documents at all.** `file` is one outline and `under` is one node's subtree, and a document is in neither — both are questions about where a RECORD sits in a tree.
 

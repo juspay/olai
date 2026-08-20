@@ -106,6 +106,43 @@ Then(
   },
 );
 
+/**
+ * THE ABSENCE a rendered document has to have, and the one thing a step about
+ * frontmatter can honestly ask of a page.
+ *
+ * Over the rendered BODY's text rather than the page's, because the source is
+ * on the page in one state a reader can reach — the editor — and a step that
+ * looked at the whole pane would be green for the wrong reason the moment
+ * somebody opens it.
+ *
+ * `oneLine` on both sides, so a claim about text is not a claim about where
+ * the renderer put its newlines.
+ */
+Then(
+  "the document does not draw the text {string}",
+  async function (this: OlaiWorld, text: string) {
+    const rendered = body(this);
+    await rendered.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const said = oneLine(await rendered.innerText());
+    assert.ok(
+      !said.includes(oneLine(text)),
+      `the document draws ${JSON.stringify(text)}, which is not part of its prose`,
+    );
+  },
+);
+
+/** No thematic break at all — the other half of what a `---` block used to
+ *  leave behind, and the half no text assertion can see. */
+Then("the document draws no rule", async function (this: OlaiWorld) {
+  const rendered = body(this);
+  await rendered.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.strictEqual(
+    await rendered.locator("hr").count(),
+    0,
+    "the document draws a thematic break",
+  );
+});
+
 // ── the pipeline's own promises ────────────────────────────────────────
 
 Then(

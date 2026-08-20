@@ -34,6 +34,7 @@
  */
 
 import { type Address, addressOf, printAddress } from "./address.ts"
+import { proseIn } from "./frontmatter.ts"
 import { bodyKind, fileKind } from "./kinds.ts"
 import { isMirror, type Located } from "./node.ts"
 import { headingText } from "./slug.ts"
@@ -327,14 +328,21 @@ export const isAsset = (path: string): boolean =>
  * other.
  */
 export const firstLine = (text: string): string => {
+  // FRONTMATTER IS NOT THE FIRST LINE, and asking {@link ./frontmatter.ts} is
+  // how this knows: a `.md` that opens with a `---` block was called `---` in
+  // the sidebar, in the palette and beside every `doc`-carrying row, because
+  // the literal first line with anything on it was the fence. The record on
+  // top of a document is not what the document is CALLED — its first real line
+  // is, exactly as it is for one with no record at all.
+  const body = proseIn(text)
   // Scanned rather than split: a preview reads the top of a document, and
   // `split("\n")` would allocate every line of one to throw all but the first
   // away — on a page that draws this beside every `doc`-carrying row, and in a
   // listing that draws it once per served document.
   let at = 0
-  while (at < text.length) {
-    const end = text.indexOf("\n", at)
-    const line = (end === -1 ? text.slice(at) : text.slice(at, end)).trim()
+  while (at < body.length) {
+    const end = body.indexOf("\n", at)
+    const line = (end === -1 ? body.slice(at) : body.slice(at, end)).trim()
     if (line !== "") {
       // Only the heading marks, and only where markdown puts them — which is
       // `./slug.ts`'s own rule, asked rather than spelled again: what a

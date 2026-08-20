@@ -21,9 +21,17 @@
  *
  * The stages, and why each is where it is:
  *
- *   1. **parse**, with GFM — which is what brings footnotes (and tables, task
- *      lists and strikethrough) into the same dialect an agent and a reader
- *      already write.
+ *   1. **parse**, with FRONTMATTER and GFM. GFM is what brings footnotes (and
+ *      tables, task lists and strikethrough) into the same dialect an agent and
+ *      a reader already write. Frontmatter is what keeps the `---` block at the
+ *      top of a `.md` OFF the page: without the extension the parser sees a
+ *      thematic break and a setext heading, so `title: x` was drawn as an
+ *      `<h2>`, given an anchor, and listed in the table of contents as a
+ *      section the document does not have — while the face, which skips the
+ *      block, promised no such element. The block is a record about the file
+ *      (`@olai/format`'s `frontmatter.ts` reads it into the document's
+ *      properties); `mdast-util-to-hast` drops the node it makes, so nothing
+ *      here has to strip anything.
  *   2. **to HTML**, with footnote ids left bare (`clobberPrefix: ""`). They are
  *      re-minted by ./render.ts against the block they are in, so a prefix here
  *      would only be a second one to strip.
@@ -61,6 +69,7 @@ import rehypeAutolinkHeadings from "rehype-autolink-headings"
 import rehypeHighlight from "rehype-highlight"
 import rehypeSanitize from "rehype-sanitize"
 import rehypeStringify from "rehype-stringify"
+import remarkFrontmatter from "remark-frontmatter"
 import remarkGfm from "remark-gfm"
 import remarkParse from "remark-parse"
 import remarkRehype from "remark-rehype"
@@ -89,6 +98,12 @@ const languages = { ...common, nix }
 
 const pipeline = unified()
   .use(remarkParse)
+  // The dash-fenced YAML block, and only that dialect: TOML and the other
+  // spellings `remark-frontmatter` can take are not what a `.md` in this vault
+  // opens with, and the format side reads the same one construct
+  // (`@olai/format`'s `frontmatter.ts`, whose header spells micromark's rule
+  // out so the two cannot disagree about where the block ends).
+  .use(remarkFrontmatter, ["yaml"])
   .use(remarkGfm)
   .use(remarkRehype, { clobberPrefix: "" })
   .use(rehypeSlugs)

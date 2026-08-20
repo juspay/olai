@@ -84,6 +84,49 @@ test("a heading inside a fenced block is neither drawn nor promised", () => {
   expect(drawn(body)).toEqual(["real", "also-real"])
 })
 
+/**
+ * THE `---` BLOCK, and it is the case this pair was written for.
+ *
+ * The closing fence sits directly under a line of text, so a reading that did
+ * not know about frontmatter sees a setext `<h2>` — and that is exactly what
+ * the page drew: `title: x` as a heading, with an anchor on it and a row in the
+ * table of contents, naming a section the face (which skipped the block) never
+ * promised existed. Both sides read the block now — `remark-frontmatter` in
+ * `./pipeline.ts`, `@olai/format`'s `frontmatter.ts` in the face — and this is
+ * where they are held to the same answer.
+ */
+test("frontmatter is a heading to neither reading", () => {
+  const body = [
+    "---",
+    "title: The kitchen plan",
+    "owners: [alice, bob]",
+    "---",
+    "",
+    "# The plan",
+    "",
+    "## Next steps",
+  ].join("\n")
+  expect(drawn(body)).toEqual(slugsIn(body).map(String))
+  expect(drawn(body)).toEqual(["the-plan", "next-steps"])
+  // …and the block is not on the page at all — no rule, no phantom heading.
+  const html = renderMarkdown(body, FROM)
+  expect(html).not.toContain("<hr")
+  expect(html).not.toContain("title: The kitchen plan")
+})
+
+/**
+ * An UNCLOSED fence is not frontmatter — it is the thematic break markdown has
+ * always drawn, and the prose under it is prose. The face's own scanner had
+ * this one the other way and lost every heading in such a document; both
+ * readings agree here now.
+ */
+test("an unclosed fence is a thematic break to both readings", () => {
+  const body = ["---", "title: x", "", "# Real", "", "## Also"].join("\n")
+  expect(drawn(body)).toEqual(slugsIn(body).map(String))
+  expect(drawn(body)).toEqual(["real", "also"])
+  expect(renderMarkdown(body, FROM)).toContain("<hr")
+})
+
 /** A setext heading — underlined rather than hashed — is a heading to both. */
 test("a setext heading is one to both readings", () => {
   const body = ["The plan", "========", "", "Prose.", "", "Next", "----"].join("\n")

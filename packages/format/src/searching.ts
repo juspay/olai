@@ -46,6 +46,7 @@
 import { Schema } from "effect"
 
 import { AtDocument, AtNode, NodeId } from "./address.ts"
+import { Face } from "./document.ts"
 import { DOCUMENT_FIELDS, Refusal, SEARCH_FIELDS } from "./filter.ts"
 import { Found } from "./reading.ts"
 
@@ -98,11 +99,18 @@ export type NodeHit = typeof NodeHit.Type
  * ONE HIT ON A DOCUMENT — the half of every search this app could not answer.
  *
  * It carries what a row needs and nothing more: where to go, what the document
- * is CALLED, and which of its three places held the word. There is no `line`,
- * no `status` and no `path` of ancestors, because a document has none of
- * those — an arm with them filled in with zeroes and empty lists would be
- * exactly the shape this whole arc exists to stop, a document pretending to be
- * a node badly.
+ * is CALLED, which of its places held the word, and the properties its
+ * frontmatter writes. There is no `line`, no `status` and no `path` of
+ * ancestors, because a document has none of those — an arm with them filled in
+ * with zeroes and empty lists would be exactly the shape this whole arc exists
+ * to stop, a document pretending to be a node badly.
+ *
+ * THE PROPERTIES ARE HERE, though, and that is the one field this arm gained
+ * rather than declined: a `.md` writes named facts about itself in its
+ * frontmatter (`./frontmatter.ts`), so `prop:agent=claude-opus` selects
+ * documents now — and a row that answered a property query with a bare title
+ * would make the reader open each hit to find the fact they had just searched
+ * by, which is the argument {@link NodeHit}'s `custom` already won.
  *
  * WHAT IT DOES NOT CARRY YET, said rather than left to be noticed: an excerpt
  * of the line a `body` match landed on. `matched` says the word was in the
@@ -119,6 +127,16 @@ export const DocumentHit = Schema.Struct({
    *  match — ABSENT for a query that named no words, on {@link NodeHit}'s own
    *  rule. */
   matched: Schema.optionalKey(Schema.Literals(DOCUMENT_FIELDS)),
+  /** The named facts the file writes about itself — its frontmatter, read into
+   *  the same open map a record's `custom` is (`./frontmatter.ts`). Absent for
+   *  a document that carries none, which is the writer's own rule for absence
+   *  and is what keeps an empty map off every row of a vault that uses none. */
+  props: Schema.optionalKey(Face.fields.props),
+  /** The keys a `prop:` clause selected this document on, in the file's own
+   *  spelling — {@link NodeHit.matchedProps} over the other arm, and the reason
+   *  the row can put the answer to "why is this here" first. ABSENT for every
+   *  query that named no property. */
+  matchedProps: Schema.optionalKey(Schema.Array(Schema.String)),
 })
 export type DocumentHit = typeof DocumentHit.Type
 

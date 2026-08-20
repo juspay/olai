@@ -293,6 +293,27 @@ const searchRowProp = (
     .first()
     .locator(`${HEADER_SEARCH_ITEM_PROP}${attr("data-key", key)}`);
 
+/**
+ * WHAT A DOCUMENT ROW CALLS IT — the face's title, drawn as the row's first
+ * line, asked by PATH so the assertion cannot be satisfied by the thing it is
+ * about.
+ *
+ * By `data-id` for the reason the listing step above gives, and then the row's
+ * own first line: a document whose title came off the wrong line would be
+ * found by this step and named wrong by it, which is exactly the failure a
+ * `---` block at the top used to produce.
+ */
+Then(
+  "the header search result for the document {string} is called {string}",
+  async function (this: OlaiWorld, file: string, title: string) {
+    const row = this.page.locator(
+      `${HEADER_SEARCH_ITEM}${attr("data-id", `hit-${file}`)}`,
+    );
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal((await row.innerText()).split("\n")[0]?.trim(), title);
+  },
+);
+
 Then(
   "the header search result {string} shows the property {string} holding {string}",
   async function (this: OlaiWorld, title: string, key: string, value: string) {

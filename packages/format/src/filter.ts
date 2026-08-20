@@ -48,7 +48,8 @@ import {
   titleParts,
 } from "./derive.ts"
 import type { Hypertext, Markdown } from "./document.ts"
-import { customOf } from "./custom.ts"
+import { type Custom, customOf } from "./custom.ts"
+import { proseIn } from "./frontmatter.ts"
 import { shiftDay, shiftMonth, weekdayOf } from "./calendar.ts"
 import type { DayGroup } from "./dates.ts"
 import { datesOf, dayOf, monthOf } from "./occasion.ts"
@@ -1287,7 +1288,7 @@ const matchOf = (
 
   // Collected only for a node that has already matched, so the map is walked
   // for the few nodes a query selects rather than for every node it considers.
-  return { ...found, props: propsOf(at.node, filter) }
+  return { ...found, props: propsOf(customOf(at.node), filter) }
 }
 
 /**
@@ -1304,10 +1305,9 @@ const matchOf = (
  * them.
  *
  * A CLAUSE IS ASKED AS A PLAIN QUESTION and the negation is applied here, which
- * is what lets a document answer the whole family in one line: it holds no
- * clause at all, so a positive one selects none of them and a negated one is
- * satisfied. There is nowhere on a `.md` to write a mark, a date or a
- * property — the hole [frontmatter] is the named next step for.
+ * is what lets a document answer the whole family in one line
+ * ({@link documentHolds}): its frontmatter answers `prop:`, everything else is
+ * no — so those select no document and their negations are satisfied.
  *
  * THE HAY IS A THUNK, not a value, and that is the same laziness this had when
  * it was inline: folding a whole note (or a whole body) is the expensive part,
@@ -1364,20 +1364,26 @@ const matchedBy = <F extends string>(
 }
 
 /**
- * The node's own spelling of every key a positive `prop:` clause selected it
+ * The map's own spelling of every key a positive `prop:` clause selected it
  * on — {@link Match.props}, which argues the shape.
  *
+ * OVER THE MAP for {@link propKeyOf}'s reason next door, and it is what makes
+ * a document's hit say why it is on screen the same way a node's does: the
+ * open field of a record and the frontmatter of a `.md` are one type, so this
+ * is one function rather than two that would eventually order their keys
+ * differently.
+ *
  * EMPTY for the queries that are nearly all of them, and cheaply: this is
- * CALLED for every node the clauses let through, but a query with no `prop:` in
+ * CALLED for everything the clauses let through, but a query with no `prop:` in
  * it only walks its own clause list and never reaches the scan below.
  *
  * The scan is {@link propKeyOf}'s, for the reason that one gives — keys are
- * FOLDED, so `custom["pr"]` would find one spelling and miss the other — and
+ * FOLDED, so `props["pr"]` would find one spelling and miss the other — and
  * asking it again here rather than threading the answer out of the gate above
  * keeps `holds` a predicate. The cost is a second walk of a handful of entries,
- * on the nodes a query actually selected.
+ * on the things a query actually selected.
  */
-const propsOf = (node: RegularNode, filter: Extract<Filter, { kind: "asking" }>) => {
+const propsOf = (props: Custom, filter: Extract<Filter, { kind: "asking" }>) => {
   const keys: Array<string> = []
   // The clauses the query NAMED, in the reader's own order and without walking
   // the groups it is tested through — {@link Filter}'s `namedProps` argues both
@@ -1388,7 +1394,7 @@ const propsOf = (node: RegularNode, filter: Extract<Filter, { kind: "asking" }>)
     // alternative honest: a node in a group like `prop:pr OR cabinets` may be
     // here on the word alone, and naming a key it does not carry would be the
     // row drawing a lie. `null` says so.
-    const key = propKeyOf(node, clause)
+    const key = propKeyOf(props, clause)
     // Reported once however many clauses name it: `prop:pr prop:pr=x` is one
     // key the reader would see twice.
     if (key !== null && !keys.includes(key)) keys.push(key)
@@ -1630,7 +1636,7 @@ const being = (derived: Derived, at: LocatedRegular, value: IsValue): boolean =>
 const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean => {
   if (clause.kind === "is") return being(derived, at, clause.value)
   if (clause.kind === "has") return carries(at.node, clause.field)
-  if (clause.kind === "prop") return propKeyOf(at.node, clause) !== null
+  if (clause.kind === "prop") return propKeyOf(customOf(at.node), clause) !== null
   // Every day question of every spelling arrives here, `has:date` included —
   // {@link hasClause} made it an unbounded span at the parse — which is what
   // keeps a reader from meeting two answers to one word. The per-RECORD rule,
@@ -1742,15 +1748,22 @@ const unbounded = (clause: DaysClause): boolean =>
   clause.from === null && clause.to === null
 
 /**
- * Does this node carry the custom property the clause names — and under WHICH
- * of its own spellings? `null` for one that does not.
+ * Does this MAP carry the property the clause names — and under WHICH of its
+ * own spellings? `null` for one that does not.
  *
  * A KEY RATHER THAN A BOOLEAN because two callers want two different halves of
  * one scan: {@link holds} asks only whether, and {@link propsOf} needs the key
- * the node actually wrote so a reader can look it up in the map the hit
+ * the thing actually wrote so a reader can look it up in the map the hit
  * carries. Answering the second from a second scan would be this file holding
  * two definitions of "does `prop:PR` match a key written `pr`", which is the
  * one thing the folding rule below must not have.
+ *
+ * THE MAP AND NOT WHAT CARRIES IT, which is what let a DOCUMENT answer this
+ * operator without a second copy of any of it: a record's open field is its
+ * `custom` and a `.md`'s is its frontmatter (`./frontmatter.ts`), and once
+ * both are a `Custom` there is one definition of what `prop:` means for the
+ * whole set. Taking a `RegularNode` was the shape that made "documents select
+ * nothing" a fact about this function rather than a ruling.
  *
  * FOLDED on both halves, key and value, which is this grammar's rule rather
  * than a new one: the tokenizer folds every token, `#Home` finds `#home`, and a
@@ -1767,10 +1780,10 @@ const unbounded = (clause: DaysClause): boolean =>
  * list as one string has no spelling a person would type.
  */
 const propKeyOf = (
-  node: RegularNode,
+  props: Custom,
   clause: Extract<Clause, { kind: "prop" }>,
 ): string | null => {
-  for (const [key, value] of Object.entries(customOf(node))) {
+  for (const [key, value] of Object.entries(props)) {
     if (key.toLowerCase() !== clause.key) continue
     // A key holding NOTHING is a key the file does not carry (./write.ts), so
     // `prop:x` is false for it — the same rule `has:` reads, one map in.
@@ -2079,6 +2092,11 @@ const DOCUMENT_WEIGHT: Record<DocumentField, number> = {
 export interface DocumentMatch {
   readonly field: DocumentField | null
   readonly score: number
+  /** The document's own spelling of every key a positive `prop:` clause
+   *  selected it on — {@link Match.props} over the other arm, and the same
+   *  {@link propsOf} builds both, so a row cannot say a different thing about
+   *  a document than it says about a node. */
+  readonly props: ReadonlyArray<string>
 }
 
 /** One document the query selected, with why — {@link Matched}'s twin over the
@@ -2198,7 +2216,15 @@ const documentHay = (
     // A file whose body the set does not keep has no prose to look through,
     // which is a different sentence from "it holds none" — nothing here has
     // read it (`./document.ts`'s `Hypertext`).
-    body: document.kind === "document" ? [document.body.toLowerCase()] : [],
+    //
+    // THE PROSE and not the whole body: a `---` block at the top is the
+    // document's RECORD, and its keys are answered by `prop:` above, out of
+    // the map the same block was read into (`./frontmatter.ts`). Folding it in
+    // here too would make every frontmatter'd file in a vault a hit for
+    // `title`, and would say a word was found in a document's prose when what
+    // held it was a property — two answers to "why is this here", from one
+    // block, in one row.
+    body: document.kind === "document" ? [proseIn(document.body).toLowerCase()] : [],
   }
   foldedDocuments.set(document, now)
   return now
@@ -2207,15 +2233,20 @@ const documentHay = (
 /**
  * Which documents a query selects, and why — {@link matching}'s twin.
  *
- * ## What a document cannot answer, and what that means
+ * ## What a document can answer, and what it cannot
  *
- * A clause (`is:done`, `has:date`, `date:today`, `prop:pr`) asks about a FIELD,
- * and a document has none: there is nothing on a `.md` for a mark, a date or a
- * property to be written on. So a positive clause selects NO document — not
- * because documents are second-class here, but because the honest answer to
- * "which documents are done" is none of them. That is the hole frontmatter
- * fills, and it is named in the design as the next step rather than patched
- * here.
+ * ONE OPERATOR, and it is the one a `.md` can write an answer to: `prop:`, over
+ * the YAML frontmatter at the top of the file (`./frontmatter.ts`). A
+ * document's keys are a `Custom` map like a record's, so `prop:agent` and
+ * `prop:agent=claude-opus` are asked of both kinds through one
+ * {@link propKeyOf} and answer in one ranked list.
+ *
+ * `is:done`, `has:desc`, `date:today` and the two stamps still select NO
+ * document, and that is the honest answer rather than a hole: those name a
+ * MARK, a FIELD of a record and a DAY, and a `.md` carries none of the three.
+ * A frontmatter `done:` is a property named `done` — findable as `prop:done` —
+ * and reading it as a mark would put a document in a search that the day page,
+ * the agenda and the calendar do not draw it in.
  *
  * A NEGATED clause is satisfied, and by the same sentence read the other way:
  * `-is:done` asks for what is not finished, and a document is not. Dropping
@@ -2252,24 +2283,51 @@ export const matchingDocuments = (
 /**
  * Does this document match, and why — or `null`.
  *
- * {@link matchedBy}, over this kind's own two answers: a document HOLDS NO
- * CLAUSE, and its words are looked for in {@link DOCUMENT_FIELDS}. Every other
- * sentence about what a query means — the conjunction, the alternatives, the
- * scoring — is the shared one, which is the whole reason that function has
- * arguments rather than a second copy of itself.
+ * {@link matchedBy}, over this kind's own two answers: which clauses a document
+ * can hold ({@link documentHolds}), and where its words are looked for
+ * ({@link DOCUMENT_FIELDS}). Every other sentence about what a query means —
+ * the conjunction, the alternatives, the scoring — is the shared one, which is
+ * the whole reason that function has arguments rather than a second copy of
+ * itself.
  */
 const documentMatchOf = (
   document: Bodied,
   filter: Extract<Filter, { kind: "asking" }>,
-): DocumentMatch | null =>
-  matchedBy(
+): DocumentMatch | null => {
+  const found = matchedBy(
     filter.groups,
-    NO_CLAUSE_HOLDS,
+    (clause) => documentHolds(document, clause),
     () => documentHay(document),
     DOCUMENT_FIELDS,
     DOCUMENT_WEIGHT,
   )
+  if (found === null) return null
+  // Collected only for a document that has already matched, exactly as
+  // {@link matchOf} does it one arm over.
+  return { ...found, props: propsOf(document.props, filter) }
+}
 
-/** A document's answer to every clause in the grammar: no. One function, since
- *  it closes over nothing and is handed to every document of every query. */
-const NO_CLAUSE_HOLDS = (): boolean => false
+/**
+ * A DOCUMENT'S ANSWER TO ONE CLAUSE, and it is one row wide.
+ *
+ * `prop:` is the whole of what a `.md` can hold, and it holds it for real: its
+ * frontmatter is a `Custom` map (`./frontmatter.ts`), so the question goes to
+ * the same {@link propKeyOf} a record's does and `prop:agent=claude-opus`
+ * answers with both kinds in one list.
+ *
+ * EVERYTHING ELSE IS STILL NO, and that is a ruling rather than a gap left
+ * over. `is:done` asks about a MARK, `date:today` and the two stamps about a
+ * DAY, `has:desc` about a field of a record — and a document has none of those
+ * to carry. Reading a frontmatter `done:` as a mark or a `date:` as a day would
+ * put a document in a search the day page, the agenda and the calendar do not
+ * draw it in, which is the two-answers-to-one-word this grammar refuses
+ * everywhere. So they are properties named `done` and `date`, findable as
+ * `prop:done` and `prop:date`, and the honest answer to "which documents are
+ * finished" is still none of them.
+ *
+ * A NEGATED clause is satisfied by whatever this answers no to, and by the same
+ * sentence read the other way ({@link matchedBy} applies the negation, so this
+ * stays a plain question).
+ */
+const documentHolds = (document: Bodied, clause: Clause): boolean =>
+  clause.kind === "prop" && propKeyOf(document.props, clause) !== null

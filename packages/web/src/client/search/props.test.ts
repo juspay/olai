@@ -7,11 +7,11 @@
  * panel actually sees.
  */
 
-import { NodeId } from "@olai/format"
-import type { NodeHit } from "@olai/surface"
+import { DocumentPath, NodeId } from "@olai/format"
+import type { DocumentHit, NodeHit } from "@olai/surface"
 import { expect, test } from "bun:test"
 
-import { nodeProps } from "./props.ts"
+import { documentProps, nodeProps } from "./props.ts"
 
 /** A hit carrying whatever the case under test needs. The fields a row does not
  *  read are still here because a `NodeHit` has them. */
@@ -72,4 +72,33 @@ test("a key holding a list is drawn the way the drawer draws it", () => {
 test("a named key the node does not carry draws nothing", () => {
   expect(nodeProps(hitOf({ agent: "claude-opus" }, ["isbn"])).map((p) => p.key))
     .toEqual(["agent"])
+})
+
+/**
+ * THE OTHER KIND OF ROW, drawing the same line out of the other kind of map.
+ *
+ * A document's properties are the YAML frontmatter at the top of the `.md`
+ * (`@olai/format`'s `frontmatter.ts`), and a `prop:` query answers with both
+ * kinds in ONE ranked list — so the ordering a reader sees may not depend on
+ * which kind a row happens to be. One rule below both entry points is what
+ * makes that true; this is the case that would catch a second one.
+ */
+test("a document's frontmatter draws the row a node's map draws", () => {
+  const document: DocumentHit = {
+    at: { kind: "document", path: DocumentPath.make("notes/plan.md") },
+    title: "The plan",
+    props: { agent: "claude-opus", pr: "…/192", owners: ["alice", "bob"] },
+    matchedProps: ["pr"],
+  }
+  expect(documentProps(document)).toEqual(
+    nodeProps(hitOf({ agent: "claude-opus", pr: "…/192", owners: ["alice", "bob"] }, ["pr"])),
+  )
+  expect(documentProps(document).map((p) => p.key)).toEqual(["pr", "agent", "owners"])
+})
+
+test("a document carrying no frontmatter draws no line", () => {
+  expect(documentProps({
+    at: { kind: "document", path: DocumentPath.make("brief.md") },
+    title: "Brief",
+  })).toEqual([])
 })

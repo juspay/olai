@@ -51,7 +51,8 @@
  * highlighted it would be drawing a lie the matcher never told.
  */
 
-import type { NodeHit } from "@olai/surface"
+import type { HasCustom } from "@olai/format"
+import type { DocumentHit, NodeHit } from "@olai/surface"
 
 import { customEntries } from "../props/drawer.ts"
 
@@ -65,8 +66,28 @@ export interface NodeProp {
   readonly matched: boolean
 }
 
-export const nodeProps = (hit: NodeHit): ReadonlyArray<NodeProp> => {
-  const matched = hit.matchedProps ?? []
+export const nodeProps = (hit: NodeHit): ReadonlyArray<NodeProp> =>
+  rowProps(hit, hit.matchedProps)
+
+/**
+ * The same line for a DOCUMENT, off the frontmatter at the top of the `.md`
+ * (`@olai/format`'s `frontmatter.ts`).
+ *
+ * A second entry point and not a second function: the ordering, the matched
+ * half and the drawer's own spelling of a value are one rule below, because a
+ * `prop:` query answers with both kinds in one ranked list and a row that
+ * ordered a document's keys differently from a node's would be the drift this
+ * module's header refuses. What differs is only WHERE the map is — a record's
+ * open field, or the record a document writes about itself.
+ */
+export const documentProps = (hit: DocumentHit): ReadonlyArray<NodeProp> =>
+  rowProps({ custom: hit.props }, hit.matchedProps)
+
+const rowProps = (
+  hit: HasCustom,
+  named: ReadonlyArray<string> | undefined,
+): ReadonlyArray<NodeProp> => {
+  const matched = named ?? []
   const entries = customEntries(hit).map((entry) => ({
     key: entry.key,
     value: entry.value,

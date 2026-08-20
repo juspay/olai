@@ -33,7 +33,28 @@ const VAULT = (): OutlineSet =>
       ].join("\n"),
     },
     [
-      ["notes/plan.md", "# The plan\n\nTalk to @alice about the cabinets.\n\n## Next steps\n"],
+      // The one document with a record on top of it. Every key is one this
+      // reading has to get right about something: a plain scalar, a list, a
+      // key that SPELLS a system field and is still a property, a `#`-looking
+      // value that must not index as a tag, and a `[…](…)` that must not
+      // index as a link.
+      ["notes/plan.md", [
+        "---",
+        "pr: 176",
+        "owners: [alice, bob]",
+        "date: 2026-09-01",
+        "done: yes",
+        "tags: '#draft'",
+        "seen: '[the brief](../brief.md)'",
+        "---",
+        "",
+        "# The plan",
+        "",
+        "Talk to @alice about the cabinets.",
+        "",
+        "## Next steps",
+        "",
+      ].join("\n")],
       ["brief.md", "# Brief\n\nOak counters, matte doors.\n\n## Scope\n"],
       "saved/quote.html",
     ],
@@ -66,16 +87,78 @@ test("a saved page is found by its name and not by its prose", () => {
   expect(selected(set, "cabinets")).toEqual(["notes/plan.md"])
 })
 
-// There is nowhere on a `.md` to write a mark, a date or a property, so the
-// honest answer to "which documents are done" is none of them — the hole
-// frontmatter is the named next step for.
-test("a positive clause selects no document at all", () => {
+// There is nowhere on a `.md` to write a MARK or a DAY, so the honest answer
+// to "which documents are done" is still none of them — and a frontmatter
+// `date:` does not change that, being a property named `date` rather than the
+// journal's day (`./frontmatter.ts` argues the ruling).
+test("a clause about a mark or a day selects no document at all", () => {
   const set = VAULT()
-  for (const text of ["is:done", "has:date", "date:today", "prop:pr", "is:blocked"]) {
+  for (const text of ["is:done", "has:date", "date:today", "created:2026", "is:blocked"]) {
     expect(selected(set, text)).toEqual([])
   }
   // …and a clause beside a word takes the documents out with it.
   expect(selected(set, "plan is:todo")).toEqual([])
+})
+
+// The one clause a document CAN answer, and the door this whole item is: its
+// frontmatter is a `Custom` map like a record's, so `prop:` is asked of both
+// kinds through one `propKeyOf`.
+test("a document answers prop: out of its frontmatter", () => {
+  const set = VAULT()
+  expect(selected(set, "prop:pr")).toEqual(["notes/plan.md"])
+  expect(selected(set, "prop:pr=176")).toEqual(["notes/plan.md"])
+  // Folded on both halves, exactly as a record's are.
+  expect(selected(set, "prop:PR=176")).toEqual(["notes/plan.md"])
+  // A list value matches on any member.
+  expect(selected(set, "prop:owners=bob")).toEqual(["notes/plan.md"])
+  // A key nobody wrote is a key nobody wrote.
+  expect(selected(set, "prop:isbn")).toEqual([])
+  // A key a document carries and a query narrows by a word it does not hold
+  // is still no hit — the conjunction is the shared one.
+  expect(selected(set, "prop:pr counters")).toEqual([])
+  // …and a document with no frontmatter answers no property at all.
+  expect(selected(set, "prop:pr brief")).toEqual([])
+})
+
+// The block is the document's RECORD, so it is not the document's PROSE
+// either: a word only the frontmatter holds is found by `prop:` and not by
+// typing it. Otherwise every frontmatter'd file in a vault would be a hit for
+// `title`, and a row would say a word was in the body when a property held it.
+test("a word inside the frontmatter is not a word in the prose", () => {
+  const set = VAULT()
+  expect(selected(set, "brief")).toEqual(["brief.md"])
+  expect(selected(set, "owners")).toEqual([])
+})
+
+// A property is READ, not a mark: `done: yes` in a `.md` is `prop:done` and
+// never `is:done`. Reading it the other way would put a document in a search
+// the day page, the agenda and the calendar do not draw it in.
+test("a frontmatter key that spells a system field is still a property", () => {
+  const set = VAULT()
+  expect(selected(set, "prop:date=2026-09-01")).toEqual(["notes/plan.md"])
+  expect(selected(set, "prop:done")).toEqual(["notes/plan.md"])
+  expect(selected(set, "is:done")).toEqual([])
+})
+
+// The whole reason the block had to be hidden from every scanner and not only
+// from the renderer: the face is built out of the PROSE.
+test("a document's face is read past its frontmatter", () => {
+  const document = markdownIn(VAULT()).find((one) => one.path === "notes/plan.md")
+  expect(document?.title).toBe("The plan")
+  // `#draft` is a YAML value and not a tag somebody wrote in prose; `@alice`
+  // is, and is still here.
+  expect(document?.tags.map(String)).toEqual(["@alice"])
+  // The `[…](…)` in the block is not a link this document writes either.
+  expect(document?.links.map(printAddress)).toEqual([])
+  expect(document?.headings.map(String)).toEqual(["the-plan", "next-steps"])
+  expect(document?.props).toEqual({
+    pr: "176",
+    owners: ["alice", "bob"],
+    date: "2026-09-01",
+    done: "yes",
+    tags: "#draft",
+    seen: "[the brief](../brief.md)",
+  })
 })
 
 // …and the same sentence read the other way: `-is:done` asks for what is not
