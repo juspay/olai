@@ -390,6 +390,7 @@ export {
    *  the floor `@olai/ops` and `@olai/surface` both stand on — rather than
    *  twice. `sameDated` is what keeps a revision that moved no dot quiet. */
   DatedAnswer,
+  datedAnswer,
   DatedRequest,
   datedDays,
   datedIn,

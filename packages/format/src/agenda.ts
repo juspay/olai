@@ -221,7 +221,6 @@ export type OwedRequest = typeof OwedRequest.Type
  */
 export const sameOwed: (a: Owed, b: Owed) => boolean = Schema.toEquivalence(Owed)
 
-
 /**
  * The counts, taken from an agenda that has already been read.
  *

@@ -1,12 +1,11 @@
 /**
- * The directory's DATES, asked — the month's dots and what is owed today,
- * answered by the server.
+ * The directory's DATES, asked — the month's marks and what is owed today.
  *
  * ## Why this file exists at all
  *
- * It used to be two lines in `./App.tsx`: the tab held every node of every
- * outline, so `datedDays` and `owedOf(agendaOf(…))` ran here, over the local
- * copy, on every published revision. That copy is what
+ * Two of these three were lines in `./App.tsx`: the tab held every node of
+ * every outline, so `datedDays` and `owedOf(agendaOf(…))` ran here, over the
+ * local copy, on every published revision. That copy is what
  * `docs/brainstorming/vault-in-browser.md` is taking away — the browser may
  * hold at most the page in front of somebody — and this is its PR 4 (§3's
  * Sidebar row, §6's item 4). The WALKS did not move: they are
@@ -14,14 +13,32 @@
  * `Query.dated` / `Query.owed`, which is the same arrangement search landed in
  * one PR earlier (`./filter/asking.ts`).
  *
+ * ## Three questions, and the third crosses no wire
+ *
+ * The calendar draws two marks per day and they are two different KINDS of
+ * question, which is why they are answered on two different sides:
+ *
+ *   - {@link createDated} — which days of the month have a NODE on them. A
+ *     question about the vault, so it goes to the server.
+ *   - {@link createNoted} — which days a document is NAMED for, that day's own
+ *     note. A question about a FILENAME, asked of the key set this tab already
+ *     holds and always will: the design keeps the paths in the browser because
+ *     they are key-set-sized, which is what the sidebar's file tree costs
+ *     anyway.
+ *
+ * They live here together for exactly that reason — one file where the line
+ * between them is drawn, rather than one seam and one prop drilled past it.
+ * {@link createOwed} is the third and belongs to the entry above the grid.
+ *
  * ## Subscriptions, not asks — and what that buys
  *
- * Both of these are STANDING views rather than questions somebody opened once.
- * A date set or cleared anywhere in the vault has to light its day and move the
- * count with no reload; that is what the calendar and the agenda's mark have
- * always promised, and two feature files pin it (`journal_and_calendar.feature`
- * — "A dated node written to disk lights its day, with no reload";
- * `agenda.feature` — "The fire goes down as the work is finished").
+ * The two that cross the wire are STANDING views rather than questions somebody
+ * opened once. A date set or cleared anywhere in the vault has to light its day
+ * and move the count with no reload; that is what the calendar and the agenda's
+ * mark have always promised, and two feature files pin it
+ * (`journal_and_calendar.feature` — "A dated node written to disk lights its
+ * day, with no reload"; `agenda.feature` — "The fire goes down as the work is
+ * finished").
  *
  * The wire member for each is a STREAM (`@olai/surface`), which is a cell with
  * an argument: the server reads the answer, re-reads it on every published
@@ -32,6 +49,18 @@
  * generation this tab has is the identity of its own derivation, which is the
  * very thing PR 10 deletes. A subscription needs no token: the server is what
  * knows the directory moved.
+ *
+ * ## What this hands out is a VALUE
+ *
+ * Both wire answers are turned into plain values before they leave — a `Set`,
+ * and a fresh pair of integers. What a subscription holds is a RECONCILED
+ * STORE: its identity survives every frame and its fields move under it, which
+ * is exactly right for rendering and exactly wrong for anything that compares
+ * two readings by value. A consumer holding the live object would compare it
+ * against itself and conclude nothing had changed — which is not hypothetical
+ * (`./agenda/owed.ts`, and the shot that caught it). The rule is held once,
+ * here, at the seam that owns the wire value, so no reader downstream has to
+ * know it.
  *
  * ## What a dead wire does, and why there is nothing here about it
  *
@@ -44,20 +73,14 @@
  * the last frame the server sent, which is exactly what the pill promises. The
  * app-wide answer — an overlay that freezes everything on a dead wire — is
  * §5b's ruling and its own PR.
- *
- * ## What is NOT asked here
- *
- * The calendar draws a second mark per day: the days a `.md` is NAMED for, that
- * day's note. That stays local and always will (`dailyNoteDays` over the
- * documents' key set) — a note mark is a question about a FILENAME, and the
- * design keeps the key set in the browser because it is key-set-sized, the same
- * size the sidebar's file tree already costs.
  */
 
 import { type Accessor, createMemo } from "solid-js"
 
+import { dailyNoteDays } from "@olai/format"
 import type { Owed } from "@olai/surface"
 
+import { usePaths } from "./document/documents.tsx"
 import { olai } from "./wire.ts"
 
 /**
@@ -72,6 +95,11 @@ import { olai } from "./wire.ts"
  * placeholder: a day with nothing on it is INERT — a quiet number, not a link
  * — so an unanswered month is a grid nobody can press yet, which is exactly
  * what it is. The alternative would be dots drawn from the month before.
+ *
+ * NO "IS THERE A SET" GATE, unlike {@link createOwed}, and it needs none: the
+ * grid this belongs to is only ever mounted over a directory that loaded
+ * (`./App.tsx` draws the error report instead of a column otherwise), so the
+ * gate is where the component is rather than a condition it carries.
  */
 export const createDated = (month: Accessor<string>): Accessor<ReadonlySet<string>> => {
   // The MONTH is the input, so paging tears the subscription down and opens a
@@ -80,6 +108,24 @@ export const createDated = (month: Accessor<string>): Accessor<ReadonlySet<strin
   // scrolled to costs nothing at either end.
   const answer = olai.streams.dated.use(() => ({ month: month() }))
   return createMemo(() => new Set(answer()?.days ?? []))
+}
+
+/**
+ * Which days of that month a document is NAMED for — the days with a note.
+ *
+ * The one date question in this file that asks the server nothing, and the
+ * header says why: a note is a fact about a FILENAME, and the filenames are the
+ * key set this tab holds anyway. So this is the walk it always was, over the
+ * paths, per month drawn.
+ *
+ * It is here rather than left as a prop from the composition so that the
+ * calendar asks both of its per-month questions the same way — the difference
+ * between them is WHICH SIDE ANSWERS, and that difference belongs in this file
+ * rather than in the shape of a component's props.
+ */
+export const createNoted = (month: Accessor<string>): Accessor<ReadonlySet<string>> => {
+  const paths = usePaths()
+  return createMemo(() => dailyNoteDays(paths(), month()))
 }
 
 /**
@@ -104,15 +150,26 @@ export const createDated = (month: Accessor<string>): Accessor<ReadonlySet<strin
  * would put a STOPPED subscription behind the connection pill and amber it over
  * a page where nothing is missing and the wire is fine. (It did: the shot taken
  * for this change over a corpus that does not parse came back "partly live".)
- * The caller says when there is a set (`./App.tsx`); the framework's own
- * `null` input is what holds the subscription closed until there is.
+ * The caller says when there is a set (`./App.tsx`); the framework's own `null`
+ * input is what holds the subscription closed until there is.
  */
 export const createOwed = (
   /** The reader's own today — or `undefined` while there is no set to ask
-   *  about, which asks nothing at all. */
+   *  about, which asks nothing at all. A signal or memo, not a fresh value per
+   *  read: the subscription re-opens whenever this NOTIFIES, so a caller
+   *  handing over an untracked recomputation would tear the stream down and
+   *  reset the badge on frames that changed nothing. */
   today: Accessor<string | undefined>,
-): Accessor<Owed | undefined> =>
-  olai.streams.owed.use(() => {
+): Accessor<Owed | undefined> => {
+  const answer = olai.streams.owed.use(() => {
     const day = today()
     return day === undefined ? null : { today: day }
   })
+  // …AS A VALUE (the header's rule): a fresh pair per frame, so a reader
+  // comparing two readings is comparing two objects rather than the one the
+  // wire keeps moving underneath it.
+  return createMemo(() => {
+    const owed = answer()
+    return owed === undefined ? undefined : { overdue: owed.overdue, today: owed.today }
+  })
+}

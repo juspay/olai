@@ -40,8 +40,8 @@ import {
   DEFAULT_SEARCH_LIMIT,
   DEFAULT_SUBTREE_DEPTH,
   type DatedAnswer,
+  datedAnswer,
   type DatedRequest,
-  datedDays,
   type Derived,
   type Detail,
   type DocumentBody,
@@ -405,21 +405,22 @@ export const matches = (
  * and what a put-away outline is excluded from are that module's rulings, read
  * once for the day page, the agenda and this.
  *
- * SORTED, and that is this function's only addition — {@link DatedAnswer} says
- * why: the answer is re-sent when it CHANGES, and the set's own walk order is
- * not a fact about which days have dots.
+ * NOTHING IS ADDED HERE, which is the shape rather than an omission: the walk
+ * and the ORDER it is answered in are both `@olai/format`'s
+ * ({@link datedAnswer}, which is the one way to build one, beside the
+ * equivalence that rests on it). What this layer contributes is the gate the
+ * request arrives through, which is the whole of what a query door is.
  *
  * THE WALK IS THE WHOLE SET, per call, and that is true of every date reading
  * this layer has (`@olai/format`'s `datedNodes`). It was already true when the
  * browser made the call; what is new is that it now runs per subscriber per
  * revision, which is exactly the pressure the roadmap's `perf-dates-index`
  * node exists to answer. Nothing about this shape forces an index first, and
- * nothing about it gets in one's way: an index changes what {@link datedDays}
- * costs, not what it means.
+ * nothing about it gets in one's way: an index changes what `datedDays` costs,
+ * not what it means.
  */
-export const dated = (derived: Derived, request: DatedRequest): DatedAnswer => ({
-  days: [...datedDays(derived, request.month)].sort(),
-})
+export const dated = (derived: Derived, request: DatedRequest): DatedAnswer =>
+  datedAnswer(derived, request.month)
 
 /**
  * HOW MUCH IS OWED as of the reader's own today — the two numbers the

@@ -40,16 +40,21 @@
  * a question about a filename.
  */
 
+/**
+ * THE SHAPES, and not the equivalences beside them. `sameDated` and `sameOwed`
+ * are the floor's too, and they do not come through this door: a cell declares
+ * its `equals` in the spec (which is why `samePending` is imported by
+ * `./index.ts` and re-exported by nobody), and a STREAM does not declare one at
+ * all — the server supplies `isEqual` where it binds the member, from the same
+ * floor. A name crossing this boundary for nobody is a public API with no
+ * caller.
+ */
 export {
-  /** Which days of a month have something on them, and the month asked for.
-   *  `sameDated` is the answer's own equivalence — what keeps the server from
-   *  sending a frame to a tab whose dots did not move. */
+  /** Which days of a month have something on them, and the month asked for. */
   DatedAnswer,
   DatedRequest,
   /** The two numbers the directory's own entry wears, and the day they are
    *  counted against — the reader's, never the server's. */
   Owed,
   OwedRequest,
-  sameDated,
-  sameOwed,
 } from "@olai/format"

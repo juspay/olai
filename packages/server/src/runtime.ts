@@ -31,7 +31,7 @@
  *   - the SIDEBAR's two DATE readings are the ops layer's as well, and they
  *     are the one binding here that publishes nothing: a stream re-READS its
  *     own answer when the directory moves, so what this file provides is the
- *     read, a pulse saying something happened (`./revisions.ts`) and the
+ *     read, a pulse saying a revision was published, and the
  *     schema-derived equality that keeps a revision which moved no dot from
  *     sending a frame. `vault-in-browser.md` §2's mechanism, wired.
  *   - the KEYBOARD is the ops layer's: one procedure, no member of its own,
@@ -83,6 +83,7 @@ import {
   emptyHandlers,
   type ImplementSurfaceDeps,
   implementSurface,
+  inMemoryChannel,
   inMemoryStore,
   type SurfaceHandler,
   type SurfaceHandlers,
@@ -91,7 +92,7 @@ import {
 import { Duration, Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
 
 import type { Change, Chat } from "@olai/chat"
-import { type Emit, emitter, prettyCause } from "@olai/log"
+import { type Emit, emitter } from "@olai/log"
 import * as Bodies from "./bodies.ts"
 import { contextFor } from "./context.ts"
 import { inverseOf, requestFor } from "./edit.ts"
@@ -100,7 +101,7 @@ import {
   type Published,
   publishedOf,
 } from "./published.ts"
-import * as Revisions from "./revisions.ts"
+import { readFailed } from "./report.ts"
 
 /** What a transport needs, and nothing else. `ctx` is the write face, which
  *  belongs to the bindings below rather than to whoever serves them. */
@@ -112,6 +113,13 @@ export type Bound = Omit<SurfaceRuntime<typeof surface.spec>, "ctx">
  *  deliberately not watched (it is the busiest thing under a served directory).
  *  A person committing in a terminal is the case this covers. */
 const SWEEP = Duration.seconds(30)
+
+/** The channel's required error choice, for a pulse that carries nothing: there
+ *  is no failure to report on a publish of `void`, and the one thing that CAN
+ *  go wrong downstream — a re-read that refuses — is reported where it happens
+ *  ({@link ./report.ts}'s `readFailed`). Named rather than an inline `() => {}`
+ *  at both call sites, so "this swallow was a decision" is written once. */
+const NEVER = (): void => {}
 
 /** One collection's revision, written to the collection. The two directory
  *  collections are published by the same two statements in the same order, and
@@ -300,12 +308,28 @@ export const bind = (
     const chat = wiring.chat
     /** This runtime's own log line, for the one place below that reports from
      *  outside an Effect — a stream's re-read, which the framework calls on a
-     *  promise. */
+     *  promise. What it SAYS is {@link ./report.ts}'s. */
     const say: Emit = yield* emitter
-    /** WHO IS TOLD THE DIRECTORY MOVED ({@link ./revisions.ts}) — poked once
-     *  per published revision by the connector below, listened to by the two
-     *  date streams. */
-    const revisions = Revisions.make()
+    /**
+     * WHO IS TOLD THE DIRECTORY MOVED — the pulse the two date streams re-read
+     * on, published once per revision by the connector below.
+     *
+     * It carries NOTHING, and that is the design rather than an economy: a
+     * pulse carrying the revision would be a second answer to what the
+     * directory says, one a listener could act on WITHOUT reading the store and
+     * therefore one free to disagree with it. Every listener goes back to the
+     * ops layer's own gated read, which is the same read a keystroke is judged
+     * against.
+     *
+     * The framework's channel and not a listener set of ours: `publish`, and a
+     * `consume` that dispatches to a callback and hands back its own teardown,
+     * which is exactly the pair a stream's poll shape asks for. Nothing is
+     * coalesced here and nothing needs to be — the poll loop folds every tick
+     * that arrives during a read into one re-read, and the pulse is
+     * LEVEL-triggered ("go and look again"), so two in flight mean what one
+     * does.
+     */
+    const revisions = inMemoryChannel<void>()
 
     /** The revision the wire is holding — `null` until the store has published
      *  one. Each collection's entries are that revision's own map, replaced
@@ -552,17 +576,23 @@ export const bind = (
                   // revision after the first one quiet.
                   cell.set(LOADED)
                   // …and last of all, the readings that publish NOTHING are
-                  // told to go and look again ({@link ./revisions.ts}).
+                  // told to go and look again.
                   //
-                  // In THIS fiber rather than in a second subscription to the
-                  // same ref, which is the block's own rule one consumer wider:
-                  // one place decides what a revision does, and there is no
-                  // second source to supervise or to keep in step. What a
-                  // listener then reads is the STORE, not the projection above
-                  // — so the answer it gets is right whenever it wakes, and
-                  // this line's position is about keeping the order decided
-                  // here rather than about the correctness of any reading.
-                  revisions.moved()
+                  // This IS the store's own revision stream, folded once — so
+                  // the pulse is a projection of the store's truth rather than
+                  // a second source beside it, and there is no second owned
+                  // subscription to supervise. (Which is also why the
+                  // never-loaded arm at the top of this connector does not
+                  // publish one: what this says is "a revision was published",
+                  // and there is no revision. A reader in that state is refused
+                  // by the ops layer's own gate and asks nothing —
+                  // `@olai/web`'s `dates.ts`.)
+                  //
+                  // What a listener then reads is the STORE, not the projection
+                  // above, so where this line sits inside the block is about
+                  // keeping the order decided in one place rather than about
+                  // the correctness of any reading.
+                  revisions.publish(undefined)
                 }),
             ),
         },
@@ -700,8 +730,8 @@ export const bind = (
        * needs no services, so there is no runtime to thread.
        *
        * THE INSTALL IS ONE PULSE for both, and it carries nothing
-       * ({@link ./revisions.ts}): a listener is told the directory moved and
-       * goes back to the ops layer for what it now says.
+       * (`revisions`, above): a listener is told the directory moved and goes
+       * back to the ops layer for what it now says.
        *
        * THE EQUIVALENCES ARE THE SCHEMAS' — `@olai/format`'s `sameDated` and
        * `sameOwed`, derived from the declarations rather than written out, so a
@@ -719,26 +749,19 @@ export const bind = (
       streams: {
         dated: {
           read: (input) => Effect.runPromise(wiring.ops.dated(input)),
-          install: (_input, onEvent) => revisions.install(onEvent),
+          install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
           isEqual: sameDated,
         },
         owed: {
           read: (input) => Effect.runPromise(wiring.ops.owed(input)),
-          install: (_input, onEvent) => revisions.install(onEvent),
+          install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
           isEqual: sameOwed,
         },
       },
-      /** What a re-read of a live stream failed with. Required by the framework
-       *  at wiring time rather than defaulted, which is the boot-time spelling
-       *  of HACKING.md's rule: a subscription that quietly stopped answering is
-       *  the failure nobody would ever see. */
-      onStreamReadError: (error, { stream }) =>
-        say(
-          Effect.annotateLogs(Effect.logWarning("a date reading could not be re-read"), {
-            stream,
-            why: prettyCause(error),
-          }),
-        ),
+      // What a re-read of a live stream failed with, in olai's own voice
+      // ({@link ./report.ts}). Required by the framework at wiring time rather
+      // than defaulted, which is the boot-time spelling of HACKING.md's rule.
+      onStreamReadError: (error, { stream }) => readFailed(stream, error, say),
       procedures: {
         chat: {
           // The ids the composer was armed with become NODES here, over the

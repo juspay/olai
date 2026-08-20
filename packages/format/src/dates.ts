@@ -329,16 +329,32 @@ export type DatedAnswer = typeof DatedAnswer.Type
 
 /** When two answers name the same days, so the subscription carrying them can
  *  stay quiet — `./agenda.ts`'s `sameOwed` one reading over, and derived from
- *  the schema for the same reason.
- *
- *  IT COMPARES THE LIST IN ORDER, which is why {@link DatedAnswer} says the
- *  days are sorted and why the one producer sorts them (`@olai/ops`'
- *  `Query.dated`, pinned there). An unsorted producer would only ever be wrong
- *  in the harmless direction — a frame sent for a month whose dots did not move
- *  — but the precondition is stated here rather than left to be inferred from
- *  the caller, because the two are a pair. */
+ *  the schema for the same reason. It compares the list IN ORDER, which is what
+ *  {@link datedAnswer} beside it exists to guarantee. */
 export const sameDated: (a: DatedAnswer, b: DatedAnswer) => boolean = Schema
   .toEquivalence(DatedAnswer)
+
+/**
+ * The one way to build a {@link DatedAnswer} — {@link datedDays} asked of a
+ * month, in order.
+ *
+ * THE SORT AND THE EQUIVALENCE ARE A PAIR, so they are one thing rather than
+ * two that agree by comment: {@link sameDated} compares the list in order, and
+ * the caller that produced an unsorted one would be wrong in a way nothing here
+ * could see. Written as a constructor beside the schema, the shape this package
+ * already keeps for a value that TRAVELS — the walk is `datedDays` still, and
+ * what is added is the normalisation the wire's own equality rests on.
+ *
+ * (The failure it forecloses is the mild one — a frame sent for a month whose
+ * dots did not move, never one withheld. It is foreclosed anyway, because a
+ * rule that can only be held by remembering is a rule.)
+ */
+export const datedAnswer = (derived: Derived, month: string): DatedAnswer => ({
+  // `Order.String`, which is what this package sorts day text with everywhere
+  // else (./agenda.ts's day lists, ./dates.ts's own groups) rather than the
+  // default comparator's stringify-and-compare.
+  days: [...datedDays(derived, month)].sort(Order.String),
+})
 
 /**
  * One node on a day: everything a zoomed page knows about it — the same {@link

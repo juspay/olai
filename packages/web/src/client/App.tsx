@@ -15,7 +15,7 @@
  * that sits outside every pane.
  */
 
-import { agendaOf, dailyNoteDays } from "@olai/format"
+import { agendaOf } from "@olai/format"
 import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from "solid-js"
 
 import { AppHeader } from "./AppHeader.tsx"
@@ -149,6 +149,18 @@ export default function App() {
   })
 
   /**
+   * The day the counts are asked FOR, or `undefined` while there is nothing to
+   * ask about.
+   *
+   * A MEMO rather than the expression written into the call below, and that is
+   * not tidiness: a subscription re-opens whenever its input NOTIFIES, not when
+   * the input's value changes, so an inline reading of the manifest would tear
+   * the stream down and blank the badge on any frame that cell moved. A memo
+   * over a string makes that impossible.
+   */
+  const askedOn = createMemo(() => (loaded() ? today() : undefined))
+
+  /**
    * What the column and the rail wear — the app's ONE subscription to it, so
    * the two faces of the directory cannot say different numbers (`./dates.ts`).
    *
@@ -163,10 +175,7 @@ export default function App() {
    * it (`./calendar/Calendar.tsx`) — and the calendar is only ever mounted
    * under the same gate, one branch down.
    */
-  const owed = createOwed(() => (loaded() ? today() : undefined))
-
-  const noted = (month: string): ReadonlySet<string> =>
-    dailyNoteDays(documents.paths(), month)
+  const owed = createOwed(askedOn)
 
   const zoomed = createMemo(() => {
     const open = focusedPage()
@@ -269,11 +278,7 @@ export default function App() {
                         open={desktop() ? true : menuOpen()}
                         onClose={() => setMenuOpen(false)}
                       >
-                        <Calendar
-                          today={today()}
-                          open={only(open(), "day")?.date}
-                          noted={noted}
-                        />
+                        <Calendar today={today()} open={only(open(), "day")?.date} />
                       </Sidebar>
                     </Show>
                     <Panes

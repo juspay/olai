@@ -35,22 +35,21 @@
  * the question and the chrome state it is asked about are one thing, and a
  * month held above would be a second place that decides what is being watched.
  *
- * TWO of those questions still, and they stay two, but they are no longer asked
- * the same way. A day may carry a node of the set, a note somebody wrote for
- * it, or both, and the cell draws a different mark for each (./Day.tsx) — so a
- * union computed here would be a fact the cell could not take apart again. The
- * DOTS are a question about the vault and cross the wire; the NOTES are a
- * question about a FILENAME, asked of the documents' key set, which the design
- * deliberately leaves in the browser because it is key-set-sized — the same
- * paths the file tree below already draws. So a `.md` dropped into the
- * directory still lights its day on the frame it arrives, off a member this tab
- * was already subscribed to.
+ * TWO of those questions still, and they stay two: a day may carry a node of
+ * the set, a note somebody wrote for it, or both, and the cell draws a
+ * different mark for each (./Day.tsx) — so a union computed here would be a
+ * fact the cell could not take apart again. They are ASKED THE SAME WAY, both
+ * of the month this component owns, and where each is ANSWERED is ../dates.ts's
+ * to know and to argue: the dots cross the wire, the notes are a question about
+ * a FILENAME asked of the key set this tab already holds. So a `.md` dropped
+ * into the directory still lights its day on the frame it arrives, off a member
+ * this tab was already subscribed to.
  */
 
 import { monthOfDay, shiftMonth } from "@olai/format"
 import { createMemo, createSelector, createSignal, For, Show } from "solid-js"
 
-import { createDated } from "../dates.ts"
+import { createDated, createNoted } from "../dates.ts"
 import { mintAndOpen } from "../document/minted.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { Refused } from "../Refused.tsx"
@@ -66,12 +65,6 @@ export function Calendar(props: {
   readonly today: string
   /** The day the open page is of, if it is a day at all. */
   readonly open: string | undefined
-  /** Which days of a month a document is named for — the days that have a note
-   *  of their own. Local, and a prop, for the reason the header gives: it is a
-   *  question about the key set this tab already holds, and the composition
-   *  root is where a member is reached (../App.tsx). The DOTS beside it are not
-   *  a prop, because their question is the month this component owns. */
-  readonly noted: (month: string) => ReadonlySet<string>
 }) {
   /** The month the calendar belongs to when nobody has paged it: the day being
    *  read, or today. A `/d/<anything>` address is a day nothing can be dated
@@ -90,7 +83,7 @@ export function Calendar(props: {
   }
 
   const dated = createDated(month)
-  const noted = createMemo(() => props.noted(month()))
+  const noted = createNoted(month)
 
   const undo = useUndo()
   const router = useRouter()

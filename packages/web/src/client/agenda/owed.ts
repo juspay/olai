@@ -127,17 +127,12 @@ const PAINT: Record<Face, { readonly entry: string; readonly chip: string; reado
  * LOUD WINS WHOLE is the one ruling here, and it is spelled twice because it
  * decides two different things: which face, and which number that face prints.
  *
- * IT COPIES THE TWO NUMBERS, and that line is load-bearing rather than tidy.
- * What arrives now is the wire's own LIVE value — a reconciled store, so the
- * object a subscription hands out keeps its identity across frames and only its
- * changed FIELDS notify (`@kolu/surface`'s solid bindings). Held by reference,
- * every mark this table ever mints would carry the SAME object, {@link
- * unchanged} would compare it against itself, and the memo it guards would
- * never publish a new mark: the chip would go on printing the count it was
- * first drawn with while `data-overdue` beside it — read straight through the
- * proxy — said the new one. That is not hypothetical; it is what the shot taken
- * for this change showed, a "3" over a directory owing four. A mark is a VALUE
- * about one moment, and this is where it becomes one.
+ * IT COPIES THE TWO NUMBERS because a MARK IS A VALUE about one moment —
+ * {@link unchanged} compares one against another, so it cannot be two readings
+ * of an object something else is free to move. The constructor is where that is
+ * guaranteed rather than inherited from whoever called it; ../dates.ts keeps
+ * the same promise one layer out, for the wire value's own readers, and the two
+ * are separate promises rather than the same one made twice.
  */
 export const markOf = (counted: Owed | undefined): Mark => {
   const owed: Owed = { overdue: counted?.overdue ?? 0, today: counted?.today ?? 0 }
@@ -162,10 +157,13 @@ export const markOf = (counted: Owed | undefined): Mark => {
  * comparing them is comparing the mark.
  *
  * WHICH IS ONLY TRUE BECAUSE {@link markOf} COPIED THEM. Comparing fields of a
- * value the wire keeps mutating in place is comparing a thing to itself, which
- * this would report as "nothing changed" forever — the one direction an
+ * value something else keeps mutating in place is comparing a thing to itself,
+ * which this would report as "nothing changed" forever — the one direction an
  * `equals` must never be wrong in, since its failure is a frame that is never
- * drawn.
+ * drawn. That is not hypothetical: this table was handed the wire's own
+ * reconciled store for one commit, and the chip printed "3" over a directory
+ * owing four while `data-overdue` beside it, read straight through the same
+ * object, said four.
  */
 export const unchanged = (before: Mark, after: Mark): boolean =>
   before.owed.overdue === after.owed.overdue && before.owed.today === after.owed.today

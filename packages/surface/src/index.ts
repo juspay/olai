@@ -563,9 +563,10 @@ export const surface = defineSurface({
    * neither is an answer anything without a screen can act on.
    */
   streams: {
-    /** Which days of one month have something on them — see
-     *  `@olai/format`'s `DatedRequest` / `DatedAnswer`, whose `sameDated` is
-     *  what keeps a revision that moved no dot from sending a frame. */
+    /** Which days of one month have something on them — see `@olai/format`'s
+     *  `DatedRequest` / `DatedAnswer`, and the `sameDated` beside them, which
+     *  the server binds as this member's `isEqual` and is what keeps a revision
+     *  that moved no dot from sending a frame. */
     dated: {
       inputSchema: DatedRequest,
       outputSchema: DatedAnswer,
@@ -835,14 +836,7 @@ export {
 
 /** What the sidebar's two date readings ask and answer on the wire — see
  *  {@link ./dates.ts}. */
-export {
-  DatedAnswer,
-  DatedRequest,
-  Owed,
-  OwedRequest,
-  sameDated,
-  sameOwed,
-} from "./dates.ts"
+export { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
 
 /** What a search asks and answers on the wire — see {@link ./search.ts}. */
 export {
