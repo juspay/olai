@@ -87,7 +87,7 @@
 
 import type { Pinned, Shelf } from "@olai/surface"
 
-import { addressIn, labelIn, nameOf } from "../address/address.ts"
+import { addressIn, titleFace } from "../address/address.ts"
 import { hrefOf, type Route } from "../routes.ts"
 
 /** One door on the shelf: the node that IS the pin, where it goes, and what it
@@ -105,9 +105,11 @@ export interface Pin {
    * or what its address is called: for a node, what the server says that node's
    * title is right now; for everything else, the address's own answer.
    *
-   * ONE spelling of that rule, here, because three surfaces read it — the face,
-   * the row's tooltip and the unpin's label. It used to be spelled in the shelf
-   * component beside a comment promising it matched the face's.
+   * RESOLVED ONCE, here, because three surfaces on this row read it — the
+   * face, the row's tooltip and the unpin's label — and the RULE behind it is
+   * one function over in `../address/address.ts`, which the outline's own rows
+   * read too. It used to be spelled in the shelf component beside a comment
+   * promising it matched what the face would draw.
    *
    * The written name is not kept beside it, and that is a fact about a SHELF
    * rather than an omission: a shelf row is a `<Link>` already, so its face is
@@ -125,10 +127,10 @@ export interface Pin {
 const pinOf = (row: Pinned): Pin | undefined => {
   const route = addressIn(row.title)
   if (route === undefined) return undefined
-  // A name somebody WROTE wins over anything derived: it is authored rather
-  // than read off the set, so nothing can disagree with it later
-  // (docs/format.md's Pins).
-  const name = labelIn(row.title) ?? nameOf(route, showing(route, row))
+  // `written` is dropped, and that is a fact about a SHELF rather than an
+  // omission: its row is a `<Link>` already, so its face is never the anchor an
+  // authored name would make it (`../address/Face.tsx`).
+  const { name } = titleFace(row.title, route, showing(route, row))
   return { id: row.id, route, name }
 }
 
@@ -137,12 +139,15 @@ const pinOf = (row: Pinned): Pin | undefined => {
  * THAT node.
  *
  * The two sides read one title with two parsers, each reading its own half of
- * the seam (`./target.test.ts` holds them against each other), and this is what
- * makes a disagreement harmless rather than a lie: a name is drawn on a door,
- * and a name for some other place is the one wrong thing a door can say. Where
- * they agree — every spelling either of them mints, which is what that test
- * pins — this is the answer; where they somehow did not, the row draws its own
- * address, which is what a pin with nothing to show has always drawn.
+ * the seam, and the server's reading is the WIDER one by construction: it cannot
+ * see the words this app claimed, so `/d/2026-08-20.olai#x` comes back with a
+ * node on it while this parser reads a day (`./target.test.ts` pins both the
+ * direction that holds and that case). This is the narrowing that makes the
+ * difference harmless rather than a lie: a name is drawn on a door, and a name
+ * for some other place is the one wrong thing a door can say. Where the two
+ * agree — every spelling either of them mints — this is the answer; where they
+ * do not, the row is drawn as the page THIS parser read, named the way a pin
+ * with nothing to show has always been.
  */
 const showing = (route: Route, row: Pinned): string | undefined => {
   const address = route.kind === "at" ? route.address : null

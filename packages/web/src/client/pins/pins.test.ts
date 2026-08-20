@@ -9,7 +9,7 @@
  * already one.
  */
 
-import type { Shelf } from "@olai/surface"
+import { NO_PINS, type Shelf } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import { pinnedAt, pinsOf } from "./pins.ts"
@@ -81,7 +81,7 @@ test("…and the shelf drawn over one is the shelf without it", () => {
 })
 
 test("a directory with no shelf, and one whose shelf holds nothing, both draw none", () => {
-  expect(pinsOf([])).toEqual([])
+  expect(pinsOf(NO_PINS)).toEqual([])
 })
 
 // ── is this page already on it ─────────────────────────────────────────
@@ -94,5 +94,5 @@ test("a page is pinned when the shelf holds its address, however either is spell
   expect(pinnedAt(ANSWERED, atNode("kitchen"))).toBeUndefined()
   // And a shelf that has answered nothing has nothing pinned, rather than a
   // caller having to ask whether there is one first.
-  expect(pinnedAt([], { kind: "agenda" })).toBeUndefined()
+  expect(pinnedAt(NO_PINS, { kind: "agenda" })).toBeUndefined()
 })

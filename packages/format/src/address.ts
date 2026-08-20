@@ -269,6 +269,61 @@ export const parseAddress = (text: string): Address | null => {
 }
 
 /**
+ * PATH, QUERY AND FRAGMENT of an address, cut the way this app writes them.
+ *
+ * ONE split, so nothing that reads an address twice can disagree about where
+ * the query ends and the fragment starts. The FRAGMENT COMES OFF FIRST: a `#`
+ * ends a query, so cutting on `?` before it would leave `#beds` inside a
+ * filter and a page narrowed by a word nobody typed.
+ *
+ * The fragment comes back AS WRITTEN, unescaped, because it is half of an
+ * address and {@link parseAddress} is what reads it. Decoding it here would be
+ * this function holding an opinion about a name, and re-joining a decoded half
+ * to a written one is how a `#` inside somebody's heading becomes a second cut.
+ *
+ * IT IS HERE rather than in the browser that mints these URLs, and the move is
+ * the one {@link linkedTitle} below is: three readers cut this — the URL parser,
+ * the workspace that embeds pages in one, and the SHELF reading over on the
+ * server (`./shelf.ts`, finding the node a pin addresses) — and the third one
+ * put a fourth spelling of it on the other side of a wire. What is NOT here,
+ * and stays the browser's, is what the halves MEAN: which page a pathname
+ * opens, and that the query is a filter (docs/format.md's Pins).
+ */
+export const splitAddress = (address: string): Split => {
+  const hash = address.indexOf("#")
+  const whole = hash === -1 ? address : address.slice(0, hash)
+  const fragment = hash === -1 ? undefined : address.slice(hash + 1)
+  const cut = whole.indexOf("?")
+  return {
+    pathname: cut === -1 ? whole : whole.slice(0, cut),
+    search: cut === -1 ? "" : whole.slice(cut + 1),
+    fragment,
+  }
+}
+
+/** An address cut into the three things a URL keeps apart. Named, because a
+ *  parser is handed one rather than a string to cut again. */
+export interface Split {
+  readonly pathname: string
+  /** What is between the `?` and the `#`, without the `?` — read by whoever
+   *  knows what a query means here, which is not this package. */
+  readonly search: string
+  readonly fragment: string | undefined
+}
+
+/**
+ * THE ADDRESS A TITLE CARRIES: the title itself, or the target of the one link
+ * it is written as.
+ *
+ * The other half of {@link linkedTitle}'s reason for being here — both sides of
+ * the pin convention ask this exact question of a title, one to draw the page it
+ * names and one to resolve the node it names (`./shelf.ts`), and one expression
+ * spelled twice is a rule that eventually disagrees with itself.
+ */
+export const addressWritten = (title: string): string =>
+  linkedTitle(title)?.at ?? title.trim()
+
+/**
  * A title written as ONE MARKDOWN LINK around an address, cut into its two
  * halves — `undefined` for every other title.
  *

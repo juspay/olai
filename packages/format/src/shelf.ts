@@ -38,7 +38,7 @@
 
 import { Schema } from "effect"
 
-import { linkedTitle, parseAddress } from "./address.ts"
+import { addressWritten, parseAddress, splitAddress } from "./address.ts"
 import { type Derived, nodeNamed, siblingsOf } from "./derive.ts"
 import { isMirror, pinsIn } from "./node.ts"
 
@@ -74,13 +74,17 @@ const Pinned = Schema.Struct({
    * store publishes — because there was never a second copy of it to go stale.
    *
    * THE ID TRAVELS BESIDE THE NAME, and that is what makes this answer safe to
-   * hand a reader that reads the same title with a parser of its own. The two
-   * sides agree about which titles name a node — a test holds them against each
-   * other (`@olai/web`'s `pins/target.test.ts`) — and where they ever did not,
-   * a name would be a name for some OTHER place, which is the one wrong thing a
-   * door can say. Spending it only where the drawing side agrees this row
-   * addresses this id costs one comparison and makes that unsayable; it is the
-   * echo `NamedAnswer`'s rows carry, for the same reason.
+   * hand a reader that reads the same title with a parser of its own — which is
+   * exactly what the browser does, and NOT with the same answers. This reading
+   * over-answers by construction: the app claims words of its own before the
+   * grammar is asked at all (`/d/…`, `/today`), so `/d/2026-08-20.olai#x` is a
+   * day page up there and an outline's node down here. What holds is one
+   * direction — wherever the app reads a node, this reads the same node
+   * (`@olai/web`'s `pins/target.test.ts`) — and the id is what lets the drawing
+   * side spend a name only where it agrees the row addresses that node. A name
+   * for some OTHER place is the one wrong thing a door can say; this makes it
+   * unsayable for one comparison. It is the echo `NamedAnswer`'s rows carry,
+   * for the same reason.
    */
   shows: Schema.optionalKey(Schema.Struct({
     /** The id the row's address names, in the spelling the grammar normalises
@@ -102,23 +106,22 @@ export type Shelf = typeof Shelf.Type
  *  has never loaded — one value, because all three draw nothing. */
 export const NO_PINS: Shelf = []
 
-/** Whether two answers say the same thing — what keeps a revision that moved no
- *  pin from sending a frame to every open tab. Field by field, because the
- *  reading mints a fresh array per revision and identity would say "moved"
- *  every time. */
-export const sameShelf = (a: Shelf, b: Shelf): boolean =>
-  a.length === b.length &&
-  a.every((was, at) => {
-    const is = b[at]
-    return is !== undefined && was.id === is.id && was.title === is.title &&
-      was.shows?.id === is.shows?.id && was.shows?.name === is.shows?.name
-  })
-
-/** The address a pin title carries: the whole title, or the target of the one
- *  link it is written as ({@link linkedTitle}, which both sides of this reading
- *  cut with). */
-const addressWritten = (title: string): string =>
-  linkedTitle(title)?.at ?? title.trim()
+/**
+ * Whether two answers say the same thing — what keeps a revision that moved no
+ * pin from sending a frame to every open tab.
+ *
+ * About what is SAID rather than about identity: the reading mints a fresh
+ * array per revision, so `===` would never hold and every write anywhere in the
+ * vault would redraw every sidebar.
+ *
+ * DERIVED from the schema, for `./committing.ts`'s reason word for word: a
+ * hand-written comparison is the declaration of those fields spelled a second
+ * time, and the next field added to a row would simply not be compared. The
+ * failure mode is a frame that is never sent — a shelf holding a name the
+ * directory has moved past, with nothing anywhere raising an error, which is
+ * the thing an `equals` is here to prevent.
+ */
+export const sameShelf: (a: Shelf, b: Shelf) => boolean = Schema.toEquivalence(Shelf)
 
 /**
  * THE NODE A PIN TITLE ADDRESSES, or `undefined` — the one question about a
@@ -143,29 +146,24 @@ const addressWritten = (title: string): string =>
  * an escape nothing can read names nothing, rather than throwing on the server
  * that is answering every open tab.
  *
- * It agrees with the browser's parser about which titles name a node, and that
- * agreement is pinned by a test that holds both up against each other
- * (`@olai/web`'s `pins/target.test.ts`) — the oracle rule this design keeps
- * wherever one reading is answered on two sides.
+ * IT ANSWERS ABOUT MORE TITLES THAN THE BROWSER DOES, and knowingly: the app's
+ * URL space claims words this grammar cannot see (`/d/…`, `/today`), so a title
+ * spelling one of those with a document and a fragment in it is a page up there
+ * and a node down here. What is pinned is the direction that matters — wherever
+ * the app's own parser reads a node, this reads the same node (`@olai/web`'s
+ * `pins/target.test.ts`, the oracle rule this design keeps wherever one reading
+ * is answered on two sides) — and {@link Pinned.shows} carries the id so the
+ * extra answers cost a reader nothing.
  */
 export const pinTargetIn = (title: string): string | undefined => {
   const at = addressWritten(title)
   if (!at.startsWith("/")) return undefined
-  const written = at.slice(1)
-  // The query out, and nothing else touched: a `#` ends a query, so the
-  // fragment comes off first and what is left of the path is cut at the `?`.
-  // What that leaves is an address in this package's own grammar, which is what
-  // decides whether it names a node — the bare `#id` and the QUALIFIED
-  // `garden.olai#id` both do, and the qualified one normalises to the same id
-  // ({@link parseAddress}), which is why this is asked of the grammar rather
-  // than pattern-matched here.
-  const hash = written.indexOf("#")
-  const path = hash === -1 ? written : written.slice(0, hash)
-  const query = path.indexOf("?")
-  const address = parseAddress(
-    (query === -1 ? path : path.slice(0, query)) +
-      (hash === -1 ? "" : written.slice(hash)),
-  )
+  // Cut the way this app writes a URL ({@link splitAddress}, the one spelling
+  // of that cut and the same one the browser's parser reads a title with), then
+  // hand the two halves of what is left to the grammar — which is what decides
+  // whether this names a node.
+  const { pathname, fragment } = splitAddress(at.slice(1))
+  const address = parseAddress(pathname + (fragment === undefined ? "" : `#${fragment}`))
   return address?.kind === "node" ? address.id : undefined
 }
 
@@ -190,17 +188,13 @@ export const shelfOf = (derived: Derived): Shelf => {
   return siblingsOf(derived, file, undefined).flatMap((located) => {
     const node = located.node
     if (isMirror(node)) return []
+    const row = { id: node.id, title: node.title }
     const target = pinTargetIn(node.title)
+    if (target === undefined) return [row]
     // `nodeNamed` and not the index: an id may address a MIRROR, and what a
     // reader can be shown is the node standing at that placement — the same
     // lookup a `see` link's text and an edge target already are.
-    const shows = target === undefined ? undefined : nodeNamed(derived, target)
-    return [{
-      id: node.id,
-      title: node.title,
-      ...(target === undefined || shows === undefined
-        ? {}
-        : { shows: { id: target, name: shows.node.title } }),
-    }]
+    const shows = nodeNamed(derived, target)
+    return [shows === undefined ? row : { ...row, shows: { id: target, name: shows.node.title } }]
   })
 }

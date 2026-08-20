@@ -251,7 +251,7 @@ export function Palette(props: {
    * palette is closed this depends on `paletteOpen()` and nothing else.
    */
   const opRows = createMemo(() =>
-    paletteOpen() ? opItems(props.zoomed, derived(), pins()) : []
+    paletteOpen() ? opItems(props.zoomed, derived()) : []
   )
 
   const items = createMemo(() => {

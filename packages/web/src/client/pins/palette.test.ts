@@ -9,7 +9,7 @@
 
 import { derive } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
-import type { Shelf } from "@olai/surface"
+import { NO_PINS, type Shelf } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import { pinItem } from "./palette.ts"
@@ -19,10 +19,8 @@ const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed"}`
 
 const set = derive(recordsOf(setOf({ "garden.olai": GARDEN })))
 
-const EMPTY: Shelf = []
-
 test("a page the shelf does not hold is offered the way ON", () => {
-  const item = pinItem({ kind: "agenda", filter: "is:todo" }, EMPTY, set)
+  const item = pinItem({ kind: "agenda", filter: "is:todo" }, NO_PINS, set)
   expect(item.label).toBe("Pin this page")
   expect(item.action).toEqual({ kind: "pin" })
 })
@@ -36,6 +34,6 @@ test("a page the shelf holds — WITH its query — is offered the way OFF", () 
 })
 
 test("the row says WHICH page, because a palette is opened from anywhere", () => {
-  expect(pinItem(atNode("herbs"), EMPTY, set).place).toBe("the herb bed")
-  expect(pinItem(atFile("notes/x.md"), EMPTY, set).place).toBe("x.md")
+  expect(pinItem(atNode("herbs"), NO_PINS, set).place).toBe("the herb bed")
+  expect(pinItem(atFile("notes/x.md"), NO_PINS, set).place).toBe("x.md")
 })

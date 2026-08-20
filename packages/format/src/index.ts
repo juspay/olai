@@ -174,6 +174,7 @@ export {
   unkept,
 } from "./kinds.ts"
 export type { BodyKind, FileKind } from "./kinds.ts"
+export type { Split } from "./address.ts"
 /** WHAT A PLACE IS CALLED — `[document]#[element]`, the one grammar every
  *  feature that has to name something trades in
  *  (docs/brainstorming/first-class-documents.md). Exported whole, primitives
@@ -188,15 +189,20 @@ export {
   AtNode,
   addressOf,
   DocumentPath,
-  /** A title written as ONE markdown link around an address, cut into its two
-   *  halves — the shape a NAMED pin is written in, read by the shelf reading
-   *  down here and by the browser drawing the same title (docs/format.md's
-   *  Pins). One spelling, because two readers cut it. */
+  /** The address a TITLE carries, and the two halves of the one link it may be
+   *  written as — the shape a NAMED pin takes, read by the shelf reading down
+   *  here and by the browser drawing the same title (docs/format.md's Pins).
+   *  One spelling, because two readers cut it. */
+  addressWritten,
   linkedTitle,
   NodeId,
   parseAddress,
   printAddress,
   Slug,
+  /** Path, query and fragment of an address, cut the way this app writes one —
+   *  the URL's own punctuation, read on both sides of the wire. What the halves
+   *  MEAN stays the browser's. */
+  splitAddress,
   Tag,
   writtenAddress,
 } from "./address.ts"

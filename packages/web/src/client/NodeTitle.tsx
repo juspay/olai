@@ -49,7 +49,7 @@
 
 import { createMemo, Show } from "solid-js"
 
-import { addressIn, labelIn, nameOf, shownIn } from "./address/address.ts"
+import { addressIn, shownIn, titleFace } from "./address/address.ts"
 import { Face } from "./address/Face.tsx"
 import { useDerived } from "./derived.tsx"
 import { renderTitle } from "./markdown/title.ts"
@@ -73,8 +73,6 @@ export function NodeTitle(props: {
    *  other title in the directory: the test short-circuits on the first
    *  character (`./address/address.ts`). */
   const address = createMemo(() => addressIn(props.title))
-  /** …and the name written INTO it, for the spelling that carries one. */
-  const named = createMemo(() => labelIn(props.title))
   const html = createMemo(() =>
     renderTitle(props.title, props.from, {
       links: props.links,
@@ -93,28 +91,33 @@ export function NodeTitle(props: {
         />
       }
     >
-      {(route) => (
-        // The needles are deliberately not carried into a face: what a filter
-        // lights is where a WORD sits in the words somebody wrote, and this
-        // title's words are the set's rather than the file's. The row is still
-        // drawn, and still says it is a match in the ways that are about the
-        // row (`./filter/why.ts`).
-        <span class="flex min-w-0 flex-1 items-center gap-1.5">
-          <Face
-            route={route()}
-            // WHAT IT IS CALLED, asked of the reading this page is drawn from
-            // — the one address resolution still answered in the browser, and
-            // the one PR 10 takes with the rest of a page's readings
-            // (`./address/address.ts`'s `shownIn`). The shelf's identical
-            // question is answered on the server; both go through the same
-            // switch, so one title cannot have two answers.
-            name={named() ?? nameOf(route(), shownIn(derived(), route()))}
-            // A written name is what may be pressed — a bare address is left as
-            // it was, so a click there opens the editor on the address itself.
-            pressable={named() !== undefined && props.links !== false}
-          />
-        </span>
-      )}
+      {(route) => {
+        /** WHAT THIS FACE SAYS AND WHAT IT MAY BE, from the one reading both
+         *  faces make of a title (`./address/address.ts`) — asked here of the
+         *  page this row is drawn from, which is the last address resolution
+         *  answered in the browser and the one PR 10 takes with the rest of a
+         *  page's readings (`shownIn`). The shelf's identical question is
+         *  answered on the server. */
+        const face = createMemo(() =>
+          titleFace(props.title, route(), shownIn(derived(), route()))
+        )
+        return (
+          // The needles are deliberately not carried into a face: what a filter
+          // lights is where a WORD sits in the words somebody wrote, and this
+          // title's words are the set's rather than the file's. The row is still
+          // drawn, and still says it is a match in the ways that are about the
+          // row (`./filter/why.ts`).
+          <span class="flex min-w-0 flex-1 items-center gap-1.5">
+            <Face
+              route={route()}
+              name={face().name}
+              // A WRITTEN name is what may be pressed, and whether this caller
+              // may hold an anchor at all is its own half of that answer.
+              pressable={face().written && props.links !== false}
+            />
+          </span>
+        )
+      }}
     </Show>
   )
 }

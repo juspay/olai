@@ -22,7 +22,13 @@
  * this file, and it has one caller left: the shelf's is the server's now.
  */
 
-import { basenameOf, type Derived, linkedTitle, nodeNamed } from "@olai/format"
+import {
+  addressWritten,
+  basenameOf,
+  type Derived,
+  linkedTitle,
+  nodeNamed,
+} from "@olai/format"
 
 import { hrefOf, type Route, routeIn } from "../routes.ts"
 
@@ -57,7 +63,7 @@ export const addressIn = (title: string): Route | undefined => {
   // Cheap first: nearly every title in a directory is neither, and this runs
   // once per title per draw now that the tree reads it too.
   if (!text.startsWith("/") && !text.startsWith("[")) return undefined
-  const address = linkedTitle(text)?.at ?? text
+  const address = addressWritten(text)
   if (/\s/.test(address)) return undefined
   return routeIn(address) ?? undefined
 }
@@ -69,6 +75,48 @@ export const addressIn = (title: string): Route | undefined => {
 export const labelIn = (title: string): string | undefined => {
   const label = linkedTitle(title)?.label.trim()
   return label === undefined || label === "" ? undefined : label
+}
+
+/** What a face drawn for a title says, and what it may BE — see
+ *  {@link titleFace}. */
+export interface Faced {
+  /** The words to draw. */
+  readonly name: string
+  /**
+   * Whether those words are somebody's OWN, which is the only kind a face may
+   * make a link of: pressing a written name opens its address, and a bare
+   * address is left as it was so a click there opens the editor on the address
+   * itself (docs/format.md's Pins).
+   *
+   * It rides HERE rather than being asked again at the call site because it is
+   * the same reading — a label was written, or it was not — and two readings of
+   * one title is what this module exists to refuse. What the caller adds is
+   * whether it may hold an anchor at all.
+   */
+  readonly written: boolean
+}
+
+/**
+ * WHAT A TITLE THAT NAMES A PLACE IS CALLED — the whole rule, in the one place
+ * it is spelled.
+ *
+ * A name somebody WROTE into the title wins, because it is authored rather than
+ * derived and nothing can disagree with it later; otherwise the address answers
+ * for itself ({@link nameOf}). That precedence is docs/format.md's Pins, and it
+ * used to live inside the face until the two callers started learning the set's
+ * half from opposite sides of the wire — at which point it was about to be two
+ * `??` chains that had to stay in step, which is the shape this module exists
+ * to refuse.
+ */
+export const titleFace = (
+  title: string,
+  route: Route,
+  /** {@link nameOf}'s missing fact — from the server for a shelf row, from
+   *  {@link shownIn} for a row of an open page. */
+  shows: string | undefined,
+): Faced => {
+  const written = labelIn(title)
+  return { name: written ?? nameOf(route, shows), written: written !== undefined }
 }
 
 /**
