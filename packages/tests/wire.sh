@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Measure one edit-while-previewing session against a WORKTREE's own server.
+# Measure one session against a WORKTREE's own server — see wire.ts for which
+# two sessions there are and what each is asking.
 #
 #   ROOT=/path/to/a/worktree LABEL=before bash wire.sh
+#   SESSION=pages ROOT=… LABEL=…    # the reading session, not the preview one
 #   PORT=7802 …               # pin a port (optional; the default asks the OS)
 #
 # Expects to be run from packages/tests, inside `nix develop .#e2e`, with the
@@ -38,4 +40,5 @@ printf '{"id":"house","ord":"a0","title":"house"}\n' > "$work/vault/house.olai"
 olai_serve "$root" "$work/vault" "$work/server.log"
 trap 'kill "$OLAI_SERVER" 2>/dev/null || true; rm -rf "$work"' EXIT
 
-LABEL="$label" BASE="$OLAI_URL" VAULT="$work/vault" bun wire.ts
+SESSION="${SESSION:-preview}" LABEL="$label" BASE="$OLAI_URL" VAULT="$work/vault" \
+  bun wire.ts
