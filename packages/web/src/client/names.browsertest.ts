@@ -24,18 +24,19 @@
  * The second command of the same `just test` leg names this path.
  */
 
-import { writeWrappedValue } from "@kolu/surface/solid"
 import { expect, test } from "bun:test"
 import { createMemo, createRoot, createSignal } from "solid-js"
-import { createStore } from "solid-js/store"
 
 import type { Named, PageReading } from "@olai/format"
 import { surface } from "@olai/surface"
 
+import { named, page, row, wired } from "./frame.testlib.ts"
 import { createNames } from "./names.ts"
 
 /** A reading carrying nothing but the field this module reads — fresh objects
- *  every time, which is what a frame off the wire is. */
+ *  every time, which is what a frame off the wire is. The cast is what says so:
+ *  there is no `shows` here at all, because the rule these cases are about is
+ *  a rule about the names table and nothing else. */
 const frame = (...names: ReadonlyArray<readonly [string, string]>): PageReading =>
   ({
     names: names.map(([id, title]): Named => ({ id, title, file: "house.olai" })),
@@ -118,14 +119,14 @@ test("a reading that has not arrived is an empty table, and holds", () =>
  *
  * The declaration moved the ground under this module, and the measurement is
  * why the `equals` STAYS rather than going with the rest of the campaign's
- * stand-ins. `names` carries no `key`, so it merges BY POSITION: a repeated
+ * stand-ins. `names` carries no `key`, so it merges by POSITION: a repeated
  * frame writes nothing into it, and neither does a frame in which only a ROW
  * moved. Both of those used to wake the copy and be stopped by the comparison;
  * they no longer wake it at all, and for them the `equals` is now dead weight.
- * What is left is the case position cannot help with — a NAVIGATION, where the
- * subscription blanks and its first frame is a whole new value with nothing to
- * merge into, so every reader wakes whatever the value says. Two pages naming
- * the same ids is the ordinary case (a zoom in, a zoom out, the same outline
+ * What is left is the case a key cannot reach: a NAVIGATION blanks the
+ * subscription, so its first frame has nothing to merge into and the store
+ * adopts it whole, waking every reader whatever it says. Two pages naming the
+ * same ids is the ordinary case (a zoom in, a zoom out, the same outline
  * reached twice), and that is the one the comparison still earns.
  *
  * `copies` counts the copy memo's own runs, by counting reads of the accessor
@@ -137,103 +138,78 @@ test("a reading that has not arrived is an empty table, and holds", () =>
  */
 const DECLARED = surface.spec.streams.page.arrayKey
 
-/** A page with a row AND names, so a frame can move one and leave the other
- *  alone — the shape the `page` stream actually carries. */
-const reading = (
-  title: string,
-  ...names: ReadonlyArray<readonly [string, string]>
-): PageReading =>
-  ({
-    shows: {
-      kind: "outline",
-      file: "house.olai",
-      rows: [{
-        kind: "node",
-        key: "/kitchen",
-        at: { file: "house.olai", line: 1, node: { id: "kitchen", ord: "a0", title } },
-        shows: { file: "house.olai", line: 1, node: { id: "kitchen", ord: "a0", title } },
-        blocked: [],
-        under: 0,
-        children: [],
-      }],
-    },
-    names: names.map(([id, named]): Named => ({ id, title: named, file: "house.olai" })),
-  }) as unknown as PageReading
+/** A page with a row AND one name, so a frame can move one and leave the other
+ *  alone — the shape the `page` stream actually carries. The fixtures are
+ *  `./frame.testlib.ts`'s, shared with `./Tree.browsertest.ts`. */
+const reading = (rowTitle: string, herbTitle: string): PageReading =>
+  page([row("/kitchen", "kitchen", rowTitle)], [named("herbs", herbTitle)])
 
 /** The store one pane holds, written the way the wire writes one — and the
  *  count of how often the copy inside `createNames` had to run at all. */
 const merged = () =>
   createRoot((dispose) => {
-    const [store, setStore] = createStore<{ v: PageReading | undefined }>({ v: undefined })
+    const store = wired(DECLARED)
     // `./reading.tsx`'s HOLD, spelled here because it is part of what is being
     // measured: a pane does not hand this module the raw subscription, it hands
     // it the last answer kept standing across the next question. Without it the
     // blank between two pages would reach the table as an empty one and the
     // navigation case below would be measuring a beat the app does not have.
-    const held = createMemo<PageReading | undefined>((was) => store.v ?? was, undefined)
+    const held = createMemo<PageReading | undefined>((was) => store.reading() ?? was, undefined)
     let copies = 0
     const table = createNames(() => {
       copies += 1
       return held()
     })
-    return {
-      write: (next: PageReading) => writeWrappedValue(setStore, next, DECLARED),
-      /** What the framework does to a subscription the moment its input moves,
-       *  before the new question's first frame. */
-      blank: () => setStore("v", undefined),
-      table,
-      copies: () => copies,
-      stop: dispose,
-    }
+    return { ...store, table, copies: () => copies, stop: dispose }
   })
 
 test("a repeated frame does not reach the copy at all any more", () => {
   const store = merged()
-  store.write(reading("kitchen remodel", ["herbs", "the herb bed"]))
-  const held = store.table()
-  expect(held("herbs")?.title).toBe("the herb bed")
+  store.write(reading("kitchen remodel", "the herb bed"))
+  const table = store.table()
+  expect(table("herbs")?.title).toBe("the herb bed")
   const ran = store.copies()
-  store.write(reading("kitchen remodel", ["herbs", "the herb bed"]))
-  expect(store.table()).toBe(held)
+  store.write(reading("kitchen remodel", "the herb bed"))
+  expect(store.table()).toBe(table)
   expect(store.copies()).toBe(ran)
   store.stop()
 })
 
 test("a ROW moving does not reach the copy either — names merge in place", () => {
   const store = merged()
-  store.write(reading("kitchen remodel", ["herbs", "the herb bed"]))
-  const held = store.table()
+  store.write(reading("kitchen remodel", "the herb bed"))
+  const table = store.table()
   const ran = store.copies()
-  store.write(reading("kitchen remodel today", ["herbs", "the herb bed"]))
-  expect(store.table()).toBe(held)
+  store.write(reading("kitchen remodel today", "the herb bed"))
+  expect(store.table()).toBe(table)
   expect(store.copies()).toBe(ran)
   store.stop()
 })
 
 test("a NAVIGATION does, and this is what the equals is still for", () => {
   const store = merged()
-  store.write(reading("kitchen remodel", ["herbs", "the herb bed"]))
-  const held = store.table()
+  store.write(reading("kitchen remodel", "the herb bed"))
+  const table = store.table()
   const ran = store.copies()
   store.blank()
-  store.write(reading("the herb bed", ["herbs", "the herb bed"]))
+  store.write(reading("the herb bed", "the herb bed"))
   // The copy DID run — there was nothing for the first frame of a new question
   // to merge into, so the store adopted it whole...
   expect(store.copies()).toBeGreaterThan(ran)
   // ...and the comparison is what keeps every `NodeTitle` face memo and every
   // `EdgeRefs` row on the arriving page from re-running for a table that says
   // exactly what the last one said.
-  expect(store.table()).toBe(held)
+  expect(store.table()).toBe(table)
   store.stop()
 })
 
 test("...and a name that actually changed is still a new table across one", () => {
   const store = merged()
-  store.write(reading("kitchen remodel", ["herbs", "the herb bed"]))
-  const held = store.table()
+  store.write(reading("kitchen remodel", "the herb bed"))
+  const table = store.table()
   store.blank()
-  store.write(reading("the herb bed", ["herbs", "the herb bed by the gate"]))
-  expect(store.table()).not.toBe(held)
+  store.write(reading("the herb bed", "the herb bed by the gate"))
+  expect(store.table()).not.toBe(table)
   expect(store.table()("herbs")?.title).toBe("the herb bed by the gate")
   store.stop()
 })

@@ -39,6 +39,16 @@
  * the app ships. `packages/surface/src/surface.test.ts` is where the spelling
  * itself is pinned against the schema.
  *
+ * WHAT IT DOES NOT COVER, so the name over the door is not read as a promise:
+ * this file never imports `./Tree.tsx`. There is no DOM here to render one in,
+ * and what is being asked is a question about the MERGE that `Tree.tsx` is
+ * merely the biggest consumer of — so every case below would still pass if the
+ * tree stopped keying its rows by `key` tomorrow. That claim's guard is the e2e
+ * suite (`a_frame_leaves_it_standing.feature` and `the_chrome_holds_still.
+ * feature`, over the real component in a real browser), and the twenty-five
+ * bindings a `Branch` has is the audit's own count of what one reads, cited
+ * rather than measured here.
+ *
  * `.browsertest.ts` for `./settled.browsertest.ts`'s reason, which that file
  * argues in full: `bun test` resolves SolidJS's SERVER build, where a memo never
  * re-runs and an effect never runs at all — so every case below would PASS
@@ -46,36 +56,17 @@
  * names this path.
  */
 
-import { writeWrappedValue } from "@kolu/surface/solid"
 import { keyArray } from "@solid-primitives/keyed"
 import { expect, test } from "bun:test"
 import { $TRACK, createEffect, createMemo, createRoot } from "solid-js"
-import { createStore } from "solid-js/store"
 
 import type { PageReading, Row } from "@olai/format"
 import { surface } from "@olai/surface"
 
+import { page, row, wired } from "./frame.testlib.ts"
+
 /** What the app ships — see the header. */
 const DECLARED = surface.spec.streams.page.arrayKey
-
-/** One row of an outline, at the place `key` names. A typed literal rather than
- *  a walk over a fixture: what is being measured is what the MERGE does to a
- *  frame, and a frame is a plain value however it was computed. */
-const row = (key: string, id: string, title: string, children: ReadonlyArray<Row> = []): Row => ({
-  kind: "node",
-  key,
-  at: { file: "house.olai", line: 1, node: { id, ord: "a0", title } },
-  shows: { file: "house.olai", line: 1, node: { id, ord: "a0", title } },
-  blocked: [],
-  under: children.length,
-  children,
-})
-
-/** A page of one outline, as the wire speaks it. */
-const page = (...rows: ReadonlyArray<Row>): PageReading => ({
-  shows: { kind: "outline", file: "house.olai", rows },
-  names: rows.map((one) => ({ id: one.key, title: "", file: "house.olai" })),
-})
 
 /**
  * The page every case below starts from, and the three shapes a gesture leaves
@@ -84,6 +75,10 @@ const page = (...rows: ReadonlyArray<Row>): PageReading => ({
  * Four literals differing in one word would make "an IDENTICAL frame" a claim
  * about somebody's typing rather than a property of the value, and a stray
  * character in the part meant to be unchanged would read as a row that moved.
+ *
+ * A FUNCTION and never a shared value: a frame written into a store becomes
+ * that store's reconcile target, so two writes of one object would be the
+ * second one merging a value into itself.
  */
 const THREE = (
   moved: {
@@ -102,7 +97,7 @@ const THREE = (
     row("/order", "order", moved.order ?? "order the new cabinets"),
     row("/herbs", "herbs", "the herb bed"),
   ] as const
-  return page(...(moved.rotated === true ? [rows[2], rows[0], rows[1]] : rows))
+  return page(moved.rotated === true ? [rows[2], rows[0], rows[1]] : rows)
 }
 
 /** The tree's own reading of a store, with the two counters the finding is
@@ -122,9 +117,9 @@ interface Drive {
  *  single effect had run and report nothing happening, whatever happened. */
 const driving = (arrayKey: string | undefined): Drive =>
   createRoot((dispose) => {
-    const [store, setStore] = createStore<{ v: PageReading | undefined }>({ v: undefined })
+    const store = wired(arrayKey)
     const shows = (): { rows: ReadonlyArray<Row> } | undefined => {
-      const held = store.v?.shows
+      const held = store.reading()?.shows
       return held !== undefined && held.kind === "outline" ? held : undefined
     }
     const rows = (): ReadonlyArray<Row> => shows()?.rows ?? []
@@ -161,7 +156,7 @@ const driving = (arrayKey: string | undefined): Drive =>
     })
 
     return {
-      write: (next) => writeWrappedValue(setStore, next, arrayKey),
+      write: store.write,
       bindings: () => bindings,
       tracks: () => tracks,
       titles: () => [...titles],
@@ -169,17 +164,17 @@ const driving = (arrayKey: string | undefined): Drive =>
     }
   })
 
-/** What one gesture cost, counted from where it started. */
+/** What ONE frame cost, counted from the page it landed on. */
 const cost = (
   arrayKey: string | undefined,
-  gesture: (write: (next: PageReading) => void) => void,
+  next: PageReading,
 ): { bindings: number; tracks: number; titles: ReadonlyArray<string> } => {
   const drive = driving(arrayKey)
   try {
     drive.write(THREE())
     const wasBindings = drive.bindings()
     const wasTracks = drive.tracks()
-    gesture(drive.write)
+    drive.write(next)
     return {
       bindings: drive.bindings() - wasBindings,
       tracks: drive.tracks() - wasTracks,
@@ -190,51 +185,35 @@ const cost = (
   }
 }
 
-/** The same page said again — every object of it new, as every frame's is. */
-const REPEAT = (write: (next: PageReading) => void) => write(THREE())
-
-/** One row's title changed and nothing else — the keystroke the finding is
- *  written about. */
-const ONE_TITLE = (write: (next: PageReading) => void) =>
-  write(THREE({ order: "order the new cabinets today" }))
-
-/** The rows in a different order — a `move_node` landing under a page somebody
- *  is looking at. */
-const REORDER = (write: (next: PageReading) => void) => write(THREE({ rotated: true }))
-
 test("UNDECLARED: a repeated frame re-runs every row's bindings — the defect", () => {
-  // Master, exactly: `reconcile(next, { key: null })` with no `merge`. Three
-  // top-level rows, three bindings re-run, for a frame that said nothing.
-  const was = cost(undefined, REPEAT)
+  // Master, exactly: `reconcile(next, { key: null })` with no `merge`. The same
+  // page said again — every object of it new, as every frame's is — and three
+  // top-level rows re-run three bindings for it.
+  const was = cost(undefined, THREE())
   expect(was.bindings).toBe(3)
   expect(was.tracks).toBe(1)
 })
 
 test("DECLARED: a repeated frame re-runs nothing at all", () => {
-  const now = cost(DECLARED, REPEAT)
+  const now = cost(DECLARED, THREE())
   expect(now.bindings).toBe(0)
   expect(now.tracks).toBe(0)
 })
 
+/** The keystroke the finding is written about: one row's title, nothing else. */
+const RETITLED = ["kitchen remodel", "order the new cabinets today", "the herb bed"]
+
 test("UNDECLARED: one row's title re-runs every row's bindings", () => {
   // The finding in one line: a one-character change in ONE row is O(rows).
-  const was = cost(undefined, ONE_TITLE)
+  const was = cost(undefined, THREE({ order: "order the new cabinets today" }))
   expect(was.bindings).toBe(3)
-  expect(was.titles).toEqual([
-    "kitchen remodel",
-    "order the new cabinets today",
-    "the herb bed",
-  ])
+  expect(was.titles).toEqual(RETITLED)
 })
 
 test("DECLARED: one row's title re-runs that row's bindings and no other", () => {
-  const now = cost(DECLARED, ONE_TITLE)
+  const now = cost(DECLARED, THREE({ order: "order the new cabinets today" }))
   expect(now.bindings).toBe(1)
-  expect(now.titles).toEqual([
-    "kitchen remodel",
-    "order the new cabinets today",
-    "the herb bed",
-  ])
+  expect(now.titles).toEqual(RETITLED)
 })
 
 test("a reorder MOVES the rows rather than rewriting them", () => {
@@ -242,8 +221,8 @@ test("a reorder MOVES the rows rather than rewriting them", () => {
   // landing under somebody's page is about: the row objects a keyed view is
   // following go WITH their rows, so nothing re-runs for a gesture that changed
   // no row's content. Undeclared, every row was rewritten in place.
-  expect(cost(undefined, REORDER).bindings).toBe(3)
-  const now = cost(DECLARED, REORDER)
+  expect(cost(undefined, THREE({ rotated: true })).bindings).toBe(3)
+  const now = cost(DECLARED, THREE({ rotated: true }))
   expect(now.bindings).toBe(0)
   expect(now.titles).toEqual([
     "the herb bed",
@@ -252,17 +231,14 @@ test("a reorder MOVES the rows rather than rewriting them", () => {
   ])
 })
 
-/** A row three levels down retitled — the same keystroke, inside a subtree. */
-const ONE_CHILD_TITLE = (write: (next: PageReading) => void) =>
-  write(THREE({ child: "choose the handles today" }))
-
 test("a row's CHILDREN are keyed by the same field, at every depth", () => {
   // One key per member, reaching every array at every depth — so the subtree
   // `<Key each={props.row.children} by="key">` draws is keyed too. Undeclared,
   // a child's title replaced its parent's row object and every sibling's with
   // it; declared, it reaches the one binding that draws it and no other.
-  expect(cost(undefined, ONE_CHILD_TITLE).bindings).toBe(3)
-  expect(cost(DECLARED, ONE_CHILD_TITLE).bindings).toBe(0)
+  const child = { child: "choose the handles today" }
+  expect(cost(undefined, THREE(child)).bindings).toBe(3)
+  expect(cost(DECLARED, THREE(child)).bindings).toBe(0)
 })
 
 test("the key this measures is the key the app declares", () => {

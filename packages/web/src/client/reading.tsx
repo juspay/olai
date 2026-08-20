@@ -124,6 +124,20 @@ export interface Reading {
    * (`@olai/surface`'s `arrayKey`), an identical frame writes nothing either,
    * and the two readings agree.
    *
+   * WHAT THE THIRD CLAUSE COSTS, named rather than implied, because the
+   * paragraph above is about the CLONES and the clones are not the whole bill.
+   * `createUpdatedTracker` short-circuits in O(1) only while NOBODY is
+   * subscribed on either channel; registering here — `changed` or `updated`
+   * alike — drops it through to `framesEqual` of the whole frame on every
+   * changed frame, and kolu's own docstring says that compare "still runs, and
+   * must", since it is what decides that an equal reconnect snapshot is silent.
+   * So this is not free where the stand-in was: `frames.ts` walked the object
+   * SPINE above the arrays, which for a page reading is a handful of nodes
+   * whatever the page holds, where this is O(frame). What is bought for it is
+   * the clause itself, plus never paying the two `structuredClone`s again — and
+   * it is dwarfed by what the declaration beside it stops, which is every
+   * per-row binding on the page re-running for a frame that said nothing.
+   *
    * THE PAGE ITSELF is the right granularity, and narrower than what it
    * replaced: a revision that moved nothing on this page sends no frame at all
    * (the server's `samePageReading`), so it cannot invalidate an answer about

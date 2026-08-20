@@ -2,9 +2,6 @@ import { expect, test } from "bun:test"
 
 import { Schema, SchemaAST } from "effect"
 
-import { PageReading, Pending, Shelf } from "@olai/format"
-
-import { ChatState } from "./chat.ts"
 import { LOADED, Manifest, surface } from "./index.ts"
 
 const tags = [...surface.group.requests.keys()].sort()
@@ -132,10 +129,11 @@ const keyings = (
     if (!SchemaAST.isObjects(arm)) return false
     const property = arm.propertySignatures.find((one) => one.name === field)
     if (property === undefined) return false
-    // Required and non-nullable, both read off the property's own type: an
-    // optional key is `context.isOptional`, and a nullable one is a union with
-    // `Null` among its arms.
-    if (property.type.context?.isOptional === true) return false
+    // Required and non-nullable, both asked of the property's own type through
+    // the module that owns the answer: optionality moved off the node between
+    // effect 3 and 4, and reading `context.isOptional` by hand is a guard that
+    // would quietly start saying "not optional" the next time it moves.
+    if (SchemaAST.isOptional(property.type)) return false
     return !arms(property.type).some(SchemaAST.isNull)
   }
 
@@ -174,23 +172,88 @@ const keyings = (
   return found
 }
 
-/** The claim every declaration below makes, whatever else it says: something is
- *  declared, the key identifies some array, and there is no array it identifies
- *  HALF of. */
-const declares = (
-  schema: { readonly ast: SchemaAST.AST },
-  field: string | undefined,
-): ReadonlyMap<string, Keying> => {
-  if (field === undefined) throw new Error("the member declares no arrayKey at all")
-  const found = keyings(schema, field)
-  expect([...found].filter(([, how]) => how === "mixed")).toEqual([])
-  expect([...found].filter(([, how]) => how === "keyed").length).toBeGreaterThan(0)
-  return found
+/**
+ * EVERY MEMBER, and the schema whose arrays its key would govern — read off the
+ * spec rather than written down beside it.
+ *
+ * The docstring above says the hazard is "a declaration and the field it names
+ * live in two places". A guard that imported four schemas by hand and named four
+ * members by hand would be a third place, with the same failure: point `pins` at
+ * a different schema and the check goes on passing against the old one, and add
+ * a member tomorrow with a key its value does not carry and nothing is red.
+ *
+ * `arrayKey` is read through a widening because the spec is a LITERAL: a member
+ * that does not spell the field has no such property to name, so the question
+ * has to be asked of the value.
+ */
+const MEMBERS: ReadonlyArray<{
+  readonly name: string
+  readonly arrayKey: string | undefined
+  /** The schema of what one frame of this member CARRIES — a collection's is one
+   *  entry's, which is the value its per-key delivery merges. */
+  readonly value: { readonly ast: SchemaAST.AST }
+}> = [
+  ...Object.entries(surface.spec.cells).map(([name, spec]) => ({
+    name: `cells.${name}`,
+    arrayKey: (spec as { readonly arrayKey?: string }).arrayKey,
+    value: spec.schema as unknown as { readonly ast: SchemaAST.AST },
+  })),
+  ...Object.entries(surface.spec.collections).map(([name, spec]) => ({
+    name: `collections.${name}`,
+    arrayKey: (spec as { readonly arrayKey?: string }).arrayKey,
+    value: spec.schema as unknown as { readonly ast: SchemaAST.AST },
+  })),
+  ...Object.entries(surface.spec.streams).map(([name, spec]) => ({
+    name: `streams.${name}`,
+    arrayKey: (spec as { readonly arrayKey?: string }).arrayKey,
+    value: spec.outputSchema as unknown as { readonly ast: SchemaAST.AST },
+  })),
+]
+
+/** The arrays one declaring member's key identifies — its OWN schema and its OWN
+ *  field, so a case below cannot end up checking a schema the member no longer
+ *  carries. */
+const keyingsOf = (name: string): ReadonlyMap<string, Keying> => {
+  const member = MEMBERS.find((one) => one.name === name)
+  if (member === undefined) throw new Error(`the surface declares no member ${name}`)
+  if (member.arrayKey === undefined) throw new Error(`${name} declares no arrayKey`)
+  return keyings(member.value, member.arrayKey)
 }
 
+test("every declaration names a field its own schema carries, and no other member declares", () => {
+  const declaring = MEMBERS.filter((one) => one.arrayKey !== undefined)
+  // THE WHOLE LIST, asserted as a list: this is what says the four below are
+  // every one there is, so a fifth member arriving with a declaration cannot
+  // slip past a suite that only knows four names. The members that declare
+  // NOTHING declare nothing on purpose and each says why where it is declared —
+  // `errors` has no field that identifies a row, and `outlines`, `heads` and
+  // `transcript` are read through the batched `deltas` delivery, which replaces
+  // each named leaf whole rather than merging, so there is no merge for a key to
+  // govern. `documents` is served per key and would honour one, but a document
+  // entry is a revision and a body; `manifest`, `git`, `dated`, `owed` and
+  // `moving` carry no array of objects at all.
+  expect(declaring.map((one) => `${one.name} → ${one.arrayKey}`).sort()).toEqual([
+    "cells.chat → name",
+    "cells.pending → path",
+    "cells.pins → id",
+    "streams.page → key",
+  ])
+  for (const one of declaring) {
+    const found = keyings(one.value, one.arrayKey as string)
+    // The key identifies SOMETHING — a declaration the schema does not carry
+    // reads as no declaration at all at the merge, silently...
+    expect([one.name, [...found].filter(([, how]) => how === "keyed").length > 0])
+      .toEqual([one.name, true])
+    // ...and there is no array it identifies HALF of, which is the shape the
+    // merge decides for a whole array from its first element's value.
+    expect([one.name, [...found].filter(([, how]) => how === "mixed")])
+      .toEqual([one.name, []])
+  }
+})
+
 test("the page stream is keyed by the field a Row carries, on every arm", () => {
-  const found = declares(PageReading, surface.spec.streams.page.arrayKey)
   expect(surface.spec.streams.page.arrayKey).toBe("key")
+  const found = keyingsOf("streams.page")
   // The tree, and the tree under the tree: a row's `children` is the same
   // shape, so `<Key each={props.row.children} by="key">` is keyed too.
   expect(found.get("shows.rows")).toBe("keyed")
@@ -206,54 +269,33 @@ test("the page stream is keyed by the field a Row carries, on every arm", () => 
 })
 
 test("the pins cell is keyed by the field a Pinned carries", () => {
-  const found = declares(Shelf, surface.spec.cells.pins.arrayKey)
   expect(surface.spec.cells.pins.arrayKey).toBe("id")
   // The shelf IS the array — the member's whole value, so the root path.
-  expect(found.get("")).toBe("keyed")
+  expect(keyingsOf("cells.pins").get("")).toBe("keyed")
 })
 
 test("the pending cell is keyed by the one name its two row lists share", () => {
-  const found = declares(Pending, surface.spec.cells.pending.arrayKey)
   expect(surface.spec.cells.pending.arrayKey).toBe("path")
+  const found = keyingsOf("cells.pending")
   // BOTH lists, because one field per member has to key both or key neither —
   // and `@olai/format`'s `Other` already promises they spell it the same way.
   expect(found.get("outlines")).toBe("keyed")
   expect(found.get("others")).toBe("keyed")
   expect(found.get("changes")).toBe("positional")
   expect(found.get("wrote")).toBe("positional")
+  // `file` is the near-miss, and it is not a taste: it keys `outlines` too, and
+  // it REPEATS inside `changes` — several node changes per file, since
+  // `changesOf` matches by id across files — which is a key that decides
+  // identity by collision, exactly as `file` would on `errors`.
+  const pending = MEMBERS.find((one) => one.name === "cells.pending")!
+  expect(keyings(pending.value, "file").get("changes")).toBe("keyed")
 })
 
 test("the chat cell is keyed by the field both of its lists carry", () => {
-  const found = declares(ChatState, surface.spec.cells.chat.arrayKey)
   expect(surface.spec.cells.chat.arrayKey).toBe("name")
+  const found = keyingsOf("cells.chat")
   expect(found.get("commands")).toBe("keyed")
   expect(found.get("missing")).toBe("keyed")
-})
-
-// The other side of the same pin: a member that declares nothing declares
-// nothing ON PURPOSE — each says why where it is declared, and the three
-// `deltas` collections share one reason (the batched delivery replaces each
-// named leaf whole, so there is no merge there for a key to govern). A
-// declaration arriving by accident is exactly as silent as one going missing.
-//
-// Read through a widening rather than off the literal's inferred type: a spec
-// that does not spell the field has no such property to name, so the check has
-// to be about the VALUE. It is the same widening `arrayKey` itself is — an
-// optional field on the member spec.
-const declaredOn = (member: object): string | undefined =>
-  (member as { readonly arrayKey?: string }).arrayKey
-
-test("no other member claims an array identity", () => {
-  expect(declaredOn(surface.spec.cells.errors)).toBeUndefined()
-  expect(declaredOn(surface.spec.cells.manifest)).toBeUndefined()
-  expect(declaredOn(surface.spec.cells.git)).toBeUndefined()
-  expect(declaredOn(surface.spec.streams.dated)).toBeUndefined()
-  expect(declaredOn(surface.spec.streams.owed)).toBeUndefined()
-  expect(declaredOn(surface.spec.streams.moving)).toBeUndefined()
-  expect(declaredOn(surface.spec.collections.outlines)).toBeUndefined()
-  expect(declaredOn(surface.spec.collections.heads)).toBeUndefined()
-  expect(declaredOn(surface.spec.collections.documents)).toBeUndefined()
-  expect(declaredOn(surface.spec.collections.transcript)).toBeUndefined()
 })
 
 // The walk itself, since three tests above rest on it reading a schema

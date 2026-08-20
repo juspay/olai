@@ -101,9 +101,9 @@
  *     which is the one question left in the app that is about the vault and not
  *     about any page.
  *
- * FOUR MEMBERS DECLARE WHAT IDENTIFIES A ROW — `page` by `key`, `pins` and
- * `chat` and `pending` by `id`, `name` and `path` — and that is the one thing
- * about this spec that is not about the wire at all. `arrayKey` is read where a
+ * FOUR MEMBERS DECLARE WHAT IDENTIFIES A ROW — `page` by `key`, `pins` by
+ * `id`, `pending` by `path`, `chat` by `name` — and that is the one thing about
+ * this spec that is not about the wire at all. `arrayKey` is read where a
  * browser MERGES a frame into its store (`@kolu/surface`'s `writeValue.ts`,
  * juspay/kolu#2190): undeclared, a frame replaces every element of every array
  * it merges, so a frame that merely repeats what a tab already holds still
@@ -119,6 +119,12 @@
  * into it — a `fold` consumer may be holding that very object — so there is no
  * merge there for a key to govern. `documents` is served per key and would
  * honour one; a document entry is a revision and a body, and holds no array.
+ * `manifest`, `git`, `dated`, `owed` and `moving` carry no array of OBJECTS at
+ * all — an empty struct, two strings, a list of day strings, two integers, and
+ * a nullable row beside a list of nullable strings — so there is nothing there
+ * for identity to be about. `surface.test.ts` reads the declaring set off this
+ * spec rather than off a list, so the sentence above is checked rather than
+ * kept by hand.
  *
  * The last group is the KEYBOARD's ({@link ./edit.ts}), and it is the one
  * place a browser may cause a write. It changes nothing about the paragraph
@@ -461,9 +467,16 @@ export const surface = defineSurface({
        *  looks like an identity and a broken outline reports several errors
        *  against the same one. A key that repeats inside its own array is a key
        *  that decides identity by collision, so this list merges the way an
-       *  undeclared list does: replaced. It is a handful of rows on a page
-       *  nobody is holding a caret in, and it moves only when the directory
-       *  stops validating. */
+       *  undeclared list does: replaced.
+       *
+       *  WHAT IT WOULD ACTUALLY WANT is a third mode `arrayKey` has no spelling
+       *  for — `{ key: null, merge: true }`, positional, no identity claimed,
+       *  and silent on a repeated frame — where undeclared is
+       *  `{ key: null }` and replaces. It is not worth a spec change for this
+       *  member: the two are indistinguishable for an empty list merging into an
+       *  empty one, which is what this cell holds on every directory that
+       *  validates, and a non-empty one means the set stopped parsing and nobody
+       *  is holding a caret in the report. */
     },
     /** Whether there is a set — see {@link Manifest}. Wire-read-only for the
      *  same reason the entries are: the directory is the disk's.
@@ -540,7 +553,15 @@ export const surface = defineSurface({
        *  dirty file tore down and rebuilt every other row of the panel — every
        *  tick somebody had put in it among them. `changes` and `wrote` carry no
        *  `path` and merge by position, which is what their consumers read them
-       *  as. */
+       *  as.
+       *
+       *  `file` IS THE NEAR-MISS, and it is refused for `errors`' reason rather
+       *  than on taste: it keys `outlines` too, and it REPEATS inside `changes`
+       *  — `@olai/format`'s `changesOf` matches by id ACROSS files, so several
+       *  node changes share one — which is a key deciding identity by
+       *  collision. `surface.test.ts` pins that it would have keyed `changes`,
+       *  so the reason this field and not that one is a fact rather than a
+       *  memory. */
       arrayKey: "path",
     },
     /**
@@ -590,7 +611,16 @@ export const surface = defineSurface({
        *  without a key every other row of the shelf was replaced with it. The
        *  sidebar keys the shelf by this same id (`pins/Shelf.tsx`'s
        *  `<Key each={pins()} by="id">`), so a reorder now MOVES the rows it
-       *  reorders. */
+       *  reorders.
+       *
+       *  IT IS THE ONE DECLARATION HERE WHOSE FIELD ALSO LIVES OUTSIDE THE ROWS
+       *  it was chosen for, and kolu warns about exactly that: a declared key is
+       *  identity WHEREVER it appears, so `Pinned.shows` — a nested object that
+       *  happens to carry an `id` of its own — is merged in place while that id
+       *  reads the same and replaced whole the moment it reads different. Which
+       *  is the behaviour this member wants: a row whose address comes to name a
+       *  different node should get a fresh answer rather than a field-merged
+       *  one. The other three declarations have no such object. */
       arrayKey: "id",
     },
   },
