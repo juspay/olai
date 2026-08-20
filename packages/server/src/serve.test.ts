@@ -292,6 +292,8 @@ interface ManifestIcon {
   readonly purpose?: string
 }
 
+const ICONS: ReadonlyArray<ManifestIcon> = MANIFEST.icons ?? []
+
 test("the install manifest is served as itself, not as the shell", async () => {
   await withInstall(async (url) => {
     const answer = await fetch(`${url}/manifest.webmanifest`)
@@ -311,17 +313,16 @@ test("the install manifest is served as itself, not as the shell", async () => {
     expect(body.display).toBe("standalone")
     expect(new URL(body.start_url ?? "/", url).pathname).toBe("/")
     expect((body.icons ?? []).map((icon) => icon.src)).toEqual(
-      MANIFEST.icons.map((icon) => icon.src),
+      ICONS.map((icon) => icon.src),
     )
   })
 })
 
 test("every icon the manifest names is served as the type it claims", async () => {
   await withInstall(async (url) => {
-    const icons = MANIFEST.icons
-    expect(icons.length).toBe(4)
-    expect(icons.some((icon) => icon.purpose === "maskable")).toBe(true)
-    for (const icon of icons) {
+    expect(ICONS.length).toBe(4)
+    expect(ICONS.some((icon) => icon.purpose === "maskable")).toBe(true)
+    for (const icon of ICONS) {
       const answer = await fetch(`${url}${icon.src}`)
       expect(answer.status).toBe(200)
       expect(answer.headers.get("content-type") ?? "").toMatch(
