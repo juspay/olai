@@ -227,6 +227,9 @@ export {
 export {
   INBOX,
   inboxIn,
+  /** Whether a served file is one olai NAMED FOR ITSELF — the mint read
+   *  backwards, for the one face that draws a list of files (`./node.ts`). */
+  inOlaiDir,
   isTrashed,
   isLeftoverArchive,
   isMirror,

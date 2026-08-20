@@ -112,11 +112,21 @@ test("a capture into a directory with an inbox is an `add` into that file", () =
     .toEqual({ op: "add", file: INBOX, title: "buy milk" })
 })
 
-test("a capture into a directory with NO inbox mints one holding the line", () => {
+test("a capture into a directory with NO inbox mints one under `_olai/`", () => {
   // ONE op, so a refused seed leaves no file behind — an `add` that followed a
   // `create` could land the file and then refuse the line.
+  //
+  // WHERE it is minted REVERSES the 2026-08-19 ruling that kept the inbox at
+  // the root (human, 2026-08-20): a file olai made because somebody pressed
+  // something goes where those go, beside the shelf and the trash. What is
+  // untouched is the READING — the three tests below are the same three.
   expect(asked({ verb: "capture", title: "buy milk" }))
-    .toEqual({ op: "create", file: INBOX, seed: { title: "buy milk" } })
+    .toEqual({
+      op: "create",
+      file: mintedInto(INBOX),
+      seed: { title: "buy milk" },
+    })
+  expect(mintedInto(INBOX)).toBe("_olai/Inbox.olai")
 })
 
 test("an inbox the directory already keeps somewhere else is the one used", () => {
@@ -141,14 +151,22 @@ test("with two inboxes the shallower one wins, so the answer is stable", () => {
 test("a file merely ENDING in the name is not an inbox", () => {
   const set = setOf({ "house.olai": HOUSE, "not-an-Inbox.olai": "" })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
-    .toEqual({ op: "create", file: INBOX, seed: { title: "buy milk" } })
+    .toEqual({
+      op: "create",
+      file: mintedInto(INBOX),
+      seed: { title: "buy milk" },
+    })
 })
 
 test("a blank capture is left to the ops layer, which has the words for it", () => {
   // No second rule here: `add_node` refuses an empty title in the sentence an
   // agent gets, and a fence in this resolver would be a fence one face has.
   expect(asked({ verb: "capture", title: "   " }))
-    .toEqual({ op: "create", file: INBOX, seed: { title: "   " } })
+    .toEqual({
+      op: "create",
+      file: mintedInto(INBOX),
+      seed: { title: "   " },
+    })
 })
 
 // ── the shelf's pin ────────────────────────────────────────────────────

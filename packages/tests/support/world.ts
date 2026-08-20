@@ -639,6 +639,9 @@ export const TRASH_EMPTY_CANCEL = selector(TESTID.trashEmptyCancel);
 export const TRASH_PAGE_SAID = selector(TESTID.trashPageSaid);
 /** The way to it, at the foot of the directory column. */
 export const TRASH_LINK = selector(TESTID.trashLink);
+/** And the way to the INBOX, directly above it — drawn only when the directory
+ *  has one, which is what the scenarios about a never-captured vault read. */
+export const INBOX_LINK = selector(TESTID.inboxLink);
 /** THE day's note, above those groups: a document named for the date itself.
  *  `data-file` is which. */
 export const DAY_NOTE = selector(TESTID.dayNote);

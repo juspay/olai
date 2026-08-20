@@ -22,6 +22,7 @@ import {
   type Density,
 } from "@olai/web/src/client/settings/density.ts";
 import { DONE_HIDDEN_KEY } from "@olai/web/src/client/settings/done.ts";
+import { HIDDEN_OUTLINES_KEY } from "@olai/web/src/client/settings/hiddenOutlines.ts";
 import { TESTID } from "@olai/web/src/client/testids.ts";
 import { SIZE_STORAGE_KEY } from "@olai/web/src/client/theme/sizes.ts";
 
@@ -448,6 +449,54 @@ Then(
       stored,
       value,
       `this browser keeps "${stored}" under ${SIZE_STORAGE_KEY}`,
+    );
+  },
+);
+
+// ── Hidden outlines: whether the tree draws what olai named itself ─────
+
+const asHidden = (value: string): "hidden" | "shown" => {
+  if (value !== "hidden" && value !== "shown") {
+    throw new Error(`Hidden outlines is "hidden" or "shown", not "${value}"`);
+  }
+  return value;
+};
+
+/** Press one segment, and then put the panel away — every step after this one
+ *  is about the SIDEBAR, and a portalled panel over the column is a locator
+ *  waiting on something covered. The trigger rather than Escape, for the
+ *  reason the Done twin gives. */
+When(
+  "I set Hidden outlines to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "hidden-outlines", asHidden(value));
+    await this.press(this.page.locator(PREFS_TRIGGER));
+    await this.page
+      .locator(PREFS_PANEL)
+      .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the Hidden outlines row explains that the tree {string}",
+  async function (this: OlaiWorld, expected: string) {
+    const hint = await hintOf(this, "hidden-outlines");
+    assert.ok(
+      hint.includes(expected),
+      `the Hidden outlines row says "${hint}", which does not say the tree ` +
+        JSON.stringify(expected),
+    );
+  },
+);
+
+Then(
+  "this browser has stored that hidden outlines are {string}",
+  async function (this: OlaiWorld, state: string) {
+    const stored = await this.stored(HIDDEN_OUTLINES_KEY);
+    assert.equal(
+      stored,
+      asHidden(state) === "hidden" ? "true" : "false",
+      `this browser keeps "${stored}" under ${HIDDEN_OUTLINES_KEY}`,
     );
   },
 );

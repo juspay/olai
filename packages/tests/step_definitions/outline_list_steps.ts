@@ -137,6 +137,27 @@ Then(
   },
 );
 
+/** The folder is NOT drawn at all — which is a different claim from
+ *  collapsed, and the one the `_olai/` rule makes: a folder whose every file
+ *  the tree left out is a folder the walk never mints
+ *  (`web/src/client/fileTree.ts`). */
+Then(
+  "the file tree does not show the folder {string}",
+  async function (this: OlaiWorld, path: string) {
+    await this.showSidebar();
+    // The LIST first: asking a locator for a count the frame before the tree
+    // is painted answers zero for a folder that is about to be drawn.
+    await this.page
+      .locator(OUTLINE_LIST)
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      await this.fileDir(path).count(),
+      0,
+      `the file tree draws the folder "${path}"`,
+    );
+  },
+);
+
 Then(
   "the folder {string} is expanded",
   async function (this: OlaiWorld, path: string) {

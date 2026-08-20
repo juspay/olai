@@ -37,6 +37,24 @@
  * The entry that lights up is the file the open page lives in. A day page
  * lights none. An entry is marked when its file could not be read.
  *
+ * ## What the tree does NOT draw, and the two doors under it
+ *
+ * The outlines olai NAMED FOR ITSELF — everything under `_olai/` — are left
+ * out of the tree, because every one of them already has a door in this very
+ * column and a second row for it is noise on top of a reader's own files
+ * (human, 2026-08-20, off #282's shots). A **Prefs** switch draws them again
+ * for somebody who wants to open `Pins.olai` as an outline; it is browser-
+ * local and off by default, and the rule it moves is a DRAWING rule and
+ * nothing more — search, the agents, `list_outlines`, the trash page and the
+ * shelf read the same set either way (./settings/hiddenOutlines.ts).
+ *
+ * So the foot of this column is where those files get their names back:
+ * **Inbox** and **Trash**, in that order — what comes IN, then what was thrown
+ * out. The trash is a page rather than a file you edit and is left out of the
+ * tree whichever way the switch is set; the inbox is an ordinary outline, so
+ * its entry lights up like a tree row and its door is drawn only when the
+ * directory actually has one.
+ *
  * Every row says what KIND it is in a glyph before its name (./file/icons.tsx)
  * — an olai outline, a document, a folder. Three kinds drawn in one ink was a
  * bug filed from a screenshot: the only thing separating an outline from a
@@ -91,7 +109,7 @@
  * scroll position rather than parked at the foot of the page.
  */
 
-import { type BrokenFile, isTrashed } from "@olai/format"
+import { type BrokenFile, inboxIn, isTrashed } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
   createMemo,
@@ -116,6 +134,7 @@ import { LAYER, WITHIN } from "./layer.ts"
 import { ENTRY_SHAPE, REGION, ROW_GAP } from "./layout/entry.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
+import { drawnInTree } from "./settings/hiddenOutlines.ts"
 import { Shelf } from "./pins/Shelf.tsx"
 import { Link, useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
@@ -194,7 +213,24 @@ export function Sidebar(props: {
   // anywhere in the directory. A face changes when its file's content does;
   // this tree is a function of the NAMES.
   const served = useServed()
-  const tree = createMemo(() => fileTree(served().filter((file) => !isTrashed(file))))
+  // ...and the SECOND rule the tree draws by, which is a preference rather
+  // than a ruling: the outlines olai named for itself are left out unless this
+  // browser asked for them (./settings/hiddenOutlines.ts). Each of them has a
+  // door of its own in this very column, so the rows were a second way in
+  // stacked on top of a reader's own files.
+  const tree = createMemo(() =>
+    fileTree(served().filter((file) => !isTrashed(file) && drawnInTree(file))),
+  )
+
+  // WHICH FILE THE INBOX IS, read off the same resolver the server captures
+  // through (`@olai/format`'s `inboxIn`) — never a path this column composes,
+  // or a directory keeping `notes/inbox.olai` would be offered a door onto a
+  // file that does not exist. `undefined` is a directory that has never
+  // captured, and then there is no entry: minting one is the capture's job.
+  //
+  // The whole served list rather than the outlines alone: the walk matches a
+  // full basename, so nothing but an outline can answer it.
+  const inbox = createMemo(() => inboxIn(served()))
 
   // Folding a folder is remembered, and the write drops folders that are not in
   // the directory any more (./fold/folders.ts). Which those are is read off the
@@ -322,10 +358,19 @@ export function Sidebar(props: {
             </div>
           </section>
 
-          {/* And below all of it, the way OUT of the directory rather than into
-              it: what has been put away. Its own region, because it is the one
-              row here that is not about the files above it. */}
+          {/* And below all of it, the two doors that are not rows of the tree
+              above them — one INTO the directory and one out of it. Their own
+              region, because neither is about the files listed above.
+
+              They are here together because they are the same kind of thing
+              now: with `_olai/` out of the tree by default
+              (./settings/hiddenOutlines.ts), the foot of this column is where
+              the files olai named for itself get their names back. The Inbox
+              first — what comes IN is read before what was thrown out — and it
+              draws nothing at all until the directory has an inbox, which is
+              the rule the shelf above already keeps. */}
           <div class={REGION}>
+            <Show when={inbox()}>{(file) => <Inbox file={file()} isActive={isActive} />}</Show>
             <Trash />
           </div>
         </div>
@@ -429,6 +474,43 @@ function Trash() {
       current={router.route().kind === "trash"}
     >
       Trash
+    </Link>
+  )
+}
+
+/** The way to what has been CAPTURED — the outline a `⌘K` `+` lands in, one
+ *  click from wherever the reader is.
+ *
+ *  It is an entry rather than a tree row for the reason the Trash is one: the
+ *  file it opens is a file olai named for itself, and the tree stopped drawing
+ *  those (./settings/hiddenOutlines.ts). Unlike the Trash it is a FILE PAGE —
+ *  an ordinary outline you can type into — so the entry lights up the way a
+ *  tree row does, off the open page's file, rather than off the route.
+ *
+ *  DRAWN ONLY WHEN THERE IS ONE. A directory that has never captured has no
+ *  inbox, and minting one is the capture's job — a door offering to create a
+ *  file is a second way to mint the one file whose whole promise is that it is
+ *  minted by the write that fills it (`@olai/server`'s `edit.ts`: one op, so a
+ *  refused capture leaves nothing behind).
+ *
+ *  A reader whose inbox is their OWN file — a root `Inbox.olai`, a
+ *  `notes/inbox.olai` — sees it here and in the tree, which is the double the
+ *  shelf has always had for a root `Pins.olai`: this entry is a door onto
+ *  whichever file the directory's inbox is, and hiding somebody's own outline
+ *  is not this switch's business. */
+function Inbox(props: {
+  readonly file: string
+  readonly isActive: (file: string) => boolean
+}) {
+  return (
+    <Link
+      route={atFile(props.file)}
+      class={`${ENTRY} text-paper/65`}
+      testid={TESTID.inboxLink}
+      current={props.isActive(props.file)}
+      title={props.file}
+    >
+      Inbox
     </Link>
   )
 }
