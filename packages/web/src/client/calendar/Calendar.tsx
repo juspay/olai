@@ -6,10 +6,9 @@
  * whole set and no OUTLINE's name is special about anything. The one filename
  * that is special is a document's: a `.md` named for the date is that day's
  * note, and this is the other reader of that fact — which is why the grid asks
- * two questions per month and draws two marks (./Day.tsx). It is pure view over
- * the snapshot either way: nothing is stored, nothing is written, and a
- * directory with no dated node and no date-named document sees a month of inert
- * numbers.
+ * two questions per month and draws two marks (./Day.tsx). Both are pure
+ * READINGS either way: nothing is stored, nothing is written, and a directory
+ * with no dated node and no date-named document sees a month of inert numbers.
  *
  * Which month is on screen is a reading, not an address, so it is held by
  * `createStamped` (../stamped.ts) and starts over when the thing it belongs to
@@ -22,23 +21,35 @@
  * today. Paging therefore survives every navigation that does not change which
  * month the reader is looking at.
  *
- * The dots are asked for per month rather than handed over as a set, so the
- * question is only asked about the month being drawn — and asking it INSIDE a
- * memo is what makes a dated node saved on disk light its day without a
- * reload: the query reads the live derivation, so the frame that changes it
- * re-runs this.
+ * The dots are asked of the SERVER, per month, and the question is the shown
+ * month — so the vault is walked for the month somebody is looking at and for
+ * no other. That is `docs/brainstorming/vault-in-browser.md`'s PR 4: the walk
+ * is `@olai/format`'s `datedDays` still, called where the set is. What makes a
+ * dated node saved on disk light its day WITHOUT A RELOAD is no longer a memo
+ * over a local derivation but the subscription itself — the server re-reads the
+ * month on every published revision and sends a frame when the dots moved
+ * (../dates.ts).
  *
- * TWO of those questions now, and they stay two. A day may carry a node of the
- * set, a note somebody wrote for it, or both, and the cell draws a different
- * mark for each (./Day.tsx) — so a union computed here would be a fact the
- * cell could not take apart again. Both are asked the same way and for the
- * same reason: a `.md` dropped into the directory lights its day on the frame
- * it arrives.
+ * WHICH MONTH IS THE SUBSCRIPTION'S INPUT, so paging closes one and opens the
+ * next. That is why the month stays in this component rather than being lifted:
+ * the question and the chrome state it is asked about are one thing, and a
+ * month held above would be a second place that decides what is being watched.
+ *
+ * TWO of those questions still, and they stay two: a day may carry a node of
+ * the set, a note somebody wrote for it, or both, and the cell draws a
+ * different mark for each (./Day.tsx) — so a union computed here would be a
+ * fact the cell could not take apart again. They are ASKED THE SAME WAY, both
+ * of the month this component owns, and where each is ANSWERED is ../dates.ts's
+ * to know and to argue: the dots cross the wire, the notes are a question about
+ * a FILENAME asked of the key set this tab already holds. So a `.md` dropped
+ * into the directory still lights its day on the frame it arrives, off a member
+ * this tab was already subscribed to.
  */
 
 import { monthOfDay, shiftMonth } from "@olai/format"
 import { createMemo, createSelector, createSignal, For, Show } from "solid-js"
 
+import { createDated, createNoted } from "../dates.ts"
 import { mintAndOpen } from "../document/minted.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { Refused } from "../Refused.tsx"
@@ -54,11 +65,6 @@ export function Calendar(props: {
   readonly today: string
   /** The day the open page is of, if it is a day at all. */
   readonly open: string | undefined
-  /** Which days of a month have at least one node dated them. */
-  readonly days: (month: string) => ReadonlySet<string>
-  /** Which days of a month a document is named for — the days that have a note
-   *  of their own. */
-  readonly noted: (month: string) => ReadonlySet<string>
 }) {
   /** The month the calendar belongs to when nobody has paged it: the day being
    *  read, or today. A `/d/<anything>` address is a day nothing can be dated
@@ -76,8 +82,8 @@ export function Calendar(props: {
     shown.edit((current) => shiftMonth(current, delta))
   }
 
-  const dated = createMemo(() => props.days(month()))
-  const noted = createMemo(() => props.noted(month()))
+  const dated = createDated(month)
+  const noted = createNoted(month)
 
   const undo = useUndo()
   const router = useRouter()

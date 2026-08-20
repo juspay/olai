@@ -25,16 +25,22 @@ import {
   BusyFailure,
   type CommitRequest,
   type CommitResult,
+  type DatedAnswer,
+  type DatedRequest,
   type MatchingAnswer,
   type MatchingRequest,
   type NamedAnswer,
   type NamedRequest,
   type OpFailure,
+  type Owed,
+  type OwedRequest,
   type Pending,
   type PushResult,
   type Reading,
   serializeOutline,
   stampOf,
+  type TagsAnswer,
+  type TagsRequest,
   ValidationFailure,
   type Writer,
   type WriteRequest as Request,
@@ -137,6 +143,46 @@ export interface Ops extends Asking {
   readonly named: (
     request: NamedRequest,
   ) => Effect.Effect<NamedAnswer, OpFailure>
+  /**
+   * THE CALENDAR'S DOTS and WHAT IS OWED — the two date readings the sidebar
+   * used to take off the browser's own copy of the set
+   * (`docs/brainstorming/vault-in-browser.md`, PR 4).
+   *
+   * HERE RATHER THAN ON {@link Asking}, beside {@link matching} and for its
+   * argument word for word: `Asking` is what a TOOL may ask, and neither of
+   * these is a tool. A month of dots is a paint instruction for a grid somebody
+   * is looking at, and two integers about today are a badge — an agent asking
+   * what is late asks `search_nodes` with a date clause and is answered with
+   * the nodes. So they hang off the layer the SERVER holds, are exposed on the
+   * browser face alone (`@olai/server`'s `faces.ts`), and `mcp-bridge`'s door
+   * is not obliged to implement members no agent face offers.
+   *
+   * TWO members and not one, though one sidebar draws both. They are answers to
+   * two different questions with two different arguments — a month somebody
+   * paged to, and the day somebody is standing on — and folding them into one
+   * would make paging the calendar a question about what is late.
+   */
+  readonly dated: (
+    request: DatedRequest,
+  ) => Effect.Effect<DatedAnswer, OpFailure>
+  readonly owed: (request: OwedRequest) => Effect.Effect<Owed, OpFailure>
+  /**
+   * WHICH TAGS the set already uses, for one sigil and one prefix — the row
+   * editor's completion popup, answered ({@link ./query.ts}'s `tags`).
+   *
+   * HERE RATHER THAN ON {@link Asking}, for {@link matching}'s reason one turn
+   * on: it is not a tool and is not meant to become one. What it answers is a
+   * capped shortlist shaped by the popup that draws it — eight rows, ranked by
+   * how much this set uses each word — which is useful to somebody watching a
+   * caret and to nobody else. An agent writing `#home` writes the word.
+   *
+   * It hangs off the layer the SERVER holds (`@olai/server`'s `runtime.ts` binds
+   * it to `vocabulary.tags`, exposed on the browser face alone), and the agent's
+   * bridge is not obliged to implement a member no agent face exposes.
+   */
+  readonly tags: (
+    request: TagsRequest,
+  ) => Effect.Effect<TagsAnswer, OpFailure>
   /** Perform one op. Fails only with an {@link OpFailure} — every internal
    *  failure mode (a stale base, a file system error) is either retried or
    *  translated, because a caller of this interface is a tool call or a
@@ -379,7 +425,19 @@ export const make = (options: Options): Ops => {
     // The transcript's backticks, over the same gated read and with no clock in
     // it: an id names what it names whatever day it is asked on.
     named: (request) => Effect.map(read, (at) => Query.named(at.derived, request)),
-
+    // The SIDEBAR's two date readings, over the same gated read and over the
+    // derivation alone: a dot and a count are both about records, and the other
+    // half of the set is prose. The day they are counted against is the
+    // REQUEST's, never `context.now()` — the reader's clock is the only one
+    // that can say what is late for them (`./query.ts`'s `owed`).
+    dated: (request) => Effect.map(read, (at) => Query.dated(at.derived, request)),
+    owed: (request) => Effect.map(read, (at) => Query.owed(at.derived, request)),
+    // The COMPLETION's door, over the same gated read: the vocabulary the set
+    // has already written down, ranked and capped for a popup. Also the
+    // browser's alone, and also nothing decided here — what counts as a tag,
+    // and what the trash does to a count, is `@olai/format`'s `vocabulary.ts`.
+    tags: (request) =>
+      Effect.map(read, (at) => Query.tags(at.derived, request)),
     status: commits.status,
     pending: commits.pending,
     commit: commits.commit,

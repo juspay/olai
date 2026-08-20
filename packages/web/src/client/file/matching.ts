@@ -53,10 +53,10 @@
  * `toLowerCase` on every path on every character typed is a throwaway string
  * per file per keystroke, which on a thousand-file vault is exactly the shape
  * that makes a completion feel slow. So the fold is kept in a `WeakMap` keyed
- * on the path list itself — `../complete/tags.ts`'s arrangement, for its
- * reason: asking here, only while somebody is typing a query, costs nothing at
- * all on a session that never types one, and the answer for a list nothing
- * holds any more is collectable with the list. A memo in the composer would
+ * on the path list itself — `@olai/format`'s `vocabulary.ts` keeps the same
+ * arrangement one package down, for its reason: asking only while somebody is
+ * typing a query costs nothing at all on a session that never types one, and
+ * the answer for a list nothing holds any more is collectable with the list. A memo in the composer would
  * instead re-fold the whole vault every time a file changed, whether or not
  * anybody ever completes a path.
  *
@@ -76,7 +76,7 @@
  *
  * It is worth saying out loud because the other two lists over the same set go
  * the other way, and the three are one `grep` apart: the tag vocabulary
- * (`../complete/tags.ts`) stopped counting archived nodes under the 2026-08-17
+ * (`@olai/format`'s `vocabulary.ts`) stopped counting archived nodes under the 2026-08-17
  * ruling, and the NODE half of the `@` list (`../chat/nodes.ts`) offers none
  * unless the query says `is:trashed`. None of the three should be
  * "harmonized" into the others. The tag list ranks the vocabulary of the set a
@@ -88,7 +88,7 @@
  *
  * ## A prefix first and a substring second, which is not a score
  *
- * The same order `../complete/tags.ts` argues for, for the same reason: the
+ * The same order `@olai/format`'s `vocabulary.ts` argues for, for the same reason: the
  * file somebody is typing towards is nearly always one they have started
  * spelling. The three buckets are the three ways a path can be started —
  * its NAME (`pal` → `notes/palette.md`), its PATH (`notes/pal` → the same

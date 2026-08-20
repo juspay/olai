@@ -1,14 +1,23 @@
 /**
- * What the listener says, in olai's voice.
+ * What the SURFACE LAYER's trouble sounds like, in olai's voice.
  *
  * `serveSurfaceApp` narrates every gate and every fault on ONE callback and
- * defaults it to `console`. This is the arm olai passes instead, and it is a
- * separate file for the reason its neighbours are: `allowedOrigins.ts` owns one
- * decision, `clientDist.ts` owns one, and this owns one — what a listener event
- * sounds like in this program's log. It changes when `@olai/log`'s levels or
- * annotations change, or when the framework's event union grows an arm.
- * `listener.ts` changes when the port policy does. Neither is a reason to
+ * defaults it to `console`. {@link report} is the arm olai passes instead, and
+ * this is a separate file for the reason its neighbours are:
+ * `allowedOrigins.ts` owns one decision, `clientDist.ts` owns one, and this
+ * owns one — how a surface-layer failure READS in this program's log. It
+ * changes when `@olai/log`'s levels or annotations change, or when the
+ * framework's event union grows an arm. `listener.ts` changes when the port
+ * policy does, and `runtime.ts` when a binding does. Neither is a reason to
  * re-read the other.
+ *
+ * TWO ARMS now, and the second is why the file is named for the layer rather
+ * than for the listener: a stream member re-reads its own answer on a pulse
+ * ({@link readFailed}), and a re-read that refuses is the same KIND of news as
+ * a socket that faulted — trouble under the wire, reported at the same level,
+ * with the cause rendered the same way. A sentence for it spelled where the
+ * member is BOUND would have put olai's log vocabulary in a file whose whole
+ * subject is the order things are wired in.
  *
  * The POLICY is the primitive's own — loud on every fault, silent on the
  * ordinary — and what differs is only the sink: these are `Effect.log*` lines,
@@ -74,4 +83,26 @@ export const report = (event: SurfaceAppEvent, say: Emit): void => {
       )
       return
   }
+}
+
+/**
+ * A live STREAM member could not re-read its answer.
+ *
+ * The framework requires a handler here rather than defaulting one, which is
+ * the boot-time spelling of HACKING.md's rule: a subscription that quietly
+ * stopped answering is the failure nobody would ever see. What a reader sees
+ * meanwhile is the last frame that DID arrive — the read is retried on the next
+ * pulse and the subscription is not torn down, because a transient refusal is
+ * not a reason to take a live view away from somebody.
+ *
+ * A warning rather than an error, on {@link report}'s own terms: nothing is
+ * broken and the next revision will very likely answer.
+ */
+export const readFailed = (stream: string, error: unknown, say: Emit): void => {
+  say(
+    Effect.annotateLogs(Effect.logWarning("a live reading could not be re-read"), {
+      stream,
+      why: prettyCause(error),
+    }),
+  )
 }

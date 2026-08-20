@@ -6,7 +6,7 @@
  * module rather than a suite — and this file is the one exception, minted for a
  * reason worth writing down. `vaultOf` gained prose so that the tag index
  * would stop being an empty map in `patch.bench.ts` and `@olai/web`'s
- * `complete/tags.bench.ts`; the first spelling of that used `which % 25 === 0`
+ * `./vocabulary.bench.ts`; the first spelling of that used `which % 25 === 0`
  * inside a loop that runs `which` from 1 to 20, so it **never fired**. The
  * vault had 3,920 notes and not one `@` in it, `mentionedBy.size` was `0`, the
  * patcher's own early return fired on every edit, and the format README claimed

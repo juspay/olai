@@ -223,6 +223,12 @@ export {
   isTrashed,
   isLeftoverArchive,
   isMirror,
+  /** ...and the two of them as the one question every reading of the LIVE set
+   *  actually asks. Exported beside them rather than instead of them: the
+   *  writer half still names the trash on its own, and the sidebar still tells
+   *  a dormant Archive from it — what nobody has ever wanted is one without the
+   *  other in a READING (`./node.ts`). */
+  isPutAway,
   Located,
   MARKS,
   /** Where olai mints a file it named itself, and the directory it puts them
@@ -395,11 +401,20 @@ export {
   dailyNoteDays,
   dailyNotePathFor,
   dailyNotesOn,
+  /** WHAT THE CALENDAR'S DOTS ASK AND ARE ANSWERED WITH, as schemas: since
+   *  `vault-in-browser`'s PR 4 the month's dots are walked on the server and
+   *  drawn in a browser, so the pair crosses a wire and is declared here — on
+   *  the floor `@olai/ops` and `@olai/surface` both stand on — rather than
+   *  twice. `sameDated` is what keeps a revision that moved no dot quiet. */
+  DatedAnswer,
+  datedAnswer,
+  DatedRequest,
   datedDays,
   datedIn,
   datedOn,
   dayOf,
   isDay,
+  sameDated,
   /** The TIME a datetime names, where `dayOf` takes the day off the front of
    *  the same value. Public because the agenda's spine keeps a pill for it and
    *  drops one for everything else the day heading already said. */
@@ -447,8 +462,13 @@ export {
   isOverdue,
   keepingOwed,
   nothingDue,
+  /** What a reader ASKS to be told what is owed, and the counts they are
+   *  answered with — the pair above's other half, on the wire for its reason. */
+  Owed,
   owedIn,
   owedOf,
+  OwedRequest,
+  sameOwed,
   /** THE SPINE'S OWN ARITHMETIC (`agenda-spine`, 2026-08-18). The agenda draws
    *  one line of time, and everything it says about a day past the day itself is
    *  counted here rather than in a component: where a day sits and how far away
@@ -465,7 +485,6 @@ export type {
   Agenda,
   AgendaDay,
   Felt,
-  Owed,
   Quiet,
   Standing,
   Tone,
@@ -607,6 +626,15 @@ export {
   SearchHit,
   SearchRequest,
 } from "./searching.ts"
+
+/** The set's own WORDS — every tag written down, counted, and which of them one
+ *  prefix under one sigil means. The reading over `Derived.taggedBy` rather than
+ *  the index, for `./backlinks.ts`'s reason: what a tag's COUNT means (one vote
+ *  per record, nothing the trash draws) is a decision, and it is made there. It
+ *  ran in the browser until `vault-in-browser`'s PR 2 took the vault out of it —
+ *  see `./vocabulary.ts`. ONE function, not the enumeration and the match as two
+ *  for a caller to compose: the composition is the primitive. */
+export { completingTags, TagCompletion, TagsAnswer, TagsRequest } from "./vocabulary.ts"
 
 /** The words a commit gets when nobody wrote any. Here rather than in the ops
  *  layer because the message is now a function of a SELECTION, and the

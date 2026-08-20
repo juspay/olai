@@ -76,7 +76,8 @@
  * names bytes an agent will read, where a node names a row of a reading, and
  * "what did we put away last month" is answered by naming the file or by
  * asking for it in the grammar. The third door on this question is the row
- * editor's `#tag` list (`../complete/tags.ts`), which counts only the live set.
+ * editor's `#tag` list (`@olai/format`'s `vocabulary.ts`, asked through
+ * `../complete/asking.ts`), which counts only the live set.
  * All three say so in their own headers, one `grep` apart.
  */
 

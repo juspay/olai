@@ -38,7 +38,7 @@
  *
  * `@` IS a tag sigil in olai's format (`@olai/format`'s `TAG_SIGILS`), and a
  * row's title editor completes `@alice` against the tags the set already
- * writes (`../complete/tags.ts`). None of that vocabulary exists HERE: a chat
+ * writes (`../complete/asking.ts`, over `@olai/format`'s `vocabulary.ts`). None of that vocabulary exists HERE: a chat
  * message is prose on its way to an agent, never a stored title, and no `#` or
  * `@` in it is read as a tag by anything. So the two cannot disagree about one
  * string — they never read the same string.

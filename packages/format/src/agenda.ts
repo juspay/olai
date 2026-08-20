@@ -38,7 +38,7 @@
  * directory — and a derivation whose answer changed with the machine it ran on.
  */
 
-import { Order } from "effect"
+import { Order, Schema } from "effect"
 
 import { daysBetween, MONTHS, WEEKDAYS, weekdayOf } from "./calendar.ts"
 
@@ -178,15 +178,48 @@ export const nothingDue = (agenda: Agenda): boolean =>
  * a Monday — a count that included it could never fall to nothing, which is a
  * mark nobody would read twice.
  */
-export interface Owed {
+export const Owed = Schema.Struct({
   /** Nodes in {@link Agenda.overdue}, across every outline it groups. */
-  readonly overdue: number
+  overdue: Schema.Number,
   /** Nodes in {@link Agenda.today}, the same way — OCCURRENCES INCLUDED,
    *  because they are rows that section draws and this counts what the page
    *  shows. Which is why nothing that prints this number may call it *due*: a
    *  birthday is on today and is nobody's late work. */
-  readonly today: number
-}
+  today: Schema.Number,
+})
+export type Owed = typeof Owed.Type
+
+/**
+ * What a reader ASKS to be told this — the day they are standing on, and
+ * nothing else.
+ *
+ * The one thing this reading needs that the set cannot give it is what day it
+ * IS (this file's own header), and since `vault-in-browser`'s PR 4 the reading
+ * happens on the far side of a wire from the clock that knows. So the day
+ * TRAVELS, and it is the reader's local one rather than the server's: the dates
+ * in the files are what a person wrote down, so what counts as late is late
+ * where they are standing (`@olai/web`'s `clock.ts` makes the same argument
+ * about the tab that keeps it true past midnight).
+ */
+export const OwedRequest = Schema.Struct({
+  /** The reader's own today, as the ISO text this format stores. */
+  today: Schema.String,
+})
+export type OwedRequest = typeof OwedRequest.Type
+
+/**
+ * When two readings owe the same thing, so the subscription carrying them can
+ * stay quiet.
+ *
+ * It earns its place the way `./committing.ts`'s `samePending` does, one
+ * member over: the server recomputes this on every published revision, and
+ * almost every revision leaves both numbers exactly where they were — somebody
+ * typing a character in an outline is not news about what is late. DERIVED from
+ * the schema rather than written out, for that file's own reason: a third field
+ * added above would simply not be compared, and the failure mode of that is a
+ * frame that is never sent.
+ */
+export const sameOwed: (a: Owed, b: Owed) => boolean = Schema.toEquivalence(Owed)
 
 /**
  * The counts, taken from an agenda that has already been read.

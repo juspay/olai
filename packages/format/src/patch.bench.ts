@@ -38,8 +38,8 @@
  * ...and the third is about the TAG INDEX's width: the corpus-wide fold timed
  * filing `@` alone against filing both sigils ({@link folds}), which is the
  * cost half of the trade `taggedBy` makes. The saving half is a leg of its own
- * one package up (`@olai/web`'s `complete/tags.bench.ts`), and the WALK under
- * both — `titleParts` in the three shapes it has been written in — is
+ * beside it (`./vocabulary.bench.ts`), and the WALK under both — `titleParts`
+ * in the three shapes it has been written in — is
  * {@link walks}, which exists because the figures for it were once quoted in a
  * comment and printed by nothing.
  *
@@ -55,8 +55,8 @@
  * so the figure is reproducible and is a figure about a stated shape:
  * {@link FILES} outlines of {@link RECORDS} records, a third of them marked, a
  * twentieth of them mirrors reaching into the file before. It is the SAME vault
- * `@olai/web`'s `complete/tags.bench.ts` runs on, so the two benches' numbers
- * are about one directory. Size it with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS /
+ * `./vocabulary.bench.ts` runs on, so the two benches' numbers are about one
+ * directory. Size it with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS /
  * OLAI_BENCH_EDITS — and the last of those is worth turning up: the layer
  * flattens when it has grown past half the map, which forty edits over
  * twenty-record files come nowhere near. `OLAI_BENCH_EDITS=900` reaches it,
@@ -455,8 +455,8 @@ const beside = (): readonly [byId: number, others: number] => {
  * The narrow arm is a RECONSTRUCTION of the fold as it was, kept here for the
  * reason {@link cloned} is kept: a before/after this harness cannot print is
  * the unreproducible laptop sample this file exists to retire. What it costs a
- * READER to have the wider index is `@olai/web`'s `complete/tags.bench.ts`,
- * which prints the other half of the same trade.
+ * READER to have the wider index is `./vocabulary.bench.ts`, which prints the
+ * other half of the same trade.
  *
  * IT IS THE FOLD AND NOT THE WHOLE DERIVE, on purpose: the rest of `derive` is
  * byte-identical across the change, so a rebuild-vs-rebuild figure would put
