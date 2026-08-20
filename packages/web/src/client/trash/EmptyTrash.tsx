@@ -13,12 +13,15 @@
  * write, which is the division `../saying.ts` already keeps for the line
  * underneath.
  *
- * **THE COUNT IS THE POINT**, and it is not this file's arithmetic:
- * `./counting.ts` answers it over the SET, and carries the argument for why the
- * rows on screen are not an answer. What this component owns is only WHEN to
- * ask — which is every frame, through the live indexes, so a pile that arrives
- * while somebody is reading the question puts the question away rather than
- * silently re-wording it.
+ * **THE COUNT IS THE POINT**, and it is not this file's arithmetic: it arrives
+ * on the trash page's own reading, counted over the SET where the records are
+ * (`@olai/format`'s `page.ts`, the trash arm's `records`), and the prop's own
+ * docstring below carries the argument for why the rows on screen are not an
+ * answer. It was `./counting.ts` over the tab's copy of the vault until PR 10
+ * of `docs/brainstorming/vault-in-browser.md`; the rule did not move, the set
+ * did. What this component owns is only WHEN to ask — which is every frame the
+ * reading moves on, so a pile that arrives while somebody is reading the
+ * question puts the question away rather than silently re-wording it.
  *
  * **THE VERB IS NOT DRAWN OVER AN EMPTY TRASH**, and it is not taken away by a
  * filter either — those are the same rule read twice. Whether there is anything
