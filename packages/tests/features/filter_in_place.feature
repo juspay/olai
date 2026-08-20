@@ -70,15 +70,6 @@ Feature: Filtering the outline in place
     And the node "order" lights "cabinets"
     And the node "order" draws no excerpt
 
-  Scenario: A query with no words in it lights nothing on the rows it finds
-    # `is:done` selects on a MARK, and a mark is not text in a title — so
-    # there is nothing to light, and lighting something would be the row
-    # inventing a reason it was not found for.
-    Given I open the outline "house.olai"
-    When I filter the page by "is:done"
-    Then the node "demo" is a match
-    And the node "demo" lights nothing
-
   Scenario: The filter is part of the address, so it survives a reload
     # A narrowed page is a link somebody can send. That is the same argument
     # `/#<id>` is made of, and it is why the filter is in the URL rather than
@@ -111,17 +102,6 @@ Feature: Filtering the outline in place
     Then the node "hinges" is shown
     When I clear the filter
     Then the node "hinges" is not shown
-
-  Scenario: `is:done` reads the mark a node stores
-    # Never a derived one: `kitchen` has a finished child and carries `doing`
-    # itself, so it is here as the ancestry rather than as a match. The second
-    # match is `basil`, drawn under the MIRROR of `herbs` this outline holds —
-    # a placement matches by the node it shows, wherever it is drawn.
-    Given I open the outline "house.olai"
-    When I filter the page by "is:done"
-    Then the node "demo" is a match
-    And the node "kitchen" is context
-    And the filter found "2 of 10"
 
   Scenario: The count line is measured against what the page holds, not what a preference left
     # THE DENOMINATOR, on the page where NOTHING is being held back — which is
@@ -163,139 +143,6 @@ Feature: Filtering the outline in place
     Then the outline has 0 rows
     And the filter found "no matches of 10 — 2 matches hidden as done (Prefs)"
 
-  Scenario: `has:desc` finds the node carrying a note
-    Given I open the outline "house.olai"
-    When I filter the page by "has:desc"
-    Then the node "order" is a match
-    And the filter found "1 of 10"
-
-  Scenario: `date:` takes a day, and a range of them
-    # The two dates a journal reads: `order` is scheduled for the 10th, `demo`
-    # was finished on the 3rd. A dated `todo` is on no day, here as on the day
-    # page, which is why `hinges` never turns up.
-    Given I open the outline "house.olai"
-    When I filter the page by "date:2026-08-10"
-    Then the node "order" is a match
-    And the filter found "1 of 10"
-    When I filter the page by "date:2026-08-01..2026-08-31"
-    Then the node "order" is a match
-    And the node "demo" is a match
-    And the node "hinges" is not shown
-    And the filter found "2 of 10"
-
-  Scenario: `date:` takes the words for a day as well as the day
-    # Counted from the day the page is being READ on, out of the tab's own
-    # clock — so what these select moves, and only the shapes that stay true
-    # are asserted: every date in this fixture is in the past, and stays there.
-    # The grammar's own boundaries are pinned where they can be
-    # (`format/filter.test.ts`, against a fixed day).
-    Given I open the outline "house.olai"
-    When I filter the page by "date:..today"
-    Then the node "order" is a match
-    And the node "demo" is a match
-    # Three, not two: the herb bed is mirrored into this outline, and the row
-    # showing `basil` (sown in July) is a match wherever it is drawn — the same
-    # rule every other filter here follows.
-    And the filter found "3 of 10"
-    # A relative word at the other end of a range, and nothing here is
-    # scheduled beyond today.
-    When I filter the page by "date:tomorrow.."
-    Then the filter found "no matches of 10"
-
-  Scenario: A word the relative vocabulary does not hold is refused
-    # The same contract every unknown value is held to: `date:tomorrowish` is
-    # not searched for as text and answered with an empty page — the reader is
-    # told which words the operator takes.
-    Given I open the outline "house.olai"
-    When I filter the page by "date:tomorrowish"
-    Then the filter refuses "date:tomorrowish" and says "today, yesterday, tomorrow"
-    And the outline has 0 rows
-
-  Scenario: A quoted phrase is one substring where two words are two
-    # `pick the hinges` and `pick the knobs` are both on this page, and the
-    # quotes are what put the ORDER of the words into the query. Unquoted, the
-    # same two words are two independent substrings that may sit anywhere in
-    # the node — which is what the second half of this scenario says.
-    Given I open the outline "house.olai"
-    When I filter the page by '"pick the hinges"'
-    Then the node "hinges" is a match
-    And the node "knobs" is not shown
-    And the filter found "1 of 10"
-    When I filter the page by '"hinges the pick"'
-    Then the filter found "no matches of 10"
-    When I filter the page by "hinges the pick"
-    Then the node "hinges" is a match
-    And the filter found "1 of 10"
-
-  Scenario: `OR` is either one, and it binds tighter than the space
-    # The precedence ruling, on the page it was made for. `cabinets` is in two
-    # titles on this outline and `handles` in a third: `install cabinets OR
-    # handles` is `install` AND one of the other two, which is the node that
-    # says `install the cabinets` and nothing else. Read the other way round —
-    # `(install AND cabinets) OR handles` — the answer would also hold
-    # `handles`, a row with no `install` about it, which is a query that
-    # quietly widened.
-    Given I open the outline "house.olai"
-    When I filter the page by "handles OR knobs"
-    Then the node "handles" is a match
-    And the node "knobs" is a match
-    And the node "install" is context
-    And the filter found "2 of 10"
-    When I filter the page by "install cabinets OR handles"
-    Then the node "install" is a match
-    # Drawn, because a matching row keeps its whole subtree — and drawn as
-    # CONTEXT, which is the distinction that says what the query selected. The
-    # loose reading of the precedence would have made it a MATCH, on a row with
-    # no `install` about it.
-    And the node "handles" is context
-    And the filter found "1 of 10"
-
-  Scenario: `or` is a word and `OR` is the joiner
-    # The one token in the grammar that is not case-folded, and the reason:
-    # `or` is a word people write. This outline's note says "walnut ... birch",
-    # and the query that finds it is the lower-case one.
-    Given I open the outline "house.olai"
-    When I filter the page by "walnut OR knobs"
-    Then the node "order" is a match
-    And the node "knobs" is a match
-    And the filter found "2 of 10"
-    When I filter the page by "walnut or knobs"
-    Then the filter found "no matches of 10"
-
-  Scenario: The three ways this grammar can be typed wrong are all refused
-    # The refusal contract, extended to being typed wrong rather than asked
-    # wrong. Nothing is closed or dropped on the reader's behalf: `"pick the`
-    # and `"pick the"` are two different queries, and picking one is the quiet
-    # answer to a question nobody asked.
-    Given I open the outline "house.olai"
-    When I filter the page by '"pick the'
-    Then the filter refuses '"pick the' and says "a phrase runs from one"
-    And the outline has 0 rows
-    When I filter the page by "hinges OR"
-    Then the filter refuses "OR" and says "one of them is missing"
-    And the outline has 0 rows
-    # The loud twin of the silent empty answer: an empty needle is inside every
-    # node ever written, so this is the query that would draw the whole page
-    # back. A phrase of nothing but spaces is the same query and says so too.
-    When I filter the page by '""'
-    Then the filter refuses '""' and says "no words in it"
-    And the outline has 0 rows
-    When I filter the page by '" "'
-    Then the filter refuses '" "' and says "no words in it"
-    And the outline has 0 rows
-
-  Scenario: A group takes the derived operator and the field test together
-    # `OR` joins TOKENS, so a clause is an alternative like anything else —
-    # including the one derived value in the grammar. `hinges` is waiting on
-    # `order`; `order` is the node carrying a note. Neither query is the other,
-    # and this is the one page that draws both answers at once.
-    Given I open the outline "house.olai"
-    When I filter the page by "is:blocked OR has:desc"
-    Then the node "hinges" is a match
-    And the node "order" is a match
-    And the node "install" is context
-    And the filter found "2 of 10"
-
   Scenario: The header's box reads the same phrase, and refuses in the same words
     # One grammar, four doors — and this is the half that has to TRAVEL: the
     # filter parses in the browser, the header box asks the server, and a
@@ -313,65 +160,6 @@ Feature: Filtering the outline in place
     Given I open the outline "house.olai"
     When I search the header for "hinges OR"
     Then the search refuses "OR" and says "one of them is missing"
-
-  Scenario: `-` takes a term or an operator back out
-    Given I open the outline "house.olai"
-    When I filter the page by "cabinets -is:doing"
-    Then the node "install" is a match
-    And the node "order" is not shown
-    And the filter found "1 of 10"
-
-  Scenario: `is:blocked` narrows the page to what is waiting on something
-    # The one DERIVED value in the grammar, and the reason it is worth having:
-    # `hinges` waits on `order`, which is still `doing`, so this page already
-    # dims it and writes its `blocked by` line — and the filter is that same
-    # reading rather than a second one written to the same paragraph.
-    # `install` carries an `after` of its own and is here only as the ancestry:
-    # it is a plain bullet, and a bullet is not being told it cannot start.
-    Given I open the outline "house.olai"
-    When I filter the page by "is:blocked"
-    Then the node "hinges" is a match
-    And the node "install" is context
-    And the node "order" is not shown
-    And the filter found "1 of 10"
-    # ...and negated, it is everything that can be got on with — `hinges` is
-    # still drawn, because a matching row keeps its whole subtree, and it is
-    # drawn as CONTEXT, which is the distinction this page is made of.
-    When I filter the page by "-is:blocked"
-    Then the node "order" is a match
-    And the node "install" is a match
-    And the node "hinges" is context
-
-  Scenario: A known operator with an unknown value is refused, not guessed at
-    # The silent-error rule, in the one place a query language invites one: a
-    # filter that quietly searched for the TEXT `is:open` would answer with
-    # an empty page and no reason. The reader is told which values the operator
-    # takes instead.
-    Given I open the outline "house.olai"
-    When I filter the page by "is:open"
-    Then the filter refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, archived"
-    And the outline has 0 rows
-
-  Scenario: A date no calendar could hold is refused too
-    # `2026-13` is shape-clean and impossible, and it SORTS between December and
-    # January — so swallowing it reads as a window rather than as nonsense. It
-    # is the reader's mistake exactly as much as `date:soon` is.
-    Given I open the outline "house.olai"
-    When I filter the page by "date:2026-13"
-    Then the filter refuses "date:2026-13" and says "2026-08-10"
-    And the outline has 0 rows
-
-  Scenario: The refusal quotes the reader, not the folded token
-    # The words are matched case-folded; the refusal is quoted as TYPED. Telling
-    # somebody who wrote `is:OPEN` that they wrote `is:open` is the
-    # refusal misquoting the reader — the same defect class the refusal exists
-    # to prevent, and the one none of the four doors had a scenario for.
-    Given I open the outline "house.olai"
-    When I filter the page by "is:OPEN"
-    Then the filter refuses "is:OPEN" and says "done, doing, todo, marked, blocked, mirrored, archived"
-    # ...while a query that MATCHES still folds, so the two cannot be confused.
-    When I filter the page by "IS:DONE"
-    Then the node "demo" is a match
 
   Scenario: The header's box refuses the same operator, in the same words
     # One grammar, four doors. The filter parses for itself; the header box,

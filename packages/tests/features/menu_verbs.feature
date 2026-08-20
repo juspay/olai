@@ -194,30 +194,6 @@ Feature: The ••• menu writes
     Then the node menu of "kitchen-herbs" says "`kitchen-herbs` is still named by `order` (`see`, house.olai:2) — retiring it would leave that pointing at nothing. Re-point it at `herbs` (the node this placement shows), or retire it first."
     And "house.olai" holds the node "kitchen-herbs"
 
-  Scenario: Moving to the Trash asks first, and names how much goes with it
-    # The human's ruling: a subtree may be archived, WITH a confirm naming the
-    # blast radius — and the confirm is this panel's own second step, not a
-    # browser dialog, which is chrome olai does not own. It also names the way
-    # back, because the Trash has one now: the sidebar entry, and Put back.
-    When I open the node menu of "install"
-    And I choose "Move to Trash" from the node menu
-    Then the node menu asks "Move “install the cabinets” and the 3 rows under it to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back."
-    And "house.olai" holds a node titled "install the cabinets"
-
-  Scenario: The confirm counts what the write moves, not what is on screen
-    # The rows a page draws are a READING: hiding what is done drops finished
-    # branches from them (`withoutDone`), and `demo` is one. The count is asked
-    # of the SET instead, because what a person is agreeing to is how much
-    # `archive` moves — so this says seven while six rows are drawn. A count
-    # taken from the children would say six and archive seven, which is the one
-    # verb whose reach exceeds its row mis-stating its reach.
-    Given the node "kitchen" is expanded
-    When I hide the done nodes
-    Then the node "demo" is not shown
-    When I open the node menu of "kitchen"
-    And I choose "Move to Trash" from the node menu
-    Then the node menu asks "Move “kitchen remodel #home” and the 7 rows under it to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back."
-
   Scenario: Cancelling the confirm writes nothing
     When I open the node menu of "install"
     And I choose "Move to Trash" from the node menu
@@ -239,11 +215,6 @@ Feature: The ••• menu writes
     And "Archive.olai" holds a node titled "install the cabinets"
     And the node "install" is not shown
     And there should be no page errors
-
-  Scenario: A childless row is asked about on its own
-    When I open the node menu of "knobs"
-    And I choose "Move to Trash" from the node menu
-    Then the node menu asks "Move “pick the knobs” to the Trash? It keeps its id, and the Trash in the sidebar is where to put it back."
 
   Scenario: Copy as text is the subtree, one tab per level
     # The indentation below is TABS — one per level, which is what every

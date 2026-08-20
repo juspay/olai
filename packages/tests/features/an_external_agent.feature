@@ -22,24 +22,6 @@ Feature: An agent olai did not start
     And I mark the page
     And a terminal agent is connected to the served directory
 
-  Scenario: It is offered the same closed list, and no way to touch a file
-    # The absences are the design: an agent that can name a byte can write a
-    # broken outline, and this one has no tool that names one. `create_outline`
-    # names a PATH for a new outline, not a free-form write — it is the one way
-    # a brand-new file is born, and the records inside still go through the ops
-    # layer's own writer.
-    Then the terminal agent is offered the tool "set_done"
-    And the terminal agent is offered the tool "add_node"
-    And the terminal agent is offered the tool "create_outline"
-    # The ledger ops. Everything the format can hold, an op can write: a
-    # placement is `add_mirror`/`remove_mirror`, a dependency is `set_after`.
-    # Anything missing from this list is a record only a hand edit can produce,
-    # which is the practice these three exist to end.
-    And the terminal agent is offered the tool "add_mirror"
-    And the terminal agent is offered the tool "remove_mirror"
-    And the terminal agent is offered the tool "set_after"
-    And the terminal agent is offered no file tools
-
   Scenario: A terminal marks something done and the open page follows
     # The item's whole claim. Two processes, one directory: the agent writes
     # through the ops layer, the server's watcher sees the file move, and the
@@ -154,16 +136,6 @@ Feature: An agent olai did not start
     And the page has not reloaded
     And there should be no page errors
 
-  Scenario: A placement is not a node, and duplicating one says which node to name
-    # The refusal every op that names a node makes, in the same words — so an
-    # agent that reached for a mirror is told what to reach for instead rather
-    # than quietly copying a subtree in a file nobody asked about.
-    When the terminal agent mirrors "kitchen" at the top of "house.olai" as "now-kitchen"
-    And the terminal agent tries to duplicate "now-kitchen"
-    Then the terminal agent was refused with the kind "usage"
-    And the terminal agent was refused, saying "`now-kitchen` is a mirror — a second placement of `kitchen`, not a node of its own. Name `kitchen` instead."
-    And "house.olai" holds exactly 1 node titled "kitchen remodel #home"
-
   Scenario: A terminal wires a dependency and the page draws what is waiting
     # `set_after` writes the ordering edge, and blockedness is DERIVED from it
     # together with the MARKS — which is why the agent marks first: an unmarked
@@ -181,36 +153,6 @@ Feature: An agent olai did not start
     # re-reading of `after` and no second definition of what waiting means.
     When the terminal agent searches for "is:blocked"
     Then the terminal agent found exactly "#install"
-    And the page has not reloaded
-    And there should be no page errors
-
-  Scenario: A terminal finds the documents and reads one back
-    # The read half of the same gate, and the half that did not exist: the
-    # write verbs have always taken a `was` — the text the caller read — and
-    # until `list_documents` and `read_document` there was no tool that could
-    # hand an agent that text. So an agent could mint a `.md` it could never
-    # read and rewrite one it had never seen.
-    # The listing is the map, exactly as `list_outlines` is: every served
-    # `.md` with the line it opens with, the ones in folders included — a path
-    # an agent can hand straight back to a read or a write. (What is NOT in it
-    # is a `.html`: the app shows those and the set keeps no body for one, so
-    # there is nothing to read back. This corpus holds none, so that exclusion
-    # is pinned where a `.html` exists — `server/src/mcp/tools.test.ts`.)
-    When the terminal agent lists the documents
-    Then the terminal agent was shown the document "finishes.md" titled "Finishes"
-    And the terminal agent was shown the document "notes/cabinets.md" titled "Cabinets"
-    # And the body is the body — verbatim, out of the same snapshot the page
-    # renders from, which is what makes it a thing a write can be judged
-    # against.
-    When the terminal agent reads the document "finishes.md"
-    Then the terminal agent was handed the document text "Matte black handles, oak counters"
-    # A path that is not one is REFUSED, in the voice every other tool refuses
-    # in: the kind as data, and the near miss in the sentence — the same near
-    # miss `write_document` gives for the same typo, because one path typed
-    # wrongly should not be answered two different ways.
-    When the terminal agent tries to read the document "finishs.md"
-    Then the terminal agent was refused with the kind "not-found"
-    And the terminal agent was refused, saying "did you mean `finishes.md`"
     And the page has not reloaded
     And there should be no page errors
 
@@ -236,105 +178,6 @@ Feature: An agent olai did not start
     Then the document renders bold text "here"
     And the page has not reloaded
     And there should be no page errors
-
-  Scenario: A terminal's stale document write is refused in words
-    # The conflict story on the agent's face: `was` said what the terminal
-    # READ, the file says something else, and the answer is a refusal carrying
-    # its kind — never a silent clobber of words nobody saw.
-    When the terminal agent creates the document "plan.md" holding "# Plan"
-    And the terminal agent tries to rewrite "plan.md" expecting "an older reading", as "clobber"
-    Then the terminal agent was refused with the kind "usage"
-
-  Scenario: A refused write is an answer, not a protocol error
-    # Nothing in the set declares `nowhere`. The refusal reaches the agent as a
-    # tool RESULT carrying its kind as data — a JSON-RPC error would be the
-    # server saying it could not process the call, which is not what happened.
-    When the terminal agent tries to mark "nowhere" done
-    Then the terminal agent was refused with the kind "not-found"
-
-  Scenario: A branch cannot be marked done over what is still open under it
-    # A mark is a stored fact on any node — and a `done` on a parent is a claim
-    # about the whole BRANCH, because done-hiding takes the subtree with the
-    # row. So this one would sweep `install the cabinets` off the page while it
-    # is still under way, and it is refused as DATA: the kind travels
-    # structured, the tasks are named in the sentence (`done-over-open-work`).
-    When the terminal agent tries to mark "kitchen" done
-    Then the terminal agent was refused with the kind "usage"
-    And node "kitchen" is not done
-    # And once the branch really is finished the mark lands — with the rollup's
-    # remark about the row above, which is advice on a write that happened.
-    When the terminal agent marks "install" done
-    Then the terminal agent was told "every task under `kitchen remodel #home` is done now"
-    When the terminal agent marks "kitchen" done
-    Then node "kitchen" is done
-
-  Scenario: It reads the outlines as nodes, with file and line
-    # A hit says where it is, so the agent can act on it without ever reading
-    # the file it came out of.
-    When the terminal agent searches for "cabinets"
-    Then the terminal agent found "order" in "house.olai"
-
-  Scenario: It gets the same grammar a person filters a page with
-    # HACKING.md's consistency rule, at the one seam a query language could
-    # break it: `is:done` is `@olai/format`'s one matcher, so the agent's
-    # answer and the browser's filter cannot mean different things by it — and
-    # `under` is the scoping a person gets by filtering a zoomed page, said out
-    # loud so the agent can ask the same question rather than a wider one.
-    When the terminal agent searches for "is:done"
-    Then the terminal agent found exactly "#demo"
-    When the terminal agent searches for "-is:done cabinets"
-    # THE DOCUMENT LEADS, and that is the ranking rather than a kind winning:
-    # `notes/cabinets.md` is CALLED Cabinets, so the word starts its title,
-    # where the two records only carry it in the middle of theirs. A negated
-    # clause is satisfied by a document — it is indeed not done — which is the
-    # other half of what a `.md` can answer (docs/search.md).
-    Then the terminal agent found exactly "notes/cabinets.md, #order, #install"
-    When the terminal agent searches for "cabinets" under "install"
-    Then the terminal agent found exactly "#install"
-    # A phrase and a group reach this door through the same one grammar, so an
-    # agent can ask for the line a person quoted — and for either of two
-    # things, which is the query that used to be two calls.
-    When the terminal agent searches for '"the new cabinets"'
-    Then the terminal agent found exactly "#order"
-    When the terminal agent searches for "counters OR cabinets"
-    # AND `finishes.md` LAST, which is the roadmap item closed in one line:
-    # "counters" is in its PROSE and in no title, so it is the weakest kind of
-    # hit there is — and until now it was no hit at all, because nothing walked
-    # a body.
-    Then the terminal agent found exactly "notes/cabinets.md, #order, #install, #demo, finishes.md"
-    # A group takes a CLAUSE as readily as a word, including the one whose value
-    # is a word for a day — counted from the server's own clock, the one a
-    # `done` is stamped with. Every date in this fixture is in the past and
-    # stays there, so what this selects is the finished node plus whatever is
-    # under way: `install` carries a dated `doing`, which is on no day at all,
-    # and is here on the mark rather than on the date.
-    When the terminal agent searches for "date:..today OR is:doing"
-    Then the terminal agent found exactly "#install, #demo"
-
-  Scenario: An operator it gets wrong is refused with the reason, not with silence
-    # The fourth door onto the same grammar, and the one where silence is
-    # cheapest to ship: a tool that answered `is:open` with an empty `hits`
-    # and nothing else would leave a model to guess whether the directory is
-    # empty or the query is wrong. The refusal rides the answer.
-    When the terminal agent searches for "is:open"
-    Then the terminal agent found exactly ""
-    And the terminal agent was refused "is:open" and told "done, doing, todo, marked, blocked, mirrored, archived"
-    # AS TYPED — an answer that echoed the folded token back would be quoting
-    # the caller wrongly.
-    When the terminal agent searches for "is:OPEN"
-    Then the terminal agent was refused "is:OPEN" and told "done, doing, todo, marked, blocked, mirrored, archived"
-    # ...and the same contract on the refusal that is a QUOTE rather than an
-    # operator, where "as typed" is the whole of what an agent has to echo back
-    # to a person: capitals and opening quote both survive the trip.
-    When the terminal agent searches for '"The New'
-    Then the terminal agent found exactly ""
-    And the terminal agent was refused '"The New' and told "a phrase runs from one"
-    # An empty phrase is refused rather than answered with the directory.
-    When the terminal agent searches for '""'
-    Then the terminal agent was refused '""' and told "no words in it"
-    # ...and a query it CAN read carries no refusal at all.
-    When the terminal agent searches for "cabinets"
-    Then the terminal agent was refused nothing
 
   Scenario: A saved page's body is still handed to the reader that asks for one
     # THE OTHER SIDE OF THE PREVIEW'S DIET. A `.html` under an open page stopped

@@ -2,6 +2,21 @@
 
 Cucumber features driven through Playwright against a real `olai` server serving a real directory of fixture outlines. Nothing here is mocked: the server loads `.olai` files off disk, the client renders them over a WebSocket, and the assertions read the DOM a person would be looking at.
 
+## What earns a scenario
+
+A scenario has to earn the browser. Grammar, semantics and pure logic belong in the unit suites (`packages/format`, `web`, `ops`, `server`). Re-asserting a unit-tested law here is waste: it costs a Chromium, a server and a corpus copy, and it does not catch a class of bug the unit test missed.
+
+Do not add:
+
+- a scenario for anything a unit test can pin
+- a static render assertion (a label exists, a class is present) — those barely can break without a compile error
+- one shared law through every door: if the keyboard, the menu, the palette and the agent all meet the same ops-layer sentence, one representative door suffices
+- a pixel-threshold or scroll-geometry assertion unless the geometry **is** the feature
+
+This suite **is** for what only a real browser shows: stacking and overlap via `elementFromPoint`, real drag and touch sequencing, live-wire behaviour (watcher edits, reconnects, server death), multi-tab races, CSP and iframe sealing.
+
+Prefer a shared scratch corpus per **feature** over a private server per scenario when the scenarios write disjoint files. Private `@scratch:` servers are where the flakes live; sharing one is filed as roadmap `e2e-scratch-sharing` and is not this file's to solve by adding more of them.
+
 ```
 packages/tests/
 ├── cucumber.js              # the `ui` profile, and its env knobs
@@ -170,7 +185,7 @@ The two scenarios it exists for are the halves of one rule (`html_previews.featu
 
 Those scenarios do two things nothing else in the suite does. They **tap** (`locator.tap()`, a real `touchstart`/`touchend` pair) rather than click, which is the only way to find out that a control a pointer can reach is reachable without one — and, for the row menu a phone opens by HOLDING a finger, they **hold** and **flick** (`world.hold()` / `world.flick()`), which Playwright has no verb for: those go in through `Input.dispatchTouchEvent` on a CDP session, so Chromium's own gesture recogniser sees the press. That is the point of the extra machinery rather than a synthetic `pointerdown` — the client's answer to a long press is only half of what happens, and the browser's own half (the `contextmenu` it raises mid-gesture, the text-selection callout with it, the click it makes up when the finger lifts) is exactly what that affordance has to coexist with. The hold is the client's `LONG_PRESS_MS` plus a margin, imported from the client for the reason every selector here is. And they **measure**: "big enough for a finger" is a size, and no attribute can carry it — it is the sum of a font, a padding and a breakpoint — so `world.box()` / `world.boxes()` read what the browser laid out (the plural takes every match in one pass, because a rule that held for the first row and not the tenth is not in force). That is the one exception to the rule below, and it is an exception about WHEN rather than about where: a step may measure when the promise is a property no attribute can carry, and only then. Two places qualify so far — the finger-sized controls here, and the rendered markdown a document draws (`document_steps.ts`, `app_steps.ts`), where the tags are correct however badly they are set and the damage is only in the layout. An anchor jump (`toc_steps.ts`) is the same exception said about movement: a fragment that changes the address and scrolls nowhere leaves every attribute on the page exactly as it was, and only the heading's box says so. In `step_definitions/phone_steps.ts`, a map turns a reader's name for a control ("collapse toggle") into the `data-testid` it is found by. `features/on_a_phone.feature` ends with a laptop scenario on purpose: the finger-sized rule is about the pointer, and a control that grew everywhere would be a regression in the other direction.
 
-`features/install_it.feature` is the other half — the manifest and the icons — and it asks the SERVER rather than the page (`world.fetch`), because that is who an installer asks.
+The install surface — the manifest, the icons, the viewport, the absence of a service worker — is the server's to pin (`packages/server/src/serve.test.ts`). An installer asks the process, not the page, and a browser scenario that only fetched URLs was not earning Chromium.
 
 ## The one client that is not a browser
 
@@ -279,7 +294,7 @@ The names are not written down twice. `support/world.ts` imports the client's ow
 
 ## Adding a test
 
-1. Write the scenario in a `.feature` file, in the language of the promise rather than of the DOM.
+1. Write the scenario in a `.feature` file, in the language of the promise rather than of the DOM. Check it against **What earns a scenario** first.
 2. Run it. Cucumber prints a snippet for every step it does not recognise.
 3. Implement the step in the `step_definitions/` file for that feature, as `function (this: OlaiWorld)` — never an arrow function, which would not get a `this`. Assertions are `node:assert`; there is no `expect`.
 4. If it needs an outline no corpus has, add it to `fixtures/good` rather than inventing a corpus — the fixtures are documentation too, and three small readable directories beat thirty single-purpose ones.

@@ -80,6 +80,11 @@ export const withServe = async <A>(
      *  directory is not a repository, and the tests that do not care should not
      *  spawn git to find that out. */
     readonly commits?: "off" | "manual" | "auto"
+    /** The browser bundle to serve. Unset is a stand-in directory that exists,
+     *  which is all a boot test asks of a bundle it is never going to fetch a
+     *  page out of. Pass a real (or assembled) dist when the test is about
+     *  what the static layer actually answers. */
+    readonly clientDist?: string
   },
   body: (said: ReadonlyArray<Logged>) => Promise<A>,
 ): Promise<A> => {
@@ -91,7 +96,7 @@ export const withServe = async <A>(
       host: "127.0.0.1",
       // A directory that exists is all the entry point asks of a bundle it is
       // never going to serve a page out of.
-      clientDist: served(),
+      clientDist: options.clientDist ?? served(),
       allowedOrigins: [],
       commits: options.commits ?? "off",
     })
@@ -124,6 +129,7 @@ export const withServing = <A>(
   options: {
     readonly root: string
     readonly commits?: "off" | "manual" | "auto"
+    readonly clientDist?: string
   },
   body: (url: string, said: ReadonlyArray<Logged>) => Promise<A>,
 ): Promise<A> =>

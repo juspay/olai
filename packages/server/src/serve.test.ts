@@ -29,8 +29,9 @@ import * as path from "node:path"
 import * as net from "node:net"
 
 import { startWeb } from "./child.testlib.ts"
+import { MANIFEST } from "./manifest.ts"
 import { serve } from "./serve.ts"
-import { served, SERVER_LAYERS } from "./serve.testlib.ts"
+import { served, SERVER_LAYERS, withServing } from "./serve.testlib.ts"
 
 // A developer who exported OLAI_PORT_FILE (just run's file) would have
 // every in-process serve() here rewrite that file and try their live
@@ -252,4 +253,104 @@ test("binding off loopback is a warning, not a line among lines", async () => {
   const warned = findSaid(said, "bound off loopback")
   expect(warned?.level).toBe("Warn")
   expect(warned?.annotations.host).toBe("0.0.0.0")
+})
+
+// ── the install surface, as an installer asks it ────────────────────────
+//
+// The manifest is this package's (`./manifest.ts`); the icons and the shell
+// are the browser bundle's. The two packages do not import each other, and
+// the static layer answers an unmatched path with the HTML shell — so a
+// renamed icon still 200s, and only the content type says otherwise. These
+// used to be browser scenarios (`install_it.feature`); they never opened a
+// page worth looking at.
+
+const WEB_CLIENT = path.join(import.meta.dirname, "../../web/src/client")
+
+/** A dist that is the real shell and the real icons, plus one outline so the
+ *  store will boot. Thrown away with the test. */
+const installDist = (): string => {
+  const dist = served()
+  fs.copyFileSync(
+    path.join(WEB_CLIENT, "index.html"),
+    path.join(dist, "index.html"),
+  )
+  const publicDir = path.join(WEB_CLIENT, "public")
+  for (const file of fs.readdirSync(publicDir)) {
+    fs.copyFileSync(path.join(publicDir, file), path.join(dist, file))
+  }
+  return dist
+}
+
+const withInstall = (body: (url: string) => Promise<void>): Promise<void> => {
+  const dist = installDist()
+  return withServing({ root: dist, clientDist: dist }, (url) => body(url))
+}
+
+interface ManifestIcon {
+  readonly src: string
+  readonly type: string
+  readonly purpose?: string
+}
+
+test("the install manifest is served as itself, not as the shell", async () => {
+  await withInstall(async (url) => {
+    const answer = await fetch(`${url}/manifest.webmanifest`)
+    expect(answer.status).toBe(200)
+    expect(answer.headers.get("content-type") ?? "").toMatch(
+      /^application\/manifest\+json/,
+    )
+    const body = (await answer.json()) as {
+      name?: string
+      short_name?: string
+      start_url?: string
+      display?: string
+      icons?: ReadonlyArray<ManifestIcon>
+    }
+    expect(body.name).toBe(MANIFEST.name)
+    expect(body.short_name).toBe(MANIFEST.name)
+    expect(body.display).toBe("standalone")
+    expect(new URL(body.start_url ?? "/", url).pathname).toBe("/")
+    expect((body.icons ?? []).map((icon) => icon.src)).toEqual(
+      MANIFEST.icons.map((icon) => icon.src),
+    )
+  })
+})
+
+test("every icon the manifest names is served as the type it claims", async () => {
+  await withInstall(async (url) => {
+    const icons = MANIFEST.icons
+    expect(icons.length).toBe(4)
+    expect(icons.some((icon) => icon.purpose === "maskable")).toBe(true)
+    for (const icon of icons) {
+      const answer = await fetch(`${url}${icon.src}`)
+      expect(answer.status).toBe(200)
+      expect(answer.headers.get("content-type") ?? "").toMatch(
+        new RegExp(`^${icon.type.replace("+", "\\+")}`),
+      )
+      expect((await answer.arrayBuffer()).byteLength).toBeGreaterThan(0)
+    }
+  })
+})
+
+test("the shell names the mark, the viewport, and no service worker", async () => {
+  await withInstall(async (url) => {
+    const answer = await fetch(`${url}/`)
+    expect(answer.status).toBe(200)
+    const html = await answer.text()
+    expect(html).toContain('rel="icon"')
+    expect(html).toContain('href="/icon.svg"')
+    expect(html).toContain('rel="apple-touch-icon"')
+    expect(html).toContain('href="/apple-touch-icon.png"')
+    expect(html).toContain("width=device-width")
+    expect(html).toContain("viewport-fit=cover")
+    expect(html).toContain("interactive-widget=resizes-content")
+    expect(html).not.toMatch(/serviceWorker/)
+
+    const icon = await fetch(`${url}/icon.svg`)
+    expect(icon.status).toBe(200)
+    expect(icon.headers.get("content-type") ?? "").toMatch(/^image\/svg\+xml/)
+    const touch = await fetch(`${url}/apple-touch-icon.png`)
+    expect(touch.status).toBe(200)
+    expect(touch.headers.get("content-type") ?? "").toMatch(/^image\/png/)
+  })
 })

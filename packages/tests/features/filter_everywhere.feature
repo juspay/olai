@@ -71,13 +71,6 @@ Feature: The filter reaches every page that draws nodes
     And the day does not say it is empty
 
   @corpus:journal
-  Scenario: A day refuses an unknown value in the grammar's own words
-    Given I open the day "2019-11-05"
-    When I filter the page by "is:open"
-    Then the filter refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, archived"
-    And the node "rails" is not shown
-
-  @corpus:journal
   Scenario: A tag in a row's own title filters the day it is drawn on
     # The gesture the outline pages have had since the filter shipped, on a page
     # that could not keep a query until now. Same act, same address.
@@ -123,17 +116,6 @@ Feature: The filter reaches every page that draws nodes
     And the agenda entry is on fire with 3 late
 
   @corpus:agenda
-  Scenario: The derived operator works on the page that is a derivation
-    # `visas` waits on `photos`, which nobody has finished — the same reading
-    # that dims the row and writes its `blocked by` line, asked on the page that
-    # collects it.
-    When I open the agenda
-    When I filter the page by "is:blocked"
-    Then the spine's "late" rows are "visas"
-    And the filter found "1 of 3"
-    And the node "visas" is blocked by "photos"
-
-  @corpus:agenda
   Scenario: A line with nothing left on it is not drawn at all
     When I open the agenda
     When I filter the page by "nothing-is-called-this"
@@ -168,23 +150,3 @@ Feature: The filter reaches every page that draws nodes
     And the Trash row "hinges" is a match
     And the Trash row "install" is context
     And there should be no page errors
-
-  @scratch:good
-  Scenario: An operator still means what it means on the page that is the archive
-    Given I open the outline "house.olai"
-    And I mark the page
-    When I open the node menu of "install"
-    And I choose "Move to Trash" from the node menu
-    And I choose "Move to Trash" from the node menu
-    And I open the Trash
-    When I filter the page by "is:archived"
-    Then the Trash lists the node "hinges"
-    And the filter found "5 of 5"
-    # ...and its negation selects nothing here, which is the honest answer
-    # rather than an empty page with no reason.
-    When I filter the page by "-is:archived"
-    Then the Trash does not list the node "hinges"
-    And the filter found "no matches of 5"
-    # An archive narrowed to nothing is not "the Trash is empty" — that is a
-    # claim about the archive, and this is a claim about the query.
-    And the Trash does not say it is empty
