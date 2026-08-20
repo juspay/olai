@@ -13,6 +13,12 @@
  * a state, the shelf already knows which way this page's answer goes, and a
  * palette offering both would make a reader choose between two words.
  *
+ * THREE LABELS NOW, and the third is the same rule read once more: a verb that
+ * asks something first says so with an ellipsis in this app (`Set date…`,
+ * `Set repeat…` — docs/editing.md's palette section), and pinning a NARROWED
+ * page asks for a name (`./naming.ts`). Which of the three it wears is decided
+ * by the two facts below rather than by a flag somebody passes.
+ *
  * BOTH THINGS IT ASKS ARE THE SERVER'S, and they arrive on two different
  * members because they are two different questions: whether this page is
  * already on the shelf is the `pins` cell (`./pins.ts`), a reading of the whole
@@ -26,31 +32,35 @@
 import type { Shelf } from "@olai/surface"
 
 import type { PaletteItem } from "../palette/items.ts"
-import type { Names } from "../reading.tsx"
 import type { Route } from "../routes.ts"
-import { nameOf, shownIn } from "../address/address.ts"
+import { namingFor } from "./naming.ts"
 import { pinnedAt } from "./pins.ts"
 
 export const pinItem = (
   route: Route,
   shelf: Shelf,
-  /** What the ids the FOCUSED page points at are called — the table that page
-   *  was sent with (`../reading.tsx`). The one thing here that is a question
+  /** What this page is CALLED — resolved by the palette, once, because the
+   *  chord beside this row wants the same answer for the box's placeholder
+   *  (`../palette/Palette.tsx`). It is the one fact here that is a question
    *  about the vault: a `/#id` page is called whatever that node is called
    *  right now. */
-  names: Names,
+  called: string,
 ): PaletteItem => {
   const already = pinnedAt(shelf, route)
   return {
     id: "pin-page",
-    label: already === undefined ? "Pin this page" : "Unpin this page",
+    label: already !== undefined
+      ? "Unpin this page"
+      : namingFor(route, shelf, called) === null
+      ? "Pin this page"
+      : "Pin this page…",
     hint: "⌘⇧P",
     // WHICH page, on the second line — the slot a search hit puts its ancestry
     // in, and wanted here for the same reason a write row wants it: the
     // palette is opened from anywhere, and a bare "Pin this page" in a list of
     // strangers does not say which page it means.
-    place: nameOf(route, shownIn(names, route)),
+    place: called,
     action: { kind: "pin" },
-    search: "pin unpin shelf sidebar bookmark save this page keep",
+    search: "pin unpin shelf sidebar bookmark save this page keep name saved search",
   }
 }

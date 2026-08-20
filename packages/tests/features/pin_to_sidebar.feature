@@ -46,13 +46,55 @@ Feature: Pinning a page to the sidebar
   Scenario: The page a reader has narrowed is pinned WITH its query, and opens with it
     When I filter the page by "is:todo"
     And I pin the page
+    # A narrowed page is the one address nothing in the set can name, so the
+    # chord asks what to call it — and ENTER WITH NOTHING is the bare pin this
+    # app has always written, one keystroke from where the caret already is.
+    Then the palette asks "a name for this pin — Enter with nothing pins it unnamed"
+    When I name the pin ""
     Then the pinned shelf holds "/house.olai?q=is%3Atodo"
+    And "_olai/Pins.olai" holds a node titled "/house.olai?q=is%3Atodo"
     When I open the outline "garden.olai"
     And I follow the pin "/house.olai?q=is%3Atodo"
     # The WHOLE bar, not the path: a door that dropped the query would pass a
     # step that only read the path, and would open a different page.
     Then the address is exactly "/house.olai?q=is%3Atodo"
     And the filter box holds "is:todo"
+
+  Scenario: A saved search is NAMED where the thought arrives, and comes back named
+    # The gap this closes: a reader who has just narrowed a page had to pin it
+    # unnamed and then go and find `Pins.olai` to call it anything. The name is
+    # typed in the palette's own box — the shape `+ a line` already taught —
+    # and what lands is one op: the row an agent would write by hand.
+    When I filter the page by "is:todo"
+    And I pin the page
+    And I name the pin "What is late"
+    Then the pin "/house.olai?q=is%3Atodo" is named "What is late"
+    # The name renames the PIN and never the destination, so the query is still
+    # drawn beside it — a door onto a narrowed page that did not say so would
+    # promise something it does not open.
+    And the pin "/house.olai?q=is%3Atodo" carries the query "is:todo"
+    And "_olai/Pins.olai" holds a node titled "[What is late](/house.olai?q=is%3Atodo)"
+    When I open the outline "garden.olai"
+    And I follow the pin "/house.olai?q=is%3Atodo"
+    Then the address is exactly "/house.olai?q=is%3Atodo"
+    And the filter box holds "is:todo"
+    And there should be no page errors
+
+  Scenario: A pin is renamed from the shelf, and ⌘Z takes the name back
+    # Renaming is `set_title` on the pin's own row — the op an agent sends and
+    # the one the undo stack already knows — so the shelf's door onto it needs
+    # no verb of its own.
+    Given the directory has the pins:
+      | /#order |
+    When I rename the pin "/#order"
+    Then the palette asks "a name for this pin — Enter with nothing takes the name off"
+    When I name the pin "Kitchen project"
+    Then the pin "/#order" is named "Kitchen project"
+    And "Pins.olai" holds a node titled "[Kitchen project](/#order)"
+    When I press "ControlOrMeta+z"
+    # Back to a bare address, which is drawn by what it points at — live.
+    Then the pin "/#order" is named "order the new cabinets"
+    And there should be no page errors
 
   Scenario: A document is a door like any other
     When I open the document "finishes.md"

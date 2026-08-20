@@ -70,7 +70,6 @@ import {
 import { LAYER, WITHIN } from "../layer.ts"
 import { topmostWhileOpen } from "../topmost.ts"
 import { only } from "../narrow.ts"
-import { ALARM_PILL, QUIET_PILL } from "../pill.ts"
 import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
@@ -85,8 +84,19 @@ import {
 } from "./items.ts"
 import { opItems } from "./ops.ts"
 import { usePins } from "../pins/answered.tsx"
+import {
+  askingFor,
+  askName,
+  clearAsked,
+  nameAsked,
+  namedEdit,
+  type Naming,
+  namingFor,
+} from "../pins/naming.ts"
 import { pinItem } from "../pins/palette.ts"
 import { sayPin, togglePin } from "../pins/pinning.ts"
+import { nameOf, shownIn } from "../address/address.ts"
+import { type Asking, Question } from "./Question.tsx"
 import { createCursor } from "../search/cursor.ts"
 import { createSearch } from "../search/nodes.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
@@ -98,31 +108,12 @@ import { useRouter } from "../router.tsx"
 import { isLone } from "../workspace.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
 
-/**
- * A QUESTION THAT IS UP, and everything answering it needs — its words, the
- * verb's name for the button that goes ahead, and the edit that goes.
- *
- * Resolved at the ONE site that knows the row is a write with a question to
- * ask, rather than kept as the row itself. A row is a wider thing than this
- * panel can use: most of them are navigation, none of those has a question,
- * and holding one here would mean the panel asking `action.kind === "edit"`
- * again and needing an answer for the case it is never in. So the narrowing
- * happens once, where it is true, and the arm below cannot be entered with a
- * row that has nothing to confirm.
- */
 /** What this door calls its rows — see `../search/Result.tsx`'s `RowTestids`
  *  for why the three travel as one value. */
 const PALETTE_ROW: RowTestids = {
   row: TESTID.paletteItem,
   place: TESTID.paletteItemPlace,
   prop: TESTID.paletteItemProp,
-}
-
-interface Asking {
-  /** The verb's own words, on the button that goes ahead. */
-  readonly label: string
-  readonly question: string
-  readonly edit: Edit
 }
 
 export function Palette(props: {
@@ -223,6 +214,17 @@ export function Palette(props: {
   const mode = createMemo(() => modeOf(query()))
   const listing = () => mode().kind === "filter"
 
+  /** What the box is FOR, said in it while it is empty. A question that is up
+   *  has borrowed it (see {@link raise}), and what it says then is the name
+   *  this door takes with nothing typed — which is how "Enter with nothing"
+   *  becomes something a reader can see rather than a promise. */
+  const boxSays = () => {
+    const question = asking()
+    return question?.kind === "name"
+      ? question.placeholder
+      : "Jump, toggle, > ask the agent, + capture a line…"
+  }
+
   /**
    * WHAT THIS BOX IS ASKING — the query, or `null` while it is asking nothing:
    * the palette is shut, or the line carries a prefix. Neither `>` nor `+` is a
@@ -236,7 +238,17 @@ export function Palette(props: {
    * the node search away and left the file rows standing is a list answering a
    * line nobody is searching with.
    */
-  const asked = () => (paletteOpen() && listing() ? query() : null)
+  const asked = () =>
+    paletteOpen() && listing() && asking() === null ? query() : null
+
+  /**
+   * WHAT THE FOCUSED PAGE IS CALLED — asked once, here, because two things
+   * want the same answer: the shelf's row draws it on its second line, and the
+   * box that asks for a pin's name wears it as the placeholder
+   * (`../pins/naming.ts`). It is the one fact about a page an address cannot
+   * say on its own, and it rides on that page's own reading (`../reading.tsx`).
+   */
+  const called = () => nameOf(router.route(), shownIn(props.names, router.route()))
 
   // The nodes, from the server — one primitive, its own failure, and no
   // request bookkeeping in this component ({@link ../search/nodes.ts}).
@@ -270,7 +282,7 @@ export function Palette(props: {
     // page has that a reader can find by looking (../pins/palette.ts).
     const commands = [
       ...opRows(),
-      pinItem(router.route(), pins(), props.names),
+      pinItem(router.route(), pins(), called()),
       ...SHELL_ITEMS,
     ]
     // THEN THE HITS, which is the order they can be ANSWERED in: the commands
@@ -306,6 +318,10 @@ export function Palette(props: {
   const close = () => {
     setPaletteOpen(false)
     blank()
+    // …and the question somebody asked from OUTSIDE, put down with everything
+    // else: a name asked for over a page the reader has since left must not be
+    // raised again by the next ⌘K (`../pins/naming.ts`).
+    clearAsked()
     const back = previousFocus
     previousFocus = null
     queueMicrotask(() => back?.focus())
@@ -329,11 +345,23 @@ export function Palette(props: {
    * caret is in it.
    */
   createEffect(() => {
+    // TRACKED, and the whole reason this effect has two jobs: a door outside
+    // this component asks for a pin's name by setting that signal and opening
+    // the palette in one batch, so the modal that arrives has to arrive with
+    // the question already up (`../pins/naming.ts`). Read here rather than in a
+    // second effect because opening BLANKS — a question raised beside this one
+    // would be wiped by whichever ran last.
+    const outside = nameAsked()
     if (!paletteOpen()) return
-    previousFocus = document.activeElement instanceof HTMLElement
+    // `??=` because this may run a second time over an OPEN palette — a
+    // question asked while it is up — and what is focused then is this
+    // dialog's own box. Where the reader came FROM is a fact about the open,
+    // and `close` is what forgets it.
+    previousFocus ??= document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null
     blank()
+    if (outside !== null) raise(outside)
     // The element is not attached at the instant the signal flips.
     queueMicrotask(() => input?.focus())
   })
@@ -353,7 +381,12 @@ export function Palette(props: {
       // word for word: "ask, then do" stays two call sites rather than one
       // function telling them apart by which row it was handed.
       setSaid(null)
-      setAsking({ label: item.label, question: action.confirm, edit: action.edit })
+      setAsking({
+        kind: "confirm",
+        label: item.label,
+        question: action.confirm,
+        edit: action.edit,
+      })
       return
     }
     if (action.kind === "prefix") {
@@ -362,6 +395,14 @@ export function Palette(props: {
       return
     }
     if (action.kind === "pin") {
+      // A NARROWED page is asked what to call it first, and the question
+      // arrives through the same door the shelf's own rename uses — so there
+      // is one way in and one way this panel raises one.
+      const naming = namingFor(router.route(), pins(), called())
+      if (naming !== null) {
+        askName(naming)
+        return
+      }
       // The palette STAYS UP while this one is in flight, exactly as an op row
       // does, because the answer belongs in the box the reader is looking at.
       pin().then((line) => {
@@ -416,10 +457,48 @@ export function Palette(props: {
   const pin = (): Promise<Said | undefined> =>
     togglePin(router.route(), pins(), undo.record)
 
-  /** The question answered: it goes, and the verb behind it does. */
+  /**
+   * A QUESTION PUT UP, in the box the reader is already looking at.
+   *
+   * A NAME is typed into the palette's OWN input rather than into a second
+   * field of its own: the caret is there already, the modal's Escape and focus
+   * trap are already about it, and a box under a box is two places to type one
+   * answer. What that costs is the two lines below — the list stops being
+   * asked for while a question is up ({@link asked}), and the box starts
+   * holding a name instead of a query — and what it buys is that naming a pin
+   * is the shape `+ a line` already taught: type, and Enter sends exactly what
+   * you can read.
+   */
+  const raise = (naming: Naming) => {
+    const ask = askingFor(naming)
+    setSaid(null)
+    setQuery(ask.initial)
+    setChosen(false)
+    setAsking({ kind: "name", ...ask, naming })
+  }
+
+  /**
+   * The question answered: it goes, and the verb behind it does.
+   *
+   * A NAME is resolved into its op HERE rather than when the question was
+   * raised, because the words are not typed yet then — and the refusal that
+   * resolution can carry (a name the link's grammar cannot hold) keeps the
+   * question UP with the words still in the box, which is the same promise a
+   * refused capture makes to its line. The write that lands closes the palette
+   * through {@link sendEdit}, which is what takes the question down.
+   */
   const answer = (question: Asking) => {
-    setAsking(null)
-    sendEdit(question.edit)
+    if (question.kind === "confirm") {
+      setAsking(null)
+      sendEdit(question.edit)
+      return
+    }
+    const outcome = namedEdit(question.naming, query())
+    if (Outcome.isFailure(outcome)) {
+      setSaid({ tone: "alarm", text: outcome.failure })
+      return
+    }
+    sendEdit(outcome.success)
   }
 
   /**
@@ -572,6 +651,10 @@ export function Palette(props: {
   const escape = () => {
     if (asking() !== null) {
       setAsking(null)
+      // The BOX goes back to being a box. A name typed into a question that was
+      // backed out of must not become the filter over the list underneath it —
+      // the reader answered "no", and the words were about the question.
+      setQuery("")
       input?.focus()
       return
     }
@@ -600,9 +683,15 @@ export function Palette(props: {
         // is standing Tab cycles its two ways out and nothing else.
         if (paletteOpen() && event.key === "Tab") {
           event.preventDefault()
-          if (asking() === null) input?.focus()
+          const question = asking()
+          if (question === null) input?.focus()
           else if (document.activeElement === go) cancel?.focus()
-          else go?.focus()
+          // A NAMING question's answer is typed, so the box is one of its ways
+          // out and the cycle goes back through it. A confirm's is not: there
+          // is nothing to type, and Tab there is the two buttons.
+          else if (document.activeElement === cancel && question.kind === "name") {
+            input?.focus()
+          } else go?.focus()
         }
         return
       }
@@ -625,7 +714,18 @@ export function Palette(props: {
       // the line under the header rather than to this component's, which is
       // the one this palette can draw and is not on screen when the chord is
       // pressed with the modal shut (`../pins/pinning.ts`).
-      if (match.action === "pin") void pin().then(sayPin)
+      //
+      // A NARROWED page is the one press that asks first: the chord is live in
+      // the filter box, which is exactly where "keep this, narrowed like this"
+      // is meant — and it is the one address nothing in the set can name
+      // (`../pins/naming.ts`). Asking opens this palette with the box holding
+      // the question, so Enter alone still writes the bare pin the chord always
+      // wrote.
+      if (match.action === "pin") {
+        const naming = namingFor(router.route(), pins(), called())
+        if (naming === null) void pin().then(sayPin)
+        else askName(naming)
+      }
     }
     window.addEventListener("keydown", onKey)
     onCleanup(() => window.removeEventListener("keydown", onKey))
@@ -667,7 +767,7 @@ export function Palette(props: {
             type="text"
             class="w-full border-b border-rule bg-transparent px-5 py-4 font-serif text-lg italic text-ink outline-none placeholder:text-muted"
             data-testid={TESTID.paletteInput}
-            placeholder="Jump, toggle, > ask the agent, + capture a line…"
+            placeholder={boxSays()}
             value={query()}
             onInput={(e) => {
               setQuery(e.currentTarget.value)
@@ -799,60 +899,13 @@ export function Palette(props: {
                 next may quietly become the answer. */}
             <Match when={asking()}>
               {(question) => (
-                <div
-                  class="px-4 py-3"
-                  role="group"
-                  aria-label={question().question}
-                >
-                  {/* ANNOUNCED, and not only drawn. The caret is in the box
-                      when the verb is chosen, so without this a reader who
-                      cannot see the panel is told nothing at all and their
-                      next Enter archives a subtree. `alert` + `assertive` is
-                      the same pair a refusal gets one row up — this is the
-                      other sentence in this palette that must interrupt. */}
-                  <p
-                    class="m-0 text-xs leading-snug text-ink"
-                    data-testid={TESTID.paletteConfirm}
-                    role="alert"
-                    aria-live="assertive"
-                  >
-                    {question().question}
-                  </p>
-                  <div class="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      // AND THE CARET COMES IN, which is the `•••` menu's own
-                      // confirm rule (`../menu/Confirm.tsx`): a question
-                      // nobody's keyboard can reach is a question only a mouse
-                      // may answer, and the Tab trap above made that literal.
-                      // A microtask because the element is not in the document
-                      // at the instant the ref runs.
-                      ref={(element) => {
-                        go = element
-                        queueMicrotask(() => element.focus())
-                      }}
-                      class={`${ALARM_PILL} cursor-pointer`}
-                      data-testid={TESTID.paletteItem}
-                      data-id="go"
-                      onClick={() => answer(question())}
-                    >
-                      {question().label}
-                    </button>
-                    <button
-                      type="button"
-                      ref={cancel}
-                      class={`${QUIET_PILL} cursor-pointer`}
-                      data-testid={TESTID.paletteItem}
-                      data-id="cancel"
-                      onClick={() => {
-                        setAsking(null)
-                        input?.focus()
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
+                <Question
+                  asking={question()}
+                  onGo={() => answer(question())}
+                  onCancel={escape}
+                  setGo={(element) => (go = element)}
+                  setCancel={(element) => (cancel = element)}
+                />
               )}
             </Match>
             {/* Both prefixes preview the SAME way, because they are the same

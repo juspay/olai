@@ -311,17 +311,31 @@ A **shelf of doors** in the directory column, between the calendar and the file 
 
 **A pinned page keeps its query.** `/agenda` filtered to `is:todo` is pinned as that whole address, drawn with the query beside its name, and clicking it lands on the agenda WITH the filter in the box — which is what makes a pin the way a saved search is spelled here ([search.md](search.md)).
 
+### Naming one, where the thought arrives
+
+**A NARROWED page is asked what to call it, and nothing else is.** Every other address already has a name that is read live — a node's own title, a file's filename, the word *Agenda* — and a copy of one stored beside the pin is exactly the stale second answer this convention exists to avoid. A QUERY is the part nothing in the directory can name: three saved searches on the agenda are three rows called *Agenda* until somebody says otherwise. So `⌘⇧P` on a page you have narrowed, and the `⌘K` row that says **Pin this page…**, ask for a name first; a page with no query, and every unpin, still writes in one press.
+
+**It is asked in the palette's own box**, the way `+ a line` already asks for a line: the words you type are the name, the box wears the name it would take otherwise (*Agenda*) where a placeholder goes, and **Enter** writes it. Three keys, and each of them is worth knowing:
+
+- **Enter with nothing pins it unnamed** — the bare address this app has always written, one keystroke from where your hand already is. Nothing derived is ever stored, so *Agenda* on the shelf goes on being read live.
+- **Enter with words pins it named**, as one write: the row's title becomes `[What is late](/agenda?q=is%3Atodo)`, which is the markdown link you would have typed into `Pins.olai` yourself.
+- **Escape writes nothing at all.** The question comes before the pin, so backing out of it backs out of the whole gesture.
+
+**And a pin already on the shelf is renamed from the shelf.** Hovering a row shows a `✎` beside its `×`; pressing it asks the same question, holding the name it has now, and **Enter with nothing takes the name off** — the row goes back to a bare address, drawn by whatever it points at. Renaming is an ordinary title edit on that row (`set_title`, the op an agent sends), so `⌘Z` takes it back like anything else.
+
+A name the link cannot hold is refused rather than mangled, in the palette's own line: a `]` would end the label early and leave a title that is no longer an address, which would take the row off the shelf without saying so.
+
 **A pinned node says its name now, not the name it was pinned under.** Rename it from its own row, from another pane, from an agent, from vim — the shelf follows on the frame the file arrives, because there is no copy of the title stored beside the pin ([format.md](format.md#pins)).
 
 **Drag a pin to reorder the shelf**, exactly as a row is dragged in the tree: press, travel, and a line shows where it will land. What it sends is the same `place` a drop in an outline sends. A press that does not travel is the click it always was.
 
 **The `×` takes one off**, and so does the verb it was put up with. Unpinning is the set's own removal — the pin's row goes to the Trash keeping its id — so `⌘Z` takes it back and **Put back** is there if you find it later.
 
-**A pin can be NAMED, and naming one is typing.** Make the row's title a markdown link — `[Kitchen project](/#abc123)` — and the shelf draws *Kitchen project*, pressing it opens the address, and the query it carries is still drawn beside it. There is no rename verb and no field: a pin's name is that row's text, so you change it the way you change any other row. A bare address takes its name from whatever it points at, live.
+**A pin's NAME is that row's text, whoever typed it.** A title written as a markdown link — `[Kitchen project](/#abc123)` — draws *Kitchen project*, pressing it opens the address, and the query it carries is still drawn beside it. There is still no rename verb and no field: the `✎` above and an edit in `Pins.olai` are two hands on one row, and both leave the same line behind. A bare address takes its name from whatever it points at, live.
 
 **And the file reads like an outline.** Open `Pins.olai` and its rows are the same faces the shelf draws — the pin mark, the name, the query — because a title that names a place is drawn as that place wherever it appears, not just in the sidebar. On a named pin the label is the link; click anywhere else on the line and the editor shows the title as it really is, which is the same thing every markdown title does.
 
-**It is a file, and that is the feature.** The shelf is a `Pins.olai` in the served directory — wherever you keep one; olai mints `_olai/Pins.olai` the first time you pin something and never moves a shelf you already have. One ordinary node per pin, whose title is the address ([format.md](format.md#pins)). Open it like any outline and edit it; name a pin by making its title a markdown link (`[What is late](/agenda?q=is%3Atodo)`); commit it with everything else. An agent adds, reorders and removes pins with `add_node`, `move_node` and `trash_node` — the same three ops the gestures above resolve to — so what you keep on that shelf is something you can hand to one.
+**It is a file, and that is the feature.** The shelf is a `Pins.olai` in the served directory — wherever you keep one; olai mints `_olai/Pins.olai` the first time you pin something and never moves a shelf you already have. One ordinary node per pin, whose title is the address ([format.md](format.md#pins)). Open it like any outline and edit it; a name is a markdown link around the address (`[What is late](/agenda?q=is%3Atodo)`), which is exactly the row the app writes when you type one; commit it with everything else. An agent adds, reorders, renames and removes pins with `add_node`, `move_node`, `set_title` and `trash_node` — the same four ops the gestures above resolve to — so what you keep on that shelf is something you can hand to one.
 
 ## From the ⌘K palette
 

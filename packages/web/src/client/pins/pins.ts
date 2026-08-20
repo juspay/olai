@@ -40,18 +40,27 @@
  *
  * ## And a pin may be NAMED
  *
- * A bare address is the ordinary case and the only one this app writes, because
- * every address already has a name somebody can derive from it or from the set
- * (`../address/address.ts`) — a node's own live title, a file's name, the word
- * *Agenda*. A copy of that name stored beside the address would be the second
- * answer the format spends its whole mirror argument avoiding: rename the node
- * and the shelf would go on saying what it said.
+ * A bare address is the ordinary case and the one this app writes unless
+ * somebody says otherwise, because every address already has a name that can be
+ * derived from it or from the set (`../address/address.ts`) — a node's own live
+ * title, a file's name, the word *Agenda*. A copy of that name stored beside
+ * the address would be the second answer the format spends its whole mirror
+ * argument avoiding: rename the node and the shelf would go on saying what it
+ * said.
  *
  * A markdown link — `[Overdue](/agenda?q=is%3Atodo)` — is the other case, and
  * it is a NAME rather than a copy: somebody wrote it, nothing derived it, and
  * nothing will disagree with it later. Titles are inline markdown in this
  * format already (docs/format.md's Fields), so `Pins.olai` opened as an
  * ordinary outline draws it as an ordinary link.
+ *
+ * WHICH OF THE TWO A GESTURE WRITES IS THE READER'S, and that is the whole of
+ * `./naming.ts`: the app asks for a name at the one address whose name nothing
+ * can derive — a page narrowed by a query, which is called *Agenda* however
+ * many of them you keep — and takes an empty answer as the bare pin it always
+ * wrote. Nothing is derived INTO a link: a name that is stored is a name
+ * somebody typed, so there is still no copy anywhere for a rename to make
+ * stale.
  *
  * ## WHERE THE SHELF COMES FROM, since PR 5 of `vault-in-browser`
  *
@@ -85,9 +94,10 @@
  * in a unit test rather than in a sidebar.
  */
 
+import { addressWritten } from "@olai/format"
 import type { Pinned, Shelf } from "@olai/surface"
 
-import { addressIn, titleFace } from "../address/address.ts"
+import { addressIn, nameOf, titleFace } from "../address/address.ts"
 import { hrefOf, type Route } from "../routes.ts"
 
 /** One door on the shelf: the node that IS the pin, where it goes, and what it
@@ -113,10 +123,35 @@ export interface Pin {
    *
    * The written name is not kept beside it, and that is a fact about a SHELF
    * rather than an omission: a shelf row is a `<Link>` already, so its face is
-   * never the anchor an authored name would make it (`../address/Face.tsx`) —
-   * and nothing else here asks which of the two spellings a row was written in.
+   * never the anchor an authored name would make it (`../address/Face.tsx`).
    */
   readonly name: string
+  /**
+   * The ADDRESS this row holds, exactly as the file spells it — which is not
+   * `hrefOf(route)` and must not be replaced by it.
+   *
+   * A rename writes the row's title back ({@link ./naming.ts}), and the one
+   * thing a rename must not change is where the door goes: a pin somebody
+   * typed as `?q=is:todo` and the address this app would mint for the same page
+   * are one pin through the bijection, and re-minting it would rewrite
+   * somebody's file for a gesture that was about the NAME.
+   */
+  readonly at: string
+  /**
+   * What this door would be called with NOTHING written on it — the address's
+   * own answer, live.
+   *
+   * It rides beside {@link name} because a rename has to say what taking the
+   * name off would leave: the box that asks for one wears this as its
+   * placeholder, so "Enter with nothing" is a thing the reader can see rather
+   * than a promise about a word they cannot.
+   */
+  readonly bare: string
+  /** Whether {@link name} is somebody's OWN words rather than the address's —
+   *  which is the one thing a rename needs that the drawn name cannot say: a
+   *  box that opened holding a DERIVED name would turn "keep it as it is" into
+   *  a stored copy of a title that is supposed to stay live. */
+  readonly written: boolean
 }
 
 /** One answered row as a pin, or `undefined` when it is not one — a row whose
@@ -127,10 +162,14 @@ export interface Pin {
 const pinOf = (row: Pinned): Pin | undefined => {
   const route = addressIn(row.title)
   if (route === undefined) return undefined
-  // The other half of what `titleFace` answers — whether those words are
-  // somebody's OWN — is dropped here, for the reason {@link Pin.name} gives.
-  const { name } = titleFace(row.title, route, showing(route, row))
-  return { id: row.id, route, name }
+  const shows = showing(route, row)
+  const { name, written } = titleFace(row.title, route, shows)
+  // The two names, from the ONE rule that decides which of them is drawn
+  // (`../address/address.ts`): what this row says now, and what it would say
+  // with no words written on it. The second is asked again rather than derived
+  // from the first, because a written name that happens to match the node's is
+  // still a written name.
+  return { id: row.id, route, name, at: addressWritten(row.title), bare: nameOf(route, shows), written }
 }
 
 /**

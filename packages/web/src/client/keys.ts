@@ -66,7 +66,8 @@ const wantsMeta = (): boolean => isApplePlatform()
  *   ⌘J / Ctrl+J   — toggle chat
  *   ⌘Z / Ctrl+Z   — undo the last edit this tab made
  *   ⌘⇧Z / Ctrl+⇧Z — redo it
- *   ⌘⇧P / Ctrl+⇧P — pin the page to the sidebar, or unpin it
+ *   ⌘⇧P / Ctrl+⇧P — pin the page to the sidebar, or unpin it (a NARROWED page
+ *     is asked what to call it first — `pins/naming.ts`)
  *
  * ⌘J / Ctrl+J and Ctrl+K shadow browser chrome defaults (downloads / search
  * bar) — deliberate, so keyboard editing could not claim those combos later,
@@ -523,7 +524,10 @@ export const SHORTCUTS: ReadonlyArray<{
       { keys: "⌘J / Ctrl+J", what: "show or hide the agent" },
       { keys: "⌘Z / Ctrl+Z", what: "take back your last edit on this outline" },
       { keys: "⌘⇧Z / Ctrl+⇧Z", what: "put it back" },
-      { keys: "⌘⇧P / Ctrl+⇧P", what: "pin this page to the sidebar, or unpin it" },
+      {
+        keys: "⌘⇧P / Ctrl+⇧P",
+        what: "pin this page to the sidebar, or unpin it — a narrowed one asks what to call it",
+      },
       { keys: "⌘⇧W / Ctrl+⇧W", what: "close the focused pane" },
     ],
   },
