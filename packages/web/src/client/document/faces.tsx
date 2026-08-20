@@ -29,7 +29,7 @@ import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
 import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { landingId, outlineOf } from "../markdown/render.ts"
-import { useHere, useRouter } from "../router.tsx"
+import { type Landing, useHere, useRouter } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { useDocument } from "./documents.tsx"
 import { Hypertext } from "./Hypertext.tsx"
@@ -123,8 +123,9 @@ function Rendered(props: Reading) {
   // An EFFECT rather than a call, because everything it needs arrives on its own
   // schedule: the markdown chunk is fetched (`markdownReady`), the body is drawn
   // from it, and the text itself can be replaced under an open page by a file
-  // that moved on disk. Re-running is harmless — the same fragment finds the
-  // same element and scrolls to where it already is.
+  // that moved on disk. Re-running is how the first two eventually land; the
+  // third is why re-running is not free, and is what the `landed` guard below
+  // answers.
   //
   // ON THE NEXT FRAME, which is the one thing here that is not obvious and was
   // measured rather than reasoned: scrolling inside the effect lands on the
@@ -136,9 +137,26 @@ function Rendered(props: Reading) {
   // NOTHING FOUND IS NOTHING DONE, which is what a browser does with a fragment
   // naming no id: the reader stays at the top of the page rather than being sent
   // somewhere arbitrary. A `.md` whose heading was renamed is exactly that case.
+  //
+  // ONCE PER ARRIVAL, which is the one thing this effect has to remember. The
+  // text is TRACKED — it has to be, since the id is minted from it and the body
+  // lands a frame or two behind the address — and a file REWRITTEN under a
+  // reader (an agent's write, a `git pull`) is a new text under the same
+  // landing. Without this, somebody who had scrolled away to read something
+  // else was yanked back to the heading the address named, by an edit they did
+  // not make. So the landing that has been ANSWERED is remembered, and
+  // `../router.tsx` already says what makes identity the whole comparison: a
+  // landing is an ACT, it happens once on arrival, and every navigation mints a
+  // fresh one — so the value IS the arrival.
+  //
+  // Spent on the SCROLL rather than on the attempt, for the paragraph above:
+  // an effect that gave up the first time it found nothing would give up on the
+  // frame before the body arrived, which is most first paints.
+  let landed: Landing | undefined
   createEffect(() => {
     const land = router.landing()
     if (land === undefined || land.index !== here() || !markdownReady()) return
+    if (land === landed) return
     const id = landingId(text(), props.file, land.at)
     const frame = requestAnimationFrame(() => {
       // Two panes of the SAME file mint the same heading ids. Look
@@ -146,9 +164,10 @@ function Rendered(props: Reading) {
       const root = document.querySelector(
         `[data-testid="${TESTID.pane}"][data-pane="${String(here())}"]`,
       )
-      root?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({
-        block: "start",
-      })
+      const heading = root?.querySelector(`#${CSS.escape(id)}`)
+      if (heading === null || heading === undefined) return
+      heading.scrollIntoView({ block: "start" })
+      landed = land
     })
     onCleanup(() => cancelAnimationFrame(frame))
   })

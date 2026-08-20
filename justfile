@@ -78,12 +78,14 @@ typecheck: install
 # client's own Solid tests stick to signals and memos), and it is why the tab's
 # bench asks for `--conditions browser` explicitly. But a rule whose whole
 # subject is reactive cannot be asked under it — and worse than failing, it
-# PASSES, having run none of the code it names. Two are: `settled.ts`, the asker
-# every shortlist door in the client is built on, and `fold/refiling.ts`, which
-# decides when this browser asks where its folded ids now live and how many
-# times an answer may be applied. So their cases run under the browser
-# condition, here, where they fail this leg like any other test rather than
-# living in a lane nobody runs.
+# PASSES, having run none of the code it names. Four are: `settled.ts`, the
+# asker every shortlist door in the client is built on; `fold/refiling.ts`,
+# which decides when this browser asks where its folded ids now live and how
+# many times an answer may be applied; `names.ts`, the table every leaf of a
+# page reads a title through; and `chat/declared.ts`, whose asking is an effect
+# and whose failure slot is shared by every message on screen. So their cases
+# run under the browser condition, here, where they fail this leg like any
+# other test rather than living in a lane nobody runs.
 #
 # The FILENAME is what keeps the two runs apart: bun discovers `.test.` /
 # `_test_` / `.spec.` / `_spec_` and nothing else, so a `.browsertest.ts` is
@@ -95,7 +97,8 @@ test: install
     {{ nix_shell }} bun test --conditions browser \
       ./packages/web/src/client/settled.browsertest.ts \
       ./packages/web/src/client/fold/refiling.browsertest.ts \
-      ./packages/web/src/client/names.browsertest.ts
+      ./packages/web/src/client/names.browsertest.ts \
+      ./packages/web/src/client/chat/declared.browsertest.ts
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json (bunfig.toml explains why they have to be there). Reads

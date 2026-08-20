@@ -439,10 +439,37 @@ export const createEditor = (
    * wrong actually costs — which is narrower than it sounds and was overstated
    * once.
    */
-  const structural = async (name: (draft: RowDraft) => Edit) => {
+  const structural = async (
+    name: (draft: RowDraft) => Edit,
+    /**
+     * Where the caret was in the line, for the two keys that give the row a new
+     * ADDRESS — see the paragraph below.
+     */
+    at?: Caret,
+  ) => {
     if (!(await commit())) return
-    const held = draft()
-    if (held === null || held.kind !== "row") return
+    const open = draft()
+    if (open === null || open.kind !== "row") return
+    /**
+     * The caret's offset, written onto the draft BEFORE the write goes.
+     *
+     * An indent changes the row's `Row.key` (`@olai/format`'s `derive.ts`
+     * mints it as the chain of ids down to the row), so the branch the editor
+     * was drawn in stops matching and a DIFFERENT branch starts: the editor is
+     * not moved, it is a new one, and a new one opens at the end of the text —
+     * which is what a click means and is the wrong answer for somebody who
+     * pressed Tab in the middle of a word. The draft is what survives the row
+     * being redrawn, so the offset rides on it, exactly as a split's and a
+     * merge's do ({@link ./draft.ts}'s `caret`).
+     *
+     * BEFORE the write, and that is the load-bearing half: the frame that
+     * redraws the row can arrive while the call is still in flight, and by then
+     * `follow` has already moved the draft and the new editor has already
+     * opened. A caret put on the draft after the write would be a caret set
+     * after the box that reads it was drawn.
+     */
+    const held: RowDraft = at === undefined ? open : { ...open, caret: at.start }
+    if (held !== open) setDraft(held)
     const slot = slotOf(held)
     const edit = name(held)
     const moved = redraws(edit)
@@ -664,8 +691,15 @@ export const createEditor = (
       selection.grow(1)
     })),
     selectAll: () => enqueue(() => picking((from) => selection.widen(from))),
-    in: () => enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "in" }))),
-    out: () => enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "out" }))),
+    // THE TWO THAT CHANGE THE ROW'S ADDRESS, and so the only two that hand the
+    // caret's offset down: an indent draws the row in a branch that did not
+    // exist, where a reorder leaves it in the one it was in (`up`/`down`
+    // below keep the `Row.key`, so their editor is moved rather than replaced
+    // and the platform keeps the selection). `structural` says the rest.
+    in: (at) =>
+      enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "in" }), at)),
+    out: (at) =>
+      enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "out" }), at)),
     up: () => enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "up" }))),
     down: () =>
       enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "down" }))),

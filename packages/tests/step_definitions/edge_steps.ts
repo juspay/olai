@@ -108,32 +108,83 @@ When(
 
 // ── choosing a target ──────────────────────────────────────────────────
 
+/**
+ * The rows on screen answer THIS query, and there is a list under it.
+ *
+ * The search is the SERVER's, so the rows arrive a debounce and a round trip
+ * later — and what has to be waited for is the rows of THIS query, not any rows
+ * at all. The panel keeps the previous query's list standing while the next is
+ * in flight (which is the right thing to draw), so a wait for a visible hit is
+ * a wait the FIRST search in a scenario satisfies for the second — it passes
+ * today only because no scenario searches twice, which is not a property a step
+ * should depend on.
+ *
+ * `data-asked` is the SHORTLIST's own answer to "which query are these rows
+ * for" (`client/search/Shortlist.tsx`, over `search/nodes.ts`), so this waits
+ * for exactly that, and then for the list under it. Inside the panel rather
+ * than on it: the attribute is a fact about the search, and the search is a
+ * component this panel draws rather than something it is. Trimmed, because the
+ * query the search is asked is the trimmed one.
+ *
+ * A HELPER because two steps want it: the one that types a query, and the one
+ * that waits for a query somebody else typed to catch up.
+ */
+const answering = async (world: OlaiWorld, text: string): Promise<void> => {
+  await world.page
+    .locator(`${EDGE_PANEL} ${attr("data-asked", text.trim())}`)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await world.page
+    .locator(EDGE_HIT)
+    .first()
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+};
+
 When(
   "I search the edge panel for {string}",
   async function (this: OlaiWorld, text: string) {
     const box = (await panelOf(this)).locator(EDGE_SEARCH);
     await box.fill(text);
-    // The search is the SERVER's, so the rows arrive a debounce and a round
-    // trip later — and what has to be waited for is the rows of THIS query,
-    // not any rows at all. The panel keeps the previous query's list standing
-    // while the next is in flight (which is the right thing to draw), so a
-    // wait for a visible hit is a wait the FIRST search in a scenario satisfies
-    // for the second — it passes today only because no scenario searches
-    // twice, which is not a property a step should depend on.
-    //
-    // `data-asked` is the SHORTLIST's own answer to "which query are these rows
-    // for" (`client/search/Shortlist.tsx`, over `search/nodes.ts`), so this
-    // waits for exactly that, and then for the list under it. Inside the panel
-    // rather than on it: the attribute is a fact about the search, and the
-    // search is a component this panel draws rather than something it is.
-    // Trimmed, because the query the search is asked is the trimmed one.
-    await this.page
-      .locator(`${EDGE_PANEL} ${attr("data-asked", text.trim())}`)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await this.page
-      .locator(EDGE_HIT)
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await answering(this, text);
+  },
+);
+
+/**
+ * ANOTHER QUERY AND THE KEY IN ONE TASK — the gesture nobody can time by hand
+ * and everybody makes: typing on, and pressing Enter before the rows have
+ * caught up.
+ *
+ * In ONE `evaluate`, which is what makes it a fact rather than a race: the
+ * settle is 200ms and a browser cannot run a timer inside a task, so the
+ * keystroke lands strictly inside the window however loaded the machine is. A
+ * `fill` followed by `keyboard.press` is two round trips and would pass on a
+ * fast box for the wrong reason.
+ *
+ * Both events are dispatched at the FIELD and bubble, which is how Solid hears
+ * them: it delegates `input` and `keydown` at the document
+ * (`solid-js/web`'s `DelegatedEvents`), so the panel's own handlers run
+ * exactly as they do for a person's hands.
+ */
+When(
+  "I retype the edge panel's search as {string} and press Enter at once",
+  async function (this: OlaiWorld, text: string) {
+    const box = (await panelOf(this)).locator(EDGE_SEARCH);
+    await box.evaluate((element, wanted) => {
+      const field = element as HTMLInputElement;
+      field.focus();
+      field.value = wanted;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+      );
+    }, text);
+    await this.waitForFrame();
+  },
+);
+
+Then(
+  "the edge panel's rows answer {string}",
+  async function (this: OlaiWorld, text: string) {
+    await answering(this, text);
   },
 );
 

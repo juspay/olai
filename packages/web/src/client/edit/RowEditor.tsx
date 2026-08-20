@@ -53,9 +53,9 @@ export function TitleEditor(props: {
    *  middle of a tree is not a mystery. */
   readonly placeholder?: string
   /** Where the caret goes when this editor OPENS, when the draft has an
-   *  opinion — which is only ever after a split or a merge, where the whole
-   *  point of the key is that the caret stays in the sentence. Absent is the
-   *  end of the text, which is what a click on a title means. */
+   *  opinion — a split, a merge, or an indent, the three keys after which the
+   *  end of the text is the wrong place to be ({@link ./draft.ts}'s `caret`).
+   *  Absent is the end of the text, which is what a click on a title means. */
   readonly caret?: number
 }) {
   let element!: HTMLInputElement
@@ -308,11 +308,14 @@ const caretOf = (target: EventTarget | null): Caret | undefined => {
  * goes where it already was, so `Tab` in the middle of a word does not throw
  * the reader to the end of the line.
  *
- * `wanted` is the third answer, and only a split or a merge ever gives one: the
- * point of both keys is that the caret stays where the sentence was cut or
- * joined, which is neither the end of the text nor where it was in the editor
- * that has just gone away. It is read from the DRAFT rather than remembered
- * here, because the draft is what survives the row being redrawn.
+ * `wanted` is the third answer, and three keys give one: a split and a merge,
+ * whose point is that the caret stays where the sentence was cut or joined, and
+ * an indent, whose point is that it does not move at all — an indent redraws
+ * the row at a new `Row.key`, so this component is not moved but REPLACED,
+ * and `opening` is true in a box the reader never left. None of the three is
+ * the end of the text, nor where the caret was in the editor that has just gone
+ * away. It is read from the DRAFT rather than remembered here, because the
+ * draft is what survives the row being redrawn ({@link ./draft.ts}'s `caret`).
  */
 const takeCaret = (
   element: () => HTMLInputElement | HTMLTextAreaElement,

@@ -318,6 +318,36 @@ export const createCompletion = (field: {
     }
   })
 
+  /**
+   * Do the rows on screen answer the trigger armed NOW?
+   *
+   * THE SAME TABLE {@link choices} and {@link failure} are, and for their
+   * reason: which list a trigger draws from is a fact the compiler keeps, so a
+   * fourth widget cannot quietly inherit the node search's answer about
+   * staleness either.
+   *
+   * It exists because a list HOLDS STILL through a settle and a flight — the
+   * rows a reader is looking at stay until the next ones arrive
+   * (`../settled.ts`) — which is right to draw and wrong to write from. A `((`
+   * take mints a placement and a `#` take rewrites the line, so `Enter`
+   * pressed within 200ms of a keystroke would spend the PREVIOUS prefix's row.
+   *
+   * A DAY LIST is always settled: `naturalDays` is a pure function of a
+   * phrase and a calendar, computed from the trigger in hand.
+   */
+  const settled = createMemo<boolean>(() => {
+    const found = trigger()
+    if (found === null) return false
+    switch (found.kind) {
+      case "date":
+        return true
+      case "tag":
+        return tags.answering() !== null
+      case "mirror":
+        return nodes.answering() !== null
+    }
+  })
+
   const listing: Listing = {
     // A box is on screen when something is armed AND it has something to say —
     // rows, or a refusal from whichever list is the server's. One rule, read by
@@ -362,6 +392,11 @@ export const createCompletion = (field: {
           // keystroke that does nothing at all.
           const taking = choices()[cursor.at()]
           if (taking === undefined) return false
+          // ...and rows that answer an older prefix are not this key's to
+          // take ({@link settled}). CLAIMED all the same: a list is on screen
+          // under the caret, and an `Enter` falling through to the row's own
+          // handler would end the line the reader is still typing a tag into.
+          if (!settled()) return true
           taking.choose()
           return true
         }

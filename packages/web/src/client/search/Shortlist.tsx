@@ -190,6 +190,16 @@ export function Shortlist(props: {
   const take = (index: number): boolean => {
     const hit = hits()[index]
     if (hit === undefined) return false
+    // NOT WHILE THE ROWS ANSWER AN OLDER QUERY. They hold still through a
+    // settle and a flight, which is the only honest thing to DRAW — and the
+    // wrong thing to act on: `Enter` within 200ms of a keystroke would take
+    // the row the last query found, and a take here writes a reference or
+    // carries a subtree. So the gesture is CLAIMED and spends nothing; the
+    // rows catch up a moment later and the same key means what it says.
+    // Claimed rather than passed through, because a panel is on screen with a
+    // list in it and an `Enter` falling past it would do something else
+    // entirely under the reader's hands.
+    if (found.answering() === null) return true
     cursor.to(index)
     if (verdicts()[index] !== null) return true
     props.onTake(hit)
