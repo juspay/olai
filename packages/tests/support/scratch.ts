@@ -13,19 +13,21 @@
  * (`packages/server/src/lock.ts`), so two workers over one tree would refuse
  * to boot. Each worker's map is already its own.
  *
+ * This module is that contract: the tags, and the observer that names a
+ * collision. Spawn identity (agent / kolu / git) lives with isolateEnv in
+ * `workers.ts` — that volatility is what the child *is*, not whether these
+ * scenarios may share.
+ *
  * Collision is OBSERVED, not declared. A `@writes:house.olai` tag can be
  * forgotten, and a forgotten declaration is the silent flake this exists to
- * prevent (HACKING.md: never silently ignore errors). After each sharing
- * scenario the harness hashes the scratch tree and compares it to the
- * previous writers on this worker: if two named scenarios both changed the
- * same path, the run fails naming both and the file. Authors who would
- * collide tag the later scenario `@own-scratch` so it keeps a private copy.
- *
- * Observation sees writes (UI, `writeServed`, the agent, Trash minting). It
- * does not see a scenario that only READS a file another one wrote — so a
+ * prevent (HACKING.md: never silently ignore errors). The observer is a
+ * content-hash of the tree at Before versus After: declarations can be
+ * forgotten, fs.watch misses events, the server log couples to format, and
+ * mtime is blind to a same-length rewrite. Hashing is the smallest snapshot
+ * that still sees UI edits, `writeServed`, the agent, and Trash minting.
+ * It does not see a scenario that only READS a file another one wrote — so a
  * feature whose early scenarios depend on the original corpus and whose later
- * ones mutate it is not a candidate. Convert only where the writes are
- * disjoint *and* the readers do not care about those files.
+ * ones mutate it is not a candidate.
  */
 
 import { createHash } from "node:crypto";
@@ -97,21 +99,6 @@ export const requestOf = (
   return { corpus: asked.corpus, mode: "share" };
 };
 
-/**
- * How a spawned server was configured, as a cache key. Two scenarios that
- * share a scratch must be the same shape of server: a `@kolu` one cannot
- * reuse a server that was started without it. Different fingerprints are
- * different shared slots, not a refusal — a mixed feature still shares
- * among the scenarios that match.
- */
-export const spawnFingerprint = (opts: {
-  readonly stored: boolean;
-  readonly agent: boolean;
-  readonly kolu: boolean;
-  readonly git?: string;
-}): string =>
-  `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}`;
-
 /** Content hashes of every file under `root`, paths relative and `/`-spelled. */
 export const filesOf = (root: string): Map<string, string> => {
   const out = new Map<string, string>();
@@ -140,7 +127,7 @@ export const filesOf = (root: string): Map<string, string> => {
 };
 
 /** Paths whose contents changed, appeared, or disappeared between two walks. */
-export const changedFiles = (
+const changedFiles = (
   before: ReadonlyMap<string, string>,
   after: ReadonlyMap<string, string>,
 ): ReadonlyArray<string> => {
@@ -156,7 +143,7 @@ export interface ScratchWriter {
 }
 
 /** The earlier writer on this shared scratch whose files overlap `files`. */
-export const overlapWith = (
+const overlapWith = (
   files: ReadonlyArray<string>,
   previous: ReadonlyArray<ScratchWriter>,
 ): { readonly writer: ScratchWriter; readonly files: ReadonlyArray<string> } | undefined => {
@@ -167,8 +154,7 @@ export const overlapWith = (
   return undefined;
 };
 
-/** The refusal a collision is: both scenarios, the files, what to do. */
-export const collisionError = (
+const collisionError = (
   feature: string,
   current: string,
   previous: string,
@@ -183,3 +169,29 @@ export const collisionError = (
       `different file — a shared scratch that two scenarios mutate is a ` +
       `flake, not a faster run`,
   );
+
+/**
+ * After a sharing scenario: append what it changed to the ledger, or name
+ * both writers if the files overlap. One call so the hook does not reassemble
+ * the walk, the diff, the overlap and the sentence.
+ */
+export const recordWrites = (args: {
+  readonly feature: string;
+  readonly name: string;
+  readonly before: ReadonlyMap<string, string>;
+  readonly root: string;
+  readonly writers: ReadonlyArray<ScratchWriter>;
+}): {
+  readonly writers: ReadonlyArray<ScratchWriter>;
+  readonly error: Error | undefined;
+} => {
+  const files = changedFiles(args.before, filesOf(args.root));
+  const hit = overlapWith(files, args.writers);
+  return {
+    writers: [...args.writers, { name: args.name, files }],
+    error:
+      hit === undefined
+        ? undefined
+        : collisionError(args.feature, args.name, hit.writer.name, hit.files),
+  };
+};

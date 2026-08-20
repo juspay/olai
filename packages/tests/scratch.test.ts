@@ -11,15 +11,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 import {
-  changedFiles,
-  collisionError,
   DEFAULT_CORPUS,
   filesOf,
   OWN_TAG,
-  overlapWith,
+  recordWrites,
   requestOf,
   SHARE_TAG,
-  spawnFingerprint,
 } from "./support/scratch.ts";
 
 const tags = (...names: string[]) => names.map((name) => ({ name }));
@@ -78,23 +75,6 @@ test("two corpus tags on one scenario are refused", () => {
   );
 });
 
-test("spawn fingerprints differ when the server would start differently", () => {
-  const base = { stored: false, agent: true, kolu: false };
-  expect(spawnFingerprint(base)).toBe(spawnFingerprint({ ...base }));
-  expect(spawnFingerprint(base)).not.toBe(
-    spawnFingerprint({ ...base, kolu: true }),
-  );
-  expect(spawnFingerprint(base)).not.toBe(
-    spawnFingerprint({ ...base, git: "repo" }),
-  );
-  expect(spawnFingerprint(base)).not.toBe(
-    spawnFingerprint({ ...base, stored: true }),
-  );
-  expect(spawnFingerprint(base)).not.toBe(
-    spawnFingerprint({ ...base, agent: false }),
-  );
-});
-
 test("filesOf hashes contents, not mtimes, and walks nested paths with /", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-hash-"));
   try {
@@ -113,43 +93,72 @@ test("filesOf hashes contents, not mtimes, and walks nested paths with /", () =>
   }
 });
 
-test("changedFiles sees edits, new files, and deletions", () => {
-  const before = new Map([
-    ["a.html", "1"],
-    ["b.html", "2"],
-  ]);
-  const after = new Map([
-    ["a.html", "1"],
-    ["c.html", "3"],
-  ]);
-  expect(changedFiles(before, after)).toEqual(["b.html", "c.html"]);
-});
-
-test("PIN (collision): the error names both scenarios and the file", () => {
-  const hit = overlapWith(["notes/first.html", "other.html"], [
-    { name: "A relative link opens the page beside it, in olai", files: ["notes/first.html"] },
-  ]);
-  expect(hit?.writer.name).toContain("relative link");
-  expect(hit?.files).toEqual(["notes/first.html"]);
-  const error = collisionError(
-    "html_previews.feature",
-    "A link carrying a fragment opens the page AND lands on the section",
-    hit!.writer.name,
-    hit!.files,
-  );
-  expect(error.message).toContain("notes/first.html");
-  expect(error.message).toContain("relative link");
-  expect(error.message).toContain("fragment");
-  expect(error.message).toContain(OWN_TAG);
-  expect(error.message).toContain(SHARE_TAG);
+test("PIN (collision): recordWrites names both scenarios and the file", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-collide-"));
+  try {
+    const file = path.join(root, "notes-first.html");
+    fs.writeFileSync(file, "a\n");
+    const beforeFirst = filesOf(root);
+    fs.writeFileSync(file, "b\n");
+    const first = recordWrites({
+      feature: "html_previews.feature",
+      name: "A relative link opens the page beside it, in olai",
+      before: beforeFirst,
+      root,
+      writers: [],
+    });
+    expect(first.error).toBeUndefined();
+    expect(first.writers[0]?.files).toEqual(["notes-first.html"]);
+    const beforeSecond = filesOf(root);
+    fs.writeFileSync(file, "c\n");
+    const second = recordWrites({
+      feature: "html_previews.feature",
+      name: "A link carrying a fragment opens the page AND lands on the section",
+      before: beforeSecond,
+      root,
+      writers: first.writers,
+    });
+    expect(second.error).toBeDefined();
+    expect(second.error!.message).toContain("notes-first.html");
+    expect(second.error!.message).toContain("relative link");
+    expect(second.error!.message).toContain("fragment");
+    expect(second.error!.message).toContain(OWN_TAG);
+    expect(second.error!.message).toContain(SHARE_TAG);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("disjoint writers do not overlap", () => {
-  expect(
-    overlapWith(["chart.html"], [
-      { name: "earlier", files: ["atlas.html"] },
-    ]),
-  ).toBeUndefined();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-disjoint-"));
+  try {
+    const beforeFirst = filesOf(root);
+    fs.writeFileSync(path.join(root, "atlas.html"), "a\n");
+    const first = recordWrites({
+      feature: "html_previews.feature",
+      name: "earlier",
+      before: beforeFirst,
+      root,
+      writers: [],
+    });
+    expect(first.error).toBeUndefined();
+    const beforeSecond = filesOf(root);
+    fs.writeFileSync(path.join(root, "chart.html"), "c\n");
+    const second = recordWrites({
+      feature: "html_previews.feature",
+      name: "later",
+      before: beforeSecond,
+      root,
+      writers: first.writers,
+    });
+    expect(second.error).toBeUndefined();
+    expect(second.writers.map((w) => w.files)).toEqual([
+      ["atlas.html"],
+      ["chart.html"],
+    ]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("PIN (tags): README names the tags the harness honours", () => {

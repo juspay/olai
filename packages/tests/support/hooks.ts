@@ -52,15 +52,12 @@ import type { Browser } from "playwright";
 
 import { BROWSER_ARGS } from "./browser.ts";
 import {
-  changedFiles,
-  collisionError,
   DEFAULT_CORPUS,
   filesOf,
   OWN_TAG,
-  overlapWith,
+  recordWrites,
   requestOf,
   SHARE_TAG,
-  spawnFingerprint,
   type ScratchWriter,
 } from "./scratch.ts";
 import { SCENARIO_SETUP_TIMEOUT, SERVER_START_TIMEOUT } from "./world.ts";
@@ -70,6 +67,7 @@ import {
   holdPort,
   isolateEnv,
   releasePort,
+  spawnFingerprint,
   workerId,
 } from "./workers.ts";
 
@@ -216,7 +214,7 @@ const servers = new Map<string, Promise<RunningServer>>();
  */
 interface SharedSlot {
   readonly server: RunningServer & { readonly root: string };
-  readonly writers: ScratchWriter[];
+  writers: ScratchWriter[];
   readonly seenPickles: Set<string>;
 }
 
@@ -1057,21 +1055,20 @@ After(async function (this: OlaiWorld, scenario) {
   // A feature-shared scratch outlives the scenario: After records what this
   // one wrote, refuses if an earlier scenario on this worker already wrote
   // the same path, and leaves the process running for the rest of the feature.
-  if (this.scratchShare !== undefined && this.served) {
-    const slot = await sharedScratches.get(this.scratchShare.key);
+  const share = this.scratchShare;
+  const served = this.served;
+  if (share !== undefined && served !== undefined) {
+    const slot = await sharedScratches.get(share.key);
     if (slot !== undefined) {
-      const changed = changedFiles(this.scratchShare.was, filesOf(this.served));
-      const hit = overlapWith(changed, slot.writers);
-      const feature = path.basename(scenario.pickle.uri);
-      slot.writers.push({ name: scenario.pickle.name, files: changed });
-      if (hit !== undefined) {
-        throw collisionError(
-          feature,
-          scenario.pickle.name,
-          hit.writer.name,
-          hit.files,
-        );
-      }
+      const next = recordWrites({
+        feature: path.basename(scenario.pickle.uri),
+        name: scenario.pickle.name,
+        before: share.was,
+        root: served,
+        writers: slot.writers,
+      });
+      slot.writers = [...next.writers];
+      if (next.error !== undefined) throw next.error;
     }
     return;
   }

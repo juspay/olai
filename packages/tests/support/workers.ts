@@ -39,6 +39,21 @@ import type { EventEmitter } from "node:events";
 
 export { defaultWorkers, WORKER_CAP, workerCount } from "./parallelism.js";
 
+/**
+ * How a spawned server was configured, as a cache key. Two scenarios that
+ * share a scratch must be the same shape of server: a `@kolu` one cannot
+ * reuse a server started without it. Lives here with {@link isolateEnv}
+ * because the volatility is "what this child is", not "may these scenarios
+ * share". Different fingerprints are different slots, not a refusal.
+ */
+export const spawnFingerprint = (opts: {
+  readonly stored: boolean;
+  readonly agent: boolean;
+  readonly kolu: boolean;
+  readonly git?: string;
+}): string =>
+  `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}`;
+
 /** Cucumber numbers workers from 0. Unset means this process is the only
  *  one — a serial run, or a unit test. Used to name the per-worker temp
  *  root, not to pick a port. */
