@@ -100,9 +100,13 @@ export default function App() {
    *
    * ONE SPELLING, and it is worth a name because there were about to be two:
    * a question worth asking the server about (`owed`, below) and the chrome
-   * that only draws over a directory (`docked`) are the same bit, and the two
-   * predicates this replaces differed on the frame before the first — the
-   * exact shape of divergence a second spelling exists to produce. The one
+   * that only draws over a directory (the header's `docked`) are the same bit,
+   * and the two predicates this replaces differed on the frame before the
+   * first — the exact shape of divergence a second spelling exists to produce.
+   * A THIRD nearly appeared with the page readings and was collapsed into this
+   * one rather than written: the chrome used to be gated on the focused PAGE
+   * existing, which could only ever be true once a directory had loaded, and is
+   * now a page each pane waits for where its own `Reading…` line is. The one
    * reader that genuinely needs all THREE states is the `Switch` below, which
    * has to tell "still reading" from "never loaded"; it asks the manifest
    * itself, because folding is what this is and that reader is not folding.

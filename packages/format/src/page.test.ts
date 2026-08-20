@@ -35,7 +35,7 @@ import { derive, nodesOf, rowsOf } from "./derive.ts"
 import type { Face } from "./document.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
-import { PageReading, type PageRequest, readingOf, samePageReading } from "./page.ts"
+import { PageReading, type PageRequest, pageOf, samePageReading } from "./page.ts"
 import type { BrokenFile } from "./set.ts"
 import { zoom } from "./zoom.ts"
 
@@ -82,7 +82,7 @@ const readAt = (
   files = FILES,
   broken = READABLE,
   set = SET,
-) => readingOf(set, facesOf([...files, ...DOCUMENTS]), broken, request).shows
+) => pageOf(set, facesOf([...files, ...DOCUMENTS]), broken, request).shows
 
 const at = (path: string, element: string | null = null): PageRequest => ({
   kind: "at",
@@ -125,8 +125,8 @@ test("an outline the directory does not have is a nothing that names it", () => 
 
 test("a directory with no outlines at all is the other nothing", () => {
   const nothing = { kind: "nothing", sought: "outline", requested: null } as const
-  expect(readingOf(SET, [], READABLE, at("shed.olai")).shows).toEqual(nothing)
-  expect(readingOf(SET, [], READABLE, HOME).shows).toEqual(nothing)
+  expect(pageOf(SET, [], READABLE, at("shed.olai")).shows).toEqual(nothing)
+  expect(pageOf(SET, [], READABLE, HOME).shows).toEqual(nothing)
 })
 
 test("a document route opens that document, by path", () => {
@@ -252,7 +252,7 @@ test("the trash draws each archive that has something in it, and counts the SET"
 // ── the names table ────────────────────────────────────────────────────
 
 test("every id this page points at is resolved, once each", () => {
-  const reading = readingOf(SET, facesOf(FILES), READABLE, at("house.olai"))
+  const reading = pageOf(SET, facesOf(FILES), READABLE, at("house.olai"))
   // `install` sees `herbs`; `linky`'s TITLE addresses the same node. One entry.
   expect(reading.names).toEqual([
     { id: "herbs", title: "the herb bed", file: "garden.olai" },
@@ -263,12 +263,12 @@ test("an id nothing declares is absent — the honest dangling link", () => {
   const set = derive(nodesOfFiles({
     "house.olai": `{"id":"a","ord":"a0","title":"a","see":["gone"]}`,
   }))
-  expect(readingOf(set, facesOf(["house.olai"]), READABLE, at("house.olai")).names)
+  expect(pageOf(set, facesOf(["house.olai"]), READABLE, at("house.olai")).names)
     .toEqual([])
 })
 
 test("the address the page IS gets a name too — the palette's pin row asks it", () => {
-  const reading = readingOf(SET, facesOf(FILES), READABLE, node("herbs"))
+  const reading = pageOf(SET, facesOf(FILES), READABLE, node("herbs"))
   expect(reading.names.some((one) => one.id === "herbs")).toBe(true)
 })
 
@@ -320,7 +320,7 @@ test("a document page is `referrersTo`, exactly", () => {
       tags: [],
     },
   ] as unknown as ReadonlyArray<Face>
-  const shows = readingOf(SET, faces, READABLE, at("notes/finishes.md")).shows
+  const shows = pageOf(SET, faces, READABLE, at("notes/finishes.md")).shows
   expect(shows.kind === "document" ? shows.referrers : undefined)
     .toEqual(referrersTo(addressOf("notes/finishes.md", null)!, faces, SET))
 })
@@ -349,7 +349,7 @@ const EVERY_ROUTE: ReadonlyArray<PageRequest> = [
 
 for (const request of EVERY_ROUTE) {
   test(`the wire carries every field of ${JSON.stringify(request)}`, () => {
-    const reading = readingOf(
+    const reading = pageOf(
       ARCHIVED,
       facesOf([...WITH_TRASH, ...DOCUMENTS]),
       READABLE,
@@ -365,8 +365,8 @@ for (const request of EVERY_ROUTE) {
 }
 
 test("two readings of one set are the same reading, and a moved set is not", () => {
-  const before = readingOf(SET, facesOf(FILES), READABLE, at("house.olai"))
-  expect(samePageReading(before, readingOf(SET, facesOf(FILES), READABLE, at("house.olai"))))
+  const before = pageOf(SET, facesOf(FILES), READABLE, at("house.olai"))
+  expect(samePageReading(before, pageOf(SET, facesOf(FILES), READABLE, at("house.olai"))))
     .toBe(true)
   const moved = derive(
     RECORDS.map((one) =>
@@ -375,6 +375,6 @@ test("two readings of one set are the same reading, and a moved set is not", () 
         : one
     ) as ReadonlyArray<Located>,
   )
-  expect(samePageReading(before, readingOf(moved, facesOf(FILES), READABLE, at("house.olai"))))
+  expect(samePageReading(before, pageOf(moved, facesOf(FILES), READABLE, at("house.olai"))))
     .toBe(false)
 })

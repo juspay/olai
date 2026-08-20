@@ -737,7 +737,8 @@ export {
   Named,
   PageReading,
   PageRequest,
-  readingOf,
+  /** WHAT ONE PAGE SHOWS, over one revision of one set. */
+  pageOf,
   samePageReading,
   samePageRequest,
   Shown,
@@ -756,14 +757,4 @@ export {
  * browser, and two copies of a sentence is how two faces of one rule start
  * disagreeing in the small words.
  */
-export {
-  Moved,
-  MovingAnswer,
-  MovingRequest,
-  movingOf,
-  NOT_MOVING,
-  SAME_FILE,
-  sameMoving,
-  whyNot,
-} from "./moving.ts"
-export type { Destination } from "./moving.ts"
+export { Moved, MovingAnswer, MovingRequest, movingOf, SAME_FILE, sameMoving } from "./moving.ts"

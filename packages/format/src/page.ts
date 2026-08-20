@@ -270,6 +270,11 @@ export const samePageRequest: (a: PageRequest, b: PageRequest) => boolean = Sche
 /**
  * THE READING — what the address names, over the set as it stands.
  *
+ * NAMED `pageOf` rather than `readingOf`, and the difference matters at the
+ * call site: `readingOf` is already taken, twice, for "the set, read" (this
+ * package's own testlib, and `@olai/ops`' fixtures). What this answers is a
+ * PAGE.
+ *
  * THE FACES as well as the derivation, because two of the questions here are
  * about FILES rather than about records: which paths the directory serves at
  * all, and which of them is a day's note. That is `Query.homes`' argument one
@@ -280,7 +285,7 @@ export const samePageRequest: (a: PageRequest, b: PageRequest) => boolean = Sche
  * they stand — no projection per page per revision, and no second list to keep
  * in step with the one the directory was assembled from.
  */
-export const readingOf = (
+export const pageOf = (
   derived: Derived,
   faces: ReadonlyArray<Face>,
   broken: ReadonlyArray<BrokenFile>,

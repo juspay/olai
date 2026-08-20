@@ -80,7 +80,7 @@ import {
   type PageReading,
   type PageRequest,
   parseFilter,
-  readingOf,
+  pageOf,
   rankedTogether,
   type Placed,
   type Placement,
@@ -577,7 +577,7 @@ export const owed = (derived: Derived, request: OwedRequest): Owed =>
 /**
  * WHAT ONE PAGE SHOWS — the envelope, and nothing else.
  *
- * `@olai/format`'s `readingOf` over the whole reading, exactly as {@link homes}
+ * `@olai/format`'s `pageOf` over the whole reading, exactly as {@link homes}
  * takes it and for that member's reason: two of the questions a page asks are
  * about FILES rather than about records — which paths the directory serves at
  * all, and which of them is a day's note — and answering those off the
@@ -597,7 +597,7 @@ export const owed = (derived: Derived, request: OwedRequest): Owed =>
  * step with the one the directory was assembled from.
  */
 export const page = (at: Reading, request: PageRequest): PageReading =>
-  readingOf(at.derived, at.set.documents, at.set.broken, request)
+  pageOf(at.derived, at.set.documents, at.set.broken, request)
 
 /**
  * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING — the move picker's preview
