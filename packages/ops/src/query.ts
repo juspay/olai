@@ -480,8 +480,10 @@ export const named = (
  * scan did not move to the server, it stopped existing.
  */
 export const homes = (
-  /** The DERIVATION alone — an id names a record, and no body has one. */
-  derived: Derived,
+  /** BOTH HALVES of the reading, and each half answers one half of the
+   *  question: an id is a record, which is the derivation's, and whether a file
+   *  was read is the SET's — see below. */
+  at: Reading,
   request: HomesRequest,
 ): HomesAnswer => {
   const homes: Array<HomesAnswer["homes"][number]> = []
@@ -489,12 +491,24 @@ export const homes = (
   // named}'s rule and for its reason: this is a lookup, and a caller building a
   // map out of it would otherwise be handed the same key twice.
   for (const id of new Set(request.ids)) {
-    const at = derived.byId.get(id)
-    if (at === undefined) continue
-    homes.push({ id, file: at.file })
+    const found = at.derived.byId.get(id)
+    if (found === undefined) continue
+    homes.push({ id, file: found.file })
   }
-  const declaring = [...new Set(request.files)].filter((file) => derived.byFile.has(file))
-  return { homes, declaring }
+  // ...and WAS THIS FILE READ, which is deliberately not `byFile.has`: that
+  // index answers "holds a record", and a file with nothing of its own is
+  // absent from it rather than mapped to an empty list (`@olai/format`'s
+  // `derive.ts` says so in as many words — which files exist is the SET's
+  // answer, never that map's). An outline somebody emptied would come back
+  // unreadable, and a caller reading that as "nothing can be concluded" would
+  // keep the folds of every node that used to be in it, for good. So it is the
+  // two facts the set actually holds: served, and not among the broken.
+  const served = new Set(outlinePaths(at.set))
+  const broken = brokenBy(at.set)
+  const loaded = [...new Set(request.files)].filter(
+    (file) => served.has(file) && !broken.has(file),
+  )
+  return { homes, loaded }
 }
 
 // ── the directory's dates, as the sidebar asks them ────────────────────

@@ -423,9 +423,11 @@ export const make = (options: Options): Ops => {
     // it: an id names what it names whatever day it is asked on.
     named: (request) => Effect.map(read, (at) => Query.named(at.derived, request)),
     // The fold memory's two facts, over the same gated read and with no clock
-    // in it either: where a record is and whether a file has any is true
-    // whatever day it is asked on.
-    homes: (request) => Effect.map(read, (at) => Query.homes(at.derived, request)),
+    // in it either: where a record is and whether a file was read is true
+    // whatever day it is asked on. The WHOLE reading rather than the derivation
+    // alone — `Query.homes` argues it, and it is the near miss this member
+    // exists to avoid.
+    homes: (request) => Effect.map(read, (at) => Query.homes(at, request)),
     // The SIDEBAR's two date readings, over the same gated read and over the
     // derivation alone: a dot and a count are both about records, and the other
     // half of the set is prose. The day they are counted against is the

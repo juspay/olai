@@ -18,8 +18,8 @@
  * Grouped by the file the node is DEFINED in (./rows.ts) for two reasons that
  * are one reason: an id means a node, so folding a mirror while reading another
  * outline is a fact about the file the target lives in; and PRUNING is a
- * question that can only be asked per file — a file the set declares nodes in
- * can say that one of them is gone, while a file that is broken or not served
+ * question that can only be asked per file — a file this directory has READ can
+ * say that one of its nodes is gone, while a file that is broken or not served
  * right now is one nothing can say anything about and whose folds must not be
  * thrown away.
  *
@@ -41,7 +41,7 @@
 
 import type { Accessor } from "solid-js"
 
-import type { HomesAnswer } from "@olai/format"
+import type { HomesAnswer, HomesRequest } from "@olai/format"
 
 import { createPreference, parsedJson } from "../preference.ts"
 import type { Fold } from "./rows.ts"
@@ -80,10 +80,10 @@ export const parseFolds = (raw: string | null): Folds => {
  *  Sorted, both halves. Nothing reads the order, but a preference somebody may
  *  open a devtools panel on is worth being able to read, and a stable spelling
  *  is what lets a test say what a fold wrote rather than what it happened to
- *  iterate. Since ./refiling.ts it is load-bearing beyond that: a printed
- *  memory is what that door compares two readings of the entry by, so "has this
- *  changed" is one string comparison over a canonical spelling rather than a
- *  deep walk of two maps. */
+ *  iterate. Since ./refiling.ts it is load-bearing beyond that: a memory
+ *  carries its own spelling ({@link Memory.printed}) and that is what "has this
+ *  changed" is asked as — one string comparison over a canonical form, rather
+ *  than a deep walk of two maps. */
 export const printFolds = (folds: Folds): string | null => {
   if (folds.size === 0) return null
   const out: Record<string, ReadonlyArray<string>> = {}
@@ -132,8 +132,7 @@ export const withFolds = (
  * ONE MAP with three states rather than three fields, and the third state is
  * the one worth naming: an id ABSENT from it is one nothing can be concluded
  * about — either nobody asked (the reader folded it while the question was
- * out), or its file is one the set declares nothing in and so cannot testify
- * about. It is the shape `chat/declared.ts` reads its own batch through, for
+ * out), or its file is one the set never read and so cannot testify about. It is the shape `chat/declared.ts` reads its own batch through, for
  * the same reason: three answers about one id, told apart without a fourth
  * value.
  *
@@ -144,24 +143,42 @@ export const withFolds = (
  */
 export type Homes = ReadonlyMap<string, string | null>
 
+/** THE QUESTION, on the wire: the ids to place, and the files whose silence
+ *  about them would mean anything. Two flat lists, unpaired — which is the
+ *  member's own shape, and why (`@olai/surface`) — and both are readings this
+ *  memory already carries rather than a second flattening of it.
+ *
+ *  Here beside {@link homesOf} rather than in the door that sends it, because
+ *  the two are one thing said twice: what goes out decides what the answer can
+ *  be read against, and a request built somewhere else is free to stop matching
+ *  the reading of its reply. */
+export const askingOf = (memory: Memory): HomesRequest => ({
+  ids: [...memory.ids],
+  files: [...memory.byFile.keys()],
+})
+
 /**
- * The answer, read against the question it answers.
+ * ...and the answer, read against that question.
  *
  * BOTH HALVES ARE NEEDED and this is the only place that holds them: the set
  * says nothing at all about an id it has no record for, so an answer read alone
- * cannot tell "the set denies this" from "nobody mentioned it" — the folds that
- * were SENT are what says which, and a file the set declares nothing in is what
- * turns silence about one of its ids back into nothing.
+ * cannot tell "the set denies this" from "nobody mentioned it" — the memory
+ * that was ASKED about is what says which, and a file the set never read is
+ * what turns silence about one of its ids back into nothing.
+ *
+ * It takes the same {@link Memory} {@link askingOf} was given, which is what
+ * makes "read the reply against the question" a fact about one value rather
+ * than a rule the caller keeps.
  */
-export const homesOf = (asked: Folds, answer: HomesAnswer): Homes => {
+export const homesOf = (asked: Memory, answer: HomesAnswer): Homes => {
   const at = new Map(answer.homes.map((home) => [home.id, home.file]))
-  const declaring = new Set(answer.declaring)
+  const loaded = new Set(answer.loaded)
   const said = new Map<string, string | null>()
-  for (const [file, ids] of asked) {
+  for (const [file, ids] of asked.byFile) {
     for (const id of ids) {
       const home = at.get(id)
       if (home !== undefined) said.set(id, home)
-      else if (declaring.has(file)) said.set(id, null)
+      else if (loaded.has(file)) said.set(id, null)
     }
   }
   return said
@@ -186,7 +203,10 @@ export const homesOf = (asked: Folds, answer: HomesAnswer): Homes => {
  * And AN ID THE SET SAID NOTHING ABOUT IS LEFT EXACTLY WHERE IT IS. A file that
  * would not parse, or one this directory does not serve any more, is not
  * evidence that its nodes are gone; neither is a question that never named the
- * id, which is what a fold made while the last one was in flight comes to.
+ * id, which is what a fold made while the last one was in flight comes to. An
+ * outline somebody EMPTIED is not one of those cases and must not become one —
+ * it was read, it holds nothing, and every fold in it is a fold of a node that
+ * is gone (`@olai/ops`' `homes` is where that line is drawn).
  */
 export const pruned = (folds: Folds, homes: Homes): Folds => {
   const next = new Map<string, Set<string>>()
@@ -245,44 +265,60 @@ export const combined = (stored: Folds, held: Folds): Folds => {
   return out
 }
 
-/** The two readings of one memory, minted together so the flat one can never
- *  be a frame behind the grouped one. */
-interface Memory {
+/** The three readings of one memory, minted together so none of them can be a
+ *  frame behind another. */
+export interface Memory {
+  /** What is remembered, as it is remembered: file → the ids shut in it. */
   readonly byFile: Folds
+  /** Every folded id, whichever file it came from — what a ROW is asked
+   *  about, and what the QUESTION next door is a list of. */
   readonly ids: ReadonlySet<string>
+  /** ...and the canonical spelling of the whole thing, `null` for a browser
+   *  holding no folds at all. It is what goes into storage AND what "has this
+   *  memory changed" is one comparison of (./refiling.ts) — two readers of one
+   *  string rather than two sorts of one map. */
+  readonly printed: string | null
 }
 
-const memoryOf = (byFile: Folds): Memory => {
-  // The flat set is LAZY, because not every parse is read flat: `setFolded`'s
-  // look at the stored entry wants only the grouped half, and paying `merged`
-  // there would be a union built to be thrown away. It still cannot lag the
-  // grouped half — a Memory is immutable, so the answer is the same whenever
-  // it is first asked for.
+/** One memory, from what it remembers. Exported for the tests that hand a
+ *  {@link Homes} reading a memory of their own — the three readings are the
+ *  value, and building one by hand would be a fourth spelling of them. */
+export const memoryOf = (byFile: Folds): Memory => {
+  // Both derived readings are LAZY, because not every parse is read either way:
+  // `setFolded`'s look at the stored entry wants only the grouped half, and
+  // paying for the other two there would be answers built to be thrown away.
+  // Neither can lag it — a Memory is immutable, so each is the same whenever it
+  // is first asked for.
   let ids: ReadonlySet<string> | undefined
+  let printed: string | null | undefined
   return {
     byFile,
     get ids() {
       return (ids ??= merged(byFile))
     },
+    get printed() {
+      return (printed ??= printFolds(byFile))
+    },
   }
 }
 
 /** The circuit (../preference.ts), with the codec carrying `Memory` rather
- *  than bare `Folds` so the flat set rides wherever a parse goes — the first
- *  read, and a sibling tab's write arriving — and can never lag the grouped
- *  one by a frame. */
+ *  than bare `Folds` so the derived readings ride wherever a parse goes — the
+ *  first read, and a sibling tab's write arriving — and can never lag the
+ *  grouped one by a frame. The print is the memory's own, so what is written to
+ *  storage and what the re-filing compares are one string computed once. */
 const pref = createPreference(FOLDS_KEY, {
   parse: (raw) => memoryOf(parseFolds(raw)),
-  print: (memory) => printFolds(memory.byFile),
+  print: (memory) => memory.printed,
 })
 
 /** The nodes that are folded right now, by id. */
 export const collapsedNodes: Accessor<ReadonlySet<string>> = () => pref.value().ids
 
-/** ...and the same memory grouped, which is what the QUESTION is built out of
- *  (./refiling.ts): what to ask about is the ids, and what their absence would
- *  mean is the files. */
-export const foldedByFile: Accessor<Folds> = () => pref.value().byFile
+/** ...and the whole memory, which is what the QUESTION is built out of
+ *  (./refiling.ts): the ids are what to ask about, the files are what their
+ *  absence would mean, and the spelling is whether it has moved since. */
+export const folded: Accessor<Memory> = () => pref.value()
 
 /** What a write starts from: the entry as it is now, unioned with what this tab
  *  holds. Its own name because both writers use it — the fold below and the
@@ -323,16 +359,17 @@ export const setFolded = (given: ReadonlyArray<Fold>, collapsed: boolean): void 
  * answer.
  *
  * NOTHING IS WRITTEN when nothing moved, which is most times it is asked: a
- * `setItem` per fold for a value that came back identical would wake every
+ * `setItem` per answer for a value that came back identical would wake every
  * other tab of this browser through the `storage` event for no news at all.
- * Compared as the entry is SPELLED (`printFolds`), which is one canonical
- * string per reading rather than a walk of two maps.
+ * Compared as the entry is SPELLED, which is one canonical string per reading
+ * rather than a walk of two maps — and the one the write would use anyway,
+ * since a {@link Memory} carries its own and the storage codec reads it.
  */
 export const refiled = (homes: Homes): void => {
   const now = standing()
-  const next = pruned(now, homes)
-  if (printFolds(next) === printFolds(now)) return
-  pref.set(memoryOf(next))
+  const next = memoryOf(pruned(now, homes))
+  if (next.printed === printFolds(now)) return
+  pref.set(next)
 }
 
 /** Follow it for as long as this document lives — the same shape as

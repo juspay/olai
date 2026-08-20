@@ -29,6 +29,7 @@ import {
   FOLDS_KEY,
   type Homes,
   homesOf,
+  memoryOf,
   parseFolds,
   printFolds,
   pruned,
@@ -54,20 +55,18 @@ const answering = (
   folds: Folds,
   live: ReadonlyMap<string, ReadonlySet<string>>,
 ): Homes => {
-  const homes: Array<{ id: string; file: string }> = []
-  for (const own of folds.values()) {
-    for (const id of own) {
-      for (const [file, ids] of live) {
-        if (ids.has(id)) {
-          homes.push({ id, file })
-          break
-        }
-      }
-    }
-  }
-  return homesOf(folds, {
-    homes,
-    declaring: [...folds.keys()].filter((file) => live.has(file)),
+  // The set's own `byId`, in one line: an id names one record, so what the
+  // server does with an index this stand-in has to build first.
+  const at = new Map<string, string>()
+  for (const [file, ids] of live) for (const id of ids) at.set(id, file)
+  return homesOf(memoryOf(folds), {
+    homes: [...folds.values()]
+      .flatMap((ids) => [...ids])
+      .flatMap((id) => {
+        const file = at.get(id)
+        return file === undefined ? [] : [{ id, file }]
+      }),
+    loaded: [...folds.keys()].filter((file) => live.has(file)),
   })
 }
 
@@ -282,11 +281,11 @@ test("the answer is read against the question, never on its own", () => {
     "garden.olai": ["herbs"],
   })
   expect(
-    homesOf(asked, {
+    homesOf(memoryOf(asked), {
       homes: [{ id: "kitchen", file: "_olai/Trash.olai" }],
       // garden.olai is not here: it parses no more, so it testifies about
       // nothing and `herbs` gets no entry at all.
-      declaring: ["house.olai"],
+      loaded: ["house.olai"],
     }),
   ).toEqual(
     new Map([

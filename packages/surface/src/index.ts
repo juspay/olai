@@ -802,7 +802,10 @@ export const surface = defineSurface({
        * which file is the caller's own bookkeeping, and this end holds no
        * opinion about a browser's storage. They travel together because they
        * are READ together — an id's absence means "deleted" only beside the
-       * fact that the set can still speak about the file it was last seen in.
+       * fact that its file was read at all — and not because the second half is
+       * a secret: which files are served, and which would not parse, are on the
+       * wire already. What one answer buys is that the halves cannot be about
+       * two different revisions.
        *
        * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`), for the reason
        * every member around it is: an agent that wants to know where a node

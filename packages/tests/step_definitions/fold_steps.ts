@@ -39,19 +39,16 @@ Then(
       const folds = JSON.parse(seen) as Record<string, ReadonlyArray<string>>;
       return (folds[file] ?? []).includes(id);
     };
-    if (await held()) return;
     // The wait's own words say what is being waited for; what the entry
-    // actually held is only knowable once the waiting is over, which is why
-    // the sentence that names it is thrown from here rather than passed in.
-    try {
-      await this.waitUntil(held, `"${id}" to be folded in "${file}"`);
-    } catch {
+    // actually held is only knowable once the waiting is over, which is why the
+    // sentence that names it is thrown from here rather than passed in.
+    await this.waitUntil(held, `"${id}" to be folded in "${file}"`).catch(() =>
       assert.fail(
         `this browser keeps ${seen ?? "nothing"} under ${FOLDS_KEY}, which does not ` +
           `fold "${id}" in "${file}" — a fold is remembered by NODE ID, under the ` +
           "file that node is DEFINED in, whichever outline it was folded from",
-      );
-    }
+      )
+    );
   },
 );
 

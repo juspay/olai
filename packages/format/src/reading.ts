@@ -641,11 +641,15 @@ export type NamedAnswer = typeof NamedAnswer.Type
  * which is the caller's own bookkeeping, and a request that carried the pairing
  * would be asking this layer to hold an opinion about a browser's storage. What
  * is asked here is two facts about the SET — where a record with this id is,
- * and whether the set has any record from this file — and they are asked
- * together because they are read together: an id's absence means "deleted" only
- * beside the fact that the set can still speak about the file it was last seen
- * in, and two round trips for one decision would leave a window where the
- * halves disagree.
+ * and whether the set has this file LOADED at all.
+ *
+ * THEY TRAVEL TOGETHER BECAUSE THEY ARE READ TOGETHER, and that is the reason
+ * rather than the other one that suggests itself: the second half is not a
+ * secret — which files a directory serves, and which of them would not parse,
+ * are already on the wire as a key set and an error list. It rides here because
+ * an id's absence means "deleted" ONLY beside the fact that its file was read,
+ * and asking the two separately would leave a window in which the halves are
+ * about two different revisions.
  *
  * NOT {@link NamedRequest}, one door over, and the difference is exact:
  * {@link nodeNamed} FOLLOWS a mirror chain, because a backtick in a paragraph
@@ -677,7 +681,7 @@ const Home = Schema.Struct({
  * ABSENCE IS THE ANSWER for an id no record carries, exactly as it is for
  * {@link NamedAnswer}: a per-id arm saying "no" would be a list as long as
  * whatever the caller happened to remember, mostly carrying the word "no". What
- * absence MEANS is the caller's to decide, and it needs {@link declaring} to
+ * absence MEANS is the caller's to decide, and it needs {@link loaded} to
  * decide it.
  *
  * A LIST OF PAIRS rather than an object keyed by id, for {@link NamedAnswer}'s
@@ -691,14 +695,22 @@ export const HomesAnswer = Schema.Struct({
   /** The asked ids the set declares a record for, each with its file. */
   homes: Schema.Array(Home),
   /**
-   * The asked files the set declares ANY record in.
+   * The asked files this directory SERVES AND HAS READ — served, and not among
+   * the ones that would not parse.
    *
    * The other half of the decision, and the half that cannot be inferred from
-   * {@link homes}: a file whose every folded id has gone away is
+   * {@link homes}: a file whose every remembered id has gone away is
    * indistinguishable, from the ids alone, from a file that stopped parsing —
    * and reading the second as the first is how a reader loses every fold in an
    * outline that has a typo in it for a minute.
+   *
+   * READ, and not "declares a record", which is the near miss worth naming: an
+   * outline that is served, parses, and has had its last node deleted declares
+   * nothing, and answering it as unreadable would keep a fold for every node
+   * that was in it — for good, since nothing about that file would ever change
+   * the answer again. What is being asked is whether the set KNOWS about the
+   * file, which is what makes its silence about an id mean something.
    */
-  declaring: Schema.Array(Schema.String),
+  loaded: Schema.Array(Schema.String),
 })
 export type HomesAnswer = typeof HomesAnswer.Type

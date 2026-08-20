@@ -14,7 +14,7 @@
  * `docs/brainstorming/vault-in-browser.md` is taking away (the browser may hold
  * at most the page in front of somebody), so the two facts the rule needs are a
  * question: `nodes.homes`, which answers where a handful of ids are and which
- * of a handful of files the set declares anything in.
+ * of a handful of files this directory has actually read.
  *
  * The RULE stayed where it was. Nothing here decides what a home, an absence or
  * an unheard-of file means — `pruned` does, next door, beside the memory it is
@@ -59,20 +59,12 @@
 
 import { debounce } from "@solid-primitives/scheduled"
 import { Result } from "effect"
-import { createEffect, createMemo, createResource, createSignal } from "solid-js"
+import { createEffect, createResource, createSignal } from "solid-js"
 
 import { unreachable } from "../connection/reaching.ts"
 import { runAsync } from "../run.ts"
 import { connectionReadout, olai } from "../wire.ts"
-import {
-  type Folds,
-  foldedByFile,
-  type Homes,
-  homesOf,
-  parseFolds,
-  printFolds,
-  refiled,
-} from "./memory.ts"
+import { askingOf, folded, type Homes, homesOf, type Memory, refiled } from "./memory.ts"
 
 /**
  * How long a fold waits for the next one before the question goes.
@@ -86,14 +78,6 @@ import {
  */
 const SETTLE_MS = 750
 
-/** What the question is, on the wire: the ids to place, and the files whose
- *  silence about them would mean anything. Two flat lists, unpaired — which is
- *  the member's own shape, and why (`@olai/surface`). */
-const askedOf = (folds: Folds) => ({
-  ids: [...folds.values()].flatMap((ids) => [...ids]),
-  files: [...folds.keys()],
-})
-
 /**
  * Keep this browser's fold memory filed against the set, for as long as the app
  * is up.
@@ -106,29 +90,38 @@ const askedOf = (folds: Folds) => ({
  * reason to ask twice.
  */
 export const createRefiling = (): void => {
-  /** The memory as one canonical string — `null` for a browser holding no folds
-   *  at all, which is nothing to ask about. */
-  const question = createMemo(() => printFolds(foldedByFile()))
-  /** ...and what has actually been put to the server: the memory once it
-   *  stopped moving, or `null` for "ask nothing", which is what a resource
-   *  reads a falsy source as. */
-  const [asked, setAsked] = createSignal<string | null>(null)
+  /**
+   * What has actually been put to the server: the memory once it stopped
+   * moving, or `null` for "ask nothing", which is what a resource reads a
+   * falsy source as.
+   *
+   * COMPARED BY THE SPELLING and never by identity, which is this signal's
+   * whole job: the memory is a fresh value on every write, and a write that
+   * left it saying the same thing is not a question worth a round trip. It is
+   * `../filter/asking.ts`'s `sameAsk` one door over, over a memory that already
+   * knows how it is spelled (`Memory.printed`) — so the comparison costs a
+   * string equality and the print it reads was paid for by the write.
+   */
+  const [asked, setAsked] = createSignal<Memory | null>(null, {
+    equals: (was, is) => (was?.printed ?? null) === (is?.printed ?? null),
+  })
   const settle = debounce(setAsked, SETTLE_MS)
 
   createEffect(() => {
-    const wanted = question()
+    const memory = folded()
     // NOTHING IS ASKED INTO A DEAD SOCKET and nothing is queued behind the
     // reader — `../filter/asking.ts`'s rule, and this door's for a smaller
     // reason: the memory is not wrong while the wire is down, only untidy.
-    // BOTH branches drop the standing question rather than leaving it up, which
-    // is what makes the wire coming back a fresh one: the readout is tracked, so
-    // reachability returning re-asks the memory as it is at that moment.
-    if (wanted === null || unreachable(connectionReadout()) !== null) {
+    // A browser holding no folds has nothing to ask about either. BOTH drop the
+    // standing question rather than leaving it up, which is what makes the wire
+    // coming back a fresh one: the readout is tracked, so reachability
+    // returning re-asks the memory as it is at that moment.
+    if (memory.printed === null || unreachable(connectionReadout()) !== null) {
       settle.clear()
       setAsked(null)
       return
     }
-    settle(wanted)
+    settle(memory)
   })
 
   /**
@@ -148,9 +141,8 @@ export const createRefiling = (): void => {
    * written down as nothing rather than as a no, so those ids are asked about
    * again by the next fold or the next reload.
    */
-  const [answer] = createResource(asked, async (printed): Promise<Homes | null> => {
-    const folds = parseFolds(printed)
-    const outcome = await runAsync(olai.procedures.nodes.homes(askedOf(folds)))
+  const [answer] = createResource(asked, async (memory): Promise<Homes | null> => {
+    const outcome = await runAsync(olai.procedures.nodes.homes(askingOf(memory)))
     if (Result.isFailure(outcome)) {
       console.warn(
         "olai: could not ask where the folded nodes now live, so this browser's fold memory is not being tidied —",
@@ -158,13 +150,20 @@ export const createRefiling = (): void => {
       )
       return null
     }
-    return homesOf(folds, outcome.success)
+    return homesOf(memory, outcome.success)
   })
 
   // Applied HERE rather than inside the fetcher, and that is what the resource
   // buys: a fetcher that wrote would have written before the framework had a
   // chance to drop it, which is the whole staleness argument above undone by
   // where the line sits.
+  //
+  // A re-file that MOVED something is one more question, because the memory it
+  // wrote is spelled differently and the effect above cannot tell that change
+  // from a fold. That is one small call per actual prune — which is rare, since
+  // most answers say everything is where it was — and the alternative is a note
+  // of what this door last wrote, which would hold the tidy back exactly when
+  // the directory moved twice.
   createEffect(() => {
     const said = answer()
     if (said === undefined || said === null) return
