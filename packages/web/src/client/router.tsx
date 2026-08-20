@@ -303,10 +303,18 @@ export const followedSplit = (event: MouseEvent): Route | null =>
  *
  * {@link followed} and {@link followedSplit} say what a press is ASKING FOR;
  * this is the three lines every surface that draws markdown then writes to
- * answer it, and they must not be three lines anyone can write differently:
- * Alt opens to the right, a plain press goes in place, and everything else —
- * an external link, a modified click, a press something deeper already
+ * answer it, and they must not be three lines each such surface writes for
+ * itself: Alt opens to the right, a plain press goes in place, and everything
+ * else — an external link, a modified click, a press something deeper already
  * answered — is left to the browser.
+ *
+ * {@link Link} answers the same question and does NOT come through here, which
+ * is honest rather than an oversight waiting to be tidied: a `<Link>` is handed
+ * the route it stands for, and reading one back off the `href` it just wrote
+ * would be a round trip through a string for a value already in hand. What the
+ * two must agree on is what a MODIFIER means, and that is `../press.ts`'s, read
+ * by both — which is why the force bit below is `splitClick`'s answer and not a
+ * second look at Shift.
  *
  * It lives here rather than in the pane because the pane is no longer the only
  * one: the chat panel is mounted BESIDE the panes (`./App.tsx`) and its
@@ -329,7 +337,12 @@ export const useFollow = (): ((event: MouseEvent) => void) => {
     const split = followedSplit(event)
     if (split !== null) {
       event.preventDefault()
-      router.openRight(here(), split, event.shiftKey)
+      // `splitClick`'s own answer for "a new pane or the one already there".
+      // The line came out of the pane spelling it `event.shiftKey`, which was
+      // the shift⇒force rule written twice — once in `../press.ts` where
+      // `Link` reads it, once here — and free to disagree the day the gesture
+      // moves.
+      router.openRight(here(), split, splitClick(event) === "force")
       return
     }
     const next = followed(event)

@@ -265,10 +265,7 @@ When(
 When(
   "I alt-click the link {string} in the agent's answer",
   async function (this: OlaiWorld, text: string) {
-    const link = answerLink(this, text);
-    await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await link.click({ modifiers: ["Alt"] });
-    await this.waitForFrame();
+    await this.press(answerLink(this, text), "click", ["Alt"]);
   },
 );
 
