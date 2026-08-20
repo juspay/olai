@@ -221,9 +221,6 @@ export type OwedRequest = typeof OwedRequest.Type
  */
 export const sameOwed: (a: Owed, b: Owed) => boolean = Schema.toEquivalence(Owed)
 
-/** Nothing owed. A value a reader ends up looking at — the quiet entry — rather
- *  than a placeholder for one. */
-export const NOTHING_OWED: Owed = { overdue: 0, today: 0 }
 
 /**
  * The counts, taken from an agenda that has already been read.

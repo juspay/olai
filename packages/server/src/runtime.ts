@@ -551,13 +551,17 @@ export const bind = (
                   // says whether there is a set, and its `equals` keeps every
                   // revision after the first one quiet.
                   cell.set(LOADED)
-                  // …and LAST of all, after the projection is in place and
-                  // every collection frame is queued, the readings that
-                  // publish nothing are told to go and look again
-                  // ({@link ./revisions.ts}). Last because a listener reads the
-                  // store the instant it is woken, and waking one before the
-                  // revision it is about is published would hand it the
-                  // previous answer and no reason to ask for the next.
+                  // …and last of all, the readings that publish NOTHING are
+                  // told to go and look again ({@link ./revisions.ts}).
+                  //
+                  // In THIS fiber rather than in a second subscription to the
+                  // same ref, which is the block's own rule one consumer wider:
+                  // one place decides what a revision does, and there is no
+                  // second source to supervise or to keep in step. What a
+                  // listener then reads is the STORE, not the projection above
+                  // — so the answer it gets is right whenever it wakes, and
+                  // this line's position is about keeping the order decided
+                  // here rather than about the correctness of any reading.
                   revisions.moved()
                 }),
             ),

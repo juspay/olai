@@ -89,7 +89,7 @@
  * scroll position rather than parked at the foot of the page.
  */
 
-import { type BrokenFile, isTrashed, type Owed } from "@olai/format"
+import { type BrokenFile, isTrashed } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
   createMemo,
@@ -99,6 +99,8 @@ import {
   Show,
   Switch,
 } from "solid-js"
+
+import type { Owed } from "@olai/surface"
 
 import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"

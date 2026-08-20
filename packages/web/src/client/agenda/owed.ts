@@ -45,7 +45,7 @@
  * click away, on the page that is the answer.
  */
 
-import type { Owed } from "@olai/format"
+import type { Owed } from "@olai/surface"
 
 /** Which of the three the entry is wearing. `quiet` is today's entry, unchanged
  *  — an agenda with nothing late and nothing on today is a door, not news. */

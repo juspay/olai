@@ -443,10 +443,9 @@ export {
   agendaOf,
   isOverdue,
   keepingOwed,
-  /** Nothing owed, and what a reader ASKS to be told what is — the counts'
-   *  half of the pair above, and on the wire for the same reason. */
-  NOTHING_OWED,
   nothingDue,
+  /** What a reader ASKS to be told what is owed, and the counts they are
+   *  answered with — the pair above's other half, on the wire for its reason. */
   Owed,
   owedIn,
   owedOf,

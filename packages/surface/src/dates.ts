@@ -46,8 +46,6 @@ export {
    *  sending a frame to a tab whose dots did not move. */
   DatedAnswer,
   DatedRequest,
-  /** Nothing owed: the value the quiet entry draws. */
-  NOTHING_OWED,
   /** The two numbers the directory's own entry wears, and the day they are
    *  counted against — the reader's, never the server's. */
   Owed,

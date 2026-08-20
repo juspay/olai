@@ -838,7 +838,6 @@ export {
 export {
   DatedAnswer,
   DatedRequest,
-  NOTHING_OWED,
   Owed,
   OwedRequest,
   sameDated,

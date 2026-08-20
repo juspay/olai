@@ -22,7 +22,7 @@
  * buttons rather than clipping the last of them.
  */
 
-import type { Owed } from "@olai/format"
+import type { Owed } from "@olai/surface"
 import { createMemo, Show } from "solid-js"
 
 import { type Face, markOf, unchanged } from "../agenda/owed.ts"
