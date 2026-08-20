@@ -556,6 +556,10 @@ export const PINS = `Pins${OUTLINE_EXT}`
  */
 export const OLAI_DIR = "_olai"
 
+/** `_olai/` — {@link OLAI_DIR} as the thing {@link inOlaiDir} below actually
+ *  compares, built once rather than per file asked. */
+const OLAI_PREFIX = `${OLAI_DIR}/`
+
 /**
  * Whether `file` is one of the files OLAI NAMED FOR ITSELF — the mint above,
  * read backwards.
@@ -575,9 +579,12 @@ export const OLAI_DIR = "_olai"
  * writes. A `notes/_olai/` is a directory somebody made inside their own
  * folder, and hiding it would be this app deciding something about a name a
  * person chose.
+ *
+ * Asked the way {@link isTrashed} is — once per FILE, against a prefix built
+ * once, so a walk of a whole directory allocates nothing.
  */
-export const inOlaiDir = (file: string): boolean =>
-  file.startsWith(`${OLAI_DIR}/`)
+export const inOlaiDir = (file: string): boolean => file.startsWith(OLAI_PREFIX)
+
 
 /**
  * Where olai mints a file it names itself — one spelling, so a convention that

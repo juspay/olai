@@ -246,6 +246,14 @@ export function Sidebar(props: {
   //
   // The whole served list rather than the outlines alone: the walk matches a
   // full basename, so nothing but an outline can answer it.
+  //
+  // AND IT IS READ HERE rather than published, which is the line the shelf
+  // sits on the other side of: a browser holds no view of the DIRECTORY's
+  // records any more (docs/brainstorming/vault-in-browser.md), so resolving a
+  // shelf — every pin's live title — is the server's. This is a reading of the
+  // PATHS, and a browser holds every one of those already: it is the same list
+  // the tree above is built from, and one more pass over it is not a vault
+  // walk.
   const inbox = createMemo(() => inboxIn(served()))
 
   // Folding a folder is remembered, and the write drops folders that are not in
