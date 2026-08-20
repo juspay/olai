@@ -198,6 +198,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "edit.apply": "tool",
   "search.nodes": "tool",
   "search.matching": "tool",
+  "nodes.named": "tool",
   "git.commit": "tool",
   "git.push": "tool",
 }
@@ -218,11 +219,16 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
  * plus `search.nodes`, `git.commit` and `git.push` — the three members BOTH
  * doors call, because none of them has an agent-specific version.
  *
- * `search.matching` is the one member of a shared group that is NOT here, and
- * it is a fact about what an agent would do with it rather than a restriction:
- * it answers with a set of ids and why, which is only useful to a caller already
- * looking at the rows those ids name. An agent asking which nodes match asks
- * `search_nodes` and is answered with the nodes. What a commit
+ * `search.matching` and `nodes.named` are the two members of shared groups that
+ * are NOT here, and both are a fact about what an agent would do with them
+ * rather than a restriction. The first answers with a set of ids and why, which
+ * is only useful to a caller already looking at the rows those ids name: an
+ * agent asking which nodes match asks `search_nodes` and is answered with the
+ * nodes. The second answers a dozen ids with the node each one names, for a
+ * panel deciding which of an agent's own backticks are pressable: an agent
+ * asking whether an id is real asks `read_node` and is told everything about
+ * it. What a commit
+
  * is RECORDED AS does differ, and it is not a member's business: this face is
  * served under the writer the composition root bound (`./runtime.ts`'s
  * `writerAt`), which is where every other fact about a face is decided too.

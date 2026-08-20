@@ -52,8 +52,11 @@ import {
   markdownIn,
   MARKS,
   matchingDocuments,
+  type NamedAnswer,
+  type NamedRequest,
   NodeId,
   matching,
+  nodeNamed,
   nodesOf,
   nothing,
   type OpFailure,
@@ -384,7 +387,58 @@ export const matches = (
   }
 }
 
+// ── which ids the set declares ─────────────────────────────────────────
+
+/**
+ * WHICH OF THESE IDS THE SET DECLARES, and what each one names — the batch
+ * lookup the chat transcript asks once per message.
+ *
+ * The whole of it is `@olai/format`'s {@link nodeNamed}, called in a loop: an
+ * id addresses a record, a mirror is a record like any other, and what a caller
+ * can be shown is the node at the end of the chain. That is the SAME function
+ * an edge target, a `see` link and the composer's chip already resolve through
+ * — which is the point of asking it here rather than answering it in the
+ * browser out of a copy of the set (`docs/brainstorming/vault-in-browser.md`
+ * §3's transcript row). One reading, one rule, other side of the wire.
+ *
+ * WHY A BATCH IS THE UNIT: the caller is one message, and a message holds every
+ * backtick the agent wrote in it — a dozen spans of which two are ids. Asked
+ * one at a time this would be a dozen round trips and a dozen readings of the
+ * set to draw one paragraph.
+ *
+ * NOTHING IS SAID ABOUT AN ID THE SET DOES NOT DECLARE, and nothing about a
+ * placement whose chain is dead: both are `undefined` from `nodeNamed` and both
+ * mean the same thing to the caller — there is nothing to point at. An answer
+ * that carried a "no" per span would be the length of the agent's prose and
+ * would say nothing with it.
+ *
+ * TRASHED NODES ARE DECLARED. This is a lookup and not a search, so the
+ * grammar's rule about what is reached by `is:trashed` has nothing to say here:
+ * an id names the node it names, and a reader pressing it is shown where it now
+ * is. That is what the browser's own lookup did, unchanged by the move.
+ */
+export const named = (
+  /** The DERIVATION alone — an id names a record, and no body has one. */
+  derived: Derived,
+  request: NamedRequest,
+): NamedAnswer => {
+  const named: Array<{ readonly asked: string; readonly id: string }> = []
+  // ONE ANSWER PER ID ASKED ABOUT, whatever the request repeated: this is a
+  // lookup, and a caller building a map out of it would otherwise be handed
+  // the same key twice for no reason.
+  const asked = new Set<string>()
+  for (const id of request.ids) {
+    if (asked.has(id)) continue
+    asked.add(id)
+    const at = nodeNamed(derived, id)
+    if (at === undefined) continue
+    named.push({ asked: id, id: at.node.id })
+  }
+  return { named }
+}
+
 // ── one node, and what is under it ─────────────────────────────────────
+
 
 /** Whichever marks the record carries, from the format's list — at most one
  *  by the format's own rule, but read as a set so this cannot be the place a

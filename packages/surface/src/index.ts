@@ -94,6 +94,8 @@ import {
   GIT_OFF,
   GitState,
   Located,
+  NamedAnswer,
+  NamedRequest,
   NOTHING_PENDING,
   OutlineError,
   Pending,
@@ -673,6 +675,35 @@ export const surface = defineSurface({
       },
     },
     /**
+     * THE IDS AN AGENT WROTE IN BACKTICKS, looked up — which of them the set
+     * declares, and what each one names.
+     *
+     * ITS OWN NAMESPACE rather than a third member of {@link search}, because
+     * it is not a search: nothing here reads the filter grammar, ranks anything
+     * or decides what a word means. It asks about ids EXACTLY, which is the
+     * lookup an edge target and a `see` link already are (`@olai/format`'s
+     * `nodeNamed`) — spelled for a dozen at once, because the caller is one
+     * message of a transcript and a message holds every backtick the agent put
+     * in it.
+     *
+     * A BATCH is the whole shape: a `read_node` per span would be a dozen round
+     * trips carrying a dozen nodes in full to decide which two words in a
+     * paragraph are pressable.
+     *
+     * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`), for the reason the
+     * member above is: an agent asking whether an id is real asks `read_node`
+     * and is told everything about it. What comes back here is a node id per
+     * span, which is useful only to a caller already looking at the words those
+     * ids are written in.
+     */
+    nodes: {
+      named: {
+        input: NamedRequest,
+        output: NamedAnswer,
+        error: OpFailure,
+      },
+    },
+    /**
      * The other door to the same action the agent's `commit` tool opens.
      *
      * A PROCEDURE rather than a write verb on the cell above: committing is
@@ -764,7 +795,14 @@ export {
   spellsHost,
 } from "./seal.ts"
 
+/** WHICH IDS THE SET DECLARES, and what each names — the transcript's batch
+ *  lookup. `@olai/format`'s own shapes, re-exported rather than re-declared,
+ *  exactly as the search shapes below are and for the same reason: this package
+ *  is a spec, and the read vocabulary is the floor's. */
+export { NamedAnswer, NamedNode, NamedRequest } from "@olai/format"
+
 /** What a search asks and answers on the wire — see {@link ./search.ts}. */
+
 export {
   DocumentHit,
   isNodeHit,

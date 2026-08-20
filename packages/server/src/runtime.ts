@@ -714,6 +714,19 @@ export const bind = (
           matching: ({ input }) => wiring.ops.matching(input),
         },
         /**
+         * The transcript's backticks, looked up in one question — which of
+         * these ids the set declares, and what each one names.
+         *
+         * Its own namespace because it is not a search (`@olai/surface`'s spec
+         * argues it): nothing here reads a grammar or ranks anything. The
+         * browser answered this out of its own copy of the set until now, which
+         * is the copy `vault-in-browser` is taking away.
+         */
+        nodes: {
+          named: ({ input }) => wiring.ops.named(input),
+        },
+
+        /**
          * The agent's door — the ops vocabulary itself
          * (`@olai/surface`'s `ops.ts`), and the ONE group no browser face
          * exposes (`./faces.ts`).

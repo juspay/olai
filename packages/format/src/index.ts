@@ -511,7 +511,13 @@ export {
  *  file — the listing and one body — and share no atom with them, because a
  *  document has no identity below the file to be found by. The
  *  ops layer produces these, the wire spec may carry them, a browser and an
- *  agent read the identical value; the walks stay where the walks are. */
+ *  agent read the identical value; the walks stay where the walks are.
+ *
+ *  {@link NamedAnswer} is the fifth and is a BATCH of the second — which of
+ *  these ids the set declares, and what each one names — asked by a panel
+ *  holding a paragraph full of backticks rather than by somebody reading one
+ *  node. */
+
 export {
   DEFAULT_SUBTREE_DEPTH,
   Detail,
@@ -520,6 +526,9 @@ export {
   DocumentRequest,
   DocumentSummary,
   Found,
+  NamedAnswer,
+  NamedNode,
+  NamedRequest,
   NodeAnswer,
   NodeRequest,
   OutlineAnswer,

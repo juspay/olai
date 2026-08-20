@@ -543,3 +543,78 @@ export type NodeAnswer = typeof NodeAnswer.Type
 /** What `read_subtree` says, and the same two arms for the same reason. */
 export const SubtreeAnswer = Schema.Union([Subtree, Missing])
 export type SubtreeAnswer = typeof SubtreeAnswer.Type
+
+// ── which ids the set declares ─────────────────────────────────────────
+
+/**
+ * WHICH OF THESE IDS THE SET DECLARES — a batch of {@link NodeRequest}, asked
+ * about a handful of strings somebody has in front of them rather than about
+ * one node they mean to read.
+ *
+ * The caller is the chat transcript (`@olai/web`'s `chat/refs.ts`): an agent
+ * spells every id in BACKTICKS, so a message arrives holding a dozen code
+ * spans of which some name nodes and the rest are flags, file names and words,
+ * and the whole of what the panel needs is which is which. That used to be a
+ * lookup in the browser's own copy of the set, which is the copy
+ * `docs/brainstorming/vault-in-browser.md` is taking away.
+ *
+ * A BATCH, and that is the whole reason this is not the read next door: one
+ * message is one question. A `read_node` per span would be a dozen round trips
+ * to draw one paragraph, each carrying a node in full where the answer needed
+ * is a yes with an id on it.
+ *
+ * IT IS NOT A SEARCH, either, and the distinction is what keeps it small: a
+ * search reads a grammar over the words of a query and ranks what it finds,
+ * where this asks about ids EXACTLY — the same lookup an edge target and a
+ * `see` link already are ({@link nodeNamed}), spelled for many at once.
+ */
+export const NamedRequest = Schema.Struct({
+  /** The ids to ask about, exactly as they are written. Nothing is trimmed or
+   *  folded here: what an id looks like is the caller's fact (a code span's
+   *  text is what somebody typed between two backticks), and a lookup that
+   *  normalised on the way in would answer about an id the caller never asked
+   *  about. */
+  ids: Schema.Array(Schema.String),
+})
+export type NamedRequest = typeof NamedRequest.Type
+
+/**
+ * One id the set declares, and the NODE it names.
+ *
+ * The two are not always the same string, which is the reason this answers with
+ * a pair rather than with a list of the ids that exist: an id may address a
+ * MIRROR, and the node standing at that placement is what a reader can be shown
+ * ({@link nodeNamed} follows the chain). A caller handed back only its own
+ * spelling would point at a placement no row in the tree carries.
+ */
+export const NamedNode = Schema.Struct({
+  /** The id as asked — the caller's own spelling, echoed so an answer can be
+   *  looked up by the thing that was asked about. */
+  asked: Schema.String,
+  /** The node that id names: the record at the end of whatever mirror chain it
+   *  addresses. */
+  id: Schema.String,
+})
+export type NamedNode = typeof NamedNode.Type
+
+/**
+ * The ones the set declares, and NOTHING about the rest.
+ *
+ * ABSENCE IS THE ANSWER for an id nothing declares, and for a placement whose
+ * chain is dead — there is nothing to point at either way, which is exactly
+ * what {@link nodeNamed} says by answering `undefined`. A per-id arm saying so
+ * would be a list the length of every backtick an agent ever wrote, mostly
+ * carrying the word "no".
+ *
+ * A LIST OF PAIRS rather than an object keyed by the asked id: a key of an
+ * object is a name in a namespace that already has `constructor` and
+ * `toString` in it, and a lookup built on one would answer about ids the set
+ * never declared. The caller builds the map it wants, and can build a `Map`.
+ *
+ * At most one entry per id asked about, whatever the request repeated: this is
+ * a lookup, and a lookup has one answer per key.
+ */
+export const NamedAnswer = Schema.Struct({
+  named: Schema.Array(NamedNode),
+})
+export type NamedAnswer = typeof NamedAnswer.Type

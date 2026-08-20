@@ -27,6 +27,8 @@ import {
   type CommitResult,
   type MatchingAnswer,
   type MatchingRequest,
+  type NamedAnswer,
+  type NamedRequest,
   type OpFailure,
   type Pending,
   type PushResult,
@@ -121,6 +123,20 @@ export interface Ops extends Asking {
   readonly matching: (
     request: MatchingRequest,
   ) => Effect.Effect<MatchingAnswer, OpFailure>
+  /**
+   * WHICH of these ids the set declares, and what each one names ({@link
+   * ./query.ts}'s `named`).
+   *
+   * HERE FOR {@link matching}'s REASON, one door over: an agent that wants to
+   * know whether an id is real reads it (`read_node` answers the node or the id
+   * it does not hold), and is told everything about it. This answers a dozen
+   * ids with nothing but the node each names, which is useful only to a caller
+   * already looking at the words those ids are written in — the chat panel,
+   * deciding which of an agent's backticks are pressable.
+   */
+  readonly named: (
+    request: NamedRequest,
+  ) => Effect.Effect<NamedAnswer, OpFailure>
   /** Perform one op. Fails only with an {@link OpFailure} — every internal
    *  failure mode (a stale base, a file system error) is either retried or
    *  translated, because a caller of this interface is a tool call or a
@@ -360,6 +376,10 @@ export const make = (options: Options): Ops => {
     // the set is prose (prose is the one page that carries no filter).
     matching: (request) =>
       Effect.map(read, (at) => Query.matches(at.derived, request, context.now())),
+    // The transcript's backticks, over the same gated read and with no clock in
+    // it: an id names what it names whatever day it is asked on.
+    named: (request) => Effect.map(read, (at) => Query.named(at.derived, request)),
+
     status: commits.status,
     pending: commits.pending,
     commit: commits.commit,
