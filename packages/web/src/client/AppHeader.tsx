@@ -100,7 +100,6 @@ import { Commit } from "./commit/Commit.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
 import { LAYER } from "./layer.ts"
 import { desktop } from "./layout/media.ts"
-import { News } from "./News.tsx"
 import type { Route } from "./routes.ts"
 import { HeaderSearch } from "./search/HeaderSearch.tsx"
 import { connectionReadout } from "./wire.ts"
@@ -206,7 +205,14 @@ export function AppHeader(props: {
         </Show>
       </div>
     </header>
-    <News />
+    {/* Phone: the same two controls, news-only faces, in flow under the bar.
+        A wrapper named News was a third module for composition. The drawer
+        covers them (it starts at --height-header); scroll takes them with
+        the page. */}
+    <Show when={!desktop()}>
+      <Indicator readout={connectionReadout()} />
+      <Commit />
+    </Show>
     </>
   )
 }
