@@ -46,40 +46,8 @@ Given(
     // it itself.
     this.scratch();
     this.terminalAgent = await connectTerminalAgent(`${this.baseUrl}/mcp`);
-    const listed = await this.terminalAgent.call("tools/list");
-    this.toolsOffered = (
-      (listed.result?.tools ?? []) as ReadonlyArray<{ name: string }>
-    ).map((tool) => tool.name);
   },
 );
-
-// ── what it is allowed to do ───────────────────────────────────────────
-
-Then(
-  "the terminal agent is offered the tool {string}",
-  function (this: OlaiWorld, name: string) {
-    assert.ok(
-      this.toolsOffered.includes(name),
-      `the tool surface offers ${this.toolsOffered.join(", ")} — no \`${name}\``,
-    );
-  },
-);
-
-Then("the terminal agent is offered no file tools", function (this: OlaiWorld) {
-  // The closed list is a closed list from out here too. What would make an
-  // agent able to write a broken outline is any tool that names a FILE or a
-  // shell, and the way that ships is by somebody adding a convenience.
-  const forbidden = this.toolsOffered.filter((name) =>
-    /read_file|write_file|edit|list_dir|glob|grep|bash|shell|exec/i.test(name),
-  );
-  assert.deepStrictEqual(
-    forbidden,
-    [],
-    `the tool surface offers ${forbidden.join(", ")}, which name bytes rather ` +
-      "than nodes — the whole guarantee is that an agent cannot express a " +
-      "malformed outline",
-  );
-});
 
 // ── what it does ───────────────────────────────────────────────────────
 

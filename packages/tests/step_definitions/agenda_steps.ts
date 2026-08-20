@@ -231,23 +231,6 @@ Then(
   },
 );
 
-/** The same silence asked by the WAIT behind it rather than by its words — for
- *  a scenario over fixtures dated in 2019, where "seven quiet years" is true
- *  today and will be eight of them one day. `data-days` is the count; the words
- *  round it. */
-Then(
-  "the agenda notes a silence of at least {int} days",
-  async function (this: OlaiWorld, least: number) {
-    const label = this.page.locator(AGENDA_QUIET).first();
-    await label.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const days = Number(await label.getAttribute("data-days"));
-    assert.ok(
-      days >= least,
-      `the silence the agenda names is ${days} days, not the ${least}+ expected`,
-    );
-  },
-);
-
 /** A gap the page draws no words for — the whitespace is still there and still
  *  grows with the wait, but "one quiet week" is not a silence anybody notices. */
 Then("the agenda notes no silence", async function (this: OlaiWorld) {

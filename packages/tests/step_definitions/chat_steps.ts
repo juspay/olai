@@ -1923,8 +1923,8 @@ Then("there is nothing to type into", async function (this: OlaiWorld) {
 //
 // The claim is about the PANEL, which is the whole of `mcp-fail-visible`: what
 // the session was handed is already asserted through the agent's own `servers`
-// answer (`kolu_terminals.feature`), and it was asserted there while a person
-// looking at the app could see nothing at all.
+// answer (`a_failed_mcp_server.feature`), and it was asserted there while a
+// person looking at the app could see nothing at all.
 
 Then(
   "the panel says {string} is missing from this conversation",

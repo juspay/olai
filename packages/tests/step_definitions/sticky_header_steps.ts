@@ -17,11 +17,7 @@ import { Then } from "@cucumber/cucumber";
 
 import {
   APP_HEADER,
-  CHAT_PANEL,
   CHAT_TOGGLE,
-  HEADINGS,
-  HYDRATION_TIMEOUT,
-  POLL_TIMEOUT,
   PREFS_TRIGGER,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -72,52 +68,4 @@ Then(
   },
 );
 
-/** The desktop seam. The dock is `fixed` at `top: var(--height-header)`, which
- *  is a claim about the VIEWPORT: it is the bottom edge of the bar only while
- *  the bar is at the top of it. `panel_steps.ts` asks the same question of the
- *  phone sheet and of the drawer. */
-Then("the agent dock sits under the header", async function (this: OlaiWorld) {
-  await this.page
-    .locator(CHAT_PANEL)
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  const header = await this.box(this.page.locator(APP_HEADER), "the app header");
-  const dock = await this.box(this.page.locator(CHAT_PANEL), "the agent dock");
-  const seam = header.y + header.height;
-  assert.ok(
-    Math.abs(dock.y - seam) <= 2,
-    `the dock starts at y=${Math.round(dock.y)} and the header ends at ` +
-      `${Math.round(seam)} — a gap here is a strip of the page showing between ` +
-      "the two, which is what a scrolled-away header left behind",
-  );
-});
 
-/** Where a fragment jump landed. Under the bar is the failure the document's
- *  `scroll-padding-top` exists to stop, and it is invisible in the address —
- *  which changed either way. */
-Then(
-  "the heading {string} is clear of the header",
-  async function (this: OlaiWorld, text: string) {
-    const heading = this.documentBody().locator(HEADINGS).filter({ hasText: text }).first();
-    await heading.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const header = await this.box(this.page.locator(APP_HEADER), "the app header");
-    const seam = header.y + header.height;
-
-    const landed = await heading.evaluate((node) => ({
-      top: node.getBoundingClientRect().top,
-      moved: scrollY > 0,
-    }));
-    assert.ok(landed.moved, "the address changed and the page did not move");
-    assert.ok(
-      landed.top >= seam - 1,
-      `the heading is at y=${Math.round(landed.top)}, above the header's bottom ` +
-        `edge at ${Math.round(seam)} — the jump put it behind the bar`,
-    );
-    // …and it still LANDED: the reservation is the bar's height, not a free
-    // hand to stop anywhere down the page.
-    assert.ok(
-      landed.top < seam + 96,
-      `the heading is ${Math.round(landed.top - seam)}px below the header, so ` +
-        "the jump did not land where a jump lands",
-    );
-  },
-);

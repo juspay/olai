@@ -1242,11 +1242,9 @@ export class OlaiWorld extends World {
   /** A coding agent in a terminal, for the scenarios about the tool surface
    *  olai does not own the client of: an HTTP POST at this server's `/mcp`. */
   terminalAgent?: TerminalAgent;
-  /** The tool names that agent was offered, and the last tool RESULT it got.
-   *  Both are read by later steps than the one that provoked them, which is
-   *  what makes them the world's rather than a module's — a step file holding
-   *  them would share them across scenarios. */
-  toolsOffered: string[] = [];
+  /** The last tool RESULT that agent got. Read by later steps than the one
+   *  that provoked it, which is what makes it the world's rather than a
+   *  module's — a step file holding it would share it across scenarios. */
   toolAnswer?: Record<string, unknown>;
   /** …and what a `resources/read` handed back, as its text. The other half of
    *  what an agent may reach: the tools are what it can DO and the resources

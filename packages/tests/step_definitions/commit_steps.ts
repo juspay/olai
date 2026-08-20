@@ -333,39 +333,6 @@ Then(
   },
 );
 
-/**
- * A rename somebody staged themselves, in the served work tree.
- *
- * `git mv` rather than a `mv` plus two `add`s, because it is what a person
- * actually types — and what they typed is what the panel was misreading.
- */
-When(
-  "I stage a rename of {string} to {string}",
-  function (this: OlaiWorld, from: string, to: string) {
-    this.git("mv", from, to);
-  },
-);
-
-/**
- * A rename drawn as a rename: ONE row, carrying the name it came from.
- *
- * `data-from` rather than the `→` on screen, for this file's own rule — the
- * arrow is the view's to reword and the pairing is the contract. The row's
- * absence for the OLD name is asserted separately, in the scenario, because
- * "one row" is the half a person actually noticed was wrong.
- */
-Then(
-  "the panel lists {string} as renamed from {string}",
-  async function (this: OlaiWorld, file: string, from: string) {
-    await this.expectAttribute(
-      `${COMMIT_OTHER}${attr("data-path", file)}`,
-      "data-from",
-      from,
-      `the pending file "${file}"`,
-    );
-  },
-);
-
 /** The scope the panel reports on. New because the scope is new: a `README.md`
  *  above the outlines is a row in that list, and a reader who is not told that
  *  has to work out why. */

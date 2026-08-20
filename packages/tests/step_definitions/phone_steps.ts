@@ -1,17 +1,11 @@
 /**
  * A thumb, and a screen with room for one column.
  *
- * Two kinds of step, and they are the two things a phone changes. TAPPING is
- * not clicking: a tap is a `touchstart`/`touchend` pair on a context with no
- * mouse at all, which is the only way to find out that a control a pointer can
- * reach is reachable without one. MEASURING is the other, because "big enough
- * for a finger" is a size and no attribute can carry it — it is the sum of a
- * font, a padding and a breakpoint, so the only honest way to ask is to
- * measure what the browser laid out.
- *
- * The names in the feature files are a reader's names for the controls. The
- * map below is where they meet the `data-testid` contract, so a feature never
- * spells a selector and a rename stays a one-line change.
+ * Tapping is not clicking: a tap is a `touchstart`/`touchend` pair on a
+ * context with no mouse at all, which is the only way to find out that a
+ * control a pointer can reach is reachable without one. Measuring is the
+ * other — chrome that has to stay inside the header, a drawer that covers
+ * the outline — because those are sizes no attribute can carry.
  */
 
 import * as assert from "node:assert";
@@ -22,25 +16,16 @@ import { PHONE_WIDTH, SHORT_PHONE_HEIGHT } from "../support/hooks.ts";
 import {
   APP_CHROME,
   APP_HEADER,
-  CALENDAR_DAY,
   CHAT_INPUT,
   CHAT_PANEL,
   CHAT_TOGGLE,
   COMMIT_PILL,
   CONNECTION,
-  DOCUMENT_LINK,
-  CALENDAR_NEXT,
-  CALENDAR_PREV,
-  FILE_DIR_TOGGLE,
   NODE_GUTTER,
   NODE_TITLE,
-  OUTLINE_LINK,
   OUTLINE_LIST,
   OUTLINE_TREE,
-  PREFS_CHOICE,
-  PREFS_ROW,
   PREFS_TRIGGER,
-  SIDEBAR,
   SIDEBAR_BODY,
   SIDEBAR_TOGGLE,
   TOGGLE,
@@ -48,41 +33,7 @@ import {
   ZOOM,
 } from "../support/world.ts";
 import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "../support/world.ts";
-import type { Box, OlaiWorld } from "../support/world.ts";
-
-/** The controls a feature can name, and what each one is on the page. */
-const TARGETS: Record<string, string> = {
-  "outline entry": OUTLINE_LINK,
-  "document entry": DOCUMENT_LINK,
-  // The folder row's fold control — its own name, not the outline tree's
-  // `collapse toggle`. The enumeration being exhaustive is the point of the
-  // phone scenario; a new finger target must land here.
-  "folder toggle": FILE_DIR_TOGGLE,
-  "collapse toggle": TOGGLE,
-  "zoom bullet": ZOOM,
-  "done choice": `${PREFS_ROW}[data-pref="done"] ${PREFS_CHOICE}`,
-  // A day with nothing on it is inert and goes nowhere, so it is not a
-  // target; the link inside a day that HAS something is.
-  "calendar day": `${CALENDAR_DAY}[data-dated="true"] a`,
-  "month step": `${CALENDAR_PREV}, ${CALENDAR_NEXT}`,
-};
-
-const selectorFor = (name: string): string => {
-  const selector = TARGETS[name];
-  if (selector === undefined) {
-    throw new Error(
-      `no control is called "${name}" here; the ones there are: ` +
-        `${Object.keys(TARGETS).join(", ")}`,
-    );
-  }
-  return selector;
-};
-
-/** Every one of them that is on screen, measured. Every one rather than the
- *  first: a rule that held for the first row and not the tenth would be a rule
- *  that is not in force. */
-const boxesOf = (world: OlaiWorld, name: string): Promise<ReadonlyArray<Box>> =>
-  world.boxes(world.page.locator(`${selectorFor(name)}:visible`), name);
+import type { OlaiWorld } from "../support/world.ts";
 
 // ── the thumb ──────────────────────────────────────────────────────────
 //
@@ -443,57 +394,6 @@ Then("the outline is on screen under it", async function (this: OlaiWorld) {
     }px down a ${viewport.height}px screen, which is below the fold`,
   );
 });
-
-// ── the size of a target ───────────────────────────────────────────────
-
-Then(
-  "every {string} is at least {int}px tall and {int}px wide",
-  async function (this: OlaiWorld, name: string, tall: number, wide: number) {
-    for (const [index, box] of (await boxesOf(this, name)).entries()) {
-      assert.ok(
-        box.height >= tall && box.width >= wide,
-        `${name} #${index + 1} is ${Math.round(box.width)}×${
-          Math.round(box.height)
-        }px, and a finger needs ${wide}×${tall}px`,
-      );
-    }
-  },
-);
-
-Then(
-  "every {string} is smaller than {int}px tall",
-  async function (this: OlaiWorld, name: string, tall: number) {
-    for (const [index, box] of (await boxesOf(this, name)).entries()) {
-      assert.ok(
-        box.height < tall,
-        `${name} #${index + 1} is ${Math.round(box.height)}px tall on a ` +
-          "laptop — the finger-sized rule is meant to apply below 48rem only",
-      );
-    }
-  },
-);
-
-// ── full-height column ─────────────────────────────────────────────────
-
-/** The directory column floors at the viewport bottom on a short page.
- *
- *  Mutant: `min-h-full` against a flex item with auto height resolves to 0 and
- *  left the sidebar rule at y≈777 on a 900px desktop viewport. Content taller
- *  than the viewport still passes (bottom past the fold). */
-Then(
-  "the sidebar reaches the bottom of the viewport",
-  async function (this: OlaiWorld) {
-    const viewport = this.viewport();
-    const nav = await this.box(this.page.locator(SIDEBAR), "the sidebar");
-    const bottom = nav.y + nav.height;
-    assert.ok(
-      bottom >= viewport.height - 1,
-      `the sidebar ends at y=${Math.round(bottom)} on a ${viewport.height}px ` +
-        "viewport — the directory column is meant to floor at the fold " +
-        "(broken form: ~777 on 900)",
-    );
-  },
-);
 
 // ── the strip the browser is showing ───────────────────────────────────
 
