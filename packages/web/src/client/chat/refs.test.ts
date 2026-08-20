@@ -7,6 +7,11 @@
  * declares may become pressable. The alternative to asking the set is a syntax
  * nobody emits, which is what this convention exists to avoid.
  *
+ * WHO ANSWERS is the server since `vib-3-transcript-ids` (`./declared.ts` asks
+ * it, one batch per message) and the rule did not move an inch: it always took
+ * the resolution as a function, so what is modelled below is the answer rather
+ * than the copy of the set it used to come out of.
+ *
  * What a marked span then DOES is the browser suite's
  * (`features/node_context.feature`): a click is a page moving under a reader,
  * and that is not a thing a value can say.
@@ -19,7 +24,9 @@ import { describe, expect, test } from "bun:test"
 import { nodeNamedBy } from "./refs.ts"
 
 /**
- * A REAL set, resolved the way the panel resolves it.
+ * A REAL set, resolved the way the SERVER resolves it — `@olai/ops`' `named`
+ * is this function over the same `nodeNamed`, and `./declared.ts` puts its
+ * answer behind exactly this signature.
  *
  * The fake predicate this used to carry could not see the case that matters:
  * `echo` is a placement of `order`, the format resolves it, and what has to
@@ -37,7 +44,9 @@ const HOUSE = [
 
 const indexes = derive(recordsOf(setOf({ "house.olai": HOUSE })))
 
-/** What `./Entry.tsx` passes: the format's own rule for what an id names. */
+/** What `./Entry.tsx` passes: what the set has answered about an id — which is
+ *  the format's own rule for what an id names, run on the other side of the
+ *  wire. */
 const resolve = (id: string): string | null =>
   nodeNamed(indexes, id)?.node.id ?? null
 
@@ -81,5 +90,20 @@ describe("an id the agent named", () => {
     // and the span stays a span rather than becoming a control that cannot
     // work.
     expect(nodeNamedBy("nowhere", false, resolve)).toBeNull()
+  })
+})
+
+describe("before the set has answered", () => {
+  /** Nothing answered yet: what `./declared.ts` hands back for every id until
+   *  the first batch lands. */
+  const nothingYet = (): string | null => null
+
+  test("a span is PLAIN, exactly as one the set does not declare is", () => {
+    // The one state the mark has to be in while a question is in flight, and
+    // the reason there is no third look: a span marked on a guess and unmarked
+    // when the answer arrives is a control that was never there, under a cursor
+    // that has already moved to it. Both directions of the pass then agree —
+    // marking is what an ANSWER does.
+    expect(nodeNamedBy("order", false, nothingYet)).toBeNull()
   })
 })

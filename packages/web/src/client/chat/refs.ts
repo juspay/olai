@@ -17,9 +17,21 @@
  * **A span is a reference only if the SET declares it.** That is the whole of
  * the rule, and it is what makes a false positive unrepresentable: `true`,
  * `.olai`, `npm test` and every other backticked thing an agent writes are
- * looked up and are not nodes, so they stay what they are. The set is the live
- * one this tab is reading, so an id that names a node today and nothing
- * tomorrow stops being pressable the moment the file says so.
+ * looked up and are not nodes, so they stay what they are.
+ *
+ * **THE SET IS ASKED, and this tab no longer holds one to ask.** The lookup ran
+ * over the browser's own copy of the directory until `vib-3-transcript-ids`;
+ * that copy is what `docs/brainstorming/vault-in-browser.md` is taking away, so
+ * the question crosses the wire — one batch per message, {@link ./declared.ts},
+ * over the format's own `nodeNamed` on the other side. What is left here is the
+ * rule and the DOM pass, neither of which ever read the set: this file takes
+ * the answer as a function and always did.
+ *
+ * What that costs is a beat: a span is PLAIN until the answer lands, and never
+ * marked-then-unmarked. It is the honest direction of the two — the alternative
+ * is guessing, and a reference that stops being one under a reader's cursor is
+ * a control that was never there.
+
  *
  * The MARKING is a DOM pass rather than a step in the markdown pipeline, and
  * that is deliberate: the pipeline is pure and cached by source text
@@ -63,20 +75,71 @@ export const NODE_REF = "data-node-ref"
  * placement already does.
  *
  * WHAT an id resolves TO is the caller's, and there is one answer to it in this
- * app: the format's own `nodeNamed` ({@link ./Entry.tsx} passes it, the
- * composer's chip and a `see` link resolve with it). It answers `null` for a
+ * app: the format's own `nodeNamed`, which the composer's chip and a `see` link
+ * resolve with and which the SERVER now runs for this door ({@link
+ * ./declared.ts}, passed in by {@link ./Entry.tsx}). It answers `null` for a
  * span the set does not declare and for a placement whose chain is dead —
- * there is nothing to point at either way.
+ * there is nothing to point at either way, which is the same `null` a span
+ * nothing has answered about yet gets. Three states would be a third look on
+ * screen for a span that is going to be one of the other two in a millisecond.
  */
+
 export const nodeNamedBy = (
   text: string | null,
   inFence: boolean,
   resolve: (id: string) => string | null,
 ): string | null => {
+  const id = askedOf(text, inFence)
+  return id === null ? null : resolve(id)
+}
+
+/**
+ * WHAT A SPAN WOULD BE ASKED ABOUT, before anything is known — the id it says,
+ * or `null` for a span that is not a question at all.
+ *
+ * Split out of the rule above the day the answer stopped being local: the two
+ * halves happen at different times now, because the question goes on the wire
+ * and the answer comes back later ({@link ./declared.ts}). Trimming, emptiness
+ * and the fence are all on THIS side of that split — they are facts about the
+ * span, decided without a set, and asking the server about a fenced `rm -rf` or
+ * about nothing at all is a round trip spent on a span that could never be
+ * marked.
+ */
+const askedOf = (text: string | null, inFence: boolean): string | null => {
   if (inFence) return null
   const id = (text ?? "").trim()
-  return id === "" ? null : resolve(id)
+  return id === "" ? null : id
 }
+
+/**
+ * EVERY ID A MESSAGE ASKS ABOUT — one pass over its code spans, deduplicated.
+ *
+ * The batch, as a value: an agent's paragraph holds a dozen backticks of which
+ * two are ids, and which is which is one question about all of them
+ * ({@link ./declared.ts} sends it). Deduplicated because an agent that says
+ * `order` four times in a sentence is naming one node, and a lookup asked about
+ * it four times is three questions with the answer already in hand.
+ *
+ * Its own pass rather than a second return value of {@link markNodeRefs}, which
+ * does one thing and runs for a different reason: this reads what a message is
+ * asking, that writes what has been answered. They see the same spans and are
+ * both cheap — one message, tens of spans — and the day they disagreed about
+ * what a span asks would be the day a mark was set for a lookup nobody made.
+ */
+export const askedIn = (root: HTMLElement): ReadonlyArray<string> => {
+  const asked = new Set<string>()
+  for (const span of root.querySelectorAll("code")) {
+    const id = askedOf(span.textContent, inFenceAt(span))
+    if (id !== null) asked.add(id)
+  }
+  return [...asked]
+}
+
+/** Whether a span is a QUOTATION of code rather than a pointer. The pipeline
+ *  emits a fence as `<pre><code>`, so the question is about this span's own
+ *  parent rather than a walk to the root. */
+const inFenceAt = (span: Element): boolean => span.parentElement?.tagName === "PRE"
+
 
 /** What a marked span carries besides its id: it is not a control until this
  *  makes it one, and a reference nobody can tab to is a reference half the
@@ -106,12 +169,10 @@ export const markNodeRefs = (
   resolve: (id: string) => string | null,
 ): void => {
   for (const span of root.querySelectorAll("code")) {
-    // The pipeline emits a fence as `<pre><code>`, so the question is about
-    // this span's own parent rather than a walk to the root.
-    const inFence = span.parentElement?.tagName === "PRE"
     // The RESOLVED id — the span goes on saying what the agent wrote, and
     // points at the node a reader can be shown.
-    const id = nodeNamedBy(span.textContent, inFence, resolve)
+    const id = nodeNamedBy(span.textContent, inFenceAt(span), resolve)
+
     const marked = span.getAttribute(NODE_REF)
     if (id === marked) continue
     if (id === null) {
