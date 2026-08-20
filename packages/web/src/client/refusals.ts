@@ -27,11 +27,11 @@ import { type Accessor, createMemo } from "solid-js"
 
 /** One refusal, as the sentence a surface draws: the token AS TYPED, and why —
  *  the em-dashed pair every door has always used. */
-export const refusalSaid = (refusal: Refusal): string =>
+const said = (refusal: Refusal): string =>
   `${refusal.token} — ${refusal.reason}`
 
 /** The whole list of them, memoised so an unchanged refusal is an unchanged
  *  string — see the header. */
 export const refusalLines = (
   refusals: Accessor<ReadonlyArray<Refusal>>,
-): Accessor<ReadonlyArray<string>> => createMemo(() => refusals().map(refusalSaid))
+): Accessor<ReadonlyArray<string>> => createMemo(() => refusals().map(said))

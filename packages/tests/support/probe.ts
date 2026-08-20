@@ -280,7 +280,7 @@ export const markRegion = async (
   world: OlaiWorld,
   selector: string,
   what: string,
-): Promise<number> =>
+): Promise<void> => {
   await world.page.evaluate(
     ([selector, what, region, key]) => {
       const roots = [...document.querySelectorAll(selector)];
@@ -317,10 +317,10 @@ export const markRegion = async (
         }).observe(root, { subtree: true, childList: true, characterData: true });
       }
       (window as unknown as Record<string, unknown>)[region] = { serial, announced };
-      return serial;
     },
     [selector, what, REGION, REGION_SERIAL] as const,
   );
+};
 
 /** What the region probe saw — read afresh per claim, like the screen's. */
 const regionChurn = async (
