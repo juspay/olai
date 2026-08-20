@@ -82,6 +82,8 @@ The case that matters is a DIVERGENCE. Another machine of yours — or somebody 
 
 **Turning Auto-commit off and on again is what resumes it** — one gesture, and it is the only one. Nothing clears the pause on olai's own initiative, because a loop that un-paused itself is the blind retry wearing a different hat.
 
+A repository that cannot take a commit *at all* — mid-merge, mid-rebase, a detached HEAD — is the other thing and is a **pause rather than a stop**: nothing is attempted while it lasts, the pill says which state it is in exactly as it always has, and what is waiting is recorded once you have finished. Nothing has to be switched off and on for that one. Never attempting is also the point: an automatic commit landing in the middle of a conflict is how a resolution gets swallowed.
+
 ## Pushing
 
 One verb, and it is the only reason left to open a terminal for this: the current branch, to the upstream it already tracks. No remote to pick, no refspec, never a force. The panel offers it when there is something to send (`2 commits not on origin/master · Push`), and the same count is on the pill.
