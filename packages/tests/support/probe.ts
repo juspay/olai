@@ -34,7 +34,7 @@
 
 import * as assert from "node:assert";
 
-import { attr, CALENDAR, FILE_DIR, PANE, SIDEBAR } from "./world.ts";
+import { attr, CALENDAR, FILE_DIR, PANE, POLL_TIMEOUT, SIDEBAR } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
 
 /** One attribute change under a watched region. */
@@ -190,7 +190,7 @@ export const folderHeld = async (world: OlaiWorld, path: string): Promise<void> 
   );
   await world.page
     .locator(`${FILE_DIR}${attr("data-path", path)}${attr("data-collapsed", "false")}`)
-    .waitFor({ state: "attached" });
+    .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
 };
 
 /** The current mark went from one entry to the other WITHOUT a beat in between
@@ -229,7 +229,7 @@ export const monthHeld = async (world: OlaiWorld, month: string): Promise<void> 
   );
   await world.page
     .locator(`${CALENDAR}${attr("data-month", month)}`)
-    .waitFor({ state: "attached" });
+    .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
 };
 
 /** A node the page never drew — not "is not drawn now", which a page that drew
