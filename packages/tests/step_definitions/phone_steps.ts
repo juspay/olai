@@ -342,59 +342,6 @@ Then("the sidebar is put away", async function (this: OlaiWorld) {
       "header for starts a third of a screen down",
   );
 });
-
-// ── one column ─────────────────────────────────────────────────────────
-
-Then(
-  "the outline list is above the tree, not beside it",
-  async function (this: OlaiWorld) {
-    const list = await this.box(
-      this.page.locator(OUTLINE_LIST),
-      "the outline list",
-    );
-    const tree = await this.box(this.page.locator(OUTLINE_TREE), "the tree");
-    assert.ok(
-      list.y < tree.y,
-      `the outline list starts at y=${list.y} and the tree at y=${tree.y}, so ` +
-        "the list is not above it",
-    );
-    // The half that says it is stacked rather than merely lower down: two
-    // columns do not overlap horizontally, and these do.
-    assert.ok(
-      tree.x < list.x + list.width,
-      `the tree starts at x=${tree.x}, clear of the list (which ends at ` +
-        `${list.x + list.width}) — that is two columns, not one`,
-    );
-  },
-);
-
-/** What the cap on the header is FOR. Not the cap itself — 42dvh is a styling
- *  decision, and the promise it is there to keep is this one: a reader who
- *  opens an outline on a phone can see the outline. */
-Then("the outline is on screen under it", async function (this: OlaiWorld) {
-  const viewport = this.viewport();
-  const tree = await this.box(this.page.locator(OUTLINE_TREE), "the tree");
-  const room = viewport.height - tree.y;
-  assert.ok(
-    room >= viewport.height / 3,
-    `the header leaves the outline ${Math.round(room)}px of a ` +
-      `${viewport.height}px screen — it is meant to be capped and to scroll ` +
-      "inside itself rather than to be a page of its own",
-  );
-  // The first TITLE, not the first row: a row is a whole subtree and is
-  // taller than any screen the moment the outline has depth.
-  const first = await this.box(
-    this.page.locator(`${OUTLINE_TREE} ${NODE_TITLE}`).first(),
-    "the first title in the outline",
-  );
-  assert.ok(
-    first.y + first.height <= viewport.height,
-    `the first row of the outline ends ${
-      Math.round(first.y + first.height)
-    }px down a ${viewport.height}px screen, which is below the fold`,
-  );
-});
-
 // ── the strip the browser is showing ───────────────────────────────────
 
 Then(

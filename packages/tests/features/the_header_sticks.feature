@@ -35,3 +35,18 @@ Feature: The header sticks
       | outline  | house.olai      |
       | node     | kitchen         |
       | document | kitchen-sink.md |
+
+  # A jump lands at a heading, and the top of the viewport is not free space any
+  # more — so the document reserves the bar's height (`scroll-padding-top`) and
+  # the heading stops under it rather than behind it. The geometry IS the
+  # feature: a CSS rule plus the browser's own `#heading` scroll is not a unit
+  # test, and the Outline above never jumps anywhere.
+  @corpus:good
+  Scenario: A jump to a heading lands below the bar, not behind it
+    # A heading in the MIDDLE of the fixture, so the jump is a real one: near
+    # the end the document runs out of itself and the browser stops short of
+    # the target, which would pass this for the wrong reason.
+    When I open the document "kitchen-sink.md"
+    And I follow the contents line "Lists"
+    Then the app header is at the top of the viewport
+    And the heading "Lists" is clear of the header

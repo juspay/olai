@@ -195,19 +195,6 @@ When(
   },
 );
 
-When(
-  "I hover the waiting mark on {string}",
-  async function (this: OlaiWorld, id: string) {
-    const mark = this.within(id, BLOCKED);
-    await mark.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await mark.hover();
-    await this.page
-      .locator(TIP)
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  },
-);
-
 Then("a tip says {string}", async function (this: OlaiWorld, said: string) {
   const tips = this.page.locator(TIP);
   // EXACTLY one, in the whole document. The doubled tip the human caught said
@@ -221,60 +208,6 @@ Then("a tip says {string}", async function (this: OlaiWorld, said: string) {
   );
   assert.strictEqual(oneLine(await tips.first().innerText()), said);
 });
-
-/** A tip drawn inside a row inherits that row's opacity — and a blocked row is
- *  DIMMED, which put the note underneath straight through the tip's own words.
- *  Asserted as the opacity a reader actually gets, multiplied down the
- *  ancestors, because that is what went wrong: every class on the tip itself
- *  was right. */
-Then("the tip is fully opaque", async function (this: OlaiWorld) {
-  const opacity = await this.page.locator(TIP).first().evaluate((tip) => {
-    let at: Element | null = tip;
-    let effective = 1;
-    while (at !== null) {
-      effective *= Number(getComputedStyle(at).opacity);
-      at = at.parentElement;
-    }
-    return effective;
-  });
-  assert.strictEqual(
-    opacity,
-    1,
-    "the tip is drawn through something dimmed; it must not inherit a row's opacity",
-  );
-});
-
-/** Nothing is hovered any more, so nothing may be saying anything. A tip that
- *  outlived the pointer is the same defect one step earlier. */
-Then("no tip is shown", async function (this: OlaiWorld) {
-  const tips = this.page.locator(TIP);
-  await this.waitUntil(
-    async () => (await tips.count()) === 0,
-    "a tip is still on screen with nothing hovered",
-  ).catch(async () => {
-    assert.strictEqual(await tips.count(), 0);
-  });
-});
-
-/** Away from every control, so the pointer is over nothing in particular. */
-When("I move the pointer away", async function (this: OlaiWorld) {
-  await this.page.mouse.move(2, 2);
-  await this.waitForFrame();
-});
-
-/** The whole reason this app draws its own tip: the platform put a long one
- *  half outside the window. Asserted as geometry, because that is what went
- *  wrong — not as a class name. */
-Then("the tip is inside the window", async function (this: OlaiWorld) {
-  const box = await this.page.locator(TIP).first().boundingBox();
-  assert.ok(box !== null, "the tip is not laid out");
-  const width = this.viewport().width;
-  assert.ok(
-    box.x >= 0 && box.x + box.width <= width,
-    `the tip runs from ${box.x} to ${box.x + box.width}, outside a ${width}px window`,
-  );
-});
-
 // ── where a navigation leaves the page ─────────────────────────────────
 //
 // A route change redraws the main pane and moves nothing else, so without a

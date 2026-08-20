@@ -85,13 +85,6 @@ Then("the preferences are shut", async function (this: OlaiWorld) {
     .locator(PREFS_PANEL)
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
-
-/** Unconditionally, unlike `showPreferences`: the scenario that presses it a
- *  SECOND time is asking what that press does. */
-When("I press the preferences trigger", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(PREFS_TRIGGER));
-});
-
 When("I press Escape on the preferences", async function (this: OlaiWorld) {
   await this.page.keyboard.press("Escape");
 });
@@ -175,13 +168,6 @@ Then(
     );
   },
 );
-
-When("I click the wordmark", async function (this: OlaiWorld) {
-  // Somewhere that is neither the trigger nor the panel, and that does nothing
-  // of its own — a node title would open an editor, and a scenario about a
-  // popover shutting should not also be a scenario about a caret.
-  await this.page.locator(WORDMARK).click();
-});
 
 Then("the preferences trigger has the focus", async function (this: OlaiWorld) {
   const focused = await this.page.evaluate(
@@ -405,15 +391,6 @@ When(
     await this.page
       .locator(PREFS_PANEL)
       .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
-  },
-);
-
-When(
-  "a second tab sets Notes to {string}",
-  async function (this: OlaiWorld, value: string) {
-    const other = await this.context.newPage();
-    await other.goto("/");
-    await pickChoice(other, "density", asDensity(value));
   },
 );
 

@@ -193,41 +193,6 @@ Then(
     );
   },
 );
-
-// ── the other tab ──────────────────────────────────────────────────────
-
-/** A SECOND page in the same context, which is what makes it a second tab of
- *  the same browser rather than a second browser: one origin, one
- *  `localStorage`, and the `storage` event the client listens for is fired in
- *  every document of it except the one that wrote.
- *
- *  It is left open. Closing it would be the tidier line and a weaker scenario —
- *  a preference that only crossed once the other tab was gone would pass it. */
-When(
-  "a second tab picks the theme {string}",
-  async function (this: OlaiWorld, theme: string) {
-    const other = await this.context.newPage();
-    await other.goto("/");
-    // The same three things `pick` does in this tab, against that one: open
-    // that tab's preferences (the chips are the panel's Theme row), press, and
-    // wait for THAT tab to be in the theme, so everything after this step is
-    // about the pick CROSSING rather than about the click landing.
-    await showChips(this, other);
-    const chip = other.locator(`${THEME_CHIP}${attr("data-value", theme)}`);
-    await chip.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await chip.click();
-    await other
-      .locator(`html${attr(THEME_ATTRIBUTE, theme)}`)
-      .waitFor({ state: "attached", timeout: POLL_TIMEOUT })
-      .catch(() => {
-        throw new Error(
-          `the second tab never took the theme "${theme}", so there was ` +
-            "nothing for this one to hear",
-        );
-      });
-  },
-);
-
 // ── the paint ──────────────────────────────────────────────────────────
 
 /** The one colour a step may talk about: the one the sheet painted and the

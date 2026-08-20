@@ -1745,47 +1745,6 @@ const pressChats = async (world: OlaiWorld): Promise<void> => {
 When("I open the session picker", async function (this: OlaiWorld) {
   await pressChats(this);
 });
-
-/** The same press where the scenario is asking what a SECOND one does, which
- *  is the two-roots fence (`chat/Sessions.tsx`): a click-away that knew only
- *  the list would shut on this press's own pointerdown and be reopened by its
- *  click, so the panel would be up before and after. */
-When("I press the chats button", async function (this: OlaiWorld) {
-  await pressChats(this);
-});
-
-Then("the picker is showing", async function (this: OlaiWorld) {
-  await this.page
-    .locator(CHAT_SESSION_LIST)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-});
-
-/** GONE rather than hidden: the list is a `<Show>`, so a picker left in the
- *  DOM would be a dismissal that only changed how it looked. */
-Then("the picker is put away", async function (this: OlaiWorld) {
-  await this.waitUntil(
-    async () => (await this.page.locator(CHAT_SESSION_LIST).count()) === 0,
-    "the session list to be gone",
-  );
-});
-
-/** Where a keyboard is standing after the list goes. Escape from a panel that
- *  HELD the caret leaves it on `<body>` — nowhere, and the whole page to walk
- *  down again — unless somebody hands it back, which is `Sessions.tsx`'s job
- *  and this is the step that says so. */
-Then("the chats button has the caret", async function (this: OlaiWorld) {
-  const caret = await this.page.evaluate(() =>
-    document.activeElement?.getAttribute("data-testid") ?? null
-  );
-  assert.strictEqual(caret, TESTID.chatSessions, `the caret is on ${String(caret)}`);
-});
-
-/** Somewhere that is neither the list nor the button that opens it. The
- *  sidebar, which `clickAway` presses at a corner that is no control. */
-When("I click away from the session picker", async function (this: OlaiWorld) {
-  await this.clickAway();
-});
-
 /** No `trouble` on screen — what went wrong where nobody was waiting, and the
  *  claim that nothing did. No wait of its own: the step before it has already
  *  waited for something the panel could only have drawn after the moment this

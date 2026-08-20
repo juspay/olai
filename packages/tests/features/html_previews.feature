@@ -1270,6 +1270,33 @@ Feature: A `.html` in the vault
     Then the preview is back on the sealed document
     And the app is not loaded inside the preview
 
+  @scratch:good
+  Scenario: A picture that arrives after the page has loaded does not move the frame
+    # Live-wire, not a pixel threshold: a `loading="lazy"` image landing after
+    # `load`, with the route holding it back so the order is not a race.
+    # `rungs.test.ts` counts the rungs; this is a browser agreeing about what
+    # they cost. Relative assertions (`shorter than the page it shows`), not
+    # hard-coded px.
+    #
+    # Two rungs is at most one arriving reading and one settled one per width,
+    # so a picture that lands after `load` is refused a third: the frame keeps
+    # the height it had and the page scrolls inside it. The frame cannot tell
+    # "I grew because my pictures landed" from "I grew because you made me
+    # taller and I am measured in `vh`" — they are the same message.
+    Given I open the app
+    And the vault's pictures are slow to arrive
+    When I rewrite "late.html" as:
+      """
+      <h1>Late</h1>
+      <img loading="lazy" src="art/tall.png" alt="a tall picture, later">
+      """
+    And I click the page "late.html"
+    Then the preview shows the heading "Late"
+    And the preview draws its picture "img"
+    And the preview is shorter than the page it shows
+    And the preview is shorter than the viewport
+    And there should be no page errors
+
   # ── how tall the frame is ────────────────────────────────────────────
   #
   # The frame is the height of the page it holds. It was `70dvh` flat before —

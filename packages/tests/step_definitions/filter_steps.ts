@@ -272,20 +272,6 @@ Then(
     );
   },
 );
-
-/** The token AND what the operator takes — the second half is the whole point.
- *  A refusal naming the typo without saying what would have worked is a
- *  refusal that leaves the reader exactly where they were. The TONE is asserted
- *  through the same `data-tone` fact every other said-line in this suite is
- *  read by (`support/said.ts`). */
-Then(
-  "the filter refuses {string} and says {string}",
-  async function (this: OlaiWorld, token: string, teaching: string) {
-    await saysThat(this, FILTER_REFUSAL, token, "filter refusal", "alarm");
-    await saysThat(this, FILTER_REFUSAL, teaching, "filter refusal");
-  },
-);
-
 /** The SAME refusal, on a door that had to ask the server for it. One step for
  *  both of those doors, because it is one sentence about one grammar. */
 Then(

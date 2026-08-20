@@ -186,33 +186,6 @@ Then("the page requested nothing off this server", function (this: OlaiWorld) {
     `the page fetched ${elsewhere.length} thing(s) from elsewhere:\n  ${elsewhere.join("\n  ")}`,
   );
 });
-
-/** A footnote is only a footnote if the link lands on the note. Read as two
- *  DOM facts — the reference's target, and the id of what is at that target —
- *  because "there is a `<sup>` on the page" is true of a broken one too. */
-Then(
-  "the document shows a footnote that lands on its note",
-  async function (this: OlaiWorld) {
-    const rendered = body(this);
-    await rendered.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    const reference = rendered.locator("sup a[href^='#']").first();
-    await reference.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
-
-    const target = (await reference.getAttribute("href"))?.slice(1);
-    assert.ok(target !== undefined && target !== "", "the footnote link names nothing");
-    const note = rendered.locator(attr("id", target));
-    assert.strictEqual(
-      await note.count(),
-      1,
-      `the footnote link points at #${target}, and the page has ${await note.count()} of those`,
-    );
-    assert.ok(
-      oneLine(await note.innerText()).includes("Unlacquered"),
-      "the element the footnote points at is not the note",
-    );
-  },
-);
-
 Then(
   "the picture {string} is drawn in the document",
   async function (this: OlaiWorld, src: string) {
@@ -368,18 +341,6 @@ Then(
       String(total),
       "what points at the document",
       HYDRATION_TIMEOUT,
-    );
-  },
-);
-
-Then(
-  "nothing points at the document",
-  async function (this: OlaiWorld) {
-    await this.waitForFrame();
-    assert.strictEqual(
-      await this.page.locator(DOCUMENT_REFERRERS).count(),
-      0,
-      "the document draws a referrers section",
     );
   },
 );

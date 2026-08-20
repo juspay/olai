@@ -187,34 +187,3 @@ Then(
     );
   },
 );
-
-// ── the anchors the contents is made of ────────────────────────────────
-
-Then("every heading links to itself", async function (this: OlaiWorld) {
-  // The markdown chunk is lazy. "the page is up" is not "the headings
-  // are drawn"; wait for the first one rather than proving nothing.
-  await this.waitUntil(
-    async () => (await headings(this, "document")).length > 0,
-    "the document to draw its headings",
-    HYDRATION_TIMEOUT,
-  );
-  const drawn = await headings(this, "document");
-
-  const unlinked = await this.documentBody().locator(HEADINGS).evaluateAll((nodes) =>
-    nodes
-      .filter((node) => {
-        const anchor = [...node.querySelectorAll("a")].find(
-          (link) => link.hash === `#${node.id}`,
-        );
-        // `#` alone says nothing to a reader who cannot see where it sits, so
-        // an unlabelled anchor is no better than a missing one.
-        return anchor === undefined || (anchor.getAttribute("aria-label") ?? "") === "";
-      })
-      .map((node) => node.textContent ?? "")
-  );
-  assert.deepStrictEqual(
-    unlinked.map(oneLine),
-    [],
-    "these headings carry no labelled link to themselves",
-  );
-});

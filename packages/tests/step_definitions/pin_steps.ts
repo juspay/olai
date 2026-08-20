@@ -80,17 +80,6 @@ When(
     this.appendServed(PINS_FILE, { id: "pn", ord: "z0", title: address });
   },
 );
-
-/** One node written into an outline by another writer — for the claim that
- *  resolving an address is a fact about TITLES rather than about the shelf's
- *  own file. */
-When(
-  "the directory grows a node titled {string} in {string}",
-  async function (this: OlaiWorld, title: string, file: string) {
-    this.appendServed(file, { id: "written-by-hand", ord: "z0", title });
-  },
-);
-
 /** A record RETITLED where it lives — an agent's `set_title`, spelled as the
  *  file it produces. The shelf is not touched, and that is the claim: it holds
  *  no copy of the name to update. */

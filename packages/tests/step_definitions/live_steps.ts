@@ -44,10 +44,6 @@ When(
   },
 );
 
-When("I delete {string}", function (this: OlaiWorld, file: string) {
-  this.removeServed(file);
-});
-
 /**
  * Somebody else, writing, mid-scenario.
  *

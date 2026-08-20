@@ -76,6 +76,16 @@ Feature: Dragging rows, and picking several
     And nothing is said about the pick
     And there should be no page errors
 
+  Scenario: A branch is never offered a place inside itself
+    # Not a guard but a construction: the rows being carried are left out of the
+    # ones a drop can land beside, so there is no gesture that asks the ops
+    # layer to make a loop. The predicate is `select/range.test.ts`; this is
+    # the live drag filtering the gap list by it, which no unit file pins.
+    When I pick up the bullet of "install" and hold it above the title of "knobs"
+    Then the drop line names nothing under "install"
+    When I let go
+    Then there should be no page errors
+
   Scenario: Pressing a bullet without moving still zooms into it
     # The bullet is a link and a handle, and what tells the two apart is
     # whether the pointer travelled.

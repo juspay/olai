@@ -19,6 +19,7 @@ import {
   APP_HEADER,
   OUTLINE_LIST,
   SIDEBAR,
+  SIDEBAR_BODY,
   SIDEBAR_COLLAPSE,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -27,6 +28,11 @@ import type { OlaiWorld } from "../support/world.ts";
  *  fractional device scale, and nothing else. A column that has begun to leave
  *  is a column that leaves. */
 const EDGE = 2;
+
+/** How far a wheel is turned over the column. Larger than one row and smaller
+ *  than the strip, so a scroll that lands is unambiguous and one that chains
+ *  into the page cannot be mistaken for rounding. */
+const WHEEL = 200;
 
 /** The pin, asked of whichever face of the directory is drawn — the open column
  *  or the icon rail. Three claims, and they are not the same claim:
@@ -116,5 +122,89 @@ Then("the collapse affordance is on screen", async function (this: OlaiWorld) {
       "column is off the screen or behind the bar",
   );
 });
+
+/**
+ * The other half of the pin: the column has a scroll region OF ITS OWN.
+ *
+ * A directory taller than the strip has to go somewhere, and the two answers
+ * are not equivalent — lengthening the page (what a column in flow does) makes
+ * the page's scrollbar do two jobs, and the tree's own end is then reachable
+ * only by scrolling the PAGE, which is what pinning the column just stopped.
+ *
+ * Asked with a WHEEL over the column, because that is the gesture, and asked at
+ * the BOTTOM of the page so the answer cannot be an accident: wheeling up there
+ * is the one direction the page could still move in, so a column that did not
+ * take the wheel itself would be caught taking the page with it.
+ */
+Then(
+  "the directory takes the wheel, and the page stays where it is",
+  async function (this: OlaiWorld) {
+    const body = this.page.locator(SIDEBAR_BODY);
+    const reading = (): Promise<{
+      readonly top: number;
+      readonly content: number;
+      readonly strip: number;
+      readonly page: number;
+    }> =>
+      body.evaluate((node) => ({
+        top: node.scrollTop,
+        content: node.scrollHeight,
+        strip: node.clientHeight,
+        page: window.scrollY,
+      }));
+
+    await body.evaluate((node) => {
+      node.scrollTop = 0;
+    });
+
+    const start = await reading();
+    assert.strictEqual(
+      start.top,
+      0,
+      `the column is at ${Math.round(start.top)}px rather than its top, so the ` +
+        "wheel below is not being turned from where this step says it is",
+    );
+    assert.ok(
+      start.content > start.strip + EDGE,
+      `the column holds ${Math.round(start.content)}px of directory in a ` +
+        `${Math.round(start.strip)}px box, so it has nothing of its own to ` +
+        "scroll — in flow the column is as tall as the page and a long " +
+        "directory lengthens the PAGE instead of scrolling in place",
+    );
+
+    const middle = await this.box(body, "the directory column's body");
+    await this.page.mouse.move(
+      middle.x + middle.width / 2,
+      middle.y + middle.height / 2,
+    );
+
+    await this.page.mouse.wheel(0, WHEEL);
+    await this.waitUntil(
+      async () => (await reading()).top > start.top,
+      "the column takes a wheel turned down over it",
+    );
+    const down = await reading();
+    assert.strictEqual(
+      down.page,
+      start.page,
+      `the page moved from ${Math.round(start.page)} to ` +
+        `${Math.round(down.page)} while the column was being scrolled`,
+    );
+
+    await this.page.mouse.wheel(0, -WHEEL);
+    await this.waitUntil(
+      async () => (await reading()).top < down.top,
+      "the column takes a wheel turned back up over it",
+    );
+    const up = await reading();
+    assert.strictEqual(
+      up.page,
+      start.page,
+      `the page came up from ${Math.round(start.page)} to ` +
+        `${Math.round(up.page)} — a wheel over the directory is scrolling the ` +
+        "page, which is the column having no scroll region of its own",
+    );
+  },
+);
 
 

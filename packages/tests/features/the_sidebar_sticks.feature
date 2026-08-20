@@ -35,3 +35,16 @@ Feature: The directory column sticks too
       | outline  | house.olai      |
       | node     | kitchen         |
       | document | kitchen-sink.md |
+
+  # The half that makes the pin worth having, and not a permutation of it: a
+  # column correctly pinned that has lost its own scroll passes the Outline
+  # above and is broken. At the bottom of the page, where up is the one
+  # direction the page could still move in.
+  @corpus:good
+  Scenario: A directory taller than the strip scrolls inside the column
+    Given the window is shorter than the page
+    And I open the outline "house.olai"
+    When I scroll to the bottom of the page
+    Then the directory takes the wheel, and the page stays where it is
+    And the directory column is pinned under the header
+    And there should be no page errors

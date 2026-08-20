@@ -324,15 +324,6 @@ Then(
   },
 );
 
-Then(
-  "the panel does not list {string}",
-  async function (this: OlaiWorld, file: string) {
-    await this.page
-      .locator(`${COMMIT_OTHER}${attr("data-path", file)}`)
-      .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
-  },
-);
-
 /** The scope the panel reports on. New because the scope is new: a `README.md`
  *  above the outlines is a row in that list, and a reader who is not told that
  *  has to work out why. */
@@ -391,25 +382,6 @@ Then(
     assert.deepEqual(touched, wanted);
   },
 );
-
-/**
- * The permanent half of a rename: git reads the commit back as ONE rename.
- *
- * `--name-status --find-renames` rather than the `--name-only` the step above
- * uses, because that one prints a rename as its destination alone — true, and
- * indistinguishable from the add-beside-a-staged-deletion this scenario exists
- * to rule out.
- */
-Then(
-  "the last commit renamed {string} to {string}",
-  function (this: OlaiWorld, from: string, to: string) {
-    assert.strictEqual(
-      this.git("show", "--name-status", "--find-renames", "--format=", "HEAD").trim(),
-      `R100\t${from}\t${to}`,
-    );
-  },
-);
-
 Then(
   "{string} is still waiting in the repository",
   function (this: OlaiWorld, file: string) {

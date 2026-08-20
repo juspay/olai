@@ -263,6 +263,16 @@ test("binding off loopback is a warning, not a line among lines", async () => {
 // renamed icon still 200s, and only the content type says otherwise. These
 // used to be browser scenarios (`install_it.feature`); they never opened a
 // page worth looking at.
+//
+// The walk into `packages/web/src/client` is TEST-ONLY, and deliberate: it is
+// the two ends of a contract whose packages do not import each other. The
+// source `public/` stands in for the built dist because `web/src/build.ts`
+// copies that directory to the dist root as-is (`publicDir: resolve(CLIENT,
+// "public")`). The "never a service worker" half of the old e2e is NOT
+// asserted here on the shell — a registration would live in the client
+// bundle, and `web/src/client/claims.test.ts` holds that no file spells
+// `serviceWorker`. What this file can see is that the shell itself does not
+// inline one.
 
 const WEB_CLIENT = path.join(import.meta.dirname, "../../web/src/client")
 

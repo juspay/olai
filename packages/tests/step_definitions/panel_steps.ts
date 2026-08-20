@@ -222,13 +222,6 @@ When("I wait for the agent to go idle", async function (this: OlaiWorld) {
   );
 });
 
-When("I open the agent from the pill", async function (this: OlaiWorld) {
-  await this.page.locator(CHAT_PILL).click();
-  await this.page
-    .locator(CHAT_PANEL)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-});
-
 // ── the panel chords ───────────────────────────────────────────────────
 
 When("I press the sidebar shortcut", async function (this: OlaiWorld) {
@@ -318,18 +311,6 @@ Then(
       .locator(HEADER_SEARCH_ITEM_PROP)
       .first();
     assert.equal(await first.getAttribute("data-key"), key);
-  },
-);
-
-Then(
-  "the header search result {string} shows no properties",
-  async function (this: OlaiWorld, title: string) {
-    const row = this.page
-      .locator(HEADER_SEARCH_ITEM)
-      .filter({ hasText: title })
-      .first();
-    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.equal(await row.locator(HEADER_SEARCH_ITEM_PROP).count(), 0);
   },
 );
 
@@ -450,22 +431,6 @@ When("I drag the chat sheet handle up", async function (this: OlaiWorld) {
 When("I tap the header agent toggle", async function (this: OlaiWorld) {
   // Must work while the sheet is open — the scrim must not cover the header.
   await this.press(this.page.locator(CHAT_TOGGLE), "tap");
-  await this.page
-    .locator(CHAT_PANEL)
-    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
-});
-
-When("I tap the chat sheet handle", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(CHAT_SHEET_HANDLE), "tap");
-  await this.waitForFrame();
-});
-
-When("I tap the chat sheet scrim", async function (this: OlaiWorld) {
-  const viewport = this.viewport();
-  // Scrim is under the header; tap its top band above the half sheet.
-  await this.page.locator(CHAT_SHEET_SCRIM).click({
-    position: { x: Math.round(viewport.width / 2), y: 12 },
-  });
   await this.page
     .locator(CHAT_PANEL)
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
