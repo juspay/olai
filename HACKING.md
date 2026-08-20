@@ -4,6 +4,7 @@
 
 - Tests
   - If a new feature was added, or a bug fixed, there must be a corresponding test (unit or e2e)for it. 
+  - Tests assert behavior, not styling. No class names, colors, or pixel values in assertions — unless the styling system itself is under test.
 - Docs
   - docs/* is up to date
   - website/ is up to date
