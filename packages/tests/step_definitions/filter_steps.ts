@@ -296,6 +296,19 @@ Then(
     );
   },
 );
+/** One refusal, read wherever it is drawn: the token AS TYPED, and the teaching
+ *  under it. Two words to check and one line to find them in, so the two steps
+ *  below differ in the slot they read and in nothing else. */
+const refuses = (
+  world: OlaiWorld,
+  line: string,
+  what: string,
+  token: string,
+  teaching: string,
+): Promise<void> =>
+  saysThat(world, line, token, what)
+    .then(() => saysThat(world, line, teaching, what));
+
 /** The BAR's own refusal line, which is the grammar refusing in this tab: the
  *  filter parses what is typed here rather than asking, so this line is up
  *  before any wire is touched. Its own slot, and so its own step — the one
@@ -304,8 +317,7 @@ Then(
 Then(
   "the filter refuses {string} and says {string}",
   async function (this: OlaiWorld, token: string, teaching: string) {
-    await saysThat(this, FILTER_REFUSAL, token, "filter refusal", "alarm");
-    await saysThat(this, FILTER_REFUSAL, teaching, "filter refusal", "alarm");
+    await refuses(this, FILTER_REFUSAL, "filter refusal", token, teaching);
   },
 );
 
@@ -314,8 +326,7 @@ Then(
 Then(
   "the search refuses {string} and says {string}",
   async function (this: OlaiWorld, token: string, teaching: string) {
-    await saysThat(this, SEARCH_REFUSAL, token, "search refusal");
-    await saysThat(this, SEARCH_REFUSAL, teaching, "search refusal");
+    await refuses(this, SEARCH_REFUSAL, "search refusal", token, teaching);
   },
 );
 

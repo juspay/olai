@@ -60,14 +60,11 @@ export function Breadcrumbs(props: {
           </Link>
         )}
       </Show>
-      {/* `<Key>`, not `<For>`, for the reason the tree and the refs row use it
-          (./Tree.tsx, ./NodeRefs.tsx): the trail comes off the wire, and every
-          frame the page publishes replaces every element of that array with a
-          fresh object (docs/brainstorming/reactivity-after-the-flip.md §2). A
-          `<For>` compares by reference, so the whole trail — each link and the
-          title inside it — was torn down and rebuilt on every keystroke
-          committed anywhere on the page. Keyed by the node's id, which is what
-          a crumb IS: a canonical ancestry names each ancestor once. */}
+      {/* `<Key>`, not `<For>`, for the reason the tree uses it (./Tree.tsx):
+          the trail comes off the wire, so drawn by reference the whole thing
+          was rebuilt on every frame of the page. Keyed by the node's id, which
+          is what a crumb IS — a canonical ancestry names each ancestor once,
+          so the key is honest. */}
       <Key each={props.trail} by={(crumb) => crumb.node.id}>
         {(crumb, index) => (
           <>

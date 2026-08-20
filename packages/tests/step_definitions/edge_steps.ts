@@ -41,6 +41,7 @@ import {
   SEE_REFS,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
+import { focusedOn } from "../support/caret.ts";
 import { saysThat } from "../support/said.ts";
 
 /** The open panel, waited for. Every step here starts from it, so there is one
@@ -267,11 +268,8 @@ When("I put the caret on the edge panel's ×", async function (this: OlaiWorld) 
 });
 
 Then("the caret is still on the edge panel's ×", async function (this: OlaiWorld) {
-  const held = await this.page.evaluate(
-    () => document.activeElement?.getAttribute("data-testid") ?? "nothing",
-  );
   assert.strictEqual(
-    held,
+    await focusedOn(this),
     TESTID.edgeDrop,
     "the caret left the × while somebody else wrote to the file. The chips " +
       "were torn down and drawn again for a frame that said nothing about " +

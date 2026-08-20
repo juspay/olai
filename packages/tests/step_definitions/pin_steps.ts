@@ -20,10 +20,9 @@ import { DataTable, Given, Then, When } from "@cucumber/cucumber";
 import { selector, TESTID } from "@olai/web/src/client/testids.ts";
 
 import { attr } from "../support/selectors.ts";
-import { PALETTE_INPUT, POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";
+import { PALETTE_INPUT, PIN_SHELF as SHELF, POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-const SHELF = selector(TESTID.pinShelf);
 const PIN = selector(TESTID.pin);
 const PIN_LINK = selector(TESTID.pinLink);
 const PIN_REMOVE = selector(TESTID.pinRemove);

@@ -30,25 +30,24 @@
  * `NodeRefs` key. A page of a thousand rows re-ran all of them for a keystroke
  * in one title that named nothing (the audit's finding 2.10).
  *
- * So the table is rebuilt only when the names changed BY VALUE, and the held
- * copy is what makes that askable at all: `names` is identity-stable across
- * frames, so a previous value read back out of the store would be the same
- * array compared with itself and every frame would look unchanged. What is held
- * is a plain copy — the three fields a `Named` has — and a reader handed one is
- * handed something that stops moving when the answer does.
+ * So the table is rebuilt only when the names changed BY VALUE — which is
+ * `./served.tsx`'s arrangement over the served paths, word for word: a memo
+ * whose `equals` compares the MEMBERSHIP, so the value's identity means "the
+ * answer changed" rather than "a frame arrived", and Solid keeps the previous
+ * value when the comparator says they are equal.
+ *
+ * THE COPY IS THE MECHANISM, not a nicety, and it is the one thing that
+ * arrangement needs here and does not need there. A comparator needs two
+ * values, and `reading.names` is identity-stable across frames — the same array
+ * with different objects in it — so a memo handing back the store's array would
+ * be handing the comparator one value to compare with itself, and every frame
+ * would look unchanged. A plain copy of the three fields a `Named` has is what
+ * makes the question askable, and a reader handed one is handed something that
+ * stops moving when the answer does.
  *
  * ITS OWN MODULE, and not a corner of `./reading.tsx`, because the rule above
  * is a fact about VALUES rather than about who hands what to whom — and a rule
  * about values is checkable without a browser (`./names.browsertest.ts`).
- *
- * THE SHAPE HAS A NAME AND ONE OCCUPANT: hold the last value while a by-value
- * comparison says nothing changed, over a source whose own identity is stable.
- * The ordinary spelling for "did this change" is `equals` on a memo, and it
- * does not reach here — the array off the store is the SAME array frame after
- * frame, so an `equals` would be handed one value to compare with itself and
- * every frame would look unchanged. That is what makes the held plain copy the
- * mechanism rather than a nicety. One occupant is not a receptacle; a second
- * reader of the same shape is when it graduates.
  */
 
 import type { Named, PageReading } from "@olai/format"
@@ -60,29 +59,35 @@ export type Names = (id: string) => Named | undefined
 export const createNames = (
   reading: Accessor<PageReading | undefined>,
 ): Accessor<Names> => {
-  const held = createMemo<ReadonlyArray<Named>>((last) => {
-    const names = reading()?.names ?? []
-    // Reading every field is what subscribes this to every frame — and
-    // returning `last` unchanged is what stops it there: Solid compares a
-    // memo's value by identity, so an equal answer notifies nobody.
-    return last !== undefined && sameNames(last, names)
-      ? last
-      : names.map((one) => ({ id: one.id, title: one.title, file: one.file }))
-  })
+  // Copying is what reads every field of every name, which is what subscribes
+  // this to every frame; `equals` is what stops it there.
+  const held = createMemo(
+    (): ReadonlyArray<Named> =>
+      (reading()?.names ?? []).map((one) => ({
+        id: one.id,
+        title: one.title,
+        file: one.file,
+      })),
+    undefined,
+    { equals: sameNames },
+  )
   return createMemo<Names>(() => {
-    const table = new Map(held().map((one) => [one.id, one]))
+    const table = new Map<string, Named>()
+    for (const one of held()) table.set(one.id, one)
     return (id) => table.get(id)
   })
 }
 
-/** The same names, by value — the whole of a `Named` is its three fields. */
+/** The same names in the same order — what "nothing this page points at was
+ *  renamed, or moved, or went away" means. The whole of a `Named` is its three
+ *  fields, so this is a walk rather than anything cleverer. */
 const sameNames = (
-  held: ReadonlyArray<Named>,
-  names: ReadonlyArray<Named>,
+  a: ReadonlyArray<Named>,
+  b: ReadonlyArray<Named>,
 ): boolean =>
-  held.length === names.length &&
-  held.every((one, at) => {
-    const now = names[at]
-    return now !== undefined &&
-      one.id === now.id && one.title === now.title && one.file === now.file
+  a.length === b.length &&
+  a.every((one, at) => {
+    const other = b[at]
+    return other !== undefined &&
+      one.id === other.id && one.title === other.title && one.file === other.file
   })

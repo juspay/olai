@@ -22,8 +22,6 @@
 
 import { Given, Then } from "@cucumber/cucumber";
 
-import { selector, TESTID } from "@olai/web/src/client/testids.ts";
-
 import { markRegion, nothingAnnounced, regionHeld } from "../support/probe.ts";
 import {
   BREADCRUMBS,
@@ -31,6 +29,9 @@ import {
   DOCUMENT_REFERRERS,
   EDGE_HELD,
   FILTER_BAR,
+  HEADER_SEARCH_RESULTS,
+  PALETTE_LIST,
+  PIN_SHELF,
   PROPS,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -49,10 +50,10 @@ const REGIONS: Readonly<Record<string, string>> = {
   "property drawer": PROPS,
   "edge panel's list": EDGE_HELD,
   "referrers section": DOCUMENT_REFERRERS,
-  "pinned shelf": selector(TESTID.pinShelf),
-  "palette list": selector(TESTID.paletteList),
+  "pinned shelf": PIN_SHELF,
+  "palette list": PALETTE_LIST,
   "@ menu": CHAT_COMPLETION,
-  "header search panel": selector(TESTID.headerSearchResults),
+  "header search panel": HEADER_SEARCH_RESULTS,
   "filter bar": FILTER_BAR,
 };
 

@@ -146,11 +146,11 @@ export function EdgePanel(props: {
         >
           {/* `<Key>` BY THE ID AS WRITTEN, which is the key the drawn row of
               links is already keyed by and for the same reason word for word
-              (`./named.ts`): the node is a fresh object on every frame the
-              page publishes, so `namedBy` mints fresh refs, and a `<For>`
-              comparing by reference rebuilt every chip on every frame —
-              taking with it the caret of a reader who had tabbed onto an `×`
-              while somebody else was typing on the page. */}
+              (`./named.ts`, and `../Tree.tsx` for the mechanism). What it
+              costs here is a caret: drawn by reference, every chip was rebuilt
+              on every frame of the page, and a reader who had tabbed onto an
+              `×` lost it to the document body the moment somebody else
+              wrote. */}
           <Key each={held()} by="id">
             {(one) => (
               <li class="flex items-center gap-1 rounded border border-rule/70 px-1.5 py-0.5 text-sm text-ink">

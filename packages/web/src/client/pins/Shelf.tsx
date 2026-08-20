@@ -218,14 +218,14 @@ export function Shelf() {
             looking at the whole column actually needs (human, 2026-08-19). */}
         <h2 class={REGION_LABEL}>Pinned</h2>
         <ul class="m-0 list-none p-0" ref={list}>
-          {/* `<Key>` BY THE PIN NODE'S OWN ID, not `<For>`: the shelf arrives
-              off the wire and `pinsOf` mints a fresh `Pin` per row, so every
-              pins frame — one pin added, one reorder, one pinned node retitled
-              anywhere in the vault — replaced every element of this array. A
-              `<For>` compares by reference, so the whole column was torn down
-              and rebuilt for a rename nobody made here, which is the flicker a
-              reader sees in the corner of their eye while typing somewhere
-              else. */}
+          {/* `<Key>` BY THE PIN NODE'S OWN ID, not `<For>`, for the reason the
+              tree uses it (`../Tree.tsx`): `pinsOf` mints a fresh `Pin` per row
+              off every pins frame — one pin added, one reorder, one pinned node
+              retitled anywhere in the vault — so drawn by reference the whole
+              column was rebuilt for a rename nobody made here, which is the
+              flicker in the corner of the eye of somebody typing on a different
+              page. The id is the PIN's, never the target's: two pins may name
+              one node, and it is the row that is being kept. */}
           <Key each={pins()} by="id">
             {(pin, at) => (
               <Pin

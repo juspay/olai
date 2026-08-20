@@ -342,3 +342,25 @@ export const pressed = async (world: OlaiWorld, key: string): Promise<void> => {
   await world.waitForFrame();
   await answered();
 };
+
+/**
+ * WHAT HAS THE FOCUS, said as a step can compare it: the control's own
+ * `data-testid`, and the value on it where a control's identity is a value
+ * (`data-value`, which is how one row of a segmented control differs from
+ * another). `"nothing"` for the body, which is where a rebuilt element sends
+ * the focus it was holding — the answer this exists to make legible.
+ *
+ * The suite had grown four spellings of this read, differing on what an
+ * element with no testid answers and on whether the body is `null` or a word.
+ * A question with four answers is four failure messages that disagree.
+ */
+export const focusedOn = (world: OlaiWorld): Promise<string> =>
+  world.page.evaluate(() => {
+    const element = document.activeElement;
+    if (element === null || element === document.body) return "nothing";
+    const testid = element.getAttribute("data-testid");
+    const value = element.getAttribute("data-value");
+    return `${testid ?? element.tagName.toLowerCase()}${
+      value === null ? "" : `=${value}`
+    }`;
+  });

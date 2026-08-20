@@ -90,6 +90,9 @@ Feature: A frame leaves the rest of the page standing
     Then the node "handles" has the title "choose the handles today"
     And the "edge panel's list" kept every element it had
     And the caret is still on the edge panel's ×
+    # ...and not because the caret survived a reload, which would have taken the
+    # panel with it.
+    And the page has not reloaded
     And there should be no page errors
 
   Scenario: A document's referrers hold still while a second one is written

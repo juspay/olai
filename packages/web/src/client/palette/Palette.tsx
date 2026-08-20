@@ -883,14 +883,15 @@ export function Palette(props: {
                 class="m-0 max-h-72 list-none overflow-x-hidden overflow-y-auto p-1"
                 data-testid={TESTID.paletteList}
               >
-                {/* `<Key>` by the row's own id, which {@link PaletteItem.id}
-                    already promises is unique in this list — not `<For>`. The
-                    rows are minted fresh: `pinItem` builds one per read and
-                    `hitItem` maps the answer, so every keystroke during the
-                    200 ms settle, every route change and every frame that
-                    refills the names rebuilt this array with the hits
-                    unchanged. Keyed by reference that tore down and rebuilt
-                    every row a reader was already walking. */}
+                {/* `<Key>` rather than `<For>`, for the reason the tree uses it
+                    (`../Tree.tsx`): the rows are minted fresh on every read, so
+                    every keystroke during the 200 ms settle rebuilt a list whose
+                    hits had not changed, under a cursor somebody was walking
+                    down. `<Key>` and not `<Index>`, unlike the shortlists, for
+                    the same reason the tree is keyed: these rows MOVE — the
+                    hits arrive under the commands and rank against each other —
+                    and {@link PaletteItem.id} already promises the id is unique
+                    in this list, which is what makes it a key. */}
                 <Key
                   each={items()}
                   by="id"

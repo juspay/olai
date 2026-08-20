@@ -64,11 +64,12 @@ export function PropsDrawer(props: {
         class="mt-0.5 mb-1 flex flex-wrap items-baseline gap-x-2 text-[0.8125rem] leading-snug text-muted"
         data-testid={TESTID.props}
       >
-        {/* `<Key>`, not `<For>`: `customEntries` mints fresh entries from a
-            node that is itself a fresh object on every frame the page
-            publishes (docs/brainstorming/reactivity-after-the-flip.md §2), so
-            a `<For>` comparing by reference rebuilt every chip of every open
-            row on every keystroke committed anywhere on the page. */}
+        {/* `<Key>`, not `<For>`, for the reason the tree uses it
+            (`../Tree.tsx`): `customEntries` mints fresh entries from a node
+            that is itself a fresh object per frame on a ROW, so drawn by
+            reference every chip of every open row was rebuilt on every frame
+            of the page. Keyed by {@link keyOf}, which is where the one thing
+            that could collide is answered. */}
         <Key each={entries()} by={keyOf}>
           {(entry, index) => (
             <span

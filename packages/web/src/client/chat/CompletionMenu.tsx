@@ -200,13 +200,13 @@ export function CompletionMenu(props: {
       data-kind={props.kind}
     >
       {/* `<Index>` rather than `<For>`, which is `../search/Shortlist.tsx`'s
-          rule over the identical rows and the one this list needed most: the
-          rows are positional (the cursor above walks them by index, and the
-          section heading is a comparison with the row ABOVE), there are at
-          most eight, and the composer mints fresh ones on every keystroke and
-          again when the node half of the answer lands. Keyed by reference,
-          the file rows a reader was already looking at were torn down and
-          rebuilt the moment the server's rows arrived beside them. */}
+          rule over the identical rows: they are positional — the cursor above
+          walks them by index, and the section heading is a comparison with the
+          row ABOVE — and there are at most eight. What it costs here is the
+          list's own shape: the composer answers it TWICE, the paths at once and
+          the nodes a round trip later, so by reference the file rows a reader
+          was already looking at were rebuilt the moment the second half landed
+          beside them. */}
       <Index each={props.rows}>
         {(row, index) => (
           <>
