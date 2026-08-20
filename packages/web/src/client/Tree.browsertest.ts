@@ -77,14 +77,33 @@ const page = (...rows: ReadonlyArray<Row>): PageReading => ({
   names: rows.map((one) => ({ id: one.key, title: "", file: "house.olai" })),
 })
 
-const THREE = (): PageReading =>
-  page(
+/**
+ * The page every case below starts from, and the three shapes a gesture leaves
+ * it in — spelled ONCE and varied by argument.
+ *
+ * Four literals differing in one word would make "an IDENTICAL frame" a claim
+ * about somebody's typing rather than a property of the value, and a stray
+ * character in the part meant to be unchanged would read as a row that moved.
+ */
+const THREE = (
+  moved: {
+    /** One top-level row's title, changed. */
+    readonly order?: string
+    /** ...or one row three levels down. */
+    readonly child?: string
+    /** ...or nothing changed and the rows arrive in a different order. */
+    readonly rotated?: boolean
+  } = {},
+): PageReading => {
+  const rows = [
     row("/kitchen", "kitchen", "kitchen remodel", [
-      row("/kitchen/handles", "handles", "choose the handles"),
+      row("/kitchen/handles", "handles", moved.child ?? "choose the handles"),
     ]),
-    row("/order", "order", "order the new cabinets"),
+    row("/order", "order", moved.order ?? "order the new cabinets"),
     row("/herbs", "herbs", "the herb bed"),
-  )
+  ] as const
+  return page(...(moved.rotated === true ? [rows[2], rows[0], rows[1]] : rows))
+}
 
 /** The tree's own reading of a store, with the two counters the finding is
  *  about: how many times a per-row binding re-ran, and how many times the rows
@@ -177,28 +196,11 @@ const REPEAT = (write: (next: PageReading) => void) => write(THREE())
 /** One row's title changed and nothing else — the keystroke the finding is
  *  written about. */
 const ONE_TITLE = (write: (next: PageReading) => void) =>
-  write(
-    page(
-      row("/kitchen", "kitchen", "kitchen remodel", [
-        row("/kitchen/handles", "handles", "choose the handles"),
-      ]),
-      row("/order", "order", "order the new cabinets today"),
-      row("/herbs", "herbs", "the herb bed"),
-    ),
-  )
+  write(THREE({ order: "order the new cabinets today" }))
 
 /** The rows in a different order — a `move_node` landing under a page somebody
  *  is looking at. */
-const REORDER = (write: (next: PageReading) => void) =>
-  write(
-    page(
-      row("/herbs", "herbs", "the herb bed"),
-      row("/kitchen", "kitchen", "kitchen remodel", [
-        row("/kitchen/handles", "handles", "choose the handles"),
-      ]),
-      row("/order", "order", "order the new cabinets"),
-    ),
-  )
+const REORDER = (write: (next: PageReading) => void) => write(THREE({ rotated: true }))
 
 test("UNDECLARED: a repeated frame re-runs every row's bindings — the defect", () => {
   // Master, exactly: `reconcile(next, { key: null })` with no `merge`. Three
@@ -252,15 +254,7 @@ test("a reorder MOVES the rows rather than rewriting them", () => {
 
 /** A row three levels down retitled — the same keystroke, inside a subtree. */
 const ONE_CHILD_TITLE = (write: (next: PageReading) => void) =>
-  write(
-    page(
-      row("/kitchen", "kitchen", "kitchen remodel", [
-        row("/kitchen/handles", "handles", "choose the handles today"),
-      ]),
-      row("/order", "order", "order the new cabinets"),
-      row("/herbs", "herbs", "the herb bed"),
-    ),
-  )
+  write(THREE({ child: "choose the handles today" }))
 
 test("a row's CHILDREN are keyed by the same field, at every depth", () => {
   // One key per member, reaching every array at every depth — so the subtree
