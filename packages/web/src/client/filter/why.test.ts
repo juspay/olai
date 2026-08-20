@@ -13,12 +13,13 @@
  *      title holds nothing the reader typed.
  *
  * Over the reading `./narrowing.ts` produces rather than over a mock, so the
- * `field` these read is the matcher's own answer and not one invented here.
+ * `matched` field these read is the matcher's own answer and not one invented
+ * here.
  * The fixed-query note in `./narrowing.test.ts` applies unchanged: there is no
  * DOM under `bun test`, so each case builds its own reading.
  */
 
-import { derive, litBy, rowsOf } from "@olai/format"
+import { derive, litBy, matching, parseFilter, rowsOf } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
@@ -52,14 +53,30 @@ const TODAY = "2026-08-18"
 
 const tree: Drawn = { kind: "tree", rows: rowsOf(derived, "house.olai") }
 
+/** What the server would say — the matcher's own answer in the answer's own
+  *  shape, exactly as `./narrowing.test.ts` builds it and for its reason: the
+  *  `matched` field these three questions read has to be the matcher's, not one
+  *  invented here. */
 const page = (text: string): Narrowed =>
   createRoot(() =>
     createNarrowing({
-      derived: () => derived,
+      query: () => parseFilter(text, TODAY),
       text: () => text,
       all: () => tree,
       visible: () => tree,
-      today: () => TODAY,
+      matched: () =>
+        new Map(
+          matching(derived, parseFilter(text, TODAY)).map(({ at, match }) => [
+            at.node.id,
+            {
+              id: at.node.id as never,
+              ...(match.field === null ? {} : { matched: match.field }),
+            },
+          ]),
+        ),
+      answering: () => text.trim(),
+      failure: () => null,
+      offline: () => null,
     })
   )
 

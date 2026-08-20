@@ -42,7 +42,9 @@ export const matchedAttr = (
   narrowed: Narrowed,
   id: string,
 ): string | undefined =>
-  narrowed.active() ? String(narrowed.matched().has(id)) : undefined
+  narrowed.active() && narrowed.answered()
+    ? String(narrowed.matched().has(id))
+    : undefined
 
 /**
  * May this page say what it HOLDS?
@@ -80,7 +82,7 @@ export const lighting = (
  * as context — every row is there because the page draws it.
  */
 export const asContext = (narrowed: Narrowed, id: string): boolean =>
-  narrowed.active() && !narrowed.matched().has(id)
+  narrowed.active() && narrowed.answered() && !narrowed.matched().has(id)
 
 /**
  * How a row says it is context and not an answer — the ink for {@link
@@ -106,7 +108,7 @@ export const CONTEXT_DIM = (narrowed: Narrowed, id: string): string =>
  * Did the query find this row ONLY behind its ¶ — and if so, what to look for
  * in the note?
  *
- * `desc` is the lowest-weighted field the matcher scores, so a `field` of
+ * `desc` is the lowest-weighted field the matcher scores, so a `matched` of
  * `desc` means no word landed in the title, the id or a tag anywhere in the
  * query: the row is drawing a title with nothing the reader typed in it. That
  * is the row the excerpt exists for (`../note/excerpt.ts`), and it is the model's own
@@ -120,4 +122,4 @@ export const behindTheMark = (
   narrowed: Narrowed,
   id: string,
 ): ReadonlyArray<string> =>
-  narrowed.matched().get(id)?.field === "desc" ? narrowed.needles() : NO_NEEDLES
+  narrowed.matched().get(id)?.matched === "desc" ? narrowed.needles() : NO_NEEDLES

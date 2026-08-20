@@ -5,9 +5,9 @@
  * one answers: the header takes you TO a node anywhere in the directory, this
  * one narrows what is already in front of you. One box answering both would
  * have to guess which was meant by every keystroke. What they DO share is the
- * grammar — the header box and the ⌘K palette are callers of the same
- * `Query.search`, which is gated by the same `parseFilter` this page is
- * narrowed by — so the operators work in all three and mean one thing.
+ * grammar AND, since `search-server-side`, the matcher's own answer: the header
+ * box, the ⌘K palette and this bar are all callers of the server's one reading,
+ * so the operators work in all three and mean one thing.
  *
  * Everything it draws is a fact somebody could otherwise only guess at:
  *
@@ -17,9 +17,23 @@
  *     hides finished work draws nothing and the reason must not be a mystery
  *     (`./narrowing.ts` argues the order, `./count.ts` the wording, and the
  *     three numbers are counted inside one set so the sentence adds up);
+ *   - WHETHER THE ROWS ANSWER WHAT IS TYPED, which is the round trip's own
+ *     line: a filter settles and then flies, so for a beat the page is one
+ *     query behind, and the count of the query before is a number about a
+ *     question nobody asked. The rows hold still and this line says so
+ *     (`./count.ts`'s `ANSWERING`);
  *   - a REFUSAL, in the grammar's own words, for a known operator with an
  *     unknown value. Never silently downgraded to a substring search:
- *     HACKING.md's rule is that an error reaches somebody.
+ *     HACKING.md's rule is that an error reaches somebody. It is drawn from
+ *     the browser's own parse, so it arrives with the keystroke rather than
+ *     with an answer;
+ *   - a FAILED CALL, which is a different piece of news in a different slot:
+ *     the grammar refusing a word is an answer, the server not answering is
+ *     not, and a reader shown one in the other's sentence has been told
+ *     something untrue;
+ *   - WHY THE BOX IS INERT, when the connection cannot carry a question. In
+ *     the connection pill's own words (`../connection/reaching.ts`), because
+ *     two sentences about one wire are two chances to disagree about it.
  *
  * The value lives in the ADDRESS (`../routes.ts`), not here — so a narrowed
  * page is a link, and Back leaves the filter rather than un-typing it.
@@ -31,7 +45,7 @@ import { SaidLine } from "../edit/SaidLine.tsx"
 import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
-import { countLine } from "./count.ts"
+import { ANSWERING, countLine } from "./count.ts"
 import type { Narrowing } from "./narrowing.ts"
 
 /** What the box says when it is empty — the whole grammar in one line, because
@@ -46,8 +60,24 @@ export function FilterBar(props: {
   readonly narrowing: Narrowing
   readonly onType: (text: string) => void
 }) {
+  /** A question cannot be asked, so the box takes none: an input that swallowed
+   *  keystrokes into a page that could not narrow would be the door pretending
+   *  (`../connection/reaching.ts`). What is already narrowed stays narrowed —
+   *  the last thing the server said is still the last thing the server said. */
+  const inert = () => props.narrowing.offline() !== null
+
   return (
-    <div class="mb-6" data-testid={TESTID.filterBar}>
+    <div
+      class="mb-6"
+      data-testid={TESTID.filterBar}
+      // WHICH QUERY THE PAGE ANSWERS, in the markup — the same fact the count
+      // line draws in words, published so something outside the browser can
+      // wait for it. Absent while the rows answer a question the reader has
+      // moved on from, which is the whole of what a debounce and a round trip
+      // added to this box: a scenario that read the rows in the beat between
+      // the keystroke and the answer would be reading the page before it.
+      data-answering={props.narrowing.answering() ?? undefined}
+    >
       <div class="flex max-w-xl items-center gap-1">
         {/* `text`, not `search`: a `type="search"` input draws the browser's
             own clear cross, and this bar already has one of its own — two
@@ -56,10 +86,15 @@ export function FilterBar(props: {
             no cross of its own to collide with. */}
         <input
           type="text"
-          class="min-w-0 flex-1 rounded-full border-0 bg-desk/70 px-4 py-2 font-mono text-xs text-ink outline-none placeholder:text-muted ring-1 ring-rule/40 focus:ring-2 focus:ring-accent/40"
+          class="min-w-0 flex-1 rounded-full border-0 bg-desk/70 px-4 py-2 font-mono text-xs text-ink outline-none placeholder:text-muted ring-1 ring-rule/40 focus:ring-2 focus:ring-accent/40 disabled:opacity-60"
           data-testid={TESTID.filterInput}
           placeholder={PLACEHOLDER}
           aria-label="filter this page"
+          disabled={inert()}
+          // The pill's sentence, on the control it disables — so a pointer
+          // resting on a dead box gets the reason without hunting for the dot
+          // in the header.
+          title={props.narrowing.offline() ?? undefined}
           value={props.narrowing.text()}
           onInput={(event) => props.onType(event.currentTarget.value)}
           // WHICH key empties it is the registry's (`../keys.ts`'s list layer,
@@ -91,6 +126,9 @@ export function FilterBar(props: {
         <p
           class="m-0 mt-1 font-mono text-xs text-muted"
           data-testid={TESTID.filterCount}
+          // The three numbers, or the word that says they are not about what is
+          // typed yet — ONE element either way (`./count.ts` argues why).
+          //
           // A READOUT rather than something said about a write, which is why
           // it is not a `SaidLine` (`../edit/SaidLine.tsx` owns the two MOODS a
           // write has, and a count has neither). Announced politely for the
@@ -99,7 +137,9 @@ export function FilterBar(props: {
           // worth.
           aria-live="polite"
         >
-          {countLine(props.narrowing.counts())}
+          {props.narrowing.answering() === null
+            ? ANSWERING
+            : countLine(props.narrowing.counts())}
         </p>
       </Show>
 
@@ -119,6 +159,33 @@ export function FilterBar(props: {
           />
         )}
       </For>
+
+      {/* THE CALL refusing, which is not the grammar refusing: its own slot, so
+          a wire that fell over cannot be read as a query that found nothing.
+          Alarmed, because the rows on screen are now older than the box. */}
+      <Show when={props.narrowing.failure()}>
+        {(said) => (
+          <SaidLine
+            said={{ tone: "alarm", text: said() }}
+            class="m-0 mt-1 font-mono text-xs"
+            testid={TESTID.filterFailure}
+          />
+        )}
+      </Show>
+
+      {/* ...and why nothing can be asked at all, in the pill's own words. An
+          ASIDE rather than an alarm: nothing was refused and nothing was lost,
+          the wire is simply not there — the connection pill is where that
+          news belongs and this is it, repeated on the control it disables. */}
+      <Show when={props.narrowing.offline()}>
+        {(said) => (
+          <SaidLine
+            said={{ tone: "aside", text: said() }}
+            class="m-0 mt-1 font-mono text-xs"
+            testid={TESTID.filterOffline}
+          />
+        )}
+      </Show>
     </div>
   )
 }

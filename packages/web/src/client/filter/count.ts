@@ -70,6 +70,22 @@ export const NOTHING_COUNTED: Counts = { shown: 0, held: 0, hiddenAsDone: 0 }
  * held-back matches to be more THAN — "no matches of 57 — 3 more matches
  * hidden" is a line that contradicts itself in eight words.
  */
+/**
+ * What the line says INSTEAD of the numbers while the rows on screen answer a
+ * query the reader has already moved on from (`./narrowing.ts`'s `answering`).
+ *
+ * A word rather than the last query's count, because a count is a claim about
+ * what was typed: "1 of 10" over rows that answer the query before it is the
+ * one sentence this file exists to prevent, arithmetic that does not add up.
+ * The rows themselves hold still — they are somebody's reading — and this is
+ * the label that keeps them honest for the beat it takes.
+ *
+ * IN THE SAME ELEMENT as the numbers, so there is one place a reader looks for
+ * "what does this page have to say about my query" and one place a scenario
+ * reads it from.
+ */
+export const ANSWERING = "filtering…"
+
 export const countLine = ({ shown, held, hiddenAsDone }: Counts): string => {
   const found = shown === 0 ? `no matches of ${held}` : `${shown} of ${held}`
   if (hiddenAsDone === 0) return found

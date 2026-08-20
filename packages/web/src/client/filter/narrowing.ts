@@ -6,11 +6,18 @@
  * components, so the bar's count, the rows the page draws and the folds a tree
  * suspends cannot come to three different conclusions about the same query.
  *
- * THE MATCHING IS NOT HERE. `@olai/format`'s `parseFilter` / `matching` is what
- * decides which nodes a query selects, and it is the same function an agent's
- * `search_nodes` is gated by — one matcher, five callers, argued in that file's
- * header and in docs/brainstorming/filter-in-place.md. This file decides only
- * what to do with the answer.
+ * THE MATCHING IS NOT HERE, and since `search-server-side` it is not in this
+ * browser at all: which nodes a query selects is answered by the server, over
+ * the same `@olai/format` matcher an agent's `search_nodes` is gated by
+ * (`./asking.ts` is the round trip, and says what it cost). What IS still read
+ * here is the GRAMMAR over the box's own text — whether there is a query, what
+ * it refused, which words to light — because a parse reads the query string and
+ * nothing about the directory, and a refusal that waited for a round trip would
+ * be a reader typing on past a sentence the app could have said at once.
+ *
+ * So this file decides only what to do with the answer, which is what its
+ * header always claimed; what changed is that the answer now ARRIVES, and two
+ * of the decisions below are about that (`matched`, `drawn`).
  *
  * WHATEVER THE PAGE IS. The filter used to be the two tree pages' and is now
  * every page that draws nodes (`../page.ts`'s {@link Drawn}), which cost this
@@ -20,16 +27,18 @@
  * agenda are flat rows that arrive carrying their own ancestry, the trash is a
  * tree per archive.
  *
- * THE TRASH IS ASKED FOR, ONCE, HERE — and it is the one thing this file
- * tells the matcher about the question rather than about the answer. Archived
- * nodes are out of every reading unless a query says `is:trashed`
- * (docs/search.md), because the doors that rule is written for are searching
- * the DIRECTORY. This door is not: it tests the rows in front of somebody, and
- * the TRASH is the page that draws what was put away — applying the default
- * there would take away every row and leave the reader nothing to read the
- * absence by — and so is a TREE that is a zoom onto an archived node, which is
- * where an `is:trashed` hit lands when it is clicked (`./drawn.ts`'s
+ * THE TRASH IS ASKED FOR, ONCE — and it is the one thing this reading tells the
+ * matcher about the question rather than about the answer. Archived nodes are
+ * out of every reading unless a query says `is:trashed` (docs/search.md),
+ * because the doors that rule is written for are searching the DIRECTORY. This
+ * door is not: it tests the rows in front of somebody, and the TRASH is the
+ * page that draws what was put away — applying the default there would take
+ * away every row and leave the reader nothing to read the absence by — and so
+ * is a TREE that is a zoom onto an archived node, which is where an
+ * `is:trashed` hit lands when it is clicked (`./drawn.ts`'s
  * {@link showsTrashed} names both, and the mirror case it cannot rule out).
+ * It rides the REQUEST now (`./asking.ts`'s `Ask`), which is the same sentence
+ * one layer over: the page that draws put-away rows is the page that says so.
  * A day and the agenda were two more until 2026-08-17, when the human ruled
  * that what is put away is drawn on the trash and nowhere else
  * (`@olai/format`'s `dates.ts` is where they stopped drawing it), and the
@@ -44,25 +53,30 @@
  * would make the preference mean two things depending on what else was typed.
  */
 
-import type { Derived, Match, Refusal } from "@olai/format"
-import { matching, needlesOf, parseFilter } from "@olai/format"
+import type { Filter, Refusal } from "@olai/format"
+import { needlesOf } from "@olai/format"
 import { type Accessor, createMemo } from "solid-js"
 
 import type { Drawn } from "../page.ts"
+import type { Matches } from "./asking.ts"
 import { type Counts, NOTHING_COUNTED } from "./count.ts"
-import { matchesIn, narrowed, placesIn, showsTrashed } from "./drawn.ts"
+import { matchesIn, narrowed, placesIn } from "./drawn.ts"
 
 /** What an unfiltered page has selected — ONE value, shared by every reading of
  *  it. A fresh `new Map()` per read would be a new value every frame, and every
  *  row of the tree memoises against this one. */
-export const NOTHING_MATCHED: ReadonlyMap<string, Match> = new Map()
+export const NOTHING_MATCHED: Matches = new Map()
 
 /** What a filtered page knows about itself. */
 export interface Narrowing {
   /** What was typed, verbatim — the value in the box. */
   readonly text: Accessor<string>
   /** Is there a filter at all? An empty box is not a filter; a box holding a
-   *  query the grammar refused IS one, and it selects nothing. */
+   *  query the grammar refused IS one, and it selects nothing.
+   *
+   *  READ OFF THE PARSE and never off the answer, so it is true the instant
+   *  somebody types: a page whose folds unsuspend a round trip after the query
+   *  appeared would be a page that hides the match it is about to draw. */
   readonly active: Accessor<boolean>
   /** What the grammar could not read, in its own words — empty for every query
    *  it could. Lifted off the parsed value rather than handed out with it: the
@@ -80,14 +94,55 @@ export interface Narrowing {
    * behind the ¶ draws a title with nothing the query said in it. Keeping a
    * second structure beside the set was the alternative, and two answers to one
    * question are free to disagree by a frame.
+   *
+   * IT IS THE LAST ANSWER THAT ARRIVED, which is the honest thing for it to be
+   * while a newer one is in flight: the rows on screen were narrowed by this
+   * map, so a row asking why it is drawn must be answered out of the same map
+   * that drew it. Whether it answers what is TYPED is {@link answering}.
    */
-  readonly matched: Accessor<ReadonlyMap<string, Match>>
+  readonly matched: Accessor<Matches>
+  /**
+   * Has the query in the box been ANSWERED at all? False only in the beat
+   * between a fresh filter and its first answer, and every row-level fact is
+   * held back until it is true: without it each row would publish
+   * `data-match="false"` and wear the context dim for that beat, which is the
+   * page claiming an answer it has not got — a whole outline greyed out because
+   * somebody typed a letter.
+   *
+   * NOT the same as {@link answering}, which is about WHICH question the rows
+   * answer: an answer to the query before last is still an answer, and the rows
+   * it drew are honest rows to keep facts on.
+   */
+  readonly answered: Accessor<boolean>
   /** The words the query looks for, folded — what a matched row lights up in
    *  its title (`@olai/format`'s `needlesOf`, and `./lit.ts` for the split).
    *  Empty for a query that named none (`is:done`) and for no query at all. */
   readonly needles: Accessor<ReadonlyArray<string>>
   /** What the page actually draws: done-hidden first, then narrowed. */
   readonly drawn: Accessor<Drawn>
+  /**
+   * WHICH query the page in front of the reader answers — `null` while it
+   * answers one they have already moved on from.
+   *
+   * A filter is a debounce and a round trip now, so there are two moments when
+   * what is drawn is not what is typed: the settle, and the flight. Both are
+   * this one fact, and it is SAID rather than acted on, because acting on it is
+   * worse than either: blanking the page per keystroke, or drawing the whole
+   * page and re-narrowing it, are two kinds of flicker over rows somebody is
+   * reading. The rows hold still, the bar says they are a question behind
+   * (`./count.ts`'s {@link answeringLine}), and the answer replaces them once.
+   *
+   * A query the grammar refused, and no query at all, answer THEMSELVES: both
+   * are read here, so there is nothing in flight and nothing to say.
+   */
+  readonly answering: Accessor<string | null>
+  /** A refused call, in the server's own words (`./asking.ts`) — `null` when
+   *  there is none. Never the same slot as a REFUSAL: one is the server saying
+   *  it could not answer, the other is an answer. */
+  readonly failure: Accessor<string | null>
+  /** Why the box cannot be asked anything right now — the connection pill's own
+   *  sentence — or `null` while it can. */
+  readonly offline: Accessor<string | null>
   /**
    * What this query found, in the three numbers the bar says it in — matched
    * and drawn, held by the page, held back as done (`./count.ts` owns the
@@ -103,68 +158,65 @@ export interface Narrowing {
 }
 
 /**
- * The reading, over the app's three inputs: the set's derivation, what the open
- * page draws BEFORE the done preference is applied, and the same after it.
+ * The reading, over the app's inputs: the parsed query, what the open page
+ * draws BEFORE the done preference is applied, the same after it, and what the
+ * server said about the query.
  *
- * Both are handed in rather than computed here because the app already has them
- * (`../App.tsx` composes the page and applies `visible`), and a second
- * `drawnBy` would be a second answer to what page is open.
+ * The two pages are handed in rather than computed here because the app already
+ * has them (`../pane/PageView.tsx` composes the page and applies `visible`),
+ * and a second `drawnBy` would be a second answer to what page is open. The
+ * PARSE is handed in for the same reason it is handed in twice nowhere: the
+ * pane parses the box once and both this reading and the question it sends are
+ * built off that one value (`./asking.ts`).
  */
 export const createNarrowing = (source: {
-  readonly derived: Accessor<Derived | undefined>
+  /** What the grammar made of what was typed — `@olai/format`'s `parseFilter`
+   *  over the box and the tab's own day, done by the caller. */
+  readonly query: Accessor<Filter>
   readonly text: Accessor<string>
   /** What the page draws with nothing hidden — what the count of held-back
    *  matches is measured against. */
   readonly all: Accessor<Drawn>
   /** The same, with this reader's preference applied. */
   readonly visible: Accessor<Drawn>
-  /** What day it is here, from the tab's one clock (`../clock.ts`) — what the
-   *  grammar's relative words count from. An ACCESSOR, because that clock moves
-   *  at midnight and a page left open on `date:today` should be narrowed to the
-   *  day the reader is looking at rather than the one they opened it on. */
-  readonly today: Accessor<string>
+  /** What the server said the query selects — `undefined` until it has said
+   *  anything at all about this filter (`./asking.ts`'s {@link Asked}). */
+  readonly matched: Accessor<Matches | undefined>
+  /** Which query that answer answers, `null` while one is in flight. */
+  readonly answering: Accessor<string | null>
+  /** A refused call, and why nothing can be asked — both straight from the
+   *  asking, because the bar draws them and the bar reads this. */
+  readonly failure: Accessor<string | null>
+  readonly offline: Accessor<string | null>
 }): Narrowing => {
-  const query = createMemo(() => parseFilter(source.text(), source.today()))
-  const active = createMemo(() => query().kind !== "nothing")
+  const active = createMemo(() => source.query().kind !== "nothing")
+  /** Is there a question for the SERVER — which is not the same as there being
+   *  a filter: a query the grammar refused is a filter that selects nothing,
+   *  and asking it would be paying a round trip to be told what the parse
+   *  already said. */
+  const asking = createMemo(() => source.query().kind === "asking")
 
-  // The one thing the matcher is told about the QUESTION rather than asked
-  // about the answer — the file header says why, and why it is read off the
-  // page rather than off its kind.
-  //
-  // ASKED OF THE UNFILTERED PAGE, which is the one thing about it the done
-  // preference may not decide. An archive is mostly finished work, so a zoom
-  // into one is the page where hiding `done` can take away every row — and
-  // asked of what was LEFT, this would answer "no archive here", the matcher
-  // would leave the whole archive out, and the bar would say "0 of 0" with
-  // nothing about the matches being held back. That sentence
-  // ({@link Counts.hiddenAsDone}) is measured against `all()`, so what
-  // decides its candidate set is measured against `all()` too. Which pages draw
-  // archived rows is a fact about the PAGE; what a reader hides is not.
-  //
-  // A MEMO OF ITS OWN, so the scan below does not track the page. What the page
-  // draws is a fresh value on every revision the store publishes and on every
-  // navigation — and the whole of what this reading takes from it is a boolean
-  // that is constant for four of the five shapes — only a tree is scanned
-  // (`./drawn.ts`'s {@link showsTrashed}). Read inline, every one of those
-  // frames re-ran the matcher over the entire set to arrive at the same answer.
-  const archived = createMemo(() => showsTrashed(source.all()))
-
-  const matched = createMemo(() => {
-    const indexes = source.derived()
-    if (indexes === undefined || !active()) return NOTHING_MATCHED
-    return new Map(
-      matching(indexes, query(), { trashed: archived() }).map((
-        { at, match },
-      ) => [at.node.id, match]),
-    )
-  })
-
-  // The ONE guard that is load-bearing: narrowing by an empty set is an empty
-  // page, and an unfiltered page draws the whole one. Every count below is
-  // honestly zero without a guard, so none of them has one.
-  const drawn = createMemo(() =>
-    active() ? narrowed(source.visible(), matched()) : source.visible()
+  const answered = createMemo(() => !asking() || source.matched() !== undefined)
+  const matched = createMemo(() =>
+    asking() ? source.matched() ?? NOTHING_MATCHED : NOTHING_MATCHED
   )
+
+  /**
+   * The ONE guard that is load-bearing: narrowing by an empty set is an empty
+   * page, and an unfiltered page draws the whole one.
+   *
+   * THE SECOND GUARD IS THE ROUND TRIP'S, and it is the difference between two
+   * empties: a query that has been ANSWERED with nothing empties the page, and
+   * a query nothing has answered YET may not — a page that blanked on the first
+   * keystroke and filled back in 200ms later would be a page that says "no
+   * matches" about a question nobody has answered. So an unanswered filter
+   * draws the page whole, and the bar says the rows are a question behind
+   * ({@link Narrowing.answering}).
+   */
+  const drawn = createMemo(() => {
+    if (!active() || !answered()) return source.visible()
+    return narrowed(source.visible(), matched())
+  })
 
   /**
    * The denominator — how many places the page HOLDS, which is `all()` and
@@ -190,16 +242,28 @@ export const createNarrowing = (source: {
   return {
     text: source.text,
     active,
+    answered,
     // A fact about the QUERY and so a memo of its own: it is read by every
     // matched row on the page, and re-deriving it per row per frame would be
     // the tree walking its own groups once for each of them.
-    needles: createMemo(() => needlesOf(query())),
+    needles: createMemo(() => needlesOf(source.query())),
     refusals: createMemo(() => {
-      const asked = query()
+      const asked = source.query()
       return asked.kind === "refused" ? asked.refusals : []
     }),
     matched,
     drawn,
+    // A query nobody has to ask answers itself, at once: the parse is the whole
+    // answer for an empty box and for a refused query, so neither is ever a
+    // question behind. Everything else is the wire's word, compared against
+    // what is typed rather than trusted to be about it.
+    answering: createMemo(() => {
+      const typed = source.text().trim()
+      if (!asking()) return typed
+      return source.answering() === typed ? typed : null
+    }),
+    failure: source.failure,
+    offline: source.offline,
     /**
      * THE THREE NUMBERS AS ONE VALUE, because they are one fact — what this
      * query found on this page — and nothing ever asks for one of them alone.

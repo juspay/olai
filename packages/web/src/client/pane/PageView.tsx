@@ -12,6 +12,7 @@
 
 import { createMemo, Match, Show, Switch } from "solid-js"
 
+import { parseFilter } from "@olai/format"
 import type { Agenda, Derived } from "@olai/format"
 
 import { AgendaPage } from "../agenda/AgendaPage.tsx"
@@ -19,6 +20,8 @@ import { CLEARANCE } from "../connection/Indicator.tsx"
 import { DayPage } from "../day/DayPage.tsx"
 import { DocumentPage } from "../document/DocumentPage.tsx"
 import { Broken } from "../errors/Broken.tsx"
+import { createAsked } from "../filter/asking.ts"
+import { showsTrashed } from "../filter/drawn.ts"
 import { FilterBar } from "../filter/FilterBar.tsx"
 import { NarrowedProvider } from "../filter/narrowed.tsx"
 import { createNarrowing } from "../filter/narrowing.ts"
@@ -65,12 +68,48 @@ export function PageView(props: {
 
   const shownDrawn = createMemo(() => visibleIn(allDrawn()))
 
+  /**
+   * THE BOX, READ ONCE — and both things made of it built off that one value:
+   * what the page says about the query (`filter/narrowing.ts`) and the question
+   * that goes to the server (`filter/asking.ts`). Two parses would be one
+   * grammar asked twice about one string, which is a drift the same function
+   * called twice cannot fix.
+   *
+   * The DAY is the tab's own (`../clock.ts`) and it is what the relative words
+   * count from HERE — the words to light, the refusals, whether there is a
+   * query at all. What the server matches by counts from the server's clock,
+   * exactly as the ⌘K palette and an agent's `search_nodes` already do; the two
+   * differ only for a tab left open across midnight or sitting in another time
+   * zone, and one answer about what day it is beats a query resolved twice.
+   */
+  const query = createMemo(() => parseFilter(filterOf(route()), props.today))
+
+  /**
+   * WHICH NODES the query selects — the server's answer, debounced and
+   * stale-guarded (`filter/asking.ts`). It used to be a walk over every node
+   * this tab held; the tab is giving that copy up
+   * (docs/brainstorming/vault-in-browser.md).
+   *
+   * ASKED ONLY WHEN THERE IS A QUESTION: an empty box and a query the grammar
+   * refused are both answered by the parse above, so neither is worth a round
+   * trip. The `trashed` flag is this page saying its own rows are put-away ones
+   * — the one thing the matcher is told about the question rather than asked
+   * about the answer (`filter/narrowing.ts`'s header).
+   */
+  const asked = createAsked({
+    question: () => (query().kind === "asking" ? filterOf(route()) : null),
+    trashed: () => showsTrashed(allDrawn()),
+  })
+
   const narrowing = createNarrowing({
-    derived: () => props.derived,
+    query,
     text: () => filterOf(route()),
     all: allDrawn,
     visible: shownDrawn,
-    today: () => props.today,
+    matched: asked.matched,
+    answering: asked.answering,
+    failure: asked.failure,
+    offline: asked.offline,
   })
 
   const rows = () => only(narrowing.drawn(), "tree")?.rows ?? []

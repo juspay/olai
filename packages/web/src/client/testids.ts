@@ -859,7 +859,11 @@ export const TESTID = {
   paletteConfirm: "palette-confirm",
   // ── the filter over the page, which is not the header's box ──────────
   /** The bar above a tree page: the box, the count, the refusals. Drawn on the
-   *  two routes that may carry a filter and nowhere else. */
+   *  two routes that may carry a filter and nowhere else.
+   *
+   *  `data-answering` is WHICH query the rows below it answer — absent while
+   *  they answer one the reader has already moved on from, since the filter is
+   *  a debounce and a round trip now (`client/filter/asking.ts`). */
   filterBar: "filter-bar",
   filterInput: "filter-input",
   /** "3 of 41", plus what the done-preference is holding back. */
@@ -868,6 +872,13 @@ export const TESTID = {
   /** A known operator with an unknown value, in the grammar's own words —
    *  never a query that quietly found nothing. */
   filterRefusal: "filter-refusal",
+  /** The search itself refusing — the server could not answer, which is a
+   *  different piece of news from a query it read and refused
+   *  (`client/filter/asking.ts`). */
+  filterFailure: "filter-failure",
+  /** Why the box is inert: the connection cannot carry a question, in the
+   *  connection pill's own words. */
+  filterOffline: "filter-offline",
 
   // ── split panes ──────────────────────────────────────────────────────
   /** One pane of a split workspace. `data-pane` is its index,
@@ -1115,6 +1126,10 @@ export const TESTID = {
    *  — `files` and `nodes` under an `@`, on `data-section`. A label rather than
    *  a row: the arrows never land on it. */
   chatCompletionSection: "chat-completion-section",
+  /** The `@` list's node half saying it could not be asked — a failed call, not
+   *  a word that named nothing. Its own line, never the send's refusal
+   *  (`client/chat/Composer.tsx`). */
+  chatNamingFailure: "chat-naming-failure",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

@@ -42,10 +42,14 @@ import { NOTHING_MATCHED, type Narrowing } from "./narrowing.ts"
  * same thing is a second place for the two to drift. What it adds is a DEFAULT
  * (below), which is the whole reason a row asks a context instead of the page.
  */
-export type Narrowed = Pick<Narrowing, "active" | "matched" | "needles">
+export type Narrowed = Pick<Narrowing, "active" | "answered" | "matched" | "needles">
 
 const NOTHING: Narrowed = {
   active: () => false,
+  // Nothing was asked, so nothing is outstanding: an unfiltered page is
+  // answered by definition, and a row outside a provider draws no match facts
+  // because there is no filter rather than because one is in flight.
+  answered: () => true,
   matched: () => NOTHING_MATCHED,
   needles: () => NO_NEEDLES,
 }
