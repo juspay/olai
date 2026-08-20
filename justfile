@@ -191,7 +191,7 @@ nix:
 hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
-# What a keystroke costs, on a generated vault. FOUR of them, and each is a
+# What a keystroke costs, on a generated vault. FIVE of them, and each is a
 # LEG rather than a scratch file, because slice 3 of `model-indices` ran its
 # numbers as a one-off and a benchmark nobody can re-run is a number nobody can
 # check — and deliberately NOT a dependency of `check`, since a timing that
@@ -229,13 +229,22 @@ hm-module:
 #     must answer the same list or the run fails, and a third times the walk as
 #     it literally stood; what the wider index costs the FOLD, and what the tag
 #     WALK under it costs in the three shapes it has been written in, are the
-#     two pairs the first leg prints at the end.
+#     two pairs the first leg prints at the end;
+#   - the DAY READINGS, each timed as an index read against the corpus walk it
+#     replaced (`packages/format/src/dates.bench.ts`, added with `Derived.byDay`
+#     — the roadmap node `perf-dates-index` named three full-vault walks, so it
+#     prints three PAIRS rather than one blended figure, plus what the index
+#     cost the fold). Two of the three moved to the server with
+#     `vault-in-browser`'s PR 4, where they are re-answered per subscriber per
+#     published revision, which is the unit the ratios are about. Each pair must
+#     answer the same value or the run fails.
 #
-# Three of the four run the SAME generated vault (`@olai/format/testlib`'s
-# `vaultOf` — the tab, the patcher and the tag completion), so what a frame
-# costs a browser, the patch inside it and what a completion asks of the view it
-# leaves are numbers about one directory; the matcher generates a corpus of its
-# own, sized for keystrokes rather than for a directory. The MERGE under all of
+# Four of the five run the SAME generated vault (`@olai/format/testlib`'s
+# `vaultOf` — the tab, the patcher, the tag completion and the day readings), so
+# what a frame costs a browser, the patch inside it and what a completion or a
+# calendar asks of the view it leaves are numbers about one directory; the
+# matcher generates a corpus of its own, sized for keystrokes rather than for a
+# directory. The MERGE under all of
 # it is not timed here and should not be: it is the framework's, and
 # `@kolu/surface`'s own `src/solid/collectionDeltas.bench.ts` measures it end to
 # end. Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS /
@@ -247,6 +256,7 @@ bench: install
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
     {{ nix_shell }} bun packages/format/src/vocabulary.bench.ts
+    {{ nix_shell }} bun packages/format/src/dates.bench.ts
 
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
 # instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees

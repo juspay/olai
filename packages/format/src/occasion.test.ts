@@ -8,13 +8,18 @@
  * Nothing above this file could tell — every one of those is a plausible page.
  *
  * So the WALK IS THE ORACLE, exactly as `derive` is `./patch.test.ts`'s: it is
- * written out here, once, in the shape it stood in (`datedNodes` over
- * `derived.nodes`, bucketed by day; the month filtered out of it; the agenda's
- * two halves sorting the keys they needed), and every generated corpus is asked
- * both ways. What the walk answers is what the index must answer.
+ * written out once in the shape it stood in — `datedNodes` over `derived.nodes`
+ * bucketed by day, the month filtered out of it, the agenda's two halves sorting
+ * the keys they needed — and every generated corpus is asked both ways. What the
+ * walk answers is what the index must answer.
  *
- * IT IS HERE AND NOT IN THE SHIPPED CODE, which is the difference between an
- * oracle and legacy: the walk has one caller and it is this file's assertions.
+ * IT LIVES IN `./fixtures.testlib.ts` because `./dates.bench.ts` divides by it:
+ * two reconstructions of one deleted walk could disagree, and then the ratio
+ * that bench prints would be about the difference between them while this file
+ * went on passing against the other one. That module's own header is the rule —
+ * a helper a test and a benchmark would otherwise hold two copies of belongs
+ * there — and nothing that ships calls any of it, which is what keeps an oracle
+ * from being legacy.
  *
  * The generator writes the corners a day reading can be wrong in, and each is
  * there for a reason a seed could not be trusted to reach:
@@ -46,64 +51,18 @@
 
 import { expect, test } from "bun:test"
 
+import { type Agenda, type AgendaDay, agendaOf, owedIn, owedOf } from "./agenda.ts"
+import { datedDays, datedOn, type DayGroup } from "./dates.ts"
+import { derive, type Derived } from "./derive.ts"
 import {
-  type Agenda,
-  type AgendaDay,
-  agendaOf,
-  isOverdue,
-  owedIn,
-  owedOf,
-  UPCOMING_DAYS,
-} from "./agenda.ts"
-import { datedDays, datedOn, type DayGroup, groupedOn } from "./dates.ts"
-import { byDayKey, derive, type Derived } from "./derive.ts"
-import { nodesOf, seeded } from "./fixtures.testlib.ts"
-import { isMirror, isPutAway, type LocatedRegular, storedMarker } from "./node.ts"
-import { type Dated, datesOf, dayOf, monthOf } from "./occasion.ts"
+  nodesOf,
+  seeded,
+  walkedAgenda,
+  walkedByDay,
+  walkedDays,
+  walkedOn,
+} from "./fixtures.testlib.ts"
 import { patch, type SetDelta } from "./patch.ts"
-
-// ── the oracle: the walk, as it stood ──────────────────────────────────
-
-/** Every date of every node of the set, in file order, a node contributing one
- *  for each date it carries — `dates.ts`'s deleted `datedNodes`, verbatim. */
-const datedNodes = (derived: Derived): ReadonlyArray<Dated> =>
-  derived.nodes.flatMap((located) =>
-    isMirror(located.node) || isPutAway(located.file)
-      ? []
-      : datesOf(located.node).map((dated) => ({
-        at: located as LocatedRegular,
-        ...dated,
-      }))
-  )
-
-/** ...bucketed by the day each falls on — the deleted `datedByDay`. */
-const walkedByDay = (derived: Derived): ReadonlyMap<string, ReadonlyArray<Dated>> => {
-  const days = new Map<string, Array<Dated>>()
-  for (const dated of datedNodes(derived)) {
-    const day = dayOf(dated.date)
-    const bucket = days.get(day)
-    if (bucket === undefined) days.set(day, [dated])
-    else bucket.push(dated)
-  }
-  return days
-}
-
-/** The days of one month that had anything on them — the deleted `datedDays`,
- *  which answered a SET and left the ordering to whoever printed it. Sorted
- *  here so the comparison is about which days, not about a container. */
-const walkedDays = (derived: Derived, month: string): ReadonlyArray<string> => {
-  const days = new Set<string>()
-  for (const dated of datedNodes(derived)) {
-    const day = dayOf(dated.date)
-    if (monthOf(day) === month) days.add(day)
-  }
-  return [...days].sort(byDayKey)
-}
-
-/** Which days the whole set has anything on — the same walk asked without a
- *  month, which is what a `byDay` key set has to be. */
-const walkedKeys = (derived: Derived): ReadonlyArray<string> =>
-  [...walkedByDay(derived).keys()].sort(byDayKey)
 
 // ── the corpora ────────────────────────────────────────────────────────
 
@@ -243,7 +202,7 @@ test("every day reading answers what the walk it replaced answered", () => {
       // The index holds the walk's buckets, in the walk's own order, under the
       // walk's own keys — and its keys ASCENDING, which the walk never promised
       // and three readings now spend.
-      expect([...view.byDay.keys()]).toEqual([...walkedKeys(view)])
+      expect([...view.byDay.keys()]).toEqual([...walked.keys()].sort())
       for (const [day, bucket] of walked) {
         expect(view.byDay.get(day)).toEqual(bucket as never)
       }
@@ -256,7 +215,7 @@ test("every day reading answers what the walk it replaced answered", () => {
 
       // A day page, for every day the corpus can reach and one it cannot.
       for (const day of [...DAYS, "2026-08-13"]) {
-        expect(drawn(datedOn(view, day))).toBe(drawn(groupedWalk(view, walked, day)))
+        expect(drawn(datedOn(view, day))).toBe(drawn(walkedOn(view, day)))
       }
 
       // ...and the forward reading, from a day in the middle of the span, so
@@ -264,7 +223,7 @@ test("every day reading answers what the walk it replaced answered", () => {
       for (const today of ["2026-08-11", "2026-08-20"]) {
         const agenda = agendaOf(view, today)
         if (owedIn(agenda) > 0) owed++
-        expect(agendaSaid(agenda)).toBe(agendaSaid(walkedAgenda(view, walked, today)))
+        expect(agendaSaid(agenda)).toBe(agendaSaid(walkedAgenda(view, today)))
       }
     }
   }
@@ -275,53 +234,7 @@ test("every day reading answers what the walk it replaced answered", () => {
   expect(owed).toBeGreaterThan(ROUNDS)
 })
 
-// ── the walk's own readings, and how an answer is said ─────────────────
-
-/** A day's rows, walked — `datedOn` with the bucket taken from the oracle's map
- *  instead of from the index. */
-const groupedWalk = (
-  derived: Derived,
-  walked: ReadonlyMap<string, ReadonlyArray<Dated>>,
-  day: string,
-): ReadonlyArray<DayGroup> => groupedOn(derived, walked.get(day) ?? [])
-
-/**
- * The agenda as it stood: every day the set has sorted per read, then filtered
- * per half.
- *
- * BOTH COMPARISONS ARE KEPT AS THEY WERE — `dayOf(today)` behind, the caller's
- * own value ahead and for today's own bucket — because an oracle that quietly
- * corrected one of them would be asserting a change rather than the absence of
- * one. Every door sends a plain day, so the two spellings answer identically for
- * everything anything sends; what this file is for is saying that the INDEX
- * changed nothing, and a straightened oracle could not say it.
- */
-const walkedAgenda = (
-  derived: Derived,
-  walked: ReadonlyMap<string, ReadonlyArray<Dated>>,
-  today: string,
-): Agenda => {
-  const days = [...walked.keys()].sort(byDayKey)
-  const overdue: Array<AgendaDay> = []
-  for (const date of days.filter((day) => day < dayOf(today))) {
-    const owed = (walked.get(date) ?? []).filter((one) => isOverdue(one.at.node, today))
-    if (owed.length > 0) overdue.push({ date, groups: groupedOn(derived, owed) })
-  }
-  const upcoming: Array<AgendaDay> = []
-  for (const date of days.filter((day) => day > today)) {
-    if (upcoming.length === UPCOMING_DAYS) break
-    const groups = owedWalk(derived, walked.get(date) ?? [])
-    if (groups.length > 0) upcoming.push({ date, groups })
-  }
-  return { overdue, today: owedWalk(derived, walked.get(today) ?? []), upcoming }
-}
-
-/** What is OWED on one day: the day's records minus what is finished. */
-const owedWalk = (
-  derived: Derived,
-  dated: ReadonlyArray<Dated>,
-): ReadonlyArray<DayGroup> =>
-  groupedOn(derived, dated.filter((one) => storedMarker(one.at.node) !== "done"))
+// ── how an answer is SAID ─────────────────────────────────────────────
 
 /**
  * A whole agenda, as text: the three stretches with their days and rows, and

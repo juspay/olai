@@ -23,9 +23,12 @@
 
 import { expect, test } from "bun:test"
 
+import { agendaOf, owedIn } from "./agenda.ts"
+import { datedDays, datedOn } from "./dates.ts"
 import { derive, tagPart, type TagSigil, tagText, type TitleTag } from "./derive.ts"
 import { recordsOf, setOf, vaultOf } from "./fixtures.testlib.ts"
-import { isMirror } from "./node.ts"
+import { isRegular } from "./node.ts"
+import { datesOf, monthOf } from "./occasion.ts"
 
 /** The benches' own defaults (`patch.bench.ts`'s `OLAI_BENCH_FILES` /
  *  `OLAI_BENCH_RECORDS`), which is the only size a claim about "the 1,000-file
@@ -40,6 +43,7 @@ test("the vault is the directory the published numbers name", () => {
 test("every index a bench prints a number about has something in it", () => {
   // The one that was empty, and the reason this file exists.
   expect(view.taggedBy.size).toBeGreaterThan(0)
+  expect(view.byDay.size).toBeGreaterThan(0)
   // ...and the rest of the shapes `vaultOf`'s header promises, so this fence
   // covers the next one to go quiet rather than only the one that did.
   expect(view.status.size).toBeGreaterThan(0)
@@ -52,7 +56,7 @@ test("every index a bench prints a number about has something in it", () => {
 })
 
 test("the prose is really there, and really names records", () => {
-  const noted = view.nodes.filter((at) => !isMirror(at.node) && at.node.desc !== undefined)
+  const noted = view.nodes.filter((at) => isRegular(at) && at.node.desc !== undefined)
   expect(noted.length).toBeGreaterThan(0)
   // A mention is a note that names a record, so there are fewer of them than
   // notes — a generator that put an `@` in every note would be measuring a
@@ -90,4 +94,40 @@ test("the titles really carry `#tags`, and the notes carry some too", () => {
     (at.node as { desc?: string }).desc?.includes("#") === true
   )
   expect(inNotes.length).toBeGreaterThan(0)
+})
+
+// THE DAY INDEX, and the same fence one index over. `dates.bench.ts` divides
+// the index arm by the walk arm, and a vault where nothing carried a date would
+// have both arms answering an empty list very fast — a ratio about nothing.
+test("the vault is really scheduled, over a span with months in it", () => {
+  const dated = view.nodes.filter(isRegular).filter((at) => datesOf(at.node).length > 0)
+  expect(dated.length).toBeGreaterThan(1000)
+  // Days rather than records: several records to a day is what makes a bucket
+  // have members to order, and it is the shape a directory somebody schedules
+  // work in really has.
+  expect(view.byDay.size).toBeGreaterThan(300)
+  expect(view.byDay.size).toBeLessThan(dated.length)
+  // ...and BOTH fields, because a vault whose finished work carried `done: true`
+  // would measure half the fold. A dated `done` is a node on the day it was
+  // finished, which is the other half of what a journal shows.
+  const finished = dated.filter((at) =>
+    datesOf(at.node).some((one) => one.occasion === "done")
+  )
+  expect(finished.length).toBeGreaterThan(0)
+  expect(finished.length).toBeLessThan(dated.length)
+})
+
+// ...and the READINGS over it answer something, which is the claim a bench that
+// timed two arms answering nothing could not make.
+test("the readings over the day index have something to answer", () => {
+  const months = new Set([...view.byDay.keys()].map(monthOf))
+  expect(months.size).toBeGreaterThan(12)
+  const busiest = [...view.byDay.entries()].sort(([, one], [, other]) =>
+    other.length - one.length
+  )[0] as readonly [string, ReadonlyArray<unknown>]
+  expect(datedDays(view, monthOf(busiest[0])).length).toBeGreaterThan(20)
+  expect(datedOn(view, busiest[0]).length).toBeGreaterThan(0)
+  // The agenda reads forward from a day inside the span, so both directions of
+  // its line have days to walk.
+  expect(owedIn(agendaOf(view, "2026-01-15"))).toBeGreaterThan(0)
 })
