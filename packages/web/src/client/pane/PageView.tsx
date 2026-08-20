@@ -89,16 +89,23 @@ export function PageView(props: {
    * this tab held; the tab is giving that copy up
    * (docs/brainstorming/vault-in-browser.md).
    *
-   * IT IS HANDED THE PARSE AND THE PAGE, not conditions written here: whether
-   * there is a question at all, and whether this page's own rows are put-away
-   * ones — the one thing the matcher is told about the question rather than
-   * asked about the answer — are both one predicate over a value the pane
-   * already has, and a second spelling of either is a second answer to it.
+   * IT IS HANDED THE PARSE, THE PAGE AND THE SET, not conditions written here:
+   * whether there is a question at all, whether this page's own rows are
+   * put-away ones — the one thing the matcher is told about the question rather
+   * than asked about the answer — and whether the directory has moved under the
+   * answer are each one predicate over a value the pane already has, and a
+   * second spelling of any of them is a second answer to it.
    */
   const asked = createAsked({
     query,
     text: () => filterOf(route()),
     page: allDrawn,
+    // THE SET, as the generation the question carries: a filter is a standing
+    // view, so an answer that outlived the set it was computed over is a wrong
+    // answer that looks like a right one (`filter/asking.ts`'s `Ask.at`). The
+    // derivation is a fresh value per published revision, which is exactly "the
+    // directory moved" — and it goes over as a TOKEN, read by nothing.
+    at: () => props.derived,
   })
 
   const narrowing = createNarrowing({

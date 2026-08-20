@@ -22,7 +22,7 @@
  * there is a query at all), which reads the query string and nothing about the
  * directory — a parse is not a scan.
  *
- * ## The three things a round trip costs, and what is done about each
+ * ## The four things a round trip costs, and what is done about each
  *
  *   - **A keystroke may not be a request.** {@link SETTLE_MS} is the debounce,
  *     the same primitive and the same reasoning as `../search/nodes.ts`'s: just
@@ -34,6 +34,17 @@
  *     answer also CARRIES the query it answers, so "which question are these
  *     rows an answer to" is read off the value rather than off a second signal
  *     that could disagree with it by a frame.
+ *   - **The answer must MOVE WHEN THE SET DOES.** A filter is a standing view of
+ *     a page, not a shortlist somebody opened once: on master it was a memo over
+ *     the live derivation, so every published revision re-ran the matcher. A
+ *     question keyed on the words alone made a filtered page a photograph of the
+ *     directory as it was when the query settled — a row retitled INTO the query
+ *     still pruned away, a row retitled out of it still drawn and still counted.
+ *     So the SET's own generation is part of the question ({@link Ask.at}), and a
+ *     revision re-asks. It is the KEYSTROKE that is debounced, never the
+ *     revision: the tree has already redrawn from the local set by then, and a
+ *     count that lagged 200ms behind it would be two numbers from two different
+ *     moments — the arithmetic `./count.ts` exists to refuse.
  *   - **The page may not blank while it waits.** The rows on screen stay the
  *     rows the last answer left until the next one lands (`latest`), and before
  *     the FIRST answer of a filter session there is nothing to narrow by, which
@@ -56,7 +67,15 @@
 
 import { debounce } from "@solid-primitives/scheduled"
 import { Result } from "effect"
-import { type Accessor, createEffect, createMemo, createResource, createSignal } from "solid-js"
+import {
+  type Accessor,
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  on,
+  untrack,
+} from "solid-js"
 
 import type { Filter } from "@olai/format"
 import type { MatchedNode } from "@olai/surface"
@@ -68,9 +87,10 @@ import { SETTLE_MS } from "../search/nodes.ts"
 import { connectionReadout, olai } from "../wire.ts"
 import { showsTrashed } from "./drawn.ts"
 
-/** No MIN_LENGTH twin to the settle this imports: a shortlist of eight over
- *  one letter is noise, where narrowing a page to what holds an `a` is a
- *  question with an answer the reader can see the size of. */
+// The settle is imported rather than restated (`../search/nodes.ts` argues it:
+// one fact about one pair of hands). There is no MIN_LENGTH twin to it here: a
+// shortlist of eight over one letter is noise, where narrowing a page to what
+// holds an `a` is a question with an answer the reader can see the size of.
 
 /** What a query selected, ready for a row to look itself up in: id → why. The
  *  server's own answer rows, kept as they arrived rather than re-shaped — the
@@ -89,27 +109,53 @@ export interface Asked {
    * has not been answered yet must not (`./narrowing.ts` draws the difference).
    */
   readonly matched: Accessor<Matches | undefined>
-  /** WHICH query {@link matched} answers — `null` while a fetch is in flight,
-   *  so a caller can say whether the rows on screen answer what is typed. Read
-   *  off the answer itself, never stored beside it. */
+  /** WHICH query {@link matched} answers — `null` when nothing has answered
+   *  the words that are typed, so a caller can say whether the rows on screen
+   *  are about them. Read off the answer itself, never stored beside it. */
   readonly answering: Accessor<string | null>
-  /** A refused call, in the server's own words — `null` when there is none.
-   *  Its own slot, never the grammar's refusals: a refused CALL is the server
-   *  saying it could not answer, and a refused QUERY is an answer. */
+  /** A refused call, in the server's own words — `null` when there is none, and
+   *  never a stale one: a call that fails after the question moved on says
+   *  nothing. Its own slot, never the grammar's refusals: a refused CALL is the
+   *  server saying it could not answer, and a refused QUERY is an answer. */
   readonly failure: Accessor<string | null>
   /** Why a question cannot be asked at all right now — the connection pill's
    *  own sentence — or `null` while it can. */
   readonly offline: Accessor<string | null>
 }
 
-/** One ask: what was typed, and whether this page's own rows are put-away ones
- *  (`@olai/format`'s `Scope.trashed`, which the trash and a zoom onto a trashed
- *  node answer `true` — `./drawn.ts`'s `showsTrashed`). Both are in the value
- *  the resource tracks, because both change the answer: the same words asked on
- *  the trash and on an outline are two questions. */
+/**
+ * One ask — the three things that change the answer, so that all three are in
+ * the value the resource tracks.
+ *
+ * The WORDS, obviously. Whether this page's own rows are put-away ones
+ * (`@olai/format`'s `Scope.trashed`, which the trash and a zoom onto a trashed
+ * node answer `true` — `./drawn.ts`'s `showsTrashed`), because the same words
+ * asked on the trash and on an outline are two questions. And the SET ITSELF,
+ * which is the one this door needs and a shortlist does not.
+ */
 interface Ask {
   readonly text: string
   readonly trashed: boolean
+  /**
+   * The set as it stands, carried as a GENERATION and never read.
+   *
+   * A FILTER IS A STANDING VIEW: "which nodes match" has a different true
+   * answer after every write, so an answer that outlives the set it was
+   * computed over is a wrong answer that looks like a right one — a row
+   * retitled INTO the query still pruned away, a row retitled out of it still
+   * drawn and still counted, with the denominator beside it already moved
+   * because the tree redrew from the local set. (That is not hypothetical: it
+   * is what this door did between the first commit of this branch and this one,
+   * and a probe printed "1 of 11" over a page holding two matches.)
+   *
+   * The derivation is a fresh value per published revision (`../outlines.ts`
+   * patches it), so its identity is exactly "the directory moved" — the
+   * cheapest true generation this tab has, and the same one the local matcher
+   * used to re-run on. It is NOT dereferenced here, deliberately: this file's
+   * whole point is that the browser stopped reading the vault, and what it
+   * holds is a token that changes when the answer would.
+   */
+  readonly at: unknown
 }
 
 /** An answer, and the question it answers — one value, so "which query are
@@ -122,7 +168,8 @@ interface Answered {
 
 const sameAsk = (was: Ask | null, is: Ask | null): boolean =>
   was === is ||
-  (was !== null && is !== null && was.text === is.text && was.trashed === is.trashed)
+  (was !== null && is !== null &&
+    was.text === is.text && was.trashed === is.trashed && was.at === is.at)
 
 /**
  * Ask as the question changes.
@@ -153,6 +200,10 @@ export const createAsked = (source: {
    * set on a scope that is about to change under the answer.
    */
   readonly page: Accessor<Drawn>
+  /** THE SET, as a generation — see {@link Ask.at}. Whatever the tab holds that
+   *  moves when the directory does; this file never reads it, and asks again
+   *  when it changes because the answer would have. */
+  readonly at: Accessor<unknown>
 }): Asked => {
   const [failure, setFailure] = createSignal<string | null>(null)
   /** What has actually been asked for: the query, once it stopped moving. */
@@ -182,6 +233,13 @@ export const createAsked = (source: {
       : null
   )
 
+  // A NEW QUESTION CLEARS THE OLD ONE'S BAD NEWS, at the keystroke rather than
+  // at the answer: a refusal is about the words it was refused for, and leaving
+  // it up beside a query somebody has since retyped is the door blaming the new
+  // question for the old one's trouble. Its own effect, on the question alone,
+  // so the reachability tracking below cannot re-run it.
+  createEffect(on(question, () => setFailure(null)))
+
   createEffect(() => {
     const wanted = question()
     if (wanted === null) {
@@ -190,7 +248,6 @@ export const createAsked = (source: {
       // page that is lying for as long as it stands.
       settle.clear()
       setAsked(null)
-      setFailure(null)
       return
     }
     // A QUESTION THAT CANNOT REACH THE SERVER IS NOT ASKED, and nothing is
@@ -206,14 +263,40 @@ export const createAsked = (source: {
     settle(wanted)
   })
 
+  /**
+   * WHAT IS BEING ASKED, as one value — the words once they stopped moving, the
+   * page's scope, and the set's generation. The keystroke is what the debounce
+   * holds; the other two go straight through, because the tree has ALREADY
+   * redrawn from the local set by the time a revision reaches here and a count
+   * that lagged behind it would be two numbers from two different moments.
+   *
+   * Compared BY VALUE (`sameAsk`), so a revision that left all three alone —
+   * which is most of them, since the page value is fresh per frame — is not a
+   * refetch.
+   */
   const asking = createMemo<Ask | null>(
     () => {
       const text = asked()
-      return text === null ? null : { text, trashed: trashed() }
+      return text === null ? null : { text, trashed: trashed(), at: source.at() }
     },
     null,
     { equals: sameAsk },
   )
+
+  /**
+   * Is this fetcher still answering the question that is being asked?
+   *
+   * `createResource` DROPS the return value of a fetcher whose source has moved
+   * on; it cannot un-run the fetcher. So everything below that is not a return
+   * value — the failure slot, which is a signal two of them share — needs the
+   * guard the framework only gives to the answer: a slow failure of query A
+   * landing after query B succeeded would paint B's rows with A's error, and a
+   * slow success of A would clear a failure that is B's.
+   *
+   * `untrack`, because this is read inside an async continuation and reading it
+   * as a dependency would make the fetcher's own resolution a reason to re-run.
+   */
+  const answering = (ask: Ask) => sameAsk(untrack(asking), ask)
 
   const [answer] = createResource<Answered | null, Ask>(asking, async (ask, info) => {
     const outcome = await runAsync(
@@ -223,14 +306,14 @@ export const createAsked = (source: {
       }),
     )
     if (Result.isFailure(outcome)) {
-      setFailure(outcome.failure.message)
+      if (answering(ask)) setFailure(outcome.failure.message)
       // WHAT THE SERVER LAST SAID STANDS. A call that did not arrive is not an
       // answer of "nothing matched", and emptying the page under somebody
       // because a socket blinked would be exactly that lie. The failure is on
       // screen beside the rows, which is what makes keeping them honest.
       return info.value ?? null
     }
-    setFailure(null)
+    if (answering(ask)) setFailure(null)
     // Keyed by the node's own id, which is what a row looks itself up by
     // (`@olai/format`'s `Selected`). Filled by a loop rather than from an array
     // of pairs: this is the one allocation in the feature that is the size of
@@ -254,11 +337,20 @@ export const createAsked = (source: {
 
   return {
     matched: () => held()?.matches,
-    // In flight, the rows on screen are the LAST query's, so they answer
-    // nothing anybody is asking — and during the settle, before `asked` moves,
-    // they answer the query they were fetched for, which is what the text
-    // riding on the answer says.
-    answering: () => (answer.loading ? null : held()?.text ?? null),
+    /**
+     * WHICH QUERY THE ROWS ANSWER — read off the answer's own text, and off
+     * nothing else.
+     *
+     * NOT `loading`, which this used to fold in and which says something
+     * different: while a REVISION re-ask is in flight the rows still answer the
+     * words that are typed — they are one revision behind, not about another
+     * question — and unlabelling them there would put the wait word on screen
+     * for every edit anybody makes anywhere in the vault. The two states this
+     * has to tell apart are "these rows are about your query" and "these rows
+     * are about a query you have moved on from", and the text on the answer is
+     * exactly that fact.
+     */
+    answering: () => held()?.text ?? null,
     failure,
     offline,
   }
