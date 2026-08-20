@@ -170,10 +170,19 @@ the document's own authored record — dates, edges, props, possibly marks. It
 waits until the derived face is standing.
 
 > **DELIVERED 2026-08-20, and one half of it** (roadmap `md-yaml-frontmatter`,
-> ruled FULL with the human that day). The block is read once — the boundary
-> rule is micromark's, so the browser's `remark-frontmatter` and the face agree
-> about where it ends — hidden from the render, skipped by every scanner that
-> reads a document's content, and surfaced as the face's fifth field, `props`.
+> ruled FULL with the human that day). The block is read ONCE — `proseIn` in
+> `format/src/frontmatter.ts` — and that one reading is spent by every scanner
+> that reads a document's content AND by the three faces that draw a whole file,
+> so the page and the face cannot disagree about which lines a document has:
+> they are the same function. The keys land as the face's fifth field, `props`.
+>
+> The boundary rule is micromark's, and for an external reason: a `.md` is read
+> by GitHub and by every other tool pointed at that vault, so ours has to be
+> theirs. `web/src/client/markdown/frontmatter.test.ts` holds the two together.
+> The plugin is NOT in the markdown pipeline — that is one pipeline for a node's
+> note and the agent's replies too, and a note is not a file: hiding a leading
+> `---` there would take a reader's own words off the screen while the tag index
+> went on reading them.
 >
 > **The half taken is PROPERTIES**: the keys are a `Custom` map, the same open
 > namespace a node's are, so `prop:` answers with both kinds through one
