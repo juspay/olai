@@ -142,6 +142,31 @@ Feature: Committing on purpose
     And the remote has "olai: the herb bed needs splitting"
     And there should be no page errors
 
+  Scenario: A commit from this browser is pushed when Auto-push is on
+    # The pref is this browser's, so it governs the Commit button here and
+    # nowhere else. Agent `commit` ops and `--commit=auto` are server-side and
+    # are not this. The existing scenario above is today's behaviour: commit,
+    # then Push. This one is the composition — the same op, without pressing
+    # Push — and it earns the browser because the pill's unpushed count is a
+    # live cell: it goes to 0 when the server has republished, which is what
+    # says the push landed rather than sitting in flight.
+    Given the served repository has a remote
+    When I open the preferences
+    And I set Git to "on"
+    Then the Git row explains that a commit "is pushed"
+    And this browser has stored that auto-push is "on"
+    When I press Escape on the preferences
+    Then the preferences are shut
+    When I rewrite "notes.md" as:
+      """
+      the herb bed needs splitting again
+      """
+    And I open the commit panel
+    And I commit with the message "the herb bed needs splitting"
+    Then the commit pill says 0 unpushed
+    And the remote has "olai: the herb bed needs splitting"
+    And there should be no page errors
+
   Scenario: A repository that cannot take a commit says so instead of doing nothing
     # The hole this whole feature closed: nothing used to check, so an agent
     # marking a node done mid-rebase could swallow a resolution.

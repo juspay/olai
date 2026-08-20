@@ -13,7 +13,7 @@ The pill is always there, because *there is no audit trail here* is the most imp
 - `4 uncommitted` when something is waiting;
 - `no git here` / `commits off` when there is nothing to record at all. Those two are settings rather than problems, so they are dim and inert.
 
-It carries one more thing beside that count: `· 2 unpushed`, when this repository holds commits the branch's upstream does not. "Not recorded" and "not shared" are two different facts about the same work, and an audit trail that lives on one machine is one disk failure from not existing.
+It carries one more thing beside that count: `· 2 unpushed`, when this repository holds commits the branch's upstream does not. "Not recorded" and "not shared" are two different facts about the same work, and an audit trail that lives on one machine is one disk failure from not existing. A successful auto-push takes that count to none; a failed one leaves the honest number, the same as a Push that was refused.
 
 Opening it shows what is waiting the way olai would say it rather than as a diff. Nothing is stored to make any of it work: it is `git status`, `git show HEAD:` and one `git log` against what is on disk, so an outline you edited in vim is in the list too, and committing in a terminal takes it out.
 
@@ -65,6 +65,8 @@ The agent has the same thing: its `commit` tool takes an optional `paths`, the r
 ## Pushing
 
 One verb, and it is the only reason left to open a terminal for this: the current branch, to the upstream it already tracks. No remote to pick, no refspec, never a force. The panel offers it when there is something to send (`2 commits not on origin/master · Push`), and the same count is on the pill.
+
+This browser can follow a commit from its Commit button with that same verb: *prefs → Git*, Auto-push, off by default. It is this browser's, so it governs commits made here only — an agent's `commit` and `--commit=auto` are not it. A commit whose push fails is still a commit: git's words appear as they would for a Push that was pressed, nothing is rolled back, and nothing is retried.
 
 There is no pull, no fetch and no branch UI, and that is deliberate — this is an audit-trail recorder rather than a git client. When git refuses — a non-fast-forward, an authentication failure, a branch with no upstream — you get git's own words, verbatim, because resolving it is a conversation in a terminal and those words are how it starts. A repository that is mid-rebase says so instead, naming the rebase.
 
