@@ -29,7 +29,7 @@ import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
 import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { landingId, outlineOf } from "../markdown/render.ts"
-import { type Landing, useHere, useRouter } from "../router.tsx"
+import { useHere, useLanding } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { useDocument } from "./documents.tsx"
 import { Hypertext } from "./Hypertext.tsx"
@@ -97,7 +97,6 @@ export const FACES: Record<BodyKind, Face> = {
  *  behind the heading on a fresh open, which is what a `<Show>` and no
  *  placeholder mean here as they did when the page held it. */
 function Rendered(props: Reading) {
-  const router = useRouter()
   const here = useHere()
   const served = useDocument(() => props.file)
   /** The body, or the empty document there is nothing to draw yet — every
@@ -141,23 +140,26 @@ function Rendered(props: Reading) {
   // ONCE PER ARRIVAL, which is the one thing this effect has to remember. The
   // text is TRACKED — it has to be, since the id is minted from it and the body
   // lands a frame or two behind the address — and a file REWRITTEN under a
-  // reader (an agent's write, a `git pull`) is a new text under the same
-  // landing. Without this, somebody who had scrolled away to read something
-  // else was yanked back to the heading the address named, by an edit they did
-  // not make. So the landing that has been ANSWERED is remembered, and
-  // `../router.tsx` already says what makes identity the whole comparison: a
-  // landing is an ACT, it happens once on arrival, and every navigation mints a
-  // fresh one — so the value IS the arrival.
+  // reader (an agent's write, a `git pull`, another tab) is a new text under
+  // the same landing. Without this, somebody who had scrolled away to read
+  // something else was yanked back to the heading the address named, by an edit
+  // they did not make. `../router.tsx` already states the rule this keeps: a
+  // landing is an ACT, and it happens once, on arrival.
   //
-  // Spent on the SCROLL rather than on the attempt, for the paragraph above:
-  // an effect that gave up the first time it found nothing would give up on the
-  // frame before the body arrived, which is most first paints.
-  let landed: Landing | undefined
+  // WHICH LANDING IS THIS PANE'S is {@link useLanding}'s, which is also what
+  // stops a navigation NEXT DOOR waking this at all: `landing` is one signal
+  // broadcast to every pane, set with a fresh value on every push, and that memo
+  // is where it becomes this pane's slug or nothing.
+  //
+  // Spent on the SCROLL rather than on the attempt: an effect that gave up the
+  // first time it found nothing would give up on the frame before the body had
+  // arrived, which is most first paints.
+  const landingAt = useLanding()
+  let landed: string | undefined
   createEffect(() => {
-    const land = router.landing()
-    if (land === undefined || land.index !== here() || !markdownReady()) return
-    if (land === landed) return
-    const id = landingId(text(), props.file, land.at)
+    const at = landingAt()
+    if (at === undefined || at === landed || !markdownReady()) return
+    const id = landingId(text(), props.file, at)
     const frame = requestAnimationFrame(() => {
       // Two panes of the SAME file mint the same heading ids. Look
       // under THIS pane's root, not the first copy in document order.
@@ -167,7 +169,7 @@ function Rendered(props: Reading) {
       const heading = root?.querySelector(`#${CSS.escape(id)}`) ?? null
       if (heading === null) return
       heading.scrollIntoView({ block: "start" })
-      landed = land
+      landed = at
     })
     onCleanup(() => cancelAnimationFrame(frame))
   })
