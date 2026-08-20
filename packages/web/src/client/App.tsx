@@ -28,6 +28,7 @@ import { Connection } from "./connection/Connection.tsx"
 import { DerivedProvider } from "./derived.tsx"
 import { AirProvider, createAir } from "./drag/air.ts"
 import { createFields, FieldsProvider } from "./drag/fields.ts"
+import { unreachable } from "./connection/reaching.ts"
 import { createRefiling } from "./fold/refiling.ts"
 import { createDocuments, DocumentsProvider } from "./document/documents.tsx"
 import { createUndo, UndoContext } from "./edit/undoing.ts"
@@ -188,8 +189,16 @@ export default function App() {
    * signals and Solid only owns a computation inside a render. Nothing on
    * screen reads it and it returns nothing — the memory it tidies is read
    * wherever a row asks `collapsedNodes`, exactly as before.
+   *
+   * THE WIRE IS HANDED IN, exactly as `createUndo` below is handed its write:
+   * that module is a rule about when to ask and what to believe, and one that
+   * could only be exercised by pressing a triangle in a browser is one nothing
+   * checks. This is the caller that has a wire.
    */
-  createRefiling()
+  createRefiling({
+    ask: (request) => runAsync(olai.procedures.nodes.homes(request)),
+    offline: () => unreachable(connectionReadout()),
+  })
 
   const zoomed = createMemo(() => {
     const open = focusedPage()

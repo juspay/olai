@@ -297,7 +297,13 @@ export const memoryOf = (byFile: Folds): Memory => {
       return (ids ??= merged(byFile))
     },
     get printed() {
-      return (printed ??= printFolds(byFile))
+      // NOT `??=`, and the difference is the empty memory: `null` is a real
+      // answer here — "nothing to store at all" — and a coalescing assignment
+      // reads it as "not computed yet" and prints again on every access. It is
+      // the same overload {@link Homes} refuses one field over; `undefined`
+      // means unasked and nothing else.
+      if (printed === undefined) printed = printFolds(byFile)
+      return printed
     },
   }
 }

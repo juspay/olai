@@ -473,11 +473,12 @@ export const named = (
  * request that said so would be this layer holding an opinion about a
  * browser's storage.
  *
- * NEITHER HALF IS A WALK. An id is a `byId` lookup and a file is a `byFile`
- * one, both over indexes the derivation already carries — so what this costs is
- * the size of the QUESTION, which is what one reader has actually collapsed,
- * rather than the size of the directory. That is the whole of the change: the
- * scan did not move to the server, it stopped existing.
+ * NEITHER HALF IS A WALK. An id is a `byId` lookup over an index the
+ * derivation already carries, and a file is a membership test against the two
+ * lists the SET is made of — so what this costs is the size of the QUESTION,
+ * which is what one reader has actually collapsed, rather than the size of the
+ * directory. That is the whole of the change: the scan did not move to the
+ * server, it stopped existing.
  */
 export const homes = (
   /** BOTH HALVES of the reading, and each half answers one half of the
