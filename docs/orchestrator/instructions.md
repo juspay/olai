@@ -31,8 +31,8 @@ When instructing the agent in terminal:
   - by https://github.com/juspay/kolu/blob/master/.agents/skills/architecture-first-principles/SKILL.md
   - by hickey (https://github.com/srid/agency/blob/master/.apm/skills/hickey/SKILL.md) and lowy (https://github.com/srid/agency/blob/master/.apm/skills/lowy/SKILL.md) *together*, using human intuition so as to keep architecture simple.
   - Run /simplify (only if running in Claude).
-- Wait for 'Review' phase (see below)
-- Take PR to green CI[^green-ci] (before CI, merge latest master to the PR, just in case)
+- Do the 'Review' phase (without, *yet*, running full CI)
+- Run full CI; Take PR to green CI[^green-ci] (before CI, merge latest master to the PR, just in case)
   
 ## Reviewing the PR
   
