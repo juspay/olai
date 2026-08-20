@@ -21,7 +21,7 @@ import { GIT_OFF, type GitState } from "@olai/surface"
 import { expect, test } from "bun:test"
 import { type Accessor, createRoot, createSignal } from "solid-js"
 
-import { createAuto } from "./auto.ts"
+import { type Auto, createAuto } from "./auto.ts"
 import { afterCommit } from "./record.ts"
 import type { Attempt, Commit, PushAttempt } from "./state.ts"
 
@@ -120,12 +120,18 @@ const QUIET = 20
 
 const rest = (ms: number): Promise<void> => new Promise((done) => setTimeout(done, ms))
 
+/** Why the loop stopped, or `null` — the one arm the stop tests ask about. */
+const pausedIn = (auto: Accessor<Auto>): string | null => {
+  const state = auto()
+  return state._tag === "paused" ? state.said : null
+}
+
 /** One loop over one stand-in, disposed when the body is done — a Solid root is
  *  what a component's lifetime is. */
 const loop = async (
   on: Accessor<boolean>,
   it: Stub,
-  body: (auto: ReturnType<typeof createAuto>) => Promise<void>,
+  body: (auto: Accessor<Auto>) => Promise<void>,
 ): Promise<void> => {
   let dispose = (): void => {}
   const auto = createRoot((stop) => {
@@ -215,7 +221,7 @@ test("a commit git refused stops the loop and says so, and nothing retries", asy
     it.edit(1)
     await rest(QUIET * 3)
     expect(it.commits()).toBe(1)
-    expect(auto.paused()).toBe("gpg failed to sign the data")
+    expect(pausedIn(auto)).toBe("gpg failed to sign the data")
     // The work is still waiting, and the loop does not go round again.
     it.edit(2)
     await rest(QUIET * 3)
@@ -230,7 +236,7 @@ test("a push git refused stops the loop too — the divergence is the conflict",
     it.edit(1)
     await rest(QUIET * 3)
     expect(it.commits()).toBe(1)
-    expect(auto.paused()).toBe("Updates were rejected (non-fast-forward)")
+    expect(pausedIn(auto)).toBe("Updates were rejected (non-fast-forward)")
     it.edit(2)
     await rest(QUIET * 3)
     expect(it.commits()).toBe(1)
@@ -244,9 +250,9 @@ test("turning the preference off and on again is what resumes it", async () => {
   await loop(on, it, async (auto) => {
     it.edit(1)
     await rest(QUIET * 3)
-    expect(auto.paused()).not.toBe(null)
+    expect(pausedIn(auto)).not.toBe(null)
     setOn(false)
-    expect(auto.paused()).toBe(null)
+    expect(pausedIn(auto)).toBe(null)
     it.refuse(null)
     setOn(true)
     it.edit(2)
@@ -261,7 +267,7 @@ test("a loop nobody armed keeps no pause, whatever a hand-pressed button did", a
   await loop(() => false, it, async (auto) => {
     it.commit.commit("by hand")
     await rest(QUIET)
-    expect(auto.paused()).toBe(null)
+    expect(pausedIn(auto)).toBe(null)
   })
 })
 

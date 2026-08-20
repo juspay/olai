@@ -39,7 +39,7 @@
  */
 
 import { isReady } from "@olai/format"
-import { createSignal, Show } from "solid-js"
+import { type Accessor, createSignal, Show } from "solid-js"
 
 import { agoOf } from "./ago.ts"
 import { type Anchor, styleOf } from "../anchor.ts"
@@ -65,10 +65,10 @@ import { Unpushed } from "./Unpushed.tsx"
 
 export function Panel(props: {
   readonly commit: Commit
-  /** What Auto-commit is doing in this browser (`./auto.ts`) — the promise
-   *  while it is running, and git's own words plus the one gesture that
-   *  resumes it when it has stopped. */
-  readonly auto: Auto
+  /** What Auto-commit is doing in this browser (`./auto.ts`) — one value, so
+   *  the promise this panel makes while the loop is running and the line it
+   *  draws when the loop has stopped cannot both be on screen. */
+  readonly auto: Accessor<Auto>
   readonly now: number
   /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
    *  a matter of CSS alone. */
@@ -204,7 +204,7 @@ export function Panel(props: {
           person reads it — and this popover printed that paragraph twice.
           The HEADER's own sentence carries the words, because the header has
           nowhere else to put them (`./said.ts`). */}
-      <Show when={props.auto.paused() !== null}>
+      <Show when={props.auto()._tag === "paused"}>
         <p class="text-xs text-alarm" data-testid={TESTID.commitAutoPaused}>
           ⚠ {AUTO_STOPPED}
         </p>
@@ -263,7 +263,7 @@ export function Panel(props: {
           running, and a repository that can take a commit — so it is a promise
           rather than a description of a setting. The button stays: a person who
           does not want to wait out the window is a person who meant it. */}
-      <Show when={anything() && ready() && props.auto.armed() && props.auto.paused() === null}>
+      <Show when={anything() && ready() && props.auto()._tag === "armed"}>
         <p class="text-xs text-muted" data-testid={TESTID.commitAutoArmed}>
           {AUTO_ARMED}
         </p>

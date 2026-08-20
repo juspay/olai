@@ -69,7 +69,6 @@ import { createAuto } from "./auto.ts"
 import { createElected } from "./elected.ts"
 import {
   AUTO_PAUSED,
-  autoFaceOf,
   explain,
   faceOf,
   isInert,
@@ -96,6 +95,13 @@ export function Commit() {
   // shut it. `createElected` is which tab of this browser records
   // (`./elected.ts`).
   const auto = createAuto({ on: autoCommit, alone: createElected(), commit })
+  /** Why the loop stopped, or `null` — the one arm of {@link Auto} the words
+   *  and the chrome both ask about, read once rather than at each of its four
+   *  readers. */
+  const paused = () => {
+    const state = auto()
+    return state._tag === "paused" ? state.said : null
+  }
   // Whether the panel is up, where it goes, and the ways it shuts
   // (`../popover.ts`, shared with the preferences at the other end of the bar).
   // It used to be `note/expand.ts` — the row note's "open until you click
@@ -111,7 +117,7 @@ export function Commit() {
   const inert = () => isInert(face())
   /** One reading of the sentence for the two places it has to be: the tip a
    *  pointer opens, and the label everything else gets. */
-  const said = () => explain(face(), commit.pending(), commit.git(), auto.paused())
+  const said = () => explain(face(), commit.pending(), commit.git(), paused())
 
   /**
    * How long ago the last commit was, for the one face that has one — and `""`
@@ -172,8 +178,8 @@ export function Commit() {
   }
 
   const showPill = () => desktop()
-  const showBanner = () => !desktop() && isNews(face(), unpushed(), auto.paused())
-  const line = () => newsSays(face(), commit.waiting(), unpushed(), auto.paused())
+  const showBanner = () => !desktop() && isNews(face(), unpushed(), paused())
+  const line = () => newsSays(face(), commit.waiting(), unpushed(), paused())
 
   return (
     <>
@@ -210,7 +216,7 @@ export function Commit() {
           // What AUTO-COMMIT is doing in this browser, which is a claim about
           // the reader rather than about the directory — hence its own
           // attribute rather than a ninth face (`./said.ts`).
-          data-auto={autoFaceOf(auto.armed(), auto.paused())}
+          data-auto={auto()._tag}
           // Absent rather than `false` on the faces with no panel behind them:
           // a control that says it can expand and never does is a promise the
           // page does not keep.
@@ -248,7 +254,7 @@ export function Commit() {
               `git log`. It stays at every width, like the unpushed count and
               unlike the recency — and the reason is a gesture away, in the
               panel and on this pill's own label. */}
-          <Show when={auto.paused() !== null}>
+          <Show when={paused() !== null}>
             <span class="shrink-0 text-alarm">· {AUTO_PAUSED}</span>
           </Show>
           {/* Which way the panel opens, and it opens DOWNWARD from the header
@@ -269,14 +275,14 @@ export function Commit() {
           type="button"
           ref={panel.setTrigger}
           class={`${BANNER} justify-between ${
-            face() === "error" || auto.paused() !== null ? "text-alarm" : "text-doing"
+            face() === "error" || paused() !== null ? "text-alarm" : "text-doing"
           }`}
           data-testid={TESTID.gitNews}
           data-state={face()}
           data-uncommitted={commit.waiting()}
           data-unpushed={unpushed()}
           data-repo={commit.pending().repo._tag}
-          data-auto={autoFaceOf(auto.armed(), auto.paused())}
+          data-auto={auto()._tag}
           aria-expanded={inert() ? undefined : panel.open()}
           aria-disabled={inert() ? true : undefined}
           aria-label={said()}

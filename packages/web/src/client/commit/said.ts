@@ -317,13 +317,6 @@ const alsoUnpushed = (said: string, pending: Pending): string => {
  * the unpushed count does and for the same reason.
  */
 
-/** What Auto-commit is doing here, as the one word the pill carries as an
- *  attribute — so a scenario asks the state rather than reading a sentence. */
-export type AutoFace = "off" | "armed" | "paused"
-
-export const autoFaceOf = (armed: boolean, paused: string | null): AutoFace =>
-  !armed ? "off" : paused === null ? "armed" : "paused"
-
 /** The chip a stopped loop wears in the header. Short, because the bar is a
  *  fixed height and the sentence is one gesture away — on the tip, on the
  *  `aria-label`, and in full in the panel. */

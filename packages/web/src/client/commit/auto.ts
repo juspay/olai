@@ -45,13 +45,29 @@ import { type Accessor, createEffect, createMemo, createSignal, untrack } from "
 import { flurryOf, mayRecord, QUIET_MS, type Standing, stoppedBy, stoppedByPush } from "./flurry.ts"
 import type { Commit } from "./state.ts"
 
-export interface Auto {
-  /** Whether this browser is auto-committing at all — the preference, read
-   *  back for the chrome that says so. */
-  readonly armed: Accessor<boolean>
-  /** Why the loop stopped, in git's own words, or `null` while it is running. */
-  readonly paused: Accessor<string | null>
-}
+/**
+ * What the loop is doing, as ONE value.
+ *
+ * Not "armed, and separately a reason it stopped": those are a product of two
+ * fields whose valid combinations are a rule rather than a shape — off AND
+ * paused is a state nothing may be in, and the machinery that kept it from
+ * arising would be exactly the reconciliation that says the two were one thing
+ * all along. A loop nobody armed HAS no reason; a stopped one always has one,
+ * and here it cannot be missing.
+ *
+ * The tags are the words the chrome draws (`data-auto`), for the reason
+ * `./said.ts`' {@link Face} is spelled in lower case: this value is not on the
+ * wire, and a second table turning `"Paused"` into `"paused"` would be a table
+ * to keep true.
+ */
+export type Auto =
+  | { readonly _tag: "off" }
+  | { readonly _tag: "armed" }
+  | { readonly _tag: "paused"; readonly said: string }
+
+/** A loop nobody armed, spelled once. */
+const OFF: Auto = { _tag: "off" }
+const ARMED: Auto = { _tag: "armed" }
 
 export const createAuto = (input: {
   /** The preference (`../settings/autocommit.ts`), handed in as an accessor so
@@ -64,7 +80,7 @@ export const createAuto = (input: {
   /** The quiet window, for a test that cannot wait fifteen seconds. The SPAN is
    *  a product decision and lives with the rules. */
   readonly quiet?: number
-}): Auto => {
+}): Accessor<Auto> => {
   const [paused, setPaused] = createSignal<string | null>(null)
   const quiet = input.quiet ?? QUIET_MS
 
@@ -123,11 +139,17 @@ export const createAuto = (input: {
   createEffect(() => judge(stoppedBy(input.commit.attempt())))
   createEffect(() => judge(stoppedByPush(input.commit.pushed())))
 
-  // Turning it OFF is what clears the pause, so turning it on again is a loop
-  // that starts clean — see this file's header for why nothing else does.
+  // Turning it OFF forgets the reason, which is the whole of "off and on again
+  // resumes it" — see this file's header for why nothing else clears it. It is
+  // not what hides the pause from a reader (the value below does that, and
+  // cannot be read any other way); it is what makes the NEXT arming clean.
   createEffect(() => {
     if (!input.on()) setPaused(null)
   })
 
-  return { armed: input.on, paused }
+  return () => {
+    if (!input.on()) return OFF
+    const said = paused()
+    return said === null ? ARMED : { _tag: "paused", said }
+  }
 }
