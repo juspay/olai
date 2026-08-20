@@ -41,6 +41,7 @@ import { Rail } from "./layout/Rail.tsx"
 import { only } from "./narrow.ts"
 import { OpensProvider } from "./opens.tsx"
 import { fileOf, opensAt } from "./page.ts"
+import { fileNamed } from "./routes.ts"
 import { createReadings, namesIn, ReadingsProvider } from "./reading.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { PinsProvider } from "./pins/answered.tsx"
@@ -117,16 +118,29 @@ export default function App() {
   }
 
   /**
-   * THE FOCUSED PANE's reading — what the sidebar lights up, what the palette
-   * may write about, what undo treats as the open file.
+   * THE FOCUSED PANE's reading — the ONE thing the chrome outside the panes
+   * takes from a page rather than from the address: what a `/#id` turned out to
+   * name, and what the ids that page points at are called.
    *
    * READ OFF THE PANE rather than asked for again here, which is the whole
    * reason the register exists: each pane subscribes to the address it is
    * drawing, and a second subscription to the focused one would be the same
    * page fetched twice, on every revision, for the length of every split
-   * workspace. `undefined` is a pane that has not mounted or has not been
-   * answered yet — the frame where the chrome knows no file, which is what it
-   * drew before the first snapshot in any case.
+   * workspace. `undefined` is a pane that has not mounted or has never been
+   * answered — the frame where the chrome knows no file, which is what it drew
+   * before the first snapshot in any case. It is NOT the beat a navigation
+   * spends in flight: a reading holds its last answer across the next question
+   * (`./reading.tsx`), so what this reads is what is on screen.
+   *
+   * AND IT IS ASKED LAST, which is this composition's rule since
+   * `reactivity-after-the-flip`: where am I is the ROUTE's answer and it is
+   * synchronous, so the entry that lights, the day the month opens on and the
+   * page undo belongs to are read off the address that names them — and the
+   * reading is consulted only for what an address cannot say. Derived from the
+   * page instead, every one of them went `A → undefined → B` on every click:
+   * the open file's folder chain folded and was rebuilt, the current wash went
+   * out for a round trip, and undo's stack was cleared twice
+   * (docs/brainstorming/reactivity-after-the-flip.md §3.1).
    */
   const focused = createMemo(() => readings.at(router.workspace().focus))
 
@@ -188,7 +202,30 @@ export default function App() {
   })
 
   const undo = createUndo((edit) => runAsync(olai.procedures.edit.apply(edit)))
+
+  /**
+   * THE OPEN FILE — the sidebar entry that lights up, and the outline undo's
+   * stack belongs to.
+   *
+   * THE ADDRESS ANSWERS IT wherever an address can: every file route names its
+   * file (`./routes.ts`'s `fileNamed`), so the entry lights in the same frame the
+   * link is clicked and the open folder above it never folds. What is left is
+   * the two addresses that name no file — a `/#id`, whose canonical file is the
+   * set's answer and not the URL's, and the front page, which is "whichever
+   * outline was found first" — and those are read off the page, which is where
+   * they were resolved (`./page.ts`'s `fileOf`).
+   *
+   * SO A ZOOM KEEPS THE STACK. `/house.olai` → `/#install` is one file
+   * throughout: the address stops naming it and the page on screen still says
+   * it, so this memo does not move and the effect below does not fire. It used
+   * to fire twice per navigation — once on the blank and once on the answer —
+   * which cleared the outline's undo stack for a zoom in or out of a node of the
+   * outline being read, against `./edit/undoing.ts`'s own promise ("the edits
+   * you made on this outline").
+   */
   const openFile = createMemo(() => {
+    const named = fileNamed(router.route())
+    if (named !== undefined) return named
     const shows = focused()?.shows
     return shows === undefined ? undefined : fileOf(shows)
   })
@@ -205,10 +242,26 @@ export default function App() {
    */
   const names = createMemo(() => namesIn(focused()))
 
-  /** The day the calendar opens on, when the focused pane is a day page. */
+  /**
+   * The day the calendar opens on, when the focused pane is a day page — the
+   * cell that is filled, and the month the grid anchors to.
+   *
+   * THE ADDRESS ANSWERS THIS ONE WHOLE. A day page is `/d/<date>`, which spells
+   * its day, or `/today`, which spells the day it IS — and who says which day
+   * that is is the reader's own clock, exactly as the pane's own request reads
+   * it (`./page.ts`'s `requestFor`, one argument for one reason). Nothing else
+   * is a day page, so nothing else is a day.
+   *
+   * Read off the PAGE, as it was, this went `day → undefined → day` on every
+   * click of a second day: the month is stamped on the day being read
+   * (`./calendar/Calendar.tsx`), so the grid flipped to today's month and back
+   * on the way past, rebuilding all thirty-odd cells twice and tearing the
+   * month's own subscription down with them.
+   */
   const openDay = createMemo(() => {
-    const shows = focused()?.shows
-    return shows === undefined ? undefined : only(shows, "day")?.date
+    const route = router.route()
+    if (route.kind === "day") return route.date
+    return route.kind === "today" ? today() : undefined
   })
 
   const split = () => !isLone(router.workspace())

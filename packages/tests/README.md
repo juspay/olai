@@ -22,7 +22,7 @@ The suite shares constants with `@olai/web` rather than retyping them — a numb
 
 Prefer a shared scratch corpus per **feature** over a private server per scenario when the scenarios write disjoint files. Private `@scratch:` servers are where the flakes live; sharing one is filed as roadmap `e2e-scratch-sharing` and is not this file's to solve by adding more of them.
 
-This suite is 59 features, 717 scenarios. A 2026-08-19 audit cut ~160 that did not earn the browser; the grammar, the destination refusals, the trash wording, the install fetch and the rest of that list live in the unit suites now. Four browser-only claims the first cut left unpinned (anchor jump, sidebar inner scroll, same-page never-inside-itself, late-picture rungs) are back.
+This suite is 60 features, 725 scenarios. A 2026-08-19 audit cut ~160 that did not earn the browser; the grammar, the destination refusals, the trash wording, the install fetch and the rest of that list live in the unit suites now. Four browser-only claims the first cut left unpinned (anchor jump, sidebar inner scroll, same-page never-inside-itself, late-picture rungs) are back.
 
 ```
 packages/tests/
@@ -35,6 +35,10 @@ packages/tests/
 │   ├── caret.ts             # the client's own answer to a key, and how a step
 │                           #   waits for it (see "Waiting", below)
 │   ├── said.ts              # what the page said about a write, wherever it says it
+│   ├── probe.ts             # what SURVIVED a gesture: a serial on every element of
+│                           #   a region and a watch over it, so a scenario can say the
+│                           #   column held still rather than that it ended up drawing
+│                           #   the same markup
 │   ├── mcp.ts               # an MCP client, for the agent olai did not start
 │   └── ndjson.ts            # line-delimited JSON off a pipe — one copy, shared
 │                           #   by that client and both fakes below
