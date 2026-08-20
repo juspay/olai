@@ -106,9 +106,16 @@ export function Face(props: {
         </a>
       </Show>
       <Show when={filterOf(props.route) !== ""}>
+        {/* INHERITS the row's ink, and that is the visibility: `text-muted`
+            is contrast-tested on paper, desk, panel, pill — never on the
+            sidebar's ink, which is where a pin actually sits. A long query
+            used to be `shrink-0` as well, so `created:yesterday..today`
+            took the row and left the name as `c…`. It can shrink now, and
+            the full query rides `title` for the half that does not fit. */}
         <span
-          class="shrink-0 rounded bg-rule/60 px-1 font-mono text-[0.65rem] text-muted"
+          class="min-w-0 max-w-[55%] truncate rounded bg-current/15 px-1 font-mono text-[0.65rem]"
           data-testid={TESTID.addressFilter}
+          title={filterOf(props.route)}
         >
           {filterOf(props.route)}
         </span>

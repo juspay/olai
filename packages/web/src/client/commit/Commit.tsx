@@ -68,6 +68,7 @@ import { agoOf, createNow } from "./ago.ts"
 import { explain, faceOf, isInert, isNews, MARK, newsSays } from "./said.ts"
 import { Panel } from "./Panel.tsx"
 import { desktop } from "../layout/media.ts"
+import { LAYER } from "../layer.ts"
 import { BANNER, PILL } from "../readout.ts"
 import { createPopover } from "../popover.ts"
 import { autoPush } from "../settings/autopush.ts"
@@ -159,7 +160,12 @@ export function Commit() {
   return (
     <>
       <Show when={showPill()}>
-      <Tip text={said()}>
+      {/* {@link LAYER.over}: this pill lives in the bar, so the sentence
+          about it is the same claim the panel behind it already makes —
+          cover the bar (and the chat dock that shares the page layer).
+          Sitting at the page layer is how the coral rule cut the first
+          line and how the dock's "chats" / "+ new" painted through the rest. */}
+      <Tip text={said()} layer={LAYER.over}>
         <button
           type="button"
           ref={panel.setTrigger}

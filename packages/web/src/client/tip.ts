@@ -19,6 +19,10 @@ import { createSignal } from "solid-js"
 /** How close to the window's edge a tip may come. */
 const MARGIN = 8
 
+/** How far below the anchor — or the header, if the anchor sits inside it —
+ *  a tip starts. */
+const TIP_GAP = 4
+
 /**
  * The left edge to draw a tip at: under its anchor, pulled back when that
  * would push its right edge past the window, and never past the left edge —
@@ -34,6 +38,20 @@ export const clampedLeft = (
   tipWidth: number,
   viewportWidth: number,
 ): number => Math.max(MARGIN, Math.min(anchorLeft, viewportWidth - tipWidth - MARGIN))
+
+/**
+ * The top edge to draw a tip at: under its anchor, but never under the
+ * header.
+ *
+ * A header pill's box ends INSIDE the bar. Starting {@link TIP_GAP} below
+ * THAT is how the coral rule used to cut the first line of the sentence —
+ * the bar is a stacking context above the page layer, so the tip was
+ * painted through rather than merely overlapping. The floor is the bar's
+ * bottom edge when there is one, and the anchor's own bottom when there
+ * is not (a row's tip, already below the chrome).
+ */
+export const clampedTop = (anchorBottom: number, floor: number): number =>
+  Math.max(anchorBottom, floor) + TIP_GAP
 
 // ── one tip, ever ──────────────────────────────────────────────────────
 
