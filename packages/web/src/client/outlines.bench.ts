@@ -35,7 +35,7 @@
  *     is what the two per-frame walks over the key list cost, which
  *     `./outlines.ts` names in its own text and could not price.
  *
- * ## The reconnect: what a link flap costs the next search
+ * ## The reconnect: what a link flap costs the caches a tab holds
  *
  * The other half, and the other deferral (#263's first). A wire snapshot
  * re-initialises the fold — one honest full rebuild per reconnect, which the
@@ -49,11 +49,21 @@
  *   - `held` — seeded from the STORE, which value-diffed the snapshot and kept
  *     the objects it already had. This is `createOutlines` as it now is.
  *
- * Both are then asked one search question, and the question is the point:
- * `@olai/format`'s matcher keeps its folded text in a `WeakMap` on the RECORD,
- * so an arm holding the records it held before the flap answers warm and an arm
- * holding fresh ones folds the corpus again. A FRESH SNAPSHOT PER ROUND, so the
- * cold arm is cold every round rather than warmed by its own first answer.
+ * Both are then asked one search question, and the question is a PROBE rather
+ * than the thing being paid for — which is a correction `search-server-side`
+ * made to this leg rather than a change to what it measures. A tab does not run
+ * the matcher any more: which nodes a query selects is the server's answer now
+ * (`filter/asking.ts`). What it still runs, per frame, is every other
+ * per-record `WeakMap` in `@olai/format` — the face decode above all, which
+ * `faces()` walks the whole key list through — and those go cold on a flap for
+ * exactly the same reason and by exactly the same rule: a cache on the RECORD
+ * survives only for an arm holding the records it held before. The matcher's
+ * fold is used here because it is the cheapest probe of that rule that answers
+ * a number. A FRESH SNAPSHOT PER ROUND, so the cold arm is cold every round
+ * rather than warmed by its own first answer.
+ *
+ * This whole file dies with the browser's fold (`vault-in-browser.md` §4, PR
+ * 10), and this arm dies with `seedOf` beside it.
  *
  * RUN IT WITH `just bench`, which is `bun --conditions browser`. Without that
  * condition Bun resolves SolidJS's server build, where a memo is computed once
@@ -309,10 +319,15 @@ const theFrame = async (): Promise<void> => {
   }
 }
 
-// ── the reconnect: what a link flap costs the next search ──────────────
+// ── the reconnect: what a link flap costs the caches a tab holds ───────
 
 /**
- * Somebody typing one word into the box.
+ * The PROBE: one corpus-wide fold, asked as a query.
+ *
+ * It was "somebody typing one word into the box" and it is not any more — that
+ * box asks the server (`filter/asking.ts`). What is left is the cheapest way to
+ * ask whether the per-record caches survived a flap, which is the question the
+ * two arms differ on.
  *
  * A SELECTIVE one, and that is a decision rather than a convenience: the
  * matcher folds every record of the corpus whatever the query says, but it also

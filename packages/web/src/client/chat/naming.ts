@@ -41,16 +41,32 @@
  * directory once its best bucket is full, so a file half asked for three rows
  * could not grow back to eight when the node half came back empty. Ask for
  * eight, keep what fits.
+ *
+ * ## The two halves no longer arrive together, and the reserve is why that is fine
+ *
+ * The files are matched here, out of the key sets this tab holds; the nodes are
+ * a debounce and a round trip away since `search-server-side`
+ * (docs/brainstorming/vault-in-browser.md). So the node block can appear a beat
+ * after the file block, and the file block can be standing alone when a reader
+ * starts walking it. That is exactly the case {@link RESERVE} was written for
+ * from the other direction — each kind keeps its rows whatever the other found
+ * — and it is why the list does not reshuffle under a cursor when the answer
+ * lands: what a late node half can take is the slack the file half was never
+ * using. What it CANNOT do is move a file row somebody is already on.
  */
 
-import type { Derived } from "@olai/format"
+import type { NodeHit } from "@olai/surface"
 
 import { dirOf, folded, matchFiles, nameOf } from "../file/matching.ts"
-import { matchNodes, type NodeMatch } from "./nodes.ts"
-
 /** How many rows the list offers — the eight every shortlist in this app shows
- *  (`../complete/tags.ts`, `../file/matching.ts`). */
-const LIMIT = 8
+ *  (`../complete/tags.ts`, `../file/matching.ts`), and since the node half
+ *  became a request it is the SAME eight the server was asked for: the
+ *  arithmetic below hands the file half whatever the node half did not use, so
+ *  a cap that differed from the one on the request would be giving away rows
+ *  that were never on offer. */
+import { LIMIT } from "../search/nodes.ts"
+import { nodeMatches, type NodeMatch } from "./nodes.ts"
+
 
 /** ...and how many of them belong to a kind that has rows, whatever the other
  *  kind found. Half the list each: any other split would be this file having an
@@ -81,20 +97,22 @@ export interface Offer {
 /**
  * The whole list, in the order it is drawn.
  *
- * `now` is the tab's own day, for the grammar's relative words (`../clock.ts`);
  * `files` is the served directory's paths, already folded once per version of
- * it by {@link folded}.
+ * it by {@link folded}; `hits` is what the server said the same query names,
+ * capped there at the same eight (`../search/nodes.ts`). There is no clock
+ * argument any more: the relative words in a node query (`@date:today`) are
+ * counted on the side that matches them, which is the server — the same clock
+ * the ⌘K palette and an agent's `search_nodes` have always counted from.
  */
 export const offers = (
   files: ReadonlyArray<string>,
-  derived: Derived | undefined,
+  hits: ReadonlyArray<NodeHit>,
   query: string,
-  now: string,
 ): ReadonlyArray<Offer> => {
   const paths = matchFiles(folded(files), query, LIMIT).map((file) => file.path)
-  // A first frame has no indexes yet and nothing is drawn that needs them
-  // (`../derived.tsx`), so the file half answers alone rather than waiting.
-  const nodes = derived === undefined ? [] : matchNodes(derived, query, now, LIMIT)
+  // An answer that has not arrived yet is no rows rather than no list: the file
+  // half answers alone and the nodes join it when they land.
+  const nodes = nodeMatches(hits)
   const forFiles = Math.min(paths.length, Math.max(RESERVE, LIMIT - nodes.length))
   const forNodes = Math.min(nodes.length, LIMIT - forFiles)
   return [

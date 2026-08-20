@@ -6,12 +6,15 @@
  * them apply is the `•••` menu's answer and not a second list; the DOCUMENT
  * rows are next door the other way (`./documents.ts`), because which files the
  * directory serves is the served list's answer and not a second list either.
- * Node hits
- * arrive from the server's search procedure (Palette.tsx asks it as you type)
- * rather than from a matcher of this file's own: the browser holds every node
- * and could grep them, and deliberately does not, because the palette and an
- * agent's `search_nodes` must be one reading (`@olai/surface`'s search.ts has
- * the argument).
+ * Node hits arrive from the server's search procedure (Palette.tsx asks it as
+ * you type) rather than from a matcher of this file's own, because the palette
+ * and an agent's `search_nodes` must be one reading (`@olai/surface`'s
+ * search.ts has the argument). That used to be a restraint — the browser held
+ * every node and could have grepped them, and deliberately did not. Since
+ * `search-server-side` it is not even that: the matcher left this bundle with
+ * the vault (`docs/brainstorming/vault-in-browser.md`), so there is nothing
+ * here to grep. The conclusion is the one it always was; only its premise got
+ * smaller.
  *
  * TWO PREFIXES take the box away from the list, and they are the same idea
  * twice: `>` sends the rest to the agent, `+` captures the rest as a node.

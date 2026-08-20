@@ -427,6 +427,11 @@ export const FILTER_CLEAR = selector(TESTID.filterClear);
  *  scenario asserts on the WORDS: a query that quietly found nothing is what
  *  this line exists to make impossible. */
 export const FILTER_REFUSAL = selector(TESTID.filterRefusal);
+/** Why the box is inert: the connection cannot carry a question, in the
+ *  connection pill's own words (`client/filter/asking.ts`). A different line
+ *  from the refusal above and from a failed call, because they are three
+ *  different pieces of news. */
+export const FILTER_OFFLINE = selector(TESTID.filterOffline);
 export const PANE = selector(TESTID.pane);
 export const PANE_RAIL = selector(TESTID.paneRail);
 export const PANE_HEADER = selector(TESTID.paneHeader);
@@ -1013,17 +1018,28 @@ export const drawn = async (found: Locator): Promise<Locator> => {
  * with, and two features ask it now.
  */
 export const expectDrawn = async (
+  world: OlaiWorld,
   found: Locator,
   attribute: string,
   expected: string,
 ): Promise<void> => {
-  assert.deepStrictEqual(
+  const wanted = expected.split(",").map((one) => one.trim());
+  const read = async (): Promise<ReadonlyArray<string | null>> =>
     await (await drawn(found)).evaluateAll(
       (all, name) => all.map((element) => element.getAttribute(name)),
       attribute,
-    ),
-    expected.split(",").map((one) => one.trim()),
-  );
+    );
+  // WAITED FOR, THEN ASSERTED — the pattern the filter's count line already
+  // uses, and for a reason that grew teeth when the filter became a question to
+  // the server (`search-server-side`): a list read in the beat between a
+  // keystroke and its answer is a list read one query early. The wait is what
+  // makes the case pass; the assert is what makes a real failure print the two
+  // lists rather than a bare timeout.
+  await world.waitUntil(
+    async () => JSON.stringify(await read()) === JSON.stringify(wanted),
+    `the drawn ${attribute} list to be ${JSON.stringify(wanted)}`,
+  ).catch(() => undefined);
+  assert.deepStrictEqual(await read(), wanted);
 };
 /**
  * WHICH OF TWO IS DRAWN ABOVE THE OTHER, waited for rather than sampled.

@@ -98,7 +98,11 @@ Feature: Typing @ in the chat completes a node of the directory
   @scratch:chat
   Scenario: The words are the last word — deleting one takes its chip
     When I type "look at @hing" into the chat
-    And I accept the completion
+    # The row has to be ON the list before Enter can take it — the node half is
+    # the server's answer now, so "offered" is a fact to wait for rather than
+    # one the same tick already holds.
+    Then the completion offers "hinges"
+    When I accept the completion
     Then the composer is armed with "hinges"
     # Nothing to disarm and nothing to remember: what the message is about is
     # what the message still says.
@@ -133,7 +137,8 @@ Feature: Typing @ in the chat completes a node of the directory
     # went while its word stayed would come straight back — the words are what
     # the strip is read from.
     When I type "look at @hing" into the chat
-    And I accept the completion
+    Then the completion offers "hinges"
+    When I accept the completion
     Then the chat input reads "look at @hinges "
     When I take the armed node "hinges" off
     Then the composer is armed with nothing

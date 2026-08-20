@@ -68,6 +68,8 @@ import {
   type Reading,
   type Reference,
   ranked,
+  type MatchingAnswer,
+  type MatchingRequest,
   type SearchAnswer,
   type SearchHit,
   type SearchRequest,
@@ -310,6 +312,76 @@ export const search = (
   // The TOTAL is what matched, never what was kept, so "twelve of ninety" is
   // sayable — the one number that has to be read off the uncapped lists.
   return { hits, total: nodes.length + documents.length }
+}
+
+/**
+ * The other question the one matcher answers: WHICH nodes a query selects, all
+ * of them, with why and nothing else.
+ *
+ * The filter over the page in front of somebody is what asks it, and what that
+ * page needs is the opposite of a shortlist (`@olai/format`'s `searching.ts`
+ * argues the split at `MatchingRequest`): it prunes itself by the ids and counts
+ * itself against them, so a capped answer would make "3 of 41" a sentence with
+ * an invented number in it, and a ranked one would be an order the page has no
+ * use for — a tree is drawn in the tree's order.
+ *
+ * SO THE COST IS THE ANSWER'S SIZE, and it is worth saying plainly rather than
+ * leaving to be discovered: a one-letter query over a large vault selects most
+ * of it, and this hands back an id per selection. That is the same list the
+ * browser used to build for itself out of its own copy of the set — the change
+ * is which side of the wire builds it — and it is bounded by the corpus rather
+ * than by anything a reader typed. What shrinks it is `search-index` (the
+ * roadmap node), which shrinks the WALK; nothing about this shape forces a
+ * per-page protocol before then.
+ *
+ * OVER THE WHOLE SET, and that is FORCED rather than a cost nobody thought
+ * about. A filtered page could name its own file — the request has no `file`
+ * and would not be wrong to — except that a page draws MIRRORS, and a mirror
+ * shows a node that lives in another outline (`@olai/format`'s `matching`
+ * skips placements and scopes by the canonical record's file). A curated list
+ * filtered under `file:` would silently lose every row it is made of. So the
+ * matcher answers over the set and the PAGE narrows by what it draws, which is
+ * the same division the browser's own filter always made.
+ *
+ * NO DOCUMENTS, and that is the grammar rather than a narrowing chosen here: a
+ * filter narrows rows of a page, a document is prose and is the one page that
+ * carries no filter (`@olai/web`'s `routes.ts`). {@link search} is where the
+ * other half of the directory is answered.
+ *
+ * NO REFUSAL either — the door that asks this reads the same grammar itself,
+ * one function away, so it has already drawn the sentence by the time a round
+ * trip could carry one. A refused query never reaches here at all; if one does,
+ * it selects nothing, which is what a refusal means everywhere else.
+ */
+export const matches = (
+  /** The DERIVATION alone, unlike {@link search}: nothing here answers about a
+   *  document, so the set's bodies are not read. */
+  derived: Derived,
+  query: MatchingRequest,
+  /** What the grammar's relative words count from — {@link search}'s own
+   *  argument, and the same clock. */
+  now: string,
+): MatchingAnswer => {
+  const filter = parseFilter(query.text, now)
+  if (filter.kind !== "asking") return { matches: [] }
+  return {
+    matches: matching(derived, filter, { trashed: query.trashed }).map((
+      { at, match },
+    ) => ({
+      // CAST rather than `NodeId.make`, and it is the same call
+      // `@olai/format`'s `address.ts` argues for at its own hot spot: the brand
+      // is nominal, so `make` runs a parser with nothing to check — and this
+      // list is UNCAPPED, where {@link search} pays that parse twelve times
+      // behind its cap. One schema parse per selected node per settled
+      // keystroke is a real number on a large vault.
+      id: at.node.id as NodeId,
+      // The format's own rule for absence: a query that named no words was
+      // carried by no field, and naming one would be inventing the reason a row
+      // is in front of somebody — which is precisely what the field is read for
+      // (`@olai/web`'s `filter/why.ts` draws a note excerpt off it).
+      ...(match.field === null ? {} : { matched: match.field }),
+    })),
+  }
 }
 
 // ── one node, and what is under it ─────────────────────────────────────

@@ -12,6 +12,7 @@
 
 import { createMemo, Match, Show, Switch } from "solid-js"
 
+import { parseFilter } from "@olai/format"
 import type { Agenda, Derived } from "@olai/format"
 
 import { AgendaPage } from "../agenda/AgendaPage.tsx"
@@ -19,6 +20,7 @@ import { CLEARANCE } from "../connection/Indicator.tsx"
 import { DayPage } from "../day/DayPage.tsx"
 import { DocumentPage } from "../document/DocumentPage.tsx"
 import { Broken } from "../errors/Broken.tsx"
+import { createAsked } from "../filter/asking.ts"
 import { FilterBar } from "../filter/FilterBar.tsx"
 import { NarrowedProvider } from "../filter/narrowed.tsx"
 import { createNarrowing } from "../filter/narrowing.ts"
@@ -65,12 +67,54 @@ export function PageView(props: {
 
   const shownDrawn = createMemo(() => visibleIn(allDrawn()))
 
+  /**
+   * THE BOX, READ ONCE — and both things made of it built off that one value:
+   * what the page says about the query (`filter/narrowing.ts`) and the question
+   * that goes to the server (`filter/asking.ts`). Two parses would be one
+   * grammar asked twice about one string, which is a drift the same function
+   * called twice cannot fix.
+   *
+   * The DAY is the tab's own (`../clock.ts`) and it is what the relative words
+   * count from HERE — the words to light, the refusals, whether there is a
+   * query at all. What the server matches by counts from the server's clock,
+   * exactly as the ⌘K palette and an agent's `search_nodes` already do; the two
+   * differ only for a tab left open across midnight or sitting in another time
+   * zone, and one answer about what day it is beats a query resolved twice.
+   */
+  const query = createMemo(() => parseFilter(filterOf(route()), props.today))
+
+  /**
+   * WHICH NODES the query selects — the server's answer, debounced and
+   * stale-guarded (`filter/asking.ts`). It used to be a walk over every node
+   * this tab held; the tab is giving that copy up
+   * (docs/brainstorming/vault-in-browser.md).
+   *
+   * IT IS HANDED THE PARSE, THE PAGE AND THE SET, not conditions written here:
+   * whether there is a question at all, whether this page's own rows are
+   * put-away ones — the one thing the matcher is told about the question rather
+   * than asked about the answer — and whether the directory has moved under the
+   * answer are each one predicate over a value the pane already has, and a
+   * second spelling of any of them is a second answer to it.
+   */
+  const asked = createAsked({
+    query,
+    text: () => filterOf(route()),
+    page: allDrawn,
+    // THE SET, as the generation the question carries: a filter is a standing
+    // view, so an answer that outlived the set it was computed over is a wrong
+    // answer that looks like a right one (`filter/asking.ts`'s `Ask.at`). The
+    // derivation is a fresh value per published revision, which is exactly "the
+    // directory moved" — and it goes over as a TOKEN, read by nothing.
+    at: () => props.derived,
+  })
+
   const narrowing = createNarrowing({
-    derived: () => props.derived,
+    query,
     text: () => filterOf(route()),
     all: allDrawn,
     visible: shownDrawn,
-    today: () => props.today,
+    matched: asked.matched,
+    answering: asked.answering,
   })
 
   const rows = () => only(narrowing.drawn(), "tree")?.rows ?? []
@@ -114,7 +158,7 @@ export function PageView(props: {
     >
       <NarrowedProvider narrowed={narrowing}>
         <Show when={narrowing.drawn().kind !== "none"}>
-          <FilterBar narrowing={narrowing} onType={narrow} />
+          <FilterBar narrowing={narrowing} asked={asked} onType={narrow} />
         </Show>
         <Show when={page()}>
           {(open) => (

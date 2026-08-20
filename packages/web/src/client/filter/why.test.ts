@@ -13,18 +13,20 @@
  *      title holds nothing the reader typed.
  *
  * Over the reading `./narrowing.ts` produces rather than over a mock, so the
- * `field` these read is the matcher's own answer and not one invented here.
+ * `matched` field these read is the matcher's own answer and not one invented
+ * here.
  * The fixed-query note in `./narrowing.test.ts` applies unchanged: there is no
  * DOM under `bun test`, so each case builds its own reading.
  */
 
-import { derive, litBy, rowsOf } from "@olai/format"
+import { derive, litBy, parseFilter, rowsOf } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
 import type { Drawn } from "../page.ts"
 import { excerptOf } from "../note/excerpt.ts"
+import { answered } from "./answered.testlib.ts"
 import { runsIn } from "./lit.ts"
 import type { Narrowed } from "./narrowed.tsx"
 import { asContext, behindTheMark, lighting } from "./why.ts"
@@ -52,14 +54,18 @@ const TODAY = "2026-08-18"
 
 const tree: Drawn = { kind: "tree", rows: rowsOf(derived, "house.olai") }
 
+/** The page, at one query — with the answer the server would give
+ *  (`./answered.testlib.ts`), because the `matched` field these three questions
+ *  read has to be the matcher's rather than one invented here. */
 const page = (text: string): Narrowed =>
   createRoot(() =>
     createNarrowing({
-      derived: () => derived,
+      query: () => parseFilter(text, TODAY),
       text: () => text,
       all: () => tree,
       visible: () => tree,
-      today: () => TODAY,
+      matched: () => answered(derived, tree, text, TODAY),
+      answering: () => text.trim(),
     })
   )
 

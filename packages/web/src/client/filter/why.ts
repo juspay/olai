@@ -41,8 +41,13 @@ import type { Narrowed } from "./narrowed.tsx"
 export const matchedAttr = (
   narrowed: Narrowed,
   id: string,
-): string | undefined =>
-  narrowed.active() ? String(narrowed.matched().has(id)) : undefined
+): string | undefined => {
+  // NOTHING TO NARROW BY is NOTHING SAID — no query, or one whose answer has
+  // not arrived. One question, asked once (`./narrowing.ts`'s `selected`), so
+  // this file cannot forget half of it in one of its four answers.
+  const found = narrowed.selected()
+  return found === null ? undefined : String(found.has(id))
+}
 
 /**
  * May this page say what it HOLDS?
@@ -70,7 +75,7 @@ export const lighting = (
   narrowed: Narrowed,
   id: string,
 ): ReadonlyArray<string> =>
-  narrowed.matched().has(id) ? narrowed.needles() : NO_NEEDLES
+  narrowed.selected()?.has(id) === true ? narrowed.needles() : NO_NEEDLES
 
 /**
  * Is this row drawn only as the ancestry that LEADS to a match?
@@ -80,7 +85,7 @@ export const lighting = (
  * as context — every row is there because the page draws it.
  */
 export const asContext = (narrowed: Narrowed, id: string): boolean =>
-  narrowed.active() && !narrowed.matched().has(id)
+  narrowed.selected()?.has(id) === false
 
 /**
  * How a row says it is context and not an answer — the ink for {@link
@@ -106,7 +111,7 @@ export const CONTEXT_DIM = (narrowed: Narrowed, id: string): string =>
  * Did the query find this row ONLY behind its ¶ — and if so, what to look for
  * in the note?
  *
- * `desc` is the lowest-weighted field the matcher scores, so a `field` of
+ * `desc` is the lowest-weighted field the matcher scores, so a `matched` of
  * `desc` means no word landed in the title, the id or a tag anywhere in the
  * query: the row is drawing a title with nothing the reader typed in it. That
  * is the row the excerpt exists for (`../note/excerpt.ts`), and it is the model's own
@@ -120,4 +125,4 @@ export const behindTheMark = (
   narrowed: Narrowed,
   id: string,
 ): ReadonlyArray<string> =>
-  narrowed.matched().get(id)?.field === "desc" ? narrowed.needles() : NO_NEEDLES
+  narrowed.selected()?.get(id)?.matched === "desc" ? narrowed.needles() : NO_NEEDLES

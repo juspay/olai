@@ -325,6 +325,51 @@ Feature: It stays live
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: A FILTERED page follows the files too, in both directions
+    # The claim `search-server-side` has to keep and nearly did not: a filter is
+    # a STANDING VIEW of the page, not a shortlist somebody opened once. It used
+    # to be a memo over the local set, so every published revision re-ran the
+    # matcher for free; it is a question to the server now, and a question keyed
+    # on the words alone would have made a filtered page a photograph of the
+    # directory as it was when the query settled — the rows redrawing underneath
+    # while the answer that prunes them stood still.
+    #
+    # It earns the browser twice over: only a real wire re-asks, and the failure
+    # is invisible to every unit suite — the two numbers even keep adding up
+    # ("1 of 11" over a page holding two matches), because the denominator is
+    # counted locally and the numerator came from the server a revision ago.
+    #
+    # `trays` is a word no id in this file carries, which is the care a query
+    # over this matcher needs: an id is one of the four fields it looks in, so a
+    # row "retitled out of" a query that happens to be its own id is still a
+    # match, correctly.
+    When I filter the page by "trays"
+    Then the filter found "1 of 11"
+    # Two rows retitled INTO the query have to arrive as matches.
+    When I rewrite "garden.olai" as:
+      """
+      {"id":"garden","ord":"a0","title":"garden #outdoors"}
+      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}
+      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil in trays","done":"2026-07-20"}
+      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint into trays","doing":true}
+      """
+    Then the filter found "2 of 4"
+    And the node "basil" is a match
+    And the node "mint" is a match
+    # ...and rows retitled OUT of it have to leave, which is the half a stale
+    # answer keeps drawn, still lit, still counted.
+    When I rewrite "garden.olai" as:
+      """
+      {"id":"garden","ord":"a0","title":"garden #outdoors"}
+      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}
+      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}
+      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true}
+      """
+    Then the filter found "no matches of 4"
+    And the node "basil" is not shown
+    And the page has not reloaded
+    And there should be no page errors
+
   Scenario: A zoomed node's own page is as live as its outline
     # `/#<id>` draws from the same store as a whole outline, so "it stays
     # live" has to mean the same thing there. Zooming is a route change and not

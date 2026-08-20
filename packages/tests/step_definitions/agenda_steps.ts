@@ -119,7 +119,7 @@ Then(
         .first()
         .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
     }
-    await expectDrawn(this.page.locator(AGENDA_DAY), "data-when", expected);
+    await expectDrawn(this, this.page.locator(AGENDA_DAY), "data-when", expected);
   },
 );
 
@@ -155,6 +155,7 @@ Then(
   "the spine's {string} rows are {string}",
   async function (this: OlaiWorld, when: string, expected: string) {
     await expectDrawn(
+      this,
       this.page.locator(`${standingSelector(when)} ${NODE}`),
       "data-node-id",
       expected,
@@ -169,6 +170,7 @@ Then(
   "the spine's {string} days are {string}",
   async function (this: OlaiWorld, when: string, expected: string) {
     await expectDrawn(
+      this,
       this.page.locator(standingSelector(when)),
       "data-date",
       expected,
@@ -278,6 +280,7 @@ Then("the agenda does not say it is empty", async function (this: OlaiWorld) {
 
 Then("the days ahead are tomorrow", async function (this: OlaiWorld) {
   await expectDrawn(
+    this,
     this.page.locator(standingSelector("ahead")),
     "data-date",
     tomorrow(),

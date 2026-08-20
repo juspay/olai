@@ -2,6 +2,8 @@
 
 Status: design, written 2026-08-14 ahead of the third part of the `search` roadmap item. The first two parts shipped the substring UI (#149) and semantic recall (#165, open). This is the part that keeps the outline on screen and takes rows away from it.
 
+> **One half of this design has since been REVERSED, knowingly** (the human's ruling, 2026-08-19; roadmap `search-server-side`, the first step of [vault-in-browser.md](vault-in-browser.md)). "The filter cannot be a door to that procedure, because a round trip per keystroke is the wrong shape for a view that narrows as you type" was true while the browser held the whole vault. It no longer may: a tab keeps at most the page in front of somebody, so the filter and the chat composer's `@` list ARE round trips now, behind a debounce and a rule that a stale answer never lands over a newer query. What the reversal did NOT touch is the reason the matcher moved down: it stayed in `@olai/format`, one definition for every door — and the second and third bullets below turned out to be the shape of the new wire member rather than an argument against one (`Query.matches` answers every match, uncapped, as ids to test rows against). Everything else here — the grammar, the archive rule, the prunes, what a filtered row says about itself — stands as written.
+
 Reference model is Workflowy, as read in [viewing-web.md](viewing-web.md): "results render as matching nodes *with their ancestors*, live as you type", "clicking a `#tag` filters the current view to items carrying it, ancestors kept for context, scoped to the current subtree", and a real operator language (`is:complete`, `has:note`, dates, `-not`, `OR`, `>`). That file's Open section says the direction is settled and the grammar is a design of its own. This is that design.
 
 ## What is being added
@@ -20,6 +22,8 @@ A filter cannot be a fourth door to that procedure, and the reason is not taste:
 - it runs on **every keystroke over a tree that is already in the browser** — a 200 ms debounce plus a round trip is the wrong shape for a view that is supposed to narrow as you type;
 - it needs **every** match, not twelve — the cap `Query.search` exists to apply is exactly wrong here;
 - and it needs the answer as a **set of ids to test rows against**, not a ranked list of situated hits.
+
+> **Read the three bullets against the banner above.** The first is the one that was reversed: the tree is not in the browser any more, so the round trip is what a filter costs, with the debounce and the stale-answer rule as its price (`@olai/web`'s `filter/asking.ts`). The other two were never objections — they are the SHAPE of the member the reversal added: `search.matching` answers every match, uncapped and unranked, as ids to test rows against. And one thing the bullets do not say, which the move made load-bearing: a filter is a STANDING view of a page, so the question carries the set's own generation and a revision re-asks it.
 
 So the matcher moves DOWN rather than being copied sideways. `@olai/format` is the package both the validator and the view already read the format through — `derive`, `rowsOf`, `zoom`, `withoutDone`, the date derivations — and "does this node match this query" is a derivation of exactly that kind. It becomes `format/src/filter.ts`:
 
@@ -223,7 +227,7 @@ The fix is three things, all view-time — nothing is stored, nothing is re-matc
 - **A row that did not match is dim** — the same utility a row that cannot be started yet already wears (`blocked.ts`'s `WAITING_DIM`), deliberately the same value rather than a second number, since a row can be both at once. On the LINE and the body, never on the `<li>`: opacity compounds through a subtree, and an item would dim the very match the context leads to.
 - **A note-only match draws one clamped line** of its note, opening at the hit's own line, with the word lit (`note/excerpt.ts`, beside `note/preview.ts` — one concept, two selectors). It replaces the density preference's top-of-note preview on that row rather than sitting beside it.
 
-**Auto-expanding a matched note lost, and it was the obvious alternative.** Notes here run to ~1.5KB paragraphs; the filter re-evaluates per keystroke, so a page of open notes would reflow violently under somebody still typing; and it would trample the reader's own open/closed state, which would then need saving and restoring to put back. A clamped window is the same idea with a bounded cost.
+**Auto-expanding a matched note lost, and it was the obvious alternative.** Notes here run to ~1.5KB paragraphs; the filter re-evaluates as somebody types, so a page of open notes would reflow violently under them; and it would trample the reader's own open/closed state, which would then need saving and restoring to put back. A clamped window is the same idea with a bounded cost.
 
 **What it cost the format:** `matching`'s answer was already `Matched` (the node and WHY); it was the browser that reduced it to a `Set` of ids. It now keeps the map, and the prunes take the one question they ever asked of it (`Selected`, "does this hold that id") rather than a concrete `Set` — so nothing has to hold two structures that could disagree by a frame.
 
