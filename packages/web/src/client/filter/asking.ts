@@ -61,7 +61,7 @@
  *     it does not have — and a bulk gesture that ticks thirty rows off a page
  *     filtered by a word in their titles now costs the wire nothing at all.
  *   - **The page may not blank while it waits.** The rows on screen stay the
- *     rows the last answer left until the next one lands ({@link held}), and
+ *     rows the last answer left until the next one lands ({@link stood}), and
  *     before the FIRST answer of a filter session there is nothing to narrow
  *     by, which `./narrowing.ts` draws as the whole page rather than as an
  *     empty one. The bar says which of the two a reader is looking at, so
@@ -115,6 +115,36 @@ import type { Matches } from "./matches.ts"
 // a standing view of a page. What it takes from the primitive is the number and
 // nothing else — the latest-answer rule, the failure slot and the clear are a
 // subscription's lifecycle here rather than a resource's.
+
+/**
+ * WHAT THIS DOOR IS DOING — the four states, as a sum.
+ *
+ * A SUM AND NOT FOUR FLAGS, because two of the sixteen combinations three
+ * booleans and a hold could spell are lies a reader would be shown: an answer
+ * standing beside a failure (a page pruned by the last page's ids under a line
+ * saying the server could not answer), and a pane waiting for a question nobody
+ * asked. Neither is spellable here.
+ *
+ * Internal: what a caller wants is the projections ({@link Asked}), which is
+ * where the four arms are read once each.
+ */
+type Standing =
+  /** No question — an empty box, or one the grammar refused and has already
+   *  answered for itself. */
+  | { readonly kind: "none" }
+  /** A question, and what STOOD while it is being answered: the last answer of
+   *  this filter session, or nothing before the first. */
+  | { readonly kind: "waiting"; readonly stood: NarrowingAnswer | undefined }
+  /** A question, answered. */
+  | { readonly kind: "answered"; readonly answer: NarrowingAnswer }
+  /** A question the server could not answer, in its own words — and NOTHING
+   *  standing, which is the arm that makes the pairing structural. */
+  | { readonly kind: "failed"; readonly because: string }
+
+/** Nothing is asked — ONE value, shared, because an unfiltered pane produces it
+ *  on every revision the store publishes and a fresh record per frame is a
+ *  fresh value for whatever memoises against it. */
+const NOTHING_ASKED: Standing = { kind: "none" }
 
 /** What the page's filter has been told. */
 export interface Asked {
@@ -289,8 +319,8 @@ export const createAsked = (source: {
   const answer = olai.streams.narrowing.use(asking)
 
   /**
-   * THE LAST ANSWER, HELD ACROSS THE NEXT QUESTION — `../reading.tsx`'s rule
-   * for the page, applied to the reading beside it and for its reason.
+   * THE LAST ANSWER OF THIS FILTER SESSION — `../reading.tsx`'s rule for the
+   * page, applied to the reading beside it and for its reason.
    *
    * A subscription blanks its value the moment its INPUT moves, so a reader
    * taking it raw sees `A → undefined → B` on every settled keystroke. That
@@ -300,35 +330,65 @@ export const createAsked = (source: {
    * rows somebody is reading. The bar says they are a question behind
    * (`./count.ts`'s `ANSWERING`) and the answer replaces them once.
    *
+   * A SESSION AND NOT FOR EVER, which is the reset in the first line: a box
+   * emptied and typed into again would otherwise draw the PREVIOUS filter's
+   * rows for the length of the round trip after the settle — an answer to a
+   * question nobody asked, over the page it did narrow. Holding still is honest
+   * between two queries somebody is typing through; across a clear there is
+   * nothing to hold.
+   *
    * A MEMO OVER ITS OWN LAST VALUE, not a signal an effect writes: an effect
    * runs AFTER the render that saw the blank.
    */
-  const held = createMemo<NarrowingAnswer | undefined>(
-    (was) => answer() ?? was,
+  const stood = createMemo<NarrowingAnswer | undefined>(
+    (was) => (asked() === null ? undefined : answer() ?? was),
     undefined,
   )
 
   /**
-   * ONLY WHILE SOMETHING IS ASKED AND SOMETHING IS COMING — the two guards
-   * holding does not give.
+   * WHAT THIS DOOR IS DOING, as ONE value — the four states a filtered pane can
+   * be in, so the two that must never coincide cannot be spelled.
    *
-   * A BOX EMPTIED AND TYPED INTO AGAIN would draw the PREVIOUS filter's rows
-   * for the length of a settle — the whole page, then four rows of an answer to
-   * a question nobody asked, then the answer. Holding still is only honest
-   * between two queries of one session; across a clear there is nothing to
-   * hold, and the page is whole until the first answer lands.
+   * It was four accessors reading two of the subscription's signals and a hold
+   * beside them, and the state machine that made was written down nowhere: the
+   * rule "a reading that FAILED shows nothing" lived as a clause on one of the
+   * four, and "there is something to wait for" as a conjunction on another.
+   * Both are arms here.
    *
-   * A READING THAT FAILED is the other, and it is the one case where holding an
-   * answer and holding the PAGE come apart. They are held together on purpose
-   * ({@link Asked.awaiting}), so while a narrowing is in flight the rows on
-   * screen and the answer that narrowed them are one page's; a failure releases
-   * the page (`pending` clears with it) and would leave the answer behind — the
-   * next page's rows pruned by the last page's ids, silently, under a line
-   * saying the server could not answer. So the answer goes with it: the page
-   * draws WHOLE and the failure under the box is the whole of what is claimed.
+   * WHY THAT PAIRING IS THE LOAD-BEARING ONE. A page and its narrowing are held
+   * together on purpose ({@link Asked.awaiting}), so while one is in flight the
+   * rows on screen and the answer that narrowed them are one page's. A FAILURE
+   * releases the page — the seam clears `pending` in the same batch it records
+   * the failure — and an answer left standing beside it would prune the next
+   * page's rows by the last page's ids, silently, under a line saying the
+   * server could not answer. `failed` carries no answer, so that page cannot be
+   * drawn.
    */
-  const standing = () =>
-    asked() === null || answer.error() !== undefined ? undefined : held()
+  const standing = createMemo<Standing>(() => {
+    if (asked() === null) return NOTHING_ASKED
+    const failed = answer.error()
+    if (failed !== undefined) return { kind: "failed", because: failed.message }
+    const arrived = answer()
+    return arrived === undefined
+      ? { kind: "waiting", stood: stood() }
+      : { kind: "answered", answer: arrived }
+  })
+
+  /** What the three answer-shaped projections read — the answer to show, or
+   *  nothing. One switch, so a fifth state would be a compile error at every
+   *  reader rather than an arm somebody forgot. */
+  const showing = (): NarrowingAnswer | undefined => {
+    const at = standing()
+    switch (at.kind) {
+      case "answered":
+        return at.answer
+      case "waiting":
+        return at.stood
+      case "none":
+      case "failed":
+        return undefined
+    }
+  }
 
   /**
    * THE ANSWER, as a page looks itself up in it — id → why.
@@ -349,7 +409,7 @@ export const createAsked = (source: {
    * side that can act on it.
    */
   const matched = createMemo<Matches | undefined>(() => {
-    const answered = standing()
+    const answered = showing()
     if (answered === undefined) return undefined
     const matches = new Map<string, MatchedNode>()
     for (const one of answered.matches) matches.set(one.id, one)
@@ -369,7 +429,7 @@ export const createAsked = (source: {
      * go on answering what is typed and the wait word never appears for an edit
      * somebody made elsewhere in the vault.
      */
-    answering: () => standing()?.text ?? null,
+    answering: () => showing()?.text ?? null,
     /**
      * WHAT COULD NOT BE READ, and only while it is still about what is typed.
      *
@@ -381,15 +441,23 @@ export const createAsked = (source: {
      * asked, which is the same comparison `./narrowing.ts` makes about the rows
      * and is one memo rather than a signal an effect clears.
      */
-    failure: () =>
-      question() === asked() ? answer.error()?.message ?? null : null,
-    // The join, as one predicate — see {@link Asked.awaiting}. `pending` is the
-    // framework's own "no first frame yet", re-armed with the lifecycle when the
-    // question moves, so nothing here has to remember which answer was about
-    // which page. THAT A HOLD IS NEVER PERMANENT is the seam's law rather than a
-    // second condition kept here: a failing stream clears `pending` in the same
-    // batch it records the failure (`@kolu/surface`'s `createStreamLifecycle`),
-    // so there is no `error` clause to write and none to go stale.
-    awaiting: () => asking() !== null && answer.pending(),
+    failure: () => {
+      const at = standing()
+      // NOT WHILE THE BOX HAS MOVED ON. The lifetime of the failure is the
+      // subscription's — it re-arms when the question does — but the settle
+      // sits in front of that, and a reader who starts retyping after a failure
+      // would go on being blamed for the old question for 200ms. A refusal is
+      // about the words it was refused for, so it is read against what is TYPED
+      // rather than against what was asked — the same question `./narrowing.ts`
+      // asks about the ROWS, one settle earlier.
+      if (at.kind !== "failed" || question() !== asked()) return null
+      return at.because
+    },
+    // The join, as one arm — see {@link Asked.awaiting}. There is no `error`
+    // clause beside it and none to go stale: `failed` and `waiting` are two arms
+    // of one value, so a hold that is never permanent is the sum's shape rather
+    // than a condition kept here (the seam clears `pending` in the same batch it
+    // records a failure — `@kolu/surface`'s `createStreamLifecycle`).
+    awaiting: () => standing().kind === "waiting",
   }
 }

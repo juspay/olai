@@ -129,8 +129,18 @@ over a page that has not moved, which is the rows-hold-still rule and costs the
 pane nothing; a reading that FAILS drops the hold, because no answer is coming
 and a page held for one that will not arrive is a pane that never draws again.
 
-So the cost is one predicate and one optional argument, and what it buys is the
-keystroke traffic: the alternative pays a whole page per word typed, for ever.
+So the cost is one arm of a four-state sum (`filter/asking.ts`'s `Standing`) and
+one optional argument, and what it buys is the keystroke traffic. **The
+alternative was designed and costed rather than waved away**: fold the query
+into `PageRequest`, carry `matched` on `PageReading`, and every invariant the
+join enforces becomes unspellable — one value, one moment, and `awaiting`,
+`holding`, `sameNarrowingRequest` and this whole member deleted. What makes it
+non-viable is one number, off the same instrument: a page frame on the measured
+vault is **~52 kB** (1,552 kB of page frames over the gesture's thirty writes),
+and a settled keystroke re-opens the subscription, so it pays that per word
+typed. The narrowing frame beside it is **~3 kB**. Seventeen times the traffic,
+on the one door in this app whose whole promise is that it narrows as you type,
+is not a trade the simpler shape wins.
 
 **Named, at population one:** "two members of one surface, drawn as one moment"
 is a volatility a framework could hold — a joined subscription that is pending
