@@ -1644,6 +1644,8 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
 // ── the protocol ───────────────────────────────────────────────────────
 
 const openSession = (params: Record<string, unknown>): void => {
+  // Our e2e scenarios mint this cwd and hand it to the double — controlled
+  // input, not protocol. The counted trim lives in acp/diffs.ts.
   if (typeof params["cwd"] === "string") cwd = params["cwd"].replace(/\/+$/, "")
   // WHETHER THE CLI'S OWN MESSAGES ARE FORWARDED, off the `_meta` of the call
   // that made this session — `session/new` and `session/load` alike, which is
@@ -1798,6 +1800,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/list":
+      // Same as openSession: this cwd is ours, not an agent's.
       if (typeof params["cwd"] === "string") cwd = params["cwd"].replace(/\/+$/, "")
       // An agent that CANNOT say what it has stored — asked, and refusing.
       // Distinct from an agent with nothing stored, which answers an empty
