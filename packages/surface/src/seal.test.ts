@@ -197,18 +197,16 @@ test("the seal carries no policy and no base of its own", () => {
 // this file would drift with them and go on passing. Everything below is built
 // from what the seal actually says.
 const HEIGHT = ((): string => {
-  const found = new Set(
-    [...SEAL.matchAll(/\bpost\(\s*"([^"]*)"\s*\)/g)].map(
-      (one) => JSON.parse(`"${one[1]!}"`) as string,
-    ),
-  )
-  // ONE prefix, however many places post it — the observer's reading and the
-  // one taken at `load` are the same message now, and a second spelling
-  // creeping back in is the drift this whole exercise exists to catch.
-  if (found.size !== 1) {
-    throw new Error(`the measure posts ${found.size} kinds of height, not one: ${SEAL}`)
+  // ONE prefix, spelled ONCE. The observer's reading and the one taken at
+  // `load` are the same message, so there is one measuring function and one
+  // place the tag appears — and a second spelling creeping back in is exactly
+  // the drift this whole exercise exists to catch, so the COUNT is asserted
+  // rather than the first match taken.
+  const found = [...SEAL.matchAll(/"([^"]*)" \+\n?\s*Math\.max/g)]
+  if (found.length !== 1) {
+    throw new Error(`the measure posts ${found.length} heights, not one: ${SEAL}`)
   }
-  return [...found][0]!
+  return JSON.parse(`"${found[0]![1]!}"`) as string
 })()
 
 // THE HELLO, read out of the script that sends it for the reason every other

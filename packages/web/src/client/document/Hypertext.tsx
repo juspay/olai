@@ -386,8 +386,9 @@ export function Hypertext(props: { readonly file: string }) {
    * finally given.
    *
    * ONE ASSIGNMENT, for {@link stand}'s reason one function up. What goes is
-   * the ladder of height reports the old document was climbing, the refusal it
-   * drew, the report it made about its anchor, and the section it was pointed
+   * the distance the old document's last report stood above the frame, the
+   * refusal it drew, the report it made about its anchor, and the section it
+   * was pointed
    * at — and the last of those is what makes `pointed` a fact about the
    * document in the frame right now rather than about this pane's history.
    *
@@ -831,13 +832,15 @@ export function Hypertext(props: { readonly file: string }) {
       // The measurement, and nothing else: unset until a page reports, which is
       // what makes the `var()` default below the answer for a frame that never
       // does. Setting a height from a measurement made INSIDE the box being
-      // sized is a loop, and this is where it closes; it terminates because of
-      // which reading the measure takes — `documentElement.offsetHeight` is the
-      // content's height and does not know the frame's, so growing the frame
-      // does not grow the number (`seal.ts` argues the choice). A page
-      // reflowing to a new WIDTH does report again, which is the point, and
-      // that converges too: a frame sized to its content has no scrollbar left
-      // to take width away.
+      // sized is a loop, and this is where it closes — in two places at once.
+      // The measure reads `documentElement.offsetHeight`, which is the CONTENT's
+      // height and does not know the frame's (`seal.ts` argues the choice); and
+      // for the pages whose content height DOES depend on the frame after all —
+      // a `min-height: 100vh` wrapper, an `html` set to `100%` — the listener
+      // above refuses the reading that says so (`./echo.ts`). A page reflowing
+      // to a new WIDTH does report again, which is the point, and that converges
+      // too: a frame sized to its content has no scrollbar left to take width
+      // away.
       style={{ [PAGE_HEIGHT]: measured() }}
       // The height POLICY, in the stylesheet rather than in the component,
       // because every number in it is a styling decision:

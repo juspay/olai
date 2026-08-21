@@ -360,12 +360,14 @@ const LANDED = "olai:page-landed:"
  * with `document.write` — has no body afterwards, and an exception thrown in
  * here would land on the console of somebody else's page as ours.
  *
- * TWO mechanisms do the measuring, and they answer different questions. A
- * `ResizeObserver` on the root box is the first: it delivers a callback the
- * moment it starts observing, which is the first measurement, and again
- * whenever that box changes — which is how a page reflowing into a narrower
- * window gets a frame that follows it, and also how a page that DRAWS ITSELF
- * with its own script gets a frame the size of what it drew.
+ * TWO mechanisms do the measuring, and ONE function answers for both, since
+ * the reading is the same message however it was provoked. A `ResizeObserver`
+ * on the root box is the first: it delivers a callback the moment it starts
+ * observing, which is the first measurement, and again whenever that box
+ * changes — which is how a page reflowing into a narrower window gets a frame
+ * that follows it, how a page that DRAWS ITSELF with its own script gets a
+ * frame the size of what it drew, and how a page that draws MORE of itself
+ * after `load` gets a taller one.
  *
  * `load` is the second, and it is what pictures made necessary: an `<img>` is a
  * box with no height until its bytes arrive, so the page's real height is not
@@ -391,16 +393,14 @@ const LANDED = "olai:page-landed:"
  */
 const MEASURE = `(function () {
   parent.postMessage(${JSON.stringify(HELLO)}, "*")
-  var post = function (tag) {
+  var measure = function () {
     var page = document.documentElement
     var body = document.body
     parent.postMessage(
-      tag + Math.max(page.offsetHeight, body ? body.scrollHeight : 0),
+      ${JSON.stringify(READING)} +
+        Math.max(page.offsetHeight, body ? body.scrollHeight : 0),
       "*"
     )
-  }
-  var measure = function () {
-    post(${JSON.stringify(READING)})
     landed()
   }
   addEventListener("DOMContentLoaded", function () {
@@ -409,10 +409,7 @@ const MEASURE = `(function () {
     } else {
       measure()
     }
-    addEventListener("load", function () {
-      post(${JSON.stringify(READING)})
-      landed()
-    })
+    addEventListener("load", measure)
     addEventListener("resize", landed)
   })
   var landed = function () {
