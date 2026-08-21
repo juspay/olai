@@ -22,7 +22,12 @@
 
 import { Given, Then } from "@cucumber/cucumber";
 
-import { markRegion, nothingAnnounced, regionHeld } from "../support/probe.ts";
+import {
+  announcedTimes,
+  markRegion,
+  nothingAnnounced,
+  regionHeld,
+} from "../support/probe.ts";
 import {
   BREADCRUMBS,
   CHAT_COMPLETION,
@@ -30,6 +35,7 @@ import {
   EDGE_HELD,
   FILTER_BAR,
   HEADER_SEARCH_RESULTS,
+  nodeSelector,
   PALETTE_LIST,
   PIN_SHELF,
   PROPS,
@@ -93,5 +99,31 @@ Then(
   "nothing in the {string} was announced again",
   async function (this: OlaiWorld, name: string) {
     await nothingAnnounced(this, regionOf(name), name);
+  },
+);
+
+/**
+ * A ROW of the outline, watched the same way — and NOT in the table above,
+ * because a row is named by its own id rather than by a kind of thing on
+ * screen. Its own pair of steps for the same reason: what a scenario means by
+ * "the row `mint`" is the row that node draws, which the suite already spells
+ * once (`nodeSelector`).
+ *
+ * What it is FOR is the said-line under an editor, which is the one live region
+ * this suite has that must be read out loud rather than must not: it does not
+ * exist when the gesture starts, so the plant has to be laid on the row around
+ * it and the claim is a COUNT rather than a zero.
+ */
+Given(
+  "I mark every element of the row {string}",
+  async function (this: OlaiWorld, id: string) {
+    await markRegion(this, nodeSelector(id), `row "${id}"`);
+  },
+);
+
+Then(
+  "the row {string} was read out loud {int} time(s)",
+  async function (this: OlaiWorld, id: string, times: number) {
+    await announcedTimes(this, nodeSelector(id), `row "${id}"`, times);
   },
 );

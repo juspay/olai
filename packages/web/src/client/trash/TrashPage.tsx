@@ -56,7 +56,7 @@ import { isMirror, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, Match, Show, Switch } from "solid-js"
 
-import { SaidLine } from "../edit/SaidLine.tsx"
+import { SaidLine } from "../SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
 import { Empty } from "../Empty.tsx"
 import { useNarrowed } from "../filter/narrowed.tsx"
@@ -232,7 +232,7 @@ function Branch(props: {
       </div>
       <Show when={said()}>
         {(line) => (
-          // The mood is `../edit/SaidLine.tsx`'s, for every surface that says
+          // The mood is `../SaidLine.tsx`'s, for every surface that says
           // something about a write; where the line sits is this row's.
           <SaidLine
             said={line()}

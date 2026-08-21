@@ -12,7 +12,7 @@ Feature: An answer leaves the rows it did not change standing
   the next keystroke is a sentence read out loud a second time to somebody who
   has not changed their mind (docs/brainstorming/reactivity-after-the-flip.md
   §3.2, findings 2.6 to 2.9). One scenario per door, because the three now draw
-  ONE component (`client/edit/SaidLine.tsx`) and the ear is the thing that
+  ONE component (`client/SaidLine.tsx`) and the ear is the thing that
   swap could have cost.
 
   `@corpus:` rather than `@scratch:`: nothing here writes the directory. What

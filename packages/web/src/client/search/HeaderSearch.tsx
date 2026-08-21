@@ -58,7 +58,7 @@ import { createEffect, createMemo, createSignal, Index, onCleanup, Show } from "
 import { Portal } from "solid-js/web"
 
 import { type Anchor, anchoredTo, styleOf } from "../anchor.ts"
-import { ALARM_BAND, SaidLine } from "../edit/SaidLine.tsx"
+import { ALARM_BAND, SaidLine } from "../SaidLine.tsx"
 import { LAYER } from "../layer.ts"
 import { hitItems, type PaletteItem } from "../palette/items.ts"
 import { openPalette } from "../palette/open.ts"
@@ -76,7 +76,7 @@ import { spend } from "../settled.ts"
 
 /** WHERE an alarm sits in this panel: a full-width band above the rows, at
  *  this door's own gutter — narrower than the palette's because the panel is.
- *  The alarm's SKIN is `../edit/SaidLine.tsx`'s (`ALARM_BAND`). */
+ *  The alarm's SKIN is `../SaidLine.tsx`'s (`ALARM_BAND`). */
 const ALERT_ROW = `${ALARM_BAND} px-3`
 
 /** What this door calls its rows (`./Result.tsx`'s `RowTestids`). */

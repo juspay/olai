@@ -46,7 +46,7 @@ import { createSignal } from "solid-js"
 
 import type { Press } from "../edit/panel.ts"
 import { RowPanel } from "../edit/RowPanel.tsx"
-import type { Said } from "../edit/undoing.ts"
+import type { Said } from "../saying.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 import { noticeOf, pressOf, startsAt } from "./pick.ts"

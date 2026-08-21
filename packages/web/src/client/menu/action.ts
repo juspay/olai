@@ -14,7 +14,7 @@
  * is nothing but drawing. Here, both depend on the description instead.
  */
 
-import type { Said } from "../edit/undoing.ts"
+import type { Said } from "../saying.ts"
 
 export interface MenuAction {
   readonly id: string

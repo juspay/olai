@@ -1,14 +1,26 @@
 /**
- * A SAID-LINE's lifetime: the sentence a surface is currently showing, and the
- * six seconds after which it takes itself away.
+ * WHAT THIS CLIENT SAYS: the two moods it says anything in, how long a line
+ * lingers, and the receptacle that holds one.
  *
- * The thing that varies here — and the only thing — is HOW LONG a remark
- * lingers and what clears it. `SAID_MS` was already pulled out beside the
- * `Said` type for exactly that reason ("the `•••` menu's dwell and the trash's
- * were equal only by hand-maintenance"), and the constant turned out to be
- * half the job: the two surfaces still spelled the machinery around it
- * separately, and had already drifted into two shapes for the same three
- * rules. This is the other half.
+ * The MOODS are the whole of {@link Said}, and every surface that answers a
+ * person reaches for them — the `•••` menu, the trash's `Put back`, the
+ * pickers, the panels, the palette, ⌘Z. They were declared inside
+ * `./edit/undoing.ts` because undo was the first to need them, which made a
+ * type half the client mints an import out of one feature's module; they are
+ * here, at the top level, for `./refusals.tsx`'s reason — none of the readers
+ * owns it. Drawn, they are `./SaidLine.tsx`, and the two are deliberately not
+ * one file: half the client MINTS a `Said` without ever drawing one (a verb
+ * answers with a sentence and hands it to whichever line is open), and a
+ * module with JSX in it cannot be imported by a unit test in this repo — the
+ * constraint `./edit/undoing.ts`'s own header already documents.
+ *
+ * The rest is the LIFETIME, and the thing that varies about it — and the only
+ * thing — is HOW LONG a remark lingers and what clears it. `SAID_MS` was
+ * pulled out beside the type for exactly that reason ("the `•••` menu's dwell
+ * and the trash's were equal only by hand-maintenance"), and the constant
+ * turned out to be half the job: the two surfaces still spelled the machinery
+ * around it separately, and had already drifted into two shapes for the same
+ * three rules. This is the other half.
  *
  * THE THREE RULES, in one place:
  *
@@ -29,9 +41,33 @@
  * panel, where those differ.
  */
 
+import type { OpFailure } from "@olai/surface"
 import { type Accessor, createSignal, onCleanup } from "solid-js"
 
-import { type Said, SAID_MS } from "./edit/undoing.ts"
+/** The two moods anything this client says is in: `alarm` for a refusal, which
+ *  is why nothing happened, and `aside` for a remark about something that did.
+ *  What each mood MEANS — the colour it is drawn in, and whether a screen
+ *  reader is interrupted to deliver it — is {@link ./SaidLine.tsx}'s. */
+export interface Said {
+  readonly tone: "alarm" | "aside"
+  readonly text: string
+  /** WHICH RULE said it, where the sentence came from the ops layer and the
+   *  minter still had the failure in hand — drawn as `data-kind`, so a
+   *  scenario can name the rule rather than matching its wording.
+   *
+   *  BESIDE the mood rather than a prop of its own at the line: both are facts
+   *  in the markup about one sentence, and a caller that had to hand one over
+   *  through the value and the other around it is a caller that can pass a
+   *  kind belonging to some other refusal. Optional because most sentences
+   *  have no tag to give — a refused QUERY is a token and a reason
+   *  (`@olai/format`'s `Refusal`), and a remark is nobody's failure. */
+  readonly kind?: OpFailure["_tag"]
+}
+
+/** How long a surface's said-line stays before clearing itself. ONE number,
+ *  beside the type every such line renders: the `•••` menu's dwell and the
+ *  trash's were equal only by hand-maintenance while each spelled its own. */
+export const SAID_MS = 6_000
 
 export interface Saying {
   /** What is on screen right now, or `null`. */

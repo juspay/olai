@@ -19,7 +19,9 @@
  * in it, and neither is another window's.
  *
  * **What it says, it says once.** A refusal is why a key did nothing, so it is
- * drawn ({@link ./UndoSaid.tsx}) and the entry is dropped; a nudge from a write
+ * drawn ({@link ../SaidLine.tsx}, through {@link ./UndoSaid.tsx}) in the two
+ * moods every said-line in this client has ({@link ../saying.ts}) and the entry
+ * is dropped; a nudge from a write
  * that landed rides back the same way it does for every other key (#109); and
  * a replay with nothing to say says nothing at all. HACKING's rule is the
  * reason the first of those exists: a ⌘Z that silently failed would be a person
@@ -30,21 +32,9 @@ import type { Applied, Edit, OpFailure } from "@olai/surface"
 import { type Accessor, createContext, createSignal, useContext } from "solid-js"
 import { Result } from "effect"
 
+import type { Said } from "../saying.ts"
 import { serial } from "./queue.ts"
 import { EMPTY, kept, recorded, type Side, type Stack, type Step, taken } from "./undo.ts"
-
-/** What the last ⌘Z / ⌘⇧Z had to say, in the two moods a write already has:
- *  `alarm` for a refusal, which is why nothing happened, and `aside` for a
- *  remark about something that did. */
-export interface Said {
-  readonly tone: "alarm" | "aside"
-  readonly text: string
-}
-
-/** How long a surface's said-line stays before clearing itself. ONE number,
- *  beside the type every such line renders: the `•••` menu's dwell and the
- *  trash's were equal only by hand-maintenance while each spelled its own. */
-export const SAID_MS = 6_000
 
 export interface Undo {
   /** A write this tab just made, as what would take it back — the server's

@@ -27,9 +27,9 @@
  * it is `w-full` inside the same flex cell rather than a control with padding
  * of its own.
  *
- * {@link Said} is drawn wherever an editor is, and that is why it lives here
- * rather than in the tree: a refusal must be visible for EVERY draft, and two
- * of the places a draft can be — a new row on an empty outline, a row whose
+ * {@link DraftSaid} is drawn wherever an editor is, and that is why it lives
+ * here rather than in the tree: a refusal must be visible for EVERY draft, and
+ * two of the places a draft can be — a new row on an empty outline, a row whose
  * parent is folded — are places the tree draws no body under.
  */
 
@@ -38,6 +38,7 @@ import { createEffect, createSignal, on, Show } from "solid-js"
 import { createCompletion } from "../complete/completing.tsx"
 import type { Draft } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
+import { SaidLine } from "../SaidLine.tsx"
 import { type Caret, type EditAction, type EditField, editKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
 import { ROW_NOTE as AS_NOTE, ROW_TITLE } from "../touch.ts"
@@ -193,7 +194,20 @@ export function DescEditor(props: {
 }
 
 /**
+ * WHERE the two lines sit — under the editor, in the row's own type size. The
+ * one thing about them that is this file's, for {@link SaidLine}'s reason: a
+ * said-line's mood is one decision for the whole client, and where it hangs is
+ * the caller's.
+ */
+const UNDER_EDITOR = "mt-0.5 mb-1 text-[0.8125rem] leading-snug"
+
+/**
  * What the last write said, under the editor it was typed in.
+ *
+ * NAMED FOR ITS SURFACE, the way `../menu/MenuSaid.tsx` and `./UndoSaid.tsx`
+ * are, because `Said` alone is the TYPE every one of these lines carries
+ * (`../saying.ts`) — a rule `packages/web/README.md` states and this file was
+ * the one place breaking.
  *
  * Two moods, one line, because they are two halves of one question — did that
  * land, and is there anything to know about it:
@@ -206,30 +220,42 @@ export function DescEditor(props: {
  *     going done, a branch ticked over unfinished ones). Advice, never a
  *     reason anything failed — so it is toned like a note rather than an
  *     alarm, and the next keystroke takes it away.
+ *
+ * BOTH GO THROUGH {@link SaidLine} — the last two of the client's said lines
+ * to do so, because joining changed what a screen reader is told rather than
+ * only what the markup says. The two moods here ARE the component's two moods,
+ * so the refusal is unchanged for a reader: it was already `role="alert"`,
+ * which carries `aria-live="assertive"` whether or not the attribute is
+ * written down.
+ *
+ * THE NUDGE IS THE RULING. It carried no `role` and no `aria-live` at all, so
+ * a remark the ops layer makes about a write that LANDED — the last task under
+ * a parent going done — reached only the reader who could see it. It is
+ * announced now, because it is feedback rather than decoration and the person
+ * who pressed the key is exactly who it is for; and POLITELY rather than
+ * assertively, because it rides back on something that did happen and
+ * interrupting a sentence somebody is in the middle of, to say a parent could
+ * now be ticked, is worse than the advice is worth.
  */
-export function Said(props: { readonly draft: Draft }) {
+export function DraftSaid(props: { readonly draft: Draft }) {
   return (
     <>
       <Show when={props.draft.refused}>
         {(failure) => (
-          <p
-            class="mt-0.5 mb-1 text-[0.8125rem] leading-snug text-alarm"
-            data-testid={TESTID.editRefusal}
-            data-kind={failure()._tag}
-            role="alert"
-          >
-            {failure().message}
-          </p>
+          <SaidLine
+            said={{ tone: "alarm", text: failure().message, kind: failure()._tag }}
+            class={UNDER_EDITOR}
+            testid={TESTID.editRefusal}
+          />
         )}
       </Show>
       <Show when={props.draft.nudge}>
         {(nudge) => (
-          <p
-            class="mt-0.5 mb-1 text-[0.8125rem] leading-snug text-muted"
-            data-testid={TESTID.editNudge}
-          >
-            {nudge()}
-          </p>
+          <SaidLine
+            said={{ tone: "aside", text: nudge() }}
+            class={UNDER_EDITOR}
+            testid={TESTID.editNudge}
+          />
         )}
       </Show>
     </>

@@ -142,8 +142,23 @@ test("no file here spells the same-file law — it is the format's", () => {
 // entitled to.
 test("only SaidLine.tsx spells the alarmed band the shortlist panels wear", () => {
   expect(filesSpelling(/border-alarm\/40[^"'`]*bg-alarm\/5/)).toEqual([
-    path.join("edit", "SaidLine.tsx"),
+    "SaidLine.tsx",
   ])
+})
+
+// SaidLine.tsx's other claim, and the one packages/web/README.md was already
+// making without anything checking it: the two MOODS are read in one place.
+// What is swept is `data-tone` taken from a VALUE — `data-tone={…}` rather
+// than `data-tone="alarm"` — because that spelling is the fingerprint of a
+// surface deciding for itself what a mood looks like and how it is announced,
+// which is the four-line copy the component exists to end. A literal one is a
+// different thing and is left alone: `Refused.tsx` and `document/BodyRefused.ts`
+// are single-mood boxes over a plain string, and their own headers argue why a
+// component carrying a mood nothing emits would be an abstraction one caller
+// wide. Two hold-outs were found by hand when this test was written (the row
+// editor's line and the selection bar's) — which is the argument for the test.
+test("only SaidLine.tsx reads a said-line's mood", () => {
+  expect(filesSpelling(/data-tone=\{/)).toEqual(["SaidLine.tsx"])
 })
 
 test("only layer.ts spells a z-index", () => {
@@ -260,11 +275,11 @@ test("only pointer.ts suppresses the page's text selection", () => {
 // Trash's "were equal only by hand-maintenance", and the constant turned out
 // to be half the job: both surfaces still spelled the machinery around it and
 // had drifted into two shapes for the same three rules. Reaching for the
-// constant again is what writing the third copy looks like from here. Two
-// names: `edit/undoing.ts` declares the number beside the type it belongs to,
-// and `saying.ts` is the only thing that counts it down.
+// constant again is what writing the third copy looks like from here. ONE name
+// now: the number was declared in `edit/undoing.ts` while the type it belongs
+// to lived there, and both moved out to the module that counts it down.
 test("only saying.ts counts SAID_MS down", () => {
-  expect(filesSpelling(/\bSAID_MS\b/)).toEqual([path.join("edit", "undoing.ts"), "saying.ts"])
+  expect(filesSpelling(/\bSAID_MS\b/)).toEqual(["saying.ts"])
 })
 
 // menu/chunk.ts's claim — `DropdownMenu` is not on the first-paint chunk, and

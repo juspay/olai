@@ -32,7 +32,7 @@
  *
  * ## What it says afterwards
  *
- * ONE line, in the two moods a write has (`../edit/undoing.ts`'s `Said`), and
+ * ONE line, in the two moods a write has (`../saying.ts`'s `Said`), and
  * the palette STAYS OPEN whenever there is one: a refusal is why nothing
  * happened, and a modal that closed on top of it would be the silent failure
  * HACKING.md's error rule is about. A write that landed with nothing to add
@@ -63,7 +63,7 @@ import { Result as Outcome } from "effect"
 import { releaseArmed, restoreArmed } from "../chat/armed.ts"
 
 import type { Names } from "../names.ts"
-import { ALARM_BAND, SaidLine } from "../edit/SaidLine.tsx"
+import { ALARM_BAND, SaidLine } from "../SaidLine.tsx"
 import { desktop } from "../layout/media.ts"
 import {
   resetPanelWidths,
@@ -108,7 +108,8 @@ import {
   paletteAsking,
   paletteOpen,
 } from "./open.ts"
-import { type Said, useUndo } from "../edit/undoing.ts"
+import type { Said } from "../saying.ts"
+import { useUndo } from "../edit/undoing.ts"
 import { applied, applying } from "../writes.ts"
 import { isEditingTarget, listKey, matchKey, paneKey } from "../keys.ts"
 import { useRouter } from "../router.tsx"
@@ -118,7 +119,7 @@ import { Shortcuts } from "./Shortcuts.tsx"
 
 /** WHERE an alarm sits in this panel: a full-width band between the box and
  *  the list, at this door's own gutter. The alarm's SKIN is
- *  `../edit/SaidLine.tsx`'s (`ALARM_BAND`, shared with the two narrower
+ *  `../SaidLine.tsx`'s (`ALARM_BAND`, shared with the two narrower
  *  panels); the `px-4` is the palette's, because its rows set it. Three things
  *  this panel can alarm about — a refused ask, a search that fell over, a
  *  token the grammar cannot read — and one band. */
@@ -914,7 +915,7 @@ export function Palette(props: {
           {/* WHAT A WRITE SAID, in a row of its own for the same reason the
               two above have theirs: it is a third question. The mood — its
               colour, its `data-tone`, whether a screen reader is interrupted —
-              is `../edit/SaidLine.tsx`'s, once, for every surface that says
+              is `../SaidLine.tsx`'s, once, for every surface that says
               something about a write. */}
           <Show when={said()}>
             {(message) => (

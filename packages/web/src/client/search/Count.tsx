@@ -7,7 +7,7 @@
  * of that reading is on screen is the same kind of thing, and a second spelling
  * of it in the second door is the drift this whole seam exists against. What
  * the doors genuinely differ about is where the line SITS and how it is boxed,
- * which is why the classes are the caller's — `../edit/SaidLine.tsx` draws the
+ * which is why the classes are the caller's — `../SaidLine.tsx` draws the
  * same line between a sentence and its layout, and for the same reason.
  *
  * IT TAKES THE SEARCH, not two numbers, and that is the whole of what this

@@ -32,7 +32,7 @@
 import type { Accessor } from "solid-js"
 
 import type { MenuAction } from "./action.ts"
-import type { Said } from "../edit/undoing.ts"
+import type { Said } from "../saying.ts"
 import { createSaying } from "../saying.ts"
 
 export interface Picking {

@@ -33,7 +33,7 @@
  *     repeating`, `Remove`);
  *   - **a write that did not happen keeps the panel standing to say so**, in
  *     the ops layer's own words and in the two moods every surface has
- *     ({@link ./undoing.ts}'s `Said`). A panel that closed on a refusal would
+ *     ({@link ../saying.ts}'s `Said`). A panel that closed on a refusal would
  *     be a write that vanished.
  *
  * ## What is NOT here
@@ -57,8 +57,8 @@
 import { createSignal, type JSX, Show } from "solid-js"
 
 import type { PanelIds, Press } from "./panel.ts"
-import { SaidLine } from "./SaidLine.tsx"
-import type { Said } from "./undoing.ts"
+import { SaidLine } from "../SaidLine.tsx"
+import type { Said } from "../saying.ts"
 import { PANEL_OUT } from "../pill.ts"
 import { TARGET } from "../touch.ts"
 
@@ -168,7 +168,7 @@ export function RowPanel(props: {
       <Show when={said()}>
         {(message) => (
           // The mood — its colour, its `data-tone`, and whether it interrupts a
-          // screen reader — is `./SaidLine.tsx`'s for every surface that says
+          // screen reader — is `../SaidLine.tsx`'s for every surface that says
           // something about a write. What is the PANEL's is where the line
           // sits: under the form, in the panel that opened.
           <SaidLine

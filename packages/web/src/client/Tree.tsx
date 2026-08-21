@@ -92,7 +92,7 @@ import { behindTheMark, CONTEXT_DIM, lighting, matchedAttr } from "./filter/why.
 import { onATag } from "./filter/tag.ts"
 import { useUndo } from "./edit/undoing.ts"
 import { NewRow } from "./edit/NewRow.tsx"
-import { DescEditor, keyHandler, Said, TitleEditor } from "./edit/RowEditor.tsx"
+import { DescEditor, DraftSaid, keyHandler, TitleEditor } from "./edit/RowEditor.tsx"
 import { setFolded } from "./fold/memory.ts"
 import { createFoldReading } from "./fold/reading.ts"
 import { foldIdOf, foldOf, foldsUnder } from "./fold/rows.ts"
@@ -751,7 +751,7 @@ function Branch(props: {
       <Show when={typing("title") ?? typing("desc")}>
         {(draft) => (
           <div class={PAST_CONTROLS}>
-            <Said draft={draft()} />
+            <DraftSaid draft={draft()} />
           </div>
         )}
       </Show>
