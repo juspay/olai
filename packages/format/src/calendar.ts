@@ -11,7 +11,11 @@
  *     a calendar grid and what makes `date:this-week` a Monday-to-Sunday span
  *     (./filter.ts);
  *   - THE DAY BEFORE OR AFTER one, which needs the length of a month and the
- *     Gregorian leap rule.
+ *     Gregorian leap rule;
+ *   - THE MOMENT SO MANY MINUTES BEFORE another one ({@link shiftMinutes}) —
+ *     the day before or after composed with a clock face, and the one reading
+ *     here that counts something NARROWER than a day. It is what the query
+ *     grammar's durations are made of (`created:1h`, ./filter.ts).
  *
  * It is not a date LIBRARY and it never leaves integers. Nothing is parsed into
  * an instant: `new Date("2026-08-01")` is midnight UTC, which is the 31st of
@@ -334,6 +338,126 @@ export const shiftDayByMonth = (date: string, delta: number): string => {
 }
 
 /**
+ * The clock face on the front of what follows a day: the hours and minutes a
+ * datetime names, the seconds if it wrote any, and EVERYTHING PAST THEM —
+ * which is the zone offset, carried through {@link shiftMinutes} verbatim
+ * rather than recomputed. Recomputing one needs a zone database this module
+ * has spent its whole header refusing to become.
+ *
+ * NARROWER THAN WHAT THE FORMAT STORES IN EXACTLY ONE WAY, and it is worth
+ * saying which — an earlier draft of this note claimed two and was wrong about
+ * the second (grok, reviewing #328). The validator's rule (`./parse.ts`'s
+ * `isIsoInstant`) also takes a SPACE for the separator, and that is the one
+ * this refuses: the `^T` anchor answers `null` for `2026-08-13 14:00`, which is
+ * a legal value in a file and not a legal clock to count from.
+ *
+ * FRACTIONAL SECONDS ARE NOT REFUSED. They fall into the `(.*)$` tail with the
+ * zone offset and ride through verbatim, which is the same treatment for the
+ * same reason: nothing here counts either, so an hour before
+ * `T10:30:00.500-04:00` is `T09:30:00.500-04:00`. Saying they were rejected
+ * described a stricter function than the one written.
+ *
+ * SECONDS ARE OPTIONAL GOING IN AND ALWAYS PRESENT COMING OUT, which is the
+ * one place this normalises rather than carries: `T10:30-04:00` counts fine and
+ * comes back `T09:30:00-04:00`. Named because it is a difference a caller
+ * comparing the result as TEXT can see (`./filter.ts`'s `within`).
+ */
+const TIME_SHAPE = /^T(\d{2}):(\d{2})(?::(\d{2}))?(.*)$/
+
+/** Midnight, for the clock that named only a day — normalised INTO the shape
+ *  above rather than around it, so there is one path through it and not a
+ *  synthetic match beside a real one. */
+const MIDNIGHT = "T00:00:00"
+
+/** Minutes in a day — the borrow {@link shiftMinutes} makes when counting back
+ *  walks off the front of one. */
+const DAY_MINUTES = 24 * 60
+
+/**
+ * The moment `delta` minutes away from `at`, in `at`'s own spelling — or
+ * `null` for text that names no moment this calendar can count from, or that
+ * lands on a day it cannot spell.
+ *
+ * THE THIRD READING this module exists for, and the one the query grammar's
+ * durations are made of: `created:1h` is a bound at the moment one hour before
+ * the question was asked, and an hour is not a number of days.
+ *
+ * IT NEVER LEAVES INTEGERS, exactly as the two above do not, and the reason is
+ * the header's one unit smaller: an hour subtracted from `new Date(…)` is an
+ * hour subtracted through a zone conversion nobody asked for. So the clock
+ * face is taken apart, the minutes are counted, and the day a borrow lands on
+ * is this module's own {@link serialOf} run backwards — which is what keeps
+ * this the same calendar the rest of the file is rather than a second one.
+ *
+ * THROUGH THE SERIAL NUMBER AND NOT {@link shiftDay}, which is the same choice
+ * {@link daysBetween} made one question over and for the same reason it gives:
+ * a walk of month lengths is right for the ONE step it was written for, and a
+ * borrow here is as wide as the number somebody typed. `999999d` is two and a
+ * half thousand years, which is a subtraction and not twenty-four thousand
+ * passes over a table — and, since the cost stopped being proportional to the
+ * delta, there is no bound to place and no absurd count to refuse specially.
+ * ANY NUMBER may be handed in; what decides is only whether it LANDS on a day
+ * this format can spell.
+ *
+ * THE OFFSET IS CARRIED, NOT COUNTED. An hour before
+ * `2026-08-13T10:30:00-04:00` is `2026-08-13T09:30:00-04:00` — the same wall
+ * clock, the same offset text, one hour back on the face. Which makes this a
+ * WALL-CLOCK subtraction rather than an absolute one, and the difference shows
+ * for exactly the hour a zone puts its clocks back, when the face says one
+ * hour has passed and the world says two. Naming it is the honest price of not
+ * carrying a zone database; ./filter.ts's own note says what it costs a query.
+ *
+ * A CLOCK THAT NAMES ONLY A DAY NAMES THE START OF IT, which is the reading
+ * `dayOf` makes in the other direction: ten characters are a day, and the
+ * moment a day begins is midnight on it. So `shiftMinutes("2026-08-13", -60)`
+ * is `2026-08-12T23:00:00`, carrying no offset because none was written down.
+ *
+ * SECONDS RIDE THROUGH AS WRITTEN, since nothing here counts them: a bound
+ * minted off a stamp's `:44` falls a whole number of minutes before the moment
+ * the question was asked, rather than at the top of some minute near it.
+ *
+ * `null`, where {@link shiftDay} answers with the text unchanged, because the
+ * one caller is minting a BOUND out of this. A bound that was quietly the
+ * clock's own garbage is a query comparing against nonsense and selecting
+ * whatever happens to sort against it — the silent empty answer the grammar's
+ * refusals exist to prevent. BOTH ENDS are checked: text that names no real
+ * day going in, and a day off the front or the back of what four digits can
+ * spell coming out — a `-17000-12-31`, which the padding note above calls a
+ * value that is neither a date nor an error. The second check is `isoDate`'s
+ * own output read back by this module's own parser, which is the exact
+ * question ("can this be spelled?") rather than an approximation of it.
+ */
+export const shiftMinutes = (at: string, delta: number): string | null => {
+  const day = at.slice(0, "YYYY-MM-DD".length)
+  const parsed = parseDay(day)
+  if (parsed === null) return null
+  // A clock that named only a day is midnight on it — normalised into the one
+  // shape below, so there is a single path through the face rather than a
+  // hand-built match beside a real one.
+  const face = TIME_SHAPE.exec(at.slice(day.length) || MIDNIGHT)
+  if (face === null) return null
+  const [, hours, minutes, seconds, tail] = face as unknown as [
+    string,
+    string,
+    string,
+    string | undefined,
+    string,
+  ]
+  const counted = Number(hours) * 60 + Number(minutes) + delta
+  // How many days the count borrowed, and what is left on the face. A FLOOR
+  // rather than a truncation, so counting back past midnight borrows a whole
+  // day rather than none and leaves a negative on the clock.
+  const borrowed = Math.floor(counted / DAY_MINUTES)
+  const onFace = counted - borrowed * DAY_MINUTES
+  const landed = dayOfSerial(serialOf(parsed) + borrowed)
+  const spelled = isoDate(landed.year, landed.month, landed.day)
+  if (parseDay(spelled) === null) return null
+  return `${spelled}T${pad(Math.floor(onFace / 60))}:${pad(onFace % 60)}:${
+    seconds ?? "00"
+  }${tail}`
+}
+
+/**
  * How many whole days lie between two days — negative when `to` has already
  * gone, `null` when either text names no day.
  *
@@ -379,4 +503,46 @@ const serialOf = ({ year, month, day }: Day): number => {
   const dayOfEra = yearOfEra * 365 + Math.floor(yearOfEra / 4) -
     Math.floor(yearOfEra / 100) + dayOfYear
   return era * 146097 + dayOfEra
+}
+
+/**
+ * The day a serial number counts to — {@link serialOf} run backwards.
+ *
+ * Hinnant's `civil_from_days`, the inverse of the function above and folded out
+ * of the same three divisions: the era, the year inside it recovered by taking
+ * the leap days back off, and the March-based month-and-day recovered from the
+ * day of that year. The origin cancels, so this and {@link serialOf} are a pair
+ * whatever it is — which is what lets the origin stay unnamed.
+ *
+ * IT EXISTS FOR {@link shiftMinutes}, and the argument is {@link daysBetween}'s
+ * one question over: a step of ONE day is a walk of month lengths
+ * ({@link shiftDay}) and a step of a MILLION is an addition. The borrow a
+ * duration makes is the second kind — `999999d` is what somebody can type —
+ * and a subtraction answers it in the same integers without a bound on how far
+ * it may reach or a special refusal for reaching too far.
+ *
+ * IT MAY LAND ANYWHERE, including on years this format cannot spell. That is
+ * the caller's question and it is asked the honest way, by spelling the day and
+ * reading it back ({@link isRealDay}), rather than by a bound guessed in front.
+ */
+const dayOfSerial = (serial: number): Day => {
+  const era = Math.floor(serial / 146097)
+  const dayOfEra = serial - era * 146097
+  // The leap days taken back off, which is what makes this a division rather
+  // than a search: the three corrections are the same three the era's length
+  // is built from.
+  const yearOfEra = Math.floor(
+    (dayOfEra - Math.floor(dayOfEra / 1460) + Math.floor(dayOfEra / 36524) -
+      Math.floor(dayOfEra / 146096)) / 365,
+  )
+  const dayOfYear = dayOfEra -
+    (365 * yearOfEra + Math.floor(yearOfEra / 4) - Math.floor(yearOfEra / 100))
+  // Still March-based, so the month comes back before the year it belongs to.
+  const marchMonth = Math.floor((5 * dayOfYear + 2) / 153)
+  const month = marchMonth < 10 ? marchMonth + 3 : marchMonth - 9
+  return {
+    year: yearOfEra + era * 400 + (month <= 2 ? 1 : 0),
+    month,
+    day: dayOfYear - Math.floor((153 * marchMonth + 2) / 5) + 1,
+  }
 }

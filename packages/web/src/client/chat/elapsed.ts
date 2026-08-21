@@ -91,9 +91,8 @@ export const elapsedOf = (
 ): string | null => {
   // THE ROW, and the WHOLE row: the wire's own status, and whether the turn
   // that announced this call has ended without it ({@link ./running.ts}).
-  // `status` is a tool row's field, and a predicate over the bare field would
-  // have to guess about the rows that carry none. It NARROWS, so the stamp
-  // below is read off a row this line has already established is a call.
+  // `status` is a tool row's field. It NARROWS, so the stamp below is read
+  // off a row this line has already established is a call.
   if (!isRunning(entry)) return null
   const started = instantOf(entry.since)
   // A stamp that is not a time. It cannot be a MISSING one — the wire requires

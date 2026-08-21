@@ -15,8 +15,13 @@ import { type Ordered, TRANSCRIPT_ORDER } from "./order.ts"
 
 /** A row, reduced to the one field this fold reads. The rest of a `ChatEntry`
  *  is the row's own business and never reaches the accumulator. */
-const row = (id: string, seq: number): ChatEntry =>
-  ({ id, seq, kind: "agent", text: `said ${seq}` }) as ChatEntry
+const row = (id: string, seq: number): ChatEntry => ({
+  id,
+  seq,
+  since: "2026-08-21T12:00:00.000Z",
+  kind: "agent",
+  text: `said ${seq}`,
+})
 
 const seeded = (...rows: ReadonlyArray<readonly [string, number]>): Ordered =>
   TRANSCRIPT_ORDER.init(rows.map(([key, seq]) => [key, row(key, seq)] as const))

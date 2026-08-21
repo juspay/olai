@@ -916,6 +916,18 @@ The corner unit is the **risky one** — see
         <code>-changed:last-month</code> is what has gone quiet. They are not
         the same question as <code>date:</code>: one node can be scheduled for
         the 10th, captured on the 1st and last written this morning.
+        <strong>And the stamps carry seconds, so the values reach further down
+        than a day does.</strong> <code>changed:1h</code> is what you touched in
+        the last hour, <code>created:30m</code> what arrived in the last half
+        hour — a number and one of four letters, <code>m</code> minutes,
+        <code>h</code> hours, <code>d</code> days, <code>w</code> weeks.
+        Written bare it means <em>within the last</em>; at the end of a range
+        it is that moment itself, so <code>created:..1h</code> is older than an
+        hour and <code>changed:2h..30m</code> is a window, and the ends mix
+        with the words (<code>created:yesterday..3h</code>). A rolling window
+        is not a calendar one, and you can have either:
+        <code>created:1d</code> is the last twenty-four hours where
+        <code>created:today</code> is since midnight.
         <strong>And nothing invents a past for the ones that have
         none</strong> — no span reaches an unstamped node, however wide,
         because a ledger does not make up a past it did not see. What finds
