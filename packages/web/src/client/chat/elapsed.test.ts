@@ -109,19 +109,11 @@ describe("when it says nothing", () => {
       .toBe("9s")
   })
 
-  test("a row that has not arrived yet has none either", () => {
-    // The transient the list has: a key is in `rows()` and its value is a frame
-    // behind. Asked about nothing, the answer is nothing.
-    expect(elapsedOf(undefined, TURNING, at("2026-08-21T12:05:00.000Z"))).toBeNull()
-  })
-
-  test("a row nobody stamped is left alone rather than guessed at", () => {
-    // A server that stamps no instant, and a stamp that is not a time — one
-    // answer for both, because `Invalid Date` in a transcript is worse than a
-    // row with no readout. `./when.ts` makes the same refusal about a session's
-    // own stamp.
-    expect(elapsedOf(row({ since: undefined }), TURNING, at("2026-08-21T12:05:00.000Z")))
-      .toBeNull()
+  test("a stamp that is not a time is left alone rather than guessed at", () => {
+    // The wire REQUIRES the stamp, so this is never a missing field — it is
+    // somebody else's string, and `Invalid Date` in a transcript is worse than
+    // a row with no readout. `./when.ts` makes the same refusal about a
+    // session's own stamp, through the same reading.
     expect(elapsedOf(row({ since: "the other day" }), TURNING, at("2026-08-21T12:05:00.000Z")))
       .toBeNull()
   })
@@ -145,10 +137,10 @@ describe("a stopwatch may not outlive its conversation", () => {
   })
 
   test("the clock is not read at all for a row with nothing to time", () => {
-    // Not an optimisation dressed as a claim: every row of the transcript
-    // computes this in a memo, and a memo that read the clock would make every
-    // one of them wake on a tick to answer `null`. The thunk is what keeps the
-    // once-a-second wake on the rows that have a number to draw.
+    // Not an optimisation dressed as a claim: whatever computation asks this
+    // becomes a subscriber to whatever it reads, so a clock read as a value
+    // would wake every asking row once a second to answer `null`. The thunk is
+    // what keeps that wake on the rows with a number to draw.
     let asked = 0
     const counted = () => {
       asked++

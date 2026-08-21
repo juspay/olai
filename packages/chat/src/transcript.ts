@@ -129,6 +129,14 @@ export class Transcript {
    * directly would be the one fact here that could only be asserted by
    * comparing it with itself. It is the arrangement the panel's own faces have
    * with the state they cannot see (`chat/spawn.ts`'s `live`).
+   *
+   * MILLISECONDS, stamped as a UTC instant — deliberately not `@olai/ops`'
+   * `Context.now`, which is the other injected clock in this repo and answers
+   * with the local-with-offset text the FORMAT stores. The two spellings are
+   * about two different things and the divergence is the point: that one mints
+   * a date a person will read in their own file, this one mints a machine
+   * instant a browser subtracts from its own clock. A date in a file has a
+   * timezone because the person does; an instant does not.
    */
   readonly #now: () => number
 

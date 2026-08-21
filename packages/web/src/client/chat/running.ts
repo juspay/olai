@@ -56,8 +56,14 @@ export const statusOf = (entry: ChatEntry): NonNullable<ChatEntry["status"]> =>
  * `undefined` for the row is answered `false` too, for `laneOf`'s reason: the
  * list holds keys and reads their values a frame behind, so "which row" is a
  * question that can be asked about nothing.
+ *
+ * It NARROWS, because what it has established is exactly what its callers go on
+ * to lean on: a row that got past this is a tool call and is present, so the
+ * elapsed readout reads the stamp off it without an optional chain a line below
+ * the check that ruled the absence out. A defensive `?.` there would read as if
+ * the row might still be missing, in the one place it provably is not.
  */
-export const isRunning = (entry: ChatEntry | undefined): boolean =>
+export const isRunning = (entry: ChatEntry | undefined): entry is ChatEntry =>
   entry?.kind === "tool" && RUNNING.has(statusOf(entry))
 
 /** The statuses that mean it has not come back. A call that has completed or

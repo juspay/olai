@@ -331,12 +331,19 @@ export const ChatEntry = Schema.Struct({
    * would have each of them saying a different number and every one of them
    * short. What a call has been running for is a fact about the call.
    *
+   * REQUIRED, like `seq` and for its reason: the transcript is the only thing
+   * in this tree that mints a row, it is not persisted, and it stamps every one
+   * — so "no stamp" describes a server that does not exist, and making it
+   * optional would hand every present and future reader a silence branch for a
+   * case nothing can produce. Worse, that branch would be indistinguishable
+   * from the one that is real: a malformed instant, which is a claim about
+   * somebody else's string rather than about a missing field.
+   *
    * The one reader today is the chat panel's elapsed readout, which draws it
    * only for a call the wire still calls running in a conversation that is
-   * still live. Absent from a server that stamps none, which is the same
-   * "nobody said" every optional field here means.
+   * still live.
    */
-  since: Schema.optionalKey(Schema.String),
+  since: Schema.String,
   kind: Schema.Literals(["user", "agent", "tool", "ask", "refusal", "notice"]),
   /** The prose. For a tool entry this is its title, and for an `ask` it is what
    *  the agent said it needs — the elicitation's own message. */

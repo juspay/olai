@@ -124,6 +124,14 @@ const ALWAYS: Accessor<boolean> = () => true
  * last interval left the signal would date it to whenever the previous turn
  * ended.
  *
+ * ... AND ON THE WAY BACK TO THE PAGE, which is the same second half
+ * {@link createToday} has and for the same reason — a reason this file already
+ * calls "not belt-and-braces" and had, until this was written, been making only
+ * about the day. Every browser there is throttles a hidden tab's timers to
+ * minutes, so a tab left on a long build and come back to shows the number it
+ * had when it was hidden, at exactly the moment somebody is looking at it. The
+ * timer is for the tab on screen; the wake is for every tab that was not.
+ *
  * Per component and disposed with it. Nothing about a ticking readout belongs
  * to the document, and a timer that outlived the component that drew it would
  * be a timer nobody stops — which is the failure two hand-rolled copies of this
@@ -136,9 +144,59 @@ export const createTicking = (
   const [now, setNow] = createSignal(Date.now())
   createEffect(() => {
     if (!when()) return
-    setNow(Date.now())
-    const timer = setInterval(() => setNow(Date.now()), every)
-    onCleanup(() => clearInterval(timer))
+    const read = (): void => {
+      setNow(Date.now())
+    }
+    read()
+    const timer = setInterval(read, every)
+    // Only on the way IN, like the day's: a tab being hidden is nobody reading
+    // it, and a number that went stale for nobody can wait until there is
+    // somebody. Inside the gate, so a shut conversation listens for nothing.
+    const woke = (): void => {
+      if (document.visibilityState === "visible") read()
+    }
+    document.addEventListener("visibilitychange", woke)
+    onCleanup(() => {
+      clearInterval(timer)
+      document.removeEventListener("visibilitychange", woke)
+    })
   })
   return now
 }
+
+/**
+ * SOMEBODY ELSE'S INSTANT, as a number this client can do arithmetic with — or
+ * `null` when the text is not a time at all.
+ *
+ * Three readouts take a stamp minted somewhere else and say something relative
+ * to it: how long ago the last commit was (out of a git repository), when a
+ * stored conversation was last touched (out of the agent's session list), and
+ * how long a tool call has been running (out of the chat transcript). None of
+ * those strings is this app's to trust, and all three had spelled the same
+ * two lines for themselves — a parse and a `Number.isNaN` — with a comment in
+ * the newest of them asserting that it made "the same refusal" as the others.
+ * A comment asserting agreement is what `./live.ts` says this client stopped
+ * accepting.
+ *
+ * What is NOT shared is what each of them says instead, and that is right: the
+ * pill draws nothing, the picker draws no stamp, the tool row draws no
+ * duration. One rule about the TEXT, three answers about the drawing.
+ *
+ * `null` for a missing stamp as well as a malformed one, checked rather than
+ * left to the parse — `new Date(null)` is the epoch, not an invalid date, so a
+ * session with no `updatedAt` would otherwise be drawn as 1970.
+ */
+export const instantOf = (at: string | null | undefined): number | null => {
+  if (at === null || at === undefined) return null
+  const then = Date.parse(at)
+  return Number.isNaN(then) ? null : then
+}
+
+/** Milliseconds, in the units the readouts above are written in. Here rather
+ *  than privately in each of them, for the reason the timer is: the two files
+ *  that draw a duration are the two this one already pairs, and each derived
+ *  its own tick from its own copy of the same ladder. */
+export const SECOND = 1_000
+export const MINUTE = 60 * SECOND
+export const HOUR = 60 * MINUTE
+export const DAY = 24 * HOUR

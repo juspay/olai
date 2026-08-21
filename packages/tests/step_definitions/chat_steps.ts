@@ -1521,18 +1521,14 @@ Then("the chat says no agent is still working", async function (this: OlaiWorld)
  * duration instead of quietly comparing `NaN`.
  */
 const secondsSaid = (said: string): number | null => {
-  const parts = /^(?:(\d+)h )?(?:(\d+)m ?)?(?:(\d+)s)?$/.exec(said.trim());
-  if (parts === null || said.trim() === "") return null;
+  // `(?=.)` is what makes the requirement the PATTERN's: every group after it is
+  // optional, so without it the empty string matches and comes back as a
+  // confident `0` for a row that said nothing at all.
+  const parts = /^(?=.)(?:(\d+)h )?(?:(\d+)m ?)?(?:(\d+)s)?$/.exec(said.trim());
+  if (parts === null) return null;
   const [, hours, minutes, seconds] = parts;
   return Number(hours ?? 0) * 3600 + Number(minutes ?? 0) * 60 + Number(seconds ?? 0);
 };
-
-/** The one readout on screen, and the frame it belongs to. */
-const timedCall = (world: OlaiWorld) =>
-  world.page
-    .locator(CHAT_TOOL)
-    .filter({ has: world.page.locator(CHAT_TOOL_ELAPSED) })
-    .first();
 
 Then(
   "the chat says how long a running call has been going",
@@ -1550,7 +1546,19 @@ Then(
     // ... and it is on a call the WIRE still calls running. This is the claim
     // that keeps the readout agent-agnostic and honest at once: no tool name is
     // recognised anywhere, so the status is the whole of what earns a number.
-    const status = await timedCall(this).getAttribute("data-tool-status");
+    // ONE selection, and the count is asserted rather than `.first()` taken, so
+    // "the timed call" cannot silently mean a different row from the readout
+    // above.
+    const timed = this.page
+      .locator(CHAT_TOOL)
+      .filter({ has: this.page.locator(CHAT_TOOL_ELAPSED) });
+    assert.strictEqual(
+      await timed.count(),
+      1,
+      "the panel is timing more than one call, or none — this scenario is " +
+        "about the single call that is still out",
+    );
+    const status = await timed.getAttribute("data-tool-status");
     assert.ok(
       status === "pending" || status === "in_progress",
       `a call the wire calls "${status}" is being timed; only a call that has ` +

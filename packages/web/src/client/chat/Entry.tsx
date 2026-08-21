@@ -124,22 +124,6 @@ const AGENT_WROTE_IT = ""
 export function Entry(props: {
   readonly entry: ChatEntry
   readonly chat: Chat
-  /**
-   * How long this call has been running, in words, or `null` for a row with
-   * nothing to time — which is every row that is not a running tool call.
-   *
-   * HANDED IN rather than worked out here, and the reason is one level up: the
-   * answer needs to know whether the CONVERSATION is live, and that is one
-   * memo the list holds for every row ({@link ./Transcript.tsx}). Asked from
-   * inside a row, each tool frame of a long transcript would subscribe to the
-   * chat cell on its own — a cell that moves several times a turn as the
-   * context usage is revised — and re-render for every one of those frames.
-   *
-   * It travels through this switch untouched. That is the cost of a row not
-   * knowing what kind it is until it looks, and it is the same cost `chat`
-   * already pays for the one arm that can talk back.
-   */
-  readonly elapsed: string | null
 }) {
   const due = createScheduled((run) => throttle(run, FRAME_MS))
   /** What the SET says about the ids this message names — a question now,
@@ -307,7 +291,7 @@ export function Entry(props: {
         </Match>
 
         <Match when={props.entry.kind === "tool"}>
-          <ToolFrame entry={props.entry} elapsed={props.elapsed} />
+          <ToolFrame entry={props.entry} />
         </Match>
 
         <Match when={props.entry.kind === "ask"}>

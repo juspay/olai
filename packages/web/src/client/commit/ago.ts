@@ -9,16 +9,14 @@
  *
  * The arithmetic is PURE and takes `now` as an argument, so it is a table of
  * cases in a unit test rather than something you have to wait an hour to see.
- * Only the ticking half touches a clock.
+ * Only the ticking half touches a clock, and what it ticks — like the units it
+ * counts in and the parse it stands on — is `../clock.ts`'s, shared with the
+ * panel's own duration readout.
  */
 
 import type { Accessor } from "solid-js"
 
-import { createTicking } from "../clock.ts"
-
-const MINUTE = 60_000
-const HOUR = 60 * MINUTE
-const DAY = 24 * HOUR
+import { createTicking, DAY, HOUR, instantOf, MINUTE } from "../clock.ts"
 
 /**
  * `at` as a phrase relative to `now`.
@@ -29,8 +27,8 @@ const DAY = 24 * HOUR
  * as "just now" rather than as a negative number.
  */
 export const agoOf = (at: string, now: number): string => {
-  const then = Date.parse(at)
-  if (Number.isNaN(then)) return ""
+  const then = instantOf(at)
+  if (then === null) return ""
   const since = now - then
   if (since < MINUTE) return "just now"
   if (since < HOUR) return `${Math.floor(since / MINUTE)}m ago`
@@ -45,11 +43,11 @@ const TICK = MINUTE
 /**
  * A clock, at the resolution the phrases above need.
  *
- * The MACHINERY is `../clock.ts`'s now — a signal, an interval and the cleanup
- * that stops it, which this file used to spell for itself until the chat panel
- * needed the same three lines at a different resolution. What stays here is the
- * only part that is about `agoOf`: how often the phrase has to be re-read,
- * which is a fact about the finest distinction it draws and about nothing else.
- * No gate, because the pill ticks for as long as it is on screen.
+ * The MACHINERY is `../clock.ts`'s now — a signal, an interval, a wake and the
+ * cleanup that stops both, which this file used to spell for itself until the
+ * chat panel needed the same lines at a different resolution. What stays here
+ * is the only part that is about `agoOf`: how often the phrase has to be
+ * re-read, which is a fact about the finest distinction it draws and about
+ * nothing else. No gate, because the pill ticks for as long as it is on screen.
  */
 export const createNow = (): Accessor<number> => createTicking(TICK)

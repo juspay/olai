@@ -64,6 +64,7 @@ import { TESTID } from "../testids.ts"
 import { Diff } from "./Diff.tsx"
 import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
 import { OutlineDiff } from "./OutlineDiff.tsx"
+import { useElapsed } from "./elapsing.tsx"
 import { statusOf } from "./running.ts"
 import { whoOf } from "./spawn.ts"
 import { Wrote } from "./Wrote.tsx"
@@ -115,13 +116,11 @@ const SAID: Record<string, string> = {
   failed: "failed",
 }
 
-export function ToolFrame(props: {
-  readonly entry: ChatEntry
-  /** How long it has been running, in words, or `null` when there is nothing
-   *  to say — see {@link ./Entry.tsx}, which says why the answer arrives from
-   *  outside rather than being worked out on the row. */
-  readonly elapsed: string | null
-}) {
+export function ToolFrame(props: { readonly entry: ChatEntry }) {
+  /** How long this call has been running, or `null` when there is nothing to
+   *  say. Reached for rather than handed down ({@link ./elapsing.tsx}), the
+   *  same way this frame reaches for its own fold. */
+  const elapsed = useElapsed()
   const open = () => isUnfolded(props.entry.id)
   const status = () => statusOf(props.entry)
   /**
@@ -246,6 +245,13 @@ export function ToolFrame(props: {
             readouts, and without it a duration lands against a file path as
             though it were part of one.
 
+            The answer is REACHED FOR rather than handed down: the two things
+            it needs — whether a turn is in flight, and the panel's one clock —
+            are the list's, and threading them through `Entry`'s six-armed
+            switch would make that signature a function of what this one leaf
+            draws ({@link ./elapsing.tsx}). The `<Show>` here is what computes
+            it, so a row that is not a tool call computes nothing at all.
+
             NO `aria-live`, deliberately, and this is the one place in the panel
             where that needs saying: the rail under a spawn announces itself
             because it appears once and says one word, and a number that changes
@@ -254,8 +260,8 @@ export function ToolFrame(props: {
             accessible NAME instead, where a reader meets it when they ask about
             the row — which is the moment "how long has this been going" is
             actually a question. */}
-        <Show when={props.elapsed}>
-          {(elapsed) => (
+        <Show when={elapsed(props.entry)}>
+          {(said) => (
             <span class="shrink-0 text-doing">
               <span aria-hidden="true">·&#32;</span>
               <span class="sr-only">running for&#32;</span>
@@ -263,7 +269,7 @@ export function ToolFrame(props: {
                   spoken words outside it: what a scenario reads back is then
                   the number this rule decided rather than the sentence built
                   around it. */}
-              <span data-testid={TESTID.chatToolElapsed}>{elapsed()}</span>
+              <span data-testid={TESTID.chatToolElapsed}>{said()}</span>
             </span>
           )}
         </Show>

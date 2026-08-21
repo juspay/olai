@@ -52,7 +52,7 @@
 import type { ChatEntry } from "@olai/surface"
 import type { Accessor } from "solid-js"
 
-import { createTicking } from "../clock.ts"
+import { createTicking, HOUR, instantOf, MINUTE, SECOND } from "../clock.ts"
 import { isRunning } from "./running.ts"
 
 /**
@@ -65,19 +65,24 @@ import { isRunning } from "./running.ts"
  * than {@link QUIET_MS}.
  *
  * THE CLOCK IS A THUNK, and that is a reactivity decision rather than a
- * stylistic one. Every row of the transcript computes this, and only the
- * running ones may be woken by a tick: read as a value, `now` would be a
- * dependency of every row's memo, and a four-hundred-row conversation would
- * re-run four hundred memos a second to answer `null` four hundred times.
- * Called HERE, after the two gates, it is read by exactly the rows that have a
- * number to draw — which is normally one.
+ * stylistic one. Only the running rows may be woken by a tick: read as a value,
+ * `now` would be a dependency of whatever computation asks this, so a
+ * four-hundred-row conversation would wake four hundred times a second to
+ * answer `null` four hundred times. Called HERE, after the two gates, it is
+ * read by exactly the rows that have a number to draw — which is normally one.
+ *
+ * `live` is a VALUE and not a thunk, deliberately, and the difference is three
+ * orders of magnitude: a boolean propagates only when it flips, which is twice
+ * a turn, where the clock moves sixty times a minute for as long as the turn
+ * lasts. Making it a thunk too would buy back two wakes a turn and cost the
+ * symmetry with `doingOf` that the two faces on one row are supposed to have.
  *
  * @param entry the row being drawn
  * @param live whether a turn is in flight in this conversation at all
  * @param now the reader's clock, in epoch milliseconds
  */
 export const elapsedOf = (
-  entry: ChatEntry | undefined,
+  entry: ChatEntry,
   live: boolean,
   now: () => number,
 ): string | null => {
@@ -85,13 +90,14 @@ export const elapsedOf = (
   // THE ROW, not its status — which is what makes this safe to ask of any row
   // in the transcript. `status` is a tool row's field, and a predicate over the
   // bare field would have to guess about the rows that carry none
-  // ({@link ./running.ts}).
+  // ({@link ./running.ts}). It NARROWS, so the stamp below is read off a row
+  // this line has already established is a call.
   if (!isRunning(entry)) return null
-  const started = Date.parse(entry?.since ?? "")
-  // A row from a server that stamps nothing, or a stamp that is not a time:
-  // somebody else's string, and a readout of `NaN` is worse than a row with no
-  // readout. Same refusal `../chat/when.ts` makes about a session's own stamp.
-  if (Number.isNaN(started)) return null
+  const started = instantOf(entry.since)
+  // A stamp that is not a time. It cannot be a MISSING one — the wire requires
+  // it — so this means exactly what it says: somebody else's string, and a
+  // readout of `NaN` is worse than a row with no readout.
+  if (started === null) return null
   const running = now() - started
   // Under the threshold — including a NEGATIVE, which is a browser whose clock
   // sits behind the server's. That is not a call from the future; it is a call
@@ -120,10 +126,6 @@ const saidOf = (running: number): string => {
   }
   return `${Math.floor(running / HOUR)}h ${Math.floor((running % HOUR) / MINUTE)}m`
 }
-
-const SECOND = 1_000
-const MINUTE = 60 * SECOND
-const HOUR = 60 * MINUTE
 
 /**
  * How long a call may run before it is worth saying so.
