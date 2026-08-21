@@ -199,6 +199,33 @@ export class AgentGone extends Data.TaggedError("AgentGone")<{
  */
 export type Steered = "taken" | "no-turn"
 
+/**
+ * HOW A TURN ENDED — which is a different question from whether the agent is
+ * there, and used to be answered as though it were the same one.
+ *
+ *   - `stopped` — the agent ended the turn and said why, in its own vocabulary
+ *     (`end_turn`, `cancelled`, `max_tokens`, …). The ordinary ending.
+ *   - `failed` — the agent answered `session/prompt` with a JSON-RPC ERROR
+ *     rather than with a stop reason. A turn is a request like any other, so
+ *     this is an answer it can have: a mode the agent cannot prompt from, a
+ *     session it has lost track of, a model it could not reach. **Nothing died
+ *     and nothing is unreachable.**
+ *
+ * The second one is on the SUCCESS channel deliberately, and that is the whole
+ * of the distinction: {@link AgentGone} means the agent is not there, and every
+ * caller of it treats a failure as exactly that — the panel says the agent is
+ * not running and stops naming a conversation it is still in. An error response
+ * is the agent SPEAKING, so it ends a turn rather than a session, and the next
+ * prompt goes to the same live process.
+ *
+ * What a caller does with the reason is the same in both arms — it is a
+ * sentence for the transcript — so the two are one shape with a tag rather than
+ * a value and an exception.
+ */
+export type Ended =
+  | { readonly _tag: "stopped"; readonly reason: string }
+  | { readonly _tag: "failed"; readonly why: string }
+
 export interface Options {
   /** The executable to run. `OLAI_ACP_AGENT`, or the adapter nix baked in. */
   readonly command: string
@@ -230,10 +257,11 @@ export interface Agent {
   /** Spawn and hand-shake if that has not happened. Idempotent, and serialized
    *  against itself: two callers racing a cold start get one subprocess. */
   readonly boot: Effect.Effect<void, AgentGone>
-  /** One turn. Answers with the agent's stop reason (`end_turn`, `cancelled`,
-   *  …) — the turn's END is a return value rather than an event, because the
-   *  caller that asked is the one waiting. */
-  readonly prompt: (text: string) => Effect.Effect<string, AgentGone>
+  /** One turn. Answers with HOW IT ENDED ({@link Ended}) — a return value
+   *  rather than an event, because the caller that asked is the one waiting,
+   *  and a two-armed one because a turn the agent REFUSED is a turn that ended
+   *  rather than an agent that has gone. */
+  readonly prompt: (text: string) => Effect.Effect<Ended, AgentGone>
   /**
    * Put a message INTO the turn already running — see {@link Steered} for the
    * two things that can come back, and the error channel for every way it
@@ -1255,7 +1283,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           : use(at, id)
       })
 
-    const prompt = (text: string) =>
+    const prompt = (text: string): Effect.Effect<Ended, AgentGone> =>
       withSession((at, id) =>
         Effect.gen(function*() {
           // A cancel that arrived during the handshake is sent the moment the
@@ -1281,14 +1309,26 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               ),
             )
           }
-          const answered = yield* ask(
+          const answered = yield* Effect.result(ask(
             at.connection,
             methods.agent.session.prompt,
             { sessionId: id, prompt: [{ type: "text", text }] },
             // A turn is a person waiting on a model: no deadline.
             null,
-          )
-          return (answered as PromptResponse).stopReason
+          ))
+          if (answered._tag === "Success") {
+            return { _tag: "stopped", reason: (answered.success as PromptResponse).stopReason } satisfies Ended
+          }
+          // AN ERROR RESPONSE IS AN ANSWER, and here — inside the one request
+          // this lane makes — it is the ONLY thing `refused` can mean: every
+          // other refusal this module mints (no process, no session, a
+          // notification the pipe would not take) is decided before this
+          // generator runs or on a fiber of its own, and a silence is
+          // `unanswered` by construction ({@link goneOf}). So this is the
+          // agent saying no to a TURN while going on existing, and it ends the
+          // turn rather than the conversation ({@link Ended}).
+          if (answered.failure.gone !== "refused") return yield* answered.failure
+          return { _tag: "failed", why: answered.failure.why } satisfies Ended
         })
       )
 

@@ -67,6 +67,20 @@ Feature: Talking to the agent
     And the tool call's detail is folded away
 
   @scratch:chat
+  Scenario: A report that arrives twice is one report
+    # Nothing in ACP forbids an agent repeating itself and more than one does
+    # it, byte for byte. A repeat is not a second report: the transcript is
+    # keyed by the agent's own call id, so what a repeat can produce is exactly
+    # what the first frame already produced — one row, one result, one turn that
+    # ends. The frames go down the real pipe in the real order here, which is
+    # what the rule's own unit tests cannot say.
+    When I ask the agent "twice"
+    Then the chat shows 1 tool call
+    And the chat shows a completed tool call
+    And the agent's answer mentions "said the same thing twice"
+    And the agent is idle
+
+  @scratch:chat
   Scenario: An agent the agent spawned is drawn as one, not as the agent itself
     # A subagent's tool calls come back on the SAME feed as the main agent's,
     # with nothing in the protocol to tell them apart — so the panel drew a
@@ -387,6 +401,28 @@ Feature: Talking to the agent
     And I press Enter
     Then the preferences are open
     And the chat input reads "/re"
+
+  @agent-stored @scratch:chat
+  Scenario: A conversation comes back with what was said and what was done
+    # WHAT A HISTORY IS, as against a turn. A `session/load` replays a
+    # conversation that ended before this process started, so a person's own
+    # words arrive as however many chunks the agent kept them in, and the tool
+    # calls arrive ALREADY COLLAPSED — one report each, with no announcement in
+    # front of them, because there is nothing left to announce. Neither shape
+    # occurs in a live turn, which is why the panel could get both wrong with
+    # every other scenario here passing.
+    #
+    # The whole sentence in one bubble is the claim, and it is what the chunks
+    # take away: a message drawn as one bubble per chunk is somebody's own words
+    # taken apart, in the place a reader looks to remember what they asked.
+    Then the chat shows my message "what did we decide?"
+    # ... and the call the conversation made, named and finished. A row named
+    # after its own call id is a panel that cannot name a history; a row still
+    # looking like work in progress is a clock ticking on a turn that ended
+    # before the server was started.
+    And the chat shows a completed tool call
+    And the chat shows a tool call named "read the notes"
+    And the chat times no call
 
   @agent-stored @scratch:chat
   Scenario: A first boot has nothing to remember, so it takes the newest
@@ -899,6 +935,34 @@ Feature: Talking to the agent
     # because there is nothing undelivered about them.
     And the chat shows my message "crash"
     And no message is marked undelivered
+
+  @scratch:chat
+  Scenario: A turn the agent REFUSED ends the turn, not the conversation
+    # `session/prompt` is a request like any other, so a JSON-RPC error is an
+    # answer it can have — a mode the agent cannot prompt from, a session it has
+    # lost track of, a model it could not reach. Nothing died and nothing is
+    # unreachable: ONE turn failed, and the conversation under it is exactly as
+    # usable as it was.
+    #
+    # It used to be read as the agent having gone. The panel then said `not
+    # running` about a process that was running, in a conversation it was still
+    # in, for the rest of the session — and the only thing that took the word
+    # back was another turn succeeding.
+    When I ask the agent "error"
+    Then the chat eventually shows "this turn cannot be run in the mode"
+    # THE CLAIM: still there. Idle rather than gone, and the box still takes
+    # what somebody types into it.
+    And the agent is idle
+    And the chat input takes typing
+    # The turn ended honestly on the way: the message did not land, because an
+    # error response is JSON-RPC saying the request took no effect, so the row
+    # keeps the words and offers to send them again.
+    And the chat shows my message "error" as "refused"
+    # ... and the next prompt goes to the same live agent.
+    When I ask the agent "hello"
+    Then the agent's answer mentions "you said: hello"
+    And the agent is idle
+    And the chat says nothing went wrong
 
   @scratch:chat
   Scenario: Cancelling under a message in flight does not start the turn back up

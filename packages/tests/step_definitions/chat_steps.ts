@@ -856,6 +856,39 @@ Then("the chat shows a completed tool call", async function (this: OlaiWorld) {
   );
 });
 
+/** How many calls the conversation drew, which is the one thing a claim about
+ *  a REPEATED report turns on: a frame that arrives twice must produce the row
+ *  the first one produced and no second one. */
+Then(
+  "the chat shows {int} tool call(s)",
+  async function (this: OlaiWorld, many: number) {
+    const calls = this.page.locator(CHAT_TOOL);
+    await this.waitUntil(
+      async () => (await calls.count()) === many,
+      `the chat to show ${many} tool call(s)`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+/** ...and what one of them is CALLED, which the panel picks once and never
+ *  moves: a title is a display string an agent may rewrite mid-call, and a row
+ *  that renamed itself under a reader would be the panel changing its mind
+ *  about what happened. Read off the frame's own line, where a person reads
+ *  it. */
+Then(
+  "the chat shows a tool call named {string}",
+  async function (this: OlaiWorld, named: string) {
+    const line = heldTool(this).locator(CHAT_TOOL_FOLD);
+    await line.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const said = oneLine(await line.innerText());
+    assert.ok(
+      said.includes(named),
+      `the call's line says "${said}" rather than naming "${named}"`,
+    );
+  },
+);
+
 Then("the chat shows a running tool call", async function (this: OlaiWorld) {
   await this.expectAttribute(
     CHAT_TOOL,

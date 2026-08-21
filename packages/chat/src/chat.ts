@@ -349,8 +349,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           return
         case "userSaid":
           // A replay only: live, we put the user's own message in ourselves
-          // when the turn was accepted.
-          publish(transcript.add("user", event.text))
+          // when the turn was accepted — whole, because we have the whole of it
+          // before anything is on the wire. A replay does not arrive whole, so
+          // the chunks accumulate the way the agent's own prose does.
+          publish(transcript.userSaid(event.text))
           return
         case "tool":
           publish(
@@ -688,8 +690,23 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // way — they are things that happened, and they happened — and
             // only the state is withheld.
             const current = turn === ticket
-            if (outcome._tag === "Failure") {
-              publish(transcript.add("notice", outcome.failure.message))
+            /**
+             * A turn that did not end in a stop reason, said the one way both
+             * of the two are said.
+             *
+             * `alive` is the WHOLE of the difference, and it is the fact this
+             * used to have no way to carry: a turn the agent REFUSED — an
+             * error response where a stop reason was expected — is a turn that
+             * ended, not an agent that has gone. The process is there, the
+             * conversation is open, and the next prompt goes to it. Read as a
+             * dead agent, one such turn left a live panel saying `not running`
+             * for the rest of the session.
+             *
+             * The reason lands on the banner either way, because it is what
+             * just happened; the next turn that comes back clears it.
+             */
+            const wentWrong = (why: string, gone: AcpAgent.Gone, alive: boolean): void => {
+              publish(transcript.add("notice", why))
               // A turn that produced NOTHING is a delivery that failed, and it
               // is said on the row like any other ({@link markUndelivered}) —
               // a refusal where the agent was never reached at all (no
@@ -702,14 +719,25 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               // that undelivered would contradict the answer sitting above it.
               // What has changed is that "did it arrive" is now answerable —
               // by the turn's own silence, and by `Gone` where it is not.
-              if (heard === quietSince) markUndelivered(key, prompt, outcome.failure.gone)
-              if (current) move({ status: "gone", trouble: outcome.failure.message })
-              return
+              if (heard === quietSince) markUndelivered(key, prompt, gone)
+              if (current) move({ status: alive ? "idle" : "gone", trouble: why })
+            }
+
+            if (outcome._tag === "Failure") {
+              return wentWrong(outcome.failure.message, outcome.failure.gone, false)
+            }
+            if (outcome.success._tag === "failed") {
+              // `refused` is JSON-RPC's own bet about its own error responses,
+              // and {@link ./agent.ts}'s `goneOf` already names it: an error
+              // means the request did not take effect. So the message this turn
+              // was for demonstrably did not land, and the row may honestly
+              // offer to send it again.
+              return wentWrong(outcome.success.why, "refused", true)
             }
             // Cancelling means stop, and it means only that now: everything
             // typed reached the agent when it was typed, so there is nothing
             // left here for a cancel to decide the fate of.
-            if (outcome.success === "cancelled") {
+            if (outcome.success.reason === "cancelled") {
               publish(transcript.add("notice", "cancelled"))
             }
             // A turn that came back is the proof that whatever went wrong

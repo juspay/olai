@@ -47,6 +47,11 @@
  *                is what a turn that gave up on a call leaves behind: a row the
  *                wire still calls `in_progress`, forever, in a conversation
  *                somebody can go on talking to
+ *   twice        report one tool call with the SAME frame sent twice, byte for
+ *                byte — the announcement and the completion each repeated
+ *   error        answer `session/prompt` with a JSON-RPC error instead of a
+ *                stop reason, and STAY ALIVE — one turn that failed, in a
+ *                conversation that is still there
  *   subagent     spawn TWO agents and interleave their tool calls with each
  *                other's, each frame stamped with the `Agent` call it came out
  *                of — the whole of what the adapter says about who did what
@@ -798,6 +803,21 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // honestly be marked for. `crash` speaks first and must NOT be markable.
   if (verb === "vanish") process.exit(1)
 
+  // A TURN THAT ANSWERS WITH AN ERROR INSTEAD OF A STOP REASON — and stays
+  // alive to take the next one. `session/prompt` is a request like any other,
+  // so a JSON-RPC error is an answer it can have: an agent whose mode is in a
+  // state it cannot prompt from, a session it has lost track of, a model it
+  // could not reach. Nothing died and nothing is unreachable; ONE TURN failed,
+  // and the conversation under it is exactly as usable as it was.
+  //
+  // BEFORE the usage frames, like `vanish` and for its reason: this turn
+  // produced not one frame, so what a client may honestly say about the message
+  // that started it is the whole of what the error told it.
+  if (verb === "error") {
+    refuse(id, -32603, "this turn cannot be run in the mode this session is in")
+    return
+  }
+
   // The window the agent believes in, moving under the conversation.
   //
   // `window`, NOT `context`: that verb is taken, by the scenarios that prove an
@@ -983,6 +1003,39 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       },
     })
     say("started something and gave up on it.")
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // THE SAME REPORT, TWICE, BYTE FOR BYTE. Nothing in ACP forbids a repeat and
+  // more than one agent sends them, so a client that made anything of the
+  // second one is a client that is wrong about the wire rather than about that
+  // agent. The frame sent again is the very object the first one was built
+  // from: a copy edited by so much as a word would be testing something else.
+  if (verb === "twice") {
+    const toolCallId = `call-${++nextMcpId}`
+    const announced = {
+      sessionUpdate: "tool_call",
+      toolCallId,
+      title: "a call reported twice",
+      status: "in_progress",
+      rawInput: { said: "once" },
+      locations: [{ path: `${cwd}/notes.md`, line: 3 }],
+    }
+    const reported = {
+      sessionUpdate: "tool_call_update",
+      toolCallId,
+      status: "completed",
+      rawOutput: { said: "twice" },
+      content: [
+        { type: "content", content: { type: "text", text: "the same words twice" } },
+      ],
+    }
+    notify("session/update", { sessionId, update: announced })
+    notify("session/update", { sessionId, update: announced })
+    notify("session/update", { sessionId, update: reported })
+    notify("session/update", { sessionId, update: reported })
+    say("said the same thing twice.")
     respond(id, { stopReason: "end_turn" })
     return
   }
@@ -1702,14 +1755,41 @@ const openSession = (params: Record<string, unknown>): void => {
   }
 }
 
-/** Replay a stored conversation, the way a real `session/load` does: every
- *  message as an ordinary `session/update`, and only then the answer. */
+/**
+ * Replay a stored conversation, the way a real `session/load` does: every
+ * message as an ordinary `session/update`, and only then the answer.
+ *
+ * IT OPENS WITH WHAT THE PERSON SAID, and the tool call in the middle of it is
+ * ALREADY COLLAPSED — one `tool_call_update` carrying the whole finished call,
+ * with no announcement in front of it, because there is nothing left to
+ * announce: the call ran in a turn that ended before this process was started.
+ * That is what a history is, and it is the shape a client meets nowhere else —
+ * every live turn announces before it reports.
+ */
 const replay = (): void => {
   notify("session/update", {
     sessionId,
     update: {
       sessionUpdate: "user_message_chunk",
-      content: { type: "text", text: "what did we decide?" },
+      content: { type: "text", text: "what did " },
+    },
+  })
+  notify("session/update", {
+    sessionId,
+    update: {
+      sessionUpdate: "user_message_chunk",
+      content: { type: "text", text: "we decide?" },
+    },
+  })
+  notify("session/update", {
+    sessionId,
+    update: {
+      sessionUpdate: "tool_call_update",
+      toolCallId: "replayed-1",
+      title: "read the notes",
+      status: "completed",
+      rawInput: { file_path: `${cwd}/notes.md` },
+      rawOutput: { read: true },
     },
   })
   notify("session/update", {

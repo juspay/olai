@@ -84,6 +84,36 @@ describe("prose", () => {
     transcript.add("notice", "cancelled")
     expect(rows(transcript)[0]?.streaming).toBeUndefined()
   })
+
+  test("a replayed message's chunks accumulate the way the agent's do", () => {
+    // A replay is the one place a PERSON's words arrive in pieces: a message
+    // typed here is written whole, before anything is on the wire, but a
+    // conversation being re-opened comes back as however many chunks the agent
+    // kept it in. A row per chunk is one sentence drawn as three bubbles down
+    // the side of the panel — somebody's own words, taken apart, in the place a
+    // reader looks to remember what they asked.
+    const transcript = new Transcript()
+    transcript.userSaid("what did ")
+    transcript.userSaid("we decide?")
+
+    expect(rows(transcript)).toHaveLength(1)
+    expect(rows(transcript)[0]).toMatchObject({ kind: "user", text: "what did we decide?" })
+  })
+
+  test("a question and the answer to it are two paragraphs, not one", () => {
+    // The KIND is what decides whether the open row is the right one to grow.
+    // Nothing closes a paragraph between a person's words and the agent's reply
+    // to them, so an agent chunk appended to an open user row would put the
+    // answer inside the question.
+    const transcript = new Transcript()
+    transcript.userSaid("what did we decide?")
+    transcript.say("we decided to order the cabinets.")
+
+    expect(rows(transcript).map((entry) => [entry.kind, entry.text])).toEqual([
+      ["user", "what did we decide?"],
+      ["agent", "we decided to order the cabinets."],
+    ])
+  })
 })
 
 describe("tool calls", () => {
@@ -106,6 +136,71 @@ describe("tool calls", () => {
     transcript.tool("call-1", { title: "set_done", detail: "{}" })
     transcript.tool("call-1", { status: "completed" })
     expect(rows(transcript)[0]).toMatchObject({ text: "set_done", detail: "{}" })
+  })
+
+  test("a call's name is picked once, and a later title does not move it", () => {
+    // A title is a DISPLAY string and the protocol says no more about it: an
+    // agent is free to send the tool's name while the call is being announced,
+    // a sentence about what it is doing while it runs, and something else again
+    // when it fails. Taking the newest is a row that renames itself twice while
+    // somebody reads it — and, for a spawn, a lane that renames itself with it.
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "bash", status: "in_progress" })
+    transcript.tool("call-1", { title: "waiting for the command", status: "in_progress" })
+    transcript.tool("call-1", { title: "bash failed", status: "failed" })
+
+    expect(rows(transcript)[0]).toMatchObject({ text: "bash", status: "failed" })
+  })
+
+  test("a call nothing has named yet is named by the frame that names it", () => {
+    // The other side of the rule, and the shape a REPLAY has: a finished call
+    // arrives as one collapsed report with no announcement in front of it, so
+    // the frame that names it is not the first frame about it. "Picked once" is
+    // about the first title, not about the first frame — a row left wearing its
+    // own call id would be a panel that could not name a conversation's history.
+    const transcript = new Transcript()
+    transcript.tool("call-1", { status: "in_progress" })
+    expect(rows(transcript)[0]?.text).toBe("call-1")
+
+    transcript.tool("call-1", { title: "read the notes", status: "completed" })
+    expect(rows(transcript)[0]).toMatchObject({ text: "read the notes", status: "completed" })
+  })
+
+  test("a frame repeating one already in says nothing", () => {
+    // Agents repeat themselves — some send a report twice, byte for byte — and
+    // a repeat is not a second report. Nothing about the call moved, so there
+    // is nothing for a subscriber to be told.
+    const transcript = new Transcript()
+    const move = {
+      title: "read the notes",
+      status: "completed" as const,
+      detail: "{}",
+      diffs: [{ path: "notes.md", oldText: "one", newText: "two" }],
+      locations: ["notes.md:3"],
+      spawned: { kind: "Explore" },
+    }
+    transcript.tool("call-1", move)
+    // A FRESH VALUE with the same words in it, which is what a second frame off
+    // the wire is: an identical object would be answered by reference and prove
+    // nothing about the comparison this rests on.
+    expect(transcript.tool("call-1", structuredClone(move)))
+      .toEqual({ upserts: [], removes: [] })
+    expect(rows(transcript)).toHaveLength(1)
+  })
+
+  test("a repeat does not take back the mark its turn left", () => {
+    // The half that is not merely quiet. The mark says "as far as this end can
+    // tell, that one never came back", and it comes off when the agent reports
+    // on the call again — so a repeat of a frame the row already had would put
+    // a live face and a running clock back on a call in a conversation that has
+    // gone idle, which is the bug the mark exists to prevent.
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "a call nobody reported on", status: "in_progress" })
+    transcript.settle()
+    expect(rows(transcript)[0]?.stranded).toBe(true)
+
+    transcript.tool("call-1", { title: "a call nobody reported on", status: "in_progress" })
+    expect(rows(transcript)[0]?.stranded).toBe(true)
   })
 
   test("a row keeps its place in the conversation when it is updated", () => {
@@ -187,13 +282,10 @@ describe("tool calls", () => {
     // spawn happened and nothing about who. The row is drawable then; the
     // kind lands on the next frame.
     const transcript = new Transcript()
-    transcript.tool("toolu_01AGENT", { title: "Task", spawned: {} })
+    transcript.tool("toolu_01AGENT", { title: "explore the outline", spawned: {} })
     expect(rows(transcript)[0]?.spawned).toEqual({})
 
-    transcript.tool("toolu_01AGENT", {
-      title: "explore the outline",
-      spawned: { kind: "Explore" },
-    })
+    transcript.tool("toolu_01AGENT", { spawned: { kind: "Explore" } })
     expect(rows(transcript)[0]).toMatchObject({
       text: "explore the outline",
       spawned: { kind: "Explore" },

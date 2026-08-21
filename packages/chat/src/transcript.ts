@@ -117,6 +117,40 @@ const both = (first: Change, second: Change): Change => ({
   removes: [...first.removes, ...second.removes],
 })
 
+/**
+ * Whether two of a row's values SAY THE SAME THING.
+ *
+ * Structural, and generic over the JSON-shaped values a row is made of —
+ * strings, the arrays of blocks a call reports, the small objects an olai write
+ * and a spawn arrive as. Generic rather than field by field because a
+ * comparator that named the fields would be a second list of them: the day a
+ * row grows a tenth, the list that decides what a report SAYS and the list that
+ * decides whether two reports say the same would drift apart in silence, and
+ * what that looks like is a frame that changed something being read as one that
+ * changed nothing.
+ *
+ * Reference equality first, which is the common answer and free: a field the
+ * merge in {@link Transcript.tool} took from the row it is updating IS the row's
+ * own value, so only what a frame actually carried is ever walked.
+ */
+const same = (one: unknown, other: unknown): boolean => {
+  if (one === other) return true
+  if (Array.isArray(one)) {
+    return Array.isArray(other) && one.length === other.length &&
+      one.every((item, at) => same(item, other[at]))
+  }
+  if (
+    typeof one !== "object" || one === null ||
+    typeof other !== "object" || other === null || Array.isArray(other)
+  ) {
+    return false
+  }
+  const fields = Object.keys(one)
+  const theirs = other as { readonly [field: string]: unknown }
+  return fields.length === Object.keys(other).length &&
+    fields.every((field) => same((one as { readonly [field: string]: unknown })[field], theirs[field]))
+}
+
 export class Transcript {
   #entries = new Map<string, ChatEntry>()
   #seq = 0
@@ -180,6 +214,27 @@ export class Transcript {
    * ({@link tool}), which is the only thing that could make the claim untrue.
    */
   #stranded = new Set<string>()
+  /**
+   * The calls whose NAME has been picked — the one place "this row has been
+   * named" is written down, so that a later frame's title cannot move it.
+   *
+   * A title is a DISPLAY string and the protocol says no more about it than
+   * that: an agent is free to send the tool's name while the call is being
+   * announced, a sentence about what it is doing while it runs, and something
+   * else again when it fails — all about one call, all on frames a reader is
+   * watching arrive. Taking the newest as the row's name is a row that renames
+   * itself two or three times while somebody is reading it, and — where the
+   * call spawned an agent — a lane that renames itself with it, since a lane is
+   * named after the row that opened it ({@link ../../web/src/client/chat/lanes.ts}).
+   *
+   * BESIDE the rows rather than a field on one, for `stranded`'s reason: the
+   * name lives in `text`, half a dozen paths re-publish a row by spreading it
+   * as it stands, and a flag saying "already named" carried on the row would
+   * ride straight past the decision that is supposed to make it. What is kept
+   * here is only WHETHER the question has been answered; the answer itself
+   * stays where a reader of the row can see it.
+   */
+  #named = new Set<string>()
   readonly #now: () => number
 
   constructor(now: () => number = Date.now) {
@@ -198,6 +253,7 @@ export class Transcript {
     this.#entries.clear()
     this.#undelivered.clear()
     this.#stranded.clear()
+    this.#named.clear()
     this.#open = null
     this.#seq = 0
     return { upserts: [], removes }
@@ -303,12 +359,45 @@ export class Transcript {
   /** One chunk of the agent's prose. Appends to the entry already open, or
    *  opens one. */
   say(text: string): Change {
-    if (this.#open === null) this.#open = this.#next("agent")
-    const key = this.#open
-    return this.#put(key, {
-      kind: "agent",
-      text: `${this.#entries.get(key)?.text ?? ""}${text}`,
-    })
+    return this.#grow("agent", text)
+  }
+
+  /**
+   * One chunk of what a PERSON said, out of a replay.
+   *
+   * The same accumulation the agent's own prose gets, and it is one call rather
+   * than a row because the protocol's unit is a CHUNK: a message reaches this
+   * end as however many pieces the agent kept it in, and a row per piece is one
+   * sentence drawn as three bubbles down the side of the panel — somebody's own
+   * words, taken apart, in the one place a reader looks to remember what they
+   * asked.
+   *
+   * ONLY a replay reaches this. A message typed here is written whole, by the
+   * one caller that keeps its key ({@link user}), because olai has the whole of
+   * it before anything is on the wire.
+   */
+  userSaid(text: string): Change {
+    return this.#grow("user", text)
+  }
+
+  /**
+   * One chunk into the entry already open, or into a new one.
+   *
+   * ONE function for the two kinds that arrive in pieces, and the KIND is what
+   * decides whether the open entry is the right one to grow: a tool frame
+   * closes whatever was open, but nothing closes a paragraph between a person's
+   * words and the agent's answer to them, so an agent chunk appended to an open
+   * user row would put the answer inside the question.
+   */
+  #grow(kind: "agent" | "user", text: string): Change {
+    const open = this.#open
+    const current = open === null ? undefined : this.#entries.get(open)
+    if (open !== null && current?.kind === kind) {
+      return this.#put(open, { ...contentOf(current), text: `${current.text}${text}` })
+    }
+    const closed = this.#close()
+    this.#open = this.#next(kind)
+    return both(closed, this.#put(this.#open, { kind, text }))
   }
 
   /**
@@ -370,8 +459,22 @@ export class Transcript {
    * protocol reports a call twice and the second report carries only what
    * moved.
    *
+   * THE TITLE IS THE ONE EXCEPTION, and it is an exception to "the newest wins"
+   * rather than to "absent means unchanged": a title is a display string an
+   * agent may rewrite for its own reasons, so the row's NAME is picked at the
+   * first frame that carries one and no later frame moves it ({@link #named}).
+   *
+   * A FRAME THAT SAYS NOTHING NEW CHANGES NOTHING. Agents repeat themselves —
+   * some send a report twice, byte for byte — and a repeat is not a second
+   * report: nothing about the call moved, so nothing is published and, in
+   * particular, the mark saying its turn walked away from it does not come off.
+   * It is {@link #strand}'s own rule ("a row already marked is skipped rather
+   * than re-published") applied at the door frames actually arrive through.
+   *
    * A tool frame also CLOSES the open prose entry: the agent said something,
-   * then did something, and the next thing it says is a new paragraph.
+   * then did something, and the next thing it says is a new paragraph. That
+   * happens for a repeat too — the paragraph ended when the call was first
+   * reported, and a second report of it does not un-end it.
    */
   tool(
     id: string,
@@ -389,11 +492,6 @@ export class Transcript {
   ): Change {
     const key = toolKey(id)
     const current = this.#entries.get(key)
-    // ANYTHING HERE KNOWING. The mark means "as far as this end can tell, that
-    // one never came back", and a report about it is this end being told
-    // otherwise — so it comes off, and `#put` below re-derives the field from
-    // the set rather than from whatever the row was carrying.
-    this.#stranded.delete(key)
     const detail = move.detail ?? current?.detail
     // The protocol's own rule, and the reason neither of these accumulates: a
     // report carries the call's content and locations AS THEY STAND, so
@@ -436,21 +534,39 @@ export class Transcript {
     const spawned = move.spawned === undefined
       ? current?.spawned
       : { ...current?.spawned, ...move.spawned }
-    return both(
-      this.#close(),
-      this.#put(key, {
-        kind: "tool",
-        text: move.title ?? current?.text ?? id,
-        status: move.status ?? current?.status ?? "pending",
-        ...(detail === undefined ? {} : { detail }),
-        ...(progress === undefined ? {} : { progress }),
-        ...(diffs === undefined ? {} : { diffs }),
-        ...(wrote === undefined ? {} : { wrote }),
-        ...(locations === undefined ? {} : { locations }),
-        ...(parent === undefined ? {} : { parent }),
-        ...(spawned === undefined ? {} : { spawned }),
-      }),
-    )
+    // THE NAME, PICKED ONCE — at the first frame that carries a title, which
+    // for a live call is its announcement and for a replayed one is the
+    // collapsed frame that is all there ever was of it. Whether the question
+    // has been answered is remembered beside the rows ({@link #named}) rather
+    // than inferred from the row wearing its own id, which is a name an agent
+    // is free to have chosen.
+    const named = this.#named.has(key)
+    if (move.title !== undefined) this.#named.add(key)
+    const content: RowContent = {
+      kind: "tool",
+      text: (named ? undefined : move.title) ?? current?.text ?? id,
+      status: move.status ?? current?.status ?? "pending",
+      ...(detail === undefined ? {} : { detail }),
+      ...(progress === undefined ? {} : { progress }),
+      ...(diffs === undefined ? {} : { diffs }),
+      ...(wrote === undefined ? {} : { wrote }),
+      ...(locations === undefined ? {} : { locations }),
+      ...(parent === undefined ? {} : { parent }),
+      ...(spawned === undefined ? {} : { spawned }),
+    }
+    const closed = this.#close()
+    // A REPEAT IS NOT A REPORT. Nothing moved, so nothing is written — and the
+    // strand mark below stays on, which is the half that matters: a row whose
+    // turn walked away from it would otherwise start looking like work in
+    // progress again on the strength of a frame that said what the row already
+    // said.
+    if (current !== undefined && same(contentOf(current), content)) return closed
+    // ANYTHING HERE KNOWING. The mark means "as far as this end can tell, that
+    // one never came back", and a report about it is this end being told
+    // otherwise — so it comes off, and `#put` below re-derives the field from
+    // the set rather than from whatever the row was carrying.
+    this.#stranded.delete(key)
+    return both(closed, this.#put(key, content))
   }
 
   /**
