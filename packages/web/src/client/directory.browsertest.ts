@@ -19,9 +19,11 @@
  * identity assertions for that reason, not for taste.
  *
  * A MEMO TEST rather than a test of the fold alone, because the accumulator on
- * its own would pass with nothing wired to it — and because two of the four
- * states the directory answers in (`undefined` before a frame, `undefined`
- * after a contained throw) exist only once the fold is registered.
+ * its own would pass with nothing wired to it — and because the state that made
+ * this change hard is not the accumulator's to answer at all: a fold holding
+ * NOTHING (before its first frame, and again after a throw the framework
+ * contained) is what the manifest absorbs, so only a whole directory can be
+ * asked about it.
  *
  * UNDER THE BROWSER CONDITION, and it has to be: `bun test` resolves SolidJS's
  * SERVER build, where a memo NEVER RE-RUNS — so every case here would pass
@@ -36,32 +38,9 @@ import { type Accessor, createRoot, createSignal, untrack } from "solid-js"
 import type { BrokenFile } from "@olai/format"
 import type { Head, Manifest } from "@olai/surface"
 import type { CollectionFoldOptions } from "@kolu/surface/solid"
+import type { CollectionDelta } from "@kolu/surface/define"
 
 import { createDirectory, type HeadEntries } from "./directory.ts"
-
-/** A head as the wire carries one, with only the fields this module reads.
- *
- *  `broken` is behind a GETTER, and that is the whole probe: every reading of
- *  the directory answers by asking a head what it holds, so one read of this
- *  field is one step of a walk over the set — and how many of them a frame
- *  costs is the size of the work that frame did. No assertion about a VALUE can
- *  see that: a walk of the whole set and a read of the one file that moved
- *  answer the same, and the difference between them is only a bill. It is
- *  `./names.browsertest.ts`'s `copies` idiom, moved onto the leaf now that the
- *  directory is handed frames rather than taking a key set. */
-const heads = () => {
-  let reads = 0
-  const head = (rev: number, broken: BrokenFile | null = null): Head =>
-    ({
-      rev,
-      face: { path: "x", kind: "outline" },
-      get broken() {
-        reads += 1
-        return broken
-      },
-    }) as unknown as Head
-  return { head, reads: () => reads }
-}
 
 const unreadable = (file: string, message: string): BrokenFile => ({
   file,
@@ -70,11 +49,21 @@ const unreadable = (file: string, message: string): BrokenFile => ({
 
 /**
  * A live directory over a hand-driven frame source — the whole of what
- * `createDirectory` asks for (`HeadEntries`: a `fold` to register and a `byKey`
- * for the one member that watches a single file).
+ * `createDirectory` asks for (`HeadEntries`: a `fold` to register, and a
+ * `byKey` for the one member that watches a single file).
  *
- * THE FAKE FOLD HONOURS THE FRAMEWORK'S CONTRACT, because that contract is half
- * of what is under test (`@kolu/surface`'s `solid/useCollection.ts`):
+ * `wrote` MINTS A HEAD as the wire carries one, and its `broken` is behind a
+ * GETTER, which is the whole probe: every reading of the directory answers by
+ * asking a head what it holds, so one read of that field is one step of a walk
+ * over the set — and how many of them a frame costs is the size of the work that
+ * frame did. No assertion about a VALUE can see that: a walk of the whole set
+ * and a read of the one file that moved answer the same, and the difference
+ * between them is only a bill. It is `./names.browsertest.ts`'s `copies` idiom,
+ * moved onto the leaf now that the directory is handed frames rather than taking
+ * a key set.
+ *
+ * THE FAKE FOLD HONOURS THE FRAMEWORK'S FRAME LOOP, because that contract is
+ * half of what is under test (`@kolu/surface`'s `solid/useCollection.ts`):
  *
  *   - `init` is answered from the store's own entries, and every SNAPSHOT
  *     re-seeds every registered fold — a reconnect is indistinguishable from a
@@ -88,25 +77,43 @@ const unreadable = (file: string, message: string): BrokenFile => ({
  *     defaulted `equals` would hide it.
  *   - `invalidate` is the state a THROWING `init`/`step` leaves behind, which
  *     the framework contains and reports loudly: the accumulator goes back to
- *     `undefined` and stays there until the next snapshot re-seeds it. This
- *     fold cannot throw — it walks a frame with `Set` and `Map` — so the state
- *     is reachable here only by naming it, and it is a state the directory has
- *     to have an answer for whether or not this consumer is what produced it.
+ *     `undefined` and stays there until the next snapshot re-seeds it. It is a
+ *     VERB HERE and a `containThrow` there, because this fold cannot throw — it
+ *     walks a frame with a `Set` and a `Map` — so the state is reachable only by
+ *     naming it, and it is a state the directory must answer for whether or not
+ *     this consumer is what produced it.
+ *
+ * WHAT IT DOES NOT MODEL is the framework's REGISTRATION-time behaviour — the
+ * throw when `fold()` is called with no reactive owner, and the immediate seed a
+ * fold registering mid-stream is given. Neither is a fact about this module:
+ * `createDirectory` registers once, under the app's own root, before any frame.
  *
  * `snapshot` and `delta` are the two frames, so a case is the frames it pushed
  * and what it says about the answer between them.
  */
 const live = () => {
-  const { head, reads } = heads()
+  let reads = 0
+  /** A head as the wire carries one, with only the fields this module reads. */
+  const wrote = (rev: number, broken: BrokenFile | null = null): Head =>
+    ({
+      rev,
+      face: { path: "x", kind: "outline" },
+      get broken() {
+        reads += 1
+        return broken
+      },
+    }) as unknown as Head
+
+  /** The client store the framework owns, kept because `byKey` reads it — which
+   *  is the whole of what `Directory.head` is. */
   const store = new Map<string, Head>()
-  /** Every registered fold's three moves, as the framework's own `FoldSlot`
-   *  reduces one to. */
-  interface Slot {
+  /** Every registered fold's moves. An array because the framework holds a SET
+   *  of them; this module registers one. */
+  const slots: Array<{
     seed: (entries: [string, Head][]) => void
-    step: (upserts: [string, Head][], removes: string[]) => void
+    step: (frame: CollectionDelta<string, Head>) => void
     invalidate: () => void
-  }
-  const slots: Slot[] = []
+  }> = []
   const [manifest, setManifest] = createSignal<Manifest | undefined>(undefined)
 
   const entries: HeadEntries = {
@@ -118,12 +125,10 @@ const live = () => {
         // A delta is a NO-OP while there is no accumulator for it to land on —
         // the framework's rule, and the reason an invalidated fold stays
         // invalidated however many frames arrive before the next snapshot.
-        step: (upserts, removes) => {
+        step: (frame) => {
           const was = untrack(held)
           if (was === undefined) return
-          setHeld(() =>
-            options.step(was, { kind: "delta", upserts, removes })
-          )
+          setHeld(() => options.step(was, frame))
         },
         invalidate: () => setHeld(() => undefined),
       })
@@ -134,25 +139,25 @@ const live = () => {
   return createRoot((dispose) => {
     const directory = createDirectory(entries, manifest)
     return {
-      head,
-      reads,
+      wrote,
+      reads: () => reads,
       manifest: directory.manifest,
       paths: directory.paths,
       broken: directory.broken,
+      head: directory.head,
       /** A FULL-SET frame: the wire's first, and every reconnect. */
       snapshot: (all: [string, Head][]) => {
         store.clear()
         for (const [file, entry] of all) store.set(file, entry)
-        for (const slot of slots) slot.seed([...store])
+        for (const slot of slots) slot.seed(all)
       },
-      /** ONE coalesced delta frame, as the wire speaks one. */
-      delta: (
-        upserts: [string, Head][] = [],
-        removes: string[] = [],
-      ) => {
+      /** ONE coalesced delta frame, as the wire speaks one — the framework's own
+       *  type, so what this fake hands over is what the wire would. */
+      delta: (upserts: [string, Head][] = [], removes: string[] = []) => {
         for (const [file, entry] of upserts) store.set(file, entry)
         for (const file of removes) store.delete(file)
-        for (const slot of slots) slot.step(upserts, removes)
+        const frame: CollectionDelta<string, Head> = { kind: "delta", upserts, removes }
+        for (const slot of slots) slot.step(frame)
       },
       /** What the framework leaves behind when a fold's own callback threw —
        *  see the header. */
@@ -170,17 +175,25 @@ const live = () => {
  *  readings taken — which is what `./App.tsx` does with a directory once per
  *  frame (`opensAt` and the `ServedProvider` read `paths()`, the sidebar is
  *  handed `broken()`). */
-const twoFiles = () => {
+type Live = ReturnType<typeof live>
+
+const twoFiles = (): Live => {
   const directory = live()
   directory.loaded()
   directory.snapshot([
-    ["house.olai", directory.head(1)],
-    ["garden.olai", directory.head(1)],
+    ["house.olai", directory.wrote(1)],
+    ["garden.olai", directory.wrote(1)],
   ])
   directory.paths()
   directory.broken()
   return directory
 }
+
+/** One file stops parsing, or stops parsing for a new reason — the frame the
+ *  broken-map cases are all about, with the revision and the complaint the only
+ *  things that vary. */
+const broke = (directory: Live, rev: number, message: string) =>
+  directory.delta([["house.olai", directory.wrote(rev, unreadable("house.olai", message))]])
 
 // ── what one frame costs, which is the whole change ─────────────────────
 
@@ -202,7 +215,7 @@ const twoFiles = () => {
 test("a frame naming one file reads that file and no other", () => {
   const directory = twoFiles()
   const before = directory.reads()
-  directory.delta([["house.olai", directory.head(2)]])
+  directory.delta([["house.olai", directory.wrote(2)]])
   directory.paths()
   directory.broken()
   expect(directory.reads() - before).toBe(1)
@@ -217,7 +230,7 @@ test("a frame that moved no member hands back the very paths it was holding", ()
   // are.
   const directory = twoFiles()
   const paths = directory.paths()
-  directory.delta([["house.olai", directory.head(2)]])
+  directory.delta([["house.olai", directory.wrote(2)]])
   expect(directory.paths()).toBe(paths)
   directory.stop()
 })
@@ -228,7 +241,7 @@ test("a file arriving is a new list, in path order", () => {
   // name puts it.
   const directory = twoFiles()
   const paths = directory.paths()
-  directory.delta([["attic.olai", directory.head(1)]])
+  directory.delta([["attic.olai", directory.wrote(1)]])
   expect(directory.paths()).not.toBe(paths)
   expect(directory.paths()).toEqual(["attic.olai", "garden.olai", "house.olai"])
   directory.stop()
@@ -274,8 +287,8 @@ test("a reconnect is the same files, and deliberately not the same list", () => 
   const directory = twoFiles()
   const paths = directory.paths()
   directory.snapshot([
-    ["garden.olai", directory.head(1)],
-    ["house.olai", directory.head(1)],
+    ["garden.olai", directory.wrote(1)],
+    ["house.olai", directory.wrote(1)],
   ])
   expect(directory.paths()).not.toBe(paths)
   expect(directory.paths()).toEqual(paths)
@@ -289,7 +302,7 @@ test("a frame that broke nothing leaves the broken map where it was", () => {
   const first = directory.broken()
   // One file rewritten — a new head, a new frame — and nothing about it
   // unreadable.
-  directory.delta([["house.olai", directory.head(2)]])
+  directory.delta([["house.olai", directory.wrote(2)]])
   expect(directory.broken()).toBe(first)
   directory.stop()
 })
@@ -297,10 +310,7 @@ test("a frame that broke nothing leaves the broken map where it was", () => {
 test("a file that stops parsing is a new answer", () => {
   const directory = twoFiles()
   const first = directory.broken()
-  directory.delta([[
-    "house.olai",
-    directory.head(2, unreadable("house.olai", "not JSON")),
-  ]])
+  broke(directory, 2, "not JSON")
   const now = directory.broken()
   expect(now).not.toBe(first)
   expect([...now.keys()]).toEqual(["house.olai"])
@@ -311,15 +321,9 @@ test("a file that is still broken for another reason is a new answer", () => {
   // The case a key-set comparison would miss, and it is the pane drawing the
   // errors that would go on showing the previous parse failure.
   const directory = twoFiles()
-  directory.delta([[
-    "house.olai",
-    directory.head(2, unreadable("house.olai", "not JSON")),
-  ]])
+  broke(directory, 2, "not JSON")
   const first = directory.broken()
-  directory.delta([[
-    "house.olai",
-    directory.head(3, unreadable("house.olai", "no id")),
-  ]])
+  broke(directory, 3, "no id")
   const now = directory.broken()
   expect(now).not.toBe(first)
   expect(now.get("house.olai")?.errors[0]?.message).toBe("no id")
@@ -328,12 +332,9 @@ test("a file that is still broken for another reason is a new answer", () => {
 
 test("a file that parses again is a new answer", () => {
   const directory = twoFiles()
-  directory.delta([[
-    "house.olai",
-    directory.head(2, unreadable("house.olai", "not JSON")),
-  ]])
+  broke(directory, 2, "not JSON")
   const first = directory.broken()
-  directory.delta([["house.olai", directory.head(3)]])
+  directory.delta([["house.olai", directory.wrote(3)]])
   const now = directory.broken()
   expect(now).not.toBe(first)
   expect(now.size).toBe(0)
@@ -342,16 +343,37 @@ test("a file that parses again is a new answer", () => {
 
 test("a broken file removed is a new answer without it", () => {
   const directory = twoFiles()
-  directory.delta([[
-    "house.olai",
-    directory.head(2, unreadable("house.olai", "not JSON")),
-  ]])
+  broke(directory, 2, "not JSON")
   const first = directory.broken()
   directory.delta([], ["house.olai"])
   const now = directory.broken()
   expect(now).not.toBe(first)
   expect(now.size).toBe(0)
   expect(directory.paths()).toEqual(["garden.olai"])
+  directory.stop()
+})
+
+test("one file's revision moves when that file does, and not when another does", () => {
+  // `Directory.head` is the one member that is NOT in the fold, and the line is
+  // deliberate: this asks one key what revision it is at, where the fold
+  // accumulates the SET. A reader watching one file (`./served.tsx`'s
+  // `useHead`, for an `.html` preview) must not be woken by a write three
+  // folders away.
+  const directory = twoFiles()
+  const house = directory.head(() => "house.olai")
+  expect(house()).toBe(1)
+  directory.delta([["house.olai", directory.wrote(2)]])
+  expect(house()).toBe(2)
+  directory.delta([["garden.olai", directory.wrote(9)]])
+  expect(house()).toBe(2)
+  directory.stop()
+})
+
+test("a file this directory does not hold is at no revision at all", () => {
+  const directory = twoFiles()
+  expect(directory.head(() => "nowhere.olai")()).toBeUndefined()
+  directory.delta([], ["house.olai"])
+  expect(directory.head(() => "house.olai")()).toBeUndefined()
   directory.stop()
 })
 
@@ -402,7 +424,7 @@ test("a fold left holding nothing reads as still reading, not as an empty vault"
 test("...and the next snapshot is a directory again", () => {
   const directory = twoFiles()
   directory.invalidate()
-  directory.snapshot([["shed.olai", directory.head(1)]])
+  directory.snapshot([["shed.olai", directory.wrote(1)]])
   expect(directory.manifest()).not.toBeUndefined()
   expect(directory.paths()).toEqual(["shed.olai"])
   directory.stop()
@@ -415,7 +437,7 @@ test("...and the frames in between land on nothing rather than on a hole", () =>
   // has built one again.
   const directory = twoFiles()
   directory.invalidate()
-  directory.delta([["attic.olai", directory.head(1)]])
+  directory.delta([["attic.olai", directory.wrote(1)]])
   expect(directory.manifest()).toBeUndefined()
   expect(directory.paths()).toEqual([])
   directory.stop()

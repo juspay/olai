@@ -83,7 +83,16 @@
  * because a directory that never loaded is a settled answer and no head is
  * coming for it. The two members below then agree with the manifest rather than
  * contradicting it: no set, no paths, nothing broken — nothing is claimed that
- * this tab is not holding.
+ * this tab is not holding, and the one member that says WHICH of the states it
+ * is in is the one the shell is already gated on (`./App.tsx`'s `loaded`).
+ *
+ * `./chat/order.ts` READS THE SAME ABSENT STATE AS AN EMPTY CONVERSATION, and
+ * the two are not in conflict. A transcript with no rows is what a panel drew
+ * before its first frame and is nothing else's business; a directory with no
+ * files is the gate the whole shell hangs on, and a reader cannot tell it apart
+ * from a vault somebody emptied. The framework hands over one `undefined` and
+ * says it means "no accumulator"; what that is worth saying about is the
+ * consumer's, which is why it is said here and not there.
  *
  * ## Handed its members rather than reaching for them
  *
@@ -198,9 +207,10 @@ export interface HeadEntries {
  * NOT EXPORTED, and neither is the fold below: the seam this file offers is
  * {@link Directory}, and a directory is what its suite drives. `./chat/order.ts`
  * exports its accumulator because the transcript's ORDER is the whole of what
- * that module answers; here the accumulator is one of three states a reading
- * can be in, and testing it alone would be testing the half that cannot see the
- * other two.
+ * that module answers; here it is only what a reading holds when there IS one —
+ * the absent state, and what the manifest makes of it, are the directory's — so
+ * a suite over the fold alone would be a suite over the half that cannot see
+ * them.
  */
 interface Held {
   readonly paths: ReadonlyArray<string>
@@ -208,10 +218,13 @@ interface Held {
   readonly members: Set<string>
 }
 
-/** ONE COALESCED DELTA FRAME, as this fold is handed one — spelled off the
- *  options type rather than imported from `@kolu/surface/define`, so what the
- *  two readings below take apart is by construction what `step` was given. */
-type Frame = Parameters<CollectionFoldOptions<string, Head, Held>["step"]>[1]
+/** WHAT A FRAME NAMES, as the two readings below are handed it. Spelled as
+ *  plain readonly arrays rather than the framework's `CollectionDelta` because
+ *  a SNAPSHOT goes through the same pair (see {@link SERVED_FILES}) and a
+ *  snapshot's entries are readonly pairs, which that type is not. Neither
+ *  reading writes to either array. */
+type Upserts = ReadonlyArray<readonly [string, Head]>
+type Removes = ReadonlyArray<string>
 
 /**
  * THE FILE LIST AFTER THIS FRAME — and the very one handed in when no file
@@ -222,11 +235,14 @@ type Frame = Parameters<CollectionFoldOptions<string, Head, Held>["step"]>[1]
  * leaves and the set is only how it is decided. So the two are read by their
  * identity at the one place that has to know whether anything moved.
  *
- * REBUILT WHOLE AND SORTED when it does move — O(files) on the frames that add
- * or drop one, where the shape it replaced was O(files·log files) on every
- * frame there is. A cheaper insertion would still have to copy the array (the
- * one it holds is on screen), so what it would save is the `log` on the rare
- * frame rather than the walk on the common one.
+ * REBUILT WHOLE AND SORTED when it does move — `files·log files`, and that is
+ * NOT what this change bought: the shape it replaced sorted at exactly the same
+ * frequency, behind a memo over the collection's key set, which kolu keeps quiet
+ * on a frame that moves no key. What it bought is the frame that moves no key,
+ * which used to cost a walk of the whole directory and a fresh array anyway
+ * (`{@link Directory}`'s `paths`). A cheaper insertion here would still have to
+ * copy the array — the one it holds is on screen — so what it would save is the
+ * `log` on the rare frame and nothing at all on the common one.
  *
  * TOTAL OVER A REMOVE IT HAS NEVER SEEN, which the socket requires: the
  * server's tick coalescer resolves an upsert-then-remove inside one producer
@@ -234,7 +250,7 @@ type Frame = Parameters<CollectionFoldOptions<string, Head, Held>["step"]>[1]
  * remove that was never preceded by an upsert. `Set.delete` answers `false` for
  * it and nothing is rebuilt.
  */
-const pathsAfter = (held: Held, { upserts, removes }: Frame): ReadonlyArray<string> => {
+const pathsAfter = (held: Held, upserts: Upserts, removes: Removes): ReadonlyArray<string> => {
   let moved = false
   for (const [file] of upserts) {
     if (held.members.has(file)) continue
@@ -262,7 +278,8 @@ const pathsAfter = (held: Held, { upserts, removes }: Frame): ReadonlyArray<stri
  */
 const unreadableAfter = (
   was: ReadonlyMap<string, BrokenFile>,
-  { upserts, removes }: Frame,
+  upserts: Upserts,
+  removes: Removes,
 ): ReadonlyMap<string, BrokenFile> => {
   let now: Map<string, BrokenFile> | null = null
   const editing = () => (now ??= new Map(was))
@@ -278,6 +295,46 @@ const unreadableAfter = (
 }
 
 /**
+ * ONE FRAME APPLIED — the accumulator after it, and the very one handed in when
+ * the frame moved neither reading.
+ *
+ * THREE LINES AND NO LOOP, because the two readings are two independent
+ * questions asked of one frame: what files there are, and which of them did not
+ * parse. Each is answered above, each answers with the value it was handed when
+ * its own question did not move, and this compares those two identities to
+ * decide whether there is a new accumulator at all. That comparison is the
+ * fold's whole output contract, so it is worth being the only thing here.
+ *
+ * SO THE FRAME IS WALKED TWICE, and that is the price of the split — `2k` where
+ * one fused loop would be `k`, over the keys the FRAME named. It is worth
+ * saying rather than hiding, and it is worth paying: `k` is one on the ordinary
+ * frame and the size of a bulk import at worst, where the walk this replaced was
+ * the size of the vault whatever the frame said. `perf-faces-broken-walk`'s
+ * "one walk, not one per reading" was an argument about the SET, and it is the
+ * set that stopped being walked.
+ *
+ * THE ARMS ARE TAKEN IN THE STORE'S ORDER — upserts, then removes. The tick
+ * coalescer makes them disjoint, so the order is free; taking it from the
+ * framework's own `applyDelta` means that if a frame ever did name one key
+ * twice, this fold and `byKey` would resolve it the same way rather than
+ * disagreeing about which files there are.
+ */
+const after = (held: Held, upserts: Upserts, removes: Removes): Held => {
+  const paths = pathsAfter(held, upserts, removes)
+  const broken = unreadableAfter(held.broken, upserts, removes)
+  return paths === held.paths && broken === held.broken ? held : { ...held, paths, broken }
+}
+
+/** An accumulator holding nothing — what a full-set frame is applied to. Minted
+ *  per seeding rather than shared, because `members` is written in place and one
+ *  fold's working memory must never be another's. */
+const holdingNothing = (): Held => ({
+  paths: NO_PATHS,
+  broken: NO_BROKEN,
+  members: new Set(),
+})
+
+/**
  * The fold: seed from a full-set frame, and step one delta.
  *
  * A MODULE CONSTANT rather than a function called per directory, because it
@@ -287,19 +344,30 @@ const unreadableAfter = (
  * "handed its members rather than reaching for them" rule in the header is a
  * fact about this file's shape rather than a habit.
  *
- * THE STEP IS THREE LINES and no loop, because the two readings are two
- * independent questions asked of one frame: what files there are, and which of
- * them did not parse. Each is answered by the pair above, each answers with the
- * value it was handed when its own question did not move, and this compares
- * those two identities to decide whether there is a new accumulator at all.
- * That comparison is the fold's whole output contract, so it is worth being the
- * only thing here.
+ * A SNAPSHOT IS A FRAME whose upserts are the whole set, applied to an
+ * accumulator holding nothing — which is exactly how the framework builds one
+ * (`syntheticSnapshot`, rebuilt from the store for a first connect, a reconnect
+ * and a late registration alike). So both arms are {@link after}, and what a
+ * head being unreadable MEANS is stated once rather than once per arm — on the
+ * seeding path, which is the one a reader only ever sees after a link flap.
  *
- * THE ARMS ARE TAKEN IN THE STORE'S ORDER — upserts, then removes. That
- * coalescer makes them disjoint, so the order is free; taking it from the
- * framework's own `applyDelta` means that if a frame ever did name one key
- * twice, this fold and `byKey` would resolve it the same way rather than
- * disagreeing about which files there are.
+ * WHAT IT COSTS BACK, so nobody has to measure it again. THE ORDER COULD HAVE
+ * STAYED OUT — a memo over the collection's `keys()` is quiet on a frame that
+ * moves no key AND on a reconnect naming the same set (kolu keeps that array by
+ * reference through a link flap), where a fold is re-seeded and `init` has no
+ * previous accumulator to hand back, so a re-seed here sorts the directory and
+ * mints a fresh list. That shape was held up against this one and lost on the
+ * ground that matters: two mechanisms answering one set is what
+ * `perf-faces-broken-walk` was about, and `paths` and `broken` would then be
+ * able to disagree about which files there are. What it buys instead is charged
+ * ONCE PER LINK FLAP — a sort, one array, and the `sameList` in `./served.tsx`
+ * that absorbs it — against a walk of the vault on every frame. Two smaller
+ * charges come with the same choice: `members` is a third copy of the key set
+ * for the life of the tab (the framework's `order`, this, and the sorted list),
+ * because the `fold` socket hands over the frame and not the `added`/`removed`
+ * it computed; and registering ANY fold on `heads` makes the framework rebuild
+ * its full-set frame per snapshot, which it skips for a collection nobody folds.
+ * Both are per-reconnect or per-tab, and neither is per-frame.
  *
  * NOT `./chat/order.ts`'S FOLD WITH A COMPARATOR SWAPPED IN, and the two were
  * held side by side before this was written. The transcript's order is a fact
@@ -313,22 +381,8 @@ const unreadableAfter = (
  * they already share it.
  */
 const SERVED_FILES: CollectionFoldOptions<string, Head, Held> = {
-  init: (entries) => {
-    const members = new Set<string>()
-    const broken = new Map<string, BrokenFile>()
-    for (const [file, head] of entries) {
-      members.add(file)
-      if (head.broken !== null) broken.set(file, head.broken)
-    }
-    return { paths: sortByPath(members), broken, members }
-  },
-  step: (held, frame) => {
-    const paths = pathsAfter(held, frame)
-    const broken = unreadableAfter(held.broken, frame)
-    return paths === held.paths && broken === held.broken
-      ? held
-      : { paths, broken, members: held.members }
-  },
+  init: (entries) => after(holdingNothing(), entries, []),
+  step: (held, { upserts, removes }) => after(held, upserts, removes),
 }
 
 /** The empty directory, minted once each: what every reading answers with while
