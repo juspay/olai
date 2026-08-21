@@ -25,24 +25,14 @@
 import { byPath } from "@olai/format"
 
 /**
- * THE FACES OF A KEYED COLLECTION, in the order its keys came — skipping a key
- * whose entry has not arrived yet.
+ * THE ORDER, applied — the whole of what this module is.
  *
- * Its one caller is the DIRECTORY (`./directory.ts`, over the wire's `heads`),
- * and the absence it exists for is the frame between a key set and the entry
- * that fills it. It was two callers when the browser read a second collection
- * of faces; the sort that joined their two answers went with the second one
- * (`vault-in-browser`'s PR 10 — one collection, already in path order).
+ * It had a `facesOf` beside it, which took the same keys and collected one
+ * field off each entry. That was a walk over the directory, and the directory
+ * now takes its own (`./directory.ts`'s `walkOf`, which answers both of its
+ * readings in one pass and allocated a one-element array per file to answer
+ * one). What is left here is the ORDER, which is what the header above argues
+ * about and the one thing that was never the caller's to decide.
  */
-export const facesOf = <T>(
-  keys: ReadonlyArray<string>,
-  entry: (key: string) => T | undefined,
-): ReadonlyArray<T> =>
-  keys.flatMap((key) => {
-    const face = entry(key)
-    return face === undefined ? [] : [face]
-  })
-
-
 export const sortByPath = (paths: Iterable<string>): ReadonlyArray<string> =>
   [...paths].sort(byPath)

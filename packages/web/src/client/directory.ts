@@ -48,7 +48,7 @@ import type { BrokenFile, Face } from "@olai/format"
 import type { Head, Manifest } from "@olai/surface"
 import { type Accessor, createMemo } from "solid-js"
 
-import { facesOf, sortByPath } from "./paths.ts"
+import { sortByPath } from "./paths.ts"
 import { sameMap } from "./same.ts"
 
 export interface Directory {
@@ -100,19 +100,60 @@ export interface HeadEntries {
   readonly byKey: (key: string) => Accessor<Head | undefined> | undefined
 }
 
+/** BOTH READINGS OF THE HEAD SET, as one pass produces them — see
+ *  {@link walkOf}. Not a member of anything: it is what the walk returns, and
+ *  the two accessors below are how a reader asks for one half of it. */
+interface Walk {
+  readonly faces: ReadonlyArray<Face>
+  readonly broken: ReadonlyMap<string, BrokenFile>
+}
+
+/**
+ * ONE WALK OVER THE KEY SET, answering both questions this file is asked of it
+ * — `perf-faces-broken-walk`, closed.
+ *
+ * `faces` and `broken` are two readings of the SAME LEAF: each wants one field
+ * of each head, over the same keys, in the same order. Written as two memos
+ * they walked the directory twice per frame — and never usefully, because the
+ * only thing either depends on is the head set, so they go stale together and
+ * the second walk could never learn anything the first had not already read. A
+ * thousand files was two thousand reads for a thousand files' worth of answer.
+ *
+ * A key with no entry yet is skipped by BOTH, which is what the old pair did
+ * (a face was dropped when `byKey` had nothing to give, and a head that is not
+ * there is a head with nothing wrong with it). That absence is real and
+ * ordinary: it is the frame between a key set arriving and the entries filling
+ * it.
+ *
+ * NO `equals` HERE, and it does not want one. This is the walk, not an answer:
+ * `faces` is a fresh array per frame and always was, and its readers compare
+ * for themselves where they care (`./served.tsx` holds the paths with a
+ * membership compare). `broken` is the one that has to hold still, and it does
+ * so in its own memo below, over the map this minted.
+ */
+const walkOf = (entries: HeadEntries): Walk => {
+  const faces: Face[] = []
+  const broken = new Map<string, BrokenFile>()
+  for (const file of sortByPath(entries.keys())) {
+    const head = entries.byKey(file)?.()
+    if (head === undefined) continue
+    faces.push(head.face)
+    if (head.broken !== null) broken.set(file, head.broken)
+  }
+  return { faces, broken }
+}
+
 export const createDirectory = (
   entries: HeadEntries,
   manifest: Accessor<Manifest | undefined>,
 ): Directory => {
-  // NO `equals` ON THE FILE LIST, and that is somebody else's node rather than
-  // an oversight: what `faces` and `broken` cost by walking every key per frame
-  // is `perf-faces-broken-walk` on the roadmap, measured and filed with its own
-  // number. This diff is about what happens BELOW them — a walk that answers the
-  // same thing waking every reader of it.
-  const files = createMemo(() => sortByPath(entries.keys()))
+  const walk = createMemo(() => walkOf(entries))
   return {
     manifest,
-    faces: createMemo(() => facesOf(files(), (file) => entries.byKey(file)?.()?.face)),
+    // A PLAIN READING of the walk rather than a memo of its own: the walk is
+    // already the held value, and a second node over it would hold the same
+    // array under a second identity that moves at exactly the same times.
+    faces: () => walk().faces,
     /**
      * THE UNREADABLE FILES, HELD BY VALUE — the paths AND what each one is
      * wrong about.
@@ -124,20 +165,20 @@ export const createDirectory = (
      * that is almost always the empty map it already was
      * (docs/brainstorming/reactivity-after-the-flip.md §4.2).
      *
+     * THIS MEMO IS THE COMPARISON and nothing else now — the map itself is the
+     * walk's, so what re-runs per frame here is one field read and one
+     * `sameMap`, which is the size of the answer rather than the size of the
+     * directory.
+     *
      * The ERRORS are compared as well as the keys, and by IDENTITY — which is
      * `sameMap`'s default, and right here because an entry is replaced exactly
      * when the head carrying it is. Comparing the key sets alone would leave a
      * pane showing the previous parse failure of a file that is still broken
      * for a new reason.
      */
-    broken: createMemo(() => {
-      const found = new Map<string, BrokenFile>()
-      for (const file of files()) {
-        const broken = entries.byKey(file)?.()?.broken
-        if (broken !== undefined && broken !== null) found.set(file, broken)
-      }
-      return found
-    }, new Map<string, BrokenFile>(), { equals: sameMap }),
+    broken: createMemo(() => walk().broken, new Map<string, BrokenFile>(), {
+      equals: sameMap,
+    }),
     head: (file) => () => entries.byKey(file())?.()?.rev,
   }
 }
