@@ -20,9 +20,9 @@
  * The RECORD OF THE PAST may still say it: `docs/brainstorming/` holds the
  * decisions and why the alternatives lost — including the argument for the
  * face this sweep retires — `docs/RCA/` holds incidents as they were
- * diagnosed, and the roadmap and `_olai/Trash.olai` are ledgers whose entries
- * describe PRs that shipped the subcommand. Rewriting any of them would
- * not tidy history, it would falsify it.
+ * diagnosed, and `docs/roadmap/` and `_olai/Trash.olai` are ledgers whose
+ * entries describe PRs that shipped the subcommand. Rewriting any of them
+ * would not tidy history, it would falsify it.
  *
  * This file is excluded outright: it quotes what it hunts.
  */
@@ -36,7 +36,7 @@ const granted = granting([
   "docs/RCA/",
   "docs/brainstorming/",
   "docs/lowy-electricity/",
-  "docs/roadmap.olai",
+  "docs/roadmap/",
 ]);
 
 const TRACKED = tracked(import.meta.filename);
