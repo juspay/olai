@@ -62,7 +62,7 @@ import { granting, read, tracked } from "./support/sweep.ts";
  * edit: `docs/brainstorming/` holds the decisions and why the alternatives lost
  * — including the argument for this very rename, which is unwritable without
  * the word it argued against — `docs/RCA/` holds incidents as they were
- * diagnosed on the day, and `docs/roadmap/` and its archive are ledgers whose
+ * diagnosed on the day, and the roadmap and its archive are ledgers whose
  * entries describe PRs that shipped against `.jsonl` files. Rewriting any of
  * them would not tidy history, it would falsify it.
  *
@@ -99,7 +99,7 @@ const MAY_SPELL_IT: ReadonlyArray<string> = [
   "docs/RCA/",
   "docs/brainstorming/",
   "docs/format.md",
-  "docs/roadmap/",
+  "docs/roadmap.olai",
   "packages/format/src/kinds.test.ts",
 ];
 
