@@ -19,12 +19,12 @@
  * DOM under `bun test`, so each case builds its own reading.
  */
 
-import { derive, litBy, parseFilter, rowsOf } from "@olai/format"
+import { derive, litBy, parseFilter, rowsOf, type Shown } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
-import type { Drawn } from "../page.ts"
+import { type Drawn, drawnBy } from "../page.ts"
 import { excerptOf } from "../note/excerpt.ts"
 import { answered } from "./answered.testlib.ts"
 import { runsIn } from "./lit.ts"
@@ -52,7 +52,12 @@ const derived = derive(nodesOfFiles({
 
 const TODAY = "2026-08-18"
 
-const tree: Drawn = { kind: "tree", rows: rowsOf(derived, "house.olai") }
+const house: Shown = {
+  kind: "outline",
+  file: "house.olai",
+  rows: rowsOf(derived, "house.olai"),
+}
+const tree: Drawn = drawnBy(house)
 
 /** The page, at one query — with the answer the server would give
  *  (`./answered.testlib.ts`), because the `matched` field these three questions
@@ -64,7 +69,7 @@ const page = (text: string): Narrowed =>
       text: () => text,
       all: () => tree,
       visible: () => tree,
-      matched: () => answered(derived, tree, text, TODAY),
+      matched: () => answered(derived, house, text, TODAY),
       answering: () => text.trim(),
     })
   )

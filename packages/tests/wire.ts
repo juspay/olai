@@ -26,15 +26,21 @@
  *     sides of it — and it is the SAME driver, which is what makes the two
  *     numbers comparable.
  *   - `filter` — a page somebody has NARROWED, with the vault moving under it.
- *     A filter is a standing view, so every frame the open page draws is a
- *     reason to ask the matcher again — and read straight through, that was one
- *     whole-vault `search.matching` PER FRAME, uncoalesced
- *     (`docs/brainstorming/reactivity-after-the-flip.md` §3.5). So this one
- *     counts CALLS rather than bytes: it opens a filtered outline, picks a
- *     section of it and ticks the pick off — one gesture, one write per topmost
- *     row, one page frame back per write — and reports what that burst cost the
- *     matcher. Over the BIG vault below, because what a whole-vault search
- *     costs is a function of the vault.
+ *     A filter is a standing view, so every frame the open page drew used to be
+ *     a reason to ask the matcher again — one whole-vault `search.matching` PER
+ *     FRAME, uncoalesced (`docs/brainstorming/reactivity-after-the-flip.md`
+ *     §3.5). So this one counts ASKS rather than bytes: it opens a filtered
+ *     outline, picks a section of it and ticks the pick off — one gesture, one
+ *     write per topmost row, one page frame back per write — and reports what
+ *     that burst cost the matcher. Over the BIG vault below, because what a
+ *     whole-vault search costs is a function of the vault.
+ *
+ *     It is the acceptance test for `filter-ask-carries-revision`
+ *     (docs/brainstorming/filter-rides-the-page.md), which is why the counter
+ *     knows both spellings of the ask ({@link MATCHER}): the narrowing is a
+ *     stream over the page now, so the gesture should cost the matcher NOTHING
+ *     — the subscription is opened once, when the query is, and thirty writes
+ *     that move no match send no frame and ask no question.
  *
  * It is VERSION-INDEPENDENT on purpose — Playwright, a URL, and this package's
  * own browser argv, with no `@olai/*` import anywhere — so the same driver
@@ -77,16 +83,33 @@ interface Reading {
   readonly socket: number
   /** Bytes fetched off `/media/`, cumulative. */
   readonly media: number
-  /** Whole-vault matcher calls the tab has SENT, cumulative — the `filter`
-   *  session's number, and zero for the other two, which never narrow a page. */
-  readonly searches: number
+  /** What the tab ASKED THE MATCHER FOR, cumulative — the `filter` session's
+   *  number, and zero for the other two, which never narrow a page. Both
+   *  spellings are counted ({@link MATCHER}), because one driver measures two
+   *  worktrees and the member changed shape between them. */
+  readonly asks: number
 }
 
-/** How a `search.matching` call looks on the wire, going out. The surface's own
- *  request tag, which is the one thing about the protocol this driver knows —
- *  and it counts the frames the TAB SENT rather than the answers it was given,
- *  because what is being measured is what this page asked for. */
-const MATCHING = `"tag":"surface/search/matching"`
+/**
+ * HOW A PAGE ASKS THE MATCHER, on the wire, going out — in BOTH spellings the
+ * two sides of this measurement use.
+ *
+ * The surface's own request tags, which are the one thing about the protocol
+ * this driver knows, and it counts the frames the TAB SENT rather than the
+ * answers it was given: what is being measured is what this page asked for.
+ *
+ * TWO of them, because `ROOT=` is the whole point of this file — the same
+ * driver measures a server from master and one from a branch, and
+ * `filter-ask-carries-revision` changed which member a narrowed page asks.
+ * `search/matching` is the PROCEDURE it used to call, once per page frame;
+ * `narrowing/get` is the STREAM it subscribes to instead, once per settled
+ * query. Counted together, the column means one thing on both sides: how many
+ * times this page asked what its filter selects.
+ */
+const MATCHER = [
+  `"tag":"surface/search/matching"`,
+  `"tag":"surface/narrowing/get"`,
+]
 
 /**
  * THE VAULT — written here rather than taken from a fixture corpus, for the
@@ -103,7 +126,8 @@ const MATCHING = `"tag":"surface/search/matching"`
  *
  * `filter` is about the vault the `vault-in-browser` design was RULED for —
  * "when we have 1000s of .md files it will start to suck" — because the thing
- * it counts is whole-vault searches, and what one of those costs is a function
+ * it counts is what a page asks the matcher, and what one whole-vault answer
+ * costs is a function
  * of the vault. On the small one the matcher answers faster than a write's
  * round trip, so nothing about coalescing is visible either way; the number to
  * measure is the one a reader with a real vault pays.
@@ -175,7 +199,7 @@ const main = async () => {
 
   let socket = 0
   let media = 0
-  let searches = 0
+  let asks = 0
   const readings: Array<Reading> = []
   const write = (file: string, text: string) => {
     const full = path.join(VAULT, file)
@@ -214,7 +238,7 @@ const main = async () => {
       const text = typeof frame.payload === "string"
         ? frame.payload
         : frame.payload.toString("utf8")
-      if (text.includes(MATCHING)) searches += 1
+      if (MATCHER.some((tag) => text.includes(tag))) asks += 1
     })
   })
   // …and the other leg: what the preview frame fetched for itself. Counted off
@@ -233,11 +257,11 @@ const main = async () => {
   const mark = async (what: string) => {
     // One beat for the last frames and the last fetch to be accounted.
     await page.waitForTimeout(500)
-    readings.push({ what, socket, media, searches })
+    readings.push({ what, socket, media, asks })
   }
 
   if (SESSION === "pages") await pages(page, mark)
-  else if (SESSION === "filter") await filtered(page, mark, () => searches)
+  else if (SESSION === "filter") await filtered(page, mark, () => asks)
   else await preview(page, mark, write)
 
   await browser.close()
@@ -385,14 +409,14 @@ const filtered = async (
   // THE INSTRUMENT PROVES ITSELF FIRST. Everything else in this file fails
   // loudly (a `waitFor` that times out); a counter keyed on a protocol string
   // fails SILENTLY — the day that tag is renamed on one of the two worktrees
-  // `ROOT=` points at, the run reports zero searches, which reads as a
+  // `ROOT=` points at, the run reports zero asks, which reads as a
   // spectacular win rather than a broken driver. A narrowed page that has drawn
   // its rows has asked at least once.
   if (counted() === 0) {
     throw new Error(
-      `a filtered page was opened and no ${MATCHING} was seen on the wire — ` +
-        "the request tag this driver counts has moved, so every number below " +
-        "it would be a zero that means nothing",
+      `a filtered page was opened and none of ${MATCHER.join(" / ")} was seen ` +
+        "on the wire — the request tags this driver counts have moved, so every " +
+        "number below would be a zero that means nothing",
     )
   }
 
@@ -413,17 +437,17 @@ const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)} kB`
 const report = (label: string, readings: ReadonlyArray<Reading>) => {
   console.log(`\n── ${label} ─────────────────────────────────────`)
   console.log(
-    ["step", "socket (total)", "media (total)", "search.matching (total)"].join("\t"),
+    ["step", "socket (total)", "media (total)", "matcher asks (total)"].join("\t"),
   )
   for (const reading of readings) {
     console.log(
-      [reading.what, kb(reading.socket), kb(reading.media), String(reading.searches)]
+      [reading.what, kb(reading.socket), kb(reading.media), String(reading.asks)]
         .join("\t"),
     )
   }
   const last = readings[readings.length - 1]
   console.log(
-    `TOTAL\t${kb(last?.socket ?? 0)}\t${kb(last?.media ?? 0)}\t${last?.searches ?? 0}`,
+    `TOTAL\t${kb(last?.socket ?? 0)}\t${kb(last?.media ?? 0)}\t${last?.asks ?? 0}`,
   )
 }
 

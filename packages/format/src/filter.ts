@@ -1,5 +1,5 @@
 /**
- * What a query MEANS — the one matcher, five callers.
+ * What a query MEANS — the one matcher, and the two SHAPES its callers want.
  *
  * A query is words and operators; this file says which nodes they select, and
  * which rows survive when a tree is narrowed to them. It is here, at the bottom
@@ -8,27 +8,32 @@
  * second one written to the same paragraph is the thing this package exists to
  * make impossible.
  *
- * FIVE CALLERS, and naming them is the argument:
+ * TWO SHAPES, and the split is what the file is arranged around:
  *
- *   - `@olai/ops`' `Query.search`, which is what an agent's `search_nodes` and
- *     the wire's `search.nodes` answer with. It calls {@link matching} as its
- *     gate and {@link ranked} to order them, and what is left of its own is
- *     the situating, the cap it applies and the total;
- *   - the ⌘K palette and the header's search box, which are callers of that
- *     procedure and so get every operator here for free;
- *   - the browser's FILTER over the tree on screen, which cannot be a caller of
- *     that procedure — it runs on every keystroke over rows the browser already
- *     holds, it wants every match rather than twelve, and it wants them as a set
- *     of ids to test rows against rather than as a ranked list of situated hits;
- *   - the chat composer's `@` list (`@olai/web`'s `chat/nodes.ts`), which is
- *     the filter's shape with a shortlist on the end: one token, matched here,
- *     ordered by {@link ranked}, eight rows taken off the top.
+ *   - a SHORTLIST somebody reads — ranked, capped, every hit situated. {@link
+ *     matching} over the whole set, ordered by {@link ranked}, and the caller
+ *     is `@olai/ops`' `Query.search`, which is what an agent's `search_nodes`
+ *     and the wire's `search.nodes` answer with (the ⌘K palette, the header's
+ *     box and the chat composer's `@` list are doors onto that one procedure,
+ *     so they get every operator here for free). What is left to the ops layer
+ *     is the situating, the cap and the uncapped total;
+ *   - a MEMBERSHIP over rows already on a screen — uncapped, unranked, ids to
+ *     test rows against. That is a page's FILTER, and what it is asked of is
+ *     the records THAT PAGE draws rather than the corpus (`./narrowing.ts`,
+ *     over {@link selecting} with the page's own candidates in place of the
+ *     set's). A capped, ranked, situated answer would be the wrong answer with
+ *     more bytes in it.
  *
- * The last two are why the matcher is down here rather than in the ops layer.
- * The alternative was a client-side predicate written to the same description,
- * which is exactly the drift docs/search.md was written to forbid — `is:done`
- * meaning one thing to an agent and another to the box a person types in. The
- * ranking followed it down for the same reason, one door later: see
+ * BOTH ARE ANSWERED ON THE SERVER, which is newer than this file is. The
+ * matcher came DOWN here when the filter ran in a browser on every keystroke
+ * over rows the tab already held — a client-side predicate written to the same
+ * description is exactly the drift docs/search.md was written to forbid, with
+ * `is:done` meaning one thing to an agent and another to the box a person types
+ * in. The browser holds no vault to grep since `vault-in-browser`, and the
+ * filter stopped being a call at all with `filter-ask-carries-revision`
+ * (docs/brainstorming/filter-rides-the-page.md): what moved was WHO CALLS this,
+ * never what it says, and the rule the move was made for is the reason it stays.
+ * The ranking followed it down for the same reason, one door later: see
  * {@link ranked}.
  *
  * The design, with the alternatives that lost, is
@@ -2044,42 +2049,105 @@ const within = (date: string, clause: DaysClause): boolean =>
 const atWidthOf = (date: string, bound: string): string => date.slice(0, bound.length)
 
 /**
- * Every node the query selects, in the set's own file-then-line order.
+ * Every node in the SET that the query selects, in the set's own
+ * file-then-line order — the door for a caller searching the DIRECTORY.
+ *
+ * TWO LINES over {@link selecting}, and they are the two this door adds: the
+ * candidates are the whole set narrowed by a {@link Scope}, and what was put
+ * away is decided from the question — the query named the archive ({@link
+ * Filter} `speaksOfTrash`), or the caller said its scope already holds it
+ * ({@link Scope.trashed}). One boolean per call, read before the walk.
  *
  * MIRRORS ARE NOT HERE, for the reason nothing in the query layer answers with
  * one: a mirror is a second PLACEMENT of a node, so a hit for it would be the
  * same node twice, once at a place no write lands. What a filtered TREE does
  * with a placement is a different question, and {@link keeping} answers it.
  *
- * WHAT WAS PUT AWAY is decided here rather than per record, because it is a
- * fact about the QUESTION and not about any node: the query named the archive
- * ({@link Filter} `speaksOfTrash`), or the caller said its scope already
- * holds it ({@link Scope.trashed}). One boolean per call, read before the
- * walk.
+ * A PAGE narrowing itself is the other caller and does not come through here:
+ * it holds the records it draws and hands them to {@link selecting} directly
+ * (`./narrowing.ts`).
  */
 export const matching = (
   derived: Derived,
   filter: Filter,
   scope: Scope = {},
-): ReadonlyArray<Matched> => {
+): ReadonlyArray<Matched> => [
+  ...selecting(
+    derived,
+    filter,
+    inScopeOf(derived, scope),
+    scope.trashed === true || (filter.kind === "asking" && filter.speaksOfTrash),
+  ),
+]
+
+/** The set's own regular records, in file-then-line order, narrowed to a scope
+ *  — {@link matching}'s candidates, and the whole of what it holds over
+ *  {@link selecting}. Mirrors are skipped for the reason nothing in the query
+ *  layer answers with one: a mirror is a second PLACEMENT of a node, so a hit
+ *  for it would be the same node twice, once at a place no write lands. */
+function* inScopeOf(derived: Derived, scope: Scope): Generator<LocatedRegular> {
   const inScope = scoping(derived, scope)
-  const putAway = scope.trashed === true ||
-    (filter.kind === "asking" && filter.speaksOfTrash)
-  const out: Array<Matched> = []
   for (const located of derived.nodes) {
     if (isMirror(located.node)) continue
     const at = located as LocatedRegular
-    // Leftover Archive.olai is orphaned from every query, including
-    // `is:trashed`: it is not trash, and it is not live work either. The
-    // file's own page still draws unfiltered (the filter box is inactive
-    // then); a query over the directory does not re-enter it.
+    if (!inScope(at)) continue
+    yield at
+  }
+}
+
+/**
+ * THE SELECTION ITSELF, over candidates the CALLER holds — the half of
+ * {@link matching} that is about what a query means rather than about where to
+ * look for it.
+ *
+ * It exists because there are two kinds of caller and only one of them is
+ * searching the DIRECTORY. {@link matching} is that one: it is handed the whole
+ * set and a corner of it to ask about. The other is a PAGE narrowing itself,
+ * which already holds the records it draws — mirrors resolved, ancestry walked,
+ * every arm of the reading decided — and for which a walk of the corpus is a
+ * walk of everything the answer will be thrown away for
+ * (docs/brainstorming/filter-rides-the-page.md). That caller hands its own rows
+ * in (`./narrowing.ts`), and what it gets is this same `matchOf` behind this
+ * same grammar, so the two cannot mean different things by `is:done`.
+ *
+ * WHAT WAS PUT AWAY is the caller's answer rather than a rule here, for the
+ * reason {@link Scope.trashed} gives: whether the archive is in this corner of
+ * the set at all is a fact about the QUESTION — the query named it, or the
+ * caller's own scope already holds it. One boolean per call, read before the
+ * walk.
+ *
+ * A LEFTOVER `Archive.olai` is orphaned from every query, including
+ * `is:trashed`: it is not trash, and it is not live work either. The file's own
+ * page still draws unfiltered; a query does not re-enter it.
+ *
+ * DUPLICATES ARE THE CALLER'S, not this walk's: `derived.nodes` names each
+ * record once, and a page that draws one node twice is a caller with an answer
+ * about that (`./narrowing.ts` dedupes because a placement is not a node).
+ *
+ * A GENERATOR, so a caller that wants a shape of its own builds ONE list rather
+ * than materialising this one and mapping it. {@link matching} spreads it,
+ * which is the array it always returned; `./narrowing.ts` pushes as it goes.
+ *
+ * WHAT THE LAYER COSTS was measured rather than assumed, because this walk is
+ * the one that is genuinely whole-vault: `filter.bench.ts` over 20,000 nodes
+ * reads 7.3–8.3ms a keystroke here, against 7.6–15.3ms for the same bench on
+ * the commit before this file grew its two generators. The spread is the
+ * machine's and not the change's — which is the honest finding, and the same
+ * one `patch.bench.ts` states about its own numbers: the layer is not
+ * measurable against run-to-run variance, so it is not a cost this pays.
+ */
+export function* selecting(
+  derived: Derived,
+  filter: Filter,
+  candidates: Iterable<LocatedRegular>,
+  putAway: boolean,
+): Generator<Matched> {
+  for (const at of candidates) {
     if (isLeftoverArchive(at.file)) continue
     if (!putAway && isTrashed(at.file)) continue
-    if (!inScope(at)) continue
     const match = matchOf(derived, at, filter)
-    if (match !== null) out.push({ at, match })
+    if (match !== null) yield { at, match }
   }
-  return out
 }
 
 /** A done node is demoted by about a field's worth: enough to lose a tie, not

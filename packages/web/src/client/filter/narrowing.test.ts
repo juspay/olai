@@ -15,11 +15,12 @@
  * Nothing here is a claim about Solid's graph — it is a claim about what this
  * file computes from its inputs, and that is exactly what a fixed query asks.
  *
- * WHERE THE MATCHES COME FROM, since `search-server-side`: the server, and here
- * from {@link answered} — the same `@olai/format` matcher the server runs
- * (`@olai/ops`' `Query.matches`), shaped into the same answer, over the same
- * scope decision the pane makes (`./drawn.ts`'s `showsTrashed`). So the archive
- * cases below still fail if that predicate regresses, and what they no longer
+ * WHERE THE MATCHES COME FROM, since `filter-rides-the-page`: the server, and
+ * here from {@link answered} — the same `@olai/format` reading the server runs
+ * (`@olai/ops`' `Query.narrowing`), over the same page. So every case builds the
+ * `Shown` the server would have computed and derives what a browser DRAWS of it
+ * (`../page.ts`'s `drawnBy`), which is the order the app is in; the archive
+ * cases still fail if the scope decision regresses, and what they no longer
  * reach is the wiring in `../pane/PageView.tsx`, which is a browser's fact and
  * is pinned in the suite that has one.
  *
@@ -34,11 +35,12 @@ import {
   type DayGroup,
   datedOn,
   derive,
+  nodesOf,
   parseFilter,
   type Row,
   rowsIn,
   rowsOf,
-  rowsUnder,
+  type Shown,
   withoutDone,
   zoom,
 } from "@olai/format"
@@ -47,7 +49,7 @@ import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
 import { only } from "../narrow.ts"
-import type { Drawn } from "../page.ts"
+import { type Drawn, drawnBy } from "../page.ts"
 import { answered } from "./answered.testlib.ts"
 import type { Matches } from "./matches.ts"
 import { createNarrowing, type Narrowing } from "./narrowing.ts"
@@ -81,14 +83,17 @@ const TODAY = "2026-08-17"
 
 /** What the server would say about this query on this page
  *  (`./answered.testlib.ts`, shared with `./why.test.ts`). */
-const said = (drawn: Drawn, text: string, over = derived): Matches =>
-  answered(over, drawn, text, TODAY)
+const said = (shows: Shown, text: string, over = derived): Matches =>
+  answered(over, shows, text, TODAY)
 
 /** The page, at one query and one preference — the same inputs the pane hands
- *  over. The done preference reaches the TREE and nothing else, which is where
- *  it reaches in the app. */
-const narrowing = (drawn: Drawn, text: string, hideDone = false): Narrowing =>
-  createRoot(() =>
+ *  over. What a browser DRAWS of a reading is `drawnBy`'s, so the fixture is the
+ *  server's value and the two prunings run over what this client makes of it.
+ *  The done preference reaches the TREE and nothing else, which is where it
+ *  reaches in the app. */
+const narrowing = (shows: Shown, text: string, hideDone = false): Narrowing => {
+  const drawn = drawnBy(shows)
+  return createRoot(() =>
     createNarrowing({
       query: () => parseFilter(text, TODAY),
       text: () => text,
@@ -97,14 +102,20 @@ const narrowing = (drawn: Drawn, text: string, hideDone = false): Narrowing =>
         hideDone && drawn.kind === "tree"
           ? { kind: "tree", rows: withoutDone(drawn.rows) }
           : drawn,
-      matched: () => said(drawn, text),
+      matched: () => said(shows, text),
       answering: () => text.trim(),
     })
   )
+}
 
-const tree: Drawn = { kind: "tree", rows: rowsOf(derived, "house.olai") }
+const house: Shown = {
+  kind: "outline",
+  file: "house.olai",
+  rows: rowsOf(derived, "house.olai"),
+}
+const tree: Drawn = drawnBy(house)
 const page = (text: string, hideDone = false): Narrowing =>
-  narrowing(tree, text, hideDone)
+  narrowing(house, text, hideDone)
 
 test("an empty box is not a filter, and the page is the page", () => {
   const reading = page("")
@@ -207,8 +218,9 @@ test("a refused operator empties the page and carries its reason", () => {
 /** A day, as the app hands it over: the dated nodes, and the note somebody
  *  wrote on it — both on the screen, and only one of them something a query can
  *  select. */
-const dayOf = (date: string, notes: ReadonlyArray<string> = []): Drawn => ({
+const dayOf = (date: string, notes: ReadonlyArray<string> = []): Shown => ({
   kind: "day",
+  date,
   groups: datedOn(derived, date),
   notes,
 })
@@ -219,7 +231,7 @@ test("a day keeps the rows that matched, and drops the outline that has none", (
   const whole = dayOf("2026-08-14")
   // `shims` is dated the 14th and was put away, so it is on neither of these
   // pages any more (the test below is the claim; this is the count it changes).
-  expect(datedIds(whole)).toEqual(["order", "hinges"])
+  expect(datedIds(drawnBy(whole))).toEqual(["order", "hinges"])
 
   const reading = narrowing(whole, "hinges")
   expect(reading.counts().shown).toBe(1)
@@ -258,8 +270,8 @@ test("a day draws no archived row, so no query finds one on it", () => {
 })
 
 test("the agenda answers the same way, over the dates read forward", () => {
-  const forward: Drawn = { kind: "agenda", agenda: agendaOf(derived, TODAY) }
-  expect(datedIds(forward)).toEqual(["order", "hinges"])
+  const forward: Shown = { kind: "agenda", date: TODAY, agenda: agendaOf(derived, TODAY) }
+  expect(datedIds(drawnBy(forward))).toEqual(["order", "hinges"])
 
   expect(narrowing(forward, "shims").counts().shown).toBe(0)
   expect(narrowing(forward, "is:trashed").counts().shown).toBe(0)
@@ -292,13 +304,13 @@ test("a day's note goes while a filter is on, and comes back when it clears", ()
 })
 
 const agenda: Agenda = agendaOf(derived, TODAY)
-const owed: Drawn = { kind: "agenda", agenda }
+const owed: Shown = { kind: "agenda", date: TODAY, agenda }
 
 test("the agenda narrows day by day, and counts every row it draws", () => {
   // Everything dated the 14th slipped, and none of it is finished — except the
   // archived one, which is nowhere on the line now that what was put away is
   // the trash's alone.
-  expect(datedIds(owed)).toEqual(["order", "hinges"])
+  expect(datedIds(drawnBy(owed))).toEqual(["order", "hinges"])
 
   const reading = narrowing(owed, "is:todo")
   expect(reading.counts().held).toBe(2)
@@ -312,10 +324,11 @@ test("the agenda narrows day by day, and counts every row it draws", () => {
 
 // ── the trash, where a query would otherwise refuse to look ────────────
 
-const trash: Drawn = {
+const trash: Shown = {
   kind: "trash",
   files: ["_olai/Trash.olai"],
   groups: [{ file: "_olai/Trash.olai", rows: rowsOf(derived, "_olai/Trash.olai") }],
+  records: nodesOf(derived, "_olai/Trash.olai").length,
 }
 
 // The rule this page exists to except: archived nodes are out of every reading
@@ -363,10 +376,7 @@ test("a zoom onto an archived node is searched like the pile it is in", () => {
   // Named rather than defaulted to an empty tree: a fixture whose archive stopped
   // holding this node should fail here, not as a mystifying empty page below.
   if (zoomed.kind !== "node") throw new Error(`the archive has no \`old-kitchen\``)
-  const inArchive: Drawn = {
-    kind: "tree",
-    rows: rowsUnder(derived, zoomed.shows, zoomed.trail),
-  }
+  const inArchive: Shown = { kind: "node", zoomed, backlinks: [] }
   const reading = narrowing(inArchive, "grout")
   expect(flat(treeRows(reading))).toEqual(["grout"])
   expect(reading.counts().shown).toBe(1)
@@ -376,7 +386,7 @@ test("a zoom onto an archived node is searched like the pile it is in", () => {
 // ── a page a filter has nothing to narrow ──────────────────────────────
 
 test("a page with nothing to narrow counts nothing and stays itself", () => {
-  const reading = narrowing({ kind: "none" }, "hinges")
+  const reading = narrowing({ kind: "nothing", sought: "outline", requested: null }, "hinges")
   expect(reading.drawn()).toEqual({ kind: "none" })
   expect(reading.counts().shown).toBe(0)
   expect(reading.counts().held).toBe(0)
@@ -421,12 +431,13 @@ const flat = (rows: ReadonlyArray<Row>): ReadonlyArray<string> =>
  *  "what does the page do while it waits" needs and what {@link narrowing}
  *  cannot express, since that one always answers. */
 const waiting = (
-  drawn: Drawn,
+  shows: Shown,
   text: string,
   said: { matched?: Matches; answering: string | null },
 ): Narrowing =>
-  createRoot(() =>
-    createNarrowing({
+  createRoot(() => {
+    const drawn = drawnBy(shows)
+    return createNarrowing({
       query: () => parseFilter(text, TODAY),
       text: () => text,
       all: () => drawn,
@@ -434,13 +445,13 @@ const waiting = (
       matched: () => said.matched,
       answering: () => said.answering,
     })
-  )
+  })
 
 // THE PAGE DOES NOT BLANK. A filter that pruned by "nothing, so far" would
 // empty an outline on the first keystroke and fill it back in 200ms later,
 // which is the page saying "no matches" about a question nobody has answered.
 test("a filter nothing has answered yet draws the whole page, and says so", () => {
-  const reading = waiting(tree, "hinges", { answering: null })
+  const reading = waiting(house, "hinges", { answering: null })
   expect(reading.active()).toBe(true)
   expect(reading.selected()).toBe(null)
   expect(flat(treeRows(reading))).toEqual(["kitchen", "demo", "order", "install", "hinges"])
@@ -454,8 +465,8 @@ test("a filter nothing has answered yet draws the whole page, and says so", () =
 // are somebody's reading, and re-drawing the whole page between two keystrokes
 // is worse than being a question behind.
 test("an answer to the query before still narrows, and the page says it is behind", () => {
-  const reading = waiting(tree, "hinges more", {
-    matched: said(tree, "hinges"),
+  const reading = waiting(house, "hinges more", {
+    matched: said(house, "hinges"),
     answering: null,
   })
   expect(flat(treeRows(reading))).toEqual(["kitchen", "install", "hinges"])
@@ -468,7 +479,7 @@ test("an answer to the query before still narrows, and the page says it is behin
 // so it selects nothing, and waiting for a round trip to be told that would be
 // a reader typing on past a sentence the app could already say.
 test("a refused query answers itself rather than travelling", () => {
-  const reading = waiting(tree, "is:open", { answering: null })
+  const reading = waiting(house, "is:open", { answering: null })
   expect(reading.active()).toBe(true)
   expect(reading.selected()).not.toBe(null)
   expect(reading.answering()).toBe("is:open")
@@ -483,8 +494,8 @@ test("a refused query answers itself rather than travelling", () => {
 // for as long as the space stands and every scenario that waits for the page to
 // answer waits forever.
 test("a trailing space is the box's, not the question's", () => {
-  const reading = waiting(tree, "hinges ", {
-    matched: said(tree, "hinges"),
+  const reading = waiting(house, "hinges ", {
+    matched: said(house, "hinges"),
     answering: "hinges",
   })
   expect(reading.answering()).toBe("hinges")
@@ -493,7 +504,7 @@ test("a trailing space is the box's, not the question's", () => {
 
 // ...and so is an empty box, which is not a filter at all.
 test("an empty box is answered by the parse, not by the wire", () => {
-  const reading = waiting(tree, "", { answering: null })
+  const reading = waiting(house, "", { answering: null })
   expect(reading.active()).toBe(false)
   expect(reading.answering()).toBe("")
   expect(rowsIn(treeRows(reading))).toBe(5)
@@ -504,16 +515,18 @@ test("an empty box is answered by the parse, not by the wire", () => {
 /**
  * The done preference must not decide which pages the TRASH is in scope for.
  *
- * A zoom onto archived work is a tree, and an archive is mostly finished work —
- * so a reader who hides `done` can be looking at a page whose every root is
- * hidden. Asked of the page AFTER that pruning, the archive scope reads `false`
- * there, the matcher then leaves the whole archive out, and the bar says "0 of
- * 0" with nothing about the matches the preference is holding back — which is
- * the one sentence `hiddenAsDone` exists to make instead of a mystery.
+ * A page inside an archive is mostly finished work, so a reader who hides
+ * `done` can be looking at one whose every root is hidden. Asked of the page
+ * AFTER that pruning, the archive scope read `false` there, the matcher left
+ * the whole archive out, and the bar said "0 of 0" with nothing about the
+ * matches the preference was holding back — which is the one sentence
+ * `hiddenAsDone` exists to make instead of a mystery.
  *
- * Which pages draw archived rows is a fact about the PAGE, so it is asked of
- * the unfiltered one (`source.all()`), which is what `hiddenAsDone` measures
- * against too.
+ * IT IS NOW UNREACHABLE BY CONSTRUCTION, and the case is kept for that: which
+ * pages draw archived rows is decided on the SERVER, off the page it computed
+ * (`@olai/format`'s `showsPutAway`), and a preference of this browser never
+ * crosses the wire. The hole this pins was a browser describing its own page to
+ * the matcher; nothing describes it any more.
  */
 const FINISHED = derive(nodesOfFiles({
   "_olai/Trash.olai": [
@@ -527,17 +540,18 @@ test("hiding finished work does not take the archive out of a zoom's scope", () 
   // A PLAIN WORD, which is the half of the grammar this is about: `is:trashed`
   // opens the archive by NAMING it, whatever a caller's scope says, so the
   // operator could never have shown this hole.
-  const whole: Drawn = { kind: "tree", rows }
+  const whole: Shown = { kind: "outline", file: "_olai/Trash.olai", rows }
   const reading = createRoot(() =>
     createNarrowing({
       query: () => parseFilter("#home", TODAY),
       text: () => "#home",
-      all: () => whole,
+      all: () => drawnBy(whole),
       // Every root of this pile is done, so the reader who hides finished work
       // is looking at an empty page — with two matches behind it.
       visible: () => ({ kind: "tree", rows: withoutDone(rows) }),
-      // ASKED OF THE UNFILTERED PAGE: the scope is a fact about which page this
-      // is, and the pane reads it off `all()` for exactly this reason.
+      // ASKED OF THE PAGE THE SERVER COMPUTED, which is the whole reason this
+      // can no longer go wrong: a preference of this browser is not on the
+      // wire, so nothing a reader hides can reach the scope decision.
       matched: () => said(whole, "#home", FINISHED),
       answering: () => "#home",
     })
@@ -550,7 +564,7 @@ test("hiding finished work does not take the archive out of a zoom's scope", () 
 /**
  * The flat pages answer NO about the archive — pinned here, where the arms are.
  *
- * `showsTrashed`'s `day` and `agenda` arms are `false` because the walk those
+ * `showsPutAway`'s `day` and `agenda` arms are `false` because the walk those
  * pages are built from leaves the archive out (`@olai/format`'s `dates.ts`), so
  * the format can no longer produce a day group under an `_olai/Trash.olai` heading
  * — which is exactly why the fixture below is built BY HAND. Handed the page
@@ -574,13 +588,13 @@ const putAwayOnADay = (): DayGroup => {
 }
 
 test("a day handed an archived row still does not widen the scope", () => {
-  const drawn: Drawn = { kind: "day", groups: [putAwayOnADay()], notes: [] }
-  const reading = narrowing(drawn, "shims")
+  const shows: Shown = { kind: "day", date: "2026-08-14", groups: [putAwayOnADay()], notes: [] }
+  const reading = narrowing(shows, "shims")
   expect(reading.counts().shown).toBe(0)
   expect(datedIds(reading.drawn())).toEqual([])
   // The operator is the door that still opens: it names the archive, so it does
   // not need the page's permission.
-  expect(narrowing(drawn, "is:trashed").counts().shown).toBe(1)
+  expect(narrowing(shows, "is:trashed").counts().shown).toBe(1)
 })
 
 test("the agenda handed one does not either, anywhere on its line", () => {
@@ -591,7 +605,7 @@ test("the agenda handed one does not either, anywhere on its line", () => {
     { overdue: [], today: [], upcoming: [{ date: "2026-08-14", groups: [group] }] },
   ]
   for (const agenda of stretches) {
-    const reading = narrowing({ kind: "agenda", agenda }, "shims")
+    const reading = narrowing({ kind: "agenda", date: TODAY, agenda }, "shims")
     expect(reading.counts().shown).toBe(0)
     expect(datedIds(reading.drawn())).toEqual([])
   }

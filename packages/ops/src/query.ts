@@ -63,6 +63,9 @@ import {
   matchingDocuments,
   type NamedAnswer,
   type NamedRequest,
+  type NarrowingAnswer,
+  type NarrowingRequest,
+  narrowingOf,
   NodeId,
   matching,
   type MovingAnswer,
@@ -90,8 +93,6 @@ import {
   type Reference,
   ranked,
   rootsOf,
-  type MatchingAnswer,
-  type MatchingRequest,
   type SearchAnswer,
   type SearchHit,
   type SearchRequest,
@@ -373,33 +374,33 @@ export const search = (
 }
 
 /**
- * The other question the one matcher answers: WHICH nodes a query selects, all
- * of them, with why and nothing else.
+ * The other question the one matcher answers: WHICH nodes ON ONE PAGE a query
+ * selects, with why and nothing else.
  *
  * The filter over the page in front of somebody is what asks it, and what that
  * page needs is the opposite of a shortlist (`@olai/format`'s `searching.ts`
- * argues the split at `MatchingRequest`): it prunes itself by the ids and counts
+ * argues the split at `MatchedNode`): it prunes itself by the ids and counts
  * itself against them, so a capped answer would make "3 of 41" a sentence with
  * an invented number in it, and a ranked one would be an order the page has no
  * use for — a tree is drawn in the tree's order.
  *
- * SO THE COST IS THE ANSWER'S SIZE, and it is worth saying plainly rather than
- * leaving to be discovered: a one-letter query over a large vault selects most
- * of it, and this hands back an id per selection. That is the same list the
- * browser used to build for itself out of its own copy of the set — the change
- * is which side of the wire builds it — and it is bounded by the corpus rather
- * than by anything a reader typed. What shrinks it is `search-index` (the
- * roadmap node), which shrinks the WALK; nothing about this shape forces a
- * per-page protocol before then.
+ * OVER THE PAGE and not over the set, which is the whole of what
+ * `filter-ask-carries-revision` was. It used to be a whole-vault walk per
+ * settled keystroke AND per published revision, answered with every matching id
+ * in the corpus — of which the caller looked up only the ones its own rows
+ * named. A page's reading has already resolved every mirror, so the records it
+ * draws are a set this side holds in its hand, and the honest question is the
+ * size of a page (docs/brainstorming/filter-rides-the-page.md).
  *
- * OVER THE WHOLE SET, and that is FORCED rather than a cost nobody thought
- * about. A filtered page could name its own file — the request has no `file`
- * and would not be wrong to — except that a page draws MIRRORS, and a mirror
- * shows a node that lives in another outline (`@olai/format`'s `matching`
- * skips placements and scopes by the canonical record's file). A curated list
- * filtered under `file:` would silently lose every row it is made of. So the
- * matcher answers over the set and the PAGE narrows by what it draws, which is
- * the same division the browser's own filter always made.
+ * NOTHING IS DECIDED HERE, which is the restraint {@link page} and {@link tags}
+ * keep beside it: which page an address names, which of its records a query
+ * selects, and whether what was put away may match are all the format's, over
+ * the records the format assembled. This layer's whole contribution is that the
+ * read is the GATED one.
+ *
+ * THE WHOLE READING rather than the derivation alone, for {@link page}'s reason
+ * word for word: two of the questions a page asks are about FILES rather than
+ * about records, and this answers about a page.
  *
  * NO DOCUMENTS, and that is the grammar rather than a narrowing chosen here: a
  * filter narrows rows of a page, a document is prose and is the one page that
@@ -407,40 +408,18 @@ export const search = (
  * other half of the directory is answered.
  *
  * NO REFUSAL either — the door that asks this reads the same grammar itself,
- * one function away, so it has already drawn the sentence by the time a round
- * trip could carry one. A refused query never reaches here at all; if one does,
- * it selects nothing, which is what a refusal means everywhere else.
+ * one function away, so it has already drawn the sentence by the time a frame
+ * could carry one. A refused query never reaches here at all; if one does, it
+ * selects nothing, which is what a refusal means everywhere else.
  */
-export const matches = (
-  /** The DERIVATION alone, unlike {@link search}: nothing here answers about a
-   *  document, so the set's bodies are not read. */
-  derived: Derived,
-  query: MatchingRequest,
+export const narrowing = (
+  at: Reading,
+  request: NarrowingRequest,
   /** What the grammar's relative words count from — {@link search}'s own
    *  argument, and the same clock. */
   now: string,
-): MatchingAnswer => {
-  const filter = parseFilter(query.text, now)
-  if (filter.kind !== "asking") return { matches: [] }
-  return {
-    matches: matching(derived, filter, { trashed: query.trashed }).map((
-      { at, match },
-    ) => ({
-      // CAST rather than `NodeId.make`, and it is the same call
-      // `@olai/format`'s `address.ts` argues for at its own hot spot: the brand
-      // is nominal, so `make` runs a parser with nothing to check — and this
-      // list is UNCAPPED, where {@link search} pays that parse twelve times
-      // behind its cap. One schema parse per selected node per settled
-      // keystroke is a real number on a large vault.
-      id: at.node.id as NodeId,
-      // The format's own rule for absence: a query that named no words was
-      // carried by no field, and naming one would be inventing the reason a row
-      // is in front of somebody — which is precisely what the field is read for
-      // (`@olai/web`'s `filter/why.ts` draws a note excerpt off it).
-      ...(match.field === null ? {} : { matched: match.field }),
-    })),
-  }
-}
+): NarrowingAnswer =>
+  narrowingOf(at.derived, at.set.documents, at.set.broken, request, now)
 
 // ── which ids the set declares ─────────────────────────────────────────
 

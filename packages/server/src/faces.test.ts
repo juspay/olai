@@ -293,12 +293,12 @@ test("the agent's face is what it can SEE plus the doors its tools land through"
   // intents about a screen it cannot see would be the one thing this whole
   // split exists to prevent.
   expect(Object.keys(AGENT)).not.toContain("edit.apply")
-  // ...and so is the page filter's half of the search, for its own reason: it
-  // answers with a set of ids and why, which is useful only to somebody already
-  // looking at the rows those ids name. An agent asking which nodes match asks
+  // ...and so is the page filter's reading, for its own reason: it answers with
+  // a set of ids and why, which is useful only to somebody already looking at
+  // the rows those ids name. An agent asking which nodes match asks
   // `search_nodes` and is answered with the nodes (`./faces.ts`).
-  expect(Object.keys(BROWSER)).toContain("search.matching")
-  expect(Object.keys(AGENT)).not.toContain("search.matching")
+  expect(Object.keys(BROWSER)).toContain("narrowing")
+  expect(Object.keys(AGENT)).not.toContain("narrowing")
   // ...and so is the transcript's id lookup, for a reason of the same shape: it
   // answers a dozen ids with the node each names, which is what a panel drawing
   // an agent's own backticks needs. An agent asking whether an id is real asks
