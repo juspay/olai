@@ -534,27 +534,6 @@ Then("the preview is as tall as the page it shows", async function (this: OlaiWo
   );
 });
 
-/**
- * THE COST OF TWO RUNGS, read as a height: the page in there is TALLER than the
- * frame around it, and stayed that way.
- *
- * A picture that arrives after `load` (`loading="lazy"`) grows the page and is
- * refused a rung, because the message that says "my pictures landed" and the
- * message that says "you made me taller and I am measured in `vh`" are the
- * same message. So the frame keeps the height it had and the rest scrolls
- * inside it.
- */
-Then("the preview is shorter than the page it shows", async function (this: OlaiWorld) {
-  await untilHeights(
-    this,
-    ({ frame, page }) => page - frame > ROUNDING_PX,
-    "the page inside the frame outgrew the frame",
-    ({ frame, page }) =>
-      `the frame is ${frame}px and the page in it is ${page}px — the frame ` +
-      `either followed the late picture up or the picture never arrived`,
-  );
-});
-
 /** The two directions one step asks in, as the word the feature says and what
  *  it means — a table rather than two near-identical step bodies, since only
  *  the comparison and the complaint differ.

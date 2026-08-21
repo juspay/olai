@@ -1479,18 +1479,20 @@ Feature: A `.html` in the vault
     And the app is not loaded inside the preview
 
   @scratch:good
-  Scenario: A picture that arrives after the page has loaded does not move the frame
+  Scenario: A picture that arrives after the page has loaded takes the frame with it
     # Live-wire, not a pixel threshold: a `loading="lazy"` image landing after
     # `load`, with the route holding it back so the order is not a race.
-    # `rungs.test.ts` counts the rungs; this is a browser agreeing about what
-    # they cost. Relative assertions (`shorter than the page it shows`), not
+    # `echo.test.ts` does the arithmetic; this is a browser agreeing about what
+    # it comes to. Relative assertions (`as tall as the page it shows`), not
     # hard-coded px.
     #
-    # Two rungs is at most one arriving reading and one settled one per width,
-    # so a picture that lands after `load` is refused a third: the frame keeps
-    # the height it had and the page scrolls inside it. The frame cannot tell
-    # "I grew because my pictures landed" from "I grew because you made me
-    # taller and I am measured in `vh`" — they are the same message.
+    # This scenario used to assert the opposite, and the opposite was a cost
+    # rather than a bug: heights were rationed two per width, so a picture that
+    # landed after `load` was refused a rung and the page scrolled inside a
+    # frame that kept its old height. What replaced the count is the reading
+    # that tells an honest growth from a page riding its own container — the
+    # distance the page stands above the frame, which a `vh` page never changes
+    # and a late picture does.
     Given I open the app
     And the vault's pictures are slow to arrive
     When I rewrite "late.html" as:
@@ -1501,8 +1503,47 @@ Feature: A `.html` in the vault
     And I click the page "late.html"
     Then the preview shows the heading "Late"
     And the preview draws its picture "img"
-    And the preview is shorter than the page it shows
-    And the preview is shorter than the viewport
+    And the preview is as tall as the page it shows
+    And there should be no page errors
+
+  @scratch:good
+  Scenario: A page that draws more of itself after loading takes the frame with it
+    # The same claim with no picture in it, which is what says the rule is about
+    # the READING and not about images: a script that appends a box a moment
+    # after `load` — a chart drawn from a fetch, a section a reader opens, a
+    # table filled in from local storage — is a page that is honestly taller
+    # than it was when its markup parsed, and the frame follows it there.
+    #
+    # A whole screen of growth on purpose (the frame ends up taller than the
+    # viewport), so "the frame followed" cannot be read off a page that fitted
+    # in the guess it started with.
+    Given I open the app
+    When I rewrite "grows.html" as:
+      """
+      <h1>Grown</h1>
+      <div id="later"></div>
+      <script>
+        addEventListener("load", function () {
+          setTimeout(function () {
+            for (var i = 0; i < 3; i++) {
+              var row = document.createElement("div")
+              row.className = "row"
+              row.style.height = "400px"
+              row.style.background = "#eef"
+              document.getElementById("later").appendChild(row)
+            }
+          }, 50)
+        })
+      </script>
+      """
+    And I click the page "grows.html"
+    Then the preview shows the heading "Grown"
+    # The rows the script drew after `load` exist…
+    And the preview drew 3 boxes for ".row"
+    # …and the frame is the height of the page it made, rather than the height
+    # of the page that parsed.
+    And the preview is as tall as the page it shows
+    And the preview is taller than the viewport
     And there should be no page errors
 
   # ── how tall the frame is ────────────────────────────────────────────
@@ -1545,12 +1586,13 @@ Feature: A `.html` in the vault
     # export rendered as a two-screen box. Both reviews of PR #197 found it.
     #
     # The rule that bounds it has moved on since, and this says the current one:
-    # a height is accepted once per width PER READING, and there are two
-    # readings — the one taken when the document parsed, and the one taken at
-    # `load`, when the page's pictures have landed and can no longer be missing
-    # from its height. So a `vh` page has exactly two rungs available to it at
-    # one width rather than an open ladder, and this scenario is the one that
-    # reads what that comes to: a page one screen tall stays under one screen.
+    # a report is acted on unless the page stands the same distance above the
+    # frame it did last time, which is what a page whose height IS the frame's
+    # does at every height the frame is given. So a `vh` page gets exactly one
+    # rung — the first reading, before there is a distance to compare it to —
+    # and every report after that is its own container handed back. This
+    # scenario is the one that reads what that comes to: a page one screen tall
+    # stays under one screen.
     Given I open the app
     When I rewrite "hero.html" as:
       """

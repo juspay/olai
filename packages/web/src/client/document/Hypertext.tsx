@@ -119,7 +119,7 @@ import { useGo, useLanding } from "../router.tsx"
 import { fileNamed } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { useHead } from "../served.tsx"
-import { rungs } from "./rungs.ts"
+import { echo } from "./echo.ts"
 
 /**
  * How many times a page may walk the frame off the vault without identifying
@@ -332,13 +332,15 @@ export function Hypertext(props: { readonly file: string }) {
   const opens = useOpens()
   let frame: HTMLIFrameElement | undefined
 
-  // Which height reports this frame acts on: at most one arriving reading and
-  // at most one settled one PER WIDTH, which is what keeps a page sized in `vh`
-  // from climbing a ladder of its own making. The rule and the whole argument
-  // for it are `./rungs.ts`, held there rather than here because this client
-  // has no harness that mounts this component and a rule with a state machine
-  // in it should be checkable without driving a browser.
-  const heights = rungs()
+  // Which height reports this frame acts on: every one that says something the
+  // report before it did not, and none of the ones that are this frame's own
+  // height coming back — which is what keeps a page sized in `vh` from climbing
+  // a ladder of its own making while a page that grows after it has loaded is
+  // still followed. The rule and the whole argument for it are `./echo.ts`,
+  // held there rather than here because this client has no harness that mounts
+  // this component and a rule that is arithmetic should be checkable by doing
+  // the arithmetic.
+  const heights = echo()
   let walkOffs = 0
   let visits = 0
   /**
@@ -621,7 +623,11 @@ export function Hypertext(props: { readonly file: string }) {
       // nothing, so a page that has walked off cannot scroll this tab around by
       // posting one.
       if (said.kind === "landed") return setLandedAt(said.top)
-      if (!heights.takes(said.reading, frame.clientWidth)) return
+      // THE FRAME'S OWN HEIGHT IS HALF THE QUESTION, so it is read here and
+      // handed over: `clientHeight` is the box the page in there measured
+      // itself inside, and how far the page stands above it is the whole of
+      // what says whether this report is news (`./echo.ts`).
+      if (!heights.takes(said.height, frame.clientHeight)) return
       setMeasured(`${said.height}px`)
     }
     window.addEventListener("message", listen)
