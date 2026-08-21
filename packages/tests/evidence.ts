@@ -2213,7 +2213,7 @@ const SECTIONS = {
   "frontmatter-is-a-record": async (page) => {
     pinnedBy(
       "documents.feature",
-      "A document's frontmatter is a record and not part of its page",
+      "A document's frontmatter is the page's run, not its prose",
       "A document is found by a property its frontmatter writes",
     )
     const BLOCK = [
@@ -2315,7 +2315,7 @@ const SECTIONS = {
   "doc-page-props": async (page) => {
     pinnedBy(
       "documents.feature",
-      "A document's frontmatter is a record and not part of its page",
+      "A document's frontmatter is the page's run, not its prose",
       "A document with no frontmatter shows no properties",
     )
     const PROPS = '[data-testid="props"]'

@@ -169,7 +169,7 @@ Feature: Documents
   # rather than held to the headings the page drew: a phantom heading is in
   # both, so the comparison next door is satisfied by it.
   @corpus:good
-  Scenario: A document's frontmatter is a record and not part of its page
+  Scenario: A document's frontmatter is the page's run, not its prose
     When I open the document "notes/palette.md"
     Then the document does not draw the text "agent: claude-opus"
     And the document draws no rule
@@ -193,6 +193,18 @@ Feature: Documents
     When I open the document "finishes.md"
     Then the document shows no properties
     And there should be no page errors
+
+  # The third state of the same run: off while the editor is open, because
+  # the editor is the YAML, and two spellings of one block on one screen is
+  # what the drawer exists not to be. Cancel puts it back; nothing is written.
+  @corpus:good
+  Scenario: A document's properties are hidden while editing
+    When I open the document "notes/palette.md"
+    Then the document shows the property "agent" holding "claude-opus"
+    When I start editing the document
+    Then the document shows no properties
+    When I cancel the document editor
+    Then the document shows the property "agent" holding "claude-opus"
 
   # The other half of the same block: what the document is CALLED. The title is
   # the first line of its PROSE — the sidebar, the palette and every row that
