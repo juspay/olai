@@ -341,6 +341,10 @@ export function Hypertext(props: { readonly file: string }) {
   // this component and a rule that is arithmetic should be checkable by doing
   // the arithmetic.
   const heights = echo()
+  /** The last height the frame reported and has not been sized to yet, and the
+   *  frame callback that will size it. See {@link reported}. */
+  let latest: number | undefined
+  let sizing: number | undefined
   let walkOffs = 0
   let visits = 0
   /**
@@ -408,10 +412,57 @@ export function Hypertext(props: { readonly file: string }) {
    */
   const fresh = (arriving?: Pointed) => {
     heights.fresh()
+    // …including a report the leaving document made that has not been answered
+    // yet: sizing this file to the last one's pending number is the yank the
+    // paragraph above is about, arriving one paint late.
+    latest = undefined
+    if (sizing !== undefined) cancelAnimationFrame(sizing)
+    sizing = undefined
     setRefused(undefined)
     setLandedAt(undefined)
     pointed = arriving
     if (arriving === undefined) setMeasured(undefined)
+  }
+
+  /**
+   * A HEIGHT THE FRAME REPORTED, ANSWERED ONCE A PAINT.
+   *
+   * The report is stashed and the frame is sized in a `requestAnimationFrame`,
+   * and it is one callback however many reports arrive before it runs — the
+   * last one is what the page is, and the ones before it are what it was on the
+   * way there.
+   *
+   * THAT IS A BOUND, not a smoothing. The measure in the page reports at most
+   * once a paint (a `ResizeObserver` delivers at the rendering step), so for
+   * every honest page this changes nothing at all. What it changes is the page
+   * that posts a height itself: `postMessage` is the one channel out of an
+   * opaque origin and nothing stops a document running its own JavaScript from
+   * posting thousands a second. Answered where the message arrives, each of
+   * those was a style write and then a `clientHeight` read — a forced layout of
+   * THIS document, at whatever rate the frame chose. Answered here it is one
+   * layout a paint, which is what following a page that changes size costs and
+   * no more.
+   *
+   * It is also the only place the two halves of the question are read from one
+   * settled layout: the height the page claimed and the height of the box it
+   * claimed it in ({@link echo}). Read in the handler, the second of those sits
+   * downstream of the style write the last message caused.
+   *
+   * THE CLOCK IS THE PLATFORM'S OWN — the timestamp the browser hands a frame
+   * callback — because `./echo.ts` bounds how often a page may send this frame
+   * back the other way and a rule that read a clock itself could not be tested
+   * without one wound back.
+   */
+  const reported = (height: number) => {
+    latest = height
+    if (sizing !== undefined) return
+    sizing = requestAnimationFrame((at) => {
+      sizing = undefined
+      const said = latest
+      if (said === undefined || frame === undefined) return
+      if (!heights.takes({ height: said, frame: frame.clientHeight, at })) return
+      setMeasured(`${said}px`)
+    })
   }
 
   /** The file itself, at its own address on the media route — a fresh URL every
@@ -624,12 +675,7 @@ export function Hypertext(props: { readonly file: string }) {
       // nothing, so a page that has walked off cannot scroll this tab around by
       // posting one.
       if (said.kind === "landed") return setLandedAt(said.top)
-      // THE FRAME'S OWN HEIGHT IS HALF THE QUESTION, so it is read here and
-      // handed over: `clientHeight` is the box the page in there measured
-      // itself inside, and how far the page stands above it is the whole of
-      // what says whether this report is news (`./echo.ts`).
-      if (!heights.takes(said.height, frame.clientHeight)) return
-      setMeasured(`${said.height}px`)
+      reported(said.height)
     }
     window.addEventListener("message", listen)
     onCleanup(() => window.removeEventListener("message", listen))
@@ -699,9 +745,10 @@ export function Hypertext(props: { readonly file: string }) {
   })
 
   // A pending question outlives nothing: an unmounted component must not leave
-  // a timer holding a dead element.
+  // a timer — or a frame callback — holding a dead element.
   onCleanup(() => {
     if (custody.at === "stray") clearTimeout(custody.until)
+    if (sizing !== undefined) cancelAnimationFrame(sizing)
   })
 
   // WHAT IT WATCHES IS TWO NUMBERS AND A SLUG, and each is compared as

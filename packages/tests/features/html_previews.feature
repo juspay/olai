@@ -1577,6 +1577,37 @@ Feature: A `.html` in the vault
     And the preview is shorter than the viewport
 
   @scratch:good
+  Scenario: A page with no height that satisfies it stops rather than flickering
+    # The other shape of a page arguing with its own container, and the one the
+    # arithmetic alone cannot refuse. A `vh` page asks for the frame's height
+    # back and is told the distance has not changed; THIS page asks for a
+    # different height every time, because what it does is the opposite of what
+    # was done to it — the box is short, so it is tall; the box is tall, so it
+    # is short. Nothing about the reading says "refuse me", and left to the
+    # reading alone the frame follows it back and forth for as long as the file
+    # is open.
+    #
+    # So the frame may be sent back the other way only so many times without a
+    # quiet moment (`echo.ts`'s `TURNS`, the same shape of bound as the
+    # walk-off budget above). Measured on this fixture without it: the frame's
+    # height changed 120 times in two seconds. This is the browser saying it
+    # changes none.
+    Given I open the app
+    When I rewrite "flip.html" as:
+      """
+      <h1>Flip</h1>
+      <style>
+        @media (max-height: 700px) { .swap { height: 900px } }
+        @media (min-height: 701px) { .swap { height: 60px } }
+      </style>
+      <div class="swap">taller when its viewport is shorter</div>
+      """
+    And I click the page "flip.html"
+    Then the preview shows the heading "Flip"
+    And the preview settles at one height
+    And there should be no page errors
+
+  @scratch:good
   Scenario: A page sized in viewport units does not inflate to the bound
     # The measurement is taken INSIDE the box it sizes, so a page whose own
     # height is a share of the viewport — `min-height: 100vh` on a wrapper, which

@@ -199,12 +199,14 @@ test("the seal carries no policy and no base of its own", () => {
 const HEIGHT = ((): string => {
   // ONE prefix, spelled ONCE. The observer's reading and the one taken at
   // `load` are the same message, so there is one measuring function and one
-  // place the tag appears — and a second spelling creeping back in is exactly
+  // place the tag is named — and a second spelling creeping back in is exactly
   // the drift this whole exercise exists to catch, so the COUNT is asserted
-  // rather than the first match taken.
-  const found = [...SEAL.matchAll(/"([^"]*)" \+\n?\s*Math\.max/g)]
+  // rather than the first match taken. Read off the ASSIGNMENT rather than off
+  // the `postMessage` it feeds: that is a syntactic shape the script keeps
+  // however a formatter breaks its lines.
+  const found = [...SEAL.matchAll(/\bvar tag = "([^"]*)"/g)]
   if (found.length !== 1) {
-    throw new Error(`the measure posts ${found.length} heights, not one: ${SEAL}`)
+    throw new Error(`the measure names ${found.length} height tags, not one: ${SEAL}`)
   }
   return JSON.parse(`"${found[0]![1]!}"`) as string
 })()
@@ -291,8 +293,8 @@ test("anything else the frame could say is not a height", () => {
 
 /**
  * The prefix the link handler posts, taken out of the SCRIPT rather than
- * written here — the same discipline the two height prefixes are read under and
- * for the same reason: the producer is text no compiler reads, so a literal
+ * written here — the same discipline the height prefix is read under and for
+ * the same reason: the producer is text no compiler reads, so a literal
  * copied into this file would drift with it and go on passing.
  */
 const OPEN = ((): string => {

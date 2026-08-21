@@ -170,8 +170,8 @@ import { mediaPath, MEDIA_PREFIX } from "./media.ts"
 import { ours } from "./press.ts"
 
 /**
- * WHAT THE FRAME SAYS, and the whole of it: one of these two prefixes, then a
- * number.
+ * WHAT THE FRAME SAYS ABOUT ITS HEIGHT, and the whole of it: this prefix, then
+ * a number.
  *
  * The two ends of a `postMessage` have to agree on a shape, and the producer
  * here is text inside a script that no compiler reads. So the agreement is
@@ -204,6 +204,27 @@ import { ours } from "./press.ts"
  * with pictures in it is worth reading rather than by being tagged.
  */
 const READING = "olai:page-height:"
+
+/**
+ * HOW FAR TWO WHOLE-PIXEL READINGS OF ONE BOX MAY DISAGREE and still be the
+ * same box — and it lives here because this is where the disagreement is
+ * MINTED. A browser lays out in fractions; {@link heard} rounds the page's
+ * reading UP to a whole pixel (truncated down, the last line of a page is
+ * clipped by half of one), and the frame's own height is rounded again,
+ * independently, at whatever end asks for it. Two whole numbers describing one
+ * unchanged distance may therefore differ by one either way.
+ *
+ * ONE CONSTANT rather than a `2` in each of the places that needs one, because
+ * they are not merely alike — they are ORDERED. `@olai/web`'s
+ * `document/echo.ts` may leave a frame this far off its page, so the e2e step
+ * that says a frame is "as tall as the page it shows" has to allow at least as
+ * much; a copy that drifted below it would go red on a frame doing its job. A
+ * number typed twice is a number that eventually disagrees with the app it is
+ * asserting about, which is the rule `packages/tests`' `imports.test.ts`
+ * states for the whole suite and `@olai/web`'s `chat/near.ts` is the
+ * precedent for.
+ */
+export const ROUNDING = 2
 
 /**
  * THE HELLO: the first thing every document this server seals says, and the
@@ -309,14 +330,14 @@ const OPEN = "olai:open-page:"
  * would pin a short page at whatever it was first given). A page of fixed-height
  * content is therefore exactly as tall before the embedder's resize as after,
  * and the observer never fires. Without the viewport's own event the last thing
- * the embedder hears is whichever of the two early readings happened to be last
- * — a race between the frame's `load` and the embedder applying a height, and
- * a reader left a screen above the section whenever it goes the wrong way. The
+ * the embedder hears is whichever of the early readings happened to be last — a
+ * race between the frame's `load` and the embedder applying a height, and a
+ * reader left a screen above the section whenever it goes the wrong way. The
  * viewport is the box that changed, so the viewport's event is what reports.
  *
- * NOT A HEIGHT, so it is not {@link READING}: it may be zero and it
- * may be negative, and folding it into the height parser would mean widening
- * a gate that exists to refuse exactly those. A number that says "scroll here"
+ * NOT A HEIGHT, so it is not {@link READING}: it may be zero and it may be
+ * negative, and folding it into the height parser would mean widening a gate
+ * that exists to refuse exactly those. A number that says "scroll here"
  * is still a CLAIM from an opaque origin — the worst it can do is move this
  * tab's own scrollbar, which the reader undoes with a flick, and the receiver
  * only acts on it while it is waiting for a landing it asked for.
@@ -376,9 +397,15 @@ const LANDED = "olai:page-landed:"
  * tell "the page grew because its pictures landed" from "the page grew because
  * I made the frame taller and I am measured in `vh`", so it was told. It works
  * the difference out for itself now, from the readings themselves
- * (`@olai/web`'s `document/echo.ts`), and what this listener is for is the
- * browser that has no `ResizeObserver`: there the callback above never comes,
- * and `load` is the only second look a page with pictures in it gets.
+ * (`@olai/web`'s `document/echo.ts`).
+ *
+ * It earns different things in the two branches below, which is why it is
+ * registered outside them. Where there is no `ResizeObserver` it is the ONLY
+ * second look a page with pictures in it gets. Where there is one, the picture
+ * that lands has already changed the root box and been reported — so the height
+ * this posts says nothing new and the receiver refuses it as such — and what
+ * it is still for is {@link LANDED}: an anchor's position is finally true when
+ * there is nothing left to arrive, whether or not anything about the box moved.
  *
  * A THIRD listener measures nothing, and that is why it is not one of the two:
  * `resize` says the FRAME changed size, which moves the anchor without moving
@@ -393,12 +420,12 @@ const LANDED = "olai:page-landed:"
  */
 const MEASURE = `(function () {
   parent.postMessage(${JSON.stringify(HELLO)}, "*")
+  var tag = ${JSON.stringify(READING)}
   var measure = function () {
     var page = document.documentElement
     var body = document.body
     parent.postMessage(
-      ${JSON.stringify(READING)} +
-        Math.max(page.offsetHeight, body ? body.scrollHeight : 0),
+      tag + Math.max(page.offsetHeight, body ? body.scrollHeight : 0),
       "*"
     )
     landed()
