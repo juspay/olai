@@ -5,13 +5,15 @@
  * The Given writes the header onto THIS scenario's context before the
  * first navigation — Playwright sends it on every HTTP request, which is
  * how `tailscale serve` injects it and how the chip's `GET /olai/who`
- * sees it.
+ * sees it. A failed door is aborted the same way, so a fetch error is
+ * not the honest absence.
  */
 
 import * as assert from "node:assert";
 import { Given, Then } from "@cucumber/cucumber";
 
 import { gravatarOf } from "@olai/identity";
+import { WHO_PATH } from "@olai/surface";
 import { selector, TESTID } from "@olai/web/src/client/testids.ts";
 
 import { POLL_TIMEOUT } from "../support/world.ts";
@@ -25,6 +27,33 @@ Given(
     await this.context.setExtraHTTPHeaders({
       "Tailscale-User-Login": login,
     });
+  },
+);
+
+Given("asking who you are will fail", async function (this: OlaiWorld) {
+  // 500, not abort: Chromium logs net::ERR_FAILED on abort as a page
+  // error, which is a different claim than "the door answered badly".
+  await this.page.route(`**${WHO_PATH}`, (route) =>
+    route.fulfill({ status: 500, body: "nope" }),
+  );
+});
+
+Then(
+  "the header identity could not be asked",
+  async function (this: OlaiWorld) {
+    const slot = this.page.locator(IDENTITY);
+    await slot.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    await this.expectAttribute(
+      IDENTITY,
+      "data-who",
+      "error",
+      "the identity slot",
+    );
+    assert.equal(
+      await slot.locator("img").count(),
+      0,
+      "a failed who fetch drew a person",
+    );
   },
 );
 

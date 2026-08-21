@@ -6,9 +6,11 @@
  * `tailscale serve`'s `Tailscale-User-Login` for both (that header IS the
  * email). The same pair covers Caddy + OAuth (`X-Auth-Request-User` /
  * `X-Auth-Request-Email`, or caddy-security's `X-Token-User-*`) and
- * Authelia / Pomerium (`Remote-User` / `Remote-Email`) — one feature, not
- * one per proxy. {@link identityHeaders} is the config; {@link identityOf}
- * is the reading.
+ * Authelia (`Remote-User` / `Remote-Email`) and Pomerium
+ * (`X-Pomerium-Claim-User` / `X-Pomerium-Claim-Email`) — one feature, not
+ * one per proxy. Pomerium's signed `X-Pomerium-Jwt-Assertion` is a JWT,
+ * not a login; olai reads the claim headers, not the assertion.
+ * {@link identityHeaders} is the config; {@link identityOf} is the reading.
  *
  * Direct access and a local `just run` inject nothing, and that absence
  * is a state: nothing here invents a person.

@@ -125,6 +125,18 @@ test("oauth2-proxy names are the same pair under other words", () => {
   ).toEqual({ login: "ada", email: ADA })
 })
 
+test("Pomerium claim headers are the same pair under other words", () => {
+  expect(
+    identityOf(
+      {
+        "x-pomerium-claim-user": "ada",
+        "x-pomerium-claim-email": ADA,
+      },
+      { login: "X-Pomerium-Claim-User", email: "X-Pomerium-Claim-Email" },
+    ),
+  ).toEqual({ login: "ada", email: ADA })
+})
+
 test("a config that named no email header carries no email claim", () => {
   expect(
     identityOf(

@@ -1,6 +1,6 @@
 # @olai/identity — who this request is
 
-A login the reverse proxy injected, or nobody. One configurable pair of trusted header names (login + optional email); the same pair covers `tailscale serve`, Caddy+OAuth and Authelia/Pomerium — one feature, not one per proxy.
+A login the reverse proxy injected, or nobody. One configurable pair of trusted header names (login + optional email); the same pair covers `tailscale serve`, Caddy+OAuth, Authelia (`Remote-User` / `Remote-Email`) and Pomerium (`X-Pomerium-Claim-User` / `X-Pomerium-Claim-Email`) — one feature, not one per proxy. Pomerium's `X-Pomerium-Jwt-Assertion` is a JWT, not a login.
 
 This package is the PERSON as a value. It is not a cell (a cell is one value for the process), it is not HTTP, and it is not a surface member. `GET /olai/who` is `@olai/server`'s door over `identityOf`; the path and JSON live in `@olai/surface`, the way `/media` does. A later `POST /capture` calls the same function on its own request rather than growing a second parse.
 

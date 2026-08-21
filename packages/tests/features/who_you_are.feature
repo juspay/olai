@@ -22,3 +22,8 @@ Feature: The header shows who you are
     Then the header shows the identity "ada@example.com"
     And the identity gravatar is hashed from "ada@example.com"
     And there should be no page errors
+
+  Scenario: A failed who fetch is not honest absence
+    Given asking who you are will fail
+    When I open the app
+    Then the header identity could not be asked

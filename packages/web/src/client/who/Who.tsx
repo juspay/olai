@@ -7,7 +7,8 @@
  * identity and search in the bar — is this chip on a phone, not a fifth
  * pill that would squeeze the search magnifier. Absent (direct access, a
  * local serve) it draws a slot that says `none` and nothing a reader can
- * see, which is the whole of "nothing guesses".
+ * see, which is the whole of "nothing guesses". A failed fetch is not
+ * that: the slot says `error` and the tip names that the door failed.
  *
  * The picture is a remote gravatar. The shell's image policy admits that
  * origin (`index.html`); this component does not know a policy exists.
@@ -23,8 +24,9 @@ import { createWho, type Who as Person } from "./asking.ts"
 export function Who() {
   const asking = createWho()
   const person = () => asking.who()
-  const who = (): "none" | "yes" | undefined => {
+  const who = (): "none" | "yes" | "error" | undefined => {
     if (!asking.heard()) return undefined
+    if (asking.failed()) return "error"
     return person() == null ? "none" : "yes"
   }
   return (
@@ -33,10 +35,32 @@ export function Who() {
       data-who={who()}
       data-login={person()?.login}
     >
+      <Show when={asking.failed()}>
+        <Failed />
+      </Show>
       <Show when={person()}>
         {(one) => <Chip person={one()} />}
       </Show>
     </span>
+  )
+}
+
+/** The door failed. Not a person — nothing here guesses one from a
+ *  500 — and not honest absence, which draws nothing. */
+function Failed() {
+  return (
+    <Tip text="could not tell who is looking" layer={LAYER.over}>
+      <span
+        class="inline-flex min-h-11 items-center gap-1.5 md:min-h-0"
+        aria-label="could not tell who is looking"
+      >
+        <span
+          aria-hidden="true"
+          class="size-7 shrink-0 rounded-full border border-dashed border-paper/40"
+        />
+        <span class="hidden text-xs text-paper/80 md:inline">couldn't ask</span>
+      </span>
+    </Tip>
   )
 }
 

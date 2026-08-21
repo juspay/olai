@@ -61,7 +61,10 @@ Default wiring is `tailscale serve`'s `Tailscale-User-Login` for both (that head
 | `tailscale serve` (default) | `Tailscale-User-Login` | `Tailscale-User-Login` |
 | Caddy + oauth2-proxy | `X-Auth-Request-User` | `X-Auth-Request-Email` |
 | Caddy + caddy-security (`inject headers with claims`) | `X-Token-User-Nick` (or `-Name`) | `X-Token-User-Email` |
-| Authelia / Pomerium | `Remote-User` | `Remote-Email` |
+| Authelia | `Remote-User` | `Remote-Email` |
+| Pomerium (`pass_identity_headers`) | `X-Pomerium-Claim-User` | `X-Pomerium-Claim-Email` |
+
+Pomerium's `X-Pomerium-Jwt-Assertion` is a signed JWT, not a login; point the pair at the claim headers.
 
 ```sh
 # Authelia in front, for example

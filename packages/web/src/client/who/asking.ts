@@ -4,8 +4,9 @@
  * One fetch, asked once: the login does not move for the life of the
  * page. `null` is the honest absence — a local `just run`, a proxy that
  * injects nothing — and it is distinct from "we have not been told yet",
- * which is the resource still pending. Nothing here invents a person
- * while it waits.
+ * which is the resource still pending, and from a fetch that failed,
+ * which is the resource in error. Nothing here invents a person while
+ * it waits, and a failed door is not treated as nobody.
  *
  * HTTP rather than a surface member: the value is per REQUEST
  * (`WHO_PATH`), and a cell would be one value for the process. The path
@@ -24,16 +25,25 @@ export interface Asking {
   /** Whether that answer has arrived. Its own bit so a chip can wait on
    *  "none" as a fact rather than as a missing element. */
   readonly heard: Accessor<boolean>
+  /** The door failed — a network error, or anything but 200/204. Distinct
+   *  from nobody: a 204 is absence, a 500 is not. */
+  readonly failed: Accessor<boolean>
 }
 
 export const createWho = (): Asking => {
   const [who] = createResource(async (): Promise<Who | null> => {
     const answer = await fetch(WHO_PATH)
-    if (answer.status === 204 || !answer.ok) return null
+    if (answer.status === 204) return null
+    if (!answer.ok) {
+      throw new Error(`${WHO_PATH} answered ${answer.status}`)
+    }
     return (await answer.json()) as Who
   })
   return {
-    who,
+    // `createResource()` rethrows on error; the chip must not. A failed
+    // door is `failed`, not a thrown render (which is a fault card).
+    who: () => (who.error != null ? undefined : who()),
     heard: () => !who.loading,
+    failed: () => who.error != null,
   }
 }
