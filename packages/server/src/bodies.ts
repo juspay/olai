@@ -144,22 +144,30 @@ export const make = (
         // frame to a subscription that has gone — the late callback kolu's
         // watchers clear their timers to prevent.
         if (!holders.has(path)) return
-        const text = yield* Effect.catch(
-          options.read(path),
+        // THREE STATES, and they are not a string that might also be a body.
+        // A file whose bytes are the word "refused" is a body; folding the
+        // failure into that word would publish a refusal for a file that
+        // opened. `null` from the disk is a file that has GONE between the
+        // listing and now, which is not this module's news to break: the
+        // next probe drops the key, the sidebar loses the file, and the
+        // page says there is no such file. A read that failed is the file
+        // THERE and will not open — published as data, so a one-shot reader
+        // is handed a frame rather than held open on a body that will
+        // never come, and a face can say so.
+        const got = yield* Effect.catch(
+          Effect.map(
+            options.read(path),
+            (text): { text: string } | { gone: true } =>
+              text === null ? { gone: true } : { text },
+          ),
           (failure: PlatformFailure) =>
             Effect.as(
               Effect.logWarning(`olai server: ${failure.message}`),
-              "refused" as const,
+              { refused: true as const },
             ),
         )
-        // `null` is a file that has GONE between the listing and now, which is
-        // not this module's news to break: the next probe drops the key, the
-        // sidebar loses the file, and the page says there is no such file.
-        // `"refused"` is the file THERE and will not open — published as
-        // data, so a one-shot reader is handed a frame rather than held
-        // open on a body that will never come, and a face can say so.
-        if (text === "refused") options.publish(path, { refused: true })
-        else if (text !== null) options.publish(path, { text })
+        if ("gone" in got) return
+        options.publish(path, got)
       }),
     ).pipe(Effect.forkScoped)
 

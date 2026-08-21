@@ -243,3 +243,14 @@ test("a body that cannot be read publishes a refusal and does not stop the reade
         ["fine.html", { text: "readable" }],
       ])
     })))
+
+// The word that used to be the failure SENTINEL is a legal body. Folding
+// the catch into that string published a refusal for a file that opened.
+test("a body that is the word refused is still a body", () =>
+  withBodies({ "said.html": "refused" }, (fixture) =>
+    Effect.gen(function*() {
+      yield* fixture.opens("said.html")
+      yield* fixture.took(1)
+
+      expect(fixture.published).toEqual([["said.html", { text: "refused" }]])
+    })))
