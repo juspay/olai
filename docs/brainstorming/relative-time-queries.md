@@ -1,6 +1,6 @@
 # Relative time in the query grammar: `created:1h` and everything behind it
 
-Status: proposal, 2026-08-21. Born from the human typing `created:1h` into the header search and being refused — the stamps carry second precision (`2026-08-21T16:47:29-04:00`), the operators bottom out at days. `1h` is one value of a family; this file surveys the family across the ecosystem and proposes the olai-shaped subset.
+Status: **ruled with the human 2026-08-21** (question tool) — units m/h/d/w, bare-duration sugar kept, all three operators. Born from the human typing `created:1h` into the header search and being refused — the stamps carry second precision (`2026-08-21T16:47:29-04:00`), the operators bottom out at days. `1h` is one value of a family; this file surveys the family across the ecosystem and pins the olai-shaped subset.
 
 ## What the grammar has today
 
@@ -30,24 +30,33 @@ Status: proposal, 2026-08-21. Born from the human typing `created:1h` into the h
 4. **Snapping/rounding** (`@h`, `/d`) exists only in the power tools; no consumer tool has it and nobody misses it there.
 5. Workflowy's restraint — hours and days only — is a deliberate choice that has held up.
 
-## The proposal
+## The design, as ruled
 
 **One new value kind — the duration — spelled `<n><unit>` with units `m` (minutes), `h` (hours), `d` (days), `w` (weeks). No month or year duration units, ever**: that kills the `m` collision by fiat (minutes win, as in Jira/Sentry — the recency-query tools), and month/year recency is already expressible in words the grammar owns (`created:last-month..`, `created:2026`).
 
-Durations slot into the grammar in the two ways the prior art splits on — and olai can honestly have both, because ranges already exist:
+Durations slot into the grammar in the two ways the prior art splits on — and olai has both, because ranges already exist:
 
-1. **Bare duration = within the last N** (the Workflowy/Gmail reading, the intuitive one): `created:1h` answers everything created in the last hour. Formally sugar for `created:1h..`.
+1. **Bare duration = within the last N** (the Workflowy/Gmail reading, the intuitive one — RULED kept): `created:1h` answers everything created in the last hour. Formally sugar for `created:1h..`.
 2. **Duration as a range end = the point now−N** (the JQL/Grafana reading): `created:..1h` is *older than an hour*; `changed:2h..30m` is a window; `created:yesterday..3h` mixes families, since range ends already take day-words. Inequalities stay spelled as ranges — no `>=`, per the house grammar; no `now-` anchor spelling, because the range position already says which side of now you mean.
 
-**Uniformity**: all three operators take it (`date:`, `created:`, `changed:`) — one value grammar, one refusal text. A day-granular field compares at its own precision, so `date:1h` effectively selects on done-instants (the only sub-day fact `date:` reads); that asymmetry is stated in the docs, not special-cased in the grammar.
+**Uniformity — RULED: all three operators** (`date:`, `created:`, `changed:`) — one value grammar, one refusal text. A day-granular field compares at its own precision, so `date:1h` effectively selects on done-instants (the only sub-day fact `date:` reads); that asymmetry is stated in the docs, not special-cased in the grammar.
 
 **Anchoring and staleness — the precedent already exists**: `today` and `last-week` are already ask-time-anchored; a live page holding `created:today` already goes stale at midnight without a revision. Durations only shorten that horizon (a `created:1h` page drifts within the hour). v1 keeps the existing behavior — evaluated at ask, re-evaluated on any revision — and a coarse re-ask timer for time-anchored live filters is a separate, later decision if the drift ever bites.
+
+## Examples
+
+- `created:1h` — captured in the last hour (sugar for `created:1h..`).
+- `changed:30m` — written to in the last half hour.
+- `created:..1h` — everything EXCEPT the last hour: older than an hour.
+- `changed:2h..30m` — a window: touched between two hours and thirty minutes ago.
+- `created:1d` vs `created:today` — the distinction the two families exist for: a rolling 24 hours versus since midnight. Both legal, both wanted, different questions.
+- `changed:1w` vs `changed:this-week` — rolling seven days versus the Monday-anchored calendar week.
+- `created:yesterday..3h` — from yesterday's midnight until three hours ago; range ends mix families freely.
+- `is:todo changed:1h` — the live question the ledger day was full of: work touched in the last hour.
+- `-changed:1d` — untouched for a day; negation composes as it does everywhere.
+- `date:1h` — done in the last hour (a scheduled day is day-granular, so only the done instant can match a sub-day ask).
+- `created:1h` on a pinned saved query (`/agenda?q=created%3A1h`) — legal, with the stated drift: re-evaluated on ask and on every revision, not on a clock.
 
 **What moves with the grammar**: the operator's refusal/usage text (the popover the human saw), `search.md`, `filter-in-place.md`'s operator table, and the `search_nodes` MCP tool description — same one-grammar-two-faces rule as always.
 
 **Deliberately out**: comparison operators (`>=` — ranges are the house spelling), snapping/rounding (`@h`, `/d`), function forms (`ago()`, `now-`), natural language ("1 hour ago"), and month/year duration units (the collision; words cover it).
-
-## Open questions
-
-1. Does `w` earn its place, or does Workflowy's restraint (h + d only, `7d` for a week) win? Cheap either way; `w` is unambiguous. Lean: include.
-2. Bare-duration sugar (`created:1h` ≡ `created:1h..`): worth the second spelling, or should the grammar demand the range form? Lean: keep the sugar — it is the exact string the human typed, and Workflowy/Gmail prove it is the natural reading.
