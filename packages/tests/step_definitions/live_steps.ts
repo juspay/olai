@@ -82,6 +82,18 @@ When(
   },
 );
 
+/** …and one file-kind further: somebody else, writing a served `.html`. The
+ *  same door and the same reason for APPENDING rather than replacing — what a
+ *  scenario about the frame not moving needs is the page it is already reading
+ *  with one more line in it, so a rewrite that happens to be shorter cannot be
+ *  what the preview reacted to. */
+When(
+  "another writer appends {string} to the page {string}",
+  function (this: OlaiWorld, line: string, file: string) {
+    this.appendServedLine(file, line);
+  },
+);
+
 /** A row RETITLED under everybody's feet. What it is for is the one thing a
  *  text undo must never do: put back what this tab replaced, on top of words
  *  somebody else has since written. */

@@ -97,6 +97,20 @@ Then(
   },
 );
 
+/** Any of the file's own words, wherever in it they are — what a step needs
+ *  when the claim is "the write reached the frame" and the write was a line
+ *  rather than a heading. */
+Then(
+  "the preview shows the text {string}",
+  async function (this: OlaiWorld, text: string) {
+    const frame = await inside(this);
+    await frame
+      .locator("body", { hasText: text })
+      .first()
+      .waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+  },
+);
+
 Then(
   "the preview says {string}",
   async function (this: OlaiWorld, text: string) {
@@ -858,6 +872,28 @@ Then(
     );
   },
 );
+
+/** …and the other end of it: the frame's address carries NO fragment, which is
+ *  what a spent landing looks like from out here. A landing is an act that
+ *  happens once, so the pointing after it is the file at its own address and
+ *  nothing more — no fragment for the browser to scroll to, and therefore no
+ *  report for this window to follow. Read as a settled state rather than as a
+ *  snapshot: a re-pointing that WOULD carry the slug arrives a moment after the
+ *  revision does. */
+Then("the preview is at no anchor", async function (this: OlaiWorld) {
+  const frame = await inside(this);
+  await this.waitUntil(
+    async () => (await frame.locator("body").evaluate(() => location.hash)) === "",
+    "the preview to be at no anchor",
+  );
+  await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+  assert.strictEqual(
+    await frame.locator("body").evaluate(() => location.hash),
+    "",
+    "the frame was re-pointed at the section a second time, which is a landing " +
+      "spent twice",
+  );
+});
 
 /** A modified click on something in the preview — the press a reader makes when
  *  they want the BROWSER's behaviour rather than this app's, which is the one

@@ -817,6 +817,66 @@ Feature: A `.html` in the vault
     And the address carries the anchor "#slats"
     And the page has not reloaded
 
+
+  @scratch:good @own-scratch
+  Scenario: A previewed page rewritten under a reader does not land them a second time
+    # THE SAME RULE ONE FACE OVER, and the face that had none of it. A `.html`
+    # lands by having the fragment on the FRAME's own URL, so the browser does
+    # the scrolling inside and this window follows the frame's report of where
+    # the anchor ended up (`Hypertext.tsx`'s host half). Both halves re-fired on
+    # a REVISION: an agent's write, a `git pull`, another tab moved the file, the
+    # frame was re-pointed to fetch the new bytes — and the slug rode along on
+    # the new address, so a reader who had scrolled off to read something else
+    # was hauled back to a section they asked for minutes ago.
+    #
+    # The landing is spent by the pointing that carries it (`../router.tsx`'s
+    # `landed`), so the second pointing is the file at its own address and
+    # nothing more: same bytes-fetching reason, no fragment, no report, no
+    # scroll.
+    #
+    # THE FIXTURE IS SIZED ON PURPOSE, the other way round from the arriving
+    # scenario above: the section is near the TOP and the reading goes on well
+    # past it, so a re-landing pulls the reader BACKWARDS by several hundred
+    # pixels — a direction and a distance no clamp can produce by accident. A
+    # page with its section near the end lands at the bottom of the window's
+    # scroll, which is where a reader who has read to the end already is, and
+    # the yank and the honest answer would be the same number.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/deep.html" as:
+      """
+      <h1>Deep</h1>
+      <div style="height:400px">a short stretch before the section</div>
+      <h2 id="beds">Beds</h2>
+      <div style="height:1200px">a long stretch after it, to read on into</div>
+      """
+    And I rewrite "notes/from.html" as:
+      """
+      <h1>From</h1>
+      <p><a id="deep" href="deep.html#beds">the section over there</a></p>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/from.html"
+    Then the preview shows the heading "From"
+    When I click "#deep" inside the preview
+    Then the document open is "notes/deep.html"
+    And the section "beds" is on screen
+    # The reader reads on, and scrolls somewhere of their own choosing.
+    When I scroll to the bottom of the page
+    And I remember where the page is scrolled
+    # …and then somebody else writes the file they are reading. ONE LINE, so
+    # what changed is the only thing this scenario has to spell.
+    And another writer appends "<p>One more slat, added under the reader.</p>" to the page "notes/deep.html"
+    Then the preview shows the text "added under the reader"
+    # THE ASSERTION: the write reached the frame and moved nothing else.
+    And the page is scrolled where it was left
+    # …and the frame's own address no longer carries the section, which is the
+    # half the browser would have performed for us.
+    And the preview is at no anchor
+    # …while the app's address still does, because the fragment was never the
+    # thing that was wrong.
+    And the address carries the anchor "#beds"
+    And the page has not reloaded
   @scratch:good @own-scratch
   Scenario: A page that sends the frame to its neighbour is left where it went
     # THE OTHER UNASKED-FOR NAVIGATION, and the last kept behaviour with no
