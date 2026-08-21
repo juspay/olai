@@ -87,7 +87,7 @@ interface Reading {
    *  number, and zero for the other two, which never narrow a page. Both
    *  spellings are counted ({@link MATCHER}), because one driver measures two
    *  worktrees and the member changed shape between them. */
-  readonly searches: number
+  readonly asks: number
 }
 
 /**
@@ -126,7 +126,8 @@ const MATCHER = [
  *
  * `filter` is about the vault the `vault-in-browser` design was RULED for —
  * "when we have 1000s of .md files it will start to suck" — because the thing
- * it counts is whole-vault searches, and what one of those costs is a function
+ * it counts is what a page asks the matcher, and what one whole-vault answer
+ * costs is a function
  * of the vault. On the small one the matcher answers faster than a write's
  * round trip, so nothing about coalescing is visible either way; the number to
  * measure is the one a reader with a real vault pays.
@@ -198,7 +199,7 @@ const main = async () => {
 
   let socket = 0
   let media = 0
-  let searches = 0
+  let asks = 0
   const readings: Array<Reading> = []
   const write = (file: string, text: string) => {
     const full = path.join(VAULT, file)
@@ -237,7 +238,7 @@ const main = async () => {
       const text = typeof frame.payload === "string"
         ? frame.payload
         : frame.payload.toString("utf8")
-      if (MATCHER.some((tag) => text.includes(tag))) searches += 1
+      if (MATCHER.some((tag) => text.includes(tag))) asks += 1
     })
   })
   // …and the other leg: what the preview frame fetched for itself. Counted off
@@ -256,11 +257,11 @@ const main = async () => {
   const mark = async (what: string) => {
     // One beat for the last frames and the last fetch to be accounted.
     await page.waitForTimeout(500)
-    readings.push({ what, socket, media, searches })
+    readings.push({ what, socket, media, asks })
   }
 
   if (SESSION === "pages") await pages(page, mark)
-  else if (SESSION === "filter") await filtered(page, mark, () => searches)
+  else if (SESSION === "filter") await filtered(page, mark, () => asks)
   else await preview(page, mark, write)
 
   await browser.close()
@@ -408,7 +409,7 @@ const filtered = async (
   // THE INSTRUMENT PROVES ITSELF FIRST. Everything else in this file fails
   // loudly (a `waitFor` that times out); a counter keyed on a protocol string
   // fails SILENTLY — the day that tag is renamed on one of the two worktrees
-  // `ROOT=` points at, the run reports zero searches, which reads as a
+  // `ROOT=` points at, the run reports zero asks, which reads as a
   // spectacular win rather than a broken driver. A narrowed page that has drawn
   // its rows has asked at least once.
   if (counted() === 0) {
@@ -440,13 +441,13 @@ const report = (label: string, readings: ReadonlyArray<Reading>) => {
   )
   for (const reading of readings) {
     console.log(
-      [reading.what, kb(reading.socket), kb(reading.media), String(reading.searches)]
+      [reading.what, kb(reading.socket), kb(reading.media), String(reading.asks)]
         .join("\t"),
     )
   }
   const last = readings[readings.length - 1]
   console.log(
-    `TOTAL\t${kb(last?.socket ?? 0)}\t${kb(last?.media ?? 0)}\t${last?.searches ?? 0}`,
+    `TOTAL\t${kb(last?.socket ?? 0)}\t${kb(last?.media ?? 0)}\t${last?.asks ?? 0}`,
   )
 }
 

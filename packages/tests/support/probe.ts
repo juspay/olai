@@ -117,7 +117,7 @@ export const markScreen = async (world: OlaiWorld): Promise<void> => {
       if (side === null || main === null) {
         throw new Error("the probe was planted before the app drew a sidebar and a pane");
       }
-      const moved: unknown[] = [];
+      const moved: Moved[] = [];
       const drew: string[] = [];
       const took: string[] = [];
       let batch = 0;
@@ -170,7 +170,7 @@ export const markScreen = async (world: OlaiWorld): Promise<void> => {
 export const screenChurn = async (world: OlaiWorld): Promise<Churn> =>
   await world.page.evaluate((probe) => {
     const held = (window as unknown as Record<string, unknown>)[probe] as
-      | { moved: unknown[]; drew: string[]; took: string[] }
+      | { moved: Moved[]; drew: string[]; took: string[] }
       | undefined;
     if (held === undefined) {
       throw new Error(
@@ -178,7 +178,7 @@ export const screenChurn = async (world: OlaiWorld): Promise<Churn> =>
           "survived — a step has to mark it before the gesture it is a claim about",
       );
     }
-    return { moved: held.moved, drew: held.drew, took: held.took } as unknown as Churn;
+    return { moved: held.moved, drew: held.drew, took: held.took };
   }, PROBE);
 
 /** The sidebar is the same sidebar: every element that was under it is still

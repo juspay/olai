@@ -41,17 +41,19 @@
  * WHICH PAGE this is about is {@link PageRequest}'s, unchanged — the same value
  * the `page` stream takes, so a narrowing is always a narrowing of a page
  * somebody could be looking at.
+ *
+ * AND WHICH RECORDS OF IT are `./page.ts`'s, for the same reason one layer in:
+ * what counts as a ROW of a page is a fact about the page, so this reading is
+ * handed them rather than walking the arms a second time.
  */
 
 import { Schema } from "effect"
 
-import type { AgendaDay } from "./agenda.ts"
-import type { DayGroup } from "./dates.ts"
 import type { Derived, Row } from "./derive.ts"
 import type { Face } from "./document.ts"
 import { type Filter, parseFilter, selecting, shownRecord } from "./filter.ts"
 import { isTrashed, type LocatedRegular } from "./node.ts"
-import { PageRequest, type Shown, shownOf } from "./page.ts"
+import { narrowableIn, PageRequest, type Shown, shownOf } from "./page.ts"
 import { MatchedNode } from "./searching.ts"
 import type { BrokenFile } from "./set.ts"
 
@@ -134,9 +136,10 @@ export const sameNarrowingRequest: (a: NarrowingRequest, b: NarrowingRequest) =>
 /**
  * THE READING — what the query selects on the page the request names.
  *
- * Two walks and neither is of the corpus: the page, and the records the page
- * draws. `shownOf` rather than `pageOf`, because the names table beside a page
- * resolves the ids that page POINTS AT and nothing here reads one.
+ * Two walks and neither is of the corpus: the page, and the ROWS the page draws
+ * (`./page.ts`'s `narrowableIn`, which is where that walk belongs — see
+ * {@link prunable}). `shownOf` rather than `pageOf`, because the names table
+ * beside a page resolves the ids that page POINTS AT and nothing here reads one.
  */
 export const narrowingOf = (
   derived: Derived,
@@ -169,8 +172,13 @@ export const narrowedIn = (
   filter: Filter,
 ): ReadonlyArray<MatchedNode> => {
   if (filter.kind !== "asking") return []
-  return selecting(derived, filter, prunable(shows), showsPutAway(shows) || filter.speaksOfTrash)
-    .map(({ at, match }) => ({
+  const putAway = showsPutAway(shows) || filter.speaksOfTrash
+  // ONE ARRAY, which is what {@link selecting} being a generator is for: a
+  // selection materialised and then mapped is two lists of the answer's size
+  // where the second is what anybody reads.
+  const out: Array<MatchedNode> = []
+  for (const { at, match } of selecting(derived, filter, prunable(shows), putAway)) {
+    out.push({
       // CAST rather than `NodeId.make`, and it is the same call `./address.ts`
       // argues for at its own hot spot: the brand is nominal, so `make` runs a
       // parser with nothing to check, and this list is uncapped.
@@ -179,7 +187,9 @@ export const narrowedIn = (
       // carried by no field, and naming one would be inventing the reason a row
       // is in front of somebody.
       ...(match.field === null ? {} : { matched: match.field }),
-    }))
+    })
+  }
+  return out
 }
 
 /**
@@ -244,86 +254,22 @@ const anyPutAway = (rows: ReadonlyArray<Row>): boolean =>
 /**
  * EVERY RECORD A FILTER CAN TAKE OFF THIS PAGE, once each.
  *
- * The candidate set, and it is defined by what the PRUNE tests rather than by
- * what the reading carries: `keeping`, `keepingDated` and `keepingOwed` each
- * ask about the node a row SHOWS, and nothing else on a page is a row. So a
- * zoom's crumbs, its backlinks, a document's referrers and the blockers under a
- * mark are all out — a filter never took one of them away, and a match found
- * only there would be an id nothing looks up.
+ * The WALK is `./page.ts`'s (`narrowableIn`), and that is where it belongs:
+ * "what is a ROW of this page" is a fact about the page, so a second walk here
+ * would be a filter and a names table free to disagree about one reading — and
+ * a page kind that grew a place to draw a node would have to be told twice.
  *
- * `shownRecord` rather than the row's own, which is the rule the prune already
- * follows: a mirror of a matching node survives wherever it is drawn, so the
- * node it shows is the node this asks about.
- *
- * ONCE EACH, because a PLACEMENT is not a node: one node drawn twice is two
- * rows and one candidate, and the answer is a set of ids a page looks itself up
- * in. `matching` needs no such guard — `derived.nodes` names each record once —
- * which is why the dedup is here rather than in the matcher.
- *
- * IT IS THE SECOND WALK OVER `Shown` IN THIS PACKAGE, and that is deliberate
- * rather than a duplicate: `./page.ts`'s `drawnIn` yields every record a page
- * MENTIONS, because what it feeds is the names table, and a crumb, a backlink,
- * a referrer and a blocker all point at something. None of those is a row, and
- * a filter has never taken one away — so a match found only there would be an
- * id nothing looks up. Two questions, two walks; both `switch` exhaustively
- * over the same union, so a sixth page kind is a compile error in both rather
- * than a silence in one.
+ * WHAT IS LEFT HERE IS THE DEDUP, because it is this reading's own question and
+ * not that walk's. A PLACEMENT is not a node: one node drawn twice is two rows
+ * and one candidate, and the answer is a set of ids a page looks itself up in.
+ * `matching` needs no such guard — `derived.nodes` names each record once —
+ * which is why it is here rather than in the matcher or in the walk.
  */
 function* prunable(shows: Shown): Generator<LocatedRegular> {
   const seen = new Set<string>()
-  for (const at of drawn(shows)) {
+  for (const at of narrowableIn(shows)) {
     if (seen.has(at.node.id)) continue
     seen.add(at.node.id)
     yield at
   }
-}
-
-function* drawn(shows: Shown): Generator<LocatedRegular> {
-  switch (shows.kind) {
-    case "outline":
-      yield* inRows(shows.rows)
-      return
-    case "node":
-      if (shows.zoomed.kind === "node") yield* inRows(shows.zoomed.children)
-      return
-    case "day":
-      yield* inGroups(shows.groups)
-      return
-    case "agenda":
-      // The line, in the order it is drawn — two runs of DAYS around the
-      // groups today holds, which is the shape `agendaOf` produced and the
-      // shape `keepingOwed` prunes.
-      yield* inDays(shows.agenda.overdue)
-      yield* inGroups(shows.agenda.today)
-      yield* inDays(shows.agenda.upcoming)
-      return
-    case "trash":
-      for (const group of shows.groups) yield* inRows(group.rows)
-      return
-    case "document":
-    case "broken":
-    case "nothing":
-      return
-  }
-}
-
-function* inRows(rows: ReadonlyArray<Row>): Generator<LocatedRegular> {
-  for (const row of rows) {
-    // A row that shows nothing — a mirror whose chain died, one that closed a
-    // loop — draws its own PLACEMENT rather than a node, and there is nothing
-    // in a placement for a query to select. `keeping` keeps such a row when
-    // something under it matched, which is the same answer this absence gives.
-    if (row.kind === "node" || row.kind === "mirror") yield row.shows
-    yield* inRows(row.children)
-  }
-}
-
-function* inGroups(groups: ReadonlyArray<DayGroup>): Generator<LocatedRegular> {
-  for (const group of groups) for (const entry of group.nodes) yield entry.shows
-}
-
-/** {@link inGroups} over a run of DAYS — the two halves of the agenda's line
- *  that arrive as days, said once because both ask it. */
-function* inDays(days: ReadonlyArray<AgendaDay>): Generator<LocatedRegular> {
-  for (const day of days) yield* inGroups(day.groups)
 }

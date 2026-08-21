@@ -81,7 +81,7 @@ import {
   type Shelf,
   shelfOf,
 } from "@olai/format"
-import { type Ops, Query, type Request, type Status, type Store } from "@olai/ops"
+import { type Ops, type Request, type Status, type Store } from "@olai/ops"
 import type {
   CommitRequest,
   OutlineError,

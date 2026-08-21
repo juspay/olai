@@ -54,7 +54,7 @@
 import { Schema } from "effect"
 
 import { Address } from "./address.ts"
-import { Agenda, agendaOf } from "./agenda.ts"
+import { Agenda, type AgendaDay, agendaOf } from "./agenda.ts"
 import { Backlink, backlinksOf, Referrer, referrersTo } from "./backlinks.ts"
 import { dailyNotesOn, DayGroup, datedOn } from "./dates.ts"
 import { type Derived, type InTheWay, nodeNamed, nodesOf, Row, rowsOf } from "./derive.ts"
@@ -450,23 +450,86 @@ const namesFor = (
   return named
 }
 
-/** Every regular record this reading MENTIONS, however deep — one walk over the
- *  arms, so a page that grows a place to draw a node grows a place to resolve
- *  what that node points at, in one edit rather than two. Its sibling is
- *  `./narrowing.ts`'s, which walks the narrower set a filter can take AWAY: a
- *  crumb, a backlink, a referrer and a blocker are mentioned here and are not
- *  rows there. */
-function* drawnIn(shows: Shown): Generator<LocatedRegular> {
+/**
+ * EVERY PLACE ON THIS PAGE A NARROWING CAN TAKE AWAY — the ROWS, and nothing
+ * else the reading carries.
+ *
+ * Defined by what the PRUNE tests rather than by what a page holds:
+ * `keeping`, `keepingDated` and `keepingOwed` each ask about the node a row
+ * SHOWS, and nothing else on a page is a row. So a zoom's heading and crumbs,
+ * its backlinks, a document's referrers and the blockers under a mark are all
+ * out — a filter has never taken one away, and a match found only there would
+ * be an id nothing looks up.
+ *
+ * HERE rather than beside the reading that consumes it (`./narrowing.ts`),
+ * because "what is a ROW of this page" is a fact about the page: two answers to
+ * it would be a filter and a names table free to disagree about the same
+ * reading, and a page kind that grew a place to draw a node would have to be
+ * told twice. {@link drawnIn} is this walk PLUS the references, which is the
+ * other half of the same table.
+ *
+ * `shows` and not the row's own record: a row that shows nothing — a mirror
+ * whose chain died, one that closed a loop — draws a PLACEMENT, and there is
+ * nothing in a placement for a query to select. `keeping` keeps such a row when
+ * something under it matched, which is the same answer this absence gives.
+ */
+export function* narrowableIn(shows: Shown): Generator<LocatedRegular> {
   switch (shows.kind) {
     case "outline":
       yield* inRows(shows.rows)
+      return
+    case "node":
+      if (shows.zoomed.kind === "node") yield* inRows(shows.zoomed.children)
+      return
+    case "day":
+      yield* inGroups(shows.groups)
+      return
+    case "agenda":
+      // The line, in the order it is drawn — two runs of DAYS around the groups
+      // today holds, which is the shape `agendaOf` produced and `keepingOwed`
+      // prunes.
+      yield* inDays(shows.agenda.overdue)
+      yield* inGroups(shows.agenda.today)
+      yield* inDays(shows.agenda.upcoming)
+      return
+    case "trash":
+      for (const group of shows.groups) yield* inRows(group.rows)
+      return
+    case "document":
+    case "broken":
+    case "nothing":
+      return
+  }
+}
+
+/** Every regular record this reading MENTIONS, however deep — the rows above
+ *  plus everything the page POINTS AT, which is what the names table spends.
+ *  One walk over the arms, so a page that grows a place to draw a node grows a
+ *  place to resolve what that node points at, in one edit rather than two. */
+function* drawnIn(shows: Shown): Generator<LocatedRegular> {
+  yield* narrowableIn(shows)
+  yield* referencedIn(shows)
+}
+
+/**
+ * ...and the other half: what this page points AT rather than draws as a row.
+ *
+ * A zoom's own heading and its crumbs, the backlinks under it, a document's
+ * referrers, and what any place is WAITING ON — every one of them is drawn as a
+ * link, so what its title addresses is a name this page spends, and none of
+ * them is a row a filter takes away.
+ */
+function* referencedIn(shows: Shown): Generator<LocatedRegular> {
+  switch (shows.kind) {
+    case "outline":
+      yield* waitedOnIn(shows.rows)
       return
     case "node":
       if (shows.zoomed.kind === "node") {
         yield shows.zoomed.shows
         yield* shows.zoomed.trail
         yield* inWay(shows.zoomed.blocked)
-        yield* inRows(shows.zoomed.children)
+        yield* waitedOnIn(shows.zoomed.children)
       }
       for (const backlink of shows.backlinks) yield backlink.at
       return
@@ -476,15 +539,15 @@ function* drawnIn(shows: Shown): Generator<LocatedRegular> {
       }
       return
     case "day":
-      yield* inGroups(shows.groups)
+      yield* situatedIn(shows.groups)
       return
     case "agenda":
-      for (const day of shows.agenda.overdue) yield* inGroups(day.groups)
-      yield* inGroups(shows.agenda.today)
-      for (const day of shows.agenda.upcoming) yield* inGroups(day.groups)
+      for (const day of shows.agenda.overdue) yield* situatedIn(day.groups)
+      yield* situatedIn(shows.agenda.today)
+      for (const day of shows.agenda.upcoming) yield* situatedIn(day.groups)
       return
     case "trash":
-      for (const group of shows.groups) yield* inRows(group.rows)
+      for (const group of shows.groups) yield* waitedOnIn(group.rows)
       return
     case "broken":
     case "nothing":
@@ -495,15 +558,35 @@ function* drawnIn(shows: Shown): Generator<LocatedRegular> {
 function* inRows(rows: ReadonlyArray<Row>): Generator<LocatedRegular> {
   for (const row of rows) {
     if (row.kind === "node" || row.kind === "mirror") yield row.shows
-    yield* inWay(row.blocked)
     yield* inRows(row.children)
   }
 }
 
+/** What the rows of a tree are WAITING ON, however deep — the reference half of
+ *  {@link inRows}, walked separately so the row half is one definition both
+ *  readings stand on. */
+function* waitedOnIn(rows: ReadonlyArray<Row>): Generator<LocatedRegular> {
+  for (const row of rows) {
+    yield* inWay(row.blocked)
+    yield* waitedOnIn(row.children)
+  }
+}
+
 function* inGroups(groups: ReadonlyArray<DayGroup>): Generator<LocatedRegular> {
+  for (const group of groups) for (const entry of group.nodes) yield entry.shows
+}
+
+/** {@link inGroups} over a run of DAYS — the two halves of the agenda's line
+ *  that arrive as days, said once because both ask it. */
+function* inDays(days: ReadonlyArray<AgendaDay>): Generator<LocatedRegular> {
+  for (const day of days) yield* inGroups(day.groups)
+}
+
+/** Where each of a day's rows SITS, and what is standing in its way — the
+ *  reference half of {@link inGroups}, for {@link waitedOnIn}'s reason. */
+function* situatedIn(groups: ReadonlyArray<DayGroup>): Generator<LocatedRegular> {
   for (const group of groups) {
     for (const entry of group.nodes) {
-      yield entry.shows
       yield* entry.trail
       yield* inWay(entry.blocked)
     }
