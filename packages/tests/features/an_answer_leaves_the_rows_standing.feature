@@ -83,7 +83,7 @@ Feature: An answer leaves the rows it did not change standing
   # The same ear, at the two doors that had to ASK for the refusal. The bar
   # parses in this tab; these get their refusal back on an answer, and every
   # answer mints fresh `Refusal` objects — so what holds the line still is the
-  # memo over the SENTENCES (`client/refusals.ts`), which the swap onto one
+  # memo over the SENTENCES (`client/refusals.tsx`), which the swap onto one
   # markup had to leave standing. The row is marked rather than the whole panel
   # because a door's list is entitled to change while somebody types: what may
   # not is the live region beside it.

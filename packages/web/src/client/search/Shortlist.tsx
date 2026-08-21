@@ -53,6 +53,7 @@
 import type { NodeHit } from "@olai/surface"
 import { type Accessor, createMemo, createSignal, Index, onMount, Show } from "solid-js"
 
+import { SaidLine } from "../edit/SaidLine.tsx"
 import { listKey } from "../keys.ts"
 import { Refused } from "../Refused.tsx"
 import type { TestId } from "../testids.ts"
@@ -286,16 +287,16 @@ export function Shortlist(props: {
 
       {/* The search's own refusal, in its own words — never dropped, and never
           the same slot as a hit's: one is the server saying it could not
-          answer, the other is an answer. */}
+          answer, the other is an answer. A LINE under the box rather than a
+          band across a panel, which is the filter bar's shape and not the two
+          popovers'; the mood is `../edit/SaidLine.tsx`'s either way. */}
       <Show when={found.failure()}>
         {(failure) => (
-          <p
-            class="m-0 mt-1 font-mono text-xs text-alarm"
-            data-testid={props.testids.failed}
-            role="alert"
-          >
-            {failure()}
-          </p>
+          <SaidLine
+            said={{ tone: "alarm", text: failure() }}
+            class="m-0 mt-1 font-mono text-xs"
+            testid={props.testids.failed}
+          />
         )}
       </Show>
 

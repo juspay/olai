@@ -41,6 +41,25 @@ import type { JSX } from "solid-js"
 
 import type { Said } from "./undoing.ts"
 
+/**
+ * THE ALARM'S SKIN FOR A BAND, which is the one piece of layout this file does
+ * name — and it is here rather than at the panels because it is not layout.
+ *
+ * Three shortlist panels draw a full-width alarmed band across themselves (the
+ * ⌘K palette, the header's box, the completion popup), and what they share is
+ * not where it sits: it is the alarm token twice over — a rule at 40% under
+ * it, the same hue at 5% behind it — beside the mono type every band in those
+ * panels wears. Spelled per panel, that is the alarm's look kept in three
+ * places by hand, which is the drift this component exists to end one layer
+ * down; spelled here it changes once.
+ *
+ * WHAT IS NOT HERE IS THE PAD. A panel's gutter is set by its rows — the
+ * palette's is `px-4` and the two narrower ones `px-3` — so each door appends
+ * its own, and that is the one axis they genuinely differ on.
+ */
+export const ALARM_BAND =
+  "m-0 border-b border-alarm/40 bg-alarm/5 py-2 font-mono text-xs"
+
 export function SaidLine(props: {
   readonly said: Said
   /** Where this line sits, and how it is boxed — the caller's. */

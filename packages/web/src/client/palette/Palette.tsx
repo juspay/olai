@@ -48,7 +48,6 @@ import {
   createMemo,
   createSelector,
   createSignal,
-  Index,
   Match,
   on,
   onCleanup,
@@ -64,7 +63,7 @@ import { Result as Outcome } from "effect"
 import { releaseArmed, restoreArmed } from "../chat/armed.ts"
 
 import type { Names } from "../names.ts"
-import { SaidLine } from "../edit/SaidLine.tsx"
+import { ALARM_BAND, SaidLine } from "../edit/SaidLine.tsx"
 import { desktop } from "../layout/media.ts"
 import {
   resetPanelWidths,
@@ -115,13 +114,13 @@ import { useRouter } from "../router.tsx"
 import { isLone } from "../workspace.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
 
-/** WHERE an alarm sits in this panel — a full-width band between the box and
- *  the list, ruled off from what is under it. The caller's half of
- *  `../edit/SaidLine.tsx`: the layout is this door's and the mood is that
- *  component's, so the three things this panel can alarm about — a refused
- *  ask, a search that fell over, a token the grammar cannot read — sit in one
- *  band rather than three spellings of one. */
-const ALERT_ROW = "m-0 border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs"
+/** WHERE an alarm sits in this panel: a full-width band between the box and
+ *  the list, at this door's own gutter. The alarm's SKIN is
+ *  `../edit/SaidLine.tsx`'s (`ALARM_BAND`, shared with the two narrower
+ *  panels); the `px-4` is the palette's, because its rows set it. Three things
+ *  this panel can alarm about — a refused ask, a search that fell over, a
+ *  token the grammar cannot read — and one band. */
+const ALERT_ROW = `${ALARM_BAND} px-4`
 
 /** What this door calls its rows — see `../search/Result.tsx`'s `RowTestids`
  *  for why the three travel as one value. */
@@ -888,7 +887,7 @@ export function Palette(props: {
               directory (`../search/nodes.ts`). Drawn by `../refusals.tsx`,
               which is where that sentence and the ear it is read to live. */}
           <Refusals
-            of={nodes.refusals}
+            of={nodes.refusals()}
             class={ALERT_ROW}
             testid={TESTID.searchRefusal}
           />

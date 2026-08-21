@@ -25,7 +25,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import { countsNothing, foundCount } from "../support/counted.ts";
-import { saysThat } from "../support/said.ts";
+import { inTheMood, saysThat } from "../support/said.ts";
 import {
   attr,
   HYDRATION_TIMEOUT,
@@ -133,17 +133,16 @@ When(
 );
 
 /** The `>` ask fell over, and the row that says so is a refusal like any other
- *  — the mood is read, not just the presence, because that row is drawn by the
- *  same component every other alarm in this client is (`../support/said.ts`). */
+ *  — the MOOD is read, not just the presence, because that row is drawn by the
+ *  same component every other alarm in this client is. Through
+ *  `../support/said.ts`, which is where this suite asks a line what mood it is
+ *  in; the text is not asserted here because what the agent failed with is the
+ *  agent's to word. */
 Then("the palette shows an ask error", async function (this: OlaiWorld) {
   await this.page
     .locator(PALETTE_ASK_ERROR)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  assert.strictEqual(
-    await this.page.locator(PALETTE_ASK_ERROR).first().getAttribute("data-tone"),
-    "alarm",
-    "the palette's ask error is not in the alarm mood",
-  );
+  await inTheMood(this, PALETTE_ASK_ERROR, "alarm", "the palette's ask error");
 });
 
 Then(

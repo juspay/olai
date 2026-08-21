@@ -48,7 +48,7 @@
  */
 
 import type { Refusal } from "@olai/format"
-import { type Accessor, createMemo, Index } from "solid-js"
+import { createMemo, Index } from "solid-js"
 
 import { SaidLine } from "./edit/SaidLine.tsx"
 import type { TestId } from "./testids.ts"
@@ -64,13 +64,6 @@ const sameLines = (
   a: ReadonlyArray<string>,
   b: ReadonlyArray<string>,
 ): boolean => a.length === b.length && a.every((line, at) => line === b[at])
-
-/** The whole list of them, and it HOLDS while the query goes on being refused
- *  the same way — see the header. */
-const refusalLines = (
-  refusals: Accessor<ReadonlyArray<Refusal>>,
-): Accessor<ReadonlyArray<string>> =>
-  createMemo(() => refusals().map(said), undefined, { equals: sameLines })
 
 /**
  * The refusals of one door, DRAWN — the sentences above in the mood they are
@@ -93,12 +86,15 @@ export function Refusals(props: {
    *  `Refusal`s, not sentences: minting the sentence is half of what holds the
    *  live region still, and a door that spelled it would be back to keeping
    *  that promise itself. */
-  readonly of: Accessor<ReadonlyArray<Refusal>>
+  readonly of: ReadonlyArray<Refusal>
   /** Where these rows sit, and how they are boxed — the caller's. */
   readonly class: string
   readonly testid: TestId
 }) {
-  const lines = refusalLines(() => props.of())
+  /** The whole list of them, and it HOLDS while the query goes on being
+   *  refused the same way — see the header. `props.of` is a getter, so this
+   *  tracks the door's own reading through it. */
+  const lines = createMemo(() => props.of.map(said), undefined, { equals: sameLines })
   return (
     <Index each={lines()}>
       {(line) => (

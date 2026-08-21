@@ -170,7 +170,7 @@ export function FilterBar(props: {
           `../refusals.tsx`'s, once, for every door onto this grammar. What is
           left here is where the lines sit and what this bar calls them. */}
       <Refusals
-        of={props.narrowing.refusals}
+        of={props.narrowing.refusals()}
         class="m-0 mt-1 font-mono text-xs"
         testid={TESTID.filterRefusal}
       />

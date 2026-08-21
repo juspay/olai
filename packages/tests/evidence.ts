@@ -2823,25 +2823,30 @@ const SECTIONS = {
     )
     const pass = async (dark: boolean) => {
       const suffix = dark ? "-dark" : "-light"
+      /** One door read out and photographed — the sentence, the mood beside it,
+       *  and the frame. Three doors saying the same thing is exactly the claim,
+       *  so it is said once here rather than copied per door. */
+      const reads = async (who: string, row: string, name: string) => {
+        console.log(`  ${who.padEnd(18)}${await textOf(page, row)}`)
+        console.log(`  ${"...in the mood:".padEnd(18)}${await toneOf(page, row)}`)
+        await shot(page, `${name}${suffix}`)
+      }
 
       // THE BAR, which parses in this tab: the row is up before any wire is
       // touched, and it is the one that already went through the component.
       await opened(page, "/house.olai", OUTLINE_TREE)
       await narrow(page, "is:open")
-      console.log(`  the bar refuses:    ${await textOf(page, FILTER_REFUSAL)}`)
-      console.log(`  ...in the mood:     ${await toneOf(page, FILTER_REFUSAL)}`)
-      await shot(page, `the-filter-bar${suffix}`)
+      await reads("the bar refuses:", FILTER_REFUSAL, "the-filter-bar")
 
       // THE PALETTE, which had to ASK for the same refusal and hand-rolled
-      // three bands of its own to draw it and its two neighbours.
+      // three bands of its own to draw it and its two neighbours. `DRAWN` and
+      // not `SETTLE`: nothing was written, and the row above is already up.
       await page.keyboard.press("ControlOrMeta+k")
       await page.locator(PALETTE_INPUT).waitFor()
       await page.locator(PALETTE_INPUT).fill("is:open")
       await page.locator(SEARCH_REFUSAL).first().waitFor()
-      await page.waitForTimeout(SETTLE)
-      console.log(`  the palette:        ${await textOf(page, SEARCH_REFUSAL)}`)
-      console.log(`  ...in the mood:     ${await toneOf(page, SEARCH_REFUSAL)}`)
-      await shot(page, `the-palette${suffix}`)
+      await page.waitForTimeout(DRAWN)
+      await reads("the palette:", SEARCH_REFUSAL, "the-palette")
       await page.keyboard.press("Escape")
 
       // THE HEADER BOX, the third door and the second that hand-rolled one.
@@ -2849,20 +2854,20 @@ const SECTIONS = {
       await box.click()
       await box.fill("is:open")
       await page.locator(SEARCH_REFUSAL).first().waitFor()
-      await page.waitForTimeout(SETTLE)
-      console.log(`  the header box:     ${await textOf(page, SEARCH_REFUSAL)}`)
-      console.log(`  ...in the mood:     ${await toneOf(page, SEARCH_REFUSAL)}`)
-      await shot(page, `the-header-box${suffix}`)
+      await page.waitForTimeout(DRAWN)
+      await reads("the header box:", SEARCH_REFUSAL, "the-header-box")
       await page.keyboard.press("Escape")
     }
 
     await pass(false)
-    // THE QUERY IS TAKEN OFF THE ADDRESS before the theme is put on, and that
-    // is not tidiness: `is:open` selects nothing, so the reload `inTheDark`
-    // makes would come back to a page whose tree is empty — and this driver
-    // waits on that tree to know the app has drawn.
-    await opened(page, "/house.olai", OUTLINE_TREE)
-    await inTheDark(page)
+    // The theme is WRITTEN and the next pass's own `goto` is what picks it up
+    // — one navigation rather than `inTheDark`'s three. That helper reloads
+    // and then waits on the tree, and the address still carries `is:open`,
+    // which selects nothing: it would come back to an empty tree and wait out
+    // its timeout. Written where the page keeps it (`client/theme/state.ts`),
+    // so the boot script paints the first dark frame rather than a light one
+    // flashing first.
+    await page.evaluate(() => localStorage.setItem("olai.theme", "aurora"))
     await pass(true)
   },
 } satisfies Record<string, (page: Page) => Promise<void>>
