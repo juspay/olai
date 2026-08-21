@@ -457,6 +457,37 @@ export const noSuchDocument = (
   })
 }
 
+/**
+ * WHAT A PATH THAT IS NOT AN OUTLINE IS TOLD — {@link noSuchDocument}'s twin
+ * over the other kind of file, and the same sentence for every verb that can be
+ * handed one.
+ *
+ * TWO CALLERS AND ONE VOICE, which is the whole of why it has a name: a write
+ * placing a node at the top level of a file ({@link landsIn}) and a read asking
+ * for a whole outline ({@link ./query.ts}'s `subtree`) meet the identical typo,
+ * and a caller who mistypes a path once should not learn two different things
+ * about it depending on which verb the typo landed at.
+ *
+ * IT TEACHES BOTH WAYS, and which one it uses is decided by the set rather than
+ * by the caller. Close enough to be a typo, and it names the candidate — the
+ * `didYouMean` budget every unknown id and every unknown document path is
+ * already offered. Nothing close, and it LISTS the outlines, which is the right
+ * answer here for exactly the reason it is the wrong one for a node id
+ * ({@link notFound} argues the split): a directory has a handful of outlines
+ * and a few thousand nodes.
+ */
+export const noSuchOutline = (set: OutlineSet, file: string): OpFailure => {
+  const outlines = outlinePaths(set)
+  const near = didYouMean(file, outlines)
+  return new NotFoundFailure({
+    reason: near === ""
+      ? `\`${file}\` is not an outline under the served directory: ` +
+        `${outlines.join(", ") || "there are none"}`
+      : `\`${file}\` is not an outline under the served directory${near}`,
+    named: file,
+  })
+}
+
 /** The record with this id, or the refusal that says so. A MIRROR is not an
  *  answer: it is a second placement of a node that lives elsewhere, and every
  *  op edits the node. */
@@ -545,13 +576,7 @@ const landsIn = (
     )
   }
   if (documentAt(scope.set, file)?.kind !== "outline") {
-    return Result.fail(
-      new NotFoundFailure({
-        reason: `\`${file}\` is not one of the outlines under the served directory: ` +
-          `${outlinePaths(scope.set).join(", ") || "there are none"}`,
-        named: file,
-      }),
-    )
+    return Result.fail(noSuchOutline(scope.set, file))
   }
   const may = writable(scope, file)
   if (Result.isFailure(may)) return Result.fail(may.failure)

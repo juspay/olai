@@ -524,13 +524,46 @@ export type Stamps = Pick<Detail, Status>
  *  advertising the old one. */
 export const DEFAULT_SUBTREE_DEPTH = 3
 
-/** Asking for a node and what hangs off it. */
+/**
+ * Asking for a node and what hangs off it — or for a whole OUTLINE and
+ * everything in it.
+ *
+ * TWO WAYS IN, AND EXACTLY ONE PER CALL. A node is named by `id` and a file by
+ * `file`, and the second is what makes an outline of N top-level roots one call
+ * rather than N: `list_outlines` already says which files there are and what
+ * each one's roots are CALLED, and until this there was no read that could
+ * descend into more than one of them at a time.
+ *
+ * BOTH ARE OPTIONAL HERE AND THE PAIR IS CHECKED BY THE READER, which is a
+ * limit of this seam rather than an oversight. A union of two structs is the
+ * type-level spelling of "exactly one", and it is not available here: the tool
+ * table takes a schema apart by its `.fields` (`@olai/ops`' `Arguments`, and
+ * `@olai/server`'s `argsOf`), and the JSON Schema an MCP host reads is an
+ * object with properties rather than an `anyOf` it may or may not honour — the
+ * same constraint that unrolls `add_node`'s capture. So the shape advertises
+ * both, the prose says the rule, and the reader refuses either mistake in its
+ * own words: naming neither, or naming both.
+ *
+ * `depth` means one thing on both arms — how far to descend, from the node, or
+ * from EACH of the file's roots.
+ */
 export const SubtreeRequest = Schema.Struct({
-  id: Schema.String.annotate({ description: "The node to read from." }),
+  id: Schema.optionalKey(
+    Schema.String.annotate({
+      description:
+        "The node to read from. Give this or `file` — never both, never neither.",
+    }),
+  ),
+  file: Schema.optionalKey(
+    Schema.String.annotate({
+      description:
+        "An outline (`.olai`) under the served directory, exactly as `list_outlines` lists it. Reads the WHOLE file: every top-level node in it, each walked to `depth`. Give this or `id` — never both, never neither.",
+    }),
+  ),
   depth: Schema.optionalKey(
     Schema.Number.annotate({
       description:
-        `How many levels of children to include. Default ${DEFAULT_SUBTREE_DEPTH}.`,
+        `How many levels of children to include — from the node, or from each of a file's roots. Default ${DEFAULT_SUBTREE_DEPTH}.`,
     }),
   ),
 })
@@ -588,8 +621,37 @@ const Missing = Schema.Struct({ missing: Schema.String })
 export const NodeAnswer = Schema.Union([Detail, Missing])
 export type NodeAnswer = typeof NodeAnswer.Type
 
-/** What `read_subtree` says, and the same two arms for the same reason. */
-export const SubtreeAnswer = Schema.Union([Subtree, Missing])
+/**
+ * A WHOLE OUTLINE, walked — what `read_subtree` answers a `file` with.
+ *
+ * ROOTS AND NOT ONE TREE, because a file is not a node. An outline has as many
+ * top-level nodes as somebody wrote, and a synthetic parent standing for the
+ * file would be a record no id names, no op can edit and no page draws. So the
+ * answer is the LIST, in the sibling order a reader sees them in, each root
+ * walked exactly as an `id` walk walks the node it was handed — `truncated` and
+ * all, per root, since one root can bottom out at a leaf while its neighbour is
+ * cut at the depth.
+ *
+ * A MIRROR AT THE TOP LEVEL IS NOT A ROOT, which is the walk's own rule read
+ * one level up: `read_subtree` does not walk placements, and {@link
+ * OutlineSummary}'s `roots` does not name one either. The node a placement
+ * shows lives somewhere, and where it lives is where this read answers it.
+ *
+ * The `file` rides back for {@link DocumentBody}'s reason: an agent holding
+ * several reads in flight needs each answer to say which file it is about, and
+ * the caller's own argument is the only spelling that can.
+ */
+export const OutlineRoots = Schema.Struct({
+  file: Schema.String,
+  roots: Schema.Array(Subtree),
+})
+export type OutlineRoots = typeof OutlineRoots.Type
+
+/** What `read_subtree` says: the node, the whole outline, or the id the set
+ *  does not hold. A `file` that is not one is REFUSED rather than answered —
+ *  a path is not an id, and the useful answer to a typo is the near miss, which
+ *  is the split {@link DocumentBody} argues one read over. */
+export const SubtreeAnswer = Schema.Union([Subtree, OutlineRoots, Missing])
 export type SubtreeAnswer = typeof SubtreeAnswer.Type
 
 // ── which ids the set declares ─────────────────────────────────────────

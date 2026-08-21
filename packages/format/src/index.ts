@@ -612,6 +612,7 @@ export {
   NodeAnswer,
   NodeRequest,
   OutlineAnswer,
+  OutlineRoots,
   OutlineSummary,
   Placed,
   Placement,

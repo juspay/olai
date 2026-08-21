@@ -93,17 +93,21 @@ import {
   type SearchAnswer,
   type SearchHit,
   type SearchRequest,
+  siblingsOf,
   type Stamps,
   type Subtree,
+  type SubtreeAnswer,
+  type SubtreeRequest,
   type TagsAnswer,
   type TagsRequest,
   tagText,
   titleParts,
+  UsageFailure,
   ValidationFailure,
 } from "@olai/format"
 import { Result } from "effect"
 
-import { noSuchDocument } from "./plan.ts"
+import { noSuchDocument, noSuchOutline } from "./plan.ts"
 
 /**
  * Every shape an answer here has is `@olai/format`'s, and none of them is
@@ -343,6 +347,15 @@ export const search = (
         // a separate field because both halves can be true at once. Empty for
         // every query that named no property.
         ...(match.props.length === 0 ? {} : { matchedProps: match.props }),
+        // THE NOTE, when it was ASKED FOR — the one field of the record a hit
+        // does not carry by default, and the only reason is its size
+        // (`@olai/format`'s `SearchRequest.withDesc` argues it). Read off the
+        // record like every other carried field, and absent on the format's own
+        // rule for absence, so a query that asked and a node that has none say
+        // exactly what a query that did not ask says.
+        ...(query.withDesc !== true || located.node.desc === undefined
+          ? {}
+          : { desc: located.node.desc }),
       }
     })
 
@@ -822,30 +835,114 @@ const placementsOf = (
     }]
   })
 
+/**
+ * A NODE and what hangs under it, or a whole OUTLINE and everything in it —
+ * `read_subtree`, both arms and every refusal.
+ *
+ * ONE FUNCTION FOR THE TWO WAYS IN, because they are one reading asked from two
+ * ends: the walk below is the same walk, and what differs is only where it
+ * starts and how many times. A file arm answered by a second exported function
+ * would be a second place the depth default, the mirror rule and the
+ * `truncated` flag are decided.
+ *
+ * WHY THE FILE ARM EXISTS AT ALL. `list_outlines` says which outlines there are
+ * and what each one's roots are CALLED, and until this the only way DOWN was by
+ * id — so an outline of N top-level roots cost N calls, one per root, each
+ * answering a fraction of a file the reader was asking about whole. The write
+ * side stopped looping some time ago (`add_node` takes a nested capture,
+ * `apply` a run of verbs); this is the read side catching up.
+ *
+ * IT REFUSES, where the id arm answers. That asymmetry is
+ * {@link ./query.ts}'s `document` one door over, argued on
+ * {@link `@olai/format`}'s `DocumentBody`: an id is minted, guessed at and
+ * carried around in prose, so "is there a node called this?" is a fair question
+ * with a true answer — while a path was LISTED or typed, and the useful answer
+ * to a typo is the near miss, which only a refusal carries. So a `file` the set
+ * does not serve as an outline comes back with the closest one that is
+ * ({@link noSuchOutline}), and one it could not READ comes back with the
+ * validator's own rows rather than as an outline that happens to hold nothing.
+ *
+ * A RESULT and not a nullable, for the reason {@link document} is one: a pure
+ * function says "or else" this way, and the door lifts it ({@link
+ * ./tools.ts}'s `asking`).
+ */
 export const subtree = (
-  derived: Derived,
-  id: string,
-  options: { readonly depth?: number } = {},
-): Subtree | null => {
-  const located = derived.byId.get(id)
-  if (located === undefined || isMirror(located.node)) return null
-
+  /** BOTH HALVES of the reading, unlike the walk this used to be: the id arm
+   *  reads the derivation alone, and the file arm asks the SET which paths are
+   *  outlines and which of them parsed — the same division {@link homes}
+   *  makes. */
+  at: Reading,
+  request: SubtreeRequest,
+): Result.Result<SubtreeAnswer, OpFailure> => {
   // The floor's number, because it is quoted in the sentence `read_subtree`
   // advertises — one place to change it, rather than a schema saying "default
   // 3" over a walk that had stopped agreeing.
-  const depth = options.depth ?? DEFAULT_SUBTREE_DEPTH
-  const walk = (at: LocatedRegular, left: number): Subtree => {
-    const children = countedChildren(derived, at.node.id)
+  const depth = request.depth ?? DEFAULT_SUBTREE_DEPTH
+  const walk = (located: LocatedRegular, left: number): Subtree => {
+    const children = countedChildren(at.derived, located.node.id)
     return {
-      ...foundOf(derived, at),
-      ...(at.node.date === undefined ? {} : { date: at.node.date }),
-      ...(at.node.desc === undefined ? {} : { desc: at.node.desc }),
+      ...foundOf(at.derived, located),
+      ...(located.node.date === undefined ? {} : { date: located.node.date }),
+      ...(located.node.desc === undefined ? {} : { desc: located.node.desc }),
       children: left <= 0 ? [] : children.map((child) => walk(child, left - 1)),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
     }
   }
-  return walk(located as LocatedRegular, depth)
+
+  if (request.file !== undefined) {
+    if (request.id !== undefined) return Result.fail(bothWaysIn)
+    if (!outlinePaths(at.set).includes(request.file)) {
+      return Result.fail(noSuchOutline(at.set, request.file))
+    }
+    const broken = brokenIn(at.set, request.file)
+    if (broken !== undefined) {
+      return Result.fail(
+        new ValidationFailure({
+          reason: `\`${request.file}\` could not be read, so what it holds is not ` +
+            `loaded — there is nothing to answer with. Fix the file first.`,
+          errors: broken,
+        }),
+      )
+    }
+    return Result.succeed({
+      file: request.file,
+      // The roots a READER sees, in the order the page draws them: `siblingsOf`
+      // with no parent is one outline's top level, `ord`-sorted, and the mirrors
+      // drop here for the reason the walk never descends into one — a placement
+      // is a second view of a node that lives elsewhere, and elsewhere is where
+      // this read answers it.
+      roots: siblingsOf(at.derived, request.file, undefined)
+        .filter((located): located is LocatedRegular => !isMirror(located.node))
+        .map((root) => walk(root, depth)),
+    })
+  }
+
+  if (request.id === undefined) return Result.fail(neitherWayIn)
+  const located = at.derived.byId.get(request.id)
+  if (located === undefined || isMirror(located.node)) {
+    return Result.succeed({ missing: request.id })
+  }
+  return Result.succeed(walk(located as LocatedRegular, depth))
 }
+
+/**
+ * The two ways to get the request itself wrong, said once each.
+ *
+ * USAGE and not NOT-FOUND: nothing was looked up, because there was no single
+ * question to look up. Both name the two arms and what each one reads, because
+ * a caller that gave neither has usually not noticed the file arm exists, and
+ * one that gave both is holding two questions and has to pick.
+ */
+const neitherWayIn: OpFailure = new UsageFailure({
+  reason: "give `id` (a node and what hangs under it) or `file` " +
+    "(a whole outline: every top-level node in it)",
+})
+
+const bothWaysIn: OpFailure = new UsageFailure({
+  reason: "`id` and `file` are two different reads — give one. `id` is a node " +
+    "and what hangs under it; `file` is a whole outline. `search_nodes` with " +
+    "`file` is how a query is narrowed to one outline.",
+})
 
 // ── the directory ──────────────────────────────────────────────────────
 

@@ -378,6 +378,14 @@ test("the read tools teach the fields the mirror and edge ops depend on", async 
     expect(said("search_nodes")).toContain("`matchedProps`")
     // …and the subtree read says where to go instead, since it walks none.
     expect(said("read_subtree")).toContain("`placed`")
+    // …and that it reads a whole OUTLINE, which is the only way an agent finds
+    // out: `list_outlines` names the roots of a file and this is what descends
+    // into all of them at once. A tool nobody is told about is a tool nobody
+    // calls, and the fallback — one call per root — looks like it works.
+    expect(said("read_subtree")).toContain("`file`")
+    // …and that a selection can arrive WITH its notes, for the same reason: it
+    // is off by default, so an agent that is not told will read a node per hit.
+    expect(said("search_nodes")).toContain("`withDesc: true`")
   })
 })
 
@@ -553,6 +561,149 @@ test("search and subtree carry a node's properties, so a board is one query", as
     })
     // A node carrying no property does not answer an empty map.
     expect(children.find((child) => child["id"] === "install")).not.toHaveProperty("custom")
+  })
+})
+
+// ── a whole outline, in one call ───────────────────────────────────────
+//
+// The read side catching up with the write side. `add_node` takes a nested
+// capture and `apply` a run of verbs, so a subtree is one write — but an
+// outline of N top-level roots had NO single-call read: `list_outlines` named
+// the roots and `read_subtree` took an id, so reading a file whole was one call
+// per root. These are that gap closed, through the client an agent uses.
+
+/** An outline with SEVERAL roots — the shape the `file` arm exists for — and a
+ *  placement at its top level, which is not one of them. */
+const PLAN = [
+  `{"id":"today","ord":"a0","title":"Today"}`,
+  `{"id":"call","parent":"today","ord":"a0","title":"call the joiner","todo":true,` +
+  `"desc":"about the hinges, and the delivery slot"}`,
+  `{"id":"later","ord":"a1","title":"Later"}`,
+  // A second placement of `call`, at the top level of the same file.
+  `{"id":"echo","ord":"a2","mirror":"call"}`,
+  "",
+].join("\n")
+
+test("read_subtree answers a whole outline — every root, one call", async () => {
+  await withTools({ "plan.olai": PLAN, "house.olai": HOUSE }, async ({ client }) => {
+    const answered = await call(client, "read_subtree", { file: "plan.olai" })
+    expect(answered.isError).toBe(false)
+    // The path rides back, so an agent holding several reads in flight knows
+    // which file this one is about.
+    expect(answered.structured["file"]).toBe("plan.olai")
+
+    const roots = answered.structured["roots"] as ReadonlyArray<Record<string, unknown>>
+    // BOTH roots — the whole claim, since these two used to be two calls — and
+    // NOT the placement between them: a mirror is a second view of a node that
+    // lives elsewhere, so elsewhere is where this read answers it.
+    expect(roots.map((root) => root["id"])).toEqual(["today", "later"])
+    // …and walked rather than merely named, which is what `list_outlines`
+    // already does.
+    const children = roots[0]?.["children"] as ReadonlyArray<Record<string, unknown>>
+    expect(children.map((child) => child["id"])).toEqual(["call"])
+    expect(children[0]).toMatchObject({ status: "todo", path: ["Today"] })
+
+    // And `depth` means the same thing on this arm, per ROOT: one bottoms out
+    // where it was told to and says so, the other bottoms out at a leaf.
+    const cut = (await call(client, "read_subtree", { file: "plan.olai", depth: 0 }))
+      .structured["roots"] as ReadonlyArray<Record<string, unknown>>
+    expect(cut[0]).toMatchObject({ id: "today", truncated: true })
+    expect(cut[1]).not.toHaveProperty("truncated")
+  })
+})
+
+/**
+ * A PATH THAT IS NOT AN OUTLINE REFUSES IN `read_document`'s VOICE — the kind
+ * as data, the near miss in the sentence. Refused, never answered empty: an
+ * outline that "holds nothing" and an outline that is not there look identical
+ * to a caller, and only one of them is worth acting on.
+ */
+test("read_subtree refuses a file that is not an outline, with the closest one", async () => {
+  const files = {
+    "plan.olai": PLAN,
+    "house.olai": HOUSE,
+    "finishes.md": "# Finishes\n",
+  }
+  await withTools(files, async ({ client }) => {
+    const missed = await call(client, "read_subtree", { file: "plans.olai" })
+    expect(missed.isError).toBe(true)
+    expect(missed.structured).toMatchObject({ kind: "not-found", named: "plans.olai" })
+    expect(missed.structured["reason"]).toContain("did you mean `plan.olai`")
+
+    // The same typo at the WRITE verb that names an outline is told the same
+    // thing, which is the property worth pinning: two tools, one sentence.
+    const refusedWrite = await call(client, "add_node", {
+      file: "plans.olai",
+      title: "anything",
+    })
+    expect(refusedWrite.structured["reason"]).toContain("did you mean `plan.olai`")
+
+    // Nothing close, and the answer is the outlines themselves — the right
+    // answer for a directory of a handful of files, and deliberately not the
+    // one an unknown NODE id gets, where the same list would be thousands long.
+    const nowhere = await call(client, "read_subtree", { file: "nothing/like/this.olai" })
+    expect(nowhere.structured["reason"]).toContain("plan.olai")
+    expect(nowhere.structured["reason"]).toContain("house.olai")
+
+    // A `.md` is not an outline either, and is refused by the same door rather
+    // than walked as an empty one.
+    const document = await call(client, "read_subtree", { file: "finishes.md" })
+    expect(document.isError).toBe(true)
+    expect(document.structured).toMatchObject({ kind: "not-found" })
+  })
+})
+
+test("read_subtree refuses a call naming both ways in, or neither", async () => {
+  await withTools({ "plan.olai": PLAN }, async ({ client }) => {
+    // Two questions in one call: the schema an MCP host reads is an object with
+    // properties rather than an `anyOf` it may or may not honour, so "exactly
+    // one" is the reader's to say — in words that name which is which.
+    const both = await call(client, "read_subtree", { id: "today", file: "plan.olai" })
+    expect(both.isError).toBe(true)
+    expect(both.structured).toMatchObject({ kind: "usage" })
+    expect(both.structured["reason"]).toContain("two different reads")
+
+    const neither = await call(client, "read_subtree", {})
+    expect(neither.isError).toBe(true)
+    expect(neither.structured).toMatchObject({ kind: "usage" })
+    expect(neither.structured["reason"]).toContain("whole outline")
+
+    // …while an id the set does not hold is still an ANSWER. An id is minted
+    // and carried around in prose; a path was listed or typed.
+    const gone = await call(client, "read_subtree", { id: "nope" })
+    expect(gone.isError).toBe(false)
+    expect(gone.structured).toEqual({ missing: "nope" })
+  })
+})
+
+/**
+ * A SELECTION WITH ITS NOTES — the other half of the same item, through the
+ * encoder, which is where a field the schema has never heard of is silently
+ * dropped (`matched`, once).
+ */
+test("search_nodes carries the notes when the query asks for them", async () => {
+  await withTools({ "plan.olai": PLAN }, async ({ client }) => {
+    const asked = (await call(client, "search_nodes", { text: "joiner", withDesc: true }))
+      .structured["hits"] as ReadonlyArray<Record<string, unknown>>
+    expect(asked[0]).toMatchObject({
+      id: "call",
+      desc: "about the hinges, and the delivery slot",
+    })
+
+    // …and not otherwise. A note is unbounded prose, so a query that will not
+    // read one does not pay for twelve of them — which is the whole reason
+    // this is the one record field a hit asks for.
+    const plain = (await call(client, "search_nodes", { text: "joiner" }))
+      .structured["hits"] as ReadonlyArray<Record<string, unknown>>
+    expect(plain[0]).toMatchObject({ id: "call" })
+    expect(plain[0]).not.toHaveProperty("desc")
+
+    // A node with no note says nothing either way, on the format's own rule for
+    // absence — so a caller reads `desc` the same way whether it asked or not.
+    const bare = (await call(client, "search_nodes", { text: "Later", withDesc: true }))
+      .structured["hits"] as ReadonlyArray<Record<string, unknown>>
+    expect(bare[0]).toMatchObject({ id: "later" })
+    expect(bare[0]).not.toHaveProperty("desc")
   })
 })
 
