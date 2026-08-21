@@ -971,8 +971,7 @@ export function Palette(props: {
                   the eight rows scroll, and absent when eight was all there
                   was. */}
               <SearchCount
-                drawn={nodes.hits().length}
-                total={nodes.total()}
+                of={nodes}
                 class="m-0 shrink-0 border-t border-rule px-4 py-2 font-mono text-xs text-muted"
               />
               </>

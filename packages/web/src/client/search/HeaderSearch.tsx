@@ -288,8 +288,7 @@ export function HeaderSearch(props: {
                   in front of them, and absent entirely when the eight are all
                   there was (`./count.ts`). */}
               <SearchCount
-                drawn={items().length}
-                total={nodes.total()}
+                of={nodes}
                 class="m-0 border-t border-rule/40 px-3 py-1.5 font-mono text-xs text-muted"
               />
             </div>

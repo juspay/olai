@@ -10,6 +10,15 @@
  * which is why the classes are the caller's — `../edit/SaidLine.tsx` draws the
  * same line between a sentence and its layout, and for the same reason.
  *
+ * IT TAKES THE SEARCH, not two numbers, and that is the whole of what this
+ * component is careful about. The numerator and the denominator are one thing
+ * — an answer, and how much of it fits — and a door handed them over
+ * separately would be free to count something else: the palette's list is its
+ * op rows, the shelf's row and the shell ABOVE the hits, so `items().length`
+ * is a number that is right in one door and wrong in the other. Handed the
+ * reading itself there is nothing to get wrong, and the pair cannot come from
+ * two moments (`./nodes.ts`: both are read off one answer).
+ *
  * NOT A LIVE REGION, and that is a decision rather than an omission. Both doors
  * are answered as somebody types, so a polite region here would queue a fresh
  * "8 of 90 matches" behind every keystroke — a reader who has not changed their
@@ -22,13 +31,18 @@
 import { Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import { countLine, type Drawn } from "./count.ts"
+import { countLine } from "./count.ts"
+import type { Search } from "./nodes.ts"
 
-export function SearchCount(props: Drawn & {
+export function SearchCount(props: {
+  /** The reading this line is about — the hits it drew and the total it found,
+   *  off the one answer that carries both. */
+  readonly of: Pick<Search, "hits" | "total">
   /** Where the line sits, and how it is boxed — the door's own. */
   readonly class?: string
 }) {
-  const said = () => countLine({ drawn: props.drawn, total: props.total })
+  const said = () =>
+    countLine({ drawn: props.of.hits().length, total: props.of.total() })
   return (
     <Show when={said()}>
       {(line) => (
