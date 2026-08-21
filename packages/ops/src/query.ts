@@ -48,6 +48,7 @@ import {
   type Detail,
   type DocumentBody,
   type DocumentSummary,
+  documentAt,
   errorLine,
   follow,
   type Found,
@@ -55,6 +56,7 @@ import {
   type HomesAnswer,
   type HomesRequest,
   isMirror,
+  isRegular,
   type LocatedRegular,
   markdownAt,
   markdownIn,
@@ -688,16 +690,19 @@ const stampsOf = (node: LocatedRegular["node"]): Stamps =>
 
 export const detail = (derived: Derived, id: string): Detail | null => {
   const located = derived.byId.get(id)
-  if (located === undefined || isMirror(located.node)) return null
-  const regular = located as LocatedRegular
-  const node = regular.node
+  // `isRegular` narrows the PAIR, where `isMirror` narrows the record and
+  // leaves the place around it as wide as it was — which is what this line used
+  // to pay for with an assertion on the next one (`@olai/format`'s `node.ts`
+  // declares the guard for exactly that).
+  if (located === undefined || !isRegular(located)) return null
+  const node = located.node
   const progress = progressOf(derived, id)
   const placements = placementsOf(derived, id)
   const placed = placedUnder(derived, id)
   const referencedBy = referrersOf(derived, id)
   const blockedBy = waitingFor(derived, id)
   return {
-    ...foundOf(derived, regular),
+    ...foundOf(derived, located),
     ...(node.date === undefined ? {} : { date: node.date }),
     // The rule as the record spells it — the answer a writer about to change
     // it reads, and the half of MCP parity that is not `set_repeat`.
@@ -889,60 +894,94 @@ export const subtree = (
     }
   }
 
-  if (request.file !== undefined) {
-    if (request.id !== undefined) return Result.fail(bothWaysIn)
-    if (!outlinePaths(at.set).includes(request.file)) {
-      return Result.fail(noSuchOutline(at.set, request.file))
+  const subject = subjectOf(request)
+  if (Result.isFailure(subject)) return Result.fail(subject.failure)
+
+  if (subject.success.kind === "node") {
+    const located = at.derived.byId.get(subject.success.id)
+    if (located === undefined || !isRegular(located)) {
+      return Result.succeed({ missing: subject.success.id })
     }
-    const broken = brokenIn(at.set, request.file)
-    if (broken !== undefined) {
-      return Result.fail(
-        new ValidationFailure({
-          reason: `\`${request.file}\` could not be read, so what it holds is not ` +
-            `loaded — there is nothing to answer with. Fix the file first.`,
-          errors: broken,
-        }),
-      )
-    }
-    return Result.succeed({
-      file: request.file,
-      // The roots a READER sees, in the order the page draws them: `siblingsOf`
-      // with no parent is one outline's top level, `ord`-sorted, and the mirrors
-      // drop here for the reason the walk never descends into one — a placement
-      // is a second view of a node that lives elsewhere, and elsewhere is where
-      // this read answers it.
-      roots: siblingsOf(at.derived, request.file, undefined)
-        .filter((located): located is LocatedRegular => !isMirror(located.node))
-        .map((root) => walk(root, depth)),
-    })
+    return Result.succeed(walk(located, depth))
   }
 
-  if (request.id === undefined) return Result.fail(neitherWayIn)
-  const located = at.derived.byId.get(request.id)
-  if (located === undefined || isMirror(located.node)) {
-    return Result.succeed({ missing: request.id })
+  const file = subject.success.file
+  // `documentAt` and not a `.includes` over the paths: the point lookup IS the
+  // question, it answers the KIND, and the "is that file there" scans it
+  // replaced are what let a feature work for one kind of file and not the other
+  // (`@olai/format`'s `set.ts`). It is the same call the write that places a
+  // node at a file's top level makes, one door over.
+  if (documentAt(at.set, file)?.kind !== "outline") {
+    return Result.fail(noSuchOutline(at.set, file))
   }
-  return Result.succeed(walk(located as LocatedRegular, depth))
+  const broken = brokenIn(at.set, file)
+  if (broken !== undefined) {
+    return Result.fail(
+      new ValidationFailure({
+        reason: `\`${file}\` could not be read, so what it holds is not loaded — ` +
+          `there is nothing to answer with. Fix the file first.`,
+        errors: broken,
+      }),
+    )
+  }
+  return Result.succeed({
+    file,
+    // The roots a READER sees, in the order the page draws them: `siblingsOf`
+    // with no parent is one outline's top level, `ord`-sorted, and the mirrors
+    // drop here for the reason the walk never descends into one — a placement is
+    // a second view of a node that lives elsewhere, and elsewhere is where this
+    // read answers it.
+    roots: siblingsOf(at.derived, file, undefined).filter(isRegular).map((root) =>
+      walk(root, depth)
+    ),
+  })
 }
 
 /**
- * The two ways to get the request itself wrong, said once each.
+ * WHICH OF THE TWO READS THIS IS — the wide request narrowed, once, to the one
+ * subject the walk can be handed.
+ *
+ * THE SCHEMA CANNOT SAY IT, which is the whole reason this exists rather than
+ * being a type. "Exactly one of two fields" is a union of two structs, and a
+ * union is not available at this seam: the tool table takes a request apart by
+ * its `.fields`, and the JSON Schema an MCP host reads is an object with
+ * properties rather than an `anyOf` it may or may not honour (the same
+ * constraint that unrolls `add_node`'s capture). So the ILLEGAL STATE arrives —
+ * both named, or neither — and the honest place to make it unrepresentable is
+ * at the door, once, in front of everything that would otherwise have to keep
+ * asking whether the other field is there.
+ *
+ * TWO REFUSALS AND NOT ONE, because they are different mistakes made by
+ * different callers: neither is usually a caller that has not noticed the file
+ * arm exists, and both is a caller holding two questions who has to pick. Each
+ * names the two arms and what each one reads.
  *
  * USAGE and not NOT-FOUND: nothing was looked up, because there was no single
- * question to look up. Both name the two arms and what each one reads, because
- * a caller that gave neither has usually not noticed the file arm exists, and
- * one that gave both is holding two questions and has to pick.
+ * question to look up.
  */
-const neitherWayIn: OpFailure = new UsageFailure({
-  reason: "give `id` (a node and what hangs under it) or `file` " +
-    "(a whole outline: every top-level node in it)",
-})
+type Subject =
+  | { readonly kind: "node"; readonly id: string }
+  | { readonly kind: "file"; readonly file: string }
 
-const bothWaysIn: OpFailure = new UsageFailure({
-  reason: "`id` and `file` are two different reads — give one. `id` is a node " +
-    "and what hangs under it; `file` is a whole outline. `search_nodes` with " +
-    "`file` is how a query is narrowed to one outline.",
-})
+const subjectOf = (request: SubtreeRequest): Result.Result<Subject, OpFailure> => {
+  if (request.id !== undefined && request.file !== undefined) {
+    return Result.fail(
+      new UsageFailure({
+        reason: "`id` and `file` are two different reads — give one. `id` is a " +
+          "node and what hangs under it; `file` is a whole outline. " +
+          "`search_nodes` with `file` is how a query is narrowed to one outline.",
+      }),
+    )
+  }
+  if (request.id !== undefined) return Result.succeed({ kind: "node", id: request.id })
+  if (request.file !== undefined) return Result.succeed({ kind: "file", file: request.file })
+  return Result.fail(
+    new UsageFailure({
+      reason: "give `id` (a node and what hangs under it) or `file` " +
+        "(a whole outline: every top-level node in it)",
+    }),
+  )
+}
 
 // ── the directory ──────────────────────────────────────────────────────
 
@@ -993,8 +1032,7 @@ export const outlines = (
       }
     }
     // No entry at all is an outline holding no nodes of its own.
-    const own = nodesOf(derived, file)
-      .filter((located): located is LocatedRegular => !isMirror(located.node))
+    const own = nodesOf(derived, file).filter(isRegular)
     return {
       file,
       nodes: own.length,

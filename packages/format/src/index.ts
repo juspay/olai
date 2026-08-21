@@ -242,6 +242,14 @@ export {
   isTrashed,
   isLeftoverArchive,
   isMirror,
+  /** ...and the guard that narrows the PAIR, which `isMirror` cannot do on its
+   *  own: a discriminant test on `at.node` leaves the place around it as wide
+   *  as it was, so a caller that wanted `LocatedRegular` either re-spelled the
+   *  predicate or reached for a cast. Both were in `@olai/ops`' reads — the
+   *  outline listing spelled it, `read_node` and `read_subtree` cast — because
+   *  this guard was declared for exactly that and never left the package
+   *  (`./node.ts`). */
+  isRegular,
   /** ...and the two of them as the one question every reading of the LIVE set
    *  actually asks. Exported beside them rather than instead of them: the
    *  writer half still names the trash on its own, and the sidebar still tells
