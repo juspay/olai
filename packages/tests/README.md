@@ -365,6 +365,15 @@ None of the four mistakes is fixed by a longer timeout, and a step that needed o
 
 The seventeen port drops went to zero, and so did the four faces of the disk-as-receipt mistake. The one scenario this suite had not answered — `A rename staged by hand reads as a rename`, which burned a thirty-second wait and still could not pin the pill — is gone. It never answered, and keeping it was the wait budget talking.
 
+**Re-baselined** 2026-08-21 on `kolu-ci-6` (32-core Intel i9-14900K, 125 GiB), SHA `399cf308`, after the ~150-scenario cut and `#281`'s scratch-sharing. Two knobs, never mixed — LOAD pins the cores; STRANGER is five suites at once:
+
+| knob | settings | runs | with a drop | scenarios dropped | port/lock |
+|---|---|---|---|---|---|
+| LOAD | `RUNS=20 BUSY=48` | 20 | 11 | 19 | 0 |
+| STRANGER | `RUNS=20 SUITES=5` | 100 | 17 | 18 | 0 |
+
+Port/lock did not move: it is still zero, the way the 2026-08-16 wait-honesty run left it. The remaining drops are other classes (a scroll-restore that missed 267px, a CSP-picture assertion, 15s waits); they are counted, not fixed, here. This is the BEFORE for restoring overlapping writers onto a shared scratch.
+
 ## The scripted agent
 
 `agent/fake-acp-agent.ts` is a deterministic ACP agent: line-delimited JSON-RPC on stdio, just enough of the protocol to be indistinguishable from a real one as far as the server's client is concerned. Every server this suite spawns is pointed at it, for the same reason the Chromium flags are not branched on `CI` — a server configured differently for one feature than for another is a class of bug that only reproduces where it is hardest to see.
