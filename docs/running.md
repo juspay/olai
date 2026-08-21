@@ -52,7 +52,7 @@ Put it behind a reverse proxy or `tailscale serve` and the browser's origin will
 
 ### Who is looking
 
-A reverse proxy in front of olai can say who made the request. olai trusts **one configurable pair of header names** — a login, and optionally an email — and the header bar **always** draws who is looking: **nobody** when the header is absent (direct access, a local `just run`), the person when it is present (a gravatar from the hashed email, generic silhouette when there is no email claim, and the login beside it or on hover), or that the door failed. Absence is a face, not a missing chip.
+A reverse proxy in front of olai can say who made the request. olai trusts **one configurable pair of header names** — a login, and optionally an email — and the header bar **always** draws who is looking, top right, in the same pill as the rest of the chrome: **anonymous** when the header is absent (direct access, a local `just run`), the person when it is present (a gravatar from the hashed email, generic silhouette when there is no email claim, and the login beside it or on hover), or that the door failed. Absence is a face, not a missing chip.
 
 Default wiring is `tailscale serve`'s `Tailscale-User-Login` for both (that header is the email). The same pair covers other proxies — one feature, not one per proxy:
 

@@ -1,6 +1,6 @@
 /**
- * Who is looking: every answer has a face — nobody, the person, a
- * failed door.
+ * Who is looking: every answer has a face — anonymous, the person, a
+ * failed door. Last in the chrome row.
  *
  * The Given writes the header onto THIS scenario's context before the
  * first navigation — Playwright sends it on every HTTP request, which is
@@ -61,7 +61,7 @@ Then(
   },
 );
 
-Then("the header shows nobody is looking", async function (this: OlaiWorld) {
+Then("the header shows anonymous", async function (this: OlaiWorld) {
   const slot = this.page.locator(IDENTITY);
   await slot.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
   await this.expectAttribute(
@@ -73,13 +73,13 @@ Then("the header shows nobody is looking", async function (this: OlaiWorld) {
   assert.equal(
     await slot.getAttribute("aria-label")
       ?? await slot.locator("[aria-label]").getAttribute("aria-label"),
-    "nobody is looking",
-    "nobody is looking must be a spoken face, not an empty slot",
+    "anonymous",
+    "anonymous must be a spoken face, not an empty slot",
   );
   assert.equal(
     await slot.locator("img").count(),
     0,
-    "nobody is looking drew a gravatar, which is a person",
+    "anonymous drew a gravatar, which is a person",
   );
 });
 
