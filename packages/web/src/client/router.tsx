@@ -28,6 +28,15 @@ import {
   useContext,
 } from "solid-js"
 
+import {
+  type Landing,
+  type Landings,
+  landingOf,
+  landingsOf,
+  marked,
+  NOWHERE,
+  spent,
+} from "./landing.ts"
 import { usePane } from "./pane/context.tsx"
 import { splitClick } from "./press.ts"
 import { ours } from "./press.ts"
@@ -45,7 +54,6 @@ import {
   isLone,
   navigateIn,
   openRight,
-  panesOf,
   reorder as reorderPanes,
   resizeTo,
   type Workspace,
@@ -117,21 +125,6 @@ export interface Router {
   readonly reorder: (from: number, to: number) => void
 }
 
-export interface Landing {
-  /** WHICH PAGE the slug is a place inside. A pane is one address at a time
-   *  and this is the file that address names, so a face still drawn from the
-   *  page being LEFT — every navigation has a frame of both on screen — can
-   *  tell that the arrival it is being told about is not its own. Without it
-   *  a `.html` preview re-pointed its frame on its way out, at a section of
-   *  the page replacing it, which cost a fetch and a history entry: Back off
-   *  such a page took two presses. */
-  readonly file: string
-  readonly at: string
-  /** Whether the act has been performed. A spent landing is a slug that is
-   *  still there to be read and no longer anything to do. */
-  readonly spent: boolean
-}
-
 /** What this app keeps on a history entry, which is a NAME for it and nothing
  *  else: what was on screen is derived from the address, and a second copy of
  *  it in `history.state` would be a copy that could disagree with the URL. */
@@ -157,55 +150,6 @@ const nameHere = (): string => {
 
 const here = (): string =>
   location.pathname + location.search + location.hash
-
-/** Every pane's landing, by pane index. A pane with no entry was not asked to
- *  land anywhere; a pane whose entry is spent was, and has arrived. */
-type Landings = ReadonlyMap<number, Landing>
-
-/** Nobody is owed an arrival — what `popstate` and the verbs that RENUMBER the
- *  panes leave behind. Shared, because an empty map is a value. */
-const NOWHERE: Landings = new Map()
-
-/** Where inside a page an arrival LANDS — the page's own file and a heading's
- *  own slug, and nothing for an address that names a whole place. It is read
- *  off the address, which is the only thing that says it: a `#` after a body
- *  is a heading, and after an outline it is a node (`@olai/format`'s
- *  `address.ts`), so the grammar has already decided which of the two this is
- *  — and a heading address carries the document it is a heading OF, so there
- *  is nothing to look the file up in. */
-const landingOf = (route: Route): Landing | undefined => {
-  const address = route.kind === "at" ? route.address : undefined
-  if (address?.kind !== "heading") return undefined
-  return { file: address.path, at: address.slug, spent: false }
-}
-
-/** What a WHOLE ADDRESS is owed — one landing per pane that named a section,
- *  which is what a first paint and nothing else mints. A reload of a two-pane
- *  link is two arrivals happening at once, and the pane that happens to have
- *  focus is not the only one that asked. */
-const landingsOf = (workspace: Workspace): Landings => {
-  const all = new Map<number, Landing>()
-  panesOf(workspace).forEach((pane, index) => {
-    const land = landingOf(pane.route)
-    if (land !== undefined) all.set(index, land)
-  })
-  return all
-}
-
-/** The same landings with ONE pane's changed — minted, spent or gone. A pane's
- *  landing is only ever news about that pane, so this is how every verb that
- *  navigates says what it did without saying anything about the others. */
-const marked = (
-  all: Landings,
-  index: number,
-  land: Landing | undefined,
-): Landings => {
-  if (land === undefined && !all.has(index)) return all
-  const next = new Map(all)
-  if (land === undefined) next.delete(index)
-  else next.set(index, land)
-  return next
-}
 
 export const createRouter = (): Router => {
   const first = workspaceOf(here())
@@ -294,19 +238,7 @@ export const createRouter = (): Router => {
     workspace,
     route: () => focusedRoute(workspace()),
     landing: (index) => landings().get(index),
-    landed: (index, file, at) => {
-      const all = landings()
-      const land = all.get(index)
-      if (land === undefined || land.spent) return
-      // THE LANDING THIS ACT WAS ABOUT, or nothing: a navigation between the
-      // scheduling and the performing has minted a new one, and that one is
-      // owed its own arrival. Named by a performer that already knows whose
-      // landing it read — which looks like the check {@link useLanding} has
-      // already made and is not: that one asked whose it is NOW, and the gap
-      // between the two is exactly what this refuses.
-      if (land.file !== file || land.at !== at) return
-      setLandings(marked(all, index, { ...land, spent: true }))
-    },
+    landed: (index, file, at) => setLandings(spent(landings(), index, file, at)),
     go: (next) => goIn(workspace().focus, next),
     goIn,
     replace: (next) => replaceIn(workspace().focus, next),
