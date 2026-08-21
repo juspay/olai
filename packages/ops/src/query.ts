@@ -89,12 +89,12 @@ import {
   type Reading,
   type Reference,
   ranked,
+  rootsOf,
   type MatchingAnswer,
   type MatchingRequest,
   type SearchAnswer,
   type SearchHit,
   type SearchRequest,
-  rootsOf,
   type Stamps,
   type Subtree,
   type SubtreeAnswer,
@@ -331,8 +331,7 @@ export const search = (
       // The note this query is entitled to — the record's when it asked for
       // one, and nothing at all when it did not. TWO STEPS and not one
       // condition, because they are two questions: this one is the REQUEST's,
-      // and the spread below is the FORMAT's rule for absence, spelled the way
-      // every other answer in this file spells it.
+      // and the spread below is the FORMAT's rule for absence.
       const note = wantsNotes ? located.node.desc : undefined
       // ANNOTATED, never asserted. It was `as Hit` for as long as this function
       // has existed, and an assertion is exactly the thing that stops checking
@@ -359,13 +358,11 @@ export const search = (
         ...(match.props.length === 0 ? {} : { matchedProps: match.props }),
         // THE NOTE, when it was ASKED FOR — the one field of the record a hit
         // does not carry by default, and the only reason is its size
-        // (`@olai/format`'s `SearchRequest.withDesc` argues it). TWO STEPS and
-        // not one condition, because they are two questions: `asked` is the
-        // request's, decided once above, and the spread is the FORMAT's rule
-        // for absence, spelled the way every other answer in this file spells
-        // it. A single `withDesc !== true || desc === undefined` would braid
-        // them, and would be the one place a carried field is omitted by a
-        // rule that is not the format's.
+        // (`@olai/format`'s `SearchRequest.withDesc` argues it). The FORMAT's
+        // rule for absence, applied to it exactly as the four lines above apply
+        // it: whether the query asked was decided one step earlier, so this
+        // line is not the one place a carried field is omitted by a rule that
+        // is not the format's.
         ...(note === undefined ? {} : { desc: note }),
       }
     })
@@ -873,7 +870,7 @@ const placementsOf = (
  * with a true answer — while a path was LISTED or typed, and the useful answer
  * to a typo is the near miss, which only a refusal carries. So a `file` the set
  * does not serve as an outline comes back with the closest one that is
- * ({@link noSuchOutline}), and one it could not READ comes back with the
+ * ({@link outlineAt}), and one it could not READ comes back with the
  * validator's own rows rather than as an outline that happens to hold nothing.
  *
  * A RESULT and not a nullable, for the reason {@link document} is one: a pure

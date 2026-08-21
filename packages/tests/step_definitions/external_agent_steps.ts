@@ -314,6 +314,7 @@ Then(
     );
   },
 );
+
 /**
  * EVERY TOP-LEVEL NODE THE FILE HOLDS, by title and in order — the whole claim
  * of the `file` arm, asserted the only way that tells it from the sequence it
@@ -347,11 +348,14 @@ Then(
 Then(
   "the terminal agent was pointed at {string}",
   function (this: OlaiWorld, file: string) {
-    assert.match(
-      String(structuredOf(this)["reason"] ?? ""),
-      new RegExp(`did you mean \`${file}\``),
+    // A substring rather than a pattern: a path is full of dots, and a regexp
+    // built out of one would pass on a sentence naming a file that differs by
+    // exactly those characters.
+    const reason = String(structuredOf(this)["reason"] ?? "");
+    assert.ok(
+      reason.includes(`did you mean \`${file}\``),
       "a path the set does not hold is refused with the closest one that it " +
-        "does — never answered as an outline holding nothing",
+        `does — never answered as an outline holding nothing. It said: ${reason}`,
     );
   },
 );

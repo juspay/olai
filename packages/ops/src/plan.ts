@@ -583,8 +583,9 @@ const notLoadedBecause = (file: string): string =>
     : "has lines that do not parse, so its records are not loaded"
 
 /**
- * WHAT A FILE THE SET COULD NOT LOAD IS TOLD A READER — the third refusal
- * constructor here, beside {@link noSuchDocument} and {@link noSuchOutline}.
+ * WHAT A FILE THE SET COULD NOT LOAD IS TOLD A READER — a refusal constructor
+ * like {@link noSuchDocument} and {@link noSuchOutline} beside it, over the one
+ * thing that goes wrong with a path the set DOES hold.
  *
  * ONE SENTENCE FOR THE TWO READS THAT ANSWER A WHOLE FILE. `read_document` and
  * `read_subtree`'s `file` arm meet the identical fact with the identical
