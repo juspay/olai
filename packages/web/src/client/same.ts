@@ -3,15 +3,23 @@
  * spelled once.
  *
  * Several things in this client hand a fresh array or a fresh `Map` to something
- * that only cares whether the CONTENTS changed: the served paths, rebuilt
- * whenever either half of the directory speaks (`./served.tsx`); the documents
- * this tab is holding open, rebuilt whenever any row's interest count moves
- * (`./document/documents.tsx`); the files that did not parse, rebuilt on every
- * head the directory publishes (`./directory.ts`); the nodes a filter's answer
- * selected, minted afresh by every answer (`./filter/matches.ts`). A memo
+ * that only cares whether the CONTENTS changed: the served paths, minted afresh
+ * whenever the directory is seeded — the first frame, and every reconnect
+ * (`./served.tsx`); the documents this tab is holding open, rebuilt whenever any
+ * row's interest count moves (`./document/documents.tsx`); the nodes a filter's
+ * answer selected, minted afresh by every answer (`./filter/matches.ts`). A memo
  * compares by reference, so without an `equals` each of those makes a fresh
  * value mean "this changed" and everything downstream re-runs for something it
  * already had.
+ *
+ * ONE `sameMap` CALLER LEFT, and the departure is worth the line because it is
+ * what this file is FOR. `./directory.ts`'s unreadable-files map was a `sameMap`
+ * caller until `directory-heads-fold`: it minted a fresh `Map` per frame and
+ * held it still by comparing afterwards. It rides the head collection's own
+ * `fold` now, so the second map is never minted and there is nothing to
+ * compare — which is the better fix and not one this module could have made.
+ * What is left here is the case where the fresh value is inherent (a re-seed, a
+ * rebuild driven by something other than what the value says).
  *
  * ONE WALK, TWO SHAPES, because they are the same walk: check the size, then go
  * through one side once and ask the other what it holds. Written per caller it
@@ -49,10 +57,10 @@ export const sameList = <A>(
  *  key `a` does not.
  *
  *  A MAP WHOSE VALUES MAY BE `undefined` is not this function's subject: an
- *  absent key and a key holding `undefined` answer the same here, and neither
- *  caller draws that distinction (a `BrokenFile`, a `MatchedNode`). Say so at a
- *  call site that needs it rather than paying a second lookup per key in the
- *  one function whose job is to be cheaper than what it guards. */
+ *  absent key and a key holding `undefined` answer the same here, and the caller
+ *  does not draw that distinction (a `MatchedNode`). Say so at a call site that
+ *  needs it rather than paying a second lookup per key in the one function whose
+ *  job is to be cheaper than what it guards. */
 export const sameMap = <K, V>(
   a: ReadonlyMap<K, V>,
   b: ReadonlyMap<K, V>,

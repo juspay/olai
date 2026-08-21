@@ -26,6 +26,41 @@
  * arrive with are the corpus. A directory of a thousand files costs a thousand
  * short strings here and did cost every node of every one of them.
  *
+ * ## A FRAME COSTS THE FRAME
+ *
+ * `heads` is served with batched `deltas`: what reaches this tab is
+ * `{upserts, removes}` — the files that moved, and nothing about the ones that
+ * did not — and a write in this vault moves ONE of them. What used to read that
+ * frame was a memo that walked the whole key set and asked every file's head
+ * what it held, so a thousand-file directory paid a thousand reads to be told
+ * about one file, and minted a fresh path list to say that the same thousand
+ * files were still there.
+ *
+ * It is a fold now ({@link SERVED_FILES}, over `@kolu/surface`'s collection
+ * `fold` — the same socket `./chat/order.ts` retired the transcript's per-frame
+ * sort on, and its header argues this identical case). The shape of the saving
+ * is the shape of the frame: a frame naming one file costs that one file, and
+ * the two answers it hands back are the very array and the very map it handed
+ * back last time unless what they say moved.
+ *
+ * THE IDENTITY IS THE OTHER HALF, and it is worth as much as the reads.
+ * `./served.tsx` holds the path list under a membership compare because a fold
+ * of the vault is kept against that very array (`./file/matching.ts`, a
+ * `WeakMap`), and every `<File>` row of the sidebar asks the broken map
+ * `broken.has` (`./Sidebar.tsx`). A fresh value per frame woke all of them for
+ * a frame that said nothing about either question; the same value wakes none of
+ * them, and the memos below are where that sameness is CASHED — the framework
+ * declares a fold's accessor `equals: false`, since it cannot know whether a
+ * consumer's accumulator is a value, so a `===` has to be spent somewhere or
+ * the fold buys nothing.
+ *
+ * WHAT SURVIVES A RECONNECT is the answer's CONTENT and not its identity: a
+ * snapshot re-seeds every registered fold, and `init` has no previous
+ * accumulator to hand back, so a link flap mints a fresh path list naming the
+ * same files. That is exactly the case `./served.tsx`'s `equals` is there for,
+ * and it is why that comparison stays where it is rather than following the
+ * walk it used to guard.
+ *
  * ## The three states, which is why the manifest is here too
  *
  * A reader must tell apart `undefined` — "no frame yet", the page is still
@@ -35,6 +70,20 @@
  * answer and looks exactly like a first probe that has not finished. The
  * manifest cell is what says which, and it is handed in beside the entries so
  * that the one place the two are read together is the one place that answers.
+ *
+ * AND THE FOLD PUT A FOURTH THING IN ITS CARE. A fold's accumulator has one
+ * absent state and it means "there is no valid accumulator" — before the first
+ * snapshot, and after an `init`/`step` that threw, which the framework contains
+ * and reports loudly and which stands until the next snapshot re-seeds. Read
+ * naively that is an EMPTY DIRECTORY, which is a lie a reader cannot catch: a
+ * vault with no files in it looks the same. So the manifest absorbs it — while
+ * this fold holds nothing, the directory reports `undefined`, "still reading",
+ * which is what a tab draws before its first frame anyway and what it should
+ * draw again the moment it is holding nothing. `null` OUTRANKS that silence,
+ * because a directory that never loaded is a settled answer and no head is
+ * coming for it. The two members below then agree with the manifest rather than
+ * contradicting it: no set, no paths, nothing broken — nothing is claimed that
+ * this tab is not holding.
  *
  * ## Handed its members rather than reaching for them
  *
@@ -46,14 +95,15 @@
 
 import type { BrokenFile } from "@olai/format"
 import type { Head, Manifest } from "@olai/surface"
+import type { CollectionFold, CollectionFoldOptions } from "@kolu/surface/solid"
 import { type Accessor, createMemo } from "solid-js"
 
 import { sortByPath } from "./paths.ts"
-import { sameMap } from "./same.ts"
 
 export interface Directory {
-  /** The set-wide facts: `undefined` before the first frame, `null` for a
-   *  directory that has never loaded, a value otherwise. */
+  /** The set-wide facts: `undefined` before the first frame — or while the fold
+   *  is holding nothing, which is the same sentence (see the header) — `null`
+   *  for a directory that has never loaded, a value otherwise. */
   readonly manifest: Accessor<Manifest | undefined>
   /** Every served file's PATH, in path order — the list every membership
    *  question in the app is asked of, and the one the sidebar's tree is a
@@ -69,21 +119,22 @@ export interface Directory {
    *  `./served.tsx` — took `face.path` off every element and threw the rest
    *  away, one by a `map` per frame and the other by a scan per click.
    *
-   *  So the walk hands over the list it already had: the path is
-   *  {@link walkOf}'s loop variable, collected on the iterations that found a
-   *  head, which is exactly the list a face array answered with. What it saves
-   *  is an `n`-element `Face[]` minted per frame and an `n`-element `map` over
-   *  it downstream.
-   *
-   *  THE `equals` IS NOT HERE, and that is not an oversight: this is a fresh
-   *  array per frame, and `./served.tsx` is what holds it still under a
-   *  membership comparison. An `equals` lives with the memo it guards, and the
-   *  thing that memo guards — a fold kept against the very array it hands out
-   *  (`./file/matching.ts`, a `WeakMap`) — is downstream of the context and not
-   *  of this. */
+   *  IT HOLDS STILL NOW, which it never did: the list is the accumulator's own
+   *  ({@link SERVED_FILES}), rebuilt on the frames that move a MEMBER and
+   *  handed back unchanged on all the rest. `./served.tsx` keeps its membership
+   *  compare all the same — a reconnect re-seeds the fold, and a fresh list of
+   *  the same files is exactly what that compare is for. */
   readonly paths: Accessor<ReadonlyArray<string>>
   /** The files that did not parse, by path — the sidebar marks them and a pane
-   *  opened on one draws its errors instead of a tree. */
+   *  opened on one draws its errors instead of a tree.
+   *
+   *  BY VALUE, and by the same mechanism: the map is minted afresh exactly when
+   *  a file's breakage moved, so its identity says "the unreadable files
+   *  changed" rather than "a frame arrived", and a rename three folders away
+   *  leaves every `<File>` row of the sidebar where it was
+   *  (docs/brainstorming/reactivity-after-the-flip.md §4.2). It used to be a
+   *  fresh map per frame held still by a `sameMap` afterwards; the fold makes
+   *  the comparison unnecessary by never minting the second map. */
   readonly broken: Accessor<ReadonlyMap<string, BrokenFile>>
   /** Which revision one file is at, or `undefined` for a path this directory
    *  does not hold (and for every path before the first frame). It MOVES when
@@ -94,142 +145,175 @@ export interface Directory {
 }
 
 /**
- * THE TWO THINGS this file asks of the heads collection — which keys there are,
- * and what one of them holds. `App.tsx` hands over the bound member itself
+ * THE TWO THINGS this file asks of the heads collection — the FRAMES, and what
+ * one key holds. `App.tsx` hands over the bound member itself
  * (`olai.collections.heads.use()`), which satisfies this structurally.
  *
  * Narrowed at the parameter for the reason every other seam in this client
  * narrows one (`./edit/editing.tsx` takes four verbs of a `Selection` and one
  * of a `Moving`): what a module is handed should be what it reads. What it buys
  * here is a suite — `./directory.browsertest.ts` stands one of these up out of
- * two signals, where the framework's whole collection type would have meant
- * standing up its lifecycle signals and its frame socket as well to ask whether
- * one memo held its value.
+ * a hand-driven frame source, where the framework's whole collection type would
+ * have meant standing up its lifecycle signals and its wire socket as well to
+ * ask what one frame costs.
  *
- * SPELLED OUT rather than `Pick`ed off that type, because the widening is the
- * point: the framework's `byKey` answers with a `Subscription`, and every one
- * of those IS an accessor — so the real member satisfies this, and a fake need
- * not carry an `error` and a `pending` this file never reads.
+ * `keys` IS NOT HERE ANY MORE, and the swap is the change: the ordered key set
+ * was what a per-frame walk started from, and a fold is REGISTERED rather than
+ * read — it is handed the wire's own `{upserts, removes}` and keeps the order
+ * itself. This is the wider seam `perf-faces-broken-walk` said its halving did
+ * not stand in the way of.
+ *
+ * `fold` IS THE FRAMEWORK'S OWN TYPE rather than a narrowing of it, and that is
+ * not a slip. The other verb here is spelled out because the widening is the
+ * point — the framework's `byKey` answers with a `Subscription`, and every one
+ * of those IS an accessor, so the real member satisfies this and a fake need
+ * not carry an `error` and a `pending` this file never reads. A `fold` has no
+ * such fat to trim: it is one generic function, and the registration contract
+ * (seeded from the store, invalidated on a throw) is the very thing a fake has
+ * to honour to be worth testing against.
  */
 export interface HeadEntries {
-  readonly keys: () => ReadonlyArray<string>
   readonly byKey: (key: string) => Accessor<Head | undefined> | undefined
-}
-
-/** BOTH READINGS OF THE HEAD SET, as one pass produces them — see
- *  {@link walkOf}. Not a member of anything: it is what the walk returns, and
- *  the two accessors below are how a reader asks for one half of it. */
-interface Walk {
-  readonly paths: ReadonlyArray<string>
-  readonly broken: ReadonlyMap<string, BrokenFile>
+  readonly fold: CollectionFold<string, Head>
 }
 
 /**
- * ONE WALK OVER THE FILES, answering both questions this file is asked of them
- * — `perf-faces-broken-walk`'s own prescribed form.
+ * The accumulator: both readings of the head set, and the membership they are
+ * both taken from.
  *
- * `paths` and `broken` are two readings of the SAME LEAF, over the same keys in
- * the same order: whether a head is there at all, and what that head says is
- * wrong with its file. Written as two memos they walked the directory twice per
- * frame — and never usefully, because the only thing either depends on is the
- * head set, so they go stale together and the second walk could never learn
- * anything the first had not already read. A thousand files was two thousand
- * reads for a thousand files' worth of answer.
+ * `paths` and `broken` are what LEAVE — the values the two members above hand
+ * out — so they are REBUILT rather than written into, and a frame that moves
+ * neither hands back the pair it was already holding. `members` is this fold's
+ * own working memory and is MUTATED in place: it is reachable from nowhere else
+ * (the framework hands the accumulator back to `step` and to nobody), and
+ * copying a set of the whole directory per frame would be the corpus-wide walk
+ * this fold exists to retire, reintroduced one line down from where it was
+ * removed.
  *
- * THE FIRST OF THEM used to collect the head's `face` and not the key, and
- * every reader downstream took `face.path` back off it (`{@link Directory}`'s
- * `paths` says where those readers are). So the array a frame minted was `n`
- * faces to hand over `n` strings this loop was already holding.
- *
- * IT IS HANDED THE ORDER rather than taking it, and that is not tidiness. A
- * frame that rewrites one file moves a LEAF and no key, and the collection
- * keeps its key set quiet for exactly that case ("the order signal keeps its
- * array BY REFERENCE and `keys()` stays quiet" — `@kolu/surface`'s
- * `solid/useCollection.ts`). So the sort has to sit behind a memo that reads
- * the keys and nothing else, or every rewritten file pays an `n·log n` to be
- * told the order it already had. The walk wakes on the leaf; the order does
- * not.
- *
- * A key with no entry yet is skipped by BOTH, which is what the old pair did
- * (a face was dropped when `byKey` had nothing to give, and a head that is not
- * there is a head with nothing wrong with it). That absence is real and
- * ordinary: it is the frame between a key set arriving and the entries filling
- * it — and it is why the path is collected HERE, on the iterations that found a
- * head, rather than by handing `files` out whole. Those are two different
- * lists, and the one every reader already consumed is this one.
- *
- * `head` IS NOT IN HERE, and that is the line: this walks the SET, and `head`
- * asks one key what revision it is at. A reader watching one file must not be
- * woken by a write three folders away, which is exactly what joining it to a
- * reading of the whole directory would do.
- *
- * NO `equals` HERE, and it does not want one. This is the walk, not an answer:
- * `paths` is a fresh array per frame and always was, and its readers compare
- * for themselves where they care (`./served.tsx` holds it with a membership
- * compare). `broken` is the one that has to hold still, and it does so in its
- * own memo below, over the map this minted.
- *
- * WHAT IS STILL WHOLE-SET, so that nobody has to rediscover it: this reads
- * every file on every frame that moves any head, where the frame itself named
- * one. `heads` is served with batched `deltas`, so the delivery already knows
- * which keys moved, and the framework hands that over as a collection `fold`
- * — the socket `./chat/order.ts` retired the transcript's per-frame sort on,
- * arguing this same case. That is a wider seam than {@link HeadEntries} (a
- * fold is registered, not read) and an accumulator that has to maintain the
- * order incrementally, so it is its own change; the halving here is what
- * `perf-faces-broken-walk` asked for and does not stand in its way.
+ * THE THREE ARE ONE VALUE and not three, because they move by one rule: what a
+ * frame named. Split into three folds they would be three registrations walking
+ * the same frame, which is `perf-faces-broken-walk`'s two-memo shape with a
+ * wider seam under it.
  */
-const walkOf = (files: ReadonlyArray<string>, entries: HeadEntries): Walk => {
-  const paths: string[] = []
-  const broken = new Map<string, BrokenFile>()
-  for (const file of files) {
-    const head = entries.byKey(file)?.()
-    if (head === undefined) continue
-    paths.push(file)
-    if (head.broken !== null) broken.set(file, head.broken)
-  }
-  return { paths, broken }
+export interface Held {
+  readonly paths: ReadonlyArray<string>
+  readonly broken: ReadonlyMap<string, BrokenFile>
+  readonly members: Set<string>
 }
+
+/**
+ * The fold: seed from a full-set frame, and step one delta.
+ *
+ * A MODULE CONSTANT rather than a function called per directory, because it
+ * holds nothing — the accumulator is the framework's to keep, one per
+ * registration — which is `./chat/order.ts`'s reasoning and reaches further
+ * here: a fold declared at module scope cannot close over a socket, so the
+ * "handed its members rather than reaching for them" rule in the header is a
+ * fact about this file's shape rather than a habit.
+ *
+ * THE ORDER IS REBUILT ONLY WHEN MEMBERSHIP MOVED, and that distinction is the
+ * whole point: a frame rewriting three files this fold already holds changes
+ * nothing about which files there are, so the answer is the list that was
+ * already right. When it does move, the list is rebuilt whole and sorted —
+ * O(files) on the frames that ADD or DROP one, where the shape it replaced was
+ * O(files·log files) on every frame there is. A cheaper insertion would still
+ * have to copy the array (the one it holds is on screen), so what it would save
+ * is the `log` on the rare frame rather than the walk on the common one.
+ *
+ * THE BREAKAGE IS COPIED ON THE FIRST WRITE, for the same reason from the other
+ * side: the map this fold is holding is the one the sidebar is drawn from, so
+ * it must never be mutated in place — but a frame that breaks nothing (which is
+ * nearly every frame) must not pay for a copy either. So the copy is taken by
+ * the first edit of a frame and not before, and the frames that make none hand
+ * the held map straight back.
+ *
+ * TOTAL OVER A REMOVE IT HAS NEVER SEEN, which the socket requires: the
+ * server's tick coalescer resolves an upsert-then-remove inside one producer
+ * tick to a bare remove, so a file born and dead within one tick arrives as a
+ * remove that was never preceded by an upsert. `Set.delete` answers `false` for
+ * it and nothing is rebuilt.
+ *
+ * THE ARMS ARE TAKEN IN THE STORE'S ORDER — upserts, then removes. That
+ * coalescer makes them disjoint, so the order is free; taking it from the
+ * framework's own `applyDelta` means that if a frame ever did name one key
+ * twice, this fold and `byKey` would resolve it the same way rather than
+ * disagreeing about which files there are.
+ */
+export const SERVED_FILES: CollectionFoldOptions<string, Head, Held> = {
+  init: (entries) => {
+    const members = new Set<string>()
+    const broken = new Map<string, BrokenFile>()
+    for (const [file, head] of entries) {
+      members.add(file)
+      if (head.broken !== null) broken.set(file, head.broken)
+    }
+    return { paths: sortByPath(members), broken, members }
+  },
+  step: (held, { upserts, removes }) => {
+    let moved = false
+    let edited: Map<string, BrokenFile> | null = null
+    /** The map to WRITE into: the held one copied, once, by the first break of
+     *  this frame that actually moves. */
+    const editing = () => (edited ??= new Map(held.broken))
+    /** What this frame has left standing about one file so far — the copy once
+     *  there is one, the held map until then. */
+    const breakage = (file: string) => (edited ?? held.broken).get(file)
+    for (const [file, head] of upserts) {
+      if (!held.members.has(file)) {
+        held.members.add(file)
+        moved = true
+      }
+      const was = breakage(file)
+      // COMPARED BY IDENTITY, and that is what makes "still broken, for a new
+      // reason" a new answer: a head's `broken` is replaced exactly when the
+      // frame carrying it is, so a pane drawing the errors cannot be left
+      // showing the previous parse failure of a file that still does not parse.
+      if (head.broken === null) {
+        if (was !== undefined) editing().delete(file)
+      } else if (was !== head.broken) editing().set(file, head.broken)
+    }
+    for (const file of removes) {
+      if (held.members.delete(file)) moved = true
+      if (breakage(file) !== undefined) editing().delete(file)
+    }
+    if (!moved && edited === null) return held
+    return {
+      paths: moved ? sortByPath(held.members) : held.paths,
+      broken: edited ?? held.broken,
+      members: held.members,
+    }
+  },
+}
+
+/** The empty directory, minted once each: what every reading answers with while
+ *  the fold holds no accumulator, so a memo below settles rather than reporting
+ *  a new empty answer per frame. The manifest is what says WHY it is empty
+ *  (the header's three states). */
+const NO_PATHS: ReadonlyArray<string> = []
+const NO_BROKEN: ReadonlyMap<string, BrokenFile> = new Map()
 
 export const createDirectory = (
   entries: HeadEntries,
   manifest: Accessor<Manifest | undefined>,
 ): Directory => {
-  // THE ORDER, on its own — see {@link walkOf}: it is a fact about the keys,
-  // and the keys are quiet on the frames that merely rewrite a file.
-  const files = createMemo(() => sortByPath(entries.keys()))
-  const walk = createMemo(() => walkOf(files(), entries))
+  // THE HEAD SET, FOLDED — the wire's own frames accumulated into the two
+  // readings this app asks a directory for, instead of the whole set being
+  // re-read per frame. MUST be registered under a reactive owner, which is the
+  // fold's own requirement: `./App.tsx` calls this inside the app's root, and
+  // the registration is dropped by that owner's `onCleanup`.
+  const held = entries.fold(SERVED_FILES)
   return {
-    manifest,
-    // A PLAIN READING of the walk rather than a memo of its own: the walk is
-    // already the held value, and a second node over it would hold the same
-    // array under a second identity that moves at exactly the same times.
-    paths: () => walk().paths,
-    /**
-     * THE UNREADABLE FILES, HELD BY VALUE — the paths AND what each one is
-     * wrong about.
-     *
-     * A `Map` minted per run is a new value on every head the directory
-     * publishes, and what reads it is every `<File>` row of the sidebar asking
-     * `broken.has` (`./Sidebar.tsx`) and the pane that draws a bad file's
-     * errors. So a rename three folders away re-ran all of them for an answer
-     * that is almost always the empty map it already was
-     * (docs/brainstorming/reactivity-after-the-flip.md §4.2).
-     *
-     * THIS MEMO IS THE COMPARISON and nothing else now — the map itself is the
-     * walk's, so what re-runs per frame here is one field read and one
-     * `sameMap`, which is the size of the answer rather than the size of the
-     * directory.
-     *
-     * The ERRORS are compared as well as the keys, and by IDENTITY — which is
-     * `sameMap`'s default, and right here because an entry is replaced exactly
-     * when the head carrying it is. Comparing the key sets alone would leave a
-     * pane showing the previous parse failure of a file that is still broken
-     * for a new reason.
-     */
-    broken: createMemo(() => walk().broken, new Map<string, BrokenFile>(), {
-      equals: sameMap,
+    manifest: createMemo(() => {
+      const said = manifest()
+      // `null` OUTRANKS the fold's silence — see the header's fourth state.
+      return said === null || held() !== undefined ? said : undefined
     }),
+    paths: createMemo(() => held()?.paths ?? NO_PATHS),
+    broken: createMemo(() => held()?.broken ?? NO_BROKEN),
+    // NOT IN THE FOLD, and that is the line: the fold accumulates the SET, and
+    // this asks one key what revision it is at. A reader watching one file must
+    // not be woken by a write three folders away, which is exactly what joining
+    // it to a reading of the whole directory would do.
     head: (file) => () => entries.byKey(file())?.()?.rev,
   }
 }
