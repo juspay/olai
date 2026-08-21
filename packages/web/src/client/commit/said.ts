@@ -494,6 +494,11 @@ export const WHO: Readonly<Record<Writer, string>> = {
   "chat-agent": "chat agent",
   mcp: "an agent in a terminal",
   web: "you",
+  // Also you, and deliberately not said that way: the write came in at
+  // `POST /capture` from a share sheet, a script or another machine on the
+  // tailnet, and a reader looking at a change they do not remember making is
+  // owed the door rather than the reassurance.
+  capture: "a quick capture",
 }
 
 /** Why the repository cannot take a commit right now. Git's own words ride the

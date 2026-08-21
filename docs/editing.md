@@ -385,6 +385,14 @@ The palette says so afterwards — a write whose whole point is that nothing on 
 
 The **Capture to the Inbox** row in the palette is the same gesture for a reader who has not been told about the prefix: choosing it types the `+` and leaves the caret after it.
 
+### …from somewhere that is not olai
+
+The same inbox has a door that is not a page: `POST /capture`, one line from a phone's share sheet, a Raycast script pointed at Mail.app, or a `curl` in something that noticed something ([running.md](running.md#quick-capture-over-http)). It resolves the same convention against the same reading and is the same write — a capture that arrives that way is an ordinary row in the same file, and the **Inbox** entry above lights up for it exactly as it does for a `⌘K` one.
+
+**Two things differ, and both are about the gesture rather than the door.** A capture sent from away carries a **date**, so it is on the day's journal page too — you were not looking at the inbox when you sent it, and a day is where a thing that arrived gets noticed. And it can carry more than a line: a note, a link back to where it came from, and named properties (`prop:message-id`, so a script can tell whether it has captured a mail before). Who sent it is recorded as `captured-by`, read off the tailnet identity in front of the server.
+
+⌘Z does not reach one, which is the honest answer rather than an omission: an undo stack is a browser's account of what *this tab* did, and nothing was pressed here.
+
 ## Starting an outline
 
 **The sidebar's `+ New outline`** asks for a path — relative, `.olai`, judged by the same rules an agent's `create_outline` is judged by — and mints the file there. What comes back for a path it will not take is that op's own sentence, under the box: one the directory already holds, one that climbs out of it with `..`, one whose name does not end in `.olai`. Enter creates it, Escape puts the box away, and the page it lands on is the new outline's, with the same *write the first line* the empty-outline page has always offered.

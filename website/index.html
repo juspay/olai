@@ -1175,6 +1175,19 @@ The corner unit is the **risky one** — see
     capture at <code>_olai/Inbox.olai</code>, or wherever you already keep one
     — while your page, your scroll and the address stay exactly where they
     were, and the box empties for the next line.</p>
+    <p><strong>And a thought that arrives while you are nowhere near
+    olai</strong> goes to the same inbox, through a door that is not a page:
+    <code>POST /capture</code>, one line from a phone’s share sheet, a Raycast
+    script pointed at Mail.app, or a <code>curl</code> in something that
+    noticed something. A title, a note, a link back to where it came from, and
+    whatever properties the sender already knows — the mail case keeps
+    Mail.app’s own <code>message://</code> link rather than a copy of the mail,
+    so clicking the row in olai opens the message. It arrives dated, so it is
+    on the day’s journal page as well as in the inbox. Authentication is the
+    tailnet in front of it: the identity header <code>tailscale serve</code>
+    injects is required and is recorded on the node, so there is no token to
+    mint and no secret in any client — which is why every client is a few lines
+    somebody writes once.</p>
     <p><strong>And the files olai names for itself stay out of your
     list.</strong> The shelf, the inbox and the trash live under
     <code>_olai/</code>, and the file tree does not draw them: the shelf is

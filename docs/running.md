@@ -101,4 +101,75 @@ Any MCP client — a coding agent in a terminal, working in the same directory �
 
 Unattended agent runs need the server up. The user service is the one brain; `just run` is a worktree's own.
 
-There is no write CLI, and there never will be — no shell command adds a node or marks one. The two write surfaces are a page and an HTTP POST at `/mcp`, and they are two clients of one server.
+There is no write CLI, and there never will be — no shell command adds a node or marks one. The write surfaces are a page, an HTTP POST at `/mcp`, and the one-line capture door below; they are three clients of one server, over one ops layer.
+
+## Quick capture, over HTTP
+
+A thought that arrives while you are somewhere else — a phone, a terminal, a mail client on another machine — should cost five seconds and no context switch. `POST /capture` is that door: one line, into the directory's inbox, from anything that can make an HTTP request on the tailnet.
+
+```sh
+curl -X POST http://olai.your-tailnet.ts.net/capture \
+  -H 'Tailscale-User-Login: you@example.com' \
+  -H 'content-type: application/json' \
+  -d '{"title":"look into the new cabinets","text":"the joinery place off Main","url":"https://example.com/cabinets"}'
+```
+
+```json
+{"id":"a1b2c3","title":"look into the new cabinets","file":"_olai/Inbox.olai","committed":false,
+ "why":"waiting to be committed: writes accumulate under --commit=manual (the default) until the Commit button asks for one"}
+```
+
+**Four fields, and no target.** `title` is the row (required). `text` becomes the note. `url` goes under it as a link — a markdown autolink, so a scheme markdown would not have linked for itself still lands as a link. `props` are named facts the capture is born with, exactly `add_node`'s ([format.md](format.md#properties)). There is no way to say *where* — a capture lands at the top level of the inbox, and where it belongs is a decision you make in the app afterwards, which is what an inbox is for.
+
+**It lands in the inbox the directory has**, wherever you keep one, and mints `_olai/Inbox.olai` when there is none — the same convention `⌘K` `+` follows, resolved on the server against the same reading the write is judged on ([editing.md](editing.md#quick-capture)). It is the same write as everything else: the same validation, the same all-or-none rename, the same `--commit` mode. A refused capture leaves nothing behind, not even the inbox it would have minted.
+
+**And it arrives dated**, so it is on the day's journal page as well as in the inbox — which is the half a capture made while nobody was looking actually needs. A date with no mark is an *occurrence*: it is on the day, and it is never overdue ([format.md](format.md#status)).
+
+### Auth is the tailnet, and the header is the whole of it
+
+`Tailscale-User-Login` is **required**. `tailscale serve` injects it in front of the process, so there is no token to mint, nothing secret to paste into a share sheet, and no client to re-issue when a key rotates. The login is recorded on the captured node as a `captured-by` property, so `prop:captured-by=you@example.com` finds what you sent from your phone — and a client that tries to send that property itself is refused rather than quietly overruled.
+
+Requiring a header is also what keeps a page you are reading from writing into your vault: a cross-origin `fetch` cannot set one without a preflight this server does not answer, and a form post cannot set one at all.
+
+What it does **not** do is authenticate. The header is a claim the transport in front makes, so anything that can reach the port can make it too — the same bargain the rest of the listener already takes. Put olai behind `tailscale serve`, or leave it on loopback. Do not expose this port to the internet.
+
+```
+tailscale serve --bg 7714
+```
+
+Name the origin you serve from in `OLAI_ALLOWED_ORIGINS` while you are there, or the browser's websocket will be refused ([above](#behind-a-reverse-proxy)).
+
+### Client recipes
+
+None of these is a thing olai ships; each is a few lines somebody writes once.
+
+**Mail.app, via Raycast or a script (macOS).** The point of the mail case is that there is no mail infrastructure in it: AppleScript asks Mail for the selected message, and what olai keeps is the *pointer*. The message stays in Mail; the vault holds the link, your comment, and enough of the sender and subject to find it again.
+
+```applescript
+tell application "Mail"
+  set m to item 1 of (get selection)
+  set mid to message id of m
+  set subj to subject of m
+  set who to sender of m
+end tell
+```
+
+```sh
+curl -X POST "$OLAI/capture" \
+  -H "Tailscale-User-Login: $USER_LOGIN" -H 'content-type: application/json' \
+  -d "$(jq -n --arg t "$subj" --arg c "$comment" --arg u "message://%3C$mid%3E" \
+           --arg f "$who" --arg m "$mid" \
+           '{title:$t, text:$c, url:$u, props:{from:$f, "message-id":$m}}')"
+```
+
+The `message://<Message-Id>` link **is** the attachment. Clicking it in olai opens Mail at that message: the router hands any address that is not one of this app's to the browser, and the browser hands an unknown scheme to the OS.
+
+Sending the `Message-Id` as a property is what makes de-duplication one query — `prop:message-id=<abc@mail>` before you POST, and you know whether you have captured this thread already ([search.md](search.md)).
+
+**Known caveat:** `message:` links are solid on macOS. On iOS, third-party-composed ones do not always resolve. The subject and the sender in the capture are what keep it findable when the link does not open, which is why the recipe sends them rather than relying on the pointer alone.
+
+**Apple Shortcuts (iOS and macOS share sheet).** A shortcut that accepts URLs and text, and ends in *Get Contents of URL* — `POST`, the two headers, a JSON body built from *Shortcut Input*. Put it on the share sheet and every app on the phone can capture. *Get Article using Safari Reader* in front of it gives a read-later pipeline: the article's text as the note, its URL as the pointer.
+
+**Anything else, same endpoint.** A browser bookmarklet, an Android share via the installed PWA, a `curl` in a script that notices something. The `curl` above is the reference client; there is no SDK and there is not going to be one.
+
+**Files are not in this door yet** — a photo or a PDF is a separate piece of work, because writing binary into the vault is a path olai does not have (only chat attachments, which land in a tmp directory, and `.md` documents). Capture the link to it for now.

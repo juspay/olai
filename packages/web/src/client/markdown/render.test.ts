@@ -336,6 +336,29 @@ test("a script is not markdown", () => {
   expect(html).not.toContain("javascript:")
 })
 
+/**
+ * The scheme quick capture writes, all the way through the pipeline.
+ *
+ * ./sanitise.test.ts holds the SCHEMA against upstream's; this holds the
+ * OUTPUT, which is what a note in the inbox actually renders to — a link the
+ * browser will hand to the OS, so pressing it opens Mail.app at the message
+ * the capture came from. It was stripped before `message:` joined the href
+ * protocols, which is the failure the two tests exist between them to keep
+ * from coming back.
+ *
+ * The autolink spelling is the one the capture door writes (`@olai/server`'s
+ * `capture/route.ts`): GFM's autolink literals do not cover this scheme, so a
+ * bare URL would have been text either way.
+ */
+test("a captured mail's message: link survives, in a note and in a title", () => {
+  const href = "message://%3Cabc123@mail.example%3E"
+  expect(renderMarkdown(`the thread about cabinets\n\n<${href}>\n`, NOTE))
+    .toContain(`href="${href}"`)
+  expect(renderInlineMarkdown(`[the thread](${href})`, NOTE)).toContain(`href="${href}"`)
+  // …and the sibling attribute did NOT come with it: nothing may FETCH one.
+  expect(renderMarkdown(`![x](${href})\n`, NOTE)).not.toContain(`src="${href}"`)
+})
+
 // ── inline (titles) ────────────────────────────────────────────────────
 
 // Racket parity: a title is phrasing — bold, links, code — never a block.

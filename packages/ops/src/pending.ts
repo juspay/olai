@@ -66,7 +66,7 @@ import {
   type Reason,
   type RepoState,
   type Unpushed,
-  type Writer,
+  Writer,
   type Wrote,
 } from "@olai/format"
 import * as Git from "@olai/git"
@@ -195,15 +195,24 @@ export const COMMIT_TOOL = "the `commit` tool"
  * What ONE WRITER presses or calls — the door that caller has, for the sentence
  * its own write carries back ({@link whyOf}).
  *
- * Exhaustive over `Writer` with no `default`, deliberately: a fourth writer
- * should be a compile error here rather than silently inheriting somebody
- * else's door. The panel's agent has the tool AND a person with the button
- * watching, so it is told both — that is a fact about that writer, not a
- * fallback.
+ * Exhaustive over `Writer` with no `default`, deliberately: a writer added to
+ * the format should be a compile error here rather than silently inheriting
+ * somebody else's door. The panel's agent has the tool AND a person with the
+ * button watching, so it is told both — that is a fact about that writer, not
+ * a fallback.
+ *
+ * `capture` is the one writer with no door of its own, and it is told about
+ * the button rather than about nothing: a share sheet cannot commit, but the
+ * person whose vault it landed in opens olai and presses the same control
+ * every other waiting write is released by. Naming a door that caller cannot
+ * reach would be the alternative to naming none, and "nothing has recorded
+ * this yet" with no way out of it is the sentence `git-invisible` was filed
+ * against.
  */
 export const commitDoor = (writer: Writer): string => {
   switch (writer) {
     case "web":
+    case "capture":
       return COMMIT_BUTTON
     case "mcp":
       return COMMIT_TOOL
@@ -988,7 +997,11 @@ const recorded = (last: Git.Recorded): LastCommit => ({
   writer: WRITERS.has(last.trailer) ? (last.trailer as Writer) : null,
 })
 
-const WRITERS: ReadonlySet<string> = new Set<Writer>(["chat-agent", "mcp", "web"])
+/** The writers, as a set to test a trailer against — READ OFF the schema
+ *  rather than listed again beside it. A second list is what would go on
+ *  answering `null` ("writer not recorded") for a writer the format had grown,
+ *  which is a quiet wrong answer on a panel rather than anything that fails. */
+const WRITERS: ReadonlySet<string> = new Set<string>(Writer.literals)
 
 /** An optional field, present only when there is something to say — so an op
  *  that committed carries no `why` key at all. */
@@ -1018,6 +1031,7 @@ export const commitDoors = (face: CommitFace): string => {
 }
 
 /** The subcommands. Derived from `Writer` rather than spelled again — one name
- *  for who is asking — minus the one that is not a face a person can start:
- *  `chat-agent` is a session `olai web` spawns, not something with a `--help`. */
-export type CommitFace = Exclude<Writer, "chat-agent">
+ *  for who is asking — minus the two that are not faces a person can start:
+ *  `chat-agent` is a session `olai web` spawns, and `capture` is an HTTP route
+ *  ON that serve, so neither is something with a `--help` of its own. */
+export type CommitFace = Exclude<Writer, "chat-agent" | "capture">

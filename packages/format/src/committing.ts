@@ -101,8 +101,17 @@ export const sameGit: (a: GitState, b: GitState) => boolean = Schema
  *  It stays HERE rather than travelling down to `@olai/git` with the repository
  *  state, and the difference is the point of that extraction: which writers
  *  olai has is a statement about olai. The git package hands back the trailer
- *  it read, verbatim, and the ops layer classifies it against this list. */
-export const Writer = Schema.Literals(["chat-agent", "mcp", "web"])
+ *  it read, verbatim, and the ops layer classifies it against this list.
+ *
+ *  `capture` is the fourth and the newest — `POST /capture`, the door a share
+ *  sheet or a script sends one line at (docs/running.md). It is deliberately
+ *  NOT `web`: there is no page, no button and nobody watching, and a line that
+ *  arrived from a phone on the tailnet is exactly the kind of write this
+ *  trailer exists to keep apart from one somebody typed. WHO captured is a
+ *  different question and is not answered here — this word records a DOOR, and
+ *  the identity that door was handed rides the captured node itself, as a
+ *  property (`@olai/server`'s `capture/`). */
+export const Writer = Schema.Literals(["chat-agent", "mcp", "web", "capture"])
 export type Writer = typeof Writer.Type
 
 /** Whether a commit could be asked for at all. */

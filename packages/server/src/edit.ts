@@ -57,8 +57,6 @@ import {
   customOf as customOfNode,
   dailyNotePathFor,
   type Derived,
-  INBOX,
-  inboxIn,
   isTrashed,
   TRASH_FILE,
   isDay,
@@ -84,6 +82,8 @@ import {
 import { merging, notFound, type Request } from "@olai/ops"
 import type { Edit } from "@olai/surface"
 import { Result } from "effect"
+
+import { captureInto } from "./capture/landing.ts"
 
 type Resolved = Result.Result<Request, OpFailure>
 
@@ -356,42 +356,30 @@ const mirrorRequest = (
  * standing, and this one is the write whose whole promise is that the reader
  * does not move. There is no anchor to resolve — only a FILE to find.
  *
- * The choice is made HERE, against the reading the write is judged on, for the
- * reason every placement in this file is: a browser choosing between them
- * would be choosing off a file list some frames old, and the two answers are
- * not interchangeable — `create` is refused for a file that exists, and `add`
- * is refused for one that does not. Either way it is one plan, one validation
- * and one atomic write, so a capture that is refused leaves nothing behind —
- * not a half-filled inbox, and not an empty file.
+ * WHICH FILE that is is not resolved here any more, and the move is the whole
+ * of what this arm has to say: `POST /capture` captures into the same inbox
+ * from a share sheet, and a second copy of "which outline is the inbox, and is
+ * there one yet" is a second answer about one directory. So the resolution is
+ * `./capture/landing.ts`'s and this is one of its two doors — the keystroke's.
+ * What is decided against THIS reading, rather than in a tab holding a file
+ * list some frames old, is unchanged and is argued there.
  *
- * WHICH file the inbox is, though, is `@olai/format`'s ({@link inboxIn}) and
- * not this resolver's: it is a statement about what a served file IS by its
- * name, the same kind of thing `TRASH` is, and an agent capturing by hand
- * has to be able to read the same sentence rather than guess at the browser's.
+ * The line travels as the whole of the capture, and the title travels VERBATIM,
+ * blank and all: a capture of nothing is refused by the ops layer in its own
+ * words ("a node needs a title"), which is the same sentence an agent's
+ * `add_node` gets, rather than by a second rule here.
  *
- * WHERE ONE IS MINTED is `_olai/Inbox.olai` and not the root (`mintedInto`,
- * human 2026-08-20, reversing the ruling of the day before): the shelf's
- * argument read one convention over — a file olai made because somebody
- * pressed something is not one of the reader's own. The READING is untouched,
- * so a directory that already keeps an `Inbox.olai` at its root, or a
- * `notes/inbox.olai`, goes on capturing into the file it has and nothing
- * migrates.
- *
- * The title travels VERBATIM, blank and all: a capture of nothing is refused
- * by the ops layer in its own words ("a node needs a title"), which is the
- * same sentence an agent's `add_node` gets, rather than by a second rule here.
+ * IT CARRIES NO DATE, where the HTTP door's capture does, and that is a
+ * difference between two gestures rather than a deviation between two faces:
+ * both send the ops layer an `add` and the ops layer judges them identically.
+ * A `⌘K` capture is made by somebody standing in the app with the Inbox door
+ * in front of them; one that arrived from a phone while nobody was looking has
+ * a day page as the only place it will be noticed.
  */
 const captureRequest = (
   at: Reading,
   edit: Extract<Edit, { verb: "capture" }>,
-): Resolved => {
-  const inbox = inboxIn(outlinePaths(at.set))
-  return Result.succeed(
-    inbox === undefined
-      ? { op: "create", file: mintedInto(INBOX), seed: { title: edit.title } }
-      : { op: "add", file: inbox, title: edit.title },
-  )
-}
+): Resolved => Result.succeed(captureInto(at, { title: edit.title }))
 
 /**
  * A PIN, resolved against the set: which file the shelf is, and whether there

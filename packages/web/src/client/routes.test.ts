@@ -274,6 +274,41 @@ test("a link into a section of a document is this app's", () => {
   expect(routeIn("/house.olai#kitchen")).toEqual(atNode("kitchen"))
 })
 
+/**
+ * A SCHEME GOES WHERE IT SAYS, and this app does not get a vote.
+ *
+ * `routeIn` answers `null` for anything that is not an address of this app, and
+ * `useFollow` leaves a `null` alone — no `preventDefault`, no navigation — so
+ * the browser follows the href, and a scheme the browser has no page for is
+ * handed to the OS. That is what makes a captured mail's `message://` link open
+ * Mail.app rather than being swallowed by a router that thought every anchor on
+ * the page was its own (`@olai/server`'s `capture/route.ts`, docs/running.md).
+ *
+ * It is already true, and the test is what makes it STAY true: nothing about
+ * "this link is not ours" is expressed as a scheme list anywhere — it falls out
+ * of the leading `/` — so a future rule about external links has no one line to
+ * fail on. This is that line.
+ */
+test("a link that is not this app's address is left to the browser", () => {
+  for (
+    const href of [
+      // The scheme quick capture writes.
+      "message://%3Cabc123@mail.example%3E",
+      "message:%3Cabc123@mail.example%3E",
+      // The ordinary ones, and the point is that they are the same case.
+      "https://example.com/a",
+      "mailto:someone@example.com",
+      "tel:+15551234",
+      // A relative link between two files is resolved before it is followed
+      // (`@olai/format`), so what arrives here always starts at the root — one
+      // that has not been is not this app's either.
+      "notes/plan.md",
+    ]
+  ) {
+    expect([href, routeIn(href)]).toEqual([href, null])
+  }
+})
+
 // The two halves an address keeps apart. A `#` ends the query, so a filter and
 // a fragment on one address must not bleed into each other — read the wrong way
 // round, `?q=is:done#beds` narrows a page by a word nobody typed.
