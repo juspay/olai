@@ -2213,7 +2213,7 @@ const SECTIONS = {
   "frontmatter-is-a-record": async (page) => {
     pinnedBy(
       "documents.feature",
-      "A document's frontmatter is a record and not part of its page",
+      "A document's frontmatter is the page's run, not its prose",
       "A document is found by a property its frontmatter writes",
     )
     const BLOCK = [
@@ -2296,6 +2296,41 @@ const SECTIONS = {
       )
       await shot(page, `a-property-selects-a-document${suffix}`)
       await page.keyboard.press("Escape")
+    }
+
+    await pass(false)
+    await wearTheme(page, "pitch")
+    await pass(true)
+    await wearTheme(page, "chalk")
+  },
+
+  /**
+   * THE DOCUMENT PAGE DRAWS ITS RECORD (`doc-page-props`): the same dim
+   * `key value` run a node's own page draws, under the path heading — and
+   * the honest absence when the file wrote none.
+   *
+   * Two files from the good fixture, differing only in whether they open
+   * with a `---` block. `notes/palette.md` has one; `finishes.md` does not.
+   */
+  "doc-page-props": async (page) => {
+    pinnedBy(
+      "documents.feature",
+      "A document's frontmatter is the page's run, not its prose",
+      "A document with no frontmatter shows no properties",
+    )
+    const PROPS = '[data-testid="props"]'
+    const pass = async (dark: boolean) => {
+      const suffix = dark ? "-dark" : ""
+
+      await opened(page, "/notes/palette.md", DOCUMENT_PAGE)
+      await page.locator(PROPS).waitFor()
+      console.log(`  with a block:  ${oneLine(await page.locator(PROPS).innerText())}`)
+      await shot(page, `the-page-draws-its-properties${suffix}`)
+
+      await opened(page, "/finishes.md", DOCUMENT_PAGE)
+      const count = await page.locator(`${DOCUMENT_PAGE} ${PROPS}`).count()
+      console.log(`  with none:     ${count} run(s)`)
+      await shot(page, `a-page-with-no-properties${suffix}`)
     }
 
     await pass(false)

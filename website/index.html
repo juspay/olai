@@ -857,8 +857,10 @@ The corner unit is the **risky one** — see
     <strong>frontmatter</strong>: the <code>---</code> block at the top of a
     <code>.md</code>, whose keys are the same properties a node carries, so
     <code>prop:agent=claude-opus</code> answers with both kinds in one list —
-    and the block itself stays off the page, out of the title and out of the
-    table of contents.</p>
+    and the block itself stays off the rendered body, out of the title and out
+    of the table of contents. The document's own page draws those keys as the
+    same quiet run a node's page does, under the path; a file that wrote none
+    draws nothing there.</p>
     <div class="cols">
       <div class="panel">
         <div class="file">/house.olai?q=%23home+OR+alcove</div>

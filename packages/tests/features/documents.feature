@@ -169,12 +169,42 @@ Feature: Documents
   # rather than held to the headings the page drew: a phantom heading is in
   # both, so the comparison next door is satisfied by it.
   @corpus:good
-  Scenario: A document's frontmatter is a record and not part of its page
+  Scenario: A document's frontmatter is the page's run, not its prose
     When I open the document "notes/palette.md"
     Then the document does not draw the text "agent: claude-opus"
     And the document draws no rule
     And the contents lines are "Palette, What the block above has to do"
+    # THE RECORD, as the same run a node's own page draws — under the path,
+    # above the body. Hiding the block from the render (#302) left this page
+    # drawing the facts nowhere; the run is where they live now. A list value
+    # is drawn joined, the way a node's is.
+    And the document shows the property "agent" holding "claude-opus"
+    And the document shows the property "date" holding "2026-09-01"
+    And the document shows the property "owners" holding "alice, bob"
+    And the document shows the property "tags" holding "#swatches"
     And there should be no page errors
+
+  # The other half of the same ruling: a file that wrote no block looks the
+  # way it did before there were properties. An empty run is not drawn, which
+  # is the node's own rule over the same map — inventing a "no properties"
+  # line would be a second spelling of absence.
+  @corpus:good
+  Scenario: A document with no frontmatter shows no properties
+    When I open the document "finishes.md"
+    Then the document shows no properties
+    And there should be no page errors
+
+  # The third state of the same run: off while the editor is open, because
+  # the editor is the YAML, and two spellings of one block on one screen is
+  # what the drawer exists not to be. Cancel puts it back; nothing is written.
+  @corpus:good
+  Scenario: A document's properties are hidden while editing
+    When I open the document "notes/palette.md"
+    Then the document shows the property "agent" holding "claude-opus"
+    When I start editing the document
+    Then the document shows no properties
+    When I cancel the document editor
+    Then the document shows the property "agent" holding "claude-opus"
 
   # The other half of the same block: what the document is CALLED. The title is
   # the first line of its PROSE — the sidebar, the palette and every row that

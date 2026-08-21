@@ -28,6 +28,9 @@ import {
   HYDRATION_TIMEOUT,
   oneLine,
   POLL_TIMEOUT,
+  PROP,
+  PROP_VALUE,
+  PROPS,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -148,6 +151,38 @@ Then("the document draws no rule", async function (this: OlaiWorld) {
     await rendered.locator("hr").count(),
     0,
     "the document draws a thematic break",
+  );
+});
+
+/** One line of the document page's properties run, by KEY — never by
+ *  position, so a scenario says which fact it is reading. Scoped to the
+ *  PAGE, not the body: the run sits under the path heading, and a step that
+ *  looked at the rendered markdown would be asking the wrong surface. */
+const documentLine = (world: OlaiWorld, key: string) =>
+  world.page.locator(`${DOCUMENT_PAGE} ${PROP}${attr("data-key", key)}`);
+
+Then(
+  "the document shows the property {string} holding {string}",
+  async function (this: OlaiWorld, key: string, value: string) {
+    const found = documentLine(this, key).locator(PROP_VALUE);
+    await found.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(oneLine(await found.innerText()), value);
+  },
+);
+
+Then("the document shows no properties", async function (this: OlaiWorld) {
+  // The page is drawn from a reading that already carries `props`, so once
+  // this section is on screen the run is either there or it is not — waiting
+  // for absence to become true would be green on the frame before the
+  // reading landed.
+  await this.page.locator(DOCUMENT_PAGE).waitFor({
+    state: "visible",
+    timeout: HYDRATION_TIMEOUT,
+  });
+  assert.strictEqual(
+    await this.page.locator(`${DOCUMENT_PAGE} ${PROPS}`).count(),
+    0,
+    "the document page draws a properties run, and this step says it has nothing to draw",
   );
 });
 

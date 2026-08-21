@@ -219,7 +219,7 @@ export function PageView() {
                 )}
               </Match>
               <Match when={only(open(), "document")}>
-                {(open) => <DocumentPage file={open().file} />}
+                {(open) => <DocumentPage file={open().file} custom={open().props} />}
               </Match>
               <Match when={only(open(), "day")}>
                 {(open) => (

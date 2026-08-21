@@ -505,9 +505,10 @@ export const REPEAT_PICKER = selector(TESTID.repeatPicker);
 export const REPEAT_PICKER_RULE = selector(TESTID.repeatPickerRule);
 export const REPEAT_PICKER_SET = selector(TESTID.repeatPickerSet);
 export const REPEAT_PICKER_CANCEL = selector(TESTID.repeatPickerCancel);
-/** The properties drawer under a node's note, and one `key value` line of it.
- *  A line carries `data-key`, and `data-system` on the read-only ones — the
- *  node's own facts, which have verbs of their own. */
+/** The properties run under a node's note or a document page's path, and one
+ *  `key value` line of it. A line carries `data-key`, and `data-system` on
+ *  the read-only ones — the node's own facts, which have verbs of their own.
+ *  A document's run is custom keys only. */
 export const PROPS = selector(TESTID.props);
 export const PROP = selector(TESTID.prop);
 export const PROP_VALUE = selector(TESTID.propValue);

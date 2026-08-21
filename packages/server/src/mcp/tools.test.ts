@@ -775,6 +775,8 @@ const VAULT = {
   "house.olai": HOUSE,
   "finishes.md": "# Finishes\n\nDoors: matte.\n",
   "notes/cabinets.md": "\n\n  Walnut, or birch.\n",
+  "notes/plan.md":
+    "---\nagent: claude-opus\nowners: [alice, bob]\n---\n# The plan\n",
   "empty.md": "",
   "saved/page.html": "<p>from the web</p>",
 }
@@ -792,6 +794,12 @@ test("list_documents is the map of the other kind of file", async () => {
       { file: "empty.md", title: "empty", bytes: 0 },
       { file: "finishes.md", title: "Finishes", bytes: 26 },
       { file: "notes/cabinets.md", title: "Walnut, or birch.", bytes: 22 },
+      {
+        file: "notes/plan.md",
+        title: "The plan",
+        bytes: 59,
+        props: { agent: "claude-opus", owners: ["alice", "bob"] },
+      },
     ])
   })
 })

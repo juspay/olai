@@ -27,6 +27,12 @@
  * node, the facts are what the page is for, and the id in particular is what
  * every tool call and every `((` reference takes.
  *
+ * On a DOCUMENT's own page: the custom half only, off `Face.props`. A `.md`
+ * has no system facts with nowhere else to show — the path is already the
+ * heading — so inventing an id line would be this drawer inventing a record
+ * the file does not have. Empty is not drawn, which is the row's own rule
+ * over the same map.
+ *
  * ## Read-only above, writable below
  *
  * The system lines carry `data-system`, and they are drawn exactly like the
@@ -36,27 +42,23 @@
  * and `Remove` for the custom keys and nothing for these (./drawer.ts).
  */
 
-import { customOf, type RegularNode } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, Show } from "solid-js"
+import { Show } from "solid-js"
 
-import { customEntries, drawerEntries, type Entry, isLink } from "./drawer.ts"
+import { type Entry, isLink } from "./drawer.ts"
 import { TESTID } from "../testids.ts"
 
 export function PropsDrawer(props: {
-  /** The regular node being shown — for a mirror, the node it stands for,
-   *  since a placement carries no properties of its own. */
-  readonly node: RegularNode
-  /** Draw the node's own facts as well: what a page about one node does, and
-   *  what a row in a tree does not. */
-  readonly always?: boolean
+  /**
+   * The lines to draw, already decided. A ROW hands the custom half, a node's
+   * own page hands the system facts then the custom half, a document page
+   * hands `Face.props` through `customEntries` — three callers, one run, and
+   * none of them can ask this component for a combination the types forbid.
+   */
+  readonly entries: ReadonlyArray<Entry>
 }) {
-  const entries = createMemo(() =>
-    props.always === true ? drawerEntries(props.node) : customEntries(customOf(props.node))
-  )
-
   return (
-    <Show when={entries().length > 0}>
+    <Show when={props.entries.length > 0}>
       {/* One line that wraps, not a grid. `items-baseline` because the keys are
           set in the mono face and the values are not, and two faces centred
           against each other sit on two baselines. */}
@@ -70,7 +72,7 @@ export function PropsDrawer(props: {
             reference every chip of every open row was rebuilt on every frame
             of the page. Keyed by {@link keyOf}, which is where the one thing
             that could collide is answered. */}
-        <Key each={entries()} by={keyOf}>
+        <Key each={props.entries} by={keyOf}>
           {(entry, index) => (
             <span
               class="inline-flex min-w-0 max-w-full items-baseline gap-1"
@@ -102,7 +104,7 @@ export function PropsDrawer(props: {
               </span>
               {/* The dot belongs to the pair BEFORE it, so a wrapped run never
                   opens a line with a separator. Decorative, and said so. */}
-              <Show when={index() < entries().length - 1}>
+              <Show when={index() < props.entries.length - 1}>
                 <span class="shrink-0 text-rule" aria-hidden="true">
                   ·
                 </span>

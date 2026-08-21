@@ -149,9 +149,10 @@ export const TESTID = {
   /** What the last press had to say, keeping the panel open to say it. */
   repeatPickerSaid: "repeat-picker-said",
   // ── the properties drawer ────────────────────────────────────────────
-  /** The drawer under a node's note: the node's own facts, then the custom
-   *  properties somebody added. Drawn on a ROW only when there is a custom one,
-   *  and always on the node's own page. */
+  /** The drawer under a node's note — and under a document page's path: the
+   *  node's own facts, then the custom properties somebody added. Drawn on a
+   *  ROW only when there is a custom one, always on the node's own page, and
+   *  on a document page when the file wrote frontmatter. */
   props: "props",
   /** One line of it. `data-key` names the property; `data-system` is present on
    *  the read-only lines (`id`, `status`, `date`, the stamps), which is how a
