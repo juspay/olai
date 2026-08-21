@@ -121,8 +121,7 @@ export const SETTLE_MS = 200
  * the second is a door's to act on — a list on screen claims its keys whether
  * or not the row under the cursor was the reader's, because an `Enter` falling
  * past it would do something else entirely. A caller that got a verdict back
- * here would be a caller reconstructing the claim out of it (which is what
- * `search/Shortlist.tsx` did, for one commit).
+ * here would be a caller reconstructing the claim out of it.
  *
  * The refusal is SILENT, and nothing dims while it waits: a whole list going
  * grey and back on every keystroke is a flicker, and this arrived out of a
