@@ -9,7 +9,7 @@
  * the agent and prefs wear, so the bar's items-center has one height.
  */
 
-import { Match, Switch } from "solid-js"
+import { Match, Switch, type JSX } from "solid-js"
 
 import { LAYER } from "../layer.ts"
 import { ICON_BUTTON } from "../readout.ts"
@@ -63,7 +63,7 @@ function Icon(props: {
   readonly label: string
   readonly dim?: boolean
   readonly alarm?: boolean
-  readonly children: unknown
+  readonly children: JSX.Element
 }) {
   return (
     <Tip text={props.label} layer={LAYER.over}>
