@@ -30,9 +30,9 @@
  */
 
 import { proseIn } from "@olai/format"
-import { BODY_REFUSED } from "@olai/surface"
 import { createMemo, Show } from "solid-js"
 
+import { BodyRefused } from "../document/BodyRefused.tsx"
 import { isServed, useDocument } from "../document/documents.tsx"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { Link } from "../router.tsx"
@@ -78,14 +78,7 @@ export function DayNote(props: { readonly file: string }) {
         )}
       </Show>
       <Show when={document()?.refused}>
-        <p
-          class="m-0 text-muted"
-          data-testid={TESTID.bodyRefused}
-          data-tone="alarm"
-          role="alert"
-        >
-          {BODY_REFUSED}
-        </p>
+        <BodyRefused />
       </Show>
     </section>
   )

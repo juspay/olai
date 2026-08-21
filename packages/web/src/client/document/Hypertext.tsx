@@ -101,7 +101,7 @@
  * this file, so the two kinds of page answer the question in one place.
  */
 
-import { BODY_REFUSED, heard, mediaHref } from "@olai/surface"
+import { heard, mediaHref } from "@olai/surface"
 import {
   createEffect,
   createMemo,
@@ -114,11 +114,13 @@ import {
 
 import { SaidLine } from "../edit/SaidLine.tsx"
 import type { Said } from "../edit/undoing.ts"
+import { Lede } from "../errors/Lede.tsx"
 import { useOpens } from "../opens.tsx"
 import { useGo, useLanding } from "../router.tsx"
 import { fileNamed } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { useHead } from "../served.tsx"
+import { BodyRefused } from "./BodyRefused.tsx"
 import { rungs } from "./rungs.ts"
 
 /**
@@ -300,7 +302,7 @@ interface Pointed {
 /**
  * THE FACE FOR A REFUSED BODY, drawn in the app's chrome rather than inside
  * the frame. The frame still fetches the sealed refusal (so it greets, so
- * it is not a walk-off) and posts {@link BODY_REFUSED}'s message; this is
+ * it is not a walk-off) and posts the refused sentence's message; this is
  * what the reader sees instead of a 404 rectangle under the heading.
  *
  * A LEDE rather than a {@link SaidLine}: a click-refusal is why nothing
@@ -310,12 +312,12 @@ interface Pointed {
  */
 function RefusedBody() {
   return (
-    <section data-testid={TESTID.bodyRefused} data-tone="alarm" role="alert">
-      <p class="m-0 mb-2 italic text-alarm">{BODY_REFUSED}</p>
-      <p class="m-0 max-w-3xl text-muted">
+    <section>
+      <BodyRefused class="m-0 mb-2 italic text-alarm" />
+      <Lede>
         The file is in the directory and will not open, so there is nothing
         to show.
-      </p>
+      </Lede>
     </section>
   )
 }
@@ -339,7 +341,7 @@ export function Hypertext(props: { readonly file: string }) {
   // that vanished on its own is one a reader can miss by looking away, and the
   // next thing this frame does is the honest moment for it to go.
   const [refused, setRefused] = createSignal<Said>()
-  // The file is served and will not open — {@link BODY_REFUSED}. Cleared by
+  // The file is served and will not open — the refused sentence. Cleared by
   // the next pointing ({@link fresh}), so a revision that makes the file
   // readable again is a new fetch, not a refusal that stuck.
   const [unreadable, setUnreadable] = createSignal(false)

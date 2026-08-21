@@ -24,7 +24,6 @@
  */
 
 import { type BodyKind, proseIn } from "@olai/format"
-import { BODY_REFUSED } from "@olai/surface"
 import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
 
 import { markdownReady } from "../markdown/chunk.ts"
@@ -32,6 +31,7 @@ import { Markdown } from "../markdown/Markdown.tsx"
 import { landingId, outlineOf } from "../markdown/render.ts"
 import { useHere, useLanding } from "../router.tsx"
 import { TESTID } from "../testids.ts"
+import { BodyRefused } from "./BodyRefused.tsx"
 import { isServed, useDocument } from "./documents.tsx"
 import { Hypertext } from "./Hypertext.tsx"
 import { Toc } from "./Toc.tsx"
@@ -209,14 +209,7 @@ function Rendered(props: Reading) {
   return (
     <>
       <Show when={served()?.refused}>
-        <p
-          class="m-0 italic text-alarm"
-          data-testid={TESTID.bodyRefused}
-          data-tone="alarm"
-          role="alert"
-        >
-          {BODY_REFUSED}
-        </p>
+        <BodyRefused />
       </Show>
       <Show when={isServed(served())}>
         <Toc file={props.file} headings={headings()} />

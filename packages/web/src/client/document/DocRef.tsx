@@ -30,13 +30,13 @@
  */
 
 import { firstLine, proseIn } from "@olai/format"
-import { BODY_REFUSED } from "@olai/surface"
 import { createMemo, Show } from "solid-js"
 
 import { Markdown } from "../markdown/Markdown.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
+import { BodyRefused } from "./BodyRefused.tsx"
 import { isServed, useDocument } from "./documents.tsx"
 import { atFile } from "../routes.ts"
 
@@ -103,14 +103,7 @@ export function DocRef(props: {
             when={document()?.refused}
             fallback={<span class="truncate text-muted">{preview()}</span>}
           >
-            <span
-              class="truncate text-muted"
-              data-testid={TESTID.bodyRefused}
-              data-tone="alarm"
-              role="alert"
-            >
-              {BODY_REFUSED}
-            </span>
+            <BodyRefused as="span" class="truncate italic text-alarm" />
           </Show>
         </Show>
       </div>
@@ -130,14 +123,7 @@ export function DocRef(props: {
         )}
       </Show>
       <Show when={props.inline === true && document()?.refused}>
-        <p
-          class="mt-2 text-muted"
-          data-testid={TESTID.bodyRefused}
-          data-tone="alarm"
-          role="alert"
-        >
-          {BODY_REFUSED}
-        </p>
+        <BodyRefused class="mt-2 italic text-alarm" />
       </Show>
     </div>
   )
