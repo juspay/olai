@@ -108,6 +108,7 @@ import type { CollectionFold, CollectionFoldOptions } from "@kolu/surface/solid"
 import { type Accessor, createMemo } from "solid-js"
 
 import { sortByPath } from "./paths.ts"
+import { sameMap } from "./same.ts"
 
 export interface Directory {
   /** The set-wide facts: `undefined` before the first frame — or while the fold
@@ -141,9 +142,20 @@ export interface Directory {
    *  a file's breakage moved, so its identity says "the unreadable files
    *  changed" rather than "a frame arrived", and a rename three folders away
    *  leaves every `<File>` row of the sidebar where it was
-   *  (docs/brainstorming/reactivity-after-the-flip.md §4.2). It used to be a
-   *  fresh map per frame held still by a `sameMap` afterwards; the fold makes
-   *  the comparison unnecessary by never minting the second map. */
+   *  (docs/brainstorming/reactivity-after-the-flip.md §4.2).
+   *
+   *  IT KEEPS ITS `sameMap`, and the fold narrowed that guard rather than
+   *  retiring it. Per FRAME there is nothing left for it to catch — the map
+   *  that leaves is the accumulator's own, handed back by identity. What it
+   *  still catches is the RE-SEED: `init` starts from nothing, so a snapshot
+   *  over a directory holding one unreadable file mints a fresh map saying
+   *  exactly what the old one said, and the sidebar's tree is a memo over this
+   *  value — a link flap would rebuild the tree of a directory nothing happened
+   *  to. That is the same hole `paths` has, and the difference is only WHERE
+   *  each is absorbed: the thing `paths` wakes is a fold kept downstream of a
+   *  context (`./served.tsx`, `./file/matching.ts`), so its compare lives
+   *  beside that memo; the thing this wakes is handed straight from here
+   *  (`./App.tsx` passes `broken()` to the sidebar), so its compare is here. */
   readonly broken: Accessor<ReadonlyMap<string, BrokenFile>>
   /** Which revision one file is at, or `undefined` for a path this directory
    *  does not hold (and for every path before the first frame). It MOVES when
@@ -409,7 +421,16 @@ export const createDirectory = (
       return said === null || held() !== undefined ? said : undefined
     }),
     paths: createMemo(() => held()?.paths ?? NO_PATHS),
-    broken: createMemo(() => held()?.broken ?? NO_BROKEN),
+    // SEEDED with the empty map, which the `equals` requires: a comparator is
+    // asked about the FIRST value too, and `sameMap` reads a size off both
+    // sides. The ERRORS are compared as well as the keys, and by IDENTITY —
+    // `sameMap`'s default, and right here because a head's `broken` is replaced
+    // exactly when the frame carrying it is. Comparing the key sets alone would
+    // leave a pane showing the previous parse failure of a file that is still
+    // broken for a new reason.
+    broken: createMemo(() => held()?.broken ?? NO_BROKEN, NO_BROKEN, {
+      equals: sameMap,
+    }),
     // NOT IN THE FOLD, and that is the line: the fold accumulates the SET, and
     // this asks one key what revision it is at. A reader watching one file must
     // not be woken by a write three folders away, which is exactly what joining

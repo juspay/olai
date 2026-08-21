@@ -145,6 +145,14 @@ const live = () => {
       paths: directory.paths,
       broken: directory.broken,
       head: directory.head,
+      /** THE FULL-SET FRAME THE FRAMEWORK WOULD REBUILD — the store's own
+       *  entries, which is what a fold is seeded with whichever frame put them
+       *  there (`syntheticSnapshot`). It is what a RECONNECT delivers, and that
+       *  is not a shortcut: the snapshot arm is VALUE-diffed, so an entry the
+       *  wire re-serialized unchanged keeps the object the store already held
+       *  and the fresh copy is dropped on the floor. A case that re-minted its
+       *  heads would be testing a reconnect in which every file also changed. */
+      held: (): [string, Head][] => [...store],
       /** A FULL-SET frame: the wire's first, and every reconnect. */
       snapshot: (all: [string, Head][]) => {
         store.clear()
@@ -286,12 +294,47 @@ test("a reconnect is the same files, and deliberately not the same list", () => 
   // to guard.
   const directory = twoFiles()
   const paths = directory.paths()
-  directory.snapshot([
-    ["garden.olai", directory.wrote(1)],
-    ["house.olai", directory.wrote(1)],
-  ])
+  directory.snapshot(directory.held())
   expect(directory.paths()).not.toBe(paths)
   expect(directory.paths()).toEqual(paths)
+  // ...AND THE RE-SORT HAPPENS ONCE, which is the half that makes the trade
+  // bounded rather than merely paid. The frame after the flap moves no member,
+  // so what it hands back is the list the re-seed minted — not a third one. A
+  // fold that re-sorted per frame would satisfy the two lines above and cost
+  // the vault on every frame after them.
+  const reseeded = directory.paths()
+  directory.delta([["house.olai", directory.wrote(2)]])
+  expect(directory.paths()).toBe(reseeded)
+  directory.stop()
+})
+
+test("a reconnect with an unreadable file keeps the map it had", () => {
+  // THE DUAL, and the reason `broken` keeps a `sameMap` `equals` where nothing
+  // per-frame needs one: `init` starts from nothing, so a re-seed over a
+  // directory holding one unreadable file mints a fresh map saying exactly what
+  // the old one said. The sidebar's tree is a memo over this value, so without
+  // the compare a link flap would rebuild the tree of a directory nothing
+  // happened to.
+  const directory = twoFiles()
+  broke(directory, 2, "not JSON")
+  const broken = directory.broken()
+  directory.snapshot(directory.held())
+  expect(directory.broken()).toBe(broken)
+  expect(directory.broken().get("house.olai")?.errors[0]?.message).toBe("not JSON")
+  directory.stop()
+})
+
+test("...and a reconnect that MENDS one is a new answer all the same", () => {
+  // The compare may not swallow the flap that actually said something.
+  const directory = twoFiles()
+  broke(directory, 2, "not JSON")
+  const broken = directory.broken()
+  directory.snapshot([
+    ["garden.olai", directory.wrote(1)],
+    ["house.olai", directory.wrote(3)],
+  ])
+  expect(directory.broken()).not.toBe(broken)
+  expect(directory.broken().size).toBe(0)
   directory.stop()
 })
 
