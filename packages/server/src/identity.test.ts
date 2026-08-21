@@ -14,6 +14,8 @@ import * as fs from "node:fs"
 import * as http from "node:http"
 import * as path from "node:path"
 
+import { WHO_PATH } from "@olai/surface"
+
 import {
   DEFAULT_IDENTITY_HEADERS,
   DEFAULT_LOGIN_HEADER,
@@ -25,7 +27,6 @@ import {
   identityOf,
   LOGIN_ENV,
   shown,
-  WHO_PATH,
 } from "./identity.ts"
 import { served, withServing } from "./serve.testlib.ts"
 

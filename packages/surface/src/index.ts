@@ -1293,6 +1293,10 @@ export { ours, type Press } from "./press.ts"
  *  way to ask the traversal guard a question and ignore the allowlist. */
 export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
 
+/** Who is looking, as the HTTP door both ends spell — see {@link ./who.ts}.
+ *  Not a member: the value is per request. */
+export { WHO_PATH, Who } from "./who.ts"
+
 /** What a served `.html` is answered with, how tall it says it is, and which
  *  page of this vault it says a reader clicked — the other contract between the
  *  server that writes it and the browser that reads it, for {@link ./media.ts}'s

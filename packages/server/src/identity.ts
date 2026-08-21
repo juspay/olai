@@ -34,6 +34,7 @@
  * `/media` pages keep their own, stricter, policy and do not.
  */
 
+import { WHO_PATH, type Who } from "@olai/surface"
 import { createHash } from "node:crypto"
 import { Effect } from "effect"
 import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
@@ -74,16 +75,6 @@ export interface Identity {
   readonly login: string
   readonly email: string | null
 }
-
-/** What the chip draws: the login, and the gravatar derived from the email
- *  claim (or the generic silhouette when there is none). */
-export interface Who {
-  readonly login: string
-  readonly gravatar: string
-}
-
-/** Where the chip asks. Named once: the client fetches the same path. */
-export const WHO_PATH = "/olai/who"
 
 const headerOf = (
   headers: {

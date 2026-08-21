@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 
 import { Schema, SchemaAST } from "effect"
 
-import { DocumentEntry, type GitState, LOADED, Manifest, surface } from "./index.ts"
+import { DocumentEntry, type GitState, LOADED, Manifest, surface, WHO_PATH } from "./index.ts"
 
 const tags = [...surface.group.requests.keys()].sort()
 
@@ -21,6 +21,7 @@ test("the surface claims our members alongside the framework's own", () => {
   // different question and lives on the HTTP request (`GET /olai/who`).
   expect(tags).toContain("surface/system/identity")
   expect(tags).not.toContain("surface/who/of")
+  expect(WHO_PATH).toBe("/olai/who")
   // surface mints these itself for liveness and identity — seeing them is how
   // we know the group came from the framework and not from our spec alone.
   expect(tags).toContain("surface/system/live")

@@ -7,18 +7,15 @@
  * which is the resource still pending. Nothing here invents a person
  * while it waits.
  *
- * HTTP rather than a surface member: the value is per REQUEST (`GET
- * /olai/who`), and a cell would be one value for the process. The path
- * is spelled here and in `@olai/server`'s `identity.ts`; a rename is a
- * 404 on one end and a chip that never appears on the other.
+ * HTTP rather than a surface member: the value is per REQUEST
+ * (`WHO_PATH`), and a cell would be one value for the process. The path
+ * is `@olai/surface`'s, the way `/media/…` is.
  */
 
+import { WHO_PATH, type Who } from "@olai/surface"
 import { type Accessor, createResource } from "solid-js"
 
-export interface Who {
-  readonly login: string
-  readonly gravatar: string
-}
+export type { Who }
 
 export interface Asking {
   /** `undefined` until the server has answered; `null` when nobody is on
@@ -28,10 +25,6 @@ export interface Asking {
    *  "none" as a fact rather than as a missing element. */
   readonly heard: Accessor<boolean>
 }
-
-/** Named with the server's `WHO_PATH`. A second copy because this package
- *  does not import the server. */
-const WHO_PATH = "/olai/who"
 
 export const createWho = (): Asking => {
   const [who] = createResource(async (): Promise<Who | null> => {
