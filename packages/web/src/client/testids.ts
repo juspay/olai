@@ -532,12 +532,16 @@ export const TESTID = {
   /** What the last commit was refused with, under the row it was typed in.
    *  `data-kind` is the refusal's own tag. Its presence is the promise that a
    *  refused write is visible; the draft beside it is the promise that nothing
-   *  typed was lost. */
+   *  typed was lost. Drawn by `./SaidLine.tsx` in the alarm mood, so it is
+   *  `role="alert"` and interrupts a screen reader. */
   editRefusal: "edit-refusal",
   /** The opposite mood, in the same place: a write that LANDED, with something
    *  the rollup noticed — the last task under a parent going done, a branch
    *  ticked over unfinished ones. Advice, never a reason anything failed, and
-   *  the next keystroke takes it away. */
+   *  the next keystroke takes it away. The same component draws it in the quiet
+   *  mood, which is `role="status"`: announced, because a remark only the
+   *  sighted reader gets is half a remark, and politely, because it rides back
+   *  on something that DID happen. */
   editNudge: "edit-nudge",
   /** What ⌘Z / ⌘⇧Z had to say — pinned under the header rather than under a
    *  row, because an undo is pressed with no draft open and the row it was
