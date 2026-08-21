@@ -194,11 +194,87 @@ export interface HeadEntries {
  * frame named. Split into three folds they would be three registrations walking
  * the same frame, which is `perf-faces-broken-walk`'s two-memo shape with a
  * wider seam under it.
+ *
+ * NOT EXPORTED, and neither is the fold below: the seam this file offers is
+ * {@link Directory}, and a directory is what its suite drives. `./chat/order.ts`
+ * exports its accumulator because the transcript's ORDER is the whole of what
+ * that module answers; here the accumulator is one of three states a reading
+ * can be in, and testing it alone would be testing the half that cannot see the
+ * other two.
  */
-export interface Held {
+interface Held {
   readonly paths: ReadonlyArray<string>
   readonly broken: ReadonlyMap<string, BrokenFile>
   readonly members: Set<string>
+}
+
+/** ONE COALESCED DELTA FRAME, as this fold is handed one — spelled off the
+ *  options type rather than imported from `@kolu/surface/define`, so what the
+ *  two readings below take apart is by construction what `step` was given. */
+type Frame = Parameters<CollectionFoldOptions<string, Head, Held>["step"]>[1]
+
+/**
+ * THE FILE LIST AFTER THIS FRAME — and the very one handed in when no file
+ * arrived or left, which is nearly every frame there is.
+ *
+ * The membership is taken in AS IT GOES, written into the accumulator's own set
+ * (see {@link Held}); what this answers is the list, because the list is what
+ * leaves and the set is only how it is decided. So the two are read by their
+ * identity at the one place that has to know whether anything moved.
+ *
+ * REBUILT WHOLE AND SORTED when it does move — O(files) on the frames that add
+ * or drop one, where the shape it replaced was O(files·log files) on every
+ * frame there is. A cheaper insertion would still have to copy the array (the
+ * one it holds is on screen), so what it would save is the `log` on the rare
+ * frame rather than the walk on the common one.
+ *
+ * TOTAL OVER A REMOVE IT HAS NEVER SEEN, which the socket requires: the
+ * server's tick coalescer resolves an upsert-then-remove inside one producer
+ * tick to a bare remove, so a file born and dead within one tick arrives as a
+ * remove that was never preceded by an upsert. `Set.delete` answers `false` for
+ * it and nothing is rebuilt.
+ */
+const pathsAfter = (held: Held, { upserts, removes }: Frame): ReadonlyArray<string> => {
+  let moved = false
+  for (const [file] of upserts) {
+    if (held.members.has(file)) continue
+    held.members.add(file)
+    moved = true
+  }
+  for (const file of removes) if (held.members.delete(file)) moved = true
+  return moved ? sortByPath(held.members) : held.paths
+}
+
+/**
+ * THE UNREADABLE FILES AFTER THIS FRAME — and, the same way, the very map
+ * handed in when the frame broke and mended nothing.
+ *
+ * COPIED ON THE FIRST WRITE, which is the whole of the shape: the map handed in
+ * is the one the sidebar is drawn from, so it must never be written into — but
+ * a frame that breaks nothing (nearly every frame) must not pay for a copy
+ * either. So the copy is taken by the first break that actually moves, and the
+ * frames that make none hand the held map straight back.
+ *
+ * COMPARED BY IDENTITY, which is what makes "still broken, for a new reason" a
+ * new answer: a head's `broken` is replaced exactly when the frame carrying it
+ * is, so a pane drawing the errors cannot be left showing the previous parse
+ * failure of a file that still does not parse.
+ */
+const unreadableAfter = (
+  was: ReadonlyMap<string, BrokenFile>,
+  { upserts, removes }: Frame,
+): ReadonlyMap<string, BrokenFile> => {
+  let now: Map<string, BrokenFile> | null = null
+  const editing = () => (now ??= new Map(was))
+  const stood = (file: string) => (now ?? was).get(file)
+  for (const [file, head] of upserts) {
+    const before = stood(file)
+    if (head.broken === null) {
+      if (before !== undefined) editing().delete(file)
+    } else if (before !== head.broken) editing().set(file, head.broken)
+  }
+  for (const file of removes) if (stood(file) !== undefined) editing().delete(file)
+  return now ?? was
 }
 
 /**
@@ -211,35 +287,32 @@ export interface Held {
  * "handed its members rather than reaching for them" rule in the header is a
  * fact about this file's shape rather than a habit.
  *
- * THE ORDER IS REBUILT ONLY WHEN MEMBERSHIP MOVED, and that distinction is the
- * whole point: a frame rewriting three files this fold already holds changes
- * nothing about which files there are, so the answer is the list that was
- * already right. When it does move, the list is rebuilt whole and sorted —
- * O(files) on the frames that ADD or DROP one, where the shape it replaced was
- * O(files·log files) on every frame there is. A cheaper insertion would still
- * have to copy the array (the one it holds is on screen), so what it would save
- * is the `log` on the rare frame rather than the walk on the common one.
- *
- * THE BREAKAGE IS COPIED ON THE FIRST WRITE, for the same reason from the other
- * side: the map this fold is holding is the one the sidebar is drawn from, so
- * it must never be mutated in place — but a frame that breaks nothing (which is
- * nearly every frame) must not pay for a copy either. So the copy is taken by
- * the first edit of a frame and not before, and the frames that make none hand
- * the held map straight back.
- *
- * TOTAL OVER A REMOVE IT HAS NEVER SEEN, which the socket requires: the
- * server's tick coalescer resolves an upsert-then-remove inside one producer
- * tick to a bare remove, so a file born and dead within one tick arrives as a
- * remove that was never preceded by an upsert. `Set.delete` answers `false` for
- * it and nothing is rebuilt.
+ * THE STEP IS THREE LINES and no loop, because the two readings are two
+ * independent questions asked of one frame: what files there are, and which of
+ * them did not parse. Each is answered by the pair above, each answers with the
+ * value it was handed when its own question did not move, and this compares
+ * those two identities to decide whether there is a new accumulator at all.
+ * That comparison is the fold's whole output contract, so it is worth being the
+ * only thing here.
  *
  * THE ARMS ARE TAKEN IN THE STORE'S ORDER — upserts, then removes. That
  * coalescer makes them disjoint, so the order is free; taking it from the
  * framework's own `applyDelta` means that if a frame ever did name one key
  * twice, this fold and `byKey` would resolve it the same way rather than
  * disagreeing about which files there are.
+ *
+ * NOT `./chat/order.ts`'S FOLD WITH A COMPARATOR SWAPPED IN, and the two were
+ * held side by side before this was written. The transcript's order is a fact
+ * about a VALUE on each entry (`seq`), so a frame can re-place a row without
+ * moving membership at all and that fold keeps a map of the numbers to notice;
+ * a file's place is a fact about its KEY, so it cannot move while the key set
+ * stands still, and this keeps a bare set. And this accumulator carries a
+ * SECOND reading — the unreadable files — for which the transcript has no
+ * analogue. A shared fold would be three knobs serving two callers whose
+ * accumulators differ in kind; what they genuinely share is the socket, and
+ * they already share it.
  */
-export const SERVED_FILES: CollectionFoldOptions<string, Head, Held> = {
+const SERVED_FILES: CollectionFoldOptions<string, Head, Held> = {
   init: (entries) => {
     const members = new Set<string>()
     const broken = new Map<string, BrokenFile>()
@@ -249,39 +322,12 @@ export const SERVED_FILES: CollectionFoldOptions<string, Head, Held> = {
     }
     return { paths: sortByPath(members), broken, members }
   },
-  step: (held, { upserts, removes }) => {
-    let moved = false
-    let edited: Map<string, BrokenFile> | null = null
-    /** The map to WRITE into: the held one copied, once, by the first break of
-     *  this frame that actually moves. */
-    const editing = () => (edited ??= new Map(held.broken))
-    /** What this frame has left standing about one file so far — the copy once
-     *  there is one, the held map until then. */
-    const breakage = (file: string) => (edited ?? held.broken).get(file)
-    for (const [file, head] of upserts) {
-      if (!held.members.has(file)) {
-        held.members.add(file)
-        moved = true
-      }
-      const was = breakage(file)
-      // COMPARED BY IDENTITY, and that is what makes "still broken, for a new
-      // reason" a new answer: a head's `broken` is replaced exactly when the
-      // frame carrying it is, so a pane drawing the errors cannot be left
-      // showing the previous parse failure of a file that still does not parse.
-      if (head.broken === null) {
-        if (was !== undefined) editing().delete(file)
-      } else if (was !== head.broken) editing().set(file, head.broken)
-    }
-    for (const file of removes) {
-      if (held.members.delete(file)) moved = true
-      if (breakage(file) !== undefined) editing().delete(file)
-    }
-    if (!moved && edited === null) return held
-    return {
-      paths: moved ? sortByPath(held.members) : held.paths,
-      broken: edited ?? held.broken,
-      members: held.members,
-    }
+  step: (held, frame) => {
+    const paths = pathsAfter(held, frame)
+    const broken = unreadableAfter(held.broken, frame)
+    return paths === held.paths && broken === held.broken
+      ? held
+      : { paths, broken, members: held.members }
   },
 }
 
