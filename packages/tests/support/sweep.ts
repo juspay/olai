@@ -139,3 +139,24 @@ export const granting = (
 ): ((file: string) => boolean) =>
 (file: string) =>
   allowed.some((one) => (one.endsWith("/") ? file.startsWith(one) : file === one));
+
+/**
+ * Which entries of a grant list name nothing that is there any more — the check
+ * a sweep makes about its OWN list, rather than about the repository.
+ *
+ * A grant is a claim that some named record of the past is allowed to spell the
+ * thing being hunted, and a claim about a path that has been moved is not a
+ * loosened fence — it is a fence that has quietly TIGHTENED onto whatever the
+ * path became. `docs/roadmap.olai` became the `docs/roadmap/` directory on
+ * 2026-08-20, and both sweeps went red on the ledger they were written to
+ * excuse, on master, for two days: the grant was still spelled, and it granted
+ * nothing.
+ *
+ * A directory entry is asked about WITHOUT its trailing slash, which is what
+ * makes `docs/RCA/` a question about the directory rather than about a file
+ * whose name ends in one.
+ */
+export const unresolved = (
+  allowed: ReadonlyArray<string>,
+): ReadonlyArray<string> =>
+  allowed.filter((one) => !exists(one.endsWith("/") ? one.slice(0, -1) : one));

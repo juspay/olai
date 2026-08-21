@@ -46,7 +46,12 @@ export const saysThat = async (
 
 /** The other half: nothing is being said at all. Its own function because
  *  "gone" is not a selector — it is the absence of every locator a surface can
- *  say something through, waited for across the render that removes them. */
+ *  say something through, waited for across the render that removes them.
+ *
+ *  WAITED FOR is the half to choose by, and it is the difference between this
+ *  and `./counted.ts`'s `countsNothing`: this one is for a line that is on its
+ *  way out, and that one for a line that must not be there NOW — where waiting
+ *  would pass on a surface that said something and took it back a beat later. */
 export const saysNothing = async (
   world: OlaiWorld,
   locators: ReadonlyArray<string>,
