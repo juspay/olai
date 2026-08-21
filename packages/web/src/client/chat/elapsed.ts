@@ -64,18 +64,16 @@ import { isRunning } from "./running.ts"
  * stopped, the call has, the row is not a call at all, or the call is younger
  * than {@link QUIET_MS}.
  *
- * THE CLOCK IS A THUNK, and that is a reactivity decision rather than a
- * stylistic one. Only the running rows may be woken by a tick: read as a value,
- * `now` would be a dependency of whatever computation asks this, so a
- * four-hundred-row conversation would wake four hundred times a second to
- * answer `null` four hundred times. Called HERE, after the two gates, it is
- * read by exactly the rows that have a number to draw — which is normally one.
- *
- * `live` is a VALUE and not a thunk, deliberately, and the difference is three
- * orders of magnitude: a boolean propagates only when it flips, which is twice
- * a turn, where the clock moves sixty times a minute for as long as the turn
- * lasts. Making it a thunk too would buy back two wakes a turn and cost the
- * symmetry with `doingOf` that the two faces on one row are supposed to have.
+ * BOTH THE CLOCK AND THE LIVENESS ARE THUNKS, and that is a reactivity
+ * decision rather than a stylistic one: whatever computation asks this becomes
+ * an observer of whatever it reads, and every row of the transcript asks. Read
+ * as values, a four-hundred-row conversation would wake four hundred times a
+ * second for the clock and four hundred times a turn for the liveness, to
+ * answer `null` nearly every time. So the gates go cheapest-and-most-local
+ * first — is this row a running call at all, which needs nothing but the row —
+ * and the two shared signals are read afterwards, by exactly the rows that
+ * could have a number to draw. `doingOf` has the same shape for the same
+ * reason, which is what keeps the two faces on one row symmetrical.
  *
  * @param entry the row being drawn
  * @param live whether a turn is in flight in this conversation at all
@@ -83,16 +81,16 @@ import { isRunning } from "./running.ts"
  */
 export const elapsedOf = (
   entry: ChatEntry,
-  live: boolean,
+  live: () => boolean,
   now: () => number,
 ): string | null => {
-  if (!live) return null
   // THE ROW, not its status — which is what makes this safe to ask of any row
   // in the transcript. `status` is a tool row's field, and a predicate over the
   // bare field would have to guess about the rows that carry none
   // ({@link ./running.ts}). It NARROWS, so the stamp below is read off a row
   // this line has already established is a call.
   if (!isRunning(entry)) return null
+  if (!live()) return null
   const started = instantOf(entry.since)
   // A stamp that is not a time. It cannot be a MISSING one — the wire requires
   // it — so this means exactly what it says: somebody else's string, and a

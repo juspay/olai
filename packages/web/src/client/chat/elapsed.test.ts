@@ -1,10 +1,11 @@
 /**
  * How long a call has been going, as a table.
  *
- * No DOM and no agent: one function over a row, a boolean and a clock, which is
- * the whole point of it being one — the interesting cases are a minute and an
- * hour apart, and waiting for them is not a test strategy. `now` being an
- * argument is what makes them a table, exactly as it is for `../commit/ago.ts`.
+ * No DOM and no agent: one function over a row and two thunks, which is the
+ * whole point of it being one — the interesting cases are a minute and an hour
+ * apart, and waiting for them is not a test strategy. The clock being an
+ * argument is what makes them a table, exactly as it is for `../commit/ago.ts`;
+ * the last case below is about the thunks themselves.
  *
  * The last block is the one this file exists for, and it is not about
  * arithmetic at all: a stopwatch that outlived the conversation it was timing.
@@ -14,26 +15,23 @@ import type { ChatEntry } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
 import { elapsedOf } from "./elapsed.ts"
+import { STOPPED, toolRow, TURNING } from "./rows.testlib.ts"
 
-/** A tool row, as the transcript serves one — stamped with when olai first
- *  heard of it, which is what every duration below is measured from. */
-const row = (extra: Partial<ChatEntry> = {}): ChatEntry => ({
-  id: "tool:call-1",
-  seq: 0,
-  since: "2026-08-21T12:00:00.000Z",
-  kind: "tool",
-  text: "grep for worktops",
-  status: "in_progress",
-  ...extra,
-})
+/** A RUNNING tool row, which is the only kind this rule has anything to say
+ *  about — the skeleton is the shared one, and what is added here is the
+ *  subject: a call the wire has not reported back on, with the stamp every
+ *  duration below is measured from. */
+const row = (extra: Partial<ChatEntry> = {}): ChatEntry =>
+  toolRow({
+    id: "tool:call-1",
+    text: "grep for worktops",
+    status: "in_progress",
+    ...extra,
+  })
 
 /** The reader's clock, as a thunk — the shape the real one has, and the reason
  *  it has it: only the rows with something to draw may read it. */
 const at = (iso: string) => () => Date.parse(iso)
-
-/** A conversation with a turn in flight, which is the only state in which
- *  anything is running to time. */
-const TURNING = true
 
 describe("what it says", () => {
   test("seconds, while seconds are the question", () => {
@@ -129,27 +127,41 @@ describe("a stopwatch may not outlive its conversation", () => {
     // all afternoon under a process that stopped at lunchtime — a lie that
     // keeps getting bigger, which is the one kind a panel must not tell.
     const long = at("2026-08-21T12:40:00.000Z")
-    expect(elapsedOf(row({ status: "pending" }), false, long)).toBeNull()
-    expect(elapsedOf(row({ status: "in_progress" }), false, long)).toBeNull()
+    expect(elapsedOf(row({ status: "pending" }), STOPPED, long)).toBeNull()
+    expect(elapsedOf(row({ status: "in_progress" }), STOPPED, long)).toBeNull()
     // ... and the same row, in a live conversation, is exactly the one that
     // should say so. The gate is the whole difference.
     expect(elapsedOf(row({ status: "pending" }), TURNING, long)).toBe("40m 0s")
   })
 
-  test("the clock is not read at all for a row with nothing to time", () => {
+  test("neither shared signal is read for a row with nothing to time", () => {
     // Not an optimisation dressed as a claim: whatever computation asks this
-    // becomes a subscriber to whatever it reads, so a clock read as a value
-    // would wake every asking row once a second to answer `null`. The thunk is
-    // what keeps that wake on the rows with a number to draw.
-    let asked = 0
+    // becomes a subscriber to whatever it reads, and EVERY row of the
+    // transcript asks. Read as values, a turn boundary would wake four hundred
+    // rules and a tick would wake them all over again once a second, to answer
+    // `null` nearly every time. So the gates the ROW can answer come first, and
+    // the two shared signals are read only past them.
+    let clocks = 0
+    let asks = 0
     const counted = () => {
-      asked++
+      clocks++
       return Date.parse("2026-08-21T12:05:00.000Z")
     }
-    expect(elapsedOf(row(), false, counted)).toBeNull()
-    expect(elapsedOf(row({ status: "completed" }), TURNING, counted)).toBeNull()
-    expect(asked).toBe(0)
-    expect(elapsedOf(row(), TURNING, counted)).toBe("5m 0s")
-    expect(asked).toBe(1)
+    const turning = () => {
+      asks++
+      return true
+    }
+    // A row that is not a running call answers without asking anything shared.
+    expect(elapsedOf(row({ status: "completed" }), turning, counted)).toBeNull()
+    expect(elapsedOf(row({ kind: "agent" }), turning, counted)).toBeNull()
+    expect([asks, clocks]).toEqual([0, 0])
+    // A running call asks whether the conversation is live, and only then what
+    // time it is.
+    expect(elapsedOf(row(), turning, counted)).toBe("5m 0s")
+    expect([asks, clocks]).toEqual([1, 1])
+    // ... and a dead conversation stops before the clock, so a panel nobody is
+    // talking to keeps no per-row subscription to one.
+    expect(elapsedOf(row(), STOPPED, counted)).toBeNull()
+    expect(clocks).toBe(1)
   })
 })

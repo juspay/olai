@@ -282,7 +282,7 @@ export function Transcript(props: { readonly chat: Chat }) {
                *  stopped, and for one whose CONVERSATION has, so the same memo
                *  answers both "is there anything to draw" and "what does it say"
                *  ({@link ./spawn.ts}). */
-              const working = createMemo(() => doingOf(entry(), live()))
+              const working = createMemo(() => doingOf(entry(), live))
               return (
                 <Show when={entry()}>
                   {(row) => (

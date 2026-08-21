@@ -9,24 +9,10 @@
  * WRONG end: an agent that died in the middle of one.
  */
 
-import type { ChatEntry } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
+import { STOPPED, toolRow as row, TURNING } from "./rows.testlib.ts"
 import { doingOf, whoOf } from "./spawn.ts"
-
-/** A tool row, as the transcript serves one. */
-const row = (extra: Partial<ChatEntry> = {}): ChatEntry => ({
-  id: "tool:agent-1",
-  seq: 0,
-  since: "2026-08-21T12:00:00.000Z",
-  kind: "tool",
-  text: "explore the outline",
-  ...extra,
-})
-
-/** A conversation with a turn in flight, which is the only state in which
- *  anything is running to draw. */
-const TURNING = true
 
 describe("which rows sent somebody", () => {
   test("a call that spawned nobody has no face at all", () => {
@@ -100,9 +86,9 @@ describe("whether it is still going", () => {
     // reporting on it leaves a row that says `pending` for as long as the panel
     // is open. Asked of the row alone, that is a rail pulsing "working…" under
     // a process that no longer exists.
-    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "pending" }), false))
+    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "pending" }), STOPPED))
       .toBeNull()
-    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "in_progress" }), false))
+    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "in_progress" }), STOPPED))
       .toBeNull()
     // ... and who it was is still said, because that is a fact about what
     // happened rather than about what is happening.

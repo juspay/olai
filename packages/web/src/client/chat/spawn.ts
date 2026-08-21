@@ -91,26 +91,34 @@ export const whoOf = (entry: ChatEntry | undefined): string | null => {
  * agent. Whether anything is running at all is the CONVERSATION's answer, so
  * the conversation is asked.
  *
- * A BOOLEAN, handed in, rather than the state read here: the rule stays a
- * function of its arguments, which is what lets a dead agent be a unit test
- * rather than a subprocess somebody has to kill at the right moment. It is the
- * same arrangement `laneOf` has with the transcript's lookup.
+ * HANDED IN, rather than the state read here: the rule stays a function of its
+ * arguments, which is what lets a dead agent be a unit test rather than a
+ * subprocess somebody has to kill at the right moment. It is the same
+ * arrangement `laneOf` has with the transcript's lookup.
+ *
+ * As a THUNK, and read LAST, for {@link ./elapsed.ts}'s reason arriving at the
+ * older of the two faces: every row of the transcript computes this, and a
+ * value would make every one of them an observer of the liveness memo — so a
+ * turn starting or stopping would re-run four hundred rules to answer `null`
+ * for the three hundred and ninety-seven that spawned nobody. The gates a ROW
+ * can answer for itself come first, and the conversation is asked only about a
+ * row that would otherwise have something to say.
  *
  * @param entry the row being drawn
  * @param live whether a turn is in flight in this conversation at all
  */
 export const doingOf = (
   entry: ChatEntry | undefined,
-  live: boolean,
+  live: () => boolean,
 ): string | null => {
-  if (!live || entry?.spawned === undefined) return null
   // `pending` is what a spawn is ANNOUNCED with and what most of them wear for
   // most of their lives, so it is a RUNNING state rather than a case to fall
   // through, and a row nothing has said about yet is taken to be wearing it.
   // Both of those are {@link ./running.ts}'s to say now — the elapsed readout
   // on this same row asks the same question, and the frame draws the same
   // field.
-  return isRunning(entry) ? WORKING : null
+  if (entry?.spawned === undefined || !isRunning(entry)) return null
+  return live() ? WORKING : null
 }
 
 /** What a spawn is called when it named no kind of agent. The `Agent` tool's

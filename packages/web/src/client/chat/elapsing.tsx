@@ -47,9 +47,13 @@ export function ElapsedProvider(props: {
   readonly live: boolean
   readonly children: JSX.Element
 }) {
-  const now = createNow(() => props.live)
+  /** The conversation's liveness as the rule takes it — an accessor, read last
+   *  and only for a row that is a running call, so a turn starting or stopping
+   *  wakes the calls and not the prose. Hoisted rather than minted per ask. */
+  const live = () => props.live
+  const now = createNow(live)
   return (
-    <ElapsedContext.Provider value={(entry) => elapsedOf(entry, props.live, now)}>
+    <ElapsedContext.Provider value={(entry) => elapsedOf(entry, live, now)}>
       {props.children}
     </ElapsedContext.Provider>
   )
