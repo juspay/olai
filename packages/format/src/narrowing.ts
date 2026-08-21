@@ -45,10 +45,10 @@
 
 import { Schema } from "effect"
 
+import type { AgendaDay } from "./agenda.ts"
 import type { DayGroup } from "./dates.ts"
-import type { Row } from "./derive.ts"
+import type { Derived, Row } from "./derive.ts"
 import type { Face } from "./document.ts"
-import { type Derived } from "./derive.ts"
 import { type Filter, parseFilter, selecting, shownRecord } from "./filter.ts"
 import { isTrashed, type LocatedRegular } from "./node.ts"
 import { PageRequest, type Shown, shownOf } from "./page.ts"
@@ -223,10 +223,9 @@ export const showsPutAway = (shows: Shown): boolean => {
     case "trash":
       return true
     case "outline":
-      return shows.rows.some((row) => isTrashed(shownRecord(row).file))
+      return anyPutAway(shows.rows)
     case "node":
-      return shows.zoomed.kind === "node" &&
-        shows.zoomed.children.some((row) => isTrashed(shownRecord(row).file))
+      return shows.zoomed.kind === "node" && anyPutAway(shows.zoomed.children)
     case "document":
     case "day":
     case "agenda":
@@ -235,6 +234,12 @@ export const showsPutAway = (shows: Shown): boolean => {
       return false
   }
 }
+
+/** The two tree arms' shared question, said once: does any ROOT of this tree
+ *  show a record that was put away? `shownRecord`, because a mirror draws the
+ *  file its target lives in and that is the file this is about. */
+const anyPutAway = (rows: ReadonlyArray<Row>): boolean =>
+  rows.some((row) => isTrashed(shownRecord(row).file))
 
 /**
  * EVERY RECORD A FILTER CAN TAKE OFF THIS PAGE, once each.
@@ -285,9 +290,12 @@ function* drawn(shows: Shown): Generator<LocatedRegular> {
       yield* inGroups(shows.groups)
       return
     case "agenda":
-      for (const day of shows.agenda.overdue) yield* inGroups(day.groups)
+      // The line, in the order it is drawn — two runs of DAYS around the
+      // groups today holds, which is the shape `agendaOf` produced and the
+      // shape `keepingOwed` prunes.
+      yield* inDays(shows.agenda.overdue)
       yield* inGroups(shows.agenda.today)
-      for (const day of shows.agenda.upcoming) yield* inGroups(day.groups)
+      yield* inDays(shows.agenda.upcoming)
       return
     case "trash":
       for (const group of shows.groups) yield* inRows(group.rows)
@@ -312,4 +320,10 @@ function* inRows(rows: ReadonlyArray<Row>): Generator<LocatedRegular> {
 
 function* inGroups(groups: ReadonlyArray<DayGroup>): Generator<LocatedRegular> {
   for (const group of groups) for (const entry of group.nodes) yield entry.shows
+}
+
+/** {@link inGroups} over a run of DAYS — the two halves of the agenda's line
+ *  that arrive as days, said once because both ask it. */
+function* inDays(days: ReadonlyArray<AgendaDay>): Generator<LocatedRegular> {
+  for (const day of days) yield* inGroups(day.groups)
 }
