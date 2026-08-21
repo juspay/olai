@@ -2582,6 +2582,66 @@ const SECTIONS = {
     await shot(page, "a-pressed-tag-lights-up-dark")
   },
 
+  /**
+   * A PHRASE ACROSS RENDERED PIECES — code-span and bold boundaries, both
+   * sides lit, on the filtered page and in a search row. The quoted phrase
+   * is not a substring of the CODE source (a backtick sits between the
+   * words), so desc also holds it: matching is the source, the highlight
+   * is the visible title.
+   */
+  "cross-piece-highlight": async (page) => {
+    pinnedBy(
+      "title_markdown.feature",
+      "A filter lights a phrase that spans code and bold",
+      "A search row lights a phrase across rendered pieces",
+    )
+    rewrite("house.olai", [
+      `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
+      `{"id":"demo","parent":"kitchen","ord":"a0","title":"run \`just check\` before pushing","desc":"check before"}`,
+      `{"id":"bold","parent":"kitchen","ord":"a1","title":"check **before** pushing","desc":"check before"}`,
+    ])
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    await narrow(page, '"check before"')
+    console.log(`  the bar says: ${await said(page, FILTER_COUNT)}`)
+    console.log(`  the rows say: ${await whyDrawn(page)}`)
+    console.log(`  lit stretches: ${
+      (await page.locator(HIT).allInnerTexts()).map(oneLine).join(" · ")
+    }`)
+    await shot(page, "filtered-code-and-bold")
+
+    await inTheDark(page)
+    console.log(`  dark, the rows say: ${await whyDrawn(page)}`)
+    await shot(page, "filtered-code-and-bold-dark")
+
+    await page.evaluate(() => localStorage.setItem("olai.theme", "chalk"))
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    await page.keyboard.press("ControlOrMeta+k")
+    await page.locator('[data-testid="palette-input"]').waitFor()
+    await page.locator('[data-testid="palette-input"]').fill('"check before"')
+    await page.locator('[data-testid="palette-item"][data-id="hit-#demo"]').waitFor()
+    await page.locator('[data-testid="palette-item"][data-id="hit-#bold"]').waitFor()
+    const paletteHits = async (id: string) =>
+      (await page.locator(
+        `[data-testid="palette-item"][data-id="hit-#${id}"] [data-testid="hit"]`,
+      ).allInnerTexts()).join(" ")
+    console.log(`  palette demo lights: ${JSON.stringify(await paletteHits("demo"))}`)
+    console.log(`  palette bold lights: ${JSON.stringify(await paletteHits("bold"))}`)
+    await shot(page, "palette-code-and-bold")
+
+    await page.evaluate(() => localStorage.setItem("olai.theme", "aurora"))
+    await page.reload()
+    await page.locator(OUTLINE_TREE).first().waitFor()
+    await page.waitForTimeout(DRAWN)
+    await page.keyboard.press("ControlOrMeta+k")
+    await page.locator('[data-testid="palette-input"]').waitFor()
+    await page.locator('[data-testid="palette-input"]').fill('"check before"')
+    await page.locator('[data-testid="palette-item"][data-id="hit-#demo"]').waitFor()
+    await page.locator('[data-testid="palette-item"][data-id="hit-#bold"]').waitFor()
+    console.log(`  dark palette demo lights: ${JSON.stringify(await paletteHits("demo"))}`)
+    console.log(`  dark palette bold lights: ${JSON.stringify(await paletteHits("bold"))}`)
+    await shot(page, "palette-code-and-bold-dark")
+  },
+
   "what-refers-to-this-node": async (page) => {
     pinnedBy(
       "backlinks.feature",

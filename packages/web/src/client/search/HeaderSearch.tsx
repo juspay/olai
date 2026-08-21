@@ -53,6 +53,7 @@
  * (`Result.tsx`'s `mousedown` guard) so the press lands before the blur.
  */
 
+import { needlesOf, parseFilter } from "@olai/format"
 import { createEffect, createMemo, createSignal, Index, onCleanup, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
@@ -66,6 +67,7 @@ import type { Route } from "../routes.ts"
 import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
+import { useToday } from "../today.tsx"
 import { SearchCount } from "./Count.tsx"
 import { createCursor } from "./cursor.ts"
 import { createSearch } from "./nodes.ts"
@@ -88,6 +90,8 @@ export function HeaderSearch(props: {
 }) {
   const [query, setQuery] = createSignal("")
   const [caret, setCaret] = createSignal(false)
+  const today = useToday()
+  const needles = createMemo(() => needlesOf(parseFilter(query(), today())))
   // WHICH row Enter takes — the one cursor every shortlist in this client
   // shares (`./cursor.ts`), so the arrows here, in the ⌘K palette and in the
   // row editor's completions cannot disagree about what the bottom of a list
@@ -266,6 +270,8 @@ export function HeaderSearch(props: {
                       <Result
                         label={item().label}
                         of={item().of}
+                        from={item().from}
+                        needles={needles()}
                         place={item().place}
                         props={item().props}
                         active={index === cursor.at()}

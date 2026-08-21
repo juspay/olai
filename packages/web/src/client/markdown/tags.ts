@@ -39,6 +39,7 @@ import type { Element, ElementContent, Root } from "hast"
 import { HIT_CLASS, NO_NEEDLES, runsIn } from "../filter/lit.ts"
 import { TAG_ATTRIBUTE } from "../filter/tag.ts"
 import { TESTID } from "../testids.ts"
+import { isAnchor } from "./anchors.ts"
 
 /**
  * The class a styled tag wears.
@@ -122,49 +123,100 @@ const tagsIn = (element: Element, outer: boolean): boolean =>
  * literalness is something the markup UNDER it can only take away. A caller
  * that could ask for a whole title to be read as code would be a second answer
  * to a question the markdown has already answered.
+ *
+ * THE QUERY IS LOOKED FOR ONCE, over the concatenated `.value` of every text
+ * node in document order — the title as the reader sees it, markdown syntax
+ * skipped. Each node is then a WINDOW onto that one search, the same contract
+ * `titleParts` already has for a phrase that spans a `#tag`. Searching each
+ * node on its own is what left `"check before"` dark across a code-span
+ * boundary: the phrase is in neither piece.
+ *
+ * Source `position` already survives the pipeline for ordinary phrasing. It is
+ * a check, not the map: inline-code offsets include the backticks, and
+ * `toInline` clones a pretty-print `\n` with no position at all. Mapping by
+ * concatenation does not need the field. `bracketSpacedLinks` (in ./render.ts)
+ * rewrites `[label](dest with spaces)` to a different length before parse, so
+ * a future source-offset map would have to run the same rewrite; this walk
+ * never asks.
  */
 export const styleTags = (
   parent: Root | Element,
   needles: ReadonlyArray<string> = NO_NEEDLES,
 ): void => {
-  walk(parent, needles, true)
+  const records: Slot[] = []
+  visitText(parent, true, records)
+  const haystack = records.map((slot) => slot.value).join("")
+  const landed = litBy(haystack, needles)
+
+  const replacements = new Map<Root | Element, Map<number, ElementContent[]>>()
+  let at = 0
+  for (const rec of records) {
+    const to = at + rec.value.length
+    const nodes = splitTags(haystack, landed, at, to, rec.tags)
+    let slots = replacements.get(rec.parent)
+    if (slots === undefined) {
+      slots = new Map()
+      replacements.set(rec.parent, slots)
+    }
+    slots.set(rec.index, nodes)
+    at = to
+  }
+
+  for (const [host, slots] of replacements) {
+    const next: ElementContent[] = []
+    host.children.forEach((child, index) => {
+      const repl = slots.get(index)
+      if (repl !== undefined) {
+        next.push(...repl)
+        return
+      }
+      if (child.type === "element") next.push(child)
+    })
+    host.children = next as typeof host.children
+  }
 }
 
-/** The tree half: every text node, once, carrying down the one thing that
- *  varies along the way ({@link tagsIn}). Lighting does not vary. */
-const walk = (
+/** One text node, as a slot in the haystack — HAST text has no parent
+ *  pointer, so "replace that node" is not an operation this tree offers. */
+type Slot = {
+  parent: Root | Element
+  index: number
+  value: string
+  tags: boolean
+}
+
+/** Pass 1: every text node, once, carrying down the one thing that varies
+ *  along the way ({@link tagsIn}). Heading autolinks are skipped so a `#`
+ *  appended by the pipeline is not in the haystack. Pass 2 iterates this
+ *  array; it does not walk the tree again. */
+const visitText = (
   parent: Root | Element,
-  needles: ReadonlyArray<string>,
   tags: boolean,
+  out: Slot[],
 ): void => {
-  const next: ElementContent[] = []
-  for (const child of parent.children) {
+  parent.children.forEach((child, index) => {
     if (child.type === "text") {
-      next.push(...splitTags(child.value, needles, tags))
-      continue
+      out.push({ parent, index, value: child.value, tags })
+      return
     }
-    if (child.type === "element") {
-      walk(child, needles, tagsIn(child, tags))
-      next.push(child)
-      continue
-    }
-  }
-  parent.children = next as typeof parent.children
+    if (child.type !== "element") return
+    if (isAnchor(child)) return
+    visitText(child, tagsIn(child, tags), out)
+  })
 }
 
 /**
- * One run of text, as the text and pills it turns out to be — guarded by the
- * format's own cheap negative, exactly as the HTML path below and the search
- * index are, because a HAST walk asks this per TEXT NODE and most of them hold
- * no sigil at all.
+ * One window of the haystack, as the text and pills it turns out to be —
+ * guarded by the format's own cheap negative, exactly as the HTML path below
+ * and the search index are, because most text nodes hold no sigil at all.
  *
- * THE QUERY IS LOOKED FOR ONCE, over the whole of this text, and the parts are
- * WINDOWS onto what it found — never a search per part. That is one fold
- * instead of one per piece, and it is also the difference between lighting a
- * phrase and not: `"remodel #home"` spans the boundary between a text part and
- * a tag part, so a search inside each piece finds it in neither and the row
- * matched with nothing lit (grok, #240). `titleParts` tiles its input exactly,
- * so the running offset below is the part's place in this text.
+ * `haystack` is the string {@link litBy} searched; `from`/`to` is this node's
+ * place in it. `runsIn` slices that same string. Remapping landings into
+ * piece-local offsets would be a second opinion about where a needle sat.
+ *
+ * The inner `titleParts` cursor starts at `from`, not 0: a tag in a later
+ * piece (`**urgent** #home`) sits at `from > 0`, and seeding at 0 would mark
+ * the start of the haystack instead of the tag.
  *
  * TWO WAYS OUT WITH THE SAME ANSWER, and they are written as two because they
  * are two different facts. One is about WHERE this text is — literal markup,
@@ -175,27 +227,29 @@ const walk = (
  * one of them argued for anywhere.
  */
 const splitTags = (
-  text: string,
-  needles: ReadonlyArray<string>,
+  haystack: string,
+  landed: ReadonlyArray<Lit>,
+  from: number,
+  to: number,
   tags: boolean,
 ): ElementContent[] => {
-  const landed = litBy(text, needles)
+  const piece = haystack.slice(from, to)
 
   // Literal markup. The query's words are still lit — that is the whole of
   // what this stretch gives up, and it gives up nothing else.
-  if (!tags) return marked(text, landed, 0, text.length)
+  if (!tags) return marked(haystack, landed, from, to)
 
   // Prose with no sigil anywhere in it, which is most text nodes there are.
-  if (!mayHoldTag(text)) return marked(text, landed, 0, text.length)
+  if (!mayHoldTag(piece)) return marked(haystack, landed, from, to)
 
   const out: ElementContent[] = []
-  let at = 0
-  for (const part of titleParts(text)) {
+  let at = from
+  for (const part of titleParts(piece)) {
     const written = part.kind === "tag" ? tagText(part) : part.text
-    const to = at + written.length
-    if (part.kind === "tag") out.push(pill(written, text, landed, at, to))
-    else out.push(...marked(text, landed, at, to))
-    at = to
+    const next = at + written.length
+    if (part.kind === "tag") out.push(pill(written, haystack, landed, at, next))
+    else out.push(...marked(haystack, landed, at, next))
+    at = next
   }
   return out
 }

@@ -37,6 +37,7 @@ test("a document hit becomes a row that opens the document", () => {
   expect(item.label).toBe("Cabinets")
   expect(item.place).toBe("notes/cabinets.md")
   expect(item.of).toBe("document")
+  expect(item.from).toBeUndefined()
   expect(item.action).toEqual({
     kind: "route",
     route: atFile("notes/cabinets.md"),
@@ -53,6 +54,7 @@ test("a search hit becomes a row that jumps to the node", () => {
     matched: "title",
   }))
   expect(item.label).toBe("pick the hinges")
+  expect(item.from).toBe("house.olai")
   // The place is a LINE OF ITS OWN, never an inline hint: an ancestor title
   // is somebody's prose, and beside the title it starved it to one word per
   // line and scrolled the palette sideways.

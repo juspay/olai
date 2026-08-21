@@ -28,6 +28,7 @@ import { countsNothing, foundCount } from "../support/counted.ts";
 import { inTheMood, saysThat } from "../support/said.ts";
 import {
   attr,
+  HIT,
   HYDRATION_TIMEOUT,
   oneLine,
   PALETTE,
@@ -193,6 +194,45 @@ Then(
     assert.ok(
       !rows.some((row) => row.includes(label)),
       `the palette offers ${JSON.stringify(label)}: ${rows.join(" | ")}`,
+    );
+  },
+);
+
+/** A palette NODE hit, gripped by address — not by visible label. CODE's
+ *  rendered text contains the bold title, so hasText would assert both
+ *  steps on the same row. */
+const paletteNode = (world: OlaiWorld, id: string) =>
+  world.page.locator(`${PALETTE_ITEM}${attr("data-id", `hit-#${id}`)}`);
+
+Then(
+  "the palette item for node {string} lights {string}",
+  async function (this: OlaiWorld, id: string, said: string) {
+    const row = paletteNode(this, id);
+    const read = async () =>
+      (await row.locator(HIT).allInnerTexts()).join(" ");
+    await this.waitUntil(
+      async () => (await read()) === said,
+      `palette item for node \`${id}\` lights ${JSON.stringify(said)}`,
+    ).catch(() => undefined);
+    assert.strictEqual(
+      await read(),
+      said,
+      `palette item for node \`${id}\` does not light ${JSON.stringify(said)}`,
+    );
+  },
+);
+
+Then(
+  "the palette item for node {string} is a button with no nested link",
+  async function (this: OlaiWorld, id: string) {
+    const row = paletteNode(this, id);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const tag = await row.evaluate((el) => el.tagName);
+    assert.strictEqual(tag, "BUTTON", `palette item for node \`${id}\` is a ${tag}`);
+    assert.strictEqual(
+      await row.locator("a").count(),
+      0,
+      `palette item for node \`${id}\` nests a link`,
     );
   },
 );

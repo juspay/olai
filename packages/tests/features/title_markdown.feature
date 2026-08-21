@@ -75,3 +75,55 @@ Feature: Inline markdown in titles
     And the title of "order" styles no tags
     And the title of "kitchen" styles the tag "home"
     And there should be no page errors
+
+  Scenario: A filter lights a phrase that spans an autolink
+    # Matching-faithful: "see https" is a substring of the SOURCE, so the row
+    # is selected on the title. HAST still splits the URL into its own text
+    # node; both pieces of the phrase must light. The extra space in the
+    # asserted string is join(" ") plus a piece that already starts with one.
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"see https://example.com first"}
+      """
+    When I filter the page by "\"see https\""
+    Then the node "demo" is a match
+    And the node "demo" lights "see  https"
+    And there should be no page errors
+
+  Scenario: A filter lights a phrase that spans code and bold
+    # Matching is the SOURCE: a quoted "check before" is not in
+    # `run \`just check\` before pushing` (a backtick sits between the words),
+    # so the phrase is also in desc so the row is in front of you. The
+    # highlight is the visible title. The unit test is the renderer pin;
+    # this scenario is the page.
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"run `just check` before pushing","desc":"check before"}
+      {"id":"bold","parent":"kitchen","ord":"a1","title":"check **before** pushing","desc":"check before"}
+      """
+    When I filter the page by "\"check before\""
+    Then the node "demo" is a match
+    And the node "demo" lights "check  before"
+    And the node "demo" lights "check" inside its code span
+    And the node "bold" is a match
+    And the node "bold" lights "check  before"
+    And there should be no page errors
+
+  Scenario: A search row lights a phrase across rendered pieces
+    # The palette draws the same renderTitle a tree row does (links: false,
+    # because the row is a button). Do not locate by visible label: CODE's
+    # rendered text contains the bold title. data-id is hit-#demo / hit-#bold.
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"run `just check` before pushing","desc":"check before"}
+      {"id":"bold","parent":"kitchen","ord":"a1","title":"check **before** pushing","desc":"check before"}
+      """
+    When I press the palette shortcut
+    And I type "\"check before\"" into the palette
+    Then the palette item for node "demo" lights "check  before"
+    And the palette item for node "demo" is a button with no nested link
+    And the palette item for node "bold" lights "check  before"
+    And there should be no page errors
