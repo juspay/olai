@@ -25,7 +25,7 @@ import type { Locator } from "playwright";
 // is not a constant is where this vault's files are. `mediaHref` is the other
 // half of the same contract: the address a preview frame is pointed at.
 import { isPicture } from "@olai/format";
-import { MEDIA_PREFIX, mediaHref, mediaTarget, sealPolicy } from "@olai/surface";
+import { MEDIA_PREFIX, mediaHref, mediaTarget, ROUNDING, sealPolicy } from "@olai/surface";
 
 import { saysThat } from "../support/said.ts";
 import {
@@ -413,9 +413,10 @@ Then("the websocket carried {string}", function (this: OlaiWorld, text: string) 
  * zero-tall box until its bytes land — so whether the first measurement is
  * correct depends entirely on whether the picture beat it. Over a loopback
  * socket with a one-kilobyte PNG it usually does, which means an unheld run
- * would pass whether or not the second reading (`@olai/surface`'s `seal.ts`
- * tags it `settled`) existed at all. Held for longer than a first layout takes, the order is the
- * one every real page with a photograph in it sees: measure, then arrive.
+ * would pass without the picture ever having been LATE, which is the whole of
+ * what these scenarios are about. Held for longer than a first layout takes,
+ * the order is the one every real page with a photograph in it sees: measure,
+ * then arrive.
  *
  * `route` rather than a slower fixture, because size is not the knob — a bigger
  * file is still a race, just with different odds.
@@ -454,10 +455,20 @@ When("the vault's pictures are slow to arrive", async function (this: OlaiWorld)
 
 // ── how tall the frame is ──────────────────────────────────────────────
 
-/** How far the frame and its page may disagree and still be "the same height":
- *  the tape measure rounds up to a whole pixel and a browser lays out in
- *  fractions, so an exact equality would be a flake with a story. */
-const ROUNDING_PX = 2;
+/** How far the frame and its page may disagree and still be "the same height",
+ *  taken from the package that MINTS the disagreement rather than typed again
+ *  here (`@olai/surface`'s `ROUNDING`, where the whole argument is): the
+ *  policy these steps assert about is allowed to leave the frame exactly this
+ *  far off its page, so a copy that drifted below it would go red on a frame
+ *  doing its job. */
+const ROUNDING_PX = ROUNDING;
+
+/** How long the frame has to hold ONE height to count as settled, in
+ *  milliseconds. A frame still arguing with its page changes height every
+ *  quarter of a second or so — the loop is a style write, a layout, an observer
+ *  callback and a message, not a paint — so a window of a second and a half is
+ *  several rounds of an argument that has not ended. */
+const SETTLED_MS = 1500;
 
 /** The two heights every step below compares.
  *
@@ -535,25 +546,65 @@ Then("the preview is as tall as the page it shows", async function (this: OlaiWo
 });
 
 /**
- * THE COST OF TWO RUNGS, read as a height: the page in there is TALLER than the
- * frame around it, and stayed that way.
+ * THE FRAME STOPS MOVING, which is the one claim about this rule that only a
+ * browser can make.
  *
- * A picture that arrives after `load` (`loading="lazy"`) grows the page and is
- * refused a rung, because the message that says "my pictures landed" and the
- * message that says "you made me taller and I am measured in `vh`" are the
- * same message. So the frame keeps the height it had and the rest scrolls
- * inside it.
+ * The rule itself is arithmetic and is checked by doing the arithmetic
+ * (`@olai/web`'s `document/echo.test.ts`). What no unit test can reach is the
+ * LOOP: the frame is sized from a number measured inside the frame, so a page
+ * whose height moves the opposite way from its container has no height that
+ * satisfies it — it flips, the frame follows, it flips back — and whether that
+ * terminates is a fact about a real browser painting real frames.
+ *
+ * Sampled once per animation frame FROM INSIDE the page under test, which is
+ * the only place fast enough: a Playwright poll reads a few times a second and
+ * would see two heights and call it a still picture. What comes back is how
+ * many times the frame's height CHANGED over the window.
+ *
+ * IT WAITS, because settling is a thing that happens rather than a thing that
+ * was always true: the frame really does change its mind a few times before the
+ * bound is spent, and asserting on the first window would be asserting that the
+ * bound is zero. So the window is taken again until one of them is still, and
+ * the failure is the last one — which names how much it moved and over how
+ * long, because "the frame never settled" is a worse sentence than the heights.
  */
-Then("the preview is shorter than the page it shows", async function (this: OlaiWorld) {
-  await untilHeights(
-    this,
-    ({ frame, page }) => page - frame > ROUNDING_PX,
-    "the page inside the frame outgrew the frame",
-    ({ frame, page }) =>
-      `the frame is ${frame}px and the page in it is ${page}px — the frame ` +
-      `either followed the late picture up or the picture never arrived`,
-  );
-});
+Then(
+  "the preview settles at one height",
+  async function (this: OlaiWorld) {
+    const element = await preview(this);
+    const window_ = async (): Promise<Array<number>> => {
+      const seen = await element.evaluate(
+        (node, watching) =>
+          new Promise<Array<number>>((done) => {
+            const box = node as HTMLElement;
+            const heights: Array<number> = [];
+            const until = performance.now() + watching;
+            const tick = () => {
+              heights.push(box.clientHeight);
+              if (performance.now() < until) requestAnimationFrame(tick);
+              else done(heights);
+            };
+            requestAnimationFrame(tick);
+          }),
+        SETTLED_MS,
+      );
+      return seen.filter((tall, at) => at > 0 && tall !== seen[at - 1]!);
+    };
+    let moved = await window_();
+    try {
+      await this.waitUntil(
+        async () => (moved = await window_()).length === 0,
+        `the frame to hold one height for ${SETTLED_MS}ms`,
+      );
+    } catch {
+      assert.fail(
+        `the frame changed height ${moved.length} times over the last ` +
+          `${SETTLED_MS}ms with nobody touching the page (${moved.join(", ")}) ` +
+          `— it is following a page that is following it back`,
+      );
+    }
+  },
+);
 
 /** The two directions one step asks in, as the word the feature says and what
  *  it means — a table rather than two near-identical step bodies, since only

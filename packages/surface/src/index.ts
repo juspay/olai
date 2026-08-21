@@ -1244,7 +1244,7 @@ export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
  *  reason. See {@link ./seal.ts}. */
 export {
   heard,
-  type Reading,
+  ROUNDING,
   type Said,
   SEAL,
   sealPolicy,
