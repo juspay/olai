@@ -35,6 +35,15 @@
  * under it belongs to the list, which is the thing that has rows to put a rail
  * beside.
  *
+ * A CALL THAT IS STILL RUNNING says HOW LONG on that line too, once it has been
+ * running long enough to be worth saying ({@link ./elapsed.ts}). The status
+ * mark is the only other thing here that is about time and it cannot answer
+ * this: `·` is what a call announced a quarter of a second ago wears and `·` is
+ * what one that has been grepping for four minutes wears, and those are not the
+ * same row to somebody watching. Like the spawn's rail, the number is the
+ * LIST's answer rather than this row's — a status is sticky, so whether
+ * anything is running at all is a fact about the conversation.
+ *
  * The row is UPDATED rather than replaced. The transcript keys these by the
  * agent's own call id, so `pending` becoming `completed` is the same row
  * changing.
@@ -55,6 +64,8 @@ import { TESTID } from "../testids.ts"
 import { Diff } from "./Diff.tsx"
 import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
 import { OutlineDiff } from "./OutlineDiff.tsx"
+import { useElapsed } from "./elapsing.tsx"
+import { statusOf } from "./running.ts"
 import { whoOf } from "./spawn.ts"
 import { Wrote } from "./Wrote.tsx"
 
@@ -82,6 +93,14 @@ const TONE: Record<string, string> = {
  * know is said as it came, which is the same refusal to invent a name the
  * header makes for a model it cannot place.
  *
+ * THE MODULE NEXT DOOR IS NOT THE FOURTH OF THESE. {@link ./running.ts} holds
+ * what a status MEANS — the word an unannounced call is taken to wear, and
+ * which words mean it has not come back — because two faces outside this
+ * component ask that of the same row and must not answer differently. These
+ * three are what a status LOOKS and SOUNDS like, and they move when the panel
+ * does rather than when ACP does; that is why the split is where it is rather
+ * than one table in one place.
+ *
  * THE AGENT'S OWN WORDS, spelled for speech and interpreted no further. The
  * rail under a spawn says *working…* for `pending`, and this deliberately does
  * not: that rail is drawn only while the conversation is live
@@ -98,8 +117,12 @@ const SAID: Record<string, string> = {
 }
 
 export function ToolFrame(props: { readonly entry: ChatEntry }) {
+  /** How long this call has been running, or `null` when there is nothing to
+   *  say. Reached for rather than handed down ({@link ./elapsing.tsx}), the
+   *  same way this frame reaches for its own fold. */
+  const elapsed = useElapsed()
   const open = () => isUnfolded(props.entry.id)
-  const status = () => props.entry.status ?? "pending"
+  const status = () => statusOf(props.entry)
   /**
    * The blocks of change this call reported, each carrying the NAME that
    * identifies it ({@link ./folds.ts}'s `diffKey`).
@@ -205,6 +228,48 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
               title={locations().join("\n")}
             >
               {locations().join(" ")}
+            </span>
+          )}
+        </Show>
+        {/* HOW LONG IT HAS BEEN GOING, for a call the wire still calls running
+            in a conversation that is still live ({@link ./elapsed.ts}). The
+            mark at the head of this line has said `·` for a quarter of a second
+            and `·` for four minutes since there was a panel; this is the line
+            saying which.
+
+            At the END of the row, past the locations, because it is the one
+            thing here that is about the call rather than about what the call is
+            doing — and `shrink-0`, so a long path truncates and the number
+            never does. The `·` is a separator and belongs to the reader's eye
+            rather than to the name: the words either side of it are two
+            readouts, and without it a duration lands against a file path as
+            though it were part of one.
+
+            The answer is REACHED FOR rather than handed down: the two things
+            it needs — whether a turn is in flight, and the panel's one clock —
+            are the list's, and threading them through `Entry`'s six-armed
+            switch would make that signature a function of what this one leaf
+            draws ({@link ./elapsing.tsx}). The `<Show>` here is what computes
+            it, so a row that is not a tool call computes nothing at all.
+
+            NO `aria-live`, deliberately, and this is the one place in the panel
+            where that needs saying: the rail under a spawn announces itself
+            because it appears once and says one word, and a number that changes
+            every second in a live region would be a screen reader counting out
+            loud for as long as the build takes. It is in the button's
+            accessible NAME instead, where a reader meets it when they ask about
+            the row — which is the moment "how long has this been going" is
+            actually a question. */}
+        <Show when={elapsed(props.entry)}>
+          {(said) => (
+            <span class="shrink-0 text-doing">
+              <span aria-hidden="true">·&#32;</span>
+              <span class="sr-only">running for&#32;</span>
+              {/* The DURATION alone under the name, with the separator and the
+                  spoken words outside it: what a scenario reads back is then
+                  the number this rule decided rather than the sentence built
+                  around it. */}
+              <span data-testid={TESTID.chatToolElapsed}>{said()}</span>
             </span>
           )}
         </Show>

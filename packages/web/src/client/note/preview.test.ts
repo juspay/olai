@@ -28,6 +28,33 @@ test("a leading heading is named without its marks", () => {
   expect(plainLine("# Notes\n\nbody")).toBe("Notes")
 })
 
+// The closing run markdown allows, and the one place it must NOT come off: a
+// heading that ends in a hash with no space before it is a heading about C#.
+test("the closing hashes come off, and a hash that is a word does not", () => {
+  expect(plainLine("## Install ##")).toBe("Install")
+  expect(plainLine("## C#")).toBe("C#")
+  expect(plainLine("# Notes ##\n\nbody")).toBe("Notes")
+})
+
+test("a non-breaking space is not the gap a closing run needs", () => {
+  // Chosen, not an accident of the scan: CommonMark wants U+0020 or tab before
+  // the closing hashes, and headingText already spelled those two. The regex
+  // this replaces treated NBSP (and the rest of `\s`) as that gap, so this
+  // line used to preview as `Foo`.
+  expect(plainLine("# Foo\u00a0##")).toBe("Foo\u00a0##")
+})
+
+test("a long run of spaces that does not close a heading is answered at once", () => {
+  // The reason this counts rather than matching: `replace(/\s+#+$/, "")` is
+  // quadratic on a line of many spaces that do not end in hashes — the
+  // unanchored `\s+` restarts at every position. A tenth of a second here
+  // would be a finding.
+  const started = performance.now()
+  const line = `x${" ".repeat(50_000)}y`
+  expect(plainLine(line)).toBe(line)
+  expect(performance.now() - started).toBeLessThan(100)
+}, 500)
+
 test("an empty note previews as nothing", () => {
   expect(plainLine("")).toBe("")
   expect(plainLine("\n \n")).toBe("")

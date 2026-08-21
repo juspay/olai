@@ -56,6 +56,7 @@ import { Schema } from "effect"
 import { Address } from "./address.ts"
 import { Agenda, type AgendaDay, agendaOf } from "./agenda.ts"
 import { Backlink, backlinksOf, Referrer, referrersTo } from "./backlinks.ts"
+import { Custom } from "./custom.ts"
 import { dailyNotesOn, DayGroup, datedOn } from "./dates.ts"
 import { type Derived, type InTheWay, nodeNamed, nodesOf, Row, rowsOf } from "./derive.ts"
 import type { Face } from "./document.ts"
@@ -155,12 +156,20 @@ export const Shown = Schema.Union([
    * One document, drawn whole. It carries the PATH and never the body: a body
    * travels per key on its own collection, read by whoever opens one, which is
    * the arrangement this whole design generalises.
+   *
+   * `props` is the face's, and it rides here for the node's own reason: a page
+   * ABOUT a document is where its record is read, and the body stream is the
+   * prose. Empty when the file wrote none — an outline's nodes carry their own,
+   * a `.html` is only shown, a `.md` without a `---` block has nothing to say
+   * about itself.
    */
   Schema.Struct({
     kind: Schema.Literal("document"),
     file: Schema.String,
     /** Who points at this document — the "referred to by" list. */
     referrers: Schema.Array(Referrer),
+    /** The named facts the file writes about itself — a `.md`'s frontmatter. */
+    props: Custom,
   }),
   /** One day, whatever it holds: every node with a date on it — scheduled for
    *  it or marked on it — grouped by the outline it lives in. An empty
@@ -300,12 +309,6 @@ export const pageOf = (
   }
 }
 
-/** Whether the directory holds this path at all — the membership question every
- *  arm below asks, and the whole of what any of them wants: what the page then
- *  DRAWS is the file's own business. */
-const serves = (faces: ReadonlyArray<Face>, path: string): boolean =>
-  faces.some((face) => face.path === path)
-
 /** The OUTLINES' paths, in path order — what the trash reads and what the front
  *  page picks its first file from. A narrowing of the one list rather than a
  *  list beside it: asking says which files are being left out. */
@@ -358,7 +361,8 @@ export const shownOf = (
 
   if (address !== null && (address.kind === "heading" || bodyKind(address.path) !== null)) {
     const file = address.path
-    if (!serves(faces, file)) {
+    const face = faces.find((one) => one.path === file)
+    if (face === undefined) {
       // The kind the reader ASKED FOR, off the name the address spelled — so
       // "no such document" and "no such saved page" send them to two different
       // places. `?? "document"` is unreachable (a suffix the registry claims is
@@ -366,7 +370,13 @@ export const shownOf = (
       // asserted away.
       return { kind: "nothing", sought: bodyKind(file) ?? "document", requested: file }
     }
-    return { kind: "document", file, referrers: referrersTo(address, faces, derived) }
+    return {
+      kind: "document",
+      file,
+      referrers: referrersTo(address, faces, derived),
+      // TOTAL, like the face: empty is the honest none, not an omitted field.
+      props: face.props,
+    }
   }
 
   // What is left is an OUTLINE, or the front page — whichever outline was found

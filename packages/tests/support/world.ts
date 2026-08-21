@@ -505,9 +505,10 @@ export const REPEAT_PICKER = selector(TESTID.repeatPicker);
 export const REPEAT_PICKER_RULE = selector(TESTID.repeatPickerRule);
 export const REPEAT_PICKER_SET = selector(TESTID.repeatPickerSet);
 export const REPEAT_PICKER_CANCEL = selector(TESTID.repeatPickerCancel);
-/** The properties drawer under a node's note, and one `key value` line of it.
- *  A line carries `data-key`, and `data-system` on the read-only ones — the
- *  node's own facts, which have verbs of their own. */
+/** The properties run under a node's note or a document page's path, and one
+ *  `key value` line of it. A line carries `data-key`, and `data-system` on
+ *  the read-only ones — the node's own facts, which have verbs of their own.
+ *  A document's run is custom keys only. */
 export const PROPS = selector(TESTID.props);
 export const PROP = selector(TESTID.prop);
 export const PROP_VALUE = selector(TESTID.propValue);
@@ -868,6 +869,7 @@ export const CHAT_TOOL_FOLD = selector(TESTID.chatToolFold);
 export const CHAT_TOOL_DETAIL = selector(TESTID.chatToolDetail);
 export const CHAT_TOOL_PROGRESS = selector(TESTID.chatToolProgress);
 export const CHAT_TOOL_LOCATIONS = selector(TESTID.chatToolLocations);
+export const CHAT_TOOL_ELAPSED = selector(TESTID.chatToolElapsed);
 export const CHAT_LANE = selector(TESTID.chatLane);
 export const CHAT_LANE_LABEL = selector(TESTID.chatLaneLabel);
 export const CHAT_SPAWN = selector(TESTID.chatSpawn);

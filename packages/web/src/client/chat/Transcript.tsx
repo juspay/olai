@@ -27,6 +27,23 @@
  * drop out of that row immediately and say what the agent is doing; when the
  * calls arrive they land in the lane already open under it.
  *
+ * WHETHER A TURN IS IN FLIGHT is the other thing decided out here, and it is
+ * decided ONCE for the whole list rather than per row: it comes off the chat
+ * cell, which moves several times a turn as the context usage is revised, and a
+ * boolean memo propagates only when it flips.
+ *
+ * It has exactly one reader now, and that is the point of the shape the two
+ * live faces ended up in. Both of them — the rail under a spawn
+ * ({@link ./spawn.ts}) and the elapsed readout on a running call's own line
+ * ({@link ./elapsed.ts}) — are functions of the ROW, because whether a call is
+ * still going is a fact about the call's own turn and the server says so on the
+ * row. Asking the conversation instead was the near-miss: a dead agent's rows
+ * are deliberately left where they are, so the next thing anybody sent would
+ * make the whole panel live again and light every abandoned call back up. What
+ * liveness is still the right question for is the CLOCK — whether to run a
+ * timer at all — so that is what it is still used for
+ * ({@link ./elapsing.tsx}).
+ *
  * FOLLOWING THE BOTTOM is the other half of this file, and it is two questions
  * that were being answered as one:
  *
@@ -71,6 +88,7 @@ import { useShowNode } from "../focus.ts"
 import { useFollow } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { declaringFailure } from "./declared.ts"
+import { ElapsedProvider } from "./elapsing.tsx"
 import { Entry } from "./Entry.tsx"
 
 import { laneOf, RAIL } from "./lanes.ts"
@@ -193,6 +211,7 @@ export function Transcript(props: { readonly chat: Chat }) {
    */
   const live = createMemo(() => props.chat.state().status === "thinking")
 
+
   return (
     <div
       class="olai-scroll min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-2 text-ink"
@@ -235,122 +254,129 @@ export function Transcript(props: { readonly chat: Chat }) {
           whose HEIGHT can be observed: the pane's own size never changes, and
           it is the content inside it that grows. */}
       <div class="min-w-0" ref={content}>
-        <For each={props.chat.rows()}>
-          {(key) => {
-            const entry = props.chat.entry(key)
-            /** The row drawn directly ABOVE this one, and the only thing a
-             *  lane needs that a row cannot see for itself — which is the
-             *  whole reason the lane is decided out here rather than inside
-             *  `Entry`.
-             *
-             *  Its own memo rather than folded into the lane below, and that
-             *  is a reactivity decision rather than a stylistic one: what
-             *  comes out is an ENTRY, whose identity survives a frame (the
-             *  collection reconciles in place), so a re-run here stops here.
-             *  Reading the row list straight into the lane would tie every
-             *  lane to the list instead — and a lane is a fresh object every
-             *  time it is computed, so one row arriving would re-run the
-             *  attribute effects of every row already on screen. */
-            const above = createMemo(() => {
-              const previous = previousOf().get(key)
-              return previous === undefined
-                ? undefined
-                : props.chat.entry(previous)()
-            })
-            const lane = createMemo(() => laneOf(entry(), above(), titleOf))
-            /** The live rail under a spawn — what a running subagent looks
-             *  like before it has made a call to draw a lane out of.
-             *
-             *  `null` for every row that spawned nobody, for a spawn that has
-             *  stopped, and for one whose CONVERSATION has, so the same memo
-             *  answers both "is there anything to draw" and "what does it say"
-             *  ({@link ./spawn.ts}). */
-            const working = createMemo(() => doingOf(entry(), live()))
-            return (
-              <Show when={entry()}>
-                {(row) => (
-                  /* The row's own box, and THE GAP UNDER IT — which is here
-                     rather than on the row because a rail has to be able to
-                     cross it. Padding, not a margin: a border is drawn around
-                     padding and outside a margin, so a lane's rail reaches
-                     from its row down through the space to the next one and
-                     the run comes out as one line rather than a column of
-                     dashes. It used to be a margin on the row and a matching
-                     negative here, which was the same picture drawn by two
-                     files agreeing about a number.
-
-                     The lane is a WRAPPER rather than a branch, so a row that
-                     learns whose it is on its second frame moves into the lane
-                     without being drawn again from scratch — the same rule the
-                     row list itself follows, one level down. */
-                  <div
-                    classList={{
-                      [RAIL]: lane() !== null,
-                      // ... unless the rail below is carrying it instead, so
-                      // that one line crosses the gap rather than stopping at
-                      // the edge of this box and starting again inside it.
-                      "pb-2": working() === null,
-                    }}
-                    data-testid={lane() === null ? undefined : TESTID.chatLane}
-                    data-lane={lane()?.parent}
-                  >
-                    {/* Once per stretch of one agent's work, not once per call
-                        it makes — see `./lanes.ts`. */}
-                    <Show when={lane()?.label}>
-                      {(label) => (
-                        <p
-                          class="mb-1 flex min-w-0 items-center gap-1 font-mono text-[0.6875rem] text-muted"
-                          data-testid={TESTID.chatLaneLabel}
-                        >
-                          <span aria-hidden="true">↳</span>
-                          <span class="min-w-0 truncate">{label()}</span>
-                        </p>
-                      )}
-                    </Show>
-                    <Entry entry={row()} chat={props.chat} />
-                    {/* THE LANE, OPENED BY THE SPAWN ITSELF — a rail dropping
-                        out of the frame the moment an agent is sent out,
-                        rather than one that appears whenever the agent
-                        eventually greps something. It carries the gap to the
-                        next row (`pb-2`, taken off the wrapper above) so the
-                        rail runs down through it and meets the first call's
-                        own rail as one line, which is the same reason that
-                        gap is padding rather than a margin — and it is the
-                        same `RAIL`, from the module that owns what a lane
-                        looks like, so "meets as one line" is held by one
-                        spelling rather than by two that happen to agree.
-
-                        The pulsing dot is the header's, by import: a turn in
-                        flight and an agent in flight are the same kind of
-                        fact, and a panel with two spellings of "this is
-                        happening" is a panel with one of them to learn. */}
-                    <Show when={working()}>
-                      {(doing) => (
-                        <div class={`${RAIL} pb-2 pt-1`}>
-                          {/* The NAME is on the words rather than on the rail
-                              around them, so that what a scenario measures is
-                              what a reader sees inset — the rail's own box
-                              starts at the row's left edge, and asserting on
-                              that would pass on a build that had lost the
-                              indent entirely. */}
+        {/* HOW LONG a running call has been going reaches the frame that draws
+            one from here ({@link ./elapsing.tsx}) rather than down through
+            `Entry`: it needs `live` and one clock, both of which are the
+            list's, and neither of which is anything the five other kinds of
+            row have a use for. */}
+        <ElapsedProvider live={live()}>
+          <For each={props.chat.rows()}>
+            {(key) => {
+              const entry = props.chat.entry(key)
+              /** The row drawn directly ABOVE this one, and the only thing a
+               *  lane needs that a row cannot see for itself — which is the
+               *  whole reason the lane is decided out here rather than inside
+               *  `Entry`.
+               *
+               *  Its own memo rather than folded into the lane below, and that
+               *  is a reactivity decision rather than a stylistic one: what
+               *  comes out is an ENTRY, whose identity survives a frame (the
+               *  collection reconciles in place), so a re-run here stops here.
+               *  Reading the row list straight into the lane would tie every
+               *  lane to the list instead — and a lane is a fresh object every
+               *  time it is computed, so one row arriving would re-run the
+               *  attribute effects of every row already on screen. */
+              const above = createMemo(() => {
+                const previous = previousOf().get(key)
+                return previous === undefined
+                  ? undefined
+                  : props.chat.entry(previous)()
+              })
+              const lane = createMemo(() => laneOf(entry(), above(), titleOf))
+              /** The live rail under a spawn — what a running subagent looks
+               *  like before it has made a call to draw a lane out of.
+               *
+               *  `null` for every row that spawned nobody, for a spawn that has
+               *  stopped, and for one whose CONVERSATION has, so the same memo
+               *  answers both "is there anything to draw" and "what does it say"
+               *  ({@link ./spawn.ts}). */
+              const working = createMemo(() => doingOf(entry()))
+              return (
+                <Show when={entry()}>
+                  {(row) => (
+                    /* The row's own box, and THE GAP UNDER IT — which is here
+                       rather than on the row because a rail has to be able to
+                       cross it. Padding, not a margin: a border is drawn around
+                       padding and outside a margin, so a lane's rail reaches
+                       from its row down through the space to the next one and
+                       the run comes out as one line rather than a column of
+                       dashes. It used to be a margin on the row and a matching
+                       negative here, which was the same picture drawn by two
+                       files agreeing about a number.
+  
+                       The lane is a WRAPPER rather than a branch, so a row that
+                       learns whose it is on its second frame moves into the lane
+                       without being drawn again from scratch — the same rule the
+                       row list itself follows, one level down. */
+                    <div
+                      classList={{
+                        [RAIL]: lane() !== null,
+                        // ... unless the rail below is carrying it instead, so
+                        // that one line crosses the gap rather than stopping at
+                        // the edge of this box and starting again inside it.
+                        "pb-2": working() === null,
+                      }}
+                      data-testid={lane() === null ? undefined : TESTID.chatLane}
+                      data-lane={lane()?.parent}
+                    >
+                      {/* Once per stretch of one agent's work, not once per call
+                          it makes — see `./lanes.ts`. */}
+                      <Show when={lane()?.label}>
+                        {(label) => (
                           <p
-                            class="flex items-center gap-1 font-mono text-[0.6875rem] text-doing"
-                            data-testid={TESTID.chatSpawnWorking}
-                            data-lane={row().id}
-                            aria-live="polite"
+                            class="mb-1 flex min-w-0 items-center gap-1 font-mono text-[0.6875rem] text-muted"
+                            data-testid={TESTID.chatLaneLabel}
                           >
-                            <span class={LIVE_DOT} aria-hidden="true" />
-                            {doing()}
+                            <span aria-hidden="true">↳</span>
+                            <span class="min-w-0 truncate">{label()}</span>
                           </p>
-                        </div>
-                      )}
-                    </Show>
-                  </div>
-                )}
-              </Show>
-            )
-          }}
-        </For>
+                        )}
+                      </Show>
+                      <Entry entry={row()} chat={props.chat} />
+                      {/* THE LANE, OPENED BY THE SPAWN ITSELF — a rail dropping
+                          out of the frame the moment an agent is sent out,
+                          rather than one that appears whenever the agent
+                          eventually greps something. It carries the gap to the
+                          next row (`pb-2`, taken off the wrapper above) so the
+                          rail runs down through it and meets the first call's
+                          own rail as one line, which is the same reason that
+                          gap is padding rather than a margin — and it is the
+                          same `RAIL`, from the module that owns what a lane
+                          looks like, so "meets as one line" is held by one
+                          spelling rather than by two that happen to agree.
+  
+                          The pulsing dot is the header's, by import: a turn in
+                          flight and an agent in flight are the same kind of
+                          fact, and a panel with two spellings of "this is
+                          happening" is a panel with one of them to learn. */}
+                      <Show when={working()}>
+                        {(doing) => (
+                          <div class={`${RAIL} pb-2 pt-1`}>
+                            {/* The NAME is on the words rather than on the rail
+                                around them, so that what a scenario measures is
+                                what a reader sees inset — the rail's own box
+                                starts at the row's left edge, and asserting on
+                                that would pass on a build that had lost the
+                                indent entirely. */}
+                            <p
+                              class="flex items-center gap-1 font-mono text-[0.6875rem] text-doing"
+                              data-testid={TESTID.chatSpawnWorking}
+                              data-lane={row().id}
+                              aria-live="polite"
+                            >
+                              <span class={LIVE_DOT} aria-hidden="true" />
+                              {doing()}
+                            </p>
+                          </div>
+                        )}
+                      </Show>
+                    </div>
+                  )}
+                </Show>
+              )
+            }}
+          </For>
+        </ElapsedProvider>
 
         <Show when={props.chat.refused()}>
           {(failure) => (

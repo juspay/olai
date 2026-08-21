@@ -149,9 +149,10 @@ export const TESTID = {
   /** What the last press had to say, keeping the panel open to say it. */
   repeatPickerSaid: "repeat-picker-said",
   // ── the properties drawer ────────────────────────────────────────────
-  /** The drawer under a node's note: the node's own facts, then the custom
-   *  properties somebody added. Drawn on a ROW only when there is a custom one,
-   *  and always on the node's own page. */
+  /** The drawer under a node's note — and under a document page's path: the
+   *  node's own facts, then the custom properties somebody added. Drawn on a
+   *  ROW only when there is a custom one, always on the node's own page, and
+   *  on a document page when the file wrote frontmatter. */
   props: "props",
   /** One line of it. `data-key` names the property; `data-system` is present on
    *  the read-only lines (`id`, `status`, `date`, the stamps), which is how a
@@ -1053,6 +1054,17 @@ export const TESTID = {
   chatToolProgress: "chat-tool-progress",
   /** Where it is working: the follow-along file locations, on the line. */
   chatToolLocations: "chat-tool-locations",
+  /** HOW LONG it has been running, on the same line — drawn only once a call
+   *  the wire still calls running has outlasted the panel's quiet threshold,
+   *  and only while the CONVERSATION is live, so a dead agent's sticky
+   *  `pending` never keeps a clock counting.
+   *
+   *  It names the DURATION and not the readout around it: the separator that
+   *  sets it off from the locations and the words a screen reader hears are
+   *  outside, so what a scenario reads back is the number the rule decided.
+   *  That number ticks, which is why a scenario asserts that a duration is
+   *  drawn and that it GROWS, rather than which one it is. */
+  chatToolElapsed: "chat-tool-elapsed",
   /** A row a SUBAGENT is responsible for, in the lane it is drawn in.
    *  `data-lane` is the transcript key of the `Agent` frame it belongs to —
    *  the same key the row itself carries as `data-entry-id` — so a scenario

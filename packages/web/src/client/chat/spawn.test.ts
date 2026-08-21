@@ -9,28 +9,15 @@
  * WRONG end: an agent that died in the middle of one.
  */
 
-import type { ChatEntry } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
+import { toolRow as row } from "./rows.testlib.ts"
 import { doingOf, whoOf } from "./spawn.ts"
-
-/** A tool row, as the transcript serves one. */
-const row = (extra: Partial<ChatEntry> = {}): ChatEntry => ({
-  id: "tool:agent-1",
-  seq: 0,
-  kind: "tool",
-  text: "explore the outline",
-  ...extra,
-})
-
-/** A conversation with a turn in flight, which is the only state in which
- *  anything is running to draw. */
-const TURNING = true
 
 describe("which rows sent somebody", () => {
   test("a call that spawned nobody has no face at all", () => {
     expect(whoOf(row({ status: "in_progress" }))).toBeNull()
-    expect(doingOf(row({ status: "in_progress" }), TURNING)).toBeNull()
+    expect(doingOf(row({ status: "in_progress" }))).toBeNull()
     // ... including a call a subagent MADE, which is the other end of this
     // feature and not this one: it is drawn in a lane, and a face on it would
     // claim the subagent had spawned an agent of its own.
@@ -41,7 +28,7 @@ describe("which rows sent somebody", () => {
     // The transient the list has: a key is in `rows()` and its value is a
     // frame behind. Asked about nothing, the answer is nothing.
     expect(whoOf(undefined)).toBeNull()
-    expect(doingOf(undefined, TURNING)).toBeNull()
+    expect(doingOf(undefined)).toBeNull()
   })
 })
 
@@ -76,36 +63,41 @@ describe("whether it is still going", () => {
     // made it wrong is the `pending` case: a heartbeat can be half a minute
     // away, so a subagent whose calls were already drawn in the lane below
     // this rail went on being described as *starting…* while they arrived.
-    expect(doingOf(row({ spawned: { kind: "Explore" } }), TURNING)).toBe("working…")
-    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "pending" }), TURNING))
+    expect(doingOf(row({ spawned: { kind: "Explore" } }))).toBe("working…")
+    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "pending" })))
       .toBe("working…")
-    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "in_progress" }), TURNING))
+    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "in_progress" })))
       .toBe("working…")
   })
 
   test("a spawn that has stopped has nothing live left to say", () => {
     // The half that has to come OFF: a rail still saying "working…" under a
     // finished call tells a reader a fan-out is running when the turn is over.
-    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "completed" }), TURNING))
+    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "completed" })))
       .toBeNull()
-    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "failed" }), TURNING))
+    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "failed" })))
       .toBeNull()
   })
 
-  test("nor has one whose CONVERSATION has stopped, whatever its own row says", () => {
-    // The way this actually goes wrong, and the half a row cannot answer. A
+  test("nor has one whose TURN has ended, whatever its own status says", () => {
+    // The way this actually goes wrong, and the half a status cannot answer. A
     // status is sticky, and the rows a dead agent left are deliberately still
     // on screen to read — so an agent that died between announcing a spawn and
     // reporting on it leaves a row that says `pending` for as long as the panel
-    // is open. Asked of the row alone, that is a rail pulsing "working…" under
-    // a process that no longer exists.
-    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "pending" }), false))
+    // is open. Asked of the status alone, that is a rail pulsing "working…"
+    // under a process that no longer exists.
+    //
+    // The server marks what its turns abandoned, so this is the ROW's answer
+    // rather than a conversation-wide one — which is what makes it survive the
+    // next thing anybody sends (`./running.ts`).
+    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "pending", stranded: true })))
       .toBeNull()
-    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "in_progress" }), false))
-      .toBeNull()
+    expect(
+      doingOf(row({ spawned: { kind: "Explore" }, status: "in_progress", stranded: true })),
+    ).toBeNull()
     // ... and who it was is still said, because that is a fact about what
     // happened rather than about what is happening.
-    expect(whoOf(row({ spawned: { kind: "Explore" }, status: "pending" })))
+    expect(whoOf(row({ spawned: { kind: "Explore" }, status: "pending", stranded: true })))
       .toBe("Explore")
   })
 })

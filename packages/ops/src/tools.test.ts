@@ -82,6 +82,10 @@ const EVERYTHING = (): OutlineSet =>
     ].join("\n"),
   }, [
     ["notes/finishes.md", "# Finishes\n\nDoors: matte.\n"],
+    [
+      "notes/plan.md",
+      "---\nagent: claude-opus\nowners: [alice, bob]\n---\n# The plan\n",
+    ],
     ["plain.md", "walnut, or birch\n"],
     // Bare, because the set holds this one's PATH and not its content — which
     // is exactly why no document read answers it.
@@ -257,6 +261,12 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   >
   expect(documents).toEqual([
     { file: "notes/finishes.md", title: "Finishes", bytes: 26 },
+    {
+      file: "notes/plan.md",
+      title: "The plan",
+      bytes: 59,
+      props: { agent: "claude-opus", owners: ["alice", "bob"] },
+    },
     { file: "plain.md", title: "walnut, or birch", bytes: 17 },
     { file: "torn.md", title: "", bytes: 0, unreadable: [expect.any(String)] },
   ])

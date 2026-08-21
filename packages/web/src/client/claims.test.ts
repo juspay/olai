@@ -260,6 +260,48 @@ test("a row's handle is marked in the gesture that owns it and the cell that wea
   ])
 })
 
+// chat/running.ts's claim, and it is the readout-states sweep above read in a
+// different key: what a tool call's status MEANS is one module's, and what it
+// LOOKS like is the frame's. The two are keyed by the same field and change for
+// different reasons — the mark, the tone and the spoken word move when the panel
+// does, the vocabulary moves when ACP does — so the split is deliberate and the
+// sweep is what keeps it from becoming a third opinion. `?? "pending"` was
+// written twice for one convention before this, in the frame and in the spawn
+// rail; a fourth file uttering a status is a face deciding for itself what the
+// wire meant.
+//
+// WHICH statuses mean running is not in this list at all any more, and that is
+// the same claim moving one layer down: the SERVER asks it too — when a turn
+// ends, to mark what it abandoned — so it belongs beside the field, in
+// `@olai/surface`'s own declaration. What is left here is the one word this
+// client still spells, the announcement default a row with nothing said about
+// it is taken to be wearing. The e2e suite's own spelling is not here to see:
+// it is a different package.
+test("a tool call's status is spelled where it is meant and where it is drawn", () => {
+  const statuses = /["'`](pending|in_progress)["'`]/
+  expect(filesSpelling(statuses)).toEqual([
+    path.join("chat", "ToolFrame.tsx"),
+    path.join("chat", "elapsed.test.ts"),
+    path.join("chat", "running.ts"),
+    path.join("chat", "spawn.test.ts"),
+  ])
+})
+
+// clock.ts's claim — "the one clock in the client", which for a while was a
+// claim about the DAY and silently untrue about the wall clock. Two readouts
+// here are a reading of it and therefore go stale where they stand — the commit
+// pill's "12m ago" and the chat panel's "47s" — and each arrived with its own
+// `setInterval`, signal and `onCleanup`. What the two had in common was never
+// the number but the LIFETIME, and a disposal written out per feature is one a
+// feature will eventually forget: the timer that outlives the component it drew
+// for is invisible until a panel that has been opened and closed forty times is
+// ticking forty times. So the repeating timer is `createTicking`, once, and a
+// third readout has to reach for it. `clock.ts` itself is the definition, and
+// the pattern is the CALL — which is why its own name is the only one here.
+test("only clock.ts starts a repeating timer", () => {
+  expect(filesSpelling(/setInterval\s*\(/)).toEqual(["clock.ts"])
+})
+
 // pointer.ts's claim — one file suppresses the text selection under a gesture.
 // It is swept because the file's own note LEANS on it: the save-and-put-back
 // there is not re-entrant, and what makes that survivable is that the value it

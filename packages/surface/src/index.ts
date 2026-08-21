@@ -1258,6 +1258,7 @@ export {
   Delivery,
   FileDiff,
   isOpFailure,
+  isRunningStatus,
   kindOf,
   MissingServer,
   NodeContext,

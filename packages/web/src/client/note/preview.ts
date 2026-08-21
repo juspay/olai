@@ -52,6 +52,17 @@ const stripMarks = (line: string): string => {
   text = text.replace(/\*([^*]+)\*/g, "$1")
   text = text.replace(/_([^_]+)_/g, "$1")
   text = text.replace(/`([^`]+)`/g, "$1")
-  text = text.replace(/\s+#+$/, "")
+  // Closing ATX hashes, counted off the end rather than `replace(/\s+#+$/, "")`
+  // — the same linear spelling slug.ts chose. The regex is quadratic: an
+  // unanchored `\s+` restarts at every position of a line of spaces.
+  // Space and tab only, on purpose: CommonMark's closer, and headingText's two
+  // characters. The old `\s` also took NBSP (and U+2000, U+FEFF, \f, \v).
+  let end = text.length
+  while (end > 0 && text[end - 1] === "#") end--
+  if (end < text.length) {
+    let before = end
+    while (before > 0 && (text[before - 1] === " " || text[before - 1] === "\t")) before--
+    if (before < end) text = text.slice(0, before)
+  }
   return text.trim()
 }

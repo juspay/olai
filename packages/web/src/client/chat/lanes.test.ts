@@ -19,6 +19,7 @@ import { laneOf } from "./lanes.ts"
 const row = (id: string, parent?: string): ChatEntry => ({
   id,
   seq: 0,
+  since: "2026-08-21T12:00:00.000Z",
   kind: "tool",
   text: id,
   ...(parent === undefined ? {} : { parent }),

@@ -311,6 +311,39 @@ export const ChatEntry = Schema.Struct({
    *  arrival order, which is the same thing until a session is reloaded; an
    *  explicit sequence means the panel never has to depend on that. */
   seq: Schema.Int,
+  /**
+   * WHEN this row first appeared, as an ISO 8601 instant — the server's clock
+   * at the moment olai first heard of it.
+   *
+   * Minted beside {@link ChatEntry.seq} and by the same writer, which is what
+   * makes it mean what it says: `seq` is WHERE a row sits and this is WHEN it
+   * arrived, both decided once and neither settable by a caller. Sticky across
+   * every later report of the same row, so a tool call announced `pending` and
+   * updated four times keeps the instant it was ANNOUNCED rather than the
+   * instant of the last frame — which is the only instant a duration can
+   * honestly be measured from.
+   *
+   * HERE rather than in the browser, and that is the whole reason it is on the
+   * wire at all. This collection is served snapshot-then-deltas, so a tab
+   * opened mid-turn, a tab reloaded after a crash and a tab that has been
+   * listening since the first token all see the same conversation — and a
+   * browser-side stopwatch, started whenever a tab happened to begin looking,
+   * would have each of them saying a different number and every one of them
+   * short. What a call has been running for is a fact about the call.
+   *
+   * REQUIRED, like `seq` and for its reason: the transcript is the only thing
+   * in this tree that mints a row, it is not persisted, and it stamps every one
+   * — so "no stamp" describes a server that does not exist, and making it
+   * optional would hand every present and future reader a silence branch for a
+   * case nothing can produce. Worse, that branch would be indistinguishable
+   * from the one that is real: a malformed instant, which is a claim about
+   * somebody else's string rather than about a missing field.
+   *
+   * The one reader today is the chat panel's elapsed readout, which draws it
+   * only for a call the wire still calls running in a conversation that is
+   * still live.
+   */
+  since: Schema.String,
   kind: Schema.Literals(["user", "agent", "tool", "ask", "refusal", "notice"]),
   /** The prose. For a tool entry this is its title, and for an `ask` it is what
    *  the agent said it needs — the elicitation's own message. */
@@ -381,6 +414,33 @@ export const ChatEntry = Schema.Struct({
   /** True while the agent is still adding to this entry. The panel shows a
    *  cursor; nothing else depends on it. */
   streaming: Schema.optionalKey(Schema.Boolean),
+  /**
+   * `tool` only: the TURN this call was announced in has ended, and the call
+   * was never reported on.
+   *
+   * The sibling of {@link ChatEntry.streaming} in every way that matters —
+   * derived by the transcript's one writer, only ever `true`, and absent for
+   * the ordinary case — and it exists because `status` alone cannot say this.
+   * A status is STICKY: an agent that died between announcing a call and
+   * reporting on it leaves that row `pending` for as long as the panel is open,
+   * and that is deliberate, because the row is the honest record of a call that
+   * was announced and never came back. What olai knows and the row could not
+   * say is that its turn is over.
+   *
+   * A CONVERSATION-LEVEL "is a turn in flight" is the approximation this
+   * replaces, and it fails in one exact place: send again in the same
+   * transcript — a dead agent's rows are deliberately not cleared — and the new
+   * turn makes the whole panel live again, so last turn's abandoned calls
+   * resume looking like work in progress, and the panel's live faces would put
+   * a pulsing rail and a five-minute clock on them. Whether a call is still
+   * going is a fact about the CALL's turn, so it is on the call.
+   *
+   * Cleared by a fresh report on the same call, which is the only thing that
+   * could make it untrue: the field means "as far as anything here knows, this
+   * one never came back", and a frame saying otherwise is anything here
+   * knowing.
+   */
+  stranded: Schema.optionalKey(Schema.Boolean),
   /** `user` only: the nodes this message was ABOUT — what the composer was
    *  armed with when it was sent, resolved against the set at that moment.
    *
@@ -420,6 +480,27 @@ export const ChatEntry = Schema.Struct({
   delivery: Schema.optionalKey(Delivery),
 })
 export type ChatEntry = typeof ChatEntry.Type
+
+/**
+ * Which of a tool call's four statuses mean it HAS NOT COME BACK.
+ *
+ * Here, beside the field, because BOTH ENDS ask it and they must not answer
+ * differently. The server asks when a turn ends — which of its calls were
+ * abandoned, and so must be marked {@link ChatEntry.stranded} — and the browser
+ * asks to decide whether to draw a live rail under a spawn and a ticking
+ * duration on a frame. Two spellings of one four-word vocabulary is one of them
+ * being missed the day ACP grows a fifth status, and the way that shows up is a
+ * server marking a call finished while a panel goes on timing it.
+ *
+ * `pending` is a RUNNING state, which is the one thing here that is not
+ * obvious: the adapter announces EVERY tool call with it, so it means
+ * "announced" rather than "not started" — and it is what a row nothing has said
+ * about yet is taken to be wearing, which is why an absent status answers the
+ * same way. Anything spelled some other way is not something this protocol will
+ * call running.
+ */
+export const isRunningStatus = (status: ChatEntry["status"]): boolean =>
+  status === undefined || status === "pending" || status === "in_progress"
 
 /**
  * One piece of a picture on its way to the conversation's tmp directory.

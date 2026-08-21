@@ -88,6 +88,19 @@ test("a list is drawn joined, and says that it is one", () => {
     .toEqual([{ key: "tags", value: "a, b", system: false, listed: true }])
 })
 
+test("a document's frontmatter is the same run, over the map", () => {
+  // `customEntries` takes the map, not a carrier — so a document's Face.props
+  // spends the same spelling a record's custom does, and a list is joined
+  // here once rather than in two drawers.
+  expect(customEntries({
+    agent: "claude-opus",
+    owners: ["alice", "bob"],
+    date: "2026-09-01",
+  }).map((entry) => entry.key)).toEqual(["agent", "date", "owners"])
+  expect(customEntries({ owners: ["alice", "bob"] }))
+    .toEqual([{ key: "owners", value: "alice, bob", system: false, listed: true }])
+})
+
 test("a link is a value that already is one, and nothing else", () => {
   expect(isLink("https://github.com/juspay/olai/pull/176")).toBe(true)
   expect(isLink("http://localhost:3000")).toBe(true)

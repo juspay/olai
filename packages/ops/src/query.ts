@@ -108,7 +108,7 @@ import {
 } from "@olai/format"
 import { Result } from "effect"
 
-import { noSuchDocument, notLoaded, outlineAt } from "./plan.ts"
+import { noSuchDocument, notLoaded, outlineAt } from "./refusals.ts"
 
 /**
  * Every shape an answer here has is `@olai/format`'s, and none of them is
@@ -1046,8 +1046,16 @@ export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
     // The TITLE is the document's own now rather than this listing's reading of
     // its text: it is a field of the face the decode built (`@olai/format`'s
     // `Document`), which is the same title the browser draws and the same one a
-    // hit carries.
-    return { file: entry.path, title: entry.title, bytes: bytesOf(entry.body) }
+    // hit carries. The PROPERTIES are that face's too — through `heldCustom`
+    // for {@link carriedOf}'s reason, omitted when the document wrote none,
+    // the same two rules a search hit follows over the same map.
+    const props = heldCustom(entry.props)
+    return {
+      file: entry.path,
+      title: entry.title,
+      bytes: bytesOf(entry.body),
+      ...(nothing(props) ? {} : { props }),
+    }
   })
 }
 

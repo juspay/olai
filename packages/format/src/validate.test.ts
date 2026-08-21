@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
+import type { Document } from "./document.ts"
 import { isCrossFile, type OutlineError } from "./errors.ts"
-import { recordsOf, setOf } from "./fixtures.testlib.ts"
-import { type OutlineSet, outlinePaths } from "./set.ts"
-import { validate } from "./validate.ts"
+import { decodedOf, outlineOf, recordsOf, setOf } from "./fixtures.testlib.ts"
+import { assemble, type OutlineSet, outlinePaths } from "./set.ts"
+import { type Previous, type Reading, validate } from "./validate.ts"
 
 const errorsOf = (
   files: Record<string, string>,
@@ -114,6 +115,94 @@ test("a view that is not about this set is not the view the rules run over", () 
     true,
   )
   expect(answer.success.derived.byId.get("x")).toBe(records[0])
+})
+
+// The check that decides between the two is asked FILE BY FILE, of the view's
+// own grouping — never by flattening the set to compare two lists of every
+// record in the directory (`./validate.ts`'s `isSet`). So the three cases below
+// are about what that grouping does and does not spell, and each of them
+// re-assembles the SAME decoded outlines with one file replaced, which is what
+// a probe hands over: the files nobody touched are the very objects the last
+// reading was judged against, and the identity the check turns on is real.
+
+/** The next reading's set and the delta that describes it — one file rewritten,
+ *  every other outline the same object as before. */
+const probed = (
+  held: Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>,
+  read: Reading,
+  file: string,
+  text: string,
+): { readonly set: OutlineSet; readonly previous: Previous } => {
+  held.set(file, Result.succeed<Document>(outlineOf(text, file)))
+  const set = assemble(held)
+  const nodes = recordsOf(set).filter((at) => at.file === file)
+  return { set, previous: { read, delta: { upserts: [[file, { nodes }]], removes: [] } } }
+}
+
+const judged = (set: OutlineSet, previous?: Previous): Reading => {
+  const answer = validate(set, previous)
+  if (Result.isFailure(answer)) {
+    throw new Error(`expected a valid set: ${answer.failure.map((e) => e.code).join(", ")}`)
+  }
+  return answer.success
+}
+
+test("a delta that describes the set is taken, and the view is a patched one", () => {
+  const held = decodedOf({
+    "a.olai": `{"id":"x","ord":"a","title":"one"}`,
+    "b.olai": `{"id":"y","ord":"a","title":"two"}`,
+  })
+  const first = judged(assemble(held))
+  const { set, previous } = probed(held, first, "a.olai", `{"id":"x","ord":"a","title":"edited"}`)
+  const answer = judged(set, previous)
+
+  // A LAYER is what only the patcher produces — `derive` builds plain maps — so
+  // this is how the suite says the answer came the cheap way rather than
+  // through the rebuild the guard falls back to.
+  expect(answer.derived.byId instanceof Map).toBe(false)
+  expect(answer.derived.byId.get("x")?.node).toMatchObject({ title: "edited" })
+  const records = recordsOf(set)
+  expect(answer.derived.nodes.every((at, index) => at === records[index])).toBe(true)
+  // And the flat list is ONE value however often it is asked for, since the
+  // rules above read it five times and a caller reads it after them.
+  expect(answer.derived.nodes).toBe(answer.derived.nodes)
+})
+
+test("an outline holding nothing is not a disagreement about the set", () => {
+  // Absence is how `byFile` spells a file with no records, so a set carrying an
+  // empty outline has one more file than the view has keys — which a check
+  // stepping the two in lockstep has to expect rather than call a mismatch.
+  const held = decodedOf({
+    "a.olai": `{"id":"x","ord":"a","title":"one"}`,
+    "empty.olai": ``,
+    "z.olai": `{"id":"y","ord":"a","title":"two"}`,
+  })
+  const first = judged(assemble(held))
+  const { set, previous } = probed(held, first, "a.olai", `{"id":"x","ord":"a","title":"edited"}`)
+  const answer = judged(set, previous)
+
+  expect(answer.derived.byId instanceof Map).toBe(false)
+  expect(answer.derived.byId.get("x")?.node).toMatchObject({ title: "edited" })
+  expect([...answer.derived.byFile.keys()]).toEqual(["a.olai", "z.olai"])
+})
+
+test("a delta that leaves the view holding a file the set lost is thrown away", () => {
+  const held = decodedOf({
+    "a.olai": `{"id":"x","ord":"a","title":"one"}`,
+    "b.olai": `{"id":"y","ord":"a","title":"two"}`,
+  })
+  const first = judged(assemble(held))
+  // The directory lost b.olai and the delta never says so, which the flat
+  // comparison this replaced could only see as a length: the view files a
+  // record under a path the set does not hold at all.
+  held.delete("b.olai")
+  const set = assemble(held)
+  const answer = judged(set, { read: first, delta: { upserts: [], removes: [] } })
+
+  expect([...answer.derived.byFile.keys()]).toEqual(["a.olai"])
+  expect(answer.derived.byId.has("y")).toBe(false)
+  const records = recordsOf(set)
+  expect(answer.derived.nodes.every((at, index) => at === records[index])).toBe(true)
 })
 
 // The set is flat: `files` is the list found on disk and the nodes are one
