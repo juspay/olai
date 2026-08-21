@@ -45,7 +45,6 @@ import { only } from "./narrow.ts"
 import { OpensProvider } from "./opens.tsx"
 import { fileOf, opensAt, requestFor } from "./page.ts"
 import { fileNamed } from "./routes.ts"
-import type { Names } from "./names.ts"
 import { createReadings, ReadingsProvider } from "./reading.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { PinsProvider } from "./pins/answered.tsx"
@@ -60,10 +59,6 @@ import { Sidebar } from "./Sidebar.tsx"
 import { TodayProvider } from "./today.tsx"
 import { connectionReadout, olai } from "./wire.ts"
 import { isLone } from "./workspace.ts"
-
-/** No pane has joined yet — every id is unnamed, which is what the palette's
- *  pin row already means by a page whose names have not arrived. */
-const NONE: Names = () => undefined
 
 export default function App() {
   /** THE DIRECTORY — every served file's path, title and breakage, and nothing
@@ -253,10 +248,8 @@ export default function App() {
    * READ OFF THE PANE'S TABLE, not built here. `createReading` derives it
    * once beside the page; a second `createNames` over `focused` was a
    * duplicate Map and a second copy on every navigation (`./reading.tsx`).
-   * `NONE` is a pane that has not mounted yet — the same empty lookup
-   * `createNames` used to hand back for an unanswered reading.
    */
-  const names = (): Names => readings.names(router.workspace().focus) ?? NONE
+  const names = () => readings.names(router.workspace().focus)
 
   /**
    * The day the calendar opens on, when the focused pane is a day page — the

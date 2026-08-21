@@ -17,7 +17,7 @@
  *
  * ONE SPELLING, because there are two readers at two depths: everything inside
  * a pane, which takes the table off the context (`./reading.tsx`'s
- * `NamesProvider`), and the chrome OUTSIDE the panes, which reads the focused
+ * `useNames`), and the chrome OUTSIDE the panes, which reads the focused
  * pane's table out of the register (`./App.tsx`, for the palette's pin row).
  * Both look up the one table `createReading` derives beside the page — a
  * second `createNames` over the same reading was a duplicate Map and a

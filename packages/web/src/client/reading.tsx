@@ -31,7 +31,7 @@
  * threading the answer through a thousand rows would make every component's
  * signature a function of what one of its children needs.
  *
- * {@link NamesProvider} is a narrow door onto one field of that answer — what
+ * {@link useNames} is a narrow door onto one field of that answer — what
  * the ids this page points at are CALLED. It is separate because its readers
  * are the leaves: a title that turns out to be an address, and the strip of
  * links a `see` draws. Handing those the whole reading would hand a title
@@ -207,6 +207,7 @@ export const createReading = (
 
 const ReadingContext = createContext<Accessor<PageReading | undefined>>()
 const FramesContext = createContext<Accessor<number>>()
+const NamesContext = createContext<Accessor<Names>>()
 
 export function ReadingProvider(props: {
   readonly reading: Reading
@@ -215,7 +216,9 @@ export function ReadingProvider(props: {
   return (
     <ReadingContext.Provider value={props.reading.page}>
       <FramesContext.Provider value={props.reading.at}>
-        <NamesProvider names={props.reading.names}>{props.children}</NamesProvider>
+        <NamesContext.Provider value={props.reading.names}>
+          {props.children}
+        </NamesContext.Provider>
       </FramesContext.Provider>
     </ReadingContext.Provider>
   )
@@ -248,21 +251,10 @@ export const useFrames = (): Accessor<number> => {
   return frames
 }
 
-/** The narrow door onto one field of a reading — what an id is CALLED. The
- *  table itself is derived beside the reading ({@link Reading.names}); this
- *  hands that one lookup to the leaves. The rule about when it may move is
- *  `./names.ts`'s. */
-const NamesContext = createContext<Accessor<Names>>()
-
-function NamesProvider(props: {
-  readonly names: Accessor<Names>
-  readonly children: JSX.Element
-}) {
-  return <NamesContext.Provider value={props.names}>{props.children}</NamesContext.Provider>
-}
-
 /** What this page's ids name, for a leaf drawn inside a pane. A throw outside
- *  the provider, for {@link useReading}'s reason. */
+ *  the provider, for {@link useReading}'s reason. The table itself is derived
+ *  beside the reading ({@link Reading.names}); this hands that one lookup to
+ *  the leaves. The rule about when it may move is `./names.ts`'s. */
 export const useNames = (): Accessor<Names> => {
   const names = useContext(NamesContext)
   if (names === undefined) throw new Error("a name lookup outside <ReadingProvider>")
@@ -278,8 +270,9 @@ export interface Readings {
    *  not mounted or has not been answered yet. */
   readonly at: (index: number) => PageReading | undefined
   /** What the ids that pane's page points at are called — the same table the
-   *  pane's leaves read, or `undefined` for a pane that has not mounted. */
-  readonly names: (index: number) => Names | undefined
+   *  pane's leaves read. An empty lookup for a pane that has not mounted,
+   *  which is what `createNames` hands back for an unanswered reading. */
+  readonly names: (index: number) => Names
 }
 
 const ReadingsContext = createContext<Readings>()
@@ -293,6 +286,9 @@ export const useReadings = (): Readings => {
   if (readings === undefined) throw new Error("a page reading outside <App>")
   return readings
 }
+
+/** No pane has joined yet — every id is unnamed. */
+const unnamed: Names = () => undefined
 
 /**
  * The register, made once per app.
@@ -320,6 +316,7 @@ export const createReadings = (): Readings => {
       onCleanup(() => setJoined((were) => were.filter((one) => one !== entry)))
     },
     at: (index) => joined().find((one) => one.pane() === index)?.reading.page(),
-    names: (index) => joined().find((one) => one.pane() === index)?.reading.names(),
+    names: (index) =>
+      joined().find((one) => one.pane() === index)?.reading.names() ?? unnamed,
   }
 }
