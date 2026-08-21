@@ -71,6 +71,15 @@ Feature: Pinning a page to the sidebar
     # was thrown away and re-debounced from the frame the page landed
     # (docs/brainstorming/reactivity-after-the-flip.md §3.1's 1.6).
     And the node "demo" was never drawn
+    # AND IT NEVER EMPTIED ON THE WAY, which is the SAME seam read from the
+    # other side. The page and its narrowing are two members and two frames; the
+    # claim above is the order where the PAGE lands first, and this is the order
+    # where the ANSWER does — house's ids spent on the garden page still on
+    # screen name nothing on it, so every row goes. That order is measured not to
+    # happen and is promised by nothing, which is why the pane spends an answer
+    # only on the page it is ABOUT (`client/pane/PageView.tsx`'s `together`):
+    # this line asserts an invariant rather than watching a race.
+    And the pane was never empty
 
   Scenario: A saved search is NAMED where the thought arrives, and comes back named
     # The gap this closes: a reader who has just narrowed a page had to pin it

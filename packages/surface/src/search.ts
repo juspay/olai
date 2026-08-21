@@ -13,7 +13,8 @@
  *
  * **One matcher.** Every door that lists hits is a caller of `@olai/ops`'
  * `Query.search`, over the same `Reading`, and the page filter is a caller of
- * the other half of the same matcher (`Query.matches`, the member below). A
+ * the other half of the same matcher (`Query.narrowing`, which is a reading of
+ * a page and so is declared in {@link ./narrowing.ts} rather than here). A
  * client-side ranking would have been a second implementation of it — and the
  * first place the faces of search quietly stopped being the same product. That
  * used to be restraint over a browser holding every node; since
@@ -56,13 +57,11 @@ export {
    *  in its type ({@link isNodeHit}). */
   DocumentHit,
   isNodeHit,
-  /** ONE NODE THE PAGE FILTER SELECTED, and the whole list of them: the other
-   *  question the same matcher answers, for the box that narrows what is
-   *  already on screen rather than listing hits beside it. Ids and why, uncapped
-   *  and unranked — that file argues why a shortlist is the wrong answer to it. */
+  /** ONE NODE A PAGE'S FILTER SELECTED — the other shape the same matcher
+   *  answers in, for the box that narrows what is already on screen rather than
+   *  listing hits beside it. What ASKS for a list of them is {@link
+   *  ./narrowing.ts}, which is a reading of a page rather than a search. */
   MatchedNode,
-  MatchingAnswer,
-  MatchingRequest,
   NodeHit,
   Refusal,
   SearchAnswer,

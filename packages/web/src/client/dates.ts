@@ -45,10 +45,17 @@
  * revision, and sends a frame only when the answer CHANGED BY VALUE. That is
  * the design doc's own mechanism paragraph, and choosing it here rather than a
  * procedure is what keeps this PR self-contained. A procedure would need a
- * GENERATION to re-ask on — `./filter/asking.ts`'s `Ask.at` — and the only
- * generation this tab has is the identity of its own derivation, which is the
- * very thing PR 10 deletes. A subscription needs no token: the server is what
- * knows the directory moved.
+ * GENERATION to re-ask on, and the only generation this tab has is the identity
+ * of its own derivation, which is the very thing PR 10 deletes. A subscription
+ * needs no token: the server is what knows the directory moved.
+ *
+ * THE FILTER IS THE THIRD reading on that mechanism now, and it arrived by the
+ * long way round — as a procedure carrying exactly the generation this
+ * paragraph rules out, re-asked once per page frame, each ask a walk of the
+ * whole vault. It is a stream beside the page it narrows since
+ * `filter-ask-carries-revision` (`./filter/asking.ts`,
+ * docs/brainstorming/filter-rides-the-page.md), which is this paragraph read
+ * back at the one door that had not taken it.
  *
  * ## What this hands out is a VALUE
  *

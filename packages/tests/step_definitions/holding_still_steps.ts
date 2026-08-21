@@ -21,6 +21,8 @@ import {
   markScreen,
   monthHeld,
   neverDrew,
+  neverEmptied,
+  neverTookAway,
   sidebarHeld,
 } from "../support/probe.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -57,3 +59,14 @@ Then(
     await neverDrew(this, id);
   },
 );
+
+Then(
+  "the node {string} was never taken away",
+  async function (this: OlaiWorld, id: string) {
+    await neverTookAway(this, id);
+  },
+);
+
+Then("the pane was never empty", async function (this: OlaiWorld) {
+  await neverEmptied(this);
+});

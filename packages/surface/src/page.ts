@@ -38,10 +38,11 @@
  * whoever opened one. That member is the shape this design generalises, and
  * folding a body into a page reading would un-generalise it.
  *
- * THE NARROWING. A `?q=` is a second question with its own door
- * (`search.matching`), asked of the whole set, debounced and stale-guarded. A
- * page reading that took the query would be that door built twice, re-asked on
- * every keystroke, with the page's rows in every answer.
+ * THE NARROWING. A `?q=` is a second question with a reading of its own
+ * ({@link ./narrowing.ts}, over the page this one produces), on the same three
+ * legs and its own subscription. Folded in, every settled keystroke would
+ * re-open THIS stream and re-send every row of the page it is already drawing —
+ * the page and its narrowing move on different clocks.
  *
  * THE READER'S OWN HIDING. Done-visibility is a preference of this browser, so
  * the rows arrive whole and the switch prunes them locally — which is also why

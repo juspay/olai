@@ -38,7 +38,7 @@ So: one seam, honestly held. The format layer does not move; the browser's half 
 | Sidebar | The file tree (paths + faces — cheap, key-set-sized, like `heads` today); the shown month's calendar dots; the owed count | the key/face sets; `datedDays`; `owedOf(agendaOf(…))` |
 | Backlinks pane | Rides the `/n/` and `/doc/` readings above | `backlinksOf`, `referrersTo` |
 | ⌘K palette, header box | Already the server's `search.nodes` | `Query.search` (ops) |
-| On-page filter, chat `@` list | Become server calls — the `search-server-side` node | the same `parseFilter` / `matching` / `ranked` |
+| On-page filter, chat `@` list | Become server calls — the `search-server-side` node (and the filter became a page READING a step later, §7) | the same `parseFilter` / `matching` / `ranked` |
 | Tag completion | The tag vocabulary with counts, on demand | the `complete/tags.ts` counting moves beside `taggedBy`, server-side |
 | Transcript id-marking | "Which of these ids does the set declare" — one batch lookup per message | `nodeNamed`, server-side |
 
@@ -101,6 +101,8 @@ Three things are worth recording against what was predicted above.
 | …and a whole eight-step reading session | 1,679 kB | **641 kB** |
 
 So the first frame is **12×** smaller, and walking two outlines, a zoom, a document, a day, the agenda and the trash still costs less than the old first frame did. Navigation is no longer free — §5a ruled that acceptable — and what it costs is one page each: an outline of 200 rows with notes ~104 kB, a zoom 5 kB, a document 0.3 kB, a day 24 kB, the trash 0.2 kB, and the agenda 270 kB, which is the largest page here because its three stretches reach across every outline at once. The derivation also left the browser bundle, worth ~14 kB of uncompressed JavaScript.
+
+**And one of the ten had to be revised.** PR 1 (`search-server-side`) made the on-page filter a CALL, which §2's caveat licensed — "the simplest honest first cut" — and it was the wrong shape for the one door here that is a STANDING view of a page rather than a question somebody opens once. Asked as a call it had to be re-asked on a generation that moved once per page frame, and every ask walked the whole vault: nine of them for one bulk gesture on a 90,000-node vault. What that answer was ever used for is a membership test against a row the page already draws, and by PR 10 the server holds the page — so the narrowing became a reading of its own beside `page`, on the same three legs, bounded by the page and silent when a revision moves no match. The mechanism paragraph of §2 was right; what it did not say is that a filter belongs to it. See [filter-rides-the-page.md](filter-rides-the-page.md).
 
 ## 8. What this does NOT change
 
