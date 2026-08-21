@@ -34,7 +34,8 @@
  *
  * `data-tone` is a FACT IN THE MARKUP rather than a colour, and that is why
  * the suite can ask which mood a line is in (`support/said.ts`) without asking
- * about a class name.
+ * about a class name. `data-kind` is the same idea a level down, for the one
+ * caller whose refusals have a second fact to carry — see the prop.
  */
 
 import type { JSX } from "solid-js"
@@ -67,6 +68,18 @@ export function SaidLine(props: {
   /** Viewport coordinates, when the caller has portalled the line. */
   readonly style?: JSX.CSSProperties
   readonly testid: string
+  /** WHICH refusal this is, when the caller's mood has a second fact under it
+   *  — the row editor's line carries the ops layer's own `OpFailure` tag, so a
+   *  scenario can say which rule said no rather than matching its sentence.
+   *
+   *  Here rather than at the one caller for `data-tone`'s reason: it is the
+   *  same idea one level down. A mood is a fact in the markup instead of a
+   *  colour, and a KIND is a fact in the markup instead of a sentence to
+   *  parse; a line that spelled its own `<p>` to carry one would be back to
+   *  hand-writing the `role`/`aria-live` pair beside it. Absent everywhere
+   *  else, because a refused query has no tag to give — `@olai/format`'s
+   *  `Refusal` is a token and a reason. */
+  readonly kind?: string
 }) {
   return (
     <p
@@ -78,6 +91,7 @@ export function SaidLine(props: {
       }}
       data-testid={props.testid}
       data-tone={props.said.tone}
+      data-kind={props.kind}
       role={props.said.tone === "alarm" ? "alert" : "status"}
       aria-live={props.said.tone === "alarm" ? "assertive" : "polite"}
     >

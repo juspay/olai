@@ -38,6 +38,7 @@ import { createEffect, createSignal, on, Show } from "solid-js"
 import { createCompletion } from "../complete/completing.tsx"
 import type { Draft } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
+import { SaidLine } from "./SaidLine.tsx"
 import { type Caret, type EditAction, type EditField, editKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
 import { ROW_NOTE as AS_NOTE, ROW_TITLE } from "../touch.ts"
@@ -193,6 +194,14 @@ export function DescEditor(props: {
 }
 
 /**
+ * WHERE the two lines sit — under the editor, in the row's own type size. The
+ * one thing about them that is this file's, for {@link SaidLine}'s reason: a
+ * said-line's mood is one decision for the whole client, and where it hangs is
+ * the caller's.
+ */
+const UNDER_EDITOR = "mt-0.5 mb-1 text-[0.8125rem] leading-snug"
+
+/**
  * What the last write said, under the editor it was typed in.
  *
  * Two moods, one line, because they are two halves of one question — did that
@@ -206,30 +215,40 @@ export function DescEditor(props: {
  *     going done, a branch ticked over unfinished ones). Advice, never a
  *     reason anything failed — so it is toned like a note rather than an
  *     alarm, and the next keystroke takes it away.
+ *
+ * BOTH GO THROUGH {@link SaidLine}, which is the last of the client's said
+ * lines to do so (#310 converted the other seven and left this one, because
+ * joining changes what a screen reader is told rather than only what the
+ * markup says). The two moods here ARE the component's two moods — a refusal
+ * is why nothing happened, a nudge rides back on something that did — so the
+ * refusal keeps `role="alert"` and gains the `aria-live="assertive"` it had
+ * been missing, and the nudge, which carried NEITHER, becomes the polite live
+ * region a remark should be. That is the deliberate half: advice that only the
+ * sighted reader gets is advice half the readers do not get, and the reason it
+ * is polite rather than alarming is that interrupting a sentence somebody is
+ * in the middle of, to say a parent could now be ticked, is worse than the
+ * advice is worth.
  */
 export function Said(props: { readonly draft: Draft }) {
   return (
     <>
       <Show when={props.draft.refused}>
         {(failure) => (
-          <p
-            class="mt-0.5 mb-1 text-[0.8125rem] leading-snug text-alarm"
-            data-testid={TESTID.editRefusal}
-            data-kind={failure()._tag}
-            role="alert"
-          >
-            {failure().message}
-          </p>
+          <SaidLine
+            said={{ tone: "alarm", text: failure().message }}
+            kind={failure()._tag}
+            class={UNDER_EDITOR}
+            testid={TESTID.editRefusal}
+          />
         )}
       </Show>
       <Show when={props.draft.nudge}>
         {(nudge) => (
-          <p
-            class="mt-0.5 mb-1 text-[0.8125rem] leading-snug text-muted"
-            data-testid={TESTID.editNudge}
-          >
-            {nudge()}
-          </p>
+          <SaidLine
+            said={{ tone: "aside", text: nudge() }}
+            class={UNDER_EDITOR}
+            testid={TESTID.editNudge}
+          />
         )}
       </Show>
     </>
