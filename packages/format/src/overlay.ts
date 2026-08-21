@@ -202,16 +202,16 @@ const SPENT = "this overlay was sealed — what it held belongs to the map it le
  * rule that a patch pays for what it touched holds for these too.
  */
 class Cloned<K, V extends {}> implements Editable<K, V> {
+  /** The copy, taken at the first write and not before. */
   private whole: Map<K, V> | undefined
+  private spent = false
 
   constructor(private readonly given: ReadonlyMap<K, V>) {}
 
+  /** The copy, taken now if it has not been. */
   private get held(): Map<K, V> {
-    if (this.spent) throw new Error(SPENT)
     return (this.whole ??= new Map(this.given))
   }
-
-  private spent = false
 
   get(key: K): V | undefined {
     return (this.whole ?? this.given).get(key)
@@ -222,6 +222,7 @@ class Cloned<K, V extends {}> implements Editable<K, V> {
   }
 
   set(key: K, value: V): boolean {
+    if (this.spent) throw new Error(SPENT)
     const held = this.held
     const minted = !held.has(key)
     held.set(key, value)
@@ -229,7 +230,8 @@ class Cloned<K, V extends {}> implements Editable<K, V> {
   }
 
   delete(key: K): boolean {
-    // Asked before the clone is taken, so a delete of a key that is not there
+    if (this.spent) throw new Error(SPENT)
+    // Asked before the copy is taken, so a delete of a key that is not there
     // does not mint a copy of the whole map to not-delete it in.
     return this.has(key) ? this.held.delete(key) : false
   }

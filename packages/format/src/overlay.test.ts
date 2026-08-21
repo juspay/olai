@@ -244,6 +244,10 @@ test("a sealed overlay is spent — a write afterwards is refused, not absorbed"
     const sealed = held.sealed()
     expect(() => held.set("b", at("late"))).toThrow()
     expect(() => held.delete("c")).toThrow()
+    // Including a write that would have changed nothing: a refusal that
+    // depended on what the write happened to do would be a rule with a hole
+    // in it rather than a rule.
+    expect(() => held.delete("nothing here")).toThrow()
     expect([...sealed.keys()]).toEqual(["a", "b", "c"])
     expect(sealed.get("c")).toEqual({ what: "c as it was" })
   }
