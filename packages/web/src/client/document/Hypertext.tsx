@@ -826,6 +826,23 @@ export function Hypertext(props: { readonly file: string }) {
    * header is accounted for by the rule that already states it, and this file
    * never learns how tall a header is.
    *
+   * TWO SCROLLERS, AND THE SECOND HALF IS THE WINDOW'S — which reads like a bug
+   * in a split, where each pane is an `overflow-y-auto` column
+   * (`../pane/Panes.tsx`), and is not: MEASURED at 1440×900 with a two-pane
+   * address, the column takes the frame to its own top (163px of column scroll)
+   * and the document is 8210px against a 900px window, so `scrollBy` has
+   * somewhere to go and takes it (1298px) — the anchor lands 72px from the top of
+   * the screen. Both scrollers are real at once. It is measured rather than
+   * reasoned because reasoning about it went wrong twice: the shell's own height
+   * rule reads as though the window could not scroll in a split, and a first
+   * attempt to pin this used a page that OVERFLOWED the frame, where the
+   * browser's own scroll inside the iframe does the work and this half could be
+   * deleted with nothing going red. What pins it now is
+   * `html_previews.feature`'s "A previewed section in the pane that is not
+   * focused is on screen", sized like its lone-pane sibling — tall enough to put
+   * the anchor below one screen, short enough to FIT the frame — and checked by
+   * deleting the line below and watching both go red.
+   *
    * IT WAITS FOR THE HEIGHT, and that is why this is an effect over two signals
    * rather than a scroll done when the message arrives. The report lands beside
    * the settled height, and until that height is applied the frame is still the

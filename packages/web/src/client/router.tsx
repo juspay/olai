@@ -198,10 +198,13 @@ export const createRouter = (): Router => {
     if (how === "push") {
       // A page you asked for, so: the top. Always, even when the address
       // names a place inside the page — see the long argument this
-      // replaced in the one-pane router. With more than one pane the
-      // DOCUMENT still scrolls (each pane is a column in the same
-      // scrollport until it is tall enough to be its own); sending the
-      // window to the top is the same kindness it was for one.
+      // replaced in the one-pane router. With more than one pane there are
+      // TWO scrollers and both are real: each pane is an `overflow-y-auto`
+      // column (`./pane/Panes.tsx`) AND the document still scrolls — measured
+      // at 8210px against a 900px window on a two-pane address, which is what
+      // makes the `.html` preview's own landing arithmetic work in a split
+      // (`./document/Hypertext.tsx`). Sending the window to the top is the
+      // same kindness it was for one.
       scroll.toTop()
     }
   }

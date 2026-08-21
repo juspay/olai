@@ -974,23 +974,43 @@ Feature: A `.html` in the vault
     # the focused one's and nothing else's — so a link to a split whose second
     # pane is a saved page opened at that page's top rather than at its section.
     #
-    # It is also the one place the preview's own half of the act is asked in a
-    # SPLIT, where each column is its own scrollport: the frame is brought to
-    # the top of its column and the page then moves by what the frame reported,
-    # and this says the reader ends up looking at the section either way.
+    # It is also the one place the preview's HOST HALF is asked in a SPLIT,
+    # where the column is the scrollport and the window is not: the frame is
+    # brought to the top of its column, and then the page has to move by what
+    # the frame reported for the anchor to be in front of anybody.
+    #
+    # THE FIXTURE IS SIZED ON PURPOSE, and it is the same sizing as "A section
+    # is on screen even when the reader arrives from halfway down" above,
+    # because the trap is the same one that scenario names: the page is tall
+    # enough to put the anchor well below one screen and SHORT enough to fit
+    # inside the frame's own clamp, so the browser's scroll inside the frame
+    # moves nothing and the host is the only thing that can land. A taller page
+    # would overflow the frame, the inner scroll would do the work, and this
+    # would pass with the host's half deleted — which is exactly how this
+    # scenario passed when it was first written, and why it is now written
+    # this way.
     Given I open the app
     When I rewrite "notes/deep.html" as:
       """
       <h1>Deep</h1>
-      <div style="height:1500px">a long stretch before the section</div>
+      <div style="height:1200px">a long stretch before the section</div>
       <h2 id="beds">Beds</h2>
-      <div style="height:1600px">a long stretch after it, to read on into</div>
+      <div style="height:300px">a short stretch after it</div>
       """
     And I open the address "/s/kitchen-sink.md/notes%2Fdeep.html%23beds"
     Then there are 2 panes
     And pane 1 is showing "/notes/deep.html#beds"
     # The FOCUSED pane is pane 0, which named no section at all — so this is a
     # landing owed to a pane nobody is pointing at.
+    And the section "beds" is on screen
+    # …and a reader moving FOCUS is not a disturbance: focus changes no pane's
+    # page, so it changes no pane's landing (`../../web/src/client/router.tsx`'s
+    # `asTheyWere`), and nobody is moved by it. From the KEYBOARD, because a
+    # click on a pane's header is a click on an element a driver will scroll
+    # into view first — which would be the harness moving the reader, and this
+    # is a claim about the app.
+    When I press Alt+Right
+    Then pane 1 is focused
     And the section "beds" is on screen
     And there should be no page errors
 
