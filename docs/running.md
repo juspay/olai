@@ -50,6 +50,8 @@ What it does not cover:
 
 Put it behind a reverse proxy or `tailscale serve` and the browser's origin will not be the `Host` it forwards, so name the origins you are serving from in `OLAI_ALLOWED_ORIGINS` (comma-separated); the websocket refuses the rest.
 
+`tailscale serve` also injects `Tailscale-User-Login` on every proxied request. The header reads that person — a gravatar from the hashed login email, and the login beside it (or on hover) — and draws nothing when the header is absent (direct access, a local `just run`). The same reading is the attribution a later capture door will record; nothing invents a user when the header is not there.
+
 ### Logging
 
 It says what it is doing on stdout, one line per event, quietly: the address it bound, the agent it started, and anything that went wrong. `--log-level debug` turns on the rest, including everything the agent itself writes.

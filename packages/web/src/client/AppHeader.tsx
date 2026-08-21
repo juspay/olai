@@ -12,14 +12,16 @@
  * gone because the header is always there.
  *
  * On a phone the burger joins the left edge next to the wordmark, and that is
- * the WHOLE of the bar besides the magnifier. WhatsApp's rule: identity and
- * search in the header; connection and git as banners under it, and only when
+ * the WHOLE of the bar besides the magnifier — and, when `tailscale serve`
+ * injected a login, the gravatar of who is looking, which is identity in
+ * WhatsApp's sense (the person, next to the wordmark) rather than a fifth
+ * pill. WhatsApp's rule: identity and search in the header; connection and git as banners under it, and only when
  * there is news (the same Indicator and Commit, news-only faces); the agent as the thumb strip it already was;
  * preferences in the directory drawer. A healthy phone does not advertise
  * health — `live` and `✓ committed` stay off screen. A dead wire is the freeze
  * overlay, which was already the stronger form of that banner. Desktop keeps
  * the pills, because a bar of chips cannot be trusted if the healthy ones
- * disappear.
+ * disappear. Direct access draws no chip.
  *
  * The bar is a fixed `--height-header` and the right-hand group is `flex-nowrap`: wrapping
  * inside a fixed height centred the second row off the top of the viewport on a
@@ -106,6 +108,7 @@ import { connectionReadout } from "./wire.ts"
 import { Preferences } from "./settings/Preferences.tsx"
 import { TESTID } from "./testids.ts"
 import { TARGET_BOX } from "./touch.ts"
+import { Who } from "./who/Who.tsx"
 
 export function AppHeader(props: {
   /** When a sidebar exists: whether its sheet is open, and the way to toggle
@@ -153,6 +156,12 @@ export function AppHeader(props: {
           <Leaf class="size-4 text-accent md:size-5" />
           olai
         </h1>
+        {/* The signed-in person, when `tailscale serve` injected one.
+            Next to the wordmark rather than in the pills: the wordmark is
+            the APP, this is WHO IS LOOKING, and on a phone the chrome row
+            is search alone. Absent, the slot says `none` and draws
+            nothing. */}
+        <Who />
       </div>
 
       {/* The pills that are about the app rather than about the page. On

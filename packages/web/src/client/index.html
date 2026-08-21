@@ -58,6 +58,15 @@
          from here (the sheet is a build artifact and this shell is what loads
          it) and is pinned by theme/css.test.ts instead. -->
     <meta name="theme-color" content="#D7F0E8" />
+    <!-- The header chip's gravatar is a remote <img>. Only that origin, plus
+         this vault and a blob: the chat's own thumbnails already are. Sealed
+         /media pages carry a stricter policy on the RESPONSE and do not
+         inherit this. img-src alone, so the inline theme script below is
+         untouched. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="img-src 'self' blob: https://www.gravatar.com https://secure.gravatar.com https://gravatar.com"
+    />
     <!-- What the browser should assume before the sheet lands: it cannot know
          yet which theme this page is in, and the themes come both ways. Once
          the sheet is in, each palette's own `color-scheme` is what wins. -->
