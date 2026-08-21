@@ -180,7 +180,7 @@ export default function App() {
   /** How full the inbox is — the door beside Agenda wears this number. One
    *  subscription, created here with owed, so a second reader cannot open a
    *  second cell. */
-  const held = createInboxHeld()
+  const inboxHeld = createInboxHeld()
 
   /**
    * This browser's fold memory, kept filed against the set — a node that moved
@@ -379,7 +379,7 @@ export default function App() {
                         active={openFile()}
                         broken={directory.broken()}
                         owed={owed()}
-                        held={held()}
+                        inboxHeld={inboxHeld()}
                         open={desktop() ? true : menuOpen()}
                         onClose={() => setMenuOpen(false)}
                         foot={

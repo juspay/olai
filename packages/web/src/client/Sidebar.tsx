@@ -195,7 +195,7 @@ export function Sidebar(props: {
    *  top-level captures, zero when there is none. The door's presence is
    *  still a question about the PATHS (`inboxIn`); this is only the number
    *  it wears. */
-  readonly held: InboxHeld
+  readonly inboxHeld: InboxHeld
   readonly children?: JSX.Element
   /**
    * Phone drawer footer. App chrome that is not the directory — preferences —
@@ -349,20 +349,20 @@ export function Sidebar(props: {
                 file={file()}
                 isActive={isActive}
                 broken={props.broken.has(file())}
-                count={props.held.count}
+                count={props.inboxHeld.count}
               />
             )}
           </Show>
           {props.children}
 
-          {/* THE SHELF, between the journal's two questions and the files —
-              which is where a reader's own short list belongs (human,
-              2026-08-19). Above the agenda it sat in front of the news; here it
-              is the last thing said about the DIRECTORY before the directory
-              itself, and a pinned outline is a hand's width from the outline
-              list it is a shortcut into. It draws nothing at all when there are
-              no pins (`./pins/Shelf.tsx`), so the ordinary column is exactly
-              the column it always was. */}
+          {/* THE SHELF, between the month and the files — which is where a
+              reader's own short list belongs (human, 2026-08-19). Inbox used
+              to sit at the foot and now sits beside Agenda above the month
+              (human, 2026-08-20); the shelf did not move with it. A pinned
+              outline is a hand's width from the outline list it is a shortcut
+              into. It draws nothing at all when there are no pins
+              (`./pins/Shelf.tsx`), so the ordinary column is exactly the
+              column it always was. */}
           <Shelf />
 
           {/* THE DIRECTORY ITSELF — the tree, and the two ways to add to it,
