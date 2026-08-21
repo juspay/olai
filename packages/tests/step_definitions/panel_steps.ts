@@ -12,6 +12,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import { SIDEBAR_WIDTH_KEY } from "@olai/web/src/client/layout/prefs.ts";
+import { countsNothing, foundCount } from "../support/counted.ts";
 import {
   APP_HEADER,
   attr,
@@ -21,6 +22,7 @@ import {
   CHAT_SHEET_HANDLE,
   CHAT_STRIP,
   CHAT_TOGGLE,
+  HEADER_SEARCH_RESULTS,
   HYDRATION_TIMEOUT,
   OUTLINE_TREE,
   POLL_TIMEOUT,
@@ -283,6 +285,26 @@ Then(
   async function (this: OlaiWorld, file: string) {
     await documentRow(this, file)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+// ── how much of the answer it drew ─────────────────────────────────────
+//
+// The palette's steps are the same two, over the same helper
+// (`support/counted.ts`) and the same line in the client: one reading, two
+// doors, one sentence. What is this door's own is the panel it is read inside.
+
+Then(
+  "the header search found {string}",
+  async function (this: OlaiWorld, said: string) {
+    await foundCount(this, HEADER_SEARCH_RESULTS, said, "header search count");
+  },
+);
+
+Then(
+  "the header search says nothing about a total",
+  async function (this: OlaiWorld) {
+    await countsNothing(this, HEADER_SEARCH_RESULTS, "header search");
   },
 );
 

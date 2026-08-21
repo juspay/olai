@@ -24,6 +24,7 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
+import { countsNothing, foundCount } from "../support/counted.ts";
 import { saysThat } from "../support/said.ts";
 import {
   attr,
@@ -231,6 +232,27 @@ Then(
       .locator(`${PALETTE_ITEM}${attr("data-id", `hit-${file}`)}`)
       .count();
     assert.strictEqual(rows, 0, `the palette lists ${JSON.stringify(file)}`);
+  },
+);
+
+// ── how much of the answer it drew ─────────────────────────────────────
+//
+// The ritual is `support/counted.ts`', shared with the header box's steps: one
+// line, one function in the client, one question here. What is the palette's
+// own is the door it is read INSIDE — the modal, so that a scenario says which
+// of the two doors it means even though both draw the line under one name.
+
+Then(
+  "the palette found {string}",
+  async function (this: OlaiWorld, said: string) {
+    await foundCount(this, PALETTE, said, "palette count");
+  },
+);
+
+Then(
+  "the palette says nothing about a total",
+  async function (this: OlaiWorld) {
+    await countsNothing(this, PALETTE, "palette");
   },
 );
 

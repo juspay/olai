@@ -207,6 +207,10 @@ They are two lines rather than one because a place is somebody's prose. Side by 
 - **A panel under a row** — where searching is how you answer a question the row asked. Three of them, each drawing the same rows over the same procedure: the `((` widget in a title (place a mirror of what you find), the edge panel's box (`see` / `after` — what this node points at), and the move-to picker's (⌘⇧M — which node this row goes under, [editing.md](editing.md)). The last one is the one that draws a REFUSAL beside its hits: a destination is not merely a node, so most of the set is somewhere a given row cannot go, and it says which as you walk the list.
 - **`search_nodes`** — the same answer for an agent, over MCP.
 
+**The two doors that LIST say how much they left out.** Both draw at most eight hits, and eight rows over a directory that matched twenty of something reads as the whole answer. So under the rows each of them draws one line — `8 of 20 matches` — whenever more matched than fit, and **nothing at all** when everything found is on screen: that silence is the same ruling the filtered page's count line makes about a part that is zero, since a number a reader has to take in before they can ignore it is worse than no number. What is counted is the answer's own uncapped total, carried on the wire beside the capped hits for exactly this sentence — what the QUERY found, never what the door had room for. It is a readout beside the rows rather than something announced, because it changes under a hand that is still typing.
+
+The panels under a row are deliberately not part of that. They cap at eight as well, but each of them is a PICKER — which node this row goes under, what it points at, which one to mirror — and the question there is whether what you are spelling is in the list, not how much of the directory answers to it.
+
 ## Documents, by name
 
 **A filter selects nodes, never documents** — it narrows rows of a page, and the one page made of prose is the one page with no filter on it. The two doors below are where the other half of the directory is found.
