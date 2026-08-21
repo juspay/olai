@@ -21,3 +21,4 @@
 {"id":"def-viewing","ord":"aK","title":"Viewing","created":"2026-08-20T20:28:46-04:00"}
 {"id":"def-search","parent":"def-viewing","ord":"a0","title":"Search","created":"2026-08-20T20:28:46-04:00"}
 {"id":"def-performance","ord":"aL","title":"Performance","created":"2026-08-20T20:28:46-04:00"}
+{"id":"preview-atx-regex","parent":"def-infra","ord":"a9","title":"preview.ts still carries the quadratic ATX-trim twin #deferral","todo":true,"desc":"Named by #304's review (opencode) as out of that PR's scope: packages/web/src/client/note/preview.ts:55 carries /\\s+#+$/ — the second half of the ATX pair packages/format/src/slug.ts documents as quadratic. Operand is a preview line of the person's OWN notes (library input, realistically short), so severity is low; filed so the next redos pass starts from a pointer instead of a hunt.","created":"2026-08-20T22:20:33-04:00","custom":{"from":"#304"}}
