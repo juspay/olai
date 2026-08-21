@@ -141,6 +141,7 @@
       "dependencies": {
         "@olai/fonts": "workspace:*",
         "@olai/format": "workspace:*",
+        "@olai/identity": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/web": "workspace:*",
       },

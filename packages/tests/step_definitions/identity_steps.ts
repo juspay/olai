@@ -9,9 +9,9 @@
  */
 
 import * as assert from "node:assert";
-import { createHash } from "node:crypto";
 import { Given, Then } from "@cucumber/cucumber";
 
+import { gravatarOf } from "@olai/identity";
 import { selector, TESTID } from "@olai/web/src/client/testids.ts";
 
 import { POLL_TIMEOUT } from "../support/world.ts";
@@ -60,26 +60,15 @@ Then(
 
 Then(
   "the identity gravatar is hashed from {string}",
-  async function (this: OlaiWorld, login: string) {
-    const hash = createHash("md5")
-      .update(login.trim().toLowerCase())
-      .digest("hex");
+  async function (this: OlaiWorld, email: string) {
     const src = await this.page
       .locator(`${IDENTITY} img`)
       .getAttribute("src", { timeout: POLL_TIMEOUT });
     assert.ok(src, "the identity chip drew no picture");
-    assert.match(
+    assert.equal(
       src,
-      /gravatar\.com\/avatar\//,
-      `the identity picture is ${src}, not a gravatar`,
-    );
-    assert.ok(
-      src.includes(hash),
-      `the gravatar ${src} does not carry the MD5 of ${login} (${hash})`,
-    );
-    assert.ok(
-      src.includes("d=mp"),
-      `the gravatar ${src} does not ask for the generic fallback`,
+      gravatarOf(email),
+      `the identity picture is ${src}, not the gravatar of ${email}`,
     );
   },
 );
