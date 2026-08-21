@@ -45,6 +45,7 @@ import {
   isLone,
   navigateIn,
   openRight,
+  panesOf,
   reorder as reorderPanes,
   resizeTo,
   type Workspace,
@@ -57,12 +58,17 @@ export interface Router {
    *  anything that does not name a pane act on. */
   readonly route: () => Route
   /**
-   * The place inside a page this NAVIGATION was asked to land on, and
-   * WHICH pane it belongs to. A document in the other pane must not
-   * treat a landing aimed at this one as its own — two panes previewing
-   * two files was the whole point of freeing the watch set (#219), and
-   * yanking both to a heading one of them named would be the same class
-   * of bug.
+   * The place inside a page ONE PANE was asked to land on, or nothing.
+   *
+   * PER PANE, and that is the shape rather than a convenience. The address
+   * is a LIST of routes and any number of them may name a section inside a
+   * page, so a landing is a fact about the pane that named one — a document
+   * in the other pane must not treat a landing aimed at this one as its own
+   * (two panes previewing two files was the whole point of freeing the watch
+   * set (#219), and yanking both to a heading one of them named would be the
+   * same class of bug), and, from the other side, a two-pane link whose panes
+   * both named a heading owes BOTH of them their section. One slot for the
+   * workspace could only ever pay the focused one.
    *
    * `at` is a FACT about where the reader is on that pane; landing is an
    * ACT, and it happens once, on arrival. Cleared on `popstate`. A first
@@ -71,9 +77,9 @@ export interface Router {
    * Once, and {@link Router.landed} is where that word is kept — here,
    * beside the minting, rather than in each surface that performs one.
    */
-  readonly landing: () => Landing | undefined
+  readonly landing: (index: number) => Landing | undefined
   /**
-   * SPEND this pane's landing: the act named by `{index, file, at}` has
+   * SPEND a pane's landing: the act named by `{index, file, at}` has
    * been performed, and must not be performed again.
    *
    * It is the router's rather than the performer's because the rule is
@@ -112,7 +118,6 @@ export interface Router {
 }
 
 export interface Landing {
-  readonly index: number
   /** WHICH PAGE the slug is a place inside. A pane is one address at a time
    *  and this is the file that address names, so a face still drawn from the
    *  page being LEFT — every navigation has a frame of both on screen — can
@@ -153,6 +158,14 @@ const nameHere = (): string => {
 const here = (): string =>
   location.pathname + location.search + location.hash
 
+/** Every pane's landing, by pane index. A pane with no entry was not asked to
+ *  land anywhere; a pane whose entry is spent was, and has arrived. */
+type Landings = ReadonlyMap<number, Landing>
+
+/** Nobody is owed an arrival — what `popstate` and the verbs that RENUMBER the
+ *  panes leave behind. Shared, because an empty map is a value. */
+const NOWHERE: Landings = new Map()
+
 /** Where inside a page an arrival LANDS — the page's own file and a heading's
  *  own slug, and nothing for an address that names a whole place. It is read
  *  off the address, which is the only thing that says it: a `#` after a body
@@ -160,26 +173,72 @@ const here = (): string =>
  *  `address.ts`), so the grammar has already decided which of the two this is
  *  — and a heading address carries the document it is a heading OF, so there
  *  is nothing to look the file up in. */
-const landingOf = (index: number, route: Route): Landing | undefined => {
+const landingOf = (route: Route): Landing | undefined => {
   const address = route.kind === "at" ? route.address : undefined
   if (address?.kind !== "heading") return undefined
-  return { index, file: address.path, at: address.slug, spent: false }
+  return { file: address.path, at: address.slug, spent: false }
+}
+
+/** What a WHOLE ADDRESS is owed — one landing per pane that named a section,
+ *  which is what a first paint and nothing else mints. A reload of a two-pane
+ *  link is two arrivals happening at once, and the pane that happens to have
+ *  focus is not the only one that asked. */
+const landingsOf = (workspace: Workspace): Landings => {
+  const all = new Map<number, Landing>()
+  panesOf(workspace).forEach((pane, index) => {
+    const land = landingOf(pane.route)
+    if (land !== undefined) all.set(index, land)
+  })
+  return all
+}
+
+/** The same landings with ONE pane's changed — minted, spent or gone. A pane's
+ *  landing is only ever news about that pane, so this is how every verb that
+ *  navigates says what it did without saying anything about the others. */
+const marked = (
+  all: Landings,
+  index: number,
+  land: Landing | undefined,
+): Landings => {
+  if (land === undefined && !all.has(index)) return all
+  const next = new Map(all)
+  if (land === undefined) next.delete(index)
+  else next.set(index, land)
+  return next
 }
 
 export const createRouter = (): Router => {
   const first = workspaceOf(here())
   const [workspace, setWorkspace] = createSignal<Workspace>(first)
-  const [landing, setLanding] = createSignal<Landing | undefined>(
-    landingOf(first.focus, focusedRoute(first)),
-  )
+  const [landings, setLandings] = createSignal<Landings>(landingsOf(first))
 
   nameHere()
   const scroll = createScrollMemory(() => keyIn(history.state))
 
+  /**
+   * WHAT THE LANDINGS ARE AFTERWARDS is every caller's to say, and each of them
+   * says one of three things.
+   *
+   * A verb that NAVIGATES one pane hands back {@link marked} of that pane —
+   * a landing where the new address names a section, nothing where it does
+   * not, and every other pane's left exactly as it was, because what happened
+   * next door is not news about them.
+   *
+   * A verb that RENUMBERS the panes — opening one, closing one, reordering —
+   * hands back {@link NOWHERE} or only the landing it just minted. A mark names
+   * a pane by its index, and after a splice the pane at that index is a
+   * different pane; carrying the marks through the permutation would be this
+   * module keeping a second copy of `./workspace.ts`'s arithmetic for the sake
+   * of a landing nobody is mid-way through.
+   *
+   * A verb that changes neither — focus, a collapse, a divider dragged — hands
+   * back the SAME map, which is also how it says nothing: the signal compares
+   * by identity, so no pane hears about it at all.
+   */
   const commit = (
     next: Workspace,
     how: "push" | "replace",
-    land?: Landing,
+    land: Landings,
   ): void => {
     const href = hrefOfWorkspace(next)
     if (how === "push") {
@@ -187,7 +246,7 @@ export const createRouter = (): Router => {
     } else {
       history.replaceState({ key: nameHere() } as Entry, "", href)
     }
-    setLanding(land)
+    setLandings(land)
     setWorkspace(next)
     if (how === "push") {
       // A page you asked for, so: the top. Always, even when the address
@@ -201,7 +260,12 @@ export const createRouter = (): Router => {
   }
 
   const onPopState = () => {
-    setLanding(undefined)
+    // NOBODY IS OWED AN ARRIVAL ON THE WAY BACK, in any pane: a browser applies
+    // a hash when you follow a link and does not re-apply it when you come back
+    // to that entry — what it owes you then is the position you left, which is
+    // the scroll memory's. One statement about the whole address, because a
+    // `popstate` IS one: every pane on it is the pane the reader left.
+    setLandings(NOWHERE)
     setWorkspace(workspaceOf(here()))
     scroll.restore(nameHere())
   }
@@ -209,18 +273,30 @@ export const createRouter = (): Router => {
   onCleanup(() => removeEventListener("popstate", onPopState))
 
   const goIn = (index: number, next: Route): void => {
-    commit(navigateIn(workspace(), index, next), "push", landingOf(index, next))
+    commit(
+      navigateIn(workspace(), index, next),
+      "push",
+      marked(landings(), index, landingOf(next)),
+    )
   }
   const replaceIn = (index: number, next: Route): void => {
-    commit(navigateIn(workspace(), index, next), "replace")
+    // A REPLACE IS NOT AN ARRIVAL — it is the same page at a different address
+    // (a filter narrowed, a focus recorded), and the scroll is deliberately
+    // left where it is. So this pane is owed nothing, and no other pane hears.
+    commit(
+      navigateIn(workspace(), index, next),
+      "replace",
+      marked(landings(), index, undefined),
+    )
   }
 
   return {
     workspace,
     route: () => focusedRoute(workspace()),
-    landing,
+    landing: (index) => landings().get(index),
     landed: (index, file, at) => {
-      const land = landing()
+      const all = landings()
+      const land = all.get(index)
       if (land === undefined || land.spent) return
       // THE LANDING THIS ACT WAS ABOUT, or nothing: a navigation between the
       // scheduling and the performing has minted a new one, and that one is
@@ -228,8 +304,8 @@ export const createRouter = (): Router => {
       // landing it read — which looks like the check {@link useLanding} has
       // already made and is not: that one asked whose it is NOW, and the gap
       // between the two is exactly what this refuses.
-      if (land.index !== index || land.file !== file || land.at !== at) return
-      setLanding({ ...land, spent: true })
+      if (land.file !== file || land.at !== at) return
+      setLandings(marked(all, index, { ...land, spent: true }))
     },
     go: (next) => goIn(workspace().focus, next),
     goIn,
@@ -237,42 +313,46 @@ export const createRouter = (): Router => {
     replaceIn,
     openRight: (from, next, forceNew) => {
       const after = openRight(workspace(), from, next, forceNew === true)
-      commit(after, "push", landingOf(after.focus, next))
+      // A PANE IS BORN, so every index at or after it means a different pane
+      // than it did a moment ago: only the arrival this verb is about survives.
+      commit(after, "push", marked(NOWHERE, after.focus, landingOf(next)))
     },
     close: (index) => {
       const here = workspace()
       const after = index === undefined ? closeFocused(here) : closeAt(here, index)
       if (after === here) return
       // Closing the second-to-last returns a plain page: push, so Back
-      // restores the split.
-      commit(after, "push")
+      // restores the split. A pane is gone, so the indices moved.
+      commit(after, "push", NOWHERE)
     },
     focus: (index) => {
       const here = workspace()
       const after = focusAt(here, index)
       if (after.focus === here.focus) return
       // Focus is part of the address so a reload restores it, but it is
-      // not a page you went TO: replace, so Back is not an un-focus.
-      commit(after, "replace")
+      // not a page you went TO: replace, so Back is not an un-focus. No pane
+      // changed page, so no pane's landing changed either.
+      commit(after, "replace", landings())
     },
     stepFocus: (delta) => {
       const here = workspace()
       if (isLone(here)) return
       const after = focusBy(here, delta)
       if (after.focus === here.focus) return
-      commit(after, "replace")
+      commit(after, "replace", landings())
     },
     collapse: (index) => {
-      commit(collapseAt(workspace(), index), "replace")
+      commit(collapseAt(workspace(), index), "replace", landings())
     },
     expand: (index) => {
-      commit(expandAt(workspace(), index), "replace")
+      commit(expandAt(workspace(), index), "replace", landings())
     },
     resize: (widths) => {
-      commit(resizeTo(workspace(), widths), "replace")
+      commit(resizeTo(workspace(), widths), "replace", landings())
     },
     reorder: (from, to) => {
-      commit(reorderPanes(workspace(), from, to), "push")
+      // The panes are permuted, so every mark names the wrong one.
+      commit(reorderPanes(workspace(), from, to), "push", NOWHERE)
     },
   }
 }
@@ -331,14 +411,13 @@ export interface Landfall {
 /**
  * {@link Router.landing} read for the pane the reader of it is drawn in.
  *
- * MEMOS, and that is the whole of what this adds over reading `landing()` and
- * comparing the index by hand. `landing` is ONE signal broadcast to every pane
- * and it is set on every push, with a fresh object each time — so a pane that
- * read it directly was notified by a navigation next door, every time, and
+ * MEMOS, and that is the whole of what this adds over reading `landing(…)` by
+ * hand. The landings are ONE signal, replaced whenever any pane navigates — so
+ * a pane that read it directly was notified by a navigation next door and
  * anything driven off that read ran again for an answer that had not moved.
  * Memos over a string are where that stops: each answer is a slug or nothing,
  * and `===` is the right comparison for both. Spending is the same story from
- * the other side — it replaces the object, so `at` must not be read off it
+ * the other side — it replaces the map, so `at` must not be read off it
  * raw either, or the address a preview is pointed at would change the instant
  * its landing was performed.
  *
@@ -356,10 +435,8 @@ export const useLanding = (file: () => string): Landfall => {
   const router = useRouter()
   const here = useHere()
   const mine = createMemo(() => {
-    const land = router.landing()
-    return land !== undefined && land.index === here() && land.file === file()
-      ? land
-      : undefined
+    const land = router.landing(here())
+    return land !== undefined && land.file === file() ? land : undefined
   })
   return {
     at: createMemo(() => mine()?.at),

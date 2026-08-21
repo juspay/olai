@@ -935,6 +935,127 @@ Feature: A `.html` in the vault
     # thing that was wrong.
     And the address carries the anchor "#beds"
 
+  # ── what a landing is spent BY ────────────────────────────────────────
+  #
+  # A landing is spent by the READER, and never by the frame's own geometry.
+  # The two scenarios above spend it on the way in and clear it on the way
+  # back, and both are about the ADDRESS. These two are about the pixels: the
+  # host window keeps correcting where it put the reader for as long as the
+  # frame is still settling — the first reading of an anchor is taken while the
+  # box is still the `70dvh` guess, and without the correction a reader lands
+  # 170px below the fold (measured). The correction has to go on being allowed,
+  # and it has to stop the moment the reader has gone somewhere of their own
+  # choosing. What says it has stopped is where the frame is: the act records
+  # the frame's own top edge, and a frame that has moved under the reader since
+  # is a reader who moved it.
+
+  @scratch:good @own-scratch
+  Scenario: A window resize does not re-land a reader who has scrolled away
+    # THE FRAME'S OWN `resize` is what makes the settling correction work
+    # (`@olai/surface`'s `seal.ts`: the observer inside the page cannot see the
+    # box change, so the viewport's own event re-reports where the anchor
+    # ended up). It is also a thing a READER does, minutes after a landing —
+    # and every re-report used to be acted on, so dragging the window narrower
+    # hauled somebody back to a section they had scrolled away from.
+    #
+    # The prose before the section is what makes this a real re-report rather
+    # than a repeat of the same number: it rewraps when the window narrows, so
+    # the anchor genuinely moves and the frame genuinely says so.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/deep.html" as:
+      """
+      <h1>Deep</h1>
+      <p>Prose before the section, long enough that narrowing the window
+      rewraps it and moves the anchor under it further down the page, which
+      is what makes the frame report a second, different number rather than
+      the same one twice: one, two, three, four, five, six, seven, eight,
+      nine, ten, eleven, twelve, thirteen, fourteen, fifteen, sixteen,
+      seventeen, eighteen, nineteen, twenty, twenty-one, twenty-two.</p>
+      <h2 id="beds">Beds</h2>
+      <div style="height:1600px">a long stretch after it, to read on into</div>
+      """
+    And I rewrite "notes/from.html" as:
+      """
+      <h1>From</h1>
+      <p><a id="deep" href="deep.html#beds">the section over there</a></p>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/from.html"
+    Then the preview shows the heading "From"
+    When I click "#deep" inside the preview
+    Then the document open is "notes/deep.html"
+    And the section "beds" is on screen
+    # The reader reads on, and scrolls somewhere of their own choosing.
+    When I scroll to the bottom of the page
+    And I remember where the page is scrolled
+    # …and then drags the window narrower, which is a gesture about the WINDOW
+    # and not about where in this page they want to be.
+    And I narrow the window
+    # THE ASSERTION: the frame re-reported and moved nobody.
+    Then the page is scrolled where it was left
+    And there should be no page errors
+
+  @scratch:good @own-scratch
+  Scenario: A previewed page that grows late does not re-land a reader who has scrolled away
+    # THE SAME RULE, disturbed by the page rather than by the window. A `.html`
+    # that draws more of itself after `load` — a chart from a fetch, a
+    # `<details>` opened, a late picture — is honestly taller than it was, and
+    # the frame follows it there (`@olai/web`'s `document/echo.ts`). Following
+    # it re-runs the host's landing effect, because the effect tracks the
+    # frame's height on purpose: that is what makes the LAST run the one with
+    # the geometry the reader actually sees. Late growth arrives long after the
+    # reader stopped caring where the section was, and it used to scroll them
+    # back to it.
+    #
+    # THE ORDER IS PINNED rather than hoped for: the rows must not have been
+    # drawn yet when the reader scrolls away, or this scenario would be
+    # asserting that nothing happens after nothing happened.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/deep.html" as:
+      """
+      <h1>Deep</h1>
+      <div style="height:400px">a short stretch before the section</div>
+      <h2 id="beds">Beds</h2>
+      <div style="height:1200px">a long stretch after it, to read on into</div>
+      <div id="later"></div>
+      <script>
+        addEventListener("load", function () {
+          setTimeout(function () {
+            for (var i = 0; i < 3; i++) {
+              var row = document.createElement("div")
+              row.className = "row"
+              row.style.height = "400px"
+              row.style.background = "#eef"
+              document.getElementById("later").appendChild(row)
+            }
+          }, 2500)
+        })
+      </script>
+      """
+    And I rewrite "notes/from.html" as:
+      """
+      <h1>From</h1>
+      <p><a id="deep" href="deep.html#beds">the section over there</a></p>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/from.html"
+    Then the preview shows the heading "From"
+    When I click "#deep" inside the preview
+    Then the document open is "notes/deep.html"
+    And the section "beds" is on screen
+    # The reader reads on, and scrolls somewhere of their own choosing…
+    When I scroll to the bottom of the page
+    And I remember where the page is scrolled
+    # …while the page still has its growth ahead of it.
+    Then the preview drew 0 boxes for ".row"
+    # …and then it grows, by a screenful and a half.
+    And the preview drew 3 boxes for ".row"
+    # THE ASSERTION: the frame followed the page and moved nobody.
+    And the page is scrolled where it was left
+    And there should be no page errors
+
   @scratch:good @own-scratch
   Scenario: A page that sends the frame to its neighbour is left where it went
     # THE OTHER UNASKED-FOR NAVIGATION, and the last kept behaviour with no

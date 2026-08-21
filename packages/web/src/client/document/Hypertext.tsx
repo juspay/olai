@@ -279,6 +279,30 @@ const anchor = (at: string | undefined): string =>
   at === undefined || at === "" ? "" : `#${encodeURIComponent(at)}`
 
 /**
+ * HOW FAR THE FRAME MAY HAVE MOVED under the reader between one half of a
+ * landing and the next and still count as the reader not having moved, in
+ * pixels.
+ *
+ * It is the whole of the arithmetic that tells a SETTLING CORRECTION from a
+ * RE-LANDING (the effect at the bottom of this file), and it is small on
+ * purpose. A settling correction is measured in nothing at all: the box grows
+ * DOWNWARDS from an edge the reader is looking at, so a frame that only got
+ * taller is a frame whose top is exactly where it was, and the two readings
+ * differ by whatever a scroll position rounds to. A reader who went somewhere
+ * is measured in tens — a wheel notch is around fifty pixels and an arrow key
+ * is forty, so there is no gesture this can swallow.
+ *
+ * WHICH WAY IT FAILS, because it does fail one way. Anything else that moves
+ * the frame while a landing is settling — the app drawing a line above it, a
+ * page that got SHORTER while the reader was at the bottom, so the browser
+ * clamped them upwards — reads as the reader, and the correction is abandoned.
+ * That leaves somebody a little short of the section they asked for. The other
+ * direction hauls a reader out of what they were reading, which is the bug this
+ * file has been paying for twice; between the two there is no contest.
+ */
+const UNMOVED = 2
+
+/**
  * WHAT THE FRAME WAS POINTED AT — the two facts about the document in there
  * that this component asks about afterwards, beside {@link Custody}, which is
  * the separate question of whose that document IS.
@@ -386,6 +410,17 @@ export function Hypertext(props: { readonly file: string }) {
    * woken by the report itself.
    */
   let pointed: Pointed | undefined
+  /**
+   * WHERE THE LAST LANDING ACT LEFT THE FRAME'S OWN TOP EDGE, or nothing before
+   * one has been performed for the document in there.
+   *
+   * It is what tells a SETTLING CORRECTION from a RE-LANDING, and the whole
+   * argument for reading it that way is at the effect that writes it. A plain
+   * variable for {@link pointed}'s reason and one of its own: it is a fact about
+   * this element's geometry rather than about the landing — the router keeps the
+   * WORD (`../router.tsx`'s `landed`), and pixels are this face's.
+   */
+  let stood: number | undefined
   // Whose document is in the frame ({@link Custody}, where the whole rule is a
   // table). Before the first pointing there is nothing in there and nothing has
   // been asked for, which is the same answer this gives to every question:
@@ -420,8 +455,8 @@ export function Hypertext(props: { readonly file: string }) {
    *
    * ONE ASSIGNMENT, for {@link stand}'s reason one function up. What goes is
    * the distance the old document's last report stood above the frame, the
-   * refusal it drew, the report it made about its anchor, and the section it
-   * was pointed
+   * refusal it drew, the report it made about its anchor, where its landing
+   * left the reader ({@link stood}), and the section it was pointed
    * at — and the last of those is what makes `pointed` a fact about the
    * document in the frame right now rather than about this pane's history.
    *
@@ -450,6 +485,7 @@ export function Hypertext(props: { readonly file: string }) {
     setRefused(undefined)
     setUnreadable(false)
     setLandedAt(undefined)
+    stood = undefined
     pointed = arriving
     if (arriving === undefined) setMeasured(undefined)
   }
@@ -753,6 +789,33 @@ export function Hypertext(props: { readonly file: string }) {
    * the height settles so that the LAST run has the geometry the reader
    * actually sees, and a guard that went out the moment the first scroll
    * happened would leave them a screen short of the section.
+   *
+   * SO WHAT ENDS IT IS THE READER, and that is the rule this paragraph was
+   * missing for two releases. Everything above says WHEN a correction is allowed
+   * to be about this landing; none of it says when the landing is over, and a
+   * landing that is never over is a trap. The frame goes on speaking for as long
+   * as it is on screen — its own `resize` re-reports the anchor whenever the
+   * window is dragged (`@olai/surface`'s `seal.ts`, deliberately: that event is
+   * the only thing that sees the box change), and a page that draws a chart from
+   * a fetch an hour later moves `measured()` on its own. Each of those re-ran
+   * this effect with a landing that was performed and finished, and scrolled a
+   * reader out of whatever they had gone on to read.
+   *
+   * A LANDING IS SPENT BY THE READER'S OWN MOVEMENT, then, and never by the
+   * frame's geometry. The act records where it left the frame's top edge
+   * ({@link stood}) and every later run asks whether the frame is still there.
+   * It is the reading that separates the two cases exactly, because the settling
+   * correction is precisely the case where NOTHING the reader did has happened:
+   * the box grows downwards from an edge they are looking at, so a frame that
+   * merely got taller has a top exactly where the act left it, and the correction
+   * goes through. A frame somewhere else is a page somebody scrolled.
+   *
+   * NOT A GESTURE LISTENER, which is what `../scroll.ts` uses for the same
+   * question about its own clamped restore, and the difference is worth naming
+   * because that rule looks borrowable and is not: the reader's wheel lands in
+   * the frame's own document, which is another origin, so this window never hears
+   * it. The one thing that IS observable from out here is where the frame ended
+   * up, and that is what this reads. {@link UNMOVED} is how much of it is noise.
    */
   createEffect(() => {
     const top = landedAt()
@@ -764,8 +827,20 @@ export function Hypertext(props: { readonly file: string }) {
     const box = frame
     const at = pointed.at
     const painted = requestAnimationFrame(() => {
+      // THE READER HAS THE PAGE, so this landing is over — see the paragraphs
+      // above. Read in here rather than in the effect body because a frame
+      // callback is the one moment the layout is settled, which is the same
+      // reason the scroll itself is done here.
+      if (stood !== undefined && Math.abs(box.getBoundingClientRect().top - stood) > UNMOVED) {
+        return
+      }
       box.scrollIntoView({ block: "start" })
       if (top !== 0) scrollBy({ top, behavior: "instant" })
+      // WHERE THAT LEFT THEM, which is what the run after this one compares
+      // against. What the act ASKED for is not the same number: a page too
+      // short to scroll that far is clamped, and the clamped position is where
+      // the reader actually is.
+      stood = box.getBoundingClientRect().top
       // ARRIVED, which is what spends the landing (`../router.tsx`'s `landed`).
       // The reader has been taken to the section, so the next time this file
       // moves on disk the frame is re-pointed at its own address and nothing
