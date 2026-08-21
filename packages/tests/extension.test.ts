@@ -99,7 +99,7 @@ const MAY_SPELL_IT: ReadonlyArray<string> = [
   "docs/RCA/",
   "docs/brainstorming/",
   "docs/format.md",
-  "docs/roadmap.olai",
+  "docs/roadmap/",
   "packages/format/src/kinds.test.ts",
 ];
 
