@@ -186,14 +186,21 @@ test("a file that parses again is a new answer", () => {
  * depends on is the head set, so there was never a frame where the second walk
  * learned anything the first had not already read.
  *
- * THE CLAIM IS A RATIO, not a total, and the two are worth keeping apart. "The
+ * THE CLAIM IS A BOUND, not a total, and the two are worth keeping apart. "The
  * directory is walked once per frame however many readings ask" is what this
  * change is; "and a walk is the whole set" is a fact about the walk that the
  * change deliberately leaves standing (`./directory.ts`'s `walkOf` says what
  * would end it). A case that pinned the total would go red the day the second
  * one stops being true, under a name claiming the opposite — so the frames
- * after the first ask whether the second reading was FREE, which is exactly
- * the sentence above and survives the walk getting cheaper.
+ * after the first ask for AT MOST one read per file, which is exactly the
+ * sentence above and survives the walk getting cheaper.
+ *
+ * A RATIO would not do it, and that was tried: reading `faces()`, counting, and
+ * reading `broken()` proves nothing, because Solid recomputes a pure memo
+ * eagerly at the end of the batch that invalidated it — so on the two-walk
+ * shape both walks are spent inside the write, and the two reads afterwards are
+ * cache hits either way. The bound is counted across the whole frame, which is
+ * where the second walk actually is.
  */
 test("one frame reads each head once, not once per reading", () => {
   // The TOTAL is fair on a first frame: whatever answers a directory that has
