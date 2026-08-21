@@ -298,6 +298,69 @@ export interface Derived {
   readonly byDay: ReadonlyMap<string, ReadonlyArray<Dated>>
 }
 
+/** The fields of {@link Derived} that are INDEXES — every one of them but the
+ *  flat reading, which is a list and is {@link Derived.byFile} read the other
+ *  way rather than a table of its own. */
+export type Index = {
+  [K in keyof Derived]: Derived[K] extends ReadonlyMap<string, unknown> ? K : never
+}[keyof Derived]
+
+/**
+ * HOW EACH INDEX IS READ — one row per index, and the one place that partition
+ * is written down.
+ *
+ * It is a fact about each index's CONSUMERS: does anything in the tree walk it
+ * whole, or does everything ask it for a key? {@link ./patch.ts} spends it,
+ * because the answer decides whether an edit carries that index forward as a
+ * LAYER over the map that stood or as a clone of it ({@link ./overlay.ts}
+ * argues the trade and `./patch.bench.ts` prices both halves). But it is not
+ * the patcher's fact and it does not live there: it is about the readers of the
+ * value declared above, so it is declared beside them, where the doc comment on
+ * each index already says who reads it and how.
+ *
+ * EXHAUSTIVE BY THE TYPE, which is the point of it being a table rather than a
+ * word at each of eleven call sites, where it began. An index added to
+ * {@link Derived} fails the typecheck until somebody says how it is read — and
+ * the benchmark and the property test read their two lists out of THIS, so a
+ * row that moves moves everywhere rather than in three places out of four.
+ *
+ * WHEN A ROW MOVES: a new consumer that walks one of the by-key indexes whole,
+ * or the last whole-index reader of one of the others going away. Both are
+ * changes to who reads the index, which is the fact this table is.
+ */
+export const READ: { readonly [K in Index]: "by key" | "whole" } = {
+  /** `byId.get(id)` on every reference the validator resolves and every row a
+   *  page draws; its one whole-index reader wants `keys()`, which a layer hands
+   *  over without a lookup per entry (`./suggest.ts`'s did-you-mean). */
+  byId: "by key",
+  /** What hangs under a node, asked per row drawn and per rollup counted. */
+  children: "by key",
+  /** What a node shows, asked per row and per edge judged. */
+  status: "by key",
+  /** What a node waits on, asked per node. */
+  after: "by key",
+  /** What is in a node's way, asked per row and per page. */
+  blocked: "by key",
+  /** Which placements stand for a node, asked per node a backlink situates. */
+  mirrorsOf: "by key",
+  /** Who is waiting on a node, asked per node whose mark moved. */
+  edgesTo: "by key",
+  /** WALKED: the flat reading of the corpus is this map's values run together
+   *  ({@link Derived.nodes}), and tag completion and the pin shelf walk its
+   *  keys. Also the one row close enough to have been timed rather than argued
+   *  — `./patch.ts`'s `regrouped` carries the numbers. */
+  byFile: "whole",
+  /** WALKED: the validator reports every id nothing declares by reading every
+   *  entry of this map (`./validate.ts`'s `checkTargets`). */
+  namedBy: "whole",
+  /** WALKED: tag completion reads every key and every member to rank them
+   *  (`./vocabulary.ts`). */
+  taggedBy: "whole",
+  /** WALKED: the agenda's two directions and the calendar's month step this
+   *  map's entries (`./agenda.ts`, `./dates.ts`). */
+  byDay: "whole",
+}
+
 /**
  * One record filed under the node it hangs beneath — how {@link Derived.children}
  * is KEYED, in one place, for {@link nameInto}'s reason and with one of its own.

@@ -76,6 +76,7 @@ import {
   derive,
   type Derived,
   type Filing,
+  type Index,
   follow,
   type InTheWay,
   nameInto,
@@ -83,6 +84,7 @@ import {
   byDayKey,
   nodeNamed,
   parentInto,
+  READ,
   tagInto,
 } from "./derive.ts"
 import {
@@ -93,7 +95,7 @@ import {
   storedMarker,
 } from "./node.ts"
 import { type Dated, dateInto } from "./occasion.ts"
-import { type Editable, overlay, type Read } from "./overlay.ts"
+import { type Editable, overlay } from "./overlay.ts"
 import { byPath } from "./paths.ts"
 
 /**
@@ -326,13 +328,13 @@ const refiled = <T, Filed extends T = T>(
     /** The order this index promises its members in: corpus order for three of
      *  the four, and the format's sibling order for `children`. */
     readonly order?: (one: Located, other: Located) => number
-    /** How this index is READ, which is what decides whether it is layered or
-     *  cloned across the edit ({@link ./overlay.ts}). It is a fact about the
-     *  index's own readers, so it is stated by the caller that knows them. */
-    readonly read: Read
+    /** WHICH index this is — the one thing this rule cannot work out from the
+     *  map it is handed, and what it looks the sealing up by
+     *  ({@link ./derive.ts}'s `READ`). */
+    readonly index: Index
   },
 ): Refiled<T> => {
-  const { into, at, order = byCorpus, read } = filing
+  const { into, at, order = byCorpus, index } = filing
   const arriving = new Map<string, Array<Filed>>()
   for (const one of edit.incoming) into(arriving, one)
   // The DEPARTING side goes through the SAME fold, for its KEYS, and the
@@ -374,7 +376,7 @@ const refiled = <T, Filed extends T = T>(
     if (!headMoved && elsewhere(head(held), head(own))) headMoved = true
     if (filedAt(map, key, own)) rekeyed = true
   }
-  return { map: map.sealed(read), rekeyed, headMoved }
+  return { map: map.sealed(READ[index]), rekeyed, headMoved }
 }
 
 /**
@@ -451,7 +453,7 @@ const containment = (
     into: parentInto,
     at: (one) => one,
     order: bySibling,
-    read: "by key",
+    index: "children",
   }).map
 
 /** The delta applied to the grouping — the one part of the answer that is the
@@ -502,7 +504,7 @@ const regrouped = (derived: Derived, delta: SetDelta): Regrouped => {
   // same read through it are 0.241ms — the walk costs more than the copy it
   // saves, which is {@link ./overlay.ts}'s sealing rule arriving at the one
   // index where the two are close enough to have to be timed.
-  const ordered = inKeyOrder(byFile.sealed("whole"), reordered, byPath)
+  const ordered = inKeyOrder(byFile.sealed(READ.byFile), reordered, byPath)
   return { byFile: ordered, touched }
 }
 
@@ -616,12 +618,9 @@ const ids = (
   // added, moved or dropped, what this edit changed is a value per arriving
   // record, and the other twenty thousand are the map's own answers still
   // ({@link ./overlay.ts}, which is where the trade is argued and measured).
-  // Read BY KEY — `byId.get(id)` is what every production caller asks, and the
-  // one whole-index reader wants its keys, which a layer walks without a
-  // lookup per entry (`./suggest.ts`'s did-you-mean).
   const byId = overlay(edit.before.byId)
   for (const at of edit.incoming) byId.set(at.node.id, at)
-  return byId.sealed("by key")
+  return byId.sealed(READ.byId)
 }
 
 /**
@@ -650,11 +649,7 @@ const namings = (
   const { map, headMoved } = refiled(edit, edit.before.namedBy, {
     into: nameInto,
     at: (naming) => naming.at,
-    // WALKED WHOLE, so it is cloned rather than layered: the validator reads
-    // every entry of this map on every write ({@link ./validate.ts}'s
-    // `checkTargets`), and a walk through a layer's generator costs more per
-    // entry than the clone it would save.
-    read: "whole",
+    index: "namedBy",
   })
   // A key that MOVED — including one that appeared and one that went away,
   // both of which move a head by definition — is a key-order change, and this
@@ -691,9 +686,7 @@ const taggings = (edit: Edit): ReadonlyMap<string, ReadonlyArray<LocatedRegular>
   refiled(edit, edit.before.taggedBy, {
     into: tagInto,
     at: (one) => one,
-    // WALKED WHOLE by tag completion, which reads every key and every member to
-    // rank them (`./vocabulary.ts`) — {@link namings}' reason, one index over.
-    read: "whole",
+    index: "taggedBy",
   }).map
 
 /**
@@ -726,10 +719,7 @@ const dating = (edit: Edit): ReadonlyMap<string, ReadonlyArray<Dated>> => {
   const { map, rekeyed } = refiled(edit, edit.before.byDay, {
     into: dateInto,
     at: (one) => one.at,
-    // WALKED WHOLE by the agenda's two directions and the calendar's month
-    // (`./dates.ts`, `./agenda.ts`), and by the sort below whenever a day
-    // appeared or emptied — {@link namings}' reason again.
-    read: "whole",
+    index: "byDay",
   })
   // Whether the KEYS moved is the only thing that costs the sort. A day that
   // gains or loses a record is not that; a day that appears or empties is.
@@ -789,9 +779,6 @@ const resolutions = (
     for (const mirror of arriving.get(id) ?? []) wake(mirror)
   }
 
-  // LAYERED, both of them, for the reason every by-key index here is: what asks
-  // `status` asks it per row drawn and per edge judged, and `mirrorsOf` per node
-  // a backlink walk situates — neither is walked whole anywhere in the tree.
   const status = overlay(edit.before.status)
   const mirrorsOf = overlay(edit.before.mirrorsOf)
   /** The keys of `mirrorsOf` a dirty mirror left or joined — every one of them
@@ -843,7 +830,7 @@ const resolutions = (
     else mirrorsOf.set(id, new Set(members.map((at) => at.node.id)))
   }
 
-  return { status: status.sealed("by key"), mirrorsOf: mirrorsOf.sealed("by key"), dirty }
+  return { status: status.sealed(READ.status), mirrorsOf: mirrorsOf.sealed(READ.mirrorsOf), dirty }
 }
 
 /**
@@ -933,9 +920,6 @@ const orderings = (
     return found.sort(byCorpus)
   }
 
-  // LAYERED for {@link resolutions}' reason: both readings of the ordering graph
-  // are asked per node — what is this waiting on, who is waiting on this — and
-  // the validator's acyclicity check walks the RECORDS, not these maps.
   const after = overlay(edit.before.after)
   const edgesTo = overlay(edit.before.edgesTo)
   for (const key of keys) {
@@ -959,8 +943,8 @@ const orderings = (
   }
 
   return {
-    after: after.sealed("by key"),
-    edgesTo: edgesTo.sealed("by key"),
+    after: after.sealed(READ.after),
+    edgesTo: edgesTo.sealed(READ.edgesTo),
     rewritten: keys,
   }
 }
@@ -988,14 +972,11 @@ const blockage = (
     for (const source of view.edgesTo.get(id) ?? []) keys.add(source)
   }
 
-  // LAYERED, and it is the smallest of the six: nearly nothing is blocked, so
-  // the map is short and what an edit writes to it is shorter. Asked per row a
-  // page draws and per node a page zooms to, never walked.
   const blocked = overlay(edit.before.blocked)
   for (const key of keys) {
     blocked.delete(key)
     const found = blockageAt(view, key)
     if (found !== undefined) blocked.set(found.at, found.waiting)
   }
-  return blocked.sealed("by key")
+  return blocked.sealed(READ.blocked)
 }

@@ -67,7 +67,9 @@
 import {
   derive,
   type Derived,
+  type Index,
   mayHoldTag,
+  READ,
   tagInto,
   tagText,
   titleParts,
@@ -85,7 +87,7 @@ import {
   vaultOf,
 } from "./fixtures.testlib.ts"
 import { isRegular, type Located, type LocatedRegular } from "./node.ts"
-import { overlay } from "./overlay.ts"
+import { overlay, type Read } from "./overlay.ts"
 import { patched, type SetDelta } from "./patch.ts"
 import { byPath } from "./paths.ts"
 
@@ -421,13 +423,15 @@ const lever = (
   )
 }
 
-/** The seven indexes a patch LAYERS, and the four it still clones — the split
- *  {@link ./overlay.ts}'s sealing argument makes, named here rather than
- *  counted from a paragraph, so that an index which changes sides changes this
- *  line and the pair below with it. */
-const LAYERED = ["byId", "children", "status", "after", "blocked", "mirrorsOf",
-  "edgesTo"] as const
-const CLONED = ["byFile", "namedBy", "taggedBy", "byDay"] as const
+/** The indexes a patch LAYERS, and the ones it still clones — READ OUT OF THE
+ *  TABLE that decides it ({@link ./derive.ts}'s `READ`) rather than listed
+ *  again here, so that an index changing sides changes one row and this leg
+ *  follows it. A second list would be a second answer, and the arm's whole
+ *  claim is that it prices what the patcher actually does. */
+const sides = (which: Read): ReadonlyArray<Index> =>
+  (Object.keys(READ) as ReadonlyArray<Index>).filter((index) => READ[index] === which)
+const LAYERED = sides("by key")
+const CLONED = sides("whole")
 
 /**
  * THE ELEVEN INDEXES, CLONED — what a patch used to pay before a word from
@@ -448,7 +452,7 @@ const CLONED = ["byFile", "namedBy", "taggedBy", "byDay"] as const
  * pair silently does not count.
  */
 const beside = (): readonly [layered: number, cloned: number] => {
-  const mapsIn = (keys: ReadonlyArray<keyof Derived>) =>
+  const mapsIn = (keys: ReadonlyArray<Index>) =>
     keys.map((key) => first[key] as ReadonlyMap<string, unknown>)
   const wasLayered = mapsIn(LAYERED)
   const stayCloned = mapsIn(CLONED)

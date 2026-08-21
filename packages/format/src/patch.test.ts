@@ -39,7 +39,7 @@
 
 import { expect, test } from "bun:test"
 
-import { derive, type Derived } from "./derive.ts"
+import { derive, type Derived, type Index, READ } from "./derive.ts"
 import { FIXTURE_FILE, nodesOf, recordsOf, seeded, setOf } from "./fixtures.testlib.ts"
 import { patch, patched, type SetDelta } from "./patch.ts"
 import { nearestId } from "./suggest.ts"
@@ -534,22 +534,14 @@ test("an edit layers the indexes read by key, and clones the ones read whole", (
   expect(next).toBeDefined()
   same(next as Derived, viewOf({ ...SIX, "f0.olai": typed }), () => "a title typed")
 
-  // The seven a reader asks by key. `byId` is the one that made the case — an
-  // entry per record in the DIRECTORY, and cloning it was the single largest
-  // cost in a patch — and the other six went with it once the layer could
-  // delete a key. Every one of them holds six keys here and this edit writes
-  // one or two, so a flatten would be the rule firing rather than the trade.
-  for (
-    const index of ["byId", "children", "status", "after", "blocked", "mirrorsOf",
-      "edgesTo"] as const
-  ) {
-    expect([index, (next as Derived)[index] instanceof Map]).toEqual([index, false])
-  }
-  // The four somebody walks: `byFile` for the corpus read flat, `namedBy` for
-  // the validator's report, `taggedBy` for tag completion, `byDay` for the
-  // agenda and the calendar.
-  for (const index of ["byFile", "namedBy", "taggedBy", "byDay"] as const) {
-    expect([index, (next as Derived)[index] instanceof Map]).toEqual([index, true])
+  // EVERY index, against the table that decides it — read out of `READ` rather
+  // than listed again here, so a row that moves moves this assertion with it
+  // and an index added to `Derived` is covered the moment it is classified.
+  // Each of them holds six keys in this corpus and this edit writes one or two,
+  // so a flatten would be the half rule firing rather than the trade.
+  for (const index of Object.keys(READ) as ReadonlyArray<Index>) {
+    expect([index, (next as Derived)[index] instanceof Map])
+      .toEqual([index, READ[index] === "whole"])
   }
   // And the view a reader was already holding still answers with what it held.
   expect(view.byId.get("t0")?.node).toMatchObject({ title: "t0" })

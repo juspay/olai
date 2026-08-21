@@ -19,45 +19,42 @@
  * Same answers, same `size`, same key order, same iteration — a `ReadonlyMap`
  * a caller cannot tell from the clone it replaces, which is why nothing that
  * reads {@link ./derive.ts}'s indexes had to learn about it. Key order is not
- * a detail: the did-you-mean behind every unknown-target error walks
- * `byId`'s keys and promises that ties go to the first candidate offered
- * ({@link ./suggest.ts}), and three of the eleven promise their keys in an
- * order of their own. So the layer keeps `Map`'s own rule to the letter — a
+ * a detail: the did-you-mean behind every unknown-target error walks its map's
+ * keys and promises that ties go to the first candidate offered
+ * ({@link ./suggest.ts}), and three more of them promise their keys in an order
+ * of their own. So the layer keeps `Map`'s own rule to the letter — a
  * key re-set keeps its place, a key deleted leaves and takes its place with
  * it, and a key added, or DELETED AND SET AGAIN, goes to the end.
  *
  * IT DELETES, and that is the whole of what changed here. The first layer kept
  * `base`'s key set exactly — size, `has` and `keys` were the underlying map's
- * own answers and cost nothing — and the price of that was that none of the ten
- * indexes beside `byId` could have one, since a patch drops keys from nearly
- * all of them (a tag nothing writes any more has to leave `taggedBy` rather
- * than stand there empty). This file used to say so and stop there, which was a
- * fact about the layer as BUILT dressed as one about layers. A tombstone set
+ * own answers and cost nothing — and the price of that was that only ONE of its
+ * caller's eleven maps could have one, since a patch drops keys from nearly all
+ * of them (a tag nothing writes any more has to leave that index rather than
+ * stand there empty). This file used to say so and stop there, which was a fact
+ * about the layer as BUILT dressed as one about layers. A tombstone set
  * beside the changed values is what it costs to say it properly: `size` is a
  * subtraction, `has` is one extra lookup, and `keys` is a walk that skips.
  * That is a real price and it is paid PER READ, which is what decides where a
  * layer goes rather than whether one can exist —
  *
- * WHICH IS THE RULE THIS MODULE IS FOR, and the patcher spells it at every
- * call: an index read BY KEY gets a layer, an index read WHOLE stays a map
- * ({@link Overlay.sealed}'s one argument). `byId.get(id)` is what every
- * production caller asks, and a lookup through a layer is a small map's miss
- * on the way past — bounded by the edit, not by the corpus. `namedBy` is
- * walked entry by entry by the validator ({@link ./validate.ts}'s
- * `checkTargets`), `taggedBy` by tag completion, `byDay` by the agenda and the
- * calendar, `byFile` by whoever wants the corpus flat — and for those a walk
- * through the generator below costs more per entry than the clone it would
- * save. The two halves are seven and four, they are named at the calls, and
- * `patch.bench.ts` prints what each half costs.
+ * WHICH IS THE RULE THIS MODULE IS FOR: a map read BY KEY gets a layer, a map
+ * read WHOLE stays a map ({@link Overlay.sealed}'s one argument). A lookup
+ * through a layer is a small map's miss on the way past, bounded by what the
+ * edit wrote and not by what the map holds; a WALK pays that miss once per
+ * entry, which costs more than the clone it would have saved. Which side each
+ * of its caller's maps is on is its caller's own fact and is written down there
+ * ({@link ./derive.ts}'s `READ`, one row per index, with the readers that
+ * decided it named). `patch.bench.ts` prints what each half costs.
  *
  * WHY NOT A PERSISTENT MAP, which is the other half of what the open question
  * offered and would have cost nothing to import: `effect`'s `HashMap` is
  * already in this package's dependencies and is exactly the structure — a HAMT
  * with structural sharing, where a change costs the path to it. It is ruled out
  * by the key-order paragraph above and by the one after it. A HAMT iterates in
- * HASH order, and three of these indexes promise a key order a reader spends;
- * and it is not a `ReadonlyMap` — `get` answers with an `Option` — so adopting
- * it would rewrite the hundred-odd call sites that read these indexes across
+ * HASH order, and three of the maps this carries promise a key order a reader
+ * spends; and it is not a `ReadonlyMap` — `get` answers with an `Option` — so
+ * adopting it would rewrite the hundred-odd call sites that read them across
  * three packages, to reach a structure this one is not asking for. What a patch
  * does to an index is set and delete at keys it mostly already has: the
  * narrowest structure that does that is a layer, and the narrowest structure is
@@ -72,8 +69,8 @@
  * value, only one is cheaper to reach:
  *
  *   - a sealing that was never written to hands back `base` ITSELF. Nothing
- *     touched, nothing cloned — an edit that tags nothing pays nothing for
- *     `taggedBy`, whichever way that index is read;
+ *     touched, nothing cloned — an edit that moves no key of a map pays nothing
+ *     for it, whichever way that map is read;
  *   - an index sealed as read WHOLE flattens, which is the clone, taken
  *     deliberately;
  *   - a layer grown past HALF the map flattens too. The layer is copied per
