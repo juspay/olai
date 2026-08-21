@@ -285,3 +285,37 @@ test("a key whose entry has not arrived is in neither reading", () => {
   expect(directory.broken().has("shed.olai")).toBe(false)
   directory.stop()
 })
+
+// ── ...and what a frame naming ONE file costs, which is the defect ─────
+
+/**
+ * `directory-heads-fold`, pinned by the same counting.
+ *
+ * The bound above is "one walk per frame however many readings ask", and it
+ * leaves the walk itself whole-set: a frame that named one file still reads
+ * every file, sorts on every membership move and mints a fresh `paths` array
+ * whatever moved. `heads` is served with batched `deltas` — the delivery knows
+ * which keys moved — so the size of a frame's work is a fact the wire already
+ * hands over, and the two cases below are the two halves of spending it.
+ */
+test("a frame naming one file reads that file and no other", () => {
+  const directory = twoFiles()
+  const before = directory.reads()
+  directory.put(new Map([["house.olai", head(2)], ["garden.olai", head(1)]]))
+  directory.paths()
+  directory.broken()
+  expect(directory.reads() - before).toBe(1)
+  directory.stop()
+})
+
+test("a frame that moved no member hands back the very paths it was holding", () => {
+  // The identity half, and it is worth as much as the read count: `served.tsx`
+  // holds this list under a membership compare and `file/matching.ts` keeps a
+  // fold against the very array — so a fresh array per frame is a walk of the
+  // vault for a frame that said nothing about which files there are.
+  const directory = twoFiles()
+  const paths = directory.paths()
+  directory.put(new Map([["house.olai", head(2)], ["garden.olai", head(1)]]))
+  expect(directory.paths()).toBe(paths)
+  directory.stop()
+})
