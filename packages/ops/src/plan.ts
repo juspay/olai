@@ -53,6 +53,7 @@ import {
   nodeNamed,
   type Status,
   NotFoundFailure,
+  type OutlineError,
   canonicalRepeat,
   nextOccurrence,
   nodesOf,
@@ -526,17 +527,56 @@ const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> =>
   if (broken !== undefined) {
     return Result.fail(
       new ValidationFailure({
-        reason: `\`${file}\` ${
-          bodyKind(file) !== null
-            ? "could not be read, so what it holds is not loaded — writing it would drop that."
-            : "has lines that do not parse, so its records are not loaded — writing it would drop them."
-        } Fix the file first.`,
+        reason: `\`${file}\` ${notLoadedBecause(file)} — writing it would drop that. ` +
+          `Fix the file first.`,
         errors: broken,
       }),
     )
   }
   return Result.succeed(undefined)
 }
+
+/**
+ * WHY the set does not hold what is in this file — one fact about the FILE,
+ * independent of who is asking.
+ *
+ * The two kinds fail differently and a reader is owed which: a body is read or
+ * it is not, and an outline is READ perfectly well and then has lines the
+ * format cannot take. Three verbs meet that fact — the write gate above, and
+ * the two reads that answer a whole file ({@link notLoaded}) — and they differ
+ * only in what they cannot do about it, which is each one's own half of the
+ * sentence and stays at each one.
+ */
+const notLoadedBecause = (file: string): string =>
+  bodyKind(file) !== null
+    ? "could not be read, so what it holds is not loaded"
+    : "has lines that do not parse, so its records are not loaded"
+
+/**
+ * WHAT A FILE THE SET COULD NOT LOAD IS TOLD A READER — the third refusal
+ * constructor here, beside {@link noSuchDocument} and {@link noSuchOutline}.
+ *
+ * ONE SENTENCE FOR THE TWO READS THAT ANSWER A WHOLE FILE. `read_document` and
+ * `read_subtree`'s `file` arm meet the identical fact with the identical
+ * consequence — the file is there, nobody read what is in it, so there is
+ * nothing to answer with — and answering either as an empty document or as an
+ * outline holding nothing would be handing back a body nobody read. It is not
+ * {@link writable}'s refusal with a different clause: that one is about a WRITE
+ * dropping what is not loaded, which is a different thing to be told, and the
+ * half the three genuinely share is {@link notLoadedBecause}.
+ *
+ * The validator's own rows travel with it, for the reason a refused write
+ * carries them: fix the file, then read it.
+ */
+export const notLoaded = (
+  file: string,
+  errors: ReadonlyArray<OutlineError>,
+): OpFailure =>
+  new ValidationFailure({
+    reason: `\`${file}\` ${notLoadedBecause(file)} — there is nothing to answer ` +
+      `with. Fix the file first.`,
+    errors,
+  })
 
 /** Where a new record lands: the outline it is written into, and the node it
  *  hangs off — absent at top level. */

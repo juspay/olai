@@ -696,6 +696,12 @@ describe("a whole outline, walked", () => {
     const refusal = refusedWalk(shelf(), { file: "torn.olai" })
     expect(refusal._tag).toBe("ValidationFailure")
     expect((refusal as { readonly errors: ReadonlyArray<unknown> }).errors).not.toBeEmpty()
+    // …and told the truth about ITSELF. An outline is read perfectly well and
+    // then has lines the format cannot take, which is not the same failure as a
+    // body that could not be read — the two reads that answer a whole file
+    // share one sentence and the file decides which half of it applies.
+    expect(refusal.message).toContain("has lines that do not parse")
+    expect(refusal.message).toContain("nothing to answer with")
   })
 
   test("naming both, and naming neither, are refused in their own words", () => {

@@ -105,11 +105,10 @@ import {
   tagText,
   titleParts,
   UsageFailure,
-  ValidationFailure,
 } from "@olai/format"
 import { Result } from "effect"
 
-import { noSuchDocument, noSuchOutline } from "./plan.ts"
+import { noSuchDocument, noSuchOutline, notLoaded } from "./plan.ts"
 
 /**
  * Every shape an answer here has is `@olai/format`'s, and none of them is
@@ -326,6 +325,10 @@ export const search = (
       }
       const { at: located, match } = selected
       const found = foundOf(at.derived, located)
+      // The note this query is entitled to — the record's when it asked, and
+      // nothing at all when it did not. One reading of the request per hit,
+      // beside the spread that applies the format's rule for absence to it.
+      const asked = query.withDesc === true ? located.node.desc : undefined
       // ANNOTATED, never asserted. It was `as Hit` for as long as this function
       // has existed, and an assertion is exactly the thing that stops checking
       // when the declaration moves: a required field added to `SearchHit` and to
@@ -351,13 +354,14 @@ export const search = (
         ...(match.props.length === 0 ? {} : { matchedProps: match.props }),
         // THE NOTE, when it was ASKED FOR — the one field of the record a hit
         // does not carry by default, and the only reason is its size
-        // (`@olai/format`'s `SearchRequest.withDesc` argues it). Read off the
-        // record like every other carried field, and absent on the format's own
-        // rule for absence, so a query that asked and a node that has none say
-        // exactly what a query that did not ask says.
-        ...(query.withDesc !== true || located.node.desc === undefined
-          ? {}
-          : { desc: located.node.desc }),
+        // (`@olai/format`'s `SearchRequest.withDesc` argues it). TWO STEPS and
+        // not one condition, because they are two questions: `asked` is the
+        // request's, decided once above, and the spread is the FORMAT's rule
+        // for absence, spelled the way every other answer in this file spells
+        // it. A single `withDesc !== true || desc === undefined` would braid
+        // them, and would be the one place a carried field is omitted by a
+        // rule that is not the format's.
+        ...(asked === undefined ? {} : { desc: asked }),
       }
     })
 
@@ -915,15 +919,7 @@ export const subtree = (
     return Result.fail(noSuchOutline(at.set, file))
   }
   const broken = brokenIn(at.set, file)
-  if (broken !== undefined) {
-    return Result.fail(
-      new ValidationFailure({
-        reason: `\`${file}\` could not be read, so what it holds is not loaded — ` +
-          `there is nothing to answer with. Fix the file first.`,
-        errors: broken,
-      }),
-    )
-  }
+  if (broken !== undefined) return Result.fail(notLoaded(file, broken))
   return Result.succeed({
     file,
     // The roots a READER sees, in the order the page draws them: `siblingsOf`
@@ -958,6 +954,17 @@ export const subtree = (
  *
  * USAGE and not NOT-FOUND: nothing was looked up, because there was no single
  * question to look up.
+ *
+ * NOT `@olai/format`'s {@link Address}, and the survey is worth recording so it
+ * is not re-run. That grammar is the canonical way this repository names a
+ * PLACE — a document path, a node id, a heading inside a body — and a search
+ * hit already carries one. It is the wrong reuse here because it encapsulates a
+ * different axis: an address is a place WRITTEN AS TEXT, parsed out of a title
+ * somebody typed in `Pins.olai` or out of an address bar, and it carries an arm
+ * (a heading in a body) this read has no answer for. Nothing in this request is
+ * written text: it is two typed fields, and what this narrows is WHICH OF THEM
+ * WAS GIVEN. Taking the address grammar would put a parse where there is no
+ * text and a refusal where there is no arm.
  */
 type Subject =
   | { readonly kind: "node"; readonly id: string }
@@ -1110,15 +1117,7 @@ export const document = (
     )
   }
   const broken = brokenIn(set, file)
-  if (broken !== undefined) {
-    return Result.fail(
-      new ValidationFailure({
-        reason: `\`${file}\` could not be read, so what it holds is not loaded — ` +
-          `there is nothing to answer with. Fix the file first.`,
-        errors: broken,
-      }),
-    )
-  }
+  if (broken !== undefined) return Result.fail(notLoaded(file, broken))
   return Result.succeed({ file, text: entry.body })
 }
 
