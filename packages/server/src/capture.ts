@@ -257,7 +257,7 @@ const STATUS: Readonly<Record<FailureKind, number>> = {
  * not become a node", and they were three sentences in `text/plain` and one
  * JSON object until they were read side by side. `error` is the sentence and
  * `kind` is `@olai/format`'s own word for it, which is the same pair the MCP
- * face already answers with (`../mcp/tools.ts`).
+ * face already answers with (`./mcp/tools.ts`).
  *
  * The STATUS is passed rather than derived, because the three this door raises
  * itself are not all `usage`'s 400 — a missing identity is a 401 and means
