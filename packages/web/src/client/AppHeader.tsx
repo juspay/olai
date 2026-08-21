@@ -12,8 +12,8 @@
  * gone because the header is always there.
  *
  * On a phone the burger joins the left edge next to the wordmark, and that is
- * the WHOLE of the bar besides the magnifier — and, when `tailscale serve`
- * injected a login, the gravatar of who is looking, which is identity in
+ * the WHOLE of the bar besides the magnifier — and, when a trusted identity
+ * header is present, the gravatar of who is looking, which is identity in
  * WhatsApp's sense (the person, next to the wordmark) rather than a fifth
  * pill. WhatsApp's rule: identity and search in the header; connection and git as banners under it, and only when
  * there is news (the same Indicator and Commit, news-only faces); the agent as the thumb strip it already was;
@@ -156,7 +156,7 @@ export function AppHeader(props: {
           <Leaf class="size-4 text-accent md:size-5" />
           olai
         </h1>
-        {/* The signed-in person, when `tailscale serve` injected one.
+        {/* The signed-in person, when a trusted identity header is present.
             Next to the wordmark rather than in the pills: the wordmark is
             the APP, this is WHO IS LOOKING, and on a phone the chrome row
             is search alone. Absent, the slot says `none` and draws
