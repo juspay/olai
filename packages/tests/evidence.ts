@@ -280,12 +280,28 @@ const textOf = async (page: Page, locator: string) =>
   oneLine(await page.locator(locator).first().innerText())
 
 /** WHICH MOOD a said-line claims to be in, off the markup rather than off its
- *  colour — `data-tone` is the fact `web/src/client/edit/SaidLine.tsx` puts
- *  there precisely so a reader (a person, a scenario) can ask without asking
- *  about a class name. Printed beside the sentence in the section below,
- *  because that section's whole subject is which component drew the row. */
+ *  colour — `data-tone` is the fact `web/src/client/SaidLine.tsx` puts there
+ *  precisely so a reader (a person, a scenario) can ask without asking about a
+ *  class name. Printed beside the sentence in the sections below, because their
+ *  whole subject is which component drew the row. */
 const toneOf = async (page: Page, locator: string) =>
   (await page.locator(locator).first().getAttribute("data-tone")) ?? "(none)"
+
+/** HOW a said-line reaches a screen reader — the `role`/`aria-live` pair, read
+ *  as one string because they are one decision. The only part of a said-line a
+ *  screenshot cannot carry at all: two lines with the same words, one of which
+ *  interrupts whatever was being read. */
+const mannerOf = async (page: Page, locator: string) => {
+  const line = page.locator(locator).first()
+  const role = (await line.getAttribute("role")) ?? "(none)"
+  const live = (await line.getAttribute("aria-live")) ?? "(none)"
+  return `role=${role} aria-live=${live}`
+}
+
+/** WHICH refusal it is — the ops layer's own failure tag, which the row
+ *  editor's line is the one surface to carry (`data-kind`). */
+const kindOf = async (page: Page, locator: string) =>
+  (await page.locator(locator).first().getAttribute("data-kind")) ?? "(none)"
 
 /** The `•••` menu's archive verb, and the confirm it raises — ONE spelling,
  *  because the confirm answers with the same words on the same panel, and a
@@ -2997,6 +3013,87 @@ const SECTIONS = {
     // flashing first.
     await page.evaluate(() => localStorage.setItem("olai.theme", "aurora"))
     await pass(true)
+  },
+/**
+   * SAIDLINE'S HOME, AND THE EDITOR'S NUDGE (`said-home-and-nudge`): the last
+   * two hand-rolled said-lines in the client, drawn by the component every
+   * other line has gone through since #310.
+   *
+   * The two moods under one editor, in one frame each. What a picture shows is
+   * that they read as the client's other said-lines do — the refusal in alarm
+   * ink under the row whose text is still unsaved, the nudge in the quiet face
+   * a note wears — and that neither moved: same place, same size, same gutter
+   * as before the swap.
+   *
+   * What a picture CANNOT show is the whole reason this was a behaviour ruling
+   * rather than a refactor, so the transcript carries it: `role` and
+   * `aria-live` beside each sentence. Before this PR the refusal had
+   * `role="alert"` and NO `aria-live`, and the nudge had neither — a remark
+   * the ops layer makes about a write that landed reached only the reader who
+   * could see it. `data-kind` is printed for the same reason: it is the fact
+   * that made `SaidLine` unable to draw this row until it had a passthrough
+   * for it.
+   *
+   * Both halves of the palette table, because alarm and muted are theme tokens
+   * and a mood that reads as a mood on chalk and as decoration on pitch is the
+   * failure the component exists against.
+   */
+  "said-home-and-nudge": async (page) => {
+    pinnedBy(
+      "keyboard_editing.feature",
+      "A write that lands can have something to say",
+      "A refused write keeps the draft and says why",
+    )
+    /** The garden BEFORE either pass. The nudge leg is a real write — `mint`
+     *  goes done on disk — and the second pass presses the same key on the same
+     *  row, which would untick it and have nothing to remark on. Read once and
+     *  put back between the passes, so both frames are of the same gesture
+     *  rather than of two different ones. */
+    const garden = servedLines("garden.olai")
+    const pass = async (theme: string) => {
+      const suffix = `-${theme}`
+      /** One line read out and photographed — the sentence, the two facts in
+       *  the markup, and the pair a screen reader actually reads. Said once
+       *  here because the claim IS that the two moods are one row. */
+      const reads = async (who: string, line: string, name: string) => {
+        console.log(`  ${who.padEnd(20)}${await textOf(page, line)}`)
+        console.log(`  ${"...in the mood:".padEnd(20)}${await toneOf(page, line)}`)
+        console.log(`  ${"...of the kind:".padEnd(20)}${await kindOf(page, line)}`)
+        console.log(`  ${"...announced:".padEnd(20)}${await mannerOf(page, line)}`)
+        await shot(page, `${name}${suffix}`)
+      }
+
+      // THE REFUSAL. An empty title is refused by the ops layer, and the
+      // commit is the IDLE one — the third of the three commit moments — so
+      // the row is still the row being typed in when the reason arrives, with
+      // no second gesture to photograph around.
+      await opened(page, "/house.olai", OUTLINE_TREE)
+      await wearTheme(page, theme)
+      await page.locator(title("handles")).click()
+      await page.locator('[data-testid="title-editor"]').first().waitFor()
+      await page.keyboard.press("ControlOrMeta+a")
+      await page.keyboard.press("Delete")
+      await page.locator('[data-testid="edit-refusal"]').first().waitFor()
+      await page.waitForTimeout(DRAWN)
+      await reads("the editor refuses:", '[data-testid="edit-refusal"]', "the-refusal")
+      await page.keyboard.press("Escape")
+
+      // THE NUDGE, which is the opposite mood at the same place: `mint` is the
+      // last unfinished task under `herbs`, so ticking it off is the moment
+      // the rollup has something a person usually wants noticed.
+      await opened(page, "/garden.olai", OUTLINE_TREE)
+      await page.locator(title("mint")).click()
+      await page.locator('[data-testid="title-editor"]').first().waitFor()
+      await page.keyboard.press("Control+Enter")
+      await page.locator('[data-testid="edit-nudge"]').first().waitFor()
+      await page.waitForTimeout(DRAWN)
+      await reads("the write nudges:", '[data-testid="edit-nudge"]', "the-nudge")
+      await page.keyboard.press("Escape")
+    }
+
+    await pass("chalk")
+    rewrite("garden.olai", garden)
+    await pass("pitch")
   },
 } satisfies Record<string, (page: Page) => Promise<void>>
 
