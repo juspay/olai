@@ -72,6 +72,7 @@ import { bodyKind, type Custom } from "@olai/format"
 import { createSignal, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
+import { customEntries } from "../props/drawer.ts"
 import { PropsDrawer } from "../props/PropsDrawer.tsx"
 import { TESTID } from "../testids.ts"
 import { DocEditor } from "./DocEditor.tsx"
@@ -165,7 +166,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
             the file wrote none: the run draws nothing, like a row with no
             custom keys. */}
         <Show when={!editing()}>
-          <PropsDrawer custom={props.custom} />
+          <PropsDrawer entries={customEntries(props.custom)} />
         </Show>
       </header>
       {/* The face is drawn the moment the route resolves — the heading and the

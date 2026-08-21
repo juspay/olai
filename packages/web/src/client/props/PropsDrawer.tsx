@@ -42,37 +42,23 @@
  * and `Remove` for the custom keys and nothing for these (./drawer.ts).
  */
 
-import { type Custom, customOf, type RegularNode } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, Show } from "solid-js"
+import { Show } from "solid-js"
 
-import { customEntries, drawerEntries, type Entry, isLink } from "./drawer.ts"
+import { type Entry, isLink } from "./drawer.ts"
 import { TESTID } from "../testids.ts"
 
 export function PropsDrawer(props: {
-  /** The regular node being shown — for a mirror, the node it stands for,
-   *  since a placement carries no properties of its own. */
-  readonly node?: RegularNode
-  /** Draw the node's own facts as well: what a page about one node does, and
-   *  what a row in a tree does not. Ignored when there is no node. */
-  readonly always?: boolean
   /**
-   * The open map, when this is not a node's drawer — a document's frontmatter,
-   * which is the same namespace a record's `custom` is. `customEntries` already
-   * takes the map rather than a carrier for this reason.
+   * The lines to draw, already decided. A ROW hands the custom half, a node's
+   * own page hands the system facts then the custom half, a document page
+   * hands `Face.props` through `customEntries` — three callers, one run, and
+   * none of them can ask this component for a combination the types forbid.
    */
-  readonly custom?: Custom
+  readonly entries: ReadonlyArray<Entry>
 }) {
-  const entries = createMemo(() =>
-    props.node !== undefined
-      ? props.always === true
-        ? drawerEntries(props.node)
-        : customEntries(customOf(props.node))
-      : customEntries(props.custom ?? {})
-  )
-
   return (
-    <Show when={entries().length > 0}>
+    <Show when={props.entries.length > 0}>
       {/* One line that wraps, not a grid. `items-baseline` because the keys are
           set in the mono face and the values are not, and two faces centred
           against each other sit on two baselines. */}
@@ -86,7 +72,7 @@ export function PropsDrawer(props: {
             reference every chip of every open row was rebuilt on every frame
             of the page. Keyed by {@link keyOf}, which is where the one thing
             that could collide is answered. */}
-        <Key each={entries()} by={keyOf}>
+        <Key each={props.entries} by={keyOf}>
           {(entry, index) => (
             <span
               class="inline-flex min-w-0 max-w-full items-baseline gap-1"
@@ -118,7 +104,7 @@ export function PropsDrawer(props: {
               </span>
               {/* The dot belongs to the pair BEFORE it, so a wrapped run never
                   opens a line with a separator. Decorative, and said so. */}
-              <Show when={index() < entries().length - 1}>
+              <Show when={index() < props.entries.length - 1}>
                 <span class="shrink-0 text-rule" aria-hidden="true">
                   ·
                 </span>

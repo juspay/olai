@@ -63,7 +63,7 @@
  * own — so this contributes its children to a container it does not own.
  */
 
-import { docOf, type LocatedRegular } from "@olai/format"
+import { customOf, docOf, type LocatedRegular } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
 import { DocRef } from "./document/DocRef.tsx"
@@ -71,6 +71,7 @@ import { excerptOf } from "./note/excerpt.ts"
 import { NoteLine } from "./note/Line.tsx"
 import { plainLine } from "./note/preview.ts"
 import { Note } from "./Note.tsx"
+import { customEntries, drawerEntries } from "./props/drawer.ts"
 import { PropsDrawer } from "./props/PropsDrawer.tsx"
 import { EdgeRefs } from "./edges/EdgeRefs.tsx"
 import { ROW_NOTE } from "./touch.ts"
@@ -168,8 +169,8 @@ export function NodeBody(props: {
                   mark and its date are already on screen — in the glyph, on the
                   date badge, in the address — and repeating them here would put
                   two spellings of one fact under one title. The node's own page
-                  is where the full drawer is (`always`). */}
-              <PropsDrawer node={props.shows.node} />
+                  is where the full drawer is (`drawerEntries`). */}
+              <PropsDrawer entries={customEntries(customOf(props.shows.node))} />
               <Show when={props.shows.node.desc}>
                 {(desc) => (
                   <div
@@ -224,7 +225,7 @@ export function NodeBody(props: {
       {/* Zoomed, the drawer is drawn WHATEVER the node carries: this is a page
           about one node, its facts are what the page is for, and the id in
           particular is what every tool call and every `((` reference takes. */}
-      <PropsDrawer node={props.shows.node} always />
+      <PropsDrawer entries={drawerEntries(props.shows.node)} />
       <EdgeRefs node={props.shows.node} relation="see" onRemove={props.onUnsee} />
       <Show when={docOf(props.shows)}>
         {(doc) => <DocRef file={doc()} inline />}
