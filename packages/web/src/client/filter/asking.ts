@@ -134,9 +134,9 @@ type Standing =
   | { readonly kind: "none" }
   /** A question, and what STOOD while it is being answered: the last answer of
    *  this filter session, or nothing before the first. */
-  | { readonly kind: "waiting"; readonly stood: NarrowingAnswer | undefined }
+  | { readonly kind: "waiting"; readonly stood: Answered | undefined }
   /** A question, answered. */
-  | { readonly kind: "answered"; readonly answer: NarrowingAnswer }
+  | { readonly kind: "answered"; readonly answer: Answered }
   /** A question the server could not answer, in its own words — and NOTHING
    *  standing, which is the arm that makes the pairing structural. */
   | { readonly kind: "failed"; readonly because: string }
@@ -145,6 +145,15 @@ type Standing =
  *  on every revision the store publishes and a fresh record per frame is a
  *  fresh value for whatever memoises against it. */
 const NOTHING_ASKED: Standing = { kind: "none" }
+
+/** An answer AND the page it is about, as one value — so a caller drawing a
+ *  page can ask whether this is an answer to THAT one. Two accessors would be
+ *  two moments, which is precisely what the pairing exists to close
+ *  ({@link Asked.about}). */
+interface Answered {
+  readonly about: PageRequest
+  readonly answer: NarrowingAnswer
+}
 
 /** What the page's filter has been told. */
 export interface Asked {
@@ -167,6 +176,20 @@ export interface Asked {
    *  was about. Its own slot, never the grammar's refusals: a refused QUERY is
    *  an answer, and this is the server saying it could not answer. */
   readonly failure: Accessor<string | null>
+  /**
+   * WHICH PAGE the answer in hand is ABOUT — `null` when there is none.
+   *
+   * THE OTHER HALF OF THE JOIN, and the half {@link awaiting} cannot make. That
+   * one holds the PAGE while the narrowing is behind; this one is for the
+   * opposite order — the answer landing while the pane is still drawing the
+   * PREVIOUS page, where ids that name nothing on screen take every row off it.
+   *
+   * That order is measured NOT to happen (`../pane/PageView.tsx`'s `together`
+   * carries the number), and no member promises it will not. Spending an answer
+   * only on the page it is ABOUT is what makes the invariant this code's rather
+   * than the socket's.
+   */
+  readonly about: Accessor<PageRequest | null>
   /**
    * IS A NARROWED PAGE STILL WAITING TO BE TOLD WHAT IT NARROWS TO?
    *
@@ -340,10 +363,16 @@ export const createAsked = (source: {
    * A MEMO OVER ITS OWN LAST VALUE, not a signal an effect writes: an effect
    * runs AFTER the render that saw the blank.
    */
-  const stood = createMemo<NarrowingAnswer | undefined>(
-    (was) => (asked() === null ? undefined : answer() ?? was),
-    undefined,
-  )
+  const stood = createMemo<Answered | undefined>((was) => {
+    const question = asking()
+    if (question === null) return undefined
+    const arrived = answer()
+    // WHICH PAGE this answer is about, captured as it lands — see
+    // {@link Asked.about}. The question in hand IS the input the subscription is
+    // open on, so it is the one this frame answers; taken from it rather than
+    // asserted off `asked()`, which would be the same fact spelled twice.
+    return arrived === undefined ? was : { about: question.page, answer: arrived }
+  }, undefined)
 
   /**
    * WHAT THIS DOOR IS DOING, as ONE value — the four states a filtered pane can
@@ -365,19 +394,20 @@ export const createAsked = (source: {
    * drawn.
    */
   const standing = createMemo<Standing>(() => {
-    if (asked() === null) return NOTHING_ASKED
+    const question = asking()
+    if (question === null) return NOTHING_ASKED
     const failed = answer.error()
     if (failed !== undefined) return { kind: "failed", because: failed.message }
     const arrived = answer()
     return arrived === undefined
       ? { kind: "waiting", stood: stood() }
-      : { kind: "answered", answer: arrived }
+      : { kind: "answered", answer: { about: question.page, answer: arrived } }
   })
 
   /** What the three answer-shaped projections read — the answer to show, or
    *  nothing. One switch, so a fifth state would be a compile error at every
    *  reader rather than an arm somebody forgot. */
-  const showing = (): NarrowingAnswer | undefined => {
+  const showing = (): Answered | undefined => {
     const at = standing()
     switch (at.kind) {
       case "answered":
@@ -412,7 +442,7 @@ export const createAsked = (source: {
     const answered = showing()
     if (answered === undefined) return undefined
     const matches = new Map<string, MatchedNode>()
-    for (const one of answered.matches) matches.set(one.id, one)
+    for (const one of answered.answer.matches) matches.set(one.id, one)
     return matches
   })
 
@@ -429,7 +459,8 @@ export const createAsked = (source: {
      * go on answering what is typed and the wait word never appears for an edit
      * somebody made elsewhere in the vault.
      */
-    answering: () => showing()?.text ?? null,
+    answering: () => showing()?.answer.text ?? null,
+    about: () => showing()?.about ?? null,
     /**
      * WHAT COULD NOT BE READ, and only while it is still about what is typed.
      *

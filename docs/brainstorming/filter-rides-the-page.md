@@ -112,25 +112,40 @@ procedure. It is a page-shaped stream that costs a page.
 
 Two subscriptions are TWO MOMENTS, and that is the one real price of not folding
 the query into `PageRequest`. Both are read on the same pulse and delivered as
-two frames, and the page's lands first — the narrowing's read is that same page
-walk plus a matcher over what it found. Drawn as each arrives, a pane opening a
-`?q=` address shows the page WHOLE for one frame before its own query takes rows
-off it. That is not hypothetical: it is the scenario
-`pin_to_sidebar.feature`'s "the node `demo` was never drawn" already pins,
-against `reactivity-after-the-flip` §3.1's 1.6, and it fails on the naive shape.
+two frames. Drawn as each arrives, a pane opening a `?q=` address shows the page
+WHOLE for one frame before its own query takes rows off it. That is not
+hypothetical: it is the scenario `pin_to_sidebar.feature`'s "the node `demo` was
+never drawn" already pins, against `reactivity-after-the-flip` §3.1's 1.6, and it
+fails on the naive shape.
 
 The join is made where both readings are DRAWN rather than by folding one into
-the other's frame: a narrowed pane holds the page it has until the narrowing for
-it arrives (`filter/asking.ts`'s `Asked.awaiting`, spent as `reading.tsx`'s
-`holding`). What was on screen stays on screen, and a pane with nothing on
-screen yet draws its `Reading…` line — the beat `vault-in-browser.md` §5a
-already licenses for a navigation. A keystroke makes it true for one round trip
-over a page that has not moved, which is the rows-hold-still rule and costs the
-pane nothing; a reading that FAILS drops the hold, because no answer is coming
-and a page held for one that will not arrive is a pane that never draws again.
+the other's frame, and it has **two halves, because the arrival order is not
+something either member promises.**
 
-So the cost is one arm of a four-state sum (`filter/asking.ts`'s `Standing`) and
-one optional argument, and what it buys is the keystroke traffic. **The
+*The page lands first* — the one that happens. The pane holds the page it has
+until the narrowing for it arrives (`filter/asking.ts`'s `Asked.awaiting`, spent
+as `reading.tsx`'s `holding`). What was on screen stays on screen, and a pane
+with nothing on screen yet draws its `Reading…` line — the beat
+`vault-in-browser.md` §5a already licenses for a navigation. A keystroke makes
+it true for one round trip over a page that has not moved, which is the
+rows-hold-still rule and costs the pane nothing; a reading that FAILS drops the
+hold, because no answer is coming and a page held for one that will not arrive
+is a pane that never draws again.
+
+*The answer lands first* — the page BEFORE, pruned by ids that name nothing on
+it, which empties the pane. **Measured not to happen**: six runs of
+`pin_to_sidebar.feature`'s narrowed-pin scenario with the gate bypassed, and the
+page won every one. That is a fact about today's scheduling and not a promise —
+two subscriptions opened in one tick arrive in whatever order the socket and the
+two walks produce. So an answer is spent only on the page it is ABOUT
+(`PageView.tsx`'s `together`, over `Reading.about` and `Asked.about`), and until
+they agree the page draws whole with the bar saying `filtering…`, which is the
+state the reading already defines for "nothing has answered this query yet".
+What that buys is not a bug fixed — it is that the scenario may ASSERT the pane
+never empties, instead of the assertion being a canary for scheduling.
+
+So the cost is one arm of a four-state sum (`filter/asking.ts`'s `Standing`), one
+optional argument and one comparison, and what it buys is the keystroke traffic. **The
 alternative was designed and costed rather than waved away**: fold the query
 into `PageRequest`, carry `matched` on `PageReading`, and every invariant the
 join enforces becomes unspellable — one value, one moment, and `awaiting`,

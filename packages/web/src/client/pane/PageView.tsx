@@ -118,14 +118,19 @@ export function PageView() {
   /**
    * ...AND THE PAGE ITSELF, held until the answer above is about it.
    *
-   * THE ORDER HERE IS THE ARGUMENT. The narrowing subscription is opened first
-   * because the page's is opened WITH IT: the two are read on one pulse and
-   * delivered as two frames, the page's first (the narrowing's read is that same
-   * page walk plus a matcher), so a pane drawing each as it arrived would show a
-   * `?q=` address WHOLE for one frame before its own query took rows off it.
-   * `awaiting` is the join and `../reading.tsx`'s `holding` is where it is spent
-   * — what was on screen stays, and a pane with nothing on screen yet draws its
-   * `Reading…` line, which is the beat §5a already licenses for a navigation.
+   * THE ORDER IS NOT PROMISED, which is why the join has two halves. Two
+   * subscriptions opened in one tick and read on one pulse arrive in whatever
+   * order the socket and the two walks produce, and drawn as each arrives EITHER
+   * order lies: the page first shows a `?q=` address WHOLE for a frame before
+   * its own query takes rows off it, and the answer first prunes the page BEFORE
+   * by ids that name nothing on it, which empties the pane.
+   *
+   * The first is the one that happens — it is what `pin_to_sidebar.feature`'s
+   * "the node `demo` was never drawn" caught when this join did not exist — and
+   * `awaiting` covers it (`../reading.tsx`'s `holding`: what was on screen stays,
+   * and a pane with nothing on screen yet draws its `Reading…` line, the beat §5a
+   * licenses for a navigation). {@link together} covers the other, which is
+   * measured NOT to happen; what it buys is that the page below may assert so.
    */
   const reading = createReading(request, asked.awaiting)
   // …and the pane joins the workspace's register with it, so the chrome outside
@@ -139,13 +144,42 @@ export function PageView() {
 
   const shownDrawn = createMemo(() => visibleIn(allDrawn()))
 
+  /**
+   * ARE THE TWO READINGS ABOUT THE SAME PAGE?
+   *
+   * The join, from the side `asked.awaiting` cannot reach. That one holds the
+   * PAGE while its narrowing is behind; this is the opposite order — the answer
+   * for the page being navigated TO, landing while the pane is still drawing the
+   * page before. Spent there it prunes by ids that name nothing on screen, and
+   * every row goes.
+   *
+   * WHAT IS MEASURED, so the reason this exists is not overstated: the page
+   * lands first, every time — six runs of the scenario below with this gate
+   * bypassed and none of them emptied. That is not something either member
+   * PROMISES, though. Two subscriptions opened in one tick and read on one pulse
+   * arrive in whatever order the socket and the two walks happen to produce, and
+   * nothing in the design fixes it. So the gate is what makes the invariant a
+   * property of this code rather than of that ordering — and the scenario can
+   * assert it without becoming a canary for scheduling.
+   *
+   * An answer is spent only where it is ABOUT the page being drawn. Until they
+   * agree the page draws whole and the bar says `filtering…`, which is the state
+   * `filter/narrowing.ts` already defines for "nothing has answered this query
+   * yet" rather than a fifth one invented here.
+   */
+  const together = createMemo(() => {
+    const drawn = reading.about()
+    const answered = asked.about()
+    return drawn !== null && answered !== null && samePageRequest(drawn, answered)
+  })
+
   const narrowing = createNarrowing({
     query,
     text: () => filterOf(route()),
     all: allDrawn,
     visible: shownDrawn,
-    matched: asked.matched,
-    answering: asked.answering,
+    matched: () => (together() ? asked.matched() : undefined),
+    answering: () => (together() ? asked.answering() : null),
   })
 
   const rows = () => only(narrowing.drawn(), "tree")?.rows ?? []

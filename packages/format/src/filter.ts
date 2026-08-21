@@ -1,5 +1,5 @@
 /**
- * What a query MEANS — the one matcher, five callers.
+ * What a query MEANS — the one matcher, and the two SHAPES its callers want.
  *
  * A query is words and operators; this file says which nodes they select, and
  * which rows survive when a tree is narrowed to them. It is here, at the bottom
@@ -8,27 +8,32 @@
  * second one written to the same paragraph is the thing this package exists to
  * make impossible.
  *
- * FIVE CALLERS, and naming them is the argument:
+ * TWO SHAPES, and the split is what the file is arranged around:
  *
- *   - `@olai/ops`' `Query.search`, which is what an agent's `search_nodes` and
- *     the wire's `search.nodes` answer with. It calls {@link matching} as its
- *     gate and {@link ranked} to order them, and what is left of its own is
- *     the situating, the cap it applies and the total;
- *   - the ⌘K palette and the header's search box, which are callers of that
- *     procedure and so get every operator here for free;
- *   - the browser's FILTER over the tree on screen, which cannot be a caller of
- *     that procedure — it runs on every keystroke over rows the browser already
- *     holds, it wants every match rather than twelve, and it wants them as a set
- *     of ids to test rows against rather than as a ranked list of situated hits;
- *   - the chat composer's `@` list (`@olai/web`'s `chat/nodes.ts`), which is
- *     the filter's shape with a shortlist on the end: one token, matched here,
- *     ordered by {@link ranked}, eight rows taken off the top.
+ *   - a SHORTLIST somebody reads — ranked, capped, every hit situated. {@link
+ *     matching} over the whole set, ordered by {@link ranked}, and the caller
+ *     is `@olai/ops`' `Query.search`, which is what an agent's `search_nodes`
+ *     and the wire's `search.nodes` answer with (the ⌘K palette, the header's
+ *     box and the chat composer's `@` list are doors onto that one procedure,
+ *     so they get every operator here for free). What is left to the ops layer
+ *     is the situating, the cap and the uncapped total;
+ *   - a MEMBERSHIP over rows already on a screen — uncapped, unranked, ids to
+ *     test rows against. That is a page's FILTER, and what it is asked of is
+ *     the records THAT PAGE draws rather than the corpus (`./narrowing.ts`,
+ *     over {@link selecting} with the page's own candidates in place of the
+ *     set's). A capped, ranked, situated answer would be the wrong answer with
+ *     more bytes in it.
  *
- * The last two are why the matcher is down here rather than in the ops layer.
- * The alternative was a client-side predicate written to the same description,
- * which is exactly the drift docs/search.md was written to forbid — `is:done`
- * meaning one thing to an agent and another to the box a person types in. The
- * ranking followed it down for the same reason, one door later: see
+ * BOTH ARE ANSWERED ON THE SERVER, which is newer than this file is. The
+ * matcher came DOWN here when the filter ran in a browser on every keystroke
+ * over rows the tab already held — a client-side predicate written to the same
+ * description is exactly the drift docs/search.md was written to forbid, with
+ * `is:done` meaning one thing to an agent and another to the box a person types
+ * in. The browser holds no vault to grep since `vault-in-browser`, and the
+ * filter stopped being a call at all with `filter-ask-carries-revision`
+ * (docs/brainstorming/filter-rides-the-page.md): what moved was WHO CALLS this,
+ * never what it says, and the rule the move was made for is the reason it stays.
+ * The ranking followed it down for the same reason, one door later: see
  * {@link ranked}.
  *
  * The design, with the alternatives that lost, is

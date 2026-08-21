@@ -93,8 +93,15 @@ export interface Reading {
   /**
    * A GENERATION: a number that moves exactly when this page's answer moved,
    * for the one reader that needs to know THAT rather than what changed — the
-   * filter, whose answer about which nodes a query selects may not outlive the
-   * set it was computed over (`./filter/asking.ts`'s `Ask.at`).
+   * row editor, which suppresses a blur while it waits for the frame that
+   * redraws a row it just moved (`./edit/editing.tsx`'s `settling`).
+   *
+   * THE FILTER WAS THE SECOND until `filter-ask-carries-revision`: its answer
+   * about which nodes a query selects may not outlive the set it was computed
+   * over, and while that answer was a CALL the only way to say so was to re-ask
+   * on this number. The answer is a reading of its own on the same pulse now
+   * (`./filter/asking.ts`), so the browser holds no token about a set it does
+   * not have — see docs/brainstorming/filter-rides-the-page.md.
    *
    * IT CANNOT BE THE VALUE'S IDENTITY, which is what it was when the tab held
    * a derivation: a subscription's value is a RECONCILED STORE, so its identity
@@ -156,6 +163,27 @@ export interface Reading {
    * closes (`docs/roadmap/deferred.olai`'s `names-table-once`).
    */
   readonly names: Accessor<Names>
+  /**
+   * WHICH QUESTION the page in hand is an answer TO — `null` before the first
+   * one, and the PREVIOUS address for as long as {@link page} is holding one.
+   *
+   * ONE READER, and it is the other half of the join {@link createReading}'s
+   * `holding` is: a narrowed pane draws a page and a narrowing that are two
+   * members and two frames, and holding the page covers only the order where the
+   * PAGE lands first — which is the order that happens. The other one would
+   * prune the page BEFORE by ids that name nothing on it, emptying the pane; it
+   * is measured not to occur and is promised by nothing, so the pane spends an
+   * answer only on the page it is ABOUT (`./pane/PageView.tsx`'s `together`) and
+   * this is how it asks.
+   */
+  readonly about: Accessor<PageRequest | null>
+}
+
+/** The page in hand and the question it answers, held as ONE value — two memos
+ *  would be two moments, which is the whole thing this pair exists to close. */
+interface Answered {
+  readonly page: PageReading
+  readonly about: PageRequest | null
 }
 
 export const createReading = (
@@ -227,11 +255,16 @@ export const createReading = (
    * with a second reading of this page still in flight says so, and the answer
    * in hand goes on being the answer.
    */
-  const held = createMemo<PageReading | undefined>(
-    (was) => (holding?.() === true ? was : answer() ?? was),
-    undefined,
-  )
-  return { page: held, at, names: createNames(held) }
+  const held = createMemo<Answered | undefined>((was) => {
+    if (holding?.() === true) return was
+    const arrived = answer()
+    // WHICH QUESTION THIS ANSWER IS TO, captured as it lands: the framework
+    // delivers a frame for the input the subscription is open on, so the
+    // request read here is the one that produced it.
+    return arrived === undefined ? was : { page: arrived, about: request() }
+  }, undefined)
+  const page = createMemo(() => held()?.page)
+  return { page, at, names: createNames(page), about: () => held()?.about ?? null }
 }
 
 const ReadingContext = createContext<Accessor<PageReading | undefined>>()
@@ -264,15 +297,16 @@ export const useReading = (): Accessor<PageReading | undefined> => {
 /**
  * HOW MANY FRAMES this pane's reading has moved on — see {@link Reading.at}.
  *
- * Its readers are the two that wait for a FRAME rather than for a value: the
- * filter, whose answer about the set may not outlive it, and the row editor,
- * which suppresses a blur while it is waiting for the frame that redraws a row
- * it just moved (`./edit/editing.tsx`'s `settling`). Both used to read the
- * derivation's identity, which was a fresh value per revision; neither can read
- * the reading's, because a subscription's value is a store whose identity
- * survives every frame — and since the `page` stream declares what identifies a
- * row, its ELEMENTS' identities survive one too, so there is nothing left down
- * there for a reader to mistake for news.
+ * Its reader is the one that waits for a FRAME rather than for a value: the row
+ * editor, which suppresses a blur while it is waiting for the frame that
+ * redraws a row it just moved (`./edit/editing.tsx`'s `settling`). It was two
+ * until the filter stopped being a call and became a reading of its own
+ * ({@link Reading.at}). It used to read the derivation's identity, which was a
+ * fresh value per revision, and cannot read the reading's, because a
+ * subscription's value is a store whose identity survives every frame — and
+ * since the `page` stream declares what identifies a row, its ELEMENTS'
+ * identities survive one too, so there is nothing left down there for a reader
+ * to mistake for news.
  */
 export const useFrames = (): Accessor<number> => {
   const frames = useContext(FramesContext)

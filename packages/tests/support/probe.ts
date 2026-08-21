@@ -87,6 +87,12 @@ export interface Churn {
    *  of the two it means and a reader of the failure should not have to work it
    *  out from a sign. */
   readonly took: ReadonlyArray<string>;
+  /** Whether the pane was ever left holding NO rows at all while the probe was
+   *  watching — read after each delivery of the observer's queue, so a swap that
+   *  removes and adds inside one of them is not a moment anybody saw. What it
+   *  catches is a page pruned by an answer about a DIFFERENT page: ids that name
+   *  nothing on screen take everything off it. */
+  readonly emptied: boolean;
 }
 
 /** Where the probe keeps its own state. A name nothing else on `window` could
@@ -120,6 +126,7 @@ export const markScreen = async (world: OlaiWorld): Promise<void> => {
       const moved: Moved[] = [];
       const drew: string[] = [];
       const took: string[] = [];
+      let emptied = false;
       let batch = 0;
       new MutationObserver((records) => {
         batch++;
@@ -158,8 +165,13 @@ export const markScreen = async (world: OlaiWorld): Promise<void> => {
             }
           }
         }
+        // ...and whether the pane was left holding NOTHING once this whole
+        // delivery had been applied. Read after the records rather than per
+        // record, because a swap arrives as a removal and an addition and the
+        // moment between them is not a frame anybody saw.
+        if (main.querySelector("[data-node-id]") === null) emptied = true;
       }).observe(main, { subtree: true, childList: true });
-      (window as unknown as Record<string, unknown>)[probe] = { moved, drew, took };
+      (window as unknown as Record<string, unknown>)[probe] = { moved, drew, took, emptied: () => emptied };
     },
     [SIDEBAR, PANE, PROBE] as const,
   );
@@ -170,7 +182,7 @@ export const markScreen = async (world: OlaiWorld): Promise<void> => {
 export const screenChurn = async (world: OlaiWorld): Promise<Churn> =>
   await world.page.evaluate((probe) => {
     const held = (window as unknown as Record<string, unknown>)[probe] as
-      | { moved: Moved[]; drew: string[]; took: string[] }
+      | { moved: Moved[]; drew: string[]; took: string[]; emptied: () => boolean }
       | undefined;
     if (held === undefined) {
       throw new Error(
@@ -178,7 +190,7 @@ export const screenChurn = async (world: OlaiWorld): Promise<Churn> =>
           "survived — a step has to mark it before the gesture it is a claim about",
       );
     }
-    return { moved: held.moved, drew: held.drew, took: held.took };
+    return { moved: held.moved, drew: held.drew, took: held.took, emptied: held.emptied() };
   }, PROBE);
 
 /** The sidebar is the same sidebar: every element that was under it is still
@@ -453,4 +465,17 @@ export const nothingAnnounced = async (
   what: string,
 ): Promise<void> => {
   await announcedTimes(world, selector, what, 0);
+};
+
+/** The pane never held NOTHING — the claim a page pruned by another page's
+ *  answer fails, because ids that name nothing on screen take every row off it.
+ *  A page that legitimately draws no rows is a page a scenario does not make
+ *  this claim about. */
+export const neverEmptied = async (world: OlaiWorld): Promise<void> => {
+  const churn = await screenChurn(world);
+  assert.ok(
+    !churn.emptied,
+    "the pane was left holding no rows at all, so a page was pruned by an " +
+      "answer that was not about it",
+  );
 };

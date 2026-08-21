@@ -38,6 +38,7 @@ import {
   matching,
   parseFilter,
   rowsIn,
+  type SearchField,
   type Selected,
 } from "./filter.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
@@ -302,4 +303,72 @@ test("two answers that select the same nodes for the same reasons are the same",
     narrowingOf(SET, FACES, READABLE, { page: at("house.olai"), text }, TODAY)
   expect(sameNarrowing(ask("door"), ask("door"))).toBe(true)
   expect(sameNarrowing(ask("door"), ask("hinges"))).toBe(false)
+})
+
+/**
+ * One answer, SPELLED — because the cases below are about the equality rather
+ * than about a reading, and a fixture that had to produce each of them would be
+ * a corpus written to make an equivalence say `false`.
+ */
+const answerOf = (
+  text: string,
+  ...matches: ReadonlyArray<readonly [id: string, field?: SearchField]>
+): NarrowingAnswer => ({
+  text,
+  matches: matches.map(([id, field]) => ({
+    id: id as NarrowingAnswer["matches"][number]["id"],
+    ...(field === undefined ? {} : { matched: field }),
+  })),
+})
+
+/**
+ * THE FREEZE CASES — every way an answer can MOVE while still looking like the
+ * one before it.
+ *
+ * `sameNarrowing` is what decides whether a revision sends a frame at all, so
+ * getting it wrong in this direction is the failure nobody sees: a filtered
+ * page holding a selection the directory has moved past, under a healthy
+ * socket. The equivalence is derived from the schema, which is what makes it
+ * right; these are the cases that say so out loud, so the line stays derived.
+ *
+ * ORDER IS A MOVE, and that is CONSERVATIVE rather than exact: the answer is in
+ * the page's own draw order, and a reorder that selected the same ids costs one
+ * frame the client turns back into the same `Map`. An extra frame is the safe
+ * direction — the one that must never happen is the frame that is not sent.
+ */
+test("an answer that MOVED is never mistaken for the one before it", () => {
+  const was = answerOf("door", ["order", "title"], ["hinges", "title"])
+
+  // The baseline: the same answer, minted twice.
+  expect(sameNarrowing(was, answerOf("door", ["order", "title"], ["hinges", "title"])))
+    .toBe(true)
+
+  // ORDER — the same two ids, drawn the other way round.
+  expect(sameNarrowing(was, answerOf("door", ["hinges", "title"], ["order", "title"])))
+    .toBe(false)
+
+  // LEAVE AND ARRIVE — the sharp one: same length, same shape, same reason, and
+  // one id swapped for another. A comparison that stopped at the size of the
+  // list would call this equal and freeze a page on rows that are gone.
+  expect(sameNarrowing(was, answerOf("door", ["order", "title"], ["tiles", "title"])))
+    .toBe(false)
+
+  // WHY a row matched, moved — the field is what `filter/why.ts` draws a note
+  // excerpt off, so a page whose hit slid from the title into the ¶ says
+  // something different about the same row.
+  expect(sameNarrowing(was, answerOf("door", ["order", "desc"], ["hinges", "title"])))
+    .toBe(false)
+
+  // ...and the field going ABSENT, which is the format's own rule for "no words
+  // carried it" rather than a missing value.
+  expect(sameNarrowing(was, answerOf("door", ["order"], ["hinges", "title"])))
+    .toBe(false)
+
+  // A row simply leaving.
+  expect(sameNarrowing(was, answerOf("door", ["order", "title"]))).toBe(false)
+
+  // ...and the WORDS, which ride the answer because the bar reads which query
+  // the rows are about off the value that holds them.
+  expect(sameNarrowing(was, answerOf("doors", ["order", "title"], ["hinges", "title"])))
+    .toBe(false)
 })

@@ -21,6 +21,7 @@ import {
   markScreen,
   monthHeld,
   neverDrew,
+  neverEmptied,
   neverTookAway,
   sidebarHeld,
 } from "../support/probe.ts";
@@ -65,3 +66,7 @@ Then(
     await neverTookAway(this, id);
   },
 );
+
+Then("the pane was never empty", async function (this: OlaiWorld) {
+  await neverEmptied(this);
+});
