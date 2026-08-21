@@ -27,6 +27,15 @@
  * drop out of that row immediately and say what the agent is doing; when the
  * calls arrive they land in the lane already open under it.
  *
+ * WHETHER ANYTHING IS RUNNING is the other thing decided out here, and it is
+ * decided ONCE for the whole list. Two faces need it and neither row can see
+ * it: the rail under a spawn ({@link ./spawn.ts}) and the elapsed readout on a
+ * running call's own line ({@link ./elapsed.ts}). It is a fact about the
+ * CONVERSATION — a status is sticky and a dead agent's last call says `pending`
+ * forever — so a row asked on its own would keep both of those alive under a
+ * process that no longer exists. The clock the readouts tick against hangs off
+ * the same answer, and runs only while it is true.
+ *
  * FOLLOWING THE BOTTOM is the other half of this file, and it is two questions
  * that were being answered as one:
  *
@@ -71,6 +80,7 @@ import { useShowNode } from "../focus.ts"
 import { useFollow } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { declaringFailure } from "./declared.ts"
+import { createTicking, elapsedOf } from "./elapsed.ts"
 import { Entry } from "./Entry.tsx"
 
 import { laneOf, RAIL } from "./lanes.ts"
@@ -193,6 +203,12 @@ export function Transcript(props: { readonly chat: Chat }) {
    */
   const live = createMemo(() => props.chat.state().status === "thinking")
 
+  /** The clock the elapsed readouts are drawn against — ONE for the panel, and
+   *  it runs only while `live` says there is something to time
+   *  ({@link ./elapsed.ts}). A ticker per row would be one timer per tool call
+   *  of a long conversation, all of them saying the same thing a beat apart. */
+  const now = createTicking(live)
+
   return (
     <div
       class="olai-scroll min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-2 text-ink"
@@ -266,6 +282,15 @@ export function Transcript(props: { readonly chat: Chat }) {
              *  answers both "is there anything to draw" and "what does it say"
              *  ({@link ./spawn.ts}). */
             const working = createMemo(() => doingOf(entry(), live()))
+            /** How long this call has been going, or `null` for a row with
+             *  nothing to time — which is every row of an idle conversation,
+             *  every row that is not a running call, and every call younger
+             *  than the panel's quiet threshold ({@link ./elapsed.ts}).
+             *
+             *  The clock is passed UNREAD, as the accessor: a memo that read it
+             *  here would make every row of the transcript a subscriber to a
+             *  once-a-second tick, to answer `null` for all but one of them. */
+            const elapsed = createMemo(() => elapsedOf(entry(), live(), now))
             return (
               <Show when={entry()}>
                 {(row) => (
@@ -307,7 +332,7 @@ export function Transcript(props: { readonly chat: Chat }) {
                         </p>
                       )}
                     </Show>
-                    <Entry entry={row()} chat={props.chat} />
+                    <Entry entry={row()} chat={props.chat} elapsed={elapsed()} />
                     {/* THE LANE, OPENED BY THE SPAWN ITSELF — a rail dropping
                         out of the frame the moment an agent is sent out,
                         rather than one that appears whenever the agent

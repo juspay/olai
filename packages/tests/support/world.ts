@@ -868,6 +868,7 @@ export const CHAT_TOOL_FOLD = selector(TESTID.chatToolFold);
 export const CHAT_TOOL_DETAIL = selector(TESTID.chatToolDetail);
 export const CHAT_TOOL_PROGRESS = selector(TESTID.chatToolProgress);
 export const CHAT_TOOL_LOCATIONS = selector(TESTID.chatToolLocations);
+export const CHAT_TOOL_ELAPSED = selector(TESTID.chatToolElapsed);
 export const CHAT_LANE = selector(TESTID.chatLane);
 export const CHAT_LANE_LABEL = selector(TESTID.chatLaneLabel);
 export const CHAT_SPAWN = selector(TESTID.chatSpawn);

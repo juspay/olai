@@ -58,10 +58,16 @@ const EMPTY: Change = { upserts: [], removes: [] }
  */
 const contentOf = (
   entry: ChatEntry,
-): Omit<ChatEntry, "id" | "seq" | "streaming"> => {
-  const { id: _id, seq: _seq, streaming: _streaming, ...content } = entry
+): Content => {
+  const { id: _id, seq: _seq, since: _since, streaming: _streaming, ...content } = entry
   return content
 }
+
+/** A row's CONTENT: everything about it that a caller decides. The four fields
+ *  taken off are the ones `#put` derives — which key the row is, where it sits,
+ *  when it arrived and whether it is still growing — and taking them off here
+ *  is what makes them unsettable from anywhere else. */
+type Content = Omit<ChatEntry, "id" | "seq" | "since" | "streaming">
 
 /** What a tool call is filed under. Spelled ONCE: the row a call writes and
  *  the row it names as the agent that made it are the same kind of key, and
@@ -105,6 +111,21 @@ export class Transcript {
    * stores it and hands it back.
    */
   #undelivered = new Map<string, string>()
+  /**
+   * What time it is, for {@link ChatEntry.since}.
+   *
+   * HANDED IN, with the real clock as the default, for the reason every other
+   * rule in this file is a value: the transcript is a data structure with no
+   * agent, no socket and no browser under it, and a stamp read off `Date.now`
+   * directly would be the one fact here that could only be asserted by
+   * comparing it with itself. It is the arrangement the panel's own faces have
+   * with the state they cannot see (`chat/spawn.ts`'s `live`).
+   */
+  readonly #now: () => number
+
+  constructor(now: () => number = Date.now) {
+    this.#now = now
+  }
 
   entries(): ReadonlyMap<string, ChatEntry> {
     return this.#entries
@@ -440,16 +461,23 @@ export class Transcript {
 
   /** Write one entry and answer with the change. `streaming` is DERIVED here —
    *  an entry is growing exactly while it is the open one — so no caller can
-   *  set it, and none can forget to. */
+   *  set it, and none can forget to.
+   *
+   *  So is `since`, and it is derived the way `seq` is: taken off the row that
+   *  is already there, minted only for one that is not. A tool call reports
+   *  itself several times and every report after the first comes through here,
+   *  so re-stamping would reset a duration at each frame — which is exactly the
+   *  frames a long call sends while somebody is watching it. */
   #put(
     key: string,
-    entry: Omit<ChatEntry, "id" | "seq" | "streaming">,
+    entry: Content,
   ): Change {
     const existing = this.#entries.get(key)
     const next: ChatEntry = {
       ...entry,
       id: key,
       seq: existing?.seq ?? this.#seq++,
+      since: existing?.since ?? new Date(this.#now()).toISOString(),
       ...(key === this.#open ? { streaming: true as const } : {}),
     }
     this.#entries.set(key, next)

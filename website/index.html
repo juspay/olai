@@ -1327,6 +1327,16 @@ The corner unit is the **risky one** — see
     trimmed to a few rows and expands where it stands. An outline never gets a
     text diff — one line per node means a text diff of one is a single enormous
     line with everything on it changing at once.</p>
+    <p>A call that is still going says <strong>how long it has been going</strong>,
+    on that same line and ticking — <em>47s</em>, <em>1m 12s</em> — once it has
+    been running long enough to be worth saying, so the reads that land
+    instantly never flash a number. The status dot cannot answer that: it looks
+    the same a quarter of a second in and four minutes in, and the question you
+    actually have is which. Nothing about it knows what tool is running — a
+    shell command, a watcher, a build and a search all get it because the wire
+    says the call has not come back — and it stops the moment the conversation
+    does, so a call an agent died in the middle of does not leave a clock
+    counting under a process that is gone.</p>
     <p>An agent can send agents of its own, and their work is drawn as theirs.
     A call a subagent made sits <strong>indented behind a rail</strong>, under
     the call that spawned it; the ordinary column stays the main agent’s. Where

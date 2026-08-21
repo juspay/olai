@@ -311,6 +311,32 @@ export const ChatEntry = Schema.Struct({
    *  arrival order, which is the same thing until a session is reloaded; an
    *  explicit sequence means the panel never has to depend on that. */
   seq: Schema.Int,
+  /**
+   * WHEN this row first appeared, as an ISO 8601 instant — the server's clock
+   * at the moment olai first heard of it.
+   *
+   * Minted beside {@link ChatEntry.seq} and by the same writer, which is what
+   * makes it mean what it says: `seq` is WHERE a row sits and this is WHEN it
+   * arrived, both decided once and neither settable by a caller. Sticky across
+   * every later report of the same row, so a tool call announced `pending` and
+   * updated four times keeps the instant it was ANNOUNCED rather than the
+   * instant of the last frame — which is the only instant a duration can
+   * honestly be measured from.
+   *
+   * HERE rather than in the browser, and that is the whole reason it is on the
+   * wire at all. This collection is served snapshot-then-deltas, so a tab
+   * opened mid-turn, a tab reloaded after a crash and a tab that has been
+   * listening since the first token all see the same conversation — and a
+   * browser-side stopwatch, started whenever a tab happened to begin looking,
+   * would have each of them saying a different number and every one of them
+   * short. What a call has been running for is a fact about the call.
+   *
+   * The one reader today is the chat panel's elapsed readout, which draws it
+   * only for a call the wire still calls running in a conversation that is
+   * still live. Absent from a server that stamps none, which is the same
+   * "nobody said" every optional field here means.
+   */
+  since: Schema.optionalKey(Schema.String),
   kind: Schema.Literals(["user", "agent", "tool", "ask", "refusal", "notice"]),
   /** The prose. For a tool entry this is its title, and for an `ask` it is what
    *  the agent said it needs — the elicitation's own message. */

@@ -1053,6 +1053,17 @@ export const TESTID = {
   chatToolProgress: "chat-tool-progress",
   /** Where it is working: the follow-along file locations, on the line. */
   chatToolLocations: "chat-tool-locations",
+  /** HOW LONG it has been running, on the same line — drawn only once a call
+   *  the wire still calls running has outlasted the panel's quiet threshold,
+   *  and only while the CONVERSATION is live, so a dead agent's sticky
+   *  `pending` never keeps a clock counting.
+   *
+   *  It names the DURATION and not the readout around it: the separator that
+   *  sets it off from the locations and the words a screen reader hears are
+   *  outside, so what a scenario reads back is the number the rule decided.
+   *  That number ticks, which is why a scenario asserts that a duration is
+   *  drawn and that it GROWS, rather than which one it is. */
+  chatToolElapsed: "chat-tool-elapsed",
   /** A row a SUBAGENT is responsible for, in the lane it is drawn in.
    *  `data-lane` is the transcript key of the `Agent` frame it belongs to —
    *  the same key the row itself carries as `data-entry-id` — so a scenario

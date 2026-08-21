@@ -36,6 +36,8 @@
 
 import type { ChatEntry } from "@olai/surface"
 
+import { isRunning } from "./running.ts"
+
 /**
  * WHO the call sent out, or `null` for a row that sent nobody — which is every
  * row in a conversation where nothing was ever spawned.
@@ -104,9 +106,10 @@ export const doingOf = (
   if (!live || entry?.spawned === undefined) return null
   // `pending` is what a spawn is ANNOUNCED with and what most of them wear for
   // most of their lives, so it is the default rather than a case to fall
-  // through — and it is a RUNNING state here, which is the whole of the note
-  // above.
-  return RUNNING.has(entry.status ?? "pending") ? WORKING : null
+  // through — and it is a RUNNING state, which is the whole of the note above
+  // and is now {@link ./running.ts}'s to say, because the elapsed readout on
+  // this same row asks the same question.
+  return isRunning(entry.status ?? "pending") ? WORKING : null
 }
 
 /** What a spawn is called when it named no kind of agent. The `Agent` tool's
@@ -116,9 +119,3 @@ const SOMEBODY = "agent"
 
 /** What the rail says while an agent is out. */
 const WORKING = "working…"
-
-/** The statuses that mean it has not come back. A call that has completed or
- *  failed has no live half and is drawn by the mark and the report the frame
- *  already carries; anything the agent spells some other way is not something
- *  this panel will call running. */
-const RUNNING: ReadonlySet<string> = new Set(["pending", "in_progress"])

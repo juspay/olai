@@ -35,6 +35,15 @@
  * under it belongs to the list, which is the thing that has rows to put a rail
  * beside.
  *
+ * A CALL THAT IS STILL RUNNING says HOW LONG on that line too, once it has been
+ * running long enough to be worth saying ({@link ./elapsed.ts}). The status
+ * mark is the only other thing here that is about time and it cannot answer
+ * this: `·` is what a call announced a quarter of a second ago wears and `·` is
+ * what one that has been grepping for four minutes wears, and those are not the
+ * same row to somebody watching. Like the spawn's rail, the number is the
+ * LIST's answer rather than this row's — a status is sticky, so whether
+ * anything is running at all is a fact about the conversation.
+ *
  * The row is UPDATED rather than replaced. The transcript keys these by the
  * agent's own call id, so `pending` becoming `completed` is the same row
  * changing.
@@ -97,7 +106,13 @@ const SAID: Record<string, string> = {
   failed: "failed",
 }
 
-export function ToolFrame(props: { readonly entry: ChatEntry }) {
+export function ToolFrame(props: {
+  readonly entry: ChatEntry
+  /** How long it has been running, in words, or `null` when there is nothing
+   *  to say — see {@link ./Entry.tsx}, which says why the answer arrives from
+   *  outside rather than being worked out on the row. */
+  readonly elapsed: string | null
+}) {
   const open = () => isUnfolded(props.entry.id)
   const status = () => props.entry.status ?? "pending"
   /**
@@ -205,6 +220,41 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
               title={locations().join("\n")}
             >
               {locations().join(" ")}
+            </span>
+          )}
+        </Show>
+        {/* HOW LONG IT HAS BEEN GOING, for a call the wire still calls running
+            in a conversation that is still live ({@link ./elapsed.ts}). The
+            mark at the head of this line has said `·` for a quarter of a second
+            and `·` for four minutes since there was a panel; this is the line
+            saying which.
+
+            At the END of the row, past the locations, because it is the one
+            thing here that is about the call rather than about what the call is
+            doing — and `shrink-0`, so a long path truncates and the number
+            never does. The `·` is a separator and belongs to the reader's eye
+            rather than to the name: the words either side of it are two
+            readouts, and without it a duration lands against a file path as
+            though it were part of one.
+
+            NO `aria-live`, deliberately, and this is the one place in the panel
+            where that needs saying: the rail under a spawn announces itself
+            because it appears once and says one word, and a number that changes
+            every second in a live region would be a screen reader counting out
+            loud for as long as the build takes. It is in the button's
+            accessible NAME instead, where a reader meets it when they ask about
+            the row — which is the moment "how long has this been going" is
+            actually a question. */}
+        <Show when={props.elapsed}>
+          {(elapsed) => (
+            <span class="shrink-0 text-doing">
+              <span aria-hidden="true">·&#32;</span>
+              <span class="sr-only">running for&#32;</span>
+              {/* The DURATION alone under the name, with the separator and the
+                  spoken words outside it: what a scenario reads back is then
+                  the number this rule decided rather than the sentence built
+                  around it. */}
+              <span data-testid={TESTID.chatToolElapsed}>{elapsed()}</span>
             </span>
           )}
         </Show>

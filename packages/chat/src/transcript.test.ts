@@ -207,6 +207,65 @@ describe("tool calls", () => {
   })
 })
 
+describe("when a row arrived", () => {
+  /** A clock that says what it is told to, so a stamp is a value rather than
+   *  something asserted by comparing it with itself. */
+  const clock = (from: string) => {
+    let at = Date.parse(from)
+    return { now: () => at, pass: (ms: number) => { at += ms } }
+  }
+
+  test("a row is stamped with the instant it first appeared", () => {
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("call-1", { title: "Grep", status: "pending" })
+    expect(rows(transcript)[0]?.since).toBe("2026-08-21T12:00:00.000Z")
+  })
+
+  test("... and keeps it, however many times the call reports again", () => {
+    // The rule this stamp exists for. A long call reports itself several times
+    // while it runs — content, locations, a status — and every one of those
+    // comes through the same writer, so a re-stamp would reset the duration on
+    // exactly the frames somebody is watching it grow.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("call-1", { title: "Grep", status: "pending" })
+    time.pass(30_000)
+    transcript.tool("call-1", { status: "in_progress", progress: "halfway" })
+    time.pass(30_000)
+    transcript.tool("call-1", { status: "completed" })
+
+    expect(rows(transcript)[0]?.since).toBe("2026-08-21T12:00:00.000Z")
+  })
+
+  test("a row cannot be handed one: the writer decides, like `seq`", () => {
+    // `since` is off `contentOf` for the reason `seq` and `streaming` are —
+    // every re-publish goes through a spread of the row as it stands, and a
+    // field a caller could set is a field a caller could set WRONG once and
+    // then carry forward forever.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.user("hello", { since: "1999-01-01T00:00:00.000Z" })
+    expect(rows(transcript)[0]?.since).toBe("2026-08-21T12:00:00.000Z")
+  })
+
+  test("the row a person typed is stamped too — one rule, not a tool's", () => {
+    // It is minted beside `seq`, by the one writer, for every kind of row. A
+    // stamp that existed only for the rows the elapsed readout happens to draw
+    // would be the row minter knowing about a face.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.say("thinking")
+    time.pass(1_000)
+    transcript.add("notice", "the agent stopped")
+
+    expect(rows(transcript).map((entry) => entry.since)).toEqual([
+      "2026-08-21T12:00:00.000Z",
+      "2026-08-21T12:00:01.000Z",
+    ])
+  })
+})
+
 describe("questions", () => {
   const fields = [{
     key: "question_0",
