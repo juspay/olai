@@ -273,7 +273,7 @@ const REFUSED: Said = {
 /** The `#…` the frame's own address wears, or nothing — encoded for the reason
  *  `../routes.ts` encodes the other end: an id in a saved page is whatever its
  *  author wrote, and it lands in a URL. */
-const landing = (at: string | undefined): string =>
+const anchor = (at: string | undefined): string =>
   at === undefined || at === "" ? "" : `#${encodeURIComponent(at)}`
 
 export function Hypertext(props: { readonly file: string }) {
@@ -301,10 +301,13 @@ export function Hypertext(props: { readonly file: string }) {
   // reason the effect below gives.
   const [landedAt, setLandedAt] = createSignal<number>()
   const go = useGo()
-  /** Where inside this file this pane was asked to land, or nothing — the
-   *  router's own answer for the pane this frame is drawn in, memoized there
-   *  so a navigation next door says nothing here (`../router.tsx`). */
-  const landingAt = useLanding()
+  /** Where inside this file this pane was asked to land, read the two ways
+   *  this file needs it — the slug as a FACT, which is what the frame's URL is
+   *  built from, and the ACT still owed, which is what may put a fragment on
+   *  that URL. The router's own answer for the pane this frame is drawn in,
+   *  memoized there so a navigation next door says nothing here
+   *  (`../router.tsx`'s {@link Landfall}). */
+  const landing = useLanding()
   const opens = useOpens()
   let frame: HTMLIFrameElement | undefined
 
@@ -317,6 +320,23 @@ export function Hypertext(props: { readonly file: string }) {
   const heights = rungs()
   let walkOffs = 0
   let visits = 0
+  /**
+   * The slug the document NOW IN THE FRAME was pointed at, or nothing.
+   *
+   * The host window's half of a landing is answered by a number the frame
+   * posts, and this is what says whose number it is: only a document this
+   * component pointed at a fragment can move this window, and only until the
+   * next pointing replaces it ({@link fresh}). A page that walked off, a page
+   * brought home after one, and the file re-fetched because its revision moved
+   * are all pointed with no fragment, so a report from any of them is a number
+   * nobody asked for.
+   *
+   * A PLAIN VARIABLE and not a signal, because nothing reads it to draw with:
+   * it is assigned in the same breath as the frame's `src`, before any document
+   * in there could possibly report, and the effect that reads it is already
+   * woken by the report itself.
+   */
+  let carried: string | undefined
   // Whose document is in the frame ({@link Custody}, where the whole rule is a
   // table). Before the first pointing there is nothing in there and nothing has
   // been asked for, which is the same answer this gives to every question:
@@ -341,12 +361,33 @@ export function Hypertext(props: { readonly file: string }) {
     frame.src = url
   }
 
-  /** The heights belonged to the document that is leaving. */
+  /**
+   * What belonged to the DOCUMENT that is leaving: the ladder of height reports
+   * it was climbing, the refusal it drew, the report it made about its anchor,
+   * and the section it was pointed at — which is what makes {@link carried} a
+   * fact about the document in the frame right now rather than about this
+   * pane's history.
+   *
+   * THE HEIGHT IS NOT ON THIS LIST, and that is the change of mind. It used to
+   * be, and it is the second half of the same yank the spent landing above
+   * closes: a revision moves, the frame is re-pointed to fetch the new bytes,
+   * and dropping the applied height put the box back to the `70dvh` guess for
+   * as long as the round trip takes. The page around it lost a thousand pixels,
+   * and whoever was reading the end of it was clamped to the top by an edit
+   * they did not make — measured at 1076px to 0.
+   *
+   * A height is this FILE's rather than one fetch of it: one revision stale, it
+   * is the best estimate of the next one there is, and the report that follows
+   * replaces it a moment later. What it may NOT outlive is the file itself
+   * being gone from the frame, so the two places that mean that clear it by
+   * hand ({@link bring}'s give-up, and an arrival nobody asked for in
+   * {@link loaded}).
+   */
   const fresh = () => {
     heights.fresh()
-    setMeasured(undefined)
     setRefused(undefined)
     setLandedAt(undefined)
+    carried = undefined
   }
 
   /** The file itself, at its own address on the media route — a fresh URL every
@@ -363,7 +404,26 @@ export function Hypertext(props: { readonly file: string }) {
     //
     // AFTER the query, because that is the order an address has — the visit
     // counter belongs to this URL and the fragment to the document it names.
-    point(`${mediaHref(props.file)}?${VISIT}=${visits}${landing(landingAt())}`)
+    //
+    // AND ONLY WHILE IT IS STILL OWED, which is the whole of this pane's half
+    // of "a landing happens once". This frame is re-pointed for reasons that
+    // have nothing to do with where the reader wants to be — the file MOVED ON
+    // DISK, which is an agent's write, a `git pull` or another tab — and the
+    // slug used to ride along on every one of them: the browser scrolled the
+    // document in there to the section again, reported where it had ended up,
+    // and this window followed. Somebody reading the end of a report was hauled
+    // back to a heading they clicked minutes ago by an edit they did not make.
+    //
+    // What SPENDS it is the scroll and not this pointing, for the reason the
+    // markdown face gives (`./faces.tsx`) and one of this frame's own: a
+    // pointing is not an arrival — the document has to be fetched first — and
+    // the frame this runs in may not even be the one the landing is about. A
+    // link pressed INSIDE a preview navigates the pane it is drawn in, so this
+    // component is re-pointed once, on its way out, with the address of the
+    // page that is replacing it already in the router.
+    const at = landing.owed()
+    point(`${mediaHref(props.file)}?${VISIT}=${visits}${anchor(at)}`)
+    carried = at
   }
 
   /**
@@ -455,8 +515,12 @@ export function Hypertext(props: { readonly file: string }) {
   /** Put the file back, or — once the budget is out — nothing at all. */
   const bring = () => {
     walkOffs += 1
-    if (walkOffs > WALK_OFFS) point("about:blank")
-    else show()
+    if (walkOffs <= WALK_OFFS) return show()
+    // Nothing at all, and nothing has no height of its own: the box goes back
+    // to the guess rather than standing at the size of a page that is no
+    // longer in it ({@link fresh}).
+    point("about:blank")
+    setMeasured(undefined)
   }
 
   const loaded = () => {
@@ -465,9 +529,12 @@ export function Hypertext(props: { readonly file: string }) {
     // for the NEXT document's.
     if (custody.at === "asked") return stand({ at: "showing", spoke: custody.spoke })
     // Nobody asked for this document: the page walked the frame off, or the
-    // reader followed a link out of it. Either way it is a new page, so the
-    // heights of the old one go.
+    // reader followed a link out of it. Either way it is a new page, so what
+    // the old one left goes — including its HEIGHT, which is the one case where
+    // it must ({@link fresh}): what is in the frame is not this file any more,
+    // so its size is not this file's to keep.
     fresh()
+    setMeasured(undefined)
     // A file of this vault, reached by a link inside the preview — it greeted
     // while it parsed. That is the feature, not the walk-off: it is sealed
     // exactly as the file that linked to it is, so it stays and it keeps its
@@ -569,19 +636,35 @@ export function Hypertext(props: { readonly file: string }) {
    * the anchor 170px below the fold. Tracking `measured()` makes the last run
    * the one with the geometry the reader actually sees.
    *
-   * ONLY WHILE A LANDING WAS ASKED FOR: an unasked-for number moves nothing, so
-   * a page that has walked off cannot scroll this tab around by posting one.
+   * ONLY FOR THE DOCUMENT THIS PANE POINTED AT A SECTION ({@link carried}): an
+   * unasked-for number moves nothing, so a page that has walked off cannot
+   * scroll this tab around by posting one — and neither can the file re-fetched
+   * because its revision moved, which is pointed at its own address with no
+   * fragment on it once the landing has been spent. That is the same guard read
+   * from the frame's end rather than the router's, and it has to be the frame's:
+   * this effect re-runs as the height settles so that the LAST run has the
+   * geometry the reader actually sees, and a guard that went out the moment the
+   * first scroll happened would leave them a screen short of the section.
    */
   createEffect(() => {
     const top = landedAt()
     // Tracked, not read: the frame's height is what makes the arithmetic below
     // land where the reader will be looking.
     measured()
-    if (top === undefined || landingAt() === undefined || frame === undefined) return
+    if (top === undefined || carried === undefined || frame === undefined) return
     const box = frame
+    const at = carried
     const painted = requestAnimationFrame(() => {
       box.scrollIntoView({ block: "start" })
       if (top !== 0) scrollBy({ top, behavior: "instant" })
+      // ARRIVED, which is what spends the landing (`../router.tsx`'s `landed`).
+      // The reader has been taken to the section, so the next time this file
+      // moves on disk the frame is re-pointed at its own address and nothing
+      // more. Spending does not stop THIS effect re-running as the height
+      // settles — it reads `carried`, which is a fact about the document in the
+      // frame — so the last run is still the one with the geometry the reader
+      // actually sees.
+      landing.landed(at)
     })
     onCleanup(() => cancelAnimationFrame(painted))
   })
@@ -635,6 +718,14 @@ export function Hypertext(props: { readonly file: string }) {
   // is scrolled to is a fact about its URL and this is the only way to change
   // one from out here.
   //
+  // THE SLUG AS A FACT is what is watched, and not the act still owed — which
+  // is exactly why spending a landing is a MARK and not a clear
+  // (`../router.tsx`'s `landed`). Watching the owed half would make the act's
+  // own completion look like a new address and re-point the frame at the file
+  // for nobody's reason: a white flash, a lost scroll and, for a page that
+  // draws itself, its script run twice. What `show` does with the slug is the
+  // half that changes once it has been spent.
+  //
   // DEFERRED also covers the one transition a head has that a prop did not: the
   // revision ARRIVING. It is already here when this element mounts — the page
   // model refuses a path the heads do not hold, so the route this component is
@@ -642,7 +733,7 @@ export function Hypertext(props: { readonly file: string }) {
   // stopped being true the cost is one re-pointing at the file already shown,
   // which is what a walk-off already does and what the budget above bounds.
   createEffect(
-    on(() => [rev(), landingAt()], () => {
+    on(() => [rev(), landing.at()], () => {
       walkOffs = 0
       show()
     }, { defer: true }),

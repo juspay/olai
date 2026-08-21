@@ -67,8 +67,33 @@ export interface Router {
    * `at` is a FACT about where the reader is on that pane; landing is an
    * ACT, and it happens once, on arrival. Cleared on `popstate`. A first
    * paint counts as an arrival.
+   *
+   * Once, and {@link Router.landed} is where that word is kept — here,
+   * beside the minting, rather than in each surface that performs one.
    */
   readonly landing: () => Landing | undefined
+  /**
+   * SPEND this pane's landing: the act named by `{index, at}` has been
+   * performed, and must not be performed again.
+   *
+   * It is the router's rather than the performer's because the rule is
+   * about the VALUE and every surface that reads one is bound by it. Kept
+   * privately per surface it was one variable per face — the markdown face
+   * had one, the preview pane had none, and the pane with none re-landed
+   * its reader every time the file moved on disk.
+   *
+   * NAMING WHAT IS BEING SPENT, so a landing minted since is not spent by
+   * an act that was about the last one: an act is scheduled a frame ahead
+   * (both performers scroll on the next animation frame), and a navigation
+   * can arrive in between.
+   *
+   * STILL READABLE AFTERWARDS, which is the whole reason this is a mark
+   * rather than a clear. The `.html` preview builds the frame's own URL
+   * out of the slug, so a landing that vanished when it was spent would
+   * change that address and re-point the frame at the file for no reason
+   * anyone asked for — the very re-load this exists to stop.
+   */
+  readonly landed: (index: number, at: string) => void
   /** Navigate the focused pane (push). */
   readonly go: (route: Route) => void
   /** Navigate a named pane (push). */
@@ -89,6 +114,9 @@ export interface Router {
 export interface Landing {
   readonly index: number
   readonly at: string
+  /** Whether the act has been performed. A spent landing is a slug that is
+   *  still there to be read and no longer anything to do. */
+  readonly spent: boolean
 }
 
 /** What this app keeps on a history entry, which is a NAME for it and nothing
@@ -127,7 +155,7 @@ const landingIn = (route: Route): string | undefined =>
 
 const landingOf = (index: number, route: Route): Landing | undefined => {
   const at = landingIn(route)
-  return at === undefined ? undefined : { index, at }
+  return at === undefined ? undefined : { index, at, spent: false }
 }
 
 export const createRouter = (): Router => {
@@ -183,6 +211,15 @@ export const createRouter = (): Router => {
     workspace,
     route: () => focusedRoute(workspace()),
     landing,
+    landed: (index, at) => {
+      const land = landing()
+      if (land === undefined || land.spent) return
+      // The landing THIS act was about, or nothing: a navigation between the
+      // scheduling and the performing has minted a new one, and that one is
+      // owed its own arrival.
+      if (land.index !== index || land.at !== at) return
+      setLanding({ ...land, spent: true })
+    },
     go: (next) => goIn(workspace().focus, next),
     goIn,
     replace: (next) => replaceIn(workspace().focus, next),
@@ -258,29 +295,62 @@ export const useHere = (): (() => number) => {
 }
 
 /**
- * WHERE INSIDE THIS PANE'S PAGE the navigation was asked to land, or nothing —
+ * WHERE INSIDE THIS PANE'S PAGE the navigation was asked to land — read two
+ * ways, because the two questions a surface asks about a landing have
+ * different answers once it has been performed.
+ *
+ * {@link Landfall.at} is the FACT: the slug this pane's address named, spent
+ * or not. {@link Landfall.owed} is the ACT still to be done, and goes to
+ * nothing the moment it is. A surface that scrolls somebody reads `owed`; a
+ * surface that builds an address out of the slug reads `at` — which is the
+ * split this exists for, and the `.html` preview needs both.
+ */
+export interface Landfall {
+  /** The slug this pane's address named, or nothing. Unchanged by spending. */
+  readonly at: Accessor<string | undefined>
+  /** The same slug WHILE IT IS STILL AN ACT: what this pane owes its reader,
+   *  or nothing once the arrival has happened. */
+  readonly owed: Accessor<string | undefined>
+  /** Done: the reader has been taken to `at`. Named rather than implied,
+   *  because an act is performed a frame after it is decided on and the
+   *  landing it was about is the one it may spend ({@link Router.landed}). */
+  readonly landed: (at: string) => void
+}
+
+/**
  * {@link Router.landing} read for the pane the reader of it is drawn in.
  *
- * A MEMO, and that is the whole of what it adds over reading `landing()` and
+ * MEMOS, and that is the whole of what this adds over reading `landing()` and
  * comparing the index by hand. `landing` is ONE signal broadcast to every pane
- * and it is set on every push, with a fresh `{index, at}` each time — so a pane
- * that read it directly was notified by a navigation next door, every time, and
- * anything driven off that read ran again for an answer that had not moved. A
- * memo over a string is where that stops: the answer is a slug or nothing, and
- * `===` is the right comparison for both.
+ * and it is set on every push, with a fresh object each time — so a pane that
+ * read it directly was notified by a navigation next door, every time, and
+ * anything driven off that read ran again for an answer that had not moved.
+ * Memos over a string are where that stops: each answer is a slug or nothing,
+ * and `===` is the right comparison for both. Spending is the same story from
+ * the other side — it replaces the object, so `at` must not be read off it
+ * raw either, or the address a preview is pointed at would change the instant
+ * its landing was performed.
  *
  * `useHere`'s rule for WHICH pane, so a preview, a document's scroll and
  * anything else that lands somewhere cannot disagree about whose landing this
  * is (the disagreement two panes previewing two files would show as one being
  * yanked by the other's click — `reactivity-after-the-flip` §3.3).
  */
-export const useLanding = (): Accessor<string | undefined> => {
+export const useLanding = (): Landfall => {
   const router = useRouter()
   const here = useHere()
-  return createMemo(() => {
+  const mine = createMemo(() => {
     const land = router.landing()
-    return land !== undefined && land.index === here() ? land.at : undefined
+    return land !== undefined && land.index === here() ? land : undefined
   })
+  return {
+    at: createMemo(() => mine()?.at),
+    owed: createMemo(() => {
+      const land = mine()
+      return land === undefined || land.spent ? undefined : land.at
+    }),
+    landed: (at) => router.landed(here(), at),
+  }
 }
 
 /** Navigate the pane this component is in, or the focused pane when it is
