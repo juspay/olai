@@ -309,7 +309,7 @@ Deliberately absent, and still the human’s to rule on: a delete key. Emptying 
 
 ## What the sidebar leaves out, and the two doors under it
 
-**The file tree does not draw `_olai/`** — the outlines olai names for itself. Each of them already has a door in that same column: the pinned shelf above the tree IS `Pins.olai`, and at the foot of the column sit **Inbox** and **Trash**. A row apiece in the tree as well was a second way into a file the column was already showing you, stacked on top of your own outlines (ruled 2026-08-20).
+**The file tree does not draw `_olai/`** — the outlines olai names for itself. Each of them already has a door in that same column: the pinned shelf above the tree IS `Pins.olai`, **Inbox** sits beside Agenda at the top of the column, and **Trash** sits at the foot. A row apiece in the tree as well was a second way into a file the column was already showing you, stacked on top of your own outlines (ruled 2026-08-20; Inbox's place ruled the same evening).
 
 **It is a drawing rule and nothing else.** Those files are in the directory either way: search finds them, an agent's `list_outlines` lists them, the Trash page and the shelf read them, and git records them like anything else. What changes is one list of rows in one browser.
 
@@ -317,7 +317,7 @@ Deliberately absent, and still the human’s to rule on: a delete key. Emptying 
 
 **Prefs → Hidden outlines → Shown** puts them back, for when you want to open `Pins.olai` as an outline and read the addresses in it ([running.md](running.md)). It is this browser's, like every other preference, and it starts off. The Trash stays out of the tree either way — it is a page rather than a file you edit ([format.md](format.md)).
 
-**The Inbox entry is drawn only when there is an inbox.** A directory that has never captured has none, and minting one is the capture's job, not a door's — so the entry appears the moment your first `⌘K` `+` lands and opens the file that capture went into. It is an ordinary outline behind that door — type into it like any other — so the entry lights up when you are on it and carries the ⚠ when the file will not parse.
+**The Inbox entry is drawn only when there is an inbox.** A directory that has never captured has none, and minting one is the capture's job, not a door's — so the entry appears the moment your first `⌘K` `+` lands and opens the file that capture went into. It sits **beside Agenda**, and it wears Agenda's own count badge: how many top-level captures the file holds. The chip hides at zero — an empty inbox is a door, not news. A file that holds only placements is the same zero: a mirror is a view of something elsewhere, not a capture, even though the page behind the door still draws the row. It is an ordinary outline behind that door — type into it like any other — so the entry lights up when you are on it and carries the ⚠ when the file will not parse.
 
 ## Pinning a page to the sidebar
 

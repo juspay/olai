@@ -257,10 +257,10 @@ const doneHint = (): string =>
 const hiddenHint = (): string =>
   outlinesHidden()
     ? "Outlines olai names for itself — under _olai/ — are left out of the " +
-      "file tree; the shelf above it and the Inbox and Trash entries below " +
+      "file tree; the shelf, the Inbox beside Agenda, and the Trash below " +
       "are their doors. They stay in the directory: search and agents read " +
       "them unchanged."
-    : "The file tree draws _olai/ too, so the shelf and the inbox open as " +
+    : "The file tree draws _olai/ too, so the shelf and the Inbox open as " +
       "outlines like any other file. The trash keeps its own page."
 
 /** What Auto-commit in force MEANS, and the three things a reader has to be
