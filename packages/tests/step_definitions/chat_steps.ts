@@ -73,6 +73,7 @@ import {
   CHAT_SESSIONS_REFUSED,
   CHAT_SPAWN,
   CHAT_SPAWN_WORKING,
+  CHAT_STRIP,
   CHAT_TITLE,
   CHAT_TOGGLE,
   CHAT_TOOL,
@@ -100,12 +101,15 @@ import type { OlaiWorld } from "../support/world.ts";
 Given("the agent panel is open", async function (this: OlaiWorld) {
   const toggle = this.page.locator(CHAT_TOGGLE);
   const panel = this.page.locator(CHAT_PANEL);
-  // The toggle is always in the header (pressed while open). Open-ness is
-  // remembered in localStorage, so a reload inside a scenario may come back
-  // already open.
-  await toggle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  // Desktop: the toggle is always in the header (pressed while open). Phone:
+  // the thumb strip is the door. Open-ness is remembered in localStorage, so
+  // a reload inside a scenario may come back already open.
   if (!(await panel.isVisible())) {
-    await toggle.click();
+    if (await toggle.isVisible()) {
+      await toggle.click();
+    } else {
+      await this.page.locator(CHAT_STRIP).click();
+    }
     await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   }
   // Settled means the agent has finished handshaking — or that there is no
@@ -120,22 +124,30 @@ Given("the agent panel is open", async function (this: OlaiWorld) {
     "the agent panel to settle (idle, or off with no agent configured)",
     HYDRATION_TIMEOUT,
   );
-  // Visibility semantics of the permanent toggle: still on screen, and pressed
-  // while the drawer is open — not the old pill that vanished once open.
-  await this.expectAttribute(
-    CHAT_TOGGLE,
-    "aria-pressed",
-    "true",
-    "the agent toggle",
-  );
+  // Desktop: the permanent toggle stays on screen, pressed while open. A
+  // phone has no toggle; the sheet being visible is the whole of the claim.
+  if (await toggle.count()) {
+    await this.expectAttribute(
+      CHAT_TOGGLE,
+      "aria-pressed",
+      "true",
+      "the agent toggle",
+    );
+  }
 });
 
 // ── talking ────────────────────────────────────────────────────────────
 
-const typeInto = async (world: OlaiWorld, text: string): Promise<void> => {
+/** The box, waited for — one spelling of "how long a scenario gives the
+ *  composer to appear", shared by every step that types into it. */
+const chatBox = async (world: OlaiWorld) => {
   const input = world.page.locator(CHAT_INPUT);
   await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await input.fill(text);
+  return input;
+};
+
+const typeInto = async (world: OlaiWorld, text: string): Promise<void> => {
+  await (await chatBox(world)).fill(text);
 };
 
 When("I ask the agent {string}", async function (this: OlaiWorld, text: string) {
@@ -146,6 +158,44 @@ When("I ask the agent {string}", async function (this: OlaiWorld, text: string) 
 When("I type {string} into the chat", async function (this: OlaiWorld, text: string) {
   await typeInto(this, text);
 });
+
+/**
+ * …and the same words as KEYSTROKES, one `input` event per letter.
+ *
+ * `fill` above sets the whole value in one event, which is the right gesture
+ * for a scenario that is about what is in the box. It is the wrong one for a
+ * scenario about what TYPING costs: a client that re-asks the server on every
+ * keystroke and one that asks once are indistinguishable under a single event,
+ * and the difference is the whole of `reactivity-equals-guards`' composer
+ * finding. So this is `pressSequentially` — a real key per letter.
+ */
+When(
+  "I type {string} into the chat a letter at a time",
+  async function (this: OlaiWorld, text: string) {
+    await (await chatBox(this)).pressSequentially(text);
+  },
+);
+
+/**
+ * How many times this tab asked the set what the armed nodes are CALLED, since
+ * the mark — the chip strip's one question (`client/chat/chips.ts`).
+ *
+ * The tag is `<member>/<verb>`, kolu's addressing for a surface member
+ * (`surfaceTag`), matched as a substring of the whole tag the composed surface
+ * serves it at. It is counted on the wire because nothing on screen says it:
+ * the chip draws the same title whether the title was asked for once or once
+ * per letter.
+ */
+Then(
+  "the tab has asked what the armed nodes are called {int} time(s)",
+  function (this: OlaiWorld, times: number) {
+    assert.strictEqual(
+      this.socketAskedSince("nodes/named"),
+      times,
+      "how many times this tab asked for the armed nodes' titles since the mark",
+    );
+  },
+);
 
 /** Send WHAT IS IN THE BOX, rather than typing a message and sending it in one
  *  gesture (`I ask the agent`). A scenario that got the words there some other

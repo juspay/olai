@@ -20,14 +20,14 @@
  * that is no repository, git's own words are still on screen rather than in the
  * server's log, and none of it blocks a write. What is gone is the second chip.
  *
- * **It is ALWAYS drawn**, in every state the directory can be in. That follows
- * directly from what it is for: if the job is to be an audit trail, then "there
- * is no audit trail here" — no repository, or commits turned off — is the single
- * most important thing it can say, and a control that disappeared is exactly how
- * a person would never find that out. The connection dot's header makes the same
- * argument in the same words: an indicator that is only there when something is
- * wrong cannot be trusted when it is absent, because healthy and not-rendered
- * look identical.
+ * **On desktop it is ALWAYS drawn**, in every state the directory can be in.
+ * That follows from what it is for: if the job is to be an audit trail, then
+ * "there is no audit trail here" is the most important thing it can say, and
+ * a chip that disappeared cannot be trusted when it is absent. On a phone the
+ * same control is a banner, and only while there is news (`isNews` in
+ * `./said.ts`): a banner that vanished CAN be trusted, because the page
+ * itself is the healthy state. Two faces of ONE control — not a second
+ * `News` that also called `createCommit` and opened this panel.
  *
  * Two of them are SETTINGS rather than faults — `--commit=off`, and a directory
  * that is not a work tree — so they are dim and inert, and they get no warning
@@ -65,10 +65,23 @@ import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { agoOf, createNow } from "./ago.ts"
-import { explain, faceOf, isInert, MARK } from "./said.ts"
+import { createAuto, pausedIn } from "./auto.ts"
+import { createElected } from "./elected.ts"
+import {
+  AUTO_PAUSED,
+  explain,
+  faceOf,
+  isInert,
+  isNews,
+  MARK,
+  newsSays,
+} from "./said.ts"
 import { Panel } from "./Panel.tsx"
-import { PILL } from "../readout.ts"
+import { desktop } from "../layout/media.ts"
+import { LAYER } from "../layer.ts"
+import { BANNER, PILL } from "../readout.ts"
 import { createPopover } from "../popover.ts"
+import { autoCommit } from "../settings/autocommit.ts"
 import { autoPush } from "../settings/autopush.ts"
 import { createCommit } from "./state.ts"
 import { TESTID } from "../testids.ts"
@@ -76,6 +89,16 @@ import { Tip } from "../Tip.tsx"
 
 export function Commit() {
   const commit = createCommit(autoPush)
+  // Auto-commit: the same verb this panel's button runs, on a debounced flurry
+  // instead of a press (`./auto.ts`). It is instantiated HERE, beside the
+  // commit it drives, because the pill is the one control that is always on
+  // screen — a loop hung off the panel would stop existing the moment somebody
+  // shut it. `createElected` is which tab of this browser records
+  // (`./elected.ts`).
+  const auto = createAuto({ on: autoCommit, alone: createElected(), commit })
+  /** Why the loop stopped, or `null` — the arm the words and the chip both
+   *  ask about, through the union's own accessor (`./auto.ts`). */
+  const paused = () => pausedIn(auto())
   // Whether the panel is up, where it goes, and the ways it shuts
   // (`../popover.ts`, shared with the preferences at the other end of the bar).
   // It used to be `note/expand.ts` — the row note's "open until you click
@@ -91,7 +114,7 @@ export function Commit() {
   const inert = () => isInert(face())
   /** One reading of the sentence for the two places it has to be: the tip a
    *  pointer opens, and the label everything else gets. */
-  const said = () => explain(face(), commit.pending(), commit.git())
+  const said = () => explain(face(), commit.pending(), commit.git(), paused())
 
   /**
    * How long ago the last commit was, for the one face that has one — and `""`
@@ -151,9 +174,19 @@ export function Commit() {
     }
   }
 
+  const showPill = () => desktop()
+  const showBanner = () => !desktop() && isNews(face(), unpushed(), paused())
+  const line = () => newsSays(face(), commit.waiting(), unpushed(), paused())
+
   return (
     <>
-      <Tip text={said()}>
+      <Show when={showPill()}>
+      {/* {@link LAYER.over}: this pill lives in the bar, so the sentence
+          about it is the same claim the panel behind it already makes —
+          cover the bar (and the chat dock that shares the page layer).
+          Sitting at the page layer is how the coral rule cut the first
+          line and how the dock's "chats" / "+ new" painted through the rest. */}
+      <Tip text={said()} layer={LAYER.over}>
         <button
           type="button"
           ref={panel.setTrigger}
@@ -182,6 +215,10 @@ export function Commit() {
           data-uncommitted={commit.waiting()}
           data-unpushed={unpushed()}
           data-repo={commit.pending().repo._tag}
+          // What AUTO-COMMIT is doing in this browser, which is a claim about
+          // the reader rather than about the directory — hence its own
+          // attribute rather than a ninth face (`./said.ts`).
+          data-auto={auto()._tag}
           // Absent rather than `false` on the faces with no panel behind them:
           // a control that says it can expand and never does is a promise the
           // page does not keep.
@@ -213,6 +250,15 @@ export function Commit() {
           <Show when={unpushed() > 0}>
             <span class="shrink-0">· {unpushed()} unpushed</span>
           </Show>
+          {/* A loop that has STOPPED, which is the one thing Auto-commit has to
+              say out loud: its promise is that nobody watches it, so silence
+              after a failure is how a person finds out days later from
+              `git log`. It stays at every width, like the unpushed count and
+              unlike the recency — and the reason is a gesture away, in the
+              panel and on this pill's own label. */}
+          <Show when={paused() !== null}>
+            <span class="shrink-0 text-alarm">· {AUTO_PAUSED}</span>
+          </Show>
           {/* Which way the panel opens, and it opens DOWNWARD from the header
               — `../anchor.ts` picks the side with the room. Not below 40rem:
               the bar holds five things at 390pt, and a caret is the cheapest of
@@ -225,11 +271,41 @@ export function Commit() {
           </Show>
         </button>
       </Tip>
+      </Show>
+      <Show when={showBanner()}>
+        <button
+          type="button"
+          ref={panel.setTrigger}
+          class={`${BANNER} justify-between ${
+            face() === "error" || paused() !== null ? "text-alarm" : "text-doing"
+          }`}
+          data-testid={TESTID.gitNews}
+          data-state={face()}
+          data-uncommitted={commit.waiting()}
+          data-unpushed={unpushed()}
+          data-repo={commit.pending().repo._tag}
+          data-auto={auto()._tag}
+          aria-expanded={inert() ? undefined : panel.open()}
+          aria-disabled={inert() ? true : undefined}
+          aria-label={said()}
+          onClick={() => {
+            if (!inert()) panel.toggle()
+          }}
+        >
+          {line()}
+        </button>
+      </Show>
       {/* Out of the header entirely — see the header comment. */}
       <Show when={panel.open() && !inert() ? panel.at() : null}>
         {(at) => (
           <Portal>
-            <Panel commit={commit} now={now()} at={at()} inside={panel.setPanel} />
+            <Panel
+              commit={commit}
+              auto={auto}
+              now={now()}
+              at={at()}
+              inside={panel.setPanel}
+            />
           </Portal>
         )}
       </Show>

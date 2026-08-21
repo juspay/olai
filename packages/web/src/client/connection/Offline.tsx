@@ -71,7 +71,7 @@
  */
 
 import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
-import { createEffect, onCleanup, Show } from "solid-js"
+import { createEffect, createMemo, onCleanup, Show } from "solid-js"
 
 import { reachable } from "./reaching.ts"
 import { lookOf, type SurfaceReadout } from "./status.ts"
@@ -88,10 +88,20 @@ const FROZEN = "Nothing on this page can be used until it is back."
 
 export function Offline(props: { readonly readout: SurfaceReadout }) {
   let overlay!: HTMLDialogElement
-  /** The freeze, as one bit — the reachability rule, read from the one module
-   *  that holds it, so the overlay and the doors cannot disagree about whether
-   *  the wire carries a question. */
-  const frozen = () => !reachable(props.readout)
+  /**
+   * The freeze, as one bit — the reachability rule, read from the one module
+   * that holds it, so the overlay and the doors cannot disagree about whether
+   * the wire carries a question.
+   *
+   * A MEMO, because the two effects below are the whole of what it drives and
+   * what it is derived from moves far more often than it does: a readout
+   * carries the ATTEMPT COUNT while the wire is reconnecting, so a plain
+   * function had both effects tracking every field of it — and the second one
+   * unregistered and re-registered the window's keydown swallower on every
+   * attempt, mid-freeze, for a boolean that had not moved
+   * (docs/brainstorming/reactivity-after-the-flip.md §4.1).
+   */
+  const frozen = createMemo(() => !reachable(props.readout))
   const look = () => lookOf(props.readout)
 
   // OPENING IS A CALL, not a class: the top layer is only entered through

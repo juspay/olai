@@ -46,10 +46,10 @@
 
 import type { BrokenFile, Face } from "@olai/format"
 import type { Head, Manifest } from "@olai/surface"
-import type { ReadOnlyBoundDeltasCollectionResult } from "@kolu/surface/solid"
 import { type Accessor, createMemo } from "solid-js"
 
 import { facesOf, sortByPath } from "./paths.ts"
+import { sameMap } from "./same.ts"
 
 export interface Directory {
   /** The set-wide facts: `undefined` before the first frame, `null` for a
@@ -77,20 +77,59 @@ export interface Directory {
   readonly head: (file: Accessor<string>) => Accessor<number | undefined>
 }
 
-/** The heads collection as this composition asks for it: the keys, one entry
- *  per key, and the frame socket — the framework's own name for that shape, so
- *  a caller may hand this either the bound member or a raw hook and there is no
- *  second spelling of somebody else's contract to keep in step. */
-export type Heads = ReadOnlyBoundDeltasCollectionResult<string, Head>
+/**
+ * THE TWO THINGS this file asks of the heads collection — which keys there are,
+ * and what one of them holds. `App.tsx` hands over the bound member itself
+ * (`olai.collections.heads.use()`), which satisfies this structurally.
+ *
+ * Narrowed at the parameter for the reason every other seam in this client
+ * narrows one (`./edit/editing.tsx` takes four verbs of a `Selection` and one
+ * of a `Moving`): what a module is handed should be what it reads. What it buys
+ * here is a suite — `./directory.browsertest.ts` stands one of these up out of
+ * two signals, where the framework's whole collection type would have meant
+ * standing up its lifecycle signals and its frame socket as well to ask whether
+ * one memo held its value.
+ *
+ * SPELLED OUT rather than `Pick`ed off that type, because the widening is the
+ * point: the framework's `byKey` answers with a `Subscription`, and every one
+ * of those IS an accessor — so the real member satisfies this, and a fake need
+ * not carry an `error` and a `pending` this file never reads.
+ */
+export interface HeadEntries {
+  readonly keys: () => ReadonlyArray<string>
+  readonly byKey: (key: string) => Accessor<Head | undefined> | undefined
+}
 
 export const createDirectory = (
-  entries: Heads,
+  entries: HeadEntries,
   manifest: Accessor<Manifest | undefined>,
 ): Directory => {
+  // NO `equals` ON THE FILE LIST, and that is somebody else's node rather than
+  // an oversight: what `faces` and `broken` cost by walking every key per frame
+  // is `perf-faces-broken-walk` on the roadmap, measured and filed with its own
+  // number. This diff is about what happens BELOW them — a walk that answers the
+  // same thing waking every reader of it.
   const files = createMemo(() => sortByPath(entries.keys()))
   return {
     manifest,
     faces: createMemo(() => facesOf(files(), (file) => entries.byKey(file)?.()?.face)),
+    /**
+     * THE UNREADABLE FILES, HELD BY VALUE — the paths AND what each one is
+     * wrong about.
+     *
+     * A `Map` minted per run is a new value on every head the directory
+     * publishes, and what reads it is every `<File>` row of the sidebar asking
+     * `broken.has` (`./Sidebar.tsx`) and the pane that draws a bad file's
+     * errors. So a rename three folders away re-ran all of them for an answer
+     * that is almost always the empty map it already was
+     * (docs/brainstorming/reactivity-after-the-flip.md §4.2).
+     *
+     * The ERRORS are compared as well as the keys, and by IDENTITY — which is
+     * `sameMap`'s default, and right here because an entry is replaced exactly
+     * when the head carrying it is. Comparing the key sets alone would leave a
+     * pane showing the previous parse failure of a file that is still broken
+     * for a new reason.
+     */
     broken: createMemo(() => {
       const found = new Map<string, BrokenFile>()
       for (const file of files()) {
@@ -98,7 +137,7 @@ export const createDirectory = (
         if (broken !== undefined && broken !== null) found.set(file, broken)
       }
       return found
-    }),
+    }, new Map<string, BrokenFile>(), { equals: sameMap }),
     head: (file) => () => entries.byKey(file())?.()?.rev,
   }
 }

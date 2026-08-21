@@ -75,14 +75,19 @@ export const refound = (
 
 /** The row before or after this place, or `undefined` at either end of the
  *  page — where the caret simply stays put, because there is nowhere to go and
- *  a wrap-around would be a surprise rather than a convenience. */
+ *  a wrap-around would be a surprise rather than a convenience.
+ *
+ *  It takes the page ALREADY FLATTENED, as {@link refound} does and for the
+ *  same reason: both callers ask this beside one of the other two walkers, and
+ *  a gesture that asks two questions of one page should walk it once
+ *  (`./editing.tsx`'s `drawn`, `../select/selection.ts`'s `grow`). Flattening
+ *  for itself, this made that walk a second one every time
+ *  (docs/brainstorming/reactivity-after-the-flip.md §4.8). */
 export const neighbour = (
-  rows: ReadonlyArray<Row>,
-  collapsed: ReadonlySet<string>,
+  drawn: ReadonlyArray<Row>,
   place: string,
   step: 1 | -1,
 ): Row | undefined => {
-  const drawn = flatten(rows, collapsed)
   const at = drawn.findIndex((row) => row.key === place)
   return at === -1 ? undefined : drawn[at + step]
 }

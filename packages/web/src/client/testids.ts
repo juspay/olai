@@ -9,15 +9,17 @@
  */
 
 export const TESTID = {
-  /** The app header: wordmark, connection, agent, preferences. Always drawn —
-   *  it is chrome about the APP, and every shape of the app (including the
-   *  error report) gets it. */
+  /** The app header: wordmark, and on desktop the connection, agent,
+   *  preferences. Always drawn — it is chrome about the APP, and every shape
+   *  of the app (including the error report) gets it. On a phone it is the
+   *  wordmark, the burger and search; the pills live elsewhere. */
   appHeader: "app-header",
-  /** The row of pills inside it that are about the APP — the connection, the
-   *  Commit pill, the agent toggle, the preferences trigger. Its own name because the
-   *  CONTENTS of that row are a claim: `one-git-indicator` was two chips
-   *  answering one question, and the only way to hold that shut is to count
-   *  what is in the row rather than to look for the chip that was removed. */
+  /** The row of controls inside it that are about the APP. On desktop: the
+   *  connection, the Commit pill, the agent toggle, the preferences trigger.
+   *  On a phone: search alone. Its own name because the CONTENTS of that row
+   *  are a claim: `one-git-indicator` was two chips answering one question,
+   *  and the only way to hold that shut is to count what is in the row rather
+   *  than to look for the chip that was removed. */
   appChrome: "app-chrome",
   /** The sidebar itself. Always drawn when the set loaded — which is what
    *  makes it, rather than anything inside it, the sign that the app has
@@ -28,7 +30,7 @@ export const TESTID = {
    *  drawer (calendar + file tree). */
   sidebarToggle: "sidebar-toggle",
   /** Everything the burger / open column reveals — the month and the file
-   *  tree. App chrome is not in here; it lives in the header. */
+   *  tree. On a phone the preferences sit below this, in the drawer footer. */
   sidebarBody: "sidebar-body",
   /** Mobile drawer scrim. Absent on desktop and when the drawer is shut. */
   sidebarScrim: "sidebar-scrim",
@@ -458,9 +460,10 @@ export const TESTID = {
   fontSelect: "font-select",
 
   // ── preferences ──────────────────────────────────────────────────────
-  /** The header's one way into the preferences, and the only door there is:
-   *  the theme pill that used to sit beside it retired into the panel behind
-   *  this, so a scenario reaching a theme chip comes through here. */
+  /** The one way into the preferences, and the only door there is: the
+   *  theme pill that used to sit beside it retired into the panel behind
+   *  this, so a scenario reaching a theme chip comes through here. Header
+   *  chip on desktop; a row at the foot of the phone drawer. */
   prefsTrigger: "prefs-trigger",
   /** The panel it opens (portalled out of the header). */
   prefsPanel: "prefs-panel",
@@ -692,6 +695,11 @@ export const TESTID = {
    *  anything has ever been archived: an empty trash is a fact, not a hidden
    *  control. */
   trashLink: "trash-link",
+  /** The way to the INBOX, directly above the Trash at the foot of the
+   *  directory column — the outline a `⌘K` `+` captures into, whichever file
+   *  the directory's is. Drawn only when there IS one: a directory that has
+   *  never captured has no inbox, and minting one is the capture's job. */
+  inboxLink: "inbox-link",
   /** The trash, as a page. Every archive the directory holds, read-only. */
   trashPage: "trash-page",
   /** One archive's worth of rows on it; `data-file` is which `_olai/Trash.olai`.
@@ -740,10 +748,12 @@ export const TESTID = {
   staleBanner: "stale-banner",
   /** In one outline's place: that file could not be read, the rest are live. */
   outlineFailure: "outline-failure",
-  /** The connection dot, always on screen. Its `data-connection` attribute
-   *  carries the state itself — `connecting`, `live`, `degraded`,
-   *  `reconnecting`, `retired` — so a scenario asserts on the state and never
-   *  on the colour it is painted. */
+  /** The connection readout. On desktop, the header pill, always on screen.
+   *  On a phone, the degraded banner only — live is health and a dead wire
+   *  is the freeze overlay. Its `data-connection` attribute carries the
+   *  state itself — `connecting`, `live`, `degraded`, `reconnecting`,
+   *  `retired` — so a scenario asserts on the state and never on the colour
+   *  it is painted. */
   connection: "connection",
   /** THE FREEZE: over everything, and nothing under it is interactive — the
    *  wire cannot carry a question, so the app takes no gesture at all
@@ -766,11 +776,16 @@ export const TESTID = {
   faultHome: "fault-home",
 
   // ── the Commit button ────────────────────────────────────────────────
-  /** The pill in the chrome, and the header's ONE answer to "what is git doing
-   *  here" (`one-git-indicator` retired the `● git` readout that used to sit
-   *  beside it). ALWAYS drawn — the feature is an audit trail, so "there is no
-   *  audit trail here" is the most important thing it can say, and a control
-   *  that disappeared is how nobody would ever find that out.
+  /** The pill in the desktop chrome, and the header's ONE answer to "what is
+   *  git doing here" (`one-git-indicator` retired the `● git` readout that
+   *  used to sit beside it). ALWAYS drawn on desktop — the feature is an
+   *  audit trail, so "there is no audit trail here" is the most important
+   *  thing it can say, and a control that disappeared is how nobody would
+   *  ever find that out. On a phone the healthy faces are silent and the
+   *  news faces are `gitNews`.
+   *  `data-auto` says what Auto-commit is doing in this browser — `off`,
+   *  `armed`, or `paused` — which is a fact about the READER rather than
+   *  about the directory, and so is its own attribute rather than a ninth face.
    *  `data-state` carries which face this is — `off`, `no-repo`, `error`,
    *  `never`, `committed`, `waiting`, `blocked`, and `unknown` for a page that
    *  has not heard from the server yet — `data-uncommitted` the count, and
@@ -779,6 +794,9 @@ export const TESTID = {
   commitPill: "commit-pill",
   /** The panel it opens. One row per node, never a text diff. */
   commitPanel: "commit-panel",
+  /** Phone git banner — only while there is news (uncommitted, blocked, a
+   *  fault, unpushed). Absent on a healthy tree, and absent on desktop. */
+  gitNews: "git-news",
   /** What olai last recorded here — message, writer, how long ago, short sha.
    *  Says so in words when there is nothing: "never committed here" is a fact a
    *  count of what is pending cannot express. */
@@ -822,11 +840,20 @@ export const TESTID = {
   commitNow: "commit-now",
   /** What the last attempt refused with, when it left anything to say. */
   commitRefused: "commit-refused",
+  /** Why Auto-commit stopped, when it has — git's own words, and the one
+   *  gesture that resumes it. Absent while the loop is running, and absent for
+   *  a browser that never asked for it. */
+  commitAutoPaused: "commit-auto-paused",
+  /** What Auto-commit is about to do with what is waiting. Drawn only while
+   *  the preference is on and the loop is running — a line that said so with
+   *  the loop stopped would be a promise the app is not keeping. */
+  commitAutoArmed: "commit-auto-armed",
 
   // ── the agent panel ──────────────────────────────────────────────────
-  /** The header's permanent agent toggle. Always on screen; `aria-pressed`
-   *  says whether the panel is open, `data-busy` whether a turn is running
-   *  (including while open). */
+  /** The header's agent toggle on desktop. Always on screen there;
+   *  `aria-pressed` says whether the panel is open, `data-busy` whether a
+   *  turn is running (including while open). Absent on a phone, where the
+   *  thumb strip is the door. */
   chatToggle: "chat-toggle",
   /** The open panel (desktop dock or mobile sheet). Its `data-status` carries
    *  the cell's own state — `booting` / `idle` / `thinking` / `gone` — so a

@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Keyboard editing
   The Workflowy loop, without the agent: click a title and type, Enter for the
@@ -7,8 +8,9 @@ Feature: Keyboard editing
 
   Every one of those is one op through the same write gate the agent's tools go
   through, and nothing is echoed: what you see is the file coming back. Which
-  is why these are `@scratch:` — they write the directory they are served, so
-  each gets a private copy of it (`support/hooks.ts`).
+  is why these are `@scratch:` — they write the directory they are served.
+  They share one copy per worker (`@share-scratch`); the corpus is restored
+  between scenarios under the still-running server.
 
   Background:
     Given I open the outline "house.olai"
@@ -183,6 +185,32 @@ Feature: Keyboard editing
     And I press "Control+Enter"
     Then the node "knobs" has status "done"
     And the row being typed holds "pick the knobs"
+
+  Scenario: An indent leaves the caret where it was in the line
+    # The other half of the sentence above, and the half that was missing. An
+    # indent changes the row's `Row.key` — the chain of ids down to it — so the
+    # branch the editor was drawn in stops matching and a DIFFERENT one starts:
+    # the box is not moved, it is replaced, and a fresh box opens at the end of
+    # the text. A reorder keeps the key and so keeps the box, which is why
+    # `Alt+Shift+Up` never showed this
+    # (`docs/brainstorming/reactivity-after-the-flip.md`'s 4.10).
+    When I click the title of "knobs"
+    And I put the caret after "pick"
+    And I press "Tab"
+    Then the node "knobs" is a child of "hinges"
+    And the row being typed holds "pick the knobs"
+    And the caret is at offset 4
+    # ...and back out again, which is the same key and the same claim.
+    When I press "Shift+Tab"
+    Then the node "knobs" is a child of "install"
+    And the caret is at offset 4
+    # And what is typed lands where the caret is, rather than at the end of a
+    # line somebody was in the middle of — which is the thing a reader would
+    # actually notice.
+    When I type " out"
+    And I click away from the editor
+    Then "house.olai" holds a node titled "pick out the knobs"
+    And there should be no page errors
 
   Scenario: Clicking the note you are reading puts the caret in it
     # The human's call over the textarea this shipped with, mapped onto olai's

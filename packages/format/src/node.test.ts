@@ -8,6 +8,7 @@ import {
   ID_SHAPE,
   INBOX,
   inboxIn,
+  inOlaiDir,
   isLeftoverArchive,
   isTrashed,
   isMirror,
@@ -125,8 +126,11 @@ test("olai mints its own files under _olai/, and finds them anywhere", () => {
   expect(pinsIn([PINS, "_olai/Pins.olai"])).toBe(PINS)
 })
 
-// The TRASH has moved under `_olai/`; the inbox has not (human, 2026-08-19).
-test("the trash is one file under _olai/, and the inbox stays at the root", () => {
+// The TRASH and the INBOX are both minted under `_olai/` now — the inbox's
+// half REVERSES the 2026-08-19 ruling that kept it at the root (human,
+// 2026-08-20). The NAME is untouched, which is the whole of what `inboxIn`
+// reads: only the mint moved.
+test("the trash and the inbox are minted under _olai/, under their own names", () => {
   expect(TRASH_FILE).toBe("_olai/Trash.olai")
   expect(mintedInto(TRASH)).toBe(TRASH_FILE)
   expect(isTrashed(TRASH_FILE)).toBe(true)
@@ -134,6 +138,30 @@ test("the trash is one file under _olai/, and the inbox stays at the root", () =
   expect(isTrashed("notes/Archive.olai")).toBe(false)
   expect(isTrashed("Trash.olai")).toBe(false)
   expect(INBOX).toBe("Inbox.olai")
+  expect(mintedInto(INBOX)).toBe("_olai/Inbox.olai")
+  // And the READING is untouched by the move, exactly as the shelf's was: a
+  // directory already keeping one at the root goes on capturing into it, and
+  // a minted one is found by the same walk.
+  expect(inboxIn(["_olai/Inbox.olai"])).toBe("_olai/Inbox.olai")
+  expect(inboxIn([INBOX, "_olai/Inbox.olai"])).toBe(INBOX)
+})
+
+// WHICH FILES OLAI NAMED FOR ITSELF, as one predicate — the question the
+// sidebar asks of every path before it draws a row (`@olai/web`'s
+// `settings/hiddenOutlines.ts`). It is the mint read backwards rather than a
+// second spelling of `_olai/`, which is why it is here beside it.
+test("a file olai named for itself is one under _olai/, exactly", () => {
+  expect(inOlaiDir(mintedInto(PINS))).toBe(true)
+  expect(inOlaiDir(mintedInto(INBOX))).toBe(true)
+  expect(inOlaiDir(TRASH_FILE)).toBe(true)
+  expect(inOlaiDir("house.olai")).toBe(false)
+  expect(inOlaiDir("notes/palette.md")).toBe(false)
+  // The mint is at the ROOT, so a `_olai` a person made under a folder of
+  // their own is their directory and not olai's — and a file merely NAMED
+  // for it is a file.
+  expect(inOlaiDir("notes/_olai/Pins.olai")).toBe(false)
+  expect(inOlaiDir("_olai.olai")).toBe(false)
+  expect(inOlaiDir("_olai")).toBe(false)
 })
 
 // Leftover per-directory Archive.olai: basename exactly, not trash, not an

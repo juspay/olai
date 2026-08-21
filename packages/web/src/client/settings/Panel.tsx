@@ -13,14 +13,23 @@
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
  * theme, the typeface, how much of a row is drawn by default, what this
- * browser does with finished work, and whether a commit from here is pushed.
+ * browser does with finished work, which files the directory column draws, and
+ * the two git rows — whether what is waiting records itself, and whether a
+ * commit from here is pushed.
  * The DENSITY belongs here for exactly the reason the done preference does: it
  * is a claim about the reader ("I read a tree as a list of titles") rather than
  * about any one outline, so a switch bolted to the outline page would be a
  * per-page control for a per-person fact — and would have to be drawn on the
- * zoomed page and the day page too. Git's Auto-push is the same kind of claim
- * ("I want a commit I make here to be sent"), so it is a row rather than a
- * switch on the Commit panel. The layout values in `../layout/prefs.ts` are
+ * zoomed page and the day page too. The two GIT rows are the same kind of claim
+ * — "I do not want to press Commit", "I want a commit I make here to be sent" —
+ * so they are rows here rather than switches on the Commit panel. TWO rows and
+ * not one strip of three, because they are two independent facts: pushing a
+ * commit you made by hand is the shipped case, and folding them into a single
+ * Off / Auto-commit / both would take it away. HIDDEN OUTLINES is the one row
+ * whose subject is the sidebar rather than a page, and it is here for the same test: "I want to
+ * see the files olai made for itself" is a claim about the reader, and the
+ * column it moves has no control of its own to hang it off. The layout values
+ * in `../layout/prefs.ts` are
  * stored the same way and are deliberately NOT here — a sidebar width is set
  * by dragging the sidebar, and a panel being open is set by the control that
  * opens it. Copying them into a settings list would be a second control for
@@ -39,9 +48,12 @@
 
 import { type Anchor, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
+import { autoCommit, setAutoCommit } from "./autocommit.ts"
 import { autoPush, setAutoPush } from "./autopush.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
+import { outlinesHidden, setOutlinesHidden } from "./hiddenOutlines.ts"
+import { QUIET_MS } from "../commit/flurry.ts"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
 import { TESTID } from "../testids.ts"
@@ -73,12 +85,32 @@ const DENSITY_CHOICES: ReadonlyArray<{ value: Density; label: string }> = [
   { value: "open", label: "Open" },
 ]
 
-/** Git: Off / Auto-push — today's wait, or a commit from this browser is
+/** Hidden outlines: Hidden / Shown — the Done row's pair one subject over,
+ *  and the same two words, because it is the same kind of claim: a list of
+ *  rows, and whether some of them are on it. */
+const HIDDEN_CHOICES = [
+  { value: "hidden", label: "Hidden" },
+  { value: "shown", label: "Shown" },
+] as const
+
+/** Git commit: Off / Auto-commit — today's wait for a press, or what is
+ *  waiting records itself once the edits stop arriving. */
+const COMMIT_CHOICES = [
+  { value: "off", label: "Off" },
+  { value: "on", label: "Auto-commit" },
+] as const
+
+/** Git push: Off / Auto-push — today's wait, or a commit from this browser is
  *  followed by the same push the panel already offers. */
-const GIT_CHOICES = [
+const PUSH_CHOICES = [
   { value: "off", label: "Off" },
   { value: "on", label: "Auto-push" },
 ] as const
+
+/** The quiet window in the words the hint says it in. Read off the rule
+ *  (`../commit/flurry.ts`) rather than spelled again, so the sentence cannot
+ *  promise a span the loop does not wait. */
+const QUIET_SECONDS = Math.round(QUIET_MS / 1000)
 
 export function Panel(props: {
   /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
@@ -91,7 +123,7 @@ export function Panel(props: {
   return (
     <section
       ref={props.inside}
-      class={`fixed ${LAYER.over} flex flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-2xl border-0 bg-panel p-4 text-sm shadow-xl ring-1 ring-rule/40 focus:outline-none`}
+      class={`fixed ${LAYER.over} flex min-h-0 flex-col gap-4 overflow-y-auto overflow-x-hidden overscroll-contain rounded-2xl border-0 bg-panel p-4 text-sm shadow-xl ring-1 ring-rule/40 focus:outline-none`}
       style={styleOf(props.at)}
       // Focusable, and never in the tab order: opening puts the caret here so a
       // keyboard is standing IN the panel rather than beside it (`../popover.ts`
@@ -141,9 +173,30 @@ export function Panel(props: {
         />
       </Row>
 
-      <Row label="Git" pref="git" hint={gitHint()}>
+      {/* Under Done, because it is the other "which rows are on the page"
+          row — and the only row here whose subject is the DIRECTORY column
+          rather than the outline, which is why its label says out loud which
+          files it is about. */}
+      <Row label="Hidden outlines" pref="hidden-outlines" hint={hiddenHint()}>
         <Segmented
-          choices={GIT_CHOICES}
+          choices={HIDDEN_CHOICES}
+          value={outlinesHidden() ? "hidden" : "shown"}
+          onPick={(value) => setOutlinesHidden(value === "hidden")}
+        />
+      </Row>
+
+      {/* The two git rows, in the order the two verbs happen in. */}
+      <Row label="Git commit" pref="git-commit" hint={commitHint()}>
+        <Segmented
+          choices={COMMIT_CHOICES}
+          value={autoCommit() ? "on" : "off"}
+          onPick={(value) => setAutoCommit(value === "on")}
+        />
+      </Row>
+
+      <Row label="Git push" pref="git-push" hint={pushHint()}>
+        <Segmented
+          choices={PUSH_CHOICES}
           value={autoPush() ? "on" : "off"}
           onPick={(value) => setAutoPush(value === "on")}
         />
@@ -196,7 +249,34 @@ const doneHint = (): string =>
       "file written."
     : "Finished work is shown."
 
-const gitHint = (): string =>
+/** What the choice in force means for the column — and, either way, the half
+ *  that does NOT move: these files are in the set whichever way this row is
+ *  set, so nobody is told a switch took something away from search or from an
+ *  agent. The trash is named in both sentences because it is the one file
+ *  under `_olai/` this row does not reach. */
+const hiddenHint = (): string =>
+  outlinesHidden()
+    ? "Outlines olai names for itself — under _olai/ — are left out of the " +
+      "file tree; the shelf above it and the Inbox and Trash entries below " +
+      "are their doors. They stay in the directory: search and agents read " +
+      "them unchanged."
+    : "The file tree draws _olai/ too, so the shelf and the inbox open as " +
+      "outlines like any other file. The trash keeps its own page."
+
+/** What Auto-commit in force MEANS, and the three things a reader has to be
+ *  told: WHEN it records, that a burst is ONE commit, and that it sweeps every
+ *  change in the repository rather than only the ones typed here. The last is
+ *  the one nobody would guess — an agent writing over MCP restarts the same
+ *  window and lands in the same commit. */
+const commitHint = (): string =>
+  autoCommit()
+    ? `What is waiting records itself when edits stop arriving for ${QUIET_SECONDS} ` +
+      "seconds, so a burst of work is one commit — including writes an agent " +
+      "made. A commit or a push git refuses pauses it until you set this Off " +
+      "and back On."
+    : "A write waits. Record it with the Commit button, in the pill."
+
+const pushHint = (): string =>
   autoPush()
     ? "A commit from this browser is pushed after it is recorded."
     : "A commit from here waits. Push it from the panel."

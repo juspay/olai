@@ -139,6 +139,37 @@ export const BACKSTOP_TIMEOUT = 90_000;
  */
 export const STEER_DEADLINE_TIMEOUT = 45_000;
 
+/**
+ * Per-step budget for the one change only the client's AUTO-COMMIT QUIET WINDOW
+ * can deliver: a flurry of edits stopping, and what was waiting recording
+ * itself.
+ *
+ * A fifth axis, on the same argument as the third and the fourth. There is
+ * exactly one way to see a flurry recorded and it is to stop editing and wait
+ * out `@olai/web`'s own window (`commit/flurry.ts`'s `QUIET_MS`, fifteen
+ * seconds — the number is a claim about the product, not about this suite, so
+ * it is not shortened to suit a test), and folding that wait into
+ * `HYDRATION_TIMEOUT` would make every first paint in the suite wait on it.
+ *
+ * Kept as a literal beside the other budgets rather than imported from the
+ * client, exactly as `STEER_DEADLINE_TIMEOUT` is: this package imports NAMES
+ * from `@olai/*` and no BEHAVIOUR, and a duration is neither — it is a number
+ * this suite must wait PAST. The comment above is the contract; the scenario
+ * fails loudly and specifically if it stops holding.
+ */
+export const QUIET_WINDOW_TIMEOUT = 40_000;
+
+/**
+ * ... and how long a scenario waits to prove the window did NOT fire.
+ *
+ * A negative claim about a timer can only be made by outliving it, so this is
+ * the window itself plus room for the commit it would have made. Spelled rather
+ * than derived from the budget above: that one is a DEADLINE a poll may return
+ * early from, this one is a WAIT that is paid in full every time, and the two
+ * will not always want to move together.
+ */
+export const PAST_QUIET_WINDOW = 22_000;
+
 /** How long a freshly spawned server gets to print its listening line. Not a
  *  poll budget — it bounds a child process — but it is derived from the same
  *  scale so `hooks.ts` and this file cannot drift. */
@@ -175,6 +206,9 @@ export const BACKSTOP_STEP_TIMEOUT = BACKSTOP_TIMEOUT + STEP_GUARD;
  *  the same two reasons: the envelope must be wider than the wait it contains,
  *  and no other step should inherit a budget this wide. */
 export const STEER_DEADLINE_STEP_TIMEOUT = STEER_DEADLINE_TIMEOUT + STEP_GUARD;
+
+/** ... and once more for the step that waits out Auto-commit's quiet window. */
+export const QUIET_WINDOW_STEP_TIMEOUT = QUIET_WINDOW_TIMEOUT + STEP_GUARD;
 
 /** The `Before` hook may have to boot a server before it can open a page. */
 export const SCENARIO_SETUP_TIMEOUT = SERVER_START_TIMEOUT + STEP_GUARD;
@@ -639,6 +673,9 @@ export const TRASH_EMPTY_CANCEL = selector(TESTID.trashEmptyCancel);
 export const TRASH_PAGE_SAID = selector(TESTID.trashPageSaid);
 /** The way to it, at the foot of the directory column. */
 export const TRASH_LINK = selector(TESTID.trashLink);
+/** And the way to the INBOX, directly above it — drawn only when the directory
+ *  has one, which is what the scenarios about a never-captured vault read. */
+export const INBOX_LINK = selector(TESTID.inboxLink);
 /** THE day's note, above those groups: a document named for the date itself.
  *  `data-file` is which. */
 export const DAY_NOTE = selector(TESTID.dayNote);
@@ -739,6 +776,7 @@ export const FONT_SELECT = selector(TESTID.fontSelect);
  *  retired into it), and that is what a scenario asserts on. What git SAID is
  *  its `aria-label` and its tip, never a colour. */
 export const COMMIT_PILL = selector(TESTID.commitPill);
+export const GIT_NEWS = selector(TESTID.gitNews);
 export const COMMIT_PANEL = selector(TESTID.commitPanel);
 /** What olai last recorded here, in the panel — or the words that say it never
  *  has, which is a fact no count of what is pending can express. */
@@ -762,6 +800,12 @@ export const COMMIT_SCOPE = selector(TESTID.commitScope);
 /** What is committed here and nowhere else; `data-commits` is how many. */
 export const COMMIT_UNPUSHED = selector(TESTID.commitUnpushed);
 export const COMMIT_PUSH = selector(TESTID.commitPush);
+/** Why Auto-commit stopped, in git's own words. Absent while the loop is
+ *  running, which is what makes its PRESENCE the fact a scenario asserts. */
+export const COMMIT_AUTO_PAUSED = selector(TESTID.commitAutoPaused);
+/** What Auto-commit is about to do with what the panel is listing. Drawn only
+ *  while it really is going to happen. */
+export const COMMIT_AUTO_ARMED = selector(TESTID.commitAutoArmed);
 
 /** The agent panel. Absent entirely when no ACP agent is configured, which is
  *  a state the suite never runs in: every server it spawns is pointed at the
@@ -787,6 +831,8 @@ export const SHORTCUTS = selector(TESTID.shortcuts);
 /** The header box's panel of results, and the shelf of pins in the sidebar —
  *  here rather than spelled at a step file, which is where the rest of the
  *  suite's selectors live. */
+export const HEADER_SEARCH = selector(TESTID.headerSearch);
+export const HEADER_SEARCH_OPEN = selector(TESTID.headerSearchOpen);
 export const HEADER_SEARCH_RESULTS = selector(TESTID.headerSearchResults);
 export const PIN_SHELF = selector(TESTID.pinShelf);
 
@@ -1158,45 +1204,155 @@ export class OlaiWorld extends World {
   socketFrames?: string[];
 
   /**
+   * …and every frame the tab SENT down it — every question this reader asked —
+   * under the same `@wire` tag, `undefined` without it.
+   *
+   * The mirror of {@link socketFrames}, and the half that answers a different
+   * kind of claim: not "what did the server choose to send" but HOW OFTEN THIS
+   * TAB ASKED. Nothing else here can say it. `requests` is what the page
+   * fetched, and the surface fetches nothing — every procedure call and every
+   * subscription this client opens is a frame on this socket
+   * (`@kolu/surface`'s links), so a claim that a gesture costs ONE call, or
+   * that a spent panel stopped watching, is a claim about this list.
+   *
+   * Read through {@link socketAskedSince}, which counts them from a mark: a
+   * count over the scenario's whole life is a count of everything the boot did
+   * too, and the questions worth counting are the ones a gesture caused.
+   */
+  socketAsks?: string[];
+
+  /**
    * Whether anything the socket delivered carried this text — see {@link
    * socketFrames}.
    *
-   * TWO ways this could quietly say "no" are refused rather than documented.
-   *
-   * A scenario that never armed the recorder throws, in `requestsWatched`'s
-   * voice and for its reason.
-   *
-   * And a probe this cannot honestly look for throws too. The frames are raw,
-   * so a probe only appears in them if the encoding carrying it left it alone —
-   * `"a \"quote\""` is not in a JSON frame however squarely the body was sent,
-   * and a "never carried" assertion over such a probe is a sentence about
-   * nothing. What is admitted is therefore narrower than any one encoding's
-   * rule and deliberately so: PRINTABLE ASCII with no `"` and no `\`
-   * ({@link PLAIN_PROBE}), which no text encoding this wire could use escapes.
-   * A conservative test is the right shape here because the assertion it guards
-   * is a negative — being refused a probe costs a scenario one rewording, and
-   * accepting one costs a passing test that proves nothing. Non-ASCII is
-   * refused for that reason rather than because JSON escapes it (JSON does not):
-   * whether `é` survives a frame is the encoder's business, and this is not the
-   * place to find out.
+   * Over the WHOLE scenario, which is what tells it from {@link
+   * socketSaidSince}: this asks whether a body ever crossed, and that one asks
+   * what a gesture caused. The two ways either could quietly say "no" — a
+   * recorder nobody armed, and a probe the framing could have rewritten — are
+   * refused rather than documented, in {@link framesMatching}.
    */
   socketCarried(text: string): boolean {
-    const frames = this.socketFrames;
-    if (frames === undefined) {
+    return this.framesMatching(
+      this.socketFrames,
+      0,
+      [text],
+      "nothing recorded what the socket delivered; a scenario asking about " +
+        "the wire has to carry the @wire tag",
+    ).length > 0;
+  }
+
+  /** Where in {@link socketAsks} and {@link socketFrames} a scenario started
+   *  counting — both at once, because they are one act ({@link markWire}) and
+   *  a scenario that marked one but not the other is not a state that
+   *  exists. */
+  private wireFrom?: { readonly asked: number; readonly said: number };
+
+  /** Start counting what crosses this tab's socket, in both directions, so a
+   *  later step can say what a gesture cost. `watchRequests`' arrangement one
+   *  wire over: a MARK into the recordings rather than a second listener. */
+  markWire(): void {
+    if (this.socketAsks === undefined || this.socketFrames === undefined) {
       throw new Error(
-        "nothing recorded what the socket delivered; a scenario asking about " +
-          "the wire has to carry the @wire tag",
+        "nothing recorded this tab's socket; a scenario counting wire calls " +
+          "has to carry the @wire tag",
       );
     }
-    if (!PLAIN_PROBE.test(text)) {
+    this.wireFrom = {
+      asked: this.socketAsks.length,
+      said: this.socketFrames.length,
+    };
+  }
+
+  /**
+   * How many questions carrying all of `probes` this tab has asked since that
+   * mark.
+   *
+   * THE FIRST PROBE IS A WIRE TAG — `<member>/<verb>`, which is how kolu
+   * addresses every member of a surface (`surfaceTag`,
+   * `<prefix><member>/<verb>`; the prefix is left off so this is a substring of
+   * whatever a composed surface makes the whole tag). A frame carrying it is
+   * this tab opening that subscription or calling that procedure, and the count
+   * is what a claim like "one call for the word, not one per letter" is made
+   * against.
+   *
+   * ANOTHER PROBE BESIDE IT narrows the same question to the ARGUMENT: the
+   * payload rides the frame, so a tag plus an id is "did this tab ask that
+   * member about that node". That is how a claim about what a gesture asked
+   * ABOUT is made — a picker that opened asking about the last list's rows
+   * sends the right member with the wrong argument, and the tag alone cannot
+   * tell the two apart.
+   */
+  socketAskedSince(...probes: ReadonlyArray<string>): number {
+    return this.framesMatching(
+      this.socketAsks,
+      this.wireFrom?.asked,
+      probes,
+      "nothing is counting what this tab asks the surface; a step has to " +
+        "mark the wire (and the scenario carry @wire) before the gesture it " +
+        "is making a claim about",
+    ).length;
+  }
+
+  /**
+   * …and the answer to the same question in the other direction: how many
+   * frames the server has DELIVERED since that mark carrying all of `probes`.
+   *
+   * SEVERAL probes rather than one, because what identifies a subscription's
+   * answer is a field name and the thing it is about together — either alone
+   * is a substring of frames from other members. It is how a claim that a tab
+   * STOPPED WATCHING is made: a subscription nobody let go of goes on being
+   * answered, and the answer arriving is the only trace it leaves.
+   */
+  socketSaidSince(...probes: ReadonlyArray<string>): number {
+    return this.framesMatching(
+      this.socketFrames,
+      this.wireFrom?.said,
+      probes,
+      "nothing is counting what this tab's socket delivered; a step has to " +
+        "mark the wire (and the scenario carry @wire) before the gesture it " +
+        "is making a claim about",
+    ).length;
+  }
+
+  /**
+   * The frames from `from` on that carry ALL of `probes` — the one matcher the
+   * three questions above are asked through, so the rule about what a probe may
+   * be is written once.
+   *
+   * TWO REFUSALS rather than a quiet answer, because every caller's assertion
+   * is a NEGATIVE and a negative over nothing recorded passes for the wrong
+   * reason. A scenario that never armed the recorder (or never marked) throws
+   * in `unarmed`'s words, the way `requestsWatched` does for the same class of
+   * mistake. And a probe this cannot honestly look for throws too: the frames
+   * are raw, so a probe only appears in them if the encoding carrying it left
+   * it alone — `"a \"quote\""` is not in a JSON frame however squarely the body
+   * was sent. What is admitted is therefore narrower than any one encoding's
+   * rule and deliberately so: PRINTABLE ASCII with no `"` and no `\`
+   * ({@link PLAIN_PROBE}), which no text encoding this wire could use escapes.
+   * Being refused a probe costs a scenario one rewording; accepting one costs a
+   * passing test that proves nothing. Non-ASCII is refused for that reason
+   * rather than because JSON escapes it (JSON does not): whether `é` survives a
+   * frame is the encoder's business, and this is not the place to find out.
+   */
+  private framesMatching(
+    frames: ReadonlyArray<string> | undefined,
+    from: number | undefined,
+    probes: ReadonlyArray<string>,
+    unarmed: string,
+  ): ReadonlyArray<string> {
+    if (frames === undefined || from === undefined) throw new Error(unarmed);
+    for (const probe of probes) {
+      if (PLAIN_PROBE.test(probe)) continue;
       throw new Error(
-        `${JSON.stringify(text)} is not a probe this can look for: only plain ` +
+        `${JSON.stringify(probe)} is not a probe this can look for: only plain ` +
           "printable ASCII without a quote or a backslash is certain to appear " +
           "in a raw frame verbatim, so anything else would be absent from the " +
           "recording whether or not the server sent it",
       );
     }
-    return frames.some((frame) => frame.includes(text));
+    return frames
+      .slice(from)
+      .filter((frame) => probes.every((probe) => frame.includes(probe)));
   }
 
   /** How far down the page a scenario deliberately scrolled, so a later step
@@ -1253,10 +1409,10 @@ export class OlaiWorld extends World {
    *  scratch scenarios of that feature on this worker. */
   served?: string;
   /**
-   * Set only while this scenario is on a feature-shared scratch. One record
-   * rather than a boolean plus two optionals: a shared run that has no key,
-   * or a key with no snapshot, is not a state After can be asked to interpret.
-   * Absent means the copy is private (killed in After) or there is no copy.
+   * Set only while this scenario is on a feature-shared scratch. Absent
+   * means the copy is private (killed in After) or there is no copy. After
+   * restores the tree and asks the server to re-read; the fixture origin
+   * lives on the slot, not here.
    */
   scratchShare?: ScratchShare;
   /** Where this scenario PUSHES to, once it has asked for one: a bare
@@ -1999,6 +2155,20 @@ export class OlaiWorld extends World {
     this.writeServed(file, [...lines, JSON.stringify(record)].join("\n"));
   }
 
+  /** One more LINE at the end of a served document, which is the same door
+   *  {@link appendServed} is one file-kind over: a `.md` is a text, not a set
+   *  of records, so it appends a line rather than a JSON object.
+   *
+   *  It exists for the same reason that one does — a rewrite would undo
+   *  whatever else the scenario has done — and for a second: a scenario whose
+   *  subject is a file CHANGING under an open page has to say what changed in
+   *  one line, or the feature carries two copies of a long document that a
+   *  future editor must keep identical by hand. */
+  appendServedLine(file: string, line: string): void {
+    const held = fs.readFileSync(path.join(this.scratch(), file), "utf8");
+    this.writeServed(file, `${held}\n${line}\n`);
+  }
+
   removeServed(file: string): void {
     fs.rmSync(path.join(this.scratch(), file));
   }
@@ -2034,6 +2204,40 @@ export class OlaiWorld extends World {
     this.git("push", "--quiet", "--set-upstream", "origin", "main");
     this.remote = bare;
     return bare;
+  }
+
+  /**
+   * Somebody else's commit, landed on the remote — which is what a DIVERGENCE
+   * is, and the only shape of conflict a single user with two machines ever
+   * meets.
+   *
+   * A clone, a commit and a push, so what the served repository is up against
+   * is a real non-fast-forward rather than a simulated refusal: the words the
+   * app then shows are git's own, and those are the words being asserted.
+   */
+  advanceRemote(subject: string): void {
+    const remote = this.remote;
+    if (remote === undefined) {
+      throw new Error("this scenario has no remote — say the repository has one first");
+    }
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), "olai-e2e-other-"));
+    const run = (...argv: ReadonlyArray<string>): void => {
+      execFileSync("git", [...argv], { cwd: work, stdio: "ignore" });
+    };
+    execFileSync("git", ["clone", "--quiet", remote, work], { stdio: "ignore" });
+    run(
+      "-c",
+      "user.email=someone@olai.invalid",
+      "-c",
+      "user.name=somebody else",
+      "commit",
+      "--allow-empty",
+      "--quiet",
+      "--no-verify",
+      "-m",
+      subject,
+    );
+    run("push", "--quiet");
   }
 
   /** What the bare remote holds, once this scenario has given itself one. */
@@ -2189,6 +2393,13 @@ export class OlaiWorld extends World {
       await this.page.waitForTimeout(100);
     }
   }
+
+  /** Where a `.html` preview's frame was pointed when a scenario looked, so a
+   *  later step can claim the frame was NOT re-pointed by something that
+   *  happened elsewhere. The address carries the component's own visit counter
+   *  (`client/document/Hypertext.tsx`), so "the same address" is exactly "the
+   *  frame was not navigated" and nothing weaker. */
+  previewPointedAt?: string;
 
   /** The paper the page was painted in before a theme was picked. The only
    *  colour any scenario holds on to, and it is compared against itself: what

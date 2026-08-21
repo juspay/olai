@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: A finished branch cannot hide unfinished work
   Hiding what is done drops a done row WITH its subtree — deliberately, because
@@ -19,8 +20,9 @@ Feature: A finished branch cannot hide unfinished work
   menu (menu_verbs.feature), the ⌘K palette and an agent all meet the same
   sentence. What this feature drives is the two faces a person sees.
 
-  `@scratch:` because these write the directory they are served — each
-  scenario gets a private copy of it.
+  `@scratch:` because these write the directory they are served. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   Background:
     Given I open the outline "house.olai"

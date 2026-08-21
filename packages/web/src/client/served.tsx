@@ -41,15 +41,9 @@
 import type { Face } from "@olai/format"
 import { type Accessor, createContext, createMemo, type JSX, useContext } from "solid-js"
 
-const ServedContext = createContext<Accessor<ReadonlyArray<string>>>()
+import { sameList } from "./same.ts"
 
-/** The same paths in the same order — what "the directory has not changed"
- *  means for a list that is rebuilt whenever either half of it speaks. Both
- *  lists are already sorted, so this is a walk rather than a set comparison. */
-const same = (
-  a: ReadonlyArray<string>,
-  b: ReadonlyArray<string>,
-): boolean => a.length === b.length && a.every((path, at) => path === b[at])
+const ServedContext = createContext<Accessor<ReadonlyArray<string>>>()
 
 export function ServedProvider(props: {
   /** Every served file as its FACE, in the directory's own order — the one
@@ -69,7 +63,7 @@ export function ServedProvider(props: {
   const files = createMemo(
     () => props.faces.map((face) => face.path),
     undefined,
-    { equals: same },
+    { equals: sameList },
   )
   // The faces themselves, for the one reader that wants more than a path. An
   // ACCESSOR over the prop rather than the array, for the same reason the

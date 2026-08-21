@@ -5,10 +5,11 @@
  * This is the instrument that produced the numbers in two PR bodies, and it is
  * kept so the next person can re-run them rather than believe them.
  *
- * WHAT IT MEASURES is the two ways bytes reach a reader: every byte the
+ * WHAT IT MEASURES is the two ways bytes reach a reader — every byte the
  * WEBSOCKET delivered to the tab, and every byte fetched over HTTP off
- * `/media/`. TWO SESSIONS ask different questions of that one instrument, and
- * `SESSION` picks which:
+ * `/media/` — and what the tab ASKED FOR to get them, counted per procedure.
+ * THREE SESSIONS ask different questions of that one instrument, and `SESSION`
+ * picks which:
  *
  *   - `preview` — an edit-while-previewing session. The defect it was built for
  *     was that a previewed `.html` paid both legs: the collection streamed the
@@ -24,6 +25,16 @@
  *     as a number rather than a feeling, so this session is measured on both
  *     sides of it — and it is the SAME driver, which is what makes the two
  *     numbers comparable.
+ *   - `filter` — a page somebody has NARROWED, with the vault moving under it.
+ *     A filter is a standing view, so every frame the open page draws is a
+ *     reason to ask the matcher again — and read straight through, that was one
+ *     whole-vault `search.matching` PER FRAME, uncoalesced
+ *     (`docs/brainstorming/reactivity-after-the-flip.md` §3.5). So this one
+ *     counts CALLS rather than bytes: it opens a filtered outline, picks a
+ *     section of it and ticks the pick off — one gesture, one write per topmost
+ *     row, one page frame back per write — and reports what that burst cost the
+ *     matcher. Over the BIG vault below, because what a whole-vault search
+ *     costs is a function of the vault.
  *
  * It is VERSION-INDEPENDENT on purpose — Playwright, a URL, and this package's
  * own browser argv, with no `@olai/*` import anywhere — so the same driver
@@ -66,54 +77,90 @@ interface Reading {
   readonly socket: number
   /** Bytes fetched off `/media/`, cumulative. */
   readonly media: number
+  /** Whole-vault matcher calls the tab has SENT, cumulative — the `filter`
+   *  session's number, and zero for the other two, which never narrow a page. */
+  readonly searches: number
 }
 
-/**
- * THE VAULT the `pages` session reads — written here rather than taken from a
- * fixture corpus, for the reason the two files above are: the two runs must
- * measure the same directory, whatever either branch's fixtures hold.
- *
- * Sized to be REALISTIC rather than adversarial: a working vault somebody has
- * kept for a couple of years — a few dozen outlines, a couple of hundred rows
- * each, notes on a third of them, a scattering of dates, mirrors and edges, and
- * a folder of documents beside. Every number is deterministic, so a re-run
- * measures the same bytes.
- */
-const OUTLINES = 40
-const ROWS = 200
-const DOCUMENTS = 60
+/** How a `search.matching` call looks on the wire, going out. The surface's own
+ *  request tag, which is the one thing about the protocol this driver knows —
+ *  and it counts the frames the TAB SENT rather than the answers it was given,
+ *  because what is being measured is what this page asked for. */
+const MATCHING = `"tag":"surface/search/matching"`
 
-const corpus = (write: (file: string, text: string) => void): void => {
-  for (let file = 0; file < OUTLINES; file += 1) {
-    const lines: Array<string> = []
-    for (let row = 0; row < ROWS; row += 1) {
-      const id = `n${file}-${row}`
-      // Every tenth row is a section; the rest hang under the last one, which
-      // is the shape an outline somebody keeps actually has.
-      const parent = row % 10 === 0 ? undefined : `n${file}-${row - (row % 10)}`
-      const fields: Array<string> = [
-        `"id":"${id}"`,
-        ...(parent === undefined ? [] : [`"parent":"${parent}"`]),
-        `"ord":"a${String(row).padStart(4, "0")}"`,
-        `"title":"row ${row} of outline ${file} — a title of the length people write"`,
-      ]
-      // At most ONE mark per record — the format refuses two, and a file that
-      // will not parse is a file with no rows to measure.
-      if (row % 7 === 0) fields.push(`"done":"2026-08-0${(row % 9) + 1}"`)
-      else if (row % 3 === 0) fields.push(`"todo":true`)
-      if (row % 5 === 0) {
-        fields.push(
-          `"desc":"a note under this row, two sentences long, of the kind a person writes when they are thinking. It is here because a third of rows in a real vault carry one."`,
-        )
-      }
-      if (row % 11 === 0) fields.push(`"date":"2026-08-${String((row % 28) + 1).padStart(2, "0")}"`)
-      if (row % 13 === 0 && row > 0) fields.push(`"see":["n${file}-${row - 13}"]`)
-      if (row % 17 === 0 && row > 0) fields.push(`"after":["n${file}-${row - 17}"]`)
-      lines.push(`{${fields.join(",")}}`)
+/**
+ * THE VAULT — written here rather than taken from a fixture corpus, for the
+ * reason the two files above are: the two runs must measure the same directory,
+ * whatever either branch's fixtures hold.
+ *
+ * TWO SIZES, because the two sessions that use it are asking different
+ * questions. `pages` is about what an ORDINARY reading session costs, so its
+ * vault is a working one somebody has kept for a couple of years — a few dozen
+ * outlines, a couple of hundred rows each, notes on a third of them, a
+ * scattering of dates, mirrors and edges, and a folder of documents beside.
+ * (Those numbers are quoted in the PR body that measured them, which is why
+ * they are a constant and not a knob.)
+ *
+ * `filter` is about the vault the `vault-in-browser` design was RULED for —
+ * "when we have 1000s of .md files it will start to suck" — because the thing
+ * it counts is whole-vault searches, and what one of those costs is a function
+ * of the vault. On the small one the matcher answers faster than a write's
+ * round trip, so nothing about coalescing is visible either way; the number to
+ * measure is the one a reader with a real vault pays.
+ *
+ * Every number is deterministic, so a re-run measures the same bytes.
+ */
+interface Size {
+  readonly outlines: number
+  readonly rows: number
+  readonly documents: number
+}
+const READING: Size = { outlines: 40, rows: 200, documents: 60 }
+const BIG: Size = { outlines: 300, rows: 300, documents: 200 }
+
+const outlineFile = (file: number) =>
+  `notes/outline-${String(file).padStart(3, "0")}.olai`
+
+/** One outline's records. */
+const outlineAt = (file: number, rows: number): string => {
+  const lines: Array<string> = []
+  for (let row = 0; row < rows; row += 1) {
+    const id = `n${file}-${row}`
+    // Every tenth row is a section; the rest hang under the last one, which
+    // is the shape an outline somebody keeps actually has.
+    const parent = row % 10 === 0 ? undefined : `n${file}-${row - (row % 10)}`
+    const title = `row ${row} of outline ${file} — a title of the length people write`
+    const fields: Array<string> = [
+      `"id":"${id}"`,
+      ...(parent === undefined ? [] : [`"parent":"${parent}"`]),
+      `"ord":"a${String(row).padStart(4, "0")}"`,
+      `"title":"${title}"`,
+    ]
+    // At most ONE mark per record — the format refuses two, and a file that
+    // will not parse is a file with no rows to measure.
+    if (row % 7 === 0) fields.push(`"done":"2026-08-0${(row % 9) + 1}"`)
+    else if (row % 3 === 0) fields.push(`"todo":true`)
+    if (row % 5 === 0) {
+      fields.push(
+        `"desc":"a note under this row, two sentences long, of the kind a person writes when they are thinking. It is here because a third of rows in a real vault carry one."`,
+      )
     }
-    write(`notes/outline-${String(file).padStart(2, "0")}.olai`, `${lines.join("\n")}\n`)
+    if (row % 11 === 0) fields.push(`"date":"2026-08-${String((row % 28) + 1).padStart(2, "0")}"`)
+    if (row % 13 === 0 && row > 0) fields.push(`"see":["n${file}-${row - 13}"]`)
+    if (row % 17 === 0 && row > 0) fields.push(`"after":["n${file}-${row - 17}"]`)
+    lines.push(`{${fields.join(",")}}`)
   }
-  for (let doc = 0; doc < DOCUMENTS; doc += 1) {
+  return `${lines.join("\n")}\n`
+}
+
+const corpus = (
+  write: (file: string, text: string) => void,
+  { outlines, rows, documents }: Size,
+): void => {
+  for (let file = 0; file < outlines; file += 1) {
+    write(outlineFile(file), outlineAt(file, rows))
+  }
+  for (let doc = 0; doc < documents; doc += 1) {
     write(
       `notes/doc-${String(doc).padStart(2, "0")}.md`,
       `# Document ${doc}\n\n${"prose about the work. ".repeat(200)}\n`,
@@ -128,6 +175,7 @@ const main = async () => {
 
   let socket = 0
   let media = 0
+  let searches = 0
   const readings: Array<Reading> = []
   const write = (file: string, text: string) => {
     const full = path.join(VAULT, file)
@@ -135,8 +183,8 @@ const main = async () => {
     writeFileSync(full, text)
   }
 
-  if (SESSION === "pages") {
-    corpus(write)
+  if (SESSION === "pages" || SESSION === "filter") {
+    corpus(write, SESSION === "filter" ? BIG : READING)
     // WRITTEN BEFORE THE TAB OPENS, and given a beat to be read: the server is
     // already up (`wire.sh` needed a URL to hand over), so the store learns
     // this directory from its watcher — and a first frame measured while the
@@ -160,6 +208,14 @@ const main = async () => {
         ? Buffer.byteLength(frame.payload)
         : frame.payload.byteLength
     })
+    // …and the other direction, which is what the `filter` session is about:
+    // every whole-vault matcher call this page CHOSE TO MAKE.
+    socketed.on("framesent", (frame) => {
+      const text = typeof frame.payload === "string"
+        ? frame.payload
+        : frame.payload.toString("utf8")
+      if (text.includes(MATCHING)) searches += 1
+    })
   })
   // …and the other leg: what the preview frame fetched for itself. Counted off
   // the response rather than off the file's size, so a 304 or an empty answer
@@ -177,10 +233,11 @@ const main = async () => {
   const mark = async (what: string) => {
     // One beat for the last frames and the last fetch to be accounted.
     await page.waitForTimeout(500)
-    readings.push({ what, socket, media })
+    readings.push({ what, socket, media, searches })
   }
 
   if (SESSION === "pages") await pages(page, mark)
+  else if (SESSION === "filter") await filtered(page, mark, () => searches)
   else await preview(page, mark, write)
 
   await browser.close()
@@ -233,8 +290,8 @@ const pages = async (
   page: Page,
   mark: (what: string) => Promise<void>,
 ): Promise<void> => {
-  const FIRST = "notes/outline-00.olai"
-  const SECOND = "notes/outline-01.olai"
+  const FIRST = outlineFile(0)
+  const SECOND = outlineFile(1)
   const rows = page.locator("[data-row-key]")
 
   // ONE LOAD, and everything after it is a NAVIGATION somebody makes — a link
@@ -246,7 +303,7 @@ const pages = async (
   await page.locator('[data-testid="outline-link"]').first().waitFor({ timeout: 30_000 })
   await rows.first().waitFor({ timeout: 30_000 })
   await mark(
-    `the app opens (${OUTLINES} outlines × ${ROWS} rows, ${DOCUMENTS} documents)`,
+    `the app opens (${READING.outlines} outlines × ${READING.rows} rows, ${READING.documents} documents)`,
   )
 
   await page.locator(`[data-testid="outline-link"][data-file="${SECOND}"]`).click()
@@ -278,18 +335,96 @@ const pages = async (
   await mark("the trash is opened")
 }
 
+/**
+ * How many rows the bulk op is over.
+ *
+ * A BULK OP IS THE BURST, and it has to be — a `git pull` or an agent rewriting
+ * the FILE is coalesced by the store's own settle before a single revision is
+ * published, so a session that wrote the file in a loop would be measuring that
+ * settle. A pick ticked off goes the other way: the edits leave this tab one at
+ * a time through the editor's queue (`client/writes.ts`'s `applyingAll`), the
+ * server publishes a revision inside each commit, and the page frames come back
+ * a round trip apart — which is exactly the shape §3.5 is about.
+ *
+ * Thirty rows of one section, which is an ordinary thing to select and tick off
+ * and long enough that a per-frame ask is unmistakable in the count.
+ */
+const PICKED = 30
+
+/**
+ * A NARROWED page with the vault moving under it — see the header.
+ *
+ * The query is a word every row of the corpus holds, so the answer is the whole
+ * outline: the point is not what it selects but that it is a STANDING view, and
+ * every frame the page draws is a reason to ask for it again.
+ *
+ * The rows are ticked off ON THE PAGE BEING READ, because a revision that
+ * changed nothing on this page sends it no frame at all (the server's
+ * `samePageReading`) — a bulk op somewhere else would measure nothing.
+ */
+const filtered = async (
+  page: Page,
+  mark: (what: string) => Promise<void>,
+  counted: () => number,
+): Promise<void> => {
+  const title = (id: string) =>
+    page.locator(`[data-testid="node"][data-node-id="${id}"]`)
+      .locator('[data-testid="node-title"]').first()
+
+  await page.goto(`${BASE}/${outlineFile(0)}?q=title`)
+  await page.locator('[data-testid="outline-link"]').first().waitFor({ timeout: 30_000 })
+  // The bar drawn on the address, and the rows under it — so the burst starts
+  // from a page that is narrowed rather than one still waiting for its first
+  // answer.
+  await page.locator('[data-testid="filter-bar"]').waitFor({ timeout: 30_000 })
+  await title("n0-1").waitFor({ timeout: 30_000 })
+  await mark(
+    `a filtered outline is opened (${BIG.rows} rows of ${BIG.outlines} outlines — ` +
+      `${(BIG.outlines * BIG.rows).toLocaleString("en")} nodes)`,
+  )
+  // THE INSTRUMENT PROVES ITSELF FIRST. Everything else in this file fails
+  // loudly (a `waitFor` that times out); a counter keyed on a protocol string
+  // fails SILENTLY — the day that tag is renamed on one of the two worktrees
+  // `ROOT=` points at, the run reports zero searches, which reads as a
+  // spectacular win rather than a broken driver. A narrowed page that has drawn
+  // its rows has asked at least once.
+  if (counted() === 0) {
+    throw new Error(
+      `a filtered page was opened and no ${MATCHING} was seen on the wire — ` +
+        "the request tag this driver counts has moved, so every number below " +
+        "it would be a zero that means nothing",
+    )
+  }
+
+  // The pick: one row, then everything down to the last of the section.
+  await title("n0-1").click({ modifiers: ["ControlOrMeta"] })
+  await title(`n0-${PICKED}`).click({ modifiers: ["Shift"] })
+  await page.locator('[data-testid="selection-bar"]').waitFor({ timeout: 30_000 })
+  await mark(`${PICKED} rows are picked`)
+
+  // …and ticked off, which is one gesture and that many writes.
+  await page.keyboard.press("ControlOrMeta+Enter")
+  await page.waitForTimeout(5_000)
+  await mark(`the pick is ticked off (${PICKED} writes, one gesture)`)
+}
+
 const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)} kB`
 
 const report = (label: string, readings: ReadonlyArray<Reading>) => {
   console.log(`\n── ${label} ─────────────────────────────────────`)
   console.log(
-    ["step", "socket (total)", "media (total)"].join("\t"),
+    ["step", "socket (total)", "media (total)", "search.matching (total)"].join("\t"),
   )
   for (const reading of readings) {
-    console.log([reading.what, kb(reading.socket), kb(reading.media)].join("\t"))
+    console.log(
+      [reading.what, kb(reading.socket), kb(reading.media), String(reading.searches)]
+        .join("\t"),
+    )
   }
   const last = readings[readings.length - 1]
-  console.log(`TOTAL\t${kb(last?.socket ?? 0)}\t${kb(last?.media ?? 0)}`)
+  console.log(
+    `TOTAL\t${kb(last?.socket ?? 0)}\t${kb(last?.media ?? 0)}\t${last?.searches ?? 0}`,
+  )
 }
 
 await main()

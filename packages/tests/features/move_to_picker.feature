@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Moving a row to a parent you search for
   Every way this app had of moving a row was a step from where it already was:
@@ -22,8 +23,9 @@ Feature: Moving a row to a parent you search for
   would be teaching a rule this app does not have, and a reader hunting for a
   title they can see would be debugging a search.
 
-  `@scratch:` because these write the directory they are served — each scenario
-  gets a private copy of it.
+  `@scratch:` because these write the directory they are served. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   Background:
     Given I open the outline "house.olai"
@@ -190,4 +192,95 @@ Feature: Moving a row to a parent you search for
     And I choose "install the cabinets" from the move picker
     Then the node "kitchen-herbs" in "house.olai" sits under "install"
     And the node "herbs" in "garden.olai" sits under "garden"
+    And there should be no page errors
+
+  # ── what the gesture costs the wire ─────────────────────────────────
+
+  @wire
+  Scenario: A landed move asks nothing more, and lets go of the question with its sentence
+    # TWO CLAIMS THAT ARE NOT ON SCREEN, which is why they are counted rather
+    # than looked at. The panel holds ONE subscription — this record, these
+    # destinations — and it stands open while anybody writes, so it is re-read
+    # whenever a frame moves the row. The question does not change when the row
+    # moves, and the picker being SPENT is the end of the question altogether.
+    #
+    # Both were wrong. The request was minted fresh on every frame that re-filed
+    # where the row is drawn, so a value-identical question tore the stream down
+    # and blanked the answer — every refused destination un-dimming for a round
+    # trip. And the spent gesture was never put down: the sentence took itself
+    # away after six seconds, and the subscription stayed open for ever, with
+    # the whole visible tree flattened on every frame behind a panel nobody
+    # could see.
+    #
+    # The nudge is what makes this the case worth counting: it is a landing with
+    # something to SAY, so the gesture genuinely outlives the panel and there is
+    # a sentence to wait out.
+    When I click the title of "knobs"
+    And I press "ControlOrMeta+Shift+m"
+    And I search the move picker for "take out the old"
+    And I mark the wire
+    And I choose "take out the old counters" from the move picker
+    Then the node "knobs" is a child of "demo"
+    And the move noted "marked done over work that is not finished"
+    # The row moved under the panel and was re-found there — and the question is
+    # about the record and the destinations, neither of which moved.
+    And the tab has asked to judge this move 0 times
+    When the move's sentence has gone
+    # …and the wire is marked again, because what the next line is about is the
+    # frame AFTER the gesture ended rather than the landing that ended it.
+    And I mark the wire
+    # Another hand moves the row again. There is nothing of the gesture left, so
+    # this frame reaches nothing at all.
+    And I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters"}
+      {"id":"install","parent":"kitchen","ord":"a1","title":"install the cabinets","doc":"finishes.md"}
+      {"id":"knobs","parent":"kitchen","ord":"a2","title":"pick the knobs","todo":"2026-08-11"}
+      {"id":"dust","parent":"kitchen","ord":"a3","title":"sweep up after"}
+      """
+    # Waited for by the row the rewrite ADDS, which is the only wait that says
+    # this page has drawn that frame: "knobs is inside kitchen" was already true
+    # while it sat under `demo`, and a step that read it would make the two
+    # claims below about a frame that had not arrived.
+    Then the node "dust" is shown
+    And the node "knobs" is not a child of "demo"
+    And the tab has asked to judge this move 0 times
+    # The load-bearing one, and the only trace an un-closed subscription leaves:
+    # nothing is drawn from an answer to a question nobody is asking, so the
+    # arrival of one is the whole evidence.
+    And the set has said nothing more about moving "knobs"
+    And there should be no page errors
+
+  @wire
+  Scenario: A second picker asks about its OWN list, not the last one's
+    # THE OTHER END OF THE SAME GESTURE'S LIFETIME, and the one the scenario
+    # above cannot reach. The panel's destinations come from the shortlist, and
+    # the shortlist hands its list up when it MOUNTS — which is after the picker
+    # has been opened. So the destinations a picker starts with are whatever was
+    # there before it, and unless opening one puts them down, the first thing a
+    # second picker does is ask the set to judge its row against the rows the
+    # LAST list was showing: a verdict about a list that is off the screen, and
+    # a round trip spent on it.
+    #
+    # `knobs` is moved under `demo` first, so there is a spent gesture to open
+    # the second picker on top of — its said line is still standing, and the
+    # destination it was judged against was `demo`.
+    When I click the title of "knobs"
+    And I press "ControlOrMeta+Shift+m"
+    And I search the move picker for "take out the old"
+    And I choose "take out the old counters" from the move picker
+    Then the move noted "marked done over work that is not finished"
+    When I mark the wire
+    And I open the node menu of "hinges"
+    And I choose "Move to…" from the node menu
+    # Waited for by the panel being DRAWN, which is what says its first question
+    # has been asked and answered: the picker draws off that answer.
+    Then the move picker is open on "hinges"
+    # The defect, said directly: `demo` is the destination the LAST list was
+    # judged against, and this panel has never shown it.
+    And the tab has never asked to judge a move against "demo"
+    # …and its cost, said as a count: one question for one panel, rather than a
+    # wrong one and then a right one.
+    And the tab has asked to judge this move 1 times
     And there should be no page errors

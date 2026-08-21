@@ -69,7 +69,7 @@
  * stays on the title line.
  */
 
-import { isOverdue, type Row, shownRecord } from "@olai/format"
+import { customOf, isOverdue, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
 
@@ -160,13 +160,25 @@ export function Tree(props: {
       data-sweep=""
       data-testid={TESTID.outlineTree}
     >
-      {/* `<Key>`, not `<For>`, and `Row.key` is why it can be: the walk mints
-          fresh rows on every frame the live store publishes, and `<For>`
-          compares by reference — so one character changing in one title on
-          disk would tear down and rebuild every row on screen, its DOM, its
-          collapse memo and its rendered note with it. A key the format already
-          mints per PLACE holds each row across the frame, and only the
-          bindings whose values actually moved re-run. */}
+      {/* `<Key>`, not `<For>`, and `Row.key` is why it can be. `<For>` compares
+          by REFERENCE, and what arrives is a value off the wire: a page reading
+          is re-derived on the server per published revision, so the rows in a
+          frame are not the objects the last frame carried. Keyed by the id the
+          format already mints per PLACE, each row is held across the frame —
+          its DOM, its collapse memo and its rendered note with it — and only
+          the bindings whose values actually moved re-run.
+
+          WHAT THE STORE DOES UNDER THAT MOVED, and the comment used to say the
+          opposite: the merge REPLACED every element of every array, so a fresh
+          object arrived per row per frame even when the frame repeated itself,
+          and `keyArray` handed every `Branch` a new one — the DOM survived and
+          all ~25 bindings per row re-ran anyway (the audit's 2.11). Since
+          `@olai/surface`'s `page` stream declares `arrayKey: "key"`, the merge
+          recycles a row by that same key: an identical frame notifies nothing,
+          a changed row notifies that row, and a REORDER moves the objects this
+          `<Key>` is following. `Tree.browsertest.ts` measures both sides. The
+          key here is what makes that possible and is not made redundant by it —
+          it is the same identity, now agreed on at the merge as well as here. */}
       <Key each={props.rows} by="key">
         {(row) => <Branch row={row()} depth={0} />}
       </Key>
@@ -253,7 +265,7 @@ function Branch(props: {
     const shows = shown()
     if (shows === undefined) return false
     const desc = shows.node.desc
-    return (desc !== undefined && desc !== "") || customEntries(shows.node).length > 0
+    return (desc !== undefined && desc !== "") || customEntries(customOf(shows.node)).length > 0
   }
 
   /** Both doors to this row's `•••` menu, whether it is open, and the line all

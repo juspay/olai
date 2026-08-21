@@ -94,6 +94,7 @@ const withRoute = <A>(
       port: 0,
       allowedOrigins: [],
       mcp: { transport, token: TOKEN },
+      resync: Effect.void,
     }))
 
     const url = `${base}${MCP_PATH}`

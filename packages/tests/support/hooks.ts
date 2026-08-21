@@ -19,13 +19,13 @@
  * each scratch scenario gets a fresh copy and a server of its very own, both
  * thrown away afterwards.
  *
- * Features whose scenarios write DISJOINT files opt into sharing with
- * `@share-scratch` (see `support/scratch.ts`): one copy and one server per
- * feature per worker, collision observed by hashing the tree after each
- * scenario and refused by name if two writers touch the same path. A scenario
- * that would collide, or that restarts the server, keeps a private copy with
- * `@own-scratch`. Sharing never crosses workers — the lock is still one olai
- * per directory.
+ * Features opt into sharing with `@share-scratch` (see `support/scratch.ts`):
+ * one copy and one server per feature per worker. After each sharing scenario
+ * the tree is restored to the fixture and the server re-reads
+ * (`POST /olai/resync`), so overlapping writers share too. A restore that
+ * cannot put the tree back fails naming the files. A scenario restore cannot
+ * make true (it restarts the server) keeps a private copy with `@own-scratch`.
+ * Sharing never crosses workers — the lock is still one olai per directory.
  *
  * WHAT A SHARED SERVER SERVES is a per-WORKER copy of the tracked corpus, never
  * the tracked directory itself, and that is not tidiness. `--parallel` is one
@@ -53,12 +53,15 @@ import type { Browser } from "playwright";
 import { BROWSER_ARGS } from "./browser.ts";
 import {
   alreadyShared,
+  askResync,
   DEFAULT_CORPUS,
   filesOf,
-  recordWrites,
+  leftovers,
   requestOf,
   restartGate,
-  type ScratchWriter,
+  restoreTree,
+  sameTree,
+  unrestoredError,
 } from "./scratch.ts";
 import { SCENARIO_SETUP_TIMEOUT, SERVER_START_TIMEOUT } from "./world.ts";
 import type { GitMode } from "./world.ts";
@@ -214,7 +217,10 @@ const servers = new Map<string, Promise<RunningServer>>();
  */
 interface SharedSlot {
   readonly server: RunningServer & { readonly root: string };
-  writers: ScratchWriter[];
+  /** Content hashes of the fixture this slot was copied from. After restores
+   *  to this origin; leftovers against it are a restore that did not take. */
+  readonly origin: Map<string, string>;
+  readonly fixture: string;
   readonly seenPickles: Set<string>;
 }
 
@@ -329,9 +335,49 @@ const fixtureDir = (corpus: string): string => {
   return dir;
 };
 
+/**
+ * Take a spawned olai, and everything it started, off the box.
+ *
+ * The child is a process-group leader (`detached: true` at spawn). A kill of
+ * the pid alone leaves its ACP agent (and any other grandchild) holding the
+ * pipes this worker is still reading — cucumber never prints the summary,
+ * odu's log drain hangs, the node is stopped with "output still owed". SIGKILL
+ * of the group, then destroy the pipes, is what actually ends the worker.
+ */
 const killChild = (child: ChildProcess | undefined): void => {
-  if (child && child.exitCode === null) child.kill("SIGKILL");
+  if (!child || child.exitCode !== null) return;
+  child.stdout?.destroy();
+  child.stderr?.destroy();
+  const pid = child.pid;
+  if (pid === undefined) {
+    child.kill("SIGKILL");
+    return;
+  }
+  try {
+    process.kill(-pid, "SIGKILL");
+  } catch {
+    try {
+      child.kill("SIGKILL");
+    } catch {
+      // already gone
+    }
+  }
 };
+
+/** Signal, then wait until the process is actually gone (or a short bound). */
+const reap = (child: ChildProcess | undefined): Promise<void> =>
+  new Promise((resolve) => {
+    if (!child || child.exitCode !== null || child.signalCode !== null) {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(resolve, 2000);
+    events(child).once("exit", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    killChild(child);
+  });
 
 const shuttingDown = (label: string): string =>
   `the run is shutting down; abandoning the server for ${label}`;
@@ -419,6 +465,10 @@ const startServerChild = async (
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
+      // Own process group so killChild can SIGKILL the server AND the ACP
+      // agent it spawned. Same group as the worker would take cucumber down
+      // with the servers.
+      detached: true,
       env: isolateEnv(spawnOptions.stateRoot, {
         // The EMPTY string is the explicit off switch, and it is what a person
         // turning chat off would set — so the no-agent scenario reaches that
@@ -552,7 +602,7 @@ export const stopOwnServer = async (world: OlaiWorld): Promise<void> => {
       return;
     }
     events(child).once("exit", () => resolve());
-    child.kill("SIGKILL");
+    killChild(child);
   });
   live.delete(child);
   world.ownServer = undefined;
@@ -743,7 +793,7 @@ const forgetShared = async (
 ): Promise<void> => {
   try {
     const slot = await entry;
-    killChild(slot.server.child);
+    await reap(slot.server.child);
     fs.rmSync(slot.server.root, { recursive: true, force: true });
     fs.rmSync(scratchState(slot.server.root), { recursive: true, force: true });
   } catch {
@@ -759,17 +809,19 @@ const forgetShared = async (
 const killAll = async (): Promise<void> => {
   const pending = [...servers.values()];
   const pendingShared = [...sharedScratches.values()];
+  const reaping = [...live];
   servers.clear();
   sharedScratches.clear();
   killLive();
   await Promise.all([
     ...pending.map((entry) =>
       entry.then(
-        (server) => killChild(server.child),
+        (server) => reap(server.child),
         () => undefined,
       ),
     ),
     ...pendingShared.map(forgetShared),
+    ...reaping.map(reap),
   ]);
 };
 // A cucumber run killed from the keyboard skips AfterAll; without this, every
@@ -823,8 +875,11 @@ BeforeAll(async () => {
 });
 
 AfterAll(async () => {
-  if (browser) await browser.close();
+  // Servers first: a Chromium still holding sockets to a live olai is a
+  // `browser.close()` that never returns, and that is the same hang as a
+  // grandchild holding stdio — cucumber never reaches the summary.
   await killAll();
+  if (browser) await browser.close();
   if (workerState !== undefined) {
     fs.rmSync(workerState, { recursive: true, force: true });
     workerState = undefined;
@@ -856,9 +911,11 @@ const sharedScratchFor = (
 ): Promise<SharedSlot> => {
   const cached = sharedScratches.get(key);
   if (cached) return cached;
+  const fixture = fixtureDir(corpus);
   const started = scratchServerFor(corpus, spawnOptions).then((server) => ({
     server,
-    writers: [] as ScratchWriter[],
+    origin: filesOf(fixture),
+    fixture,
     seenPickles: new Set<string>(),
   }));
   const entry: Promise<SharedSlot> = started.catch((cause: unknown) => {
@@ -937,7 +994,7 @@ Before(
           this.baseUrl = slot.server.baseUrl;
           this.served = slot.server.root;
           this.ownServer = slot.server.child;
-          this.scratchShare = { key: featureKey, was: filesOf(slot.server.root) };
+          this.scratchShare = { key: featureKey };
         }
       } else {
         await ownCopy();
@@ -988,16 +1045,25 @@ Before(
     //
     // Registered per SOCKET because a tab that reconnects opens another one,
     // and the recording is of the tab.
+    //
+    // BOTH DIRECTIONS, because the tag arms a recording of the wire and the two
+    // halves answer two kinds of claim: what the server chose to SEND this
+    // reader (`world.socketCarried`), and how often this tab ASKED
+    // (`world.socketAskedSince`) — which is the only place a client that
+    // re-subscribes or re-asks per keystroke shows up at all.
     if (scenario.pickle.tags.some((tag) => tag.name === WIRE_TAG)) {
       const frames: string[] = [];
+      const asks: string[] = [];
       this.socketFrames = frames;
+      this.socketAsks = asks;
+      const text = (payload: string | Buffer): string =>
+        typeof payload === "string" ? payload : payload.toString("utf8");
       this.page.on("websocket", (socket) => {
         socket.on("framereceived", (frame) => {
-          frames.push(
-            typeof frame.payload === "string"
-              ? frame.payload
-              : frame.payload.toString("utf8"),
-          );
+          frames.push(text(frame.payload));
+        });
+        socket.on("framesent", (frame) => {
+          asks.push(text(frame.payload));
         });
       });
     }
@@ -1047,23 +1113,25 @@ After(async function (this: OlaiWorld, scenario) {
   // to be removed.
   this.terminalAgent?.stop();
 
-  // A feature-shared scratch outlives the scenario: After records what this
-  // one wrote, refuses if an earlier scenario on this worker already wrote
-  // the same path, and leaves the process running for the rest of the feature.
+  // A feature-shared scratch outlives the scenario: After puts the fixture
+  // back under the still-running server and asks it to re-read, so the next
+  // scenario starts from the original corpus. Leftovers after that restore
+  // are a restore that did not take, not a collision with an earlier writer.
   const share = this.scratchShare;
   const served = this.served;
   if (share !== undefined && served !== undefined) {
     const slot = await sharedScratches.get(share.key);
-    if (slot !== undefined) {
-      const next = recordWrites({
-        feature: path.basename(scenario.pickle.uri),
-        name: scenario.pickle.name,
-        before: share.was,
-        root: served,
-        writers: slot.writers,
-      });
-      slot.writers = [...next.writers];
-      if (next.error !== undefined) throw next.error;
+    if (slot !== undefined && !sameTree(filesOf(served), slot.origin)) {
+      restoreTree(served, slot.fixture);
+      await askResync(this.baseUrl, SERVER_START_TIMEOUT);
+      const left = leftovers(slot.origin, served);
+      if (left.length > 0) {
+        throw unrestoredError(
+          path.basename(scenario.pickle.uri),
+          scenario.pickle.name,
+          left,
+        );
+      }
     }
     return;
   }

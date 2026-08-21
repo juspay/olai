@@ -135,6 +135,14 @@ export {
  *  it renders (`/web`'s `markdown/slugs.ts`), and a slug spelled twice is
  *  an address this app writes and cannot open. */
 export { claim, slugOf, slugsIn } from "./slug.ts"
+/** A document body with its `---` block taken off — the ONE place the app
+ *  decides where frontmatter ends. Exported because the BROWSER spends it too:
+ *  a document is drawn from its prose, so the block is off the page, off the
+ *  contents and off the heading ids, and the page and the face cannot come to
+ *  disagree about which lines a document has. A NOTE is not a file and does not
+ *  spend it — a leading `---` in one is the thematic break markdown says it is
+ *  (`./document.ts` argues both halves). */
+export { proseIn } from "./frontmatter.ts"
 /** The view PATCHED rather than rebuilt, and what a delta says: files upserted,
  *  files gone — Surface's own collection-delta frame, which is the vocabulary
  *  "what changed" already travels this system in.
@@ -215,6 +223,7 @@ export {
 } from "./address.ts"
 export {
   bodiedOf,
+  bracketSpacedLinks,
   bytesOf,
   docOf,
   firstLine,
@@ -227,6 +236,9 @@ export {
 export {
   INBOX,
   inboxIn,
+  /** Whether a served file is one olai NAMED FOR ITSELF — the mint read
+   *  backwards, for the one face that draws a list of files (`./node.ts`). */
+  inOlaiDir,
   isTrashed,
   isLeftoverArchive,
   isMirror,
@@ -554,6 +566,7 @@ export {
   PushResult,
   Reason,
   RepoState,
+  sameGit,
   samePending,
   Unpushed,
   Writer,
@@ -764,4 +777,12 @@ export {
  * browser, and two copies of a sentence is how two faces of one rule start
  * disagreeing in the small words.
  */
-export { Moved, MovingAnswer, MovingRequest, movingOf, SAME_FILE, sameMoving } from "./moving.ts"
+export {
+  Moved,
+  MovingAnswer,
+  MovingRequest,
+  movingOf,
+  SAME_FILE,
+  sameMoving,
+  sameMovingRequest,
+} from "./moving.ts"

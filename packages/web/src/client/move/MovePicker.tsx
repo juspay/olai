@@ -54,6 +54,7 @@
  */
 
 import type { Edit } from "@olai/surface"
+import type { Accessor } from "solid-js"
 
 import type { Moved } from "@olai/format"
 
@@ -82,10 +83,11 @@ export function MovePicker(props: {
    *  subscription both halves of this gesture read). A hit with no entry is one
    *  that can take it. */
   readonly refusals: ReadonlyMap<string, string>
-  /** WHICH DESTINATIONS are on screen, told to the host as the search answers —
-   *  the argument its subscription is re-asked with. The list is what knows
-   *  them, and the host is what asks; this is the one line between the two. */
-  readonly onAimed: (ids: ReadonlyArray<string>) => void
+  /** WHICH DESTINATIONS are on screen — the argument the host's subscription is
+   *  asked with. An ACCESSOR, handed up once: the list is what knows its hits
+   *  and the host is what asks about them, and a derivation is the honest shape
+   *  for that (`./moving.tsx` says what a report cost instead). */
+  readonly onAimed: (ids: Accessor<ReadonlyArray<string>>) => void
   /** Send it. The host knows the write gate, the undo stack and where the
    *  answer is drawn (`./moving.tsx`); this knows which destination. */
   readonly onWrite: (edit: Edit) => void
@@ -123,9 +125,11 @@ export function MovePicker(props: {
         testids={MOVE_LIST}
         refusing={{
           testid: TESTID.moveRefused,
-          // WHICH HITS are being judged, reported up so the host can ask about
-          // exactly these (`./moving.tsx`).
-          asked: (hits) => props.onAimed(hits.map((hit) => hit.id)),
+          // WHICH HITS are being judged, handed up so the host can ask about
+          // exactly these (`./moving.tsx`). The ids are read THROUGH the
+          // shortlist's own accessor rather than copied out of it, so what the
+          // host holds is the list as it stands and not as it stood.
+          asked: (hits) => props.onAimed(() => hits().map((hit) => hit.id)),
           // NOTHING SAID is the frame before the verdicts for this list have
           // come back, and the answer then is `null` rather than a refusal:
           // this is a preview of the planner's verdict, and with nothing to

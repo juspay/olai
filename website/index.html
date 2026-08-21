@@ -493,7 +493,11 @@
     you were typing refuses the save in plain words instead of being silently
     overwritten, in either direction. New documents come from the sidebar's
     path box, or from a bare calendar day — pressing one creates that day's
-    note where your vault already keeps them.</p>
+    note where your vault already keeps them. A document that opens with a
+    <code>---</code> block writes its own <strong>properties</strong> there:
+    the block is kept off the rendered page, out of the document's name and out
+    of its table of contents, and its keys answer <code>prop:</code> exactly as
+    a node's do.</p>
     <p>A <code>.html</code> file in the directory — a saved article, a report
     a build wrote, a dashboard something exported — is listed and previewed the
     same way, and is read rather than edited. <strong>The page works</strong>:
@@ -846,7 +850,12 @@ The corner unit is the **risky one** — see
     list, so a document whose title holds the word outranks a node that only
     mentions it in a note. What a document does not have, it does not pretend
     to: an operator over a field it lacks — <code>is:done</code>,
-    <code>has:date</code> — selects none of them.</p>
+    <code>has:date</code> — selects none of them. What it <em>does</em> have is
+    <strong>frontmatter</strong>: the <code>---</code> block at the top of a
+    <code>.md</code>, whose keys are the same properties a node carries, so
+    <code>prop:agent=claude-opus</code> answers with both kinds in one list —
+    and the block itself stays off the page, out of the title and out of the
+    table of contents.</p>
     <div class="cols">
       <div class="panel">
         <div class="file">/house.olai?q=%23home+OR+alcove</div>
@@ -884,7 +893,9 @@ The corner unit is the **risky one** — see
         composing with a range like any other value
         (<code>date:last-week..</code>). <code>prop:pr</code> and
         <code>prop:agent=claude-opus</code> ask after a property you put on a
-        node yourself — by key, or by key and value. <code>-</code> in front of
+        node yourself — by key, or by key and value; a <code>.md</code>'s
+        properties are its YAML frontmatter, and answer the same two.
+        <code>-</code> in front of
         any of them takes it back out.</p>
         <p><strong>And two ask what olai did, rather than what you
         said.</strong> When olai captures a node it stamps the instant; when it
@@ -1151,8 +1162,17 @@ The corner unit is the **risky one** — see
     does not cost you your place.</strong> <kbd>⌘</kbd>+<kbd>K</kbd>,
     <kbd>+</kbd>, the line, <kbd>Enter</kbd>: it becomes a node in the
     directory’s inbox — an <code>Inbox.olai</code>, created the first time you
-    capture — while your page, your scroll and the address stay exactly where
-    they were, and the box empties for the next line.</p>
+    capture at <code>_olai/Inbox.olai</code>, or wherever you already keep one
+    — while your page, your scroll and the address stay exactly where they
+    were, and the box empties for the next line.</p>
+    <p><strong>And the files olai names for itself stay out of your
+    list.</strong> The shelf, the inbox and the trash live under
+    <code>_olai/</code>, and the file tree does not draw them: the shelf is
+    already above the tree, and <em>Inbox</em> and <em>Trash</em> are two doors
+    at the foot of the column. They are in the directory either way — search
+    finds them, an agent lists them, git records them — and one preference
+    (<em>Hidden outlines → Shown</em>) puts the rows back for a day you want to
+    read <code>Pins.olai</code> as an outline.</p>
   </div>
 </section>
 
@@ -1160,8 +1180,9 @@ The corner unit is the **risky one** — see
   <div class="wrap">
     <h2>Preferences, and the palettes</h2>
     <p class="lead">One door in the app header, and the rows behind it: the
-    theme, the typeface, what a page does with finished work, and whether a
-    commit from here is pushed. All of them are this browser’s, which is the
+    theme, the typeface, what a page does with finished work, whether the file
+    tree draws the outlines olai names for itself, and whether a commit from
+    here is pushed. All of them are this browser’s, which is the
     panel’s own first claim about itself: two machines reading the same
     outlines are entitled to look different, and the served directory neither
     knows nor cares.</p>
@@ -1196,7 +1217,23 @@ The corner unit is the **risky one** — see
           <p class="hint">Finished work is shown.</p>
         </div>
         <div class="prow">
-          <div class="lbl">Git</div>
+          <div class="lbl">Hidden outlines</div>
+          <div class="seg"><span class="on">Hidden</span><span>Shown</span></div>
+          <p class="hint">Outlines olai names for itself — under _olai/ — are
+          left out of the file tree; the shelf above it and the Inbox and Trash
+          entries below are their doors. They stay in the directory: search and
+          agents read them unchanged.</p>
+        </div>
+        <div class="prow">
+          <div class="lbl">Git commit</div>
+          <div class="seg"><span>Off</span><span class="on">Auto-commit</span></div>
+          <p class="hint">What is waiting records itself when edits stop
+          arriving for 15 seconds, so a burst of work is one commit — including
+          writes an agent made. A commit or a push git refuses pauses it until
+          you set this Off and back On.</p>
+        </div>
+        <div class="prow">
+          <div class="lbl">Git push</div>
           <div class="seg"><span>Off</span><span class="on">Auto-push</span></div>
           <p class="hint">A commit from this browser is pushed after it is
           recorded.</p>
@@ -1357,8 +1394,11 @@ The corner unit is the **risky one** — see
     <p class="lead">Writes go to disk immediately and are committed when you
     choose — everything the repository has waiting, outlines and the files
     beside them, ticked one by one if you want a smaller commit, and pushed
-    from the same panel. Commit messages are prefixed with <code>olai:</code>,
-    so <code>git log --grep '^olai'</code> shows the audit trail.</p>
+    from the same panel. Or turn on Auto-commit and stop choosing: a burst of
+    work, yours and an agent’s together, becomes one commit fifteen seconds
+    after the edits stop — and, with Auto-push beside it, is already on the
+    remote. Commit messages are prefixed with <code>olai:</code>, so
+    <code>git log --grep '^olai'</code> shows the audit trail.</p>
     <div class="cols">
       <div>
         <pre><code>┌─ Changes ─────────────────────────────────┐

@@ -61,6 +61,7 @@ import {
   useContext,
 } from "solid-js"
 
+import { sameList } from "../same.ts"
 import { olai } from "../wire.ts"
 
 /**
@@ -111,7 +112,19 @@ export const createDocuments = (): Documents => {
    *  a path stuck in the key set is a stream that never closes, and one missing
    *  from it is a body that never arrives for a row still on screen. */
   const [askers, setAskers] = createSignal<ReadonlyMap<string, number>>(new Map())
-  const wanted = createMemo(() => [...askers().keys()])
+  /**
+   * The paths, BY VALUE — because what the collection is asked for is the
+   * SET of them and the count beside each is nobody's business but the map's.
+   *
+   * Two rows showing one document is a count of 1→2 on a path that was already
+   * held: the same question, and a fresh array to ask it with. Handed straight
+   * over, that array notified the framework's `keys` memo, which re-diffed its
+   * `mapArray` and re-ran every per-key `read()` accessor in the app — no
+   * refetch, because the string memos downstream stop there, but a walk of
+   * every open document for a reference that changed nothing
+   * (docs/brainstorming/reactivity-after-the-flip.md §3.7).
+   */
+  const wanted = createMemo(() => [...askers().keys()], [], { equals: sameList })
   const held = (file: string, by: number): void => {
     setAskers((before) => {
       const after = new Map(before)

@@ -71,6 +71,39 @@ Feature: Daily notes
     Then the document open is "notes/ferry.md"
     And the page has not reloaded
 
+  # The same climb, onto a filename with a space in it. The three spellings
+  # are the ones markdown actually writes; what is still the hard question is
+  # the ROUTE — the note is drawn under `/d/2019-11-13`, which is not a file.
+  @scratch:journal
+  Scenario Outline: A relative link to a spaced name lands on that document
+    Given I open the app
+    And I rewrite "notes/the brief.md" as:
+      """
+      # The brief
+
+      Oak counters.
+      """
+    And I rewrite "Daily/2019/11/2019-11-13.md" as:
+      """
+      # Tuesday
+
+      See [the brief](<destination>).
+      """
+    And I open the day "2019-11-13"
+    And the day shows the note "Daily/2019/11/2019-11-13.md"
+    And I mark the page
+    When I follow the link "the brief" in the rendered markdown
+    Then the document open is "notes/the brief.md"
+    And the address is "/notes/the%20brief.md"
+    And the page has not reloaded
+    And there should be no page errors
+
+    Examples:
+      | destination                   |
+      | ../../../notes/the%20brief.md |
+      | <../../../notes/the brief.md> |
+      | ../../../notes/the brief.md   |
+
   @corpus:journal
   Scenario: A day whose only content is a note is still a day worth opening
     When I open the day "2019-11-08"

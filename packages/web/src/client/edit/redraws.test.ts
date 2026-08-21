@@ -1,5 +1,6 @@
 /**
- * Which writes can move the row they were made in.
+ * Which writes can move the row they were made in — and which of those give it
+ * a new ADDRESS.
  *
  * A list rather than a flag at each call site is what makes this testable at
  * all — and testable is the point: the `!` and `((` widgets do not move the row
@@ -14,16 +15,20 @@
 import { expect, test } from "bun:test"
 import type { Edit } from "@olai/surface"
 
-import { redraws } from "./redraws.ts"
+import { redraws, rekeys } from "./redraws.ts"
 
-/** An edit of that verb, with whatever else the arm needs — nothing here reads
- *  a field, so the rest is filler the type demands. */
+/** The one verb whose ANSWER depends on a field, named apart so both tables
+ *  below drive it the same way. */
+const moving = (how: "in" | "out" | "up" | "down"): Edit => ({ verb: "move", id: "a", how })
+
+/** An edit of that verb, with whatever else the arm needs — nothing but the
+ *  move above reads a field, so the rest is filler the type demands. */
 const of = (verb: Edit["verb"]): Edit => {
   switch (verb) {
     case "add":
       return { verb, at: { kind: "after", id: "a" }, title: "t" }
     case "move":
-      return { verb, id: "a", how: "in" }
+      return moving("in")
     case "toggle":
       return { verb, id: "a", mark: "done" }
     case "mark":
@@ -115,5 +120,56 @@ test("emptying the trash moves no row an editor could be standing in", () => {
 test("a document write is not a row moving", () => {
   for (const verb of ["doc", "docNew", "docDay"] as const) {
     expect(redraws(of(verb))).toBe(false)
+  }
+})
+
+// ── …and the sharper question: does the row get a new ADDRESS? ──────────
+//
+// The FOUR MOVES SPLIT TWO WAYS, which is the whole reason this is a function
+// over the edit rather than a second set of verbs. A row that changes parent is
+// drawn at a different `Row.key`, so the branch its editor was in stops
+// matching and a fresh editor opens at the end of the text; a row that shuffles
+// among its siblings keeps its key, keeps its element, and keeps the selection
+// inside it. Getting this wrong is a caret thrown to the end of a title
+// somebody was typing in the middle of.
+test("indenting and outdenting give the row a new address; reordering does not", () => {
+  expect(rekeys(moving("in"))).toBe(true)
+  expect(rekeys(moving("out"))).toBe(true)
+  expect(rekeys(moving("up"))).toBe(false)
+  expect(rekeys(moving("down"))).toBe(false)
+})
+
+// The two that name a PARENT outright: what the move-to picker lands, and the
+// undo that puts a row back where it sat.
+test("a landing and its undo name a new parent, so they rekey", () => {
+  expect(rekeys(of("place"))).toBe(true)
+  expect(rekeys(of("under"))).toBe(true)
+})
+
+// EVERYTHING THAT REDRAWS IS NOT EVERYTHING THAT REKEYS, and this is the pair
+// that says so — the marks move the row on the page (a done row can leave it
+// entirely) without changing the chain of ids down to it, so nothing is owed
+// the caret's offset.
+test("a mark redraws the row without giving it a new address", () => {
+  for (const verb of ["toggle", "walk", "mark"] as const) {
+    expect(redraws(of(verb))).toBe(true)
+    expect(rekeys(of(verb))).toBe(false)
+  }
+})
+
+// A SPLIT AND A MERGE are deliberately absent, and stated rather than left to
+// the default: each hands the caret an offset of its own through
+// `./draft.ts`'s `opening`, because what those two keys are about is where in
+// the SENTENCE it lands. A verb answering both tables would be two answers to
+// one question.
+test("a split and a merge carry their own caret, so they are not on this list", () => {
+  expect(rekeys(of("split"))).toBe(false)
+  expect(rekeys(of("merge"))).toBe(false)
+})
+
+// ...and the ordinary writes, which move nothing and rename nothing.
+test("text, a date, a placement and a duplicate leave the address alone", () => {
+  for (const verb of ["title", "desc", "date", "mirror", "duplicate"] as const) {
+    expect(rekeys(of(verb))).toBe(false)
   }
 })

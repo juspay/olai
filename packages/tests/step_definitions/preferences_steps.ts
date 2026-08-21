@@ -16,12 +16,14 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 import type { Page } from "playwright";
 
+import { AUTOCOMMIT_KEY } from "@olai/web/src/client/settings/autocommit.ts";
 import { AUTOPUSH_KEY } from "@olai/web/src/client/settings/autopush.ts";
 import {
   DENSITY_KEY,
   type Density,
 } from "@olai/web/src/client/settings/density.ts";
 import { DONE_HIDDEN_KEY } from "@olai/web/src/client/settings/done.ts";
+import { HIDDEN_OUTLINES_KEY } from "@olai/web/src/client/settings/hiddenOutlines.ts";
 import { TESTID } from "@olai/web/src/client/testids.ts";
 import { SIZE_STORAGE_KEY } from "@olai/web/src/client/theme/sizes.ts";
 
@@ -37,6 +39,8 @@ import {
   PREFS_ROW,
   PREFS_SCOPE,
   PREFS_TRIGGER,
+  SIDEBAR_BODY,
+  SIDEBAR_TOGGLE,
   WORDMARK,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -48,6 +52,13 @@ export const showPreferences = async (page: Page): Promise<void> => {
   const panel = page.locator(PREFS_PANEL);
   if (await panel.isVisible().catch(() => false)) return;
   const trigger = page.locator(PREFS_TRIGGER);
+  if (!(await trigger.isVisible().catch(() => false))) {
+    // Phone: the trigger is a row in the directory drawer.
+    const burger = page.locator(SIDEBAR_TOGGLE);
+    await burger.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await burger.click();
+    await page.locator(SIDEBAR_BODY).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  }
   await trigger.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await trigger.click();
   await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -443,29 +454,114 @@ Then(
   },
 );
 
-// ── the Git preference: whether a commit from here is pushed ───────────
+// ── Hidden outlines: whether the tree draws what olai named itself ─────
+
+const asHidden = (value: string): "hidden" | "shown" => {
+  if (value !== "hidden" && value !== "shown") {
+    throw new Error(`Hidden outlines is "hidden" or "shown", not "${value}"`);
+  }
+  return value;
+};
+
+/** Press one segment, and then put the panel away — every step after this one
+ *  is about the SIDEBAR, and a portalled panel over the column is a locator
+ *  waiting on something covered. The trigger rather than Escape, for the
+ *  reason the Done twin gives. */
+When(
+  "I set Hidden outlines to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "hidden-outlines", asHidden(value));
+    await this.press(this.page.locator(PREFS_TRIGGER));
+    await this.page
+      .locator(PREFS_PANEL)
+      .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the Hidden outlines row explains that the tree {string}",
+  async function (this: OlaiWorld, expected: string) {
+    const hint = await hintOf(this, "hidden-outlines");
+    assert.ok(
+      hint.includes(expected),
+      `the Hidden outlines row says "${hint}", which does not say the tree ` +
+        JSON.stringify(expected),
+    );
+  },
+);
+
+Then(
+  "this browser has stored that hidden outlines are {string}",
+  async function (this: OlaiWorld, state: string) {
+    const stored = await this.stored(HIDDEN_OUTLINES_KEY);
+    assert.equal(
+      stored,
+      asHidden(state) === "hidden" ? "true" : "false",
+      `this browser keeps "${stored}" under ${HIDDEN_OUTLINES_KEY}`,
+    );
+  },
+);
+
+// ── the two Git preferences ────────────────────────────────────────────
+//
+// TWO ROWS, because they are two independent facts: what is waiting can record
+// itself, and a recorded commit can be pushed. Either alone is a shipped case —
+// Auto-push with the Commit button is what #283 built — so the rows are asked
+// for separately here too.
 
 const asGit = (value: string): "off" | "on" => {
   if (value !== "off" && value !== "on") {
-    throw new Error(`Git is "off" or "on", not "${value}"`);
+    throw new Error(`a Git preference is "off" or "on", not "${value}"`);
   }
   return value;
 };
 
 When(
-  "I set Git to {string}",
+  "I set Git commit to {string}",
   async function (this: OlaiWorld, value: string) {
-    await pickChoice(this.page, "git", asGit(value));
+    await pickChoice(this.page, "git-commit", asGit(value));
+  },
+);
+
+When(
+  "I set Git push to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "git-push", asGit(value));
   },
 );
 
 Then(
-  "the Git row explains that a commit {string}",
+  "the Git commit row explains that a write {string}",
   async function (this: OlaiWorld, expected: string) {
-    const hint = await hintOf(this, "git");
+    const hint = await hintOf(this, "git-commit");
     assert.ok(
       hint.includes(expected),
-      `the Git row says "${hint}", which does not say a commit ${JSON.stringify(expected)}`,
+      `the Git commit row says "${hint}", which does not say a write ` +
+        JSON.stringify(expected),
+    );
+  },
+);
+
+Then(
+  "the Git push row explains that a commit {string}",
+  async function (this: OlaiWorld, expected: string) {
+    const hint = await hintOf(this, "git-push");
+    assert.ok(
+      hint.includes(expected),
+      `the Git push row says "${hint}", which does not say a commit ` +
+        JSON.stringify(expected),
+    );
+  },
+);
+
+Then(
+  "this browser has stored that auto-commit is {string}",
+  async function (this: OlaiWorld, state: string) {
+    const stored = await this.stored(AUTOCOMMIT_KEY);
+    assert.equal(
+      stored,
+      asGit(state) === "on" ? "true" : "false",
+      `this browser keeps "${stored}" under ${AUTOCOMMIT_KEY}`,
     );
   },
 );

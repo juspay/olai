@@ -7,9 +7,11 @@
  * them). Minimized is the bottom-right pill (desktop) or the thumb strip
  * (phone).
  *
- * The header's agent toggle stays the permanent chrome control (#101). The
- * TRANSCRIPT is subscribed only while the panel is open; Minimized reads a
- * module-scoped snapshot updated from here (`last.ts`), never the collection.
+ * On desktop the header's agent toggle is the permanent chrome control (#101).
+ * On a phone the toggle is gone from the bar: the thumb strip opens the sheet,
+ * and the sheet's scrim puts it away. The TRANSCRIPT is subscribed only while
+ * the panel is open; Minimized reads a module-scoped snapshot updated from
+ * here (`last.ts`), never the collection.
  *
  * Both layouts render the same `Face` — the header, whatever this conversation
  * is short of, and the conversation itself — so the two shells own their chrome
@@ -26,7 +28,7 @@
  * away by it.
  */
 
-import { createEffect, createSignal, Show } from "solid-js"
+import { createSignal, Show } from "solid-js"
 
 import { ChatHandle } from "../layout/Handle.tsx"
 import { desktop } from "../layout/media.ts"
@@ -45,7 +47,7 @@ import { Composer } from "./Composer.tsx"
 import { DropTarget } from "./DropTarget.tsx"
 import { Header } from "./Header.tsx"
 import { createHolding } from "./holding.ts"
-import { sampleLastAgent } from "./last.ts"
+import { createLastAgent } from "./last.ts"
 import { Minimized } from "./Minimized.tsx"
 import { Missing } from "./Missing.tsx"
 import { NoAgent } from "./NoAgent.tsx"
@@ -66,15 +68,14 @@ export function Panel() {
 }
 
 /**
- * The agent control in the app header: always on screen, toggles open/minimized.
+ * The agent control in the app header on desktop: always on screen, toggles
+ * open/minimized.
  *
- * Below 40rem it is its MARK alone. The bar holds five things at 390pt and it
- * cannot hold five labels, so the header spends its pixels in a stated order
- * (`../AppHeader.tsx`) — and `>_` is the one label in it that is already an
- * icon, recognisable without the word beside it. The word is `sr-only` rather
- * than gone: it is what names this button to a screen reader, and a control
- * whose accessible name shrank with the viewport would be a control that is
- * harder to reach on exactly the device that needs it most.
+ * A phone does not draw this. The thumb strip is the door (`./Minimized.tsx`),
+ * and the sheet's scrim is the way out — a second toggle in a bar that is
+ * already only identity and search would be the chips this left the bar to
+ * escape. The word is `sr-only` below 40rem on the desktop button, kept for
+ * the same reason it always was: the mark is already an icon.
  */
 export function Toggle() {
   const state = createChatState()
@@ -173,8 +174,8 @@ function Body(props: { readonly chat: Chat }) {
 function DesktopDock() {
   const chat = createChat()
 
-  // Snapshot the last agent row for the minimized face; dies with this owner.
-  createEffect(() => sampleLastAgent(chat))
+  // Keep the last agent row for the minimized face; dies with this owner.
+  createLastAgent(chat)
 
   return (
     <aside
@@ -211,7 +212,7 @@ function MobileSheet() {
    *  rather than a tap-to-cycle. */
   let dragged = false
 
-  createEffect(() => sampleLastAgent(chat))
+  createLastAgent(chat)
 
   const heightPct = () => {
     const drag = dragPct()

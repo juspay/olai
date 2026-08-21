@@ -2,10 +2,13 @@
  * The whole app: a header of the app's own chrome, a sidebar of the directory,
  * and one or more panes, each a full page.
  *
- * Layout principle: the header carries what is about the APP (wordmark,
- * connection, agent, preferences); the sidebar carries what is about the
- * DIRECTORY (the agenda, the calendar, the file tree), collapsing to an icon
- * rail when minimized; chat is a resizable dock or a minimized pill/strip.
+ * Layout principle: the header carries what is about the APP (wordmark, and
+ * on desktop the connection, git, agent, preferences). On a phone those four
+ * leave the bar: connection and git are banners when they are news, the agent
+ * is the thumb strip, preferences live in the directory drawer. The sidebar
+ * carries what is about the DIRECTORY (the agenda, the calendar, the file
+ * tree), collapsing to an icon rail when minimized; chat is a resizable dock
+ * or a minimized pill/strip.
  * The main column is a LIST of routes (`./workspace.ts`) — one pane is the
  * page this app has always been; two or more are the same page component
  * side by side, never a stripped copy.
@@ -23,7 +26,6 @@ import { Calendar } from "./calendar/Calendar.tsx"
 import { Panel as ChatPanel } from "./chat/Panel.tsx"
 import { createToday } from "./clock.ts"
 import { createOwed } from "./dates.ts"
-import { Commit } from "./commit/Commit.tsx"
 import { Offline } from "./connection/Offline.tsx"
 import { createDirectory } from "./directory.ts"
 import { AirProvider, createAir } from "./drag/air.ts"
@@ -52,6 +54,7 @@ import { SHEET, SHELL_LONE, SHELL_SPLIT } from "./layout/sheet.ts"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
 import { ServedProvider } from "./served.tsx"
+import { Preferences } from "./settings/Preferences.tsx"
 import { Sidebar } from "./Sidebar.tsx"
 import { TodayProvider } from "./today.tsx"
 import { connectionReadout, olai } from "./wire.ts"
@@ -373,6 +376,9 @@ export default function App() {
                         owed={owed()}
                         open={desktop() ? true : menuOpen()}
                         onClose={() => setMenuOpen(false)}
+                        foot={
+                          desktop() ? undefined : <Preferences where="closet" />
+                        }
                       >
                         <Calendar today={today()} open={openDay()} />
                       </Sidebar>

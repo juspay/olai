@@ -117,6 +117,23 @@ Then(
   },
 );
 
+/**
+ * The contents WRITTEN OUT, which is the one thing the step above cannot say.
+ *
+ * That one holds the contents to the headings the page drew, so a phantom
+ * heading — a `---` block read as a setext `<h2>` — satisfies it: both sides
+ * carry it, and both are wrong together. This names the lines, so a document
+ * whose contents gained a row nobody wrote fails here.
+ */
+Then(
+  "the contents lines are {string}",
+  async function (this: OlaiWorld, expected: string) {
+    await contents(this).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const listed = (await this.page.locator(TOC_LINK).allInnerTexts()).map(oneLine);
+    assert.deepStrictEqual(listed, expected.split(", "));
+  },
+);
+
 Then("there is no contents on the page", async function (this: OlaiWorld) {
   // Asked of the whole PAGE, not of the rendered block: a contents is drawn
   // beside markdown rather than inside it, so looking within would find

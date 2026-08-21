@@ -12,7 +12,8 @@ Feature: Documents
   anywhere but this server, footnotes that link to their own note, and pictures
   that are files in the served directory and nowhere else. Two of the three
   scratch scenarios write disjoint files, so they share a copy per worker
-  (`@share-scratch`); the one that lists every document keeps a private copy.
+  (`@share-scratch`); the one that lists every document, and the spaced-name
+  outline whose examples all write the same two files, keep a private copy.
 
   @corpus:good
   Scenario: Every document found has a page, and the sidebar says so
@@ -158,6 +159,55 @@ Feature: Documents
     Then the address names the heading "Footnotes"
     And the heading "Footnotes" is at the top of the pane
 
+  # A `.md` may open with a `---` block, and the block is the document's own
+  # RECORD rather than the first thing it says. It was neither: the parser had
+  # no frontmatter extension, so the fence came out as a thematic break and
+  # `agent: claude-opus` as a setext `<h2>` — with an anchor on it, and a line
+  # in the contents naming a section the document does not have.
+  #
+  # `notes/palette.md` carries one now, and the contents is asked for its LINES
+  # rather than held to the headings the page drew: a phantom heading is in
+  # both, so the comparison next door is satisfied by it.
+  @corpus:good
+  Scenario: A document's frontmatter is a record and not part of its page
+    When I open the document "notes/palette.md"
+    Then the document does not draw the text "agent: claude-opus"
+    And the document draws no rule
+    And the contents lines are "Palette, What the block above has to do"
+    And there should be no page errors
+
+  # The other half of the same block: what the document is CALLED. The title is
+  # the first line of its PROSE — the sidebar, the palette and every row that
+  # names a document said `---` before, because the fence was the first line
+  # with anything on it.
+  #
+  # …and the door this whole item is. A document's frontmatter keys are the
+  # same open namespace a node's properties are, so `prop:` selects one, and
+  # the row says which key was the reason exactly as a node's row does.
+  @corpus:good
+  Scenario: A document is found by a property its frontmatter writes
+    Given I open the outline "house.olai"
+    When I search the header for "prop:agent=claude-opus"
+    Then the header search lists the document "notes/palette.md"
+    And the header search result for the document "notes/palette.md" is called "Palette"
+    And the header search result "Palette" shows the property "agent" holding "claude-opus"
+    And the header search result "Palette" marks "agent" as why it matched
+    And there should be no page errors
+
+  # A property is a property and NOT a record. The block carries a `date:` and a
+  # `#`-looking value on purpose: neither becomes the thing it resembles, and
+  # both are still findable by the name they actually have.
+  @corpus:good
+  Scenario: A frontmatter key is not a tag and not a day
+    Given I open the outline "house.olai"
+    When I press the palette shortcut
+    And I type "#swatches" into the palette
+    Then the palette lists no document "notes/palette.md"
+    When I type "date:2026-09-01" into the palette
+    Then the palette lists no document "notes/palette.md"
+    When I type "prop:date=2026-09-01" into the palette
+    Then the palette lists the document "notes/palette.md"
+
   # A note is a tree row, not a page: it is drawn under a title the page owns,
   # three of them on screen at once. `catch-up`'s note has two headings, so a
   # contents WOULD be drawn here if this were decided by the markdown rather
@@ -266,6 +316,41 @@ Feature: Documents
       """
     Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md, notes/wiring.md"
     And the page has not reloaded
+
+  # A filename with a space in it is still a document a vault can point at.
+  # The three spellings are the ones markdown actually writes: a percent-
+  # encoded destination, the angle-bracketed form that lets the space sit
+  # in the source, and the space left raw. What earns the browser is the
+  # click: the parser has to emit a link, the click has to stay in this
+  # app, and the address bar has to name the file.
+  @scratch:good @own-scratch
+  Scenario Outline: A markdown link to a document whose name has spaces opens it
+    Given I open the app
+    And I rewrite "the brief.md" as:
+      """
+      # The brief
+
+      Oak counters.
+      """
+    And I rewrite "spaced-linker.md" as:
+      """
+      # Linker
+
+      See [the brief](<destination>).
+      """
+    And I click the document "spaced-linker.md"
+    And I mark the page
+    When I follow the link "the brief" in the rendered markdown
+    Then the document open is "the brief.md"
+    And the address is "/the%20brief.md"
+    And the page has not reloaded
+    And there should be no page errors
+
+    Examples:
+      | destination     |
+      | the%20brief.md  |
+      | <the brief.md>  |
+      | the brief.md    |
 
   # ── the half a document could not have ───────────────────────────────
   #

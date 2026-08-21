@@ -111,3 +111,10 @@ export const lookOf = (readout: SurfaceReadout): Look =>
     detail:
       `connected, but nothing is arriving on ${readout.stopped.join(", ")} — what is on screen is missing whatever those carry, and may be missing it silently`,
   }
+
+/** The one connection state that is news on a phone while the page is still
+ *  usable. Dead-wire states are the freeze overlay; `live` is health. Named
+ *  here so a banner does not spell the readout's raw states — that is this
+ *  file's table, and `claims.test.ts` holds it shut. */
+export const isDegraded = (readout: SurfaceReadout): boolean =>
+  readout.status === DEGRADED

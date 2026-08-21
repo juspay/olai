@@ -1,3 +1,4 @@
+@share-scratch
 Feature: Documents become writable
   A document was a page olai could only read; now it is a page that can be
   written, through the same gate every other write goes through. Edit turns
@@ -22,7 +23,9 @@ Feature: Documents become writable
   note's own path. Both land in the new document's editor, because an empty
   page is not what "start writing" means.
 
-  Every scenario is a scratch: the whole feature is about writes.
+  Every scenario is a scratch: the whole feature is about writes. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   @scratch:good
   Scenario: A document becomes editable, and the edit is the file

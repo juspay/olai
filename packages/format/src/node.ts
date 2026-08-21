@@ -475,13 +475,16 @@ export const targetsOf = (
  *  corrected after the fact. */
 export const TRASH = `Trash${OUTLINE_EXT}`
 
-/** The outline a quick capture lands in when a directory has none yet — at the
- *  ROOT, and named the way a person would name it, because an inbox nobody has
- *  created is a promise a surface makes ("capture to the Inbox") and the file
- *  it mints has to be the file they would have made themselves. Beside
- *  {@link TRASH} because it is the same kind of statement: what a served
- *  file IS, by its name. The inbox has deliberately NOT moved under `_olai/`
- *  (human, 2026-08-19). */
+/** The NAME a quick capture's outline is found by — named the way a person
+ *  would name it, because an inbox nobody has created is a promise a surface
+ *  makes ("capture to the Inbox"). Beside {@link TRASH} because it is the same
+ *  kind of statement: what a served file IS, by its name.
+ *
+ *  WHERE ONE IS MINTED is {@link mintedInto}'s and not this constant's, exactly
+ *  as the shelf's is: `_olai/Inbox.olai`, beside the shelf and the trash
+ *  (human, 2026-08-20, reversing that of 2026-08-19 which kept it at the root).
+ *  Nothing about the reading moved with it — {@link inboxIn} goes on finding
+ *  whichever outline is CALLED this, wherever it sits. */
 export const INBOX = `Inbox${OUTLINE_EXT}`
 
 /**
@@ -495,7 +498,11 @@ export const INBOX = `Inbox${OUTLINE_EXT}`
  * hand reads the same sentence rather than guessing at the browser's.
  *
  * HOW that file is found is {@link outlineCalled}'s, and it is that function
- * rather than a walk here because the shelf below is found the same way.
+ * rather than a walk here because the shelf below is found the same way. WHERE
+ * one is minted when there is none is {@link mintedInto}'s, and the two
+ * questions stay apart: a directory already keeping `Inbox.olai` at its root,
+ * or `notes/inbox.olai`, goes on capturing into the file it has, and nothing
+ * migrates.
  */
 export const inboxIn = (files: ReadonlyArray<string>): string | undefined =>
   outlineCalled(files, INBOX)
@@ -541,22 +548,54 @@ export const PINS = `Pins${OUTLINE_EXT}`
  * sorts to the top and reads as machine-owned to a person looking at `ls`.
  *
  * IT IS A MINT AND NOT A HOME, which is the whole distinction this file keeps
- * between the two questions a convention asks. {@link pinsIn} goes on finding
- * whichever outline is CALLED `Pins.olai`, wherever it sits — a directory that
- * already keeps one at the root, or under `notes/`, keeps using the file it
- * has and nothing moves. This says only where olai puts one when the directory
- * has none.
+ * between the two questions a convention asks. {@link pinsIn} and
+ * {@link inboxIn} go on finding whichever outline is CALLED `Pins.olai` or
+ * `Inbox.olai`, wherever it sits — a directory that already keeps one at the
+ * root, or under `notes/`, keeps using the file it has and nothing moves. This
+ * says only where olai puts one when the directory has none.
  */
 export const OLAI_DIR = "_olai"
+
+/** `_olai/` — {@link OLAI_DIR} as the thing {@link inOlaiDir} below actually
+ *  compares, built once rather than per file asked. */
+const OLAI_PREFIX = `${OLAI_DIR}/`
+
+/**
+ * Whether `file` is one of the files OLAI NAMED FOR ITSELF — the mint above,
+ * read backwards.
+ *
+ * A predicate rather than a `startsWith` at whichever face happens to ask, for
+ * the reason {@link isTrashed} is one: it is a statement about what a served
+ * file IS, and a second spelling of `_olai/` is a second answer about one
+ * directory. It has exactly one reader today and that is on purpose — the
+ * sidebar's file tree, which stops drawing these rows because each of them
+ * already has a door of its own (the shelf IS `Pins.olai`'s face, the Trash
+ * entry is the trash's, the Inbox entry is the inbox's), and draws them again
+ * for a reader who asks (`@olai/web`'s `settings/hiddenOutlines.ts`). It is a
+ * DRAWING rule and nothing more: search, the agents, `list_outlines`, the
+ * trash page and the shelf read the same set either way.
+ *
+ * The ROOT `_olai/`, exactly, because that is the only one {@link mintedInto}
+ * writes. A `notes/_olai/` is a directory somebody made inside their own
+ * folder, and hiding it would be this app deciding something about a name a
+ * person chose.
+ *
+ * Asked the way {@link isTrashed} is — once per FILE, against a prefix built
+ * once, so a walk of a whole directory allocates nothing.
+ */
+export const inOlaiDir = (file: string): boolean => file.startsWith(OLAI_PREFIX)
+
 
 /**
  * Where olai mints a file it names itself — one spelling, so a convention that
  * lands here is one call rather than a path assembled at three sites.
  *
- * The shelf was first; the trash has now moved here too (human, 2026-08-19).
- * The inbox has deliberately NOT: a capture still mints `Inbox.olai` at the
- * root, because an inbox nobody has created is a promise a surface makes and
- * the file it mints has to be the file they would have made themselves.
+ * The shelf was first; the trash moved here next (human, 2026-08-19); and the
+ * inbox is the third — a capture into a directory with none mints
+ * `_olai/Inbox.olai` (human, 2026-08-20, reversing the 2026-08-19 ruling that
+ * kept it at the root). All three are files olai made because
+ * somebody pressed something, and the top level of a served directory is the
+ * reader's.
  */
 export const mintedInto = (name: string): string => `${OLAI_DIR}/${name}`
 

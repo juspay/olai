@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: The trash can be seen into, taken out of, and emptied
   `_olai/Trash.olai` is the one trash: a sidebar entry of its own,
@@ -16,7 +17,8 @@ Feature: The trash can be seen into, taken out of, and emptied
   Every assertion that matters here is about the FILES afterwards, not the
   panel: a put-back is a claim about the outline on disk, and so is an
   emptying. `@scratch:` because these scenarios write the directory they are
-  served.
+  served. They share one copy per worker (`@share-scratch`); the corpus is
+  restored between scenarios.
 
   Background:
     Given I open the outline "house.olai"

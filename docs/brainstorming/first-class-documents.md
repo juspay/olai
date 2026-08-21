@@ -169,6 +169,33 @@ Derived facts only — everything computable from the body, no format change:
 the document's own authored record — dates, edges, props, possibly marks. It
 waits until the derived face is standing.
 
+> **DELIVERED 2026-08-20, and one half of it** (roadmap `md-yaml-frontmatter`,
+> ruled FULL with the human that day). The block is read ONCE — `proseIn` in
+> `format/src/frontmatter.ts` — and that one reading is spent by every scanner
+> that reads a document's content AND by the three faces that draw a whole file,
+> so the page and the face cannot disagree about which lines a document has:
+> they are the same function. The keys land as the face's fifth field, `props`.
+>
+> The boundary rule is micromark's, and for an external reason: a `.md` is read
+> by GitHub and by every other tool pointed at that vault, so ours has to be
+> theirs. `web/src/client/markdown/frontmatter.test.ts` holds the two together.
+> The plugin is NOT in the markdown pipeline — that is one pipeline for a node's
+> note and the agent's replies too, and a note is not a file: hiding a leading
+> `---` there would take a reader's own words off the screen while the tag index
+> went on reading them.
+>
+> **The half taken is PROPERTIES**: the keys are a `Custom` map, the same open
+> namespace a node's are, so `prop:` answers with both kinds through one
+> `propKeyOf` and PR 2's "selects nothing" is no longer true of that operator.
+>
+> **The half NOT taken is the RECORD** — dates, edges, marks. A frontmatter
+> `date:` is a property named `date`, and `is:done` / `has:date` / `date:today`
+> still select no document. The reason is this arc's own: a document carrying a
+> real day would have to be drawn on the day page, the agenda and the calendar,
+> which are readings of a NODE, and a search that selected it where those three
+> do not draw it is two answers to one word. That is a ruling for whenever
+> somebody wants documents on the agenda, not a leftover of this one.
+
 ## What becomes impossible
 
 Once the set serves one collection of documents and features consume
@@ -177,8 +204,8 @@ addresses:
 - **Graph view** — a `.md` is a vertex by construction; node edges, markdown
   links and `doc` attachments are all edges. Unparks #247.
 - **Search** — a document's body is text the way a node's note is. Operators
-  over fields a document lacks (`is:done`) select nothing there, until
-  frontmatter exists.
+  over fields a document lacks (`is:done`) select nothing there; `prop:` does
+  select one, out of the frontmatter delivered above.
 - **Backlinks** — incoming edges to an address; a document's page shows who
   points at it.
 - **Palette, pins, chat** — already address-shaped; no more per-feature
@@ -220,9 +247,10 @@ PR leaves the old spelling alive beside the new one.
   supersedes the parked #247. If PR 2 did its job, this PR contains no
   document-special-casing at all — that absence is the test.
 
-Later, out of this arc: frontmatter (PR 2's "selects nothing" is the hole it
-fills); opt-in stable element ids (`{#id}`); structure verbs for `.md` (move,
-rename) as address-preserving operations.
+Later, out of this arc: frontmatter as a RECORD — dates, edges, marks; its
+PROPERTIES half landed 2026-08-20, see the note above; opt-in stable element
+ids (`{#id}`); structure verbs for `.md` (move, rename) as address-preserving
+operations.
 
 ## What this does not reopen
 

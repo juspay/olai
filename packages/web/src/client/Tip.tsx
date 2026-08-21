@@ -35,7 +35,7 @@ import { Portal } from "solid-js/web"
 
 import { LAYER } from "./layer.ts"
 import { TESTID } from "./testids.ts"
-import { clampedLeft, hideTip, showTip, takeTip, tipShowing } from "./tip.ts"
+import { clampedLeft, clampedTop, hideTip, showTip, takeTip, tipShowing } from "./tip.ts"
 
 interface At {
   readonly left: number
@@ -48,6 +48,17 @@ export function Tip(props: {
   readonly text: string
   /** The control being explained. */
   readonly children: JSX.Element
+  /**
+   * Which of the page's stack this tip rides. Defaults to the page: a tip
+   * about a row stays under the chrome, which is what leaves the bar
+   * reachable (#101). A tip about a HEADER PILL has to cover the bar —
+   * and the chat dock that shares the page layer — which is
+   * {@link LAYER.over}, the same claim the panel behind that pill already
+   * makes. Sitting at the page layer is how the coral rule cut the first
+   * line of the sentence and how the dock's "chats" / "+ new" painted
+   * through the rest.
+   */
+  readonly layer?: typeof LAYER.page | typeof LAYER.over
 }) {
   const me = takeTip()
   const [at, setAt] = createSignal<At | undefined>()
@@ -61,9 +72,14 @@ export function Tip(props: {
     // window, over the sidebar, nowhere near what it was about.
     const box = anchor?.firstElementChild?.getBoundingClientRect()
     if (box === undefined) return
-    // Under the anchor and starting at it; the effect below pulls it back if
-    // that turned out to run past the window's right edge.
-    setAt({ left: box.left, top: box.bottom + 4 })
+    // Under the anchor and starting at it — but never under the header.
+    // A header pill's box ends inside the bar; `./tip.ts` lifts the tip
+    // to the bar's bottom edge so the coral rule cannot cut the sentence.
+    // The effect below then pulls it back if that ran past the window's
+    // right edge.
+    const header = document.querySelector(`[data-testid="${TESTID.appHeader}"]`)
+    const floor = header?.getBoundingClientRect().bottom ?? 0
+    setAt({ left: box.left, top: clampedTop(box.bottom, floor) })
     showTip(me)
   }
 
@@ -99,7 +115,7 @@ export function Tip(props: {
     return (
       <div
         ref={tip}
-        class={`pointer-events-none fixed ${LAYER.page} max-w-[min(24rem,calc(100vw-1rem))] rounded-sm border border-rule/70 bg-panel px-2 py-1 text-xs text-ink shadow-sm`}
+        class={`pointer-events-none fixed ${props.layer ?? LAYER.page} max-w-[min(24rem,calc(100vw-1rem))] rounded-sm border border-rule/70 bg-panel px-2 py-1 text-xs text-ink shadow-sm`}
         style={{ left: `${drawn.at.left}px`, top: `${drawn.at.top}px` }}
         data-testid={TESTID.tip}
         role="presentation"

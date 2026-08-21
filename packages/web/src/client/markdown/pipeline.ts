@@ -24,6 +24,20 @@
  *   1. **parse**, with GFM — which is what brings footnotes (and tables, task
  *      lists and strikethrough) into the same dialect an agent and a reader
  *      already write.
+ *
+ *      **AND WITHOUT FRONTMATTER, deliberately.** A `---` block at the top of a
+ *      `.md` is that FILE's own record and is kept off its page — but it is
+ *      taken off by the caller that knows its source is a whole file
+ *      (`@olai/format`'s `proseIn`, spent by `../document/faces.tsx`,
+ *      `../document/DocRef.tsx` and `../day/DayNote.tsx`), never here.
+ *      `remark-frontmatter` in this pipeline was tried and is wrong for the
+ *      reason the header above gives: this is ONE pipeline for every piece of
+ *      markdown the app draws, and a plugin here changes the dialect for all
+ *      four subjects. A NOTE is not a file — `@olai/format`'s `tagsIn` and
+ *      `linksIn` read a leading `---` in one as the thematic break markdown
+ *      says it is — so hiding it here would have made a note's own words
+ *      vanish off the screen while the index went on reading them. Two
+ *      readings of one block, which is the thing that work exists to end.
  *   2. **to HTML**, with footnote ids left bare (`clobberPrefix: ""`). They are
  *      re-minted by ./render.ts against the block they are in, so a prefix here
  *      would only be a second one to strip.

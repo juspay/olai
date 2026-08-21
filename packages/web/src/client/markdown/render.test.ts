@@ -20,7 +20,6 @@
 
 import { expect, test } from "bun:test"
 
-import { ANCHOR_CLASS } from "./anchors.ts"
 import { installPipeline } from "./chunk.ts"
 import * as pipeline from "./pipeline.ts"
 import {
@@ -60,16 +59,13 @@ test("a fence in a language nobody registered is left alone", () => {
   expect(html).not.toContain("hljs-")
 })
 
-// The sanitiser decides which of the parser's classes survive, and a task
-// list's are the ones `styles.css` hangs a rule on: the checkbox replaces the
-// bullet, so a dropped class is a list drawn with two markers and nothing in
-// the markup to say why. Pinned here rather than left to the browser test,
-// which can only see the result.
-test("a task list keeps the classes the stylesheet draws it by", () => {
+// A task list is checkboxes, and a plain item beside them is still a bullet.
+// The browser suite is what sees that the checkbox replaced the marker; this
+// pins that the pipeline still emitted the inputs.
+test("a task list is checkboxes, and a plain item beside them is still a bullet", () => {
   const html = renderMarkdown("- [x] done\n- [ ] not\n- plain\n", NOTE)
-  expect(html).toContain(`<ul class="contains-task-list">`)
-  expect(html).toContain(`<li class="task-list-item"><input type="checkbox" checked disabled>`)
-  // The plain item is untouched: it keeps the bullet the other two give up.
+  expect(html).toContain(`<input type="checkbox" checked disabled>`)
+  expect(html).toContain(`<input type="checkbox" disabled>`)
   expect(html).toContain("<li>plain</li>")
 })
 
@@ -186,6 +182,31 @@ test("a document link keeps the fragment it was written with", () => {
     .toContain(`href="/garden.md#beds"`)
 })
 
+// A filename with a space in it is still a document this vault can point at.
+// The href is this app's document route, with the space encoded the way an
+// address is printed.
+
+test("a percent-encoded link to a spaced name points at that document's page", () => {
+  expect(renderMarkdown("[the brief](the%20brief.md)", "finishes.md"))
+    .toContain(`href="/the%20brief.md"`)
+  expect(renderMarkdown("[the brief](../the%20brief.md)", "notes/palette.md"))
+    .toContain(`href="/the%20brief.md"`)
+  expect(renderMarkdown("[scope](the%20brief.md#scope)", NOTE))
+    .toContain(`href="/the%20brief.md#scope"`)
+})
+
+test("an angle-bracketed link to a spaced name points at that document's page", () => {
+  expect(renderMarkdown("[the brief](<the brief.md>)", "finishes.md"))
+    .toContain(`href="/the%20brief.md"`)
+  expect(renderMarkdown("[scope](<the brief.md#scope>)", NOTE))
+    .toContain(`href="/the%20brief.md#scope"`)
+})
+
+test("a raw-space link to a spaced name points at that document's page", () => {
+  expect(renderMarkdown("[the brief](the brief.md)", "finishes.md"))
+    .toContain(`href="/the%20brief.md"`)
+})
+
 // Everything else goes where it says. There is no allowlist widened here and
 // nothing refused: this pass narrows one shape of link and leaves the rest of
 // the reader's markdown alone.
@@ -236,14 +257,12 @@ test("a fragment-only link is still minted, not routed", () => {
 // ── heading anchors, and the contents derived from them ──────────────────
 //
 // The anchor is minted INSIDE the boundary (./anchors.ts), so what is pinned
-// here is that it comes out the other side: an allowlist that stopped naming
-// the class would leave the link working and the styling gone, which is
-// exactly the kind of thing nothing else notices.
+// here is that it comes out the other side: an id, a href that names it, and
+// a label a screen reader can use.
 test("a heading carries an id and a link to it", () => {
   const html = renderMarkdown("## The sync loop\n", NOTE)
   const id = /<h2 id="([^"]+)"/.exec(html)?.[1]
   expect(id).toMatch(/^md-[a-z0-9]+-the-sync-loop$/)
-  expect(html).toContain(`<a class="${ANCHOR_CLASS}"`)
   expect(html).toContain(`href="#${id}"`)
   // The label names the section: a page of anchors is a page of `#`s to
   // anyone reading by ear.

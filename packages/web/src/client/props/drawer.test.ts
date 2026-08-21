@@ -7,7 +7,7 @@
  * reader between one frame and the next.
  */
 
-import type { RegularNode } from "@olai/format"
+import { customOf, type RegularNode } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -59,7 +59,7 @@ test("the custom half is what somebody added, and nothing else", () => {
   const node = nodeOf(
     `{"id":"n","ord":"a0","title":"t","done":true,"date":"2026-08-10","custom":{"pr":"https://x/1"}}`,
   )
-  expect(customEntries(node)).toEqual([
+  expect(customEntries(customOf(node))).toEqual([
     { key: "pr", value: "https://x/1", system: false, listed: false },
   ])
   // ...and the whole drawer is the facts first, then the properties.
@@ -79,12 +79,12 @@ test("the custom lines are in the file's own order", () => {
   const node = nodeOf(
     `{"id":"n","ord":"a0","title":"t","custom":{"terminal":"485cd9bb","agent":"claude-opus","pr":"https://x/1"}}`,
   )
-  expect(customEntries(node).map((entry) => entry.key)).toEqual(["agent", "pr", "terminal"])
+  expect(customEntries(customOf(node)).map((entry) => entry.key)).toEqual(["agent", "pr", "terminal"])
 })
 
 test("a list is drawn joined, and says that it is one", () => {
   const node = nodeOf(`{"id":"n","ord":"a0","title":"t","custom":{"tags":["a","b"]}}`)
-  expect(customEntries(node))
+  expect(customEntries(customOf(node)))
     .toEqual([{ key: "tags", value: "a, b", system: false, listed: true }])
 })
 

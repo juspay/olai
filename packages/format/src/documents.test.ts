@@ -1,11 +1,14 @@
 import { expect, test } from "bun:test"
 
+import { printAddress } from "./address.ts"
 import {
   docOf,
   bodiedOf,
+  bracketSpacedLinks,
   firstLine,
   isAsset,
   isPicture,
+  linksIn,
   pictureOf,
   resolveRelative,
   retargetRelative,
@@ -108,6 +111,80 @@ test("a relative link to a document resolves beside the file that names it", () 
   expect(bodiedOf("house.olai", "finishes.md")).toBe("finishes.md")
 })
 
+// A space in the filename is still a filename. The arithmetic is the same as
+// a name without one: join onto the writer, clamp `..`, and a `.md` is a
+// document.
+test("a relative link to a document whose name has spaces resolves beside the file that names it", () => {
+  expect(bodiedOf("Daily/2026/08/2026-08-12.md", "../../../the brief.md"))
+    .toBe("the brief.md")
+  expect(bodiedOf("notes/palette.md", "the brief.md")).toBe("notes/the brief.md")
+  expect(bodiedOf("notes/palette.md", "./the brief.md")).toBe("notes/the brief.md")
+  expect(bodiedOf("house.olai", "the brief.md")).toBe("the brief.md")
+})
+
+// Markdown's portable spelling of a space in a destination is `%20`. A vault
+// that encoded the name is still pointing at the file, not at a file whose
+// name contains the percent sign.
+test("a percent-encoded space in a document link names the file, not the encoding", () => {
+  expect(bodiedOf("notes/palette.md", "the%20brief.md")).toBe("notes/the brief.md")
+  expect(bodiedOf("house.olai", "the%20brief.md")).toBe("the brief.md")
+  expect(bodiedOf("Daily/2026/08/2026-08-12.md", "../../../the%20brief.md"))
+    .toBe("the brief.md")
+})
+
+const named = (from: string, prose: string) =>
+  linksIn(from, prose).map(printAddress)
+
+// Markdown's portable spelling of a space in a destination is `%20`. The
+// scan has to decode it, or the address it prints encodes the percent again.
+test("a percent-encoded markdown link to a spaced name is that document", () => {
+  expect(named("notes/plan.md", "see [the brief](the%20brief.md)"))
+    .toEqual(["notes/the%20brief.md"])
+  expect(named("house.olai", "see [the brief](../the%20brief.md)"))
+    .toEqual(["the%20brief.md"])
+  expect(named("notes/plan.md", "see [scope](the%20brief.md#scope)"))
+    .toEqual(["notes/the%20brief.md#scope"])
+})
+
+// CommonMark's other spelling: angle brackets around a destination that
+// holds a space. Unwrapping them is what makes the space a character of the
+// filename rather than the start of a title.
+test("an angle-bracketed markdown link to a spaced name is that document", () => {
+  expect(named("notes/plan.md", "see [the brief](<the brief.md>)"))
+    .toEqual(["notes/the%20brief.md"])
+  expect(named("notes/plan.md", "see [scope](<the brief.md#scope>)"))
+    .toEqual(["notes/the%20brief.md#scope"])
+})
+
+// The space left raw. CommonMark does not allow it inside parentheses, but
+// it is the spelling people write, and the scan is what would have to keep
+// the space as part of the filename rather than cutting the destination
+// there.
+test("a raw-space markdown link to a spaced name is that document", () => {
+  expect(named("notes/plan.md", "see [the brief](the brief.md)"))
+    .toEqual(["notes/the%20brief.md"])
+})
+
+// A space that opens a quoted title is still a title, not a filename. The
+// scan has to keep dropping it or `[the brief](brief.md "Oak")` would
+// start pointing at a file named `brief.md "Oak"`.
+test("a markdown link's optional title is not part of the destination", () => {
+  expect(named("notes/plan.md", `see [the brief](brief.md "Oak counters")`))
+    .toEqual(["notes/brief.md"])
+  expect(named("notes/plan.md", `see [the brief](<the brief.md> "Oak counters")`))
+    .toEqual(["notes/the%20brief.md"])
+})
+
+test("a raw-space destination is wrapped so a CommonMark parser will read it", () => {
+  expect(bracketSpacedLinks("see [the brief](the brief.md)"))
+    .toBe("see [the brief](<the brief.md>)")
+  expect(bracketSpacedLinks(`see [the brief](the brief.md "Oak")`))
+    .toBe(`see [the brief](<the brief.md> "Oak")`)
+  expect(bracketSpacedLinks("see [the brief](<the brief.md>)"))
+    .toBe("see [the brief](<the brief.md>)")
+  expect(bracketSpacedLinks("see [the brief](brief.md)")).toBe("see [the brief](brief.md)")
+})
+
 // Everything this must not reinterpret. A link with a scheme goes where it
 // says, an absolute path is not this app's to resolve, a fragment is the
 // platform's, and a relative path to something that is not a document is
@@ -124,6 +201,8 @@ test("only a relative link to a document is a document link", () => {
     "art/handle.png",
     "garden.olai",
     "README",
+    "the%ZZ.md",
+    "%2Fsecret.md",
   ]) {
     expect(bodiedOf("notes/palette.md", href)).toBeNull()
   }
@@ -181,6 +260,21 @@ test("a leading heading is named without its marks", () => {
 test("nothing else is interpreted", () => {
   expect(firstLine("- **walnut**, or `birch`")).toBe("- **walnut**, or `birch`")
   expect(firstLine("#tag first")).toBe("#tag first")
+})
+
+// A `.md` that opens with a `---` block was called `---` — in the sidebar, in
+// the palette and beside every `doc`-carrying row — because the fence was the
+// first line with anything on it. The record on top of a document is not what
+// the document is CALLED.
+test("frontmatter is not the first line", () => {
+  expect(firstLine("---\ntitle: The kitchen plan\n---\n\n# The plan\n\nProse.\n"))
+    .toBe("The plan")
+  // …and when the block is the whole file, the document has nothing to say,
+  // which is what makes the caller fall back to the filename.
+  expect(firstLine("---\ntitle: x\n---\n")).toBe("")
+  // An unclosed `---` is a thematic break and not frontmatter, so the line
+  // under it is still the line under it (`./frontmatter.ts` says why).
+  expect(firstLine("---\nBrushed brass.\n")).toBe("---")
 })
 
 test("an empty document previews as nothing", () => {

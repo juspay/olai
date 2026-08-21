@@ -116,6 +116,8 @@ Both keys are ONE write at the same gate everything else goes through, and an ag
 
 ## Moving a row somewhere else entirely
 
+**The caret keeps its place through all of them.** A row moves when the file says it moved, which in a browser means the line you are typing in is drawn again somewhere else — so the app puts the caret back at the character you were at, rather than at the end of the line. **Tab** in the middle of a word leaves you in the middle of that word.
+
 Every key above moves a row one step from where it is: **Tab** goes under the row above, **Shift+Tab** up a level, **Alt+Shift+↑/↓** among its siblings, and a drag reaches as far as you can carry it. None of them can say *this belongs under that node, three hundred rows down* — which is the move you actually mean once a branch has ended up in the wrong place.
 
 **⌘⇧M opens a picker on the row you are in.** Type, and it searches every node in the directory; **Enter** puts the row — and everything under it — under the one you chose. It is the same search ⌘K and the header box use, so what it finds and what an agent's `search_nodes` finds cannot differ, and each row says where that node sits. The same verb is **Move to…** in the row's `•••` menu, which is the door a phone has. What lands is one `move_node`, the op an agent sends.
@@ -128,6 +130,8 @@ Every key above moves a row one step from where it is: **Tab** goes under the ro
 - **Somewhere this row already draws.** A branch cannot go under its own child, or under itself. It also cannot go under anything a mirror INSIDE it shows: a Now list made of mirrors draws the work those mirrors point at, so putting Now under one of the items it is showing would draw the page inside itself for ever. That one names the chain, because the destination can be branches away on screen and nothing else would explain it — and it is the same sentence read backwards for a mirror ROW, which cannot go under what it shows. An agent's `move_node` refuses all of it in the same words.
 - **The Trash.** Work that has been put away is not somewhere to move work to; **Put back** is how something comes out. Archived nodes are out of the search's answer anyway unless you ask for them with `is:trashed`, so this is the sentence for when you did.
 - **The parent it already has.** It is in the list — you should be able to find a title you can see — and it is refused, because a destination puts the row *last* under it, which would silently reorder rather than move. Reordering has two gestures of its own that say so: **Alt+Shift+↑/↓**, and dragging.
+
+**And Enter takes a row of the list you are looking at.** The search is the server's, so it settles for a fifth of a second before it asks and the rows in front of you hold still until the next ones land — which is the right thing to draw and the wrong thing to write from. Enter inside that gap writes nothing rather than taking the row the query before last found; the rows catch up a moment later, and the same key takes the one you meant. The three lists a title opens (below) answer it the same way, for the same reason.
 
 **Nothing is echoed, and ⌘Z takes it back.** The row appears in its new home when the file says so; if the move re-opened a finished branch on the way in (the rule two sections up), the sentence saying which is drawn under the row *where it landed*. ⌘Z puts it back where it sat — the parent and the neighbour it left, not merely the parent.
 
@@ -303,6 +307,18 @@ An agent's `empty_trash` is the same op: it names `_olai/Trash.olai` and empties
 
 Deliberately absent, and still the human’s to rule on: a delete key. Emptying the Trash is not one — it names no node, reaches no live outline, and can only take rows you have already put away and can still see.
 
+## What the sidebar leaves out, and the two doors under it
+
+**The file tree does not draw `_olai/`** — the outlines olai names for itself. Each of them already has a door in that same column: the pinned shelf above the tree IS `Pins.olai`, and at the foot of the column sit **Inbox** and **Trash**. A row apiece in the tree as well was a second way into a file the column was already showing you, stacked on top of your own outlines (ruled 2026-08-20).
+
+**It is a drawing rule and nothing else.** Those files are in the directory either way: search finds them, an agent's `list_outlines` lists them, the Trash page and the shelf read them, and git records them like anything else. What changes is one list of rows in one browser.
+
+**Except one that would not parse.** An outline olai could not read keeps its row whichever way the switch is set, wearing the ⚠ every unreadable outline gets. That mark is the only place this app says so short of opening the page — so a `Pins.olai` with a bad line in it would otherwise be an empty shelf and no explanation anywhere.
+
+**Prefs → Hidden outlines → Shown** puts them back, for when you want to open `Pins.olai` as an outline and read the addresses in it ([running.md](running.md)). It is this browser's, like every other preference, and it starts off. The Trash stays out of the tree either way — it is a page rather than a file you edit ([format.md](format.md)).
+
+**The Inbox entry is drawn only when there is an inbox.** A directory that has never captured has none, and minting one is the capture's job, not a door's — so the entry appears the moment your first `⌘K` `+` lands and opens the file that capture went into. It is an ordinary outline behind that door — type into it like any other — so the entry lights up when you are on it and carries the ⚠ when the file will not parse.
+
 ## Pinning a page to the sidebar
 
 A **shelf of doors** in the directory column, between the calendar and the file tree: any node, any document, and the page you have narrowed with a query — one click back to it. An empty shelf draws nothing at all, so a directory that has never used one has the column it always had.
@@ -359,7 +375,9 @@ A refusal, or a nudge from a write that landed, is drawn in the palette and the 
 
 **`⌘K`, `+`, the line, Enter** — and nothing moves. The page you were reading, your scroll and the address stay exactly where they were; the line becomes a node; the box empties for the next one, so several thoughts arriving at once cost one chord.
 
-It lands at the top level of the directory's **inbox** — the outline called `Inbox.olai`, wherever the directory already keeps one, and a new `Inbox.olai` at the root when it has none. Minting it is part of the same single operation as the line, so a capture that is refused leaves no file behind. Which file that is is decided on the server, against the same reading the write is judged on, exactly as a daily note's path is.
+It lands at the top level of the directory's **inbox** — the outline called `Inbox.olai`, wherever the directory already keeps one, and a new `_olai/Inbox.olai` when it has none. Minting it is part of the same single operation as the line, so a capture that is refused leaves no file behind. Which file that is is decided on the server, against the same reading the write is judged on, exactly as a daily note's path is.
+
+**Where a new one is minted moved to `_olai/`** (ruled 2026-08-20, reversing a ruling of the day before that kept it at the top level): an inbox olai made because somebody pressed `⌘K` goes where the shelf and the trash go. Only the mint moved. A directory that already keeps an `Inbox.olai` at its root, or a `notes/inbox.olai`, goes on capturing into the file it has, nothing is migrated, and the **Inbox** entry in the sidebar opens whichever file that is.
 
 The palette says so afterwards — a write whose whole point is that nothing on screen moves has to say it happened — and ⌘Z takes a capture back like any other write. An agent makes the same two moves by hand (read the outlines, then `add_node` or `create_outline`), so nothing here is a reach the tools do not have.
 

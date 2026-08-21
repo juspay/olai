@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: The ⌘K palette writes
   The palette could go places and ask the agent; it could not change anything.
@@ -12,10 +13,12 @@ Feature: The ⌘K palette writes
   QUICK CAPTURE is racket's `olai add` — a `+` prefix, a line, Enter — and its
   whole promise is that nothing moves. The page, the scroll and the address
   stay where they were, the line lands in the directory's inbox (minted on
-  first use, at the root), and the box empties for the next one.
+  first use, at `_olai/Inbox.olai` — where olai puts the files it names
+  itself), and the box empties for the next one.
 
-  `@scratch:` because they write the directory they are served — each scenario
-  gets a private copy of it.
+  `@scratch:` because they write the directory they are served. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   Background:
     Given I open the outline "house.olai"
@@ -161,7 +164,7 @@ Feature: The ⌘K palette writes
     And I type "+ oops" into the palette
     And I press "Enter"
     Then "house.olai" no longer holds the node "install"
-    And "Inbox.olai" holds exactly 0 nodes titled "oops"
+    And "_olai/Inbox.olai" holds exactly 0 nodes titled "oops"
 
   Scenario: Cancelling the question writes nothing
     Given I open the node "install"
@@ -221,10 +224,16 @@ Feature: The ⌘K palette writes
     # it says afterwards NAMES THE FILE, and that name comes back on the
     # answer: only the server knows which outline the inbox is, so a sentence
     # the browser composed would be the one claim it may not make.
+    #
+    # WHERE it is minted reverses a documented ruling (human, 2026-08-20):
+    # `_olai/Inbox.olai`, beside the shelf and the trash, rather than a file at
+    # the top level of somebody else's directory. The remark below is the fence
+    # for it — the path travels back on the answer, so a mint that moved and a
+    # sentence that did not would be caught here.
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
-    Then "Inbox.olai" holds a node titled "buy the walnut stain"
-    And the palette remarks "captured “buy the walnut stain” to Inbox.olai"
+    Then "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
+    And the palette remarks "captured “buy the walnut stain” to _olai/Inbox.olai"
     And there should be no page errors
 
   Scenario: A second Enter on the first capture is not a second write
@@ -232,7 +241,7 @@ Feature: The ⌘K palette writes
     # the palette, so nothing visible has happened while the round trip is out
     # — which is exactly when a hand repeats the key. Both sends are judged
     # against a reading the first has not landed in yet, so on a directory
-    # with no inbox both resolve to the same `create Inbox.olai`, the write
+    # with no inbox both resolve to the same `create _olai/Inbox.olai`, the write
     # gate re-plans that REQUEST rather than re-resolving the edit, and the
     # second comes back refused in `create_outline`'s own words — over a line
     # that DID land, with the refusal overwriting the remark saying so.
@@ -250,8 +259,8 @@ Feature: The ⌘K palette writes
     When I press the palette shortcut
     And I type "+ buy the walnut stain" into the palette
     And I press "Enter" twice without waiting
-    Then the palette remarks "captured “buy the walnut stain” to Inbox.olai"
-    And "Inbox.olai" holds exactly 1 node titled "buy the walnut stain"
+    Then the palette remarks "captured “buy the walnut stain” to _olai/Inbox.olai"
+    And "_olai/Inbox.olai" holds exactly 1 node titled "buy the walnut stain"
     And there should be no page errors
 
   Scenario: A capture of nothing is refused in the ops layer's own words
@@ -276,17 +285,17 @@ Feature: The ⌘K palette writes
     And the palette box holds "+ "
     And the address is "/#install"
     When I capture "and a tin of oil" from the palette
-    Then "Inbox.olai" holds a node titled "and a tin of oil"
-    And "Inbox.olai" holds a node titled "buy the walnut stain"
+    Then "_olai/Inbox.olai" holds a node titled "and a tin of oil"
+    And "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
     When I close the palette
     Then the zoomed node is "install"
 
   Scenario: A second capture goes into the inbox that now exists
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
-    Then "Inbox.olai" holds a node titled "buy the walnut stain"
+    Then "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
     When I capture "and a tin of oil" from the palette
-    Then "Inbox.olai" holds a node titled "and a tin of oil"
+    Then "_olai/Inbox.olai" holds a node titled "and a tin of oil"
     And there should be no page errors
 
   Scenario: ⌘Z takes back a capture
@@ -294,10 +303,10 @@ Feature: The ⌘K palette writes
     And I capture "buy the walnut stain" from the palette
     # The palette's own line rather than the disk, for the reason the op
     # scenario gives: it is said in the answer that files the inverse.
-    Then the palette remarks "captured “buy the walnut stain” to Inbox.olai"
-    And "Inbox.olai" holds a node titled "buy the walnut stain"
+    Then the palette remarks "captured “buy the walnut stain” to _olai/Inbox.olai"
+    And "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
     # The palette first: ⌘Z is dead while the box has the caret, because an
     # input has the platform's own undo in it — the same rule a draft follows.
     When I close the palette
     And I press "ControlOrMeta+z"
-    Then "Inbox.olai" no longer holds a node titled "buy the walnut stain"
+    Then "_olai/Inbox.olai" no longer holds a node titled "buy the walnut stain"

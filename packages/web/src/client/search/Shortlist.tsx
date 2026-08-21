@@ -51,7 +51,7 @@
  */
 
 import type { NodeHit } from "@olai/surface"
-import { createEffect, createMemo, createSignal, Index, Show } from "solid-js"
+import { type Accessor, createMemo, createSignal, Index, onMount, Show } from "solid-js"
 
 import { listKey } from "../keys.ts"
 import { Refused } from "../Refused.tsx"
@@ -107,18 +107,24 @@ export function Shortlist(props: {
     readonly why: (hit: NodeHit) => string | null
     readonly testid: TestId
     /**
-     * WHICH HITS are on screen, told to the door as the search answers —
-     * absent for a door whose verdicts are pure over the hit it is handed.
+     * WHICH HITS are on screen — absent for a door whose verdicts are pure over
+     * the hit it is handed.
      *
      * It exists because one of them is not: the move picker's verdict is a
      * reading of the SET (can this row go under that node), which is the
      * server's since `docs/brainstorming/vault-in-browser.md`'s PR 10 — so it
      * has to say which nodes it wants judged before it can answer about any of
-     * them (`../move/moving.tsx`). Reported rather than the door reaching in:
-     * the list is what knows its hits, and this is the one line between the
-     * two.
+     * them (`../move/moving.tsx`). Handed rather than the door reaching in: the
+     * list is what knows its hits, and this is the one line between the two.
+     *
+     * AN ACCESSOR, called ONCE when the list mounts, rather than the hits
+     * pushed on every answer. What the door does with them is a DERIVATION —
+     * an argument it asks about — and a push made it a report: an effect here,
+     * a signal there, and a resource off that, which is three hops for a value
+     * that is a function of one and reads to the next person as state that
+     * could disagree with the list.
      */
-    readonly asked?: (hits: ReadonlyArray<NodeHit>) => void
+    readonly asked?: (hits: Accessor<ReadonlyArray<NodeHit>>) => void
   }
 }) {
   const [query, setQuery] = createSignal("")
@@ -153,13 +159,20 @@ export function Shortlist(props: {
    *  there is always one; the `!` is that, said. */
   const row = (index: number): HitRow => rows()[index]!
 
-  // WHAT IS BEING JUDGED, told to the door as the answer moves — an effect
-  // rather than a line in the memo below, because it is a report and not a
-  // reading: a door that asks the server what it thinks of these hits sets a
-  // signal the verdicts then arrive on, and writing to it inside the memo that
-  // reads them would be that memo depending on its own answer.
-  createEffect(() => {
-    props.refusing?.asked?.(hits())
+  // WHAT IS BEING JUDGED, handed to the door once — the accessor, not the
+  // answer. `onMount` rather than the component body so the hand-off is outside
+  // the render pass, and once rather than per answer because what the door
+  // needs is the list itself: it derives its question from this, and the
+  // verdicts it sends back arrive as `refusing.why`.
+  //
+  // NOT HANDED BACK when this list goes, which was tried and is worse: the
+  // door's question would then CHANGE at the moment the panel closes, which for
+  // the move picker is a subscription re-opened to ask about no destinations at
+  // all — a round trip spent saying the gesture is over. A door reads this only
+  // while it has something to ask about (`../move/moving.tsx` asks nothing with
+  // no row standing), so a spent accessor is simply never read.
+  onMount(() => {
+    props.refusing?.asked?.(hits)
   })
 
   const verdicts = createMemo<ReadonlyArray<string | null>>(() => {
@@ -187,6 +200,21 @@ export function Shortlist(props: {
    * Nothing to take at all is not claimed: swallowing `Enter` over an empty
    * list would be a key that does nothing.
    */
+  /**
+   * Do the rows answer the query being TYPED, or the one before it?
+   *
+   * They hold still through the settle and the round trip after it — the rows
+   * a reader is looking at stay until the next ones arrive, which is the only
+   * honest thing to DRAW (`../settled.ts`) and the wrong thing to write from.
+   *
+   * It is not inside {@link take}, and that is the whole of where it belongs:
+   * a PRESS is a hand on the row it can SEE, and taking that row is exactly
+   * what the hand asked for, however far the box has moved on. `Enter` is the
+   * one that means "the row under the cursor" — and the cursor's row is about
+   * to change underneath it.
+   */
+  const behind = (): boolean => hits().length > 0 && found.answering() === null
+
   const take = (index: number): boolean => {
     const hit = hits()[index]
     if (hit === undefined) return false
@@ -244,7 +272,11 @@ export function Shortlist(props: {
               cursor.step(-1)
               return
             case "take":
-              if (take(cursor.at())) event.preventDefault()
+              // A key that spends nothing is still a key this panel CLAIMED:
+              // a list is on screen under the reader's hands, and an `Enter`
+              // falling past it would do something else entirely. The rows
+              // catch up a moment later and the same press means what it says.
+              if (behind() || take(cursor.at())) event.preventDefault()
               return
             case null:
               return

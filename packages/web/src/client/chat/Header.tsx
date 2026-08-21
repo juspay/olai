@@ -18,11 +18,10 @@
  * question. They are two facts and they take two slots: what it runs on, and
  * whether it is running.
  *
- * Closing the panel is not here. The app header's agent pill is the permanent
- * toggle (./Panel.tsx); a × beside it would be a second way to close one
- * thing, which is one too many — the rule this file used to enforce by only
- * drawing the toggle while the drawer was shut, inverted for a header that
- * never loses its chrome.
+ * Closing the panel is not here. On desktop the app header's agent pill is
+ * the permanent toggle (./Panel.tsx); a × beside it would be a second way to
+ * close one thing. On a phone that toggle is gone, and the sheet's scrim is
+ * the way out — still one door, just not in this header.
  *
  * Everything drawn is a projection of the chat cell. Nothing is remembered
  * locally, so a second tab's header says the same thing as this one.

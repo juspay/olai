@@ -369,6 +369,14 @@ const mirrorRequest = (
  * name, the same kind of thing `TRASH` is, and an agent capturing by hand
  * has to be able to read the same sentence rather than guess at the browser's.
  *
+ * WHERE ONE IS MINTED is `_olai/Inbox.olai` and not the root (`mintedInto`,
+ * human 2026-08-20, reversing the ruling of the day before): the shelf's
+ * argument read one convention over — a file olai made because somebody
+ * pressed something is not one of the reader's own. The READING is untouched,
+ * so a directory that already keeps an `Inbox.olai` at its root, or a
+ * `notes/inbox.olai`, goes on capturing into the file it has and nothing
+ * migrates.
+ *
  * The title travels VERBATIM, blank and all: a capture of nothing is refused
  * by the ops layer in its own words ("a node needs a title"), which is the
  * same sentence an agent's `add_node` gets, rather than by a second rule here.
@@ -380,7 +388,7 @@ const captureRequest = (
   const inbox = inboxIn(outlinePaths(at.set))
   return Result.succeed(
     inbox === undefined
-      ? { op: "create", file: INBOX, seed: { title: edit.title } }
+      ? { op: "create", file: mintedInto(INBOX), seed: { title: edit.title } }
       : { op: "add", file: inbox, title: edit.title },
   )
 }
@@ -837,8 +845,8 @@ export const inverseOf = (
     // taken back the same way — the row goes, by the same narrowed un-create.
     // What a ⌘Z does NOT do is unmint an inbox this capture created: no face
     // removes a file (`docNew` below says the same), so what is left is an
-    // empty outline in the sidebar, which is a thing a reader can see and
-    // delete rather than a file quietly appearing and disappearing.
+    // empty inbox behind the sidebar's Inbox entry — a thing a reader can see
+    // and delete rather than a file quietly appearing and disappearing.
     case "capture":
     // A pin is a capture onto the shelf, so ⌘Z is the same un-create: the pin's
     // row goes and the reader's page does not move. A shelf this pin MINTED is
@@ -1001,9 +1009,10 @@ export const inverseOf = (
     case "docDay":
     // A minted OUTLINE is the same answer for the same reason, and it is the
     // one an existing arm already relies on: quick capture into a directory
-    // with no inbox mints `Inbox.olai`, and its ⌘Z takes the LINE back and
-    // leaves the file — an empty outline in the sidebar, which is a thing a
-    // reader can see, rather than a file quietly appearing and disappearing.
+    // with no inbox mints `_olai/Inbox.olai`, and its ⌘Z takes the LINE back
+    // and leaves the file — an empty inbox behind the sidebar's Inbox entry,
+    // which is a thing a reader can see, rather than a file quietly appearing
+    // and disappearing.
     case "outlineNew":
       return []
   }

@@ -20,15 +20,18 @@ import { GIT_OFF, type GitState } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import {
+  AUTO_PAUSED,
+  AUTO_STOPPED,
   because,
   DETAIL,
   explain,
   faceOf,
   HOW,
-  HOW_TONE,
   isInert,
+  isNews,
   localOf,
   MARK,
+  newsSays,
   pushTrouble,
   scopeOf,
   unpushedOf,
@@ -128,22 +131,98 @@ test("a healthy repository is quiet, and not a second green claim", () => {
   // The retired readout's rule, and it outlives it: the connection dot beside
   // this pill is the page's one green claim, and a second one lit permanently
   // in the ordinary case dilutes the thing a reader actually scans for.
-  expect(MARK.committed?.tone).not.toContain("done")
+  expect(MARK.committed?.glyph).toBe("✓")
   expect(MARK.never).toBeNull()
   expect(MARK.waiting).toBeNull()
 })
 
-test("the two a person can act on are marked, and told apart by tone", () => {
+test("the two a person can act on are marked", () => {
   // A repository mid-rebase will take a commit once they finish; a git that
-  // failed will not. Same glyph, different news.
-  expect(MARK.blocked).toEqual({ glyph: "⚠", tone: "text-doing" })
-  expect(MARK.error).toEqual({ glyph: "⚠", tone: "text-alarm" })
+  // failed will not. Same warning glyph; the faces themselves tell them apart.
+  expect(MARK.blocked?.glyph).toBe("⚠")
+  expect(MARK.error?.glyph).toBe("⚠")
 })
 
 test("the fault is reachable, because its whole point is the reason on it", () => {
   // Inert means `aria-disabled`, which means no focus — and a reason a keyboard
   // cannot reach is a reason half the readers do not get.
   expect(isInert("error")).toBe(false)
+})
+
+test("a phone only interrupts the page when git has news", () => {
+  // The desktop pill is always drawn. A banner that vanished cannot be
+  // trusted either — so the healthy faces stay off screen and the page
+  // itself is the healthy state.
+  expect(isNews("committed", 0)).toBe(false)
+  expect(isNews("never", 0)).toBe(false)
+  expect(isNews("off", 0)).toBe(false)
+  expect(isNews("no-repo", 0)).toBe(false)
+  expect(isNews("unknown", 0)).toBe(false)
+  expect(isNews("waiting", 0)).toBe(true)
+  expect(isNews("blocked", 0)).toBe(true)
+  expect(isNews("error", 0)).toBe(true)
+  expect(isNews("committed", 3)).toBe(true)
+})
+
+test("the phone banner is one line, and waiting outranks unpushed", () => {
+  expect(newsSays("waiting", 6, 3)).toBe("6 uncommitted — tap to record")
+  expect(newsSays("blocked", 2, 0)).toBe("2 uncommitted — repository busy")
+  expect(newsSays("error", 0, 0)).toBe("git error — tap to see")
+  expect(newsSays("committed", 0, 3)).toBe("3 unpushed — tap to push")
+  expect(newsSays("committed", 0, 0)).toBe("")
+})
+
+// ── Auto-commit, which is a claim about the READER ─────────────────────
+//
+// It rides beside the faces rather than being one of them (the module's own
+// argument, and `alsoUnpushed`'s): eight faces are eight things about the
+// DIRECTORY, and whether this browser records on its own is true in one tab and
+// false in the next. So what is asserted here is that it reaches a reader on
+// EVERY face — including the healthy ones, which is the whole risk: a loop that
+// stopped is silent by design.
+
+test("a stopped loop reaches a reader on every face, healthy ones included", () => {
+  const said = "gpg failed to sign the data"
+  for (const face of ["committed", "never", "waiting", "error", "blocked"] as const) {
+    expect(explain(face, surveyed(READY), GIT_OFF, said)).toContain(said)
+  }
+  // ... and a running loop adds nothing at all, so the ordinary sentence is
+  // exactly what it was.
+  expect(explain("committed", surveyed(READY), GIT_OFF, null))
+    .toBe(explain("committed", surveyed(READY), GIT_OFF))
+})
+
+test("the sentence a stopped loop leaves says how to start it again", () => {
+  // The one thing a reader cannot work out for themselves — and the panel's own
+  // line says it too, so the two cannot drift on it.
+  const said = explain("committed", surveyed(READY), GIT_OFF, "no upstream")
+  expect(said).toContain("off and on again")
+  expect(AUTO_STOPPED).toContain("off and on again")
+})
+
+test("a phone is interrupted by a stopped loop, on a face that is otherwise quiet", () => {
+  expect(isNews("committed", 0, null)).toBe(false)
+  expect(isNews("committed", 0, "no upstream")).toBe(true)
+  expect(isNews("never", 0, "no upstream")).toBe(true)
+})
+
+test("the banner says the loop stopped ahead of whatever else is true", () => {
+  // It outranks every face, because it is the one line about a promise having
+  // broken rather than about work waiting.
+  expect(newsSays("waiting", 6, 3, "no upstream")).toContain(AUTO_PAUSED)
+  expect(newsSays("committed", 0, 0, "no upstream")).toContain(AUTO_PAUSED)
+  expect(newsSays("waiting", 6, 3, null)).toBe("6 uncommitted — tap to record")
+})
+
+// ... and it does not take the COUNT with it. A halted loop plus a later edit
+// is exactly when how much is sitting here is worth knowing, and the desktop
+// pill says both beside each other — a phone that had to tap through to find
+// out is the same fact told to two readers differently.
+test("a stopped loop on a phone still says how much is waiting", () => {
+  expect(newsSays("waiting", 6, 0, "no upstream")).toContain("6 uncommitted")
+  expect(newsSays("waiting", 6, 0, "no upstream")).toContain(AUTO_PAUSED)
+  // Nothing waiting is nothing to count, and the line stays one line.
+  expect(newsSays("committed", 0, 0, "no upstream")).toBe(`${AUTO_PAUSED} — tap to see`)
 })
 
 // ── what it says ───────────────────────────────────────────────────────
@@ -279,18 +358,13 @@ test("a refused push says what git said, and a successful one says nothing", () 
     .toContain("nowhere to commit to")
 })
 
-/** Every status a dirty file can have wears a word and a tone. A table, so a
- *  sixth one the format grew would be a compile error here rather than a blank
- *  chip beside somebody's file. */
-test("every status a file can be in has a word and a tone", () => {
+/** Every status a dirty file can have wears a word. A table, so a sixth one
+ *  the format grew would be a compile error here rather than a blank chip
+ *  beside somebody's file. */
+test("every status a file can be in has a word", () => {
   for (const how of ["modified", "added", "deleted", "renamed", "untracked"] as const) {
     expect(HOW[how]).not.toBe("")
-    expect(HOW_TONE[how]).toStartWith("text-")
   }
-  // A file that has LEFT is the one worth a second look, and it is the only one
-  // that wears the alarm tone.
-  expect(HOW_TONE.deleted).toBe("text-alarm")
-  expect(HOW_TONE.modified).not.toBe(HOW_TONE.deleted)
 })
 
 /**

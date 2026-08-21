@@ -102,12 +102,20 @@
  */
 
 import { heard, mediaHref } from "@olai/surface"
-import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js"
 
 import { SaidLine } from "../edit/SaidLine.tsx"
 import type { Said } from "../edit/undoing.ts"
 import { useOpens } from "../opens.tsx"
-import { useGo, useHere, useRouter } from "../router.tsx"
+import { useGo, useLanding } from "../router.tsx"
 import { fileNamed } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { useHead } from "../served.tsx"
@@ -274,7 +282,12 @@ export function Hypertext(props: { readonly file: string }) {
   // off the one stream the tab's file list already arrives on
   // (`@olai/surface`'s `Head`), and never the body: the body is what the frame
   // below fetches for itself, over HTTP, which is the point of all this.
-  const rev = useHead(() => props.file)
+  //
+  // A MEMO over it, because the head is one ENTRY of a collection and the
+  // accessor under this reads a field of it: the entry speaks when anything
+  // about the file moves, and what this frame acts on is the NUMBER. Compared
+  // as a number, a head that spoke without moving says nothing here.
+  const rev = createMemo(useHead(() => props.file))
   const [measured, setMeasured] = createSignal<string>()
   // What the last click could not be answered with, or nothing. It is CLEARED
   // by the next pointing rather than by a timer ({@link fresh}), which is the
@@ -287,13 +300,11 @@ export function Hypertext(props: { readonly file: string }) {
   // page had no such id. A SIGNAL rather than a scroll done on arrival, for the
   // reason the effect below gives.
   const [landedAt, setLandedAt] = createSignal<number>()
-  const router = useRouter()
-  const here = useHere()
   const go = useGo()
-  const landingAt = () => {
-    const land = router.landing()
-    return land !== undefined && land.index === here() ? land.at : undefined
-  }
+  /** Where inside this file this pane was asked to land, or nothing — the
+   *  router's own answer for the pane this frame is drawn in, memoized there
+   *  so a navigation next door says nothing here (`../router.tsx`). */
+  const landingAt = useLanding()
   const opens = useOpens()
   let frame: HTMLIFrameElement | undefined
 
@@ -581,6 +592,17 @@ export function Hypertext(props: { readonly file: string }) {
     if (custody.at === "stray") clearTimeout(custody.until)
   })
 
+  // WHAT IT WATCHES IS TWO NUMBERS AND A SLUG, and each is compared as
+  // itself — which is the whole of why neither is read raw here. `on` has no
+  // equality: it re-runs whenever anything its input READ notifies, so an input
+  // over a signal that speaks without moving re-runs for nothing. Both of these
+  // are such signals underneath — the head is one entry of a collection, and
+  // `router.landing()` is one object broadcast to every pane on every push — so
+  // each is memoized where it is answered ({@link rev} above, `../router.tsx`'s
+  // `useLanding`), and what arrives here is a value. Un-memoized, pane B
+  // opening a heading reloaded pane A's preview: a question whose answer was
+  // `undefined` before and after.
+  //
   // DEFERRED, because the first document is pointed at by the `ref` below —
   // before the element is in the page, so it arrives with its address already
   // on it and costs exactly one load.

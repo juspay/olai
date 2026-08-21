@@ -13,10 +13,10 @@ there is nothing at the end of it.
 These directories are **read-only to a scenario**. A scenario that has to edit
 the files — everything in `features/it_stays_live.feature` — asks for
 `@scratch:<name>` instead and is served a temp copy. By default that copy has
-a server of its own, thrown away with the scenario; a feature whose scenarios
-write disjoint files shares one copy per worker with `@share-scratch` (see
-`packages/tests/README.md`). Writing into the tree below would leave the next
-scenario reading a fixture the repository does not contain.
+a server of its own, thrown away with the scenario; a feature that opts in with
+`@share-scratch` shares one copy per worker and restores the fixture between
+scenarios (see `packages/tests/README.md`). Writing into the tree below would
+leave the next scenario reading a fixture the repository does not contain.
 
 The fixtures are meant to be read. A person who wants to know what a valid
 outline looks like should be able to answer it from `good/` in under a minute,
@@ -50,6 +50,7 @@ of each thing the view has to draw:
 | an `after` edge that must NOT block | `hinges` after `handles`, a bullet nobody marked: not work, so nothing to wait for |
 | a `doc` | `install` attaches `finishes.md` |
 | a document nothing attaches | `notes/palette.md` — still a page, still in the sidebar |
+| a document with YAML frontmatter | `notes/palette.md` again — the `---` block is off the page, off the title, out of the tag index, and its keys answer `prop:`. It carries a `date:` and a `#`-looking value on purpose: a property named `date` is not a day, and `#swatches` in the block is not a tag somebody wrote |
 | a nested outline | `Daily/2026-08.olai` — the sidebar's file tree, not a path string |
 | a fenced code block, a footnote | `finishes.md` |
 | every mark the markdown pipeline draws, once each | `kitchen-sink.md` |

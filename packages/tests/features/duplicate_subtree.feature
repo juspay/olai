@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Duplicating a subtree
   One gesture copies a node and everything under it as the sibling below —
@@ -12,8 +13,9 @@ Feature: Duplicating a subtree
   is copied as a MIRROR — the placement, not the identity — so the copied list
   shows the same node rather than a twin of it.
 
-  `@scratch:` because these write the directory they are served: each scenario
-  gets a private copy of it.
+  `@scratch:` because these write the directory they are served. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   Background:
     Given I open the outline "house.olai"

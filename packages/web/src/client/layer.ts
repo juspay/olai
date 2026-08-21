@@ -92,10 +92,12 @@ export const LAYER = {
   row: "z-20",
   /**
    * Over the page, under the chrome that covers it: the docked chat column,
-   * the scrim that dims the outline under an open drawer, a tip. What these
-   * have in common is that they leave the app's frame reachable — the tip is
-   * about something on the page, and the scrim's whole job is to be dismissed
-   * by pressing it while the header above it still works (#101).
+   * the scrim that dims the outline under an open drawer, a tip that hangs
+   * off a ROW. What these have in common is that they leave the app's frame
+   * reachable — a row's tip is about something on the page, and the scrim's
+   * whole job is to be dismissed by pressing it while the header above it
+   * still works (#101). A tip about a header pill is not this: it rides
+   * {@link LAYER.over} with the panel behind that pill.
    */
   page: "z-30",
   /**
@@ -117,12 +119,14 @@ export const LAYER = {
   header: "z-[45]",
   /**
    * Over the bar as well: the two full-screen modals (the command palette and
-   * the keyboard-shortcut list it opens), and the panels that are PORTALLED out
-   * of the header — the commit panel, preferences, the search results. Those
-   * three are drawn against the viewport rather than inside the 3rem box they
-   * belong to, so they need a layer of their own up here; the modals need one
-   * because a question about the whole app may not have the app's own chrome on
-   * top of it.
+   * the keyboard-shortcut list it opens), the panels that are PORTALLED out
+   * of the header — the commit panel, preferences, the search results — and
+   * the tip of a header pill. Those hang against the viewport rather than
+   * inside the 3rem box they belong to, so they need a layer of their own up
+   * here; sitting at {@link LAYER.page} with the chat dock is how the bar's
+   * coral rule cut the first line of a tip and how the dock's own header
+   * painted through the rest. The modals need this layer because a question
+   * about the whole app may not have the app's own chrome on top of it.
    */
   over: "z-50",
 } as const

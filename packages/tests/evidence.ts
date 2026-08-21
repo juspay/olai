@@ -653,7 +653,17 @@ const PALETTE_HIT = '[data-testid="palette-item"][data-id^="node-"]'
  *  why the pair is spelled here together. */
 const PALETTE_DOC = '[data-testid="palette-item"][data-id^="doc-"]'
 const HEADER_DOC = '[data-testid="header-search-item"][data-id^="doc-"]'
+/** One SEARCH HIT row of the header box, by the address it stands for — the
+ *  `hit-<address>` id `palette/items.ts` mints, which for a document is its
+ *  path. Distinct from {@link HEADER_DOC}, which is the palette's own file-row
+ *  family (`doc-<path>`): the header box answers with hits and nothing else. */
+const headerHit = (at: string) =>
+  `[data-testid="header-search-item"][data-id="hit-${at}"]`
 const DOCUMENT_PAGE = '[data-testid="document-page"]'
+const DOCUMENT_BODY = '[data-testid="document-body"]'
+/** One line of a document's contents — the survey the frontmatter section
+ *  reads to say whether a phantom heading reached it. */
+const TOC_LINK = '[data-testid="toc-link"]'
 
 /** The rows of a day or of the agenda, under the file each was found in — flat
  *  rows that carry their own ancestry, which is why a filtered one keeps
@@ -733,6 +743,34 @@ const shelved = async (page: Page) =>
       }`
     })
   )).join(" · ")
+
+// ── the directory column's own rows ───────────────────────────────────
+
+/** What a write the palette made had to say — the remark that NAMES the file a
+ *  capture landed in, which is the only place the mint's path is visible to a
+ *  reader (the browser tests read the same slot). */
+const PALETTE_SAID = '[data-testid="palette-said"]'
+/** The door onto the inbox, at the foot of the column above the Trash. Drawn
+ *  only when the directory HAS an inbox, which is a claim a shot of a column
+ *  makes by not having one in it. */
+const INBOX_LINK = '[data-testid="inbox-link"]'
+
+/** The file tree as a reader sees it: every folder it drew and every file
+ *  under them, by the path each stands for.
+ *
+ *  Printed beside the shots because the claim is an ABSENCE — `_olai/` is not
+ *  drawn — and a picture of a column proves an absence only to somebody who
+ *  knows what was supposed to be in it. This line says what the tree actually
+ *  held on that frame. */
+const treeRows = async (page: Page) =>
+  (await page.locator(
+    '[data-testid="file-dir"], [data-testid="outline-link"], ' +
+      '[data-testid="document-link"], [data-testid="hypertext-link"]',
+  ).evaluateAll((all) =>
+    all.map((one) =>
+      one.getAttribute("data-path") ?? one.getAttribute("data-file") ?? "?"
+    )
+  )).join(" · ") || "(nothing)"
 
 /** Every row's title as the page DRAWS it — which for a row whose title is an
  *  address is the page it names, not the address. */
@@ -874,6 +912,84 @@ const SECTIONS = {
     await page.locator(SHELF).waitFor()
     await page.waitForTimeout(DRAWN)
     await shot(page, "the-filter-came-with-it-pitch-dark")
+  },
+
+  /**
+   * THE FILES OLAI NAMES FOR ITSELF (`olai-names-its-own-files`, human
+   * 2026-08-20): `_olai/` out of the file tree, the two doors that replace
+   * those rows at the foot of the column, and the Prefs switch that puts the
+   * rows back.
+   *
+   * The shelf is WRITTEN into `_olai/Pins.olai` rather than clicked up, which
+   * is the same standing-in this file's pin section does: what the shot is
+   * about is what the column DRAWS for a directory that has one, not the
+   * gesture that made it. The inbox, on the other hand, is minted by the
+   * capture — because WHERE it lands is half of what this section is evidence
+   * for, and the palette's own remark names the file it wrote.
+   *
+   * Read the five in order and they are the whole rule: a column with olai's
+   * files kept out of the reader's list; the capture that mints one, saying
+   * where it went; the door that appears for it; the outline behind that door;
+   * and the switch that draws `_olai/` again for somebody who wants it.
+   */
+  "olai-names-its-own-files": async (page) => {
+    rewrite("_olai/Pins.olai", [
+      `{"id":"p-kitchen","ord":"a0","title":"/#kitchen"}`,
+    ])
+    await page.goto(`${BASE}/house.olai`)
+    await page.locator(SHELF).waitFor()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the tree draws:       ${await treeRows(page)}`)
+    console.log(`  the shelf reads:      ${await shelved(page)}`)
+    // No Inbox entry yet: this directory has never captured, and minting one
+    // is the capture's job rather than a door's.
+    console.log(`  inbox entries drawn:  ${await page.locator(INBOX_LINK).count()}`)
+    await shot(page, "the-column-is-the-readers-files", {
+      clip: { x: 0, y: 0, width: 300, height: COLUMN_FITS },
+    })
+
+    // THE CAPTURE, and the sentence it comes back with — which is where the
+    // mint's new path is visible to a reader rather than inferred: only the
+    // server knows which file the inbox is, so the palette prints what the
+    // answer said.
+    await page.keyboard.press("ControlOrMeta+k")
+    await page.locator(PALETTE_INPUT).waitFor()
+    await page.locator(PALETTE_INPUT).fill("+ buy the walnut stain")
+    await page.locator(PALETTE_INPUT).press("Enter")
+    await page.locator(PALETTE_SAID).waitFor()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the palette said:     ${
+      (await page.locator(PALETTE_SAID).innerText()).replace(/\s+/g, " ").trim()
+    }`)
+    await shot(page, "the-capture-says-where-it-landed")
+
+    await page.keyboard.press("Escape")
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the tree now draws:   ${await treeRows(page)}`)
+    await shot(page, "and-now-there-is-an-inbox-door", {
+      clip: { x: 0, y: 0, width: 300, height: COLUMN_FITS },
+    })
+
+    // The door opens the OUTLINE — an ordinary file page, editable, unlike the
+    // Trash beneath it.
+    await page.locator(INBOX_LINK).first().click()
+    await page.locator(OUTLINE_TREE).first().waitFor()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the door landed on:   ${new URL(page.url()).pathname}`)
+    console.log(`  holding:              ${(await titles(page)).join(" · ")}`)
+    await shot(page, "the-inbox-entry-opens-the-inbox")
+
+    // …and the switch that draws them again, photographed with the panel open
+    // over the column it is about.
+    await page.locator('[data-testid="prefs-trigger"]').first().click()
+    await page.locator('[data-testid="prefs-panel"]').waitFor()
+    await page.locator(
+      '[data-testid="prefs-row"][data-pref="hidden-outlines"] ' +
+        '[data-testid="prefs-choice"][data-value="shown"]',
+    ).click()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  with the switch on:   ${await treeRows(page)}`)
+    await shot(page, "the-prefs-switch-draws-them-again")
   },
 
   /**
@@ -1959,6 +2075,116 @@ const SECTIONS = {
     await wearTheme(page, "chalk")
   },
 
+  /**
+   * FRONTMATTER IS A RECORD (`frontmatter-is-a-record`): the `---` block at the
+   * top of a `.md`, off the page and answering `prop:`.
+   *
+   * The two documents it writes are THREE IDENTICAL LINES, and the only
+   * difference between them is which line the first `---` sits on. That is the
+   * whole boundary rule, and it is also the before/after: `almost.md`'s block
+   * is not frontmatter — it opens on line two — so the app draws it exactly as
+   * every frontmatter'd document was drawn before this section existed, a
+   * thematic break and a phantom `<h2>` with an anchor and a row in the
+   * contents. `plan.md` is the same three lines one line up.
+   *
+   * WRITTEN HERE rather than taken from `fixtures/good`, so this section runs
+   * unchanged against a checkout that has none of this — which is what makes
+   * the pair of runs a before and an after rather than two pictures.
+   */
+  "frontmatter-is-a-record": async (page) => {
+    pinnedBy(
+      "documents.feature",
+      "A document's frontmatter is a record and not part of its page",
+      "A document is found by a property its frontmatter writes",
+    )
+    const BLOCK = [
+      "---",
+      "agent: claude-opus",
+      "owners: [alice, bob]",
+      "date: 2026-09-01",
+      "tags: '#draft'",
+      "---",
+    ]
+    const PROSE = [
+      "",
+      "# The kitchen plan",
+      "",
+      "Oak counters, matte doors. Talk to @alice before ordering.",
+      "",
+      "## Next steps",
+      "",
+      "Measure the alcove.",
+    ]
+    rewrite("notes/plan.md", [...BLOCK, ...PROSE])
+    // The SAME three lines, one line down — so the first `---` is a thematic
+    // break and the second underlines `agent: claude-opus` into a setext
+    // heading. Which is what every one of these looked like before.
+    rewrite("notes/almost.md", ["", ...BLOCK, ...PROSE])
+
+    /** What the page is CARRYING: the headings it drew, and the contents made
+     *  of them. A phantom heading shows up in both. */
+    const surveyed = async (): Promise<string> => {
+      const drawn = await page.locator(`${DOCUMENT_BODY} h1, ${DOCUMENT_BODY} h2`)
+        .allInnerTexts()
+      const listed = await page.locator(TOC_LINK).allInnerTexts()
+      return `headings [${drawn.map(oneLine).join(" | ")}] contents [${
+        listed.map(oneLine).join(" | ")
+      }]`
+    }
+
+    const pass = async (dark: boolean) => {
+      const suffix = dark ? "-dark" : ""
+
+      // THE BLOCK ON LINE TWO — not frontmatter, and drawn as markdown has
+      // always drawn it. This is the "before" picture, taken by the same
+      // script that takes the one under it.
+      await opened(page, "/notes/almost.md", DOCUMENT_PAGE)
+      console.log(`  a block on line 2:  ${await surveyed()}`)
+      await shot(page, `a-block-that-is-not-frontmatter${suffix}`)
+
+      // …AND ON LINE ONE. Same three lines, and now there is no rule, no
+      // phantom heading, no anchor and no contents row: the page opens on the
+      // document's own first heading.
+      await opened(page, "/notes/plan.md", DOCUMENT_PAGE)
+      console.log(`  the same on line 1: ${await surveyed()}`)
+      await shot(page, `frontmatter-is-off-the-page${suffix}`)
+
+      // WHAT THE DOCUMENT IS CALLED, in the door that draws a face's title:
+      // the body's first real line, not the fence and not the first YAML key.
+      const box = page.locator('[data-testid="header-search"]')
+      await box.click()
+      await box.fill("plan")
+      const row = page.locator(headerHit("notes/plan.md"))
+      await row.waitFor()
+      await page.waitForTimeout(400)
+      console.log(`  the row is called:  ${oneLine(await row.innerText())}`)
+      await shot(page, `the-title-is-the-first-real-line${suffix}`)
+
+      // …AND THE DOOR THIS ITEM IS: a property query, selecting a `.md`. The
+      // key it matched leads the row's third line, exactly as it does on a
+      // node's.
+      await box.fill("prop:agent=claude-opus")
+      await page.locator(headerHit("notes/plan.md")).waitFor()
+      await page.waitForTimeout(400)
+      const rows = await page.locator('[data-testid="header-search-item"]')
+        .evaluateAll((all) => all.map((one) => one.getAttribute("data-id")))
+      console.log(`  prop: selects:      ${rows.join(", ")}`)
+      console.log(
+        `  its property line:  ${
+          (await page.locator('[data-testid="header-search-item-prop"]').allInnerTexts())
+            .map(oneLine).join(" · ")
+        }`,
+      )
+      await shot(page, `a-property-selects-a-document${suffix}`)
+      await page.keyboard.press("Escape")
+    }
+
+    await pass(false)
+    await wearTheme(page, "pitch")
+    await pass(true)
+    await wearTheme(page, "chalk")
+  },
+
   "new-outline": async (page) => {
     await page.locator('[data-testid="new-outline"]').click()
     const box = page.locator('[data-testid="new-outline-path"]')
@@ -2489,6 +2715,12 @@ const sectionNamed = (name: string): Section | undefined =>
  *  in exactly the dimension the panel needs. */
 const PANEL_FITS = { viewport: { width: WIDE, height: 1000 } }
 
+/** …and the height the whole DIRECTORY COLUMN fits in — the agenda, the month,
+ *  the shelf, the tree, the two ways to add to it and the two doors under it.
+ *  Its own number rather than {@link PANEL_FITS}'s, because it is a fact about
+ *  that column and not about a panel. */
+const COLUMN_FITS = 1200
+
 /**
  * What SHAPE of browser a section wants, where the default is not it.
  *
@@ -2537,6 +2769,11 @@ const SHAPES: Partial<Record<Section, Parameters<Browser["newContext"]>[0]>> = {
   // default window leaves below a row, and a shot that clips the sentence it
   // is about says nothing.
   "move-to-picker": PANEL_FITS,
+  // The section whose subject is the WHOLE directory column, from the agenda
+  // at the top to the Inbox and Trash doors at its foot. The column is exactly
+  // one screen tall and scrolls inside itself, so a shorter window would put
+  // the two rows this section is about below its own fold.
+  "olai-names-its-own-files": { viewport: { width: WIDE, height: COLUMN_FITS } },
 }
 
 const main = async () => {

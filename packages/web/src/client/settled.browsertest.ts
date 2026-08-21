@@ -149,6 +149,37 @@ test("the next session opens empty rather than on the last one's rows", async ()
   })
 })
 
+// ── ...and the second finding: the settle is part of "moved on" ─────────
+
+test("rows the reader has typed past are not labelled as theirs", async () => {
+  await over(async ({ ask, settled: asker, server: fake }) => {
+    ask("ho")
+    await flying()
+    fake.answer("ho", ["#home", "#hob"])
+    await landed()
+    expect(asker.answering()).toBe("ho")
+
+    // One more character, and NOTHING waited out — which is where a door's
+    // `Enter` actually lands, because the settle exists precisely so that a
+    // person typing at speed is not asking. The rows stay (they are the only
+    // honest thing to draw), and they stop being about the reader the instant
+    // the reader typed past them. This used to compare the answer against what
+    // had been ASKED, and `asked` does not move until the debounce fires — so
+    // for 200ms the rows were labelled as the reader's own, and a door that
+    // takes one on `Enter` took the wrong node
+    // (`docs/brainstorming/reactivity-after-the-flip.md`'s 4.12).
+    ask("hom")
+    expect(asker.answer()).toEqual(["#home", "#hob"])
+    expect(asker.answering()).toBeNull()
+
+    // ...and it comes back the moment the answer is about the question again.
+    await flying()
+    fake.answer("hom", ["#home"])
+    await landed()
+    expect(asker.answering()).toBe("hom")
+  })
+})
+
 // ── ...and the three things that must NOT change with it ────────────────
 
 test("holding still WITHIN one session is untouched", async () => {

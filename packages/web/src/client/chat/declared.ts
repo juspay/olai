@@ -117,13 +117,24 @@ const GATHER_MS = 0
  *  for eighty times. */
 type Told = ReadonlyMap<string, string>
 
+/** One question on the wire: which ids it is about, what it answers with, and
+ *  WHICH question it is — see {@link said} for what the last of those is for. */
+interface Batch {
+  /** Its place in the order they LEFT. Batches overlap, so an order is the one
+   *  thing a slot shared between them can be judged against. */
+  readonly seq: number
+  readonly ids: Set<string>
+  readonly answer: Promise<Result.Result<Told, OpFailure>>
+}
+
+/** How many questions have left this tab. The batch's own name, minted where
+ *  the question is made. */
+let asked = 0
+
 /** The ids gathered for the next question, and the one answer they all ride.
  *  Module-level because the batch is every asker on screen — one message
  *  cannot see the others, and this is what they share. */
-let gathering: {
-  readonly ids: Set<string>
-  readonly answer: Promise<Result.Result<Told, OpFailure>>
-} | null = null
+let gathering: Batch | null = null
 
 /**
  * Ask about these ids, on the call the rest of this tick is riding.
@@ -133,7 +144,7 @@ let gathering: {
  * ({@link createDeclared}) and nothing here has to know whose question was
  * whose.
  */
-const askAll = (ids: ReadonlyArray<string>): Promise<Result.Result<Told, OpFailure>> => {
+const askAll = (ids: ReadonlyArray<string>): Batch => {
   if (gathering === null) {
     const wanted = new Set<string>()
     const answer = new Promise<Result.Result<Told, OpFailure>>((settle) => {
@@ -156,10 +167,10 @@ const askAll = (ids: ReadonlyArray<string>): Promise<Result.Result<Told, OpFailu
         )
       }, GATHER_MS)
     })
-    gathering = { ids: wanted, answer }
+    gathering = { seq: ++asked, ids: wanted, answer }
   }
   for (const id of ids) gathering.ids.add(id)
-  return gathering.answer
+  return gathering
 }
 
 /**
@@ -174,17 +185,49 @@ const askAll = (ids: ReadonlyArray<string>): Promise<Result.Result<Told, OpFailu
  *
  * Set and cleared where the call is made, so the words on screen are about a
  * QUESTION rather than about whichever message happened to read the answer
- * first. Which question, said exactly: the last one to SETTLE, not the last one
- * asked — batches overlap, so a late failure can take down a newer success's
- * clearing and a late success can clear a newer failure's line. Both are one
- * sentence out of date about a socket that is answering again a moment later,
- * which is a smaller wrong than a line nobody can attribute; the state that has
- * to be exactly right per message is the marks, and those are each message's
- * own map.
+ * first. WHICH question, said exactly: the NEWEST one to have answered, which
+ * is {@link said}'s whole subject and is not the same as the last one to
+ * settle.
  */
 
 const [failed, setFailed] = createSignal<string | null>(null)
 export const declaringFailure: Accessor<string | null> = failed
+
+/** The newest batch the slot has been told about. Batches overlap — the gather
+ *  is cleared before its call goes, so the ids wanted while one is in flight
+ *  leave on the next — and they come back in any order. */
+let reported = 0
+
+/**
+ * WHAT THE SLOT SAYS, from the batch that is saying it.
+ *
+ * Last-to-SETTLE-wins was what this used to be, and it is the one thing a
+ * shared slot cannot be: a slow refusal of an older batch landing after a newer
+ * batch succeeded would put a sentence back on screen about a socket that had
+ * just answered, and it would stay there — nothing else clears the slot, so the
+ * next thing to move it is the next question anybody asks, which for a settled
+ * transcript is never. The reverse costs as much: an older success clearing a
+ * newer failure leaves a conversation whose spans quietly never mark and says
+ * nothing about it, which is the silent failure HACKING.md forbids.
+ *
+ * So the slot is TAGGED with the batch that set it, and an older batch cannot
+ * take it back. `>=` rather than `>`, because a batch answers this once and
+ * the equal case is that one answer.
+ *
+ * THE THIRD ANSWER IN THIS CLIENT to "which of several overlapping calls may
+ * write the one shared slot", and the two beside it are named so the next
+ * writer picks one rather than inventing a fourth: `../settled.ts` compares the
+ * answer's QUESTION against what is wanted now, and `../filter/asking.ts` does
+ * the same by identity. Neither fits here — there is no question the reader is
+ * typing and no settle to sit behind (the header says why this is not a
+ * `createResource` at all) — so what is left is the order the calls LEFT in,
+ * which is a counter.
+ */
+const said = (seq: number, message: string | null): void => {
+  if (seq < reported) return
+  reported = seq
+  setFailed(message)
+}
 
 /** What one message has been told about the ids in it. */
 export interface Declared {
@@ -246,16 +289,20 @@ export const createDeclared = (): Declared => {
     const fresh = ids.filter((id) => !told.has(id) && !asking.has(id))
     if (fresh.length === 0) return
     for (const id of fresh) asking.add(id)
-    void askAll(fresh)
+    // DESTRUCTURED, so what the continuation below holds for the length of a
+    // round trip is a number and a promise rather than the batch — whose `ids`
+    // is every backticked id on screen, retained once per message.
+    const { seq, answer } = askAll(fresh)
+    void answer
       .then((outcome) => {
         if (Result.isFailure(outcome)) {
           // NOT WRITTEN DOWN AS A NO — a call that did not arrive said nothing
           // about these ids, so they are asked again by the next frame of a
           // streaming answer or by the wire coming back.
-          setFailed(outcome.failure.message)
+          said(seq, outcome.failure.message)
           return
         }
-        setFailed(null)
+        said(seq, null)
         // EVERY ID ASKED ABOUT IS WRITTEN DOWN, the ones the set does not
         // declare included — which is most of the backticks in any paragraph,
         // and the whole reason a settled message stops asking. The batch

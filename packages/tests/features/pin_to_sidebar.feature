@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: Pinning a page to the sidebar
   A shelf of doors at the top of the directory column: any node, any document,
@@ -14,7 +15,9 @@ Feature: Pinning a page to the sidebar
   the page WITH its query, and a node renamed anywhere else says its new name
   on the shelf — because the shelf keeps no copy of it to go stale.
 
-  `@scratch:` because these write the directory they are served.
+  `@scratch:` because these write the directory they are served. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   Background:
     Given I open the outline "house.olai"

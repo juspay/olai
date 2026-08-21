@@ -31,8 +31,8 @@ When instructing the agent in terminal:
   - by https://github.com/juspay/kolu/blob/master/.agents/skills/architecture-first-principles/SKILL.md
   - by hickey (https://github.com/srid/agency/blob/master/.apm/skills/hickey/SKILL.md) and lowy (https://github.com/srid/agency/blob/master/.apm/skills/lowy/SKILL.md) *together*, using human intuition so as to keep architecture simple.
   - Run /simplify (only if running in Claude).
-- Wait for 'Review' phase (see below)
-- Take PR to green CI[^green-ci] (before CI, merge latest master to the PR, just in case)
+- Do the 'Review' phase (without, *yet*, running full CI)
+- Run full CI; Take PR to green CI[^green-ci] (before CI, merge latest master to the PR, just in case)
   
 ## Reviewing the PR
   
@@ -60,5 +60,7 @@ When the human approves a PR: approval opens a gate, it does not skip the pipeli
 When the human approves multiples PRs, approve them in sensible order to minimize conflict resolution work.
   
 Before asking the human to approve a PR, read the author's final message in its terminal (kolu snapshot). Anything it leaves "for you" — deferred scope, sibling-repo defects, follow-up work — is not merge-ready until the human has ratified its disposition: fold it into the PR, spawn it as new work, or explicitly let it lie. Never file issues, or take any action on another repo, without the human's ratification. "Recorded" in prose is not tracked; only a URL or a roadmap entry is.
+
+A deferral filed on roadmap goes in docs/roadmap/deferred.olai and carries `from=<PR>` as a property (`set_prop`) — the property is where it came from; prose in the note is neither.
 
 [^green-ci]: Never judge CI from gh pr list's check rollup — it only lists checks that have already reported, so a required check that hasn't started looks like success. Before calling a PR green, run gh pr checks <n> --required and demand an explicit pass on every required check (or mergeStateStatus == CLEAN).

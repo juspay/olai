@@ -29,7 +29,7 @@
  * other case and keeps the full scale — there is no title over it there.
  */
 
-import { firstLine } from "@olai/format"
+import { firstLine, proseIn } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
 import { Markdown } from "../markdown/Markdown.tsx"
@@ -94,7 +94,11 @@ export function DocRef(props: {
       <Show when={props.inline === true && document()}>
         {(served) => (
           <Markdown
-            source={served().text}
+            /* THE PROSE: a document's `---` block is its own record and is not
+               drawn, and the strip is spent here rather than in the pipeline
+               because this is where the source is known to be a whole FILE
+               (`../markdown/pipeline.ts`). */
+            source={proseIn(served().text)}
             from={props.file}
             class="olai-md-compact mt-2"
             testid={TESTID.documentBody}

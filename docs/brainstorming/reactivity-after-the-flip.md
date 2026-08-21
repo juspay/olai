@@ -31,6 +31,8 @@ notifies on an identical frame: rows[$TRACK] 1 · rows[0] 1 · rows[0].node.titl
 
 With `key: null` and no `merge`, `applyState` diffs arrays by reference; nothing off the wire is `===` the previous element, so every `Row`, `Named`, crumb, `Backlink`, `Referrer`, `DayEntry` is replaced wholesale, and `arr[$TRACK]` fires. (`{ key: null, merge: true }` would recycle by index; `key: "key"` would recycle by the row key where one exists.) So: `reading.page()`, `.shows`, `.shows.rows`, `.names`, `.zoomed` are frame-stable — `PageView`'s `page`/`allDrawn` memos do not re-run per frame — but **anything keyed by reference over a wire array remounts on every frame of that page**, and anything reading a row through a `<Key>` item signal re-evaluates all of its bindings for all rows.
 
+*(This fact is as it was measured, and it is what the findings below were found against. It stopped being the whole truth on 2026-08-20: a member can DECLARE what identifies a row now, and four of olai's do — see the LANDED block at the end of §3.5, which is where the numbers on both sides of that are.)*
+
 ## 3. The findings
 
 Severity: **A** = DOM remount / flicker or a wire re-subscription / re-ask; **B** = wasted recomputation; **C** = stale or wrong UI. Verification: **M** = measured in a browser (§1 or the Fact B replay); **R** = the full code path was read and the claim rests on nothing unverified; **r** = reasoned from code, not run.
@@ -100,10 +102,25 @@ Two B-grade fan-outs from the same fact:
 | 4.7 | `search/Shortlist.tsx:32-34` `createEffect(() => props.refusing?.asked?.(hits()))` → `move/MovePicker.tsx:128` `setAimed` → `moving.tsx:272` resource | A derivation expressed as effect → parent signal → resource (works — `aimed` has `equals` — but it is the shape that hides 3.4) | Hand `hits` up as an accessor; derive `aimed` with a memo | B | R |
 | 4.8 | `edit/editing.tsx:105-112, 136-140` + `edit/order.ts` | `follow` reads `page.rows()` + `page.collapsed()` and `flatten`s the whole visible tree per frame while a draft is open; `row()` and `neighbour` flatten again per call (keystrokes do not trigger it — `where` has field-wise `equals`, `draft` is untracked — frames do) | One per-frame memo `Map<key, Row>` shared by the three | B | R |
 | 4.9 | `document/faces.tsx:139-154` landing effect tracks `text()` | A file rewritten on disk (an agent write, `git pull`) while `router.landing()` still names this pane re-runs `scrollIntoView`, yanking a reader who had scrolled away back to the heading | `on(() => [router.landing(), markdownReady()], …)` with `text()` untracked, or clear `landing` after the first successful scroll | C | R |
-| 4.10 | `format/src/derive.ts:1349` `Row.key = ${parentKey}/${id}` + `editing.tsx:105-112` `follow` → `refound` + `Tree.tsx:605` `<Match when={typing("title")}>` | Indent/outdent (`move in/out`) changes the row's key → old row's editor Match flips false, new row's flips true → a new `TitleEditor` whose `opening` path (`RowEditor.tsx:149-156`) uses `props.caret ?? field.value.length`, and a `kept` draft has no `caret` (`editing.tsx:162`) → caret jumps to the end of the title on every indent while typing. `up`/`down` keep the key | Carry the caret in the draft for structural ops (as `split`/`merge` do via `opening(done, caret)`), or key the editor on the node id | C | r |
-| 4.11 | `edit/editing.tsx:97-104, 147-152, 313` `settling = true` before `send`, cleared only by the next frame or a refused send | A redraw verb the server accepts but that produces no frame for this page leaves `settling` true and `blur` ignored until some unrelated frame — a hazard that rests on the server's no-frame-for-a-no-op behaviour | Clear on the procedure's reply, not on the next frame | C | r |
+| 4.10 | `format/src/derive.ts:1349` `Row.key = ${parentKey}/${id}` + `editing.tsx:105-112` `follow` → `refound` + `Tree.tsx:605` `<Match when={typing("title")}>` | Indent/outdent (`move in/out`) changes the row's key → old row's editor Match flips false, new row's flips true → a new `TitleEditor` whose `opening` path (`RowEditor.tsx:149-156`) uses `props.caret ?? field.value.length`, and a `kept` draft has no `caret` (`editing.tsx:162`) → caret jumps to the end of the title on every indent while typing. `up`/`down` keep the key | Carry the caret in the draft for structural ops (as `split`/`merge` do via `opening(done, caret)`), or key the editor on the node id | C | M |
+| 4.11 | `edit/editing.tsx:97-104, 147-152, 313` `settling = true` before `send`, cleared only by the next frame or a refused send | A redraw verb the server accepts but that produces no frame for this page leaves `settling` true and `blur` ignored until some unrelated frame — a hazard that rests on the server's no-frame-for-a-no-op behaviour. **Not reachable today** — see below | Clear on the procedure's reply, not on the next frame | C | M† |
 | 4.12 | `settled.ts:52` + `search/Shortlist.tsx:77-78` / `complete/completing.tsx:144-148` `take` | The previous answer is held while a new question settles (by design: rows hold still) but `take` does not check `answering()`, so Enter within 200 ms + RTT of typing picks the **previous** query's row | Gate `take` on `answering() !== null`, or dim stale rows | C | R |
 | 4.13 | `chat/declared.ts:186, 255, 258` | The failure slot is last-to-settle-wins: a late failure from an older batch can overwrite a newer success's clear (acknowledged in the comment at `:177-183`). Per-message `known` maps are safe | Tag the slot with the batch that set it | C | R |
+
+**† 4.11 does not reproduce, and PR 5 dropped it.** Driven in a browser five
+ways (a mirror's `Ctrl+Enter` and `Ctrl+Shift+Enter`, whose write lands in
+another file; a refused `Tab`; a `Ctrl+Enter` on a row that is already done; a
+plain `Tab`), each followed by typing and a click away: the blur was honoured
+every time, so `settling` was never left standing. The premise is sound —
+`page.frames()` moves only when the page's reading CHANGED (`reading.tsx`: the
+server "sends a frame only when it changed BY VALUE"), so a landed write that
+leaves this page identical would indeed leave the debt owing — but no such write
+is reachable from the editor. `redraws()` names five verbs it can send
+(`move`, `toggle`, `walk`, `split`, `merge`), and each either changes
+this page's reading or is REFUSED at the boundary (`packages/server/src/edit.ts`
+refuses all four moves at their edges), and a refusal clears the debt in
+`redrawing` itself. It stays a hazard about a coincidence rather than a defect,
+and `edit/redraws.ts`'s header already says as much in its own words.
 
 ### 3.5 Upstream (kolu)
 
@@ -111,8 +128,30 @@ Two B-grade fan-outs from the same fact:
 |---|---|---|---|
 | 5.1 | `@kolu/surface/src/solid/writeValue.ts` | `reconcile(next, { key: null })` without `merge` replaces every array element per frame (Fact B) — the root of §3.2 and of 2.11's O(rows)-per-frame | Let the stream/collection declare an array key (`key: "key"` for rows; `"id"` for names, crumbs, refs) and pass `merge: true` for arrays whose elements have none |
 | 5.2 | `@kolu/surface/src/solid/createSubscription.ts:306+` `createUpdatedTracker.noteFrame` | Two `structuredClone`s + a deep `framesEqual` of every frame the moment any `updated` handler is registered (3.6) | A tracker mode that counts without cloning |
+| 5.3 | `@kolu/surface/src/solid/createReactiveSubscription.ts` | Fact A's clause (a), which is the framework diverging from its own docstring: the header says the subscription re-establishes "whenever the input **changes**", and the implementation is `on(inputFn, …)`, which fires when the input NOTIFIES. Every consumer therefore has to re-impose the equality by hand, and each of them writes the same paragraph explaining why (`PageView.tsx`, `dates.ts`'s `createOwed`, `moving.tsx`, and — found by PR 3 — `document/Hypertext.tsx`) | Compare the input where the schema is: the binding loop in `surfaceClient.ts` (`for (const [key] of Object.entries(spec.streams))`) has `inputSchema` in hand, so `Schema.toEquivalence(…)` lifted over `null` is the right equality for every stream of every surface with no app knowledge. After it lands, `moving.tsx`'s `request` memo and its `null`-lifting go, and `createOwed`'s "hand me a memo" contract stops being the caller's to keep |
 
 After the kolu change lands, bump the npins pin here and delete whatever client-side `equals` 2.10 needed.
+
+**LANDED, 2026-08-20 — juspay/kolu#2190 (`b6378c576`), and olai's pin bump beside it.** Appended rather than written over: what §3.5 asked for is above, and this is what came back.
+
+| # | What shipped upstream | What olai did with it |
+|---|---|---|
+| 5.1 | `CellSpec` / `StreamSpec` / `CollectionSpec` take **`arrayKey?: string`**, carried on the member's descriptor to the one seam that merges; a declared merge is `{ key: <field>, merge: true }`. Elements carrying the field are diffed BY it; elements that do not are merged BY POSITION, which is silent on a repeated frame just the same; an undeclared member is unchanged in every particular | Four members declare: `page` → `key`, `pins` → `id`, `pending` → `path`, `chat` → `name`. `errors` declares nothing and says why (no field identifies an `OutlineError`); the three `deltas` collections cannot — the batched delivery replaces each named leaf whole. Pinned per site against the schema, the way kolu pins its own (`packages/surface/src/surface.test.ts`) |
+| 5.2 | `Subscription.changed(handler)` — the same change-iff-fired law, the same moments, no `{prev, next}` and **no clone at all** | `reading.tsx` reads it; `packages/web/src/client/frames.ts` and its browsertest are deleted whole. The stand-in's own header said this was the day |
+| 5.3 | **Not shipped.** #2190 covers 5.1 and 5.2 only | Every consumer still re-imposes the input equality by hand, exactly as this row describes. The four sites it names are unchanged and correct; the row stands |
+
+**2.11, measured on both sides of the declaration** (`packages/web/src/client/Tree.browsertest.ts`, over `writeWrappedValue` with the key the spec ships and with none — the undeclared arm is a test too, so nobody can make the declared case pass by making the merge silent everywhere). Three top-level rows, one per-row binding each; a `Branch` has ~25, so multiply:
+
+| Frame | Per-row bindings re-run, before | after |
+|---|---|---|
+| an IDENTICAL frame replayed | **3 of 3** | **0** |
+| one row's title changed | **3 of 3** | **1** |
+| a row three levels down retitled | **3 of 3** | **0** |
+| the rows REORDERED, no content changed | **3 of 3** | **0** — the objects move with their rows |
+
+`rows[$TRACK]` fires **1** on an identical frame before and **0** after, which is §6's own replay reading the same as it did against Solid 1.9.14.
+
+**2.10 stayed, and the measurement is why** (`names.browsertest.ts`'s second half). `names` carries no `key`, so it merges by POSITION: a repeated frame and a frame in which only a ROW moved now write nothing into it and never wake the copy — for those, the `equals` is spent. What it still earns is the case a key cannot reach: a NAVIGATION blanks the subscription, so its first frame has nothing to merge into and the store adopts it whole, and two pages naming the same ids (a zoom in, a zoom out, the same outline reached twice) is the ordinary case.
 
 ## 4. What is already right — do not touch
 
@@ -185,4 +224,6 @@ The Fact B replay, for PR 2's browsertests: build a store with `createStore({ v:
 
 ## 7. What this does not claim
 
-The audit covered the 107 client files the ten PRs touched plus what they import; it did not re-audit the server, `packages/format`, or files the flip left alone. Items marked **r** were not run. The auditors were four parallel readers with the same brief; findings that two of them reached independently (1.4, 1.7, 2.10, 3.5) are reported once. Nothing here changes the ruling of `vault-in-browser.md`: the browser still holds only the current page; what changes is that the chrome stops *asking the page* for what the address already says, and that a page arriving replaces the last one rather than a blank.
+The audit covered the 107 client files the ten PRs touched plus what they import; it did not re-audit the server, `packages/format`, or files the flip left alone. Items marked **r** were not run. Items marked **M†** were run afterwards by the PR that owned them: 4.10 and
+4.11 were driven in a browser by PR 5, which confirmed the first and dropped the
+second (§3.4). The auditors were four parallel readers with the same brief; findings that two of them reached independently (1.4, 1.7, 2.10, 3.5) are reported once. Nothing here changes the ruling of `vault-in-browser.md`: the browser still holds only the current page; what changes is that the chrome stops *asking the page* for what the address already says, and that a page arriving replaces the last one rather than a blank.

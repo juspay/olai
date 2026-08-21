@@ -19,7 +19,6 @@ import {
   CHAT_PILL,
   CHAT_SHEET,
   CHAT_SHEET_HANDLE,
-  CHAT_SHEET_SCRIM,
   CHAT_STRIP,
   CHAT_TOGGLE,
   HYDRATION_TIMEOUT,
@@ -269,14 +268,20 @@ Then(
   },
 );
 
+/** One DOCUMENT row of the header's results, by path.
+ *
+ *  By `data-id`, for `palette_steps.ts`'s reason: the label is the file's NAME
+ *  and the id is its whole path. One reading, two doors — the step below and
+ *  the palette's are the same assertion about the same block of rows. Named
+ *  because two steps ask for it and a locator spelled twice is a locator that
+ *  can come to name two different rows. */
+const documentRow = (world: OlaiWorld, file: string) =>
+  world.page.locator(`${HEADER_SEARCH_ITEM}${attr("data-id", `hit-${file}`)}`);
+
 Then(
   "the header search lists the document {string}",
   async function (this: OlaiWorld, file: string) {
-    // By `data-id`, for `palette_steps.ts`'s reason: the label is the file's
-    // name and the id is its whole path. One reading, two doors — this step and
-    // the palette's are the same assertion about the same block of rows.
-    await this.page
-      .locator(`${HEADER_SEARCH_ITEM}${attr("data-id", `hit-${file}`)}`)
+    await documentRow(this, file)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
@@ -293,6 +298,25 @@ const searchRowProp = (
     .filter({ hasText: title })
     .first()
     .locator(`${HEADER_SEARCH_ITEM_PROP}${attr("data-key", key)}`);
+
+/**
+ * WHAT A DOCUMENT ROW CALLS IT — the face's title, drawn as the row's first
+ * line, asked by PATH so the assertion cannot be satisfied by the thing it is
+ * about.
+ *
+ * By `data-id` for the reason the listing step above gives, and then the row's
+ * own first line: a document whose title came off the wrong line would be
+ * found by this step and named wrong by it, which is exactly the failure a
+ * `---` block at the top used to produce.
+ */
+Then(
+  "the header search result for the document {string} is called {string}",
+  async function (this: OlaiWorld, file: string, title: string) {
+    const row = documentRow(this, file);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal((await row.innerText()).split("\n")[0]?.trim(), title);
+  },
+);
 
 Then(
   "the header search result {string} shows the property {string} holding {string}",
@@ -438,9 +462,35 @@ When("I drag the chat sheet handle up", async function (this: OlaiWorld) {
   await this.waitForFrame();
 });
 
-When("I tap the header agent toggle", async function (this: OlaiWorld) {
-  // Must work while the sheet is open — the scrim must not cover the header.
-  await this.press(this.page.locator(CHAT_TOGGLE), "tap");
+When("I drag the chat sheet handle down", async function (this: OlaiWorld) {
+  const handle = this.page.locator(CHAT_SHEET_HANDLE);
+  await handle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const box = await handle.boundingBox();
+  assert.ok(box !== null);
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await this.page.mouse.move(x, y);
+  await this.page.mouse.down();
+  // Drag well past the full→half threshold. At full the sheet covers the
+  // scrim, so half is where a thumb can tap the dim to put it away.
+  await this.page.mouse.move(x, y + 200, { steps: 12 });
+  await this.page.mouse.up();
+  await this.waitForFrame();
+});
+
+When("I tap the chat sheet scrim", async function (this: OlaiWorld) {
+  // The scrim is `inset-0` behind the sheet, so a tap on its own box lands
+  // on the transcript. Aim at the dim above the sheet, the way a thumb
+  // actually puts a half-open sheet away.
+  const host = await this.box(this.page.locator(CHAT_SHEET), "the chat sheet host");
+  const sheet = await this.box(this.page.locator(CHAT_PANEL), "the chat sheet");
+  const gap = sheet.y - host.y;
+  assert.ok(
+    gap > 8,
+    `the sheet starts ${Math.round(gap)}px below the host — at full snap the ` +
+      "scrim is covered, so drag it to half first",
+  );
+  await this.page.mouse.click(host.x + host.width / 2, host.y + gap / 2);
   await this.page
     .locator(CHAT_PANEL)
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });

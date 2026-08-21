@@ -31,7 +31,7 @@
 import { type BodyKind, bodyKind, isNodeHit, printAddress, type SearchHit } from "@olai/format"
 
 import type { NodeProp } from "./props.ts"
-import { nodeProps } from "./props.ts"
+import { documentProps, nodeProps } from "./props.ts"
 import { nodePlace } from "./place.ts"
 import { atFile, atNode, type Route } from "../routes.ts"
 
@@ -47,9 +47,10 @@ export interface HitRow {
   readonly of?: BodyKind
   /** The second line: where this is. */
   readonly place: string
-  /** The third line, for a record carrying properties. A document carries
-   *  none — there is nowhere on a `.md` to write one, which is the hole
-   *  frontmatter fills. */
+  /** The third line: the named facts this row carries. A record's are its
+   *  `custom` map; a document's are the YAML frontmatter at the top of the
+   *  file, which is the same open namespace read out of the one place a `.md`
+   *  has to write one (`@olai/format`'s `frontmatter.ts`). */
   readonly props: ReadonlyArray<NodeProp>
   /** Where taking it goes. */
   readonly route: Route
@@ -78,7 +79,7 @@ export const hitRow = (hit: SearchHit): HitRow => {
     // trail of titles above it; a document hangs under nothing, and the honest
     // answer to "where is this" is the file it is.
     place: path,
-    props: [],
+    props: documentProps(hit),
     route: atFile(path),
   }
 }

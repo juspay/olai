@@ -2,9 +2,11 @@
  * The way into the preferences: one control in the app header, and the panel it
  * opens.
  *
- * It is in the HEADER because the header carries what is about the APP and the
- * sidebar what is about the DIRECTORY (`../AppHeader.tsx`), and how this
- * browser reads is a fact about the app in every directory it is pointed at.
+ * It is in the HEADER on desktop because the header carries what is about the
+ * APP and the sidebar what is about the DIRECTORY (`../AppHeader.tsx`), and
+ * how this browser reads is a fact about the app in every directory it is
+ * pointed at. On a phone it is a row at the foot of the directory drawer —
+ * the closet, not a fifth chip in a bar that has no room for four.
  *
  * It REPLACED the theme pill rather than joining it. The pill was a preference
  * with a control of its own outside the place preferences are set, and a bar
@@ -34,39 +36,48 @@
 import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
+import { ENTRY_SHAPE, ROW_GAP } from "../layout/entry.ts"
 import { ICON_BUTTON } from "../readout.ts"
 import { Panel } from "./Panel.tsx"
 import { createPopover } from "../popover.ts"
 import { TESTID } from "../testids.ts"
 
-export function Preferences() {
+export function Preferences(props: {
+  /** `closet` is the phone drawer row. Default is the header chip. */
+  readonly where?: "header" | "closet"
+}) {
   // Whether it is up, where it goes, and the three ways it shuts —
   // `../popover.ts`, shared with the Commit panel beside this in the bar.
   const popover = createPopover()
   const open = popover.open
+
+  const closet = () => props.where === "closet"
 
   return (
     <>
       <button
         type="button"
         ref={popover.setTrigger}
-        // The bar's icon-button shape (`../readout.ts`), which the agent toggle
-        // beside it wears too — 44px tall on a phone. The BORDER is this
-        // button's own: it says whether the panel is up.
-        class={`${ICON_BUTTON} border ${
-          open() ? "border-accent text-paper" : "border-paper/25"
-        }`}
+        // Header: the bar's icon-button shape (`../readout.ts`), which the
+        // agent toggle beside it wears too. Closet: a directory row, because
+        // it is a row of that column now, not a chip that escaped the bar.
+        class={
+          closet()
+            ? `${ENTRY_SHAPE} ${ROW_GAP} w-full text-paper/80`
+            : `${ICON_BUTTON} border ${
+              open() ? "border-accent text-paper" : "border-paper/25"
+            }`
+        }
         data-testid={TESTID.prefsTrigger}
         aria-expanded={open()}
         aria-haspopup="true"
-        title="preferences: theme, type, finished work, and whether a commit from here is pushed"
+        title="preferences: theme, type, finished work, and whether git commits and pushes on its own"
         onClick={() => popover.toggle()}
       >
-        {/* The word is `sr-only` below 40rem, exactly as the agent toggle's is:
-            the glyph is already an icon, the accessible name is unchanged, and
-            what a bar this size gives up is pixels rather than meaning. */}
         <span aria-hidden="true">⚙</span>
-        <span class="sr-only sm:not-sr-only">prefs</span>
+        <span class={closet() ? undefined : "sr-only sm:not-sr-only"}>
+          {closet() ? "preferences" : "prefs"}
+        </span>
       </button>
       {/* Out of the header entirely — see this file's header. */}
       <Show when={open() ? popover.at() : null}>

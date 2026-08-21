@@ -1,3 +1,4 @@
+@share-scratch
 @scratch:good
 Feature: The three input widgets
   Workflowy's three trigger characters, in a row's title: `!` a day in words,
@@ -14,8 +15,9 @@ Feature: The three input widgets
   `add_mirror`). Nothing is echoed: the pill appears and the row appears when
   the file says they did.
 
-  `@scratch:` because these write the directory they are served — each scenario
-  gets a private copy of it.
+  `@scratch:` because these write the directory they are served. They share
+  one copy per worker (`@share-scratch`); the corpus is restored between
+  scenarios.
 
   Background:
     Given I open the outline "house.olai"
