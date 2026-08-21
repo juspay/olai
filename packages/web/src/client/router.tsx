@@ -73,8 +73,8 @@ export interface Router {
    */
   readonly landing: () => Landing | undefined
   /**
-   * SPEND this pane's landing: the act named by `{index, at}` has been
-   * performed, and must not be performed again.
+   * SPEND this pane's landing: the act named by `{index, file, at}` has
+   * been performed, and must not be performed again.
    *
    * It is the router's rather than the performer's because the rule is
    * about the VALUE and every surface that reads one is bound by it. Kept
@@ -162,9 +162,8 @@ const here = (): string =>
  *  is nothing to look the file up in. */
 const landingOf = (index: number, route: Route): Landing | undefined => {
   const address = route.kind === "at" ? route.address : undefined
-  return address === undefined || address === null || address.kind !== "heading"
-    ? undefined
-    : { index, file: address.path, at: address.slug, spent: false }
+  if (address?.kind !== "heading") return undefined
+  return { index, file: address.path, at: address.slug, spent: false }
 }
 
 export const createRouter = (): Router => {

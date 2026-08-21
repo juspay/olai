@@ -276,6 +276,27 @@ const REFUSED: Said = {
 const anchor = (at: string | undefined): string =>
   at === undefined || at === "" ? "" : `#${encodeURIComponent(at)}`
 
+/**
+ * WHAT THE FRAME WAS POINTED AT — the two facts about the document in there
+ * that this component asks about afterwards, beside {@link Custody}, which is
+ * the separate question of whose that document IS.
+ *
+ * `rev` is the revision the file was fetched at, and it is what separates "the
+ * file moved on disk" from "the address changed" in the one effect that watches
+ * both — the second is not a reason to fetch anything.
+ *
+ * `at` is the section the address carried, or nothing for a pointing that
+ * carried none, and it is how the host window's half of a landing knows whose
+ * number it is answering: only a document this component pointed at a fragment
+ * can move this window. A page that walked off, a page brought home after one,
+ * and the file re-fetched because its revision moved are all pointed with no
+ * fragment, so a report from any of them is a number nobody asked for.
+ */
+interface Pointed {
+  readonly rev: number | undefined
+  readonly at: string | undefined
+}
+
 export function Hypertext(props: { readonly file: string }) {
   // WHICH REVISION THIS FILE IS AT, which is the whole of what this component
   // asks the wire for — the effect at the bottom is what spends it. A number,
@@ -321,26 +342,15 @@ export function Hypertext(props: { readonly file: string }) {
   let walkOffs = 0
   let visits = 0
   /**
-   * WHAT IS IN THE FRAME — the two facts about the document this component
-   * pointed it at that everything below has to ask about, or nothing at all
-   * before the first pointing and for a document nobody asked for.
-   *
-   * `rev` is the revision it was fetched at, which is what separates "the file
-   * moved on disk" from "the address changed" in the one effect that watches
-   * both. `at` is the section it was pointed at, and it is how the host
-   * window's half of a landing knows whose number it is answering: only a
-   * document this component pointed at a fragment can move this window, and
-   * only until the next pointing replaces it ({@link fresh}). A page that
-   * walked off, a page brought home after one, and the file re-fetched because
-   * its revision moved are all pointed with no fragment, so a report from any
-   * of them is a number nobody asked for.
+   * WHAT IS IN THE FRAME ({@link Pointed}), or nothing at all before the first
+   * pointing and for a document nobody asked for.
    *
    * A PLAIN VARIABLE and not a signal, because nothing reads it to draw with:
    * it is assigned in the same breath as the frame's `src`, before any document
    * in there could possibly report, and the effect that reads it is already
    * woken by the report itself.
    */
-  let showing: { readonly rev: number | undefined; readonly at: string | undefined } | undefined
+  let pointed: Pointed | undefined
   // Whose document is in the frame ({@link Custody}, where the whole rule is a
   // table). Before the first pointing there is nothing in there and nothing has
   // been asked for, which is the same answer this gives to every question:
@@ -368,7 +378,7 @@ export function Hypertext(props: { readonly file: string }) {
   /**
    * What belonged to the DOCUMENT that is leaving: the ladder of height reports
    * it was climbing, the refusal it drew, the report it made about its anchor,
-   * and the section it was pointed at — which is what makes {@link showing} a
+   * and the section it was pointed at — which is what makes {@link pointed} a
    * fact about the document in the frame right now rather than about this
    * pane's history.
    *
@@ -391,7 +401,7 @@ export function Hypertext(props: { readonly file: string }) {
     heights.fresh()
     setRefused(undefined)
     setLandedAt(undefined)
-    showing = undefined
+    pointed = undefined
   }
 
   /** The file itself, at its own address on the media route — a fresh URL every
@@ -426,7 +436,7 @@ export function Hypertext(props: { readonly file: string }) {
     // act nobody performed.
     const at = landing.owed()
     point(`${mediaHref(props.file)}?${VISIT}=${visits}${anchor(at)}`)
-    showing = { rev: rev(), at }
+    pointed = { rev: rev(), at }
   }
 
   /**
@@ -643,7 +653,7 @@ export function Hypertext(props: { readonly file: string }) {
    * ADDRESS must still name a section ({@link Landfall}'s `at`) — Back takes
    * the fragment off it, and a number arriving after that is about a place the
    * reader is no longer being sent to. And the DOCUMENT IN THE FRAME must be
-   * one this pane pointed at that section ({@link showing}) — so an unasked-for
+   * one this pane pointed at that section ({@link pointed}) — so an unasked-for
    * number moves nothing, whether it comes from a page that walked off or from
    * the file re-fetched because its revision moved, which is pointed at its own
    * address with no fragment on it once the landing has been spent.
@@ -659,9 +669,9 @@ export function Hypertext(props: { readonly file: string }) {
     // land where the reader will be looking.
     measured()
     if (top === undefined || frame === undefined) return
-    if (showing?.at === undefined || landing.at() === undefined) return
+    if (pointed?.at === undefined || landing.at() === undefined) return
     const box = frame
-    const at = showing.at
+    const at = pointed.at
     const painted = requestAnimationFrame(() => {
       box.scrollIntoView({ block: "start" })
       if (top !== 0) scrollBy({ top, behavior: "instant" })
@@ -669,7 +679,7 @@ export function Hypertext(props: { readonly file: string }) {
       // The reader has been taken to the section, so the next time this file
       // moves on disk the frame is re-pointed at its own address and nothing
       // more. Spending does not stop THIS effect re-running as the height
-      // settles — it reads `showing`, which is a fact about the document in the
+      // settles — it reads `pointed`, which is a fact about the document in the
       // frame — so the last run is still the one with the geometry the reader
       // actually sees.
       landing.landed(at)
@@ -751,10 +761,10 @@ export function Hypertext(props: { readonly file: string }) {
       //
       // The REVISION is the other half of the condition and not an oversight:
       // a file that moved on disk has to be fetched whatever the address says.
-      // Compared against the document in the frame ({@link showing}) rather
+      // Compared against the document in the frame ({@link pointed}) rather
       // than against `on`'s own previous input, which is not there to compare
       // with — a deferred `on` skips its first run without recording it.
-      if (at === undefined && showing !== undefined && showing.rev === now) return
+      if (at === undefined && pointed !== undefined && pointed.rev === now) return
       walkOffs = 0
       show()
     }, { defer: true }),
