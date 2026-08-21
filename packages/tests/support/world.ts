@@ -680,6 +680,9 @@ export const TRASH_LINK = selector(TESTID.trashLink);
 /** And the way to the INBOX, beside Agenda — drawn only when the directory
  *  has one, which is what the scenarios about a never-captured vault read. */
 export const INBOX_LINK = selector(TESTID.inboxLink);
+/** What that entry REPORTS, wrapped round the link: `data-count` is how many
+ *  top-level captures the file holds. */
+export const INBOX_HELD = selector(TESTID.inboxHeld);
 /** The number on it. Absent when the inbox is empty — a quiet door wears no
  *  chip rather than a zero. */
 export const INBOX_COUNT = selector(TESTID.inboxCount);

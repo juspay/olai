@@ -108,6 +108,20 @@ test("a directory nobody has been told about yet claims nothing", () => {
   expect(mark.owed).toEqual({ overdue: 0, today: 0 })
 })
 
+test("a painted chip is never a zero — CountChip hides at zero on this", () => {
+  const marks = [
+    markOf(undefined),
+    markOf(countedOf([COMING])),
+    markOf(countedOf([ON_TODAY])),
+    markOf(countedOf([LATE], [ALSO_LATE])),
+    markOf(countedOf([LATE, ON_TODAY])),
+  ]
+  for (const mark of marks) {
+    if (mark.chip !== "") expect(mark.count).toBeGreaterThan(0)
+    if (mark.count === 0) expect(mark.chip).toBe("")
+  }
+})
+
 test("a mark is a VALUE: the counts are copied, not held by reference", () => {
   // The wire hands this table a LIVE value — a reconciled store whose identity
   // survives every frame and whose fields move under it. Held by reference,

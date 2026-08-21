@@ -25,9 +25,11 @@ import { olai } from "./wire.ts"
  *
  * Zero is the honest drawing either way: the chip hides at zero, and the
  * door's presence is a question about the PATHS (`inboxIn`), not about this
- * number. A badge that claimed "nothing is in it" out of a directory it had
- * not been told about would be a lie if the door were drawn from it; it is
- * not.
+ * number. `NO_INBOX` before the first frame is therefore not a lie — the
+ * door is not drawn from this cell, so a zero here cannot hide an inbox
+ * the paths have already named. A badge that claimed "nothing is in it"
+ * out of a directory it had not been told about would be a lie if the door
+ * were drawn from it; it is not.
  */
 export const createInboxHeld = (): Accessor<InboxHeld> => {
   const cell = olai.cells.inbox.use()

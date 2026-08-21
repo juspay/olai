@@ -5,7 +5,9 @@
  * names, which is the same number `list_outlines` reports as that file's
  * `roots`. Nested children do not inflate it (a capture with a note under it
  * is still one thing in the inbox), and a mirror does not (a placement is not
- * a capture). Empty, missing, or unreadable: zero.
+ * a capture). Empty, missing, unreadable, or only placements: zero. A file
+ * that holds only mirrors is none of empty, missing or unreadable — it still
+ * wears zero, because the badge counts captures, not rows the page draws.
  *
  * A READING of the set, the way `./shelf.ts` is: the browser may not hold the
  * vault, so the server answers this per published revision and the sidebar
@@ -19,6 +21,7 @@ import { Schema } from "effect"
 
 import { type Derived, siblingsOf } from "./derive.ts"
 import { inboxIn, isMirror } from "./node.ts"
+import { type OutlineSet, outlinePaths } from "./set.ts"
 
 /**
  * How many captures the inbox holds, as the wire carries it.
@@ -30,13 +33,14 @@ import { inboxIn, isMirror } from "./node.ts"
  */
 export const InboxHeld = Schema.Struct({
   /** Top-level regular nodes of the directory's inbox. Zero when there is
-   *  none, when the file holds nothing, and when it would not parse. */
+   *  none, when the file holds nothing, when it would not parse, and when
+   *  it holds only placements. */
   count: Schema.Int,
 })
 export type InboxHeld = typeof InboxHeld.Type
 
-/** No inbox, an empty one, a torn one, and a server that has never loaded —
- *  one value, because all four wear no chip. */
+/** No inbox, an empty one, a torn one, a placements-only one, and a server
+ *  that has never loaded — one value, because all five wear no chip. */
 export const NO_INBOX: InboxHeld = { count: 0 }
 
 /**
@@ -52,15 +56,15 @@ export const sameInboxHeld: (a: InboxHeld, b: InboxHeld) => boolean =
 /**
  * How full the directory's inbox is, read off the set.
  *
- * THE FILE is found the way the capture is (`inboxIn` over the files this
- * derivation holds). An empty outline is absent from `byFile`, so a directory
- * that minted an inbox and then emptied it answers zero the same way a
- * directory that has never captured does — which is what the door wants: the
- * chip hides at zero either way, and whether the door itself is drawn is a
- * question about the PATHS, not about this number.
+ * THE FILE is found the way the capture is (`inboxIn` over
+ * {@link outlinePaths}), not over `derived.byFile`. `byFile` is a grouping of
+ * parsed records: an empty outline and a torn one have no entry, so a
+ * shallowest empty `Inbox.olai` beside a populated `_olai/Inbox.olai` would
+ * send the door and every future capture to the empty file and the count to
+ * the deeper one. The set's paths are the list capture already walks.
  */
-export const inboxHeldOf = (derived: Derived): InboxHeld => {
-  const file = inboxIn([...derived.byFile.keys()])
+export const inboxHeldOf = (set: OutlineSet, derived: Derived): InboxHeld => {
+  const file = inboxIn(outlinePaths(set))
   if (file === undefined) return NO_INBOX
   const count = siblingsOf(derived, file, undefined).filter(
     (located) => !isMirror(located.node),

@@ -129,6 +129,10 @@ const PAINT: Record<Face, { readonly entry: string; readonly chip: string; reado
  * guaranteed rather than inherited from whoever called it; ../dates.ts keeps
  * the same promise one layer out, for the wire value's own readers, and the two
  * are separate promises rather than the same one made twice.
+ *
+ * PAINTED FACE ⟹ COUNT > 0. The quiet face is the only zero and its chip is
+ * empty, which is the invariant `../layout/CountChip.tsx` hides at zero on.
+ * A face added below that painted a chip over a zero would vanish there.
  */
 export const markOf = (counted: Owed | undefined): Mark => {
   const owed: Owed = { overdue: counted?.overdue ?? 0, today: counted?.today ?? 0 }

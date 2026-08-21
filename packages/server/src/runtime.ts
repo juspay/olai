@@ -598,7 +598,9 @@ export const bind = (
               (snapshot) =>
                 Effect.sync(() =>
                   cell.set(
-                    snapshot === null ? NO_INBOX : inboxHeldOf(snapshot.value.derived),
+                    snapshot === null
+                      ? NO_INBOX
+                      : inboxHeldOf(snapshot.value.set, snapshot.value.derived),
                   )
                 ),
             ),

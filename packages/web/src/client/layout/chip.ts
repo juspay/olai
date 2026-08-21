@@ -13,8 +13,10 @@
  * waiting are news, not late work.
  */
 
-/** The chip's box. Paint is layered on by the face. */
-export const CHIP = "rounded-full px-1.5 text-xs leading-5 tabular-nums"
+/** The chip's box. Paint is layered on by the face. Not exported: the two
+ *  paints below are the unit; a third consumer spelling its own chip from
+ *  the shape would be the lookalike this file exists to prevent. */
+const CHIP = "rounded-full px-1.5 text-xs leading-5 tabular-nums"
 
 /** Late work: paper on alarm, the palette's own checked contrast pair. */
 export const CHIP_ALARM = `${CHIP} bg-alarm font-semibold text-paper`

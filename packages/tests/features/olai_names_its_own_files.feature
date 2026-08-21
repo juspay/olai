@@ -154,6 +154,7 @@ Feature: The files olai names for itself, and the doors onto them
       {"id":"i0","ord":"a0",title:"buy the walnut stain"}
       """
     Then the Inbox door is marked unreadable
+    And the Inbox wears no count
 
   Scenario: An inbox the directory already keeps is the file the capture and the door both use
     # ONLY THE MINT MOVED. A vault that already keeps `Inbox.olai` at its top
@@ -210,4 +211,18 @@ Feature: The files olai names for itself, and the doors onto them
     When I create the outline "Inbox.olai" from the sidebar
     Then the sidebar offers the Inbox
     And the Inbox wears no count
+    And there should be no page errors
+
+  Scenario: A later root Inbox.olai is the file the door and the count both name
+    # THE DIVERGENCE. A capture mints `_olai/Inbox.olai` and the door wears 1.
+    # Creating `Inbox.olai` from the sidebar makes that the shallowest inbox —
+    # the file capture and the door both use. The count has to follow them,
+    # not stay on the deeper file that still holds the capture.
+    When I press the palette shortcut
+    And I capture "buy the walnut stain" from the palette
+    When I close the palette
+    Then the Inbox wears a count of 1
+    When I create the outline "Inbox.olai" from the sidebar
+    Then the Inbox wears no count
+    And the address is "/Inbox.olai"
     And there should be no page errors
