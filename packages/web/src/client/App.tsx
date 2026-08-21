@@ -6,9 +6,9 @@
  * on desktop the connection, git, agent, preferences). On a phone those four
  * leave the bar: connection and git are banners when they are news, the agent
  * is the thumb strip, preferences live in the directory drawer. The sidebar
- * carries what is about the DIRECTORY (the agenda, the calendar, the file
- * tree), collapsing to an icon rail when minimized; chat is a resizable dock
- * or a minimized pill/strip.
+ * carries what is about the DIRECTORY (the agenda, the inbox, the calendar,
+ * the file tree), collapsing to an icon rail when minimized; chat is a
+ * resizable dock or a minimized pill/strip.
  * The main column is a LIST of routes (`./workspace.ts`) — one pane is the
  * page this app has always been; two or more are the same page component
  * side by side, never a stripped copy.
@@ -26,6 +26,7 @@ import { Calendar } from "./calendar/Calendar.tsx"
 import { Panel as ChatPanel } from "./chat/Panel.tsx"
 import { createToday } from "./clock.ts"
 import { createOwed } from "./dates.ts"
+import { createInboxHeld } from "./inbox.ts"
 import { Offline } from "./connection/Offline.tsx"
 import { createDirectory } from "./directory.ts"
 import { AirProvider, createAir } from "./drag/air.ts"
@@ -180,6 +181,10 @@ export default function App() {
    * under the same gate, one branch down.
    */
   const owed = createOwed(askedOn)
+  /** How full the inbox is — the door beside Agenda wears this number. One
+   *  subscription, created here with owed, so a second reader cannot open a
+   *  second cell. */
+  const inboxHeld = createInboxHeld()
 
   /**
    * This browser's fold memory, kept filed against the set — a node that moved
@@ -380,6 +385,7 @@ export default function App() {
                         active={openFile()}
                         broken={directory.broken()}
                         owed={owed()}
+                        inboxHeld={inboxHeld()}
                         open={desktop() ? true : menuOpen()}
                         onClose={() => setMenuOpen(false)}
                         foot={
