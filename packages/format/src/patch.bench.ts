@@ -166,7 +166,14 @@ type CopyOnWrite = (
  *  every one of them — because an arm that stopped recomputing would otherwise
  *  go on reporting the first revision very fast, which is precisely the
  *  magnificent number a benchmark must never print. Its size is checked with
- *  it: an arm answering for the wrong corpus is not measuring what it says. */
+ *  it: an arm answering for the wrong corpus is not measuring what it says.
+ *
+ *  IT COUNTS THE GROUPING rather than reading the flat list, and that is not
+ *  tidiness: `Derived.nodes` is built when somebody asks, so a fence that asked
+ *  would make the `patch` arm allocate a corpus-sized array after every one of
+ *  its forty edits — outside the timed window, but leaving the collector work
+ *  the arm it is compared against never made. A fence must not be the thing
+ *  that moves the number. */
 const said = (name: string, view: Derived, which: number): void => {
   const found = retitledIn(view.byFile.get(fileFor(which)) ?? [])
   if (found !== which) {
@@ -175,9 +182,11 @@ const said = (name: string, view: Derived, which: number): void => {
         ` answered a view it never recomputed`,
     )
   }
-  if (view.nodes.length !== records) {
+  let held = 0
+  for (const own of view.byFile.values()) held += own.length
+  if (held !== records) {
     throw new Error(
-      `${name} answered for ${view.nodes.length} records of ${records}` +
+      `${name} answered for ${held} records of ${records}` +
         ` — the arm is not measuring what it says`,
     )
   }

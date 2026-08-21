@@ -213,6 +213,10 @@ export const patched = (
   // second time to check this view was about it. So a validated write builds
   // the list once where it built two and walked both, and a patch whose view
   // nobody reads flat builds none. Memoised, so asking twice is asking once.
+  //
+  // AND THOSE FIVE RULES WANT AN ARRAY rather than a walk of the grouping,
+  // which {@link Derived.nodes} carries the measurement for: not building it at
+  // all costs those readers more than building it costs this writer.
   let flat: ReadonlyArray<Located> | undefined
   const nodes = (): ReadonlyArray<Located> => (flat ??= flattened(byFile))
 

@@ -140,30 +140,6 @@ export const validate = (
 }
 
 /**
- * The view every rule below is run over: patched from the last one where that
- * is possible, built from scratch where it is not.
- *
- * The two are the same value — that is the patcher's contract and its property
- * test — so this is a statement about COST and about nothing else. Which is why
- * it is one branch inside this file rather than a decision any caller makes:
- * `Reading` was written to hide exactly this.
- *
- * THE RECORDS THEMSELVES ARE COMPARED, and identity is the right question
- * rather than a strict one. The rules below read the view against the set: a
- * duplicate id is "the record `byId` kept is not THIS record"
- * ({@link reportDuplicateIds}), and that is an identity test. So a view built
- * from a delta that missed a file — or from records equal to the set's rather
- * than the set's own — is not merely stale, it makes every record look like a
- * duplicate of itself. Nothing about that could be caught by counting, and the
- * two lists are already in hand: one pass of pointer comparisons over a list
- * this function was going to walk six times anyway.
- *
- * It is a DISAGREEMENT check and not a proof of the delta. What stands behind
- * that is the store's own claim that these paths are every path that moved,
- * which is the same claim the wire already spends when it publishes per file;
- * this is what makes a broken claim cost a rebuild rather than a wrong answer.
- */
-/**
  * The pair, without the rules — a set and the view of it, patched from a
  * previous reading where that is exact and rebuilt where it is not.
  *
@@ -177,8 +153,7 @@ export const validate = (
  * something the final check either catches or was never true of.
  *
  * IT IS THIS FUNCTION AND NOT `patch`, and that is the whole of why it is here.
- * IT IS THIS FUNCTION AND NOT `patch` for a caller that holds a SET. The
- * patcher is exported — the browser folded its delta frames with it once
+ * The patcher is exported — the browser folded its delta frames with it once
  * (`model-indices` slice 4) — and a caller with nothing to hold the result
  * against is right to reach it. This one has something: it assembles a real
  * {@link OutlineSet} per op and plans the next one against it, which is
@@ -186,9 +161,7 @@ export const validate = (
  * that turns a delta which missed a file into a rebuild rather than into a view
  * where every record looks like a duplicate of itself. So the door a
  * set-holding caller comes through is the patcher AND that guard, together, and
- * nobody has to remember the second half. What that guard costs is a walk of
- * the FILES ({@link isSet}), not a second flattening of the corpus to compare
- * against a first.
+ * nobody has to remember the second half.
  */
 export const reading = (set: OutlineSet, previous?: Previous): Reading => ({
   set,
@@ -216,14 +189,39 @@ export const reading = (set: OutlineSet, previous?: Previous): Reading => ({
 const recordsIn = (set: OutlineSet): ReadonlyArray<Located> =>
   outlinesIn(set).flatMap((outline) => outline.nodes)
 
+/**
+ * The view every rule below is run over: patched from the last one where that
+ * is possible, built from scratch where it is not.
+ *
+ * The two are the same value — that is the patcher's contract and its property
+ * test — so this is a statement about COST and about nothing else. Which is why
+ * it is one branch inside this file rather than a decision any caller makes:
+ * `Reading` was written to hide exactly this.
+ *
+ * THE RECORDS THEMSELVES ARE COMPARED, and identity is the right question
+ * rather than a strict one. The rules below read the view against the set: a
+ * duplicate id is "the record `byId` kept is not THIS record"
+ * ({@link reportDuplicateIds}), and that is an identity test. So a view built
+ * from a delta that missed a file — or from records equal to the set's rather
+ * than the set's own — is not merely stale, it makes every record look like a
+ * duplicate of itself. Nothing about that could be caught by counting, and the
+ * records to compare are in hand on both sides: the view's grouping, and the
+ * outlines the set already holds ({@link isSet}, which walks the FILES rather
+ * than flattening the corpus a second time to compare against a first).
+ *
+ * It is a DISAGREEMENT check and not a proof of the delta. What stands behind
+ * that is the store's own claim that these paths are every path that moved,
+ * which is the same claim the wire already spends when it publishes per file;
+ * this is what makes a broken claim cost a rebuild rather than a wrong answer.
+ *
+ * THE PATCHED VIEW ITSELF once that holds, records and places and all. It used
+ * to hand back `{...view, nodes}` — the SET's own array swapped in, so a
+ * rebuilt reading and a patched one shared one list with the set. Neither array
+ * is the set's any more, so that spread would rebuild the view to hold an array
+ * equal to the one it already had, and throw away the one identity worth
+ * keeping: the patched list is stable across revisions that touched nothing.
+ */
 const viewOf = (set: OutlineSet, previous: Previous | undefined): Derived => {
-  // THE PATCHED VIEW ITSELF, once it is known to hold the same records in the
-  // same places as the set does. It used to hand back `{...view, nodes}` — the
-  // SET's own array swapped in, so a rebuilt reading and a patched one shared
-  // one list with the set. Neither array is the set's any more, so that spread
-  // would rebuild the view to hold an array equal to the one it already had,
-  // and throw away the one identity worth keeping: the patched list is stable
-  // across revisions that touched nothing.
   if (previous !== undefined) {
     const view = patch(previous.read.derived, previous.delta)
     if (isSet(view, set)) return view
@@ -246,7 +244,16 @@ const viewOf = (set: OutlineSet, previous: Previous | undefined): Derived => {
  * It is STRICTLY the stronger question, not the cheaper half of the old one:
  * the flat lists agreeing said the records were the same objects in the same
  * order, and this says that AND that the view files them under the paths the
- * set spells, in the order an assembled set is in. A file holding nothing is
+ * set spells, in the order an assembled set is in.
+ *
+ * IT STILL WALKS THE RECORDS, and what that is worth was measured rather than
+ * left as the obvious next lever: 0.122ms over the bench vault's 980 files and
+ * 21,552 records, against 0.070ms for the same walk comparing one POINTER per
+ * file. So the whole of what array identity could buy here is about five
+ * hundredths of a millisecond — and buying it means {@link Derived.byFile}
+ * holding the set's own arrays, which means `derive` being handed a grouping
+ * instead of the flat list it is written against. A worse interface, one layer
+ * down, for a twentieth of what one patch costs. A file holding nothing is
  * absent from `byFile` ({@link Derived.byFile} says so), so the set's empty
  * outlines are stepped over rather than matched — which is itself a rule the
  * flat comparison could not see either way.

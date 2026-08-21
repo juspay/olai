@@ -86,6 +86,15 @@ export interface Derived {
    * So a caller that wants a record COUNT or the corpus grouped should ask
    * `byFile` rather than this, and one that wants the records as a list should
    * bind this once rather than name it per rule.
+   *
+   * AND IT IS AN ARRAY, which was asked and measured rather than assumed: the
+   * five whole-set rules could take an `Iterable` and walk `byFile` nested,
+   * allocating nothing at all. On the bench vault that is SLOWER, and not
+   * marginally — five rule-shaped walks of 21,552 records cost 3.9ms off one
+   * array built once, 5.3ms walking the grouping nested and 5.8ms through a
+   * generator, against the 0.10ms the array costs to build. A reading spent
+   * five times wants to be a list; what it must not be is a list built by
+   * somebody who was not going to read it.
    */
   readonly nodes: ReadonlyArray<Located>
   /** id → the record that claims it. FIRST claim wins, which is the same rule
