@@ -450,9 +450,12 @@ const namesFor = (
   return named
 }
 
-/** Every regular record this reading carries, however deep — one walk over the
+/** Every regular record this reading MENTIONS, however deep — one walk over the
  *  arms, so a page that grows a place to draw a node grows a place to resolve
- *  what that node points at, in one edit rather than two. */
+ *  what that node points at, in one edit rather than two. Its sibling is
+ *  `./narrowing.ts`'s, which walks the narrower set a filter can take AWAY: a
+ *  crumb, a backlink, a referrer and a blocker are mentioned here and are not
+ *  rows there. */
 function* drawnIn(shows: Shown): Generator<LocatedRegular> {
   switch (shows.kind) {
     case "outline":

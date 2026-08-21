@@ -157,11 +157,13 @@ export interface Asked {
    * the other's frame (`docs/brainstorming/filter-rides-the-page.md` §4 argues
    * why they are two members).
    *
-   * FALSE WHILE NOTHING IS ASKED, so an unfiltered pane is never held; and false
-   * once the reading has FAILED, because no answer is coming and holding a page
-   * for one that will not arrive is a pane that never draws again. A keystroke
-   * makes it true for one round trip, over a page that has not moved — which is
-   * the rows-hold-still rule and costs the pane nothing.
+   * FALSE WHILE NOTHING IS ASKED, so an unfiltered pane is never held. A
+   * keystroke makes it true for one round trip, over a page that has not moved,
+   * which is the rows-hold-still rule and costs the pane nothing. And a hold is
+   * never PERMANENT without a clause for it: a stream that fails clears its own
+   * `pending` in the same batch it records the failure, so no answer coming
+   * means the page is released — and {@link standing} drops the answer with it,
+   * because the two are only worth holding together.
    */
   readonly awaiting: Accessor<boolean>
 }
@@ -307,14 +309,26 @@ export const createAsked = (source: {
   )
 
   /**
-   * ONLY WHILE SOMETHING IS ASKED, which is the guard holding does not give: a
-   * box emptied and typed into again would draw the PREVIOUS filter's rows for
-   * the length of a settle — the whole page, then four rows of an answer to a
-   * question nobody asked, then the answer. Holding still is only honest
+   * ONLY WHILE SOMETHING IS ASKED AND SOMETHING IS COMING — the two guards
+   * holding does not give.
+   *
+   * A BOX EMPTIED AND TYPED INTO AGAIN would draw the PREVIOUS filter's rows
+   * for the length of a settle — the whole page, then four rows of an answer to
+   * a question nobody asked, then the answer. Holding still is only honest
    * between two queries of one session; across a clear there is nothing to
    * hold, and the page is whole until the first answer lands.
+   *
+   * A READING THAT FAILED is the other, and it is the one case where holding an
+   * answer and holding the PAGE come apart. They are held together on purpose
+   * ({@link Asked.awaiting}), so while a narrowing is in flight the rows on
+   * screen and the answer that narrowed them are one page's; a failure releases
+   * the page (`pending` clears with it) and would leave the answer behind — the
+   * next page's rows pruned by the last page's ids, silently, under a line
+   * saying the server could not answer. So the answer goes with it: the page
+   * draws WHOLE and the failure under the box is the whole of what is claimed.
    */
-  const standing = () => (asked() === null ? undefined : held())
+  const standing = () =>
+    asked() === null || answer.error() !== undefined ? undefined : held()
 
   /**
    * THE ANSWER, as a page looks itself up in it — id → why.
@@ -372,8 +386,10 @@ export const createAsked = (source: {
     // The join, as one predicate — see {@link Asked.awaiting}. `pending` is the
     // framework's own "no first frame yet", re-armed with the lifecycle when the
     // question moves, so nothing here has to remember which answer was about
-    // which page.
-    awaiting: () =>
-      asking() !== null && answer.pending() && answer.error() === undefined,
+    // which page. THAT A HOLD IS NEVER PERMANENT is the seam's law rather than a
+    // second condition kept here: a failing stream clears `pending` in the same
+    // batch it records the failure (`@kolu/surface`'s `createStreamLifecycle`),
+    // so there is no `error` clause to write and none to go stale.
+    awaiting: () => asking() !== null && answer.pending(),
   }
 }

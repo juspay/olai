@@ -804,7 +804,10 @@ export {
  */
 export {
   /** The reading over a page ALREADY COMPUTED — for a caller holding a
-   *  {@link Shown} rather than a request, which is every test of it. */
+   *  {@link Shown} rather than a request, which is what the browser's own
+   *  filter suites hold when they ask what a true answer does to a page. The
+   *  archive question it asks of that page (`showsPutAway`) stays inside: it is
+   *  a step of this reading and never a question anybody else has. */
   narrowedIn,
   NarrowingAnswer,
   NarrowingRequest,
@@ -812,10 +815,6 @@ export {
   narrowingOf,
   sameNarrowing,
   sameNarrowingRequest,
-  /** Whether the page in front of the reader draws anything that was PUT AWAY
-   *  — the one thing the matcher is told about the QUESTION rather than asked
-   *  about the answer. */
-  showsPutAway,
 } from "./narrowing.ts"
 
 /**

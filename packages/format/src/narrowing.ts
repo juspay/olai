@@ -254,6 +254,15 @@ export const showsPutAway = (shows: Shown): boolean => {
  * rows and one candidate, and the answer is a set of ids a page looks itself up
  * in. `matching` needs no such guard — `derived.nodes` names each record once —
  * which is why the dedup is here rather than in the matcher.
+ *
+ * IT IS THE SECOND WALK OVER `Shown` IN THIS PACKAGE, and that is deliberate
+ * rather than a duplicate: `./page.ts`'s `drawnIn` yields every record a page
+ * MENTIONS, because what it feeds is the names table, and a crumb, a backlink,
+ * a referrer and a blocker all point at something. None of those is a row, and
+ * a filter has never taken one away — so a match found only there would be an
+ * id nothing looks up. Two questions, two walks; both `switch` exhaustively
+ * over the same union, so a sixth page kind is a compile error in both rather
+ * than a silence in one.
  */
 function* prunable(shows: Shown): Generator<LocatedRegular> {
   const seen = new Set<string>()

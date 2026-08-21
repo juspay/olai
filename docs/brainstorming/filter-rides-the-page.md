@@ -132,6 +132,14 @@ and a page held for one that will not arrive is a pane that never draws again.
 So the cost is one predicate and one optional argument, and what it buys is the
 keystroke traffic: the alternative pays a whole page per word typed, for ever.
 
+**Named, at population one:** "two members of one surface, drawn as one moment"
+is a volatility a framework could hold — a joined subscription that is pending
+until every leg has answered, and whose value is the tuple. Kolu's surface is
+where it would live, beside the enrolment and the change-iff-fired law it would
+inherit. It is one consumer today, so nothing is extracted and nothing is
+blocked on it; this is the recording, so the second consumer has something to
+point at.
+
 ### Why the reader's own hiding stays out of it
 
 The server does not prune. It answers the SELECTION and the browser prunes, exactly

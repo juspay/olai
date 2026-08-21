@@ -1,5 +1,10 @@
 /**
- * The page's filter, as one reading.
+ * The page's filter, as one reading — the BROWSER's half of it.
+ *
+ * Its namesake one layer down (`@olai/format`'s `narrowing.ts`) answers WHICH
+ * NODES the query selects; this decides what a page does with that answer. Two
+ * files, one word, and the split between them is the design's: the server says
+ * which nodes, the page says which rows.
  *
  * Everything a filtered page needs is derived from ONE string — the `?q=` on
  * the address (`../routes.ts`) — and it is derived here rather than in the
