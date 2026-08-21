@@ -56,7 +56,7 @@ import {
   Switch,
 } from "solid-js"
 
-import { needlesOf, parseFilter, type Zoomed } from "@olai/format"
+import { needlesFrom, type Zoomed } from "@olai/format"
 import type { Edit, OpFailure } from "@olai/surface"
 import { Result as Outcome } from "effect"
 
@@ -164,7 +164,7 @@ export function Palette(props: {
   const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
   const today = useToday()
-  const needles = createMemo(() => needlesOf(parseFilter(query(), today())))
+  const needles = createMemo(() => needlesFrom(query(), today()))
   // WHICH row Enter takes, and the arrows that walk it — the one cursor every
   // shortlist in this client shares (`../search/cursor.ts`).
   const cursor = createCursor(() => items().length)
