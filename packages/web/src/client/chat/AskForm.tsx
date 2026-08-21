@@ -122,94 +122,94 @@ export function AskForm(props: {
       data-asking={waiting()}
       data-how={ask().outcome?.how ?? ""}
     >
-          {/* The agent's own words. Quoted rather than rendered, like a user
-              message: a question is a sentence somebody has to read exactly,
-              and a `#` in it is a `#`. */}
-          <p class="m-0 whitespace-pre-wrap text-sm">{props.entry.text}</p>
+      {/* The agent's own words. Quoted rather than rendered, like a user
+          message: a question is a sentence somebody has to read exactly,
+          and a `#` in it is a `#`. */}
+      <p class="m-0 whitespace-pre-wrap text-sm">{props.entry.text}</p>
 
-          <div class="mt-2 flex flex-col gap-3">
-            <For each={blocks()}>
-              {(field) => (
-                <div data-testid={TESTID.chatAskField} data-field={field.key}>
-                  <Show when={field.label}>
-                    {(label) => (
-                      <p class="m-0 text-xs text-muted">
-                        {label()}
-                        <Show when={field.required}>
-                          <span class="text-alarm" aria-label="required">*</span>
-                        </Show>
-                      </p>
-                    )}
-                  </Show>
-                  <Show when={field.hint}>
-                    {(hint) => <p class="m-0 text-xs text-muted">{hint()}</p>}
-                  </Show>
+      <div class="mt-2 flex flex-col gap-3">
+        <For each={blocks()}>
+          {(field) => (
+            <div data-testid={TESTID.chatAskField} data-field={field.key}>
+              <Show when={field.label}>
+                {(label) => (
+                  <p class="m-0 text-xs text-muted">
+                    {label()}
+                    <Show when={field.required}>
+                      <span class="text-alarm" aria-label="required">*</span>
+                    </Show>
+                  </p>
+                )}
+              </Show>
+              <Show when={field.hint}>
+                {(hint) => <p class="m-0 text-xs text-muted">{hint()}</p>}
+              </Show>
 
-                  <div class="mt-1">
+              <div class="mt-1">
+                <AskControl
+                  field={field}
+                  values={values(field.key)}
+                  disabled={!waiting() || sending()}
+                  onChange={(next) => setDraft(props.entry.id, field.key, next)}
+                />
+              </div>
+
+              {/* Its own box, under the options it is an alternative to.
+                  The agent reads a typed answer as taking PRECEDENCE over
+                  whichever chip is pressed, so the two live together and
+                  neither is hidden behind the other. */}
+              <Show when={companion(field)}>
+                {(other) => (
+                  <div class="mt-1.5">
                     <AskControl
-                      field={field}
-                      values={values(field.key)}
+                      field={other()}
+                      values={values(other().key)}
                       disabled={!waiting() || sending()}
-                      onChange={(next) => setDraft(props.entry.id, field.key, next)}
+                      onChange={(next) => setDraft(props.entry.id, other().key, next)}
                     />
                   </div>
-
-                  {/* Its own box, under the options it is an alternative to.
-                      The agent reads a typed answer as taking PRECEDENCE over
-                      whichever chip is pressed, so the two live together and
-                      neither is hidden behind the other. */}
-                  <Show when={companion(field)}>
-                    {(other) => (
-                      <div class="mt-1.5">
-                        <AskControl
-                          field={other()}
-                          values={values(other().key)}
-                          disabled={!waiting() || sending()}
-                          onChange={(next) => setDraft(props.entry.id, other().key, next)}
-                        />
-                      </div>
-                    )}
-                  </Show>
-                </div>
-              )}
-            </For>
-          </div>
-
-          <Show
-            when={waiting()}
-            fallback={
-              <p
-                class="mt-2 font-mono text-[0.6875rem] text-muted"
-                data-testid={TESTID.chatAskOutcome}
-              >
-                {SAID[ask().outcome?.how ?? ""] ?? "no longer waiting"}
-              </p>
-            }
-          >
-            <div class="mt-2 flex items-center gap-2">
-              <button
-                type="button"
-                class="flex h-8 items-center rounded border border-accent px-3 text-xs text-accent disabled:opacity-60"
-                data-testid={TESTID.chatAskSubmit}
-                disabled={sending()}
-                onClick={submit}
-              >
-                answer
-              </button>
-              {/* Not `../pill.ts`'s quiet pill: this row's height is set by
-                  the accent "answer" beside it, so dismiss keeps h-8/px-3 —
-                  the shared px-2/py-1 would shrink it out of the pair. */}
-              <button
-                type="button"
-                class="flex h-8 items-center rounded border border-rule px-3 text-xs text-muted hover:text-ink disabled:opacity-60"
-                data-testid={TESTID.chatAskDismiss}
-                disabled={sending()}
-                onClick={dismiss}
-              >
-                dismiss
-              </button>
+                )}
+              </Show>
             </div>
-          </Show>
+          )}
+        </For>
+      </div>
+
+      <Show
+        when={waiting()}
+        fallback={
+          <p
+            class="mt-2 font-mono text-[0.6875rem] text-muted"
+            data-testid={TESTID.chatAskOutcome}
+          >
+            {SAID[ask().outcome?.how ?? ""] ?? "no longer waiting"}
+          </p>
+        }
+      >
+        <div class="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            class="flex h-8 items-center rounded border border-accent px-3 text-xs text-accent disabled:opacity-60"
+            data-testid={TESTID.chatAskSubmit}
+            disabled={sending()}
+            onClick={submit}
+          >
+            answer
+          </button>
+          {/* Not `../pill.ts`'s quiet pill: this row's height is set by
+              the accent "answer" beside it, so dismiss keeps h-8/px-3 —
+              the shared px-2/py-1 would shrink it out of the pair. */}
+          <button
+            type="button"
+            class="flex h-8 items-center rounded border border-rule px-3 text-xs text-muted hover:text-ink disabled:opacity-60"
+            data-testid={TESTID.chatAskDismiss}
+            disabled={sending()}
+            onClick={dismiss}
+          >
+            dismiss
+          </button>
+        </div>
+      </Show>
     </div>
   )
 }

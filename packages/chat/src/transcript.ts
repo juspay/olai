@@ -122,6 +122,31 @@ export type RowContent = DistributiveOmit<
  *  a union of partials would accept either at every door. */
 type RowPatch<K extends ChatEntry["kind"]> = Partial<Extract<RowContent, { kind: K }>>
 
+/** The writer's derived fields, applied onto already-kind-correct content.
+ *
+ *  A function rather than a spread in `#put`, so `streaming` cannot land on a
+ *  tool row and `stranded` cannot land on a user row — the two flags are
+ *  arguments the matching arm accepts, not keys sprinkled onto every kind. */
+const minted = (
+  entry: RowContent,
+  derived: { readonly id: string; readonly seq: number; readonly since: string },
+  streaming: boolean,
+  stranded: boolean,
+): ChatEntry => {
+  switch (entry.kind) {
+    case "agent":
+      return streaming
+        ? { ...entry, ...derived, streaming: true as const }
+        : { ...entry, ...derived }
+    case "tool":
+      return stranded
+        ? { ...entry, ...derived, stranded: true as const }
+        : { ...entry, ...derived }
+    default:
+      return { ...entry, ...derived }
+  }
+}
+
 /** What a tool call is filed under. Spelled ONCE: the row a call writes and
  *  the row it names as the agent that made it are the same kind of key, and
  *  two literals for one scheme is one of them being missed the day the scheme
@@ -621,25 +646,12 @@ export class Transcript {
       seq: existing?.seq ?? this.#seq++,
       since: existing?.since ?? new Date(this.#now()).toISOString(),
     }
-    // Kind-guarded rather than spread onto every arm: `streaming` is an
-    // agent's field and `stranded` is a tool's, and writing either onto the
-    // other was a type lie the flat struct could not catch. `#open` is only
-    // ever an agent key and `#stranded` only ever a tool key; the kind check
-    // is what makes that a type rather than a comment.
-    const next: ChatEntry = (() => {
-      switch (entry.kind) {
-        case "agent":
-          return key === this.#open
-            ? { ...entry, ...derived, streaming: true as const }
-            : { ...entry, ...derived }
-        case "tool":
-          return this.#stranded.has(key)
-            ? { ...entry, ...derived, stranded: true as const }
-            : { ...entry, ...derived }
-        default:
-          return { ...entry, ...derived }
-      }
-    })()
+    const next = minted(
+      entry,
+      derived,
+      entry.kind === "agent" && key === this.#open,
+      entry.kind === "tool" && this.#stranded.has(key),
+    )
     this.#entries.set(key, next)
     return { upserts: [[key, next]], removes: [] }
   }
