@@ -261,6 +261,36 @@ test("a count that walks off the calendar has nowhere to land", () => {
   )
 })
 
+/**
+ * THE SERIAL NUMBER AND ITS INVERSE ARE A PAIR, swept rather than sampled.
+ *
+ * `dayOfSerial` is the one piece of arithmetic here that cannot be read for
+ * correctness at a glance — Hinnant's era/year/month folding run backwards,
+ * where a wrong constant is right for most of a century and off by a day in
+ * some particular March. So it is checked the way the rest of this module is
+ * not: every seventh day across a decade, each moved by a spread of deltas
+ * that crosses month ends, year ends, the leap rule and three centuries, and
+ * compared against `shiftDay`'s independent walk of month lengths.
+ *
+ * It is a LOOP because the property is the claim; the file's other tests name
+ * their boundaries because there a boundary is the claim.
+ */
+test("the serial arithmetic agrees with the walk, over a decade of days", () => {
+  const deltas = [0, 1, -1, 27, -27, 365, -365, 1461, -1461, 40000, -40000]
+  let checked = 0
+  for (let step = 0; step < 3700; step += 7) {
+    const base = shiftDay("2020-01-01", step)
+    for (const delta of deltas) {
+      expect(shiftMinutes(`${base}T08:30:00-04:00`, delta * 24 * 60)).toBe(
+        `${shiftDay(base, delta)}T08:30:00-04:00`,
+      )
+      checked++
+    }
+  }
+  // ...and the sweep actually swept, rather than passing on an empty loop.
+  expect(checked).toBe(529 * deltas.length)
+})
+
 test("the step agrees with the day step, which is the other way of counting one", () => {
   // The SECOND place two implementations of this calendar meet — the pair
   // above is `daysBetween` against `shiftDay`, and this is the serial
