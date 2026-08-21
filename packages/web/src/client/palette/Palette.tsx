@@ -677,7 +677,7 @@ export function Palette(props: {
     // ...and neither is a row of an answer the reader has typed past, which is
     // the same sentence one turn on: the hits HOLD STILL through the settle
     // and the round trip after it, so for a moment after every keystroke the
-    // row under the cursor is the last query's. `taken` asks the ROW rather
+    // row under the cursor is the last query's. `spend` asks the ROW rather
     // than this door, because the command rows above the hits are this tab's
     // own and are never behind anything (`../settled.ts`).
     //
