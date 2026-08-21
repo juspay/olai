@@ -1,17 +1,28 @@
 /**
- * HOW FULL THE INBOX IS.
+ * THE INBOX CONVENTION, both readings of it.
  *
- * What is pinned here is the number the door wears: top-level regular nodes
- * of whichever outline is the inbox, found by name over the SET's paths —
- * the same list capture walks — so an empty or torn shallowest file is the
- * file the door names, not a deeper one that still holds records. Nested
- * children and placements do not count.
+ * WHAT A CAPTURE BECOMES ({@link captureInto}) is at the foot of the file, and
+ * what is pinned there is the half only the HTTP door exercises: a capture is a
+ * whole {@link Capturing} rather than a line, and everything on it has to reach
+ * the file through BOTH arms. A field that survived one arm and not the other
+ * would be a capture whose note vanished depending on whether the directory had
+ * ever captured before, which is the least findable bug this convention could
+ * have. Which FILE each arm picks is `@olai/server`'s `edit.test.ts` (the
+ * palette section), where it has been held since the door that has been sending
+ * captures the longest was written.
+ *
+ * HOW FULL THE INBOX IS is the rest: top-level regular nodes of whichever
+ * outline is the inbox, found by name over the SET's paths — the same list
+ * capture walks — so an empty or torn shallowest file is the file the door
+ * names, not a deeper one that still holds records. Nested children and
+ * placements do not count.
  */
 
 import { expect, test } from "bun:test"
 
 import { readingOf, setOf } from "./fixtures.testlib.ts"
-import { inboxHeldOf, NO_INBOX, sameInboxHeld } from "./inbox.ts"
+import { type Capturing, captureInto, inboxHeldOf, NO_INBOX, sameInboxHeld } from "./inbox.ts"
+import { INBOX, mintedInto } from "./node.ts"
 
 const heldOf = (
   files: Record<string, string>,
@@ -89,4 +100,29 @@ test("two answers that say the same number are the same reading", () => {
   const b = heldOf({ "Inbox.olai": `{"id":"a","ord":"a0","title":"one"}` })
   expect(sameInboxHeld(a, b)).toBe(true)
   expect(sameInboxHeld(a, { count: 2 })).toBe(false)
+})
+
+// ── what a capture becomes ─────────────────────────────────────────────
+
+const HOUSE = `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`
+
+/** Everything a capture may carry, so neither assertion below is vacuous. */
+const WHOLE: Capturing = {
+  title: "the thread about cabinets",
+  desc: "worth a reply\n\n<message://%3Cabc@mail%3E>",
+  date: "2026-08-21T09:15:00-04:00",
+  props: { from: "joinery@example.com", "message-id": "<abc@mail>" },
+}
+
+test("every field reaches the `add`, when the directory already has an inbox", () => {
+  expect(captureInto(readingOf(setOf({ "house.olai": HOUSE, [INBOX]: "" })), WHOLE))
+    .toEqual({ op: "add", file: INBOX, ...WHOLE })
+})
+
+test("…and the identical fields reach the seed of the inbox it mints", () => {
+  // The same value, so the two arms cannot drift: a `create`'s seed IS an
+  // `add`'s capture (./writing.ts), which is what makes one resolution serve
+  // both doors.
+  expect(captureInto(readingOf(setOf({ "house.olai": HOUSE })), WHOLE))
+    .toEqual({ op: "create", file: mintedInto(INBOX), seed: WHOLE })
 })

@@ -83,6 +83,8 @@
  */
 
 import {
+  type Capturing,
+  captureInto,
   type FailureKind,
   kindOf,
   type OpFailure,
@@ -91,10 +93,13 @@ import {
   type Writer,
 } from "@olai/format"
 import type { Applied, Ops } from "@olai/ops"
-import { Effect, Layer, Result, Schema } from "effect"
-import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
-
-import { type Capturing, captureInto } from "./landing.ts"
+import { Effect, Layer, Option, Result, Schema } from "effect"
+import {
+  Headers,
+  HttpRouter,
+  type HttpServerRequest,
+  HttpServerResponse,
+} from "effect/unstable/http"
 
 /** Where the route lives. Named once: the docs, the clients and the tests all
  *  spell this one. */
@@ -102,7 +107,7 @@ export const CAPTURE_PATH = "/capture"
 
 /** The header the identity is read off, spelled the way a client writes it —
  *  it is in the docs, in every recipe and in the refusal this door answers
- *  with. What the LOOKUP compares against is {@link IDENTITY_KEY} below. */
+ *  with. `Headers.get` lower-cases it on the way in, so there is one spelling. */
 export const IDENTITY_HEADER = "Tailscale-User-Login"
 
 /** The property the identity is recorded as. A key rather than a field,
@@ -149,11 +154,13 @@ const decode = Schema.decodeUnknownResult(Posted, {
 /**
  * The note a capture ends up with — the text, and the link under it.
  *
- * COMPOSED HERE, beside the request it goes into, for the reason a named pin's
- * title is composed beside its placement (`../edit.ts`): this is the one site
- * that knows the whole row it is about to write, so there is no moment at which
- * half a capture exists. The ops layer stores a `desc` verbatim and is right
- * to; what "verbatim" is the whole of is decided at the door.
+ * COMPOSED AT THIS DOOR and deliberately not below it, which is the one place a
+ * capture is more than the fields it was posted with. It stays here because
+ * there is no second caller for it and the shape it composes is this REQUEST's
+ * — the palette's `⌘K` sends a line a person typed where it is going to live,
+ * and an agent's `add_node` writes whatever `desc` it means. The rule the
+ * inbox convention actually shares between doors went down to `@olai/format`
+ * ({@link captureInto}); this did not, because nothing else asks it.
  *
  * THE LINK GOES LAST and on its own paragraph. A note is drawn clamped to one
  * line under a row and expanded on a click (docs/editing.md), so the half a
@@ -164,16 +171,22 @@ const decode = Schema.decodeUnknownResult(Posted, {
  *
  * A MARKDOWN AUTOLINK (`<…>`) rather than a bare URL, so the link is a link
  * whatever the address looks like: GFM's autolink literals cover `http(s)` and
- * not `message:`, which is exactly the scheme this feature exists for. It is
- * the note's own markdown either way — nothing here escapes anything, because a
- * `desc` is stored as it is given and rendered at view time through the one
- * sanitised pipeline every other note goes through.
+ * not `message:`, which is exactly the scheme this feature exists for. That is
+ * a claim about the READER as much as about this line, and the two ends are
+ * held together by a test rather than by a shared constant, because this end
+ * names no scheme at all: `@olai/web`'s `markdown/render.test.ts` renders the
+ * exact spelling written here and asserts the anchor survives the sanitiser
+ * (whose allowlist is `markdown/sanitise.ts`, the file that DOES name the
+ * scheme). Nothing here escapes anything — a `desc` is stored as it is given
+ * and rendered at view time through the one sanitised pipeline every other note
+ * goes through.
  */
 const noteOf = (posted: Posted): string | undefined => {
-  const text = posted.text ?? ""
-  const link = posted.url === undefined || posted.url === "" ? "" : `<${posted.url}>`
-  if (link === "") return text === "" ? undefined : text
-  return text === "" ? link : `${text}\n\n${link}`
+  const said = [
+    posted.text,
+    posted.url === undefined || posted.url === "" ? undefined : `<${posted.url}>`,
+  ].filter((part): part is string => part !== undefined && part !== "")
+  return said.length === 0 ? undefined : said.join("\n\n")
 }
 
 /**
@@ -197,7 +210,7 @@ const captureOf = (
   login: string,
   at: Date,
 ): Result.Result<Capturing, OpFailure> => {
-  if (Object.hasOwn(posted.props ?? {}, CAPTURED_BY)) {
+  if (posted.props !== undefined && Object.hasOwn(posted.props, CAPTURED_BY)) {
     return Result.fail(
       new UsageFailure({
         reason: `\`${CAPTURED_BY}\` is written from the ${IDENTITY_HEADER} header and ` +
@@ -256,8 +269,10 @@ const refusing = (status: number, error: string, kind: FailureKind) =>
 /** A refusal that came back from the write, in the ops layer's own words and
  *  under its own kind — never re-worded here, so a capture refused for a blank
  *  title says what an agent's `add_node` says. */
-const refused = (failure: OpFailure) =>
-  refusing(STATUS[kindOf(failure)], failure.message, kindOf(failure))
+const refused = (failure: OpFailure) => {
+  const kind = kindOf(failure)
+  return refusing(STATUS[kind], failure.message, kind)
+}
 
 /** A capture that landed. The id is what a client keeps — to link back at
  *  `/#<id>`, or to notice it has captured this message before — and `committed`
@@ -287,11 +302,33 @@ export interface Options {
   readonly writer: Writer
 }
 
-/** The header as it ARRIVES: Node lower-cases what comes off the socket, and
- *  this is what the lookup compares against. Derived from the spelling above
- *  rather than written out a second time, and computed once rather than per
- *  request. */
-const IDENTITY_KEY = IDENTITY_HEADER.toLowerCase()
+/**
+ * The three refusals whose text depends on NOTHING, built once.
+ *
+ * A response value is safe to share — `../media.ts` already keeps a single
+ * `missing` for every 404 it answers, and its `PREFIX` note is the same
+ * argument about bytes — and these three are the ones a port scanner and a
+ * mistyped `curl` reach, so they are exactly the ones not to re-encode per
+ * request. Named rather than inline as well: the 401's sentence is what
+ * docs/running.md promises and what `./route.test.ts` asserts, and a
+ * constant is something both can point at.
+ */
+const NO_IDENTITY = refusing(
+  401,
+  `${IDENTITY_HEADER} is required: this door is authenticated by the tailnet in ` +
+    "front of it, and a request that carries no identity has nothing to attribute " +
+    "the capture to",
+  "usage",
+)
+const NOT_JSON = refusing(400, "the body is not JSON", "usage")
+/** What a method this door does not answer is told, rather than falling through
+ *  to the shell's `GET /*` and being handed the app: a person reaching for
+ *  `curl` and forgetting `-X POST` deserves a sentence and not a page of HTML. */
+const WRONG_METHOD = refusing(
+  405,
+  `POST a capture here, with a ${IDENTITY_HEADER} header — see docs/running.md`,
+  "usage",
+)
 
 /**
  * The route, as two `HttpRouter` layers merged — the shape `../mcp/route.ts`
@@ -308,45 +345,32 @@ export const captureRoute = (
       CAPTURE_PATH,
       (request: HttpServerRequest.HttpServerRequest) =>
         Effect.gen(function*() {
-          const login = (request.headers[IDENTITY_KEY] ?? "").trim()
-          if (login === "") {
-            return refusing(
-              401,
-              `${IDENTITY_HEADER} is required: this door is authenticated by the ` +
-                "tailnet in front of it, and a request that carries no identity has " +
-                "nothing to attribute the capture to",
-              "usage",
-            )
-          }
+          // `Headers.get` rather than an index: it lower-cases the name itself,
+          // so the spelling a client writes is the spelling this file reads and
+          // there is no second constant to keep in step with the first.
+          const login = Option.getOrElse(
+            Headers.get(request.headers, IDENTITY_HEADER),
+            () => "",
+          ).trim()
+          if (login === "") return NO_IDENTITY
 
           const body = yield* Effect.result(request.json)
-          if (body._tag === "Failure") {
-            return refusing(400, "the body is not JSON", "usage")
-          }
+          if (Result.isFailure(body)) return NOT_JSON
+
           const posted = decode(body.success)
-          if (posted._tag === "Failure") {
-            // The schema's own words. It names the field and what was wrong
-            // with it, which is more than any sentence written here could, and
-            // a client debugging a share sheet is exactly who needs it.
-            return refusing(400, String(posted.failure), "usage")
-          }
+          // The schema's own words. It names the field and what was wrong with
+          // it, which is more than any sentence written here could, and a
+          // client debugging a share sheet is exactly who needs it.
+          if (Result.isFailure(posted)) return refusing(400, String(posted.failure), "usage")
 
           const what = captureOf(posted.success, login, new Date())
           if (Result.isFailure(what)) return refused(what.failure)
 
           const done = yield* Effect.result(capture(options, what.success))
-          return done._tag === "Failure" ? refused(done.failure) : landed(done.success)
+          return Result.isFailure(done) ? refused(done.failure) : landed(done.success)
         }),
     ),
-    // A method this door does not answer is told so, rather than falling
-    // through to the shell's `GET /*` and being handed the app: a person
-    // reaching for `curl` and forgetting `-X POST` deserves a sentence and not
-    // a page of HTML.
-    HttpRouter.add(
-      "GET",
-      CAPTURE_PATH,
-      refusing(405, `POST a capture here — see ${IDENTITY_HEADER}`, "usage"),
-    ),
+    HttpRouter.add("GET", CAPTURE_PATH, WRONG_METHOD),
   )
 
 /** Read the set, resolve where a capture lands against THAT reading, write it

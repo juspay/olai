@@ -30,7 +30,7 @@ import { Effect } from "effect"
 
 import { codec } from "./codec.ts"
 import type { Store as OutlineStore } from "./deps.ts"
-import { gitIn, repoAt } from "./fixtures.testlib.ts"
+import { gitIn, repoAt, writerOf } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 import { COMMIT_TOOL, whyOf } from "./pending.ts"
 
@@ -223,9 +223,7 @@ describe("manual is the default", () => {
         expect(pending.wrote).toEqual([{ writer: "capture", ops: 1 }])
 
         yield* fixture.ops.commit({ message: "one captured line" }, "capture")
-        expect(
-          fixture.git("log", "--format=%(trailers:key=X-Olai-Writer,valueonly)", "-1").trim(),
-        ).toBe("capture")
+        expect(writerOf(fixture.root)).toBe("capture")
         // …and it reads back as a writer rather than as "writer not recorded",
         // which is what a hand-listed set of them would have answered.
         expect((yield* fixture.ops.pending).last).toMatchObject({ writer: "capture" })

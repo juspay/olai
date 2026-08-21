@@ -54,6 +54,7 @@
  */
 
 import {
+  captureInto,
   customOf as customOfNode,
   dailyNotePathFor,
   type Derived,
@@ -83,8 +84,6 @@ import { merging, notFound, type Request } from "@olai/ops"
 import type { Edit } from "@olai/surface"
 import { Result } from "effect"
 
-import { captureInto } from "./capture/landing.ts"
-
 type Resolved = Result.Result<Request, OpFailure>
 
 /** The ops request one keystroke asks for. Total over {@link Edit}: a verb
@@ -95,8 +94,26 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
   switch (edit.verb) {
     case "add":
       return addRequest(at, edit)
+    // A CAPTURED LINE, and the one arm here that resolves NOTHING of its own
+    // any more. It names no `Landing` — the write whose whole promise is that
+    // the reader does not move has no anchor, only a FILE to find — and which
+    // file that is is `@olai/format`'s (`inbox.ts`'s `captureInto`), because
+    // `POST /capture` captures into the same inbox from a share sheet and a
+    // second copy of "is there an inbox yet, and what do I do about it" is two
+    // answers about one directory.
+    //
+    // The title travels VERBATIM, blank and all: a capture of nothing is
+    // refused by the ops layer in its own words ("a node needs a title"),
+    // which is the same sentence an agent's `add_node` gets.
+    //
+    // It carries NO DATE where the HTTP door's capture does, and that is a
+    // difference between two GESTURES rather than a deviation between two
+    // faces: both send an `add` and the gate judges them identically. A `⌘K`
+    // capture is made by somebody standing in the app with the Inbox door in
+    // front of them; one that arrived from a phone while nobody was looking
+    // has a day page as the only place it will be noticed.
     case "capture":
-      return captureRequest(at, edit)
+      return Result.succeed(captureInto(at, { title: edit.title }))
     case "pin":
       return pinRequest(at, edit)
     case "move":
@@ -345,50 +362,15 @@ const mirrorRequest = (
   return Result.succeed({ op: "mirror", ...landing.success, target: edit.target })
 }
 
-// ── the inbox ──────────────────────────────────────────────────────────
-
-/**
- * A captured line, as ONE op — an `add` into the inbox the directory has, or
- * the `create` that mints it holding exactly this line.
- *
- * It names no {@link Landing}, and that is the difference between it and the
- * two above rather than an omission: they place a row where a reader is
- * standing, and this one is the write whose whole promise is that the reader
- * does not move. There is no anchor to resolve — only a FILE to find.
- *
- * WHICH FILE that is is not resolved here any more, and the move is the whole
- * of what this arm has to say: `POST /capture` captures into the same inbox
- * from a share sheet, and a second copy of "which outline is the inbox, and is
- * there one yet" is a second answer about one directory. So the resolution is
- * `./capture/landing.ts`'s and this is one of its two doors — the keystroke's.
- * What is decided against THIS reading, rather than in a tab holding a file
- * list some frames old, is unchanged and is argued there.
- *
- * The line travels as the whole of the capture, and the title travels VERBATIM,
- * blank and all: a capture of nothing is refused by the ops layer in its own
- * words ("a node needs a title"), which is the same sentence an agent's
- * `add_node` gets, rather than by a second rule here.
- *
- * IT CARRIES NO DATE, where the HTTP door's capture does, and that is a
- * difference between two gestures rather than a deviation between two faces:
- * both send the ops layer an `add` and the ops layer judges them identically.
- * A `⌘K` capture is made by somebody standing in the app with the Inbox door
- * in front of them; one that arrived from a phone while nobody was looking has
- * a day page as the only place it will be noticed.
- */
-const captureRequest = (
-  at: Reading,
-  edit: Extract<Edit, { verb: "capture" }>,
-): Resolved => Result.succeed(captureInto(at, { title: edit.title }))
-
 /**
  * A PIN, resolved against the set: which file the shelf is, and whether there
  * is one yet.
  *
- * {@link captureRequest} one convention over, and deliberately the same two
- * lines: an existing shelf takes an `add`, a directory with none takes a
- * `create` seeded with this very address. The reasoning is that arm's read
- * again — where the file is is a fact about the SET, so it is read here rather
+ * The capture arm one convention over, and deliberately the same two lines: an
+ * existing shelf takes an `add`, a directory with none takes a `create` seeded
+ * with this very address. The difference is where each LIVES — a capture has
+ * two doors, so its resolution went down to `@olai/format` (`inbox.ts`), and
+ * the shelf has one, so this one is still here. The reasoning is the same — where the file is is a fact about the SET, so it is read here rather
  * than in a tab holding a file list some frames old, and one op is what keeps a
  * refused pin from leaving an empty `Pins.olai` behind.
  *

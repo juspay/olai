@@ -763,15 +763,28 @@ export { NO_PINS, pinTargetIn, sameShelf, Shelf, shelfOf } from "./shelf.ts"
 export type { Pinned } from "./shelf.ts"
 
 /**
- * HOW FULL THE INBOX IS (./inbox.ts) — the number the sidebar's Inbox door
- * wears, which is the top-level regular nodes of whichever outline is the
- * inbox.
+ * THE INBOX CONVENTION (./inbox.ts), read both ways.
  *
- * Public because it crosses, the way the shelf does: the server answers it
- * per revision and the sidebar draws it (`@olai/surface`'s `inbox` cell).
- * `sameInboxHeld` is the cell's `equals`.
+ * WHAT A CAPTURE BECOMES — `captureInto`, the one request a captured line is,
+ * an `add` into the inbox the directory has or the `create` that mints one
+ * holding it. Public because TWO doors resolve through it (the palette's `⌘K`
+ * `+` and `POST /capture`, both in `@olai/server`), and a second spelling of
+ * "is there an inbox yet" is two answers about one directory.
+ *
+ * HOW FULL IT IS — `inboxHeldOf`, the number the sidebar's Inbox door wears,
+ * which is the top-level regular nodes of that same outline. Public because it
+ * crosses, the way the shelf does: the server answers it per revision and the
+ * sidebar draws it (`@olai/surface`'s `inbox` cell). `sameInboxHeld` is the
+ * cell's `equals`.
  */
-export { InboxHeld, inboxHeldOf, NO_INBOX, sameInboxHeld } from "./inbox.ts"
+export {
+  type Capturing,
+  captureInto,
+  InboxHeld,
+  inboxHeldOf,
+  NO_INBOX,
+  sameInboxHeld,
+} from "./inbox.ts"
 
 /**
  * WHAT ONE PAGE SHOWS (./page.ts) — the reading the browser is handed in place

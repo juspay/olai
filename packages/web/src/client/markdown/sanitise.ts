@@ -94,21 +94,22 @@ const admittingClass = (tag: string, value: string): Definition[] =>
  *  whether it survives the sanitiser. */
 export const MESSAGE_PROTOCOL = "message"
 
-/** One attribute's protocol list with one more scheme admitted, built from the
- *  default's own — so a scheme the default drops is dropped here too, and an
- *  upstream that stops restricting the attribute at all is a `[]` this app
- *  would notice rather than a silently wider allowlist. ./sanitise.test.ts
+/** The allowlist the pipeline sanitises against.
+ *
+ *  The `href` line is spelled INLINE and not behind a helper, unlike the class
+ *  above it: `admittingClass` has real work to do (it walks the tag's entries
+ *  looking for the `className` one to edit), and this is a spread with a value
+ *  on the end. What matters about it is that the left half is the DEFAULT's own
+ *  list rather than a copy — so a protocol upstream drops is dropped here too,
+ *  and an upstream that stops restricting `href` at all is an empty array this
+ *  app would notice rather than a silently wider allowlist. ./sanitise.test.ts
  *  holds it against the default for exactly that. */
-const admittingProtocol = (attribute: string, scheme: string): string[] =>
-  [...(defaultSchema.protocols?.[attribute] ?? []), scheme]
-
-/** The allowlist the pipeline sanitises against. */
 export const SANITISE: SanitiseSchema = {
   ...defaultSchema,
   clobberPrefix: "",
   attributes: { ...defaultSchema.attributes, a: admittingClass("a", ANCHOR_CLASS) },
   protocols: {
     ...defaultSchema.protocols,
-    href: admittingProtocol("href", MESSAGE_PROTOCOL),
+    href: [...(defaultSchema.protocols?.["href"] ?? []), MESSAGE_PROTOCOL],
   },
 }
