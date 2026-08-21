@@ -23,6 +23,7 @@ import { NEAR } from "@olai/web/src/client/chat/near.ts";
 import { selector, TESTID, type TestId } from "@olai/web/src/client/testids.ts";
 
 import { retypedAndTaken } from "../support/atonce.ts";
+import { saysThat } from "../support/said.ts";
 
 import {
   attr,
@@ -874,18 +875,13 @@ Then(
 /** ...and what one of them is CALLED, which the panel picks once and never
  *  moves: a title is a display string an agent may rewrite mid-call, and a row
  *  that renamed itself under a reader would be the panel changing its mind
- *  about what happened. Read off the frame's own line, where a person reads
- *  it. */
+ *  about what happened. Read off the frame's own line, where a person reads it,
+ *  and through `../support/said.ts` — which exists so that "this line does not
+ *  say that" reads the same wherever this suite asks it. */
 Then(
   "the chat shows a tool call named {string}",
   async function (this: OlaiWorld, named: string) {
-    const line = heldTool(this).locator(CHAT_TOOL_FOLD);
-    await line.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    const said = oneLine(await line.innerText());
-    assert.ok(
-      said.includes(named),
-      `the call's line says "${said}" rather than naming "${named}"`,
-    );
+    await saysThat(this, `${CHAT_TOOL} ${CHAT_TOOL_FOLD}`, named, "call's line");
   },
 );
 

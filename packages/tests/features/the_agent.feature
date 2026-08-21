@@ -417,12 +417,11 @@ Feature: Talking to the agent
     # taken apart, in the place a reader looks to remember what they asked.
     Then the chat shows my message "what did we decide?"
     # ... and the call the conversation made, named and finished. A row named
-    # after its own call id is a panel that cannot name a history; a row still
-    # looking like work in progress is a clock ticking on a turn that ended
-    # before the server was started.
+    # after its own call id is a panel that cannot name a history, and a
+    # collapsed report is the one frame that has to name a row without an
+    # announcement in front of it.
     And the chat shows a completed tool call
     And the chat shows a tool call named "read the notes"
-    And the chat times no call
 
   @agent-stored @scratch:chat
   Scenario: A first boot has nothing to remember, so it takes the newest

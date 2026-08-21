@@ -256,9 +256,14 @@ export class Transcript {
    * of the change or re-derived from a counter kept somewhere else.
    *
    * It is the same door as {@link add} with the key kept ({@link #row}), and
-   * not a second way to write a row: `add("user", …)` is still what a REPLAY
-   * uses, and two minting paths would be two answers to "how is a row
-   * written" for the one kind that has both.
+   * not a second way to write a row: two minting paths would be two answers to
+   * "how is a row written" for the one kind that has more than one caller.
+   *
+   * A REPLAY does not come through here, and the difference is what it HAS
+   * rather than a second way of writing the same thing: this end has the whole
+   * of a message somebody typed before any of it is on the wire, and a replayed
+   * one arrives as however many chunks the agent kept it in
+   * ({@link userSaid}). One writes a row; the other grows one.
    */
   user(text: string, extra: Partial<RowContent> = {}): {
     readonly key: string
@@ -518,11 +523,21 @@ export class Transcript {
     // has been answered is remembered beside the rows ({@link #named}) rather
     // than inferred from the row wearing its own id, which is a name an agent
     // is free to have chosen.
+    //
+    // BESIDE ITS SIX SIBLINGS rather than inside the row below, because it is
+    // the one field of this merge that does NOT follow "the newest wins" and a
+    // reader looking for the rules is looking here.
+    //
+    // The remembering happens BEFORE the repeat guard below, and it has to: a
+    // frame whose title is the name the row is already wearing says nothing
+    // new and is answered by that guard, and a row left unnamed by it would be
+    // renamed by the next frame that carried a different one.
     const named = this.#named.has(key)
     if (move.title !== undefined) this.#named.add(key)
+    const text = (named ? undefined : move.title) ?? current?.text ?? id
     const content: RowContent = {
       kind: "tool",
-      text: (named ? undefined : move.title) ?? current?.text ?? id,
+      text,
       status: move.status ?? current?.status ?? "pending",
       ...(detail === undefined ? {} : { detail }),
       ...(progress === undefined ? {} : { progress }),
@@ -651,11 +666,17 @@ export class Transcript {
     return this.#put(key, contentOf(current))
   }
 
-  /** Mint a row and answer with BOTH its key and the change, which is the one
-   *  shape every writer here needs some part of: {@link add} takes the change
-   *  and drops the key, {@link user} keeps both. One place knows how a row is
-   *  written, so a `user` row a person typed and a `user` row a replay wrote
-   *  cannot come out differently. */
+  /** Mint a row that is FINISHED the moment it is written, and answer with
+   *  BOTH its key and the change — the one shape every writer here needs some
+   *  part of: {@link add} takes the change and drops the key, {@link user}
+   *  keeps both.
+   *
+   *  A row that GROWS cannot come through here, which is the whole of the
+   *  difference between this and {@link #grow}: an open row has to be the open
+   *  one before it is published, or the first chunk of it goes out without the
+   *  flag that says more is coming. Two minting paths, then — and they are two
+   *  because a row that is complete and a row that is still arriving are two
+   *  things, not because anybody wrote the second one twice. */
   #row(kind: ChatEntry["kind"], text: string, extra: Partial<RowContent>): {
     readonly key: string
     readonly change: Change

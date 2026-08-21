@@ -40,8 +40,15 @@ export interface Stored {
 export type AgentEvent =
   /** The agent's prose, one chunk as it arrived. */
   | { readonly _tag: "said"; readonly text: string }
-  /** A user message. Only a REPLAY carries these: live, we already know what
-   *  was sent, because we sent it. */
+  /** What a PERSON said, ONE CHUNK as it arrived — the same unit `said`
+   *  carries, because it is the same unit the wire carries. Only a REPLAY
+   *  brings these: live, we already know what was sent, because we sent it,
+   *  and we have the whole of it before any of it is on the wire.
+   *
+   *  Saying "a chunk" is not pedantry here; it is the line that was missing.
+   *  This used to read "a user message", and the consumer wrote a ROW per
+   *  event on the strength of it — so a replayed message came back as one
+   *  bubble per piece the agent had kept it in. */
   | { readonly _tag: "userSaid"; readonly text: string }
   /**
    * A tool call, as we last heard of it — announced or moved.

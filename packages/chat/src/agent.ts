@@ -139,38 +139,58 @@ export interface ToolServer {
 }
 
 /**
- * HOW a verb failed, in the only distinction anything downstream can act on:
- * did the request get an ANSWER?
+ * HOW a verb failed — three ways, because a caller has TWO questions and two
+ * values could only ever answer one of them.
  *
- *   - `refused` — something said no, and said it about a request that did not
- *     take effect: the agent answered a JSON-RPC error (a method it does not
- *     have, a session it does not know), or this file refused before anything
- *     reached the wire at all (no process, no session, a spawn that failed, a
- *     notification the pipe would not take). Whatever was asked for did NOT
- *     happen, so offering to ask again is honest.
+ *   - `refused` — THE AGENT SAID NO. It answered the request with a JSON-RPC
+ *     error: a method it does not have, a session it does not know, a mode it
+ *     cannot work from. Whatever was asked for did not happen (that is
+ *     JSON-RPC's own bet about its own error responses), so asking again is
+ *     honest — and the agent is demonstrably THERE, because it just spoke.
+ *   - `unreachable` — NOTHING WAS ASKED OF ANYTHING. This file refused before
+ *     the request reached the wire: no process, a spawn that failed, no session
+ *     open, a notification the pipe would not take. Also did not happen, also
+ *     honest to ask again — and nothing here can say the agent is there.
  *   - `unanswered` — the request went out and NOTHING came back: the deadline
  *     passed, or the connection died with it in flight. Whether the agent acted
  *     on it cannot be known from this end — one that took a message and then
  *     went quiet is indistinguishable from one that never took it — so the
  *     honest thing to do with this is SAY so, and never quietly ask again.
  *
- * The WIRE decides which, not the caller: an error RESPONSE arrives as the
- * SDK's own {@link RequestError}, and every other rejection — a closed
- * connection, an interrupted deadline — is silence wearing an `Error`. That
- * reading is {@link goneOf}, and it lives here rather than in
- * {@link ./interpret.ts} because it is the protocol SDK's vocabulary rather
- * than one adapter's extension.
- */
-export type Gone = "refused" | "unanswered"
-
-/** The agent is not there — it never started, it died, or the handshake failed.
- *  Every verb can fail this way and the next one retries the boot, which is why
- *  a crash and a cold start are the same recovery path.
+ * THE TWO QUESTIONS, read off the one value, which is why it is one value:
  *
- *  `why` is the sentence a person reads; {@link Gone} is the half a caller can
- *  ACT on — whether what they asked for can honestly be offered again. One
- *  message in the panel is drawn entirely out of it ({@link ./chat.ts}'s
- *  `undeliverable`). */
+ *   - *can I honestly offer this again?* — anything but `unanswered`. That is
+ *     the row's `delivery` ({@link ../../surface/src/chat.ts}), which stays two
+ *     valued because it is only ever asked this one;
+ *   - *is the agent still there?* — `refused`, and only `refused`. It used to
+ *     be unaskable: the two local arms above shared a word with the agent's own
+ *     no, so a turn the agent refused was indistinguishable from a turn there
+ *     was no agent to refuse it, and the panel said `not running` about a
+ *     process that had just spoken to it.
+ *
+ * Splitting the first two rather than adding a second field is what keeps the
+ * illegal combination unspellable: "the agent answered, and it is not there" is
+ * not a value.
+ *
+ * The WIRE decides which of the first and last, not the caller: an error
+ * RESPONSE arrives as the SDK's own {@link RequestError}, and every other
+ * rejection — a closed connection, an interrupted deadline — is silence wearing
+ * an `Error`. That reading is {@link goneOf}, and it lives here rather than in
+ * {@link ./interpret.ts} because it is the protocol SDK's vocabulary rather
+ * than one adapter's extension. `unreachable` is never read off a rejection: it
+ * is what this file mints when there was nothing to reject.
+ */
+export type Gone = "refused" | "unreachable" | "unanswered"
+
+/** A VERB of this module's did not do what it was asked. Every one of them can
+ *  fail this way, and where the agent is not there the next verb retries the
+ *  boot — which is why a crash and a cold start are the same recovery path.
+ *
+ *  `why` is the sentence a person reads; {@link Gone} is what a caller can ACT
+ *  on — whether what they asked for can honestly be offered again, and whether
+ *  there is still an agent on the other end. Two faces in the panel are drawn
+ *  entirely out of it ({@link ./chat.ts}'s `undeliverable` and the state a
+ *  failed turn leaves behind). */
 export class AgentGone extends Data.TaggedError("AgentGone")<{
   readonly gone: Gone
   readonly why: string
@@ -198,33 +218,6 @@ export class AgentGone extends Data.TaggedError("AgentGone")<{
  *     and the turn can settle between the send and the steer arriving.
  */
 export type Steered = "taken" | "no-turn"
-
-/**
- * HOW A TURN ENDED — which is a different question from whether the agent is
- * there, and used to be answered as though it were the same one.
- *
- *   - `stopped` — the agent ended the turn and said why, in its own vocabulary
- *     (`end_turn`, `cancelled`, `max_tokens`, …). The ordinary ending.
- *   - `failed` — the agent answered `session/prompt` with a JSON-RPC ERROR
- *     rather than with a stop reason. A turn is a request like any other, so
- *     this is an answer it can have: a mode the agent cannot prompt from, a
- *     session it has lost track of, a model it could not reach. **Nothing died
- *     and nothing is unreachable.**
- *
- * The second one is on the SUCCESS channel deliberately, and that is the whole
- * of the distinction: {@link AgentGone} means the agent is not there, and every
- * caller of it treats a failure as exactly that — the panel says the agent is
- * not running and stops naming a conversation it is still in. An error response
- * is the agent SPEAKING, so it ends a turn rather than a session, and the next
- * prompt goes to the same live process.
- *
- * What a caller does with the reason is the same in both arms — it is a
- * sentence for the transcript — so the two are one shape with a tag rather than
- * a value and an exception.
- */
-export type Ended =
-  | { readonly _tag: "stopped"; readonly reason: string }
-  | { readonly _tag: "failed"; readonly why: string }
 
 export interface Options {
   /** The executable to run. `OLAI_ACP_AGENT`, or the adapter nix baked in. */
@@ -257,11 +250,12 @@ export interface Agent {
   /** Spawn and hand-shake if that has not happened. Idempotent, and serialized
    *  against itself: two callers racing a cold start get one subprocess. */
   readonly boot: Effect.Effect<void, AgentGone>
-  /** One turn. Answers with HOW IT ENDED ({@link Ended}) — a return value
-   *  rather than an event, because the caller that asked is the one waiting,
-   *  and a two-armed one because a turn the agent REFUSED is a turn that ended
-   *  rather than an agent that has gone. */
-  readonly prompt: (text: string) => Effect.Effect<Ended, AgentGone>
+  /** One turn. Answers with the agent's stop reason (`end_turn`, `cancelled`,
+   *  …) — the turn's END is a return value rather than an event, because the
+   *  caller that asked is the one waiting. A turn the agent REFUSED fails with
+   *  `refused`, which is that word's whole point: the agent answered, so the
+   *  TURN ended rather than the conversation ({@link Gone}). */
+  readonly prompt: (text: string) => Effect.Effect<string, AgentGone>
   /**
    * Put a message INTO the turn already running — see {@link Steered} for the
    * two things that can come back, and the error channel for every way it
@@ -751,7 +745,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const notStarted = (why: string): AgentGone =>
       new AgentGone({
         // Nothing was asked of anything: there is no process to ask.
-        gone: "refused",
+        gone: "unreachable",
         why: `could not start the agent \`${options.command}\`: ${why}`,
       })
 
@@ -1247,7 +1241,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     const boot = booting.withPermit(
       Effect.gen(function*() {
-        if (stopped) return yield* new AgentGone({ gone: "refused", why: "the server is shutting down" })
+        if (stopped) return yield* new AgentGone({ gone: "unreachable", why: "the server is shutting down" })
         if (live !== null && session !== null) return
         const started = live ?? (yield* start())
         live = started
@@ -1268,7 +1262,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       Effect.gen(function*() {
         yield* boot
         const at = live
-        if (at === null) return yield* new AgentGone({ gone: "refused", why: "the agent is not running" })
+        if (at === null) return yield* new AgentGone({ gone: "unreachable", why: "the agent is not running" })
         return yield* use(at)
       })
 
@@ -1279,11 +1273,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       withLive((at) => {
         const id = session
         return id === null
-          ? Effect.fail(new AgentGone({ gone: "refused", why: "the agent has no session open" }))
+          ? Effect.fail(new AgentGone({ gone: "unreachable", why: "the agent has no session open" }))
           : use(at, id)
       })
 
-    const prompt = (text: string): Effect.Effect<Ended, AgentGone> =>
+    const prompt = (text: string) =>
       withSession((at, id) =>
         Effect.gen(function*() {
           // A cancel that arrived during the handshake is sent the moment the
@@ -1309,26 +1303,18 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               ),
             )
           }
-          const answered = yield* Effect.result(ask(
+          // A TURN THE AGENT REFUSES fails like any other request and needs
+          // nothing said about it here: `refused` means the agent answered, so
+          // the caller already has what it needs to end the turn without
+          // burying the conversation with it ({@link Gone}).
+          const answered = yield* ask(
             at.connection,
             methods.agent.session.prompt,
             { sessionId: id, prompt: [{ type: "text", text }] },
             // A turn is a person waiting on a model: no deadline.
             null,
-          ))
-          if (answered._tag === "Success") {
-            return { _tag: "stopped", reason: (answered.success as PromptResponse).stopReason } satisfies Ended
-          }
-          // AN ERROR RESPONSE IS AN ANSWER, and here — inside the one request
-          // this lane makes — it is the ONLY thing `refused` can mean: every
-          // other refusal this module mints (no process, no session, a
-          // notification the pipe would not take) is decided before this
-          // generator runs or on a fiber of its own, and a silence is
-          // `unanswered` by construction ({@link goneOf}). So this is the
-          // agent saying no to a TURN while going on existing, and it ends the
-          // turn rather than the conversation ({@link Ended}).
-          if (answered.failure.gone !== "refused") return yield* answered.failure
-          return { _tag: "failed", why: answered.failure.why } satisfies Ended
+          )
+          return (answered as PromptResponse).stopReason
         })
       )
 
@@ -1417,7 +1403,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           Effect.gen(function*() {
             if (!at.canLoad) {
               return yield* new AgentGone({
-                gone: "refused",
+                gone: "unreachable",
                 why: `\`${id}\` cannot be opened: this agent does not keep conversations`,
               })
             }
@@ -1531,6 +1517,12 @@ const ask = (
  * retry — a protocol violation, and the only shape in here that could produce a
  * duplicate.
  *
+ * IT ANSWERS TWO OF THE THREE {@link Gone} VALUES and never the third, which is
+ * the whole reason there are three: `unreachable` is what this file mints where
+ * there was nothing to reject at all, so a value read off a REJECTION cannot be
+ * it. That is what makes `refused` mean exactly one thing here — the agent
+ * spoke — and what a caller deciding whether there is still an agent reads.
+ *
  * The SDK also mints a `RequestError` ITSELF for a response frame it cannot
  * parse (`invalidRequest`), which is the agent having said SOMETHING
  * unreadable rather than having said no. Read as a refusal, like the rest. It
@@ -1561,7 +1553,7 @@ const notify = (
     // `cancel` in {@link ./chat.ts} — but that path does not come through
     // here.)
     catch: (cause) =>
-      new AgentGone({ gone: "refused", why: `\`${method}\` failed: ${reasonOf(cause)}` }),
+      new AgentGone({ gone: "unreachable", why: `\`${method}\` failed: ${reasonOf(cause)}` }),
   })
 
 // ── reading the payloads ───────────────────────────────────────────────

@@ -597,11 +597,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * The message did not land, said on the row it was typed into — in the ONE
      * of two ways this end can honestly say it.
      *
-     * A REFUSAL is a certainty: something answered no while the message had
-     * taken no effect — a method the agent does not have, a session it does not
-     * know, a process that was not there, a turn its own sender had stopped.
-     * The row keeps the prompt ({@link ./transcript.ts}) and offers *send
-     * again*, because nothing happened and asking again is honest.
+     * A REFUSAL is a certainty: nothing took the message, and this end can say
+     * so — the agent answered no (a method it does not have, a session it does
+     * not know, a turn its own sender had stopped), or there was nothing to ask
+     * at all (no process, no session open). The row keeps the prompt
+     * ({@link ./transcript.ts}) and offers *send again*, because nothing
+     * happened and asking again is honest.
+     *
+     * The ROW's two faces are two where {@link ./agent.ts}'s `Gone` is three,
+     * and the fold is deliberate: those two arms differ in whether the agent is
+     * still there, which is a fact about the CONVERSATION and not about these
+     * words. A message that did not go did not go.
      *
      * SILENCE is not. The steer went out, the deadline passed, and an agent
      * that took the message and then went quiet is indistinguishable from one
@@ -632,10 +638,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *  because both delivery lanes reach it: a refusal keeps the prompt beside
      *  the row and hands a person the button that sends it again; a silence
      *  keeps nothing, which is what makes the button unofferable rather than
-     *  merely undrawn ({@link ./transcript.ts}). */
+     *  merely undrawn ({@link ./transcript.ts}).
+     *
+     *  SILENCE is the arm that is named, and the other is everything else. The
+     *  question this answers is "may I honestly offer these words again", and
+     *  exactly one of `Gone`'s three values says no to it — so naming the two
+     *  that say yes would be this line having an opinion about which ways a
+     *  message can fail to go, which is the thing it does not have to have. */
     const markUndelivered = (key: string, prompt: string, gone: AcpAgent.Gone): void => {
       publish(
-        gone === "refused" ? transcript.refused(key, prompt) : transcript.unanswered(key),
+        gone === "unanswered" ? transcript.unanswered(key) : transcript.refused(key, prompt),
       )
     }
 
@@ -690,25 +702,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // way — they are things that happened, and they happened — and
             // only the state is withheld.
             const current = turn === ticket
-            /**
-             * What a turn that did NOT end in a stop reason leaves on the
-             * record — the half that is the same however it went wrong.
-             *
-             * What is deliberately not here is where the panel STANDS
-             * afterwards, because that is the whole of the difference between
-             * the two and it is a word rather than a flag: an agent that is not
-             * there, and an agent that answered no. Passing it in would be a
-             * boolean selecting between two literals three lines below, with a
-             * third combination — a silence from a live agent — spellable and
-             * meaningless.
-             */
-            const wentWrong = (why: string, gone: AcpAgent.Gone): void => {
-              publish(transcript.add("notice", why))
+            if (outcome._tag === "Failure") {
+              publish(transcript.add("notice", outcome.failure.message))
               // A turn that produced NOTHING is a delivery that failed, and it
               // is said on the row like any other ({@link markUndelivered}) —
-              // a refusal where the agent was never reached at all (no
-              // process, no session), a silence where the pipe died with the
-              // prompt on it.
+              // a refusal where the agent said no or was never reached at all,
+              // a silence where the pipe died with the prompt on it.
               //
               // An agent that SAID something first is the case this must not
               // touch, and the reason this file used to mark nothing here: it
@@ -716,36 +715,28 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               // that undelivered would contradict the answer sitting above it.
               // What has changed is that "did it arrive" is now answerable —
               // by the turn's own silence, and by `Gone` where it is not.
-              if (heard === quietSince) markUndelivered(key, prompt, gone)
-            }
-
-            if (outcome._tag === "Failure") {
-              wentWrong(outcome.failure.message, outcome.failure.gone)
-              // THE AGENT IS NOT THERE — it never started, it died, the
-              // handshake failed. The panel says so, and the next prompt
-              // retries the boot exactly as a crash does.
-              if (current) move({ status: "gone", trouble: outcome.failure.message })
-              return
-            }
-            if (outcome.success._tag === "failed") {
-              // ...whereas THIS is the agent speaking: it answered the turn
-              // with an error and went on existing. `refused` is JSON-RPC's own
-              // bet about its own error responses, which {@link ./agent.ts}'s
-              // `goneOf` already names — an error means the request did not
-              // take effect — so the message this turn was for demonstrably did
-              // not land, and the row may honestly offer to send it again.
-              wentWrong(outcome.success.why, "refused")
-              // The conversation is exactly as usable as it was, and the reason
-              // stays on the banner until the next turn that comes back clears
-              // it. Saying `gone` here left a live agent's panel reporting `not
-              // running` for the rest of the session.
-              if (current) move({ status: "idle", trouble: outcome.success.why })
+              if (heard === quietSince) markUndelivered(key, prompt, outcome.failure.gone)
+              // WHETHER THERE IS STILL AN AGENT, which is a different question
+              // from whether the turn ran and is answered by the same value: a
+              // turn the agent REFUSED is a turn that ended — the process is
+              // there, it just spoke, the conversation is open, and the next
+              // prompt goes to it. Everything else is this end unable to reach
+              // one, and the panel says so.
+              //
+              // Both readings used to be `refused`, so a turn an agent answered
+              // an error to left a live agent's panel saying `not running` — in
+              // a conversation it was still in — until some later turn happened
+              // to succeed.
+              const alive = outcome.failure.gone === "refused"
+              if (current) {
+                move({ status: alive ? "idle" : "gone", trouble: outcome.failure.message })
+              }
               return
             }
             // Cancelling means stop, and it means only that now: everything
             // typed reached the agent when it was typed, so there is nothing
             // left here for a cancel to decide the fate of.
-            if (outcome.success.reason === "cancelled") {
+            if (outcome.success === "cancelled") {
               publish(transcript.add("notice", "cancelled"))
             }
             // A turn that came back is the proof that whatever went wrong
