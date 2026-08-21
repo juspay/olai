@@ -25,6 +25,7 @@ import { createEffect, Index, on, onCleanup, onMount, Show } from "solid-js"
 import { listKey } from "../keys.ts"
 import { WITHIN } from "../layer.ts"
 import { createCursor } from "../search/cursor.ts"
+import { taken, type Taking } from "../settled.ts"
 import { TESTID } from "../testids.ts"
 import { topmostWhileOpen } from "../topmost.ts"
 
@@ -63,6 +64,24 @@ export interface MenuRow {
    */
   readonly section?: string
   readonly take: () => void
+  /**
+   * WHICH ANSWER THIS ROW CAME FROM, as the act of spending it — absent for a
+   * row this tab minted for itself (`../settled.ts`'s `Taking`, and `taken`,
+   * which is what reads it).
+   *
+   * This list is TWO BLOCKS under one cursor: the served paths, matched here
+   * and up at once, and the nodes, a debounce and a round trip away
+   * ({@link ./naming.ts}). The node half HOLDS STILL through both, so for a
+   * moment after every keystroke the row under the cursor answers a word the
+   * reader has already typed past — and taking it writes that node's id into
+   * somebody's sentence and arms it. Gating the whole LIST would be wrong the
+   * other way: a file row is never behind anything, and `@cab` + Enter has
+   * written a path since this list existed.
+   *
+   * A KEY asks it; a POINTER never does, which is the same line
+   * {@link take} above is drawn on for a different reason.
+   */
+  readonly taking?: Taking
 }
 
 export function CompletionMenu(props: {
@@ -143,8 +162,15 @@ export function CompletionMenu(props: {
   const accept = (event: KeyboardEvent) => {
     const chosen = props.rows[cursor.at()]
     if (chosen === undefined) return
+    // CLAIMED FIRST, and whether it spends anything is the next question: a
+    // list is on screen under the caret, and an `Enter` falling through to the
+    // composer's own handler would send the message the reader was only
+    // completing.
     take(event)
-    chosen.take()
+    // ...and a row of a word the reader has typed past spends nothing, in
+    // silence ({@link MenuRow.taking}). The rows catch up a moment later and
+    // the same press means what it says.
+    taken(chosen, (row) => row.take())
   }
 
   // WHICH key it is, is the registry's (`../keys.ts`'s list layer); what each

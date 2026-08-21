@@ -4,6 +4,7 @@ import { DocumentPath, NodeId } from "@olai/format"
 import type { NodeHit } from "@olai/surface"
 
 import { atFile, atNode } from "../routes.ts"
+import { atOnce } from "../settled.ts"
 import { filterItems, hitItem, modeOf, SHELL_ITEMS } from "./items.ts"
 
 /** A hit on a record, with the address every hit carries. */
@@ -33,7 +34,7 @@ test("a document hit becomes a row that opens the document", () => {
     at: { kind: "document", path: DocumentPath.make("notes/cabinets.md") },
     title: "Cabinets",
     matched: "body",
-  })
+  }, atOnce)
   expect(item.label).toBe("Cabinets")
   expect(item.place).toBe("notes/cabinets.md")
   expect(item.of).toBe("document")
@@ -51,7 +52,7 @@ test("a search hit becomes a row that jumps to the node", () => {
     line: 6,
     path: ["kitchen remodel #home", "install the cabinets"],
     matched: "title",
-  }))
+  }), atOnce)
   expect(item.label).toBe("pick the hinges")
   // The place is a LINE OF ITS OWN, never an inline hint: an ancestor title
   // is somebody's prose, and beside the title it starved it to one word per
@@ -70,7 +71,7 @@ test("the place reads NEAREST ancestor first, so a truncation keeps what situate
     line: 6,
     path: ["kitchen remodel #home", "install the cabinets"],
     matched: "title",
-  }))
+  }), atOnce)
   expect(item.place).toBe("install the cabinets · kitchen remodel #home")
 })
 
@@ -82,7 +83,7 @@ test("a node at the top level is placed by its file", () => {
     line: 1,
     path: [],
     matched: "title",
-  }))
+  }), atOnce)
   expect(top.place).toBe("errands.olai")
 })
 

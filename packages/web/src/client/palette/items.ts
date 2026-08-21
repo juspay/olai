@@ -3,9 +3,12 @@
  * and the shape a NODE takes when search answers with one.
  *
  * The OP rows are next door (`./ops.ts`), because what a verb is and which of
- * them apply is the `•••` menu's answer and not a second list; the DOCUMENT
- * rows are next door the other way (`./documents.ts`), because which files the
- * directory serves is the served list's answer and not a second list either.
+ * them apply is the `•••` menu's answer and not a second list. The DOCUMENT
+ * rows used to be next door the other way, matched in this tab off the served
+ * list; a search answers with both kinds now (`@olai/format`'s
+ * `matchingDocuments`), so `./documents.ts` is gone and a document is a hit
+ * like any other — which is why {@link hitItem} below is the one row-minting
+ * function here.
  * Node hits arrive from the server's search procedure (Palette.tsx asks it as
  * you type) rather than from a matcher of this file's own, because the palette
  * and an agent's `search_nodes` must be one reading (`@olai/surface`'s
@@ -32,6 +35,7 @@ import type { Asking } from "./asking.ts"
 import { HOME_ROUTE, type Route } from "../routes.ts"
 import type { NodeProp } from "../search/props.ts"
 import { hitRow } from "../search/row.ts"
+import type { Taking } from "../settled.ts"
 
 export type PaletteAction =
   | { readonly kind: "route"; readonly route: Route }
@@ -78,8 +82,9 @@ export type PaletteAction =
 
 export interface PaletteItem {
   /** Unique in the list, and — for the rows that are not commands — PREFIXED
-   *  by what the row is about: `node-<id>` for a search hit, `doc-<path>` for
-   *  a served file (`./documents.ts`). That prefix is a contract with a
+   *  `hit-`, over the row's own ADDRESS: `hit-#a1b2c3` for a record and
+   *  `hit-notes/cabinets.md` for a document ({@link hitItem}, over
+   *  `../search/row.ts`). That prefix is a contract with a
    *  package that does not import this one: it is how a scenario tells a hit
    *  from a shell command that happens to share a word, in both doors
    *  (`packages/tests`' palette and header steps). */
@@ -111,12 +116,27 @@ export interface PaletteItem {
    * has used since a `.md`, a `.olai` and a folder stopped being four
    * characters of extension apart.
    *
-   * Only a document row carries one (`./documents.ts`). A command is not a
+   * Only a document row carries one (`../search/row.ts`). A command is not a
    * file, and a node hit is a row INSIDE one — the file it lives in is already
    * said, in words, on its place line.
    */
   readonly of?: BodyKind
   readonly action: PaletteAction
+  /**
+   * WHICH ANSWER THIS ROW CAME FROM, as the act of spending it — absent for a
+   * row this tab minted for itself (`../settled.ts`'s `Taking`, and `taken`,
+   * which is what reads this).
+   *
+   * The two doors that draw this list draw TWO BLOCKS: the commands are
+   * matched here off a list the tab already holds, and the hits are a debounce
+   * and a round trip away. So "have the rows caught up" is not a question
+   * about the door — a command is never behind anything, and gating the whole
+   * list would swallow `Enter` on one for a settle somebody else's search is
+   * inside of. It is a fact about a ROW, and this is the row carrying it.
+   *
+   * A KEY asks it; a POINTER never does. A hand is on the row it can SEE.
+   */
+  readonly taking?: Taking
   /** Lowercase haystack for simple substring filter. */
   readonly search: string
 }
@@ -215,7 +235,15 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
  * `../search/row.ts`'s answer, shared with the three other doors that draw the
  * identical list, so the palette cannot grow a glyph the header box lacks.
  */
-export const hitItem = (hit: SearchHit): PaletteItem => {
+export const hitItem = (
+  hit: SearchHit,
+  /** WHICH ANSWER this row is off, so the row can say whether a KEY may spend
+   *  it ({@link PaletteItem.taking}). Required rather than optional, which is
+   *  the one line that keeps the rule: a hit row cannot be minted without
+   *  naming the search it came out of, so a third door onto this reading
+   *  cannot quietly draw ungated rows. */
+  taking: Taking,
+): PaletteItem => {
   const row = hitRow(hit)
   return {
     id: `hit-${row.id}`,
@@ -224,6 +252,7 @@ export const hitItem = (hit: SearchHit): PaletteItem => {
     place: row.place,
     props: row.props,
     action: { kind: "route", route: row.route },
+    taking,
     // Never filtered locally: the server already decided these match.
     search: "",
   }

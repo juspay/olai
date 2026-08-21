@@ -98,8 +98,67 @@ import { type Call, runAsync } from "./run.ts"
  *  sentence is not a constant. */
 export const SETTLE_MS = 200
 
-/** What a door gets back — three accessors, and every one of them is a thing a
- *  door draws. */
+/**
+ * SPEND SOMETHING OFF THE ANSWER ON SCREEN — or spend nothing, silently.
+ *
+ * `spend()` is run, and its value handed back, only while what is drawn is
+ * about the question being asked; otherwise nothing runs and the answer is
+ * `undefined`. It is {@link Settled.answering} as an ACT rather than as a
+ * label, and that is the whole of why it exists: the label was read correctly
+ * at the two doors somebody was thinking about and not at the three next to
+ * them, because a fact a caller must remember to consult is a fact a caller
+ * forgets (`docs/brainstorming/reactivity-after-the-flip.md`'s 4.12, and the
+ * deferral it left behind).
+ *
+ * WHAT IT IS FOR IS `Enter`, and only `Enter`. A key means "the row under the
+ * cursor", and the cursor's row is the one about to change underneath it; a
+ * POINTER is a hand on the row it can SEE, and taking that row is exactly what
+ * the hand asked for however far the box has moved on. So no door routes a
+ * press through this, at any depth.
+ *
+ * A refusal is SILENT and the key is still CLAIMED — a list is on screen under
+ * the reader's hands, and an `Enter` falling past it would do something else
+ * entirely. Nothing dims while it waits: a whole list going grey and back on
+ * every keystroke is a flicker, and this arrived out of a campaign about
+ * flicker. The rows catch up a moment later and the same press means what it
+ * says (`docs/editing.md` says that in a reader's own words).
+ */
+export type Taking = <T>(spend: () => T) => T | undefined
+
+/** A row NOTHING IS BEHIND — the palette's own commands, the composer's file
+ *  rows, a day list read off a phrase and a calendar. They are minted in this
+ *  tab from what is already in it, so there is no settle and no flight to be
+ *  inside of and they spend at once. It is a {@link Taking} rather than a
+ *  missing one so that a mixed list is one rule with one shape, and the door
+ *  reading it never asks which half a row came from. */
+export const atOnce: Taking = (spend) => spend()
+
+/**
+ * SPEND THE ROW A KEY IS ON — through the answer that row came from.
+ *
+ * The reader for lists whose rows come from more than one place, which is the
+ * shape a whole-list gate gets wrong: the ⌘K palette draws its own commands
+ * above the server's hits and the chat composer draws the served paths above
+ * them, and both blocks are minted in this tab per keystroke. Gating the DOOR
+ * would swallow `Enter` on a command for a settle and a round trip somebody
+ * else's search is inside of — which is the palette's oldest gesture and the
+ * one a reader makes fastest.
+ *
+ * So freshness is a fact about a ROW: minted with it, carried on it, and read
+ * here. Nothing under the cursor spends nothing, which is not the same as a
+ * refusal and is why it is not one — a key over an empty list has nothing to
+ * claim.
+ */
+export const taken = <R extends { readonly taking?: Taking }>(
+  row: R | undefined,
+  spend: (row: R) => void,
+): void => {
+  if (row === undefined) return
+  void (row.taking ?? atOnce)(() => spend(row))
+}
+
+/** What a door gets back — three accessors and one act, and every one of them
+ *  is a thing a door draws or spends. */
 export interface Settled<Q, A> {
   /**
    * WHAT TO DRAW: whatever last answered THIS session, or `undefined` for
@@ -137,6 +196,16 @@ export interface Settled<Q, A> {
    * written.
    */
   readonly answering: Accessor<Q | null>
+  /**
+   * {@link answering}, AS AN ACT — see {@link Taking}. A door hands it what
+   * taking a row of this answer does, and it runs only while the rows are the
+   * reader's own.
+   *
+   * A door whose list is ONE answer's calls it (`search/Shortlist.tsx`); a
+   * door whose list is two blocks hands it to the rows it mints from this one
+   * and reads it back off the row under the cursor ({@link taken}).
+   */
+  readonly taking: Taking
   /** A refused call, in the server's own words — `null` when there is none, and
    *  never a stale one. Never silently dropped (`./run.ts` forbids a silent
    *  handler). */
@@ -240,12 +309,22 @@ export const createSettled = <Q, A>(
     forget()
   })
 
+  /** WHICH QUESTION the answer on screen is about — `null` while it is not the
+   *  one being asked. Named rather than spelled into the returned object,
+   *  because the taker below is this predicate and would otherwise be a second
+   *  copy of it. */
+  const answering = (): Q | null => {
+    const got = answer()
+    return got !== undefined && same(got.question, wanted()) ? got.question : null
+  }
+
   return {
     answer: () => answer()?.answer,
-    answering: () => {
-      const got = answer()
-      return got !== undefined && same(got.question, wanted()) ? got.question : null
-    },
+    answering,
+    // ONE LINE, and it is the whole of the rule — which is the point of it
+    // being here rather than at five doors: what "the rows are the reader's
+    // own" means cannot differ between two boxes in one app.
+    taking: (spend) => (answering() === null ? undefined : spend()),
     failure,
   }
 }

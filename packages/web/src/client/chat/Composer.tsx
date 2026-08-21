@@ -320,6 +320,14 @@ export function Composer(props: {
           label: offer.label,
           hint: offer.hint,
           section: offer.section,
+          // WHICH ANSWER THE ROW CAME FROM, carried on the row so a KEY cannot
+          // spend one of a word the reader has typed past
+          // ({@link ./CompletionMenu.tsx}'s `MenuRow.taking`). A NODE row is
+          // the server's and holds still through the settle and the flight; a
+          // FILE row is matched in this tab, per keystroke, off a list it
+          // already holds — so it is never behind anything and says so by
+          // carrying nothing.
+          ...(offer.kind === "node" ? { taking: nodesNamed.taking } : {}),
           // The draft and the caret are read when the row is TAKEN, not when
           // it was drawn — and what replaces the span is `./completion.ts`'s,
           // including the rule about not writing a second space into somebody

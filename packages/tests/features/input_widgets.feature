@@ -250,6 +250,27 @@ Feature: The three input widgets
     Then "house.olai" holds no mirror of "compost"
     And there should be no page errors
 
+
+  Scenario: Enter places nothing for a row the search has moved past
+    # The `((` list is the SERVER's, so it holds still through the settle and
+    # the round trip after it — and taking a row of it mints a placement. This
+    # door was gated by hand at #294; it goes through the primitive's own taker
+    # now (`client/settled.ts`), and this is the pin that says the two are the
+    # same promise.
+    When I click the title of "knobs"
+    And I type " ((compost"
+    Then the mirror completions are open
+    And the completions include "the compost heap"
+    When I retype the row as "pick the knobs ((mint" and press Enter at once
+    # Waited out whole: by the time the rows answer the new query, anything
+    # that key wrongly placed has landed and the file would say so.
+    Then the completions include "split the mint"
+    And "house.olai" holds no mirror of "compost"
+    # ...and the key is not lost to the reader, only to the wrong row.
+    When I press "Enter"
+    Then "house.olai" holds a mirror of "mint" under "install"
+    And there should be no page errors
+
   # ── the keys, and what happens when nothing matches ──────────────────
 
   Scenario: Escape puts the list away and keeps what was typed

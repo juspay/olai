@@ -56,7 +56,7 @@ import type { Accessor } from "solid-js"
 
 import type { TagCompletion, TagsRequest } from "@olai/surface"
 
-import { createSettled } from "../settled.ts"
+import { createSettled, type Taking } from "../settled.ts"
 import { olai } from "../wire.ts"
 
 /** How many rows the widget offers. A row's popup is a shortlist — and the
@@ -100,6 +100,10 @@ export interface Tags {
    *  `Enter` has to be able to tell "these are yours" from "these are the
    *  last prefix's". */
   readonly answering: Accessor<Asking | null>
+  /** {@link answering} AS AN ACT — `../settled.ts`'s `Taking`, straight
+   *  through, because what this widget does with the label is take a row on
+   *  `Enter` and a take is the thing that must not be spelled per door. */
+  readonly taking: Taking
 }
 
 /** BY VALUE, because the trigger is a fresh object per keystroke and most
@@ -126,5 +130,6 @@ export const createTags = (asking: Accessor<Asking | null>): Tags => {
     rows: () => asked.answer()?.tags ?? [],
     failure: asked.failure,
     answering: asked.answering,
+    taking: asked.taking,
   }
 }
