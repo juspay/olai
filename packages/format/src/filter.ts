@@ -223,7 +223,7 @@ const isIsValue = (value: string): value is IsValue =>
  * re-puts whenever it is written afterwards (./node.ts). Three sources, and
  * ONE grammar over them: a day, a month, a year, the twelve relative words, a
  * duration back from now, and a range of any of those mean under `created:`
- * exactly what they mean under `date:`, because {@link spanOf} reads the value
+ * exactly what they mean under `date:`, because {@link meaningOf} reads the value
  * before anything knows which operator asked. What DIFFERS between the three
  * is only the precision the record answers at, and that is the record's rather
  * than the grammar's: the stamps carry seconds, so a duration reaches them
@@ -349,7 +349,7 @@ type Clause =
    * why the two ends may differ (`created:yesterday..3h`).
    *
    * ONE ARM FOR THE THREE, and the `of` is the whole difference between them:
-   * the value was read by one {@link spanOf} before anything knew which
+   * the value was read by one {@link meaningOf} before anything knew which
    * operator asked, so what is left to carry is where to look. Three arms would
    * have been three copies of two nullable bounds, and the reading below
    * ({@link within}) would have had to be written once per copy.
@@ -1091,11 +1091,12 @@ const DURATION_TEACHING = `a duration back from now (${
 /**
  * A duration, as the moment it names — or `null` for a value that is not one.
  *
- * THE ONE PLACE A DURATION IS READ, and it is read twice per value at most:
- * once by {@link daysClause} for the bare form, which is sugar for a range, and
- * once by {@link spanOf} for a duration written as a range's end. Two callers
- * and one reading, so `created:1h` and `created:..1h` cannot come to disagree
- * about what an hour is.
+ * THE ONE PLACE A DURATION IS READ, and it has exactly one caller —
+ * {@link meaningOf}, which is the one reading of a day operator's value. What
+ * comes out of that reading says WHICH FORM it was, so the rule about what a
+ * bare one means ({@link daysClause}) reads the form rather than testing for it
+ * a second time. `created:1h` and `created:..1h` cannot come to disagree about
+ * what an hour is, because neither of them asks.
  *
  * ANCHORED AT ASK TIME, off the same `now` the relative words count from and
  * with no re-ask timer behind it: a page showing `created:1h` drifts within the
@@ -1117,14 +1118,10 @@ const durationBefore = (value: string, now: string): string | null => {
   return shiftMinutes(now, -Number(count) * size.minutes)
 }
 
-/** An inclusive span, both ends spelled out. What every `date:` value — a day,
- *  a month, a year, a relative word or a duration — is read into before it
- *  becomes a clause.
- *
- *  A DURATION READS INTO A POINT, both ends the same moment, which is what
- *  lets it sit at either end of a range with no second rule about ranges. The
- *  bare form is the exception and it is sugar rather than a reading — see
- *  {@link daysClause}. */
+/** An inclusive span, both ends spelled out — a STRETCH of time, which is what
+ *  a day, a month, a year and a relative word each name. What a value means is
+ *  this or a single moment ({@link Meaning}); a duration is the second, and
+ *  {@link edgesOf} is where one is offered as the other. */
 interface Span {
   readonly from: string
   readonly to: string
@@ -1166,7 +1163,7 @@ interface Span {
  * that says nothing is not a day to count from, and inventing one would be
  * this grammar answering a date question out of thin air.
  *
- * EXPORTED for {@link spanOf} next door and for the test that pins these
+ * EXPORTED for {@link meaningOf} next door and for the test that pins these
  * boundaries against a fixed day — which is the half of this feature a test can
  * hold still, and the reason the clock is an argument at all.
  */
@@ -1241,8 +1238,30 @@ const twoDigitsIn = (digits: string, low: number, high: number): boolean => {
 }
 
 /**
- * One end of a `date:`, as the span of days it stands for — or `null` for a
- * value this operator does not take.
+ * WHAT A DAY OPERATOR'S VALUE MEANS — a span of days, or the single MOMENT a
+ * duration counts back to.
+ *
+ * A UNION rather than a span with a flag, and it is the distinction the whole
+ * value kind turns on: every other form names a stretch of time with two ends,
+ * and a duration names one instant. Both are usable as a range END (a moment
+ * is its own low and its own high, {@link edgesOf}), and they part company at
+ * exactly one place — what a BARE value means, which is {@link daysClause}'s to
+ * say.
+ *
+ * SO THE FORM IS CARRIED rather than re-derived. The bare-form rule was, for
+ * one commit, `daysClause` asking "is this a duration?" for itself before
+ * falling through to a reading that asked the same question again — which is
+ * two places knowing how a duration is recognised, and the shape that would
+ * have been copied for the next value form with a bare reading of its own. The
+ * reading answers WHICH FORM it read, once, and the rule reads it.
+ */
+type Meaning =
+  | { readonly kind: "span"; readonly span: Span }
+  | { readonly kind: "moment"; readonly at: string }
+
+/**
+ * One end of a `date:`, read — or `null` for a value this operator does not
+ * take.
  *
  * The ONE reading of a `date:` value, whichever form it is written in: a
  * relative word first ({@link relativeSpan}), then a duration
@@ -1252,22 +1271,28 @@ const twoDigitsIn = (digits: string, low: number, high: number): boolean => {
  * exactly as `date:2026-08..` is the low end of August's, and `changed:..30m`
  * is the moment half an hour ago with nothing below it.
  *
- * A DURATION IS A POINT, so its span is that moment at both ends: a range end
- * takes the low of the left and the high of the right ({@link daysClause}), and
- * a point offers the same moment either way round. The three orders cannot
- * collide — a day word is letters, a duration is digits then letters, an
- * absolute value is digits and dashes — so this is a reading in the order the
- * forms are cheapest to rule out rather than a precedence anybody has to know.
+ * THE THREE ARMS CANNOT COLLIDE — a day word is letters, a duration is digits
+ * then letters, an absolute value is digits and dashes — so the order here is
+ * the order the forms are cheapest to rule out rather than a precedence
+ * anybody has to know.
  */
-const spanOf = (value: string, now: string): Span | null => {
+const meaningOf = (value: string, now: string): Meaning | null => {
   const relative = relativeSpan(value, now)
-  if (relative !== null) return relative
+  if (relative !== null) return { kind: "span", span: relative }
   const moment = durationBefore(value, now)
-  if (moment !== null) return { from: moment, to: moment }
+  if (moment !== null) return { kind: "moment", at: moment }
   return datePart(value) === null
     ? null
-    : { from: lowOf(value), to: highOf(value) }
+    : { kind: "span", span: { from: lowOf(value), to: highOf(value) } }
 }
+
+/** The low and the high edge of what a value means. A span offers its two
+ *  ends; a MOMENT offers itself as both, which is the whole of why a duration
+ *  sits at either end of a range without a rule of its own. */
+const edgesOf = (meaning: Meaning): Span =>
+  meaning.kind === "moment"
+    ? { from: meaning.at, to: meaning.at }
+    : meaning.span
 
 /**
  * A DAY OPERATOR's value — a day, a month, a year, a relative word, a duration
@@ -1300,36 +1325,46 @@ const spanOf = (value: string, now: string): Span | null => {
  * inventing a calendar here would be arithmetic to answer a question the
  * comparison already answers.
  *
- * A range takes each end's own span and keeps the OUTER edge of it — the low
- * of the left, the high of the right — so `date:last-week..today` runs from
- * last Monday to tonight, and an end left empty is unbounded that way.
+ * A range takes each end's own edges and keeps the OUTER one — the low of the
+ * left, the high of the right — so `date:last-week..today` runs from last
+ * Monday to tonight, and an end left empty is unbounded that way. It never
+ * asks which FORM an end was written in ({@link edgesOf}), which is why the
+ * durations cost this arm nothing.
  */
 const daysClause = (of: DayReading, value: string, now: string): Clause | null => {
   const at = value.indexOf(RANGE)
   if (at === -1) {
-    // THE ONE VALUE WHOSE BARE FORM IS NOT ITS SPAN. A duration read on its
-    // own is sugar for the range it opens — `created:1h` IS `created:1h..`,
-    // "within the last hour" — because that is what somebody's fingers mean
-    // when they type it, and it is what every system that has this value kind
-    // means by it (Workflowy's `last-changed:1h`, Gmail's `newer_than:`). The
-    // point reading is still there and still spellable: `created:..1h` is the
-    // other side of the same moment, older than an hour. Sugar HERE rather
-    // than inside {@link spanOf}, so the range arm below reads a duration end
-    // as the point it is and there is exactly one rule with an exception
-    // rather than two readings of one value.
-    const moment = durationBefore(value, now)
-    if (moment !== null) return { kind: "days", of, from: moment, to: null }
-    const span = spanOf(value, now)
-    return span === null ? null : { kind: "days", of, from: span.from, to: span.to }
+    const meaning = meaningOf(value, now)
+    if (meaning === null) return null
+    // THE ONE FORM WHOSE BARE READING IS NOT ITS EDGES, and the only place the
+    // two arms of {@link Meaning} are told apart. A duration read on its own is
+    // sugar for the range it opens — `created:1h` IS `created:1h..`, "within
+    // the last hour" — because that is what somebody's fingers mean by it, and
+    // what every system with this value kind means by it (Workflowy's
+    // `last-changed:1h`, Gmail's `newer_than:`). The point reading is still
+    // there and still spellable, one character away: `created:..1h` is the
+    // other side of the same moment, older than an hour.
+    if (meaning.kind === "moment") {
+      return { kind: "days", of, from: meaning.at, to: null }
+    }
+    return { kind: "days", of, from: meaning.span.from, to: meaning.span.to }
   }
   const left = value.slice(0, at)
   const right = value.slice(at + RANGE.length)
   if (left === "" && right === "") return null
-  const low = left === "" ? null : spanOf(left, now)
+  const low = left === "" ? null : meaningOf(left, now)
   if (left !== "" && low === null) return null
-  const high = right === "" ? null : spanOf(right, now)
+  const high = right === "" ? null : meaningOf(right, now)
   if (right !== "" && high === null) return null
-  return { kind: "days", of, from: low?.from ?? null, to: high?.to ?? null }
+  // A range takes the OUTER edge of each end and never asks which form wrote
+  // it — which is what {@link edgesOf} buys, and why a duration needed no line
+  // of range parsing written for it.
+  return {
+    kind: "days",
+    of,
+    from: low === null ? null : edgesOf(low).from,
+    to: high === null ? null : edgesOf(high).to,
+  }
 }
 
 const lowOf = (value: string): string =>
