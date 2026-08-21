@@ -62,12 +62,13 @@ export const IDLE_COMMIT = 1200
  * narrowing to ask a question that is about neither kind in particular.
  *
  * NOT `Said`, which it was called until `../saying.ts` became the client's one
- * home for that name: this is the two things a write can answer WITH, and a
+ * home for that name: this is the two things a write can reply WITH, and a
  * `Said` is the sentence and mood one of them is then drawn as. One word, one
  * concept — and the file that turns one into the other (`./RowEditor.tsx`) had
- * both in scope at once.
+ * both in scope at once. Not `Answered` either, which `../filter/asking.ts`
+ * already uses for a search answer and its question.
  */
-export interface Answered {
+export interface Replied {
   /** What the last commit was refused with. It rides ON the draft rather than
    *  beside it, so replacing the draft cannot leave a stale reason on screen
    *  and nothing has to remember to clear it. */
@@ -79,7 +80,7 @@ export interface Answered {
 }
 
 /** The row a draft is editing, and which of its two texts. */
-export interface Editing extends Answered {
+export interface Editing extends Replied {
   readonly kind: "row"
   /** The record occupying the row — `Row.at.node.id`. What the caret follows
    *  when the tree moves under it, and what a new sibling is anchored on. */
@@ -143,7 +144,7 @@ export interface Editing extends Answered {
 }
 
 /** A row that does not exist yet: an editor standing where it will go. */
-export interface Pending extends Answered {
+export interface Pending extends Replied {
   readonly kind: "new"
   /** Where the row goes, in the surface's own terms — and, for `after` and
    *  `under`, what it is DRAWN after: the anchor names a row, and that row is

@@ -298,17 +298,20 @@ export const markRegion = async (
         });
       }
       const slot = { serial, announced: 0 };
-      // A LIVE REGION, either mood — `role="alert"` is the assertive one and
-      // `role="status"` the polite one, and both are read out loud. Asked of
-      // the role rather than of `aria-live` because the role is what the two
-      // moods are spelled as at every door (SaidLine.tsx), and one of them
-      // carrying only the role would still be announced.
-      const live = '[role="alert"], [role="status"]';
+      // A LIVE REGION, however it is spelled — `role="alert"` is the
+      // assertive one, `role="status"` the polite one, and a bare
+      // `aria-live` is the third spelling several rows here use (the filter
+      // bar's count, the composer's status, the connection readout). All
+      // three are read out loud, and "was this read out loud" is one
+      // question: a probe that only saw the alarming half would pass a nudge
+      // announced three times, and one that only saw ROLES would be blind to
+      // the live region a keystroke rebuilds beside them.
+      const live = '[role="alert"], [role="status"], [aria-live]';
+      // `closest` starts AT the element, so it answers for the node itself
+      // as well as its ancestors; only the descendants need a second look.
       const speaking = (node: Node): boolean =>
         node instanceof Element &&
-        (node.matches(live) ||
-          node.closest(live) !== null ||
-          node.querySelector(live) !== null);
+        (node.closest(live) !== null || node.querySelector(live) !== null);
       const watch = new MutationObserver((records) => {
         for (const record of records) {
           // What was ADDED and what CHANGED, never what was removed: a live
@@ -382,28 +385,17 @@ export const regionHeld = async (
   );
 };
 
-/** ...and nothing under it was read out loud a second time. */
-export const nothingAnnounced = async (
-  world: OlaiWorld,
-  selector: string,
-  what: string,
-): Promise<void> => {
-  const churn = await regionChurn(world, selector);
-  assert.strictEqual(
-    churn.announced,
-    0,
-    `a live region in the ${what} moved ${churn.announced} time(s) without its ` +
-      "words changing, so a screen reader read the same sentence out loud again " +
-      "for a keystroke that did not change the reader's mind.",
-  );
-};
-
-/** ...and the counted version of the same reading, for a line that is SUPPOSED
- *  to be read out loud: exactly how many times, which is the only way to say
- *  "once" about a sentence that must arrive and must not arrive twice. The
- *  region is marked BEFORE the gesture that produces the line, so the plant is
- *  watching while it appears — which is why this is a count over the same
- *  observer rather than a claim about what is on screen at the end. */
+/**
+ * HOW MANY TIMES anything under the region was read out loud.
+ *
+ * ONE assertion with two diagnoses, because the two claims a scenario makes
+ * here are the same reading. ZERO is the common one — nothing under this
+ * region may be announced again for a frame that did not change it — and it
+ * has {@link nothingAnnounced} as its own name below. A NUMBER is the other
+ * half, for the one live region in this suite that MUST be read out loud: it
+ * does not exist when the gesture starts, so the plant goes on whatever is
+ * around it and the claim is a count rather than a zero.
+ */
 export const announcedTimes = async (
   world: OlaiWorld,
   selector: string,
@@ -414,9 +406,23 @@ export const announcedTimes = async (
   assert.strictEqual(
     churn.announced,
     times,
-    `a live region in the ${what} was read out loud ${churn.announced} time(s), ` +
-      `and the scenario is about it being read ${times}. More than that is one ` +
-      "sentence announced again for a frame that did not change it; fewer is a " +
-      "line a screen reader was never told about.",
+    times === 0
+      ? `a live region in the ${what} moved ${churn.announced} time(s) without its ` +
+        "words changing, so a screen reader read the same sentence out loud " +
+        "again for a keystroke that did not change the reader's mind."
+      : `a live region in the ${what} was read out loud ${churn.announced} time(s), ` +
+        `and the scenario is about it being read ${times}. More than that is ` +
+        "one sentence announced again for a frame that did not change it; " +
+        "fewer is a line a screen reader was never told about.",
   );
+};
+
+/** ...and nothing under it was read out loud a second time — the zero above,
+ *  under the name the step that makes that claim uses. */
+export const nothingAnnounced = async (
+  world: OlaiWorld,
+  selector: string,
+  what: string,
+): Promise<void> => {
+  await announcedTimes(world, selector, what, 0);
 };

@@ -42,11 +42,11 @@ import type { Undo } from "./edit/undoing.ts"
  *  for a refusal, which is why nothing happened, and `aside` for a remark
  *  about something that did.
  *
- *  ONE declaration, and it is the undo line's ({@link ./edit/undoing.ts}):
- *  several surfaces in this client say a thing about a write in these two
- *  moods, and a second spelling of the same pair would be a second answer to
- *  which moods there are. Imported here rather than re-exported, so the type
- *  has one import path as well as one declaration. */
+ *  ONE declaration, at the client's top level ({@link ./saying.ts}): several
+ *  surfaces here say a thing about a write in these two moods, and a second
+ *  spelling of the same pair would be a second answer to which moods there
+ *  are. Imported rather than re-exported, so the type has one import path as
+ *  well as one declaration. */
 import type { Said } from "./saying.ts"
 
 /**

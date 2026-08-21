@@ -4,7 +4,8 @@
  * A multi-selection has no caret, so it has no row to draw a refusal under —
  * and every bulk gesture is several writes that can be refused halfway. That is
  * the first thing this bar exists for: a line the ops layer's own words land
- * on, in the same two moods every other write surface has (`../writes.ts`).
+ * on, in the same two moods every other write surface has (`../writes.ts`) and
+ * drawn by the one component that owns what a mood means (`../SaidLine.tsx`).
  * `UndoSaid` cannot be it: that is the undo stack's line, pinned over the page,
  * and two sources sharing one box would show a reader the wrong sentence about
  * the wrong thing.
@@ -51,6 +52,7 @@ import { createConfirming } from "../confirming.ts"
 
 import { LAYER } from "../layer.ts"
 import { QUIET_PILL } from "../pill.ts"
+import { SaidLine } from "../SaidLine.tsx"
 import { TESTID } from "../testids.ts"
 import type { TestId } from "../testids.ts"
 import { trashQuestion } from "../trash/question.ts"
@@ -160,22 +162,12 @@ export function SelectionBar() {
           </Show>
           <Show when={selection.said()}>
             {(said) => (
-              <p
-                class="m-0"
-                classList={{
-                  "text-alarm": said().tone === "alarm",
-                  "text-muted": said().tone === "aside",
-                }}
-                data-testid={TESTID.selectionSaid}
-                data-tone={said().tone}
-                // The row's own idiom (`../menu/MenuSaid.tsx`): a refusal
-                // interrupts what a screen reader is saying, a remark waits
-                // its turn.
-                role={said().tone === "alarm" ? "alert" : "status"}
-                aria-live={said().tone === "alarm" ? "assertive" : "polite"}
-              >
-                {said().text}
-              </p>
+              // The mood — its colour, its `data-tone`, and whether a screen
+              // reader is interrupted — is `../SaidLine.tsx`'s, for every
+              // surface in this client that says something about a write. What
+              // is this bar's is where the line sits, which here is nowhere in
+              // particular: it is the last row of the bar's own column.
+              <SaidLine said={said()} class="m-0" testid={TESTID.selectionSaid} />
             )}
           </Show>
         </div>

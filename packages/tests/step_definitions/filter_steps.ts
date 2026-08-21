@@ -294,7 +294,7 @@ Then(
  *  The tone is asked here rather than in one door's own step because it is the
  *  claim that is the same at all three: a refusal is why a list is empty, so
  *  every door draws it through the component that owns the alarm mood
- *  (`client/edit/SaidLine.tsx`) and none of them spells `role="alert"` by hand.
+ *  (`client/SaidLine.tsx`) and none of them spells `role="alert"` by hand.
  *  `data-tone` is that claim in the markup — never a colour, per
  *  `../support/said.ts`. */
 const refuses = (

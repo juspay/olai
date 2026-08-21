@@ -57,6 +57,13 @@ const shot = async (
   })
 }
 
+/** The caret, and the two lines a write leaves under it. Named rather than
+ *  spelled per section, which is this file's rule for every other row it
+ *  drives (`MOVE_PICKER`, `FILTER_REFUSAL`, `SEARCH_REFUSAL`). */
+const TITLE_EDITOR = '[data-testid="title-editor"]'
+const EDIT_REFUSAL = '[data-testid="edit-refusal"]'
+const EDIT_NUDGE = '[data-testid="edit-nudge"]'
+
 const row = (id: string) => `[data-node-id="${id}"]`
 const handle = (id: string) => `${row(id)} [data-testid="drag-handle"] >> nth=0`
 const title = (id: string) => `${row(id)} [data-testid="node-title"] >> nth=0`
@@ -243,7 +250,7 @@ const MOVE_REFUSED = '[data-testid="move-refused"]'
  *  rather than a shot. */
 const pickerOn = async (page: Page, id: string) => {
   await page.locator(title(id)).first().click()
-  await page.locator('[data-testid="title-editor"]').first().waitFor()
+  await page.locator(TITLE_EDITOR).first().waitFor()
   await page.keyboard.press("ControlOrMeta+Shift+m")
   await page.locator(MOVE_PICKER).first().waitFor()
 }
@@ -283,25 +290,27 @@ const textOf = async (page: Page, locator: string) =>
  *  colour — `data-tone` is the fact `web/src/client/SaidLine.tsx` puts there
  *  precisely so a reader (a person, a scenario) can ask without asking about a
  *  class name. Printed beside the sentence in the sections below, because their
- *  whole subject is which component drew the row. */
-const toneOf = async (page: Page, locator: string) =>
-  (await page.locator(locator).first().getAttribute("data-tone")) ?? "(none)"
+ *  whole subject is which component drew the row.
+ *
+ *  Through {@link attrOf}, with the three other facts those sections print, so
+ *  "absent" has one spelling and a fifth fact is a call rather than a fourth
+ *  clone of this function. */
+const attrOf = async (page: Page, locator: string, attribute: string) =>
+  (await page.locator(locator).first().getAttribute(attribute)) ?? "(none)"
+
+const toneOf = async (page: Page, locator: string) => await attrOf(page, locator, "data-tone")
+
+/** WHICH refusal it is — the ops layer's own failure tag, carried by the
+ *  sentences that were minted while the failure was still in hand. */
+const kindOf = async (page: Page, locator: string) => await attrOf(page, locator, "data-kind")
 
 /** HOW a said-line reaches a screen reader — the `role`/`aria-live` pair, read
  *  as one string because they are one decision. The only part of a said-line a
  *  screenshot cannot carry at all: two lines with the same words, one of which
  *  interrupts whatever was being read. */
-const mannerOf = async (page: Page, locator: string) => {
-  const line = page.locator(locator).first()
-  const role = (await line.getAttribute("role")) ?? "(none)"
-  const live = (await line.getAttribute("aria-live")) ?? "(none)"
-  return `role=${role} aria-live=${live}`
-}
-
-/** WHICH refusal it is — the ops layer's own failure tag, which the row
- *  editor's line is the one surface to carry (`data-kind`). */
-const kindOf = async (page: Page, locator: string) =>
-  (await page.locator(locator).first().getAttribute("data-kind")) ?? "(none)"
+const mannerOf = async (page: Page, locator: string) =>
+  `role=${await attrOf(page, locator, "role")} ` +
+  `aria-live=${await attrOf(page, locator, "aria-live")}`
 
 /** The `•••` menu's archive verb, and the confirm it raises — ONE spelling,
  *  because the confirm answers with the same words on the same panel, and a
@@ -1164,12 +1173,12 @@ const SECTIONS = {
    */
   "doing-refuses-blocked": async (page) => {
     await page.locator(title("hinges")).click()
-    await page.locator('[data-testid="title-editor"]').first().waitFor()
+    await page.locator(TITLE_EDITOR).first().waitFor()
     await page.keyboard.press("Control+Shift+Enter")
-    await page.locator('[data-testid="edit-refusal"]').first().waitFor()
+    await page.locator(EDIT_REFUSAL).first().waitFor()
     await page.waitForTimeout(200)
-    console.log(`  the walk onto \`doing\` says: ${await textOf(page, '[data-testid="edit-refusal"]')}`)
-    console.log(`  the draft is still open: ${await page.locator('[data-testid="title-editor"]').first().isVisible()}`)
+    console.log(`  the walk onto \`doing\` says: ${await textOf(page, EDIT_REFUSAL)}`)
+    console.log(`  the draft is still open: ${await page.locator(TITLE_EDITOR).first().isVisible()}`)
     console.log(`  and the file still says:  ${recordOf("hinges")}`)
     await shot(page, "walk-refused-draft-kept")
 
@@ -2521,7 +2530,7 @@ const SECTIONS = {
     // the copy leaves the original exactly as it was, which is what "its own
     // identity" means on a page rather than in a record.
     await page.locator(title(id)).click()
-    await page.locator('[data-testid="title-editor"]').first().waitFor()
+    await page.locator(TITLE_EDITOR).first().waitFor()
     await page.keyboard.press("ControlOrMeta+a")
     await page.keyboard.type("install the cabinets — the spare bathroom")
     await page.keyboard.press("Enter")
@@ -2795,7 +2804,7 @@ const SECTIONS = {
     ])
     await opened(page, "/house.olai", OUTLINE_TREE)
     await page.locator(title("knobs")).first().click()
-    await page.locator('[data-testid="title-editor"]').first().waitFor()
+    await page.locator(TITLE_EDITOR).first().waitFor()
     await page.keyboard.type(" #")
     await page.locator(COMPLETIONS).first().waitFor()
     await page.waitForTimeout(DRAWN)
@@ -2942,7 +2951,7 @@ const SECTIONS = {
    * component.
    *
    * The sentence has been one since #287 and the MARKUP was three — the bar's
-   * line through `edit/SaidLine.tsx`, and a hand-rolled `role="alert"` band at
+   * line through `client/SaidLine.tsx`, and a hand-rolled `role="alert"` band at
    * each of the two search doors. What a still frame shows that a `✔` cannot
    * is that they now READ as one thing: the same alarm ink, the same rule under
    * the row, the same band across whatever the door's own padding is. The
@@ -3014,7 +3023,8 @@ const SECTIONS = {
     await page.evaluate(() => localStorage.setItem("olai.theme", "aurora"))
     await pass(true)
   },
-/**
+
+  /**
    * SAIDLINE'S HOME, AND THE EDITOR'S NUDGE (`said-home-and-nudge`): the last
    * two hand-rolled said-lines in the client, drawn by the component every
    * other line has gone through since #310.
@@ -3070,12 +3080,12 @@ const SECTIONS = {
       await opened(page, "/house.olai", OUTLINE_TREE)
       await wearTheme(page, theme)
       await page.locator(title("handles")).click()
-      await page.locator('[data-testid="title-editor"]').first().waitFor()
+      await page.locator(TITLE_EDITOR).first().waitFor()
       await page.keyboard.press("ControlOrMeta+a")
       await page.keyboard.press("Delete")
-      await page.locator('[data-testid="edit-refusal"]').first().waitFor()
+      await page.locator(EDIT_REFUSAL).first().waitFor()
       await page.waitForTimeout(DRAWN)
-      await reads("the editor refuses:", '[data-testid="edit-refusal"]', "the-refusal")
+      await reads("the editor refuses:", EDIT_REFUSAL, "the-refusal")
       await page.keyboard.press("Escape")
 
       // THE NUDGE, which is the opposite mood at the same place: `mint` is the
@@ -3083,11 +3093,11 @@ const SECTIONS = {
       // the rollup has something a person usually wants noticed.
       await opened(page, "/garden.olai", OUTLINE_TREE)
       await page.locator(title("mint")).click()
-      await page.locator('[data-testid="title-editor"]').first().waitFor()
+      await page.locator(TITLE_EDITOR).first().waitFor()
       await page.keyboard.press("Control+Enter")
-      await page.locator('[data-testid="edit-nudge"]').first().waitFor()
+      await page.locator(EDIT_NUDGE).first().waitFor()
       await page.waitForTimeout(DRAWN)
-      await reads("the write nudges:", '[data-testid="edit-nudge"]', "the-nudge")
+      await reads("the write nudges:", EDIT_NUDGE, "the-nudge")
       await page.keyboard.press("Escape")
     }
 

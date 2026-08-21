@@ -117,13 +117,13 @@ Then(
 Given(
   "I mark every element of the row {string}",
   async function (this: OlaiWorld, id: string) {
-    await markRegion(this, nodeSelector(id), `the row "${id}"`);
+    await markRegion(this, nodeSelector(id), `row "${id}"`);
   },
 );
 
 Then(
   "the row {string} was read out loud {int} time(s)",
   async function (this: OlaiWorld, id: string, times: number) {
-    await announcedTimes(this, nodeSelector(id), `the row "${id}"`, times);
+    await announcedTimes(this, nodeSelector(id), `row "${id}"`, times);
   },
 );

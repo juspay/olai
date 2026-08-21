@@ -41,6 +41,7 @@
  * panel, where those differ.
  */
 
+import type { OpFailure } from "@olai/surface"
 import { type Accessor, createSignal, onCleanup } from "solid-js"
 
 /** The two moods anything this client says is in: `alarm` for a refusal, which
@@ -50,6 +51,17 @@ import { type Accessor, createSignal, onCleanup } from "solid-js"
 export interface Said {
   readonly tone: "alarm" | "aside"
   readonly text: string
+  /** WHICH RULE said it, where the sentence came from the ops layer and the
+   *  minter still had the failure in hand — drawn as `data-kind`, so a
+   *  scenario can name the rule rather than matching its wording.
+   *
+   *  BESIDE the mood rather than a prop of its own at the line: both are facts
+   *  in the markup about one sentence, and a caller that had to hand one over
+   *  through the value and the other around it is a caller that can pass a
+   *  kind belonging to some other refusal. Optional because most sentences
+   *  have no tag to give — a refused QUERY is a token and a reason
+   *  (`@olai/format`'s `Refusal`), and a remark is nobody's failure. */
+  readonly kind?: OpFailure["_tag"]
 }
 
 /** How long a surface's said-line stays before clearing itself. ONE number,

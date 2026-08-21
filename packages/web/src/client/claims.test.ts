@@ -146,6 +146,21 @@ test("only SaidLine.tsx spells the alarmed band the shortlist panels wear", () =
   ])
 })
 
+// SaidLine.tsx's other claim, and the one packages/web/README.md was already
+// making without anything checking it: the two MOODS are read in one place.
+// What is swept is `data-tone` taken from a VALUE — `data-tone={…}` rather
+// than `data-tone="alarm"` — because that spelling is the fingerprint of a
+// surface deciding for itself what a mood looks like and how it is announced,
+// which is the four-line copy the component exists to end. A literal one is a
+// different thing and is left alone: `Refused.tsx` and `document/BodyRefused.ts`
+// are single-mood boxes over a plain string, and their own headers argue why a
+// component carrying a mood nothing emits would be an abstraction one caller
+// wide. Two hold-outs were found by hand when this test was written (the row
+// editor's line and the selection bar's) — which is the argument for the test.
+test("only SaidLine.tsx reads a said-line's mood", () => {
+  expect(filesSpelling(/data-tone=\{/)).toEqual(["SaidLine.tsx"])
+})
+
 test("only layer.ts spells a z-index", () => {
   expect(filesSpelling(/(?:^|[\s"'`])z-(?:\[\d+\]|\d+|auto)(?=$|[\s"'`])/m)).toEqual(["layer.ts"])
 })

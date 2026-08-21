@@ -221,18 +221,21 @@ const UNDER_EDITOR = "mt-0.5 mb-1 text-[0.8125rem] leading-snug"
  *     reason anything failed — so it is toned like a note rather than an
  *     alarm, and the next keystroke takes it away.
  *
- * BOTH GO THROUGH {@link SaidLine}, which is the last of the client's said
- * lines to do so (#310 converted the other seven and left this one, because
- * joining changes what a screen reader is told rather than only what the
- * markup says). The two moods here ARE the component's two moods — a refusal
- * is why nothing happened, a nudge rides back on something that did — so the
- * refusal keeps `role="alert"` and gains the `aria-live="assertive"` it had
- * been missing, and the nudge, which carried NEITHER, becomes the polite live
- * region a remark should be. That is the deliberate half: advice that only the
- * sighted reader gets is advice half the readers do not get, and the reason it
- * is polite rather than alarming is that interrupting a sentence somebody is
- * in the middle of, to say a parent could now be ticked, is worse than the
- * advice is worth.
+ * BOTH GO THROUGH {@link SaidLine} — the last two of the client's said lines
+ * to do so, because joining changed what a screen reader is told rather than
+ * only what the markup says. The two moods here ARE the component's two moods,
+ * so the refusal is unchanged for a reader: it was already `role="alert"`,
+ * which carries `aria-live="assertive"` whether or not the attribute is
+ * written down.
+ *
+ * THE NUDGE IS THE RULING. It carried no `role` and no `aria-live` at all, so
+ * a remark the ops layer makes about a write that LANDED — the last task under
+ * a parent going done — reached only the reader who could see it. It is
+ * announced now, because it is feedback rather than decoration and the person
+ * who pressed the key is exactly who it is for; and POLITELY rather than
+ * assertively, because it rides back on something that did happen and
+ * interrupting a sentence somebody is in the middle of, to say a parent could
+ * now be ticked, is worse than the advice is worth.
  */
 export function DraftSaid(props: { readonly draft: Draft }) {
   return (
@@ -240,8 +243,7 @@ export function DraftSaid(props: { readonly draft: Draft }) {
       <Show when={props.draft.refused}>
         {(failure) => (
           <SaidLine
-            said={{ tone: "alarm", text: failure().message }}
-            kind={failure()._tag}
+            said={{ tone: "alarm", text: failure().message, kind: failure()._tag }}
             class={UNDER_EDITOR}
             testid={TESTID.editRefusal}
           />
