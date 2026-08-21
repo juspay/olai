@@ -53,12 +53,20 @@ export function ServedProvider(props: {
   readonly children: JSX.Element
 }) {
   // `equals` COMPARES THE MEMBERSHIP, and that is what makes this list's
-  // IDENTITY mean "the directory changed" rather than "a frame arrived". The
-  // list is minted fresh on every frame the directory publishes — a key set
-  // re-sent unchanged is still a new array — and downstream there is a fold
-  // kept against this very array (`./file/matching.ts`, a `WeakMap`), so without
-  // this the vault would be re-folded for frames that said nothing. A memo
-  // with no `equals` compares by reference and would never notice.
+  // IDENTITY mean "the directory changed" rather than "a frame arrived".
+  // Downstream there is a fold of the vault kept against this very array
+  // (`./file/matching.ts`, a `WeakMap`), so a list that moves for any other
+  // reason re-folds the vault for a frame that said nothing. A memo with no
+  // `equals` compares by reference and would never notice.
+  //
+  // AND IT IS A NARROWER JOB THAN IT WAS, which is why it is still here. The
+  // directory used to mint a fresh list on every frame it published; it rides
+  // the head collection's own `fold` now and hands back the very array unless a
+  // file arrived or left (`./directory.ts`). What that leaves for this compare
+  // is the case the fold cannot answer: a SNAPSHOT re-seeds every registered
+  // fold and `init` has no previous accumulator to hand back, so a reconnect
+  // mints a fresh list naming the same files. A link flap must not re-fold the
+  // vault, and this is the one line that says so.
   //
   // A PLAIN HOLD, and that is the whole of it now. It used to be a `map` off
   // the faces — `n` property reads per frame to rebuild a list the directory's

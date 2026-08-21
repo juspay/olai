@@ -3,15 +3,24 @@
  * spelled once.
  *
  * Several things in this client hand a fresh array or a fresh `Map` to something
- * that only cares whether the CONTENTS changed: the served paths, rebuilt
- * whenever either half of the directory speaks (`./served.tsx`); the documents
- * this tab is holding open, rebuilt whenever any row's interest count moves
- * (`./document/documents.tsx`); the files that did not parse, rebuilt on every
- * head the directory publishes (`./directory.ts`); the nodes a filter's answer
- * selected, minted afresh by every answer (`./filter/matches.ts`). A memo
- * compares by reference, so without an `equals` each of those makes a fresh
- * value mean "this changed" and everything downstream re-runs for something it
- * already had.
+ * that only cares whether the CONTENTS changed: the served paths and the
+ * unreadable files, each minted afresh whenever the directory is SEEDED — the
+ * first frame, and every reconnect (`./served.tsx`, `./directory.ts`); the
+ * documents this tab is holding open, rebuilt whenever any row's interest count
+ * moves (`./document/documents.tsx`); the nodes a filter's answer selected,
+ * minted afresh by every answer (`./filter/matches.ts`). A memo compares by
+ * reference, so without an `equals` each of those makes a fresh value mean "this
+ * changed" and everything downstream re-runs for something it already had.
+ *
+ * THE DIRECTORY'S TWO NARROWED, and the narrowing is worth the line because it
+ * is what this file is FOR. Both were minted per FRAME until
+ * `directory-heads-fold` and held still by comparing afterwards; they ride the
+ * head collection's own `fold` now, which hands the very same value back on a
+ * frame that did not move it. So the per-frame case is gone — the better fix,
+ * and not one this module could have made. What is left is the case the fold
+ * cannot answer: `init` has no previous accumulator to hand back, so a re-seed
+ * mints a fresh value whatever it says. That is this file's remaining subject —
+ * the fresh value that is INHERENT, minted by something other than what it says.
  *
  * ONE WALK, TWO SHAPES, because they are the same walk: check the size, then go
  * through one side once and ask the other what it holds. Written per caller it
@@ -51,8 +60,8 @@ export const sameList = <A>(
  *  A MAP WHOSE VALUES MAY BE `undefined` is not this function's subject: an
  *  absent key and a key holding `undefined` answer the same here, and neither
  *  caller draws that distinction (a `BrokenFile`, a `MatchedNode`). Say so at a
- *  call site that needs it rather than paying a second lookup per key in the
- *  one function whose job is to be cheaper than what it guards. */
+ *  call site that needs it rather than paying a second lookup per key in the one
+ *  function whose job is to be cheaper than what it guards. */
 export const sameMap = <K, V>(
   a: ReadonlyMap<K, V>,
   b: ReadonlyMap<K, V>,

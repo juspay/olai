@@ -30,9 +30,15 @@ import { byPath } from "@olai/format"
  * A `facesOf` stood beside it until `perf-faces-broken-walk`: same keys,
  * collecting one field off each entry, allocating a one-element array per file
  * to do it. That was a WALK over the directory rather than an order, and the
- * directory takes its own now (`./directory.ts`'s `walkOf`, one pass answering
- * both of its readings). Two things lived here because one of them called the
- * other, which is the accident of authoring order rather than a boundary.
+ * directory answers its own readings now. Two things lived here because one of
+ * them called the other, which is the accident of authoring order rather than a
+ * boundary.
+ *
+ * SPENT ON A MEMBERSHIP MOVE and no longer per frame: the directory keeps its
+ * file list in a fold over the head collection's frames
+ * (`./directory.ts`'s `SERVED_FILES`), so this is called when a file arrives or
+ * leaves and when a snapshot re-seeds — never on the ordinary frame, which
+ * rewrites a file and moves no path at all.
  *
  * ONE CALLER, and that is not a reason to fold this into it. What is
  * encapsulated here is which order the client draws a directory in, and that
