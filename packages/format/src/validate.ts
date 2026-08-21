@@ -103,18 +103,21 @@ export const validate = (
   // that publishes what this approves has no second corpus to walk.
   const derived = viewOf(set, previous)
 
-  // THE RECORDS ARE THE VIEW'S, which is the same array the set holds one
-  // level down (`viewOf` flattens the outlines to build it, and hands the set's
-  // own list back when the two agree). Asking the derivation is what keeps this
-  // from being a second flattening beside the one every rule below is run
-  // against — and the identity the duplicate-id rule turns on is exactly that
-  // these are the set's records rather than copies of them.
-  reportDuplicateIds(derived.nodes, derived, errors)
-  checkParents(derived.nodes, derived, errors)
+  // THE RECORDS ARE THE VIEW'S, which is the same records the set holds one
+  // level down. Asking the derivation is what keeps this from being a second
+  // flattening beside the one every rule below is run against — and the
+  // identity the duplicate-id rule turns on is exactly that these are the set's
+  // records rather than copies of them.
+  //
+  // BOUND ONCE, because a patched view builds this reading when somebody asks
+  // ({@link Derived.nodes}) and five rules asking is one question, not five.
+  const all = derived.nodes
+  reportDuplicateIds(all, derived, errors)
+  checkParents(all, derived, errors)
   checkTargets(derived, errors)
-  checkAfterAcyclic(derived.nodes, derived, errors)
-  checkMirrorContainment(derived.nodes, derived, errors)
-  checkDocs(derived.nodes, set, errors)
+  checkAfterAcyclic(all, derived, errors)
+  checkMirrorContainment(all, derived, errors)
+  checkDocs(all, set, errors)
 
   const unreadable = set.broken.flatMap((file) => [...file.errors])
   // A file that did not parse contributes no ids, so a reference resolving to

@@ -69,6 +69,23 @@ export { Status } from "./node.ts"
  * the symptom would be a plausible tree rather than a failure.
  */
 export interface Derived {
+  /**
+   * Every record of the set, in corpus order — path order across files, line
+   * order within one.
+   *
+   * IT IS {@link Derived.byFile} READ THE OTHER WAY, the same objects and never
+   * a second copy of them, which is why a view holds both and is not holding
+   * the corpus twice. A rebuild is HANDED this list and files it; a patch is
+   * handed a delta and files that, so the flat reading is one it would have to
+   * build — one array per record in the directory, for a reading none of its
+   * own work asks for. A patched view therefore builds it WHEN SOMEBODY ASKS
+   * and hands the same array back every time after ({@link ./patch.ts}), which
+   * a reader cannot tell from a field: it is the same value, reached later.
+   *
+   * So a caller that wants a record COUNT or the corpus grouped should ask
+   * `byFile` rather than this, and one that wants the records as a list should
+   * bind this once rather than name it per rule.
+   */
   readonly nodes: ReadonlyArray<Located>
   /** id → the record that claims it. FIRST claim wins, which is the same rule
    *  the validator's duplicate-id error uses: the second claim is the mistake,

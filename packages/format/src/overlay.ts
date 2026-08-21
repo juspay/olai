@@ -28,10 +28,11 @@
  *
  * IT DELETES, and that is the whole of what changed here. The first layer kept
  * `base`'s key set exactly — size, `has` and `keys` were the underlying map's
- * own answers and cost nothing — and the price of that was that eight of the
- * nine indexes beside `byId` could not have one, since a patch drops keys from
- * them (a tag nothing writes any more has to leave `taggedBy` rather than
- * stand there empty). This file used to say so and stop there. A tombstone set
+ * own answers and cost nothing — and the price of that was that none of the ten
+ * indexes beside `byId` could have one, since a patch drops keys from nearly
+ * all of them (a tag nothing writes any more has to leave `taggedBy` rather
+ * than stand there empty). This file used to say so and stop there, which was a
+ * fact about the layer as BUILT dressed as one about layers. A tombstone set
  * beside the changed values is what it costs to say it properly: `size` is a
  * subtraction, `has` is one extra lookup, and `keys` is a walk that skips.
  * That is a real price and it is paid PER READ, which is what decides where a
@@ -46,7 +47,7 @@
  * `checkTargets`), `taggedBy` by tag completion, `byDay` by the agenda and the
  * calendar, `byFile` by whoever wants the corpus flat — and for those a walk
  * through the generator below costs more per entry than the clone it would
- * save. The two halves are six and five, they are named at the calls, and
+ * save. The two halves are seven and four, they are named at the calls, and
  * `patch.bench.ts` prints what each half costs.
  *
  * WHY NOT A PERSISTENT MAP, which is the other half of what the open question
@@ -122,15 +123,15 @@
 export type Read = "by key" | "whole"
 
 /**
- * The one thing a patch does to an index: set at a key, delete at a key, ask
- * what a key holds.
+ * WRITING to an index: set at a key, delete at a key, ask whether a key is
+ * there. Exactly what the one rule below it needs and nothing more.
  *
- * Both a `Map` and an {@link Overlay} are one, which is what lets the rules
- * that re-file an index be written once and run over either
+ * Both a `Map` and an {@link Overlay} are one, which is what lets the rule that
+ * files a key across an edit be written once and run over either — over a layer
+ * for the index read by key, over a clone for the three read whole
  * ({@link ./patch.ts}'s `filedAt`).
  */
 export interface Editable<K, V> {
-  get(key: K): V | undefined
   has(key: K): boolean
   set(key: K, value: V): void
   delete(key: K): boolean
@@ -189,6 +190,18 @@ class Overlay<K, V extends {}> implements Editable<K, V> {
     }
   }
 
+  /** The three above, as the layer takes them: COPIED, so that a layer is a
+   *  value the moment it is sealed. Nothing writes to an overlay after sealing
+   *  it today — each of them is sealed at the end of the step that made it and
+   *  dropped — but handing the live sets over would make that a rule somebody
+   *  has to remember rather than one the shape keeps, and the copies are
+   *  bounded by the edit. */
+  private sealing(): Layer<K, V> {
+    const changed = new Map(this.over)
+    for (const [key, value] of this.tail) changed.set(key, value)
+    return new Layer(this.base, changed, new Set(this.tail.keys()), new Set(this.gone))
+  }
+
   get(key: K): V | undefined {
     const held = this.tail.get(key)
     if (held !== undefined) return held
@@ -235,9 +248,7 @@ class Overlay<K, V extends {}> implements Editable<K, V> {
     if (!this.wrote) return this.given
     const written = this.over.size + this.tail.size + this.gone.size
     if (read === "whole" || written * 2 > this.base.size) return this.flattened()
-    const changed = new Map(this.over)
-    for (const [key, value] of this.tail) changed.set(key, value)
-    return new Layer(this.base, changed, this.tail, this.gone)
+    return this.sealing()
   }
 
   /** The real map, built from `base` and written the way this overlay was —
@@ -270,9 +281,9 @@ class Layer<K, V extends {}> implements ReadonlyMap<K, V> {
     /** Every value this layer answers with — the replacements and the
      *  appendings in one map, so a `get` is ONE lookup rather than two. */
     readonly changed: ReadonlyMap<K, V>,
-    /** Which of those keys sit past the end of `base`, which is the only thing
-     *  `changed` cannot say for itself. Read for its KEYS. */
-    readonly appended: ReadonlyMap<K, V>,
+    /** Which of those keys sit past the end of `base`, in the order they went
+     *  there — the only thing `changed` cannot say for itself. */
+    readonly appended: ReadonlySet<K>,
     /** Keys of `base` that are not here any more. A key in `appended` too is
      *  one that came back, and `changed` answering first is what says so. */
     readonly gone: ReadonlySet<K>,
@@ -300,7 +311,7 @@ class Layer<K, V extends {}> implements ReadonlyMap<K, V> {
    *  end — which is where a `Map` would have left them. */
   *keys(): MapIterator<K> {
     for (const key of this.base.keys()) if (!this.gone.has(key)) yield key
-    yield* this.appended.keys()
+    yield* this.appended
   }
 
   *values(): MapIterator<V> {
