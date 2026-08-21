@@ -70,7 +70,7 @@ import type { MenuDoor } from "./door.ts"
 import { Dots } from "./Dots.tsx"
 import { MenuSaid } from "./MenuSaid.tsx"
 import { createPicking } from "./picking.ts"
-import type { Said } from "../edit/undoing.ts"
+import type { Said } from "../saying.ts"
 
 export function NodeMenu(props: {
   readonly actions: ReadonlyArray<MenuAction>

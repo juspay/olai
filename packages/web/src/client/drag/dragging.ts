@@ -73,7 +73,7 @@ import type { Edit } from "@olai/surface"
 import { type Accessor, createContext, createSignal, onCleanup, useContext } from "solid-js"
 
 import { flatten } from "../edit/order.ts"
-import type { Said } from "../edit/undoing.ts"
+import type { Said } from "../saying.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { longPressOn } from "../longPress.ts"
 import { createDrags, TRAVEL_PX } from "../pointer.ts"

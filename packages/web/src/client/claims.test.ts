@@ -142,7 +142,7 @@ test("no file here spells the same-file law — it is the format's", () => {
 // entitled to.
 test("only SaidLine.tsx spells the alarmed band the shortlist panels wear", () => {
   expect(filesSpelling(/border-alarm\/40[^"'`]*bg-alarm\/5/)).toEqual([
-    path.join("edit", "SaidLine.tsx"),
+    "SaidLine.tsx",
   ])
 })
 
@@ -260,11 +260,11 @@ test("only pointer.ts suppresses the page's text selection", () => {
 // Trash's "were equal only by hand-maintenance", and the constant turned out
 // to be half the job: both surfaces still spelled the machinery around it and
 // had drifted into two shapes for the same three rules. Reaching for the
-// constant again is what writing the third copy looks like from here. Two
-// names: `edit/undoing.ts` declares the number beside the type it belongs to,
-// and `saying.ts` is the only thing that counts it down.
+// constant again is what writing the third copy looks like from here. ONE name
+// now: the number was declared in `edit/undoing.ts` while the type it belongs
+// to lived there, and both moved out to the module that counts it down.
 test("only saying.ts counts SAID_MS down", () => {
-  expect(filesSpelling(/\bSAID_MS\b/)).toEqual([path.join("edit", "undoing.ts"), "saying.ts"])
+  expect(filesSpelling(/\bSAID_MS\b/)).toEqual(["saying.ts"])
 })
 
 // menu/chunk.ts's claim — `DropdownMenu` is not on the first-paint chunk, and

@@ -48,7 +48,7 @@
 import { Show } from "solid-js"
 
 import type { Asked } from "./asking.ts"
-import { SaidLine } from "../edit/SaidLine.tsx"
+import { SaidLine } from "../SaidLine.tsx"
 import { listKey } from "../keys.ts"
 import { Refusals } from "../refusals.tsx"
 import { TESTID } from "../testids.ts"
@@ -153,7 +153,7 @@ export function FilterBar(props: {
             class="m-0 mt-1 font-mono text-xs text-muted"
             data-testid={TESTID.filterCount}
             // A READOUT rather than something said about a write, which is why
-            // it is not a `SaidLine` (`../edit/SaidLine.tsx` owns the two MOODS a
+            // it is not a `SaidLine` (`../SaidLine.tsx` owns the two MOODS a
             // write has, and a count has neither). Announced politely for the
             // reason a remark is: it changes under a reader who is typing, and
             // interrupting them with each keystroke is worse than the number is

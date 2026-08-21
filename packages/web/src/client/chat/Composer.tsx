@@ -101,7 +101,7 @@ import { batch, createEffect, createMemo, createSignal, on, Show } from "solid-j
 
 import type { Written } from "../complete/trigger.ts"
 import { createChipTitles } from "./chips.ts"
-import { SaidLine } from "../edit/SaidLine.tsx"
+import { SaidLine } from "../SaidLine.tsx"
 import { sameIds } from "../ids.ts"
 import { createSearch } from "../search/nodes.ts"
 import { atOnce } from "../settled.ts"

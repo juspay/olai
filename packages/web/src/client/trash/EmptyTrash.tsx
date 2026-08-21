@@ -40,7 +40,7 @@
 import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { createConfirming } from "../confirming.ts"
-import { SaidLine } from "../edit/SaidLine.tsx"
+import { SaidLine } from "../SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
 import { ALARM_PILL, QUIET_PILL } from "../pill.ts"
 import { createSaying } from "../saying.ts"

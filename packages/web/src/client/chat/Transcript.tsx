@@ -66,7 +66,7 @@
 
 import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "solid-js"
 
-import { SaidLine } from "../edit/SaidLine.tsx"
+import { SaidLine } from "../SaidLine.tsx"
 import { useShowNode } from "../focus.ts"
 import { useFollow } from "../router.tsx"
 import { TESTID } from "../testids.ts"

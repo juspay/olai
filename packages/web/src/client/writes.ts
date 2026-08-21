@@ -47,7 +47,7 @@ import type { Undo } from "./edit/undoing.ts"
  *  moods, and a second spelling of the same pair would be a second answer to
  *  which moods there are. Imported here rather than re-exported, so the type
  *  has one import path as well as one declaration. */
-import type { Said } from "./edit/undoing.ts"
+import type { Said } from "./saying.ts"
 
 /**
  * Send it, and answer with whatever there is to say — `undefined` when a write

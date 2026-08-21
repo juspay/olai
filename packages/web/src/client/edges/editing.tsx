@@ -30,7 +30,7 @@ import type { RegularNode } from "@olai/format"
 import type { Edit } from "@olai/surface"
 import { type Accessor, createSignal, type JSX, Show } from "solid-js"
 
-import { SaidLine } from "../edit/SaidLine.tsx"
+import { SaidLine } from "../SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
 import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
@@ -127,7 +127,7 @@ export const createEdgeEditing = (
         <Show when={saying.said()}>
           {(message) => (
             // The mood, its `data-tone` and whether a screen reader is
-            // interrupted are `../edit/SaidLine.tsx`'s, for every surface that
+            // interrupted are `../SaidLine.tsx`'s, for every surface that
             // says something about a write; what is this one's is where the
             // line sits — under the panel, and under the refs when the panel is
             // shut, which is where the `×` that caused it was pressed.

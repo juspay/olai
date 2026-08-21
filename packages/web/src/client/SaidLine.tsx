@@ -21,8 +21,15 @@
  * operator the grammar cannot read, a call that fell over — and a reader who
  * does not notice believes the directory is empty. Same mood, same markup, so
  * the same line — and the three doors do not even reach it themselves: they
- * hand their refusals to `../refusals.tsx`, which is where that sentence, the
+ * hand their refusals to `./refusals.tsx`, which is where that sentence, the
  * keying that keeps it from being read twice and this row are one thing.
+ *
+ * HERE, at the client's top level, for that module's own reason: fourteen
+ * modules across eleven feature directories draw this line, and none of them
+ * owns it. It began under `edit/` because a row's editor was the first surface
+ * to need one — and was the LAST to draw it, since joining changed what a
+ * screen reader is told rather than only what the markup said. The type is
+ * `./saying.ts`'s, beside the six seconds a line lingers.
  *
  * WHAT IT DOES NOT OWN IS WHERE THE LINE SITS. That is the one thing the
  * surfaces genuinely differ about — a popover beside the `•••`, a banner
@@ -40,7 +47,7 @@
 
 import type { JSX } from "solid-js"
 
-import type { Said } from "./undoing.ts"
+import type { Said } from "./saying.ts"
 
 /**
  * THE ALARM'S SKIN FOR A BAND, which is the one piece of layout this file does

@@ -6,13 +6,13 @@
  * message nobody reads.
  *
  * Named for the surface it belongs to, the way `edit/UndoSaid.tsx` is: `Said`
- * on its own is the TYPE every one of these lines carries (`edit/undoing.ts`),
+ * on its own is the TYPE every one of these lines carries (`../saying.ts`),
  * and a component wearing the same word made the one file where both meet
  * import the type under an alias to tell them apart.
  *
  * WHAT IT OWNS IS WHERE THE LINE HANGS, and nothing else. The mood — its
  * colour, its `data-tone`, and whether a screen reader is interrupted — is
- * `../edit/SaidLine.tsx`'s, once, for every surface in this client that says
+ * `../SaidLine.tsx`'s, once, for every surface in this client that says
  * something about a write.
  *
  * It is PORTALLED onto {@link ../overlay.ts}. A sticky section heading is a
@@ -26,8 +26,8 @@
 import { createEffect, createSignal, onCleanup, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
-import { SaidLine } from "../edit/SaidLine.tsx"
-import type { Said } from "../edit/undoing.ts"
+import { SaidLine } from "../SaidLine.tsx"
+import type { Said } from "../saying.ts"
 import { LAYER } from "../layer.ts"
 import { overlayRoot } from "../overlay.ts"
 import { TESTID } from "../testids.ts"

@@ -112,8 +112,8 @@ import {
   Show,
 } from "solid-js"
 
-import { SaidLine } from "../edit/SaidLine.tsx"
-import type { Said } from "../edit/undoing.ts"
+import { SaidLine } from "../SaidLine.tsx"
+import type { Said } from "../saying.ts"
 import { Lede } from "../errors/Lede.tsx"
 import { useOpens } from "../opens.tsx"
 import { useGo, useLanding } from "../router.tsx"
@@ -250,7 +250,7 @@ const VISIT = "olai-visit"
 /**
  * WHAT A DROPPED CLICK SAYS, and the whole of what it may say.
  *
- * A refusal in the two moods this client has (`../edit/SaidLine.tsx`), and it
+ * A refusal in the two moods this client has (`../SaidLine.tsx`), and it
  * is the alarm one, because that is what the tone MEANS here: it is the reason
  * nothing happened, and a reader who does not notice it believes a link is
  * broken rather than pointing somewhere this directory does not serve.

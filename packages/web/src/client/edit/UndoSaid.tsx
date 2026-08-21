@@ -20,8 +20,8 @@ import { Show } from "solid-js"
 
 import { LAYER } from "../layer.ts"
 import { TESTID } from "../testids.ts"
-import { SaidLine } from "./SaidLine.tsx"
-import type { Said } from "./undoing.ts"
+import { SaidLine } from "../SaidLine.tsx"
+import type { Said } from "../saying.ts"
 
 export function UndoSaid(props: { readonly said: Said | null }) {
   return (

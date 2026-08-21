@@ -8,7 +8,7 @@
  * three, which is the shape this repo already calls a drift waiting to happen.
  * (The MARKUP was three-fold too, for one release: the bar's line went through
  * the component that owns the tone and the two doors hand-rolled a
- * `role="alert"` row each. They draw `./edit/SaidLine.tsx` now — one list, one
+ * `role="alert"` row each. They draw `./SaidLine.tsx` now — one list, one
  * sentence, one markup — and only WHERE the line sits is still each door's.)
  *
  * STRINGS, and that is the reactivity half rather than a tidy-up. Every parse
@@ -50,7 +50,7 @@
 import type { Refusal } from "@olai/format"
 import { createMemo, Index } from "solid-js"
 
-import { SaidLine } from "./edit/SaidLine.tsx"
+import { SaidLine } from "./SaidLine.tsx"
 import type { TestId } from "./testids.ts"
 
 /** One refusal, as the sentence a surface draws: the token AS TYPED, and why —
@@ -69,7 +69,7 @@ const sameLines = (
  * The refusals of one door, DRAWN — the sentences above in the mood they are
  * announced in.
  *
- * The mood is `./edit/SaidLine.tsx`'s, once, for every surface in this client
+ * The mood is `./SaidLine.tsx`'s, once, for every surface in this client
  * that has to say something: a refusal is why nothing happened, so it is toned
  * alarm and announced assertively, because a reader who does not notice one
  * believes the directory is empty (HACKING.md's error rule).

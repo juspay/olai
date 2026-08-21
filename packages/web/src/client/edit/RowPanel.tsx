@@ -57,8 +57,8 @@
 import { createSignal, type JSX, Show } from "solid-js"
 
 import type { PanelIds, Press } from "./panel.ts"
-import { SaidLine } from "./SaidLine.tsx"
-import type { Said } from "./undoing.ts"
+import { SaidLine } from "../SaidLine.tsx"
+import type { Said } from "../saying.ts"
 import { PANEL_OUT } from "../pill.ts"
 import { TARGET } from "../touch.ts"
 

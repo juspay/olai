@@ -40,7 +40,8 @@
 
 import { type Accessor, createRoot } from "solid-js"
 
-import type { Said, Undo } from "../edit/undoing.ts"
+import type { Said } from "../saying.ts"
+import type { Undo } from "../edit/undoing.ts"
 import { hrefOf, type Route } from "../routes.ts"
 import { createSaying } from "../saying.ts"
 import { applying } from "../writes.ts"

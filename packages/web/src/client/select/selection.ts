@@ -46,7 +46,7 @@ import {
 
 import { flatten, neighbour, refound } from "../edit/order.ts"
 import { serial } from "../edit/queue.ts"
-import type { Said } from "../edit/undoing.ts"
+import type { Said } from "../saying.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { applyingAll } from "../writes.ts"
 import { type Bulk, bulkEdits } from "./bulk.ts"

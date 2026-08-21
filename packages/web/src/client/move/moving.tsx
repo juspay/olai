@@ -48,7 +48,7 @@ import {
   useContext,
 } from "solid-js"
 
-import { SaidLine } from "../edit/SaidLine.tsx"
+import { SaidLine } from "../SaidLine.tsx"
 import { flatten, refound } from "../edit/order.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { sameIds } from "../ids.ts"
@@ -451,7 +451,7 @@ export const createMoving = (
         <Show when={saying.said()}>
           {(message) => (
             // The mood, its `data-tone` and whether a screen reader is
-            // interrupted are `../edit/SaidLine.tsx`'s, for every surface that
+            // interrupted are `../SaidLine.tsx`'s, for every surface that
             // says something about a write; what is this one's is where the
             // line sits — under the row that moved, which for a refusal is the
             // row that did not.

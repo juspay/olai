@@ -391,7 +391,7 @@ export const TESTID = {
   /** What the preview SAID about a click it could not answer — the line drawn
    *  when a link inside the frame names a file this directory does not serve.
    *  A refusal, in the same voice every other refused act in this client speaks
-   *  (`edit/SaidLine.tsx`), so a scenario reads its `data-tone` rather than a
+   *  (`./SaidLine.tsx`), so a scenario reads its `data-tone` rather than a
    *  colour. */
   hypertextSaid: "hypertext-said",
   /** The way into a document's editor: the quiet control on the page header
