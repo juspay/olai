@@ -214,13 +214,19 @@ export const newsSays = (
  * and a second one permanently lit in the ordinary case dilutes the thing a
  * reader actually scans for. Recency is what the committed face carries
  * (`✓ committed · 3m ago`); the colour was only ever decoration.
+ *
+ * It is also not `text-muted`. Muted is a paper-page token, and this mark
+ * lives on the ink header: muted-on-ink is the same colour as the bar, so
+ * the tick vanished. Quiet here means the chip's own ink — no tone, so the
+ * glyph inherits the pill and brightens with the words on hover.
  */
 export interface Mark {
   /** One character, already in the font — nothing to load and nothing to
    *  disagree with the words beside it. */
   readonly glyph: string
-  /** The token that paints it. A theme token, never a literal colour. */
-  readonly tone: string
+  /** The token that paints it, when the glyph has a colour of its own.
+   *  A theme token, never a literal colour. Absent is the chip's own ink. */
+  readonly tone?: string
 }
 
 export const MARK: Readonly<Record<Face, Mark | null>> = {
@@ -230,7 +236,7 @@ export const MARK: Readonly<Record<Face, Mark | null>> = {
   error: { glyph: "⚠", tone: "text-alarm" },
   blocked: { glyph: "⚠", tone: "text-doing" },
   waiting: null,
-  committed: { glyph: "✓", tone: "text-muted" },
+  committed: { glyph: "✓" },
   never: null,
 }
 
