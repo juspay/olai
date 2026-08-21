@@ -691,21 +691,18 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // only the state is withheld.
             const current = turn === ticket
             /**
-             * A turn that did not end in a stop reason, said the one way both
-             * of the two are said.
+             * What a turn that did NOT end in a stop reason leaves on the
+             * record — the half that is the same however it went wrong.
              *
-             * `alive` is the WHOLE of the difference, and it is the fact this
-             * used to have no way to carry: a turn the agent REFUSED — an
-             * error response where a stop reason was expected — is a turn that
-             * ended, not an agent that has gone. The process is there, the
-             * conversation is open, and the next prompt goes to it. Read as a
-             * dead agent, one such turn left a live panel saying `not running`
-             * for the rest of the session.
-             *
-             * The reason lands on the banner either way, because it is what
-             * just happened; the next turn that comes back clears it.
+             * What is deliberately not here is where the panel STANDS
+             * afterwards, because that is the whole of the difference between
+             * the two and it is a word rather than a flag: an agent that is not
+             * there, and an agent that answered no. Passing it in would be a
+             * boolean selecting between two literals three lines below, with a
+             * third combination — a silence from a live agent — spellable and
+             * meaningless.
              */
-            const wentWrong = (why: string, gone: AcpAgent.Gone, alive: boolean): void => {
+            const wentWrong = (why: string, gone: AcpAgent.Gone): void => {
               publish(transcript.add("notice", why))
               // A turn that produced NOTHING is a delivery that failed, and it
               // is said on the row like any other ({@link markUndelivered}) —
@@ -720,19 +717,30 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               // What has changed is that "did it arrive" is now answerable —
               // by the turn's own silence, and by `Gone` where it is not.
               if (heard === quietSince) markUndelivered(key, prompt, gone)
-              if (current) move({ status: alive ? "idle" : "gone", trouble: why })
             }
 
             if (outcome._tag === "Failure") {
-              return wentWrong(outcome.failure.message, outcome.failure.gone, false)
+              wentWrong(outcome.failure.message, outcome.failure.gone)
+              // THE AGENT IS NOT THERE — it never started, it died, the
+              // handshake failed. The panel says so, and the next prompt
+              // retries the boot exactly as a crash does.
+              if (current) move({ status: "gone", trouble: outcome.failure.message })
+              return
             }
             if (outcome.success._tag === "failed") {
-              // `refused` is JSON-RPC's own bet about its own error responses,
-              // and {@link ./agent.ts}'s `goneOf` already names it: an error
-              // means the request did not take effect. So the message this turn
-              // was for demonstrably did not land, and the row may honestly
-              // offer to send it again.
-              return wentWrong(outcome.success.why, "refused", true)
+              // ...whereas THIS is the agent speaking: it answered the turn
+              // with an error and went on existing. `refused` is JSON-RPC's own
+              // bet about its own error responses, which {@link ./agent.ts}'s
+              // `goneOf` already names — an error means the request did not
+              // take effect — so the message this turn was for demonstrably did
+              // not land, and the row may honestly offer to send it again.
+              wentWrong(outcome.success.why, "refused")
+              // The conversation is exactly as usable as it was, and the reason
+              // stays on the banner until the next turn that comes back clears
+              // it. Saying `gone` here left a live agent's panel reporting `not
+              // running` for the rest of the session.
+              if (current) move({ status: "idle", trouble: outcome.success.why })
+              return
             }
             // Cancelling means stop, and it means only that now: everything
             // typed reached the agent when it was typed, so there is nothing
