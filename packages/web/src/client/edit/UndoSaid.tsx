@@ -2,10 +2,10 @@
  * What ⌘Z just did, when it has something to say.
  *
  * Every other thing a write says is drawn under the row it was typed in
- * (`./RowEditor.tsx`'s `Said`), and an undo cannot be: it is pressed with no
- * draft open — the chord is dead in one — so there is no editor to hang a line
- * under, and the row a refusal is ABOUT may be somewhere else on the page, or
- * gone, which is often exactly why the undo was refused.
+ * (`./RowEditor.tsx`'s `DraftSaid`), and an undo cannot be: it is pressed with
+ * no draft open — the chord is dead in one — so there is no editor to hang a
+ * line under, and the row a refusal is ABOUT may be somewhere else on the page,
+ * or gone, which is often exactly why the undo was refused.
  *
  * So it is drawn where the reader is looking rather than where the row is:
  * pinned under the header, over the page, in the same two moods as a draft's
@@ -36,7 +36,7 @@ export function UndoSaid(props: { readonly said: Said | null }) {
               one thing this surface adds: it is the only one of the five that
               draws a BOX over the page, so the mood has an edge to colour.
               What the mood MEANS — the words' colour, the announcement — is
-              `./SaidLine.tsx`'s, once, for all five. */}
+              `../SaidLine.tsx`'s, once, for all five. */}
           <SaidLine
             said={said()}
             class={`mt-2 max-w-lg rounded border bg-paper px-3 py-1.5 text-[0.8125rem] leading-snug shadow-sm ${
