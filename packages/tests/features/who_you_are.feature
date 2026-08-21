@@ -1,10 +1,11 @@
 @corpus:good
 Feature: The header shows who you are
-  `tailscale serve` injects Tailscale-User-Login on every proxied request.
-  The header draws that person — a gravatar from the hashed login email,
-  and the login beside it (or on hover) — and draws nothing at all when
-  the header is absent. Direct access and a local serve are the absence:
-  nothing invents a user, and nothing else in the bar breaks.
+  A reverse proxy injects a trusted login header (and optionally an email).
+  Default wiring is `tailscale serve`'s Tailscale-User-Login. The header
+  draws that person — a gravatar from the hashed email, and the login
+  beside it (or on hover) — and draws nothing at all when the header is
+  absent. Direct access and a local serve are the absence: nothing invents
+  a user, and nothing else in the bar breaks.
 
   The chip is next to the wordmark, not in the pills. The wordmark is the
   APP; this is WHO IS LOOKING. The chrome row still answers for git with

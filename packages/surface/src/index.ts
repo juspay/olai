@@ -73,7 +73,8 @@
  * LOOKING is a different question and is not a member either: it is per HTTP
  * request (`@olai/server`'s `identity.ts`, `GET /olai/who`), because a cell
  * would be one value for the process and this value is one value for the
- * connection.
+ * request. The websocket cannot see it today (kolu's `serveSurfaceApp`
+ * owns the upgrade).
  *
  * One more is GIT, and it is a cell with two verbs beside it rather than a
  * member: a `pending` cell — what is waiting to be committed, and what is

@@ -50,7 +50,28 @@ What it does not cover:
 
 Put it behind a reverse proxy or `tailscale serve` and the browser's origin will not be the `Host` it forwards, so name the origins you are serving from in `OLAI_ALLOWED_ORIGINS` (comma-separated); the websocket refuses the rest.
 
-`tailscale serve` also injects `Tailscale-User-Login` on every proxied request. The header reads that person — a gravatar from the hashed login email, and the login beside it (or on hover) — and draws nothing when the header is absent (direct access, a local `just run`). The same reading is the attribution a later capture door will record; nothing invents a user when the header is not there.
+### Who is looking
+
+A reverse proxy in front of olai can say who made the request. olai trusts **one configurable pair of header names** — a login, and optionally an email — and the header bar draws that person (a gravatar from the hashed email, generic silhouette when there is no email claim, and the login beside it or on hover). Direct access and a local `just run` inject nothing, and nothing is drawn.
+
+Default wiring is `tailscale serve`'s `Tailscale-User-Login` for both (that header is the email). The same pair covers other proxies — one feature, not one per proxy:
+
+| Proxy | login | email |
+|---|---|---|
+| `tailscale serve` (default) | `Tailscale-User-Login` | `Tailscale-User-Login` |
+| Caddy + oauth2-proxy | `X-Auth-Request-User` | `X-Auth-Request-Email` |
+| Caddy + caddy-security (`inject headers with claims`) | `X-Token-User-Nick` (or `-Name`) | `X-Token-User-Email` |
+| Authelia / Pomerium | `Remote-User` | `Remote-Email` |
+
+```sh
+# Authelia in front, for example
+OLAI_IDENTITY_LOGIN_HEADER=Remote-User
+OLAI_IDENTITY_EMAIL_HEADER=Remote-Email
+```
+
+`OLAI_IDENTITY_LOGIN_HEADER` unset is `Tailscale-User-Login`. `OLAI_IDENTITY_EMAIL_HEADER` unset is the login header; **empty** is no email claim (generic gravatar). The same reading is the attribution a later capture door will record.
+
+**Trust.** These headers are only meaningful when the proxy is the only way in: olai bound to loopback or the tailnet, **and the proxy stripping client-supplied copies of the same names**. Anything that can reach the port can send them — the same bargain the rest of the unauthenticated listener already takes. Do not expose this port to the internet.
 
 ### Logging
 

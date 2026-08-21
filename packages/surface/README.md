@@ -114,7 +114,7 @@ Two procedures go the other way and are the BROWSER's alone, and neither is a re
 
 PROCESS identity is deliberately NOT a member here. It is a real question — a page bound to a server that has been replaced must know, and both ends of the stale-tab handshake compare that id — but the framework reserves `system/identity` for it and answers it out of every surface, process id included. A member of our own would be a second answer to a question already answered.
 
-**Who is looking is a different question, and is not a member either.** The Tailscale login on this request (`Tailscale-User-Login`), or nobody when the header is absent. It lives on the HTTP request (`GET /olai/who`, `@olai/server`'s `identityOf`) rather than on this spec, because a cell is one value for the process and this value is one value for the connection. The header chip fetches it; a later capture door reads the same function on its own request.
+**Who is looking is a different question, and is not a member either.** A trusted login header on this request (default `Tailscale-User-Login`; the pair is configurable), or nobody when it is absent. It lives on the HTTP request (`GET /olai/who`, `@olai/server`'s `identityOf`) rather than on this spec, because a cell is one value for the process and this value is one value for the request. The websocket cannot see it today — kolu's `serveSurfaceApp` owns the upgrade and does not hand request headers to the app. The header chip fetches the HTTP door; a later capture door reads the same function on its own request.
 
 ## One FACT that is not a member — and no longer here
 

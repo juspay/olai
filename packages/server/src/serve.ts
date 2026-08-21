@@ -33,6 +33,7 @@ import * as path from "node:path"
 import * as Chat from "@olai/chat"
 import { openDirectory } from "./directory.ts"
 import { watchFault } from "./fault.ts"
+import type { IdentityHeaders } from "./identity.ts"
 import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
 import { MCP_PATH, mcpTransport } from "./mcp/route.ts"
@@ -49,6 +50,9 @@ export interface ServeOptions {
   readonly clientDist: string
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
+  /** Which request headers name the signed-in person — see
+   *  {@link ./identity.ts}. */
+  readonly identity: IdentityHeaders
   /** How writes reach git — `--commit=off | manual | auto`, `manual` by
    *  default. See `@olai/ops`'s `Options`. */
   readonly commits: CommitMode

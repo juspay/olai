@@ -50,7 +50,7 @@ import { codeOf, type Emit, emitter } from "@olai/log"
 import { Effect, Layer, type Scope } from "effect"
 
 import { BROWSER_FACE } from "./faces.ts"
-import { whoRoute } from "./identity.ts"
+import { type IdentityHeaders, whoRoute } from "./identity.ts"
 import { MANIFEST } from "./manifest.ts"
 import { mcpRoute } from "./mcp/route.ts"
 import { mediaLayer } from "./media.ts"
@@ -71,6 +71,8 @@ export interface ListenOptions {
   readonly port: number
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
+  /** Which request headers name the signed-in person. */
+  readonly identity: IdentityHeaders
   /** The internal MCP server, mounted beside the static routes — see
    *  {@link ./mcp/route.ts} for why it rides this listener rather than a
    *  transport of its own. */
@@ -154,7 +156,7 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
       mcpRoute(options.mcp),
       mediaLayer(options.root),
       resyncRoute(options.resync),
-      whoRoute(),
+      whoRoute(options.identity),
     ),
     host: options.host,
     port,

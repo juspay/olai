@@ -28,6 +28,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
+import { DEFAULT_IDENTITY_HEADERS } from "../identity.ts"
 import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
@@ -93,6 +94,7 @@ const withRoute = <A>(
       host: listenOn.host,
       port: 0,
       allowedOrigins: [],
+      identity: DEFAULT_IDENTITY_HEADERS,
       mcp: { transport, token: TOKEN },
       resync: Effect.void,
     }))

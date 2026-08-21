@@ -29,6 +29,7 @@ import * as path from "node:path"
 import * as net from "node:net"
 
 import { startWeb } from "./child.testlib.ts"
+import { DEFAULT_IDENTITY_HEADERS } from "./identity.ts"
 import { MANIFEST } from "./manifest.ts"
 import { serve } from "./serve.ts"
 import { served, SERVER_LAYERS, withServing } from "./serve.testlib.ts"
@@ -70,6 +71,7 @@ const run = (
       host: options.host ?? "127.0.0.1",
       clientDist: served(),
       allowedOrigins: [],
+      identity: DEFAULT_IDENTITY_HEADERS,
       // These start and stop a real server against a temp directory; committing
       // to whatever repository happens to contain it is not theirs to do.
       commits: "off",

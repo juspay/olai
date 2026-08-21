@@ -29,6 +29,7 @@ import { Argument, Command, Flag } from "effect/unstable/cli"
 
 import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
+import { identityHeaders } from "./identity.ts"
 import { commitFlags, commitMode } from "./commits.ts"
 import { serve } from "./serve.ts"
 
@@ -73,6 +74,7 @@ const web = Command.make("web", {
       commits: commitMode(commits, noCommit),
       clientDist: yield* clientDist,
       allowedOrigins: allowedOrigins(),
+      identity: identityHeaders(),
     })
     // Wait to be interrupted — or for the surface runtime to fault, which is
     // the one thing that stops a healthy server on its own. Either way the
