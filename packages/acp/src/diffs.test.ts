@@ -64,6 +64,7 @@ describe("how a path reads", () => {
   test("a file under the served directory is root-relative", () => {
     expect(relativeTo(ROOT, `${ROOT}/docs/chat.md`)).toBe("docs/chat.md")
     expect(relativeTo(`${ROOT}/`, `${ROOT}/docs/chat.md`)).toBe("docs/chat.md")
+    expect(relativeTo(`${ROOT}///`, `${ROOT}/docs/chat.md`)).toBe("docs/chat.md")
   })
 
   test("a file somewhere else is left exactly as it came", () => {
@@ -73,4 +74,23 @@ describe("how a path reads", () => {
     // A sibling directory whose name merely starts the same way.
     expect(relativeTo(ROOT, `${ROOT}-old/plan.md`)).toBe(`${ROOT}-old/plan.md`)
   })
+
+  test("the empty root leaves the path exactly as it came", () => {
+    // Trimmed to nothing — `/`, `///`, or already empty — is not a prefix of
+    // anything, so the path is untouched. The doc comment is the contract.
+    expect(relativeTo("", "/foo/bar.md")).toBe("/foo/bar.md")
+    expect(relativeTo("/", "/foo/bar.md")).toBe("/foo/bar.md")
+    expect(relativeTo("///", "/foo/bar.md")).toBe("/foo/bar.md")
+  })
+
+  test("a long run of slashes that does not end the cwd is answered at once", () => {
+    // The reason this counts rather than matching: `replace(/\/+$/, "")` is
+    // polynomial on a string of many slashes that do not end it, and cwd is
+    // protocol input (`js/polynomial-redos`, CodeQL alert 15). A tenth of a
+    // second here would be a finding.
+    const started = performance.now()
+    const cwd = "/".repeat(50_000) + "x"
+    expect(relativeTo(cwd, `${ROOT}/plan.md`)).toBe(`${ROOT}/plan.md`)
+    expect(performance.now() - started).toBeLessThan(100)
+  }, 500)
 })
