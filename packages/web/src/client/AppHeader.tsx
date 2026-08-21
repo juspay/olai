@@ -21,7 +21,7 @@
  * health — `live` and `✓ committed` stay off screen. A dead wire is the freeze
  * overlay, which was already the stronger form of that banner. Desktop keeps
  * the pills, because a bar of chips cannot be trusted if the healthy ones
- * disappear. Direct access draws no chip.
+ * disappear. Direct access draws nobody, not a missing chip.
  *
  * The bar is a fixed `--height-header` and the right-hand group is `flex-nowrap`: wrapping
  * inside a fixed height centred the second row off the top of the viewport on a
@@ -156,11 +156,10 @@ export function AppHeader(props: {
           <Leaf class="size-4 text-accent md:size-5" />
           olai
         </h1>
-        {/* The signed-in person, when a trusted identity header is present.
-            Next to the wordmark rather than in the pills: the wordmark is
-            the APP, this is WHO IS LOOKING, and on a phone the chrome row
-            is search alone. Absent, the slot says `none` and draws
-            nothing. */}
+        {/* Who is looking. Next to the wordmark rather than in the pills:
+            the wordmark is the APP, this is WHO IS LOOKING. Every answer
+            has a face — nobody, the person, a failed door — so absence
+            is not a missing chip. */}
         <Who />
       </div>
 

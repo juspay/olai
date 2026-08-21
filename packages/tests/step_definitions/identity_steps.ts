@@ -1,6 +1,6 @@
 /**
- * Who is looking: the header chip, present with a mocked Tailscale login
- * and honestly absent without.
+ * Who is looking: every answer has a face — nobody, the person, a
+ * failed door.
  *
  * The Given writes the header onto THIS scenario's context before the
  * first navigation — Playwright sends it on every HTTP request, which is
@@ -50,6 +50,10 @@ Then(
       "the identity slot",
     );
     assert.equal(
+      await slot.locator("[aria-label]").getAttribute("aria-label"),
+      "could not tell who is looking",
+    );
+    assert.equal(
       await slot.locator("img").count(),
       0,
       "a failed who fetch drew a person",
@@ -57,21 +61,25 @@ Then(
   },
 );
 
-Then("the header has no identity chip", async function (this: OlaiWorld) {
+Then("the header shows nobody is looking", async function (this: OlaiWorld) {
   const slot = this.page.locator(IDENTITY);
   await slot.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
-  await this.page.waitForFunction(
-    (sel) => {
-      const el = document.querySelector(sel);
-      return el?.getAttribute("data-who") === "none";
-    },
+  await this.expectAttribute(
     IDENTITY,
-    { timeout: POLL_TIMEOUT },
+    "data-who",
+    "none",
+    "the identity slot",
+  );
+  assert.equal(
+    await slot.getAttribute("aria-label")
+      ?? await slot.locator("[aria-label]").getAttribute("aria-label"),
+    "nobody is looking",
+    "nobody is looking must be a spoken face, not an empty slot",
   );
   assert.equal(
     await slot.locator("img").count(),
     0,
-    "the identity slot drew a picture for a connection that named nobody",
+    "nobody is looking drew a gravatar, which is a person",
   );
 });
 

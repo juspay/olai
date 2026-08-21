@@ -14,12 +14,10 @@ export const TESTID = {
    *  of the app (including the error report) gets it. On a phone it is the
    *  wordmark, the burger and search; the pills live elsewhere. */
   appHeader: "app-header",
-  /** Who is looking: a gravatar and the login, next to the wordmark.
-   *  Always in the DOM; `data-who` is `none` / `yes` / `error` once the
-   *  server has answered, so a scenario can wait on the absence as a
-   *  fact rather than as a missing element, and a failed fetch is not
-   *  that absence. The picture and the name are inside it only when
-   *  `yes`. */
+  /** Who is looking, next to the wordmark. Always drawn: `data-who` is
+   *  `asking` / `none` / `yes` / `error` — a closed set, so absence is a
+   *  face (`nobody`) rather than a missing chip. The gravatar `<img>` is
+   *  inside it only when `yes`. */
   identity: "identity",
   /** The row of controls inside it that are about the APP. On desktop: the
    *  connection, the Commit pill, the agent toggle, the preferences trigger.
