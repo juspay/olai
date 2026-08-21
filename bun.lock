@@ -72,6 +72,10 @@
         "@types/node": "^22.0.0",
       },
     },
+    "packages/identity": {
+      "name": "@olai/identity",
+      "version": "0.1.0",
+    },
     "packages/log": {
       "name": "@olai/log",
       "version": "0.1.0",
@@ -101,6 +105,7 @@
         "@effect/platform-node": "4.0.0-rc.110",
         "@olai/chat": "workspace:*",
         "@olai/format": "workspace:*",
+        "@olai/identity": "workspace:*",
         "@olai/log": "workspace:*",
         "@olai/ops": "workspace:*",
         "@olai/store": "workspace:*",
@@ -327,6 +332,8 @@
     "@olai/format": ["@olai/format@workspace:packages/format"],
 
     "@olai/git": ["@olai/git@workspace:packages/git"],
+
+    "@olai/identity": ["@olai/identity@workspace:packages/identity"],
 
     "@olai/log": ["@olai/log@workspace:packages/log"],
 

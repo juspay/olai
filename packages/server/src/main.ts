@@ -23,13 +23,13 @@
  */
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
+import { identityHeaders } from "@olai/identity"
 import { toStdout } from "@olai/log"
 import { Effect, Layer } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 
 import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
-import { identityHeaders } from "./identity.ts"
 import { commitFlags, commitMode } from "./commits.ts"
 import { serve } from "./serve.ts"
 

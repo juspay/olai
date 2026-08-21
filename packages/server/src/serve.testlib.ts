@@ -28,7 +28,7 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { DEFAULT_IDENTITY_HEADERS, type IdentityHeaders } from "./identity.ts"
+import { DEFAULT_IDENTITY_HEADERS, type IdentityHeaders } from "@olai/identity"
 import { serve } from "./serve.ts"
 
 // child.testlib strips OLAI_PORT_FILE from CLI children. This is the

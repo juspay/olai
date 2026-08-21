@@ -20,6 +20,7 @@
  * sentence, which is the whole reason the pieces exist.
  */
 
+import { DEFAULT_IDENTITY_HEADERS } from "@olai/identity"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
@@ -29,7 +30,6 @@ import * as path from "node:path"
 import * as net from "node:net"
 
 import { startWeb } from "./child.testlib.ts"
-import { DEFAULT_IDENTITY_HEADERS } from "./identity.ts"
 import { MANIFEST } from "./manifest.ts"
 import { serve } from "./serve.ts"
 import { served, SERVER_LAYERS, withServing } from "./serve.testlib.ts"

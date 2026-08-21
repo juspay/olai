@@ -46,11 +46,12 @@
  */
 
 import { serveSurfaceApp, type SurfaceAppListenFailed } from "@kolu/surface-app/serve"
+import type { IdentityHeaders } from "@olai/identity"
 import { codeOf, type Emit, emitter } from "@olai/log"
 import { Effect, Layer, type Scope } from "effect"
 
 import { BROWSER_FACE } from "./faces.ts"
-import { type IdentityHeaders, whoRoute } from "./identity.ts"
+import { whoRoute } from "./identity.ts"
 import { MANIFEST } from "./manifest.ts"
 import { mcpRoute } from "./mcp/route.ts"
 import { mediaLayer } from "./media.ts"

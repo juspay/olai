@@ -18,6 +18,7 @@
  * pipe the chat panel's agent reads its refusals through.
  */
 
+import { DEFAULT_IDENTITY_HEADERS } from "@olai/identity"
 import { codec, make as makeOps, type Store as OutlineStore, TOOLS } from "@olai/ops"
 import * as Store from "@olai/store"
 import { expect, test } from "bun:test"
@@ -28,7 +29,6 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
-import { DEFAULT_IDENTITY_HEADERS } from "../identity.ts"
 import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"

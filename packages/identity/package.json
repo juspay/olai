@@ -1,0 +1,15 @@
+{
+  "name": "@olai/identity",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//dependencies": "None, and that is the shape: this package is who a REQUEST is, as a value. No Effect, no HTTP, no surface, no @olai/* sibling. A later POST /capture and the chip's GET /olai/who both call identityOf; putting the reading in @olai/server would make the second caller import the composition root. node:crypto is a builtin (the gravatar hash)."
+}

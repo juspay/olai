@@ -33,7 +33,7 @@ import {
   zstdCompressSync,
 } from "node:zlib"
 
-import { DEFAULT_IDENTITY_HEADERS } from "./identity.ts"
+import { DEFAULT_IDENTITY_HEADERS } from "@olai/identity"
 import { serve } from "./serve.ts"
 import { SERVER_LAYERS } from "./serve.testlib.ts"
 
