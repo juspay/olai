@@ -25,14 +25,19 @@
 import { byPath } from "@olai/format"
 
 /**
- * THE ORDER, applied — the whole of what this module is.
+ * THE ORDER, applied — and the whole of what this module is.
  *
- * It had a `facesOf` beside it, which took the same keys and collected one
- * field off each entry. That was a walk over the directory, and the directory
- * now takes its own (`./directory.ts`'s `walkOf`, which answers both of its
- * readings in one pass and allocated a one-element array per file to answer
- * one). What is left here is the ORDER, which is what the header above argues
- * about and the one thing that was never the caller's to decide.
+ * A `facesOf` stood beside it until `perf-faces-broken-walk`: same keys,
+ * collecting one field off each entry, allocating a one-element array per file
+ * to do it. That was a WALK over the directory rather than an order, and the
+ * directory takes its own now (`./directory.ts`'s `walkOf`, one pass answering
+ * both of its readings). Two things lived here because one of them called the
+ * other, which is the accident of authoring order rather than a boundary.
+ *
+ * ONE CALLER, and that is not a reason to fold this into it. What is
+ * encapsulated here is which order the client draws a directory in, and that
+ * has changed under this signature once already — the paragraph above is the
+ * record of it. A caller sees `sortByPath` either way.
  */
 export const sortByPath = (paths: Iterable<string>): ReadonlyArray<string> =>
   [...paths].sort(byPath)

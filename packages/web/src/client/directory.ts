@@ -125,6 +125,11 @@ interface Walk {
  * ordinary: it is the frame between a key set arriving and the entries filling
  * it.
  *
+ * `head` IS NOT IN HERE, and that is the line: this walks the SET, and `head`
+ * asks one key what revision it is at. A reader watching one file must not be
+ * woken by a write three folders away, which is exactly what joining it to a
+ * reading of the whole directory would do.
+ *
  * NO `equals` HERE, and it does not want one. This is the walk, not an answer:
  * `faces` is a fresh array per frame and always was, and its readers compare
  * for themselves where they care (`./served.tsx` holds the paths with a
