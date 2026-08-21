@@ -11,7 +11,7 @@
  * writing a byte.
  */
 
-import { datedOn, INBOX, mintedInto } from "@olai/format"
+import { datedOn, fileKind, INBOX, mintedInto } from "@olai/format"
 import { readingOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import * as fs from "node:fs"
@@ -44,14 +44,15 @@ const capturing = (
 
 /** Every outline the served directory holds now, as text. Read off the DISK
  *  rather than asked of the server, because "the write landed" is a claim
- *  about the files. */
+ *  about the files — and through `fileKind` rather than a suffix spelled here,
+ *  which is the registry's own rule and which `@olai/tests`' sweep enforces. */
 const outlinesIn = (root: string): Record<string, string> => {
   const found: Record<string, string> = {}
   const walk = (at: string) => {
     for (const entry of fs.readdirSync(at, { withFileTypes: true })) {
       const full = path.join(at, entry.name)
       if (entry.isDirectory()) walk(full)
-      else if (entry.name.endsWith(".olai")) {
+      else if (fileKind(entry.name) === "outline") {
         found[path.relative(root, full)] = fs.readFileSync(full, "utf8")
       }
     }
@@ -150,12 +151,28 @@ test("a URL with no comment is a note that is just the link", async () => {
 
 // ── the refusals ───────────────────────────────────────────────────────
 
+/**
+ * ONE SHAPE for every way of saying no.
+ *
+ * A client should not have to work out which check produced an answer: a
+ * missing header, a body that is not JSON, a field this door does not declare
+ * and a title the ops layer would not take are all "this did not become a
+ * node". So each is `{error, kind}` under the status that says what to do
+ * about it, and this helper is what every refusal below reads through — a
+ * refusal that came back as `text/plain` would fail at the `json()`.
+ */
+const refusal = async (answered: Response): Promise<{ error: string; kind: string }> => {
+  const said = await answered.json() as Record<string, unknown>
+  expect([typeof said["error"], typeof said["kind"]]).toEqual(["string", "string"])
+  return { error: String(said["error"]), kind: String(said["kind"]) }
+}
+
 test("a request with no identity header is refused, and writes nothing", async () => {
   const root = served()
   await withServing({ root }, async (url) => {
     const answered = await capturing(url, { title: "buy milk" }, { identity: null })
     expect(answered.status).toBe(401)
-    expect(await answered.text()).toContain(IDENTITY_HEADER)
+    expect((await refusal(answered)).error).toContain(IDENTITY_HEADER)
     // A blank one is the same refusal: a header set to nothing is a header
     // that attributes nothing.
     expect((await capturing(url, { title: "buy milk" }, { identity: "   " })).status).toBe(401)
@@ -168,11 +185,11 @@ test("an empty capture is refused in the ops layer's own words", async () => {
   await withServing({ root }, async (url) => {
     const answered = await capturing(url, { title: "   " })
     expect(answered.status).toBe(400)
-    const said = await answered.json() as Record<string, unknown>
-    expect(said["kind"]).toBe("usage")
+    const said = await refusal(answered)
+    expect(said.kind).toBe("usage")
     // Not a sentence this door invented: it is what an agent's `add_node` is
     // told, which is what keeps one refusal from having two wordings.
-    expect(String(said["error"])).toContain("title")
+    expect(said.error).toContain("title")
     // …and the inbox this capture would have minted was not left behind.
     expect(Object.keys(outlinesIn(root))).toEqual(["a.olai"])
   })
@@ -181,13 +198,15 @@ test("an empty capture is refused in the ops layer's own words", async () => {
 test("a body that is not JSON, and a field this door does not take", async () => {
   const root = served()
   await withServing({ root }, async (url) => {
-    expect((await capturing(url, null, { raw: "not json" })).status).toBe(400)
+    const torn = await capturing(url, null, { raw: "not json" })
+    expect(torn.status).toBe(400)
+    expect((await refusal(torn)).error).toContain("JSON")
     // A client that sends `body` for `text` is TOLD, rather than having half
     // its capture silently dropped by a struct that ignores what it does not
     // declare.
     const excess = await capturing(url, { title: "x", body: "the note" })
     expect(excess.status).toBe(400)
-    expect(await excess.text()).toContain("body")
+    expect((await refusal(excess)).error).toContain("body")
     expect(Object.keys(outlinesIn(root))).toEqual(["a.olai"])
   })
 }, BOUND_MS)
@@ -202,7 +221,9 @@ test("a client may not say who captured this", async () => {
       props: { [CAPTURED_BY]: "someone@else" },
     })
     expect(answered.status).toBe(400)
-    expect(await answered.text()).toContain(CAPTURED_BY)
+    const said = await refusal(answered)
+    expect(said.kind).toBe("usage")
+    expect(said.error).toContain(CAPTURED_BY)
     expect(Object.keys(outlinesIn(root))).toEqual(["a.olai"])
   })
 }, BOUND_MS)
@@ -213,7 +234,8 @@ test("a GET is answered as the wrong method, not as the app", async () => {
     const answered = await fetch(`${url}${CAPTURE_PATH}`)
     expect(answered.status).toBe(405)
     // The point of the arm: the shell's `GET /*` would have handed a person
-    // reaching for `curl` a page of HTML and no explanation.
-    expect(await answered.text()).not.toContain("<html")
+    // reaching for `curl` a page of HTML and no explanation — and it is the
+    // same shape as every other refusal, not a third thing to parse.
+    expect((await refusal(answered)).error).toContain(IDENTITY_HEADER)
   })
 }, BOUND_MS)

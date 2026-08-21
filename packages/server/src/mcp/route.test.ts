@@ -94,7 +94,7 @@ const withRoute = <A>(
       port: 0,
       allowedOrigins: [],
       mcp: { transport, token: TOKEN },
-      capture: { ops: { read: ops.read, run: (request) => ops.run(request, "capture") } },
+      capture: { ops, writer: "capture" },
       resync: Effect.void,
     }))
 

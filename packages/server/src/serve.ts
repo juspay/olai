@@ -207,14 +207,12 @@ export const serve = (options: ServeOptions) =>
         // The quick-capture door, and the fourth face composed HERE: a share
         // sheet is not the browser and is not an agent, so it writes as
         // `capture` and the trailer says which door a line came in by. The
-        // writer is bound on the way in, exactly as `writerAt` binds the other
-        // faces — a route that named its own would be a route that could name
+        // writer travels beside the ops layer, exactly as `bind` above takes
+        // it — a route that named its own would be a route that could name
         // somebody else's. Handed the ops layer directly rather than a runtime
         // member, because nothing about this door is on the surface: no tab
         // draws it and no agent calls it.
-        capture: {
-          ops: { read: ops.read, run: (request) => ops.run(request, "capture") },
-        },
+        capture: { ops, writer: "capture" },
         resync: store.resync,
       }),
       () => runtime.stopped,

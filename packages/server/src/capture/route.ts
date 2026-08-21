@@ -87,9 +87,11 @@ import {
   kindOf,
   type OpFailure,
   stampOf,
+  UsageFailure,
+  type Writer,
 } from "@olai/format"
-import type { Applied, Ops, Request } from "@olai/ops"
-import { Effect, Schema } from "effect"
+import type { Applied, Ops } from "@olai/ops"
+import { Effect, Layer, Result, Schema } from "effect"
 import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 
 import { type Capturing, captureInto } from "./landing.ts"
@@ -175,17 +177,37 @@ const noteOf = (posted: Posted): string | undefined => {
 }
 
 /**
- * The capture, as the ops layer takes one.
+ * The capture, as the ops layer takes one — or the refusal that it is not one.
  *
- * The identity is merged in LAST and the caller cannot write it: a client
- * sending {@link CAPTURED_BY} itself is refused rather than quietly overruled,
- * because a forged attribution that lands and is then overwritten is a client
- * being told its capture was recorded exactly as sent when it was not. Every
- * other key is the caller's.
+ * THE IDENTITY IS THE LAST WORD, and this function is where the rule that makes
+ * that safe LIVES rather than being a check somewhere above it: a client that
+ * sends {@link CAPTURED_BY} itself is refused HERE, one line from the merge
+ * that would otherwise have overruled it. Split apart — a guard in the handler,
+ * a spread down here — the two were held together by nothing but the order they
+ * happened to be written in, and deleting the guard would have left a door that
+ * answers `201` to a forged attribution it silently rewrote.
+ *
+ * A `UsageFailure`, which is what it is: the request itself is wrong, nothing
+ * was read and nothing was written. That is also what puts it on the same
+ * answer, in the same shape and with the same word, as every refusal the ops
+ * layer makes — rather than in a sentence of this door's own.
  */
-const captureOf = (posted: Posted, login: string, at: Date): Capturing => {
+const captureOf = (
+  posted: Posted,
+  login: string,
+  at: Date,
+): Result.Result<Capturing, OpFailure> => {
+  if (Object.hasOwn(posted.props ?? {}, CAPTURED_BY)) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `\`${CAPTURED_BY}\` is written from the ${IDENTITY_HEADER} header and ` +
+          "cannot be sent: it is who captured this, and a capture may not say that " +
+          "about itself",
+      }),
+    )
+  }
   const note = noteOf(posted)
-  return {
+  return Result.succeed({
     title: posted.title,
     ...(note === undefined ? {} : { desc: note }),
     // Dated so it lands on the day's journal page — see the header. The stamp
@@ -193,7 +215,7 @@ const captureOf = (posted: Posted, login: string, at: Date): Capturing => {
     // minted.
     date: stampOf(at),
     props: { ...posted.props, [CAPTURED_BY]: login },
-  }
+  })
 }
 
 /**
@@ -213,14 +235,29 @@ const STATUS: Readonly<Record<FailureKind, number>> = {
   busy: 503,
 }
 
-/** A refusal, in the ops layer's own words and with its own kind beside them —
- *  never re-worded here, so a capture refused for a blank title says what an
- *  agent's `add_node` says. */
+/**
+ * EVERY refusal this door makes, in ONE shape.
+ *
+ * A client parsing an answer should not have to work out which check produced
+ * it: a missing header, a body that is not JSON, a field this door does not
+ * declare and a title the ops layer would not take are all "this request did
+ * not become a node", and they were three sentences in `text/plain` and one
+ * JSON object until they were read side by side. `error` is the sentence and
+ * `kind` is `@olai/format`'s own word for it, which is the same pair the MCP
+ * face already answers with (`../mcp/tools.ts`).
+ *
+ * The STATUS is passed rather than derived, because the three this door raises
+ * itself are not all `usage`'s 400 — a missing identity is a 401 and means
+ * something a client acts on differently. The kind still says what it is.
+ */
+const refusing = (status: number, error: string, kind: FailureKind) =>
+  HttpServerResponse.jsonUnsafe({ error, kind }, { status })
+
+/** A refusal that came back from the write, in the ops layer's own words and
+ *  under its own kind — never re-worded here, so a capture refused for a blank
+ *  title says what an agent's `add_node` says. */
 const refused = (failure: OpFailure) =>
-  HttpServerResponse.jsonUnsafe(
-    { error: failure.message, kind: kindOf(failure) },
-    { status: STATUS[kindOf(failure)] },
-  )
+  refusing(STATUS[kindOf(failure)], failure.message, kindOf(failure))
 
 /** A capture that landed. The id is what a client keeps — to link back at
  *  `/#<id>`, or to notice it has captured this message before — and `committed`
@@ -235,21 +272,19 @@ const landed = (done: Applied) =>
     ...(done.why === undefined ? {} : { why: done.why }),
   }, { status: 201 })
 
-/** The ops layer, ALREADY BOUND to the writer this door is.
- *
- * The face is decided where the face is COMPOSED (`../serve.ts`, the shape
- * `runtime.ts`'s `writing` already has for the other two) and is not a word
- * this file can say: a transport that named its own writer would be a
- * transport that could name another one's, and the `X-Olai-Writer` trailer is
- * only worth anything because nothing on the request can influence it.
- */
-export interface Writing {
-  readonly read: Ops["read"]
-  readonly run: (request: Request) => Effect.Effect<Applied, OpFailure>
-}
-
 export interface Options {
-  readonly ops: Writing
+  /** The one writer — the same `Pick` the surface's own binder takes. */
+  readonly ops: Pick<Ops, "read" | "run">
+  /**
+   * WHICH FACE this door is, decided where the face is COMPOSED.
+   *
+   * `capture`, and it is an argument rather than a word this file says, which
+   * is the shape `runtime.ts`'s `bind` already has for the browser and the
+   * agent: a transport that named its own writer would be a transport that
+   * could name another one's, and the `X-Olai-Writer` trailer is only worth
+   * anything because nothing about the request can influence it.
+   */
+  readonly writer: Writer
 }
 
 /** The header as it ARRIVES: Node lower-cases what comes off the socket, and
@@ -258,71 +293,70 @@ export interface Options {
  *  request. */
 const IDENTITY_KEY = IDENTITY_HEADER.toLowerCase()
 
-export const captureRoute = (options: Options) =>
-  HttpRouter.use((router) =>
-    Effect.gen(function*() {
-      yield* router.add(
-        "POST",
-        CAPTURE_PATH,
-        (request: HttpServerRequest.HttpServerRequest) =>
-          Effect.gen(function*() {
-            const login = (request.headers[IDENTITY_KEY] ?? "").trim()
-            if (login === "") {
-              return HttpServerResponse.text(
-                `${IDENTITY_HEADER} is required: this door is authenticated by the ` +
-                  "tailnet in front of it, and a request that carries no identity has " +
-                  "nothing to attribute the capture to",
-                { status: 401 },
-              )
-            }
+/**
+ * The route, as two `HttpRouter` layers merged — the shape `../mcp/route.ts`
+ * already has for a path that answers one method and refuses the others.
+ * `HttpRouter` ranks by specificity, so both beat the shell's `GET /*`
+ * catch-all whichever order the layers go in.
+ */
+export const captureRoute = (
+  options: Options,
+): Layer.Layer<never, never, HttpRouter.HttpRouter> =>
+  Layer.merge(
+    HttpRouter.add(
+      "POST",
+      CAPTURE_PATH,
+      (request: HttpServerRequest.HttpServerRequest) =>
+        Effect.gen(function*() {
+          const login = (request.headers[IDENTITY_KEY] ?? "").trim()
+          if (login === "") {
+            return refusing(
+              401,
+              `${IDENTITY_HEADER} is required: this door is authenticated by the ` +
+                "tailnet in front of it, and a request that carries no identity has " +
+                "nothing to attribute the capture to",
+              "usage",
+            )
+          }
 
-            const body = yield* Effect.result(request.json)
-            if (body._tag === "Failure") {
-              return HttpServerResponse.text("the body is not JSON", { status: 400 })
-            }
-            const posted = decode(body.success)
-            if (posted._tag === "Failure") {
-              // The schema's own words. It names the field and what was wrong
-              // with it, which is more than any sentence written here could,
-              // and a client debugging a share sheet is exactly who needs it.
-              return HttpServerResponse.text(String(posted.failure), { status: 400 })
-            }
-            if (Object.hasOwn(posted.success.props ?? {}, CAPTURED_BY)) {
-              return HttpServerResponse.text(
-                `\`${CAPTURED_BY}\` is written from the ${IDENTITY_HEADER} header and ` +
-                  "cannot be sent: it is who captured this, and a capture may not say " +
-                  "that about itself",
-                { status: 400 },
-              )
-            }
+          const body = yield* Effect.result(request.json)
+          if (body._tag === "Failure") {
+            return refusing(400, "the body is not JSON", "usage")
+          }
+          const posted = decode(body.success)
+          if (posted._tag === "Failure") {
+            // The schema's own words. It names the field and what was wrong
+            // with it, which is more than any sentence written here could, and
+            // a client debugging a share sheet is exactly who needs it.
+            return refusing(400, String(posted.failure), "usage")
+          }
 
-            const done = yield* Effect.result(capture(
-              options.ops,
-              captureOf(posted.success, login, new Date()),
-            ))
-            return done._tag === "Failure" ? refused(done.failure) : landed(done.success)
-          }),
-      )
+          const what = captureOf(posted.success, login, new Date())
+          if (Result.isFailure(what)) return refused(what.failure)
 
-      // A method this door does not answer is told so, rather than falling
-      // through to the shell's `GET /*` and being handed the app: a person
-      // reaching for `curl` and forgetting `-X POST` deserves a sentence and
-      // not a page of HTML.
-      yield* router.add(
-        "GET",
-        CAPTURE_PATH,
-        HttpServerResponse.text(`POST a capture here — see ${IDENTITY_HEADER}`, {
-          status: 405,
+          const done = yield* Effect.result(capture(options, what.success))
+          return done._tag === "Failure" ? refused(done.failure) : landed(done.success)
         }),
-      )
-    })
+    ),
+    // A method this door does not answer is told so, rather than falling
+    // through to the shell's `GET /*` and being handed the app: a person
+    // reaching for `curl` and forgetting `-X POST` deserves a sentence and not
+    // a page of HTML.
+    HttpRouter.add(
+      "GET",
+      CAPTURE_PATH,
+      refusing(405, `POST a capture here — see ${IDENTITY_HEADER}`, "usage"),
+    ),
   )
 
-/** Read the set, resolve where a capture lands against THAT reading, write it.
- *  The three lines the door is for, and the only place this file touches the
- *  ops layer. */
+/** Read the set, resolve where a capture lands against THAT reading, write it
+ *  under the writer this door was composed as. The three lines the door is for,
+ *  and the only place this file touches the ops layer. */
 const capture = (
-  ops: Writing,
+  options: Options,
   what: Capturing,
 ): Effect.Effect<Applied, OpFailure> =>
-  Effect.flatMap(ops.read, (at) => ops.run(captureInto(at, what)))
+  Effect.flatMap(
+    options.ops.read,
+    (at) => options.ops.run(captureInto(at, what), options.writer),
+  )
