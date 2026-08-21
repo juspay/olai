@@ -20,6 +20,7 @@
 
 import {
   type Accessor,
+  batch,
   createContext,
   createMemo,
   createSignal,
@@ -29,6 +30,7 @@ import {
 } from "solid-js"
 
 import {
+  asTheyWere,
   type Landing,
   type Landings,
   landingOf,
@@ -88,24 +90,14 @@ export interface Router {
   readonly landing: (index: number) => Landing | undefined
   /**
    * SPEND a pane's landing: the act named by `{index, file, at}` has
-   * been performed, and must not be performed again.
+   * been performed, and must not be performed again. What that means, and
+   * why it names all three, is `./landing.ts`'s `spent`.
    *
-   * It is the router's rather than the performer's because the rule is
+   * It is on the ROUTER rather than on the performer because the rule is
    * about the VALUE and every surface that reads one is bound by it. Kept
    * privately per surface it was one variable per face — the markdown face
    * had one, the preview pane had none, and the pane with none re-landed
    * its reader every time the file moved on disk.
-   *
-   * NAMING WHAT IS BEING SPENT — the pane, the page and the place — so a
-   * landing minted since is not spent by an act that was about the last
-   * one: an act is scheduled a frame ahead (both performers scroll on the
-   * next animation frame), and a navigation can arrive in between.
-   *
-   * STILL READABLE AFTERWARDS, which is the whole reason this is a mark
-   * rather than a clear. The `.html` preview builds the frame's own URL
-   * out of the slug, so a landing that vanished when it was spent would
-   * change that address and re-point the frame at the file for no reason
-   * anyone asked for — the very re-load this exists to stop.
    */
   readonly landed: (index: number, file: string, at: string) => void
   /** Navigate the focused pane (push). */
@@ -163,26 +155,32 @@ export const createRouter = (): Router => {
    * WHAT THE LANDINGS ARE AFTERWARDS is every caller's to say, and each of them
    * says one of three things.
    *
-   * A verb that NAVIGATES one pane hands back {@link marked} of that pane —
+   * A verb that NAVIGATES one pane answers with {@link marked} of that pane —
    * a landing where the new address names a section, nothing where it does
    * not, and every other pane's left exactly as it was, because what happened
    * next door is not news about them.
    *
    * A verb that RENUMBERS the panes — opening one, closing one, reordering —
-   * hands back {@link NOWHERE} or only the landing it just minted. A mark names
+   * answers {@link NOWHERE}, or only the landing it just minted. A mark names
    * a pane by its index, and after a splice the pane at that index is a
    * different pane; carrying the marks through the permutation would be this
    * module keeping a second copy of `./workspace.ts`'s arithmetic for the sake
    * of a landing nobody is mid-way through.
    *
-   * A verb that changes neither — focus, a collapse, a divider dragged — hands
-   * back the SAME map, which is also how it says nothing: the signal compares
-   * by identity, so no pane hears about it at all.
+   * A verb that changes neither — focus, a collapse, a divider dragged — answers
+   * {@link asTheyWere}, which is how it says nothing: the same map back, and the
+   * signal compares by identity, so no pane hears about it at all.
+   *
+   * AS A FUNCTION OF WHAT THEY WERE rather than as a value, which is two things
+   * at once: no verb has to READ the signal it is about to write — a read is a
+   * subscription to whoever calls the verb, and every one of these is a DOM
+   * handler today only — and there is no fourth answer, `undefined`, meaning
+   * whatever the last reader of this file assumed it meant.
    */
   const commit = (
     next: Workspace,
     how: "push" | "replace",
-    land: Landings,
+    land: (all: Landings) => Landings,
   ): void => {
     const href = hrefOfWorkspace(next)
     if (how === "push") {
@@ -190,8 +188,13 @@ export const createRouter = (): Router => {
     } else {
       history.replaceState({ key: nameHere() } as Entry, "", href)
     }
-    setLandings(land)
-    setWorkspace(next)
+    // ONE PROPAGATION, not two: without this every pane's landing memo re-runs
+    // on the first write and everything drawn from the workspace on the second,
+    // for one navigation.
+    batch(() => {
+      setLandings(land)
+      setWorkspace(next)
+    })
     if (how === "push") {
       // A page you asked for, so: the top. Always, even when the address
       // names a place inside the page — see the long argument this
@@ -220,7 +223,7 @@ export const createRouter = (): Router => {
     commit(
       navigateIn(workspace(), index, next),
       "push",
-      marked(landings(), index, landingOf(next)),
+      (all) => marked(all, index, landingOf(next)),
     )
   }
   const replaceIn = (index: number, next: Route): void => {
@@ -230,7 +233,7 @@ export const createRouter = (): Router => {
     commit(
       navigateIn(workspace(), index, next),
       "replace",
-      marked(landings(), index, undefined),
+      (all) => marked(all, index, undefined),
     )
   }
 
@@ -238,7 +241,8 @@ export const createRouter = (): Router => {
     workspace,
     route: () => focusedRoute(workspace()),
     landing: (index) => landings().get(index),
-    landed: (index, file, at) => setLandings(spent(landings(), index, file, at)),
+    landed: (index, file, at) =>
+      setLandings((all) => spent(all, index, file, at)),
     go: (next) => goIn(workspace().focus, next),
     goIn,
     replace: (next) => replaceIn(workspace().focus, next),
@@ -247,7 +251,7 @@ export const createRouter = (): Router => {
       const after = openRight(workspace(), from, next, forceNew === true)
       // A PANE IS BORN, so every index at or after it means a different pane
       // than it did a moment ago: only the arrival this verb is about survives.
-      commit(after, "push", marked(NOWHERE, after.focus, landingOf(next)))
+      commit(after, "push", () => marked(NOWHERE, after.focus, landingOf(next)))
     },
     close: (index) => {
       const here = workspace()
@@ -255,7 +259,7 @@ export const createRouter = (): Router => {
       if (after === here) return
       // Closing the second-to-last returns a plain page: push, so Back
       // restores the split. A pane is gone, so the indices moved.
-      commit(after, "push", NOWHERE)
+      commit(after, "push", () => NOWHERE)
     },
     focus: (index) => {
       const here = workspace()
@@ -264,27 +268,27 @@ export const createRouter = (): Router => {
       // Focus is part of the address so a reload restores it, but it is
       // not a page you went TO: replace, so Back is not an un-focus. No pane
       // changed page, so no pane's landing changed either.
-      commit(after, "replace", landings())
+      commit(after, "replace", asTheyWere)
     },
     stepFocus: (delta) => {
       const here = workspace()
       if (isLone(here)) return
       const after = focusBy(here, delta)
       if (after.focus === here.focus) return
-      commit(after, "replace", landings())
+      commit(after, "replace", asTheyWere)
     },
     collapse: (index) => {
-      commit(collapseAt(workspace(), index), "replace", landings())
+      commit(collapseAt(workspace(), index), "replace", asTheyWere)
     },
     expand: (index) => {
-      commit(expandAt(workspace(), index), "replace", landings())
+      commit(expandAt(workspace(), index), "replace", asTheyWere)
     },
     resize: (widths) => {
-      commit(resizeTo(workspace(), widths), "replace", landings())
+      commit(resizeTo(workspace(), widths), "replace", asTheyWere)
     },
     reorder: (from, to) => {
       // The panes are permuted, so every mark names the wrong one.
-      commit(reorderPanes(workspace(), from, to), "push", NOWHERE)
+      commit(reorderPanes(workspace(), from, to), "push", () => NOWHERE)
     },
   }
 }

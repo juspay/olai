@@ -73,6 +73,12 @@ export type Landings = ReadonlyMap<number, Landing>
  *  panes leave behind. Shared, because an empty map is a value. */
 export const NOWHERE: Landings = new Map()
 
+/** …and the answer a verb gives when it changed no pane's page at all: the
+ *  landings it was handed. A NAME for it rather than a caller reading the
+ *  signal back, because "nothing about the landings happened" is a statement a
+ *  verb makes and not a line it can forget to write. */
+export const asTheyWere = (all: Landings): Landings => all
+
 /** Where inside a page an arrival LANDS — the page's own file and a heading's
  *  own slug, and nothing for an address that names a whole place. It is read
  *  off the address, which is the only thing that says it: a `#` after a body

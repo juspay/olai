@@ -28,13 +28,11 @@ import { describe, expect, test } from "bun:test"
 
 import { landingOf, landingsOf, marked, NOWHERE, spent } from "./landing.ts"
 import { routeOf } from "./routes.ts"
-import { lone, type Workspace, workspaceOf } from "./workspace.ts"
-
-const at = (address: string): Workspace => workspaceOf(address)
+import { lone, workspaceOf } from "./workspace.ts"
 
 /** A two-pane address whose panes both name a heading — the shape the whole
  *  per-pane rule exists for. */
-const BOTH = at("/s/notes%2Fbeds.md%23slats/notes%2Fdeep.html%23beds")
+const BOTH = workspaceOf("/s/notes%2Fbeds.md%23slats/notes%2Fdeep.html%23beds")
 
 describe("what an address is owed", () => {
   test("a heading address is a landing; a whole page is not", () => {
@@ -53,7 +51,7 @@ describe("what an address is owed", () => {
   })
 
   test("a pane at a whole page is owed nothing, beside one that is", () => {
-    const owed = landingsOf(at("/s/house.olai/notes%2Fbeds.md%23slats"))
+    const owed = landingsOf(workspaceOf("/s/house.olai/notes%2Fbeds.md%23slats"))
     expect(owed.has(0)).toBe(false)
     expect(owed.get(1)?.at).toBe("slats")
   })
@@ -90,9 +88,10 @@ describe("spending an arrival", () => {
   test("the act is performed once, and the slug is still readable after", () => {
     const owed = landingsOf(BOTH)
     const after = spent(owed, 0, "notes/beds.md", "slats")
+    // Still there to be READ, slug and all: the preview builds its frame's URL
+    // out of it, so a landing that VANISHED when it was spent would re-point
+    // the frame at the file for nobody's reason.
     expect(after.get(0)).toEqual({ file: "notes/beds.md", at: "slats", spent: true })
-    // Still there to be READ: the preview builds its frame's URL out of it.
-    expect(after.get(0)?.at).toBe("slats")
     // …and not spendable twice.
     expect(spent(after, 0, "notes/beds.md", "slats")).toBe(after)
   })

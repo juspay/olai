@@ -39,6 +39,7 @@ import {
   BODY_REFUSED,
   DOCUMENT_BODY,
   DOCUMENT_EDIT,
+  HEADINGS,
   HYDRATION_TIMEOUT,
   HYPERTEXT_LINK,
   HYPERTEXT_PREVIEW,
@@ -799,9 +800,18 @@ Then(
   },
 );
 
+/** How near the top of the screen a heading has to be to count as landed on,
+ *  in pixels — the tolerance {@link landedOn} allows, because `scrollIntoView`
+ *  puts the element at the top of the viewport and the sticky header sits over
+ *  the first few pixels of it. A viewport's worth of slack would say nothing; a
+ *  pixel would pin the header's height and the stylesheet's
+ *  `scroll-padding-top`, which are styling and not this claim. */
+const AT_THE_TOP = 160;
+
 /**
  * WHERE THE DOCUMENT PAGE IS SCROLLED TO, as the heading nearest the top of the
- * viewport.
+ * viewport — asked of one SCOPE, so the lone page and one column of a split are
+ * the same question written once.
  *
  * The `.md` landing cannot be read the way the frame's is: there is no inner
  * `location.hash` to ask, because the app scrolled its own page to an element
@@ -809,26 +819,18 @@ Then(
  * what is read is the OUTCOME a reader would see — the heading they are looking
  * at — which is also the assertion that survives the id scheme changing.
  *
- * A tolerance, because `scrollIntoView` lands the element at the top of the
- * viewport and the sticky header sits over the first few pixels of it.
+ * Not `toc_steps.ts`'s "the heading … is at the top of the pane", which reads
+ * the same rectangle for a stricter claim: that a fragment MOVED the page, and
+ * that it landed hard against the top unless the document ran out first. That
+ * one is about a jump; this is about where a reader ended up.
  */
-/** How near the top of the screen a heading has to be to count as landed on,
- *  in pixels. A viewport's worth of slack would say nothing; a pixel would pin
- *  the sticky header's height and the stylesheet's `scroll-padding-top`, which
- *  are styling and not this claim. What is being asserted is that the reader is
- *  looking at the section rather than at the top of the file. */
-const AT_THE_TOP = 160;
-
-/** The heading a landing was owed, at the top of the screen — asked of one
- *  SCOPE, so the lone page and one column of a split are the same question
- *  written once. */
 const landedOn = async (
   world: OlaiWorld,
   where: Locator,
   text: string,
   whose: string,
 ): Promise<void> => {
-  const heading = where.locator("h1, h2, h3", { hasText: text }).first();
+  const heading = where.locator(HEADINGS).filter({ hasText: text }).first();
   await heading.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await world.waitUntil(async () => {
     const top = await heading.evaluate((node) => node.getBoundingClientRect().top);

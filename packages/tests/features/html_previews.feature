@@ -956,10 +956,43 @@ Feature: A `.html` in the vault
   # frame is still settling — the first reading of an anchor is taken while the
   # box is still the `70dvh` guess, and without the correction a reader lands
   # 170px below the fold (measured). The correction has to go on being allowed,
-  # and it has to stop the moment the reader has gone somewhere of their own
-  # choosing. What says it has stopped is where the frame is: the act records
-  # the frame's own top edge, and a frame that has moved under the reader since
-  # is a reader who moved it.
+  # and it has to stop.
+  #
+  # It stops two ways, and there is one of each below. THE READER: the act
+  # records the frame's own top edge, and a frame that has moved under them
+  # since is a reader who moved it — which is what the resize scenario is,
+  # a second after the landing, well inside the window. And TIME: a correction
+  # is a correction of the act it follows and has two seconds to arrive, which
+  # is what answers for the pane a reader is NOT looking at, where each column
+  # is its own scrollport and nothing they do moves this frame at all.
+
+  @scratch:good @own-scratch
+  Scenario: A previewed section in the pane that is not focused is on screen
+    # THE OTHER HALF OF "a landing belongs to a pane", one face over from
+    # `second_pane.feature`'s. A two-pane address may name a section in EVERY
+    # pane, and until the router kept a landing per pane the first paint minted
+    # the focused one's and nothing else's — so a link to a split whose second
+    # pane is a saved page opened at that page's top rather than at its section.
+    #
+    # It is also the one place the preview's own half of the act is asked in a
+    # SPLIT, where each column is its own scrollport: the frame is brought to
+    # the top of its column and the page then moves by what the frame reported,
+    # and this says the reader ends up looking at the section either way.
+    Given I open the app
+    When I rewrite "notes/deep.html" as:
+      """
+      <h1>Deep</h1>
+      <div style="height:1500px">a long stretch before the section</div>
+      <h2 id="beds">Beds</h2>
+      <div style="height:1600px">a long stretch after it, to read on into</div>
+      """
+    And I open the address "/s/kitchen-sink.md/notes%2Fdeep.html%23beds"
+    Then there are 2 panes
+    And pane 1 is showing "/notes/deep.html#beds"
+    # The FOCUSED pane is pane 0, which named no section at all — so this is a
+    # landing owed to a pane nobody is pointing at.
+    And the section "beds" is on screen
+    And there should be no page errors
 
   @scratch:good @own-scratch
   Scenario: A window resize does not re-land a reader who has scrolled away
@@ -1023,6 +1056,11 @@ Feature: A `.html` in the vault
     # THE ORDER IS PINNED rather than hoped for: the rows must not have been
     # drawn yet when the reader scrolls away, or this scenario would be
     # asserting that nothing happens after nothing happened.
+    #
+    # The growth is deliberately LATER than the correction window, so this is
+    # the far end of the rule: by the time it arrives the landing is over on
+    # both counts, and the frame following its page is a frame following its
+    # page and nothing more.
     Given I open the app
     And I mark the page
     When I rewrite "notes/deep.html" as:
