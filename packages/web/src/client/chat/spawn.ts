@@ -22,8 +22,8 @@
  *     away. Neither is decided here: the row already draws them, and it draws
  *     them for a spawn exactly as it draws them for anything else;
  *   - **that it is running** — {@link doingOf}, which is the agent's own
- *     status put into a word, and `null` the moment either the call or the
- *     conversation stops.
+ *     status put into a word, and `null` the moment the call stops or the turn
+ *     that announced it ends without it.
  *
  * PURE FUNCTIONS over a row, the way `./lanes.ts` and `./when.ts` are, and for
  * their reason: what a face is allowed to claim is exactly the kind of thing
@@ -80,45 +80,41 @@ export const whoOf = (entry: ChatEntry | undefined): string | null => {
  * was the good half of it. What is left is the fact this rail exists to carry:
  * an agent was sent out and has not come back.
  *
- * TWO THINGS HAVE TO BE TRUE, and the second is the one a row cannot see. A
- * spawn's status is STICKY, and the transcript is not cleared when an agent
+ * TWO THINGS HAVE TO BE TRUE, and the second is the one the STATUS cannot say.
+ * A spawn's status is STICKY, and the transcript is not cleared when an agent
  * dies — deliberately, so the rows a dead conversation left are still there to
  * read. So a subprocess that died between announcing an `Agent` call and
  * reporting on it leaves that row `pending` for as long as the panel is open,
- * and a rail that asked the row alone would go on pulsing "working…" under a
+ * and a rail that asked the status alone would go on pulsing "working…" under a
  * process that no longer exists. That is the exact failure this file was
- * written against, arriving from the other end: a face that outlived its
- * agent. Whether anything is running at all is the CONVERSATION's answer, so
- * the conversation is asked.
+ * written against, arriving from the other end: a face that outlived its agent.
  *
- * HANDED IN, rather than the state read here: the rule stays a function of its
- * arguments, which is what lets a dead agent be a unit test rather than a
- * subprocess somebody has to kill at the right moment. It is the same
- * arrangement `laneOf` has with the transcript's lookup.
+ * That second fact was the CONVERSATION's for a while — is a turn in flight at
+ * all — and it was the wrong question by one word. A dead agent's rows stay
+ * where they are, so sending again puts a live turn over a transcript full of
+ * calls that will never report, and every one of those rails would light up
+ * together. The server knows which calls its turns abandoned, and says so on
+ * the row (`stranded`), so the fact is now where the face is: this is a
+ * function of ONE argument, and {@link ./running.ts} is the whole of the rule.
  *
- * As a THUNK, and read LAST, for {@link ./elapsed.ts}'s reason arriving at the
- * older of the two faces: every row of the transcript computes this, and a
- * value would make every one of them an observer of the liveness memo — so a
- * turn starting or stopping would re-run four hundred rules to answer `null`
- * for the three hundred and ninety-seven that spawned nobody. The gates a ROW
- * can answer for itself come first, and the conversation is asked only about a
- * row that would otherwise have something to say.
+ * WHICH IS ALSO WHAT MAKES IT CHEAP. Every row of the transcript computes this,
+ * and a row that reads only itself wakes only when itself changes — no
+ * subscription to a conversation-wide signal, so a turn starting or stopping no
+ * longer re-runs four hundred rules to answer `null` for the three hundred and
+ * ninety-seven that spawned nobody. A dead agent is still a unit test rather
+ * than a subprocess somebody has to kill at the right moment; what is handed in
+ * is the row.
  *
  * @param entry the row being drawn
- * @param live whether a turn is in flight in this conversation at all
  */
-export const doingOf = (
-  entry: ChatEntry | undefined,
-  live: () => boolean,
-): string | null => {
+export const doingOf = (entry: ChatEntry | undefined): string | null => {
   // `pending` is what a spawn is ANNOUNCED with and what most of them wear for
   // most of their lives, so it is a RUNNING state rather than a case to fall
   // through, and a row nothing has said about yet is taken to be wearing it.
   // Both of those are {@link ./running.ts}'s to say now — the elapsed readout
   // on this same row asks the same question, and the frame draws the same
   // field.
-  if (entry?.spawned === undefined || !isRunning(entry)) return null
-  return live() ? WORKING : null
+  return entry?.spawned !== undefined && isRunning(entry) ? WORKING : null
 }
 
 /** What a spawn is called when it named no kind of agent. The `Agent` tool's

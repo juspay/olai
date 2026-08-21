@@ -27,14 +27,22 @@
  * drop out of that row immediately and say what the agent is doing; when the
  * calls arrive they land in the lane already open under it.
  *
- * WHETHER ANYTHING IS RUNNING is the other thing decided out here, and it is
- * decided ONCE for the whole list. Two faces need it and neither row can see
- * it: the rail under a spawn ({@link ./spawn.ts}) and the elapsed readout on a
- * running call's own line ({@link ./elapsed.ts}). It is a fact about the
- * CONVERSATION — a status is sticky and a dead agent's last call says `pending`
- * forever — so a row asked on its own would keep both of those alive under a
- * process that no longer exists. The clock the readouts tick against hangs off
- * the same answer, and runs only while it is true.
+ * WHETHER A TURN IS IN FLIGHT is the other thing decided out here, and it is
+ * decided ONCE for the whole list rather than per row: it comes off the chat
+ * cell, which moves several times a turn as the context usage is revised, and a
+ * boolean memo propagates only when it flips.
+ *
+ * It has exactly one reader now, and that is the point of the shape the two
+ * live faces ended up in. Both of them — the rail under a spawn
+ * ({@link ./spawn.ts}) and the elapsed readout on a running call's own line
+ * ({@link ./elapsed.ts}) — are functions of the ROW, because whether a call is
+ * still going is a fact about the call's own turn and the server says so on the
+ * row. Asking the conversation instead was the near-miss: a dead agent's rows
+ * are deliberately left where they are, so the next thing anybody sent would
+ * make the whole panel live again and light every abandoned call back up. What
+ * liveness is still the right question for is the CLOCK — whether to run a
+ * timer at all — so that is what it is still used for
+ * ({@link ./elapsing.tsx}).
  *
  * FOLLOWING THE BOTTOM is the other half of this file, and it is two questions
  * that were being answered as one:
@@ -282,7 +290,7 @@ export function Transcript(props: { readonly chat: Chat }) {
                *  stopped, and for one whose CONVERSATION has, so the same memo
                *  answers both "is there anything to draw" and "what does it say"
                *  ({@link ./spawn.ts}). */
-              const working = createMemo(() => doingOf(entry(), live))
+              const working = createMemo(() => doingOf(entry()))
               return (
                 <Show when={entry()}>
                   {(row) => (

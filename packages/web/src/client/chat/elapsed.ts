@@ -23,14 +23,24 @@
  * sees, so it has no duration here and should not have one — inventing one
  * would mean guessing at the far side of somebody else's process.
  *
- * TWO THINGS HAVE TO BE TRUE, and they are `doingOf`'s two: the ROW has to be
- * running, and the CONVERSATION has to be live. The second is the one a row
- * cannot see. Statuses are sticky and the rows a dead agent left are
- * deliberately still on screen to read, so an agent that died mid-call leaves
- * that call `pending` for as long as the panel is open — and a clock asked of
- * the row alone would count up, all afternoon, under a process that stopped at
- * lunchtime. A stopwatch on a dead conversation is a worse lie than no
- * stopwatch at all, because it is a lie that keeps getting bigger.
+ * TWO THINGS HAVE TO BE TRUE, and they are `doingOf`'s two: the wire has to
+ * still call this call running, and the TURN that announced it must not have
+ * ended. The second is the one a status cannot say. Statuses are sticky and the
+ * rows a dead agent left are deliberately still on screen to read, so an agent
+ * that died mid-call leaves that call `pending` for as long as the panel is
+ * open — and a clock asked of the status alone would count up, all afternoon,
+ * under a process that stopped at lunchtime. A stopwatch on a call nothing is
+ * running is a worse lie than no stopwatch at all, because it is a lie that
+ * keeps getting bigger.
+ *
+ * That second fact was "is a turn in flight in this conversation" for a while,
+ * and it is not the same question. A dead agent's rows stay where they are, so
+ * SENDING AGAIN puts a live turn over a transcript full of calls that will
+ * never report — and every one of them would start counting at once, from its
+ * own original stamp, so the panel would sprout five-minute clocks on work
+ * nothing is doing. The server knows which calls its turns abandoned and says
+ * so on the row (`stranded`, {@link ./running.ts}), which is why both gates are
+ * the row's now.
  *
  * TWO CLOCKS, and the assumption is declared rather than hidden: the instant is
  * the SERVER's (`ChatEntry.since`) and `now` is the reader's, so a duration is
@@ -42,10 +52,10 @@
  * nonsense: a stamp ahead of the reader reads as a call that has only just
  * started, never as a negative.
  *
- * A PURE FUNCTION over a row, a boolean and a clock, exactly as `doingOf` is a
- * pure function over a row and a boolean — so the whole rule is a table in a
- * unit test rather than something you have to start an agent and wait a minute
- * to see. Only {@link createNow} touches a clock, and it is the same split
+ * A PURE FUNCTION over a row and a clock, exactly as `doingOf` is a pure
+ * function over a row — so the whole rule is a table in a unit test rather than
+ * something you have to start an agent and wait a minute to see. Only
+ * {@link createNow} touches a clock, and it is the same split
  * `../commit/ago.ts` makes for the same reason.
  */
 
@@ -60,37 +70,31 @@ import { isRunning } from "./running.ts"
  * nothing to say, which is the cue to draw no readout at all.
  *
  * `null` covers four different silences and deliberately answers them the same
- * way, because the drawing is the same in all four: the conversation has
- * stopped, the call has, the row is not a call at all, or the call is younger
- * than {@link QUIET_MS}.
+ * way, because the drawing is the same in all four: the call has stopped, the
+ * turn that announced it has, the row is not a call at all, or the call is
+ * younger than {@link QUIET_MS}.
  *
- * BOTH THE CLOCK AND THE LIVENESS ARE THUNKS, and that is a reactivity
- * decision rather than a stylistic one: whatever computation asks this becomes
- * an observer of whatever it reads, and every row of the transcript asks. Read
- * as values, a four-hundred-row conversation would wake four hundred times a
- * second for the clock and four hundred times a turn for the liveness, to
- * answer `null` nearly every time. So the gates go cheapest-and-most-local
- * first — is this row a running call at all, which needs nothing but the row —
- * and the two shared signals are read afterwards, by exactly the rows that
- * could have a number to draw. `doingOf` has the same shape for the same
- * reason, which is what keeps the two faces on one row symmetrical.
+ * THE CLOCK IS A THUNK, and that is a reactivity decision rather than a
+ * stylistic one: whatever computation asks this becomes an observer of
+ * whatever it reads, and every row of the transcript asks. Read as a value,
+ * `now` would make a four-hundred-row conversation wake four hundred times a
+ * second to answer `null` for three hundred and ninety-nine of them. Read HERE,
+ * past a gate the row answers out of itself, it is read by exactly the rows
+ * that could have a number to draw — which is normally one.
  *
  * @param entry the row being drawn
- * @param live whether a turn is in flight in this conversation at all
  * @param now the reader's clock, in epoch milliseconds
  */
 export const elapsedOf = (
   entry: ChatEntry,
-  live: () => boolean,
   now: () => number,
 ): string | null => {
-  // THE ROW, not its status — which is what makes this safe to ask of any row
-  // in the transcript. `status` is a tool row's field, and a predicate over the
-  // bare field would have to guess about the rows that carry none
-  // ({@link ./running.ts}). It NARROWS, so the stamp below is read off a row
-  // this line has already established is a call.
+  // THE ROW, and the WHOLE row: the wire's own status, and whether the turn
+  // that announced this call has ended without it ({@link ./running.ts}).
+  // `status` is a tool row's field, and a predicate over the bare field would
+  // have to guess about the rows that carry none. It NARROWS, so the stamp
+  // below is read off a row this line has already established is a call.
   if (!isRunning(entry)) return null
-  if (!live()) return null
   const started = instantOf(entry.since)
   // A stamp that is not a time. It cannot be a MISSING one — the wire requires
   // it — so this means exactly what it says: somebody else's string, and a

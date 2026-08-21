@@ -18,6 +18,12 @@
  * `./order.test.ts`) and should: theirs take different arguments and answer
  * different questions, which is the difference between a shared shape and a
  * shared name.
+ *
+ * It carries no LIVENESS either, and that is a fact about the rules rather than
+ * about this file: both faces are functions of the row now, because whether a
+ * call is still going is a fact about the call's own turn and the server marks
+ * it there (`stranded`). A conversation-wide answer used to be handed in beside
+ * the row; it could not tell a dead turn's leftovers from a live turn's work.
  */
 
 import type { ChatEntry } from "@olai/surface"
@@ -31,15 +37,3 @@ export const toolRow = (extra: Partial<ChatEntry> = {}): ChatEntry => ({
   text: "explore the outline",
   ...extra,
 })
-
-/** A conversation with a turn in flight, which is the only state in which
- *  anything is running to draw or to time.
- *
- *  An ACCESSOR, because that is what both rules take: liveness is read LAST,
- *  after the gates a row can answer for itself, so a turn starting or stopping
- *  wakes the rows with something to say and no others. */
-export const TURNING: () => boolean = () => true
-
-/** ... and a conversation that has stopped — the state a sticky status cannot
- *  see, and the one both faces exist to refuse to outlive. */
-export const STOPPED: () => boolean = () => false

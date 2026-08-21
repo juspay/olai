@@ -145,14 +145,38 @@ Feature: Talking to the agent
     Then the chat times no call
 
   @scratch:chat
-  Scenario: A stopwatch does not outlive the conversation it was timing
+  Scenario: A call one turn gave up on does not start ticking in the next
+    # The near-miss this feature had, and the reason the fact is on the ROW.
+    # "Is a turn in flight" is a question about the CONVERSATION, and a dead or
+    # abandoned call's row is deliberately left where it is — so the next thing
+    # anybody sends makes the panel live again and every call the last turn
+    # walked away from resumes looking like work in progress, each with a clock
+    # counting from its own original stamp.
+    #
+    # The turn here ends normally and the agent stays alive, which is what makes
+    # the second turn possible at all.
+    When I ask the agent "abandon"
+    Then the chat still shows a call the wire calls "in_progress"
+    And the chat times no call
+    When I ask the agent "hold"
+    # One, and the count is what pins it: the held call is being timed, and the
+    # row the previous turn abandoned — still `in_progress`, still on screen — is
+    # not.
+    Then the chat says how long a running call has been going
+    And the chat still shows a call the wire calls "in_progress"
+    When the agent is released
+    Then the chat times no call
+
+  @scratch:chat
+  Scenario: A stopwatch does not outlive the turn it was timing
     # `./spawn.ts`'s failure, arriving at a second face — and worse at this one,
     # because a word that is wrong stays the same size and a number that is
     # wrong grows. A status is sticky, the rows a dead agent left are
     # deliberately still on screen to read, and so a call the agent died in the
     # middle of says `pending` for as long as the panel is open. Asked of the
-    # row alone that is a clock counting all afternoon under a process that
-    # stopped at lunchtime.
+    # STATUS alone that is a clock counting all afternoon under a process that
+    # stopped at lunchtime. The server marks what its turns abandoned, so the
+    # row is what says the clock may stop.
     When I ask the agent "subagent crash"
     Then the chat says how long a running call has been going
     When the agent is released

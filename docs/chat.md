@@ -186,7 +186,9 @@ The mark at the head of that line is the only other thing on it about time, and 
 
 **It shows what the wire calls running**, which is not quite the same as what is running, and the difference is worth knowing: a call the agent finishes at launch and lets carry on in the background arrives here already complete, so it has no duration and should not be given one. Guessing at the far side of somebody else's process is not something this panel will do.
 
-**And it stops when the conversation does.** A status is sticky, and the rows a dead agent left are deliberately still on screen to read — so a call the agent died in the middle of says *pending* for as long as the panel is open. A clock asked of that row alone would count up all afternoon under a process that stopped at lunchtime, which is the same lie the rail under a spawn is careful not to tell, except that a wrong word stays the same size and a wrong number grows.
+**And it stops when the call's TURN does**, which is a stronger promise than it sounds. A status is sticky, and the rows a dead or abandoned call leaves are deliberately still on screen to read — so a call nothing ever reported back on says *pending* for as long as the panel is open, which is the honest record of what happened. A clock asked of that alone would count up all afternoon under a process that stopped at lunchtime, which is the same lie the rail under a spawn is careful not to tell, except that a wrong word stays the same size and a wrong number grows.
+
+*Whether this conversation is busy* is the near-miss, and it is worth saying why it is not the question. Ask again after an agent has died — the rows are still there, that is the point of leaving them — and the new turn makes the panel busy again, so every call the last turn walked away from would light back up at once, each with a clock counting from when it first started. So olai marks what each turn leaves behind, on the call, and a later turn cannot take that back.
 
 ## When the agent sends other agents
 

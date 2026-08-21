@@ -1567,6 +1567,23 @@ Then(
   },
 );
 
+Then(
+  "the chat still shows a call the wire calls {string}",
+  async function (this: OlaiWorld, status: string) {
+    // The half that must NOT come off. A status is the agent's own word and the
+    // row is the record of what it said, so a call its turn walked away from
+    // goes on saying `in_progress` for as long as the panel is open — that is
+    // the honest account of a call that was announced and never reported on.
+    // What stops is the live FACE, and this is what makes the assertion beside
+    // it mean something: the row that is not being timed is still there, still
+    // saying the wire's own word.
+    await this.page
+      .locator(`${CHAT_TOOL}${attr("data-tool-status", status)}`)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
 Then("that elapsed time is ticking", async function (this: OlaiWorld) {
   // A number that appeared once and froze would pass every assertion above and
   // be the thing this feature exists against: a reader watching a long call

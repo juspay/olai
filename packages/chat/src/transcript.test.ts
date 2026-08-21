@@ -207,6 +207,94 @@ describe("tool calls", () => {
   })
 })
 
+describe("what a turn leaves behind", () => {
+  test("a call still running when the turn ends is marked, status untouched", () => {
+    // The agent that would have reported has finished, so nothing will ever
+    // report on this call again. What the STATUS says is left exactly as it
+    // came — `pending` is the agent's own word and the row is the record of
+    // what it said — and what is added is olai's own observation.
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep", status: "in_progress" })
+    transcript.settle()
+
+    expect(rows(transcript)[0]).toMatchObject({ status: "in_progress", stranded: true })
+  })
+
+  test("a call that came back is left alone", () => {
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep", status: "completed" })
+    transcript.tool("call-2", { title: "Read", status: "failed" })
+    transcript.settle()
+
+    expect(rows(transcript).map((entry) => entry.stranded)).toEqual([undefined, undefined])
+  })
+
+  test("nor is anything that is not a call", () => {
+    // `status` is a tool row's field, so every other kind of row is a row this
+    // has nothing to say about — and a mark on one would be a claim about a
+    // sentence somebody typed.
+    const transcript = new Transcript()
+    transcript.user("done order")
+    transcript.say("looking")
+    transcript.settle()
+
+    expect(rows(transcript).map((entry) => entry.stranded)).toEqual([undefined, undefined])
+  })
+
+  test("A LATER TURN DOES NOT UNDO IT — which is the whole point", () => {
+    // The bug this exists for. A dead agent's rows are deliberately not
+    // cleared, so sending again puts a live turn over a transcript full of
+    // calls that will never report. A panel asking "is a turn in flight" would
+    // light every one of them back up at once; the mark is on the ROW, so it
+    // survives the next turn and every turn after it.
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep", status: "in_progress" })
+    transcript.settle()
+    transcript.user("try again")
+    transcript.begins()
+    transcript.tool("call-2", { title: "Read", status: "in_progress" })
+
+    expect(rows(transcript)[0]).toMatchObject({ text: "Grep", stranded: true })
+    expect(rows(transcript)[2]?.stranded).toBeUndefined()
+  })
+
+  test("a turn STARTING says it too, so no path has to have remembered", () => {
+    // `settle` normally says this already, at the honest moment. `begins` is
+    // the other end of the same turn, and it is what makes "nothing from a
+    // previous turn is unstranded under this one" a property rather than a
+    // path: a turn that ended some way nobody thought of is still a turn the
+    // next one starts after.
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep", status: "pending" })
+    transcript.begins()
+
+    expect(rows(transcript)[0]?.stranded).toBe(true)
+  })
+
+  test("a call that reports again is running again", () => {
+    // The one thing that could make the mark untrue: it means "as far as
+    // anything here knows, that one never came back", and a frame about it is
+    // anything here knowing.
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep", status: "in_progress" })
+    transcript.settle()
+    expect(rows(transcript)[0]?.stranded).toBe(true)
+
+    transcript.tool("call-1", { status: "in_progress", progress: "halfway" })
+    expect(rows(transcript)[0]?.stranded).toBeUndefined()
+  })
+
+  test("marking is said once, not once per turn", () => {
+    // This runs at both ends of every turn. A frame per idle call per turn
+    // would be a conversation republishing its whole history to say nothing.
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep", status: "in_progress" })
+    expect(touched(transcript.settle())).toEqual(["tool:call-1"])
+    expect(touched(transcript.begins())).toEqual([])
+    expect(touched(transcript.settle())).toEqual([])
+  })
+})
+
 describe("when a row arrived", () => {
   /** A clock that says what it is told to, so a stamp is a value rather than
    *  something asserted by comparing it with itself. */

@@ -268,8 +268,15 @@ test("a row's handle is marked in the gesture that owns it and the cell that wea
 // sweep is what keeps it from becoming a third opinion. `?? "pending"` was
 // written twice for one convention before this, in the frame and in the spawn
 // rail; a fourth file uttering a status is a face deciding for itself what the
-// wire meant. The e2e suite's own spelling is not here to see: it is a
-// different package.
+// wire meant.
+//
+// WHICH statuses mean running is not in this list at all any more, and that is
+// the same claim moving one layer down: the SERVER asks it too — when a turn
+// ends, to mark what it abandoned — so it belongs beside the field, in
+// `@olai/surface`'s own declaration. What is left here is the one word this
+// client still spells, the announcement default a row with nothing said about
+// it is taken to be wearing. The e2e suite's own spelling is not here to see:
+// it is a different package.
 test("a tool call's status is spelled where it is meant and where it is drawn", () => {
   const statuses = /["'`](pending|in_progress)["'`]/
   expect(filesSpelling(statuses)).toEqual([

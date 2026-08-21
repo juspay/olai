@@ -1,6 +1,6 @@
 /**
- * What the wire says about a TOOL CALL's state, and the one thing most of the
- * panel wants to know from it: has it come back?
+ * Whether a TOOL CALL is one that has not come back — the one question both of
+ * the panel's live faces are built on.
  *
  * A module rather than a constant inside whichever face asked first, because
  * three now ask and they must not be able to disagree. The rail under a spawn
@@ -12,21 +12,31 @@
  * duration on a row with no live face, or a live face on a row with no
  * duration — one panel saying two things about one call.
  *
- * IT TAKES THE ROW, not the status, and that is the whole of why it can be
- * asked safely from anywhere. `status` is a TOOL row's field: every other kind
- * of row carries none, and a predicate over the bare field would have to answer
- * `undefined` either "not running" (which is wrong for a call the panel has
- * only just been told about — see below) or "running" (which puts a stopwatch
- * on the sentence somebody typed). The precondition is "this is a tool call",
- * so the precondition is checked here rather than remembered by each caller.
+ * IT TAKES THE ROW, and that is the whole of what it takes — which is what
+ * makes both faces functions of the thing they are drawn beside. Two facts have
+ * to be true and the row now carries both:
  *
- * THE PROTOCOL'S OWN WORDS and no interpretation of them. `pending` is what the
- * adapter announces EVERY tool call with — it means "announced", not "not
- * started" — so it is a running state rather than a case to fall through, and
- * it is what a row with nothing said about it yet is taken to be;
- * {@link ./spawn.ts} has the long version of that argument. A status this panel
- * has never heard of is not something it will call running, which is the same
- * refusal to invent a fact the header makes for a model id it cannot place.
+ *   - **the wire still calls it running** — ACP's own status, in ACP's own
+ *     words ({@link ../../../../surface/src/chat.ts}'s `isRunningStatus`,
+ *     which is where that vocabulary lives because the SERVER reads it too).
+ *     `status` is a tool row's field, so the KIND is checked rather than the
+ *     field's absence: an absent status means `pending`, which is a running
+ *     state, and guessing from it would put a live face on the sentence
+ *     somebody typed;
+ *   - **its turn has not ended** — `stranded`, which is the server's own
+ *     observation about its own conversation. A status is STICKY: an agent that
+ *     died mid-call leaves that row `pending` for as long as the panel is open,
+ *     deliberately, because the row is the honest record of a call that was
+ *     announced and never came back.
+ *
+ * THE SECOND ONE USED TO BE A CONVERSATION-LEVEL "is a turn in flight",
+ * threaded in from the list, and this is what moved it onto the row: send again
+ * in the same transcript — a dead agent's rows are not cleared — and the new
+ * turn makes the whole panel live, so last turn's abandoned calls resume
+ * looking like work in progress and a five-minute clock appears on them all at
+ * once. Whether a call is still going is a fact about the CALL's turn, and no
+ * amount of asking the conversation gets there. The faces got simpler by
+ * getting more correct: they take a row, and a row is what a face is about.
  *
  * WHAT IS NOT HERE is what a status LOOKS like. The mark, the tone and the
  * spoken word stay in the frame that draws them, and the split is not
@@ -37,7 +47,7 @@
  * protocol fact behind one edit.
  */
 
-import type { ChatEntry } from "@olai/surface"
+import { type ChatEntry, isRunningStatus } from "@olai/surface"
 
 /** A tool call's status as the panel reads it — what the wire said, or
  *  `pending` when it has not said yet.
@@ -51,7 +61,7 @@ export const statusOf = (entry: ChatEntry): NonNullable<ChatEntry["status"]> =>
   entry.status ?? "pending"
 
 /**
- * Whether this row is a call the wire still says is going.
+ * Whether this row is a call that has not come back.
  *
  * `undefined` for the row is answered `false` too, for `laneOf`'s reason: the
  * list holds keys and reads their values a frame behind, so "which row" is a
@@ -64,9 +74,4 @@ export const statusOf = (entry: ChatEntry): NonNullable<ChatEntry["status"]> =>
  * the row might still be missing, in the one place it provably is not.
  */
 export const isRunning = (entry: ChatEntry | undefined): entry is ChatEntry =>
-  entry?.kind === "tool" && RUNNING.has(statusOf(entry))
-
-/** The statuses that mean it has not come back. A call that has completed or
- *  failed has no live half and is drawn by the mark and the report the frame
- *  already carries. */
-const RUNNING: ReadonlySet<string> = new Set(["pending", "in_progress"])
+  entry?.kind === "tool" && entry.stranded !== true && isRunningStatus(entry.status)
