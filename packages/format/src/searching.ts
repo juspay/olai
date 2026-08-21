@@ -48,6 +48,7 @@ import { Schema } from "effect"
 import { AtDocument, AtNode, NodeId } from "./address.ts"
 import { Face } from "./document.ts"
 import { DOCUMENT_FIELDS, Refusal, SEARCH_FIELDS } from "./filter.ts"
+import { RegularNode } from "./node.ts"
 import { Found } from "./reading.ts"
 
 /**
@@ -92,6 +93,31 @@ export const NodeHit = Schema.Struct({
    * of others.
    */
   matchedProps: Schema.optionalKey(Schema.Array(Schema.String)),
+  /**
+   * The node's NOTE, verbatim — present only when the query ASKED for it
+   * ({@link SearchRequest.withDesc}) and the node has one.
+   *
+   * The one field on a hit that is not carried by default, and the reason is
+   * its SIZE rather than its meaning. Every other record field here is bounded
+   * like a title — an id, a mark, a handful of edge ids, a map of named facts —
+   * so carrying it costs a row about what a row already is. A note is prose
+   * with no bound at all: this repository's own roadmap keeps whole forensics
+   * under a bug, and twelve of those is an answer many times the size of the
+   * question. So it is asked for, once, by the caller that is going to read it.
+   *
+   * WHOLE OR ABSENT, never cut. `set_desc` and `update`'s `was` both take the
+   * note as one text, so a hit carrying a shortened one would be a note an edit
+   * gets written against — which is the same reason `read_document` refuses a
+   * file it could not read rather than answering it empty. The dial is
+   * `withDesc` and `limit`, and both are exact.
+   *
+   * The RECORD's own declaration, like {@link Found}'s edge fields: what
+   * travels is the file's value handed back, so a second spelling here would be
+   * free to stop meaning what the file means. It is the same note a walk
+   * carries on every row ({@link Subtree}) and a node read carries once
+   * ({@link Detail}) — one field, three answers, no reconciling.
+   */
+  desc: RegularNode.fields.desc,
 })
 export type NodeHit = typeof NodeHit.Type
 
@@ -221,6 +247,35 @@ export const SearchRequest = Schema.Struct({
     Schema.Number.annotate({
       description:
         `How many hits to return. Default ${DEFAULT_SEARCH_LIMIT}; the total is reported either way.`,
+    }),
+  ),
+  /**
+   * THE NOTES, WITH THE SELECTION — the second dial on an answer's size, and
+   * the only field of a record a hit does not carry by default.
+   *
+   * ASKED FOR RATHER THAN ALWAYS ON, which is the one decision on this request
+   * that goes the other way from `custom`'s. The map of named facts rides every
+   * hit because a property is a named fact smaller than the title beside it, so
+   * "every lane with `pr=…`" is one call. A NOTE is not that shape: it is
+   * unbounded prose, and a query that never reads one should not pay for twelve
+   * of them. Two callers make that concrete rather than hypothetical — this
+   * same request is what the ⌘K palette, the edge panel and the composer's `@`
+   * list ask over the wire on every settled keystroke, and none of them draws a
+   * note.
+   *
+   * SO IT IS ONE FLAG AND NOT A FIELD LIST. What a caller is choosing between
+   * is a shortlist and a shortlist with the notes in it; a `fields` vocabulary
+   * would be a projection language over an answer whose other fields are all
+   * cheap, invented for one field.
+   *
+   * NODES ONLY, and that is the grammar rather than a narrowing chosen here: a
+   * document's "note" is its whole body, which `read_document` answers as one
+   * text. A document hit is unchanged by this.
+   */
+  withDesc: Schema.optionalKey(
+    Schema.Boolean.annotate({
+      description:
+        "Carry each node hit's `desc` — its note, whole — so a selection arrives WITH its notes in one call. Off by default: a note is unbounded prose, and a query that will not read one should not pay for it. Documents are unaffected; a `.md`'s prose is `read_document`.",
     }),
   ),
   /**

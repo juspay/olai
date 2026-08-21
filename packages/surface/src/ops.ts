@@ -106,7 +106,11 @@ export const opsProcedures = {
   outlines: { output: OutlineAnswer, error: OpFailure },
   /** One node in full, or the id nothing here declares — `read_node`. */
   node: { input: NodeRequest, output: NodeAnswer, error: OpFailure },
-  /** A node and what hangs under it, nested — `read_subtree`. */
+  /** A node and what hangs under it, nested — or a whole OUTLINE, every
+   *  top-level node in it, which is what makes reading a file one call rather
+   *  than one per root. `read_subtree`, and the request names one or the other:
+   *  the schemas are `@olai/format`'s, so the rule and the two refusals that
+   *  keep it are spelled where the answer is. */
   subtree: { input: SubtreeRequest, output: SubtreeAnswer, error: OpFailure },
   /**
    * Every document under the served directory — what `list_documents`

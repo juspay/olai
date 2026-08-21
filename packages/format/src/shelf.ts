@@ -39,8 +39,8 @@
 import { Schema } from "effect"
 
 import { addressWritten, parseAddress, splitAddress } from "./address.ts"
-import { type Derived, nodeNamed, siblingsOf } from "./derive.ts"
-import { isMirror, pinsIn } from "./node.ts"
+import { type Derived, nodeNamed, rootsOf } from "./derive.ts"
+import { pinsIn } from "./node.ts"
 
 /**
  * One row of the shelf, as the wire carries it.
@@ -191,9 +191,8 @@ export const pinTargetIn = (title: string): string | undefined => {
 export const shelfOf = (derived: Derived): Shelf => {
   const file = pinsIn([...derived.byFile.keys()])
   if (file === undefined) return NO_PINS
-  return siblingsOf(derived, file, undefined).flatMap((located) => {
+  return rootsOf(derived, file).flatMap((located) => {
     const node = located.node
-    if (isMirror(node)) return []
     const row = { id: node.id, title: node.title }
     const target = pinTargetIn(node.title)
     if (target === undefined) return [row]

@@ -954,7 +954,12 @@ The corner unit is the **risky one** — see
         from the page they are on: <code>search_nodes</code> takes
         <code>under</code> (a node and everything beneath it) and
         <code>file</code>. One matcher, four callers — so
-        <code>is:done</code> cannot come to mean two things.</p>
+        <code>is:done</code> cannot come to mean two things. It also takes
+        <code>withDesc</code>, which brings each hit’s note back with it, so
+        “every one of these, with what was written under it” is one call
+        rather than one call and a read per row. Off unless asked for: a note
+        is prose with no bound, and the boxes in the browser ask this same
+        question on every keystroke.</p>
       </div>
     </div>
   </div>

@@ -15,12 +15,18 @@ import {
   isNodeHit,
   NodeId,
   type NodeHit,
+  type OpFailure,
   type OutlineSet,
+  type Reading,
   type SearchAnswer,
+  type OutlineRoots,
+  type Subtree,
+  type SubtreeAnswer,
+  type SubtreeRequest,
 } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
-import { readingOf, setOf } from "./fixtures.testlib.ts"
+import { failed, readingOf, setOf, succeeded } from "./fixtures.testlib.ts"
 import {
   dated,
   detail,
@@ -61,7 +67,7 @@ const LEDGER = (): OutlineSet =>
       `{"id":"now-git","parent":"now","ord":"a1","mirror":"focus-git"}`,
       `{"id":"bugs","ord":"a1","title":"Bugs"}`,
       `{"id":"sticky","parent":"bugs","ord":"a0","title":"the header scrolls away","doing":true,"after":["git"],"see":["git"]}`,
-      `{"id":"git","parent":"bugs","ord":"a1","title":"two git indicators","todo":true,"custom":{"pr":"https://github.com/juspay/olai/pull/176","agent":"claude-opus"}}`,
+      `{"id":"git","parent":"bugs","ord":"a1","title":"two git indicators","todo":true,"desc":"the pill and the readout answer the same question","custom":{"pr":"https://github.com/juspay/olai/pull/176","agent":"claude-opus"}}`,
     ].join("\n"),
     "focus.olai": [
       `{"id":"focus","ord":"a0","title":"Focus"}`,
@@ -71,6 +77,48 @@ const LEDGER = (): OutlineSet =>
   })
 
 const at = () => derivedOf(LEDGER())
+
+/**
+ * A subtree read that ANSWERED, and one that refused.
+ *
+ * The read answers a `Result` now that it takes a path as well as an id: an id
+ * the set does not hold is still an ANSWER (`{ missing }`), and a path that is
+ * not an outline is a refusal carrying the closest one that is. The UNWRAP and
+ * the diagnostic that goes with it are `./fixtures.testlib.ts`'s, which is
+ * where the planner's pair already lived — a walk that refuses where the case
+ * expected an answer says what it refused with rather than failing two
+ * assertions later on `undefined`.
+ */
+const walked = (of: Reading, request: SubtreeRequest): SubtreeAnswer =>
+  succeeded(subtree(of, request), "`read_subtree` to answer")
+
+const refusedWalk = (of: Reading, request: SubtreeRequest): OpFailure =>
+  failed(subtree(of, request), "`read_subtree`")
+
+/**
+ * The two ARMS of an answer that is not the `{ missing }` one — a diagnostic
+ * rather than a cast at each assertion.
+ *
+ * Every arm of the union is a real answer this read can give, so reading
+ * `children` or `roots` off the wrong one is `undefined` two assertions later,
+ * naming nothing. These say which arm was expected, once, and hand back the
+ * narrowed value.
+ */
+const nodeOf = (answer: SubtreeAnswer): Subtree => {
+  if (!("children" in answer)) {
+    throw new Error(`expected one node's walk, and got ${JSON.stringify(answer)}`)
+  }
+  return answer
+}
+
+const outlineOf = (answer: SubtreeAnswer): OutlineRoots => {
+  if (!("roots" in answer)) {
+    throw new Error(
+      `expected the whole-outline answer, and got ${JSON.stringify(answer)}`,
+    )
+  }
+  return answer
+}
 
 /** The whole READING — what a search is asked of now that it answers with both
  *  kinds of thing: the derivation is where the records are matched, and the set
@@ -283,10 +331,10 @@ describe("the properties a node carries", () => {
     // test above pins for `see` and `after`.
     expect(detail(at(), "bugs")?.children.find((child) => child.id === "git"))
       .toMatchObject({ custom: { agent: "claude-opus" } })
-    const walked = subtree(at(), "bugs", { depth: 1 })
-    expect(walked?.children.find((child) => child.id === "git"))
+    const bugs = nodeOf(walked(reading(), { id: "bugs", depth: 1 }))
+    expect(bugs.children.find((child) => child.id === "git"))
       .toMatchObject({ custom: { agent: "claude-opus" } })
-    expect(walked?.children.find((child) => child.id === "sticky"))
+    expect(bugs.children.find((child) => child.id === "sticky"))
       .not.toHaveProperty("custom")
   })
 
@@ -499,6 +547,209 @@ describe("placements", () => {
     // write lands.
     expect(search(reading(), { text: "git" }, TODAY).hits.filter(isNodeHit).map((hit) => hit.id))
       .not.toContain("now-git")
+  })
+})
+
+/**
+ * A SELECTION WITH ITS NOTES — the other half of the same item, and the one
+ * field of a record a hit does not carry unless it is asked for.
+ *
+ * The rule is the same at both ends: a note is unbounded prose, so a query that
+ * will not read one does not pay for twelve of them — and one that will gets
+ * them WHOLE, in the call that made the selection, rather than in a `read_node`
+ * per hit.
+ */
+describe("the notes a query asks for", () => {
+  test("a hit carries `desc` when the query asked, and never otherwise", () => {
+    const [asked] = nodeHits(search(reading(), { text: "indicators", withDesc: true }, TODAY))
+    expect(asked).toMatchObject({
+      id: "git",
+      desc: "the pill and the readout answer the same question",
+    })
+    // …and the same node, same query, without the flag.
+    expect(nodeHits(search(reading(), { text: "indicators" }, TODAY))[0])
+      .not.toHaveProperty("desc")
+    // Off is what an absent flag means, said out loud rather than inferred from
+    // the line above: `false` and absent are one answer.
+    expect(nodeHits(search(reading(), { text: "indicators", withDesc: false }, TODAY))[0])
+      .not.toHaveProperty("desc")
+  })
+
+  test("a node with no note says nothing, asked or not", () => {
+    // The format's own rule for absence, and it means a caller can read `desc`
+    // the same way whether it asked or not — absent is absent.
+    expect(nodeHits(search(reading(), { text: "header", withDesc: true }, TODAY))[0])
+      .not.toHaveProperty("desc")
+  })
+
+  test("the note travels WHOLE — the flag is the dial, never a length", () => {
+    // A cut note is one no reader can tell from a short one, and `set_desc` and
+    // `update`'s `was` both take the note as ONE text: a shortened one is a note
+    // an edit gets written against. The same argument `custom`'s values won.
+    const long = `forensics: ${"the pill said committed while nothing was. ".repeat(40)}`
+    // Through `JSON.stringify` rather than a hand-written line, because what
+    // this case is about is a note far too long to write out in one.
+    const set = setOf({
+      "bugs.olai": JSON.stringify({
+        id: "one",
+        ord: "a0",
+        title: "the commit pill lies",
+        todo: true,
+        desc: long,
+      }),
+    })
+    expect(nodeHits(search(readingOf(set), { text: "pill", withDesc: true }, TODAY))[0]?.desc)
+      .toBe(long)
+  })
+
+  test("a document hit is untouched by the flag", () => {
+    // A `.md`'s prose is the file, and `read_document` is how a file is read —
+    // so there is nothing on this arm for the flag to turn on.
+    const set = setOf(
+      { "bugs.olai": `{"id":"one","ord":"a0","title":"a bug"}` },
+      [["notes/bug.md", "# a bug\n\nthe prose lives here\n"]],
+    )
+    const [hit] = search(readingOf(set), { text: "bug", withDesc: true }, TODAY).hits
+      .filter((one) => one.at.kind === "document")
+    expect(hit).toMatchObject({ at: { kind: "document", path: "notes/bug.md" } })
+    expect(hit).not.toHaveProperty("desc")
+  })
+})
+
+/**
+ * A WHOLE OUTLINE IN ONE CALL — `read_subtree`'s second way in, and the reason
+ * this item exists: `list_outlines` says which files there are and what their
+ * roots are CALLED, and until this the only way down was one call per root.
+ */
+describe("a whole outline, walked", () => {
+  /** One outline with SEVERAL roots — the shape the `file` arm is for — with a
+   *  placement at its top level (which is not a root), a second outline to be
+   *  the near miss's near miss, and a file that did not parse. */
+  const SHELF = (): OutlineSet =>
+    setOf({
+      "plan.olai": [
+        `{"id":"today","ord":"a0","title":"Today"}`,
+        `{"id":"call","parent":"today","ord":"a0","title":"call the joiner","todo":true}`,
+        `{"id":"hinges","parent":"call","ord":"a0","title":"ask about the hinges"}`,
+        `{"id":"later","ord":"a1","title":"Later","desc":"nothing urgent"}`,
+        // A placement, at the top level, of a node that lives under `today`.
+        `{"id":"echo","ord":"a2","mirror":"call"}`,
+      ].join("\n"),
+      "notes.olai": `{"id":"scrap","ord":"a0","title":"a scrap"}`,
+    }, [], { "torn.olai": "{ not a record" })
+
+  const shelf = () => readingOf(SHELF())
+
+  const rootIds = (answer: SubtreeAnswer): ReadonlyArray<string> =>
+    outlineOf(answer).roots.map((root) => root.id)
+
+  test("one call answers every top-level node, nested", () => {
+    const answer = walked(shelf(), { file: "plan.olai" })
+    // The file rides back, so an agent holding several reads in flight knows
+    // which one this is.
+    expect(answer).toMatchObject({ file: "plan.olai" })
+    // BOTH roots, in the sibling order a reader sees them in — which is the
+    // whole claim: two roots used to be two calls.
+    expect(rootIds(answer)).toEqual(["today", "later"])
+    // …and each one walked, not merely named: `list_outlines` already answers
+    // the titles.
+    const answered = outlineOf(answer)
+    expect(answered.roots[0]?.children.map((child) => child.id)).toEqual(["call"])
+    expect(answered.roots[0]?.children[0]?.children.map((child) => child.id))
+      .toEqual(["hinges"])
+    // The note rides on a row exactly as it does under an `id` walk.
+    expect(answered.roots[1]).toMatchObject({ desc: "nothing urgent" })
+  })
+
+  test("each root says for itself where the walk stopped", () => {
+    const answer = outlineOf(walked(shelf(), { file: "plan.olai", depth: 1 }))
+    // One root bottoms out at the depth…
+    expect(answer.roots[0]?.children[0]).toMatchObject({ id: "call", truncated: true })
+    // …while its neighbour bottoms out at a leaf, and says nothing.
+    expect(answer.roots[1]).not.toHaveProperty("truncated")
+  })
+
+  /**
+   * THE ONE PLACE THE TWO ANSWERS ABOUT ONE OUTLINE DIFFER, pinned so it is a
+   * decision rather than something that happens.
+   *
+   * `list_outlines` names a file's roots in the order the FILE writes them, and
+   * that is deliberate and has a case of its own ("the directory", below). This
+   * walk answers in the TREE's order, `ord`, which is what a page draws and
+   * what every `children` list in the same answer is in — a walk that ordered
+   * its roots one way and their children another would be the odd one.
+   *
+   * `ord` is a fractional index and a write re-emits a file without sorting it,
+   * so a reordered root parts the two. Both declarations say so; this is what
+   * makes them say the same thing as the code.
+   */
+  test("the roots are the tree's order, where the listing is the file's", () => {
+    const set = setOf({
+      // Written out of `ord` order on purpose — the same fixture shape the
+      // listing's own case uses, so the two claims are read against each other.
+      "out.olai": [
+        `{"id":"second","ord":"a1","title":"Second"}`,
+        `{"id":"first","ord":"a0","title":"First"}`,
+      ].join("\n"),
+    })
+    expect(rootIds(walked(readingOf(set), { file: "out.olai" })))
+      .toEqual(["first", "second"])
+    expect(outlines(set, derivedOf(set))[0]?.roots).toEqual(["Second", "First"])
+  })
+
+  test("a placement at the top level is not a root", () => {
+    // The walk's own rule read one level up: a mirror is a second view of a
+    // node that lives elsewhere, and elsewhere is where this read answers it.
+    expect(rootIds(walked(shelf(), { file: "plan.olai" }))).not.toContain("echo")
+  })
+
+  test("a path that is not an outline is refused with the closest one that is", () => {
+    const refusal = refusedWalk(shelf(), { file: "plans.olai" })
+    expect(refusal._tag).toBe("NotFoundFailure")
+    expect(refusal.message).toContain("did you mean `plan.olai`")
+  })
+
+  test("…and with the outlines themselves when nothing is close", () => {
+    // The right answer for a directory of a handful of outlines, and the wrong
+    // one for its few thousand node ids — which is why the two refusals differ.
+    const refusal = refusedWalk(shelf(), { file: "nothing/like/it/at/all.olai" })
+    expect(refusal.message).toContain("plan.olai")
+    expect(refusal.message).toContain("notes.olai")
+  })
+
+  test("a file that did not parse is refused with the validator's own rows", () => {
+    // Never answered as an outline holding nothing: nobody read that file, so
+    // there is nothing to answer with — `read_document`'s rule for a `.md`.
+    const refusal = refusedWalk(shelf(), { file: "torn.olai" })
+    expect(refusal._tag).toBe("ValidationFailure")
+    expect((refusal as { readonly errors: ReadonlyArray<unknown> }).errors).not.toBeEmpty()
+    // …and told the truth about ITSELF. An outline is read perfectly well and
+    // then has lines the format cannot take, which is not the same failure as a
+    // body that could not be read — the two reads that answer a whole file
+    // share one sentence and the file decides which half of it applies.
+    expect(refusal.message).toContain("has lines that do not parse")
+    expect(refusal.message).toContain("nothing to answer with")
+  })
+
+  test("naming both, and naming neither, are refused in their own words", () => {
+    const both = refusedWalk(shelf(), { id: "today", file: "plan.olai" })
+    expect(both._tag).toBe("UsageFailure")
+    expect(both.message).toContain("two different reads")
+
+    const neither = refusedWalk(shelf(), {})
+    expect(neither._tag).toBe("UsageFailure")
+    expect(neither.message).toContain("`id`")
+    expect(neither.message).toContain("`file`")
+  })
+
+  test("an id the set does not hold is still an answer, not a refusal", () => {
+    // The asymmetry, pinned: an id is minted and carried around in prose, so
+    // "is there a node called this?" is a fair question with a true answer. A
+    // path was listed or typed, and the useful answer to a typo is the near
+    // miss above.
+    expect(walked(shelf(), { id: "nope" })).toEqual({ missing: "nope" })
+    // A placement is not a node, and is answered the same way.
+    expect(walked(shelf(), { id: "echo" })).toEqual({ missing: "echo" })
   })
 })
 

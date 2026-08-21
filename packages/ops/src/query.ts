@@ -55,6 +55,7 @@ import {
   type HomesAnswer,
   type HomesRequest,
   isMirror,
+  isRegular,
   type LocatedRegular,
   markdownAt,
   markdownIn,
@@ -88,6 +89,7 @@ import {
   type Reading,
   type Reference,
   ranked,
+  rootsOf,
   type MatchingAnswer,
   type MatchingRequest,
   type SearchAnswer,
@@ -95,15 +97,17 @@ import {
   type SearchRequest,
   type Stamps,
   type Subtree,
+  type SubtreeAnswer,
+  type SubtreeRequest,
   type TagsAnswer,
   type TagsRequest,
   tagText,
   titleParts,
-  ValidationFailure,
+  UsageFailure,
 } from "@olai/format"
 import { Result } from "effect"
 
-import { noSuchDocument } from "./plan.ts"
+import { noSuchDocument, notLoaded, outlineAt } from "./plan.ts"
 
 /**
  * Every shape an answer here has is `@olai/format`'s, and none of them is
@@ -292,6 +296,10 @@ export const search = (
     ? []
     : matchingDocuments(bodiedIn(at.set), filter, scope)
   const limit = query.limit ?? DEFAULT_SEARCH_LIMIT
+  // Read ONCE for the answer rather than per hit: it is a fact about the
+  // question, and this same request is what a browser's boxes send on every
+  // settled keystroke.
+  const wantsNotes = query.withDesc === true
   const hits = rankedTogether(at.derived, nodes, documents)
     .slice(0, limit)
     .map((selected): SearchHit => {
@@ -320,6 +328,11 @@ export const search = (
       }
       const { at: located, match } = selected
       const found = foundOf(at.derived, located)
+      // The note this query is entitled to — the record's when it asked for
+      // one, and nothing at all when it did not. TWO STEPS and not one
+      // condition, because they are two questions: this one is the REQUEST's,
+      // and the spread below is the FORMAT's rule for absence.
+      const note = wantsNotes ? located.node.desc : undefined
       // ANNOTATED, never asserted. It was `as Hit` for as long as this function
       // has existed, and an assertion is exactly the thing that stops checking
       // when the declaration moves: a required field added to `SearchHit` and to
@@ -343,6 +356,14 @@ export const search = (
         // a separate field because both halves can be true at once. Empty for
         // every query that named no property.
         ...(match.props.length === 0 ? {} : { matchedProps: match.props }),
+        // THE NOTE, when it was ASKED FOR — the one field of the record a hit
+        // does not carry by default, and the only reason is its size
+        // (`@olai/format`'s `SearchRequest.withDesc` argues it). The FORMAT's
+        // rule for absence, applied to it exactly as the four lines above apply
+        // it: whether the query asked was decided one step earlier, so this
+        // line is not the one place a carried field is omitted by a rule that
+        // is not the format's.
+        ...(note === undefined ? {} : { desc: note }),
       }
     })
 
@@ -675,16 +696,19 @@ const stampsOf = (node: LocatedRegular["node"]): Stamps =>
 
 export const detail = (derived: Derived, id: string): Detail | null => {
   const located = derived.byId.get(id)
-  if (located === undefined || isMirror(located.node)) return null
-  const regular = located as LocatedRegular
-  const node = regular.node
+  // `isRegular` narrows the PAIR, where `isMirror` narrows the record and
+  // leaves the place around it as wide as it was — which is what this line used
+  // to pay for with an assertion on the next one (`@olai/format`'s `node.ts`
+  // declares the guard for exactly that).
+  if (located === undefined || !isRegular(located)) return null
+  const node = located.node
   const progress = progressOf(derived, id)
   const placements = placementsOf(derived, id)
   const placed = placedUnder(derived, id)
   const referencedBy = referrersOf(derived, id)
   const blockedBy = waitingFor(derived, id)
   return {
-    ...foundOf(derived, regular),
+    ...foundOf(derived, located),
     ...(node.date === undefined ? {} : { date: node.date }),
     // The rule as the record spells it — the answer a writer about to change
     // it reads, and the half of MCP parity that is not `set_repeat`.
@@ -822,29 +846,127 @@ const placementsOf = (
     }]
   })
 
+/**
+ * A NODE and what hangs under it, or a whole OUTLINE and everything in it —
+ * `read_subtree`, both arms and every refusal.
+ *
+ * ONE FUNCTION FOR THE TWO WAYS IN, because they are one reading asked from two
+ * ends: the walk below is the same walk, and what differs is only where it
+ * starts and how many times. A file arm answered by a second exported function
+ * would be a second place the depth default, the mirror rule and the
+ * `truncated` flag are decided.
+ *
+ * WHY THE FILE ARM EXISTS AT ALL. `list_outlines` says which outlines there are
+ * and what each one's roots are CALLED, and until this the only way DOWN was by
+ * id — so an outline of N top-level roots cost N calls, one per root, each
+ * answering a fraction of a file the reader was asking about whole. The write
+ * side stopped looping some time ago (`add_node` takes a nested capture,
+ * `apply` a run of verbs); this is the read side catching up.
+ *
+ * IT REFUSES, where the id arm answers. That asymmetry is
+ * {@link ./query.ts}'s `document` one door over, argued on
+ * {@link `@olai/format`}'s `DocumentBody`: an id is minted, guessed at and
+ * carried around in prose, so "is there a node called this?" is a fair question
+ * with a true answer — while a path was LISTED or typed, and the useful answer
+ * to a typo is the near miss, which only a refusal carries. So a `file` the set
+ * does not serve as an outline comes back with the closest one that is
+ * ({@link outlineAt}), and one it could not READ comes back with the
+ * validator's own rows rather than as an outline that happens to hold nothing.
+ *
+ * A RESULT and not a nullable, for the reason {@link document} is one: a pure
+ * function says "or else" this way, and the door lifts it ({@link
+ * ./tools.ts}'s `asking`).
+ *
+ * EXACTLY ONE OF THE TWO, CHECKED HERE. What the schema cannot do is ADVERTISE
+ * the rule: the union of two structs that would say it type-level is not
+ * available at this seam (the tool table takes a request apart by its
+ * `.fields`), and the JSON Schema an MCP host reads is an object with
+ * properties rather than an `anyOf` it may or may not honour — the same
+ * constraint that unrolls `add_node`'s capture. A decode-level `check` on the
+ * struct could REJECT the pair, and is deliberately not used: what comes back
+ * from one is a decoder's complaint about a shape, where what a caller needs is
+ * which of the two reads it meant. So the request arrives wide and is refused
+ * here, in words. The two refusals are two rather than one because they are
+ * different mistakes made by different callers: NEITHER is usually a caller
+ * that has not noticed the file arm exists, and BOTH is a caller holding two
+ * questions who has to pick. Both are USAGE and not NOT-FOUND — nothing was
+ * looked up, because there was no single question to look up.
+ *
+ * NOT `@olai/format`'s `Address`, and the survey is recorded so it is not
+ * re-run. That grammar is the canonical way this repository names a PLACE — a
+ * document path, a node id, a heading inside a body — and a search hit already
+ * carries one. It is the wrong reuse here because it encapsulates a different
+ * axis: an address is a place written as TEXT, parsed out of a title somebody
+ * typed in `Pins.olai` or out of an address bar, and it carries an arm (a
+ * heading in a body) this read has no answer for. Nothing in this request is
+ * written text — it is two typed fields, and what is decided below is which of
+ * them was given.
+ */
 export const subtree = (
-  derived: Derived,
-  id: string,
-  options: { readonly depth?: number } = {},
-): Subtree | null => {
-  const located = derived.byId.get(id)
-  if (located === undefined || isMirror(located.node)) return null
-
+  /** BOTH HALVES of the reading, unlike the walk this used to be: the id arm
+   *  reads the derivation alone, and the file arm asks the SET which paths are
+   *  outlines and which of them parsed — the same division {@link homes}
+   *  makes. */
+  at: Reading,
+  request: SubtreeRequest,
+): Result.Result<SubtreeAnswer, OpFailure> => {
   // The floor's number, because it is quoted in the sentence `read_subtree`
   // advertises — one place to change it, rather than a schema saying "default
   // 3" over a walk that had stopped agreeing.
-  const depth = options.depth ?? DEFAULT_SUBTREE_DEPTH
-  const walk = (at: LocatedRegular, left: number): Subtree => {
-    const children = countedChildren(derived, at.node.id)
+  const depth = request.depth ?? DEFAULT_SUBTREE_DEPTH
+  const walk = (located: LocatedRegular, left: number): Subtree => {
+    const children = countedChildren(at.derived, located.node.id)
     return {
-      ...foundOf(derived, at),
-      ...(at.node.date === undefined ? {} : { date: at.node.date }),
-      ...(at.node.desc === undefined ? {} : { desc: at.node.desc }),
+      ...foundOf(at.derived, located),
+      ...(located.node.date === undefined ? {} : { date: located.node.date }),
+      ...(located.node.desc === undefined ? {} : { desc: located.node.desc }),
       children: left <= 0 ? [] : children.map((child) => walk(child, left - 1)),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
     }
   }
-  return walk(located as LocatedRegular, depth)
+
+  if (request.id !== undefined && request.file !== undefined) {
+    return Result.fail(
+      new UsageFailure({
+        reason: "`id` and `file` are two different reads — give one. `id` is a " +
+          "node and what hangs under it; `file` is a whole outline. " +
+          "`search_nodes` with `file` is how a query is narrowed to one outline.",
+      }),
+    )
+  }
+
+  if (request.id !== undefined) {
+    const located = at.derived.byId.get(request.id)
+    if (located === undefined || !isRegular(located)) {
+      return Result.succeed({ missing: request.id })
+    }
+    return Result.succeed(walk(located, depth))
+  }
+
+  if (request.file !== undefined) {
+    // The GATE and its sentence together, one door over in the planner, because
+    // the write that places a node at a file's top level asks the identical
+    // question and owes the identical answer ({@link outlineAt}).
+    const outline = outlineAt(at.set, request.file)
+    if (Result.isFailure(outline)) return Result.fail(outline.failure)
+    const broken = brokenIn(at.set, request.file)
+    if (broken !== undefined) return Result.fail(notLoaded(request.file, broken))
+    return Result.succeed({
+      file: request.file,
+      // The roots a READER sees: `@olai/format`'s own reading of an outline's
+      // top level, `ord`-sorted, placements dropped for the reason the walk
+      // never descends into one — a mirror is a second view of a node that
+      // lives elsewhere, and elsewhere is where this read answers it.
+      roots: rootsOf(at.derived, request.file).map((root) => walk(root, depth)),
+    })
+  }
+
+  return Result.fail(
+    new UsageFailure({
+      reason: "give `id` (a node and what hangs under it) or `file` " +
+        "(a whole outline: every top-level node in it)",
+    }),
+  )
 }
 
 // ── the directory ──────────────────────────────────────────────────────
@@ -862,7 +984,12 @@ export const outlines = (
    *
    * `Map.groupBy` holds each group in ENCOUNTER order, which is what `roots`
    * below stands on: a row's titles come out in file order, not the sibling
-   * (`ord`) order they would be in had anything sorted them.
+   * (`ord`) order they would be in had anything sorted them. That is why this
+   * does NOT go through `@olai/format`'s `rootsOf`, which is the same question
+   * asked of the TREE and answers in `ord` — `read_subtree`'s `file` arm is
+   * that one. A listing is about the file; a walk is about the tree; the two
+   * part company on a root reordered without its line moving, and both
+   * declarations say so.
    *
    * The mirrors drop HERE, once for the whole answer, as `countedChildren`
    * drops them in the floor — a placement is neither counted nor a title, and
@@ -896,8 +1023,7 @@ export const outlines = (
       }
     }
     // No entry at all is an outline holding no nodes of its own.
-    const own = nodesOf(derived, file)
-      .filter((located): located is LocatedRegular => !isMirror(located.node))
+    const own = nodesOf(derived, file).filter(isRegular)
     return {
       file,
       nodes: own.length,
@@ -975,15 +1101,7 @@ export const document = (
     )
   }
   const broken = brokenIn(set, file)
-  if (broken !== undefined) {
-    return Result.fail(
-      new ValidationFailure({
-        reason: `\`${file}\` could not be read, so what it holds is not loaded — ` +
-          `there is nothing to answer with. Fix the file first.`,
-        errors: broken,
-      }),
-    )
-  }
+  if (broken !== undefined) return Result.fail(notLoaded(file, broken))
   return Result.succeed({ file, text: entry.body })
 }
 

@@ -223,6 +223,34 @@ When(
     this.toolAnswer = await callTool(agentOf(this), "search_nodes", { text });
   },
 );
+
+/** The same query, asking for the notes with it — the one field of a record a
+ *  hit does not carry unless it is asked for. */
+When(
+  "the terminal agent searches for {string} with the notes",
+  async function (this: OlaiWorld, text: string) {
+    this.toolAnswer = await callTool(agentOf(this), "search_nodes", {
+      text,
+      withDesc: true,
+    });
+  },
+);
+
+/**
+ * A WHOLE OUTLINE, in one call — `read_subtree` given a `file` rather than an
+ * id.
+ *
+ * Through {@link tryTool} rather than {@link callTool} because both outcomes
+ * are the subject here: a path the set serves is answered whole, and one it
+ * does not is REFUSED with the closest that it does. A step that threw on the
+ * refusal would need a second spelling of the same call to say so.
+ */
+When(
+  "the terminal agent reads the whole outline {string}",
+  async function (this: OlaiWorld, file: string) {
+    this.toolAnswer = await tryTool(agentOf(this), "read_subtree", { file });
+  },
+);
 When(
   "the terminal agent creates the document {string} holding {string}",
   async function (this: OlaiWorld, file: string, text: string) {
@@ -286,6 +314,64 @@ Then(
     );
   },
 );
+
+/**
+ * EVERY TOP-LEVEL NODE THE FILE HOLDS, by title and in order — the whole claim
+ * of the `file` arm, asserted the only way that tells it from the sequence it
+ * replaces: one call, and everything in it.
+ *
+ * By TITLE rather than by id, because the roots here are what a person put in
+ * the outline and one of them was captured a step earlier with an id nobody
+ * chose.
+ */
+Then(
+  "the terminal agent was handed the roots {string}",
+  function (this: OlaiWorld, expected: string) {
+    const answer = this.toolAnswer ?? {};
+    assert.notStrictEqual(
+      answer["isError"],
+      true,
+      `the read was refused: ${JSON.stringify(answer["structuredContent"])}`,
+    );
+    const roots = (structuredOf(this)["roots"] ?? []) as ReadonlyArray<
+      { readonly title: string }
+    >;
+    assert.deepStrictEqual(
+      roots.map((root) => root.title),
+      expected.split(",").map((one) => one.trim()),
+    );
+  },
+);
+
+/** The near miss, in the words `read_document` refuses a mistyped `.md` in —
+ *  one typo, one answer, whichever verb it landed at. */
+Then(
+  "the terminal agent was pointed at {string}",
+  function (this: OlaiWorld, file: string) {
+    // A substring rather than a pattern: a path is full of dots, and a regexp
+    // built out of one would pass on a sentence naming a file that differs by
+    // exactly those characters.
+    const reason = String(structuredOf(this)["reason"] ?? "");
+    assert.ok(
+      reason.includes(`did you mean \`${file}\``),
+      "a path the set does not hold is refused with the closest one that it " +
+        `does — never answered as an outline holding nothing. It said: ${reason}`,
+    );
+  },
+);
+
+/** The note a hit carries when the query asked for it — the selection and its
+ *  notes in one call, rather than a `read_node` per row. */
+Then(
+  "the terminal agent was handed the note {string}",
+  function (this: OlaiWorld, note: string) {
+    const hits = (structuredOf(this)["hits"] ?? []) as ReadonlyArray<
+      { readonly desc?: string }
+    >;
+    assert.deepStrictEqual(hits.map((hit) => hit.desc), [note]);
+  },
+);
+
 // ── what it may READ ───────────────────────────────────────────────────
 
 /**

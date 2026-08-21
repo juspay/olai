@@ -43,6 +43,7 @@ import {
   drawingPath,
   DOCUMENT_EXT,
   isMirror,
+  isOutline,
   type Located,
   type LocatedRegular,
   MARKS,
@@ -53,6 +54,8 @@ import {
   nodeNamed,
   type Status,
   NotFoundFailure,
+  type Outline,
+  type OutlineError,
   canonicalRepeat,
   nextOccurrence,
   nodesOf,
@@ -457,6 +460,65 @@ export const noSuchDocument = (
   })
 }
 
+/**
+ * WHAT A PATH THAT IS NOT AN OUTLINE IS TOLD — {@link noSuchDocument}'s twin
+ * over the other kind of file, and the same sentence for every verb that can be
+ * handed one.
+ *
+ * TWO CALLERS AND ONE VOICE, which is the whole of why it has a name: a write
+ * placing a node at the top level of a file ({@link landsIn}) and a read asking
+ * for a whole outline ({@link ./query.ts}'s `subtree`) meet the identical typo,
+ * and a caller who mistypes a path once should not learn two different things
+ * about it depending on which verb the typo landed at.
+ *
+ * IT TEACHES BOTH WAYS, and which one it uses is decided by the set rather than
+ * by the caller. Close enough to be a typo, and it names the candidate — the
+ * `didYouMean` budget every unknown id and every unknown document path is
+ * already offered. Nothing close, and it LISTS the outlines, which is the right
+ * answer here for exactly the reason it is the wrong one for a node id
+ * ({@link notFound} argues the split): a directory has a handful of outlines
+ * and a few thousand nodes.
+ */
+const noSuchOutline = (set: OutlineSet, file: string): OpFailure => {
+  const outlines = outlinePaths(set)
+  const near = didYouMean(file, outlines)
+  return new NotFoundFailure({
+    reason: near === ""
+      ? `\`${file}\` is not an outline under the served directory: ` +
+        `${outlines.join(", ") || "there are none"}`
+      : `\`${file}\` is not an outline under the served directory${near}`,
+    named: file,
+  })
+}
+
+/**
+ * THE OUTLINE AT THIS PATH, or the refusal that says why not — {@link
+ * regularAt}'s counterpart for the other thing an op can name.
+ *
+ * The GUARD and the sentence together, because they are one question asked
+ * twice over: a write placing a node at a file's top level ({@link landsIn})
+ * and a read asking for a whole outline ({@link ./query.ts}'s `subtree`) both
+ * have to decide whether a path names an outline this directory serves, and
+ * both owe the same answer when it does not. Extracting only the sentence left
+ * the test in front of it copied — two lines apart, in two files — so a third
+ * verb naming an outline would have copied both halves again.
+ *
+ * `isOutline` is the FORMAT's kind test, named there rather than spelled as a
+ * `kind` comparison wherever it is wanted (`@olai/format`'s `document.ts`), and
+ * `documentAt` is the point lookup that answers what is at a path at all. This
+ * composes the two; it decides nothing of its own.
+ */
+export const outlineAt = (
+  set: OutlineSet,
+  file: string,
+): Result.Result<Outline, OpFailure> => {
+  const found = documentAt(set, file)
+  if (found === undefined || !isOutline(found)) {
+    return Result.fail(noSuchOutline(set, file))
+  }
+  return Result.succeed(found)
+}
+
 /** The record with this id, or the refusal that says so. A MIRROR is not an
  *  answer: it is a second placement of a node that lives elsewhere, and every
  *  op edits the node. */
@@ -495,17 +557,57 @@ const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> =>
   if (broken !== undefined) {
     return Result.fail(
       new ValidationFailure({
-        reason: `\`${file}\` ${
-          bodyKind(file) !== null
-            ? "could not be read, so what it holds is not loaded — writing it would drop that."
-            : "has lines that do not parse, so its records are not loaded — writing it would drop them."
-        } Fix the file first.`,
+        reason: `\`${file}\` ${notLoadedBecause(file)} — writing it would drop that. ` +
+          `Fix the file first.`,
         errors: broken,
       }),
     )
   }
   return Result.succeed(undefined)
 }
+
+/**
+ * WHY the set does not hold what is in this file — one fact about the FILE,
+ * independent of who is asking.
+ *
+ * The two kinds fail differently and a reader is owed which: a body is read or
+ * it is not, and an outline is READ perfectly well and then has lines the
+ * format cannot take. Three verbs meet that fact — the write gate above, and
+ * the two reads that answer a whole file ({@link notLoaded}) — and they differ
+ * only in what they cannot do about it, which is each one's own half of the
+ * sentence and stays at each one.
+ */
+const notLoadedBecause = (file: string): string =>
+  bodyKind(file) !== null
+    ? "could not be read, so what it holds is not loaded"
+    : "has lines that do not parse, so its records are not loaded"
+
+/**
+ * WHAT A FILE THE SET COULD NOT LOAD IS TOLD A READER — a refusal constructor
+ * like {@link noSuchDocument} and {@link noSuchOutline} beside it, over the one
+ * thing that goes wrong with a path the set DOES hold.
+ *
+ * ONE SENTENCE FOR THE TWO READS THAT ANSWER A WHOLE FILE. `read_document` and
+ * `read_subtree`'s `file` arm meet the identical fact with the identical
+ * consequence — the file is there, nobody read what is in it, so there is
+ * nothing to answer with — and answering either as an empty document or as an
+ * outline holding nothing would be handing back a body nobody read. It is not
+ * {@link writable}'s refusal with a different clause: that one is about a WRITE
+ * dropping what is not loaded, which is a different thing to be told, and the
+ * half the three genuinely share is {@link notLoadedBecause}.
+ *
+ * The validator's own rows travel with it, for the reason a refused write
+ * carries them: fix the file, then read it.
+ */
+export const notLoaded = (
+  file: string,
+  errors: ReadonlyArray<OutlineError>,
+): OpFailure =>
+  new ValidationFailure({
+    reason: `\`${file}\` ${notLoadedBecause(file)} — there is nothing to answer ` +
+      `with. Fix the file first.`,
+    errors,
+  })
 
 /** Where a new record lands: the outline it is written into, and the node it
  *  hangs off — absent at top level. */
@@ -544,15 +646,8 @@ const landsIn = (
       }),
     )
   }
-  if (documentAt(scope.set, file)?.kind !== "outline") {
-    return Result.fail(
-      new NotFoundFailure({
-        reason: `\`${file}\` is not one of the outlines under the served directory: ` +
-          `${outlinePaths(scope.set).join(", ") || "there are none"}`,
-        named: file,
-      }),
-    )
-  }
+  const outline = outlineAt(scope.set, file)
+  if (Result.isFailure(outline)) return Result.fail(outline.failure)
   const may = writable(scope, file)
   if (Result.isFailure(may)) return Result.fail(may.failure)
   return Result.succeed({ file })

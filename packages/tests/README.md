@@ -128,6 +128,21 @@ One section per run, against a directory the driver has just re-copied and a ser
 
 `SECTION=` on its own lists the sections; `SECTION=<name>` runs one against a server you are already running (`BASE` says where).
 
+## Showing what the TOOL surface answers
+
+```bash
+just build-client
+nix develop -c bash
+cd packages/tests
+bash reads.sh
+```
+
+`reads.ts` / `reads.sh` are the third driver here and are not part of the suite either. `evidence.ts` photographs the app because what it is showing is a LOOK, and `wire.ts` counts bytes because what it is showing is a COST. What a tool surface has to show is neither: the claim is "this question is one call now", and the only honest exhibit is the call and the answer printed beside it. So this connects to `/mcp` exactly as a `.mcp.json` client does, runs a scripted read session, and prints every request and every answer — the refusals included, since a refusal is an answer here and its `kind` travelling as data is half of what the surface promises.
+
+It needs no browser and no `.#e2e` shell. The CLIENT is the suite's own (`support/mcp.ts`, the one the `an_external_agent` scenarios drive), so there is one hand-rolled JSON-RPC client in this package rather than two that could come to speak different protocols. The VAULT is written by the script rather than taken from `fixtures/`, because the session's subject is the SHAPE of a directory — an outline with more than one top-level root, notes under some of the tasks, a second outline to be a typo's near miss, one file that does not parse — and a fixture shared with the suite would drift away from the exhibit the moment a scenario needed a row.
+
+`BASE=` runs it against a server you are already running, in which case the vault is whatever that server is serving.
+
 ## Measuring what a session costs the wire
 
 ```bash

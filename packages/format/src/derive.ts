@@ -646,6 +646,31 @@ export const siblingsOf = (
       .sort(byOrd)
     : (derived.children.get(parent) ?? []).filter((located) => located.file === file)
 
+/**
+ * The ROOTS of one outline — its top-level records, in sibling order, with the
+ * placements dropped.
+ *
+ * {@link siblingsOf} asked at the top of a file is about PLACES, so a mirror is
+ * one of them; this is about what the file HOLDS, so it is not — the same
+ * division {@link countedChildren} makes one level down, and the reason it is
+ * named rather than left as a filter at each caller: the mirror drop was
+ * spelled three different ways (a `!isMirror` predicate, an `isMirror` skip
+ * inside a `flatMap`, an `isRegular` filter) by three readers asking one
+ * question, which is exactly the rule-that-disagrees-with-itself {@link
+ * counted} warns about.
+ *
+ * IN SIBLING ORDER, which is a real claim and not the incidental one: `ord` is
+ * what a reader sees, and a file's lines are not sorted on emit. `OutlineSummary`'s
+ * `roots` deliberately does NOT come through here — a listing names a file's
+ * titles in the order the FILE writes them (`@olai/ops`' `outlines`, and the
+ * case that pins it) — and the two differing is a fact worth knowing rather
+ * than a bug: one is about the file, this is about the tree.
+ */
+export const rootsOf = (
+  derived: Derived,
+  file: string,
+): ReadonlyArray<LocatedRegular> => siblingsOf(derived, file, undefined).filter(isRegular)
+
 /** The children that count as a node's own. A mirror is a second view of a
  *  node, not a second obligation, so it never counts — which is what {@link
  *  progressOf} rolls up and what a reader listing "what is under this" means. */

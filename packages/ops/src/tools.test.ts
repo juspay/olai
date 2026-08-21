@@ -125,15 +125,26 @@ const CALLS: Record<string, ReadonlyArray<unknown>> = {
     { text: "" },
     { text: "date:today" },
     { text: `"paint the hall" OR nothing-is-called-this` },
+    // The one field of a record a hit does not carry unless it is asked for.
+    { text: "House", withDesc: true },
   ],
   read_node: [{ id: "house" }, { id: "paint" }, { id: "shed" }],
-  read_subtree: [{ id: "house", depth: 1 }, { id: "house" }, { id: "shed" }],
+  // All three arms of the answer: one node walked, the WHOLE outline walked,
+  // and an id the set does not hold.
+  read_subtree: [
+    { id: "house", depth: 1 },
+    { id: "house" },
+    { file: "house.olai" },
+    { file: "house.olai", depth: 1 },
+    { id: "shed" },
+  ],
   list_documents: [{}],
   // The reads that REFUSE are not called here: this walk decodes ANSWERS, and
   // a refusal has none. What `read_document` says about a path the set does not
-  // hold is the MCP face's own test and `an_external_agent.feature`'s, where
-  // the refusal travels as a tool result rather than being discharged by an
-  // `orDie` that would simply throw.
+  // hold — and what `read_subtree` says about one, and about a call naming both
+  // ways in or neither — is the MCP face's own test and
+  // `an_external_agent.feature`'s, where the refusal travels as a tool result
+  // rather than being discharged by an `orDie` that would simply throw.
   read_document: [{ file: "notes/finishes.md" }, { file: "plain.md" }],
 }
 
@@ -214,6 +225,10 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   // `text` prose spells both, and a schema that decoded the words and not
   // these would be the door advertising a grammar it does not answer.
   expect(searches[4]?.["hits"]).toMatchObject([{ id: "paint", matched: "title" }])
+  // And the note, when the query asked for it — the one field of a record a hit
+  // does not carry by default, reached here so the decode above is not vacuous
+  // about it.
+  expect(searches[5]?.["hits"]).toMatchObject([{ id: "house", desc: "the note" }])
 
   const [house, paint, gone] = of("read_node")
   expect(house).toMatchObject({
@@ -252,11 +267,21 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
     text: "# Finishes\n\nDoors: matte.\n",
   })
 
-  const [cut, whole, absent] = of("read_subtree")
+  const [cut, whole, outline, outlineCut, absent] = of("read_subtree")
   expect((cut?.["children"] as ReadonlyArray<Subtree>)[1])
     .toMatchObject({ id: "sand", truncated: true })
   expect(whole).not.toHaveProperty("truncated")
   expect(absent).toEqual({ missing: "shed" })
+  // The whole outline: both of this fixture's top-level roots, and NOT the
+  // placement sitting between them — a mirror is a second view of a node that
+  // lives elsewhere, and elsewhere is where this read answers it.
+  expect(outline?.["file"]).toBe("house.olai")
+  expect((outline?.["roots"] as ReadonlyArray<Subtree>).map((root) => root.id))
+    .toEqual(["house"])
+  // …and `truncated` is per ROOT, reached here so the arm's own optional field
+  // is not a shape nothing produces.
+  expect((outlineCut?.["roots"] as ReadonlyArray<Subtree>)[0]?.children[1])
+    .toMatchObject({ id: "sand", truncated: true })
 
   // `placed` carries the node each row SHOWS, situated — the half of a mirror
   // a curated list is read with.
