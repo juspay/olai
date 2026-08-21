@@ -477,6 +477,62 @@ Feature: Talking to the agent
     And the agent panel is open
     Then the conversation is titled "the last conversation"
 
+  @scratch:chat
+  Scenario: An agent that will not open a conversation is not an agent that has gone
+    # The panel's THIRD body, and the distinction it exists for. `session/new`
+    # is a request like any other, so an agent can answer it with an error and
+    # go on running — and reading that as the agent having died left the header
+    # saying `not running` about a process that had just spoken, over an empty
+    # transcript with a live composer under it inviting a message that had
+    # nowhere to go.
+    When the agent refuses to new a conversation
+    And I start a new conversation
+    Then the panel says the conversation could not be opened
+    # The reason is the agent's own, because "the conversation could not be
+    # opened" is the sentence every one of these shares and the one that never
+    # helped anybody.
+    And the refusal is in the agent's own words, "will not start a conversation"
+    # THE CLAIM: the agent is still there. The header goes on naming the model
+    # rather than reporting a death, and the box is gone because there is
+    # nothing to send to — not because sending is switched off.
+    And the panel header names the model "Fake One"
+    And there is nothing to type into
+    # ... and the one thing that can change it does, once the agent relents.
+    When the agent will new a conversation again
+    And I try to open it again
+    Then the panel shows no such refusal
+    And the agent is idle
+    When I ask the agent "hello"
+    Then the agent's answer mentions "you said: hello"
+
+  @agent-stored @scratch:chat
+  Scenario: A boot whose conversation is refused says so, and can still be got out of
+    # THE OTHER PLACE a conversation is opened, and the one no click can reach:
+    # a server starting. Boot adopts a stored conversation and asks for it, and
+    # an agent that says no there used to leave the panel reporting a dead
+    # process.
+    When I open the session picker
+    And I pick the conversation "an older conversation"
+    Then the conversation is titled "an older conversation"
+    When the agent refuses to load a conversation
+    And the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then the panel says the conversation could not be opened
+    And the refusal is in the agent's own words, "no such conversation"
+    And there is nothing to type into
+    # THE MODULE IS NOT IN IT, and trying again is what proves that: entering a
+    # conversation is what this server records being IN one, and a boot that
+    # recorded it BEFORE asking left every later verb — this retry included —
+    # believing there was a conversation already. A retry answered by doing
+    # nothing at all is what that looked like.
+    When the agent will load a conversation again
+    And I try to open it again
+    Then the panel shows no such refusal
+    And the conversation is titled "an older conversation"
+    And the agent is idle
+
   @no-agent @scratch:chat
   Scenario: With no agent, the panel says so rather than disappearing
     # The one state a person should never reach by following a documented way

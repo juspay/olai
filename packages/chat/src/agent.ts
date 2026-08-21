@@ -1095,7 +1095,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       Effect.gen(function*() {
         // Before the flag below, because a detection is not a replay.
         const mcpServers = [...(yield* servers)]
-        yield* entered(id, title)
         // Everything between these two is history. The flag is set before the
         // call because a load replays THEN answers.
         replaying = true
@@ -1119,6 +1118,19 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               emit({ _tag: "replayEnded" })
             }),
         )) as LoadSessionResponse | undefined
+        // AFTER THE ANSWER, and that ordering is the whole of one bug. Entering
+        // a conversation is what this module records being IN one — it sets the
+        // session every later verb acts on, and it writes the note the next boot
+        // reads. Done before the request, a load the agent REFUSED left both
+        // pointing at a conversation the agent had just said no to: every
+        // prompt after it failed, and the next boot went back and asked for the
+        // same one again.
+        //
+        // Nothing is lost by waiting. The replay's own frames need no session —
+        // they are rows, and `replayStarted` has already emptied the transcript
+        // for them — so what the panel is short of in between is the title,
+        // which it gets a moment later along with everything else.
+        yield* entered(id, title)
         yield* restore(at, id, loaded?.configOptions, wanted)
         yield* askForBypass(at, id)
       })

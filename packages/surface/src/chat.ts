@@ -615,6 +615,41 @@ export const MissingServer = Schema.Struct({
 export type MissingServer = typeof MissingServer.Type
 
 /**
+ * The agent is there and there is NO CONVERSATION, because opening one was
+ * REFUSED — and why.
+ *
+ * ITS OWN FACT rather than a sixth `status`, for `asking`'s reason and a
+ * sharper version of it: the two things are true at the same time. The agent
+ * answered, so it is running and the header says so; what failed is a
+ * conversation, and a panel that folded that into `gone` would be reporting a
+ * dead process because a live one said no — which is exactly the confusion the
+ * three-valued `Gone` (`../../chat/src/agent.ts`) exists to end, met again one
+ * layer up. `booting` cannot carry it either: this is a state that has SETTLED,
+ * and it settles until somebody presses something.
+ *
+ * `null` on every panel that has a conversation, which is nearly all of them,
+ * and on every panel that has no agent to ask (`status: "off"` — nothing was
+ * refused, because nothing was attempted).
+ *
+ * WHAT IT DOES NOT CARRY is how to try again. That is the server's, kept beside
+ * the reason the way an undelivered message's prompt is kept beside its row
+ * ({@link ../../chat/src/transcript.ts}): a browser reconstructing the attempt
+ * would be a browser deciding which conversation to open, and it does not know
+ * which one was asked for — a boot picks its own.
+ */
+export const Unopened = Schema.Struct({
+  /** The agent's own words, verbatim. Never a category: "this agent does not
+   *  keep conversations" and "no such session" are different sentences and a
+   *  reader can act on the difference. */
+  why: Schema.String,
+  /** WHICH conversation could not be opened, for the sentence — a stored one's
+   *  title, or its id where it has no title. `null` where what failed was
+   *  opening ANY conversation: a fresh one, or a boot that chose for itself. */
+  what: Schema.NullOr(Schema.String),
+})
+export type Unopened = typeof Unopened.Type
+
+/**
  * Where the conversation stands. Everything the header draws and everything a
  * composer needs to know about whether it may send.
  */
@@ -674,6 +709,15 @@ export const ChatState = Schema.Struct({
   /** The last thing that went wrong where no caller was waiting — a boot that
    *  failed, an agent that died mid-turn. `null` once a turn succeeds. */
   trouble: Schema.NullOr(Schema.String),
+  /** The agent is running and would not open a conversation — see
+   *  {@link Unopened}. `null` on every panel that has one.
+   *
+   *  Deliberately NOT `trouble`, which is drawn inside the transcript and
+   *  cleared by the next turn that comes back. There is no transcript to draw
+   *  it in and no next turn to clear it: what a reader is owed here is the
+   *  panel's whole body saying what happened and offering the one thing that
+   *  can change it. */
+  unopened: Schema.NullOr(Unopened),
   /**
    * The MCP servers this conversation was meant to get and did not — see
    * {@link MissingServer}.
@@ -706,6 +750,7 @@ export const CHAT_OFF: ChatState = {
   commands: [],
   asking: 0,
   trouble: null,
+  unopened: null,
   missing: [],
 }
 

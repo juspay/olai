@@ -143,7 +143,7 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  *
  * Written as the complement of one omission, and the omission is the whole
  * point of this map existing: `ops.*` is absent. Every cell, every collection,
- * the chat's nine verbs, `edit.apply`, the two search questions, the id lookup
+ * the chat's ten verbs, `edit.apply`, the two search questions, the id lookup
  * behind the transcript's backticks, the tag completion's vocabulary and the
  * two git verbs are here because a page reads
  * or presses them; the ops request vocabulary is
@@ -251,6 +251,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "chat.cancel": "tool",
   "chat.newSession": "tool",
   "chat.loadSession": "tool",
+  "chat.reopen": "tool",
   "chat.sessions": "tool",
   "chat.answer": "tool",
   "chat.decline": "tool",

@@ -112,6 +112,14 @@
  * in) rather than for a clock, so the scenario says when — a dot-file, which
  * the store's walk prunes, so waiting for one is not itself an edit.
  *
+ * REFUSING TO OPEN A CONVERSATION is a dot-file per verb
+ * (`.agent-refuse-new`, `.agent-refuse-load`), for the same reason stored
+ * sessions are an environment variable: it is a property of the machine rather
+ * than of anything the client says, and one of the two paths that opens a
+ * conversation is a SERVER STARTING, which no prompt can reach. The agent stays
+ * up, answers `session/list`, and says no to the one verb — which is a live
+ * agent with no conversation, and not a dead one.
+ *
  * STORED SESSIONS are an environment variable, because which boot path runs is
  * a property of the machine the agent woke up on rather than of anything the
  * client says: `OLAI_FAKE_ACP_STORED` unset means nothing is stored (so a
@@ -280,6 +288,25 @@ const STORED_TITLES: Record<string, string> = {
  *  mechanism. */
 const forgotten = (sessionId: string): boolean =>
   existsSync(`${cwd}/.agent-forgot-${sessionId}`)
+
+/**
+ * Whether this agent REFUSES to open a conversation — `new`, `load`, or both.
+ *
+ * An answer rather than a silence, which is the whole of what the client has to
+ * tell apart: the process is up, the handshake is done, `session/list` answers,
+ * and the one thing it will not do is put somebody in a conversation. A client
+ * that read that as a dead agent would say `not running` about a process that
+ * had just spoken to it.
+ *
+ * A DOT-FILE per verb, the way {@link forgotten} and the release are — the
+ * store's walk prunes those, so arming one is not an edit — and read at the
+ * moment of the request rather than at boot, because the two paths a client
+ * opens a conversation through are a person pressing something and a SERVER
+ * STARTING, and a scenario has to be able to reach the second one by arming a
+ * file and restarting.
+ */
+const refusesToOpen = (verb: "new" | "load"): boolean =>
+  existsSync(`${cwd}/.agent-refuse-${verb}`)
 
 /** The client's own two, NEWEST LAST — so a client that takes the first entry
  *  instead of the most recently updated one adopts the wrong conversation. */
@@ -1922,6 +1949,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/new":
+      if (refusesToOpen("new")) {
+        refuse(id, -32603, "this agent will not start a conversation in this directory")
+        return
+      }
       openSession(params)
       sessionId = "fake-session-1"
       // A fresh conversation is on whatever the picker says it is picking, and
@@ -1944,6 +1975,14 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/load":
+      // BEFORE ANY OF IT — no `openSession`, no replay, no move of `sessionId`.
+      // An agent that refuses a load has not opened anything, so a client left
+      // pointing at the conversation it asked for is a client the agent never
+      // agreed with.
+      if (refusesToOpen("load")) {
+        refuse(id, -32603, `no such conversation: ${String(params["sessionId"])}`)
+        return
+      }
       openSession(params)
       sessionId = String(params["sessionId"] ?? sessionId)
       replay()
