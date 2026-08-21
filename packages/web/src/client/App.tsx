@@ -45,7 +45,6 @@ import { only } from "./narrow.ts"
 import { OpensProvider } from "./opens.tsx"
 import { fileOf, opensAt, requestFor } from "./page.ts"
 import { fileNamed } from "./routes.ts"
-import { createNames } from "./names.ts"
 import { createReadings, ReadingsProvider } from "./reading.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { PinsProvider } from "./pins/answered.tsx"
@@ -246,11 +245,11 @@ export default function App() {
    * `/#id` page is called whatever that node is called right now
    * (`./pins/palette.ts`).
    *
-   * A LOOKUP rather than the array, for `./names.ts`'s reason: one row asks one
-   * id, and the table is built where it is answered — and held there while the
-   * names hold, which is the same rule the panes read by.
+   * READ OFF THE PANE'S TABLE, not built here. `createReading` derives it
+   * once beside the page; a second `createNames` over `focused` was a
+   * duplicate Map and a second copy on every navigation (`./reading.tsx`).
    */
-  const names = createNames(focused)
+  const names = () => readings.names(router.workspace().focus)
 
   /**
    * The day the calendar opens on, when the focused pane is a day page — the
