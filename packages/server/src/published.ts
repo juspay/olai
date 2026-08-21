@@ -35,7 +35,15 @@
  * (`runtime.ts`) and needs no projection.
  */
 
-import { bodiedIn, bodyOf, faceOf, nodesOf, outlinesIn, type Reading } from "@olai/format"
+import {
+  bodiedIn,
+  bodyOf,
+  type BrokenFile,
+  faceOf,
+  nodesOf,
+  outlinesIn,
+  type Reading,
+} from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import type { DocumentEntry, Head, OutlineEntry } from "@olai/surface"
 
@@ -137,14 +145,21 @@ export interface Published {
  * hundred saved pages announces four hundred keys and opens none of them,
  * because the read is the body reader's and its filter is who is holding what.
  */
+/** Whether this file's breakage is a READ that failed, not a parse. The set
+ *  folds every decode Result.fail into `broken`; only `unreadable-file` is
+ *  {@link DocumentEntry.refused}. A parse-broken `.md` keeps the blank body
+ *  it always had, and Head.broken is still what the sidebar ⚠ hangs from. */
+const isUnread = (file: BrokenFile | undefined): boolean =>
+  file?.errors.some((error) => error.code === "unreadable-file") === true
+
 const documentsOf = (
   snapshot: Snapshot<Reading>,
   held: Published | null,
-  /** Paths the set holds a PLACE for and no content — a `.md` whose lines
-   *  would not decode, or one that would not open. An outline's breakage
-   *  rides {@link OutlineEntry.broken}; a document's is this entry's
-   *  `refused`. */
-  broken: ReadonlySet<string>,
+  /** Why the set holds a PLACE for a file and no content — the same map
+   *  the heads read for {@link Head.broken}. An outline's breakage rides
+   *  {@link OutlineEntry.broken}; a document's READ failure is this
+   *  entry's `refused`. A parse failure is not. */
+  broken: ReadonlyMap<string, BrokenFile>,
 ): Pick<Published, "documents" | "unread"> => {
   // The BODIED half of the directory: this member is what a reader opens as a
   // page, and an outline is published as its records next door.
@@ -155,13 +170,10 @@ const documentsOf = (
     (document) => ({
       rev: snapshot.rev,
       text: bodyOf(document),
-      // A document the set could not decode is a PLACE with no content
-      // (`assemble`'s empty body). That is a refusal of THIS file, not a
-      // missing body: the key is here and the bytes are not, which is the
-      // third state DocumentEntry.refused names. A `.html` is never in
-      // `broken` from the probe — its body is not kept — so its refusal
-      // arrives later, from `./bodies.ts`.
-      refused: broken.has(document.path) && document.kind === "document",
+      // A kept `.md` that will not OPEN is a refusal of THIS file. A
+      // `.html` is never in `broken` from the probe — its body is not
+      // kept — so its refusal arrives later, from `./bodies.ts`.
+      refused: isUnread(broken.get(document.path)),
     }),
     snapshot,
     held?.documents,
@@ -280,10 +292,6 @@ export const publishedOf = (
       snapshot,
       published?.heads,
     ),
-    ...documentsOf(
-      snapshot,
-      published,
-      new Set(set.broken.map((file) => file.file)),
-    ),
+    ...documentsOf(snapshot, published, broken),
   }
 }

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 
 import { Schema, SchemaAST } from "effect"
 
-import { type GitState, LOADED, Manifest, surface } from "./index.ts"
+import { DocumentEntry, type GitState, LOADED, Manifest, surface } from "./index.ts"
 
 const tags = [...surface.group.requests.keys()].sort()
 
@@ -94,6 +94,24 @@ test("documents are served keys-first, one body at a time, and read-only", () =>
   expect(surface.group.requests.has("surface/documents/deltas")).toBe(false)
   expect(surface.group.requests.has("surface/documents/upsert")).toBe(false)
   expect(surface.group.requests.has("surface/documents/delete")).toBe(false)
+})
+
+// A frame that never carried `refused` is a body that opened, not a decode
+// error. The field is optional with a default of false so a new client
+// reading an old server, and an old client dropping a field it does not
+// know, are both legal.
+test("a document entry without refused decodes as not refused", () => {
+  const decode = Schema.decodeUnknownSync(DocumentEntry)
+  expect(decode({ rev: 1, text: "hello" })).toEqual({
+    rev: 1,
+    text: "hello",
+    refused: false,
+  })
+  expect(decode({ rev: 1, text: null, refused: true })).toEqual({
+    rev: 1,
+    text: null,
+    refused: true,
+  })
 })
 
 // ── what identifies a row ──────────────────────────────────────────────

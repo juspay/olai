@@ -167,7 +167,7 @@ import {
   TagsRequest,
 } from "@olai/format"
 import { defineSurface } from "@kolu/surface/define"
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 
 import {
   AskAnswer,
@@ -341,8 +341,17 @@ export const DocumentEntry = Schema.Struct({
    * rather than being held open until a body that will never come. That is
    * the held-open-on-absent path closed for a read that failed, rather than
    * only for a read that succeeded.
+   *
+   * OPTIONAL on the wire, default `false`, so the two mismatched ends are
+   * both legal: an old client drops a field it does not know (and degrades
+   * to the blank body it always drew), and a new client reading a frame
+   * that never carried one treats it as not refused. In-repo the two ends
+   * ship from one commit; this is the public wire's answer for a raw
+   * client that does not.
    */
-  refused: Schema.Boolean,
+  refused: Schema.Boolean.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(false)),
+  ),
 })
 export type DocumentEntry = typeof DocumentEntry.Type
 

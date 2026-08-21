@@ -9,10 +9,17 @@
  * manifest, not in an outline's slice, so nothing carries the corpus.
  */
 
-import type { OutlineSet, Reading } from "@olai/format"
-import { readingOf, recordsOf, setOf } from "@olai/format/testlib"
+import {
+  assemble,
+  type Document,
+  type OutlineError,
+  type OutlineSet,
+  type Reading,
+} from "@olai/format"
+import { outlineOf, readingOf, recordsOf, setOf } from "@olai/format/testlib"
 import type { Snapshot } from "@olai/store"
 import { expect, test } from "bun:test"
+import { Result } from "effect"
 
 import { publishedOf } from "./published.ts"
 
@@ -256,8 +263,15 @@ test("a `.html` is a key of the collection with no body in it", () => {
   })
 })
 
-test("a document the set could not read is refused on its entry", () => {
-  const { documents, heads } = publishedOf(
+// TWO FAILURE CLASSES, and they must not share a face. `set.broken` holds
+// every decode Result.fail — a frontmatter typo and an EACCES look the same
+// there, only the error code differs. `DocumentEntry.refused` is the READ
+// failure (`unreadable-file`). A parse-broken `.md` keeps master's blank
+// body, and still carries Head.broken so the sidebar ⚠ has somewhere to
+// hang. Folding the two into one sentence is how a typo'd file started
+// saying it could not be read.
+test("a parse-broken document is not refused, and an unreadable one is", () => {
+  const parsed = publishedOf(
     revision(
       setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]], {
         "torn.md": "whatever the bytes were",
@@ -267,14 +281,44 @@ test("a document the set could not read is refused on its entry", () => {
     ),
     NOTHING_HELD,
   )
-
-  expect(documents.entries.get("torn.md")).toEqual({
+  expect(parsed.documents.entries.get("torn.md")).toEqual({
     rev: 5,
+    text: "",
+    refused: false,
+  })
+  expect(parsed.heads.entries.get("torn.md")?.broken).not.toBeNull()
+  expect(parsed.documents.entries.get("notes.md")?.refused).toBe(false)
+
+  const unread = publishedOf(
+    revision(
+      assemble(
+        new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>([
+          ["house.olai", Result.succeed(outlineOf(HOUSE, "house.olai"))],
+          [
+            "locked.md",
+            Result.fail([
+              {
+                file: "locked.md",
+                line: 0,
+                code: "unreadable-file",
+                message:
+                  "EACCES — this file is in the directory and will not open.",
+              },
+            ]),
+          ],
+        ]),
+      ),
+      {},
+      6,
+    ),
+    NOTHING_HELD,
+  )
+  expect(unread.documents.entries.get("locked.md")).toEqual({
+    rev: 6,
     text: "",
     refused: true,
   })
-  expect(documents.entries.get("notes.md")?.refused).toBe(false)
-  expect(heads.entries.get("torn.md")?.broken).not.toBeNull()
+  expect(unread.heads.entries.get("locked.md")?.broken).not.toBeNull()
 })
 
 // ── who publishes a body ───────────────────────────────────────────────
