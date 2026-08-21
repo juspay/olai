@@ -48,3 +48,16 @@
 {"id":"bugs","parent":"fphyhg5h","ord":"a0","title":"Bugs","doing":true,"desc":"Known defects, each carrying its diagnosis; per HACKING.md every fix ships with a test that reproduces it."}
 {"id":"0ugzpwqa","ord":"a5","title":"roadmap/infra.olai"}
 {"id":"infra","parent":"0ugzpwqa","ord":"a0","title":"Infrastructure","desc":"Build system, CI, workspace plumbing. Norm inherited from the rewrite plan (git history has it): one PR per work item; every PR leaves the repo working and CI green.","changed":"2026-08-16T13:04:57-04:00"}
+{"id":"ty6mbbm6","ord":"a6","title":"roadmap/features.olai"}
+{"id":"toltcwim","parent":"ty6mbbm6","ord":"a0","title":"Viewing"}
+{"id":"viewing-2026-08-17","parent":"toltcwim","ord":"a0","title":"Viewing: the graph's missing reverse face, and panes learn to hand off","created":"2026-08-17T21:27:09-04:00"}
+{"id":"ojra9o9s","parent":"ty6mbbm6","ord":"a1","title":"Editor"}
+{"id":"editor-verbs-2026-08-17","parent":"ojra9o9s","ord":"a0","title":"Editor: three verbs the keyboard still lacks","done":"2026-08-19T11:02:12-04:00","created":"2026-08-17T21:27:03-04:00","changed":"2026-08-19T11:02:12-04:00"}
+{"id":"viewing","parent":"ty6mbbm6","ord":"a2","title":"Viewing","doing":true,"desc":"Seeing your outlines in the browser, kept current with what is on disk."}
+{"id":"agents","parent":"ty6mbbm6","ord":"a3","title":"Agents","doing":true,"desc":"Coding agents reading and editing outlines through olai."}
+{"id":"editor","parent":"ty6mbbm6","ord":"a4","title":"Editor","desc":"Editing outlines directly in the web UI. Everything goes through the same ops layer as the agent (born in chat); the growth items after keyboard-editing are mutually independent — parallel-safe, one PR each.","changed":"2026-08-17T21:27:03-04:00"}
+{"id":"g7ej78wl","ord":"a7","title":"roadmap/deferred.olai"}
+{"id":"def-infra","parent":"g7ej78wl","ord":"a0","title":"Infrastructure","created":"2026-08-20T20:28:46-04:00"}
+{"id":"def-viewing","parent":"g7ej78wl","ord":"a1","title":"Viewing","created":"2026-08-20T20:28:46-04:00"}
+{"id":"def-search","parent":"def-viewing","ord":"a0","title":"Search","created":"2026-08-20T20:28:46-04:00"}
+{"id":"def-performance","parent":"g7ej78wl","ord":"a2","title":"Performance","created":"2026-08-20T20:28:46-04:00"}
