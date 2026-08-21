@@ -51,6 +51,7 @@ import {
   Unfinished,
 } from "./node.ts"
 import { type Dated, dateInto } from "./occasion.ts"
+import type { Read } from "./overlay.ts"
 import { byPath } from "./paths.ts"
 
 /** What a node's checkbox shows, re-exported rather than declared: it is one
@@ -69,6 +70,32 @@ export { Status } from "./node.ts"
  * the symptom would be a plausible tree rather than a failure.
  */
 export interface Derived {
+  /**
+   * Every record of the set, in corpus order — path order across files, line
+   * order within one.
+   *
+   * IT IS {@link Derived.byFile} READ THE OTHER WAY, the same objects and never
+   * a second copy of them, which is why a view holds both and is not holding
+   * the corpus twice. A rebuild is HANDED this list and files it; a patch is
+   * handed a delta and files that, so the flat reading is one it would have to
+   * build — one array per record in the directory, for a reading none of its
+   * own work asks for. A patched view therefore builds it WHEN SOMEBODY ASKS
+   * and hands the same array back every time after ({@link ./patch.ts}), which
+   * a reader cannot tell from a field: it is the same value, reached later.
+   *
+   * So a caller that wants a record COUNT or the corpus grouped should ask
+   * `byFile` rather than this, and one that wants the records as a list should
+   * bind this once rather than name it per rule.
+   *
+   * AND IT IS AN ARRAY, which was asked and measured rather than assumed: the
+   * five whole-set rules could take an `Iterable` and walk `byFile` nested,
+   * allocating nothing at all. On the bench vault that is SLOWER, and not
+   * marginally — five rule-shaped walks of 21,552 records cost 3.9ms off one
+   * array built once, 5.3ms walking the grouping nested and 5.8ms through a
+   * generator, against the 0.10ms the array costs to build. A reading spent
+   * five times wants to be a list; what it must not be is a list built by
+   * somebody who was not going to read it.
+   */
   readonly nodes: ReadonlyArray<Located>
   /** id → the record that claims it. FIRST claim wins, which is the same rule
    *  the validator's duplicate-id error uses: the second claim is the mistake,
@@ -279,6 +306,69 @@ export interface Derived {
    * rather than restates.
    */
   readonly byDay: ReadonlyMap<string, ReadonlyArray<Dated>>
+}
+
+/** The fields of {@link Derived} that are INDEXES — every one of them but the
+ *  flat reading, which is a list and is {@link Derived.byFile} read the other
+ *  way rather than a table of its own. */
+export type Index = {
+  [K in keyof Derived]: Derived[K] extends ReadonlyMap<string, unknown> ? K : never
+}[keyof Derived]
+
+/**
+ * HOW EACH INDEX IS READ — one row per index, and the one place that partition
+ * is written down.
+ *
+ * It is a fact about each index's CONSUMERS: does anything in the tree walk it
+ * whole, or does everything ask it for a key? {@link ./patch.ts} spends it,
+ * because the answer decides whether an edit carries that index forward as a
+ * LAYER over the map that stood or as a clone of it ({@link ./overlay.ts}
+ * argues the trade and `./patch.bench.ts` prices both halves). But it is not
+ * the patcher's fact and it does not live there: it is about the readers of the
+ * value declared above, so it is declared beside them, where the doc comment on
+ * each index already says who reads it and how.
+ *
+ * EXHAUSTIVE BY THE TYPE, which is the point of it being a table rather than a
+ * word at each of eleven call sites, where it began. An index added to
+ * {@link Derived} fails the typecheck until somebody says how it is read — and
+ * the benchmark and the property test read their two lists out of THIS, so a
+ * row that moves moves everywhere rather than in three places out of four.
+ *
+ * WHEN A ROW MOVES: a new consumer that walks one of the by-key indexes whole,
+ * or the last whole-index reader of one of the others going away. Both are
+ * changes to who reads the index, which is the fact this table is.
+ */
+export const READ: { readonly [K in Index]: Read } = {
+  /** `byId.get(id)` on every reference the validator resolves and every row a
+   *  page draws; its one whole-index reader wants `keys()`, which a layer hands
+   *  over without a lookup per entry (`./suggest.ts`'s did-you-mean). */
+  byId: "by key",
+  /** What hangs under a node, asked per row drawn and per rollup counted. */
+  children: "by key",
+  /** What a node shows, asked per row and per edge judged. */
+  status: "by key",
+  /** What a node waits on, asked per node. */
+  after: "by key",
+  /** What is in a node's way, asked per row and per page. */
+  blocked: "by key",
+  /** Which placements stand for a node, asked per node a backlink situates. */
+  mirrorsOf: "by key",
+  /** Who is waiting on a node, asked per node whose mark moved. */
+  edgesTo: "by key",
+  /** WALKED: the flat reading of the corpus is this map's values run together
+   *  ({@link Derived.nodes}), and tag completion and the pin shelf walk its
+   *  keys. Also the one row close enough to have been timed rather than argued
+   *  — `./patch.ts`'s `regrouped` carries the numbers. */
+  byFile: "whole",
+  /** WALKED: the validator reports every id nothing declares by reading every
+   *  entry of this map (`./validate.ts`'s `checkTargets`). */
+  namedBy: "whole",
+  /** WALKED: tag completion reads every key and every member to rank them
+   *  (`./vocabulary.ts`). */
+  taggedBy: "whole",
+  /** WALKED: the agenda's two directions and the calendar's month step this
+   *  map's entries (`./agenda.ts`, `./dates.ts`). */
+  byDay: "whole",
 }
 
 /**

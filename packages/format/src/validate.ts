@@ -102,18 +102,21 @@ export const validate = (
   // that publishes what this approves has no second corpus to walk.
   const derived = viewOf(set, previous)
 
-  // THE RECORDS ARE THE VIEW'S, which is the same array the set holds one
-  // level down (`viewOf` flattens the outlines to build it, and hands the set's
-  // own list back when the two agree). Asking the derivation is what keeps this
-  // from being a second flattening beside the one every rule below is run
-  // against — and the identity the duplicate-id rule turns on is exactly that
-  // these are the set's records rather than copies of them.
-  reportDuplicateIds(derived.nodes, derived, errors)
-  checkParents(derived.nodes, derived, errors)
+  // THE RECORDS ARE THE VIEW'S, which is the same records the set holds one
+  // level down. Asking the derivation is what keeps this from being a second
+  // flattening beside the one every rule below is run against — and the
+  // identity the duplicate-id rule turns on is exactly that these are the set's
+  // records rather than copies of them.
+  //
+  // BOUND ONCE, because a patched view builds this reading when somebody asks
+  // ({@link Derived.nodes}) and five rules asking is one question, not five.
+  const all = derived.nodes
+  reportDuplicateIds(all, derived, errors)
+  checkParents(all, derived, errors)
   checkTargets(derived, errors)
-  checkAfterAcyclic(derived.nodes, derived, errors)
-  checkMirrorContainment(derived.nodes, derived, errors)
-  checkDocs(derived.nodes, set, errors)
+  checkAfterAcyclic(all, derived, errors)
+  checkMirrorContainment(all, derived, errors)
+  checkDocs(all, set, errors)
 
   const unreadable = set.broken.flatMap((file) => [...file.errors])
   // A file that did not parse contributes no ids, so a reference resolving to
@@ -137,6 +140,56 @@ export const validate = (
 }
 
 /**
+ * The pair, without the rules — a set and the view of it, patched from a
+ * previous reading where that is exact and rebuilt where it is not.
+ *
+ * {@link validate}'s first line and its last, with the six whole-set rules
+ * taken out from between them, and it exists for one caller: `@olai/ops`' batch
+ * fold, which plans op two against the set op one would leave and then throws
+ * that set away. That reading is SPECULATIVE by construction — nothing draws
+ * it, nothing is published at it, and the only set that reaches disk is the one
+ * the write gate validates, exactly once, as it validates every write. Running
+ * the rules over each intermediate would be N whole-corpus checks to reject
+ * something the final check either catches or was never true of.
+ *
+ * IT IS THIS FUNCTION AND NOT `patch`, and that is the whole of why it is here.
+ * The patcher is exported — the browser folded its delta frames with it once
+ * (`model-indices` slice 4) — and a caller with nothing to hold the result
+ * against is right to reach it. This one has something: it assembles a real
+ * {@link OutlineSet} per op and plans the next one against it, which is
+ * precisely what {@link viewOf}'s disagreement check is for — the identity test
+ * that turns a delta which missed a file into a rebuild rather than into a view
+ * where every record looks like a duplicate of itself. So the door a
+ * set-holding caller comes through is the patcher AND that guard, together, and
+ * nobody has to remember the second half.
+ */
+export const reading = (set: OutlineSet, previous?: Previous): Reading => ({
+  set,
+  derived: viewOf(set, previous),
+})
+
+/**
+ * THE SET FLATTENED, for the rebuild that is handed a list — once per
+ * validation and only when there IS a rebuild, which is the cost `./set.ts`
+ * names for serving documents rather than a `nodes` collection beside them.
+ *
+ * It used to run on every validation, patched or not, and the flat list it made
+ * was then compared with the one the patch had made: two arrays of every record
+ * in the directory, for a question about identity. {@link isSet} asks that
+ * question of the grouping instead, so a patched validation reaches this
+ * function not at all and spends its one flattening where the rules actually
+ * read the records ({@link Derived.nodes}, built when asked).
+ *
+ * It is here rather than exported because of what would happen if it were:
+ * a `nodesOf(set)` on the set's own surface is a node-only list to import, and
+ * the whole of PR 2 is that there is none. The derivation is what a reader
+ * that wants every record asks — and it carries its own indexes, so what it
+ * hands back cannot be paired with another revision's.
+ */
+const recordsIn = (set: OutlineSet): ReadonlyArray<Located> =>
+  outlinesIn(set).flatMap((outline) => outline.nodes)
+
+/**
  * The view every rule below is run over: patched from the last one where that
  * is possible, built from scratch where it is not.
  *
@@ -152,78 +205,78 @@ export const validate = (
  * from a delta that missed a file — or from records equal to the set's rather
  * than the set's own — is not merely stale, it makes every record look like a
  * duplicate of itself. Nothing about that could be caught by counting, and the
- * two lists are already in hand: one pass of pointer comparisons over a list
- * this function was going to walk six times anyway.
+ * records to compare are in hand on both sides: the view's grouping, and the
+ * outlines the set already holds ({@link isSet}, which walks the FILES rather
+ * than flattening the corpus a second time to compare against a first).
  *
  * It is a DISAGREEMENT check and not a proof of the delta. What stands behind
  * that is the store's own claim that these paths are every path that moved,
  * which is the same claim the wire already spends when it publishes per file;
  * this is what makes a broken claim cost a rebuild rather than a wrong answer.
- */
-/**
- * The pair, without the rules — a set and the view of it, patched from a
- * previous reading where that is exact and rebuilt where it is not.
  *
- * {@link validate}'s first line and its last, with the six whole-set rules
- * taken out from between them, and it exists for one caller: `@olai/ops`' batch
- * fold, which plans op two against the set op one would leave and then throws
- * that set away. That reading is SPECULATIVE by construction — nothing draws
- * it, nothing is published at it, and the only set that reaches disk is the one
- * the write gate validates, exactly once, as it validates every write. Running
- * the rules over each intermediate would be N whole-corpus checks to reject
- * something the final check either catches or was never true of.
- *
- * IT IS THIS FUNCTION AND NOT `patch`, and that is the whole of why it is here.
- * IT IS THIS FUNCTION AND NOT `patch` for a caller that holds a SET. The
- * patcher is exported — the browser folds its delta frames with it
- * (`model-indices` slice 4) — and that caller is right to reach it: a tab holds
- * a view and the frames that moved it, and has nothing to hold the result
- * against. This one does. It assembles a real {@link OutlineSet} per op and
- * plans the next one against it, which is precisely what {@link viewOf}'s
- * disagreement check is for — the identity test that turns a delta which missed
- * a file into a rebuild rather than into a view where every record looks like a
- * duplicate of itself. So the door a set-holding caller comes through is the
- * patcher AND that guard, together, and nobody has to remember the second half.
+ * THE PATCHED VIEW ITSELF once that holds, records and places and all. It used
+ * to hand back `{...view, nodes}` — the SET's own array swapped in, so a
+ * rebuilt reading and a patched one shared one list with the set. Neither array
+ * is the set's any more, so that spread would rebuild the view to hold an array
+ * equal to the one it already had, and throw away the one identity worth
+ * keeping: the patched list is stable across revisions that touched nothing.
  */
-export const reading = (set: OutlineSet, previous?: Previous): Reading => ({
-  set,
-  derived: viewOf(set, previous),
-})
-
-/**
- * THE ONE FLATTENING. Every rule below reads the records as a list, the
- * derivation is built from one, and this is where the set's outlines become
- * it — once per validation, over the same records in the same order, which is
- * the cost `./set.ts` names for serving documents rather than a `nodes`
- * collection beside them.
- *
- * It is here rather than exported because of what would happen if it were:
- * a `nodesOf(set)` on the set's own surface is a node-only list to import, and
- * the whole of PR 2 is that there is none. The derivation is what a reader
- * that wants every record asks — and it carries its own indexes, so what it
- * hands back cannot be paired with another revision's.
- */
-const recordsIn = (set: OutlineSet): ReadonlyArray<Located> =>
-  outlinesIn(set).flatMap((outline) => outline.nodes)
-
 const viewOf = (set: OutlineSet, previous: Previous | undefined): Derived => {
-  const nodes = recordsIn(set)
-  if (previous === undefined) return derive(nodes)
-  const view = patch(previous.read.derived, previous.delta)
-  // THE PATCHED VIEW ITSELF, once the two are known to hold the same records in
-  // the same places. It used to hand back `{...view, nodes}` — the SET's own
-  // array swapped in, so a rebuilt reading and a patched one shared one list
-  // with the set. Neither array is the set's any more (the flattening above is
-  // this call's), so that spread would rebuild the view to hold an array equal
-  // to the one it already had, and throw away the one identity worth keeping:
-  // the patched list is stable across revisions that touched nothing.
-  return isSet(view.nodes, nodes) ? view : derive(nodes)
+  if (previous !== undefined) {
+    const view = patch(previous.read.derived, previous.delta)
+    if (isSet(view, set)) return view
+  }
+  return derive(recordsIn(set))
 }
 
-const isSet = (
-  view: ReadonlyArray<Located>,
-  nodes: ReadonlyArray<Located>,
-): boolean => view.length === nodes.length && view.every((at, index) => at === nodes[index])
+/**
+ * Whether a view is about THIS set — the check that decides whether a patch is
+ * taken or thrown away for a rebuild.
+ *
+ * ASKED FILE BY FILE, of the view's own grouping, and that is the whole of what
+ * changed here: it used to flatten the set and compare the two flat lists, so a
+ * write that patched paid for the corpus in one array to check a view that had
+ * just paid for it in another — two allocations of every record in the
+ * directory, for a question about identity that neither of them added anything
+ * to. {@link Derived.byFile} is what a patch already holds and what the set
+ * already is, and comparing those spends no allocation at all.
+ *
+ * It is STRICTLY the stronger question, not the cheaper half of the old one:
+ * the flat lists agreeing said the records were the same objects in the same
+ * order, and this says that AND that the view files them under the paths the
+ * set spells, in the order an assembled set is in.
+ *
+ * IT STILL WALKS THE RECORDS, and what that is worth was measured rather than
+ * left as the obvious next lever: 0.122ms over the bench vault's 980 files and
+ * 21,552 records, against 0.070ms for the same walk comparing one POINTER per
+ * file. So the whole of what array identity could buy here is about five
+ * hundredths of a millisecond — and buying it means {@link Derived.byFile}
+ * holding the set's own arrays, which means `derive` being handed a grouping
+ * instead of the flat list it is written against. A worse interface, one layer
+ * down, for a twentieth of what one patch costs. A file holding nothing is
+ * absent from `byFile` ({@link Derived.byFile} says so), so the set's empty
+ * outlines are stepped over rather than matched — which is itself a rule the
+ * flat comparison could not see either way.
+ */
+const isSet = (view: Derived, set: OutlineSet): boolean => {
+  // The outlines the grouping HAS a key for. A file holding nothing is absent
+  // from {@link Derived.byFile} — that map says so itself, and a file that did
+  // not parse holds nothing — so dropping the empty ones is what lets the two
+  // be stepped side by side. One entry per FILE, where the flat comparison this
+  // replaced allocated one per RECORD, twice.
+  const outlines = outlinesIn(set).filter((outline) => outline.nodes.length > 0)
+  if (view.byFile.size !== outlines.length) return false
+  let which = 0
+  for (const [file, records] of view.byFile) {
+    const outline = outlines[which++]
+    if (outline === undefined || outline.path !== file) return false
+    if (outline.nodes.length !== records.length) return false
+    for (let at = 0; at < records.length; at++) {
+      if (records[at] !== outline.nodes[at]) return false
+    }
+  }
+  return true
+}
 
 // ── ids ────────────────────────────────────────────────────────────────
 

@@ -39,7 +39,7 @@
 
 import { expect, test } from "bun:test"
 
-import { derive, type Derived } from "./derive.ts"
+import { derive, type Derived, type Index, READ } from "./derive.ts"
 import { FIXTURE_FILE, nodesOf, recordsOf, seeded, setOf } from "./fixtures.testlib.ts"
 import { patch, patched, type SetDelta } from "./patch.ts"
 import { nearestId } from "./suggest.ts"
@@ -449,6 +449,62 @@ test("the patched view is the derived view, for any corpus and any delta", () =>
   expect(daysMoved).toBeGreaterThan(ROUNDS / 5)
 })
 
+/** How many edits each chain below folds onto one carried view. */
+const DEEP = 12
+
+test("a view patched again and again is still the derived view", () => {
+  // THE SAME ORACLE, ON A VIEW THAT WAS ITSELF PATCHED — which is what both
+  // callers do and what the round above cannot see: it patches a freshly
+  // DERIVED view every time, so nothing an edit leaves behind is ever handed
+  // to the next one.
+  //
+  // What a patch leaves behind stopped being nothing. Seven of the eleven
+  // indexes are carried as layers (`./overlay.ts`), and a layer accumulates
+  // across a session: the keys this edit dropped, the ones it appended and the
+  // order they went in, all folded into whatever the next patch is handed,
+  // until the half rule flattens it and a new base is taken. `./overlay.test.ts`
+  // holds that structure against a map, and `./patch.bench.ts` carries a view
+  // forty edits deep — but the bench is a leg somebody runs rather than a lane,
+  // so the accumulation was pinned by nothing that fails a build.
+  const random = seeded(20260821)
+  /** That the chains really are compounding — a chain whose every round
+   *  DECLINED would be this test patching a derived view twelve times over,
+   *  which is the round above with more steps. */
+  let carried = 0
+  for (let round = 0; round < ROUNDS / 5; round++) {
+    const { files: first, used } = corpusOf(random)
+    let before = first
+    let view = viewOf(before)
+    for (let deep = 0; deep < DEEP; deep++) {
+      const after = editOf(random, before, used)
+      const delta = deltaOf(before, after)
+      const oracle = viewOf(after)
+      const story = () =>
+        `round ${round}, edit ${deep}\nbefore: ${JSON.stringify(before, null, 2)}\n` +
+        `after: ${JSON.stringify(after, null, 2)}`
+      const incremental = patched(view, delta)
+      if (incremental !== undefined) {
+        same(incremental, oracle, story)
+        carried++
+      }
+      // The view the NEXT edit is handed is the patcher's own answer, whether
+      // it patched or fell back — which is the whole point of the chain.
+      const next = patch(view, delta)
+      same(next, oracle, story)
+      // And the view it just replaced is untouched, twelve revisions deep.
+      same(view, viewOf(before), story)
+      view = next
+      before = after
+    }
+  }
+  // 1,013 of 1,200 as this is written. The floor is what fails if the chains
+  // stop compounding — a run where nearly every edit declined would be the
+  // round above with more steps, and would say nothing about what a layer
+  // carries forward. There is no ceiling here: the declines are the round
+  // above's claim, and a chain is allowed to be luckier than a fresh corpus.
+  expect(carried).toBeGreaterThan((ROUNDS / 5) * DEEP / 2)
+})
+
 // ── what the reverse indexes are for ───────────────────────────────────
 
 const KITCHEN: Corpus = {
@@ -489,27 +545,78 @@ test("an edit keeps the files it did not touch, entry by entry", () => {
   expect(next.byId.get("m")).toBe(view.byId.get("m"))
 })
 
-test("an edit does not copy the id map — it layers over it", () => {
-  // The economy of the patch, said about the index that used to break it: `byId`
-  // has an entry per record in the DIRECTORY, and cloning it was the single
-  // largest cost in a patch (`./overlay.ts`, `./patch.bench.ts`). Nothing else
-  // in the tree can tell a layer from a map — that is the whole contract, and
-  // every assertion above holds either way — so this is the one place the
-  // difference is visible, and it is asserted here rather than measured in a
-  // benchmark nobody runs on a lane.
-  const before: Corpus = {
-    "a.olai": `{"id":"p","ord":"a","title":"p"}\n{"id":"q","ord":"b","title":"q"}`,
-    "b.olai": `{"id":"r","ord":"a","title":"r"}\n{"id":"s","ord":"b","title":"s"}`,
-    "deep/c.olai": `{"id":"t","ord":"a","title":"t"}\n{"id":"u","ord":"b","title":"u"}`,
-  }
-  const typed = `{"id":"p","ord":"a","title":"p again"}\n{"id":"q","ord":"b","title":"q"}`
-  const view = viewOf(before)
-  const next = patched(view, editing("a.olai", typed))
+/**
+ * SIX OF EVERYTHING, so that the edit below writes ONE key of each index and
+ * the layer's half rule ({@link ./overlay.ts}) is nowhere near.
+ *
+ * Each group is a parent with one blocked task under it, the gate that task
+ * waits on, and a placement standing for it — which between them give every one
+ * of the seven by-key indexes six keys: `children` the parents, `status` the
+ * marks, `after` the tasks, `edgesTo` the gates, `blocked` the tasks again,
+ * `mirrorsOf` the tasks a placement stands for, and `byId` all of them.
+ */
+const SIX: Corpus = {
+  ...Object.fromEntries(
+    Array.from({ length: 6 }, (_, which) => [
+      `f${which}.olai`,
+      `{"id":"p${which}","ord":"a","title":"p${which}"}\n` +
+        `{"id":"t${which}","ord":"b","parent":"p${which}","title":"t${which}",` +
+        `"todo":true,"after":["g${which}"]}`,
+    ]),
+  ),
+  "gates.olai": Array.from(
+    { length: 6 },
+    (_, which) => `{"id":"g${which}","ord":"${"abcdef"[which]}","title":"g${which}","todo":true}`,
+  ).join("\n"),
+  "mirrors.olai": Array.from(
+    { length: 6 },
+    (_, which) => `{"id":"m${which}","ord":"${"abcdef"[which]}","mirror":"t${which}"}`,
+  ).join("\n"),
+}
+
+test("an edit layers the indexes read by key, and clones the ones read whole", () => {
+  // The economy of the patch, and the rule that decides it: an index a reader
+  // asks BY KEY is a layer over the map the last patch left standing, and an
+  // index a reader walks WHOLE stays a clone, because the layer's per-entry read
+  // would cost more than the copy it saved (`./overlay.ts`, `./patch.bench.ts`).
+  // Nothing else in the tree can tell a layer from a map — that is the whole
+  // contract, and every assertion above holds either way — so this is the one
+  // place the difference is visible, and it is asserted here rather than
+  // measured in a benchmark nobody runs on a lane.
+  const typed = `{"id":"p0","ord":"a","title":"p0"}\n` +
+    `{"id":"t0","ord":"b","parent":"p0","title":"t0 again","todo":true,"after":["g0"]}`
+  const view = viewOf(SIX)
+  const next = patched(view, editing("f0.olai", typed))
   expect(next).toBeDefined()
-  same(next as Derived, viewOf({ ...before, "a.olai": typed }), () => "a title typed")
-  expect((next as Derived).byId instanceof Map).toBe(false)
+  same(next as Derived, viewOf({ ...SIX, "f0.olai": typed }), () => "a title typed")
+
+  // EVERY index, against the table that decides it — read out of `READ` rather
+  // than listed again here, so a row that moves moves this assertion with it
+  // and an index added to `Derived` is covered the moment it is classified.
+  // Each of them holds six keys in this corpus and this edit writes one or two,
+  // so a flatten would be the half rule firing rather than the trade.
+  for (const index of Object.keys(READ) as ReadonlyArray<Index>) {
+    expect([index, (next as Derived)[index] instanceof Map])
+      .toEqual([index, READ[index] === "whole"])
+  }
   // And the view a reader was already holding still answers with what it held.
-  expect(view.byId.get("p")?.node).toMatchObject({ title: "p" })
+  expect(view.byId.get("t0")?.node).toMatchObject({ title: "t0" })
+})
+
+test("the flat list is one value however often it is asked for", () => {
+  // {@link Derived.nodes} is {@link Derived.byFile} read the other way, and a
+  // patched view builds it when somebody asks rather than while it is being
+  // made — so what a caller must be able to count on is that asking twice is
+  // asking once. The validator reads it five times per write.
+  const before: Corpus = {
+    "a.olai": `{"id":"p","ord":"a","title":"p"}`,
+    "b.olai": `{"id":"r","ord":"a","title":"r"}`,
+  }
+  const view = viewOf(before)
+  const next = patched(view, editing("a.olai", `{"id":"p","ord":"a","title":"p again"}`))
+  expect(next).toBeDefined()
+  expect((next as Derived).nodes).toBe((next as Derived).nodes)
+  expect((next as Derived).nodes.map((at) => at.node.id)).toEqual(["p", "r"])
 })
 
 test("an index the edit says nothing about is the map the last view held", () => {
