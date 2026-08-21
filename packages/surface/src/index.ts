@@ -178,15 +178,22 @@ import { defineSurface } from "@kolu/surface/define"
 import { Effect, Schema } from "effect"
 
 import {
+  AgentEntry,
   AskAnswer,
+  AskEntry,
   AttachChunk,
   Attached,
   CHAT_OFF,
   ChatEntry,
   ChatFailure,
   ChatState,
+  NoticeEntry,
   OpFailure,
+  RefusalEntry,
   SessionInfo,
+  ToolEntry,
+  ToolStatus,
+  UserEntry,
 } from "./chat.ts"
 import { editProcedures } from "./edit.ts"
 import { opsProcedures } from "./ops.ts"
@@ -1240,9 +1247,11 @@ export const surface = defineSurface({
 })
 
 export {
+  AgentEntry,
   Ask,
   AskAnswer,
   AskChoice,
+  AskEntry,
   AskField,
   AskOutcome,
   Attached,
@@ -1260,11 +1269,16 @@ export {
   kindOf,
   MissingServer,
   NodeContext,
+  NoticeEntry,
   OpFailure,
+  RefusalEntry,
   SessionInfo,
   Spawned,
+  ToolEntry,
+  ToolStatus,
   Usage,
   UsageFailure,
+  UserEntry,
   Wrote,
   YES_NO,
 } from "./chat.ts"

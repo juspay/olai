@@ -202,7 +202,7 @@ export type Wrote = typeof Wrote.Type
  *
  * It exists so that a spawn is legible as a spawn from the instant it is
  * announced. The other half of the same feature — which `Agent` call a row was
- * made INSIDE ({@link ChatEntry.parent}) — cannot say anything until the
+ * made INSIDE ({@link ToolEntry.parent}) — cannot say anything until the
  * spawned agent has made a call, and a subagent that is still reading its
  * instructions has made none: for the whole of that stretch, which is the
  * stretch a person is watching, the panel had a pending row with an ordinary
@@ -267,43 +267,52 @@ export const Delivery = Schema.Literals(["refused", "unanswered"])
 export type Delivery = typeof Delivery.Type
 
 /**
- * What a row of the conversation is.
+ * What a tool call is doing, in ACP's own four words.
  *
- * A union of six kinds rather than a struct with everything optional, because
- * they are drawn differently and a reader has to switch on something:
- *
- *   - `user` — what was typed, the names of any pictures sent with it, and the
- *     nodes it was ABOUT ({@link NodeContext}). Never markdown: it is quoted,
- *     not rendered. Carries a {@link Delivery} when it did not go, or cannot
- *     be shown to have gone — the one row in this collection that records
- *     something that did NOT happen.
- *   - `agent` — the agent's prose, accumulated as it streams. Rendered as
- *     markdown once the turn is done, which is a view-time decision.
- *   - `tool` — a tool call, foldable, updated in place by its own id, carrying
- *     what it CHANGED in whichever of the two vocabularies applies: a
- *     {@link FileDiff} per file it rewrote directly, or the node-level
- *     {@link Wrote} story of a write that went through the ops layer — and,
- *     when a subagent made it, which `Agent` call it was made inside, or, when
- *     it STARTED one, what is known about the agent it started
- *     ({@link Spawned}).
- *   - `ask` — a question the agent asked, as a form to answer: the options it
- *     offered, the boxes it left, and — once it has been answered — what was
- *     chosen. The turn is blocked on it while `ask.outcome` is `null`. Carries
- *     which `Agent` call ASKED it when a subagent did, the same way a tool
- *     call carries which one made it.
- *   - `refusal` — a write the ops layer said no to, with the structured detail
- *     the refusal carried. This is the one entry olai mints on its own behalf:
- *     the agent gets the same detail in its tool result, and a person watching
- *     deserves to see the validator's own rows rather than the agent's summary
- *     of them.
- *   - `notice` — the conversation reporting on itself: the agent died, a turn
- *     was cancelled, a session was loaded.
- *
- * A new conversation is not a kind: it EMPTIES this collection. The panel shows
- * one conversation, and rows whose context the agent no longer has are rows
- * nobody can follow up.
+ * Required on a {@link ToolEntry} because the transcript's one writer always
+ * says: a call nothing has reported a status for is announced `pending`, and
+ * that is a value on the row rather than a default every reader re-applies.
  */
-export const ChatEntry = Schema.Struct({
+export const ToolStatus = Schema.Literals([
+  "pending",
+  "in_progress",
+  "completed",
+  "failed",
+])
+export type ToolStatus = typeof ToolStatus.Type
+
+/**
+ * The four fields every row carries, in the order the encoded JSON has always
+ * written them. Spread into each arm so a kind-discriminated union still
+ * encodes as the same flat object: `id`, `seq`, `since`, then `kind`, then
+ * `text`, then that arm's own keys. Reordering this, or inserting `kind`
+ * anywhere else, is a byte change.
+ *
+ * `since` is WHEN the row first appeared, as an ISO 8601 instant — the
+ * server's clock at the moment olai first heard of it. Minted beside `seq` and
+ * by the same writer: `seq` is WHERE a row sits and this is WHEN it arrived,
+ * both decided once and neither settable by a caller. Sticky across every later
+ * report of the same row, so a tool call announced `pending` and updated four
+ * times keeps the instant it was ANNOUNCED rather than the instant of the last
+ * frame — which is the only instant a duration can honestly be measured from.
+ *
+ * HERE rather than in the browser, and that is the whole reason it is on the
+ * wire at all. This collection is served snapshot-then-deltas, so a tab opened
+ * mid-turn, a tab reloaded after a crash and a tab that has been listening
+ * since the first token all see the same conversation — and a browser-side
+ * stopwatch, started whenever a tab happened to begin looking, would have each
+ * of them saying a different number and every one of them short. What a call
+ * has been running for is a fact about the call.
+ *
+ * REQUIRED, like `seq` and for its reason: the transcript is the only thing in
+ * this tree that mints a row, it is not persisted, and it stamps every one —
+ * so "no stamp" describes a server that does not exist, and making it optional
+ * would hand every present and future reader a silence branch for a case
+ * nothing can produce. Worse, that branch would be indistinguishable from the
+ * one that is real: a malformed instant, which is a claim about somebody else's
+ * string rather than about a missing field.
+ */
+const chatEntryHead = {
   /** Stable within a session. A tool call keeps its id across updates, which is
    *  what makes the frame updatable rather than duplicated. */
   id: Schema.String,
@@ -311,62 +320,126 @@ export const ChatEntry = Schema.Struct({
    *  arrival order, which is the same thing until a session is reloaded; an
    *  explicit sequence means the panel never has to depend on that. */
   seq: Schema.Int,
-  /**
-   * WHEN this row first appeared, as an ISO 8601 instant — the server's clock
-   * at the moment olai first heard of it.
-   *
-   * Minted beside {@link ChatEntry.seq} and by the same writer, which is what
-   * makes it mean what it says: `seq` is WHERE a row sits and this is WHEN it
-   * arrived, both decided once and neither settable by a caller. Sticky across
-   * every later report of the same row, so a tool call announced `pending` and
-   * updated four times keeps the instant it was ANNOUNCED rather than the
-   * instant of the last frame — which is the only instant a duration can
-   * honestly be measured from.
-   *
-   * HERE rather than in the browser, and that is the whole reason it is on the
-   * wire at all. This collection is served snapshot-then-deltas, so a tab
-   * opened mid-turn, a tab reloaded after a crash and a tab that has been
-   * listening since the first token all see the same conversation — and a
-   * browser-side stopwatch, started whenever a tab happened to begin looking,
-   * would have each of them saying a different number and every one of them
-   * short. What a call has been running for is a fact about the call.
-   *
-   * REQUIRED, like `seq` and for its reason: the transcript is the only thing
-   * in this tree that mints a row, it is not persisted, and it stamps every one
-   * — so "no stamp" describes a server that does not exist, and making it
-   * optional would hand every present and future reader a silence branch for a
-   * case nothing can produce. Worse, that branch would be indistinguishable
-   * from the one that is real: a malformed instant, which is a claim about
-   * somebody else's string rather than about a missing field.
-   *
-   * The one reader today is the chat panel's elapsed readout, which draws it
-   * only for a call the wire still calls running in a conversation that is
-   * still live.
-   */
   since: Schema.String,
-  kind: Schema.Literals(["user", "agent", "tool", "ask", "refusal", "notice"]),
-  /** The prose. For a tool entry this is its title, and for an `ask` it is what
-   *  the agent said it needs — the elicitation's own message. */
+}
+
+/** `tool` and `ask`: the row of the `Agent` call this one was made INSIDE,
+ *  when a subagent made it — by that row's own key, so the panel looks the
+ *  frame up rather than mapping an id onto one.
+ *
+ *  It is what makes a turn with several agents in it READABLE. A subagent's
+ *  tool calls reach olai on the same flat feed as the main agent's, so
+ *  without this the panel drew them in one column, in one voice, and a
+ *  reader had no way to know that three agents had been spawned at all — let
+ *  alone which of them was the one grepping. The panel draws a row that has
+ *  it in a lane, indented behind a rail, under the frame it names. Absent for
+ *  the main agent's own calls and questions, which are most of them.
+ *
+ *  A QUESTION carries it for the same reason and one sharper one. A
+ *  subagent's permission form is a decision a person is about to make, and a
+ *  form drawn in the main column says the main agent is the one asking — the
+ *  one row in this collection where being wrong about who is speaking
+ *  changes what somebody does. It is also the row that BREAKS A RUN: a form
+ *  with no lane, landing between two of a subagent's own calls, ends the
+ *  stretch, and the lane re-opens and names itself again underneath it. */
+const parent = Schema.optionalKey(Schema.String)
+
+/**
+ * What a person typed.
+ *
+ * Never markdown: it is quoted, not rendered. Carries a {@link Delivery} when
+ * it did not go, or cannot be shown to have gone — the one row in this
+ * collection that records something that did NOT happen.
+ */
+export const UserEntry = Schema.Struct({
+  ...chatEntryHead,
+  kind: Schema.Literal("user"),
   text: Schema.String,
-  /** `tool` only: what the agent says the call is doing right now. */
-  status: Schema.optionalKey(
-    Schema.Literals(["pending", "in_progress", "completed", "failed"]),
-  ),
-  /** `tool` only: the arguments and the result, as the agent reported them.
-   *  Folded away by default — it is detail, not conversation. */
+  /** The nodes this message was ABOUT — what the composer was armed with when
+   *  it was sent, resolved against the set at that moment.
+   *
+   *  A row of the conversation rather than a fact the browser keeps, for the
+   *  reason nothing else in this panel is optimistic: what was sent is what the
+   *  server put here, so two tabs agree and a reload still says which node the
+   *  question was about. It is also what makes the row a reference — the chips
+   *  point back at the rows they were armed from ({@link NodeContext}). */
+  context: Schema.optionalKey(Schema.Array(NodeContext)),
+  /** The pictures sent with the message, by FILE NAME.
+   *
+   *  Names and not paths, and not bytes. The agent was handed the tmp path in
+   *  its prompt — that is the whole transport — and what a reader needs from
+   *  the row is which picture went with which message. The tab that pasted it
+   *  still has the Blob and draws a thumbnail from it; every other tab, and
+   *  this one after a reload, draws the name as a chip. `/media/*` cannot help
+   *  either of them: it is guarded to the served directory and these bytes are
+   *  deliberately in tmp. */
+  attachments: Schema.optionalKey(Schema.Array(Schema.String)),
+  /**
+   * What became of this message's DELIVERY, when it did not simply go.
+   *
+   * Everything typed goes to the agent the moment it is sent — a turn already
+   * running is steered rather than waited on — so a row only carries this when
+   * that delivery did not happen, or cannot be shown to have happened. Two
+   * values, because there are exactly two things this end can honestly know
+   * (see {@link Delivery}), and they were one flag until they were told apart:
+   * a person watching a message go quiet read the same `not sent` a refusal
+   * gives, and pressed the same button under it.
+   *
+   * Absent on every row that WENT, rather than a `null` arm — the ordinary
+   * message says nothing about this, the same way it says nothing about diffs.
+   * It is cleared by {@link ../index.ts}'s `chat.resend` when the retry lands,
+   * so the row stops advertising a failure that has stopped being true.
+   */
+  delivery: Schema.optionalKey(Delivery),
+})
+export type UserEntry = typeof UserEntry.Type
+
+/** The agent's prose, accumulated as it streams. Rendered as markdown once the
+ *  turn is done, which is a view-time decision. */
+export const AgentEntry = Schema.Struct({
+  ...chatEntryHead,
+  kind: Schema.Literal("agent"),
+  text: Schema.String,
+  /** True while the agent is still adding to this entry. The panel shows a
+   *  cursor; nothing else depends on it. Absent rather than `false` — the
+   *  ordinary settled paragraph says nothing about this, and the writer only
+   *  ever writes `true`. */
+  streaming: Schema.optionalKey(Schema.Literal(true)),
+})
+export type AgentEntry = typeof AgentEntry.Type
+
+/**
+ * A tool call, foldable, updated in place by its own id.
+ *
+ * Carries what it CHANGED in whichever of the two vocabularies applies: a
+ * {@link FileDiff} per file it rewrote directly, or the node-level
+ * {@link Wrote} story of a write that went through the ops layer — and, when
+ * a subagent made it, which `Agent` call it was made inside, or, when it
+ * STARTED one, what is known about the agent it started ({@link Spawned}).
+ */
+export const ToolEntry = Schema.Struct({
+  ...chatEntryHead,
+  kind: Schema.Literal("tool"),
+  /** The call's title, which is the agent's own string. */
+  text: Schema.String,
+  /** What the agent says the call is doing right now. Always present: the
+   *  writer defaults an unannounced call to `pending`, so a reader does not. */
+  status: ToolStatus,
+  /** The arguments and the result, as the agent reported them. Folded away by
+   *  default — it is detail, not conversation. */
   detail: Schema.optionalKey(Schema.String),
-  /** `tool` only: what the call is SAYING as it runs — the protocol's
-   *  incremental content blocks. Separate from `detail` because it is the
-   *  live half: a call that has been running for thirty seconds has something
-   *  to show, and its arguments are not it. */
+  /** What the call is SAYING as it runs — the protocol's incremental content
+   *  blocks. Separate from `detail` because it is the live half: a call that
+   *  has been running for thirty seconds has something to show, and its
+   *  arguments are not it. */
   progress: Schema.optionalKey(Schema.String),
-  /** `tool` only: the files this call REWROTE, one entry per diff block the
-   *  protocol sent. Drawn rather than folded — a direct file edit is the one
-   *  thing about a call whose whole content is the change, and the outline is
-   *  not where it shows up. See {@link FileDiff}. */
+  /** The files this call REWROTE, one entry per diff block the protocol sent.
+   *  Drawn rather than folded — a direct file edit is the one thing about a
+   *  call whose whole content is the change, and the outline is not where it
+   *  shows up. See {@link FileDiff}. */
   diffs: Schema.optionalKey(Schema.Array(FileDiff)),
-  /** `tool` only: what this call WROTE through the ops layer, as a node-level
-   *  story rather than as a diff. See {@link Wrote}.
+  /** What this call WROTE through the ops layer, as a node-level story rather
+   *  than as a diff. See {@link Wrote}.
    *
    *  Independent of `diffs` rather than exclusive with it, because the two are
    *  read off different halves of a report — the content blocks and the tool
@@ -376,49 +449,21 @@ export const ChatEntry = Schema.Struct({
    *  and olai's own tools take no bytes. A row that somehow carried both would
    *  draw both, which is the honest thing to do about a call that did both. */
   wrote: Schema.optionalKey(Wrote),
-  /** `tool` only: the files the call is working in, as `path` or `path:line`.
-   *  The protocol's follow-along locations, which is what lets a reader see
-   *  WHERE an agent is without unfolding anything. */
+  /** The files the call is working in, as `path` or `path:line`. The protocol's
+   *  follow-along locations, which is what lets a reader see WHERE an agent is
+   *  without unfolding anything. */
   locations: Schema.optionalKey(Schema.Array(Schema.String)),
-  /** `tool` and `ask`: the row of the `Agent` call this one was made INSIDE,
-   *  when a subagent made it — by that row's own key, so the panel looks the
-   *  frame up rather than mapping an id onto one.
-   *
-   *  It is what makes a turn with several agents in it READABLE. A subagent's
-   *  tool calls reach olai on the same flat feed as the main agent's, so
-   *  without this the panel drew them in one column, in one voice, and a
-   *  reader had no way to know that three agents had been spawned at all — let
-   *  alone which of them was the one grepping. The panel draws a row that has
-   *  it in a lane, indented behind a rail, under the frame it names. Absent for
-   *  the main agent's own calls and questions, which are most of them.
-   *
-   *  A QUESTION carries it for the same reason and one sharper one. A
-   *  subagent's permission form is a decision a person is about to make, and a
-   *  form drawn in the main column says the main agent is the one asking — the
-   *  one row in this collection where being wrong about who is speaking
-   *  changes what somebody does. It is also the row that BREAKS A RUN: a form
-   *  with no lane, landing between two of a subagent's own calls, ends the
-   *  stretch, and the lane re-opens and names itself again underneath it. */
-  parent: Schema.optionalKey(Schema.String),
-  /** `tool` only: this call SPAWNED an agent — see {@link Spawned}. The other
-   *  end of `parent`, and the end that can be known at the moment an agent is
-   *  sent out rather than at the moment it first reports back. Absent on every
-   *  call that spawned nobody, which is nearly all of them. */
+  parent,
+  /** This call SPAWNED an agent — see {@link Spawned}. The other end of
+   *  `parent`, and the end that can be known at the moment an agent is sent out
+   *  rather than at the moment it first reports back. Absent on every call that
+   *  spawned nobody, which is nearly all of them. */
   spawned: Schema.optionalKey(Spawned),
-  /** `refusal` only: the refusal itself, so the panel draws what it carries —
-   *  a validation report's rows, each at its own `file:line` — rather than
-   *  printing a sentence about them. */
-  refusal: Schema.optionalKey(OpFailure),
-  /** `ask` only: the form to draw, and what became of it — see {@link Ask}. */
-  ask: Schema.optionalKey(Ask),
-  /** True while the agent is still adding to this entry. The panel shows a
-   *  cursor; nothing else depends on it. */
-  streaming: Schema.optionalKey(Schema.Boolean),
   /**
-   * `tool` only: the TURN this call was announced in has ended, and the call
-   * was never reported on.
+   * The TURN this call was announced in has ended, and the call was never
+   * reported on.
    *
-   * The sibling of {@link ChatEntry.streaming} in every way that matters —
+   * The sibling of {@link AgentEntry.streaming} in every way that matters —
    * derived by the transcript's one writer, only ever `true`, and absent for
    * the ordinary case — and it exists because `status` alone cannot say this.
    * A status is STICKY: an agent that died between announcing a call and
@@ -440,45 +485,89 @@ export const ChatEntry = Schema.Struct({
    * one never came back", and a frame saying otherwise is anything here
    * knowing.
    */
-  stranded: Schema.optionalKey(Schema.Boolean),
-  /** `user` only: the nodes this message was ABOUT — what the composer was
-   *  armed with when it was sent, resolved against the set at that moment.
-   *
-   *  A row of the conversation rather than a fact the browser keeps, for the
-   *  reason nothing else in this panel is optimistic: what was sent is what the
-   *  server put here, so two tabs agree and a reload still says which node the
-   *  question was about. It is also what makes the row a reference — the chips
-   *  point back at the rows they were armed from ({@link NodeContext}). */
-  context: Schema.optionalKey(Schema.Array(NodeContext)),
-  /** `user` only: the pictures sent with the message, by FILE NAME.
-   *
-   *  Names and not paths, and not bytes. The agent was handed the tmp path in
-   *  its prompt — that is the whole transport — and what a reader needs from
-   *  the row is which picture went with which message. The tab that pasted it
-   *  still has the Blob and draws a thumbnail from it; every other tab, and
-   *  this one after a reload, draws the name as a chip. `/media/*` cannot help
-   *  either of them: it is guarded to the served directory and these bytes are
-   *  deliberately in tmp. */
-  attachments: Schema.optionalKey(Schema.Array(Schema.String)),
-  /**
-   * `user` only: what became of this message's DELIVERY, when it did not
-   * simply go.
-   *
-   * Everything typed goes to the agent the moment it is sent — a turn already
-   * running is steered rather than waited on — so a row only carries this when
-   * that delivery did not happen, or cannot be shown to have happened. Two
-   * values, because there are exactly two things this end can honestly know
-   * (see {@link Delivery}), and they were one flag until they were told apart:
-   * a person watching a message go quiet read the same `not sent` a refusal
-   * gives, and pressed the same button under it.
-   *
-   * Absent on every row that WENT, rather than a `null` arm — the ordinary
-   * message says nothing about this, the same way it says nothing about diffs.
-   * It is cleared by {@link ../index.ts}'s `chat.resend` when the retry lands,
-   * so the row stops advertising a failure that has stopped being true.
-   */
-  delivery: Schema.optionalKey(Delivery),
+  stranded: Schema.optionalKey(Schema.Literal(true)),
 })
+export type ToolEntry = typeof ToolEntry.Type
+
+/**
+ * A question the agent asked, as a form to answer: the options it offered, the
+ * boxes it left, and — once it has been answered — what was chosen. The turn
+ * is blocked on it while `ask.outcome` is `null`. Carries which `Agent` call
+ * ASKED it when a subagent did, the same way a tool call carries which one
+ * made it.
+ */
+export const AskEntry = Schema.Struct({
+  ...chatEntryHead,
+  kind: Schema.Literal("ask"),
+  /** What the agent said it needs — the elicitation's own message. */
+  text: Schema.String,
+  parent,
+  /** The form to draw, and what became of it — see {@link Ask}. Always present:
+   *  an ask row without a form is not an ask row. */
+  ask: Ask,
+})
+export type AskEntry = typeof AskEntry.Type
+
+/**
+ * A write the ops layer said no to, with the structured detail the refusal
+ * carried. This is the one entry olai mints on its own behalf: the agent gets
+ * the same detail in its tool result, and a person watching deserves to see
+ * the validator's own rows rather than the agent's summary of them.
+ */
+export const RefusalEntry = Schema.Struct({
+  ...chatEntryHead,
+  kind: Schema.Literal("refusal"),
+  text: Schema.String,
+  /** The refusal itself, so the panel draws what it carries — a validation
+   *  report's rows, each at its own `file:line` — rather than printing a
+   *  sentence about them. Always present: a refusal row without a refusal is
+   *  not one. */
+  refusal: OpFailure,
+})
+export type RefusalEntry = typeof RefusalEntry.Type
+
+/** The conversation reporting on itself: the agent died, a turn was cancelled,
+ *  a session was loaded. */
+export const NoticeEntry = Schema.Struct({
+  ...chatEntryHead,
+  kind: Schema.Literal("notice"),
+  text: Schema.String,
+})
+export type NoticeEntry = typeof NoticeEntry.Type
+
+/**
+ * What a row of the conversation is.
+ *
+ * A union of six kinds, discriminated on `kind`. They are drawn differently
+ * and a reader has to switch on something; the type now says which fields a
+ * kind carries, so a non-call row with a `status` is unrepresentable rather
+ * than a fact every consumer had to re-establish.
+ *
+ * The encoded form is unchanged: the same flat JSON, optional keys omitted, in
+ * the same field order. Effect Schema encodes a discriminated union of structs
+ * as the matching arm's own keys, which for a well-formed row is exactly the
+ * keys the old struct would have written. No migration, no wire-contract
+ * change.
+ *
+ *   - `user` — {@link UserEntry}
+ *   - `agent` — {@link AgentEntry}
+ *   - `tool` — {@link ToolEntry}
+ *   - `ask` — {@link AskEntry}
+ *   - `refusal` — {@link RefusalEntry}
+ *   - `notice` — {@link NoticeEntry}
+ *
+ * A new conversation is not a kind: it EMPTIES this collection. The panel shows
+ * one conversation, and rows whose context the agent no longer has are rows
+ * nobody can follow up.
+ */
+export const ChatEntry = Schema.Union([
+  UserEntry,
+  AgentEntry,
+  ToolEntry,
+  AskEntry,
+  RefusalEntry,
+  NoticeEntry,
+])
 export type ChatEntry = typeof ChatEntry.Type
 
 /**
@@ -486,7 +575,7 @@ export type ChatEntry = typeof ChatEntry.Type
  *
  * Here, beside the field, because BOTH ENDS ask it and they must not answer
  * differently. The server asks when a turn ends — which of its calls were
- * abandoned, and so must be marked {@link ChatEntry.stranded} — and the browser
+ * abandoned, and so must be marked {@link ToolEntry.stranded} — and the browser
  * asks to decide whether to draw a live rail under a spawn and a ticking
  * duration on a frame. Two spellings of one four-word vocabulary is one of them
  * being missed the day ACP grows a fifth status, and the way that shows up is a
@@ -494,13 +583,12 @@ export type ChatEntry = typeof ChatEntry.Type
  *
  * `pending` is a RUNNING state, which is the one thing here that is not
  * obvious: the adapter announces EVERY tool call with it, so it means
- * "announced" rather than "not started" — and it is what a row nothing has said
- * about yet is taken to be wearing, which is why an absent status answers the
- * same way. Anything spelled some other way is not something this protocol will
- * call running.
+ * "announced" rather than "not started". The writer always writes a status, so
+ * there is no absent case to treat as the same thing. Anything spelled some
+ * other way is not something this protocol will call running.
  */
-export const isRunningStatus = (status: ChatEntry["status"]): boolean =>
-  status === undefined || status === "pending" || status === "in_progress"
+export const isRunningStatus = (status: ToolStatus): boolean =>
+  status === "pending" || status === "in_progress"
 
 /**
  * One piece of a picture on its way to the conversation's tmp directory.

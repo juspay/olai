@@ -25,7 +25,7 @@
  * when the server says it did, exactly like every other entry in this panel.
  */
 
-import type { AskField, ChatEntry } from "@olai/surface"
+import type { AskEntry, AskField } from "@olai/surface"
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
@@ -43,21 +43,21 @@ const SAID: Record<string, string> = {
 }
 
 export function AskForm(props: {
-  readonly entry: ChatEntry
+  readonly entry: AskEntry
   readonly chat: Chat
 }) {
   const ask = () => props.entry.ask
-  const waiting = () => ask()?.outcome === null
+  const waiting = () => ask().outcome === null
 
   /** The fields to draw as blocks: everything that is not somebody else's
    *  "other" box. */
   const blocks = createMemo<ReadonlyArray<AskField>>(() =>
-    (ask()?.fields ?? []).filter((field) => field.attachedTo === null)
+    ask().fields.filter((field) => field.attachedTo === null)
   )
 
   /** The free-text companion of a question, if it sent one. */
   const companion = (field: AskField): AskField | undefined =>
-    ask()?.fields.find((each) => each.attachedTo === field.key)
+    ask().fields.find((each) => each.attachedTo === field.key)
 
   /**
    * What a field holds right now: the draft while the question is live, and
@@ -69,8 +69,8 @@ export function AskForm(props: {
    * outcome is the only source.
    */
   const values = (key: string): ReadonlyArray<string> => {
-    const outcome = ask()?.outcome
-    if (outcome === null || outcome === undefined) return draftOf(props.entry.id, key)
+    const outcome = ask().outcome
+    if (outcome === null) return draftOf(props.entry.id, key)
     return outcome.answers.find((answer) => answer.key === key)?.values ?? []
   }
 
@@ -85,7 +85,7 @@ export function AskForm(props: {
   const submit = () => {
     if (sending()) return
     setSending(true)
-    const keys = (ask()?.fields ?? []).map((field) => field.key)
+    const keys = ask().fields.map((field) => field.key)
     props.chat.answer(props.entry.id, draftAnswers(props.entry.id, keys), settled)
   }
 
@@ -110,20 +110,18 @@ export function AskForm(props: {
    * nobody's click — the agent withdrawing it, another tab answering it.
    */
   createEffect(() => {
-    if (ask()?.outcome != null) forgetDraft(props.entry.id)
+    if (ask().outcome != null) forgetDraft(props.entry.id)
   })
 
   return (
-    <Show when={ask()}>
-      {(form) => (
-        <div
-          class={`rounded border-l-[3px] py-1.5 pl-3 pr-2 ${
-            waiting() ? "border-doing bg-doing/5" : "border-rule"
-          }`}
-          data-testid={TESTID.chatAsk}
-          data-asking={waiting()}
-          data-how={form().outcome?.how ?? ""}
-        >
+    <div
+      class={`rounded border-l-[3px] py-1.5 pl-3 pr-2 ${
+        waiting() ? "border-doing bg-doing/5" : "border-rule"
+      }`}
+      data-testid={TESTID.chatAsk}
+      data-asking={waiting()}
+      data-how={ask().outcome?.how ?? ""}
+    >
           {/* The agent's own words. Quoted rather than rendered, like a user
               message: a question is a sentence somebody has to read exactly,
               and a `#` in it is a `#`. */}
@@ -184,7 +182,7 @@ export function AskForm(props: {
                 class="mt-2 font-mono text-[0.6875rem] text-muted"
                 data-testid={TESTID.chatAskOutcome}
               >
-                {SAID[form().outcome?.how ?? ""] ?? "no longer waiting"}
+                {SAID[ask().outcome?.how ?? ""] ?? "no longer waiting"}
               </p>
             }
           >
@@ -212,8 +210,6 @@ export function AskForm(props: {
               </button>
             </div>
           </Show>
-        </div>
-      )}
-    </Show>
+    </div>
   )
 }

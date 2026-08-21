@@ -52,7 +52,8 @@ import { isRunning } from "./running.ts"
  * question that can be asked about nothing.
  */
 export const whoOf = (entry: ChatEntry | undefined): string | null => {
-  const spawned = entry?.spawned
+  if (entry?.kind !== "tool") return null
+  const spawned = entry.spawned
   return spawned === undefined ? null : spawned.kind ?? SOMEBODY
 }
 
@@ -114,7 +115,7 @@ export const doingOf = (entry: ChatEntry | undefined): string | null => {
   // Both of those are {@link ./running.ts}'s to say now — the elapsed readout
   // on this same row asks the same question, and the frame draws the same
   // field.
-  return entry?.spawned !== undefined && isRunning(entry) ? WORKING : null
+  return whoOf(entry) !== null && isRunning(entry) ? WORKING : null
 }
 
 /** What a spawn is called when it named no kind of agent. The `Agent` tool's

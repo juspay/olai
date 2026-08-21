@@ -56,7 +56,7 @@
  */
 
 import { fileKind } from "@olai/format"
-import type { ChatEntry } from "@olai/surface"
+import type { ToolEntry, ToolStatus } from "@olai/surface"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, Show } from "solid-js"
 
@@ -65,20 +65,19 @@ import { Diff } from "./Diff.tsx"
 import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
 import { OutlineDiff } from "./OutlineDiff.tsx"
 import { useElapsed } from "./elapsing.tsx"
-import { statusOf } from "./running.ts"
 import { whoOf } from "./spawn.ts"
 import { Wrote } from "./Wrote.tsx"
 
 /** What each status looks like in one character. Words would wrap the line the
  *  frame exists to keep to one. */
-const MARK: Record<string, string> = {
+const MARK: Record<ToolStatus, string> = {
   pending: "·",
   in_progress: "…",
   completed: "✓",
   failed: "✗",
 }
 
-const TONE: Record<string, string> = {
+const TONE: Record<ToolStatus, string> = {
   pending: "text-muted",
   in_progress: "text-doing",
   completed: "text-done",
@@ -94,12 +93,11 @@ const TONE: Record<string, string> = {
  * header makes for a model it cannot place.
  *
  * THE MODULE NEXT DOOR IS NOT THE FOURTH OF THESE. {@link ./running.ts} holds
- * what a status MEANS — the word an unannounced call is taken to wear, and
- * which words mean it has not come back — because two faces outside this
- * component ask that of the same row and must not answer differently. These
- * three are what a status LOOKS and SOUNDS like, and they move when the panel
- * does rather than when ACP does; that is why the split is where it is rather
- * than one table in one place.
+ * what a status MEANS — which words mean the call has not come back — because
+ * two faces outside this component ask that of the same row and must not
+ * answer differently. These three are what a status LOOKS and SOUNDS like, and
+ * they move when the panel does rather than when ACP does; that is why the
+ * split is where it is rather than one table in one place.
  *
  * THE AGENT'S OWN WORDS, spelled for speech and interpreted no further. The
  * rail under a spawn says *working…* for `pending`, and this deliberately does
@@ -109,20 +107,20 @@ const TONE: Record<string, string> = {
  * announced it as "running" would be saying out loud the one thing nobody can
  * still promise.
  */
-const SAID: Record<string, string> = {
+const SAID: Record<ToolStatus, string> = {
   pending: "pending",
   in_progress: "in progress",
   completed: "completed",
   failed: "failed",
 }
 
-export function ToolFrame(props: { readonly entry: ChatEntry }) {
+export function ToolFrame(props: { readonly entry: ToolEntry }) {
   /** How long this call has been running, or `null` when there is nothing to
    *  say. Reached for rather than handed down ({@link ./elapsing.tsx}), the
    *  same way this frame reaches for its own fold. */
   const elapsed = useElapsed()
   const open = () => isUnfolded(props.entry.id)
-  const status = () => statusOf(props.entry)
+  const status = () => props.entry.status
   /**
    * The blocks of change this call reported, each carrying the NAME that
    * identifies it ({@link ./folds.ts}'s `diffKey`).

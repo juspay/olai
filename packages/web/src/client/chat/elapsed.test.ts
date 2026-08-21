@@ -11,7 +11,7 @@
  * arithmetic at all: a stopwatch that outlived the conversation it was timing.
  */
 
-import type { ChatEntry } from "@olai/surface"
+import type { ChatEntry, ToolEntry, UserEntry } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
 import { elapsedOf } from "./elapsed.ts"
@@ -21,13 +21,29 @@ import { toolRow } from "./rows.testlib.ts"
  *  about — the skeleton is the shared one, and what is added here is the
  *  subject: a call the wire has not reported back on, with the stamp every
  *  duration below is measured from. */
-const row = (extra: Partial<ChatEntry> = {}): ChatEntry =>
+const row = (extra: Partial<ToolEntry> = {}): ToolEntry =>
   toolRow({
     id: "tool:call-1",
     text: "grep for worktops",
     status: "in_progress",
     ...extra,
   })
+
+const user = (text: string): UserEntry => ({
+  id: "user:1",
+  seq: 0,
+  since: "2026-08-21T12:00:00.000Z",
+  kind: "user",
+  text,
+})
+
+const agent = (text: string): ChatEntry => ({
+  id: "agent:1",
+  seq: 0,
+  since: "2026-08-21T12:00:00.000Z",
+  kind: "agent",
+  text,
+})
 
 /** The reader's clock, as a thunk — the shape the real one has, and the reason
  *  it has it: only the rows with something to draw may read it. */
@@ -80,28 +96,19 @@ describe("when it says nothing", () => {
   })
 
   test("nor has a row that is not a call at all", () => {
-    // `status` is a TOOL row's field, and the rule reads the KIND rather than
-    // guessing from the field's absence (`./running.ts`) — because an absent
-    // status on a tool row means `pending`, which is a running state. Guessing
-    // would put a stopwatch on the sentence somebody typed.
-    expect(elapsedOf(
-      row({ kind: "user", status: undefined, text: "done order" }),
-      at("2026-08-21T12:05:00.000Z"),
-    )).toBeNull()
-    // ... and it stays null for a row that somehow carries a status it has no
-    // business carrying: the kind is what makes the field mean anything, so the
-    // kind is what is asked.
-    expect(elapsedOf(
-      row({ kind: "agent", text: "let me look" }),
-      at("2026-08-21T12:05:00.000Z"),
-    )).toBeNull()
+    // `status` is a TOOL row's field. A user row cannot carry one, so the
+    // rule reads the KIND — putting a stopwatch on the sentence somebody
+    // typed is unrepresentable rather than a case to branch on.
+    expect(elapsedOf(user("done order"), at("2026-08-21T12:05:00.000Z"))).toBeNull()
+    expect(elapsedOf(agent("let me look"), at("2026-08-21T12:05:00.000Z"))).toBeNull()
   })
 
   test("a call the panel has only just been told about is timed from the start", () => {
-    // An announcement with no status yet is `pending` — announced, not "not
-    // started" — so it counts from the moment it arrived rather than waiting
-    // for a word the adapter may not send for half a minute.
-    expect(elapsedOf(row({ status: undefined }), at("2026-08-21T12:00:09.000Z")))
+    // An announcement is `pending` — announced, not "not started" — so it
+    // counts from the moment it arrived rather than waiting for a word the
+    // adapter may not send for half a minute. The writer always writes that
+    // status; there is no absent case.
+    expect(elapsedOf(row({ status: "pending" }), at("2026-08-21T12:00:09.000Z")))
       .toBe("9s")
   })
 
@@ -163,7 +170,7 @@ describe("a stopwatch may not outlive the turn it was timing", () => {
       return Date.parse("2026-08-21T12:05:00.000Z")
     }
     expect(elapsedOf(row({ status: "completed" }), counted)).toBeNull()
-    expect(elapsedOf(row({ kind: "agent" }), counted)).toBeNull()
+    expect(elapsedOf(agent("let me look"), counted)).toBeNull()
     expect(elapsedOf(row({ stranded: true }), counted)).toBeNull()
     expect(clocks).toBe(0)
     expect(elapsedOf(row(), counted)).toBe("5m 0s")
