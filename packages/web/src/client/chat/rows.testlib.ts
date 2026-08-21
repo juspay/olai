@@ -26,14 +26,17 @@
  * the row; it could not tell a dead turn's leftovers from a live turn's work.
  */
 
-import type { ChatEntry } from "@olai/surface"
+import type { ToolEntry } from "@olai/surface"
 
-/** A tool row, as the transcript serves one. */
-export const toolRow = (extra: Partial<ChatEntry> = {}): ChatEntry => ({
+/** A tool row, as the transcript serves one — including the `pending` the
+ *  writer always writes, so a test that does not name a status is still a
+ *  call the wire announced. */
+export const toolRow = (extra: Partial<ToolEntry> = {}): ToolEntry => ({
   id: "tool:agent-1",
   seq: 0,
   since: "2026-08-21T12:00:00.000Z",
   kind: "tool",
   text: "explore the outline",
+  status: "pending",
   ...extra,
 })

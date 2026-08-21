@@ -7,7 +7,8 @@
  * once looked exactly like one agent grepping three times, and there was
  * nothing on screen to suggest a subagent had ever been started.
  *
- * A row that names the `Agent` call it was made inside (`ChatEntry.parent`) is
+ * A row that names the `Agent` call it was made inside (`parent` on a tool
+ * or ask row) is
  * drawn in a LANE — indented behind a rail, under the frame it belongs to.
  * Which rows those are is the transcript's answer and not this file's, and it
  * is not only tool calls: a subagent can stop and ASK, and its form belongs in
@@ -102,6 +103,7 @@ export const laneOf = (
   nameOf: (key: string) => string | undefined,
 ): Lane | null => {
   if (row === undefined) return null
+  if (row.kind !== "tool" && row.kind !== "ask") return null
   const parent = row.parent
   if (parent === undefined) return null
   // An `Agent` frame the panel was never sent still gets a lane and still gets
@@ -134,8 +136,11 @@ const owedAName = (row: ChatEntry, above: ChatEntry | undefined): boolean =>
  * subagent's first call lands directly under the call that spawned it), or the
  * row above is another call by the same agent.
  */
+const parentOf = (row: ChatEntry | undefined): string | undefined =>
+  row?.kind === "tool" || row?.kind === "ask" ? row.parent : undefined
+
 const established = (row: ChatEntry, above: ChatEntry | undefined): boolean =>
-  above?.id === row.parent || above?.parent === row.parent
+  above?.id === parentOf(row) || parentOf(above) === parentOf(row)
 
 /**
  * ... and whether this KIND of row names its lane regardless of where it sits.

@@ -19,10 +19,10 @@
  *   - **the wire still calls it running** — ACP's own status, in ACP's own
  *     words ({@link ../../../../surface/src/chat.ts}'s `isRunningStatus`,
  *     which is where that vocabulary lives because the SERVER reads it too).
- *     `status` is a tool row's field, so the KIND is checked rather than the
- *     field's absence: an absent status means `pending`, which is a running
- *     state, and guessing from it would put a live face on the sentence
- *     somebody typed;
+ *     `status` is a tool row's field, required, so the KIND is the
+ *     discriminant rather than a re-check of a field's absence: a user row
+ *     cannot carry a status, and guessing from absence would put a live face
+ *     on the sentence somebody typed;
  *   - **its turn has not ended** — `stranded`, which is the server's own
  *     observation about its own conversation. A status is STICKY: an agent that
  *     died mid-call leaves that row `pending` for as long as the panel is open,
@@ -47,18 +47,7 @@
  * protocol fact behind one edit.
  */
 
-import { type ChatEntry, isRunningStatus } from "@olai/surface"
-
-/** A tool call's status as the panel reads it — what the wire said, or
- *  `pending` when it has not said yet.
- *
- *  ONE spelling of that default, which used to be two: the frame needed the
- *  WORD to draw a mark by and the spawn rail needed it to decide whether an
- *  agent was still out, and both wrote `?? "pending"` for the same reason —
- *  that the adapter announces every call with it. Two copies of one convention
- *  is one of them being missed the day the convention moves. */
-export const statusOf = (entry: ChatEntry): NonNullable<ChatEntry["status"]> =>
-  entry.status ?? "pending"
+import { type ChatEntry, isRunningStatus, type ToolEntry } from "@olai/surface"
 
 /**
  * Whether this row is a call that has not come back.
@@ -67,11 +56,16 @@ export const statusOf = (entry: ChatEntry): NonNullable<ChatEntry["status"]> =>
  * list holds keys and reads their values a frame behind, so "which row" is a
  * question that can be asked about nothing.
  *
- * It NARROWS, because what it has established is exactly what its callers go on
- * to lean on: a row that got past this is a tool call and is present, so the
- * elapsed readout reads the stamp off it without an optional chain a line below
- * the check that ruled the absence out. A defensive `?.` there would read as if
- * the row might still be missing, in the one place it provably is not.
+ * It NARROWS to a tool call, because what it has established is exactly what
+ * its callers go on to lean on: a row that got past this is a tool call and is
+ * present, so the elapsed readout reads the stamp off it without an optional
+ * chain a line below the check that ruled the absence out. A defensive `?.`
+ * there would read as if the row might still be missing, in the one place it
+ * provably is not.
+ *
+ * The KIND is the discriminant now, not a re-check of a field that happened to
+ * be absent on other rows: `status` is a {@link ToolEntry}'s field, required,
+ * and a user row cannot carry one.
  */
-export const isRunning = (entry: ChatEntry | undefined): entry is ChatEntry =>
+export const isRunning = (entry: ChatEntry | undefined): entry is ToolEntry =>
   entry?.kind === "tool" && entry.stranded !== true && isRunningStatus(entry.status)

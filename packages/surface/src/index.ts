@@ -1242,9 +1242,11 @@ export const surface = defineSurface({
 })
 
 export {
+  AgentEntry,
   Ask,
   AskAnswer,
   AskChoice,
+  AskEntry,
   AskField,
   AskOutcome,
   Attached,
@@ -1262,11 +1264,16 @@ export {
   kindOf,
   MissingServer,
   NodeContext,
+  NoticeEntry,
   OpFailure,
+  RefusalEntry,
   SessionInfo,
   Spawned,
+  ToolEntry,
+  ToolStatus,
   Usage,
   UsageFailure,
+  UserEntry,
   Wrote,
   YES_NO,
 } from "./chat.ts"
