@@ -152,14 +152,20 @@ function Rendered(props: Reading) {
   // naming no id: the reader stays at the top of the page rather than being sent
   // somewhere arbitrary. A `.md` whose heading was renamed is exactly that case.
   //
-  // ONCE PER ARRIVAL, which is the one thing this effect has to remember. The
-  // text is TRACKED — it has to be, since the id is minted from it and the body
-  // lands a frame or two behind the address — and a file REWRITTEN under a
-  // reader (an agent's write, a `git pull`, another tab) is a new text under
-  // the same landing. Without this, somebody who had scrolled away to read
-  // something else was yanked back to the heading the address named, by an edit
-  // they did not make. `../router.tsx` already states the rule this keeps: a
-  // landing is an ACT, and it happens once, on arrival.
+  // ONCE PER ARRIVAL, which is the one thing this effect must not remember for
+  // itself. The text is TRACKED — it has to be, since the id is minted from it
+  // and the body lands a frame or two behind the address — and a file REWRITTEN
+  // under a reader (an agent's write, a `git pull`, another tab) is a new text
+  // under the same landing. Without a spent mark, somebody who had scrolled
+  // away to read something else was yanked back to the heading the address
+  // named, by an edit they did not make.
+  //
+  // The mark is the ROUTER's ({@link Landfall}), which is where the rule was
+  // already written — "a landing is an ACT, and it happens once, on arrival" —
+  // and where the value is minted. It used to be a private `let` here, so the
+  // rule held for exactly the face that had one: the `.html` preview next door
+  // re-landed its reader on every revision, which is the same bug in the pane
+  // that could not see this variable.
   //
   // WHICH LANDING IS THIS PANE'S is {@link useLanding}'s, which is also what
   // stops a navigation NEXT DOOR waking this at all: `landing` is one signal
@@ -168,12 +174,13 @@ function Rendered(props: Reading) {
   //
   // Spent on the SCROLL rather than on the attempt: an effect that gave up the
   // first time it found nothing would give up on the frame before the body had
-  // arrived, which is most first paints.
-  const landingAt = useLanding()
-  let landed: string | undefined
+  // arrived, which is most first paints. That is this face's answer and not a
+  // rule about landings — the preview pane spends its own at the moment it
+  // points a frame, because for a `.html` the pointing IS the act.
+  const landing = useLanding(() => props.file)
   createEffect(() => {
-    const at = landingAt()
-    if (at === undefined || at === landed || !markdownReady()) return
+    const at = landing.owed()
+    if (at === undefined || !markdownReady()) return
     const id = landingId(text(), props.file, at)
     const frame = requestAnimationFrame(() => {
       // Two panes of the SAME file mint the same heading ids. Look
@@ -184,7 +191,7 @@ function Rendered(props: Reading) {
       const heading = root?.querySelector(`#${CSS.escape(id)}`) ?? null
       if (heading === null) return
       heading.scrollIntoView({ block: "start" })
-      landed = at
+      landing.landed(at)
     })
     onCleanup(() => cancelAnimationFrame(frame))
   })

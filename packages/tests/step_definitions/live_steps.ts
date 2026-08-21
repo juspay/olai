@@ -65,8 +65,10 @@ When(
 );
 
 /**
- * Somebody else, writing a DOCUMENT — the same door as the step above, one
- * file-kind over.
+ * Somebody else, writing a BODY — the same door as the step above, one file-
+ * kind over, and the same step for both of the kinds that have one: what
+ * `appendServedLine` does to a `.md` it does to a `.html`, and the noun is the
+ * only thing a scenario about a preview needs to say differently.
  *
  * A LINE ADDED rather than the file replaced, and that is what makes it usable
  * in a scenario whose subject is the page NOT MOVING: the claim is about the
@@ -76,7 +78,7 @@ When(
  * a different file.
  */
 When(
-  "another writer appends {string} to the document {string}",
+  "another writer appends {string} to the document/page {string}",
   function (this: OlaiWorld, line: string, file: string) {
     this.appendServedLine(file, line);
   },
