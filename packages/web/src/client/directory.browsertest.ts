@@ -203,15 +203,25 @@ test("one frame reads each head once, not once per reading", () => {
   directory.stop()
 })
 
-test("the second reading of a frame is free", () => {
+test("a later frame is one walk too, not one per reading", () => {
   const directory = twoFiles()
+  const before = directory.reads()
   // One file rewritten — the ordinary frame, and the one the batched `heads`
   // deltas carry.
-  directory.put(new Map([["house.olai", head(2)], ["garden.olai", head(1)]]))
+  directory.put(
+    new Map([
+      ["house.olai", head(2, unreadable("house.olai", "not JSON"))],
+      ["garden.olai", head(1)],
+    ]),
+  )
   directory.faces()
-  const walked = directory.reads()
-  directory.broken()
-  expect(directory.reads()).toBe(walked)
+  const now = directory.broken()
+  // The frame was taken in — which is what stops the bound below from being
+  // satisfied by a directory that answered nothing.
+  expect([...now.keys()]).toEqual(["house.olai"])
+  // ...for AT MOST one read per file. A bound and not a total: "one walk, not
+  // one per reading" is the claim, and a walk that gets cheaper still keeps it.
+  expect(directory.reads() - before).toBeLessThanOrEqual(2)
   directory.stop()
 })
 
