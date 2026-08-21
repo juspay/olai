@@ -54,6 +54,13 @@ export interface HitRow {
   readonly props: ReadonlyArray<NodeProp>
   /** Where taking it goes. */
   readonly route: Route
+  /**
+   * The file a NODE hit is written in — handed to `renderTitle` so a markdown
+   * title in the palette or the header box is the same HTML a tree row draws.
+   * Absent on a document hit: that label is the file's face, not a title in
+   * an outline, and stays a text node.
+   */
+  readonly from?: string
 }
 
 export const hitRow = (hit: SearchHit): HitRow => {
@@ -61,6 +68,7 @@ export const hitRow = (hit: SearchHit): HitRow => {
     return {
       id: printAddress(hit.at),
       label: hit.title,
+      from: hit.file,
       place: nodePlace(hit),
       props: nodeProps(hit),
       route: atNode(hit.id),

@@ -8,7 +8,7 @@ import {
   litBy,
   matchedIn,
   matching,
-  needlesOf,
+  needlesFrom,
   parseFilter,
   type Refusal,
   ranked,
@@ -1497,8 +1497,7 @@ test("how many rows a day draws is how many entries it holds, not how many files
 // filtered page can say why each row is in front of the reader.
 
 /** The needles of a query, as the matcher folded them. */
-const needles = (text: string): ReadonlyArray<string> =>
-  needlesOf(parseFilter(text, TODAY))
+const needles = (text: string): ReadonlyArray<string> => needlesFrom(text, TODAY)
 
 /** A text with its lit runs marked, which is what a highlight IS — written
  *  this way so a failure reads as the sentence somebody would see. */

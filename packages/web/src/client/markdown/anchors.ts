@@ -79,7 +79,9 @@ const read = (element: Element): string => {
   return text
 }
 
-const isAnchor = (element: Element): boolean => {
+/** True when this element is the heading autolink — HAST `className` is an
+ *  array, so a string `.includes` on it would be the wrong check. */
+export const isAnchor = (element: Element): boolean => {
   const classes = element.properties?.["className"]
   return Array.isArray(classes) && classes.includes(ANCHOR_CLASS)
 }

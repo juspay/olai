@@ -71,7 +71,9 @@
  * in height to say something nobody asked to see.
  */
 
-import { For, Show } from "solid-js"
+import { createMemo, For, Show } from "solid-js"
+
+import { renderTitle } from "../markdown/title.ts"
 
 import type { DirectoryKind } from "../file/icons.tsx"
 import { Glyph } from "../file/icons.tsx"
@@ -130,9 +132,30 @@ export function Result(props: {
   readonly testids: RowTestids
   /** Identifies the row to a test and to nothing else. */
   readonly id?: string
+  /**
+   * The file a NODE hit is written in. When set, the label runs through
+   * `renderTitle` — markdown, tags, and the query's words lit where they
+   * sit — the same HTML a tree row draws. `links` is false because this
+   * row is a `<button>`; nested anchors would be invalid.
+   *
+   * Absent on commands, completions, and document hits, which stay a text
+   * node of the label as it arrived.
+   */
+  readonly from?: string
+  /** The query's words, lit inside a rendered title. Ignored unless `from`
+   *  is set. Empty on an unfiltered door. */
+  readonly needles?: ReadonlyArray<string>
   readonly onSelect: () => void
   readonly onHover: () => void
 }) {
+  const html = createMemo(() => {
+    const from = props.from
+    if (from === undefined) return undefined
+    return renderTitle(props.label, from, {
+      needles: props.needles,
+      links: false,
+    })
+  })
   return (
     <button
       type="button"
@@ -153,7 +176,20 @@ export function Result(props: {
       <span class="flex w-full min-w-0 items-center gap-3">
         <span class="flex min-w-0 flex-1 items-center gap-2">
           <Show when={props.of}>{(of) => <Glyph of={of()} />}</Show>
-          <span class="min-w-0 flex-1 truncate">{props.label}</span>
+          <Show
+            when={html()}
+            fallback={
+              <span class="min-w-0 flex-1 truncate">{props.label}</span>
+            }
+          >
+            {(markup) => (
+              <span
+                class="olai-md olai-md-inline min-w-0 flex-1 truncate"
+                // Safe: the same sanitised pipeline NodeTitle uses.
+                innerHTML={markup()}
+              />
+            )}
+          </Show>
         </span>
         <Show when={props.hint}>
           {(hint) => (

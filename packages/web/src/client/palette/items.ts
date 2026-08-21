@@ -123,6 +123,12 @@ export interface PaletteItem {
    * said, in words, on its place line.
    */
   readonly of?: BodyKind
+  /**
+   * The file a NODE hit is written in — so `../search/Result.tsx` can run
+   * the same `renderTitle` a tree row does. Absent on commands and document
+   * hits, which stay text.
+   */
+  readonly from?: string
   readonly action: PaletteAction
   /**
    * WHICH ANSWER THIS ROW CAME FROM, as the act of spending it —
@@ -280,6 +286,7 @@ export const hitItem = (
     id: `hit-${row.id}`,
     label: row.label,
     ...(row.of === undefined ? {} : { of: row.of }),
+    ...(row.from === undefined ? {} : { from: row.from }),
     place: row.place,
     props: row.props,
     action: { kind: "route", route: row.route },

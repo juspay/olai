@@ -87,22 +87,73 @@ test("a needle at a span's edges, and one that is the whole span", () => {
   expect(lit(CODE, "just check")).toContain(`<code>${hit("just check")}</code>`)
 })
 
-// ── and the half that is STILL deferred, pinned so it stays a decision ──
+// ── a phrase that spans two rendered pieces lights BOTH ────────────────
 
-test("a phrase spanning two rendered pieces still lights neither", () => {
-  // The other half of `filter-highlight-dark-corners`, deferred on this PR
-  // and named in docs/search.md: markdown has already cut the title into
-  // pieces, and one needle is looked for inside each piece rather than across
-  // them. Lighting it needs rendering that preserves the source's offsets.
-  //
-  // Here so that half cannot be un-deferred by accident: a change that starts
-  // lighting the fragment of the phrase that happens to sit inside the code
-  // span, or inside the link, would go red rather than shipping half an
-  // answer to a reader who typed a phrase.
-  expect(lit(CODE, "check before")).not.toContain("olai-hit")
-  expect(lit(LINK, "spec first")).not.toContain("olai-hit")
-  expect(lit("nested [`#home`](https://x.test) link", "#home link"))
-    .not.toContain("olai-hit")
+test("a phrase spanning two rendered pieces lights both", () => {
+  // One search over the title as the reader sees it, then each HAST text
+  // node is a window onto that search — the same contract a phrase across a
+  // `#tag` already had. A one-sided mark (the fragment inside the code span,
+  // the fragment inside the link) is the failure the old `not.toContain`
+  // pin existed to forbid, so every case is exact HTML covering both sides.
+  const hit = (text: string) =>
+    `<mark class="olai-hit" data-testid="hit">${text}</mark>`
+
+  expect(lit(CODE, "check before")).toBe(
+    `run <code>just ${hit("check")}</code>${hit(" before")} pushing`,
+  )
+  expect(lit(LINK, "spec first")).toBe(
+    `see the <a href="https://example.com/spec#home" target="_blank" ` +
+      `rel="noopener noreferrer">cabinet ${hit("spec")}</a>${hit(" first")}`,
+  )
+  expect(lit("nested [`#home`](https://x.test) link", "#home link")).toBe(
+    `nested <a href="https://x.test" target="_blank" ` +
+      `rel="noopener noreferrer"><code>${hit("#home")}</code></a>${hit(" link")}`,
+  )
+  expect(lit("check **before** pushing", "check before")).toBe(
+    `${hit("check ")}<strong>${hit("before")}</strong> pushing`,
+  )
+  expect(lit("see https://example.com first", "see https")).toBe(
+    `${hit("see ")}<a href="https://example.com" target="_blank" ` +
+      `rel="noopener noreferrer">${hit("https")}://example.com</a> first`,
+  )
+  // Tag in a later piece (`from !== 0`). Seeding the titleParts cursor at 0
+  // would mark haystack[0, …) instead of `#home`.
+  expect(lit("**urgent** #home", "urgent #home")).toBe(
+    `<strong>${hit("urgent")}</strong>${hit(" ")}` +
+      `<span class="${TAG_CLASS}" data-testid="tag" data-tag="#home">${
+        hit("#home")
+      }</span>`,
+  )
+})
+
+test("unwrapping a spanning link still lights both pieces", () => {
+  // Search rows sit inside a <button>, so they render with links: false.
+  // Unwrap must not drop either mark.
+  const hit = (text: string) =>
+    `<mark class="olai-hit" data-testid="hit">${text}</mark>`
+  const html = renderTitle(LINK, NOTE, { needles: ["spec first"], links: false })
+  expect(html).not.toContain("<a")
+  expect(html).toBe(`see the cabinet ${hit("spec")}${hit(" first")}`)
+})
+
+test("a lost-text fallback does not light", () => {
+  // The pipeline dropped the words; escaped source is "show what you wrote"
+  // and marking it up is what that path refuses to do.
+  const html = lit("Use <Component> here", "Component")
+  expect(html).toContain("Component")
+  expect(html).not.toContain(`data-testid="hit"`)
+})
+
+test("a phrase that crosses an unwrapped fence into trailing prose lights neither", () => {
+  // The unwrapped fence's visible text is not the title's words (highlight.js
+  // tokens, closer leaking, pretty-print newlines). Making it so is a
+  // renderer change this walk is not allowed to make. Neither, never one side.
+  expect(lit("```js\nconst x = 1\n``` after", "1 after")).not.toContain(
+    `data-testid="hit"`,
+  )
+  expect(lit("```js\nconst x = 1\n```\nafter", "1 after")).not.toContain(
+    `data-testid="hit"`,
+  )
 })
 
 // ── the half that is protected, and stays protected ────────────────────

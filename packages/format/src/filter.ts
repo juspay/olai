@@ -1489,6 +1489,12 @@ export const needlesOf = (filter: Filter): ReadonlyArray<string> => {
   return words
 }
 
+/** The words a raw query string lights — {@link parseFilter} then
+ *  {@link needlesOf}, so two doors that hold a box cannot disagree about
+ *  which needles a title receives. */
+export const needlesFrom = (text: string, now: string): ReadonlyArray<string> =>
+  needlesOf(parseFilter(text, now))
+
 /** One run of a text a needle landed on — half-open, in the text's OWN
  *  offsets, so a caller slices the string it handed in. */
 export interface Lit {

@@ -56,7 +56,7 @@ import {
   Switch,
 } from "solid-js"
 
-import type { Zoomed } from "@olai/format"
+import { needlesFrom, type Zoomed } from "@olai/format"
 import type { Edit, OpFailure } from "@olai/surface"
 import { Result as Outcome } from "effect"
 
@@ -113,6 +113,7 @@ import { applied, applying } from "../writes.ts"
 import { isEditingTarget, listKey, matchKey, paneKey } from "../keys.ts"
 import { useRouter } from "../router.tsx"
 import { isLone } from "../workspace.ts"
+import { useToday } from "../today.tsx"
 import { Shortcuts } from "./Shortcuts.tsx"
 
 /** WHERE an alarm sits in this panel: a full-width band between the box and
@@ -163,6 +164,8 @@ export function Palette(props: {
   const router = useRouter()
   const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
+  const today = useToday()
+  const needles = createMemo(() => needlesFrom(query(), today()))
   // WHICH row Enter takes, and the arrows that walk it — the one cursor every
   // shortlist in this client shares (`../search/cursor.ts`).
   const cursor = createCursor(() => items().length)
@@ -956,6 +959,8 @@ export function Palette(props: {
                         <Result
                           label={item().label}
                           of={item().of}
+                          from={item().from}
+                          needles={needles()}
                           hint={item().hint}
                           place={item().place}
                           props={item().props}

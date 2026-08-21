@@ -280,9 +280,19 @@ export const markRegion = async (
       const serialise = (element: Element) => {
         (element as unknown as Record<string, unknown>)[key] = ++serial;
       };
+      // A title drawn through `innerHTML` (tree rows, and now palette /
+      // header node-hits) rebuilds its markdown and highlight children
+      // whenever the query's needles change. Those children are a rendering
+      // of one string, not the row. The row is the button; it must stand.
+      const insideTitle = (element: Element): boolean => {
+        const title = element.closest(".olai-md");
+        return title !== null && title !== element;
+      };
       for (const root of roots) {
         serialise(root);
-        root.querySelectorAll("*").forEach(serialise);
+        root.querySelectorAll("*").forEach((element) => {
+          if (!insideTitle(element)) serialise(element);
+        });
       }
       const slot = { serial, announced: 0 };
       const alarming = (node: Node): boolean =>

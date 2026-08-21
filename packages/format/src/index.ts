@@ -414,6 +414,10 @@ export {
   /** The words a query looks for, folded and deduped — {@link litBy}'s other
    *  half, and the only thing a view needs off a parsed query. */
   needlesOf,
+  /** The same words off a raw query string — parse then {@link needlesOf}, so
+   *  two doors that hold a box cannot disagree about which needles a title
+   *  receives. */
+  needlesFrom,
   parseFilter,
   rankedTogether,
   /** Both halves of "3 of 41" over a tree: {@link matchedIn} counts the rows a
