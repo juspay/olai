@@ -222,34 +222,133 @@ interface Edit {
 }
 
 /**
+ * ONE REVERSE INDEX, RE-FILED across the edit — the shape four of the steps
+ * below ARE, written once.
+ *
+ * `children`, `namedBy`, `taggedBy` and `byDay` are four different questions
+ * about a corpus and ONE question about a patch. What a key keeps is whatever
+ * of it is not in a TOUCHED FILE; what it gains is whatever arrived; the two
+ * run together in the order that index promises its members in; and a key left
+ * holding nothing GOES AWAY rather than standing empty where `derive` would
+ * have had no key at all. That last line is the one another copy gets wrong —
+ * the oracle compares what a map HOLDS and not only what it answers — and it
+ * had been written out five times before the sixth arrived, which is the count
+ * the house rule said would force this (`docs/roadmap/`).
+ *
+ * WHAT THE FOUR STILL SAY FOR THEMSELVES is what ARRIVED and what LEFT. The
+ * fold that files a record into an index is `derive`'s ({@link nameInto},
+ * {@link tagInto}, {@link dateInto}) and it stays at the call site, so the
+ * patcher goes on running the same fold the rebuild does rather than a second
+ * reading of it; which keys the departing records held is the same rule asked
+ * backwards, and it is spelled in the same one function per index. What is
+ * factored out here is the RE-FILING, which is the part that was identical.
+ *
+ * THE ENTRY IS PROJECTED BACK OUT to a {@link Located} rather than required to
+ * be one: three of the four hold a record and one holds a naming beside the
+ * fields it names with. Both questions this asks of an entry are about its
+ * PLACE — which file is it in, and where in the corpus does it sort — so one
+ * projection answers both, and no index has to be reshaped to be re-filed.
+ *
+ * NOTHING TOUCHED, NOTHING CLONED. An edit naming no key of an index hands back
+ * the map that stood, and the view being built shares it with the view it
+ * patched — copy-on-write at the index rather than only at its values, which is
+ * this file's own economy applied one level up. It is what a keystroke in an
+ * outline that tags nothing and schedules nothing already paid for `taggedBy`
+ * and `byDay` ({@link ./patch.bench.ts} prints what one clone of each index
+ * costs), and now what a keystroke in an outline of plain rows pays for
+ * `children` and `namedBy` too.
+ */
+interface Refiled<T> {
+  readonly map: ReadonlyMap<string, ReadonlyArray<T>>
+  /** Whether a key APPEARED or WENT AWAY, so a map that promises an order over
+   *  its keys has to be sorted again — `byDay` is the one of the four that
+   *  does, exactly as {@link regrouped} sorts `byFile`'s. */
+  readonly rekeyed: boolean
+  /** Whether any key's FIRST member sits somewhere else now. A key sits where
+   *  the record that opens it sits in a map a single walk of the corpus built,
+   *  so this is what `namedBy` rebuilds for. Strictly wider than
+   *  {@link rekeyed}: a key that appears or empties moved its head by
+   *  definition. */
+  readonly headMoved: boolean
+}
+
+const refiled = <T>(
+  edit: Edit,
+  before: ReadonlyMap<string, ReadonlyArray<T>>,
+  filing: {
+    /** What the ARRIVING records filed, through the index's own fold. */
+    readonly arriving: ReadonlyMap<string, ReadonlyArray<T>>
+    /** The keys the DEPARTING records held. Every other key of this index is
+     *  one no record the delta named could have moved. */
+    readonly departing: Iterable<string>
+    /** Where an entry IS — the file its survival is judged by, and the place it
+     *  is ordered on. */
+    readonly at: (one: T) => Located
+    /** The order this index promises its members in: corpus order for three of
+     *  the four, and the format's sibling order for `children`. */
+    readonly order?: (one: Located, other: Located) => number
+  },
+): Refiled<T> => {
+  const { arriving, departing, at, order = byCorpus } = filing
+  const keys = new Set<string>(arriving.keys())
+  for (const key of departing) keys.add(key)
+  if (keys.size === 0) return { map: before, rekeyed: false, headMoved: false }
+
+  /** Where a key's members START, which is where the key itself sits in a map
+   *  the corpus was walked once to build. */
+  const head = (own: ReadonlyArray<T> | undefined): Located | undefined => {
+    const first = own?.[0]
+    return first === undefined ? undefined : at(first)
+  }
+
+  const map = new Map(before)
+  let rekeyed = false
+  let headMoved = false
+  for (const key of keys) {
+    const held = before.get(key)
+    const own = [
+      ...(held ?? []).filter((one) => !edit.touched.has(at(one).file)),
+      ...(arriving.get(key) ?? []),
+    ].sort((one, other) => order(at(one), at(other)))
+    if (elsewhere(head(held), head(own))) headMoved = true
+    if (own.length === 0) rekeyed = map.delete(key) || rekeyed
+    else {
+      if (!map.has(key)) rekeyed = true
+      map.set(key, own)
+    }
+  }
+  return { map, rekeyed, headMoved }
+}
+
+/**
  * What hangs under what — {@link Derived.children} across the edit.
  *
  * `parent` is same-file by the format, so a file's records ARE its children
  * keys — but a set the validator has condemned can say otherwise, and this runs
  * over those too. So a key is rebuilt from what is left of it plus what
- * arrived, never from an assumption about where its members live.
+ * arrived, never from an assumption about where its members live, which is
+ * {@link refiled}'s rule and the reason this is a call rather than a loop.
+ *
+ * Nothing reads these keys in order and nothing here has a shape to rebuild, so
+ * this is the one of the four that spends neither axis.
  */
 const containment = (
   edit: Edit,
 ): ReadonlyMap<string, ReadonlyArray<Located>> => {
-  const children = new Map(edit.before.children)
   const arriving = Map.groupBy(
     edit.incoming.filter((at) => at.node.parent !== undefined),
     (at) => at.node.parent as string,
   )
-  const parents = new Set<string>(arriving.keys())
+  const departing = new Set<string>()
   for (const at of edit.outgoing) {
-    if (at.node.parent !== undefined) parents.add(at.node.parent)
+    if (at.node.parent !== undefined) departing.add(at.node.parent)
   }
-  for (const key of parents) {
-    const own = [
-      ...(edit.before.children.get(key) ?? []).filter((at) => !edit.touched.has(at.file)),
-      ...(arriving.get(key) ?? []),
-    ].sort(bySibling)
-    if (own.length === 0) children.delete(key)
-    else children.set(key, own)
-  }
-  return children
+  return refiled(edit, edit.before.children, {
+    arriving,
+    departing,
+    at: (one) => one,
+    order: bySibling,
+  }).map
 }
 
 /** The delta applied to the grouping, and the flat list that falls out of it —
@@ -397,7 +496,10 @@ const ids = (
  * whether the key set moved but whether any first namer did — a key can keep
  * its members and still change places when the record at the head of its list
  * is replaced by one further down the corpus. Every key this edit could move is
- * a key it touched, so checking those is checking all of them.
+ * a key it touched, so checking those is checking all of them. It is
+ * {@link refiled}'s `headMoved`, and this is the only one of the four indexes
+ * that spends it: the re-filing is the same rule next door and what differs is
+ * what each promises about its keys.
  */
 const namings = (
   edit: Edit,
@@ -405,43 +507,34 @@ const namings = (
 ): ReadonlyMap<string, ReadonlyArray<Naming>> => {
   const arriving = new Map<string, Array<Filing>>()
   for (const at of edit.incoming) nameInto(arriving, at)
+  const departing = new Set<string>()
+  for (const at of edit.outgoing) for (const [, target] of targetsOf(at.node)) departing.add(target)
 
-  const keys = new Set<string>(arriving.keys())
-  for (const at of edit.outgoing) for (const [, target] of targetsOf(at.node)) keys.add(target)
-
-  let shape = false
-  const rewritten = new Map<string, ReadonlyArray<Naming>>()
-  for (const key of keys) {
-    const held = edit.before.namedBy.get(key)
-    const own = [
-      ...(held ?? []).filter((naming) => !edit.touched.has(naming.at.file)),
-      ...(arriving.get(key) ?? []),
-    ].sort((one, other) => byCorpus(one.at, other.at))
-    if (elsewhere(held?.[0]?.at, own[0]?.at)) shape = true
-    // A key with nothing left naming it is a key that goes away, which is a
-    // key-order change and therefore a rebuild — never an empty list stored
-    // where `derive` would have had no key at all.
-    if (own.length > 0) rewritten.set(key, own)
-  }
-  if (shape) {
-    const namedBy = new Map<string, Array<Filing>>()
-    for (const at of nodes) nameInto(namedBy, at)
-    return namedBy
-  }
-  const namedBy = new Map(edit.before.namedBy)
-  for (const [key, own] of rewritten) namedBy.set(key, own)
+  const { map, headMoved } = refiled<Naming>(edit, edit.before.namedBy, {
+    arriving,
+    departing,
+    at: (naming) => naming.at,
+  })
+  // A key that MOVED — including one that appeared and one that went away,
+  // both of which move a head by definition — is a key-order change, and this
+  // is the index that has to answer in the order one walk of the corpus would
+  // have left. So the walk is taken, over the same fold, and the re-filed map
+  // is what the edit cost to find that out.
+  if (!headMoved) return map
+  const namedBy = new Map<string, Array<Filing>>()
+  for (const at of nodes) nameInto(namedBy, at)
   return namedBy
 }
 
 /**
  * What prose tagged what — {@link Derived.taggedBy} carried across the edit.
  *
- * The same shape as {@link namings} above with the rebuild taken OFF, and the
- * missing half is the whole difference between the two indexes: nothing reads
- * these keys in order, so a key that arrives at the end of the map or leaves a
- * hole in it changes no answer, and there is nothing to rebuild the map to
- * preserve. What IS promised is each key's members in corpus order, which is
- * what the sort keeps.
+ * The same {@link refiled} call as {@link namings} above with the rebuild taken
+ * OFF, and the missing half is the whole difference between the two indexes:
+ * nothing reads these keys in order, so a key that arrives at the end of the map
+ * or leaves a hole in it changes no answer, and there is nothing to rebuild the
+ * map to preserve. What IS promised is each key's members in corpus order,
+ * which is what the shared sort keeps.
  *
  * Every key this edit can move is a key it TOUCHED — a tag the arriving records
  * write, or one the departing records wrote — because a record in a file the
@@ -450,41 +543,32 @@ const namings = (
 const taggings = (edit: Edit): ReadonlyMap<string, ReadonlyArray<LocatedRegular>> => {
   const arriving = new Map<string, Array<LocatedRegular>>()
   for (const at of edit.incoming) tagInto(arriving, at)
+  const departing = new Set<string>()
+  for (const at of edit.outgoing) for (const tag of writtenTags(at.node)) departing.add(tag)
 
-  const keys = new Set<string>(arriving.keys())
-  for (const at of edit.outgoing) for (const tag of writtenTags(at.node)) keys.add(tag)
-  // NOTHING WROTE A TAG, so the map that stood IS the answer and the clone
-  // below is not paid at all. It fires on a file whose records tag nothing —
-  // rarer since this index gained `#`, which is the sigil people actually
-  // write, and the reason the clone's cost is a number this branch had to
-  // measure rather than assume ({@link ./patch.bench.ts}).
-  if (keys.size === 0) return edit.before.taggedBy
-
-  const taggedBy = new Map(edit.before.taggedBy)
-  for (const key of keys) {
-    const own = [
-      ...(edit.before.taggedBy.get(key) ?? []).filter((at) => !edit.touched.has(at.file)),
-      ...(arriving.get(key) ?? []),
-    ].sort(byCorpus)
-    // A tag nothing writes any more is a key that GOES AWAY, never an empty
-    // list stored where `derive` would have had no key at all — the oracle
-    // compares what the map holds, not only what it answers.
-    if (own.length === 0) taggedBy.delete(key)
-    else taggedBy.set(key, own)
-  }
-  return taggedBy
+  // NOTHING WROTE A TAG, and {@link refiled} is where that is answered: with no
+  // key on either side the map that stood IS the answer and no clone is paid at
+  // all. It fires on a file whose records tag nothing — rarer since this index
+  // gained `#`, which is the sigil people actually write, and the reason the
+  // clone's cost is a number this branch had to measure rather than assume
+  // ({@link ./patch.bench.ts}).
+  return refiled(edit, edit.before.taggedBy, {
+    arriving,
+    departing,
+    at: (one) => one,
+  }).map
 }
 
 /**
  * What lands on what day — {@link Derived.byDay} carried across the edit.
  *
- * {@link taggings} above with a key ORDER to keep, which is the whole of the
- * difference: nothing reads a tag's keys in order, and three readings spend this
- * index's ({@link Derived.byDay}). So a day the edit ADDS or EMPTIES re-sorts
- * the keys, exactly as {@link regrouped} re-sorts `byFile`'s when a file
- * arrives or goes away — and the edits that neither add nor empty a day, which
- * is nearly all of them, move members inside keys that are already in place and
- * pay nothing for the promise.
+ * {@link taggings} above with a key ORDER to keep — {@link refiled}'s `rekeyed`
+ * — which is the whole of the difference: nothing reads a tag's keys in order,
+ * and three readings spend this index's ({@link Derived.byDay}). So a day the
+ * edit ADDS or EMPTIES re-sorts the keys, exactly as {@link regrouped} re-sorts
+ * `byFile`'s when a file arrives or goes away — and the edits that neither add
+ * nor empty a day, which is nearly all of them, move members inside keys that
+ * are already in place and pay nothing for the promise.
  *
  * Every day this edit can move is a day it TOUCHED — one the arriving records
  * land on, or one the departing records were on — because a record in a file the
@@ -502,30 +586,20 @@ const dating = (edit: Edit): ReadonlyMap<string, ReadonlyArray<Dated>> => {
   const departing = new Map<string, Array<Dated>>()
   for (const at of edit.outgoing) dateInto(departing, at)
 
-  const keys = new Set<string>([...arriving.keys(), ...departing.keys()])
-  // NOTHING ON EITHER SIDE CARRIED A DATE, so the map that stood IS the answer
-  // and the clone below is not paid at all — a keystroke in an outline nobody
-  // scheduled anything in, which is most outlines.
-  if (keys.size === 0) return edit.before.byDay
-
-  const byDay = new Map(edit.before.byDay)
-  // Whether the KEYS moved, which is the only thing that costs the sort. A day
-  // that gains or loses a record is not that; a day that appears or empties is.
-  let reordered = false
-  for (const key of keys) {
-    const own = [
-      ...(edit.before.byDay.get(key) ?? []).filter((one) => !edit.touched.has(one.at.file)),
-      ...(arriving.get(key) ?? []),
-    ].sort((one, other) => byCorpus(one.at, other.at))
-    if (own.length === 0) reordered = byDay.delete(key) || reordered
-    else {
-      if (!byDay.has(key)) reordered = true
-      byDay.set(key, own)
-    }
-  }
-  return reordered
-    ? new Map([...byDay].sort(([one], [other]) => byDayKey(one, other)))
-    : byDay
+  // NOTHING ON EITHER SIDE CARRIED A DATE, and {@link refiled} answers that the
+  // same way it does next door: the map that stood IS the answer and no clone
+  // is paid at all — a keystroke in an outline nobody scheduled anything in,
+  // which is most outlines.
+  const { map, rekeyed } = refiled(edit, edit.before.byDay, {
+    arriving,
+    departing: departing.keys(),
+    at: (one) => one.at,
+  })
+  // Whether the KEYS moved is the only thing that costs the sort. A day that
+  // gains or loses a record is not that; a day that appears or empties is.
+  return rekeyed
+    ? new Map([...map].sort(([one], [other]) => byDayKey(one, other)))
+    : map
 }
 
 /**
