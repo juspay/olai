@@ -42,3 +42,9 @@
 {"id":"fm0j8eua","parent":"iqi040lz","ord":"a0","title":"[deferred today](/roadmap.olai?q=%23deferral+created%3Atoday)","created":"2026-08-20T14:21:03-04:00"}
 {"id":"lc1nctji","parent":"iqi040lz","ord":"a1","title":"[created today](/roadmap.olai?q=created%3Atoday)","created":"2026-08-20T11:26:42-04:00","changed":"2026-08-20T11:27:02-04:00"}
 {"id":"rua18vt2","parent":"iqi040lz","ord":"a2","title":"[deferred today](/roadmap.olai?q=%23deferral+created%3Ayesterday..today)","created":"2026-08-20T14:22:08-04:00"}
+{"id":"umofmorh","ord":"a3","title":"roadmap/performance.olai"}
+{"id":"performance","parent":"umofmorh","ord":"a0","title":"Performance","desc":"Opened 2026-08-19 on the human's ruling, from the PR #258 search-complexity question.\n\n- **Ruling:** when olai supports large vaults, the hot paths must not be LINEAR in vault size — indices are maintained iteratively (pay O(change) per edit), never recomputed per event.\n- Children are the known O(n)-per-event costs, each filed with what event pays and what it scales with.","created":"2026-08-19T16:46:59-04:00","changed":"2026-08-19T19:10:00-04:00"}
+{"id":"fphyhg5h","ord":"a4","title":"roadmap/bugs.olai"}
+{"id":"bugs","parent":"fphyhg5h","ord":"a0","title":"Bugs","doing":true,"desc":"Known defects, each carrying its diagnosis; per HACKING.md every fix ships with a test that reproduces it."}
+{"id":"0ugzpwqa","ord":"a5","title":"roadmap/infra.olai"}
+{"id":"infra","parent":"0ugzpwqa","ord":"a0","title":"Infrastructure","desc":"Build system, CI, workspace plumbing. Norm inherited from the rewrite plan (git history has it): one PR per work item; every PR leaves the repo working and CI green.","changed":"2026-08-16T13:04:57-04:00"}
