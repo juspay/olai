@@ -134,15 +134,14 @@ When(
   },
 );
 
-/** ANOTHER TRIGGER AND THE KEY IN ONE TASK — `../support/atonce.ts`, which is
- *  where that window is opened for every door in this suite that takes a row
- *  on `Enter`. The whole title is retyped rather than a character appended,
- *  because what has to move inside the settle is the trigger's QUERY. */
+/** The window `../support/atonce.ts` opens, at this door — the whole title
+ *  retyped rather than a character appended, because what has to move inside
+ *  the settle is the trigger's own QUERY. */
 When(
   "I retype the row as {string} and press Enter at once",
   async function (this: OlaiWorld, text: string) {
     await aimedAtTheLine(this);
-    await retypedAndTaken(this, this.page.locator(TITLE_EDITOR), text);
+    await retypedAndTaken(this, await openEditor(this), text);
   },
 );
 

@@ -25,7 +25,7 @@ import { createEffect, Index, on, onCleanup, onMount, Show } from "solid-js"
 import { listKey } from "../keys.ts"
 import { WITHIN } from "../layer.ts"
 import { createCursor } from "../search/cursor.ts"
-import { taken, type Taking } from "../settled.ts"
+import { spend, type Taking } from "../settled.ts"
 import { TESTID } from "../testids.ts"
 import { topmostWhileOpen } from "../topmost.ts"
 
@@ -65,23 +65,17 @@ export interface MenuRow {
   readonly section?: string
   readonly take: () => void
   /**
-   * WHICH ANSWER THIS ROW CAME FROM, as the act of spending it — absent for a
-   * row this tab minted for itself (`../settled.ts`'s `Taking`, and `taken`,
-   * which is what reads it).
+   * WHICH ANSWER THIS ROW CAME FROM, as the act of spending it —
+   * `../settled.ts`'s `Taking`, read by its `spend`, which carries the
+   * argument. It matters at this list because it is TWO BLOCKS under one
+   * cursor: the served paths, up at once, and the nodes a round trip away
+   * ({@link ./naming.ts}) — and a stale take here writes a node id into
+   * somebody's sentence and arms it, where the other doors only navigate.
    *
-   * This list is TWO BLOCKS under one cursor: the served paths, matched here
-   * and up at once, and the nodes, a debounce and a round trip away
-   * ({@link ./naming.ts}). The node half HOLDS STILL through both, so for a
-   * moment after every keystroke the row under the cursor answers a word the
-   * reader has already typed past — and taking it writes that node's id into
-   * somebody's sentence and arms it. Gating the whole LIST would be wrong the
-   * other way: a file row is never behind anything, and `@cab` + Enter has
-   * written a path since this list existed.
-   *
-   * A KEY asks it; a POINTER never does, which is the same line
-   * {@link take} above is drawn on for a different reason.
+   * A KEY asks it; a POINTER never does, which is the same line {@link take}
+   * above is drawn on for a different reason.
    */
-  readonly taking?: Taking
+  readonly taking: Taking
 }
 
 export function CompletionMenu(props: {
@@ -170,7 +164,7 @@ export function CompletionMenu(props: {
     // ...and a row of a word the reader has typed past spends nothing, in
     // silence ({@link MenuRow.taking}). The rows catch up a moment later and
     // the same press means what it says.
-    taken(chosen, (row) => row.take())
+    spend(chosen, (row) => row.take())
   }
 
   // WHICH key it is, is the registry's (`../keys.ts`'s list layer); what each

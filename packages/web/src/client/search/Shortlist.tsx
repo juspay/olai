@@ -201,13 +201,12 @@ export function Shortlist(props: {
    * Nothing to take at all is not claimed: swallowing `Enter` over an empty
    * list would be a key that does nothing.
    */
-  const take = (index: number): boolean => {
+  const take = (index: number): void => {
     const hit = hits()[index]
-    if (hit === undefined) return false
+    if (hit === undefined) return
     cursor.to(index)
-    if (verdicts()[index] !== null) return true
+    if (verdicts()[index] !== null) return
     props.onTake(hit)
-    return true
   }
 
   return (
@@ -257,14 +256,21 @@ export function Shortlist(props: {
               event.preventDefault()
               cursor.step(-1)
               return
-            case "take": {
-              // THROUGH THE ANSWER THE ROWS CAME FROM (`../settled.ts`'s
-              // `Taking`), which is where the rule lives now rather than in a
-              // predicate of this file's: rows hold still through the settle
-              // and the round trip after it, which is the only honest thing to
-              // DRAW and the wrong thing to write from. These rows are the
-              // search's own, so this asks the search; a door whose ROWS carry
-              // a taker reads it off the row instead (`taken`).
+            case "take":
+              // CLAIMED WHENEVER THERE IS A LIST, and spent only sometimes —
+              // two facts, and this is the one that is about the KEY rather
+              // than about the row. A list is on screen under the reader's
+              // hands and an `Enter` falling past it would do something else
+              // entirely; an empty list has nothing to claim, because a key
+              // that does nothing over nothing is a key that is missing.
+              if (hits().length > 0) event.preventDefault()
+              // ...and what it SPENDS goes through the answer the rows came
+              // from (`../settled.ts`'s `Taking`): they hold still through the
+              // settle and the round trip after it, which is the only honest
+              // thing to DRAW and the wrong thing to write from. This asks the
+              // search rather than the row, because these rows ARE the wire's
+              // `NodeHit`s and have nothing to carry it on — every door with a
+              // row type of its own carries it there instead (`spend`).
               //
               // NOT inside {@link take}, and that is the whole of where it
               // belongs: a PRESS is a hand on the row it can SEE, and taking
@@ -272,17 +278,8 @@ export function Shortlist(props: {
               // box has moved on. `Enter` is the one that means "the row under
               // the cursor" — and the cursor's row is about to change
               // underneath it.
-              //
-              // A key that spends nothing is still a key this panel CLAIMED:
-              // a list is on screen under the reader's hands, and an `Enter`
-              // falling past it would do something else entirely. So rows
-              // behind the query claim it and an empty list does not — and the
-              // rows catch up a moment later, when the same press means what
-              // it says.
-              const claimed = found.taking(() => take(cursor.at())) ?? hits().length > 0
-              if (claimed) event.preventDefault()
+              found.taking(() => take(cursor.at()))
               return
-            }
             case null:
               return
           }
@@ -326,7 +323,7 @@ export function Shortlist(props: {
                 testids={props.testids.row}
                 id={row(index).id}
                 onHover={() => cursor.to(index)}
-                onSelect={() => void take(index)}
+                onSelect={() => take(index)}
               />
             </li>
           )}

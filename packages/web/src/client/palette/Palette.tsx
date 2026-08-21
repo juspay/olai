@@ -99,7 +99,7 @@ import { SearchCount } from "../search/Count.tsx"
 import { createCursor } from "../search/cursor.ts"
 import { createSearch } from "../search/nodes.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
-import { taken } from "../settled.ts"
+import { spend } from "../settled.ts"
 import {
   askInPalette,
   closePalette,
@@ -684,7 +684,7 @@ export function Palette(props: {
     // The key is claimed either way — the handler below preventDefaults every
     // list key — and a POINTER does not come through here at all: `onSelect`
     // runs the row it pressed, which is the row the hand can see.
-    taken(items()[cursor.at()], runItem)
+    spend(items()[cursor.at()], runItem)
   }
 
   /**

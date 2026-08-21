@@ -70,7 +70,7 @@ import { SearchCount } from "./Count.tsx"
 import { createCursor } from "./cursor.ts"
 import { createSearch } from "./nodes.ts"
 import { Result, type RowTestids } from "./Result.tsx"
-import { taken } from "../settled.ts"
+import { spend } from "../settled.ts"
 
 /** WHERE an alarm sits in this panel: a full-width band above the rows, at
  *  this door's own gutter — narrower than the palette's because the panel is.
@@ -210,7 +210,7 @@ export function HeaderSearch(props: {
             // one row gating differently is the drift this file's header is
             // about. A POINTER never comes through here: `onSelect` opens the
             // row it pressed.
-            if (action === "take") taken(items()[cursor.at()], open)
+            if (action === "take") spend(items()[cursor.at()], open)
             if (action === "dismiss") {
               setQuery("")
               box?.blur()

@@ -124,10 +124,8 @@ When(
   },
 );
 
-/** ANOTHER QUERY AND THE KEY IN ONE TASK — `../support/atonce.ts`, which is
- *  where that window is opened for every door in this suite that takes a row
- *  on `Enter`. It was written out here first, for the one door #294 gated; it
- *  is five doors now. */
+/** The window `../support/atonce.ts` opens, at this door. It was written out
+ *  here first, for the one door #294 gated; it is five doors now. */
 When(
   "I retype the edge panel's search as {string} and press Enter at once",
   async function (this: OlaiWorld, text: string) {

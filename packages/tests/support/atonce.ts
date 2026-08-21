@@ -57,3 +57,40 @@ export const retypedAndTaken = async (
   }, text);
   await world.waitForFrame();
 };
+
+/**
+ * THE OTHER HAND, in the same window: put `text` in `box` and PRESS the row at
+ * `row` in the same task.
+ *
+ * The half of the ruling a key cannot pin. A pointer is never gated at any
+ * door — a hand is on the row it can SEE, and taking that row is exactly what
+ * the hand asked for however far the box has moved on — and the way that
+ * promise breaks is a later refactor moving the gate inside the take itself,
+ * which every door's own comment warns against by name and which no key
+ * scenario would notice.
+ *
+ * Pressed FROM INSIDE the evaluate, for the reason the whole ritual is one
+ * evaluate: a Playwright click is a second round trip, and the rows would have
+ * caught up by the time it landed — leaving a scenario that passes while
+ * asserting nothing.
+ */
+export const retypedAndPressed = async (
+  world: OlaiWorld,
+  box: Locator,
+  text: string,
+  row: string,
+): Promise<void> => {
+  await box.evaluate((element, { wanted, row }) => {
+    const field = element as HTMLInputElement | HTMLTextAreaElement;
+    field.focus();
+    field.value = wanted;
+    field.setSelectionRange(wanted.length, wanted.length);
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    const pressed = document.querySelector(row);
+    if (pressed === null) {
+      throw new Error(`no row matching ${row} to press`);
+    }
+    (pressed as HTMLElement).click();
+  }, { wanted: text, row });
+  await world.waitForFrame();
+};

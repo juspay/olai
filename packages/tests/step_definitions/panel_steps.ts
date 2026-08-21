@@ -239,11 +239,18 @@ When("I press the chat shortcut", async function (this: OlaiWorld) {
 
 // ── the header's search box ────────────────────────────────────────────
 
+/** The header's box, waited for — one spelling of "how long a scenario gives
+ *  the bar to hydrate", shared by every step that reaches into it. */
+const headerBox = async (world: OlaiWorld) => {
+  const box = world.page.locator(HEADER_SEARCH);
+  await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  return box;
+};
+
 When(
   "I search the header for {string}",
   async function (this: OlaiWorld, text: string) {
-    const box = this.page.locator(HEADER_SEARCH);
-    await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const box = await headerBox(this);
     // Focus is what puts the results up, so this types rather than fills:
     // `fill` sets the value without the box ever holding the caret.
     await box.click();
@@ -251,24 +258,20 @@ When(
   },
 );
 
+/** The window `../support/atonce.ts` opens, at this door. */
+When(
+  "I retype the header search as {string} and press Enter at once",
+  async function (this: OlaiWorld, text: string) {
+    await retypedAndTaken(this, await headerBox(this), text);
+  },
+);
+
 /** One letter back — the gesture of somebody who typed one too many. It WIDENS
  *  the answer, which is what makes it worth its own step: the rows that were
  *  already there are still there, so a scenario can say they were not drawn
  *  again (`redraw_steps.ts`). */
-
-/** ANOTHER QUERY AND THE KEY IN ONE TASK — `../support/atonce.ts`, which is
- *  where that window is opened for every door in this suite that takes a row
- *  on `Enter`. */
-When(
-  "I retype the header search as {string} and press Enter at once",
-  async function (this: OlaiWorld, text: string) {
-    const box = this.page.locator(HEADER_SEARCH);
-    await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await retypedAndTaken(this, box, text);
-  },
-);
 When("I take a letter off the header search", async function (this: OlaiWorld) {
-  const box = this.page.locator(HEADER_SEARCH);
+  const box = await headerBox(this);
   await box.click();
   await box.press("Backspace");
 });

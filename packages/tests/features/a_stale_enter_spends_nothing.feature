@@ -18,7 +18,9 @@ Feature: A stale Enter is claimed and spends nothing
   A POINTER is never gated, at any door: a hand is on the row it can SEE, and
   taking that row is exactly what the hand asked for however far the box has
   moved on. Only the key means "the row under the cursor", and the cursor's row
-  is the one about to change underneath it.
+  is the one about to change underneath it. That half has a scenario of its own
+  below, because the way it breaks is a later change moving the gate inside the
+  take — which no key scenario here would notice.
 
   The five doors that take a row this way are the ⌘K palette, the header's
   search box, the chat composer's `@` list, the shortlist every node-picking
@@ -30,9 +32,6 @@ Feature: A stale Enter is claimed and spends nothing
   `@corpus:` rather than `@scratch:`: nothing here writes the directory. Two of
   the doors NAVIGATE and the third writes into a message box, so what a wrong
   row spends is an address and a sentence.
-
-  Background:
-    Given I open the app
 
   Scenario: The palette opens nothing for a row the query has moved past
     Given I open the outline "house.olai"
@@ -54,13 +53,27 @@ Feature: A stale Enter is claimed and spends nothing
     Then the address is "/#mint"
     And there should be no page errors
 
+  Scenario: A pointer opens the row it pressed, inside the same window
+    # The other hand, and the half a key scenario cannot pin. The gate lives on
+    # the KEY at every door and never inside the take itself, so a press in the
+    # window the scenario above opens takes the row it landed on — which is the
+    # row somebody could see. Moving the gate one level down would keep every
+    # other scenario in this file green.
+    Given I open the outline "house.olai"
+    When I press the palette shortcut
+    And I type "compost" into the palette
+    Then the palette lists the node "the compost heap"
+    When I retype the palette as "mint" and press the node row "compost" at once
+    Then the address is "/#compost"
+    And there should be no page errors
+
   Scenario: The palette's own rows are not gated by a search behind them
-    # The half a whole-list gate would get wrong, and the reason the freshness
-    # is a fact about a ROW rather than about the door. This list is TWO
-    # blocks: the commands are matched in this tab off a list it already holds,
-    # and the hits are a debounce and a round trip away. A command row is never
-    # behind anything, so `Enter` on one inside the settle runs it — which is
-    # the palette's oldest gesture and the one a reader makes fastest.
+    # The half a whole-door gate would get wrong, and the reason the freshness
+    # is a fact about a ROW. This list is TWO blocks: the commands are matched
+    # in this tab off a list it already holds, and the hits are a debounce and
+    # a round trip away. A command row is never behind anything, so `Enter` on
+    # one inside the settle runs it — which is the palette's oldest gesture and
+    # the one a reader makes fastest.
     Given I open the outline "house.olai"
     When I press the palette shortcut
     And I retype the palette as "agenda" and press Enter at once
@@ -84,7 +97,8 @@ Feature: A stale Enter is claimed and spends nothing
     # taken off the list writes `@its-id ` into the message AND arms the node,
     # so a stale row put a handle the reader never chose under a message they
     # were still typing.
-    Given the agent panel is open
+    Given I open the app
+    And the agent panel is open
     When I type "look at @mint" into the chat
     Then the completion offers "mint"
     When I retype the chat as "look at @heap" and press Enter at once
@@ -97,15 +111,10 @@ Feature: A stale Enter is claimed and spends nothing
     When I press "Enter"
     Then the chat input reads "look at @compost "
     And the composer is armed with "compost"
-    And there should be no page errors
-
-  Scenario: The @ list's file rows are not gated by the node half behind them
-    # The composer's half of the palette scenario above, and the same argument:
-    # this list is TWO blocks under one cursor — the served paths, matched in
-    # this tab, and the nodes a round trip away. A file row is never behind
-    # anything, and `@cab` + Enter has written a path since the `@` list
-    # existed.
-    Given the agent panel is open
+    # ...and this list's OTHER block is never behind anything, which is the
+    # palette scenario's argument at the door where it matters most: the served
+    # paths are matched in this tab, and `@cab` + Enter has written a path
+    # since the `@` list existed.
     When I retype the chat as "read @finish" and press Enter at once
     Then the chat input reads "read @finishes.md "
     And there should be no page errors

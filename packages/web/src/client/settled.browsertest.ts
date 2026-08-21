@@ -254,13 +254,14 @@ test("a take spends nothing while the rows answer a question typed past", async 
     await landed()
 
     let spent = 0
-    expect(asker.taking(() => ++spent)).toBe(1)
+    asker.taking(() => ++spent)
+    expect(spent).toBe(1)
 
     // One more character, nothing waited out — where a door's `Enter` actually
     // lands. The rows stay on screen and stop being spendable in the same
     // instant.
     ask("hom")
-    expect(asker.taking(() => ++spent)).toBeUndefined()
+    asker.taking(() => ++spent)
     expect(spent).toBe(1)
 
     // ...and the moment the answer is about the question again, the same press
@@ -268,7 +269,8 @@ test("a take spends nothing while the rows answer a question typed past", async 
     await flying()
     fake.answer("hom", ["#home"])
     await landed()
-    expect(asker.taking(() => ++spent)).toBe(2)
+    asker.taking(() => ++spent)
+    expect(spent).toBe(2)
   })
 })
 
@@ -277,7 +279,7 @@ test("a take spends nothing over a refused call, and nothing over no session", a
     let spent = 0
     // Nothing has answered at all: there is no row to take and the act must
     // not run on the strength of an empty list.
-    expect(asker.taking(() => ++spent)).toBeUndefined()
+    asker.taking(() => ++spent)
 
     ask("ho")
     await flying()
@@ -285,10 +287,10 @@ test("a take spends nothing over a refused call, and nothing over no session", a
     await landed()
     // A refused call answers nothing and so names nothing — there is no answer
     // for a row to have come out of.
-    expect(asker.taking(() => ++spent)).toBeUndefined()
+    asker.taking(() => ++spent)
 
     ask(null)
-    expect(asker.taking(() => ++spent)).toBeUndefined()
+    asker.taking(() => ++spent)
     expect(spent).toBe(0)
   })
 })

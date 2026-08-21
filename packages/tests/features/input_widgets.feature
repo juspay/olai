@@ -250,7 +250,6 @@ Feature: The three input widgets
     Then "house.olai" holds no mirror of "compost"
     And there should be no page errors
 
-
   Scenario: Enter places nothing for a row the search has moved past
     # The `((` list is the SERVER's, so it holds still through the settle and
     # the round trip after it — and taking a row of it mints a placement. This

@@ -157,9 +157,7 @@ When("I ask the agent {string}", async function (this: OlaiWorld, text: string) 
   await this.page.locator(CHAT_SEND).click();
 });
 
-/** ANOTHER WORD AND THE KEY IN ONE TASK — `../support/atonce.ts`, which is
- *  where that window is opened for every door in this suite that takes a row
- *  on `Enter`. */
+/** The window `../support/atonce.ts` opens, at this door. */
 When(
   "I retype the chat as {string} and press Enter at once",
   async function (this: OlaiWorld, text: string) {

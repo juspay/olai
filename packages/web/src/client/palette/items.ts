@@ -37,7 +37,7 @@ import { HOME_ROUTE, type Route } from "../routes.ts"
 import type { NodeProp } from "../search/props.ts"
 import type { Search } from "../search/nodes.ts"
 import { hitRow } from "../search/row.ts"
-import type { Taking } from "../settled.ts"
+import { atOnce, type Taking } from "../settled.ts"
 
 export type PaletteAction =
   | { readonly kind: "route"; readonly route: Route }
@@ -125,20 +125,21 @@ export interface PaletteItem {
   readonly of?: BodyKind
   readonly action: PaletteAction
   /**
-   * WHICH ANSWER THIS ROW CAME FROM, as the act of spending it — absent for a
-   * row this tab minted for itself (`../settled.ts`'s `Taking`, and `taken`,
-   * which is what reads this).
+   * WHICH ANSWER THIS ROW CAME FROM, as the act of spending it —
+   * `../settled.ts`'s `Taking`, read by its `spend`, which is where the whole
+   * argument for a row carrying this lives.
    *
-   * The two doors that draw this list draw TWO BLOCKS: the commands are
-   * matched here off a list the tab already holds, and the hits are a debounce
-   * and a round trip away. So "have the rows caught up" is not a question
-   * about the door — a command is never behind anything, and gating the whole
-   * list would swallow `Enter` on one for a settle somebody else's search is
-   * inside of. It is a fact about a ROW, and this is the row carrying it.
+   * The short of it: the two doors that draw this list draw TWO BLOCKS, the
+   * commands matched here off a list the tab already holds and the hits a
+   * debounce and a round trip away — so "have the rows caught up" is a
+   * question about a ROW and not about the door. A KEY asks it; a POINTER
+   * never does.
    *
-   * A KEY asks it; a POINTER never does. A hand is on the row it can SEE.
+   * REQUIRED, and `atOnce` is what a row with no answer behind it says. Made
+   * optional it would be silence that means "ungated", which is the one thing
+   * a new row here must not be able to be by saying nothing.
    */
-  readonly taking?: Taking
+  readonly taking: Taking
   /** Lowercase haystack for simple substring filter. */
   readonly search: string
 }
@@ -151,12 +152,16 @@ const ASK_PREFIX = ">"
  *  not start with often enough to matter, which is the same bet `>` makes. */
 export const CAPTURE_PREFIX = "+"
 
+/** The shell's own rows. `atOnce` on every one of them, and it is a fact
+ *  rather than a formality: a shell row IS this table, so there is no answer
+ *  behind it to be inside the settle of ({@link PaletteItem.taking}). */
 export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
   {
     id: "nav-home",
     label: "Go home",
     hint: "open the first outline",
     action: { kind: "route", route: HOME_ROUTE },
+    taking: atOnce,
     search: "go home outline first",
   },
   {
@@ -164,6 +169,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Go to today",
     hint: "journal for this day",
     action: { kind: "route", route: { kind: "today" } },
+    taking: atOnce,
     search: "go to today journal day calendar",
   },
   {
@@ -171,6 +177,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Go to the agenda",
     hint: "what is due",
     action: { kind: "route", route: { kind: "agenda" } },
+    taking: atOnce,
     search: "go to agenda due overdue upcoming owed",
   },
   {
@@ -178,6 +185,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Go to the Trash",
     hint: "what was put away",
     action: { kind: "route", route: { kind: "trash" } },
+    taking: atOnce,
     search: "go to trash archive archived put away restore put back",
   },
   {
@@ -185,6 +193,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Toggle sidebar",
     hint: "⌘\\",
     action: { kind: "toggle-sidebar" },
+    taking: atOnce,
     search: "toggle sidebar panel rail directory",
   },
   {
@@ -192,6 +201,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Toggle agent panel",
     hint: "⌘J",
     action: { kind: "toggle-chat" },
+    taking: atOnce,
     search: "toggle agent panel chat",
   },
   {
@@ -203,6 +213,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Capture to the Inbox",
     hint: "+ a line",
     action: { kind: "prefix", prefix: `${CAPTURE_PREFIX} ` },
+    taking: atOnce,
     search: "capture inbox add quick note new node jot",
   },
   {
@@ -210,6 +221,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Keyboard shortcuts",
     hint: "every key",
     action: { kind: "shortcuts" },
+    taking: atOnce,
     search: "keyboard shortcuts keys help reference bindings",
   },
   {
@@ -217,6 +229,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Reset panel widths",
     hint: "defaults",
     action: { kind: "reset-widths" },
+    taking: atOnce,
     search: "reset panel widths sidebar chat default size",
   },
   {
@@ -224,6 +237,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Close pane",
     hint: "⌘⇧W",
     action: { kind: "close-pane" },
+    taking: atOnce,
     search: "close pane split view",
   },
 ]
@@ -246,8 +260,10 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
  * a hit row naming no search — and an ungated `Enter` is exactly the drift
  * this reading has been fighting since there were two doors onto it.
  */
-export const hitItems = (search: Search): ReadonlyArray<PaletteItem> =>
-  search.hits().map((hit) => hitItem(hit, search.taking))
+export const hitItems = (search: Search): ReadonlyArray<PaletteItem> => {
+  const taking = search.taking
+  return search.hits().map((hit) => hitItem(hit, taking))
+}
 
 export const hitItem = (
   hit: SearchHit,

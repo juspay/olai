@@ -81,7 +81,7 @@ import { nodePlace } from "../search/place.ts"
 import { type NodeProp, nodeProps } from "../search/props.ts"
 import { createCursor } from "../search/cursor.ts"
 import { createSearch } from "../search/nodes.ts"
-import { atOnce, type Taking } from "../settled.ts"
+import { atOnce, spend, type Taking } from "../settled.ts"
 import { useToday } from "../today.tsx"
 import { dayLabel, naturalDays } from "../date/natural.ts"
 import { createTags } from "./asking.ts"
@@ -103,6 +103,19 @@ export interface Choice {
    *  completion is not a node and has none. */
   readonly props?: ReadonlyArray<NodeProp>
   readonly choose: () => void
+  /**
+   * WHICH ANSWER THIS ROW CAME FROM, as the act of spending it —
+   * `../settled.ts`'s `Taking`, read by its `spend`, which carries the
+   * argument for a row carrying this at all.
+   *
+   * Here it is minted by the same TABLE the row is: a day list is a pure
+   * function of a phrase and a calendar and is never behind anything
+   * (`atOnce`), a tag list is the set's vocabulary and a `((` list is the
+   * node search, and both of those hold still through a settle and a flight.
+   * Which makes the compiler keep it — a fourth widget cannot inherit the
+   * node search's answer about staleness by saying nothing.
+   */
+  readonly taking: Taking
 }
 
 /**
@@ -228,6 +241,7 @@ export const createCompletion = (field: {
           id: named.day,
           label: named.phrase,
           hint: dayLabel(named.day),
+          taking: atOnce,
           choose: () => {
             replace(found, "")
             field.dated(named.day)
@@ -251,6 +265,7 @@ export const createCompletion = (field: {
           id: written,
           label: written,
           hint: `${tag.count}`,
+          taking: tags.taking,
           // The tag AND NOTHING ELSE — no trailing space, which is what
           // Workflowy adds and what this deliberately does not. A title is
           // stored verbatim, so a space nobody typed is a space in somebody's
@@ -276,6 +291,7 @@ export const createCompletion = (field: {
           label: hit.title,
           place: nodePlace(hit),
           props: nodeProps(hit),
+          taking: nodes.taking,
           choose: () => {
             replace(found, "")
             field.mirrored(hit.id)
@@ -323,47 +339,6 @@ export const createCompletion = (field: {
     }
   })
 
-  /**
-   * HOW A KEY SPENDS A ROW of whatever is armed — through the answer that row
-   * came from (`../settled.ts`'s `Taking`).
-   *
-   * It exists because a list HOLDS STILL through a settle and a flight — the
-   * rows a reader is looking at stay until the next ones arrive
-   * (`../settled.ts`) — which is right to draw and wrong to write from. A `((`
-   * take mints a placement and a `#` take rewrites the line, so `Enter`
-   * pressed within 200ms of a keystroke would spend the PREVIOUS prefix's row.
-   *
-   * THE SAME TABLE {@link choices} and {@link failure} are, and for their
-   * reason: which list a trigger draws from is a fact the compiler keeps, so a
-   * fourth widget cannot quietly inherit the node search's answer about
-   * staleness either.
-   *
-   * A DAY LIST is never behind: `naturalDays` is a pure function of a phrase
-   * and a calendar, computed from the trigger in hand — which is exactly what
-   * `atOnce` names.
-   *
-   * A PLAIN FUNCTION rather than a memo, which {@link Listing.showing} beside
-   * it already is and for the same reason: nothing DRAWS this, its one reader
-   * is a keydown, and a memo would be a graph node recomputing on every
-   * keystroke and every caret move for a value wanted once per `Enter`.
-   *
-   * ...and it takes the trigger rather than reading it, which is where it
-   * PARTS from those two: they are drawn, so they need an answer for a row
-   * editor with nothing armed, and this is only ever asked with a trigger
-   * already in hand (the key handler has returned by then). Handed in, "no
-   * trigger" is not a case this has to invent an answer for.
-   */
-  const taking = (found: Trigger): Taking => {
-    switch (found.kind) {
-      case "date":
-        return atOnce
-      case "tag":
-        return tags.taking
-      case "mirror":
-        return nodes.taking
-    }
-  }
-
   const listing: Listing = {
     // A box is on screen when something is armed AND it has something to say —
     // rows, or a refusal from whichever list is the server's. One rule, read by
@@ -409,7 +384,8 @@ export const createCompletion = (field: {
           const choice = choices()[cursor.at()]
           if (choice === undefined) return false
           // ...and rows that answer an older prefix are not this KEY's to
-          // take ({@link taking}) — where a POINTER's press on one still is,
+          // take (`../settled.ts`'s `spend`, over the taker each row was
+          // minted with) — where a POINTER's press on one still is,
           // which is why the guard is here rather than inside `choose`: a hand
           // on a row is a hand on the row it can SEE, and taking it is what
           // that hand asked for. Enter is the one that means "the row under the
@@ -418,7 +394,7 @@ export const createCompletion = (field: {
           // CLAIMED all the same: a list is on screen under the caret, and an
           // `Enter` falling through to the row's own handler would end the
           // line the reader is still typing a tag into.
-          taking(found)(choice.choose)
+          spend(choice, (one) => one.choose())
           return true
         }
         case null:
