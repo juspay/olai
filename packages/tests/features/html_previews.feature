@@ -864,12 +864,24 @@ Feature: A `.html` in the vault
     # The reader reads on, and scrolls somewhere of their own choosing.
     When I scroll to the bottom of the page
     And I remember where the page is scrolled
+    And I remember how much history there is
     # …and then somebody else writes the file they are reading. ONE LINE, so
     # what changed is the only thing this scenario has to spell.
     And another writer appends "<p>One more slat, added under the reader.</p>" to the page "notes/deep.html"
     Then the preview shows the text "added under the reader"
     # THE ASSERTION: the write reached the frame and moved nothing else.
     And the page is scrolled where it was left
+    # WHAT THE WRITE COSTS THE READER, pinned rather than argued about. The new
+    # bytes have to be fetched, and there is only one way to point a frame at
+    # them: assigning `src` after its first load is a joint-session-history
+    # navigation, so a write somebody else made is one press of Back the reader
+    # did not ask for. It was three before a landing was spent once (#305) and
+    # it is one now; the only way to make it none is to replace the ELEMENT
+    # rather than re-point it, which trades the entry for either a blank frame
+    # for the length of the fetch or a second frame loaded behind the first —
+    # a ruling the human has not made. Asserted so the day it moves, in either
+    # direction, the suite says so.
+    And the history has grown by 1
     # …and the frame's own address no longer carries the section, which is the
     # half the browser would have performed for us.
     And the preview is at no anchor
