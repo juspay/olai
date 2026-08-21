@@ -96,6 +96,15 @@ export function PageView() {
    * exactly as the ⌘K palette and an agent's `search_nodes` already do; the two
    * differ only for a tab left open across midnight or sitting in another time
    * zone, and one answer about what day it is beats a query resolved twice.
+   *
+   * A DURATION (`created:1h`) is the sharpest case of that split and is not a
+   * new one. The grammar reads a bare day as midnight on it, so the bound this
+   * parse mints for an hour ago is an hour before midnight — a value nothing
+   * here selects by, because nothing here selects. What this parse OWES the
+   * duration is that it PARSE: a box that drew a refusal under a query the
+   * server was busy answering would be the app disagreeing with itself in
+   * front of the reader. Reading a ticking clock to mint a bound no one uses
+   * would buy nothing and cost the tab its one answer about what time it is.
    */
   const query = createMemo(() => parseFilter(filterOf(route()), today()))
 

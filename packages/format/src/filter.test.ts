@@ -871,9 +871,13 @@ test("a value may hold a space, which is what quoting one is for", () => {
 
 /** What a refused query says, or `null` when it was not refused. Written as a
  *  narrowing rather than a field read, which is the union's own point: the
- *  refusals exist only on the arm that has them. */
-const refusalsOf = (text: string): ReadonlyArray<Refusal> | null => {
-  const filter = parseFilter(text, TODAY)
+ *  refusals exist only on the arm that has them.
+ *
+ *  The clock is an argument here for {@link selects}' reason — the durations
+ *  are counted from a moment rather than a day, so their refusals are asked on
+ *  one ({@link NOW}). */
+const refusalsOf = (text: string, now: string = TODAY): ReadonlyArray<Refusal> | null => {
+  const filter = parseFilter(text, now)
   return filter.kind === "refused" ? filter.refusals : null
 }
 
@@ -1163,6 +1167,261 @@ test("a stamp composes with words, marks and the joiner", () => {
   expect(selects("cabinets created:this-week")).toEqual(["install"])
   expect(selects("created:today OR created:2025")).toEqual(["basil", "install"])
   expect(selects("has:created -changed:this-week")).toEqual(["install"])
+})
+
+// ── the durations ──────────────────────────────────────────────────────
+
+/**
+ * THE MOMENT `now` IS, for the tests that ask about durations — the same
+ * {@link TODAY} with a clock face on it, so every day-word boundary above is
+ * still the one being counted from and only the precision has changed.
+ *
+ * ELEVEN IN THE MORNING, deliberately: `order` was last written at 10:02 and
+ * `install` was captured at 08:00 on the same day, so an hour, two hours and
+ * three hours back each land between a different pair of them. A round number
+ * would have put a boundary on top of a stamp everywhere rather than once,
+ * where a bound landing exactly on a stamp is a case worth asking about on
+ * purpose ({@link "a bound falls where the clock says, to the minute"}).
+ */
+const NOW = `${TODAY}T11:00:00-04:00`
+
+/**
+ * A BARE DURATION IS THE RANGE IT OPENS — `changed:1h` is `changed:1h..`,
+ * within the last hour — which is the reading somebody's fingers assume and
+ * the one every system with this value kind has (roadmap `duration-values`).
+ *
+ * The pair below is the whole of the sugar: the two spellings select the same
+ * nodes, and they are not the same nodes as the point reading of that moment.
+ */
+test("a bare duration is within the last N, which is the range it opens", () => {
+  expect(selects("changed:1h", NOW)).toEqual(["order"])
+  expect(selects("changed:1h..", NOW)).toEqual(selects("changed:1h", NOW))
+  // ...and half an hour back reaches nothing, because 10:02 is not inside it.
+  expect(selects("changed:30m", NOW)).toEqual([])
+})
+
+/** A DURATION AT A RANGE'S END IS THE POINT `now` MINUS IT, and the two ends
+ *  partition what the operator can see: what changed inside the hour and what
+ *  changed before it are the two halves of `has:changed`. */
+test("a duration as a range end is the moment, and the ends partition", () => {
+  expect(selects("changed:..1h", NOW)).toEqual(["basil", "hinges"])
+  expect(selects("changed:1h", NOW)).toEqual(["order"])
+  expect(selects("has:changed", NOW)).toEqual(["basil", "order", "hinges"])
+})
+
+/** Both ends at once is a WINDOW, and it reads in the order a person says it:
+ *  `2h..30m` is "between two hours and half an hour ago", the older bound
+ *  first because that is the low end of the span. */
+test("two durations are a window", () => {
+  expect(selects("changed:2h..30m", NOW)).toEqual(["order"])
+  // A window that closes before the node was written finds nothing…
+  expect(selects("changed:2h..1h", NOW)).toEqual([])
+  // …and one that opens after it does not reach back to it either.
+  expect(selects("changed:30m..", NOW)).toEqual([])
+})
+
+/** THE ENDS MIX FREELY WITH THE DAY WORDS, because a duration is read by the
+ *  same {@link spanOf} the words are and a range takes each end's own reading:
+ *  `created:yesterday..3h` is a day at one end and a clock face at the other,
+ *  and the clause holds one of each. */
+test("a duration and a day word are two ends of one range", () => {
+  expect(selects("created:yesterday..3h", NOW)).toEqual(["install"])
+  expect(selects("created:2026-08-01..3h", NOW)).toEqual(["order", "install"])
+  expect(selects("changed:last-week..30m", NOW)).toEqual(["basil", "order", "hinges"])
+})
+
+/** A bound is the moment the clock said minus the units, to the minute and
+ *  with the seconds it was carrying — so a stamp landing exactly on one is
+ *  INSIDE, as both ends of every other span in this grammar are inclusive. */
+test("a bound falls where the clock says, to the minute", () => {
+  // `install` was captured at 08:00:00, which is exactly three hours before.
+  expect(selects("created:3h", NOW)).toEqual(["install"])
+  expect(selects("created:..3h", NOW)).toContain("install")
+  // ...and two hours back is past it.
+  expect(selects("created:2h", NOW)).toEqual([])
+})
+
+/** Every unit, and the arithmetic behind each — one query per row of the
+ *  table, so a unit whose minutes were wrong is a failing line rather than a
+ *  value nobody asked about. */
+test("the four units count minutes, hours, days and weeks", () => {
+  // `order` was written at 10:02, which is 58 minutes before eleven — so the
+  // minute unit is countable one minute either side of that and the number is
+  // minutes rather than anything else.
+  expect(selects("changed:57m", NOW)).toEqual([])
+  expect(selects("changed:58m", NOW)).toEqual(["order"])
+  expect(selects("changed:60m", NOW)).toEqual(["order"])
+  expect(selects("changed:1h", NOW)).toEqual(["order"])
+  // `hinges` was written at 09:00 on the 11th, so two rolling days from
+  // eleven on the 13th stops just short of it and three reach it.
+  expect(selects("changed:2d", NOW)).toEqual(["order"])
+  expect(selects("changed:3d", NOW)).toEqual(["order", "hinges"])
+  expect(selects("changed:1w", NOW)).toEqual(["basil", "order", "hinges"])
+})
+
+/** The count is a NUMBER, so more than one digit and a leading zero are the
+ *  same number they are anywhere else. */
+test("a duration's count is read as a number", () => {
+  expect(selects("changed:90m", NOW)).toEqual(["order"])
+  expect(selects("changed:01h", NOW)).toEqual(selects("changed:1h", NOW))
+  // Folded like every other operator value, so a shift key changes nothing.
+  expect(selects("changed:1H", NOW)).toEqual(selects("changed:1h", NOW))
+  // Zero is a legal count and names the moment the question was asked. It
+  // selects almost nothing and is refused by nothing — the same stance
+  // `date:2026-02-30` is accepted under.
+  expect(parseFilter("changed:0h", NOW).kind).toBe("asking")
+  expect(selects("changed:0h", NOW)).toEqual([])
+})
+
+/** …and they negate and compose like every other clause. */
+test("a duration composes with words, marks and the joiner", () => {
+  expect(selects("cabinets changed:1h", NOW)).toEqual(["order"])
+  expect(selects("is:doing changed:1h", NOW)).toEqual(["order"])
+  expect(selects("changed:1h OR created:3h", NOW)).toEqual(["order", "install"])
+  // "untouched for a day" — which reaches the unstamped too, on the existing
+  // reading that a clause with nothing to read cannot hold.
+  expect(selects("-changed:1d", NOW)).not.toContain("order")
+  expect(selects("-changed:1d", NOW)).toContain("hinges")
+})
+
+/**
+ * A ROLLING WINDOW IS NOT A CALENDAR ONE, which is the distinction the two
+ * families of value exist to keep: `1d` is the last twenty-four hours and
+ * `today` is since midnight; `1w` is the last seven days and `this-week` is
+ * since Monday. The corpus is built to make each pair disagree, because a
+ * corpus where they agreed would pin nothing.
+ */
+const ROLLING = {
+  "rolling.olai": [
+    // Since midnight, and so inside both readings of a day.
+    `{"id":"morning","ord":"a0","title":"this morning","created":"2026-08-13T08:00:00-04:00"}`,
+    // Yesterday evening: inside a rolling day, outside today.
+    `{"id":"evening","ord":"a1","title":"last night","created":"2026-08-12T22:00:00-04:00"}`,
+    // Yesterday morning: outside both.
+    `{"id":"breakfast","ord":"a2","title":"yesterday early","created":"2026-08-12T07:00:00-04:00"}`,
+    // The Sunday before: inside a rolling week, outside a Monday-anchored one.
+    `{"id":"sunday","ord":"a3","title":"the weekend","changed":"2026-08-09T12:00:00-04:00"}`,
+    // The Monday: inside both.
+    `{"id":"monday","ord":"a4","title":"start of the week","changed":"2026-08-10T12:00:00-04:00"}`,
+    // The Wednesday before: outside both.
+    `{"id":"older","ord":"a5","title":"the week before","changed":"2026-08-05T12:00:00-04:00"}`,
+  ].join("\n"),
+}
+
+const rolling = derive(nodesOfFiles(ROLLING))
+
+test("`1d` is a rolling day where `today` is since midnight", () => {
+  expect(selectsIn(rolling, "created:1d", NOW)).toEqual(["morning", "evening"])
+  expect(selectsIn(rolling, "created:today", NOW)).toEqual(["morning"])
+})
+
+test("`1w` is a rolling week where `this-week` starts on Monday", () => {
+  // TODAY is a Thursday, so its week began on the 10th and a rolling week
+  // reaches back to the 6th.
+  expect(selectsIn(rolling, "changed:1w", NOW)).toEqual(["sunday", "monday"])
+  expect(selectsIn(rolling, "changed:this-week", NOW)).toEqual(["monday"])
+})
+
+/**
+ * A DAY-GRANULAR VALUE COMPARES AT ITS OWN PRECISION, which is the one
+ * consequence of this value kind that had to be RULED rather than derived: a
+ * `date:` field holding a bare day sorts before every moment on that day —
+ * "the start of it", which is what ten characters say — so `date:1h`
+ * effectively asks about done-instants and not about the day's plans.
+ *
+ * The other half of that sentence is the honest one: the bare form is a range
+ * open ABOVE, so a day still to come is inside it, exactly as it is inside
+ * `date:today..`. Stated rather than special-cased (docs/search.md).
+ */
+const JOURNAL = {
+  "journal.olai": [
+    `{"id":"ticked","ord":"a0","title":"just ticked","done":"2026-08-13T10:40:00-04:00"}`,
+    `{"id":"earlier","ord":"a1","title":"ticked at breakfast","done":"2026-08-13T07:00:00-04:00"}`,
+    `{"id":"planned","ord":"a2","title":"planned for today","date":"2026-08-13"}`,
+    `{"id":"soon","ord":"a3","title":"planned for tomorrow","date":"2026-08-14"}`,
+  ].join("\n"),
+}
+
+const journal = derive(nodesOfFiles(JOURNAL))
+
+test("`date:1h` reaches the done-instants, and the day's plans sit before it", () => {
+  expect(selectsIn(journal, "date:1h", NOW)).toEqual(["ticked", "soon"])
+  // Where the day-granular question answers with everything on the 13th, the
+  // day's plan included — which is the difference being pinned.
+  expect(selectsIn(journal, "date:today", NOW)).toEqual(["ticked", "earlier", "planned"])
+  // ...and the point reading is the other side of the same moment: the two
+  // ends partition the journal, and the day's plan sorts with what is older.
+  expect(selectsIn(journal, "date:..1h", NOW)).toEqual(["earlier", "planned"])
+})
+
+/**
+ * WHAT IS NOT A DURATION IS REFUSED, in the operator's own words and never
+ * searched for as text — the grammar's standing contract, extended to a value
+ * kind whose near misses are the ones a reader will actually type.
+ *
+ * `1mo` and `1y` are the two the ruling costs, and the refusal has to say so:
+ * the `m` collision was decided in favour of minutes, month and year recency is
+ * already sayable in words, and a reader who is not told that tries `1M`,
+ * `1mon` and `1month` in turn.
+ */
+test("a value that is not a duration is refused, with the units spelled out", () => {
+  for (const value of ["1mo", "1y", "1month", "1q", "1s", "1h30m", "h", "1", "1h!"]) {
+    const refused = refusalsOf(`created:${value}`, NOW)
+    expect(refused?.map((one) => one.token)).toEqual([`created:${value}`])
+  }
+  // `1M` is NOT among them, and that is the case-folding law meeting the
+  // ruling rather than a hole in it: every operator value in this grammar is
+  // folded (`is:DONE` works), so a capital `M` is the minute unit. Somebody
+  // who typed it meaning a month gets a minute — which is the collision the
+  // ruling decided in minutes' favour, said in the one place it can still
+  // surprise. The refusal above is what teaches them the units are four.
+  expect(selects("changed:1M", NOW)).toEqual(selects("changed:1m", NOW))
+  const taught = refusalsOf("created:1mo", NOW)?.[0]?.reason
+  expect(taught).toContain("created: takes a day, month or year")
+  expect(taught).toContain("1m = 1 minute")
+  expect(taught).toContain("1w = 1 week")
+  expect(taught).toContain("no month or year units")
+  // ...and the sugar is taught beside the units, since it is the reading a
+  // bare one gets.
+  expect(taught).toContain("1h is 1h..")
+})
+
+/** A count no calendar can be walked through is refused on the same terms a
+ *  `date:2026-13` is: the shape is clean, the value is impossible, and an
+ *  empty answer with no reason is the silent error the refusals exist for. */
+test("a duration that walks off the calendar is refused, not answered emptily", () => {
+  expect(refusalsOf("created:999999w", NOW)).toHaveLength(1)
+  // Seven digits is past the shape itself, which is the cheap half of the
+  // same bound: the count is multiplied into minutes and handed to a walk.
+  expect(refusalsOf("created:1234567h", NOW)).toHaveLength(1)
+  // ...and what a person actually types is answered.
+  expect(parseFilter("created:999999m", NOW).kind).toBe("asking")
+})
+
+/** A duration is refused at all three day operators in one sentence, named by
+ *  whichever the reader typed — the rule the value grammar has always had,
+ *  and the reason a new value kind reaches three doors at once. */
+test("the three day operators refuse a duration in the same words", () => {
+  for (const name of ["date", "created", "changed"]) {
+    expect(refusalsOf(`${name}:1y`, NOW)?.[0]?.reason).toContain(
+      `${name}: takes a day, month or year`,
+    )
+    expect(refusalsOf(`${name}:1y`, NOW)?.[0]?.reason).toContain("no month or year units")
+  }
+})
+
+/** THE CLOCK IS STILL AN ARGUMENT, and a duration counts from the whole of it
+ *  where a day word counts from the ten characters in front. A clock naming
+ *  only a day names midnight on it, which is what the browser's own parse of
+ *  its filter box hands over — and the reason that parse's bounds are not what
+ *  anything is selected by (`@olai/web`'s `pane/PageView.tsx`). */
+test("a duration counts from the moment the clock names", () => {
+  expect(selects("changed:1h", `${TODAY}T10:30:00-04:00`)).toEqual(["order"])
+  // Half an hour earlier on the same day, and 10:02 has fallen out of the hour.
+  expect(selects("changed:1h", `${TODAY}T11:30:00-04:00`)).toEqual([])
+  // A clock that names only a day is midnight on it, so an hour back is the
+  // evening before — a legal parse over a bound nothing here selects by.
+  expect(parseFilter("changed:1h", TODAY).kind).toBe("asking")
 })
 
 // ── the archive ────────────────────────────────────────────────────────

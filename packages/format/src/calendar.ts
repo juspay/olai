@@ -11,7 +11,11 @@
  *     a calendar grid and what makes `date:this-week` a Monday-to-Sunday span
  *     (./filter.ts);
  *   - THE DAY BEFORE OR AFTER one, which needs the length of a month and the
- *     Gregorian leap rule.
+ *     Gregorian leap rule;
+ *   - THE MOMENT SO MANY MINUTES BEFORE another one ({@link shiftMinutes}) —
+ *     the day before or after composed with a clock face, and the one reading
+ *     here that counts something NARROWER than a day. It is what the query
+ *     grammar's durations are made of (`created:1h`, ./filter.ts).
  *
  * It is not a date LIBRARY and it never leaves integers. Nothing is parsed into
  * an instant: `new Date("2026-08-01")` is midnight UTC, which is the 31st of
@@ -331,6 +335,89 @@ export const shiftDayByMonth = (date: string, delta: number): string => {
   if (parsed === null) return date
   const shifted = stepMonth(parsed, delta)
   return isoDate(shifted.year, shifted.month, Math.min(parsed.day, daysIn(shifted)))
+}
+
+/** The clock face on the front of what follows a day: the hours and minutes a
+ *  datetime names, the seconds if it wrote any, and EVERYTHING PAST THEM —
+ *  which is the zone offset, carried through {@link shiftMinutes} verbatim
+ *  rather than recomputed. Recomputing one needs a zone database this module
+ *  has spent its whole header refusing to become. */
+const TIME_SHAPE = /^T(\d{2}):(\d{2})(?::(\d{2}))?(.*)$/
+
+/** Minutes in a day — the borrow {@link shiftMinutes} makes when counting back
+ *  walks off the front of one. */
+const DAY_MINUTES = 24 * 60
+
+/**
+ * The moment `delta` minutes away from `at`, in `at`'s own spelling — or
+ * `null` for text that names no moment this calendar can count from, or that
+ * lands on a day it cannot spell.
+ *
+ * THE THIRD READING this module exists for, and the one the query grammar's
+ * durations are made of: `created:1h` is a bound at the moment one hour before
+ * the question was asked, and an hour is not a number of days.
+ *
+ * IT NEVER LEAVES INTEGERS, exactly as the two above do not, and the reason is
+ * the header's one unit smaller: an hour subtracted from `new Date(…)` is an
+ * hour subtracted through a zone conversion nobody asked for. So the clock
+ * face is taken apart, the minutes are counted, and the day a borrow lands on
+ * is {@link shiftDay}'s — which is what keeps this the same calendar the rest
+ * of the file is rather than a second one.
+ *
+ * THE OFFSET IS CARRIED, NOT COUNTED. An hour before
+ * `2026-08-13T10:30:00-04:00` is `2026-08-13T09:30:00-04:00` — the same wall
+ * clock, the same offset text, one hour back on the face. Which makes this a
+ * WALL-CLOCK subtraction rather than an absolute one, and the difference shows
+ * for exactly the hour a zone puts its clocks back, when the face says one
+ * hour has passed and the world says two. Naming it is the honest price of not
+ * carrying a zone database; ./filter.ts's own note says what it costs a query.
+ *
+ * A CLOCK THAT NAMES ONLY A DAY NAMES THE START OF IT, which is the reading
+ * `dayOf` makes in the other direction: ten characters are a day, and the
+ * moment a day begins is midnight on it. So `shiftMinutes("2026-08-13", -60)`
+ * is `2026-08-12T23:00:00`, carrying no offset because none was written down.
+ *
+ * SECONDS RIDE THROUGH AS WRITTEN, since nothing here counts them: a bound
+ * minted off a stamp's `:44` falls a whole number of minutes before the moment
+ * the question was asked, rather than at the top of some minute near it.
+ *
+ * `null`, where {@link shiftDay} answers with the text unchanged, because the
+ * one caller is minting a BOUND out of this. A bound that was quietly the
+ * clock's own garbage is a query comparing against nonsense and selecting
+ * whatever happens to sort against it — the silent empty answer the grammar's
+ * refusals exist to prevent. BOTH ENDS are checked: text that names no real
+ * day going in, and a day off the front or the back of what four digits can
+ * spell coming out — a `-17000-12-31`, which the padding note above calls a
+ * value that is neither a date nor an error.
+ */
+export const shiftMinutes = (at: string, delta: number): string | null => {
+  const day = at.slice(0, "YYYY-MM-DD".length)
+  if (parseDay(day) === null) return null
+  const rest = at.slice(day.length)
+  // A day with nothing after it is midnight on it — the same four parts the
+  // shape yields, so there is one path below rather than two.
+  const face: ReadonlyArray<string | undefined> | null = rest === ""
+    ? ["", "00", "00", undefined, ""]
+    : TIME_SHAPE.exec(rest)
+  if (face === null) return null
+  const [, hours, minutes, seconds, tail] = face as unknown as [
+    string,
+    string,
+    string,
+    string | undefined,
+    string,
+  ]
+  const counted = Number(hours) * 60 + Number(minutes) + delta
+  // How many days the count borrowed, and what is left on the face. A FLOOR
+  // rather than a truncation, so counting back past midnight borrows a whole
+  // day rather than none and leaves a negative on the clock.
+  const borrowed = Math.floor(counted / DAY_MINUTES)
+  const onFace = counted - borrowed * DAY_MINUTES
+  const landed = shiftDay(day, borrowed)
+  if (parseDay(landed) === null) return null
+  return `${landed}T${pad(Math.floor(onFace / 60))}:${pad(onFace % 60)}:${
+    seconds ?? "00"
+  }${tail}`
 }
 
 /**
