@@ -12,7 +12,9 @@
  * Only the ticking half touches a clock.
  */
 
-import { type Accessor, createSignal, onCleanup } from "solid-js"
+import type { Accessor } from "solid-js"
+
+import { createTicking } from "../clock.ts"
 
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
@@ -43,13 +45,11 @@ const TICK = MINUTE
 /**
  * A clock, at the resolution the phrases above need.
  *
- * Per-component and disposed with it, like the note's expansion state: nothing
- * about it belongs to the document, and a timer that outlived the pill would be
- * a timer nobody stops.
+ * The MACHINERY is `../clock.ts`'s now — a signal, an interval and the cleanup
+ * that stops it, which this file used to spell for itself until the chat panel
+ * needed the same three lines at a different resolution. What stays here is the
+ * only part that is about `agoOf`: how often the phrase has to be re-read,
+ * which is a fact about the finest distinction it draws and about nothing else.
+ * No gate, because the pill ticks for as long as it is on screen.
  */
-export const createNow = (): Accessor<number> => {
-  const [now, setNow] = createSignal(Date.now())
-  const timer = setInterval(() => setNow(Date.now()), TICK)
-  onCleanup(() => clearInterval(timer))
-  return now
-}
+export const createNow = (): Accessor<number> => createTicking(TICK)

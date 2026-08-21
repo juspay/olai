@@ -260,6 +260,21 @@ test("a row's handle is marked in the gesture that owns it and the cell that wea
   ])
 })
 
+// clock.ts's claim — "the one clock in the client", which for a while was a
+// claim about the DAY and silently untrue about the wall clock. Two readouts
+// here are a reading of it and therefore go stale where they stand — the commit
+// pill's "12m ago" and the chat panel's "47s" — and each arrived with its own
+// `setInterval`, signal and `onCleanup`. What the two had in common was never
+// the number but the LIFETIME, and a disposal written out per feature is one a
+// feature will eventually forget: the timer that outlives the component it drew
+// for is invisible until a panel that has been opened and closed forty times is
+// ticking forty times. So the repeating timer is `createTicking`, once, and a
+// third readout has to reach for it. `clock.ts` itself is the definition, and
+// the pattern is the CALL — which is why its own name is the only one here.
+test("only clock.ts starts a repeating timer", () => {
+  expect(filesSpelling(/setInterval\s*\(/)).toEqual(["clock.ts"])
+})
+
 // pointer.ts's claim — one file suppresses the text selection under a gesture.
 // It is swept because the file's own note LEANS on it: the save-and-put-back
 // there is not re-entrant, and what makes that survivable is that the value it

@@ -80,7 +80,7 @@ import { useShowNode } from "../focus.ts"
 import { useFollow } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { declaringFailure } from "./declared.ts"
-import { createTicking, elapsedOf } from "./elapsed.ts"
+import { createNow, elapsedOf } from "./elapsed.ts"
 import { Entry } from "./Entry.tsx"
 
 import { laneOf, RAIL } from "./lanes.ts"
@@ -207,7 +207,7 @@ export function Transcript(props: { readonly chat: Chat }) {
    *  it runs only while `live` says there is something to time
    *  ({@link ./elapsed.ts}). A ticker per row would be one timer per tool call
    *  of a long conversation, all of them saying the same thing a beat apart. */
-  const now = createTicking(live)
+  const now = createNow(live)
 
   return (
     <div

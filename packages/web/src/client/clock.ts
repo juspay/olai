@@ -1,11 +1,24 @@
 /**
- * What day it is, in the reader's own time zone, kept true past midnight.
+ * The client's clocks: what day it is, and what time it is when something on
+ * screen has to keep saying.
  *
  * The one clock in the client, and it sits at the top rather than inside
  * whichever feature happened to need it first: today is a fact about the TAB,
  * and its readers are the page model (`/today` names no date), the day page
  * and the month in the sidebar. Two of them asking a `Date` separately is two
  * answers that can differ by a day at exactly the wrong moment.
+ *
+ * THAT CLAIM GREW A SECOND HALF when a second thing started ticking. Two
+ * readouts in this client are a reading of the wall clock and therefore go
+ * stale on their own — how long ago the last commit was
+ * ({@link ./commit/ago.ts}) and how long the running tool call has been going
+ * ({@link ./chat/elapsed.ts}) — and each had arrived with a `setInterval`, a
+ * signal and an `onCleanup` of its own. Two copies is where a shape stops being
+ * incidental: what they have in common is not the number but the LIFETIME, and
+ * a timer whose disposal is written out per feature is a timer one feature will
+ * eventually forget to stop. So {@link createTicking} is here, with the day, and
+ * `claims.test.ts` holds the client to it — a third readout reaches for this
+ * rather than typing the fourth `setInterval`.
  *
  * LOCAL, deliberately. The dates in the files are what a person wrote down, so
  * the day they mean is the day where they are — `new Date().toISOString()`
@@ -29,7 +42,7 @@
  * every tab that was not.
  */
 
-import { type Accessor, createSignal, onCleanup } from "solid-js"
+import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
 
 import { isoDate } from "@olai/format"
 
@@ -81,4 +94,51 @@ export const createToday = (): Accessor<string> => {
   })
 
   return today
+}
+
+/** A gate that is always open — what a readout that ticks for as long as it is
+ *  on screen passes, spelled once rather than at each such call site. */
+const ALWAYS: Accessor<boolean> = () => true
+
+/**
+ * A clock that re-reads itself every `every` milliseconds, for as long as
+ * `when` says there is anything to time.
+ *
+ * WHAT IT IS FOR is a readout whose value is a reading of the wall clock: "12m
+ * ago", "47s". Those go stale where they stand — the fact behind them has not
+ * moved and the sentence about it has — so the signal moving is the whole of
+ * how they stay true. The arithmetic is never here: each reader keeps its own
+ * pure function of an instant and a `now`, which is what makes the interesting
+ * cases a table instead of an hour of waiting.
+ *
+ * THE GATE is the half a bare interval cannot have. The chat panel's readout
+ * exists only while a turn is in flight, and a timer under an idle conversation
+ * would be waking the tab once a second to recompute nothing — worse, it would
+ * be the machinery quietly disagreeing with the rule the readout itself follows
+ * ({@link ./chat/elapsed.ts}: a dead conversation keeps no clock). Defaulted
+ * open, because a readout that is simply on screen for as long as it is drawn
+ * is the ordinary case and should not have to say so.
+ *
+ * The clock is READ AGAIN on the way in, not only on each tick: a gate that has
+ * just opened is a fact that has just started, and starting from wherever the
+ * last interval left the signal would date it to whenever the previous turn
+ * ended.
+ *
+ * Per component and disposed with it. Nothing about a ticking readout belongs
+ * to the document, and a timer that outlived the component that drew it would
+ * be a timer nobody stops — which is the failure two hand-rolled copies of this
+ * were each one edit away from.
+ */
+export const createTicking = (
+  every: number,
+  when: Accessor<boolean> = ALWAYS,
+): Accessor<number> => {
+  const [now, setNow] = createSignal(Date.now())
+  createEffect(() => {
+    if (!when()) return
+    setNow(Date.now())
+    const timer = setInterval(() => setNow(Date.now()), every)
+    onCleanup(() => clearInterval(timer))
+  })
+  return now
 }

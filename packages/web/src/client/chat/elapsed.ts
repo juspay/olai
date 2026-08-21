@@ -32,16 +32,27 @@
  * lunchtime. A stopwatch on a dead conversation is a worse lie than no
  * stopwatch at all, because it is a lie that keeps getting bigger.
  *
+ * TWO CLOCKS, and the assumption is declared rather than hidden: the instant is
+ * the SERVER's (`ChatEntry.since`) and `now` is the reader's, so a duration is
+ * only as true as the two machines agree. That is the same bargain
+ * `../commit/ago.ts` strikes with a stamp out of a git repository, and it is
+ * struck for the same reason — the alternative, timing from when this tab began
+ * looking, is not a smaller error but a systematic one, and it gets the answer
+ * wrong even when every clock is perfect. What skew CANNOT do is produce
+ * nonsense: a stamp ahead of the reader reads as a call that has only just
+ * started, never as a negative.
+ *
  * A PURE FUNCTION over a row, a boolean and a clock, exactly as `doingOf` is a
  * pure function over a row and a boolean — so the whole rule is a table in a
  * unit test rather than something you have to start an agent and wait a minute
- * to see. Only {@link createTicking} touches a clock, and it is the same split
+ * to see. Only {@link createNow} touches a clock, and it is the same split
  * `../commit/ago.ts` makes for the same reason.
  */
 
 import type { ChatEntry } from "@olai/surface"
-import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
+import type { Accessor } from "solid-js"
 
+import { createTicking } from "../clock.ts"
 import { isRunning } from "./running.ts"
 
 /**
@@ -131,29 +142,15 @@ const QUIET_MS = 3 * SECOND
 const TICK_MS = SECOND
 
 /**
- * The clock the readout is drawn against — and it runs only while there is
+ * The clock this readout is drawn against — and it runs only while there is
  * something to time.
  *
- * Gated on the same `live` the readout is, rather than ticking for the life of
- * the panel: an idle conversation has no running call by definition, so a timer
- * under it would be waking a tab once a second to recompute nothing. It also
- * makes the rule the file argues for true of the machinery as well as of the
- * words — a dead conversation does not merely draw no number, it does not keep
- * a clock either.
- *
- * Re-read on the way IN as well as on each tick, so the first frame of a turn
- * is timed from the turn rather than from whenever the last one ended. Per
- * component and disposed with it, like `../commit/ago.ts`'s: nothing about it
- * belongs to the conversation, and a timer that outlived the panel would be a
- * timer nobody stops.
+ * The machinery is `../clock.ts`'s ({@link createTicking}); what is decided
+ * here is the two things about it that belong to this readout — how often, and
+ * WHEN. The gate is the same `live` the words are gated on, which is the rule
+ * this file argues for made true of the machinery as well: a dead conversation
+ * does not merely draw no number, it does not keep a clock either. An idle
+ * panel would otherwise be waking the tab once a second to recompute nothing.
  */
-export const createTicking = (live: Accessor<boolean>): Accessor<number> => {
-  const [now, setNow] = createSignal(Date.now())
-  createEffect(() => {
-    if (!live()) return
-    setNow(Date.now())
-    const timer = setInterval(() => setNow(Date.now()), TICK_MS)
-    onCleanup(() => clearInterval(timer))
-  })
-  return now
-}
+export const createNow = (live: Accessor<boolean>): Accessor<number> =>
+  createTicking(TICK_MS, live)
