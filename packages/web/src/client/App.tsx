@@ -6,9 +6,9 @@
  * on desktop the connection, git, agent, preferences). On a phone those four
  * leave the bar: connection and git are banners when they are news, the agent
  * is the thumb strip, preferences live in the directory drawer. The sidebar
- * carries what is about the DIRECTORY (the agenda, the calendar, the file
- * tree), collapsing to an icon rail when minimized; chat is a resizable dock
- * or a minimized pill/strip.
+ * carries what is about the DIRECTORY (the agenda, the inbox, the calendar,
+ * the file tree), collapsing to an icon rail when minimized; chat is a
+ * resizable dock or a minimized pill/strip.
  * The main column is a LIST of routes (`./workspace.ts`) — one pane is the
  * page this app has always been; two or more are the same page component
  * side by side, never a stripped copy.
@@ -26,6 +26,7 @@ import { Calendar } from "./calendar/Calendar.tsx"
 import { Panel as ChatPanel } from "./chat/Panel.tsx"
 import { createToday } from "./clock.ts"
 import { createOwed } from "./dates.ts"
+import { createInboxHeld } from "./inbox.ts"
 import { Offline } from "./connection/Offline.tsx"
 import { createDirectory } from "./directory.ts"
 import { AirProvider, createAir } from "./drag/air.ts"
@@ -44,7 +45,6 @@ import { only } from "./narrow.ts"
 import { OpensProvider } from "./opens.tsx"
 import { fileOf, opensAt, requestFor } from "./page.ts"
 import { fileNamed } from "./routes.ts"
-import { createNames } from "./names.ts"
 import { createReadings, ReadingsProvider } from "./reading.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { PinsProvider } from "./pins/answered.tsx"
@@ -176,6 +176,10 @@ export default function App() {
    * under the same gate, one branch down.
    */
   const owed = createOwed(askedOn)
+  /** How full the inbox is — the door beside Agenda wears this number. One
+   *  subscription, created here with owed, so a second reader cannot open a
+   *  second cell. */
+  const inboxHeld = createInboxHeld()
 
   /**
    * This browser's fold memory, kept filed against the set — a node that moved
@@ -241,11 +245,11 @@ export default function App() {
    * `/#id` page is called whatever that node is called right now
    * (`./pins/palette.ts`).
    *
-   * A LOOKUP rather than the array, for `./names.ts`'s reason: one row asks one
-   * id, and the table is built where it is answered — and held there while the
-   * names hold, which is the same rule the panes read by.
+   * READ OFF THE PANE'S TABLE, not built here. `createReading` derives it
+   * once beside the page; a second `createNames` over `focused` was a
+   * duplicate Map and a second copy on every navigation (`./reading.tsx`).
    */
-  const names = createNames(focused)
+  const names = () => readings.names(router.workspace().focus)
 
   /**
    * The day the calendar opens on, when the focused pane is a day page — the
@@ -286,8 +290,8 @@ export default function App() {
       <PinsProvider>
       <FieldsProvider value={fields}>
       <AirProvider value={air}>
-      <OpensProvider opens={(path, at) => opensAt(directory.faces(), path, at)}>
-      <ServedProvider faces={directory.faces()} head={directory.head}>
+      <OpensProvider opens={(path, at) => opensAt(directory.paths(), path, at)}>
+      <ServedProvider paths={directory.paths()} head={directory.head}>
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
           the TAB (`./clock.ts`), and the panel reads it too — the `@` list's
           node half is matched by the format's own grammar, whose relative words
@@ -374,6 +378,7 @@ export default function App() {
                         active={openFile()}
                         broken={directory.broken()}
                         owed={owed()}
+                        inboxHeld={inboxHeld()}
                         open={desktop() ? true : menuOpen()}
                         onClose={() => setMenuOpen(false)}
                         foot={

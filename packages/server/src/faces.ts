@@ -178,6 +178,11 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  * is called right now — which is a paint instruction for a column somebody is
  * looking at.
  *
+ * `inbox` is that same kind of reading, one integer over: how many top-level
+ * captures the directory's inbox holds (`@olai/format`'s `inboxHeldOf`). An
+ * agent asking what the inbox holds asks `list_outlines` and is answered with
+ * the nodes. A badge is a paint instruction for a door somebody is looking at.
+ *
  * It satisfies the cost rule the way `pending` does rather than trivially: the
  * value is O(what somebody PINNED), which is a curated short list — it is
  * exactly the rows the sidebar draws, so a shelf too big for this member is a
@@ -232,6 +237,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   moving: "resource",
   heads: "resource",
   pins: "resource",
+  inbox: "resource",
   transcript: "resource",
   errors: "resource",
   manifest: "resource",

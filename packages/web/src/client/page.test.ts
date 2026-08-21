@@ -144,22 +144,23 @@ test("a page a query has nothing to say about draws none of it", () => {
 
 // ── where a path of this vault opens ───────────────────────────────────
 
-const FACES = [
-  { path: "house.olai", title: "house.olai", links: [], tags: [] },
-  { path: "notes/finishes.md", title: "finishes", links: [], tags: [] },
-] as never
+/** The directory as this question is asked of it: the PATHS, in the order the
+ *  directory holds them (`../client/directory.ts`). It was a list of faces
+ *  until `perf-faces-broken-walk`, and every element of it was read for its
+ *  `path` and nothing else. */
+const SERVED = ["house.olai", "notes/finishes.md"]
 
 test("a path the directory holds opens at its own route; one it does not opens nowhere", () => {
-  expect(opensAt(FACES, "house.olai")).toEqual(atFile("house.olai"))
-  expect(opensAt(FACES, "shed.olai")).toBeUndefined()
+  expect(opensAt(SERVED, "house.olai")).toEqual(atFile("house.olai"))
+  expect(opensAt(SERVED, "shed.olai")).toBeUndefined()
 })
 
 test("a fragment is read by the grammar that would have written it", () => {
   // In a BODY it is a heading — the ids a rendered document has.
-  expect(opensAt(FACES, "notes/finishes.md", "install"))
+  expect(opensAt(SERVED, "notes/finishes.md", "install"))
     .toEqual(atElement("notes/finishes.md", "install"))
   // After an OUTLINE it is a node, because an outline's places are node ids —
   // which is the grammar's own answer (`@olai/format`'s `address.ts`), asked
   // here rather than re-decided.
-  expect(opensAt(FACES, "house.olai", "install")).toEqual(atNode("install"))
+  expect(opensAt(SERVED, "house.olai", "install")).toEqual(atNode("install"))
 })

@@ -24,7 +24,6 @@
 import type {
   Agenda,
   DayGroup,
-  Face,
   PageRequest,
   Row,
   Shown,
@@ -94,10 +93,13 @@ export const requestFor = (
  * decide both whether it holds that file and which of its two page shapes the
  * file is (`../document/Hypertext.tsx`).
  *
- * ASKED OF THE FACES, which is what a browser still holds of the directory: one
- * head per served file, paths and titles and no content (`@olai/surface`'s
- * `heads`). Membership was always this question; what changed is that the list
- * it is asked of no longer arrives with every record in it.
+ * ASKED OF THE PATHS, which is what a browser still holds of the directory: one
+ * head per served file, no records and no bodies (`@olai/surface`'s `heads`).
+ * Membership was always this question; what changed is that the list it is
+ * asked of no longer arrives with every record in it. It took the FACES until
+ * `perf-faces-broken-walk` and read `face.path` off every one of them to answer
+ * — the directory hands the paths over now (`./directory.ts`), since that was
+ * the only thing any reader of that list ever wanted.
  *
  * A FRAGMENT rides only on the document arm, and its absence on the outline arm
  * is a fact about outlines rather than an omission: a document page draws a
@@ -107,11 +109,10 @@ export const requestFor = (
  * rather than carried to a page that would ignore it.
  */
 export const opensAt = (
-  faces: ReadonlyArray<Face>,
+  paths: ReadonlyArray<string>,
   path: string,
   at?: string,
-): Route | undefined =>
-  faces.some((face) => face.path === path) ? atElement(path, at ?? null) : undefined
+): Route | undefined => paths.includes(path) ? atElement(path, at ?? null) : undefined
 
 /** The file the open page belongs to — the sidebar entry to light up. A zoomed
  *  node belongs to the file its CANONICAL record is in, whichever file the
