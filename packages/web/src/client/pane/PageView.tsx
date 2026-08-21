@@ -73,8 +73,9 @@ export function PageView() {
   })
   const reading = createReading(request)
   // …and the pane joins the workspace's register with it, so the chrome outside
-  // the panes can read whichever one is focused (`../App.tsx`).
-  useReadings().join(here, reading.page)
+  // the panes can read whichever one is focused — the page AND the names table
+  // derived beside it (`../App.tsx`).
+  useReadings().join(here, reading)
 
   const page = createMemo(() => reading.page()?.shows)
 

@@ -82,7 +82,7 @@ import {
   boxOf,
   CAPTURE_PREFIX,
   filterItems,
-  hitItem,
+  hitItems,
   type PaletteItem,
   SHELL_ITEMS,
 } from "./items.ts"
@@ -99,6 +99,7 @@ import { SearchCount } from "../search/Count.tsx"
 import { createCursor } from "../search/cursor.ts"
 import { createSearch } from "../search/nodes.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
+import { spend } from "../settled.ts"
 import {
   askInPalette,
   closePalette,
@@ -309,9 +310,9 @@ export function Palette(props: {
     // NOTHING FOR A MODAL NOBODY CAN SEE, and it is the first line for the
     // reason `opRows` above is guarded: everything below reads values that move
     // on their own. `pins()` moves whenever anything pinned is retitled
-    // anywhere, `router.route()` on every navigation, and `props.names` twice
-    // per navigation — so a shut palette rebuilt its whole list, re-parsing the
-    // shelf for `pinnedAt` each time, on every one of them
+    // anywhere, `router.route()` on every navigation, and `props.names` on a
+    // navigation that renamed something — so a shut palette rebuilt its whole
+    // list, re-parsing the shelf for `pinnedAt` each time, on every one of them
     // (docs/brainstorming/reactivity-after-the-flip.md §4.5). Solid re-tracks
     // per run, so while the palette is shut this depends on `paletteOpen()`
     // and nothing else.
@@ -344,7 +345,14 @@ export function Palette(props: {
     // reading answers both kinds, so a row is drawn from the same hit whichever
     // it is, and typing a word that is in a document's PROSE finds it here
     // exactly as it does in the header's box.
-    return [...filterItems(query(), commands), ...nodes.hits().map(hitItem)]
+    // THE HITS CARRY THE SEARCH THEY CAME OUT OF (`../settled.ts`'s `Taking`),
+    // which is what lets `Enter` be refused for a row of a query the reader
+    // has typed past WITHOUT being refused for the command rows above it —
+    // those are matched in this tab and are never behind anything.
+    return [
+      ...filterItems(query(), commands),
+      ...hitItems(nodes),
+    ]
   })
 
   /** Everything this modal is holding, put down — one spelling, because the
@@ -666,8 +674,17 @@ export function Palette(props: {
     // fallback: that is exactly the keystroke this palette must not turn into
     // a write nobody aimed.
     if (!chosen()) return
-    const item = items()[cursor.at()]
-    if (item !== undefined) runItem(item)
+    // ...and neither is a row of an answer the reader has typed past, which is
+    // the same sentence one turn on: the hits HOLD STILL through the settle
+    // and the round trip after it, so for a moment after every keystroke the
+    // row under the cursor is the last query's. `spend` asks the ROW rather
+    // than this door, because the command rows above the hits are this tab's
+    // own and are never behind anything (`../settled.ts`).
+    //
+    // The key is claimed either way — the handler below preventDefaults every
+    // list key — and a POINTER does not come through here at all: `onSelect`
+    // runs the row it pressed, which is the row the hand can see.
+    spend(items()[cursor.at()], runItem)
   }
 
   /**

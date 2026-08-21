@@ -1,6 +1,6 @@
 /**
  * The sidebar's INBOX entry: the door onto the outline a `⌘K` `+` captures
- * into, at the foot of the directory column above the Trash.
+ * into, beside Agenda at the top of the directory column.
  *
  * It is a file page and not a page of its own — unlike the Trash — so these
  * steps assert on the ADDRESS it lands at rather than on a view: whichever
@@ -13,11 +13,15 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  AGENDA_LINK,
   HYDRATION_TIMEOUT,
+  INBOX_COUNT,
+  INBOX_HELD,
   INBOX_LINK,
   OUTLINE_TREE,
   POLL_TIMEOUT,
   SIDEBAR_BODY,
+  TRASH_LINK,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -59,6 +63,67 @@ Then("the Inbox door is marked unreadable", async function (this: OlaiWorld) {
   await this.page
     .locator(`${INBOX_LINK}[data-broken="true"]`)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/**
+ * THE POSITION, asked as the order of the three named doors in the column —
+ * Agenda, then Inbox, then Trash — rather than as a pixel or a class. Calendar
+ * day-links sit between them and are not these three, so a query that names
+ * only the doors cannot pass with Inbox still parked above Trash.
+ */
+Then("Inbox sits beside Agenda", async function (this: OlaiWorld) {
+  await this.showSidebar();
+  await this.page
+    .locator(INBOX_LINK)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const doors = `${SIDEBAR_BODY} ${AGENDA_LINK}, ${SIDEBAR_BODY} ${INBOX_LINK}, ${SIDEBAR_BODY} ${TRASH_LINK}`;
+  const order = await this.page
+    .locator(doors)
+    .evaluateAll((all) => all.map((one) => one.getAttribute("data-testid")));
+  assert.deepEqual(
+    order,
+    ["agenda-link", "inbox-link", "trash-link"],
+    `the directory doors are ${JSON.stringify(order)}, not Agenda then Inbox then Trash`,
+  );
+});
+
+/**
+ * The number ON the door, asked as TEXT — "1" being on screen is the half a
+ * `data-` attribute cannot promise. Waited, because a capture's frame has to
+ * land before the chip does.
+ */
+Then(
+  "the Inbox wears a count of {int}",
+  async function (this: OlaiWorld, count: number) {
+    await this.showSidebar();
+    await this.page
+      .locator(INBOX_LINK)
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const shown = String(count);
+    const chip = this.page.locator(INBOX_COUNT).first();
+    await this.waitUntil(
+      async () => (await chip.innerText().catch(() => "")).trim() === shown,
+      `the Inbox to show "${shown}"`,
+    );
+    await this.expectAttribute(INBOX_HELD, "data-count", shown, "the Inbox");
+  },
+);
+
+/**
+ * No chip at all — an empty inbox wears no mark, not a zero. The door is
+ * waited for first: an absence checked against a column that has not drawn
+ * its answer yet is an absence of everything.
+ */
+Then("the Inbox wears no count", async function (this: OlaiWorld) {
+  await this.showSidebar();
+  await this.page
+    .locator(INBOX_LINK)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.waitUntil(
+    async () => (await this.page.locator(INBOX_COUNT).count()) === 0,
+    "the Inbox to wear no count",
+  );
+  await this.expectAttribute(INBOX_HELD, "data-count", "0", "the Inbox");
 });
 
 When("I open the Inbox from the sidebar", async function (this: OlaiWorld) {

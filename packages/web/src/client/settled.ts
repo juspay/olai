@@ -98,8 +98,84 @@ import { type Call, runAsync } from "./run.ts"
  *  sentence is not a constant. */
 export const SETTLE_MS = 200
 
-/** What a door gets back — three accessors, and every one of them is a thing a
- *  door draws. */
+/**
+ * SPEND SOMETHING OFF THE ANSWER ON SCREEN — or spend nothing, silently.
+ *
+ * `act` runs only while what is drawn is about the question being asked;
+ * otherwise nothing runs and nothing is said. It is {@link Settled.answering}
+ * as an ACT rather than as a label, and that is the whole of why it exists:
+ * the label was read correctly at the two doors somebody was thinking about
+ * and not at the three next to them, because a fact a caller must remember to
+ * consult is a fact a caller forgets
+ * (`docs/brainstorming/reactivity-after-the-flip.md`'s 4.12, and the deferral
+ * it left behind).
+ *
+ * WHAT IT IS FOR IS `Enter`, and only `Enter`. A key means "the row under the
+ * cursor", and the cursor's row is the one about to change underneath it; a
+ * POINTER is a hand on the row it can SEE, and taking that row is exactly what
+ * the hand asked for however far the box has moved on. So no door routes a
+ * press through this, at any depth.
+ *
+ * It answers NOTHING, which is the size of the thing rather than an omission:
+ * whether a key was spent and whether it was CLAIMED are two facts, and only
+ * the second is a door's to act on — a list on screen claims its keys whether
+ * or not the row under the cursor was the reader's, because an `Enter` falling
+ * past it would do something else entirely. A caller that got a verdict back
+ * here would be a caller reconstructing the claim out of it.
+ *
+ * The refusal is SILENT, and nothing dims while it waits: a whole list going
+ * grey and back on every keystroke is a flicker, and this arrived out of a
+ * campaign about flicker. The rows catch up a moment later and the same press
+ * means what it says (`docs/editing.md` says that in a reader's own words).
+ */
+export type Taking = (act: () => void) => void
+
+/** A row NOTHING IS BEHIND — the palette's own commands, the composer's file
+ *  rows, a day list read off a phrase and a calendar. They are minted in this
+ *  tab from what is already in it, so there is no settle and no flight to be
+ *  inside of and they spend at once.
+ *
+ *  It is a {@link Taking} rather than a missing one because "which answer is
+ *  this row off" is then a question every row answers: a row type carrying it
+ *  OPTIONALLY makes "never behind" an absence, and an absence is what a new
+ *  mint site produces by saying nothing — which is an ungated `Enter`, the
+ *  defect this whole file is about. Spelled out, a row that forgets is a type
+ *  error. */
+export const atOnce: Taking = (act) => act()
+
+/**
+ * SPEND THE ROW A KEY IS ON — through the answer that row came from.
+ *
+ * THE OTHER OF THE TWO SHAPES a door comes in, and the rule is which value the
+ * take is read off. A door with a ROW TYPE OF ITS OWN carries the take on
+ * every row and reads it back here (the ⌘K palette, the header's box, the chat
+ * composer's `@` list, the row editor's three widgets). A door whose rows are
+ * the wire's own values has nothing to hang it on and asks the search instead
+ * ({@link Settled.taking} — `search/Shortlist.tsx`, over bare `NodeHit`s).
+ *
+ * Carrying it is what a MIXED list needs, and two of these are mixed: the
+ * palette draws its own commands above the server's hits and the composer
+ * draws the served paths above its nodes, both minted in this tab per
+ * keystroke. Gating the DOOR would swallow `Enter` on a command for a settle
+ * and a round trip somebody else's search is inside of — which is the
+ * palette's oldest gesture and the one a reader makes fastest. And it is what
+ * ONE ROW TYPE AT TWO DOORS needs: the header's box draws the palette's rows,
+ * and two doors over one row may not gate differently however single-minded
+ * either one's list happens to be today.
+ *
+ * Nothing under the cursor spends nothing, which is not the same as a refusal
+ * and is why it is not one — a key over an empty list has nothing to claim.
+ */
+export const spend = <R extends { readonly taking: Taking }>(
+  row: R | undefined,
+  act: (row: R) => void,
+): void => {
+  if (row === undefined) return
+  row.taking(() => act(row))
+}
+
+/** What a door gets back — three accessors and one act, and every one of them
+ *  is a thing a door draws or spends. */
 export interface Settled<Q, A> {
   /**
    * WHAT TO DRAW: whatever last answered THIS session, or `undefined` for
@@ -137,6 +213,17 @@ export interface Settled<Q, A> {
    * written.
    */
   readonly answering: Accessor<Q | null>
+  /**
+   * {@link answering}, AS AN ACT — see {@link Taking}. A door hands it what
+   * taking a row of this answer does, and it runs only while the rows are the
+   * reader's own.
+   *
+   * Most doors do not call this at all: they hand it to the rows they mint
+   * from this answer, and read it back off the row under the cursor
+   * ({@link spend}, which says why). What calls it directly is a door whose
+   * rows ARE the wire's values, with nothing of its own to hang it on.
+   */
+  readonly taking: Taking
   /** A refused call, in the server's own words — `null` when there is none, and
    *  never a stale one. Never silently dropped (`./run.ts` forbids a silent
    *  handler). */
@@ -240,11 +327,23 @@ export const createSettled = <Q, A>(
     forget()
   })
 
+  /** WHICH QUESTION the answer on screen is about — `null` while it is not the
+   *  one being asked. Named rather than spelled into the returned object,
+   *  because the taker below is this predicate and would otherwise be a second
+   *  copy of it. */
+  const answering = (): Q | null => {
+    const got = answer()
+    return got !== undefined && same(got.question, wanted()) ? got.question : null
+  }
+
   return {
     answer: () => answer()?.answer,
-    answering: () => {
-      const got = answer()
-      return got !== undefined && same(got.question, wanted()) ? got.question : null
+    answering,
+    // ONE LINE, and it is the whole of the rule — which is the point of it
+    // being here rather than at five doors: what "the rows are the reader's
+    // own" means cannot differ between two boxes in one app.
+    taking: (act) => {
+      if (answering() !== null) act()
     },
     failure,
   }

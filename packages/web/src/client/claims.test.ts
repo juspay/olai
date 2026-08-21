@@ -73,6 +73,20 @@ test("only wire.ts dials: connectSurface( is called exactly once in the client",
   expect(filesSpelling(/connectSurface\s*\(/)).toEqual(["wire.ts"])
 })
 
+// names.ts's claim — the table is derived ONCE, beside the reading
+// (`createReading` in reading.tsx). App.tsx used to build one over the
+// focused pane for the palette, and NamesProvider one per pane: a
+// navigation copied twice. The call is the act; names.browsertest.ts is the
+// suite that counts the copy's own runs, so it is allowed to name the
+// function. Equality rather than "nothing else", so a second production site
+// is a name on this list.
+test("createNames is called only beside the reading", () => {
+  expect(filesSpelling(/createNames\s*\(/)).toEqual([
+    "names.browsertest.ts",
+    "reading.tsx",
+  ])
+})
+
 // status.ts's claim — it "says what each of the five looks like, and nothing
 // else about them" is only safe if nothing else READS them raw. Everything
 // downstream takes the readout whole (a prop, a `data-` attribute) or goes

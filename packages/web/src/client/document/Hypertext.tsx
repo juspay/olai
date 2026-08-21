@@ -121,7 +121,7 @@ import { fileNamed } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { useHead } from "../served.tsx"
 import { BodyRefused } from "./BodyRefused.tsx"
-import { rungs } from "./rungs.ts"
+import { echo } from "./echo.ts"
 
 /**
  * How many times a page may walk the frame off the vault without identifying
@@ -361,13 +361,19 @@ export function Hypertext(props: { readonly file: string }) {
   const opens = useOpens()
   let frame: HTMLIFrameElement | undefined
 
-  // Which height reports this frame acts on: at most one arriving reading and
-  // at most one settled one PER WIDTH, which is what keeps a page sized in `vh`
-  // from climbing a ladder of its own making. The rule and the whole argument
-  // for it are `./rungs.ts`, held there rather than here because this client
-  // has no harness that mounts this component and a rule with a state machine
-  // in it should be checkable without driving a browser.
-  const heights = rungs()
+  // Which height reports this frame acts on: every one that says something the
+  // report before it did not, and none of the ones that are this frame's own
+  // height coming back — which is what keeps a page sized in `vh` from climbing
+  // a ladder of its own making while a page that grows after it has loaded is
+  // still followed. The rule and the whole argument for it are `./echo.ts`,
+  // held there rather than here because this client has no harness that mounts
+  // this component and a rule that is arithmetic should be checkable by doing
+  // the arithmetic.
+  const heights = echo()
+  /** The last height the frame reported and has not been sized to yet, and the
+   *  frame callback that will size it. See {@link reported}. */
+  let latest: number | undefined
+  let sizing: number | undefined
   let walkOffs = 0
   let visits = 0
   /**
@@ -413,8 +419,9 @@ export function Hypertext(props: { readonly file: string }) {
    * finally given.
    *
    * ONE ASSIGNMENT, for {@link stand}'s reason one function up. What goes is
-   * the ladder of height reports the old document was climbing, the refusal it
-   * drew, the report it made about its anchor, and the section it was pointed
+   * the distance the old document's last report stood above the frame, the
+   * refusal it drew, the report it made about its anchor, and the section it
+   * was pointed
    * at — and the last of those is what makes `pointed` a fact about the
    * document in the frame right now rather than about this pane's history.
    *
@@ -434,11 +441,58 @@ export function Hypertext(props: { readonly file: string }) {
    */
   const fresh = (arriving?: Pointed) => {
     heights.fresh()
+    // …including a report the leaving document made that has not been answered
+    // yet: sizing this file to the last one's pending number is the yank the
+    // paragraph above is about, arriving one paint late.
+    latest = undefined
+    if (sizing !== undefined) cancelAnimationFrame(sizing)
+    sizing = undefined
     setRefused(undefined)
     setUnreadable(false)
     setLandedAt(undefined)
     pointed = arriving
     if (arriving === undefined) setMeasured(undefined)
+  }
+
+  /**
+   * A HEIGHT THE FRAME REPORTED, ANSWERED ONCE A PAINT.
+   *
+   * The report is stashed and the frame is sized in a `requestAnimationFrame`,
+   * and it is one callback however many reports arrive before it runs — the
+   * last one is what the page is, and the ones before it are what it was on the
+   * way there.
+   *
+   * THAT IS A BOUND, not a smoothing. The measure in the page reports at most
+   * once a paint (a `ResizeObserver` delivers at the rendering step), so for
+   * every honest page this changes nothing at all. What it changes is the page
+   * that posts a height itself: `postMessage` is the one channel out of an
+   * opaque origin and nothing stops a document running its own JavaScript from
+   * posting thousands a second. Answered where the message arrives, each of
+   * those was a style write and then a `clientHeight` read — a forced layout of
+   * THIS document, at whatever rate the frame chose. Answered here it is one
+   * layout a paint, which is what following a page that changes size costs and
+   * no more.
+   *
+   * It is also the only place the two halves of the question are read from one
+   * settled layout: the height the page claimed and the height of the box it
+   * claimed it in ({@link echo}). Read in the handler, the second of those sits
+   * downstream of the style write the last message caused.
+   *
+   * THE CLOCK IS THE PLATFORM'S OWN — the timestamp the browser hands a frame
+   * callback — because `./echo.ts` bounds how often a page may send this frame
+   * back the other way and a rule that read a clock itself could not be tested
+   * without one wound back.
+   */
+  const reported = (height: number) => {
+    latest = height
+    if (sizing !== undefined) return
+    sizing = requestAnimationFrame((at) => {
+      sizing = undefined
+      const said = latest
+      if (said === undefined || frame === undefined) return
+      if (!heights.takes({ height: said, frame: frame.clientHeight, at })) return
+      setMeasured(`${said}px`)
+    })
   }
 
   /** The file itself, at its own address on the media route — a fresh URL every
@@ -655,8 +709,7 @@ export function Hypertext(props: { readonly file: string }) {
       // nothing, so a page that has walked off cannot scroll this tab around by
       // posting one.
       if (said.kind === "landed") return setLandedAt(said.top)
-      if (!heights.takes(said.reading, frame.clientWidth)) return
-      setMeasured(`${said.height}px`)
+      reported(said.height)
     }
     window.addEventListener("message", listen)
     onCleanup(() => window.removeEventListener("message", listen))
@@ -726,9 +779,10 @@ export function Hypertext(props: { readonly file: string }) {
   })
 
   // A pending question outlives nothing: an unmounted component must not leave
-  // a timer holding a dead element.
+  // a timer — or a frame callback — holding a dead element.
   onCleanup(() => {
     if (custody.at === "stray") clearTimeout(custody.until)
+    if (sizing !== undefined) cancelAnimationFrame(sizing)
   })
 
   // WHAT IT WATCHES IS TWO NUMBERS AND A SLUG, and each is compared as
@@ -863,13 +917,15 @@ export function Hypertext(props: { readonly file: string }) {
       // The measurement, and nothing else: unset until a page reports, which is
       // what makes the `var()` default below the answer for a frame that never
       // does. Setting a height from a measurement made INSIDE the box being
-      // sized is a loop, and this is where it closes; it terminates because of
-      // which reading the measure takes — `documentElement.offsetHeight` is the
-      // content's height and does not know the frame's, so growing the frame
-      // does not grow the number (`seal.ts` argues the choice). A page
-      // reflowing to a new WIDTH does report again, which is the point, and
-      // that converges too: a frame sized to its content has no scrollbar left
-      // to take width away.
+      // sized is a loop, and this is where it closes — in two places at once.
+      // The measure reads `documentElement.offsetHeight`, which is the CONTENT's
+      // height and does not know the frame's (`seal.ts` argues the choice); and
+      // for the pages whose content height DOES depend on the frame after all —
+      // a `min-height: 100vh` wrapper, an `html` set to `100%` — the listener
+      // above refuses the reading that says so (`./echo.ts`). A page reflowing
+      // to a new WIDTH does report again, which is the point, and that converges
+      // too: a frame sized to its content has no scrollbar left to take width
+      // away.
       style={{ [PAGE_HEIGHT]: measured() }}
       // The height POLICY, in the stylesheet rather than in the component,
       // because every number in it is a styling decision:

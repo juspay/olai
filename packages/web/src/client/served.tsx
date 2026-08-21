@@ -38,7 +38,6 @@
  * two key sets, joined and ordered, and never a third reading of the disk.
  */
 
-import type { Face } from "@olai/format"
 import { type Accessor, createContext, createMemo, type JSX, useContext } from "solid-js"
 
 import { sameList } from "./same.ts"
@@ -46,36 +45,31 @@ import { sameList } from "./same.ts"
 const ServedContext = createContext<Accessor<ReadonlyArray<string>>>()
 
 export function ServedProvider(props: {
-  /** Every served file as its FACE, in the directory's own order — the one
-   *  list the app reads a directory as (`./directory.ts`). */
-  readonly faces: ReadonlyArray<Face>
+  /** Every served file's PATH, in the directory's own order — the one list the
+   *  app reads a directory as (`./directory.ts`). */
+  readonly paths: ReadonlyArray<string>
   /** Which revision one file is at — see the header. */
   readonly head: (file: Accessor<string>) => Accessor<number | undefined>
   readonly children: JSX.Element
 }) {
   // `equals` COMPARES THE MEMBERSHIP, and that is what makes this list's
   // IDENTITY mean "the directory changed" rather than "a frame arrived". The
-  // faces are minted fresh whenever either collection speaks — a key set
+  // list is minted fresh on every frame the directory publishes — a key set
   // re-sent unchanged is still a new array — and downstream there is a fold
   // kept against this very array (`./file/matching.ts`, a `WeakMap`), so without
   // this the vault would be re-folded for frames that said nothing. A memo
   // with no `equals` compares by reference and would never notice.
-  const files = createMemo(
-    () => props.faces.map((face) => face.path),
-    undefined,
-    { equals: sameList },
-  )
-  // The faces themselves, for the one reader that wants more than a path. An
-  // ACCESSOR over the prop rather than the array, for the same reason the
-  // paths are one: a directory gains and loses files while a tab is open.
-  const faces = () => props.faces
+  //
+  // A PLAIN HOLD, and that is the whole of it now. It used to be a `map` off
+  // the faces — `n` property reads per frame to rebuild a list the directory's
+  // own walk was already holding — and what is left is the comparison, which is
+  // the part that has to live here beside the memo it guards.
+  const files = createMemo(() => props.paths, undefined, { equals: sameList })
   return (
     <ServedContext.Provider value={files}>
-      <FacesContext.Provider value={faces}>
-        <HeadContext.Provider value={props.head}>
-          {props.children}
-        </HeadContext.Provider>
-      </FacesContext.Provider>
+      <HeadContext.Provider value={props.head}>
+        {props.children}
+      </HeadContext.Provider>
     </ServedContext.Provider>
   )
 }
@@ -91,18 +85,17 @@ export const useServed = (): Accessor<ReadonlyArray<string>> => {
   return files
 }
 
-/** The same directory as its FACES — what a file is called, where it points,
- *  what it tags — for the one reader that needs more than a path: a document's
- *  page, which says who points at it (`./document/Referrers.tsx`). */
-export const useFaces = (): Accessor<ReadonlyArray<Face>> => {
-  const faces = useContext(FacesContext)
-  if (faces === undefined) {
-    throw new Error("a served-face lookup outside <ServedProvider>")
-  }
-  return faces
-}
-
-const FacesContext = createContext<Accessor<ReadonlyArray<Face>>>()
+/** THE FACES REACH THIS FILE NO LONGER, and the absence is worth a line
+ *  because it was two things. There was a `useFaces` beside the two contexts
+ *  here, for "the one reader that needs more than a path" — a document's page,
+ *  saying who points at it — and that reader moved onto the page's own reading
+ *  when the browser stopped holding the vault (#279), leaving a third provider
+ *  mounted and a closure over the app's props held open for nobody. With it
+ *  gone, nothing under this provider wanted a `Face` at all, and the `map` that
+ *  turned them back into paths was `n` property reads per frame to rebuild a
+ *  list the directory's own walk was already holding. So the directory hands
+ *  over the paths (`./directory.ts`'s `paths`), and what a `Face` is remains a
+ *  fact about the wire rather than about this column. */
 
 const HeadContext = createContext<
   (file: Accessor<string>) => Accessor<number | undefined>

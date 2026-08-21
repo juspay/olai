@@ -37,7 +37,7 @@
  * The entry that lights up is the file the open page lives in. A day page
  * lights none. An entry is marked when its file could not be read.
  *
- * ## What the tree does NOT draw, and the two doors under it
+ * ## What the tree does NOT draw, and where those files get their names back
  *
  * The outlines olai NAMED FOR ITSELF — everything under `_olai/` — are left
  * out of the tree, because every one of them already has a door in this very
@@ -48,12 +48,13 @@
  * nothing more — search, the agents, `list_outlines`, the trash page and the
  * shelf read the same set either way (./settings/hiddenOutlines.ts).
  *
- * So the foot of this column is where those files get their names back:
- * **Inbox** and **Trash**, in that order — what comes IN, then what was thrown
- * out. The trash is a page rather than a file you edit and is left out of the
- * tree whichever way the switch is set; the inbox is an ordinary outline, so
- * its entry lights up like a tree row, wears the same ⚠ when its file will not
- * parse, and is drawn only when the directory actually has one.
+ * **Inbox** sits beside Agenda at the top — a primary destination, not a
+ * door at the foot (human, 2026-08-20, screenshot ruling). It is an ordinary
+ * outline, so its entry lights up like a tree row, wears the same ⚠ when its
+ * file will not parse, and is drawn only when the directory actually has one.
+ * It wears Agenda's own count badge: how many top-level captures the file
+ * holds, hidden at zero. **Trash** stays at the foot, below the tree, because
+ * that is where a trash sits.
  *
  * ONE EXCEPTION to the hiding, and it is the reason the rule takes the broken
  * map: an outline that could not be READ keeps its row whichever way the
@@ -125,7 +126,7 @@ import {
   Switch,
 } from "solid-js"
 
-import type { Owed } from "@olai/surface"
+import type { InboxHeld, Owed } from "@olai/surface"
 
 import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
@@ -136,6 +137,8 @@ import { Glyph } from "./file/icons.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
 import { LAYER, WITHIN } from "./layer.ts"
+import { CHIP_QUIET } from "./layout/chip.ts"
+import { CountChip } from "./layout/CountChip.tsx"
 import { ENTRY_SHAPE, REGION, ROW_GAP } from "./layout/entry.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
@@ -154,11 +157,11 @@ import { atFile } from "./routes.ts"
  *  one and has a single child, where a gap is inert. */
 const ENTRY = `${ENTRY_SHAPE} ${ROW_GAP}`
 
-/** A DOOR at the foot of the column: Inbox, then Trash. Neither is a row of
- *  the tree above them — each opens a file that tree does not draw — and the
- *  quiet ink is what says so, since a door drawn in the list's own ink would
- *  read as one more file. Spelled once because there are two of them now, and
- *  `_olai/` is where "whatever comes next" goes (docs/format.md). */
+/** A DOOR at the foot of the column: Trash. It is not a row of the tree above
+ *  it — it opens a file that tree does not draw — and the quiet ink is what
+ *  says so, since a door drawn in the list's own ink would read as one more
+ *  file. Inbox used to sit here; it moved up beside Agenda (human,
+ *  2026-08-20). */
 const DOOR = `${ENTRY} text-paper/65`
 
 /** A directory row: folds, does not navigate. Same SHAPE and ink as a file —
@@ -188,6 +191,11 @@ export function Sidebar(props: {
    *  collapses into cannot say different numbers. `undefined` only while the
    *  first frame is still arriving, and then the entry claims nothing. */
   readonly owed: Owed | undefined
+  /** How full the inbox is, counted where the set is (`./inbox.ts`'s cell) —
+   *  top-level captures, zero when there is none. The door's presence is
+   *  still a question about the PATHS (`inboxIn`); this is only the number
+   *  it wears. */
+  readonly inboxHeld: InboxHeld
   readonly children?: JSX.Element
   /**
    * Phone drawer footer. App chrome that is not the directory — preferences —
@@ -335,16 +343,26 @@ export function Sidebar(props: {
           onClick={() => props.onClose()}
         >
           <Agenda owed={props.owed} />
+          <Show when={inbox()}>
+            {(file) => (
+              <Inbox
+                file={file()}
+                isActive={isActive}
+                broken={props.broken.has(file())}
+                count={props.inboxHeld.count}
+              />
+            )}
+          </Show>
           {props.children}
 
-          {/* THE SHELF, between the journal's two questions and the files —
-              which is where a reader's own short list belongs (human,
-              2026-08-19). Above the agenda it sat in front of the news; here it
-              is the last thing said about the DIRECTORY before the directory
-              itself, and a pinned outline is a hand's width from the outline
-              list it is a shortcut into. It draws nothing at all when there are
-              no pins (`./pins/Shelf.tsx`), so the ordinary column is exactly
-              the column it always was. */}
+          {/* THE SHELF, between the month and the files — which is where a
+              reader's own short list belongs (human, 2026-08-19). Inbox used
+              to sit at the foot and now sits beside Agenda above the month
+              (human, 2026-08-20); the shelf did not move with it. A pinned
+              outline is a hand's width from the outline list it is a shortcut
+              into. It draws nothing at all when there are no pins
+              (`./pins/Shelf.tsx`), so the ordinary column is exactly the
+              column it always was. */}
           <Shelf />
 
           {/* THE DIRECTORY ITSELF — the tree, and the two ways to add to it,
@@ -382,27 +400,11 @@ export function Sidebar(props: {
             </div>
           </section>
 
-          {/* And below all of it, the two doors that are not rows of the tree
-              above them — one INTO the directory and one out of it. Their own
-              region, because neither is about the files listed above.
-
-              They are here together because they are the same kind of thing
-              now: with `_olai/` out of the tree by default
-              (./settings/hiddenOutlines.ts), the foot of this column is where
-              the files olai named for itself get their names back. The Inbox
-              first — what comes IN is read before what was thrown out — and it
-              draws nothing at all until the directory has an inbox, which is
-              the rule the shelf above already keeps. */}
+          {/* And below all of it, the way OUT of the directory. Its own
+              region, because it is not about the files listed above. Inbox
+              used to sit here; it moved up beside Agenda (human, 2026-08-20).
+              Trash stays: that is where a trash sits. */}
           <div class={REGION}>
-            <Show when={inbox()}>
-              {(file) => (
-                <Inbox
-                  file={file()}
-                  isActive={isActive}
-                  broken={props.broken.has(file())}
-                />
-              )}
-            </Show>
             <Trash />
           </div>
         </div>
@@ -472,15 +474,13 @@ function Agenda(props: { readonly owed: Owed | undefined }) {
         Agenda
         {/* Whether there is a chip at all is the table's ruling, read off the
             paint it did or did not hand back — never a second reading of the
-            face here. `ml-auto` is this row's business, not the table's. */}
-        <Show when={mark().chip !== ""}>
-          <span
-            class={`ml-auto shrink-0 ${mark().chip}`}
-            data-testid={TESTID.agendaCount}
-          >
-            {mark().count}
-          </span>
-        </Show>
+            face here. The chip itself is the column's one count badge
+            (`./layout/CountChip.tsx`), so Inbox cannot spell a lookalike. */}
+        <CountChip
+          count={mark().count}
+          paint={mark().chip}
+          testid={TESTID.agendaCount}
+        />
       </Link>
     </div>
   )
@@ -511,7 +511,7 @@ function Trash() {
 }
 
 /** The way to what has been CAPTURED — the outline a `⌘K` `+` lands in, one
- *  click from wherever the reader is.
+ *  click from wherever the reader is, beside Agenda.
  *
  *  It is an entry rather than a tree row for the reason the Trash is one: the
  *  file it opens is a file olai named for itself, and the tree stopped drawing
@@ -533,30 +533,42 @@ function Trash() {
  *
  *  AND IT IS MARKED when its file could not be read, exactly as a tree row is:
  *  this is the door onto an ordinary outline, so an outline that will not parse
- *  has to say so where the reader meets it. */
+ *  has to say so where the reader meets it.
+ *
+ *  THE COUNT is Agenda's own badge (`./layout/CountChip.tsx`, the quiet
+ *  paint), of the top-level captures the file holds. Hidden at zero, which
+ *  is the same ruling the agenda's quiet face already keeps. */
 function Inbox(props: {
   readonly file: string
   readonly isActive: (file: string) => boolean
   readonly broken: boolean
+  readonly count: number
 }) {
   return (
-    <Link
-      route={atFile(props.file)}
-      class={DOOR}
-      testid={TESTID.inboxLink}
-      current={props.isActive(props.file)}
-      broken={props.broken}
-      title={props.file}
-    >
-      Inbox
-      <Show when={props.broken}>
-        {/* No margin of its own: the row has one gap and this is on it — the
-            tree's own mark, said the same way (see `File` below). */}
-        <span class="text-alarm" title="this file could not be read">
-          ⚠
-        </span>
-      </Show>
-    </Link>
+    <div class="mb-1" data-testid={TESTID.inboxHeld} data-count={String(props.count)}>
+      <Link
+        route={atFile(props.file)}
+        class={`${ENTRY_SHAPE} ${ROW_GAP}`}
+        testid={TESTID.inboxLink}
+        current={props.isActive(props.file)}
+        broken={props.broken}
+        title={props.file}
+      >
+        Inbox
+        <Show when={props.broken}>
+          {/* No margin of its own: the row has one gap and this is on it — the
+              tree's own mark, said the same way (see `File` below). */}
+          <span class="text-alarm" title="this file could not be read">
+            ⚠
+          </span>
+        </Show>
+        <CountChip
+          count={props.count}
+          paint={CHIP_QUIET}
+          testid={TESTID.inboxCount}
+        />
+      </Link>
+    </div>
   )
 }
 

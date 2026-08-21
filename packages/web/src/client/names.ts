@@ -17,9 +17,11 @@
  *
  * ONE SPELLING, because there are two readers at two depths: everything inside
  * a pane, which takes the table off the context (`./reading.tsx`'s
- * `NamesProvider`), and the chrome OUTSIDE the panes, which reads the focused
- * pane's reading out of the register and needs the same lookup over it
- * (`./App.tsx`, for the palette's pin row).
+ * `useNames`), and the chrome OUTSIDE the panes, which reads the focused
+ * pane's table out of the register (`./App.tsx`, for the palette's pin row).
+ * Both look up the one table `createReading` derives beside the page — a
+ * second `createNames` over the same reading was a duplicate Map and a
+ * second copy on every navigation.
  *
  * And because the memo has a RULE in it that both of them need. Every frame the
  * server published used to replace every element of `names` with a fresh object

@@ -170,8 +170,8 @@ import { mediaPath, MEDIA_PREFIX } from "./media.ts"
 import { ours } from "./press.ts"
 
 /**
- * WHAT THE FRAME SAYS, and the whole of it: one of these two prefixes, then a
- * number.
+ * WHAT THE FRAME SAYS ABOUT ITS HEIGHT, and the whole of it: this prefix, then
+ * a number.
  *
  * The two ends of a `postMessage` have to agree on a shape, and the producer
  * here is text inside a script that no compiler reads. So the agreement is
@@ -188,31 +188,43 @@ import { ours } from "./press.ts"
  * spelled in the script's text, spelled again in the parser — and buy nothing:
  * the receiver has to validate every byte either way.
  *
- * TWO of them, since pictures draw. A height read while the page is still
- * arriving is a height with holes in it: an `<img>` that has not loaded is a
- * zero-tall box, so the page under it is short by however much the pictures
- * turn out to be. `load` is the moment there are no holes left, and the
- * receiver has to be able to tell that reading from the ones before it —
- * `Hypertext.tsx` accepts one of EACH per width, which is what keeps a page
- * sized in `vh` from climbing its own ladder (the argument is over there, where
- * the counting is). Two prefixes rather than a field, for the reason there is a
- * prefix at all: it is the smallest difference that survives the trip.
- *
- * A TABLE rather than two loose constants, because the two are one thing — the
- * kinds of reading there are — and the receiver does not want a boolean it has
- * to re-decide at every use. {@link Reading} is the key, {@link heard}
- * carries it on a `reading` arm, and `Hypertext.tsx` files its accepted widths UNDER it: one name,
- * carried from the script that posts it to the record that remembers it, with
- * nothing projecting it into a flag and back on the way.
+ * ONE of them, and there used to be TWO. A height read while the page is still
+ * arriving is a height with holes in it — an `<img>` that has not loaded is a
+ * zero-tall box, so the page under it is short by however much the pictures turn
+ * out to be — and `load` is the moment there are no holes left. That difference
+ * was carried on the wire, as a second prefix, for exactly one receiver: the
+ * embedder rationed heights by kind, one of each per width, to keep a page sized
+ * in `vh` off its own ladder. It ranks nothing now. The ladder is refused by
+ * arithmetic over consecutive readings rather than by counting them
+ * (`@olai/web`'s `document/echo.ts`, where the whole argument is), and a
+ * receiver that treats the two alike does not want to be told which it has. So
+ * every reading this measure posts — the one taken as the document parses, the
+ * ones the observer delivers as it reflows, and the one taken at `load` — is the
+ * same message, and `load` earns its listener by being the last moment a page
+ * with pictures in it is worth reading rather than by being tagged.
  */
-const READING = {
-  arriving: "olai:page-height:",
-  settled: "olai:page-loaded:",
-} as const
+const READING = "olai:page-height:"
 
-/** Which of the two a message is: taken while the page may still be arriving,
- *  or after its `load`, when there is nothing left to wait for. */
-export type Reading = keyof typeof READING
+/**
+ * HOW FAR TWO WHOLE-PIXEL READINGS OF ONE BOX MAY DISAGREE and still be the
+ * same box — and it lives here because this is where the disagreement is
+ * MINTED. A browser lays out in fractions; {@link heard} rounds the page's
+ * reading UP to a whole pixel (truncated down, the last line of a page is
+ * clipped by half of one), and the frame's own height is rounded again,
+ * independently, at whatever end asks for it. Two whole numbers describing one
+ * unchanged distance may therefore differ by one either way.
+ *
+ * ONE CONSTANT rather than a `2` in each of the places that needs one, because
+ * they are not merely alike — they are ORDERED. `@olai/web`'s
+ * `document/echo.ts` may leave a frame this far off its page, so the e2e step
+ * that says a frame is "as tall as the page it shows" has to allow at least as
+ * much; a copy that drifted below it would go red on a frame doing its job. A
+ * number typed twice is a number that eventually disagrees with the app it is
+ * asserting about, which is the rule `packages/tests`' `imports.test.ts`
+ * states for the whole suite and `@olai/web`'s `chat/near.ts` is the
+ * precedent for.
+ */
+export const ROUNDING = 2
 
 /**
  * THE HELLO: the first thing every document this server seals says, and the
@@ -360,14 +372,14 @@ const OPEN = "olai:open-page:"
  * would pin a short page at whatever it was first given). A page of fixed-height
  * content is therefore exactly as tall before the embedder's resize as after,
  * and the observer never fires. Without the viewport's own event the last thing
- * the embedder hears is whichever of the two early readings happened to be last
- * — a race between the frame's `load` and the embedder applying a height, and
- * a reader left a screen above the section whenever it goes the wrong way. The
+ * the embedder hears is whichever of the early readings happened to be last — a
+ * race between the frame's `load` and the embedder applying a height, and a
+ * reader left a screen above the section whenever it goes the wrong way. The
  * viewport is the box that changed, so the viewport's event is what reports.
  *
- * NOT A HEIGHT, so it is not one of {@link READING}'s: it may be zero and it
- * may be negative, and folding it into the height parser would mean widening
- * a gate that exists to refuse exactly those. A number that says "scroll here"
+ * NOT A HEIGHT, so it is not {@link READING}: it may be zero and it may be
+ * negative, and folding it into the height parser would mean widening a gate
+ * that exists to refuse exactly those. A number that says "scroll here"
  * is still a CLAIM from an opaque origin — the worst it can do is move this
  * tab's own scrollbar, which the reader undoes with a flick, and the receiver
  * only acts on it while it is waiting for a landing it asked for.
@@ -411,19 +423,31 @@ const LANDED = "olai:page-landed:"
  * with `document.write` — has no body afterwards, and an exception thrown in
  * here would land on the console of somebody else's page as ours.
  *
- * TWO mechanisms do the measuring, and they answer different questions. A
- * `ResizeObserver` on the root box is the first: it delivers a callback the
- * moment it starts observing, which is the first measurement, and again
- * whenever that box changes — which is how a page reflowing into a narrower
- * window gets a frame that follows it, and also how a page that DRAWS ITSELF
- * with its own script gets a frame the size of what it drew.
+ * TWO mechanisms do the measuring, and ONE function answers for both, since
+ * the reading is the same message however it was provoked. A `ResizeObserver`
+ * on the root box is the first: it delivers a callback the moment it starts
+ * observing, which is the first measurement, and again whenever that box
+ * changes — which is how a page reflowing into a narrower window gets a frame
+ * that follows it, how a page that DRAWS ITSELF with its own script gets a
+ * frame the size of what it drew, and how a page that draws MORE of itself
+ * after `load` gets a taller one.
  *
  * `load` is the second, and it is what pictures made necessary: an `<img>` is a
  * box with no height until its bytes arrive, so the page's real height is not
- * knowable until the pictures are in. That reading is TAGGED differently
- * ({@link READING}'s `settled`), because the receiver cannot tell "the page grew
- * because its pictures landed" from "the page grew because I made the frame
- * taller and it is measured in `vh`", and it may only act on the first of those.
+ * knowable until the pictures are in. It reports the SAME message the observer
+ * does, and it used to report a differently tagged one — the receiver could not
+ * tell "the page grew because its pictures landed" from "the page grew because
+ * I made the frame taller and I am measured in `vh`", so it was told. It works
+ * the difference out for itself now, from the readings themselves
+ * (`@olai/web`'s `document/echo.ts`).
+ *
+ * It earns different things in the two branches below, which is why it is
+ * registered outside them. Where there is no `ResizeObserver` it is the ONLY
+ * second look a page with pictures in it gets. Where there is one, the picture
+ * that lands has already changed the root box and been reported — so the height
+ * this posts says nothing new and the receiver refuses it as such — and what
+ * it is still for is {@link LANDED}: an anchor's position is finally true when
+ * there is nothing left to arrive, whether or not anything about the box moved.
  *
  * A THIRD listener measures nothing, and that is why it is not one of the two:
  * `resize` says the FRAME changed size, which moves the anchor without moving
@@ -438,16 +462,14 @@ const LANDED = "olai:page-landed:"
  */
 const MEASURE = `(function () {
   parent.postMessage(${JSON.stringify(HELLO)}, "*")
-  var post = function (tag) {
+  var tag = ${JSON.stringify(READING)}
+  var measure = function () {
     var page = document.documentElement
     var body = document.body
     parent.postMessage(
       tag + Math.max(page.offsetHeight, body ? body.scrollHeight : 0),
       "*"
     )
-  }
-  var measure = function () {
-    post(${JSON.stringify(READING.arriving)})
     landed()
   }
   addEventListener("DOMContentLoaded", function () {
@@ -456,10 +478,7 @@ const MEASURE = `(function () {
     } else {
       measure()
     }
-    addEventListener("load", function () {
-      post(${JSON.stringify(READING.settled)})
-      landed()
-    })
+    addEventListener("load", measure)
     addEventListener("resize", landed)
   })
   var landed = function () {
@@ -756,9 +775,9 @@ export type Said =
    *  anything here, because which ids a page has is not knowable until it has
    *  been drawn. */
   | { readonly kind: "open"; readonly file: string; readonly at?: string }
-  /** How tall the page says it is, and which of the two readings it is —
-   *  {@link READING}. A claim, clamped by CSS at the other end. */
-  | { readonly kind: "reading"; readonly reading: Reading; readonly height: number }
+  /** How tall the page says it is — {@link READING}. A claim, clamped by CSS at
+   *  the other end. */
+  | { readonly kind: "reading"; readonly height: number }
   /** Where the anchor the frame was pointed at ended up, measured from the
    *  frame's own top — {@link LANDED}. May be zero, may be negative; the
    *  embedder adds it to where the frame is. */
@@ -796,10 +815,7 @@ export type Said =
  *     the empty string as `0` and anything wordy as `NaN`, both of which fall
  *     out through the same gate as a negative or an infinity. Rounded UP,
  *     because a fractional layout truncated down is the last line of a page
- *     clipped by half a pixel. WHICH reading it is, is decided here and then
- *     carried as a name: the two prefixes are separate strings and neither is
- *     the other's, so `settled` is never a claim the sender got to make by
- *     spelling a number oddly.
+ *     clipped by half a pixel.
  *
  * The arms are tried in the order they are cheapest to refuse, and that order
  * is not load-bearing: `./seal.test.ts` asserts that no one of the three
@@ -850,14 +866,9 @@ export const heard = (said: unknown): Said | undefined => {
       ? { kind: "landed", top }
       : undefined
   }
-  const reading: Reading | undefined = said.startsWith(READING.settled)
-    ? "settled"
-    : said.startsWith(READING.arriving)
-    ? "arriving"
-    : undefined
-  if (reading === undefined) return undefined
-  const height = Number(said.slice(READING[reading].length))
+  if (!said.startsWith(READING)) return undefined
+  const height = Number(said.slice(READING.length))
   return Number.isFinite(height) && height > 0
-    ? { kind: "reading", reading, height: Math.ceil(height) }
+    ? { kind: "reading", height: Math.ceil(height) }
     : undefined
 }

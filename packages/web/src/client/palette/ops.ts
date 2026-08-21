@@ -51,6 +51,7 @@ import { NO_PINS } from "@olai/surface"
 
 import { subjectOfZoom, writeVerbs } from "../menu/verbs.ts"
 import type { PaletteItem } from "./items.ts"
+import { atOnce } from "../settled.ts"
 
 /**
  * The rows the zoomed node offers, or none at all.
@@ -93,6 +94,9 @@ export const opItems = (
         // scrolled away from, so the subject is never assumed.
         place: `on “${title}”`,
         action: { kind: "edit" as const, edit: verb.does.edit, confirm: verb.confirm },
+        // A verb of the zoomed node, read out of a pure catalogue in this tab:
+        // there is no answer behind it (`../settled.ts`).
+        taking: atOnce,
         // The node's TITLE, and only that: the filter already matches a row's
         // label on its own, so a haystack repeating it would be the same word
         // searched twice. What this adds is that typing what you are looking

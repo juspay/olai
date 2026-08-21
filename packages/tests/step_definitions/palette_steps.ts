@@ -24,6 +24,7 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
+import { retypedAndPressed, retypedAndTaken } from "../support/atonce.ts";
 import { countsNothing, foundCount } from "../support/counted.ts";
 import { inTheMood, saysThat } from "../support/said.ts";
 import {
@@ -106,11 +107,18 @@ When("I close the palette", async function (this: OlaiWorld) {
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
+/** The palette's box, waited for — the one spelling of "how long a scenario
+ *  gives the modal to appear", shared by every step that reaches into it. */
+const paletteBox = async (world: OlaiWorld) => {
+  const input = world.page.locator(PALETTE_INPUT);
+  await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  return input;
+};
+
 /** Type into the palette box, waiting for it first — the one spelling every
  *  step that puts words in it is written in terms of. */
 const fillPalette = async (world: OlaiWorld, text: string) => {
-  const input = world.page.locator(PALETTE_INPUT);
-  await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const input = await paletteBox(world);
   await input.fill(text);
   return input;
 };
@@ -120,6 +128,29 @@ When(
   "I type {string} into the palette",
   async function (this: OlaiWorld, text: string) {
     await fillPalette(this, text);
+  },
+);
+
+/** The window `../support/atonce.ts` opens, at this door. */
+When(
+  "I retype the palette as {string} and press Enter at once",
+  async function (this: OlaiWorld, text: string) {
+    await retypedAndTaken(this, await paletteBox(this), text);
+  },
+);
+
+/** ...and the POINTER half of the same window, which is never gated: the row
+ *  is pressed while the list is still the last query's, and what it takes is
+ *  the row a hand could see. */
+When(
+  "I retype the palette as {string} and press the node row {string} at once",
+  async function (this: OlaiWorld, text: string, id: string) {
+    await retypedAndPressed(
+      this,
+      await paletteBox(this),
+      text,
+      `${PALETTE_ITEM}${attr("data-id", `hit-#${id}`)}`,
+    );
   },
 );
 

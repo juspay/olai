@@ -196,14 +196,19 @@ test("the seal carries no policy and no base of its own", () => {
 // thing no type can catch is the two ends drifting apart; a literal copied into
 // this file would drift with them and go on passing. Everything below is built
 // from what the seal actually says.
-const [ARRIVING, SETTLED] = ((): readonly [string, string] => {
-  const found = [...SEAL.matchAll(/\bpost\(\s*"([^"]*)"\s*\)/g)].map(
-    (one) => JSON.parse(`"${one[1]!}"`) as string,
-  )
-  if (found.length !== 2) {
-    throw new Error(`the measure posts ${found.length} kinds of message, not two: ${SEAL}`)
+const HEIGHT = ((): string => {
+  // ONE prefix, spelled ONCE. The observer's reading and the one taken at
+  // `load` are the same message, so there is one measuring function and one
+  // place the tag is named — and a second spelling creeping back in is exactly
+  // the drift this whole exercise exists to catch, so the COUNT is asserted
+  // rather than the first match taken. Read off the ASSIGNMENT rather than off
+  // the `postMessage` it feeds: that is a syntactic shape the script keeps
+  // however a formatter breaks its lines.
+  const found = [...SEAL.matchAll(/\bvar tag = "([^"]*)"/g)]
+  if (found.length !== 1) {
+    throw new Error(`the measure names ${found.length} height tags, not one: ${SEAL}`)
   }
-  return [found[0]!, found[1]!]
+  return JSON.parse(`"${found[0]![1]!}"`) as string
 })()
 
 // THE HELLO, read out of the script that sends it for the reason every other
@@ -258,19 +263,21 @@ test("a refused page says so, and only the refusal is the refusal", () => {
       `${REFUSED}:`,
       "olai:page-refuse",
       HELLO,
-      `${ARRIVING}640`,
+      `${HEIGHT}640`,
     ]
   ) {
     expect(heard(said)).not.toEqual({ kind: "refused" })
   }
 })
 
-// TWO READINGS, and the frame's height arrives as one of them. A settled
-// reading is the one taken after the page's pictures have landed, and
-// `Hypertext.tsx` files its accepted widths under that name.
-test("the frame's two height messages are the two the parser recognises", () => {
-  expect(heard(`${ARRIVING}640`)).toEqual({ kind: "reading", reading: "arriving", height: 640 })
-  expect(heard(`${SETTLED}940`)).toEqual({ kind: "reading", reading: "settled", height: 940 })
+// ONE READING, and the frame's height arrives as it. There used to be a second
+// prefix for the reading taken at `load`, because the embedder rationed heights
+// by kind; it works the ladder out from the readings themselves now
+// (`@olai/web`'s `document/echo.ts`), so what the measure says at `load` and
+// what it says as the page reflows are the same sentence.
+test("the frame's height message is the one the parser recognises", () => {
+  expect(heard(`${HEIGHT}640`)).toEqual({ kind: "reading", height: 640 })
+  expect(heard(`${HEIGHT}940`)).toEqual({ kind: "reading", height: 940 })
 })
 
 // …and everything else is nothing. A sandboxed frame is an opaque origin and a
@@ -286,16 +293,17 @@ test("anything else the frame could say is not a height", () => {
       null,
       42,
       { olai: "page-height", height: 640 },
-      ARRIVING,
-      SETTLED,
-      `${ARRIVING}tall`,
-      `${SETTLED}tall`,
-      `${ARRIVING}0`,
-      `${ARRIVING}-40`,
-      `${ARRIVING}Infinity`,
+      HEIGHT,
+      `${HEIGHT}tall`,
+      `${HEIGHT}0`,
+      `${HEIGHT}-40`,
+      `${HEIGHT}Infinity`,
       // Literal on purpose: being the WRONG prefix is what this case is.
       "some-other-app:page-height:640",
       "olai:page-settled:640",
+      // The prefix this vocabulary used to carry for the reading taken at
+      // `load`. Retired rather than reserved: nothing answers it now.
+      "olai:page-loaded:940",
     ]
   ) {
     expect(heard(said)).toBeUndefined()
@@ -306,8 +314,8 @@ test("anything else the frame could say is not a height", () => {
 
 /**
  * The prefix the link handler posts, taken out of the SCRIPT rather than
- * written here — the same discipline the two height prefixes are read under and
- * for the same reason: the producer is text no compiler reads, so a literal
+ * written here — the same discipline the height prefix is read under and for
+ * the same reason: the producer is text no compiler reads, so a literal
  * copied into this file would drift with it and go on passing.
  */
 const OPEN = ((): string => {
@@ -471,7 +479,7 @@ test("anything else a frame could say is not a page to open", () => {
  * above: the producer is text no compiler reads.
  */
 test("no one of the things a frame can say begins another", () => {
-  const vocabulary = { HELLO, ARRIVING, SETTLED, OPEN, REFUSED }
+  const vocabulary = { HELLO, HEIGHT, OPEN, REFUSED }
   const overlaps: Array<string> = []
   for (const [name, one] of Object.entries(vocabulary)) {
     for (const [other, another] of Object.entries(vocabulary)) {
@@ -486,7 +494,7 @@ test("no one of the things a frame can say begins another", () => {
 // and a frame truncated to the pixel below its content clips a descender and
 // grows a scrollbar to show it.
 test("a fractional page gets the pixel it needs", () => {
-  expect(heard(`${ARRIVING}640.2`)).toEqual({ kind: "reading", reading: "arriving", height: 641 })
+  expect(heard(`${HEIGHT}640.2`)).toEqual({ kind: "reading", height: 641 })
 })
 
 // WHAT `Number` LETS THROUGH, pinned rather than assumed — opencode's review of
@@ -499,8 +507,8 @@ test("a fractional page gets the pixel it needs", () => {
 // The gate that matters is the one above it — `event.source` — and it is
 // identity, not syntax.
 test("a slack spelling of a number is still a number", () => {
-  expect(heard(`${ARRIVING} 640`)).toMatchObject({ height: 640 })
-  expect(heard(`${ARRIVING}0x100`)).toMatchObject({ height: 256 })
+  expect(heard(`${HEIGHT} 640`)).toMatchObject({ height: 640 })
+  expect(heard(`${HEIGHT}0x100`)).toMatchObject({ height: 256 })
 })
 
 // THE PLACE INSIDE THE PAGE, carried on the same message as the file. A link at
@@ -546,7 +554,7 @@ test("a frame says where its anchor landed, zero and negative included", () => {
     expect(heard(said)).toBeUndefined()
   }
   // It is its own kind, never a height: the two prefixes are near neighbours
-  // (`page-landed` beside `page-loaded`) and this is what says a browser reading
+  // (`page-landed` beside `page-height`) and this is what says a browser reading
   // one as the other would be caught.
   expect(heard(`${LANDED}1298`)?.kind).not.toBe("reading")
 })
@@ -627,8 +635,10 @@ test("a frame that is resized says where the anchor is now, unasked", () => {
   fire("resize")
 
   // ONE message, and it is the anchor's: a whole-array `toEqual` is also what
-  // says no height came with it. A height from here is the `vh` ladder the
-  // receiver's per-width guard exists to refuse — the frame just got taller,
-  // and a page measured against it would answer with its new box every time.
+  // says no height came with it. A height from here is the `vh` ladder — the
+  // frame just got taller and a page measured against it would answer with its
+  // new box, standing the same distance above it as before, which is the report
+  // the receiver refuses as saying nothing (`@olai/web`'s `document/echo.ts`).
+  // Not posting it at all is the cheaper half of the same answer.
   expect(said.map(heard)).toEqual([{ kind: "landed", top: 1195 }])
 })

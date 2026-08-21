@@ -678,9 +678,15 @@ export const TRASH_EMPTY_CANCEL = selector(TESTID.trashEmptyCancel);
 export const TRASH_PAGE_SAID = selector(TESTID.trashPageSaid);
 /** The way to it, at the foot of the directory column. */
 export const TRASH_LINK = selector(TESTID.trashLink);
-/** And the way to the INBOX, directly above it — drawn only when the directory
+/** And the way to the INBOX, beside Agenda — drawn only when the directory
  *  has one, which is what the scenarios about a never-captured vault read. */
 export const INBOX_LINK = selector(TESTID.inboxLink);
+/** What that entry REPORTS, wrapped round the link: `data-count` is how many
+ *  top-level captures the file holds. */
+export const INBOX_HELD = selector(TESTID.inboxHeld);
+/** The number on it. Absent when the inbox is empty — a quiet door wears no
+ *  chip rather than a zero. */
+export const INBOX_COUNT = selector(TESTID.inboxCount);
 /** THE day's note, above those groups: a document named for the date itself.
  *  `data-file` is which. */
 export const DAY_NOTE = selector(TESTID.dayNote);

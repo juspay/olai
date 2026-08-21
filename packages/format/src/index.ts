@@ -745,6 +745,17 @@ export { NO_PINS, pinTargetIn, sameShelf, Shelf, shelfOf } from "./shelf.ts"
 export type { Pinned } from "./shelf.ts"
 
 /**
+ * HOW FULL THE INBOX IS (./inbox.ts) — the number the sidebar's Inbox door
+ * wears, which is the top-level regular nodes of whichever outline is the
+ * inbox.
+ *
+ * Public because it crosses, the way the shelf does: the server answers it
+ * per revision and the sidebar draws it (`@olai/surface`'s `inbox` cell).
+ * `sameInboxHeld` is the cell's `equals`.
+ */
+export { InboxHeld, inboxHeldOf, NO_INBOX, sameInboxHeld } from "./inbox.ts"
+
+/**
  * WHAT ONE PAGE SHOWS (./page.ts) — the reading the browser is handed in place
  * of the vault it used to walk, and the request that asks for one.
  *
