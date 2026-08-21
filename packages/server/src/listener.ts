@@ -51,7 +51,7 @@ import { Effect, Layer, type Scope } from "effect"
 
 import { BROWSER_FACE } from "./faces.ts"
 import { MANIFEST } from "./manifest.ts"
-import { captureRoute } from "./capture/route.ts"
+import { captureRoute } from "./capture.ts"
 import { mcpRoute } from "./mcp/route.ts"
 import { mediaLayer } from "./media.ts"
 import { report } from "./report.ts"
@@ -79,7 +79,7 @@ export interface ListenOptions {
    *  See {@link ./resync.ts}. */
   readonly resync: Parameters<typeof resyncRoute>[0]
   /** `POST /capture` — a line into the directory's inbox, from a share sheet
-   *  or a script on the tailnet. See {@link ./capture/route.ts}. */
+   *  or a script on the tailnet. See {@link ./capture.ts}. */
   readonly capture: Parameters<typeof captureRoute>[0]
 }
 

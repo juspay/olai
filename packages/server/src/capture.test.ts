@@ -4,7 +4,7 @@
  * The DOOR, end to end: a request goes over a socket to a server serving a real
  * directory, and what is asserted is the file on disk afterwards. That is
  * deliberately the whole shape — which file a capture lands in is
- * `@olai/format`'s `inbox.test.ts` and `../edit.test.ts`, what an `add` does to
+ * `@olai/format`'s `inbox.test.ts` and `./edit.test.ts`, what an `add` does to
  * records is `@olai/ops`' own suite, and neither is worth a second opinion here.
  * What only this file can say is that a capture arriving over HTTP lands, dated
  * and attributed, in the inbox the directory has or the one this write mints —
@@ -17,8 +17,8 @@ import { expect, test } from "bun:test"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
-import { CAPTURE_PATH, CAPTURED_BY, IDENTITY_HEADER } from "./route.ts"
-import { served, withServing } from "../serve.testlib.ts"
+import { CAPTURE_PATH, CAPTURED_BY, IDENTITY_HEADER } from "./capture.ts"
+import { served, withServing } from "./serve.testlib.ts"
 
 const BOUND_MS = 10_000
 

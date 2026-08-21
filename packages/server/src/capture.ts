@@ -305,12 +305,12 @@ export interface Options {
 /**
  * The three refusals whose text depends on NOTHING, built once.
  *
- * A response value is safe to share — `../media.ts` already keeps a single
+ * A response value is safe to share — `./media.ts` already keeps a single
  * `missing` for every 404 it answers, and its `PREFIX` note is the same
  * argument about bytes — and these three are the ones a port scanner and a
  * mistyped `curl` reach, so they are exactly the ones not to re-encode per
  * request. Named rather than inline as well: the 401's sentence is what
- * docs/running.md promises and what `./route.test.ts` asserts, and a
+ * docs/running.md promises and what `./capture.test.ts` asserts, and a
  * constant is something both can point at.
  */
 const NO_IDENTITY = refusing(
@@ -331,7 +331,7 @@ const WRONG_METHOD = refusing(
 )
 
 /**
- * The route, as two `HttpRouter` layers merged — the shape `../mcp/route.ts`
+ * The route, as two `HttpRouter` layers merged — the shape `./mcp/route.ts`
  * already has for a path that answers one method and refuses the others.
  * `HttpRouter` ranks by specificity, so both beat the shell's `GET /*`
  * catch-all whichever order the layers go in.

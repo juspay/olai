@@ -110,7 +110,7 @@ export const sameGit: (a: GitState, b: GitState) => boolean = Schema
  *  trailer exists to keep apart from one somebody typed. WHO captured is a
  *  different question and is not answered here — this word records a DOOR, and
  *  the identity that door was handed rides the captured node itself, as a
- *  property (`@olai/server`'s `capture/`). */
+ *  property (`@olai/server`'s `capture.ts`). */
 export const Writer = Schema.Literals(["chat-agent", "mcp", "web", "capture"])
 export type Writer = typeof Writer.Type
 

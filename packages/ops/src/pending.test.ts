@@ -213,7 +213,7 @@ describe("manual is the default", () => {
       Effect.gen(function*() {
         // The fourth writer, and the one nobody watched arrive: a line POSTed
         // at `/capture` from a share sheet is neither the browser nor an agent
-        // (`@olai/server`'s `capture/`), so a trailer that said `web` would put
+        // (`@olai/server`'s `capture.ts`), so a trailer that said `web` would put
         // it in the same bucket as something somebody typed. The audit trail is
         // the whole reason the trailer exists.
         yield* Effect.orDie(
