@@ -294,10 +294,14 @@ const refiled = <T, Filed extends T = T>(
   const { into, at, order = byCorpus } = filing
   const arriving = new Map<string, Array<Filed>>()
   for (const one of edit.incoming) into(arriving, one)
-  // The DEPARTING side is run through the same fold for its KEYS, and the
-  // entries it files are thrown away: what a record puts in an index is one
+  // The DEPARTING side goes through the SAME fold, for its KEYS, and the
+  // entries it files are thrown away. What a record puts in an index is one
   // rule, and a second spelling of it here to collect keys from would be
-  // exactly the drift the folds are factored out to stop.
+  // exactly the drift the folds are factored out to stop — and the price is
+  // named rather than left to be discovered: a fold mints an entry per key it
+  // touches where a bare key walk minted none, so collecting the departing keys
+  // costs roughly twice what it did. It is bounded by the TOUCHED FILE's
+  // records, never by the corpus, which is the only bound this file promises.
   const departing = new Map<string, Array<Filed>>()
   for (const one of edit.outgoing) into(departing, one)
 
@@ -311,6 +315,10 @@ const refiled = <T, Filed extends T = T>(
     const first = own?.[0]
     return first === undefined ? undefined : at(first)
   }
+  /** Wrapped ONCE, above the loop that spends it, for the reason {@link namedIn}
+   *  is: this is handed to a sort per touched key, and a closure minted inside
+   *  would be one throwaway per key rather than one per index. */
+  const inOrder = (one: T, other: T): number => order(at(one), at(other))
 
   const map = new Map(before)
   let rekeyed = false
@@ -320,16 +328,62 @@ const refiled = <T, Filed extends T = T>(
     const own = [
       ...(held ?? []).filter((one) => !edit.touched.has(at(one).file)),
       ...(arriving.get(key) ?? []),
-    ].sort((one, other) => order(at(one), at(other)))
-    if (elsewhere(head(held), head(own))) headMoved = true
-    if (own.length === 0) rekeyed = map.delete(key) || rekeyed
-    else {
-      if (!map.has(key)) rekeyed = true
-      map.set(key, own)
-    }
+    ].sort(inOrder)
+    // One true answer settles it, and three of the four callers never ask.
+    if (!headMoved && elsewhere(head(held), head(own))) headMoved = true
+    if (filedAt(map, key, own)) rekeyed = true
   }
   return { map, rekeyed, headMoved }
 }
+
+/**
+ * A key holds what it has, or GOES AWAY when it has nothing — never an empty
+ * list stored where `derive` would have had no key at all.
+ *
+ * It is the one line every re-filing in this file has to get right, and the
+ * reason it is a function is that two of them do it: {@link refiled} above, for
+ * the four reverse indexes, and {@link regrouped} below, for the map of files
+ * the delta itself rewrites. The oracle compares what a map HOLDS and not only
+ * what it answers, so an empty list left standing is a failure rather than a
+ * harmless one — which is exactly the kind of rule that must not have two
+ * spellings free to drift.
+ *
+ * WHAT IT ANSWERS is whether the KEY SET moved: a key that arrives is added and
+ * one that empties goes away, while a key re-set keeps its place. That is the
+ * whole of what a map whose keys are READ IN ORDER has to be sorted again for,
+ * which is {@link inKeyOrder} next door.
+ */
+const filedAt = <V>(
+  map: Map<string, ReadonlyArray<V>>,
+  key: string,
+  own: ReadonlyArray<V>,
+): boolean => {
+  if (own.length === 0) return map.delete(key)
+  const minted = !map.has(key)
+  map.set(key, own)
+  return minted
+}
+
+/**
+ * A map whose KEYS are read in an order, put back in it — and only when the key
+ * set moved, which is the economy of the thing: a key that was already there
+ * kept its place when it was re-set, so an edit that neither added nor emptied
+ * one is already in the order a sort would leave it in.
+ *
+ * Two maps here promise an order over their keys for a reason that is not the
+ * corpus's — `byFile` by path ({@link regrouped}) and `byDay` by day
+ * ({@link dating}) — and each was spelling this line for itself.
+ */
+const inKeyOrder = <V>(
+  map: ReadonlyMap<string, V>,
+  moved: boolean,
+  order: (one: string, other: string) => number,
+): ReadonlyMap<string, V> =>
+  moved ? new Map([...map].sort(([one], [other]) => order(one, other))) : map
+
+/** The answer for a key that is left holding nothing: ONE list, shared —
+ *  `derive`'s own `NO_TAGS` move, for the removes {@link regrouped} files. */
+const NOTHING: ReadonlyArray<never> = []
 
 /**
  * What hangs under what — {@link Derived.children} across the edit.
@@ -371,25 +425,22 @@ const regrouped = (derived: Derived, delta: SetDelta): Regrouped => {
   // re-set, and one that arrives is appended — which for a path that sorts
   // first would put the corpus in an order no assembly produces.
   let reordered = false
+  // A file that GOES AWAY and a file upserted holding NOTHING are one case, and
+  // {@link filedAt} is where they become one: absence is how {@link
+  // Derived.byFile} spells an empty file, so a remove and an empty upsert are
+  // the same word said twice.
   for (const file of delta.removes) {
     touched.add(file)
-    if (byFile.delete(file)) reordered = true
+    if (filedAt(byFile, file, NOTHING)) reordered = true
   }
   for (const [file, entry] of delta.upserts) {
     touched.add(file)
     // Sorted rather than trusted, exactly as `derive` sorts the same list: the
     // promise is about what the index MEANS — the records in the order they are
     // on disk — and not about the order a frame happened to carry them in.
-    const own = [...entry.nodes].sort(byLine)
-    if (own.length === 0) reordered = byFile.delete(file) || reordered
-    else {
-      if (!byFile.has(file)) reordered = true
-      byFile.set(file, own)
-    }
+    if (filedAt(byFile, file, [...entry.nodes].sort(byLine))) reordered = true
   }
-  const ordered = reordered
-    ? new Map([...byFile].sort(([one], [other]) => byPath(one, other)))
-    : byFile
+  const ordered = inKeyOrder(byFile, reordered, byPath)
   return { byFile: ordered, nodes: [...ordered.values()].flat(), touched }
 }
 
@@ -506,7 +557,7 @@ const namings = (
   edit: Edit,
   nodes: ReadonlyArray<Located>,
 ): ReadonlyMap<string, ReadonlyArray<Naming>> => {
-  const { map, headMoved } = refiled<Naming, Filing>(edit, edit.before.namedBy, {
+  const { map, headMoved } = refiled(edit, edit.before.namedBy, {
     into: nameInto,
     at: (naming) => naming.at,
   })
@@ -580,9 +631,7 @@ const dating = (edit: Edit): ReadonlyMap<string, ReadonlyArray<Dated>> => {
   })
   // Whether the KEYS moved is the only thing that costs the sort. A day that
   // gains or loses a record is not that; a day that appears or empties is.
-  return rekeyed
-    ? new Map([...map].sort(([one], [other]) => byDayKey(one, other)))
-    : map
+  return inKeyOrder(map, rekeyed, byDayKey)
 }
 
 /**
