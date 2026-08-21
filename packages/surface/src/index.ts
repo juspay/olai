@@ -178,22 +178,15 @@ import { defineSurface } from "@kolu/surface/define"
 import { Effect, Schema } from "effect"
 
 import {
-  AgentEntry,
   AskAnswer,
-  AskEntry,
   AttachChunk,
   Attached,
   CHAT_OFF,
   ChatEntry,
   ChatFailure,
   ChatState,
-  NoticeEntry,
   OpFailure,
-  RefusalEntry,
   SessionInfo,
-  ToolEntry,
-  ToolStatus,
-  UserEntry,
 } from "./chat.ts"
 import { editProcedures } from "./edit.ts"
 import { opsProcedures } from "./ops.ts"
