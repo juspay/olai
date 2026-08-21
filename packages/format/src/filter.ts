@@ -1083,8 +1083,16 @@ const DURATION_SHAPE = /^(\d{1,6})([a-z]+)$/
  * is written because a reader who typed `1mo` has met a ruling rather than a
  * gap and is owed the difference — "no month or year units" is what stops them
  * trying `1M`, `1mon` and `1month` in turn.
+ *
+ * EXPORTED, alone among the vocabulary here, and the asymmetry is the point:
+ * `./searching.ts` describes this grammar to an AGENT, and it was spelling the
+ * four units out again in prose. Two lists of what `m` means is exactly what
+ * {@link DURATION_UNITS} claims not to have — so the door interpolates this
+ * sentence and a fifth unit teaches itself at the refusal AND at the tool
+ * description, rather than at whichever of the two somebody remembered. The
+ * relative words have no such export because their door never re-listed them.
  */
-const DURATION_TEACHING = `a duration back from now (${
+export const DURATION_TEACHING = `a duration back from now (${
   [...DURATION_UNITS].map(([unit, { named }]) => `1${unit} = 1 ${named}`).join(", ")
 }; no month or year units)`
 
@@ -1248,6 +1256,14 @@ const twoDigitsIn = (digits: string, low: number, high: number): boolean => {
  * exactly one place — what a BARE value means, which is {@link daysClause}'s to
  * say.
  *
+ * THE FLAG WAS THE OTHER SHAPE and it is the worse one, for the reason a
+ * `Clause` is a union rather than a record of optional fields: `{ from, to,
+ * moment: true }` can be built with two DIFFERENT ends — a value insisting it
+ * is one instant while carrying a stretch — and nothing would catch it. This
+ * cannot be spelled. The flag would also be a second answer to a question the
+ * edges already answer, which is the thing every table in this file is
+ * arranged to avoid.
+ *
  * SO THE FORM IS CARRIED rather than re-derived. The bare-form rule was, for
  * one commit, `daysClause` asking "is this a duration?" for itself before
  * falling through to a reading that asked the same question again — which is
@@ -1344,10 +1360,15 @@ const daysClause = (of: DayReading, value: string, now: string): Clause | null =
     // `last-changed:1h`, Gmail's `newer_than:`). The point reading is still
     // there and still spellable, one character away: `created:..1h` is the
     // other side of the same moment, older than an hour.
-    if (meaning.kind === "moment") {
-      return { kind: "days", of, from: meaning.at, to: null }
+    const edges = edgesOf(meaning)
+    return {
+      kind: "days",
+      of,
+      from: edges.from,
+      // ...and the high end is the only thing the sugar changes: a duration
+      // opens upward, every other form closes at its own end.
+      to: meaning.kind === "moment" ? null : edges.to,
     }
-    return { kind: "days", of, from: meaning.span.from, to: meaning.span.to }
   }
   const left = value.slice(0, at)
   const right = value.slice(at + RANGE.length)
@@ -2049,11 +2070,31 @@ const carries = (node: RegularNode, field: CarriedField): boolean =>
  *
  * EACH BOUND COMPARES AT ITS OWN WIDTH, and that one rule is the whole of what
  * durations cost the matcher. A bound minted from a day, a month, a year or a
- * relative word is ten characters, so the value is cut to ten and the
- * comparison is the day it falls on — which is the `dayOf` this function was
- * handed for its first year, spelled as the general case rather than as the
- * only one. A bound minted from a duration is a MOMENT, so the value is cut to
- * that width instead and the comparison reaches the clock face.
+ * relative word is ten characters, so what it decides is the day the value
+ * falls on — which is the `dayOf` this function was handed for its first year,
+ * generalised rather than special-cased. A bound minted from a duration is a
+ * MOMENT, so the same comparison reaches the clock face.
+ *
+ * AND IT CUTS NOTHING, which is what makes that generalisation free. ISO text
+ * is a PREFIX ORDERING — every field is fixed-width and ordered most
+ * significant first — so for a bound `n` characters wide and the value's own
+ * first `n` characters `P`:
+ *
+ *   - `P >= bound` is exactly `date >= bound`. If `P` differs from `bound` the
+ *     two strings already differ inside those `n` characters and the rest
+ *     cannot speak; if `P` equals `bound` then `date` is `bound` with more
+ *     after it, which is greater or equal either way.
+ *   - `P <= bound` is `date <= bound` OR `date` STARTS WITH `bound` — the one
+ *     case the shorter string loses, where the value is on the bound's own
+ *     moment and carries seconds past it.
+ *
+ * So the slice this took for one commit — per bound, per node, per clause,
+ * over a directory, on every keystroke of a filter box — was buying a
+ * comparison the comparison already made. `startsWith` allocates nothing
+ * either, so this is cheaper than the single `dayOf` cut that stood here
+ * before durations existed. ./filter.bench.ts's `dated` arm is the number and
+ * exists because this line had none: it was added with the durations, and it
+ * is what a reader should re-run rather than believe.
  *
  * WHICH IS WHY DAY-GRANULAR VALUES COMPARE AT THEIR OWN PRECISION rather than
  * being special-cased into one: a `date:` field holding the bare day
@@ -2073,15 +2114,20 @@ const carries = (node: RegularNode, field: CarriedField): boolean =>
  * the alternative is a zone database in the floor of this package
  * (./calendar.ts's header), and the day-width comparison this generalises has
  * always been the same trade.
+ *
+ * The SEPARATOR is the other edge of that: a datetime somebody hand-wrote with
+ * a space where this format's own writer puts a `T` is legal on disk
+ * (./parse.ts) and sorts before every `T` on its day, so it reads as the start
+ * of that day. Which is the same answer a bare day gets, and the honest one for
+ * a value that named no instant this package minted.
  */
 const within = (date: string, clause: DaysClause): boolean =>
-  (clause.from === null || atWidthOf(date, clause.from) >= clause.from) &&
-  (clause.to === null || atWidthOf(date, clause.to) <= clause.to)
-
-/** A date cut to the width of the bound it is about to be compared with. A
- *  slice, never a parse — the same reading `dayOf` is, asked for a width the
- *  bound names instead of for the ten characters a day is. */
-const atWidthOf = (date: string, bound: string): string => date.slice(0, bound.length)
+  (clause.from === null || date >= clause.from) &&
+  (clause.to === null ||
+    date <= clause.to ||
+    // The value is ON the bound's own moment and carries more after it — the
+    // one case where being the longer string must not put it outside.
+    date.startsWith(clause.to))
 
 /**
  * Every node in the SET that the query selects, in the set's own

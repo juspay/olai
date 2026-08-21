@@ -1221,13 +1221,29 @@ test("two durations are a window", () => {
 })
 
 /** THE ENDS MIX FREELY WITH THE DAY WORDS, because a duration is read by the
- *  same {@link spanOf} the words are and a range takes each end's own reading:
+ *  same {@link meaningOf} the words are and a range takes each end's own reading:
  *  `created:yesterday..3h` is a day at one end and a clock face at the other,
  *  and the clause holds one of each. */
 test("a duration and a day word are two ends of one range", () => {
   expect(selects("created:yesterday..3h", NOW)).toEqual(["install"])
   expect(selects("created:2026-08-01..3h", NOW)).toEqual(["order", "install"])
   expect(selects("changed:last-week..30m", NOW)).toEqual(["basil", "order", "hinges"])
+})
+
+/**
+ * BOTH ENDS STAY INCLUSIVE at the new precision, which is the one case the
+ * comparison has to answer specially — a value that IS the bound and carries
+ * more after it is the longer string, and a longer string is the greater one.
+ *
+ * `install` was captured at 08:00:00 on the 13th. Three hours before eleven is
+ * that same second, so it is inside `created:3h` (the low end) AND inside
+ * `created:..3h` (the high end) — a node on the boundary belongs to both
+ * halves, exactly as `date:2026-08-13..` and `date:..2026-08-13` both hold of
+ * a node dated that day.
+ */
+test("a value sitting exactly on a bound is inside it, from either side", () => {
+  expect(selects("created:3h", NOW)).toContain("install")
+  expect(selects("created:..3h", NOW)).toContain("install")
 })
 
 /** A bound is the moment the clock said minus the units, to the minute and
@@ -1250,8 +1266,9 @@ test("the four units count minutes, hours, days and weeks", () => {
   // minutes rather than anything else.
   expect(selects("changed:57m", NOW)).toEqual([])
   expect(selects("changed:58m", NOW)).toEqual(["order"])
-  expect(selects("changed:60m", NOW)).toEqual(["order"])
-  expect(selects("changed:1h", NOW)).toEqual(["order"])
+  // ...and sixty of them is what the hour is worth, which is the table's own
+  // claim asked end to end rather than restated.
+  expect(selects("changed:60m", NOW)).toEqual(selects("changed:1h", NOW))
   // `hinges` was written at 09:00 on the 11th, so two rolling days from
   // eleven on the 13th stops just short of it and three reach it.
   expect(selects("changed:2d", NOW)).toEqual(["order"])

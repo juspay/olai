@@ -1,6 +1,7 @@
 /**
- * What a keystroke costs THE MATCHER on a large vault, with and without the
- * fold it keeps per record.
+ * What a query costs THE MATCHER on a large vault — a WORD, with and without
+ * the fold it keeps per record, and a DATE CLAUSE, which touches none of that
+ * machinery and walks the set anyway.
  *
  * IT IS A LEG, NOT A CLAIM (`just bench`), which is why it exists at all: the
  * fold landed with two milliseconds quoted in a comment and a reviewer asked,
@@ -26,11 +27,18 @@
  * already done before anybody types, and leaving it in was the mistake that
  * made an early measurement of this understate the fold by half.
  *
+ * A THIRD ARM measures the other hot line, and its own note ({@link DATED})
+ * says why it could not be a fourth keystroke of the first two: `within` is
+ * reached by a `date:` clause and by nothing a word does, so the fold arms
+ * above ran past it blind. It arrived with the durations, which changed that
+ * line twice.
+ *
  * The vault is generated rather than read, so the number is reproducible and
  * says what it is a number about: {@link NODES} nodes over {@link PER_FILE}-row
  * files, two thirds of them carrying a note, all of them carrying a tag — the
  * shape that makes the tag path (a global regex per title) the fold's own worst
- * case.
+ * case — and all of them STAMPED, which is what gives the date arm something to
+ * compare against.
  */
 
 import { derive, type Derived } from "./derive.ts"
@@ -46,6 +54,10 @@ const PER_FILE = 200
  *  question in January. */
 const TODAY = "2026-08-13"
 
+/** ...and the MOMENT the date arm counts a duration from — the same day with a
+ *  clock face on it, for `TODAY`'s reason one unit smaller. */
+const NOW = `${TODAY}T11:00:00-04:00`
+
 /** Somebody typing one word into the box, one character at a time. */
 const TYPED = ["k", "ki", "kit", "kitc", "kitch", "kitche", "kitchen"]
 
@@ -60,6 +72,17 @@ const vault = (): ReadonlyArray<Located> =>
       ...(at % 3 === 0
         ? { desc: `a note about brass and the budget, number ${at}` }
         : {}),
+      // THE STAMPS, so the date arm below has something to compare. Spread
+      // across a fortnight and carrying a real clock face and offset, because
+      // what {@link DATED} measures is a comparison against the value's own
+      // width — a corpus of bare days would answer a narrower question than
+      // the one a vault actually asks.
+      created: `2026-08-${String((at % 14) + 1).padStart(2, "0")}T0${
+        at % 10
+      }:12:44-04:00`,
+      changed: `2026-08-${String((at % 14) + 1).padStart(2, "0")}T1${
+        at % 10
+      }:02:00-04:00`,
     },
   })) as ReadonlyArray<Located>
 
@@ -87,17 +110,67 @@ const cold = Array.from({ length: 5 }, () => {
 })
 const hot = Array.from({ length: 5 }, () => timed(() => typedOver(warm)))
 
-const say = (what: string, runs: ReadonlyArray<number>): void => {
+/**
+ * THE OTHER HOT LINE, which the word arms above cannot see at all: `within`,
+ * the per-node comparison every `date:` / `created:` / `changed:` clause is
+ * answered by.
+ *
+ * It is a separate arm because it is a separate question. The fold is about
+ * scanning TEXT, and a query of operators alone folds nothing — so a date
+ * clause walks every node of the set and touches none of the machinery the two
+ * arms above measure. Until this existed the file had no number for the line
+ * the durations changed, which is how a comparison got quietly slower once
+ * (it sliced per bound) and quietly faster again (it stopped): both were
+ * invisible to `just bench`.
+ *
+ * FOUR SHAPES, because the widths are what the comparison turns on — a bare
+ * day bound against a stamp, a two-ended relative span, a duration's moment,
+ * and a range mixing a day word with one. Each is one clause over the whole
+ * set, and none of them names a word, so what is timed is the walk and the
+ * comparison and nothing else.
+ *
+ * WHAT IT CAUGHT, on this machine, over the four clauses below:
+ *
+ *     slicing each value to its bound's width   23.3ms — 5.82ms each
+ *     comparing the whole value                 18.9ms — 4.73ms each
+ *
+ * The first is what `within` did for one commit, when durations made a bound
+ * something other than ten characters wide and the obvious answer was to cut
+ * the value to match. The second is the same semantics with no allocation at
+ * all — ISO text is a prefix ordering, so the cut was buying a comparison the
+ * comparison already made (`../src/filter.ts`'s `within` has the algebra). As
+ * everywhere in this file: the RATIO is the claim, the milliseconds are one
+ * laptop's, and re-running it is the point.
+ */
+const DATED = ["created:2026-08-07", "changed:this-week", "changed:1h", "created:yesterday..3h"]
+
+const datedOver = (set: Derived): void => {
+  for (const query of DATED) matching(set, parseFilter(query, NOW))
+}
+
+datedOver(warm)
+const dated = Array.from({ length: 5 }, () => timed(() => datedOver(warm)))
+
+/** One arm's median, and what it works out to per query. The COUNT is an
+ *  argument because the arms no longer ask the same number of them — seven
+ *  keystrokes of a word, four shapes of a date clause. */
+const say = (
+  what: string,
+  runs: ReadonlyArray<number>,
+  asked: number,
+  each: string,
+): void => {
   const ms = median(runs)
   console.log(
-    `${what.padEnd(6)} ${ms.toFixed(1)}ms over ${TYPED.length} keystrokes ` +
-      `— ${(ms / TYPED.length).toFixed(2)}ms each`,
+    `${what.padEnd(6)} ${ms.toFixed(1)}ms over ${asked} ${each} ` +
+      `— ${(ms / asked).toFixed(2)}ms each`,
   )
 }
 
 console.log(`${NODES} nodes, ${Math.ceil(NODES / PER_FILE)} files`)
-say("cold", cold)
-say("warm", hot)
+say("cold", cold, TYPED.length, "keystrokes")
+say("warm", hot, TYPED.length, "keystrokes")
+say("dated", dated, DATED.length, "date clauses")
 
 // WHAT THE FOLD HOLDS is the other half of the trade, and it is deliberately
 // NOT reported here: a heap delta around a `Bun.gc(true)` pair answered 0.0MB
