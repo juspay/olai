@@ -29,12 +29,12 @@ import {
   type DatedRequest,
   type HomesAnswer,
   type HomesRequest,
-  type MatchingAnswer,
-  type MatchingRequest,
   type MovingAnswer,
   type MovingRequest,
   type NamedAnswer,
   type NamedRequest,
+  type NarrowingAnswer,
+  type NarrowingRequest,
   type OpFailure,
   type Owed,
   type OwedRequest,
@@ -115,8 +115,8 @@ export interface Options {
  */
 export interface Ops extends Asking {
   /**
-   * WHICH nodes a query selects — all of them, ids and why ({@link
-   * ./query.ts}'s `matches`).
+   * WHICH NODES OF ONE PAGE a query selects — ids and why ({@link
+   * ./query.ts}'s `narrowing`).
    *
    * HERE RATHER THAN ON {@link Asking}, and the line is worth arguing because
    * everything else about search is on that one. `Asking` is what a TOOL may
@@ -128,18 +128,26 @@ export interface Ops extends Asking {
    * match asks `search_nodes` and is answered with the nodes.
    *
    * So it hangs off the layer the SERVER holds (`@olai/server`'s `runtime.ts`
-   * binds it to the `search.matching` procedure, exposed on the browser face
-   * alone) and the agent's bridge is not obliged to implement a member no agent
-   * face exposes.
+   * binds it to the `narrowing` stream, exposed on the browser face alone) and
+   * the agent's bridge is not obliged to implement a member no agent face
+   * exposes.
+   *
+   * A STREAM's read rather than a procedure's, which is the whole of
+   * `filter-ask-carries-revision`: a filter is a STANDING view of a page, so
+   * asking it as a call meant re-asking it once per published revision — a
+   * whole-vault walk per frame of a bulk gesture. Read on the same pulse
+   * {@link page} is and sent when it moved by value, it costs a page and, for a
+   * gesture that changes no match, costs the wire nothing at all
+   * (docs/brainstorming/filter-rides-the-page.md).
    */
-  readonly matching: (
-    request: MatchingRequest,
-  ) => Effect.Effect<MatchingAnswer, OpFailure>
+  readonly narrowing: (
+    request: NarrowingRequest,
+  ) => Effect.Effect<NarrowingAnswer, OpFailure>
   /**
    * WHICH of these ids the set declares, and what each one names ({@link
    * ./query.ts}'s `named`).
    *
-   * HERE FOR {@link matching}'s REASON, one door over: an agent that wants to
+   * HERE FOR {@link narrowing}'s REASON, one door over: an agent that wants to
    * know whether an id is real reads it (`read_node` answers the node or the id
    * it does not hold), and is told everything about it. This answers a dozen
    * ids with nothing but the node each names, which is useful only to a caller
@@ -168,7 +176,7 @@ export interface Ops extends Asking {
    * used to take off the browser's own copy of the set
    * (`docs/brainstorming/vault-in-browser.md`, PR 4).
    *
-   * HERE RATHER THAN ON {@link Asking}, beside {@link matching} and for its
+   * HERE RATHER THAN ON {@link Asking}, beside {@link narrowing} and for its
    * argument word for word: `Asking` is what a TOOL may ask, and neither of
    * these is a tool. A month of dots is a paint instruction for a grid somebody
    * is looking at, and two integers about today are a badge — an agent asking
@@ -222,7 +230,7 @@ export interface Ops extends Asking {
    * WHICH TAGS the set already uses, for one sigil and one prefix — the row
    * editor's completion popup, answered ({@link ./query.ts}'s `tags`).
    *
-   * HERE RATHER THAN ON {@link Asking}, for {@link matching}'s reason one turn
+   * HERE RATHER THAN ON {@link Asking}, for {@link narrowing}'s reason one turn
    * on: it is not a tool and is not meant to become one. What it answers is a
    * capped shortlist shaped by the popup that draws it — eight rows, ranked by
    * how much this set uses each word — which is useful to somebody watching a
@@ -469,11 +477,12 @@ export const make = (options: Options): Ops => {
     // gets through a surface procedure and the answer a local tool call gets
     // are the same statement rather than two that agree.
     ...asking(read, context.now),
-    // The BROWSER's half of the same matcher, over the same gated read: the
-    // derivation alone, because a filter selects records and the other half of
-    // the set is prose (prose is the one page that carries no filter).
-    matching: (request) =>
-      Effect.map(read, (at) => Query.matches(at.derived, request, context.now())),
+    // The BROWSER's half of the same matcher, over the same gated read — and
+    // over the WHOLE reading rather than the derivation alone, for `page`'s
+    // reason: what a query selects is asked of one page, and which page an
+    // address names is a question about files as well as records.
+    narrowing: (request) =>
+      Effect.map(read, (at) => Query.narrowing(at, request, context.now())),
     // The transcript's backticks, over the same gated read and with no clock in
     // it: an id names what it names whatever day it is asked on.
     named: (request) => Effect.map(read, (at) => Query.named(at.derived, request)),

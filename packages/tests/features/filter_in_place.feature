@@ -210,3 +210,29 @@ Feature: Filtering the outline in place
     Then tags on this page are pressable
     When I open the day "2026-08-10"
     Then tags on this page are pressable
+
+  Scenario: A filter cleared and typed into again narrows by the NEW query
+    # The answer to a query belongs to the SESSION it was asked in. Between the
+    # keystroke that settles and the frame that answers it, the rows on screen
+    # hold still — which is honest between two queries somebody is typing
+    # through, and a lie across a CLEAR: the page went back to whole, and the
+    # last session's answer standing on it would prune rows by a question
+    # nobody is asking any more.
+    #
+    # `handles` is the whole claim: `hinges` did not select it, `handles` does,
+    # and the page was drawing it when the second query was typed. If the first
+    # session's answer is spent on the second, it goes away and comes back
+    # (`@olai/web`'s `filter/asking.ts`, where the hold is a session).
+    Given I open the outline "house.olai"
+    When I filter the page by "hinges"
+    Then the outline has 3 rows
+    And the node "handles" is not shown
+    When I clear the filter
+    Then the outline has 10 rows
+    And the node "handles" is shown
+    And I mark the screen
+    When I filter the page by "handles"
+    Then the outline has 3 rows
+    And the node "handles" is a match
+    And the node "hinges" is not shown
+    And the node "handles" was never taken away

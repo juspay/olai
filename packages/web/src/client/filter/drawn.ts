@@ -1,14 +1,21 @@
 /**
- * The four questions a filter asks of a DRAWN PAGE — one arm per shape, and
+ * The three questions a filter asks of a DRAWN PAGE — one arm per shape, and
  * nothing in here knows a query, a preference or a signal.
  *
  * Split out of `./narrowing.ts` because they are two different kinds of thing
  * that were braided into one file. That one is a READING: a memo graph over
  * what the reader typed, what the store published and what the clock says —
  * time. This one is arithmetic over a value: given a page and a set of ids,
- * which rows survive, how many places there are, how many of them the query
- * selected, and whether anything on it was put away. Pure, total over
- * `../page.ts`'s {@link Drawn}, and testable by handing it a page.
+ * which rows survive, how many places there are, and how many of them the query
+ * selected. Pure, total over `../page.ts`'s {@link Drawn}, and testable by
+ * handing it a page.
+ *
+ * THE FOURTH QUESTION WAS THE ARCHIVE'S — whether the rows in front of somebody
+ * are put-away ones, which the matcher had to be TOLD because only the caller
+ * knew. It is the server's now (`@olai/format`'s `showsPutAway`), asked of the
+ * page it is already computing: the browser stopped describing its page to the
+ * matcher the day it started naming it instead
+ * (docs/brainstorming/filter-rides-the-page.md).
  *
  * WHY THE SPLIT IS WORTH A FILE. Every function here is a `switch` over the
  * five shapes a page can be, and each is one line per shape; the reading is
@@ -28,14 +35,12 @@
 import type { Selected, TrashGroup } from "@olai/format"
 import {
   datedIn,
-  isTrashed,
   keeping,
   keepingDated,
   keepingOwed,
   matchedIn,
   owedIn,
   rowsIn,
-  shownRecord,
 } from "@olai/format"
 
 import type { Drawn } from "../page.ts"
@@ -68,59 +73,6 @@ export const narrowed = (drawn: Drawn, matched: Selected): Drawn => {
       return { ...drawn, groups: keepingArchives(drawn.groups, matched) }
     case "none":
       return drawn
-  }
-}
-
-/**
- * Is the page in front of the reader drawing anything that was PUT AWAY?
- *
- * TWO PAGES CAN BE, and after the 2026-08-17 ruling that is the whole list. The
- * TRASH is the archive, every group of it — so the answer is its kind and not a
- * scan, because a trash drawing no archived row is a trash drawing no row. And
- * a TREE can be one node's: `/#<id>` on a node somebody put away, which is
- * exactly where an `is:trashed` hit lands when it is clicked (docs/search.md —
- * the ruling took away the default presence, not the reachability). An
- * outline's own tree is a live file, since an archive's address opens the trash
- * instead (`../page.ts`) — with one gap that is not this file's to close: a
- * MIRROR still resolves to a node that was archived after it was placed
- * (`@olai/format`'s `follow`, which the ops layer keeps resolving on purpose),
- * so a placement can draw an archived row on a live page. What that row should
- * be is a ruling about the SET rather than about a filter, and it is filed as
- * one (docs/search.md, docs/brainstorming/editing-web.md's Open).
- *
- * A DAY AND THE AGENDA ANSWER NO, and they answer it by construction rather
- * than by a rule kept here: the walk those pages are built from leaves archived
- * nodes out (`@olai/format`'s `dates.ts`), so there is nothing on either of
- * them for this to find. Left as arms of the switch rather than folded into a
- * default, because a page kind that starts drawing archived rows should have to
- * come back here and say so.
- *
- * The tree arm reads the ROOTS, never a walk: a row shows a record that names a
- * file, and a zoom is inside one file the whole way down. That is the honest
- * bound — this runs per keystroke, and what it feeds is a default rather than a
- * permission.
- *
- * WHAT IT DECIDES IS THE CANDIDATE SET, AND THE COST IS WHOLE-TRASH, which is
- * worth stating rather than leaving to be discovered. `true` puts every
- * archived node in the directory in front of the matcher — not only the ones
- * this page could draw — and the rows that match somewhere else are then
- * dropped by the prune. That is not a leak in this reading, it is how the door
- * already works for every other node: it matches over the SET and narrows by
- * the PAGE ({@link narrowed}), which is what lets a mirror of a node in another
- * file stay drawn where it is placed. What asking buys is the pages that draw
- * NONE — every outline, which is the page somebody types on all day — paying
- * nothing for a file that only ever grows.
- */
-export const showsTrashed = (drawn: Drawn): boolean => {
-  switch (drawn.kind) {
-    case "trash":
-      return true
-    case "tree":
-      return drawn.rows.some((row) => isTrashed(shownRecord(row).file))
-    case "day":
-    case "agenda":
-    case "none":
-      return false
   }
 }
 
