@@ -26,7 +26,6 @@
 import { Result } from "effect"
 
 import { derive, type Derived, drawnFrom } from "./derive.ts"
-import { type Outline } from "./document.ts"
 import { resolveRelative } from "./documents.ts"
 import {
   chainOf,
@@ -251,22 +250,23 @@ const viewOf = (set: OutlineSet, previous: Previous | undefined): Derived => {
  * flat comparison could not see either way.
  */
 const isSet = (view: Derived, set: OutlineSet): boolean => {
-  const outlines = outlinesIn(set)
+  // The outlines the grouping HAS a key for. A file holding nothing is absent
+  // from {@link Derived.byFile} — that map says so itself, and a file that did
+  // not parse holds nothing — so dropping the empty ones is what lets the two
+  // be stepped side by side. One entry per FILE, where the flat comparison this
+  // replaced allocated one per RECORD, twice.
+  const outlines = outlinesIn(set).filter((outline) => outline.nodes.length > 0)
+  if (view.byFile.size !== outlines.length) return false
   let which = 0
-  const held = (): Outline | undefined => {
-    while (outlines[which]?.nodes.length === 0) which++
-    return outlines[which]
-  }
   for (const [file, records] of view.byFile) {
-    const outline = held()
-    which++
+    const outline = outlines[which++]
     if (outline === undefined || outline.path !== file) return false
     if (outline.nodes.length !== records.length) return false
     for (let at = 0; at < records.length; at++) {
       if (records[at] !== outline.nodes[at]) return false
     }
   }
-  return held() === undefined
+  return true
 }
 
 // ── ids ────────────────────────────────────────────────────────────────

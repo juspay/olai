@@ -11,13 +11,19 @@
  *
  * THE WRITES ARE SETS AND DELETES, because that is what a patch does to an
  * index and because the delete is what this module gained: the first layer kept
- * its base's key set exactly, which is why nine of the eleven indexes could not
- * have one. Every corner below is a place where the cheap answer and the real
- * one could quietly part company — a key nothing held (it goes to the end), a
- * key deleted and set again (it goes to the end TOO, which is the one rule a
- * layer that only remembered values gets wrong), a layer over a layer (a read
- * must not walk a session's history), and a layer grown past the half where it
- * stops being cheaper than the clone it replaced.
+ * its base's key set exactly, which is why only one index could have one. Every
+ * corner below is a place where the cheap answer and the real one could quietly
+ * part company — a key nothing held (it goes to the end), a key deleted and set
+ * again (it goes to the end TOO, which is the one rule a layer that only
+ * remembered values gets wrong), a layer over a layer (a read must not walk a
+ * session's history), and a layer grown past the half where it stops being
+ * cheaper than the clone it replaced.
+ *
+ * BOTH SPELLINGS AGAINST ONE ORACLE. `overlay` answers with a clone for a map
+ * somebody walks whole and a layer for one everybody asks by key, and the whole
+ * claim is that nothing above can tell — so the property below rolls the word
+ * as it rolls the writes, and every corner that is not about the layer itself
+ * is checked under both.
  */
 
 import { expect, test } from "bun:test"
@@ -83,7 +89,7 @@ const same = (
   read: Read = "by key",
   asked: ReadonlyArray<string> = [],
 ): ReadonlyMap<string, Held> => {
-  const held = overlay(base)
+  const held = overlay(base, read)
   const said: Array<boolean> = []
   for (const [key, value] of writes) {
     if (value === undefined) said.push(held.delete(key))
@@ -94,7 +100,7 @@ const same = (
     expect(held.has(key)).toBe(value !== undefined)
     expect(held.get(key)).toBe(value as Held)
   }
-  const found = held.sealed(read)
+  const found = held.sealed()
   const want = oracle(base, writes)
   const keys = [...new Set([...base.keys(), ...writes.map(([key]) => key), ...asked])]
   expect(said).toEqual(want.said)
@@ -189,6 +195,11 @@ test("an index read WHOLE is a map, whatever the layer would have cost", () => {
   const base = mapOf(["a", "b", "c"])
   const found = same(base, [["a", at("changed")]], "whole")
   expect(found instanceof Map).toBe(true)
+  // And it is COPIED ON FIRST WRITE, not on construction: an edit that touches
+  // no key of a map hands back the very map it was given, whichever way that
+  // map is read.
+  expect(same(base, [], "whole")).toBe(base)
+  expect(same(base, [["nope", undefined]], "whole")).toBe(base)
   // Which is a decision about COST and not about the answer: the same writes
   // sealed the other way are the same map, and this suite compares both against
   // one oracle.
@@ -220,6 +231,22 @@ test("a layer grown past half the map flattens into one", () => {
   })
   expect(flattened.length).toBeGreaterThan(0)
   expect([...held.values()].every((value) => value.what.endsWith("changed"))).toBe(true)
+})
+
+test("a sealed overlay is spent — a write afterwards is refused, not absorbed", () => {
+  // What the layer is handed at sealing is what was being written, not a copy
+  // of it, which is what keeps the step this module exists to keep small small.
+  // The rule that buys is kept by REFUSING rather than by remembering: a write
+  // after sealing would move a value under a reader holding the sealed map.
+  for (const read of ["by key", "whole"] as const) {
+    const held = overlay(mapOf(["a", "b", "c"]), read)
+    held.set("a", at("changed"))
+    const sealed = held.sealed()
+    expect(() => held.set("b", at("late"))).toThrow()
+    expect(() => held.delete("c")).toThrow()
+    expect([...sealed.keys()]).toEqual(["a", "b", "c"])
+    expect(sealed.get("c")).toEqual({ what: "c as it was" })
+  }
 })
 
 test("an overlay nothing wrote to hands back the map it was given", () => {

@@ -84,16 +84,16 @@
  *     vault is edit 489 of 900 wandering ones and never at all when one file is
  *     typed in. The default forty-edit run never reaches it.
  *
- * WHAT IT COSTS A READER is two lookups on the way past: a key the layer does
- * not hold is looked for there, and among the keys it dropped, before `base`
- * answers. That is the trade, and it is deliberate — the layer is small, a
- * missed lookup in a small map is a hash the engine has already computed for
- * the string once, and the walk it buys back is corpus-sized. It is `get` and
- * `has` that pay it, and those are how every by-key caller reads these
- * indexes; a whole-index SPREAD pays it once per entry, which is exactly what
- * the sealing argument is for. `patch.bench.ts` times both — the `get` walk the
- * validator asks on every write, and the whole-index walk the readings above
- * ask — so the trade is a measurement rather than a claim.
+ * WHAT IT COSTS A READER is one lookup on the way past, and two when the edit
+ * dropped a key: the layer is asked first, then — only if anything left — the
+ * keys it dropped, and then `base`. That is the trade, and it is deliberate:
+ * the layer is small, a missed lookup in a small map is a hash the engine has
+ * already computed for the string once, and the walk it buys back is
+ * corpus-sized. It is `get` and `has` that pay it, and those are how every
+ * by-key caller reads; a whole-index SPREAD pays it once per entry, which is
+ * exactly what the sealing argument is for. `patch.bench.ts` times both — the
+ * `get` walk the validator asks on every write, and the whole-index walk — so
+ * the trade is a measurement rather than a claim.
  *
  * WHAT IT HOLDS ONTO: `base` keeps the values the layer covers, so a layered
  * map retains the entries the edit replaced until it flattens. Bounded by the
@@ -108,126 +108,213 @@
  */
 
 /**
- * How the index being sealed is READ, which is the whole of what decides
- * whether it gets a layer.
+ * How the map being carried is READ, which is the whole of what decides which
+ * of the two spellings below it gets.
  *
  * Not a hint and not a hint's opposite: both answers are the same map, and the
- * word only says which way of reaching it is cheaper for THIS index. It is
- * stated at the call rather than kept in a table here, because the fact it
- * names is a fact about the index's readers — who they are and what they ask —
- * and this module has never heard of them.
+ * word only says which way of reaching it is cheaper for THIS one. It is taken
+ * at the CALL rather than kept in a table here, because the fact it names is a
+ * fact about the map's readers — who they are and what they ask — and this
+ * module has never heard of them. Its caller keeps that table
+ * ({@link ./derive.ts}'s `READ`, one row per index).
  */
 export type Read = "by key" | "whole"
 
 /**
- * WRITING to an index: set at a key, delete at a key, ask whether a key is
- * there. Exactly what the one rule below it needs and nothing more.
+ * A map being written across ONE patch, and sealed into the value it leaves.
  *
- * Both a `Map` and an {@link Overlay} are one, which is what lets the rule that
- * files a key across an edit be written once and run over either — over a layer
- * for the index read by key, over a clone for the three read whole
- * ({@link ./patch.ts}'s `filedAt`).
+ * Four verbs and no more: what a key holds, whether it is there, set, delete —
+ * which is the whole of what a patch does to an index. {@link overlay} answers
+ * with one of the two shapes behind it, and nothing above can tell which: a
+ * CLONE for a map somebody walks whole, a LAYER for a map everybody asks by
+ * key. That is what lets the rule that files a key across an edit be written
+ * once and run over either ({@link ./patch.ts}'s `filedAt`).
  */
 export interface Editable<K, V> {
+  get(key: K): V | undefined
   has(key: K): boolean
-  set(key: K, value: V): void
+  /** Sets, and answers whether the key was MINTED — absent here before this
+   *  call. The one caller that asks needs exactly that ({@link ./patch.ts}'s
+   *  `filedAt`, for whether the KEY SET moved), and the write has already
+   *  looked, so asking separately is the same question put twice. */
+  set(key: K, value: V): boolean
   delete(key: K): boolean
+  /** The map this patch leaves standing. SPENDS this: what it hands over is
+   *  what was being written, so a write afterwards would move a value under a
+   *  reader and is refused rather than allowed to. */
+  sealed(): ReadonlyMap<K, V>
 }
 
 /** `base`, ready to be written to and sealed — the one shape every index of a
- *  patch is carried across the edit in. */
-export const overlay = <K, V extends {}>(base: ReadonlyMap<K, V>): Overlay<K, V> =>
-  new Overlay(base)
+ *  patch is carried across the edit in, in whichever of the two spellings its
+ *  own readers make cheaper. */
+export const overlay = <K, V extends {}>(
+  base: ReadonlyMap<K, V>,
+  read: Read,
+): Editable<K, V> => (read === "whole" ? new Cloned(base) : new Overlay(base))
+
+/** What one patch did to a map, as the two shapes below both hold it — the
+ *  fields the one reading rule reads, named so it can be written once. */
+interface Held<K, V extends {}> {
+  readonly base: ReadonlyMap<K, V>
+  readonly changed: ReadonlyMap<K, V>
+  readonly gone: ReadonlySet<K>
+}
 
 /**
- * A map being written across one patch: what stood, plus what this edit did to
- * it, held apart until {@link Overlay.sealed} decides how to spell the answer.
+ * What a key answers: what the edit CHANGED wins, then what it DROPPED, then
+ * the map that stood.
  *
- * THREE PLACES A WRITE CAN LAND, and the third is the only one that is not
- * obvious. `over` holds a value replacing one `base` already had, and the key
- * keeps `base`'s place for it. `gone` holds a key of `base` this edit deleted.
- * `tail` holds a key that goes to the END: one `base` never had, and one that
- * was deleted and then set again — because that is where a `Map` puts it, and
- * the contract above is that a caller cannot tell the two apart.
+ * ONE SPELLING, asked by an overlay while it is being written and by the layer
+ * it seals into — because the moment the second takes over from the first is
+ * exactly where two spellings would be free to disagree, and the property test
+ * next door compares a half-written overlay against the sealed map it becomes.
  *
- * The three are disjoint by construction except for the one overlap that is the
- * point: a key in `gone` may also be in `tail`, which is exactly the
- * deleted-then-set case, and every reading below asks `tail` first so that it
- * wins.
+ * The tombstone probe is skipped when the edit dropped nothing, which is most
+ * edits and every edit to the corpus-sized index: a layer over a map with no
+ * key removed reads in two lookups, the same as the value-only layer this
+ * grew out of.
  */
-class Overlay<K, V extends {}> implements Editable<K, V> {
-  /** Values replacing ones `base` holds, at `base`'s own places. */
-  private readonly over = new Map<K, V>()
-  /** Keys appended past the end of `base` — arrived, or deleted and set again. */
-  private readonly tail = new Map<K, V>()
-  /** Keys of `base` this edit deleted. May also be in `tail`. */
-  private readonly gone = new Set<K>()
-  /** Whether THIS patch wrote anything at all, which is not the same question
-   *  as whether the three above are empty: a layer handed in arrives with its
-   *  own contents in them, so an edit that does nothing to an index has to hand
-   *  that layer back rather than build an equal one beside it. */
-  private wrote = false
-  /** What this was handed, which is what an untouched sealing gives back. */
-  private readonly given: ReadonlyMap<K, V>
+const gotAt = <K, V extends {}>(held: Held<K, V>, key: K): V | undefined => {
+  const own = held.changed.get(key)
+  if (own !== undefined) return own
+  return held.gone.size !== 0 && held.gone.has(key) ? undefined : held.base.get(key)
+}
 
-  constructor(private base: ReadonlyMap<K, V>) {
-    this.given = base
-    // A layer over a layer is one layer, never a chain: a read walks what it is
-    // handed, and a chain would make it cost the session's history. What the
-    // layer already held is taken over as this patch's own starting point, and
-    // the map underneath becomes the base.
-    if (base instanceof Layer) {
-      const held = base as Layer<K, V>
-      this.base = held.base
-      for (const [key, value] of held.changed) {
-        if (held.appended.has(key)) this.tail.set(key, value)
-        else this.over.set(key, value)
-      }
-      for (const key of held.gone) this.gone.add(key)
-    }
+/** {@link gotAt}'s question asked about presence alone — the same rule, and
+ *  here for the same reason. */
+const hasAt = <K, V extends {}>(held: Held<K, V>, key: K): boolean =>
+  held.changed.has(key) ||
+  ((held.gone.size === 0 || !held.gone.has(key)) && held.base.has(key))
+
+/** What a sealed overlay refuses. */
+const SPENT = "this overlay was sealed — what it held belongs to the map it left"
+
+/**
+ * A map carried across the edit BY CLONING it, which is what a map somebody
+ * walks whole gets.
+ *
+ * The whole of it, and it is deliberately the boring one: a layer would make
+ * every entry of every walk pay a lookup it cannot answer, which costs more
+ * than the copy it saved (the module header argues it, `./patch.bench.ts`
+ * prices it). What is left worth saying is the COPY-ON-FIRST-WRITE — an edit
+ * that touches no key of this map hands back the very map it was given, so the
+ * rule that a patch pays for what it touched holds for these too.
+ */
+class Cloned<K, V extends {}> implements Editable<K, V> {
+  private whole: Map<K, V> | undefined
+
+  constructor(private readonly given: ReadonlyMap<K, V>) {}
+
+  private get held(): Map<K, V> {
+    if (this.spent) throw new Error(SPENT)
+    return (this.whole ??= new Map(this.given))
   }
 
-  /** The three above, as the layer takes them: COPIED, so that a layer is a
-   *  value the moment it is sealed. Nothing writes to an overlay after sealing
-   *  it today — each of them is sealed at the end of the step that made it and
-   *  dropped — but handing the live sets over would make that a rule somebody
-   *  has to remember rather than one the shape keeps, and the copies are
-   *  bounded by the edit. */
-  private sealing(): Layer<K, V> {
-    const changed = new Map(this.over)
-    for (const [key, value] of this.tail) changed.set(key, value)
-    return new Layer(this.base, changed, new Set(this.tail.keys()), new Set(this.gone))
-  }
+  private spent = false
 
   get(key: K): V | undefined {
-    const held = this.tail.get(key)
-    if (held !== undefined) return held
-    if (this.gone.has(key)) return undefined
-    return this.over.get(key) ?? this.base.get(key)
+    return (this.whole ?? this.given).get(key)
   }
 
   has(key: K): boolean {
-    return this.tail.has(key) || (!this.gone.has(key) && this.base.has(key))
+    return (this.whole ?? this.given).has(key)
   }
 
-  set(key: K, value: V): void {
-    // Already at the end, and it stays where it is: a `Map` re-set at a key
-    // does not move it, wherever that key happens to be.
-    this.wrote = true
-    if (this.tail.has(key)) this.tail.set(key, value)
-    else if (this.base.has(key) && !this.gone.has(key)) this.over.set(key, value)
-    else this.tail.set(key, value)
+  set(key: K, value: V): boolean {
+    const held = this.held
+    const minted = !held.has(key)
+    held.set(key, value)
+    return minted
   }
 
   delete(key: K): boolean {
-    if (this.tail.delete(key)) {
-      this.wrote = true
-      return true
-    }
-    if (!this.base.has(key) || this.gone.has(key)) return false
-    this.over.delete(key)
-    this.gone.add(key)
+    // Asked before the clone is taken, so a delete of a key that is not there
+    // does not mint a copy of the whole map to not-delete it in.
+    return this.has(key) ? this.held.delete(key) : false
+  }
+
+  sealed(): ReadonlyMap<K, V> {
+    this.spent = true
+    return this.whole ?? this.given
+  }
+}
+
+/**
+ * A map carried across the edit as a LAYER: what stood, plus what this patch
+ * did to it, held apart until {@link Overlay.sealed} decides how to spell it.
+ *
+ * THE SAME THREE FIELDS {@link Layer} HOLDS, which is not a coincidence and is
+ * the point: sealing hands them over rather than converting them, and the one
+ * reading rule above is asked of both. `changed` is every value this answers
+ * with — the replacements and the appendings in one map, so a read is one
+ * lookup. `appended` is which of those keys sit past the end of `base`: one it
+ * never had, and one that was DELETED AND SET AGAIN, because that is where a
+ * `Map` puts it. `gone` is which keys of `base` are not here any more, and a
+ * key in `appended` too is one that came back.
+ */
+class Overlay<K, V extends {}> implements Editable<K, V> {
+  readonly base: ReadonlyMap<K, V>
+  readonly changed: Map<K, V>
+  readonly appended: Set<K>
+  readonly gone: Set<K>
+  /** What this was handed, which is what an untouched sealing gives back. */
+  private readonly given: ReadonlyMap<K, V>
+  /** Whether THIS patch wrote anything, which is not the same question as
+   *  whether the three above are empty: a layer handed in arrives with its own
+   *  contents in them, so an edit that does nothing to a map has to hand that
+   *  layer back rather than build an equal one beside it. */
+  private wrote = false
+  private spent = false
+
+  constructor(given: ReadonlyMap<K, V>) {
+    // A layer over a layer is one layer, never a chain: a read walks what it is
+    // handed, and a chain would make it cost the session's history. What the
+    // layer already held becomes this patch's own starting point, and the map
+    // underneath becomes the base.
+    const held = given instanceof Layer ? (given as Layer<K, V>) : undefined
+    this.given = given
+    this.base = held?.base ?? given
+    this.changed = new Map(held?.changed)
+    this.appended = new Set(held?.appended)
+    this.gone = new Set(held?.gone)
+  }
+
+  get(key: K): V | undefined {
+    return gotAt(this, key)
+  }
+
+  has(key: K): boolean {
+    return hasAt(this, key)
+  }
+
+  set(key: K, value: V): boolean {
+    if (this.spent) throw new Error(SPENT)
     this.wrote = true
+    // Already ours, and it keeps wherever it sits: a `Map` re-set at a key does
+    // not move it.
+    if (this.changed.has(key)) {
+      this.changed.set(key, value)
+      return false
+    }
+    // Not ours yet, so it is either a live key of `base` — a replacement, at
+    // `base`'s own place for it — or absent, which covers both a key nothing
+    // ever held and one this edit deleted, and both of those go to the END.
+    const live = this.base.has(key) && !(this.gone.size !== 0 && this.gone.has(key))
+    if (!live) this.appended.add(key)
+    this.changed.set(key, value)
+    return !live
+  }
+
+  delete(key: K): boolean {
+    if (this.spent) throw new Error(SPENT)
+    if (!this.has(key)) return false
+    this.wrote = true
+    this.changed.delete(key)
+    // An APPENDED key simply goes; a key of `base` leaves a tombstone, which is
+    // what tells the walk to step over it. A key that was both — deleted, set
+    // again, deleted again — keeps the tombstone it already had.
+    if (!this.appended.delete(key)) this.gone.add(key)
     return true
   }
 
@@ -235,26 +322,38 @@ class Overlay<K, V extends {}> implements Editable<K, V> {
    * The map this patch leaves standing — a layer where that is the cheaper way
    * to it, and a real map where it is not.
    *
-   * THE ARGUMENT IS THE INDEX'S READERS and nothing else ({@link Read}). The
-   * two other answers are decided here rather than by a caller: an index this
-   * edit never wrote to is handed back UNTOUCHED, and a layer that has grown
-   * past half its base is flattened, because past that the layer is what the
-   * next patch copies.
+   * The two other answers are decided here rather than by a caller: a map this
+   * edit never wrote to is handed back UNTOUCHED, and a layer whose own
+   * contents have grown past half its base is flattened, because past that the
+   * layer is what the next patch copies.
+   *
+   * IT SPENDS THE OVERLAY. What the layer is handed is what was being written,
+   * not a copy of it — three structures rather than three copies of them, on
+   * the step this module exists to keep small. What that costs is a rule, and
+   * the rule is kept by refusing rather than by remembering: a write after this
+   * throws, where a defensive copy would have made it silently harmless and
+   * still wrong.
    */
-  sealed(read: Read): ReadonlyMap<K, V> {
+  sealed(): ReadonlyMap<K, V> {
+    this.spent = true
     if (!this.wrote) return this.given
-    const written = this.over.size + this.tail.size + this.gone.size
-    if (read === "whole" || written * 2 > this.base.size) return this.flattened()
-    return this.sealing()
+    // WHAT THE NEXT PATCH COPIES, which is what the half is about: an overlay
+    // handed a layer takes these three over, so their size is the price of
+    // carrying one more edit rather than a count of keys this edit touched.
+    const carried = this.changed.size + this.appended.size + this.gone.size
+    if (carried * 2 > this.base.size) return this.flattened()
+    return new Layer(this.base, this.changed, this.appended, this.gone)
   }
 
   /** The real map, built from `base` and written the way this overlay was —
    *  which is the clone the layer exists to avoid, taken on purpose. */
   private flattened(): ReadonlyMap<K, V> {
     const whole = new Map(this.base)
-    for (const [key, value] of this.over) whole.set(key, value)
+    // Dropped FIRST, so that a key deleted and set again comes back at the end
+    // — which is where a `Map` puts it, and the one order a layer that
+    // remembered values alone would get wrong.
     for (const key of this.gone) whole.delete(key)
-    for (const [key, value] of this.tail) whole.set(key, value)
+    for (const [key, value] of this.changed) whole.set(key, value)
     return whole
   }
 }
@@ -268,9 +367,8 @@ class Overlay<K, V extends {}> implements Editable<K, V> {
  * place the distinction is real (a layer over a layer) is the constructor of
  * {@link Overlay}, which is the only thing that makes one.
  *
- * The invariants every method below stands on: `changed` is `over` and
- * `appended` run together, `appended`'s keys come after every key of `base`
- * that survives, and a key in `gone` is a key of `base`.
+ * Its three fields are {@link Overlay}'s three fields, handed over rather than
+ * copied, and it never writes to them.
  */
 class Layer<K, V extends {}> implements ReadonlyMap<K, V> {
   constructor(
@@ -291,32 +389,49 @@ class Layer<K, V extends {}> implements ReadonlyMap<K, V> {
   }
 
   has(key: K): boolean {
-    return this.changed.has(key) || (!this.gone.has(key) && this.base.has(key))
+    return hasAt(this, key)
   }
 
-  /** The ONE place the layer is read through, which every other reading below
-   *  goes past: what a key answers is one rule, and a second spelling of it
-   *  inside the walk would be a map that iterated to something other than what
-   *  it answers one key at a time. */
   get(key: K): V | undefined {
-    const held = this.changed.get(key)
-    if (held !== undefined) return held
-    return this.gone.has(key) ? undefined : this.base.get(key)
+    return gotAt(this, key)
+  }
+
+  /** `base`'s own iterator when this edit neither dropped a key nor added one,
+   *  which is every edit to the corpus-sized index — its layer is taken only
+   *  when nothing was minted, moved or dropped ({@link ./patch.ts}'s `ids`), so
+   *  the walk that reads it whole is the map's own and costs nothing at all. */
+  keys(): MapIterator<K> {
+    return this.gone.size === 0 && this.appended.size === 0
+      ? this.base.keys()
+      : this.walked()
   }
 
   /** `base`'s order with the dropped keys skipped, then whatever went past the
    *  end — which is where a `Map` would have left them. */
-  *keys(): MapIterator<K> {
+  private *walked(): MapIterator<K> {
     for (const key of this.base.keys()) if (!this.gone.has(key)) yield key
     yield* this.appended
   }
 
-  *values(): MapIterator<V> {
-    for (const key of this.keys()) yield this.get(key) as V
+  /**
+   * The whole map, in order, WITHOUT asking `base` twice.
+   *
+   * It is {@link gotAt}'s rule with `base`'s answer already in hand — the one
+   * place that rule is spelled a second time, and the reason is that a walk has
+   * the value the rule would go and look up. Everything else here goes through
+   * this one.
+   */
+  *entries(): MapIterator<[K, V]> {
+    const dropped = this.gone.size !== 0
+    for (const [key, value] of this.base) {
+      if (dropped && this.gone.has(key)) continue
+      yield [key, this.changed.get(key) ?? value]
+    }
+    for (const key of this.appended) yield [key, this.changed.get(key) as V]
   }
 
-  *entries(): MapIterator<[K, V]> {
-    for (const key of this.keys()) yield [key, this.get(key) as V]
+  *values(): MapIterator<V> {
+    for (const [, value] of this.entries()) yield value
   }
 
   [Symbol.iterator](): MapIterator<[K, V]> {

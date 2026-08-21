@@ -178,7 +178,7 @@ export const patched = (
   // the directory, a first load with nothing behind it, a one-file set whose
   // one file changed. Patching is about what stays standing, and when nothing
   // does, the work below is a rebuild with bookkeeping on top.
-  if (![...derived.byFile.keys()].some((file) => !touched.has(file))) return undefined
+  if (!some(derived.byFile.keys(), (file) => !touched.has(file))) return undefined
 
   const edit: Edit = {
     before: derived,
@@ -202,10 +202,17 @@ export const patched = (
   // THE CORPUS READ FLAT, when somebody asks and not before. It is
   // {@link Derived.nodes}, and it is {@link Derived.byFile} read the other way
   // — the same records, never a second copy of them — so a patch that BUILT it
-  // paid one array per record in the directory for a reading its own work never
-  // needs. Three things here can want it, and on a keystroke none of them does:
-  // the two index steps that decline to patch and rebuild instead, and a caller
-  // above. So it is a thunk, memoised, spent at most once per patch.
+  // paid one array per record in the directory for a reading none of the work
+  // below ever asks for. Three things can want it: the two index steps that
+  // decline to patch and rebuild instead, which a keystroke does not reach, and
+  // a caller above.
+  //
+  // A CALLER ABOVE USUALLY DOES, and the saving is not that nobody asks. The
+  // validator reads it once per write, for the five rules that walk the records
+  // ({@link ./validate.ts}) — what it stopped doing is flattening the SET a
+  // second time to check this view was about it. So a validated write builds
+  // the list once where it built two and walked both, and a patch whose view
+  // nobody reads flat builds none. Memoised, so asking twice is asking once.
   let flat: ReadonlyArray<Located> | undefined
   const nodes = (): ReadonlyArray<Located> => (flat ??= flattened(byFile))
 
@@ -313,9 +320,9 @@ interface Refiled<T> {
   readonly headMoved: boolean
 }
 
-const refiled = <T, Filed extends T = T>(
+const refiled = <K extends Listed, Filed extends Member<K> = Member<K>>(
   edit: Edit,
-  before: ReadonlyMap<string, ReadonlyArray<T>>,
+  index: K,
   filing: {
     /** What a record puts in this index — `derive`'s own fold, run here over
      *  both sides of the edit. `Filed` is what it files, which is the entry
@@ -324,17 +331,14 @@ const refiled = <T, Filed extends T = T>(
     readonly into: (filed: Map<string, Array<Filed>>, at: Located) => void
     /** Where an entry IS — the file its survival is judged by, and the place it
      *  is ordered on. */
-    readonly at: (one: T) => Located
+    readonly at: (one: Member<K>) => Located
     /** The order this index promises its members in: corpus order for three of
      *  the four, and the format's sibling order for `children`. */
     readonly order?: (one: Located, other: Located) => number
-    /** WHICH index this is — the one thing this rule cannot work out from the
-     *  map it is handed, and what it looks the sealing up by
-     *  ({@link ./derive.ts}'s `READ`). */
-    readonly index: Index
   },
-): Refiled<T> => {
-  const { into, at, order = byCorpus, index } = filing
+): Refiled<Member<K>> => {
+  const { into, at, order = byCorpus } = filing
+  const before = edit.before[index] as ReadonlyMap<string, ReadonlyArray<Member<K>>>
   const arriving = new Map<string, Array<Filed>>()
   for (const one of edit.incoming) into(arriving, one)
   // The DEPARTING side goes through the SAME fold, for its KEYS, and the
@@ -354,16 +358,19 @@ const refiled = <T, Filed extends T = T>(
 
   /** Where a key's members START, which is where the key itself sits in a map
    *  the corpus was walked once to build. */
-  const head = (own: ReadonlyArray<T> | undefined): Located | undefined => {
+  const head = (own: ReadonlyArray<Member<K>> | undefined): Located | undefined => {
     const first = own?.[0]
     return first === undefined ? undefined : at(first)
   }
   /** Wrapped ONCE, above the loop that spends it, for the reason {@link namedIn}
    *  is: this is handed to a sort per touched key, and a closure minted inside
    *  would be one throwaway per key rather than one per index. */
-  const inOrder = (one: T, other: T): number => order(at(one), at(other))
+  const inOrder = (one: Member<K>, other: Member<K>): number => order(at(one), at(other))
 
-  const map = overlay(before)
+  const map = carrying(edit.before, index) as unknown as Editable<
+    string,
+    ReadonlyArray<Member<K>>
+  >
   let rekeyed = false
   let headMoved = false
   for (const key of keys) {
@@ -376,7 +383,7 @@ const refiled = <T, Filed extends T = T>(
     if (!headMoved && elsewhere(head(held), head(own))) headMoved = true
     if (filedAt(map, key, own)) rekeyed = true
   }
-  return { map: map.sealed(READ[index]), rekeyed, headMoved }
+  return { map: map.sealed(), rekeyed, headMoved }
 }
 
 /**
@@ -400,12 +407,7 @@ const filedAt = <V>(
   map: Editable<string, ReadonlyArray<V>>,
   key: string,
   own: ReadonlyArray<V>,
-): boolean => {
-  if (own.length === 0) return map.delete(key)
-  const minted = !map.has(key)
-  map.set(key, own)
-  return minted
-}
+): boolean => own.length === 0 ? map.delete(key) : map.set(key, own)
 
 /**
  * A map whose KEYS are read in an order, put back in it — and only when the key
@@ -449,11 +451,10 @@ const NOTHING: ReadonlyArray<never> = []
 const containment = (
   edit: Edit,
 ): ReadonlyMap<string, ReadonlyArray<Located>> =>
-  refiled(edit, edit.before.children, {
+  refiled(edit, "children", {
     into: parentInto,
     at: (one) => one,
     order: bySibling,
-    index: "children",
   }).map
 
 /** The delta applied to the grouping — the one part of the answer that is the
@@ -472,7 +473,7 @@ interface Regrouped {
 }
 
 const regrouped = (derived: Derived, delta: SetDelta): Regrouped => {
-  const byFile = overlay(derived.byFile)
+  const byFile = carrying(derived, "byFile")
   const touched = new Set<string>()
   // Whether the KEY SET moved, and therefore whether the map's own order has to
   // be made again: a file that was already there keeps its place when it is
@@ -504,7 +505,7 @@ const regrouped = (derived: Derived, delta: SetDelta): Regrouped => {
   // same read through it are 0.241ms — the walk costs more than the copy it
   // saves, which is {@link ./overlay.ts}'s sealing rule arriving at the one
   // index where the two are close enough to have to be timed.
-  const ordered = inKeyOrder(byFile.sealed(READ.byFile), reordered, byPath)
+  const ordered = inKeyOrder(byFile.sealed(), reordered, byPath)
   return { byFile: ordered, touched }
 }
 
@@ -531,6 +532,35 @@ const countIn = (byFile: ReadonlyMap<string, ReadonlyArray<Located>>): number =>
   return held
 }
 
+/**
+ * ONE OF THE VIEW'S INDEXES, OPENED FOR WRITING across this edit — the map and
+ * the word that decides how it is carried, read off ONE key.
+ *
+ * The table says how each index is read ({@link ./derive.ts}'s `READ`) and
+ * {@link ./overlay.ts} takes that word at the call that makes the writer, so
+ * every one of the eleven steps below would otherwise spell the same name
+ * twice — `overlay(edit.before.status, READ.status)` — with nothing stopping
+ * the two halves naming different indexes. Here they cannot: there is one name.
+ */
+const carrying = <K extends Index>(
+  before: Derived,
+  index: K,
+): Editable<string, Values<K>> =>
+  overlay(before[index] as unknown as ReadonlyMap<string, Values<K>>, READ[index])
+
+/** What an index of {@link Derived} holds per key — its value type, which is
+ *  never `undefined` and has to say so for the layer's fall-through. */
+type Values<K extends Index> = Derived[K] extends ReadonlyMap<string, infer V> ? V & {}
+  : never
+
+/** The indexes that hold a LIST per key, which is what {@link refiled} re-files
+ *  — derived from {@link Derived} rather than listed, so it is one more thing
+ *  the shape says instead of a comment. */
+type Listed = { [K in Index]: Values<K> extends ReadonlyArray<unknown> ? K : never }[Index]
+
+/** One member of such a list — what a key of that index holds one of. */
+type Member<K extends Listed> = Values<K> extends ReadonlyArray<infer E> ? E : never
+
 /** The records of every named file, run together. */
 const recordsIn = (
   byFile: ReadonlyMap<string, ReadonlyArray<Located>>,
@@ -539,6 +569,14 @@ const recordsIn = (
   const found: Array<Located> = []
   for (const file of files) found.push(...(byFile.get(file) ?? []))
   return found
+}
+
+/** Whether any member answers — a walk that stops at the first one, where a
+ *  spread would have built an array of every path in the directory to ask an
+ *  existence question about one. */
+const some = <T>(over: Iterable<T>, asked: (one: T) => boolean): boolean => {
+  for (const one of over) if (asked(one)) return true
+  return false
 }
 
 /** Whether two records are at different places in the corpus — including the
@@ -618,9 +656,9 @@ const ids = (
   // added, moved or dropped, what this edit changed is a value per arriving
   // record, and the other twenty thousand are the map's own answers still
   // ({@link ./overlay.ts}, which is where the trade is argued and measured).
-  const byId = overlay(edit.before.byId)
+  const byId = carrying(edit.before, "byId")
   for (const at of edit.incoming) byId.set(at.node.id, at)
-  return byId.sealed(READ.byId)
+  return byId.sealed()
 }
 
 /**
@@ -646,10 +684,9 @@ const namings = (
   edit: Edit,
   nodes: () => ReadonlyArray<Located>,
 ): ReadonlyMap<string, ReadonlyArray<Naming>> => {
-  const { map, headMoved } = refiled(edit, edit.before.namedBy, {
+  const { map, headMoved } = refiled(edit, "namedBy", {
     into: nameInto,
     at: (naming) => naming.at,
-    index: "namedBy",
   })
   // A key that MOVED — including one that appeared and one that went away,
   // both of which move a head by definition — is a key-order change, and this
@@ -683,10 +720,9 @@ const taggings = (edit: Edit): ReadonlyMap<string, ReadonlyArray<LocatedRegular>
   // gained `#`, which is the sigil people actually write, and the reason the
   // clone's cost is a number this branch had to measure rather than assume
   // ({@link ./patch.bench.ts}).
-  refiled(edit, edit.before.taggedBy, {
+  refiled(edit, "taggedBy", {
     into: tagInto,
     at: (one) => one,
-    index: "taggedBy",
   }).map
 
 /**
@@ -716,10 +752,9 @@ const dating = (edit: Edit): ReadonlyMap<string, ReadonlyArray<Dated>> => {
   // same way it does next door: the map that stood IS the answer and no clone
   // is paid at all — a keystroke in an outline nobody scheduled anything in,
   // which is most outlines.
-  const { map, rekeyed } = refiled(edit, edit.before.byDay, {
+  const { map, rekeyed } = refiled(edit, "byDay", {
     into: dateInto,
     at: (one) => one.at,
-    index: "byDay",
   })
   // Whether the KEYS moved is the only thing that costs the sort. A day that
   // gains or loses a record is not that; a day that appears or empties is.
@@ -779,8 +814,8 @@ const resolutions = (
     for (const mirror of arriving.get(id) ?? []) wake(mirror)
   }
 
-  const status = overlay(edit.before.status)
-  const mirrorsOf = overlay(edit.before.mirrorsOf)
+  const status = carrying(edit.before, "status")
+  const mirrorsOf = carrying(edit.before, "mirrorsOf")
   /** The keys of `mirrorsOf` a dirty mirror left or joined — every one of them
    *  has to be made again, and no other one has moved. */
   const shown = new Set<string>()
@@ -830,7 +865,7 @@ const resolutions = (
     else mirrorsOf.set(id, new Set(members.map((at) => at.node.id)))
   }
 
-  return { status: status.sealed(READ.status), mirrorsOf: mirrorsOf.sealed(READ.mirrorsOf), dirty }
+  return { status: status.sealed(), mirrorsOf: mirrorsOf.sealed(), dirty }
 }
 
 /**
@@ -920,8 +955,8 @@ const orderings = (
     return found.sort(byCorpus)
   }
 
-  const after = overlay(edit.before.after)
-  const edgesTo = overlay(edit.before.edgesTo)
+  const after = carrying(edit.before, "after")
+  const edgesTo = carrying(edit.before, "edgesTo")
   for (const key of keys) {
     const own = byId.get(key)
     const mine = own === undefined || isMirror(own.node) ? undefined : own.node
@@ -942,11 +977,7 @@ const orderings = (
     else edgesTo.set(key, sources)
   }
 
-  return {
-    after: after.sealed(READ.after),
-    edgesTo: edgesTo.sealed(READ.edgesTo),
-    rewritten: keys,
-  }
+  return { after: after.sealed(), edgesTo: edgesTo.sealed(), rewritten: keys }
 }
 
 /**
@@ -972,11 +1003,11 @@ const blockage = (
     for (const source of view.edgesTo.get(id) ?? []) keys.add(source)
   }
 
-  const blocked = overlay(edit.before.blocked)
+  const blocked = carrying(edit.before, "blocked")
   for (const key of keys) {
     blocked.delete(key)
     const found = blockageAt(view, key)
     if (found !== undefined) blocked.set(found.at, found.waiting)
   }
-  return blocked.sealed(READ.blocked)
+  return blocked.sealed()
 }

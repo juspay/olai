@@ -3,7 +3,7 @@ import { Result } from "effect"
 
 import type { Document } from "./document.ts"
 import { isCrossFile, type OutlineError } from "./errors.ts"
-import { outlineOf, recordsOf, setOf } from "./fixtures.testlib.ts"
+import { decodedOf, outlineOf, recordsOf, setOf } from "./fixtures.testlib.ts"
 import { assemble, type OutlineSet, outlinePaths } from "./set.ts"
 import { type Previous, type Reading, validate } from "./validate.ts"
 
@@ -125,14 +125,6 @@ test("a view that is not about this set is not the view the rules run over", () 
 // a probe hands over: the files nobody touched are the very objects the last
 // reading was judged against, and the identity the check turns on is real.
 
-/** A directory, as the decoded map a set is assembled from. */
-const decoded = (files: Record<string, string>): Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>> =>
-  new Map(
-    Object.entries(files).map((
-      [file, text],
-    ) => [file, Result.succeed<Document>(outlineOf(text, file))]),
-  )
-
 /** The next reading's set and the delta that describes it — one file rewritten,
  *  every other outline the same object as before. */
 const probed = (
@@ -156,7 +148,7 @@ const judged = (set: OutlineSet, previous?: Previous): Reading => {
 }
 
 test("a delta that describes the set is taken, and the view is a patched one", () => {
-  const held = decoded({
+  const held = decodedOf({
     "a.olai": `{"id":"x","ord":"a","title":"one"}`,
     "b.olai": `{"id":"y","ord":"a","title":"two"}`,
   })
@@ -180,7 +172,7 @@ test("an outline holding nothing is not a disagreement about the set", () => {
   // Absence is how `byFile` spells a file with no records, so a set carrying an
   // empty outline has one more file than the view has keys — which a check
   // stepping the two in lockstep has to expect rather than call a mismatch.
-  const held = decoded({
+  const held = decodedOf({
     "a.olai": `{"id":"x","ord":"a","title":"one"}`,
     "empty.olai": ``,
     "z.olai": `{"id":"y","ord":"a","title":"two"}`,
@@ -195,7 +187,7 @@ test("an outline holding nothing is not a disagreement about the set", () => {
 })
 
 test("a delta that leaves the view holding a file the set lost is thrown away", () => {
-  const held = decoded({
+  const held = decodedOf({
     "a.olai": `{"id":"x","ord":"a","title":"one"}`,
     "b.olai": `{"id":"y","ord":"a","title":"two"}`,
   })

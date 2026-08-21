@@ -51,6 +51,7 @@ import {
   Unfinished,
 } from "./node.ts"
 import { type Dated, dateInto } from "./occasion.ts"
+import type { Read } from "./overlay.ts"
 import { byPath } from "./paths.ts"
 
 /** What a node's checkbox shows, re-exported rather than declared: it is one
@@ -328,7 +329,7 @@ export type Index = {
  * or the last whole-index reader of one of the others going away. Both are
  * changes to who reads the index, which is the fact this table is.
  */
-export const READ: { readonly [K in Index]: "by key" | "whole" } = {
+export const READ: { readonly [K in Index]: Read } = {
   /** `byId.get(id)` on every reference the validator resolves and every row a
    *  page draws; its one whole-index reader wants `keys()`, which a layer hands
    *  over without a lookup per entry (`./suggest.ts`'s did-you-mean). */

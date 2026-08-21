@@ -18,9 +18,10 @@
  *   - `patch` — {@link patched}, the incremental answer with the fallback taken
  *     OFF, so an arm that quietly declined would fail here rather than report
  *     the rebuild's number under the patcher's name;
- *   - `patch+clone` — the same patch paying the `new Map(byId)` this branch
- *     replaced, which is this PR's own before/after printed rather than quoted
- *     ({@link patching} states the two ways it is a reconstruction).
+ *   - `patch+residue` — the same patch paying the two corpus-sized costs it
+ *     used to owe every edit, the `new Map(byId)` and the flat list, which is
+ *     the before/after printed rather than quoted ({@link patching} states what
+ *     it puts back and what it cannot).
  *
  * AND THREE MEASUREMENTS UNDER THEM, because a claim this file did not print
  * would be the unreproducible laptop sample the paragraph above says it
@@ -203,24 +204,36 @@ const rebuilt = edits.map(({ file, records: own }, which) => {
  * this one is a fold, which is the whole reason copy-on-write over a session is
  * visible here and not there.
  *
- * RUN TWICE, and the second run is this PR's before/after rather than a claim
- * about it (#231, grok — a figure the harness cannot print is the
- * unreproducible sample this file exists to retire). `alsoCloned` adds, inside
- * the timed window, the exact expression {@link ./patch.ts}'s `ids` used to
- * hold — `new Map(byId)` and a `set` per arriving record — and carries THAT
- * index forward, so the arm patches against a plain `Map` every time and the
- * layer is paid for and thrown away.
+ * RUN TWICE, and the second run is the before/after rather than a claim about
+ * it (#231, grok — a figure the harness cannot print is the unreproducible
+ * sample this file exists to retire). `alsoResidue` puts back, inside the timed
+ * window, the two corpus-sized costs a patch used to owe whatever the edit was:
+ *
+ *   - `new Map(byId)` and a `set` per arriving record, the exact expression
+ *     {@link ./patch.ts}'s `ids` used to hold — carried forward as THAT index,
+ *     so the arm patches against a plain `Map` every time and the layer is paid
+ *     for and thrown away;
+ *   - the FLAT LIST, which the spread below forces: {@link Derived.nodes} is
+ *     built on demand now, and a whole-view spread asks for it. That is the same
+ *     `[...byFile.values()].flat()` `regrouped` used to run on every patch, so
+ *     it is in this arm by the same act that made it visible.
+ *
+ * The other six index clones are NOT here, and cannot faithfully be: the arm
+ * would have to clone the layers this patcher produced, and `new Map(layer)`
+ * walks a generator where the old code walked a plain map — an arm slower than
+ * the thing it stands for by an amount that is about the reconstruction. What
+ * they cost is {@link beside}, measured on its own.
  *
  * It is a reconstruction and the tree cannot make it more than one: a true A/B
  * would need two patchers in it, and a second patcher nothing runs is worse
- * than an arm whose two approximations are stated. They are: the layer is built
+ * than an arm whose approximations are stated. They are: the layers are built
  * and discarded (which {@link lever} prices at under a hundredth of a
- * millisecond), and the reads INSIDE the patch go through it rather than
- * through the plain map the old code had (which {@link walked} prices at
+ * millisecond), and the reads INSIDE the patch go through them rather than
+ * through the plain maps the old code had (which {@link walked} prices at
  * nothing). Both make this arm slightly slower than the code it stands for, so
  * the saving it shows is a ceiling rather than a flattering floor.
  */
-const patching = (name: string, alsoCloned: boolean): ReadonlyArray<number> => {
+const patching = (name: string, alsoResidue: boolean): ReadonlyArray<number> => {
   const times: Array<number> = []
   let carrying = first
   for (const [which, { delta, records: own }] of edits.entries()) {
@@ -228,7 +241,9 @@ const patching = (name: string, alsoCloned: boolean): ReadonlyArray<number> => {
     let next: Derived | undefined
     times.push(timed(() => {
       next = patched(carrying, delta)
-      if (next !== undefined && alsoCloned) next = { ...next, byId: cloned(carrying.byId, changes) }
+      if (next !== undefined && alsoResidue) {
+        next = { ...next, byId: cloned(carrying.byId, changes) }
+      }
     }))
     if (next === undefined) {
       throw new Error(
@@ -239,23 +254,23 @@ const patching = (name: string, alsoCloned: boolean): ReadonlyArray<number> => {
     carrying = next
     said(name, carrying, which)
   }
-  if (!alsoCloned) carried = carrying
+  if (!alsoResidue) carried = carrying
   return times
 }
 
 // WARMED FIRST, both of them, and then measured. One of the two arms has to go
 // first, and going first means paying for a JIT the other one then finds warm —
 // which on this pair pushes the wrong way twice over: it inflates `patch`, the
-// arm that runs first, against the `patch+clone` it is supposed to be cheaper
+// arm that runs first, against the `patch+residue` it is supposed to be cheaper
 // than. A discarded round each is a tenth of a second and takes the question
 // away. (The two reconstructions {@link patching} names still stand, and they
 // push the other way: they make the clone arm slower than the code it stands
 // for. What is left is a figure with a stated bias in one direction rather than
 // two that cancel by luck.)
 patching("patch", false)
-patching("patch+clone", true)
+patching("patch+residue", true)
 const patchedMs = patching("patch", false)
-const patchedCloneMs = patching("patch+clone", true)
+const patchedResidueMs = patching("patch+residue", true)
 
 // THE CARRIED VIEW AGAINST THE ORACLE, once and outside every timed window.
 // Forty patches deep, each layered on the last, is where a copy-on-write bug
@@ -335,7 +350,7 @@ const walked = (views: ReadonlyArray<Derived>): ReadonlyArray<number> => {
  * are then compared whole, so an arm that got cheaper by answering differently
  * fails the run.
  *
- * IT IS THE STEP AND NOT THE WHOLE PATCH, which the `patch+clone` arm above
+ * IT IS THE STEP AND NOT THE WHOLE PATCH, which the `patch+residue` arm above
  * already shows: this one isolates the line, so the two can be read against
  * each other — the gap between those arms should be about what the `cloned`
  * number here is, and when it is not, one of them is measuring something else.
@@ -344,9 +359,9 @@ const walked = (views: ReadonlyArray<Derived>): ReadonlyArray<number> => {
  * WHICH EDIT the layer flattened at, if it did.
  */
 const layered: CopyOnWrite = (base, changes) => {
-  const held = overlay(base)
+  const held = overlay(base, "by key")
   for (const [id, at] of changes) held.set(id, at)
-  return held.sealed("by key")
+  return held.sealed()
 }
 
 /** One stream of edits, run through one strategy from the first view's index —
@@ -444,7 +459,7 @@ const CLONED = sides("whole")
  * leaves garbage a patch's own clones did not, and four of the eleven were
  * already skipped outright by an edit that named no key of them. What the pair
  * is for is the SHAPE of the residue, and the before/after inside a timed
- * window is the `patch+clone` arm above and the leg run against the branch
+ * window is the `patch+residue` arm above and the leg run against the branch
  * point.
  *
  * Both lists are spelled out rather than derived from the view's keys, because
@@ -507,9 +522,9 @@ const flatly = (): readonly [built: number, counted: number] => {
 const wholly = (): readonly [asMap: number, asLayer: number] => {
   const base = first.namedBy
   const keys = [...base.keys()].slice(0, 20)
-  const held = overlay(base)
+  const held = overlay(base, "by key")
   for (const key of keys) held.set(key, base.get(key) as NonNullable<ReturnType<typeof base.get>>)
-  const layer = held.sealed("by key")
+  const layer = held.sealed()
   if (layer instanceof Map) throw new Error("the layer flattened — this measures one map twice")
   const sweep = (map: ReadonlyMap<string, unknown>) => () => {
     let seen = 0
@@ -705,7 +720,7 @@ const walks = (): { parts: number; matchAll: number; loop: number } => {
 }
 
 const say = (name: string, times: ReadonlyArray<number>): void => {
-  console.log(timesSaid(name, times, 12))
+  console.log(timesSaid(name, times, 14))
 }
 
 console.log(
@@ -714,13 +729,13 @@ console.log(
     `${runtimeSaid()}\n`,
 )
 say("rebuild", rebuilt)
-say("patch+clone", patchedCloneMs)
+say("patch+residue", patchedResidueMs)
 say("patch", patchedMs)
 console.log(
   `\npatch is ${(median(rebuilt) / median(patchedMs)).toFixed(1)}× the rebuild's speed` +
     ` on one file's edit, and ${
-      (median(patchedCloneMs) / median(patchedMs)).toFixed(1)
-    }× the same patch with the clone this branch replaced`,
+      (median(patchedResidueMs) / median(patchedMs)).toFixed(1)
+    }× the same patch paying the corpus-sized residue it used to owe`,
 )
 const [asMap, asLayer] = walked([oracle, carried])
 console.log(

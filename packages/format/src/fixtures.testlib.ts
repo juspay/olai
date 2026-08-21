@@ -65,6 +65,25 @@ export const nodesOf = (
  * validator is judging the same shape a load produces — a second, hand-written
  * assembly here is how a fixture ends up proving something about itself.
  */
+/**
+ * A directory of outlines, DECODED but not yet assembled — the map `assemble`
+ * takes, before it becomes a set.
+ *
+ * Beside {@link setOf} rather than inside it because a test that follows one
+ * reading with the next needs to hold this and re-assemble it with one file
+ * replaced, which is what a probe hands the validator: the files nobody touched
+ * are the very outlines the last reading was judged against, and the identity a
+ * patched view is checked by is real only if they are.
+ */
+export const decodedOf = (
+  files: Record<string, string>,
+): Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>> =>
+  new Map(
+    Object.entries(files).map(
+      ([file, contents]) => [file, Result.succeed<Document>(outlineOf(contents, file))],
+    ),
+  )
+
 export const setOf = (
   files: Record<string, string>,
   /** The BODIED files served alongside. A bare path is one whose text no test
@@ -76,10 +95,7 @@ export const setOf = (
 ): OutlineSet =>
   assemble(
     new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>([
-      ...Object.entries(files).map(
-        ([file, contents]) =>
-          [file, Result.succeed<Document>(outlineOf(contents, file))] as const,
-      ),
+      ...decodedOf(files),
       ...documents.map((document) => {
         const [file, said] = typeof document === "string" ? [document, ""] : document
         const bodyless = unkept(file)
