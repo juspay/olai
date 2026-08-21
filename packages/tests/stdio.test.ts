@@ -36,7 +36,7 @@ const granted = granting([
   "docs/RCA/",
   "docs/brainstorming/",
   "docs/lowy-electricity/",
-  "docs/roadmap.olai",
+  "docs/roadmap/",
 ]);
 
 const TRACKED = tracked(import.meta.filename);
