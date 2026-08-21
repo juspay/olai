@@ -42,7 +42,7 @@ import {
   pressed,
 } from "../support/caret.ts";
 import { retypedAndTaken } from "../support/atonce.ts";
-import { saysNothing, saysThat } from "../support/said.ts";
+import { announcedAs, saysNothing, saysThat } from "../support/said.ts";
 import {
   DESC_EDITOR,
   EDIT_NUDGE,
@@ -387,11 +387,24 @@ Then(
  *  which is why the ritual itself lives in `support/said.ts` and this file
  *  holds the two steps that name the two locators. */
 Then("the refusal says {string}", async function (this: OlaiWorld, said: string) {
-  await saysThat(this, EDIT_REFUSAL, said, "refusal");
+  await saysThat(this, EDIT_REFUSAL, said, "refusal", "alarm");
 });
 
 Then("the nudge says {string}", async function (this: OlaiWorld, said: string) {
-  await saysThat(this, EDIT_NUDGE, said, "nudge");
+  await saysThat(this, EDIT_NUDGE, said, "nudge", "aside");
+});
+
+/** ...and HOW each of them reaches a screen reader, which is the half of the
+ *  two moods that is not on screen at all. Asked apart from the sentence
+ *  because it is a different kind of claim — the words are what a reader sees,
+ *  and this is whether they are delivered over the top of whatever was being
+ *  read. */
+Then("the refusal is announced at once", async function (this: OlaiWorld) {
+  await announcedAs(this, EDIT_REFUSAL, "at once", "refusal");
+});
+
+Then("the nudge is announced politely", async function (this: OlaiWorld) {
+  await announcedAs(this, EDIT_NUDGE, "politely", "nudge");
 });
 
 Then("nothing is being said about the row", async function (this: OlaiWorld) {

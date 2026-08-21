@@ -260,18 +260,33 @@ Feature: Keyboard editing
     # somebody might want to tick the parent too, and now can.
     Given I open the outline "garden.olai"
     When I click the title of "mint"
+    # Marked BEFORE the key, because the claim is about a line that does not
+    # exist yet: the nudge is added to a live region under this row, and ONCE
+    # is the whole of it.
+    And I mark every element of the row "mint"
     And I press "Control+Enter"
     Then the node "mint" has status "done"
     And the nudge says "every task under"
-    # And it is advice, not a state: the next keystroke takes it away.
+    # Advice is announced POLITELY — a screen reader finishes the sentence it
+    # was reading. It is still announced: a remark nobody is told about is a
+    # remark only the sighted reader gets.
+    And the nudge is announced politely
+    And the row "mint" was read out loud 1 time
+    # And it is advice, not a state: the next keystroke takes it away — and a
+    # line taken away is silence, not a second announcement.
     When I type "!"
     Then nothing is being said about the row
+    And the row "mint" was read out loud 1 time
 
   Scenario: A refused write keeps the draft and says why
     When I click the title of "handles"
     And I select all and type ""
     And I click away from the editor
     Then the refusal says "a node needs a title"
+    # The opposite half of the nudge's manners: a refusal is why nothing
+    # happened, so it interrupts. A reader who is not told believes the title
+    # they typed was saved.
+    And the refusal is announced at once
     And the row being typed holds ""
     And "house.olai" holds a node titled "choose the handles"
 

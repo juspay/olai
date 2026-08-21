@@ -41,10 +41,10 @@
  * {@link markRegion} is the same reading asked of ANY region, for the lists
  * that are rebuilt by something other than a navigation (PR 2 of the same
  * campaign: every list drawn over a wire array, on every frame of its page or
- * every answer it draws). It watches for one more thing: whether a
- * `role="alert"` under the region MOVED — a live region rebuilt with the same
- * words in it is a sentence read out loud a second time, and that is a fact
- * about mutations rather than about what is on screen at the end.
+ * every answer it draws). It watches for one more thing: whether a LIVE REGION
+ * under the region moved — a `role="alert"` or a `role="status"` rebuilt with
+ * the same words in it is a sentence read out loud a second time, and that is a
+ * fact about mutations rather than about what is on screen at the end.
  *
  * The MARKS ARE ONE PLANT, though, and `markScreen` lays them by calling
  * `markRegion` over the sidebar: "did these elements survive" is one question
@@ -259,11 +259,14 @@ const SERIAL = "__olaiSerial";
  * is a KIND of thing on screen (`redraw_steps.ts` holds the table), and a page
  * can be drawing two of them.
  *
- * The ALERTS are watched here rather than beside the attribute observer above
- * because they are a fact about the same marks: a live region rebuilt with the
- * same words in it is a sentence read out loud a second time, which is what a
- * rebuilt element costs when the element happens to be one somebody is told
- * about.
+ * The ANNOUNCEMENTS are watched here rather than beside the attribute observer
+ * above because they are a fact about the same marks: a live region rebuilt
+ * with the same words in it is a sentence read out loud a second time, which is
+ * what a rebuilt element costs when the element happens to be one somebody is
+ * told about. BOTH moods count — the assertive `role="alert"` a refusal wears
+ * and the polite `role="status"` a remark does — because "was this read out
+ * loud" is one question and a probe that only saw the alarming half would pass
+ * a nudge announced three times.
  */
 export const markRegion = async (
   world: OlaiWorld,
@@ -295,15 +298,25 @@ export const markRegion = async (
         });
       }
       const slot = { serial, announced: 0 };
-      const alarming = (node: Node): boolean =>
+      // A LIVE REGION, either mood — `role="alert"` is the assertive one and
+      // `role="status"` the polite one, and both are read out loud. Asked of
+      // the role rather than of `aria-live` because the role is what the two
+      // moods are spelled as at every door (SaidLine.tsx), and one of them
+      // carrying only the role would still be announced.
+      const live = '[role="alert"], [role="status"]';
+      const speaking = (node: Node): boolean =>
         node instanceof Element &&
-        (node.getAttribute("role") === "alert" ||
-          node.closest('[role="alert"]') !== null ||
-          node.querySelector('[role="alert"]') !== null);
+        (node.matches(live) ||
+          node.closest(live) !== null ||
+          node.querySelector(live) !== null);
       const watch = new MutationObserver((records) => {
         for (const record of records) {
-          const touched = [record.target, ...record.addedNodes, ...record.removedNodes];
-          if (touched.some(alarming)) slot.announced++;
+          // What was ADDED and what CHANGED, never what was removed: a live
+          // region's default `aria-relevant` is "additions text", so taking a
+          // line away is silence and counting it would make a said-line that
+          // clears itself look like a sentence read out loud twice.
+          const touched = [record.target, ...record.addedNodes];
+          if (touched.some(speaking)) slot.announced++;
         }
       });
       for (const root of roots) {
@@ -382,5 +395,28 @@ export const nothingAnnounced = async (
     `a live region in the ${what} moved ${churn.announced} time(s) without its ` +
       "words changing, so a screen reader read the same sentence out loud again " +
       "for a keystroke that did not change the reader's mind.",
+  );
+};
+
+/** ...and the counted version of the same reading, for a line that is SUPPOSED
+ *  to be read out loud: exactly how many times, which is the only way to say
+ *  "once" about a sentence that must arrive and must not arrive twice. The
+ *  region is marked BEFORE the gesture that produces the line, so the plant is
+ *  watching while it appears — which is why this is a count over the same
+ *  observer rather than a claim about what is on screen at the end. */
+export const announcedTimes = async (
+  world: OlaiWorld,
+  selector: string,
+  what: string,
+  times: number,
+): Promise<void> => {
+  const churn = await regionChurn(world, selector);
+  assert.strictEqual(
+    churn.announced,
+    times,
+    `a live region in the ${what} was read out loud ${churn.announced} time(s), ` +
+      `and the scenario is about it being read ${times}. More than that is one ` +
+      "sentence announced again for a frame that did not change it; fewer is a " +
+      "line a screen reader was never told about.",
   );
 };

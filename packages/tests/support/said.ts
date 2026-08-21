@@ -20,6 +20,35 @@ import * as assert from "node:assert";
 import { POLL_TIMEOUT } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
 
+/**
+ * HOW a said-line reaches a screen reader — the pair that decides whether what
+ * is being read out loud is interrupted to deliver it.
+ *
+ * A `data-` fact would be this suite's own invention; this pair is the
+ * platform's own (`role` and `aria-live` are what an assistive technology
+ * actually reads), so it is asked of the attributes themselves. It is the one
+ * thing about a line that a picture cannot carry and a sentence assertion
+ * cannot see: two lines with the same words, one of which cuts across whatever
+ * the reader was in the middle of.
+ *
+ *   - `at once` is a REFUSAL — why nothing happened, and a reader who does not
+ *     notice believes something happened that did not;
+ *   - `politely` is a REMARK about something that DID happen, which is never
+ *     worth interrupting a sentence for.
+ */
+export const announcedAs = async (
+  world: OlaiWorld,
+  locator: string,
+  urgency: "at once" | "politely",
+  what: string,
+): Promise<void> => {
+  const [role, live] = urgency === "at once"
+    ? ["alert", "assertive"]
+    : ["status", "polite"];
+  await world.expectAttribute(locator, "role", role, what);
+  await world.expectAttribute(locator, "aria-live", live, what);
+};
+
 export const saysThat = async (
   world: OlaiWorld,
   locator: string,
