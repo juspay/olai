@@ -1,11 +1,24 @@
 /**
- * What day it is, in the reader's own time zone, kept true past midnight.
+ * The client's clocks: what day it is, and what time it is when something on
+ * screen has to keep saying.
  *
  * The one clock in the client, and it sits at the top rather than inside
  * whichever feature happened to need it first: today is a fact about the TAB,
  * and its readers are the page model (`/today` names no date), the day page
  * and the month in the sidebar. Two of them asking a `Date` separately is two
  * answers that can differ by a day at exactly the wrong moment.
+ *
+ * THAT CLAIM GREW A SECOND HALF when a second thing started ticking. Two
+ * readouts in this client are a reading of the wall clock and therefore go
+ * stale on their own — how long ago the last commit was
+ * ({@link ./commit/ago.ts}) and how long the running tool call has been going
+ * ({@link ./chat/elapsed.ts}) — and each had arrived with a `setInterval`, a
+ * signal and an `onCleanup` of its own. Two copies is where a shape stops being
+ * incidental: what they have in common is not the number but the LIFETIME, and
+ * a timer whose disposal is written out per feature is a timer one feature will
+ * eventually forget to stop. So {@link createTicking} is here, with the day, and
+ * `claims.test.ts` holds the client to it — a third readout reaches for this
+ * rather than typing the fourth `setInterval`.
  *
  * LOCAL, deliberately. The dates in the files are what a person wrote down, so
  * the day they mean is the day where they are — `new Date().toISOString()`
@@ -29,7 +42,7 @@
  * every tab that was not.
  */
 
-import { type Accessor, createSignal, onCleanup } from "solid-js"
+import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
 
 import { isoDate } from "@olai/format"
 
@@ -82,3 +95,108 @@ export const createToday = (): Accessor<string> => {
 
   return today
 }
+
+/** A gate that is always open — what a readout that ticks for as long as it is
+ *  on screen passes, spelled once rather than at each such call site. */
+const ALWAYS: Accessor<boolean> = () => true
+
+/**
+ * A clock that re-reads itself every `every` milliseconds, for as long as
+ * `when` says there is anything to time.
+ *
+ * WHAT IT IS FOR is a readout whose value is a reading of the wall clock: "12m
+ * ago", "47s". Those go stale where they stand — the fact behind them has not
+ * moved and the sentence about it has — so the signal moving is the whole of
+ * how they stay true. The arithmetic is never here: each reader keeps its own
+ * pure function of an instant and a `now`, which is what makes the interesting
+ * cases a table instead of an hour of waiting.
+ *
+ * THE GATE is the half a bare interval cannot have. The chat panel's readout
+ * exists only while a turn is in flight, and a timer under an idle conversation
+ * would be waking the tab once a second to recompute nothing — worse, it would
+ * be the machinery quietly disagreeing with the rule the readout itself follows
+ * ({@link ./chat/elapsed.ts}: a dead conversation keeps no clock). Defaulted
+ * open, because a readout that is simply on screen for as long as it is drawn
+ * is the ordinary case and should not have to say so.
+ *
+ * The clock is READ AGAIN on the way in, not only on each tick: a gate that has
+ * just opened is a fact that has just started, and starting from wherever the
+ * last interval left the signal would date it to whenever the previous turn
+ * ended.
+ *
+ * ... AND ON THE WAY BACK TO THE PAGE, which is the same second half
+ * {@link createToday} has and for the same reason — a reason this file already
+ * calls "not belt-and-braces" and had, until this was written, been making only
+ * about the day. Every browser there is throttles a hidden tab's timers to
+ * minutes, so a tab left on a long build and come back to shows the number it
+ * had when it was hidden, at exactly the moment somebody is looking at it. The
+ * timer is for the tab on screen; the wake is for every tab that was not.
+ *
+ * Per component and disposed with it. Nothing about a ticking readout belongs
+ * to the document, and a timer that outlived the component that drew it would
+ * be a timer nobody stops — which is the failure two hand-rolled copies of this
+ * were each one edit away from.
+ */
+export const createTicking = (
+  every: number,
+  when: Accessor<boolean> = ALWAYS,
+): Accessor<number> => {
+  const [now, setNow] = createSignal(Date.now())
+  createEffect(() => {
+    if (!when()) return
+    const read = (): void => {
+      setNow(Date.now())
+    }
+    read()
+    const timer = setInterval(read, every)
+    // Only on the way IN, like the day's: a tab being hidden is nobody reading
+    // it, and a number that went stale for nobody can wait until there is
+    // somebody. Inside the gate, so a shut conversation listens for nothing.
+    const woke = (): void => {
+      if (document.visibilityState === "visible") read()
+    }
+    document.addEventListener("visibilitychange", woke)
+    onCleanup(() => {
+      clearInterval(timer)
+      document.removeEventListener("visibilitychange", woke)
+    })
+  })
+  return now
+}
+
+/**
+ * SOMEBODY ELSE'S INSTANT, as a number this client can do arithmetic with — or
+ * `null` when the text is not a time at all.
+ *
+ * Three readouts take a stamp minted somewhere else and say something relative
+ * to it: how long ago the last commit was (out of a git repository), when a
+ * stored conversation was last touched (out of the agent's session list), and
+ * how long a tool call has been running (out of the chat transcript). None of
+ * those strings is this app's to trust, and all three had spelled the same
+ * two lines for themselves — a parse and a `Number.isNaN` — with a comment in
+ * the newest of them asserting that it made "the same refusal" as the others.
+ * A comment asserting agreement is what `./live.ts` says this client stopped
+ * accepting.
+ *
+ * What is NOT shared is what each of them says instead, and that is right: the
+ * pill draws nothing, the picker draws no stamp, the tool row draws no
+ * duration. One rule about the TEXT, three answers about the drawing.
+ *
+ * `null` for a missing stamp as well as a malformed one, checked rather than
+ * left to the parse — `new Date(null)` is the epoch, not an invalid date, so a
+ * session with no `updatedAt` would otherwise be drawn as 1970.
+ */
+export const instantOf = (at: string | null | undefined): number | null => {
+  if (at === null || at === undefined) return null
+  const then = Date.parse(at)
+  return Number.isNaN(then) ? null : then
+}
+
+/** Milliseconds, in the units the readouts above are written in. Here rather
+ *  than privately in each of them, for the reason the timer is: the two files
+ *  that draw a duration are the two this one already pairs, and each derived
+ *  its own tick from its own copy of the same ladder. */
+export const SECOND = 1_000
+export const MINUTE = 60 * SECOND
+export const HOUR = 60 * MINUTE
+export const DAY = 24 * HOUR

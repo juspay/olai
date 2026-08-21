@@ -128,6 +128,64 @@ Feature: Talking to the agent
     And the chat still shows a call that sent out an "Explore"
 
   @scratch:chat
+  Scenario: A call that keeps running says how long it has been
+    # The status mark is the only other thing on that line about time, and it
+    # cannot answer this: `·` is what a call announced a quarter of a second ago
+    # wears, and `·` is what one that has been grepping for four minutes wears.
+    # So the question a person actually has — is this stuck, or is it working? —
+    # had no answer anywhere on screen.
+    #
+    # NOTHING HERE RECOGNISES A TOOL. What earns the number is the status on the
+    # wire, which is why a watcher, a build and somebody else's ACP agent all
+    # get it for free.
+    When I ask the agent "hold"
+    Then the chat says how long a running call has been going
+    And that elapsed time is ticking
+    When the agent is released
+    Then the chat times no call
+
+  @scratch:chat
+  Scenario: A call one turn gave up on does not start ticking in the next
+    # The near-miss this feature had, and the reason the fact is on the ROW.
+    # "Is a turn in flight" is a question about the CONVERSATION, and a dead or
+    # abandoned call's row is deliberately left where it is — so the next thing
+    # anybody sends makes the panel live again and every call the last turn
+    # walked away from resumes looking like work in progress, each with a clock
+    # counting from its own original stamp.
+    #
+    # The turn here ends normally and the agent stays alive, which is what makes
+    # the second turn possible at all.
+    When I ask the agent "abandon"
+    Then the chat still shows a call the wire calls "in_progress"
+    And the chat times no call
+    When I ask the agent "hold"
+    # One, and the count is what pins it: the held call is being timed, and the
+    # row the previous turn abandoned — still `in_progress`, still on screen — is
+    # not.
+    Then the chat says how long a running call has been going
+    And the chat still shows a call the wire calls "in_progress"
+    When the agent is released
+    Then the chat times no call
+
+  @scratch:chat
+  Scenario: A stopwatch does not outlive the turn it was timing
+    # `./spawn.ts`'s failure, arriving at a second face — and worse at this one,
+    # because a word that is wrong stays the same size and a number that is
+    # wrong grows. A status is sticky, the rows a dead agent left are
+    # deliberately still on screen to read, and so a call the agent died in the
+    # middle of says `pending` for as long as the panel is open. Asked of the
+    # STATUS alone that is a clock counting all afternoon under a process that
+    # stopped at lunchtime. The server marks what its turns abandoned, so the
+    # row is what says the clock may stop.
+    When I ask the agent "subagent crash"
+    Then the chat says how long a running call has been going
+    When the agent is released
+    Then the chat times no call
+    # ... while the row itself is untouched: WHO was sent is a fact about what
+    # happened, and it does not stop being true when the agent dies.
+    And the chat still shows a call that sent out an "Explore"
+
+  @scratch:chat
   Scenario: A file the agent rewrote shows what changed, trimmed
     # The half of this feature that is NOT an outline. A direct edit to a `.md`
     # or a source file shows up in no tree, so until the panel drew the diff

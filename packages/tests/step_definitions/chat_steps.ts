@@ -80,6 +80,7 @@ import {
   CHAT_TOGGLE,
   CHAT_TOOL,
   CHAT_TOOL_DETAIL,
+  CHAT_TOOL_ELAPSED,
   CHAT_TOOL_FOLD,
   CHAT_TOOL_LOCATIONS,
   CHAT_TOOL_PROGRESS,
@@ -1507,6 +1508,104 @@ Then("the chat says no agent is still working", async function (this: OlaiWorld)
   await this.waitUntil(
     async () => (await this.page.locator(CHAT_SPAWN_WORKING).count()) === 0,
     "the panel to stop saying an agent is working",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+/**
+ * The readout's duration, in seconds, read back out of the words on the row.
+ *
+ * The panel says `47s`, `1m 12s`, `1h 20m` — coarser as it goes up — so the
+ * three shapes are parsed rather than one, and a string that is none of them
+ * comes back `null` so the step can say the panel drew something that is not a
+ * duration instead of quietly comparing `NaN`.
+ */
+const secondsSaid = (said: string): number | null => {
+  // `(?=.)` is what makes the requirement the PATTERN's: every group after it is
+  // optional, so without it the empty string matches and comes back as a
+  // confident `0` for a row that said nothing at all.
+  const parts = /^(?=.)(?:(\d+)h )?(?:(\d+)m ?)?(?:(\d+)s)?$/.exec(said.trim());
+  if (parts === null) return null;
+  const [, hours, minutes, seconds] = parts;
+  return Number(hours ?? 0) * 3600 + Number(minutes ?? 0) * 60 + Number(seconds ?? 0);
+};
+
+Then(
+  "the chat says how long a running call has been going",
+  async function (this: OlaiWorld) {
+    // THE LIVE HALF, like the spawn rail above: it is only true while the call
+    // is still out, so it is found by waiting for it rather than by looking
+    // after the fact.
+    const elapsed = this.page.locator(CHAT_TOOL_ELAPSED).first();
+    await elapsed.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const said = (await elapsed.textContent()) ?? "";
+    assert.ok(
+      secondsSaid(said) !== null,
+      `the elapsed readout says "${said}", which is not a duration`,
+    );
+    // ... and it is on a call the WIRE still calls running. This is the claim
+    // that keeps the readout agent-agnostic and honest at once: no tool name is
+    // recognised anywhere, so the status is the whole of what earns a number.
+    // ONE selection, and the count is asserted rather than `.first()` taken, so
+    // "the timed call" cannot silently mean a different row from the readout
+    // above.
+    const timed = this.page
+      .locator(CHAT_TOOL)
+      .filter({ has: this.page.locator(CHAT_TOOL_ELAPSED) });
+    assert.strictEqual(
+      await timed.count(),
+      1,
+      "the panel is timing more than one call, or none — this scenario is " +
+        "about the single call that is still out",
+    );
+    const status = await timed.getAttribute("data-tool-status");
+    assert.ok(
+      status === "pending" || status === "in_progress",
+      `a call the wire calls "${status}" is being timed; only a call that has ` +
+        "not come back has a duration to draw",
+    );
+  },
+);
+
+Then(
+  "the chat still shows a call the wire calls {string}",
+  async function (this: OlaiWorld, status: string) {
+    // The half that must NOT come off. A status is the agent's own word and the
+    // row is the record of what it said, so a call its turn walked away from
+    // goes on saying `in_progress` for as long as the panel is open — that is
+    // the honest account of a call that was announced and never reported on.
+    // What stops is the live FACE, and this is what makes the assertion beside
+    // it mean something: the row that is not being timed is still there, still
+    // saying the wire's own word.
+    await this.page
+      .locator(`${CHAT_TOOL}${attr("data-tool-status", status)}`)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then("that elapsed time is ticking", async function (this: OlaiWorld) {
+  // A number that appeared once and froze would pass every assertion above and
+  // be the thing this feature exists against: a reader watching a long call
+  // wants to know it is still going, and a stopped clock says the opposite of
+  // that while looking identical.
+  const elapsed = this.page.locator(CHAT_TOOL_ELAPSED).first();
+  const first = secondsSaid((await elapsed.textContent()) ?? "") ?? 0;
+  await this.waitUntil(
+    async () => (secondsSaid((await elapsed.textContent()) ?? "") ?? 0) > first,
+    `the elapsed readout to count past ${first}s`,
+    POLL_TIMEOUT,
+  );
+});
+
+Then("the chat times no call", async function (this: OlaiWorld) {
+  // The half that has to come OFF, and the reason it is asked of the whole
+  // panel rather than of one row: a clock still counting is a claim that
+  // something is still running, and it is a claim that gets louder every second
+  // it is wrong.
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_TOOL_ELAPSED).count()) === 0,
+    "the panel to stop timing any call",
     HYDRATION_TIMEOUT,
   );
 });

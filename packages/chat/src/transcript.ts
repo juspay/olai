@@ -23,11 +23,26 @@
  * the turn, because the tool frame cleared the pointer and nobody re-published
  * the paragraph.
  *
+ * WHAT A TURN LEAVES BEHIND is recorded the same way, for a sharper version of
+ * the same reason. A call the wire still calls running when its turn ends will
+ * never be reported on — the agent that would have reported has finished, or
+ * died — and `stranded` is that, derived off a set this class keeps rather than
+ * written onto the row. It is what lets the panel's live faces be functions of
+ * the ROW: "is a turn in flight" is a fact about the CONVERSATION and answers
+ * the wrong question, because a dead agent's rows are deliberately left where
+ * they are, so sending again would light every abandoned call back up at once.
+ * It is said at BOTH ends of a turn ({@link Transcript.begins},
+ * {@link Transcript.settle}), which is what makes "nothing from a previous turn
+ * is unstranded under this one" a property rather than a path somebody has to
+ * have remembered.
+ *
  * Everything here is synchronous and in memory. The transcript is not
  * persisted: the agent's own session is the persistence (that is the whole
  * point of adopting one on boot), and a second copy would be a second thing to
  * be wrong.
  */
+
+import { isRunningStatus } from "@olai/surface"
 
 import type {
   AskField,
@@ -58,10 +73,36 @@ const EMPTY: Change = { upserts: [], removes: [] }
  */
 const contentOf = (
   entry: ChatEntry,
-): Omit<ChatEntry, "id" | "seq" | "streaming"> => {
-  const { id: _id, seq: _seq, streaming: _streaming, ...content } = entry
+): RowContent => {
+  const {
+    id: _id,
+    seq: _seq,
+    since: _since,
+    streaming: _streaming,
+    stranded: _stranded,
+    ...content
+  } = entry
   return content
 }
+
+/**
+ * A row's CONTENT: everything about it that a caller decides.
+ *
+ * The fields taken off are the ones {@link Transcript} DERIVES — which key the
+ * row is, where it sits, when it arrived, whether it is still growing, and
+ * whether the turn that announced it has ended without it coming back.
+ * Naming them once, here, is what makes them unsettable: every door into this
+ * class takes this rather than a `Partial<ChatEntry>`, so a caller cannot hand
+ * in a `seq` or a `since` for the writer to have to ignore, and a fifth derived
+ * field inherits the rule instead of needing each door to be told about it.
+ *
+ * Exported because two of those doors are public and their argument has to be
+ * nameable from outside.
+ */
+export type RowContent = Omit<
+  ChatEntry,
+  "id" | "seq" | "since" | "streaming" | "stranded"
+>
 
 /** What a tool call is filed under. Spelled ONCE: the row a call writes and
  *  the row it names as the agent that made it are the same kind of key, and
@@ -105,6 +146,45 @@ export class Transcript {
    * stores it and hands it back.
    */
   #undelivered = new Map<string, string>()
+  /**
+   * What time it is, for {@link ChatEntry.since}.
+   *
+   * HANDED IN, with the real clock as the default, for the reason every other
+   * rule in this file is a value: the transcript is a data structure with no
+   * agent, no socket and no browser under it, and a stamp read off `Date.now`
+   * directly would be the one fact here that could only be asserted by
+   * comparing it with itself. It is the arrangement the panel's own faces have
+   * with the state they cannot see (`chat/spawn.ts`'s `live`).
+   *
+   * MILLISECONDS, stamped as a UTC instant — deliberately not `@olai/ops`'
+   * `Context.now`, which is the other injected clock in this repo and answers
+   * with the local-with-offset text the FORMAT stores. The two spellings are
+   * about two different things and the divergence is the point: that one mints
+   * a date a person will read in their own file, this one mints a machine
+   * instant a browser subtracts from its own clock. A date in a file has a
+   * timezone because the person does; an instant does not.
+   */
+  /**
+   * The calls a TURN left behind, by key — the ONE place "its turn ended and it
+   * never came back" is recorded, with {@link ChatEntry.stranded} derived from
+   * it on every write exactly as `streaming` is derived from {@link #open}.
+   *
+   * Set beside the rows rather than written onto them for that flag's own
+   * reason, and it is the sharper one here: a row is re-published by half a
+   * dozen paths that spread it as it stands, so a hand-set field would be
+   * carried straight past the decision that is supposed to make it — and this
+   * one, unlike `streaming`, is a claim that gets LOUDER the longer it is
+   * wrong, because the face it feeds is a clock.
+   *
+   * A key leaves the set the moment its call is reported on again
+   * ({@link tool}), which is the only thing that could make the claim untrue.
+   */
+  #stranded = new Set<string>()
+  readonly #now: () => number
+
+  constructor(now: () => number = Date.now) {
+    this.#now = now
+  }
 
   entries(): ReadonlyMap<string, ChatEntry> {
     return this.#entries
@@ -117,6 +197,7 @@ export class Transcript {
     const removes = [...this.#entries.keys()]
     this.#entries.clear()
     this.#undelivered.clear()
+    this.#stranded.clear()
     this.#open = null
     this.#seq = 0
     return { upserts: [], removes }
@@ -126,7 +207,7 @@ export class Transcript {
   add(
     kind: ChatEntry["kind"],
     text: string,
-    extra: Partial<ChatEntry> = {},
+    extra: Partial<RowContent> = {},
   ): Change {
     return this.#row(kind, text, extra).change
   }
@@ -145,7 +226,7 @@ export class Transcript {
    * uses, and two minting paths would be two answers to "how is a row
    * written" for the one kind that has both.
    */
-  user(text: string, extra: Partial<ChatEntry> = {}): {
+  user(text: string, extra: Partial<RowContent> = {}): {
     readonly key: string
     readonly change: Change
   } {
@@ -230,9 +311,54 @@ export class Transcript {
     })
   }
 
-  /** The turn ended: whatever was streaming has stopped. */
+  /**
+   * A turn is STARTING.
+   *
+   * It writes no row — what a person typed is already one — and does exactly
+   * one thing: nothing a previous turn left running may still look like work in
+   * progress under this one. {@link settle} has normally said that already, at
+   * the honest moment, so this is usually a no-op; it is here because the bug
+   * it forecloses is specifically about the SECOND turn. A dead agent's rows
+   * are deliberately not cleared, so sending again puts a live turn over a
+   * transcript full of calls that will never report — and any face that asked
+   * the CONVERSATION whether something was running would light every one of
+   * them up at once. Saying it at both ends of a turn is what makes "no row
+   * from a previous turn is unstranded under this one" a property rather than a
+   * path somebody has to have remembered.
+   */
+  begins(): Change {
+    return this.#strand()
+  }
+
+  /** The turn ended: whatever was streaming has stopped, and so has anything
+   *  the agent announced and never reported back on. */
   settle(): Change {
-    return this.#close()
+    return both(this.#close(), this.#strand())
+  }
+
+  /**
+   * Mark every call this turn is leaving behind.
+   *
+   * A call the wire still calls running when its turn is over is a call that
+   * will never be reported on: the agent that would have reported has finished,
+   * or died. Its STATUS is left exactly as it came — `pending` is the agent's
+   * own word and the row is the record of what it said — and what is added is
+   * olai's own observation about its own conversation, which is the only part
+   * of this anybody here is entitled to.
+   *
+   * A row already marked is skipped rather than re-published: this runs at both
+   * ends of every turn, and a frame per idle call per turn would be a
+   * conversation republishing its whole history to say nothing.
+   */
+  #strand(): Change {
+    let change: Change = EMPTY
+    for (const [key, entry] of this.#entries) {
+      if (entry.kind !== "tool" || this.#stranded.has(key)) continue
+      if (!isRunningStatus(entry.status)) continue
+      this.#stranded.add(key)
+      change = both(change, this.#put(key, contentOf(entry)))
+    }
+    return change
   }
 
   /**
@@ -263,6 +389,11 @@ export class Transcript {
   ): Change {
     const key = toolKey(id)
     const current = this.#entries.get(key)
+    // ANYTHING HERE KNOWING. The mark means "as far as this end can tell, that
+    // one never came back", and a report about it is this end being told
+    // otherwise — so it comes off, and `#put` below re-derives the field from
+    // the set rather than from whatever the row was carrying.
+    this.#stranded.delete(key)
     const detail = move.detail ?? current?.detail
     // The protocol's own rule, and the reason neither of these accumulates: a
     // report carries the call's content and locations AS THEY STAND, so
@@ -423,7 +554,7 @@ export class Transcript {
    *  and drops the key, {@link user} keeps both. One place knows how a row is
    *  written, so a `user` row a person typed and a `user` row a replay wrote
    *  cannot come out differently. */
-  #row(kind: ChatEntry["kind"], text: string, extra: Partial<ChatEntry>): {
+  #row(kind: ChatEntry["kind"], text: string, extra: Partial<RowContent>): {
     readonly key: string
     readonly change: Change
   } {
@@ -440,17 +571,30 @@ export class Transcript {
 
   /** Write one entry and answer with the change. `streaming` is DERIVED here —
    *  an entry is growing exactly while it is the open one — so no caller can
-   *  set it, and none can forget to. */
+   *  set it, and none can forget to.
+   *
+   *  So is `since`, and it is derived the way `seq` is: taken off the row that
+   *  is already there, minted only for one that is not. A tool call reports
+   *  itself several times and every report after the first comes through here,
+   *  so re-stamping would reset a duration at each frame — which is exactly the
+   *  frames a long call sends while somebody is watching it.
+   *
+   *  And so is `stranded`, off {@link #stranded} the way `streaming` comes off
+   *  {@link #open}: half a dozen paths re-publish a row by spreading it as it
+   *  stands, and a hand-set flag would ride straight past the decision that is
+   *  supposed to make it. */
   #put(
     key: string,
-    entry: Omit<ChatEntry, "id" | "seq" | "streaming">,
+    entry: RowContent,
   ): Change {
     const existing = this.#entries.get(key)
     const next: ChatEntry = {
       ...entry,
       id: key,
       seq: existing?.seq ?? this.#seq++,
+      since: existing?.since ?? new Date(this.#now()).toISOString(),
       ...(key === this.#open ? { streaming: true as const } : {}),
+      ...(this.#stranded.has(key) ? { stranded: true as const } : {}),
     }
     this.#entries.set(key, next)
     return { upserts: [[key, next]], removes: [] }

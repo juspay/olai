@@ -10,9 +10,10 @@
  *   - {@link make} builds the conversation over an agent factory it is handed,
  *     and everything else — the transcript, the protocol, the session — is
  *     behind it;
- *   - {@link Transcript} and its `Change` are exported because the surface
- *     collection is seeded from the one this package keeps, and a caller that
- *     publishes changes has to be able to name them.
+ *   - `Change` is exported because the surface collection is seeded from the
+ *     transcript this package keeps, and a caller that publishes what changed
+ *     has to be able to name it. The `Transcript` itself is NOT exported —
+ *     nothing above this line writes rows, it only forwards what came out.
  *
  * `agent.ts` is deliberately NOT exported. Nothing above this line should be
  * able to spell `session/update`.

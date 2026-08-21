@@ -172,6 +172,24 @@ A tool call is one folded line, and what the call CHANGED is not folded away —
 
 That holds for the file rather than for the tool: an agent that edits a `.olai` with its own tools gets the same node-level rows, read out of the two versions of the file, and never lines. If one of those versions does not parse — which is how hand-editing an outline goes wrong — the panel says so and still draws no diff, and the file's own page shows you the validator's rows where they belong.
 
+## How long a call has been running
+
+**A call that is still going says how long it has been going**, on its own line, once it has been running long enough to be worth saying:
+
+```
+· grep for worktops                      src/kitchen.ts   · 47s
+```
+
+The mark at the head of that line is the only other thing on it about time, and it cannot answer this: `·` is what a call announced a quarter of a second ago wears, and `·` is what one that has been grepping for four minutes wears. So the question you actually have — *is this stuck, or is it working?* — had nothing on screen to answer it. The number ticks, seconds while seconds are the question and minutes once they are not (`47s`, `1m 12s`, `1h 20m`), and it appears only after a few seconds, so the reads and edits that land instantly never flash one.
+
+**It knows nothing about tools**, and that is the point. What earns a number is the status on the wire — the call has not come back — so a shell command, a file watcher, a build, a search, and the tools of some agent olai has never been pointed at all get it, with nothing here having to recognise any of them.
+
+**It shows what the wire calls running**, which is not quite the same as what is running, and the difference is worth knowing: a call the agent finishes at launch and lets carry on in the background arrives here already complete, so it has no duration and should not be given one. Guessing at the far side of somebody else's process is not something this panel will do.
+
+**And it stops when the call's TURN does**, which is a stronger promise than it sounds. A status is sticky, and the rows a dead or abandoned call leaves are deliberately still on screen to read — so a call nothing ever reported back on says *pending* for as long as the panel is open, which is the honest record of what happened. A clock asked of that alone would count up all afternoon under a process that stopped at lunchtime, which is the same lie the rail under a spawn is careful not to tell, except that a wrong word stays the same size and a wrong number grows.
+
+*Whether this conversation is busy* is the near-miss, and it is worth saying why it is not the question. Ask again after an agent has died — the rows are still there, that is the point of leaving them — and the new turn makes the panel busy again, so every call the last turn walked away from would light back up at once, each with a clock counting from when it first started. So olai marks what each turn leaves behind, on the call, and a later turn cannot take that back.
+
 ## When the agent sends other agents
 
 An agent can spawn agents of its own — one to search, one to read, several at once — and their work comes back to olai on the same wire as everything else the turn does. So it is drawn as what it is: a call a subagent made sits **indented behind a rail**, under the call that spawned it, and the ordinary column is the main agent's own.
