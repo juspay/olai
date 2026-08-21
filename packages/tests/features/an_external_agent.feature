@@ -163,10 +163,22 @@ Feature: An agent olai did not start
     # `list_outlines` named the roots and `read_subtree` took an id, so reading
     # a file whole was one call per root. Here the agent gives the outline a
     # second root and then reads the file: both come back, walked, in one
-    # answer, and the placement the fixture keeps is not one of them.
+    # answer.
+    #
+    # It writes the PLACEMENT too, rather than leaning on the corpus, because
+    # the corpus has none — a mirror at the top level of a file is exactly the
+    # row this read must not call a root, and a scenario that asserted the
+    # exclusion over a file with nothing to exclude would be a check that
+    # passes for the wrong reason. The write is this scratch copy's own, so no
+    # other scenario reads a fixture grown for this one.
     When the terminal agent captures "sort the bills" in "house.olai"
     Then the tree eventually shows a node titled "sort the bills"
+    When the terminal agent mirrors "order" at the top of "house.olai" as "now-order"
+    Then the node "now-order" is shown
     When the terminal agent reads the whole outline "house.olai"
+    # Two roots and no third: the placement occupies a place in the file and is
+    # not something the file HOLDS, which is the same rule that keeps the walk
+    # from descending into one.
     Then the terminal agent was handed the roots "kitchen remodel #home, sort the bills"
     And there should be no page errors
 

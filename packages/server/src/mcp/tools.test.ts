@@ -653,6 +653,60 @@ test("read_subtree refuses a file that is not an outline, with the closest one",
   })
 })
 
+/**
+ * AN OUTLINE THE SET COULD NOT LOAD refuses with the validator's rows — the
+ * twin, over the other kind of file, of the document case further down.
+ *
+ * It is HERE and not only in `@olai/ops`' walk because that walk answers a
+ * `Result` and the table test discharges it with an `orDie`: a refusal there is
+ * a throw rather than an answer, so the arm an agent actually meets — `isError`
+ * with the kind as data and the file's own rows beside it — is only assertable
+ * through a client. It is also the one refusal on this read whose sentence is
+ * chosen by the FILE rather than by the verb, which is the sort of thing an
+ * encoder can drop without anything noticing.
+ *
+ * NOTHING IS INJECTED, unlike the document twin: an outline that does not parse
+ * is a real state of a real directory. A lone one is absorbed — the survivors
+ * are clean, so it rides as `OutlineSet.broken` and every other file stays live
+ * — which is the format's error scope, and is exactly what makes "listed, and
+ * refused" the honest pair of answers about it.
+ */
+test("read_subtree refuses an outline the set could not load", async () => {
+  await withTools(
+    { "plan.olai": PLAN, "torn.olai": "{ not a record" },
+    async ({ client }) => {
+      // It is LISTED — the directory serves it — carrying its own errors beside
+      // the zero and the empty root list that say nobody read it.
+      const listed = (await call(client, "list_outlines", {})).structured["outlines"] as
+        ReadonlyArray<Record<string, unknown>>
+      expect(listed.find((one) => one["file"] === "torn.olai")).toEqual({
+        file: "torn.olai",
+        nodes: 0,
+        roots: [],
+        unreadable: [expect.any(String)],
+      })
+
+      // …and walking it refuses. Answering it as an outline holding nothing
+      // would be indistinguishable, to a caller, from an outline somebody
+      // emptied — and only one of those is worth acting on.
+      const refused = await call(client, "read_subtree", { file: "torn.olai" })
+      expect(refused.isError).toBe(true)
+      expect(refused.structured).toMatchObject({ kind: "validation" })
+      expect(refused.structured["errors"]).toBeArrayOfSize(1)
+
+      // AND IT IS TOLD THE TRUTH ABOUT ITSELF, which is the half only this file
+      // can check end to end: an outline is READ perfectly well and then has
+      // lines the format cannot take, where a body is read or it is not. One
+      // fact about the file (`notLoadedBecause`), and the file picks the clause
+      // — so the `.md` twin below gets the other one.
+      const reason = refused.structured["reason"] as string
+      expect(reason).toContain("has lines that do not parse")
+      expect(reason).not.toContain("could not be read")
+      expect(reason).toContain("nothing to answer with")
+    },
+  )
+})
+
 test("read_subtree refuses a call naming both ways in, or neither", async () => {
   await withTools({ "plan.olai": PLAN }, async ({ client }) => {
     // Two questions in one call: the schema an MCP host reads is an object with
