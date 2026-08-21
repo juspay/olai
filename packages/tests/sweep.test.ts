@@ -19,7 +19,14 @@
 
 import { expect, test } from "bun:test";
 
-import { exists, granting, read, tracked, withoutComments } from "./support/sweep.ts";
+import {
+  exists,
+  granting,
+  read,
+  tracked,
+  unresolved,
+  withoutComments,
+} from "./support/sweep.ts";
 
 test("an exact entry grants that file and nothing that merely starts with it", () => {
   const granted = granting(["docs/format.md"]);
@@ -46,6 +53,17 @@ test("an empty list grants nothing, and grants are read together", () => {
   expect(granted("justfile")).toBe(true);
   expect(granted("docs/brainstorming/filter-in-place.md")).toBe(true);
   expect(granted("README.md")).toBe(false);
+});
+
+// …and the grant list held to the DISK, which is the half both sweeps went two
+// days without: `docs/roadmap.olai` became `docs/roadmap/` and the entry naming
+// it went on being spelled while covering nothing, so the ledger it was written
+// to excuse turned both sweeps red on master. A directory is asked about
+// without its trailing slash; a file exactly as written.
+test("an entry that names nothing on disk is reported, and a live one is not", () => {
+  expect(unresolved(["justfile", "docs/brainstorming/"])).toEqual([]);
+  expect(unresolved(["docs/roadmap.olai", "docs/roadmap/", "docs/nowhere/"]))
+    .toEqual(["docs/roadmap.olai", "docs/nowhere/"]);
 });
 
 // The walk itself: the listing is real, it leaves the caller out of it, and the

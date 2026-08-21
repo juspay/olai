@@ -38,6 +38,7 @@ import {
   PALETTE_ITEM,
   PALETTE_SAID,
   PALETTE_SCRIM,
+  SEARCH_COUNT,
   POLL_TIMEOUT,
   SHORTCUTS,
 } from "../support/world.ts";
@@ -245,14 +246,14 @@ Then(
 Then(
   "the palette found {string}",
   async function (this: OlaiWorld, said: string) {
-    await foundCount(this, PALETTE, said, "palette count");
+    await foundCount(this, `${PALETTE} ${SEARCH_COUNT}`, said, "palette count");
   },
 );
 
 Then(
   "the palette says nothing about a total",
   async function (this: OlaiWorld) {
-    await countsNothing(this, PALETTE, "palette");
+    await countsNothing(this, `${PALETTE} ${SEARCH_COUNT}`, "palette");
   },
 );
 

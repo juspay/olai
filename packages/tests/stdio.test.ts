@@ -29,15 +29,22 @@
 
 import { expect, test } from "bun:test";
 
-import { exists, granting, read, tracked } from "./support/sweep.ts";
+import { exists, granting, read, tracked, unresolved } from "./support/sweep.ts";
 
-const granted = granting([
+/** The record of the past, as paths. A const rather than an argument spelled
+ *  inline, so the test below can ask whether every one of them still names
+ *  something — a grant that has gone stale is a fence closing on the ledger it
+ *  was written to excuse, which is exactly what `docs/roadmap.olai` becoming a
+ *  directory did to this sweep. */
+const MAY_SPELL_IT: ReadonlyArray<string> = [
   "docs/_olai/Trash.olai",
   "docs/RCA/",
   "docs/brainstorming/",
   "docs/lowy-electricity/",
   "docs/roadmap/",
-]);
+];
+
+const granted = granting(MAY_SPELL_IT);
 
 const TRACKED = tracked(import.meta.filename);
 
@@ -52,6 +59,10 @@ const spelling = (pattern: RegExp): ReadonlyArray<string> =>
 
 test("the sweep is actually reading the repository", () => {
   expect(TRACKED.length).toBeGreaterThan(200);
+});
+
+test("every grant still names a record of the past that is there", () => {
+  expect(unresolved(MAY_SPELL_IT)).toEqual([]);
 });
 
 test("nothing outside the record of the past spells the retired stdio face", () => {

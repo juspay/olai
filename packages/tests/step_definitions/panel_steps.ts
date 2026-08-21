@@ -26,6 +26,7 @@ import {
   HYDRATION_TIMEOUT,
   OUTLINE_TREE,
   POLL_TIMEOUT,
+  SEARCH_COUNT,
   SIDEBAR,
   SIDEBAR_BODY,
   SIDEBAR_COLLAPSE,
@@ -297,14 +298,23 @@ Then(
 Then(
   "the header search found {string}",
   async function (this: OlaiWorld, said: string) {
-    await foundCount(this, HEADER_SEARCH_RESULTS, said, "header search count");
+    await foundCount(
+      this,
+      `${HEADER_SEARCH_RESULTS} ${SEARCH_COUNT}`,
+      said,
+      "header search count",
+    );
   },
 );
 
 Then(
   "the header search says nothing about a total",
   async function (this: OlaiWorld) {
-    await countsNothing(this, HEADER_SEARCH_RESULTS, "header search");
+    await countsNothing(
+      this,
+      `${HEADER_SEARCH_RESULTS} ${SEARCH_COUNT}`,
+      "header search",
+    );
   },
 );
 

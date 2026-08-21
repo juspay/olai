@@ -652,6 +652,10 @@ const PALETTE_INPUT = '[data-testid="palette-input"]'
  *  prefix nothing has ever carried: the one section using it printed
  *  "(nothing)" where its hits should have been. */
 const PALETTE_HIT = '[data-testid="palette-item"][data-id^="hit-#"]'
+/** The header box itself — the other door, and the one surface here that was
+ *  spelled as a literal at each of its three call sites while every other one
+ *  in this file is a named const. */
+const HEADER_SEARCH = '[data-testid="header-search"]'
 /** What a shortlist says it drew of what it found — the same line on both
  *  doors, absent when the answer fit (`web/src/client/search/count.ts`). */
 const SEARCH_COUNT = '[data-testid="search-count"]'
@@ -2043,7 +2047,7 @@ const SECTIONS = {
       await shot(page, `the-document-opens${suffix}`)
 
       // THE OTHER DOOR, over the same query and drawing the same row.
-      const box = page.locator('[data-testid="header-search"]')
+      const box = page.locator(HEADER_SEARCH)
       await box.click()
       await box.fill("pal")
       await page.locator(HEADER_DOC).first().waitFor()
@@ -2160,7 +2164,7 @@ const SECTIONS = {
 
       // WHAT THE DOCUMENT IS CALLED, in the door that draws a face's title:
       // the body's first real line, not the fence and not the first YAML key.
-      const box = page.locator('[data-testid="header-search"]')
+      const box = page.locator(HEADER_SEARCH)
       await box.click()
       await box.fill("plan")
       const row = page.locator(headerHit("notes/plan.md"))
@@ -2766,7 +2770,7 @@ const SECTIONS = {
 
     // THE OTHER DOOR, over the same word and the same answer — one reading,
     // one sentence, two places it is drawn.
-    const box = page.locator('[data-testid="header-search"]')
+    const box = page.locator(HEADER_SEARCH)
     await box.click()
     await box.fill("handle")
     await page.locator(headerHit("#h1")).first().waitFor()
