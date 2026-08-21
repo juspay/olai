@@ -20,7 +20,7 @@ import { DOT } from "../marks.tsx"
 import { TESTID } from "../testids.ts"
 import { CONTROL, GUTTER_GAP, HOVER_CELL, HOVER_GUTTER } from "../touch.ts"
 import type { Draft } from "./draft.ts"
-import { Said, TitleEditor } from "./RowEditor.tsx"
+import { DraftSaid, TitleEditor } from "./RowEditor.tsx"
 
 export function NewRow(props: {
   readonly draft: Draft
@@ -57,7 +57,7 @@ export function NewRow(props: {
           be refused (a node needs a title), and on an empty outline it is the
           only thing on the page — so what the write said has to be here
           rather than somewhere the tree would have drawn it. */}
-      <Said draft={props.draft} />
+      <DraftSaid draft={props.draft} />
     </div>
   )
 }

@@ -615,7 +615,7 @@ Two more shapes this leaves, named because a reader will look for them:
 | `Panel.tsx` | what is inside the open panel — the list, in Kobalte's `Item`s wearing this app's classes |
 | `Confirm.tsx` | the second step: the question one verb asks first, and the two ways out of it |
 | `picking.ts` | running a verb and saying what came of it — the ops layer's sentence verbatim, the throw worded from the entry's own label, the cause kept for the console |
-| `MenuSaid.tsx` | the line that draws it, beside the `•••` — named for its surface the way `edit/UndoSaid.tsx` is, since `Said` alone is the TYPE every such line carries (`../saying.ts`) |
+| `MenuSaid.tsx` | the line that draws it, beside the `•••` — named for its surface the way `edit/UndoSaid.tsx` and `edit/RowEditor.tsx`'s `DraftSaid` are, since `Said` alone is the TYPE every such line carries (`../saying.ts`) |
 
 How long that line then lasts is **not** in this directory: `src/client/saying.ts` is the receptacle — and, since the two moods moved out of `edit/undoing.ts` to sit beside it, the `Said` type and `SAID_MS` themselves. The Trash's `Put back` line rides on the same receptacle. `SAID_MS` had already been pulled out beside the type because the two dwells "were equal only by hand-maintenance" — and the constant turned out to be half the job, since both surfaces still spelled the machinery around it and had drifted into two shapes for the same three rules (a new sentence replaces the one before it *with its timer*, saying nothing clears rather than drawing an empty box, the timer dies with the owner). `saying.test.ts` holds those three; the receptacle's GRIP is a claim about every other file, so it is a sweep in `claims.test.ts`: nothing outside `saying.ts` may count `SAID_MS` down.
 

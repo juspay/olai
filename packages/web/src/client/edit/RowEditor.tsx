@@ -27,9 +27,9 @@
  * it is `w-full` inside the same flex cell rather than a control with padding
  * of its own.
  *
- * {@link Said} is drawn wherever an editor is, and that is why it lives here
- * rather than in the tree: a refusal must be visible for EVERY draft, and two
- * of the places a draft can be — a new row on an empty outline, a row whose
+ * {@link DraftSaid} is drawn wherever an editor is, and that is why it lives
+ * here rather than in the tree: a refusal must be visible for EVERY draft, and
+ * two of the places a draft can be — a new row on an empty outline, a row whose
  * parent is folded — are places the tree draws no body under.
  */
 
@@ -204,6 +204,11 @@ const UNDER_EDITOR = "mt-0.5 mb-1 text-[0.8125rem] leading-snug"
 /**
  * What the last write said, under the editor it was typed in.
  *
+ * NAMED FOR ITS SURFACE, the way `../menu/MenuSaid.tsx` and `./UndoSaid.tsx`
+ * are, because `Said` alone is the TYPE every one of these lines carries
+ * (`../saying.ts`) — a rule `packages/web/README.md` states and this file was
+ * the one place breaking.
+ *
  * Two moods, one line, because they are two halves of one question — did that
  * land, and is there anything to know about it:
  *
@@ -229,7 +234,7 @@ const UNDER_EDITOR = "mt-0.5 mb-1 text-[0.8125rem] leading-snug"
  * in the middle of, to say a parent could now be ticked, is worse than the
  * advice is worth.
  */
-export function Said(props: { readonly draft: Draft }) {
+export function DraftSaid(props: { readonly draft: Draft }) {
   return (
     <>
       <Show when={props.draft.refused}>
