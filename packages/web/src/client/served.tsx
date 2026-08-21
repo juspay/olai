@@ -65,17 +65,11 @@ export function ServedProvider(props: {
     undefined,
     { equals: sameList },
   )
-  // The faces themselves, for the one reader that wants more than a path. An
-  // ACCESSOR over the prop rather than the array, for the same reason the
-  // paths are one: a directory gains and loses files while a tab is open.
-  const faces = () => props.faces
   return (
     <ServedContext.Provider value={files}>
-      <FacesContext.Provider value={faces}>
-        <HeadContext.Provider value={props.head}>
-          {props.children}
-        </HeadContext.Provider>
-      </FacesContext.Provider>
+      <HeadContext.Provider value={props.head}>
+        {props.children}
+      </HeadContext.Provider>
     </ServedContext.Provider>
   )
 }
@@ -91,18 +85,14 @@ export const useServed = (): Accessor<ReadonlyArray<string>> => {
   return files
 }
 
-/** The same directory as its FACES — what a file is called, where it points,
- *  what it tags — for the one reader that needs more than a path: a document's
- *  page, which says who points at it (`./document/Referrers.tsx`). */
-export const useFaces = (): Accessor<ReadonlyArray<Face>> => {
-  const faces = useContext(FacesContext)
-  if (faces === undefined) {
-    throw new Error("a served-face lookup outside <ServedProvider>")
-  }
-  return faces
-}
-
-const FacesContext = createContext<Accessor<ReadonlyArray<Face>>>()
+/** THE FACES ARE NOT OFFERED HERE, and the absence is worth a line, since this
+ *  provider is handed them. There was a `useFaces` beside the two below, for
+ *  "the one reader that needs more than a path" — a document's page, saying who
+ *  points at it. That reader moved onto the page's own reading when the browser
+ *  stopped holding the vault (#279), and the context stayed: three providers
+ *  mounted and a closure over the app's props held open for nobody. What the
+ *  faces are still FOR is this file's own `files` memo, and `./App.tsx`'s
+ *  `opensAt`, which asks a directory a membership question on a click. */
 
 const HeadContext = createContext<
   (file: Accessor<string>) => Accessor<number | undefined>

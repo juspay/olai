@@ -62,9 +62,13 @@ export interface Directory {
    *  this member exists to keep off the wire.
    *
    *  THE PATHS are not a second member beside it: every reader that wants them
-   *  takes them off the faces (`./served.tsx` mints that list once, with an
-   *  `equals` over the membership), and a list of paths here would be the same
-   *  walk done twice per frame. */
+   *  takes them off the faces, and `./served.tsx` mints that list once with an
+   *  `equals` over the membership — which is where it has to be, since what
+   *  makes that list worth anything is that its IDENTITY holds still across a
+   *  frame, and an `equals` lives with the memo it guards. (It used to be that
+   *  a paths member here would be a second walk per frame. It would not any
+   *  more — {@link walkOf} has the path in hand as its loop variable — so what
+   *  the seam saves now is the `map`, not the walk.) */
   readonly faces: Accessor<ReadonlyArray<Face>>
   /** The files that did not parse, by path — the sidebar marks them and a pane
    *  opened on one draws its errors instead of a tree. */
@@ -109,8 +113,8 @@ interface Walk {
 }
 
 /**
- * ONE WALK OVER THE KEY SET, answering both questions this file is asked of it
- * — `perf-faces-broken-walk`, closed.
+ * ONE WALK OVER THE FILES, answering both questions this file is asked of them
+ * — `perf-faces-broken-walk`'s own prescribed form.
  *
  * `faces` and `broken` are two readings of the SAME LEAF: each wants one field
  * of each head, over the same keys, in the same order. Written as two memos
@@ -118,6 +122,15 @@ interface Walk {
  * only thing either depends on is the head set, so they go stale together and
  * the second walk could never learn anything the first had not already read. A
  * thousand files was two thousand reads for a thousand files' worth of answer.
+ *
+ * IT IS HANDED THE ORDER rather than taking it, and that is not tidiness. A
+ * frame that rewrites one file moves a LEAF and no key, and the collection
+ * keeps its key set quiet for exactly that case ("the order signal keeps its
+ * array BY REFERENCE and `keys()` stays quiet" — `@kolu/surface`'s
+ * `solid/useCollection.ts`). So the sort has to sit behind a memo that reads
+ * the keys and nothing else, or every rewritten file pays an `n·log n` to be
+ * told the order it already had. The walk wakes on the leaf; the order does
+ * not.
  *
  * A key with no entry yet is skipped by BOTH, which is what the old pair did
  * (a face was dropped when `byKey` had nothing to give, and a head that is not
@@ -135,11 +148,21 @@ interface Walk {
  * for themselves where they care (`./served.tsx` holds the paths with a
  * membership compare). `broken` is the one that has to hold still, and it does
  * so in its own memo below, over the map this minted.
+ *
+ * WHAT IS STILL WHOLE-SET, so that nobody has to rediscover it: this reads
+ * every file on every frame that moves any head, where the frame itself named
+ * one. `heads` is served with batched `deltas`, so the delivery already knows
+ * which keys moved, and the framework hands that over as a collection `fold`
+ * — the socket `./chat/order.ts` retired the transcript's per-frame sort on,
+ * arguing this same case. That is a wider seam than {@link HeadEntries} (a
+ * fold is registered, not read) and an accumulator that has to maintain the
+ * order incrementally, so it is its own change; the halving here is what
+ * `perf-faces-broken-walk` asked for and does not stand in its way.
  */
-const walkOf = (entries: HeadEntries): Walk => {
+const walkOf = (files: ReadonlyArray<string>, entries: HeadEntries): Walk => {
   const faces: Face[] = []
   const broken = new Map<string, BrokenFile>()
-  for (const file of sortByPath(entries.keys())) {
+  for (const file of files) {
     const head = entries.byKey(file)?.()
     if (head === undefined) continue
     faces.push(head.face)
@@ -152,7 +175,10 @@ export const createDirectory = (
   entries: HeadEntries,
   manifest: Accessor<Manifest | undefined>,
 ): Directory => {
-  const walk = createMemo(() => walkOf(entries))
+  // THE ORDER, on its own — see {@link walkOf}: it is a fact about the keys,
+  // and the keys are quiet on the frames that merely rewrite a file.
+  const files = createMemo(() => sortByPath(entries.keys()))
+  const walk = createMemo(() => walkOf(files(), entries))
   return {
     manifest,
     // A PLAIN READING of the walk rather than a memo of its own: the walk is
