@@ -77,10 +77,12 @@ import { Zoomed, zoom } from "./zoom.ts"
  * carries the day it is counted against for the same reason `OwedRequest` does:
  * what is late is late where the person is standing.
  *
- * THE FILTER IS NOT HERE. A `?q=` narrows what is drawn, and narrowing is a
- * second question with a door of its own (`search.matching`) — asked of the
- * whole set rather than of a page, debounced, and answered as ids to look up.
- * A page reading that took the query would be that door built twice.
+ * THE FILTER IS NOT HERE, and it is a decision rather than an oversight. A
+ * `?q=` narrows what is drawn, and narrowing is a second question with a
+ * reading of its own (`./narrowing.ts`, over the page this one produces) — one
+ * that changes on every settled keystroke, where a page does not. Folded in,
+ * every word typed would re-open this subscription and re-send every row of the
+ * page it is already drawing (docs/brainstorming/filter-rides-the-page.md §4).
  */
 export const PageRequest = Schema.Union([
   /** An address in the served directory — `null` for the front page, which
@@ -310,7 +312,11 @@ const serves = (faces: ReadonlyArray<Face>, path: string): boolean =>
 const outlinesAmong = (faces: ReadonlyArray<Face>): ReadonlyArray<string> =>
   faces.filter((face) => fileKind(face.path) === "outline").map((face) => face.path)
 
-const shownOf = (
+/** WHAT THE ADDRESS PUTS ON THE SCREEN, without the names table beside it —
+ *  {@link pageOf} minus its second half. Exported for the one caller that wants
+ *  the rows and nothing else: the page's NARROWING (`./narrowing.ts`), which
+ *  matches over the records this page draws and resolves no id at all. */
+export const shownOf = (
   derived: Derived,
   faces: ReadonlyArray<Face>,
   broken: ReadonlyArray<BrokenFile>,

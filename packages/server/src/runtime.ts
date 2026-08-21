@@ -76,6 +76,7 @@ import {
   sameDated,
   sameMoving,
   sameOwed,
+  sameNarrowing,
   samePageReading,
   type Shelf,
   shelfOf,
@@ -861,6 +862,23 @@ export const bind = (
           install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
           isEqual: samePageReading,
         },
+        /**
+         * WHICH OF THAT PAGE'S NODES THE QUERY SELECTS, on the same three legs
+         * and beside the page it narrows — `filter-ask-carries-revision`,
+         * landed (docs/brainstorming/filter-rides-the-page.md).
+         *
+         * It was a PROCEDURE, and that is the whole of what was wrong with it:
+         * a filter is a standing view, so the browser had to re-ask it on a
+         * generation that moved once per page frame, and each ask was a walk of
+         * the whole vault. Here the re-read is the pulse's, the walk is the
+         * page's, and `sameNarrowing` is what keeps a bulk gesture that moved no
+         * match off the wire entirely.
+         */
+        narrowing: {
+          read: (input) => Effect.runPromise(wiring.ops.narrowing(input)),
+          install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
+          isEqual: sameNarrowing,
+        },
         /** The move picker's preview, on the same three legs — standing rather
          *  than asked once, because a panel left open while an agent writes has
          *  to judge against where the row has actually got to. */
@@ -924,15 +942,7 @@ export const bind = (
         // declaration, `@olai/format`'s, which is the only arrangement under
         // which this line could not be quietly returning more than the wire
         // carries.
-        search: {
-          nodes: ({ input }) => wiring.ops.search(input),
-          // The page filter's half of the same reading, and the same restraint
-          // one door over: the browser used to answer this out of its own copy
-          // of the set, which is the copy `vault-in-browser` is taking away.
-          // Nothing is decided here either — which nodes a query selects is the
-          // matcher's, and how much of the answer travels is the shape's.
-          matching: ({ input }) => wiring.ops.matching(input),
-        },
+        search: { nodes: ({ input }) => wiring.ops.search(input) },
         // The COMPLETION's door, and the same restraint a third time: the row
         // editor used to enumerate the tag vocabulary out of the browser's own
         // copy of the set, which is the copy `vault-in-browser` is taking away.

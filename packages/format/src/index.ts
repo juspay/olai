@@ -684,8 +684,6 @@ export {
   DocumentHit,
   isNodeHit,
   MatchedNode,
-  MatchingAnswer,
-  MatchingRequest,
   NodeHit,
   SearchAnswer,
   SearchHit,
@@ -793,6 +791,32 @@ export {
   Shown,
   TrashGroup,
 } from "./page.ts"
+
+/**
+ * WHICH OF THAT PAGE'S NODES A QUERY SELECTS (./narrowing.ts) — the reading
+ * beside the one above, and what a filter box is answered with.
+ *
+ * Public for the same reason and on the same terms: it crosses. It is a
+ * READING rather than a search of the directory — bounded by the page, re-read
+ * on the same revision pulse, sent only when it changed by value — which is
+ * what stopped a filtered page re-searching the vault once per frame
+ * (docs/brainstorming/filter-rides-the-page.md).
+ */
+export {
+  /** The reading over a page ALREADY COMPUTED — for a caller holding a
+   *  {@link Shown} rather than a request, which is every test of it. */
+  narrowedIn,
+  NarrowingAnswer,
+  NarrowingRequest,
+  /** WHAT A QUERY SELECTS ON ONE PAGE, over one revision of one set. */
+  narrowingOf,
+  sameNarrowing,
+  sameNarrowingRequest,
+  /** Whether the page in front of the reader draws anything that was PUT AWAY
+   *  — the one thing the matcher is told about the QUESTION rather than asked
+   *  about the answer. */
+  showsPutAway,
+} from "./narrowing.ts"
 
 /**
  * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING (./moving.ts) — the move-to

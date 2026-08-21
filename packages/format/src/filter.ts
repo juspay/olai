@@ -1831,38 +1831,90 @@ const within = (day: string, clause: DaysClause): boolean =>
   (clause.to === null || day <= clause.to)
 
 /**
- * Every node the query selects, in the set's own file-then-line order.
+ * Every node in the SET that the query selects, in the set's own
+ * file-then-line order — the door for a caller searching the DIRECTORY.
+ *
+ * TWO LINES over {@link selecting}, and they are the two this door adds: the
+ * candidates are the whole set narrowed by a {@link Scope}, and what was put
+ * away is decided from the question — the query named the archive ({@link
+ * Filter} `speaksOfTrash`), or the caller said its scope already holds it
+ * ({@link Scope.trashed}). One boolean per call, read before the walk.
  *
  * MIRRORS ARE NOT HERE, for the reason nothing in the query layer answers with
  * one: a mirror is a second PLACEMENT of a node, so a hit for it would be the
  * same node twice, once at a place no write lands. What a filtered TREE does
  * with a placement is a different question, and {@link keeping} answers it.
  *
- * WHAT WAS PUT AWAY is decided here rather than per record, because it is a
- * fact about the QUESTION and not about any node: the query named the archive
- * ({@link Filter} `speaksOfTrash`), or the caller said its scope already
- * holds it ({@link Scope.trashed}). One boolean per call, read before the
- * walk.
+ * A PAGE narrowing itself is the other caller and does not come through here:
+ * it holds the records it draws and hands them to {@link selecting} directly
+ * (`./narrowing.ts`).
  */
 export const matching = (
   derived: Derived,
   filter: Filter,
   scope: Scope = {},
-): ReadonlyArray<Matched> => {
+): ReadonlyArray<Matched> =>
+  selecting(
+    derived,
+    filter,
+    inScopeOf(derived, scope),
+    scope.trashed === true || (filter.kind === "asking" && filter.speaksOfTrash),
+  )
+
+/** The set's own regular records, in file-then-line order, narrowed to a scope
+ *  — {@link matching}'s candidates, and the whole of what it holds over
+ *  {@link selecting}. Mirrors are skipped for the reason nothing in the query
+ *  layer answers with one: a mirror is a second PLACEMENT of a node, so a hit
+ *  for it would be the same node twice, once at a place no write lands. */
+function* inScopeOf(derived: Derived, scope: Scope): Generator<LocatedRegular> {
   const inScope = scoping(derived, scope)
-  const putAway = scope.trashed === true ||
-    (filter.kind === "asking" && filter.speaksOfTrash)
-  const out: Array<Matched> = []
   for (const located of derived.nodes) {
     if (isMirror(located.node)) continue
     const at = located as LocatedRegular
-    // Leftover Archive.olai is orphaned from every query, including
-    // `is:trashed`: it is not trash, and it is not live work either. The
-    // file's own page still draws unfiltered (the filter box is inactive
-    // then); a query over the directory does not re-enter it.
+    if (!inScope(at)) continue
+    yield at
+  }
+}
+
+/**
+ * THE SELECTION ITSELF, over candidates the CALLER holds — the half of
+ * {@link matching} that is about what a query means rather than about where to
+ * look for it.
+ *
+ * It exists because there are two kinds of caller and only one of them is
+ * searching the DIRECTORY. {@link matching} is that one: it is handed the whole
+ * set and a corner of it to ask about. The other is a PAGE narrowing itself,
+ * which already holds the records it draws — mirrors resolved, ancestry walked,
+ * every arm of the reading decided — and for which a walk of the corpus is a
+ * walk of everything the answer will be thrown away for
+ * (docs/brainstorming/filter-rides-the-page.md). That caller hands its own rows
+ * in (`./narrowing.ts`), and what it gets is this same `matchOf` behind this
+ * same grammar, so the two cannot mean different things by `is:done`.
+ *
+ * WHAT WAS PUT AWAY is the caller's answer rather than a rule here, for the
+ * reason {@link Scope.trashed} gives: whether the archive is in this corner of
+ * the set at all is a fact about the QUESTION — the query named it, or the
+ * caller's own scope already holds it. One boolean per call, read before the
+ * walk.
+ *
+ * A LEFTOVER `Archive.olai` is orphaned from every query, including
+ * `is:trashed`: it is not trash, and it is not live work either. The file's own
+ * page still draws unfiltered; a query does not re-enter it.
+ *
+ * DUPLICATES ARE THE CALLER'S, not this walk's: `derived.nodes` names each
+ * record once, and a page that draws one node twice is a caller with an answer
+ * about that (`./narrowing.ts` dedupes because a placement is not a node).
+ */
+export const selecting = (
+  derived: Derived,
+  filter: Filter,
+  candidates: Iterable<LocatedRegular>,
+  putAway: boolean,
+): ReadonlyArray<Matched> => {
+  const out: Array<Matched> = []
+  for (const at of candidates) {
     if (isLeftoverArchive(at.file)) continue
     if (!putAway && isTrashed(at.file)) continue
-    if (!inScope(at)) continue
     const match = matchOf(derived, at, filter)
     if (match !== null) out.push({ at, match })
   }

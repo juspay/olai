@@ -27,22 +27,16 @@
  * agenda are flat rows that arrive carrying their own ancestry, the trash is a
  * tree per archive.
  *
- * THE TRASH IS ASKED FOR, ONCE — and it is the one thing this reading tells the
- * matcher about the question rather than about the answer. Archived nodes are
- * out of every reading unless a query says `is:trashed` (docs/search.md),
- * because the doors that rule is written for are searching the DIRECTORY. This
- * door is not: it tests the rows in front of somebody, and the TRASH is the
- * page that draws what was put away — applying the default there would take
- * away every row and leave the reader nothing to read the absence by — and so
- * is a TREE that is a zoom onto an archived node, which is where an
- * `is:trashed` hit lands when it is clicked (`./drawn.ts`'s
- * {@link showsTrashed} names both, and the mirror case it cannot rule out).
- * It rides the REQUEST now (`./asking.ts`'s `Ask`), which is the same sentence
- * one layer over: the page that draws put-away rows is the page that says so.
- * A day and the agenda were two more until 2026-08-17, when the human ruled
- * that what is put away is drawn on the trash and nowhere else
- * (`@olai/format`'s `dates.ts` is where they stopped drawing it), and the
- * question here narrowed with them.
+ * THE TRASH IS NOT ASKED FOR ANY MORE, and its absence is worth a paragraph
+ * because it was this reading's one word to the matcher about the QUESTION.
+ * Archived nodes are out of every reading unless a query says `is:trashed`
+ * (docs/search.md), because the doors that rule is written for are searching the
+ * DIRECTORY — where this one tests the rows in front of somebody, and the TRASH
+ * is the page that draws what was put away. This file used to answer that for
+ * the matcher, off the page it holds; the matcher reads it off the page ITSELF
+ * now (`@olai/format`'s `showsPutAway`, over the `Shown` the server computed),
+ * which is the same sentence with nobody left to describe a page to anybody
+ * (docs/brainstorming/filter-rides-the-page.md).
  *
  * The ORDER of the two prunings is the decision worth naming: done-hidden goes
  * FIRST. It is a standing claim about the reader ("I do not want to look at

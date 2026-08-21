@@ -2,6 +2,8 @@
 
 Brainstorm for roadmap node `search-index`. Researched 2026-08-19; claims carry sources. **Premise, ruled by the human 2026-08-19: search is moving entirely server-side first** (roadmap `search-server-side`, the first step out of `vault-in-browser`). This doc assumes that step lands; the index only has to run on the server, in Bun.
 
+> **One caller has since left the O(corpus) list, and it is worth naming so this node is not credited with it.** The on-page FILTER used to walk the whole vault per settled keystroke and per published revision; it walks the records ONE PAGE draws now, because that is all its answer was ever tested against ([filter-rides-the-page.md](filter-rides-the-page.md), roadmap `filter-ask-carries-revision`). That is a change of SCOPE and not of cost per candidate — the doors that genuinely search the directory (`search_nodes`, the ⌘K palette, the header box, the composer's `@` list) still pay a scan of everything, which is what this node is about.
+
 The question: **what index serves olai's search without changing what matches, stays up to date as edits happen (cost proportional to the edit, not the vault), avoids growing memory — and how much is off the shelf?**
 
 ## What olai search is today

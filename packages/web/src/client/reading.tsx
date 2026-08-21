@@ -160,6 +160,28 @@ export interface Reading {
 
 export const createReading = (
   request: Accessor<PageRequest | null>,
+  /**
+   * WHILE THIS IS TRUE, WHAT IS IN HAND STAYS IN HAND — the pane's own answer
+   * to "is there a second reading about this page that has not arrived yet".
+   *
+   * ONE CALLER and one reason: a NARROWED pane (`./filter/asking.ts`'s
+   * `Asked.awaiting`). A page and its narrowing are two members read on one
+   * pulse and delivered as two frames, and the page's lands first — so a pane
+   * arriving at a `?q=` address would draw the page WHOLE for a frame before
+   * the query the address spelled took rows off it. Held, what was on screen
+   * stays on screen and a pane with nothing on screen yet draws its `Reading…`
+   * line, which is the beat `vault-in-browser` §5a already licenses.
+   *
+   * IT IS THE CALLER'S PREDICATE and not a rule about filters, because this
+   * seam has no business knowing what a filter is: what it is asked is whether
+   * to hold, and the one thing it promises in return is that a hold is never
+   * permanent — the caller drops it when its own reading fails, exactly as it
+   * drops it when one arrives.
+   *
+   * Absent for every other pane, which is what an unheld reading has always
+   * been.
+   */
+  holding?: Accessor<boolean>,
 ): Reading => {
   const answer = olai.streams.page.use(request)
   /** The generation — see {@link Reading.at}. `changed` rather than `updated`
@@ -200,8 +222,15 @@ export const createReading = (
    * which is the page the pane is drawing anyway. The wire is untouched: the old
    * stream is closed by the framework either way, and this is a reference to
    * what it left behind.
+   *
+   * {@link holding} EXTENDS THE SAME HOLD, and nothing else about it: a caller
+   * with a second reading of this page still in flight says so, and the answer
+   * in hand goes on being the answer.
    */
-  const held = createMemo<PageReading | undefined>((was) => answer() ?? was, undefined)
+  const held = createMemo<PageReading | undefined>(
+    (was) => (holding?.() === true ? was : answer() ?? was),
+    undefined,
+  )
   return { page: held, at, names: createNames(held) }
 }
 

@@ -71,18 +71,6 @@ export function PageView() {
   const request = createMemo(() => requestFor(opened(), today()), undefined, {
     equals: samePageRequest,
   })
-  const reading = createReading(request)
-  // …and the pane joins the workspace's register with it, so the chrome outside
-  // the panes can read whichever one is focused — the page AND the names table
-  // derived beside it (`../App.tsx`).
-  useReadings().join(here, reading)
-
-  const page = createMemo(() => reading.page()?.shows)
-
-  const allDrawn = createMemo(() => drawnBy(page()))
-
-  const shownDrawn = createMemo(() => visibleIn(allDrawn()))
-
   /**
    * THE BOX, READ ONCE — and both things made of it built off that one value:
    * what the page says about the query (`filter/narrowing.ts`) and the question
@@ -100,39 +88,56 @@ export function PageView() {
   const query = createMemo(() => parseFilter(filterOf(route()), today()))
 
   /**
-   * WHICH NODES the query selects — the server's answer, debounced and
-   * stale-guarded (`filter/asking.ts`). It used to be a walk over every node
-   * this tab held; the tab is giving that copy up
-   * (docs/brainstorming/vault-in-browser.md).
+   * WHICH NODES the query selects on this page — a second subscription beside
+   * the page's own, debounced on the keystroke and live on the revision
+   * (`filter/asking.ts`).
    *
-   * IT IS HANDED THE PARSE, THE PAGE AND THE SET, not conditions written here:
-   * whether there is a question at all, whether this page's own rows are
-   * put-away ones — the one thing the matcher is told about the question rather
-   * than asked about the answer — and whether the directory has moved under the
-   * answer are each one predicate over a value the pane already has, and a
-   * second spelling of any of them is a second answer to it.
+   * IT IS HANDED THE PARSE AND THE PAGE, not conditions written here: whether
+   * there is a question at all is one predicate over one parsed value, and
+   * which page these words narrow is the request this pane already asks its
+   * rows with. A second spelling of either would be a second answer to it.
+   *
+   * THE REQUEST rather than what the page DRAWS, which is the shape of
+   * `filter-ask-carries-revision`: the server holds the page, so this names it
+   * instead of describing it. What used to be handed over was the drawn page —
+   * to read one boolean off it (are these rows put-away ones) and a generation
+   * beside it (has the set moved under the answer). Both are the server's now,
+   * asked of the page it is already computing per revision.
    */
   const asked = createAsked({
     query,
     text: () => filterOf(route()),
-    page: allDrawn,
-    // THE GENERATION the question carries: a filter is a standing view, so an
-    // answer that outlived the set it was computed over is a wrong answer that
-    // looks like a right one (`filter/asking.ts`'s `Ask.at`). It used to be the
-    // tab's derivation, a fresh value per published revision; what says the
-    // same thing now is a count of the frames THIS PAGE's reading moved on
-    // (`../reading.tsx`'s `Reading.at`, which is why it is a number rather than
-    // the value: a subscription's value is a store whose identity survives
-    // every frame). Narrower and more honest than what it replaced — a revision
-    // that moved nothing on this page sends no frame, so it cannot invalidate
-    // an answer about it — and read by nothing, as it always was.
-    at: reading.at,
+    page: request,
     // WHICH PAGE these words narrow, as an identity that moves exactly when the
     // reader went somewhere else — the same memo this pane's subscription is
     // opened on, so "a navigation" means here what it means there. It is what
     // tells a keystroke from an arrival (`filter/asking.ts`'s settle).
     opened,
   })
+
+  /**
+   * ...AND THE PAGE ITSELF, held until the answer above is about it.
+   *
+   * THE ORDER HERE IS THE ARGUMENT. The narrowing subscription is opened first
+   * because the page's is opened WITH IT: the two are read on one pulse and
+   * delivered as two frames, the page's first (the narrowing's read is that same
+   * page walk plus a matcher), so a pane drawing each as it arrived would show a
+   * `?q=` address WHOLE for one frame before its own query took rows off it.
+   * `awaiting` is the join and `../reading.tsx`'s `holding` is where it is spent
+   * — what was on screen stays, and a pane with nothing on screen yet draws its
+   * `Reading…` line, which is the beat §5a already licenses for a navigation.
+   */
+  const reading = createReading(request, asked.awaiting)
+  // …and the pane joins the workspace's register with it, so the chrome outside
+  // the panes can read whichever one is focused — the page AND the names table
+  // derived beside it (`../App.tsx`).
+  useReadings().join(here, reading)
+
+  const page = createMemo(() => reading.page()?.shows)
+
+  const allDrawn = createMemo(() => drawnBy(page()))
+
+  const shownDrawn = createMemo(() => visibleIn(allDrawn()))
 
   const narrowing = createNarrowing({
     query,
