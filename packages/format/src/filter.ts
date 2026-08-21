@@ -2120,6 +2120,29 @@ const carries = (node: RegularNode, field: CarriedField): boolean =>
  * (./parse.ts) and sorts before every `T` on its day, so it reads as the start
  * of that day. Which is the same answer a bare day gets, and the honest one for
  * a value that named no instant this package minted.
+ *
+ * AND THE SALVAGE ABOVE HAS A LIMIT, which the algebra does not state because
+ * the algebra is about STRINGS and this is about what the strings mean. "Extra
+ * precision is a suffix" holds for text APPENDED past the bound's own last
+ * character — a stamp's seconds under a day bound, an offset under a bound
+ * without one. Two shapes `isIsoInstant` allows put it somewhere else, and a
+ * value of either sitting EXACTLY on a bound falls outside it:
+ *
+ *   - a FRACTION, which lands before the offset rather than after everything
+ *     (`…T10:00:00.000-04:00` does not start with `…T10:00:00-04:00`, so it is
+ *     outside an upper bound at its own instant);
+ *   - SECONDS OMITTED, which makes the value SHORTER than the bound at the
+ *     same instant (`…T10:00-04:00` sorts before `…T10:00:00-04:00`, so it is
+ *     outside a lower bound at its own instant).
+ *
+ * NEITHER IS WRITTEN BY THIS PACKAGE. `./stamp.ts` mints `T`, seconds and a
+ * numeric offset and no fraction, so every stamp, every `done`, and every bound
+ * ./calendar.ts hands back is the shape the salvage covers; both cases need a
+ * value typed into a file by hand AND landing on the bound's exact instant.
+ * Named rather than fixed, because fixing it means normalising every value
+ * before comparing it — a parse per node per clause, to answer a question about
+ * values this format does not produce. Found by grok reviewing #328, where the
+ * paragraph above claimed more than it delivered.
  */
 const within = (date: string, clause: DaysClause): boolean =>
   (clause.from === null || date >= clause.from) &&

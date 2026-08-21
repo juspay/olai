@@ -129,7 +129,7 @@ const hot = Array.from({ length: 5 }, () => timed(() => typedOver(warm)))
  * set, and none of them names a word, so what is timed is the walk and the
  * comparison and nothing else.
  *
- * WHAT IT CAUGHT, on this machine, over the four clauses below:
+ * WHAT IT CAUGHT, on one machine, over the four clauses below:
  *
  *     slicing each value to its bound's width   23.3ms — 5.82ms each
  *     comparing the whole value                 18.9ms — 4.73ms each
@@ -138,9 +138,18 @@ const hot = Array.from({ length: 5 }, () => timed(() => typedOver(warm)))
  * something other than ten characters wide and the obvious answer was to cut
  * the value to match. The second is the same semantics with no allocation at
  * all — ISO text is a prefix ordering, so the cut was buying a comparison the
- * comparison already made (`../src/filter.ts`'s `within` has the algebra). As
- * everywhere in this file: the RATIO is the claim, the milliseconds are one
- * laptop's, and re-running it is the point.
+ * comparison already made (`../src/filter.ts`'s `within` has the algebra).
+ *
+ * ONLY THE SECOND LINE IS RE-RUNNABLE, and saying so is the same discipline
+ * the note at the foot of this file applies to a heap delta it could not stand
+ * behind. The slicing form is not in the tree: it was measured by restoring it
+ * for one run and then thrown away, so the PAIR is a record of a decision and
+ * the ARM is the number. A reader re-running this gets the second line and a
+ * different figure for it — grok read 3.54ms each on its machine against the
+ * 4.73 here — which is exactly why the file's rule is that the ratio is the
+ * claim and the milliseconds are one laptop's. What survives re-running is the
+ * comparison a reader can make themselves: a date clause against the warm
+ * word-scan arm above it, on their own hardware, in the same run.
  */
 const DATED = ["created:2026-08-07", "changed:this-week", "changed:1h", "created:yesterday..3h"]
 

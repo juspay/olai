@@ -344,15 +344,23 @@ export const shiftDayByMonth = (date: string, delta: number): string => {
  * rather than recomputed. Recomputing one needs a zone database this module
  * has spent its whole header refusing to become.
  *
- * NARROWER THAN WHAT THE FORMAT STORES, deliberately and worth naming: the
- * validator's own rule (`./parse.ts`'s `isIsoInstant`) also takes a SPACE for
- * the separator and fractional seconds after them, and neither is accepted
- * here. What this reads is a CLOCK — the `now` a door hands the grammar — and
- * every clock in olai is minted by `./stamp.ts`, which writes `T` and stops at
- * seconds. A hand-written `2026-08-13 14:00` in a file is a legal value that is
- * not a legal clock, and answering `null` for one is this module refusing to
- * count from something it cannot take apart, which is the rule the whole
- * function is written to.
+ * NARROWER THAN WHAT THE FORMAT STORES IN EXACTLY ONE WAY, and it is worth
+ * saying which — an earlier draft of this note claimed two and was wrong about
+ * the second (grok, reviewing #328). The validator's rule (`./parse.ts`'s
+ * `isIsoInstant`) also takes a SPACE for the separator, and that is the one
+ * this refuses: the `^T` anchor answers `null` for `2026-08-13 14:00`, which is
+ * a legal value in a file and not a legal clock to count from.
+ *
+ * FRACTIONAL SECONDS ARE NOT REFUSED. They fall into the `(.*)$` tail with the
+ * zone offset and ride through verbatim, which is the same treatment for the
+ * same reason: nothing here counts either, so an hour before
+ * `T10:30:00.500-04:00` is `T09:30:00.500-04:00`. Saying they were rejected
+ * described a stricter function than the one written.
+ *
+ * SECONDS ARE OPTIONAL GOING IN AND ALWAYS PRESENT COMING OUT, which is the
+ * one place this normalises rather than carries: `T10:30-04:00` counts fine and
+ * comes back `T09:30:00-04:00`. Named because it is a difference a caller
+ * comparing the result as TEXT can see (`./filter.ts`'s `within`).
  */
 const TIME_SHAPE = /^T(\d{2}):(\d{2})(?::(\d{2}))?(.*)$/
 

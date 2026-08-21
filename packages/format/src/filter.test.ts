@@ -1290,6 +1290,98 @@ test("a duration's count is read as a number", () => {
   expect(selects("changed:0h", NOW)).toEqual([])
 })
 
+/**
+ * ...AND A ZERO COUNT IS STILL A BOUND, which the empty answer above cannot
+ * show: `0m` names the moment the question was asked, and a stamp ON that
+ * moment is inside it, because a bare duration's low end is inclusive like
+ * every other bound in this grammar.
+ *
+ * Asked of a corpus built for it, since the one above happens to hold nothing
+ * stamped at exactly {@link NOW} — an empty answer that is empty for want of a
+ * row proves nothing about the bound (grok, reviewing the durations).
+ */
+const ON_THE_DOT = {
+  "dot.olai": [
+    `{"id":"now","ord":"a0","title":"stamped at the moment asked","created":"${NOW}"}`,
+    `{"id":"minute","ord":"a1","title":"stamped a minute before","created":"2026-08-13T10:59:00-04:00"}`,
+  ].join("\n"),
+}
+
+const onTheDot = derive(nodesOfFiles(ON_THE_DOT))
+
+test("a zero count is the moment asked, and a stamp on it is inside", () => {
+  expect(selectsIn(onTheDot, "created:0m", NOW)).toEqual(["now"])
+  expect(selectsIn(onTheDot, "created:0h", NOW)).toEqual(["now"])
+  // ...and a minute earlier is outside a window of no width at all.
+  expect(selectsIn(onTheDot, "created:1m", NOW)).toEqual(["now", "minute"])
+  // The point reading of the same moment keeps it, both ends being inclusive.
+  expect(selectsIn(onTheDot, "created:..0m", NOW)).toEqual(["now", "minute"])
+})
+
+/**
+ * AN INVERTED WINDOW IS EMPTY, and it is the grammar's existing law rather
+ * than a rule durations needed: `changed:30m..2h` reads left-to-right as every
+ * range does, so its low end is the RECENT moment and its high end the older
+ * one, and no date is both at once.
+ *
+ * The right way round is `changed:2h..30m` — older bound first, because a
+ * range runs low to high and further back in time is lower. Worth pinning
+ * because a duration is the one value where "first" reads as "nearest" to a
+ * person typing it, so the wrong order is the plausible mistake; it is the
+ * same empty answer `date:2026-08-14..2026-08-10` gives, and is deliberately
+ * NOT refused — nothing here computes whether a span can hold anything, which
+ * is the stance `date:2026-02-30` is accepted under.
+ */
+test("a window written backwards is empty, as an inverted day range is", () => {
+  expect(selects("changed:2h..30m", NOW)).toEqual(["order"])
+  expect(parseFilter("changed:30m..2h", NOW).kind).toBe("asking")
+  expect(selects("changed:30m..2h", NOW)).toEqual([])
+  // The same shape written in days, which is where the reading comes from.
+  expect(selects("changed:2026-08-14..2026-08-10", NOW)).toEqual([])
+})
+
+/**
+ * WHERE THE PREFIX SALVAGE STOPS, pinned rather than only described.
+ *
+ * {@link within} compares text and reads each bound at its own width, which is
+ * exact for every value this package MINTS (`./stamp.ts`: `T`, seconds, a
+ * numeric offset, no fraction). Two shapes `isIsoInstant` also allows put their
+ * extra precision somewhere the comparison cannot salvage, and a value of
+ * either sitting on a bound's exact instant falls outside it.
+ *
+ * ASSERTED BECAUSE IT IS A LIMIT, not because it is wanted: a test that pins
+ * the boundary is what stops somebody "fixing" the comparison by accident, and
+ * what makes the day it becomes worth fixing a visible change rather than a
+ * silent one. Both need a datetime typed into a file by hand.
+ */
+const BY_HAND = {
+  "hand.olai": [
+    // The same instant as `install`'s capture, written three ways.
+    `{"id":"plain","ord":"a0","title":"as this package writes one","created":"2026-08-13T08:00:00-04:00"}`,
+    `{"id":"fraction","ord":"a1","title":"with a fraction nobody minted","created":"2026-08-13T08:00:00.000-04:00"}`,
+    `{"id":"coarse","ord":"a2","title":"with the seconds left off","created":"2026-08-13T08:00-04:00"}`,
+  ].join("\n"),
+}
+
+const byHand = derive(nodesOfFiles(BY_HAND))
+
+test("a hand-written instant on a bound is outside it, and that is the limit", () => {
+  // Three ways of writing 08:00:00 on the 13th, and three hours before eleven
+  // is exactly that. The one this package mints is inside both ends.
+  expect(selectsIn(byHand, "created:3h", NOW)).toContain("plain")
+  expect(selectsIn(byHand, "created:..3h", NOW)).toContain("plain")
+  // A FRACTION lands before the offset, so it is past the upper bound...
+  expect(selectsIn(byHand, "created:..3h", NOW)).not.toContain("fraction")
+  expect(selectsIn(byHand, "created:3h", NOW)).toContain("fraction")
+  // ...and SECONDS LEFT OFF make the value shorter than the bound, so it falls
+  // before the lower one.
+  expect(selectsIn(byHand, "created:3h", NOW)).not.toContain("coarse")
+  expect(selectsIn(byHand, "created:..3h", NOW)).toContain("coarse")
+  // Neither is lost to the operator, which is what keeps this a precision
+  // limit rather than a node the grammar cannot reach.
+  expect(selectsIn(byHand, "has:created", NOW)).toEqual(["plain", "fraction", "coarse"])
+})
+
 /** …and they negate and compose like every other clause. */
 test("a duration composes with words, marks and the joiner", () => {
   expect(selects("cabinets changed:1h", NOW)).toEqual(["order"])
