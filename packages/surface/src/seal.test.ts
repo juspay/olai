@@ -614,8 +614,10 @@ test("a frame that is resized says where the anchor is now, unasked", () => {
   fire("resize")
 
   // ONE message, and it is the anchor's: a whole-array `toEqual` is also what
-  // says no height came with it. A height from here is the `vh` ladder the
-  // receiver's per-width guard exists to refuse — the frame just got taller,
-  // and a page measured against it would answer with its new box every time.
+  // says no height came with it. A height from here is the `vh` ladder — the
+  // frame just got taller and a page measured against it would answer with its
+  // new box, standing the same distance above it as before, which is the report
+  // the receiver refuses as saying nothing (`@olai/web`'s `document/echo.ts`).
+  // Not posting it at all is the cheaper half of the same answer.
   expect(said.map(heard)).toEqual([{ kind: "landed", top: 1195 }])
 })

@@ -413,9 +413,10 @@ Then("the websocket carried {string}", function (this: OlaiWorld, text: string) 
  * zero-tall box until its bytes land — so whether the first measurement is
  * correct depends entirely on whether the picture beat it. Over a loopback
  * socket with a one-kilobyte PNG it usually does, which means an unheld run
- * would pass whether or not the second reading (`@olai/surface`'s `seal.ts`
- * tags it `settled`) existed at all. Held for longer than a first layout takes, the order is the
- * one every real page with a photograph in it sees: measure, then arrive.
+ * would pass without the picture ever having been LATE, which is the whole of
+ * what these scenarios are about. Held for longer than a first layout takes,
+ * the order is the one every real page with a photograph in it sees: measure,
+ * then arrive.
  *
  * `route` rather than a slower fixture, because size is not the knob — a bigger
  * file is still a race, just with different odds.
