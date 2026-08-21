@@ -10,6 +10,7 @@ import {
   MONTHS,
   shiftDay,
   shiftDayByMonth,
+  shiftMinutes,
   shiftMonth,
   weekdayOf,
 } from "./calendar.ts"
@@ -175,6 +176,132 @@ test("a span over text that names no day is no span at all", () => {
   // typo would be the arithmetic guessing.
   expect(daysBetween("hello", "2026-08-12")).toBeNull()
   expect(daysBetween("2026-08-12", "2026-02-30")).toBeNull()
+})
+
+// ── minutes off a moment ───────────────────────────────────────────────
+
+// The third reading, and the first that counts something narrower than a day:
+// what the query grammar's `created:1h` is a bound at.
+
+test("minutes come off the clock face and the offset rides through", () => {
+  expect(shiftMinutes("2026-08-13T10:30:00-04:00", -60)).toBe("2026-08-13T09:30:00-04:00")
+  expect(shiftMinutes("2026-08-13T10:30:00-04:00", -30)).toBe("2026-08-13T10:00:00-04:00")
+  // Forward as well as back, which is the same subtraction with a sign.
+  expect(shiftMinutes("2026-08-13T10:30:00-04:00", 90)).toBe("2026-08-13T12:00:00-04:00")
+  // A zone half an hour off the hour, spelled as it was written.
+  expect(shiftMinutes("2026-08-13T10:30:00+05:30", -60)).toBe("2026-08-13T09:30:00+05:30")
+})
+
+test("the seconds ride through untouched, since nothing here counts them", () => {
+  // A bound minted off a stamp falls a whole number of minutes before the
+  // moment the question was asked, rather than at the top of a minute near it.
+  expect(shiftMinutes("2026-08-01T09:12:44-04:00", -60)).toBe("2026-08-01T08:12:44-04:00")
+  // ...and a datetime that wrote none gets the `:00` the shape needs.
+  expect(shiftMinutes("2026-08-01T09:12-04:00", -60)).toBe("2026-08-01T08:12:00-04:00")
+})
+
+test("counting back past midnight borrows a day from the calendar", () => {
+  expect(shiftMinutes("2026-08-13T00:30:00-04:00", -60)).toBe("2026-08-12T23:30:00-04:00")
+  // A whole week, which is the widest unit a duration comes in.
+  expect(shiftMinutes("2026-08-13T10:00:00-04:00", -7 * 24 * 60)).toBe(
+    "2026-08-06T10:00:00-04:00",
+  )
+  // The borrow is the calendar's, so a month length and the leap rule are
+  // already answered: back one minute from the 1st of March in a leap year.
+  // One line, because the leap rule itself is `shiftDay`'s and is pinned above
+  // — what this shows is that the borrow REACHES the calendar at all.
+  expect(shiftMinutes("2028-03-01T00:00:00-04:00", -1)).toBe("2028-02-29T23:59:00-04:00")
+  // ...and across a year, forwards.
+  expect(shiftMinutes("2026-12-31T23:59:00-05:00", 1)).toBe("2027-01-01T00:00:00-05:00")
+})
+
+test("a clock that names only a day names the start of it", () => {
+  // The reading `dayOf` makes in the other direction — ten characters are a
+  // day, and a day begins at midnight. No offset comes back because none was
+  // written down.
+  expect(shiftMinutes("2026-08-13", -60)).toBe("2026-08-12T23:00:00")
+  expect(shiftMinutes("2026-08-13", 0)).toBe("2026-08-13T00:00:00")
+})
+
+test("text that names no moment is no moment to count from", () => {
+  // `null` rather than the text unchanged, which is what `shiftDay` answers
+  // with: the one caller is minting a BOUND, and a bound that was quietly the
+  // clock's own garbage is a query comparing against nonsense.
+  expect(shiftMinutes("hello", -60)).toBeNull()
+  expect(shiftMinutes("2026-02-30T10:00:00-04:00", -60)).toBeNull()
+  expect(shiftMinutes("2026-08-13 10:00", -60)).toBeNull()
+  expect(shiftMinutes("2026-08-13T10", -60)).toBeNull()
+})
+
+test("any number may be handed in, and the cost does not follow it", () => {
+  // The delta comes from a query somebody typed, so the borrow is as wide as
+  // the number. It goes through the SERIAL arithmetic rather than a walk of
+  // month lengths, which is what makes this a subtraction — the assertion is
+  // partly that it returns at all, since a suite that hung here would be the
+  // finding.
+  expect(shiftMinutes("2026-08-13T10:00:00-04:00", -Number.MAX_SAFE_INTEGER)).toBeNull()
+  expect(shiftMinutes("2026-08-13T10:00:00-04:00", Number.MAX_SAFE_INTEGER)).toBeNull()
+})
+
+test("a count that walks off the calendar has nowhere to land", () => {
+  // Nineteen thousand years back is not a day four digits can spell, and the
+  // arithmetic would have answered with a `-17000-12-31` — a value that is
+  // neither a date nor an error. The two widest counts the grammar can hand
+  // over (`999999w`, `999999d`) are both past the front of the calendar.
+  expect(shiftMinutes("2026-08-13T10:00:00-04:00", -999999 * 7 * 24 * 60)).toBeNull()
+  expect(shiftMinutes("2026-08-13T10:00:00-04:00", -999999 * 24 * 60)).toBeNull()
+  expect(shiftMinutes("0001-01-01T00:00:00-04:00", -2 * 365 * 24 * 60)).toBeNull()
+  // ...where a step that LANDS inside them is answered, however far back — the
+  // question is where it lands and never how far it went.
+  expect(shiftMinutes("2026-08-13T10:00:00-04:00", -99999 * 24 * 60)).toBe(
+    "1752-10-29T10:00:00-04:00",
+  )
+  expect(shiftMinutes("2026-08-13T10:00:00-04:00", 999999 * 24 * 60)).toBe(
+    "4764-07-09T10:00:00-04:00",
+  )
+})
+
+/**
+ * THE SERIAL NUMBER AND ITS INVERSE ARE A PAIR, swept rather than sampled.
+ *
+ * `dayOfSerial` is the one piece of arithmetic here that cannot be read for
+ * correctness at a glance — Hinnant's era/year/month folding run backwards,
+ * where a wrong constant is right for most of a century and off by a day in
+ * some particular March. So it is checked the way the rest of this module is
+ * not: every seventh day across a decade, each moved by a spread of deltas
+ * that crosses month ends, year ends, the leap rule and three centuries, and
+ * compared against `shiftDay`'s independent walk of month lengths.
+ *
+ * It is a LOOP because the property is the claim; the file's other tests name
+ * their boundaries because there a boundary is the claim.
+ */
+test("the serial arithmetic agrees with the walk, over a decade of days", () => {
+  const deltas = [0, 1, -1, 27, -27, 365, -365, 1461, -1461, 40000, -40000]
+  let checked = 0
+  for (let step = 0; step < 3700; step += 7) {
+    const base = shiftDay("2020-01-01", step)
+    for (const delta of deltas) {
+      expect(shiftMinutes(`${base}T08:30:00-04:00`, delta * 24 * 60)).toBe(
+        `${shiftDay(base, delta)}T08:30:00-04:00`,
+      )
+      checked++
+    }
+  }
+  // ...and the sweep actually swept, rather than passing on an empty loop.
+  expect(checked).toBe(529 * deltas.length)
+})
+
+test("the step agrees with the day step, which is the other way of counting one", () => {
+  // The SECOND place two implementations of this calendar meet — the pair
+  // above is `daysBetween` against `shiftDay`, and this is the serial
+  // arithmetic again, reached through a borrow of whole days. `shiftDay` walks
+  // month lengths and this subtracts serial numbers, so a disagreement between
+  // them is a bug in one of them. Both directions, and across the leap rule.
+  for (const days of [0, 1, 29, 400, 1461, -1, -366, -1461]) {
+    expect(shiftMinutes("2026-01-01T08:00:00-05:00", days * 24 * 60)).toBe(
+      `${shiftDay("2026-01-01", days)}T08:00:00-05:00`,
+    )
+  }
 })
 
 // ── the names ──────────────────────────────────────────────────────────
