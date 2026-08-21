@@ -543,11 +543,13 @@ export type NoticeEntry = typeof NoticeEntry.Type
  * kind carries, so a non-call row with a `status` is unrepresentable rather
  * than a fact every consumer had to re-establish.
  *
- * The encoded form is unchanged: the same flat JSON, optional keys omitted, in
- * the same field order. Effect Schema encodes a discriminated union of structs
- * as the matching arm's own keys, which for a well-formed row is exactly the
- * keys the old struct would have written. No migration, no wire-contract
- * change.
+ * The encoding of every row the writer produces is unchanged: the same flat
+ * JSON, optional keys omitted, in the same field order. The decoder now also
+ * requires the flags' only honest value (`streaming` / `stranded` are `true`
+ * when present, never `false`) and the fields a kind always carries (`status`
+ * on a tool, `ask` on an ask, `refusal` on a refusal). A key that does not
+ * belong to the matching arm is dropped at decode rather than re-emitted —
+ * sanitizing, not a second encoding. No migration for well-formed rows.
  *
  *   - `user` — {@link UserEntry}
  *   - `agent` — {@link AgentEntry}

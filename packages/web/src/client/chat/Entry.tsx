@@ -146,6 +146,15 @@ export function Entry(props: {
     if (props.entry.kind !== "agent" || props.entry.streaming !== true) return text
     return due() ? text : previous
   })
+  /** The matching arm, or nothing. One idiom for every kind: Solid's `<Match>`
+   *  then hands the narrowed row to the child, so a kind-specific field is
+   *  read off a value the discriminant already picked. */
+  const ofKind = <K extends ChatEntry["kind"]>(
+    kind: K,
+  ): Extract<ChatEntry, { kind: K }> | undefined =>
+    props.entry.kind === kind
+      ? (props.entry as Extract<ChatEntry, { kind: K }>)
+      : undefined
   // ONLY for the agent's own prose, which is the only row that has rendered
   // markdown in it — asked once, off the same `kind` the asker above was, so
   // this is not a `said === undefined` bail inside an effect every row of a
@@ -190,7 +199,7 @@ export function Entry(props: {
       data-streaming={props.entry.kind === "agent" && props.entry.streaming === true}
     >
       <Switch>
-        <Match when={props.entry.kind === "user" ? props.entry : undefined}>
+        <Match when={ofKind("user")}>
           {(user) => (
           /* What you said sits apart from what the agent said: on the right,
               in an accent-tinted bubble. A faint `bg-rule/60` box on a
@@ -264,7 +273,7 @@ export function Entry(props: {
           )}
         </Match>
 
-        <Match when={props.entry.kind === "agent" ? props.entry : undefined}>
+        <Match when={ofKind("agent")}>
           {(agent) => (
           /* A wrapper with no styling of its own, purely so the rendered
               answer is an element this component can reach into: `Markdown`
@@ -294,20 +303,22 @@ export function Entry(props: {
           )}
         </Match>
 
-        <Match when={props.entry.kind === "tool" ? props.entry : undefined}>
+        <Match when={ofKind("tool")}>
           {(tool) => <ToolFrame entry={tool()} />}
         </Match>
 
-        <Match when={props.entry.kind === "ask" ? props.entry : undefined}>
+        <Match when={ofKind("ask")}>
           {(ask) => <AskForm entry={ask()} chat={props.chat} />}
         </Match>
 
-        <Match when={props.entry.kind === "refusal" ? props.entry : undefined}>
+        <Match when={ofKind("refusal")}>
           {(row) => <Refusal failure={row().refusal} />}
         </Match>
 
-        <Match when={props.entry.kind === "notice"}>
-          <p class="font-mono text-[0.6875rem] text-muted">{props.entry.text}</p>
+        <Match when={ofKind("notice")}>
+          {(notice) => (
+            <p class="font-mono text-[0.6875rem] text-muted">{notice().text}</p>
+          )}
         </Match>
       </Switch>
     </div>

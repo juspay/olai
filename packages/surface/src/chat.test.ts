@@ -1,11 +1,12 @@
 /**
- * ChatEntry is a kind-discriminated union over an unchanged encoding.
+ * ChatEntry is a kind-discriminated union over the writer's encoding.
  *
  * The old shape was one struct with every kind-specific field optional. The
  * new shape is six structs, discriminated on `kind`. These tests are the
- * proof the ruling asked for: representative rows of every kind encode to
- * the same JSON through both schemas, and a non-call row with a `status` is
- * a type error rather than a fact a consumer has to re-check.
+ * proof the ruling asked for: every row the writer produces encodes to the
+ * same JSON through both schemas; the decoder now also requires the flags'
+ * only honest value; and a non-call row with a `status` is a type error
+ * rather than a fact a consumer has to re-check.
  */
 
 import { ValidationFailure } from "@olai/format"
@@ -30,8 +31,9 @@ import {
 /**
  * The PRE-UNION shape, pinned here so the old schema can be deleted from the
  * spec without losing the encoding proof. Field order and optionality are the
- * contract: a well-formed row of any kind must stringify identically through
- * this and through {@link ChatEntryUnion}.
+ * contract for rows the writer produces: those must stringify identically
+ * through this and through {@link ChatEntryUnion}. The decoder is stricter
+ * than this pin — see the negative cases below.
  */
 const ChatEntryFlat = Schema.Struct({
   id: Schema.String,
@@ -250,6 +252,55 @@ test("every kind is represented in the encoding proof", () => {
     "tool",
     "user",
   ])
+})
+
+/**
+ * The union is a stricter decoder, not literally the same byte language.
+ *
+ * The old struct accepted four shapes the writer never produces: a tool row
+ * without `status`, an ask without `ask`, a refusal without `refusal`, and
+ * the flags as `false`. A future second producer learns that contract from a
+ * red test rather than from a live panel that silently drew nothing.
+ */
+const HEAD = {
+  id: "row:1",
+  seq: 0,
+  since: SINCE,
+  text: "hello",
+}
+
+const REJECTED: ReadonlyArray<{ name: string; row: unknown }> = [
+  { name: "a tool row without status", row: { ...HEAD, kind: "tool" } },
+  { name: "an ask row without ask", row: { ...HEAD, kind: "ask" } },
+  { name: "a refusal row without refusal", row: { ...HEAD, kind: "refusal" } },
+  {
+    name: "streaming: false",
+    row: { ...HEAD, kind: "agent", streaming: false },
+  },
+  {
+    name: "stranded: false",
+    row: { ...HEAD, kind: "tool", status: "pending", stranded: false },
+  },
+]
+
+for (const { name, row } of REJECTED) {
+  test(`${name} fails to decode`, () => {
+    expect(Schema.is(ChatEntryFlat)(row)).toBe(true)
+    expect(Schema.is(ChatEntryUnion)(row)).toBe(false)
+    expect(() => decodeUnion(row)).toThrow()
+  })
+}
+
+test("a kind-wrong extra key is dropped at decode, not re-emitted", () => {
+  // The sanitizing direction: the old struct re-emitted `status` on a user
+  // row; the union accepts the bytes and encodes without the key. Same bytes
+  // for well-formed rows; a second producer's junk does not round-trip.
+  const row = { ...HEAD, kind: "user", status: "pending" }
+  expect(Schema.is(ChatEntryFlat)(row)).toBe(true)
+  const back = decodeUnion(row)
+  expect(back.kind).toBe("user")
+  expect("status" in back).toBe(false)
+  expect(JSON.stringify(encodeUnion(back))).not.toContain("status")
 })
 
 /**
