@@ -877,6 +877,64 @@ Feature: A `.html` in the vault
     # thing that was wrong.
     And the address carries the anchor "#beds"
     And the page has not reloaded
+
+  @scratch:good @own-scratch
+  Scenario: Coming back to a previewed section restores where the reader was
+    # THE OTHER HALF OF ONCE, one face over from the scenario the notes have.
+    # A browser applies a hash when you follow a link and does NOT re-apply it
+    # when you come back to that entry: on the way back what it owes you is the
+    # position you left. The router clears the landing on `popstate` — so the
+    # frame is re-pointed at the file's own address, with no fragment for the
+    # browser to scroll to and no report for this window to follow, while the
+    # scroll memory puts the reader back.
+    #
+    # It is the height that made this hard rather than the fragment: a frame
+    # re-pointed used to drop back to the `70dvh` guess until the fetch landed,
+    # which took the page around it down to less than a screen and clamped the
+    # restore to the top. A height belongs to the FILE, so it stands.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/deep.html" as:
+      """
+      <h1>Deep</h1>
+      <div style="height:400px">a short stretch before the section</div>
+      <h2 id="beds">Beds</h2>
+      <div style="height:1200px">a long stretch after it, to read on into</div>
+      """
+    And I rewrite "notes/from.html" as:
+      """
+      <h1>From</h1>
+      <p><a id="deep" href="deep.html#beds">the section over there</a></p>
+      """
+    And I expand the folder "notes"
+    And I remember how much history there is
+    And I click the page "notes/from.html"
+    Then the preview shows the heading "From"
+    When I click "#deep" inside the preview
+    Then the document open is "notes/deep.html"
+    And the section "beds" is on screen
+    # ONE ENTRY FOR THE CLICK ON THE SIDEBAR AND ONE FOR THE LINK, and no third
+    # for the frame: a preview re-pointed after its first load is an entry the
+    # reader has to press Back through, and the departing page used to make one.
+    And the history has grown by 2
+    # The reader reads on, and scrolls somewhere of their own choosing…
+    When I scroll to the bottom of the page
+    And I remember where the page is scrolled
+    # …then goes elsewhere, and comes back.
+    And I click the page "notes/from.html"
+    Then the preview shows the heading "From"
+    When I go back
+    Then the document open is "notes/deep.html"
+    # THE ASSERTION: where they left it, and it STAYS there.
+    And the page is scrolled where it was left
+    # …and the frame is at the file, not at the section: the landing was spent
+    # on the way in and cleared on the way back, so there is nothing left of it
+    # for the browser to perform.
+    And the preview is at no anchor
+    # …while the address still carries it, because the fragment was never the
+    # thing that was wrong.
+    And the address carries the anchor "#beds"
+
   @scratch:good @own-scratch
   Scenario: A page that sends the frame to its neighbour is left where it went
     # THE OTHER UNASKED-FOR NAVIGATION, and the last kept behaviour with no

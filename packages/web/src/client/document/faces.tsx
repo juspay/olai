@@ -177,7 +177,7 @@ function Rendered(props: Reading) {
   // arrived, which is most first paints. That is this face's answer and not a
   // rule about landings — the preview pane spends its own at the moment it
   // points a frame, because for a `.html` the pointing IS the act.
-  const landing = useLanding()
+  const landing = useLanding(() => props.file)
   createEffect(() => {
     const at = landing.owed()
     if (at === undefined || !markdownReady()) return

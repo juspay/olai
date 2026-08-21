@@ -82,10 +82,10 @@ export interface Router {
    * had one, the preview pane had none, and the pane with none re-landed
    * its reader every time the file moved on disk.
    *
-   * NAMING WHAT IS BEING SPENT, so a landing minted since is not spent by
-   * an act that was about the last one: an act is scheduled a frame ahead
-   * (both performers scroll on the next animation frame), and a navigation
-   * can arrive in between.
+   * NAMING WHAT IS BEING SPENT — the pane, the page and the place — so a
+   * landing minted since is not spent by an act that was about the last
+   * one: an act is scheduled a frame ahead (both performers scroll on the
+   * next animation frame), and a navigation can arrive in between.
    *
    * STILL READABLE AFTERWARDS, which is the whole reason this is a mark
    * rather than a clear. The `.html` preview builds the frame's own URL
@@ -93,7 +93,7 @@ export interface Router {
    * change that address and re-point the frame at the file for no reason
    * anyone asked for — the very re-load this exists to stop.
    */
-  readonly landed: (index: number, at: string) => void
+  readonly landed: (index: number, file: string, at: string) => void
   /** Navigate the focused pane (push). */
   readonly go: (route: Route) => void
   /** Navigate a named pane (push). */
@@ -113,6 +113,14 @@ export interface Router {
 
 export interface Landing {
   readonly index: number
+  /** WHICH PAGE the slug is a place inside. A pane is one address at a time
+   *  and this is the file that address names, so a face still drawn from the
+   *  page being LEFT — every navigation has a frame of both on screen — can
+   *  tell that the arrival it is being told about is not its own. Without it
+   *  a `.html` preview re-pointed its frame on its way out, at a section of
+   *  the page replacing it, which cost a fetch and a history entry: Back off
+   *  such a page took two presses. */
+  readonly file: string
   readonly at: string
   /** Whether the act has been performed. A spent landing is a slug that is
    *  still there to be read and no longer anything to do. */
@@ -145,17 +153,18 @@ const nameHere = (): string => {
 const here = (): string =>
   location.pathname + location.search + location.hash
 
-/** Where inside a page an arrival LANDS — a heading's own slug, and nothing
- *  for an address that names a whole place. It is read off the address, which
- *  is the only thing that says it: a `#` after a body is a heading, and after
- *  an outline it is a node (`@olai/format`'s `address.ts`), so the grammar has
- *  already decided which of the two this is. */
-const landingIn = (route: Route): string | undefined =>
-  route.kind === "at" && route.address?.kind === "heading" ? route.address.slug : undefined
-
+/** Where inside a page an arrival LANDS — the page's own file and a heading's
+ *  own slug, and nothing for an address that names a whole place. It is read
+ *  off the address, which is the only thing that says it: a `#` after a body
+ *  is a heading, and after an outline it is a node (`@olai/format`'s
+ *  `address.ts`), so the grammar has already decided which of the two this is
+ *  — and a heading address carries the document it is a heading OF, so there
+ *  is nothing to look the file up in. */
 const landingOf = (index: number, route: Route): Landing | undefined => {
-  const at = landingIn(route)
-  return at === undefined ? undefined : { index, at, spent: false }
+  const address = route.kind === "at" ? route.address : undefined
+  return address === undefined || address === null || address.kind !== "heading"
+    ? undefined
+    : { index, file: address.path, at: address.slug, spent: false }
 }
 
 export const createRouter = (): Router => {
@@ -211,13 +220,13 @@ export const createRouter = (): Router => {
     workspace,
     route: () => focusedRoute(workspace()),
     landing,
-    landed: (index, at) => {
+    landed: (index, file, at) => {
       const land = landing()
       if (land === undefined || land.spent) return
       // The landing THIS act was about, or nothing: a navigation between the
       // scheduling and the performing has minted a new one, and that one is
       // owed its own arrival.
-      if (land.index !== index || land.at !== at) return
+      if (land.index !== index || land.file !== file || land.at !== at) return
       setLanding({ ...land, spent: true })
     },
     go: (next) => goIn(workspace().focus, next),
@@ -331,17 +340,24 @@ export interface Landfall {
  * raw either, or the address a preview is pointed at would change the instant
  * its landing was performed.
  *
- * `useHere`'s rule for WHICH pane, so a preview, a document's scroll and
- * anything else that lands somewhere cannot disagree about whose landing this
- * is (the disagreement two panes previewing two files would show as one being
- * yanked by the other's click — `reactivity-after-the-flip` §3.3).
+ * WHOSE LANDING THIS IS is asked in two halves, because a face is one FILE
+ * drawn in one PANE and either alone lets somebody else's arrival through.
+ * `useHere`'s rule answers the pane, so a preview, a document's scroll and
+ * anything else that lands somewhere cannot disagree about it (the
+ * disagreement two panes previewing two files would show as one being yanked
+ * by the other's click — `reactivity-after-the-flip` §3.3). The `file` this
+ * face draws answers the other, and the case it excludes is the pane's own
+ * PREVIOUS page: a navigation has both on screen for a frame, and the one on
+ * its way out was being told about the arrival of the one replacing it.
  */
-export const useLanding = (): Landfall => {
+export const useLanding = (file: () => string): Landfall => {
   const router = useRouter()
   const here = useHere()
   const mine = createMemo(() => {
     const land = router.landing()
-    return land !== undefined && land.index === here() ? land : undefined
+    return land !== undefined && land.index === here() && land.file === file()
+      ? land
+      : undefined
   })
   return {
     at: createMemo(() => mine()?.at),
@@ -349,7 +365,7 @@ export const useLanding = (): Landfall => {
       const land = mine()
       return land === undefined || land.spent ? undefined : land.at
     }),
-    landed: (at) => router.landed(here(), at),
+    landed: (at) => router.landed(here(), file(), at),
   }
 }
 
