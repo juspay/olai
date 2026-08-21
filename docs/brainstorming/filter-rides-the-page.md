@@ -258,8 +258,13 @@ in one gesture:
 |---|---|---|
 | matcher asks, opening the filtered page | 1 | 1 |
 | matcher asks over the gesture | **9** | **0** |
-| socket bytes, page opened | 2,076.5 kB | **321.1 kB** |
-| socket bytes, whole session | 31,534.1 kB | **1,873.0 kB** |
+| socket bytes, page opened | 2,076.5 kB | **320.2 kB** |
+| socket bytes, whole session | 31,534.1 kB | **1,872.8 kB** |
+
+The ask counts are deterministic — the same gesture, the same writes, the same
+frames. The byte columns move by a few hundred bytes between runs of one branch
+(a heartbeat, a git probe), which is why the ratios below are the honest figure
+rather than either number.
 
 Zero rather than one, because the ask is not per frame any more: the page opens one
 subscription for its query, and thirty writes that do not change which nodes match
