@@ -178,15 +178,17 @@ export const validate = (
  *
  * IT IS THIS FUNCTION AND NOT `patch`, and that is the whole of why it is here.
  * IT IS THIS FUNCTION AND NOT `patch` for a caller that holds a SET. The
- * patcher is exported — the browser folds its delta frames with it
- * (`model-indices` slice 4) — and that caller is right to reach it: a tab holds
- * a view and the frames that moved it, and has nothing to hold the result
- * against. This one does. It assembles a real {@link OutlineSet} per op and
- * plans the next one against it, which is precisely what {@link viewOf}'s
- * disagreement check is for — the identity test that turns a delta which missed
- * a file into a rebuild rather than into a view where every record looks like a
- * duplicate of itself. So the door a set-holding caller comes through is the
- * patcher AND that guard, together, and nobody has to remember the second half.
+ * patcher is exported — the browser folded its delta frames with it once
+ * (`model-indices` slice 4) — and a caller with nothing to hold the result
+ * against is right to reach it. This one has something: it assembles a real
+ * {@link OutlineSet} per op and plans the next one against it, which is
+ * precisely what {@link viewOf}'s disagreement check is for — the identity test
+ * that turns a delta which missed a file into a rebuild rather than into a view
+ * where every record looks like a duplicate of itself. So the door a
+ * set-holding caller comes through is the patcher AND that guard, together, and
+ * nobody has to remember the second half. What that guard costs is a walk of
+ * the FILES ({@link isSet}), not a second flattening of the corpus to compare
+ * against a first.
  */
 export const reading = (set: OutlineSet, previous?: Previous): Reading => ({
   set,

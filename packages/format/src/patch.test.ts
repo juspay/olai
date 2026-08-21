@@ -449,6 +449,62 @@ test("the patched view is the derived view, for any corpus and any delta", () =>
   expect(daysMoved).toBeGreaterThan(ROUNDS / 5)
 })
 
+/** How many edits each chain below folds onto one carried view. */
+const DEEP = 12
+
+test("a view patched again and again is still the derived view", () => {
+  // THE SAME ORACLE, ON A VIEW THAT WAS ITSELF PATCHED — which is what both
+  // callers do and what the round above cannot see: it patches a freshly
+  // DERIVED view every time, so nothing an edit leaves behind is ever handed
+  // to the next one.
+  //
+  // What a patch leaves behind stopped being nothing. Seven of the eleven
+  // indexes are carried as layers (`./overlay.ts`), and a layer accumulates
+  // across a session: the keys this edit dropped, the ones it appended and the
+  // order they went in, all folded into whatever the next patch is handed,
+  // until the half rule flattens it and a new base is taken. `./overlay.test.ts`
+  // holds that structure against a map, and `./patch.bench.ts` carries a view
+  // forty edits deep — but the bench is a leg somebody runs rather than a lane,
+  // so the accumulation was pinned by nothing that fails a build.
+  const random = seeded(20260821)
+  /** That the chains really are compounding — a chain whose every round
+   *  DECLINED would be this test patching a derived view twelve times over,
+   *  which is the round above with more steps. */
+  let carried = 0
+  for (let round = 0; round < ROUNDS / 5; round++) {
+    const { files: first, used } = corpusOf(random)
+    let before = first
+    let view = viewOf(before)
+    for (let deep = 0; deep < DEEP; deep++) {
+      const after = editOf(random, before, used)
+      const delta = deltaOf(before, after)
+      const oracle = viewOf(after)
+      const story = () =>
+        `round ${round}, edit ${deep}\nbefore: ${JSON.stringify(before, null, 2)}\n` +
+        `after: ${JSON.stringify(after, null, 2)}`
+      const incremental = patched(view, delta)
+      if (incremental !== undefined) {
+        same(incremental, oracle, story)
+        carried++
+      }
+      // The view the NEXT edit is handed is the patcher's own answer, whether
+      // it patched or fell back — which is the whole point of the chain.
+      const next = patch(view, delta)
+      same(next, oracle, story)
+      // And the view it just replaced is untouched, twelve revisions deep.
+      same(view, viewOf(before), story)
+      view = next
+      before = after
+    }
+  }
+  // 1,013 of 1,200 as this is written. The floor is what fails if the chains
+  // stop compounding — a run where nearly every edit declined would be the
+  // round above with more steps, and would say nothing about what a layer
+  // carries forward. There is no ceiling here: the declines are the round
+  // above's claim, and a chain is allowed to be luckier than a fresh corpus.
+  expect(carried).toBeGreaterThan((ROUNDS / 5) * DEEP / 2)
+})
+
 // ── what the reverse indexes are for ───────────────────────────────────
 
 const KITCHEN: Corpus = {

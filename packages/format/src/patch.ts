@@ -548,9 +548,19 @@ const carrying = <K extends Index>(
 ): Editable<string, Values<K>> =>
   overlay(before[index] as unknown as ReadonlyMap<string, Values<K>>, READ[index])
 
-/** What an index of {@link Derived} holds per key — its value type, which is
- *  never `undefined` and has to say so for the layer's fall-through. */
-type Values<K extends Index> = Derived[K] extends ReadonlyMap<string, infer V> ? V & {}
+/**
+ * What an index of {@link Derived} holds per key.
+ *
+ * IT RESOLVES TO `never` FOR A VALUE THAT COULD BE `undefined`, which is the
+ * whole reason this is not `V & {}`. {@link ./overlay.ts} reads `undefined` as
+ * "the layer does not hold this key", and says its `V extends {}` is
+ * load-bearing rather than decorative — so an index whose values could be
+ * `undefined` must not be able to reach {@link carrying} at all. Intersecting
+ * the guard on would have STRIPPED that case instead of refusing it, and the
+ * symptom would be a key answering with the map underneath's stale value.
+ */
+type Values<K extends Index> = Derived[K] extends ReadonlyMap<string, infer V>
+  ? undefined extends V ? never : V
   : never
 
 /** The indexes that hold a LIST per key, which is what {@link refiled} re-files
