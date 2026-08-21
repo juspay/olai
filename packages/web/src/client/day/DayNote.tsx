@@ -14,7 +14,7 @@
  * record beneath it. Neither replaces the other, which is the whole of the
  * amendment to "the journal is a query": a day with a note and no nodes is a
  * page of prose, a day with nodes and no note is exactly the page it was
- * before, and a day with neither is still inert.
+ * before, and a day with neither says so and offers + day note.
  *
  * The heading is the PATH and it is a link to `/<path>`, in the same voice
  * the day page names its date and a document page names itself: what is IN the

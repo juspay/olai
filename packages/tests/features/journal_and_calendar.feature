@@ -10,21 +10,23 @@ Feature: The journal, and the month in the sidebar
   everything here is either anchored to a day the fixtures name, or asks the
   clock the same question the browser does.
 
-  Three marks, and they are three because a reader has to tell them apart at a
+  Four marks, and they are four because a reader has to tell them apart at a
   glance: a day with something on it is a link with a dot, an empty day is
-  inert — a quiet number, not a link; pressing one mints the day's note, which
-  is document_editing.feature's subject — today wears a ring, and the day
-  being read is filled.
+  quiet — still a link, because every day has a page — today wears a ring, and
+  the day being read is filled. Creating a note is the day page's, not the
+  cell's (document_editing.feature).
 
   @corpus:journal
-  Scenario: A day with something on it is a link, and an empty one is not
+  Scenario: A day with something on it is marked, and an empty one is quiet
     # Opening a day anchors the calendar to that day's month, which is how a
     # month whose days are two olympiads in the past is on screen at all.
+    # Every cell is a link: an empty day goes to the page that says so.
     When I open the day "2019-11-05"
     Then the month shown is "2019-11"
     And the day "2019-11-05" has something on it
     And the day "2019-11-06" has something on it
     And the day "2019-11-07" is inert
+    And the day "2019-11-07" is a link
     And there should be no page errors
 
   @corpus:journal
@@ -50,6 +52,17 @@ Feature: The journal, and the month in the sidebar
     And the day open is "2019-11-06"
     And the node "pack" is shown
     # A route, not a reload: the page answered in place.
+    And the page has not reloaded
+
+  @corpus:journal
+  Scenario: Clicking an empty day opens that day, and writes nothing
+    Given I open the day "2019-11-05"
+    And I mark the page
+    When I click the day "2019-11-07"
+    Then the address is "/d/2019-11-07"
+    And the day open is "2019-11-07"
+    And the day is empty
+    And the document editor is gone
     And the page has not reloaded
 
   @corpus:journal
@@ -129,7 +142,7 @@ Feature: The journal, and the month in the sidebar
     # other two marks are passed over however legal their dates are (resolved
     # 2026-08-11 by the human, from a day page buried under everything filed
     # that morning). `filed` carries `todo: 2019-11-21` and nothing else, so
-    # the 21st has nothing on it: no dot to press, and a page that says so.
+    # the 21st has nothing on it: no marks, and a page that says so.
     When I open the day "2019-11-21"
     Then the day "2019-11-21" is inert
     And the day is empty
@@ -161,12 +174,13 @@ Feature: The journal, and the month in the sidebar
     And today is the one being read
 
   @corpus:journal
-  Scenario: A day with nothing on it says so, and offers nothing
+  Scenario: A day with nothing on it says so, and offers + day note
     # Nothing in these fixtures is dated this century, so `/today` is empty
-    # whenever this runs. Creating a day is a WRITE, and this pane writes
-    # nothing — an empty day promising what it cannot do would be worse.
+    # whenever this runs. The empty sentence is the honest one; creating the
+    # note is an explicit button, not a click on the cell.
     When I open today
     Then the day is empty
+    And the + day note button is shown
     And no outline tree is shown
     # Not a dead end: the sidebar is still the way on.
     And the outline list is shown

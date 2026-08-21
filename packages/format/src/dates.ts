@@ -396,7 +396,7 @@ export const isDay = (value: string): boolean => ISO_DAY.test(value)
 
 /**
  * Where `day`'s note would go, following the vault's own convention — the path
- * a creation affordance mints when a bare day is pressed.
+ * a creation affordance mints when + day note is pressed.
  *
  * CONVENTION IS READ, NEVER CONFIGURED, which is {@link noteDateOf}'s rule
  * facing the other way: detection asks nothing but the filename, so minting may

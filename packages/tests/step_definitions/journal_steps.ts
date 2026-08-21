@@ -142,7 +142,6 @@ Then(
   "the day {string} has something on it",
   async function (this: OlaiWorld, date: string) {
     await this.expectDayMark(date, "data-dated", true);
-    // A day with something on it is the only kind that goes anywhere.
     assert.strictEqual(
       await this.dayLink(date).count(),
       1,
@@ -157,14 +156,13 @@ Then(
 Then("the day {string} is inert", async function (this: OlaiWorld, date: string) {
   await this.expectDayMark(date, "data-dated", false);
   await this.expectDayMark(date, "data-noted", false);
-  // Not a LINK: there is nothing to read on it. What a bare day carries
-  // instead is the mint affordance — a button that creates the day's note
-  // (`document_editing.feature`) — so "inert" means "nowhere to go", not
-  // "nothing to press".
+  // Quiet marks, not a missing link: every day goes to `/d/<date>`, and an
+  // empty one is the page that says so. Creating the note is that page's
+  // (`document_editing.feature`), not this cell's.
   assert.strictEqual(
     await this.dayLink(date).count(),
-    0,
-    `the day ${date} has nothing on it and no note, so it must not be a link`,
+    1,
+    `the day ${date} has nothing on it and no note, and it must still be a link to that day`,
   );
 });
 
@@ -216,7 +214,16 @@ Then("today has something on it", async function (this: OlaiWorld) {
 });
 
 When("I click the day {string}", async function (this: OlaiWorld, date: string) {
-  await this.press(this.calendarDay(date).locator("a"));
+  await this.showSidebar();
+  await this.press(this.dayLink(date));
+});
+
+/** Today, in the month the calendar is showing — asked of the clock the same
+ *  way the client asks it, so the two cannot disagree about which day it is
+ *  at a local midnight. */
+When("I click today", async function (this: OlaiWorld) {
+  await this.showSidebar();
+  await this.press(this.dayLink(isoDayOf(new Date())));
 });
 
 const pageMonth = async (world: OlaiWorld, control: string): Promise<void> => {

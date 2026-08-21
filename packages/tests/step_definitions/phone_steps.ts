@@ -135,7 +135,7 @@ When("I tap the outline {string}", async function (this: OlaiWorld, file: string
 });
 
 When("I tap the day {string}", async function (this: OlaiWorld, date: string) {
-  await this.press(this.calendarDay(date).locator("a"), "tap");
+  await this.press(this.dayLink(date), "tap");
 });
 
 /** The burger, and what it reveals. Two taps to anything in the sidebar is the

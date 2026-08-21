@@ -112,8 +112,8 @@ export const applyingAll = async (
 /**
  * The same write, answering with WHAT LANDED rather than only what there is to
  * say about it — for the caller that needs the answer's `id` to go somewhere:
- * a minted document's PATH is the server's to derive (a bare calendar day
- * carries a date, and where the vault keeps its notes is read off the set), so
+ * a minted document's PATH is the server's to derive (a day note carries a
+ * date, and where the vault keeps its notes is read off the set), so
  * the affordance that pressed it can only learn where to navigate from the
  * reply. Recording is the same either way — which writes have an inverse is
  * the server's answer, filed here so no caller can forget to file it.

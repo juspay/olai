@@ -159,8 +159,8 @@ Then(
   },
 );
 
-/** Either mark makes the cell a link — the day has something to show, whether
- *  the reader wrote it or the set did. */
+/** Every cell is a link — the day has a page, whether the reader wrote
+ *  something on it, the set did, or neither. */
 Then("the day {string} is a link", async function (this: OlaiWorld, date: string) {
   const link = this.dayLink(date);
   await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -174,9 +174,8 @@ Then("the day {string} is a link", async function (this: OlaiWorld, date: string
  * The `aria-label` and not the shape: a corner fold and a dot are pseudo-
  * elements with no text, so a suite that only asserted `data-noted` would stay
  * green on a calendar that announced every live day identically. Read off the
- * LINK, because the label is the link's — a bare day is a BUTTON now (the
- * mint, `document_editing.feature`), with its own label about creating the
- * day's note rather than about what is on it.
+ * LINK, because every cell is one — a quiet day says only the date; a live
+ * day says which marks it wears.
  */
 Then(
   "the day {string} is announced as {string}",

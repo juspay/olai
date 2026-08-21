@@ -156,9 +156,9 @@ tree of documents, laid out the way the human's own vault is, for
 | a daily note on a day that also has nodes | `Daily/2019/11/2019-11-05.md` — the composition: the note first, `ferry`/`posts`/`rails` below |
 | a relative `.md` → `.md` link, climbing three directories | that same note → `../../../notes/ferry.md`, whose target is `notes/ferry.md` |
 | a daily note on a day with NO dated nodes | `Daily/2019/11/2019-11-08.md` — a note-day is a link, and does not claim to be empty |
-| a document that merely NAMES a date | `Daily/2019/11/2019-11-09-recap.md` — so the 9th stays inert |
+| a document that merely NAMES a date | `Daily/2019/11/2019-11-09-recap.md` — so the 9th stays unmarked |
 | TWO documents claiming one date | `Daily/2019/11/2019-11-12.md` and `notes/2019-11-12.md` — a vault mid-migration, both listed in path order |
-| a day with neither | the 7th — inert, meaning NOT A LINK: there is nothing on it to read. Pressing one mints that day's note now (`document_editing.feature`), so inert is a statement about where a cell goes rather than about whether it writes |
+| a day with neither | the 7th — quiet marks, still a link to the empty page. Creating the note is that page's + day note (`document_editing.feature`) |
 
 The link is written with `..` on purpose. The note is drawn on `/d/2019-11-05`,
 which is not a file at all, so a link left relative would be resolved by the

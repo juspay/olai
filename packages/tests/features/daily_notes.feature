@@ -9,8 +9,8 @@ Feature: Daily notes
   day and is drawn first; the dated nodes are what the set says was ON it and
   are drawn below, exactly as before. That is a knowing amendment to "the
   journal is a query" rather than a hole in it — the note JOINS the query's
-  answer and never replaces it, so a day with neither is still nowhere to GO —
-  what such a day offers now is the mint affordance, which is
+  answer and never replaces it, so a day with neither still has a page, and
+  what such a day offers is an explicit + day note. Minting through it is
   document_editing.feature's subject rather than this one's.
 
   The fixtures are in 2019 for the reason the rest of the journal's are: a
@@ -34,6 +34,21 @@ Feature: Daily notes
     When I open the day "2019-11-06"
     Then the day shows no note
     And the day lists "pack"
+    And the + day note button is shown
+    And there should be no page errors
+
+  @corpus:journal
+  Scenario: An empty day offers + day note too
+    When I open the day "2019-11-07"
+    Then the day is empty
+    And the + day note button is shown
+    And there should be no page errors
+
+  @corpus:journal
+  Scenario: A day that already has a note does not offer + day note
+    When I open the day "2019-11-05"
+    Then the day shows the note "Daily/2019/11/2019-11-05.md"
+    And the + day note button is gone
     And there should be no page errors
 
   @corpus:journal
@@ -131,11 +146,11 @@ Feature: Daily notes
     And the day "2019-11-08" has a note
     And the day "2019-11-08" has nothing on it
     And the day "2019-11-08" is a link
-    # Neither, so inert: nowhere to go. (Pressing one MINTS the day's note
-    # now — document_editing.feature — so inert means "not a link", not
-    # "nothing to press".)
+    # Neither: quiet marks, still a link — every day has a page. Creating
+    # the note is that page's (document_editing.feature).
     And the day "2019-11-07" is inert
-    # And a document that merely NAMES a date leaves its day inert too.
+    And the day "2019-11-07" is a link
+    # And a document that merely NAMES a date leaves its day unmarked too.
     And the day "2019-11-09" is inert
 
   # The mid-migration vault, which is the one case the design named for listing
