@@ -44,6 +44,7 @@ import type { OlaiWorld } from "../support/world.ts";
 import { focusedOn } from "../support/caret.ts";
 import { saysThat } from "../support/said.ts";
 import { answering } from "../support/shortlist.ts";
+import { retypedAndTaken } from "../support/atonce.ts";
 
 /** The open panel, waited for. Every step here starts from it, so there is one
  *  spelling of "wait for it" — the `•••` menu's steps keep the same rule. */
@@ -123,36 +124,14 @@ When(
   },
 );
 
-/**
- * ANOTHER QUERY AND THE KEY IN ONE TASK — the gesture nobody can time by hand
- * and everybody makes: typing on, and pressing Enter before the rows have
- * caught up.
- *
- * In ONE `evaluate`, which is what makes it a fact rather than a race: the
- * settle is 200ms and a browser cannot run a timer inside a task, so the
- * keystroke lands strictly inside the window however loaded the machine is. A
- * `fill` followed by `keyboard.press` is two round trips and would pass on a
- * fast box for the wrong reason.
- *
- * Both events are dispatched at the FIELD and bubble, which is how Solid hears
- * them: it delegates `input` and `keydown` at the document
- * (`solid-js/web`'s `DelegatedEvents`), so the panel's own handlers run
- * exactly as they do for a person's hands.
- */
+/** ANOTHER QUERY AND THE KEY IN ONE TASK — `../support/atonce.ts`, which is
+ *  where that window is opened for every door in this suite that takes a row
+ *  on `Enter`. It was written out here first, for the one door #294 gated; it
+ *  is five doors now. */
 When(
   "I retype the edge panel's search as {string} and press Enter at once",
   async function (this: OlaiWorld, text: string) {
-    const box = (await panelOf(this)).locator(EDGE_SEARCH);
-    await box.evaluate((element, wanted) => {
-      const field = element as HTMLInputElement;
-      field.focus();
-      field.value = wanted;
-      field.dispatchEvent(new Event("input", { bubbles: true }));
-      field.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
-      );
-    }, text);
-    await this.waitForFrame();
+    await retypedAndTaken(this, (await panelOf(this)).locator(EDGE_SEARCH), text);
   },
 );
 

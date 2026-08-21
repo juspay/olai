@@ -22,6 +22,8 @@ import { NEAR } from "@olai/web/src/client/chat/near.ts";
 
 import { selector, TESTID, type TestId } from "@olai/web/src/client/testids.ts";
 
+import { retypedAndTaken } from "../support/atonce.ts";
+
 import {
   attr,
   CHAT_ASK,
@@ -154,6 +156,16 @@ When("I ask the agent {string}", async function (this: OlaiWorld, text: string) 
   await typeInto(this, text);
   await this.page.locator(CHAT_SEND).click();
 });
+
+/** ANOTHER WORD AND THE KEY IN ONE TASK — `../support/atonce.ts`, which is
+ *  where that window is opened for every door in this suite that takes a row
+ *  on `Enter`. */
+When(
+  "I retype the chat as {string} and press Enter at once",
+  async function (this: OlaiWorld, text: string) {
+    await retypedAndTaken(this, await chatBox(this), text);
+  },
+);
 
 When("I type {string} into the chat", async function (this: OlaiWorld, text: string) {
   await typeInto(this, text);

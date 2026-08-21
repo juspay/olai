@@ -24,6 +24,7 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
+import { retypedAndTaken } from "../support/atonce.ts";
 import { countsNothing, foundCount } from "../support/counted.ts";
 import { inTheMood, saysThat } from "../support/said.ts";
 import {
@@ -120,6 +121,18 @@ When(
   "I type {string} into the palette",
   async function (this: OlaiWorld, text: string) {
     await fillPalette(this, text);
+  },
+);
+
+/** ANOTHER QUERY AND THE KEY IN ONE TASK — `../support/atonce.ts`, which is
+ *  where that window is opened for every door in this suite that takes a row
+ *  on `Enter`. */
+When(
+  "I retype the palette as {string} and press Enter at once",
+  async function (this: OlaiWorld, text: string) {
+    const input = this.page.locator(PALETTE_INPUT);
+    await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await retypedAndTaken(this, input, text);
   },
 );
 

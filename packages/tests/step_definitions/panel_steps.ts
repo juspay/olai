@@ -12,6 +12,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import { SIDEBAR_WIDTH_KEY } from "@olai/web/src/client/layout/prefs.ts";
+import { retypedAndTaken } from "../support/atonce.ts";
 import { countsNothing, foundCount } from "../support/counted.ts";
 import {
   APP_HEADER,
@@ -254,6 +255,18 @@ When(
  *  the answer, which is what makes it worth its own step: the rows that were
  *  already there are still there, so a scenario can say they were not drawn
  *  again (`redraw_steps.ts`). */
+
+/** ANOTHER QUERY AND THE KEY IN ONE TASK — `../support/atonce.ts`, which is
+ *  where that window is opened for every door in this suite that takes a row
+ *  on `Enter`. */
+When(
+  "I retype the header search as {string} and press Enter at once",
+  async function (this: OlaiWorld, text: string) {
+    const box = this.page.locator(HEADER_SEARCH);
+    await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await retypedAndTaken(this, box, text);
+  },
+);
 When("I take a letter off the header search", async function (this: OlaiWorld) {
   const box = this.page.locator(HEADER_SEARCH);
   await box.click();
