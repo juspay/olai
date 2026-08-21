@@ -104,7 +104,7 @@ Two B-grade fan-outs from the same fact:
 | 4.9 | `document/faces.tsx:139-154` landing effect tracks `text()` | A file rewritten on disk (an agent write, `git pull`) while `router.landing()` still names this pane re-runs `scrollIntoView`, yanking a reader who had scrolled away back to the heading | `on(() => [router.landing(), markdownReady()], …)` with `text()` untracked, or clear `landing` after the first successful scroll | C | R |
 | 4.10 | `format/src/derive.ts:1349` `Row.key = ${parentKey}/${id}` + `editing.tsx:105-112` `follow` → `refound` + `Tree.tsx:605` `<Match when={typing("title")}>` | Indent/outdent (`move in/out`) changes the row's key → old row's editor Match flips false, new row's flips true → a new `TitleEditor` whose `opening` path (`RowEditor.tsx:149-156`) uses `props.caret ?? field.value.length`, and a `kept` draft has no `caret` (`editing.tsx:162`) → caret jumps to the end of the title on every indent while typing. `up`/`down` keep the key | Carry the caret in the draft for structural ops (as `split`/`merge` do via `opening(done, caret)`), or key the editor on the node id | C | M |
 | 4.11 | `edit/editing.tsx:97-104, 147-152, 313` `settling = true` before `send`, cleared only by the next frame or a refused send | A redraw verb the server accepts but that produces no frame for this page leaves `settling` true and `blur` ignored until some unrelated frame — a hazard that rests on the server's no-frame-for-a-no-op behaviour. **Not reachable today** — see below | Clear on the procedure's reply, not on the next frame | C | M† |
-| 4.12 | `settled.ts:52` + `search/Shortlist.tsx:77-78` / `complete/completing.tsx:144-148` `take` | The previous answer is held while a new question settles (by design: rows hold still) but `take` does not check `answering()`, so Enter within 200 ms + RTT of typing picks the **previous** query's row | Gate `take` on `answering() !== null`, or dim stale rows | C | R |
+| 4.12 | `settled.ts:52` + `search/Shortlist.tsx:77-78` / `complete/completing.tsx:144-148` `take` | The previous answer is held while a new question settles (by design: rows hold still) but `take` does not check `answering()`, so Enter within 200 ms + RTT of typing picks the **previous** query's row | Gate `take` on `answering() !== null`, or dim stale rows | C | R‡ |
 | 4.13 | `chat/declared.ts:186, 255, 258` | The failure slot is last-to-settle-wins: a late failure from an older batch can overwrite a newer success's clear (acknowledged in the comment at `:177-183`). Per-message `known` maps are safe | Tag the slot with the batch that set it | C | R |
 
 **† 4.11 does not reproduce, and PR 5 dropped it.** Driven in a browser five
@@ -121,6 +121,23 @@ this page's reading or is REFUSED at the boundary (`packages/server/src/edit.ts`
 refuses all four moves at their edges), and a refusal clears the debt in
 `redrawing` itself. It stays a hazard about a coincidence rather than a defect,
 and `edit/redraws.ts`'s header already says as much in its own words.
+
+**‡ 4.12 names two doors and is a CLASS of five.** PR 5 gated `Shortlist.tsx`
+and `completing.tsx` — the two the row above names — and left the ⌘K palette,
+the header's search box and the chat composer's `@` list taking a row over the
+same primitive with no gate at all; the deferral it filed
+(`shortlist-row-freshness`) offered two shapes for closing the class, rows
+carrying their own freshness or a taker on `createSettled`, and the answer is
+that they are two halves of one thing. `createSettled` mints the take
+(`Taking`, `settled.ts`), because what "the rows are the reader's own" means
+may not differ between two boxes in one app; and a door whose list is more than
+one answer's CARRIES that take on its rows, because two of the five draw a
+block matched in the tab above a block asked of the server — gating the door
+would swallow `Enter` on a palette command for a settle somebody else's search
+is inside of. Neither shape alone closes it. `search/Result.tsx` was the third
+option and is the wrong home twice over: the composer's list never draws it,
+and the only act it knows is a POINTER's press, which is deliberately never
+gated at any door.
 
 ### 3.5 Upstream (kolu)
 

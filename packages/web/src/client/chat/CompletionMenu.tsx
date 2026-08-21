@@ -25,6 +25,7 @@ import { createEffect, Index, on, onCleanup, onMount, Show } from "solid-js"
 import { listKey } from "../keys.ts"
 import { WITHIN } from "../layer.ts"
 import { createCursor } from "../search/cursor.ts"
+import { spend, type Taking } from "../settled.ts"
 import { TESTID } from "../testids.ts"
 import { topmostWhileOpen } from "../topmost.ts"
 
@@ -63,6 +64,18 @@ export interface MenuRow {
    */
   readonly section?: string
   readonly take: () => void
+  /**
+   * WHICH ANSWER THIS ROW CAME FROM, as the act of spending it —
+   * `../settled.ts`'s `Taking`, read by its `spend`, which carries the
+   * argument. It matters at this list because it is TWO BLOCKS under one
+   * cursor: the served paths, up at once, and the nodes a round trip away
+   * ({@link ./naming.ts}) — and a stale take here writes a node id into
+   * somebody's sentence and arms it, where the other doors only navigate.
+   *
+   * A KEY asks it; a POINTER never does, which is the same line {@link take}
+   * above is drawn on for a different reason.
+   */
+  readonly taking: Taking
 }
 
 export function CompletionMenu(props: {
@@ -143,8 +156,15 @@ export function CompletionMenu(props: {
   const accept = (event: KeyboardEvent) => {
     const chosen = props.rows[cursor.at()]
     if (chosen === undefined) return
+    // CLAIMED FIRST, and whether it spends anything is the next question: a
+    // list is on screen under the caret, and an `Enter` falling through to the
+    // composer's own handler would send the message the reader was only
+    // completing.
     take(event)
-    chosen.take()
+    // ...and a row of a word the reader has typed past spends nothing, in
+    // silence ({@link MenuRow.taking}). The rows catch up a moment later and
+    // the same press means what it says.
+    spend(chosen, (row) => row.take())
   }
 
   // WHICH key it is, is the registry's (`../keys.ts`'s list layer); what each

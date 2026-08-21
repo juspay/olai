@@ -238,3 +238,59 @@ test("an equal question is one round trip, however many keystrokes it took", asy
     expect(asker.answer()).toEqual(["#home"])
   })
 })
+
+// ── the taker: the label, as an act ────────────────────────────────────
+//
+// `answering` was right at the two doors somebody was thinking about and
+// unread at the three next to them, because a fact a caller must remember to
+// consult is a fact a caller forgets. What every door actually does with the
+// label is TAKE A ROW, so the primitive hands back the take.
+
+test("a take spends nothing while the rows answer a question typed past", async () => {
+  await over(async ({ ask, settled: asker, server: fake }) => {
+    ask("ho")
+    await flying()
+    fake.answer("ho", ["#home", "#hob"])
+    await landed()
+
+    let spent = 0
+    asker.taking(() => ++spent)
+    expect(spent).toBe(1)
+
+    // One more character, nothing waited out — where a door's `Enter` actually
+    // lands. The rows stay on screen and stop being spendable in the same
+    // instant.
+    ask("hom")
+    asker.taking(() => ++spent)
+    expect(spent).toBe(1)
+
+    // ...and the moment the answer is about the question again, the same press
+    // means what it says.
+    await flying()
+    fake.answer("hom", ["#home"])
+    await landed()
+    asker.taking(() => ++spent)
+    expect(spent).toBe(2)
+  })
+})
+
+test("a take spends nothing over a refused call, and nothing over no session", async () => {
+  await over(async ({ ask, settled: asker, server: fake }) => {
+    let spent = 0
+    // Nothing has answered at all: there is no row to take and the act must
+    // not run on the strength of an empty list.
+    asker.taking(() => ++spent)
+
+    ask("ho")
+    await flying()
+    fake.refuse("ho", "the wire went")
+    await landed()
+    // A refused call answers nothing and so names nothing — there is no answer
+    // for a row to have come out of.
+    asker.taking(() => ++spent)
+
+    ask(null)
+    asker.taking(() => ++spent)
+    expect(spent).toBe(0)
+  })
+})

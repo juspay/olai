@@ -4,9 +4,15 @@
  *
  * The order is the assertion, not just the membership: what makes a shortlist
  * usable is that the file somebody is typing towards is the one Enter would
- * take, and that is a property of the buckets rather than of the filter. Both
- * doors over this rule inherit that — the composer's `@` list and the
- * palette's document rows, while the palette matched paths for itself.
+ * take, and that is a property of the buckets rather than of the filter.
+ *
+ * ONE DOOR over this rule now — the composer's `@` list. The ⌘K palette was
+ * the second, matching its own document rows over these buckets, until a
+ * search learned to answer with documents as well as records: those rows are
+ * ranked hits now, on the server's own scale (`@olai/format`'s
+ * `matchingDocuments`, `rankedTogether`). What is asserted here is unchanged
+ * by that — it was always this matcher's own rule — and the file stays where
+ * it is for `./matching.ts`'s own reason.
  */
 
 import { expect, test } from "bun:test"
@@ -19,9 +25,9 @@ const LIMIT = 8
 
 /** The match, read as PATHS — which is what these tests are about and not what
  *  the matcher answers with: it hands back the entries it was given, so a
- *  caller keeps whatever it folded alongside the path (`./matching.ts`). What
- *  a document row keeps that way is asserted next door
- *  (`../palette/documents.test.ts`); here the path is the whole claim. */
+ *  caller keeps whatever it folded alongside the path (`./matching.ts`). Here
+ *  the path is the whole claim; what the one caller keeps alongside it is
+ *  `../chat/naming.test.ts`'s. */
 const matched = (
   files: ReadonlyArray<Folded>,
   query: string,

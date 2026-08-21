@@ -104,6 +104,7 @@ import { createChipTitles } from "./chips.ts"
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { sameIds } from "../ids.ts"
 import { createSearch } from "../search/nodes.ts"
+import { atOnce } from "../settled.ts"
 import { useServed } from "../served.tsx"
 import { TESTID } from "../testids.ts"
 import { armedNodes, disarmNode, releaseArmed, restoreArmed } from "./armed.ts"
@@ -307,6 +308,10 @@ export function Composer(props: {
             value: command.name,
             label: `/${command.name}`,
             hint: command.description,
+            // The AGENT'S own list, off the chat cell this tab already holds —
+            // no answer behind it to be inside the settle of
+            // (`../settled.ts`).
+            taking: atOnce,
             take: () => accept(command.name),
           }))
       case "name":
@@ -320,6 +325,13 @@ export function Composer(props: {
           label: offer.label,
           hint: offer.hint,
           section: offer.section,
+          // WHICH ANSWER THE ROW CAME FROM, carried on the row so a KEY cannot
+          // spend one of a word the reader has typed past
+          // ({@link ./CompletionMenu.tsx}'s `MenuRow.taking`). A NODE row is
+          // the server's and holds still through the settle and the flight; a
+          // FILE row is matched in this tab, per keystroke, off a list it
+          // already holds, so nothing is ever behind it.
+          taking: offer.kind === "node" ? nodesNamed.taking : atOnce,
           // The draft and the caret are read when the row is TAKEN, not when
           // it was drawn — and what replaces the span is `./completion.ts`'s,
           // including the rule about not writing a second space into somebody

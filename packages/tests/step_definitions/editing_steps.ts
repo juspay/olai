@@ -41,6 +41,7 @@ import {
   nothingIsBeingTyped,
   pressed,
 } from "../support/caret.ts";
+import { retypedAndTaken } from "../support/atonce.ts";
 import { saysNothing, saysThat } from "../support/said.ts";
 import {
   DESC_EDITOR,
@@ -130,6 +131,17 @@ When(
     await this.page.keyboard.press("ControlOrMeta+a");
     if (text === "") await this.page.keyboard.press("Backspace");
     else await this.page.keyboard.type(text);
+  },
+);
+
+/** The window `../support/atonce.ts` opens, at this door — the whole title
+ *  retyped rather than a character appended, because what has to move inside
+ *  the settle is the trigger's own QUERY. */
+When(
+  "I retype the row as {string} and press Enter at once",
+  async function (this: OlaiWorld, text: string) {
+    await aimedAtTheLine(this);
+    await retypedAndTaken(this, await openEditor(this), text);
   },
 );
 

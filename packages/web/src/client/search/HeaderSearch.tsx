@@ -59,7 +59,7 @@ import { Portal } from "solid-js/web"
 import { type Anchor, anchoredTo, styleOf } from "../anchor.ts"
 import { ALARM_BAND, SaidLine } from "../edit/SaidLine.tsx"
 import { LAYER } from "../layer.ts"
-import { hitItem } from "../palette/items.ts"
+import { hitItems, type PaletteItem } from "../palette/items.ts"
 import { openPalette } from "../palette/open.ts"
 import { Refusals } from "../refusals.tsx"
 import type { Route } from "../routes.ts"
@@ -70,6 +70,7 @@ import { SearchCount } from "./Count.tsx"
 import { createCursor } from "./cursor.ts"
 import { createSearch } from "./nodes.ts"
 import { Result, type RowTestids } from "./Result.tsx"
+import { spend } from "../settled.ts"
 
 /** WHERE an alarm sits in this panel: a full-width band above the rows, at
  *  this door's own gutter — narrower than the palette's because the panel is.
@@ -122,7 +123,7 @@ export function HeaderSearch(props: {
    * happened to: an unchanged answer returns the SAME array here, and the
    * `<Index>` below then writes nothing at all.
    */
-  const items = createMemo(() => nodes.hits().map(hitItem))
+  const items = createMemo(() => hitItems(nodes))
   // The panel is up when there is anything to say — rows, a refused call, or a
   // query the grammar could not read. That last one is why a typo in an
   // operator opens the panel at all rather than looking like an empty
@@ -152,12 +153,10 @@ export function HeaderSearch(props: {
     })
   })
 
-  const open = (index: number) => {
-    const item = items()[index]
-    if (item === undefined) return
+  const open = (item: PaletteItem) => {
     const action = item.action
     // Every row this box draws is a route by construction — every hit is
-    // somewhere to go (`../palette/items.ts`'s `hitItem`); the guard is what
+    // somewhere to go (`../palette/items.ts`'s `hitItems`); the guard is what
     // keeps that true rather than assumed.
     if (action.kind !== "route") return
     props.go(action.route)
@@ -197,7 +196,21 @@ export function HeaderSearch(props: {
             event.preventDefault()
             if (action === "next") cursor.step(1)
             if (action === "prev") cursor.step(-1)
-            if (action === "take") open(cursor.at())
+            // THROUGH THE ANSWER THE ROW CAME FROM (`../settled.ts`): the rows
+            // hold still through the settle and the round trip after it, so
+            // for a moment after every keystroke the row under the cursor
+            // answers a query the reader has typed past — and opening it would
+            // be a navigation nobody aimed. Silent, and the key is claimed
+            // (every list key here is preventDefaulted above); the rows catch
+            // up and the same press means what it says.
+            //
+            // OFF THE ROW rather than off this door's search, even though
+            // every row here IS that search's: this box and the ⌘K palette
+            // draw ONE row type (`../palette/items.ts`), and two doors over
+            // one row gating differently is the drift this file's header is
+            // about. A POINTER never comes through here: `onSelect` opens the
+            // row it pressed.
+            if (action === "take") spend(items()[cursor.at()], open)
             if (action === "dismiss") {
               setQuery("")
               box?.blur()
@@ -272,7 +285,7 @@ export function HeaderSearch(props: {
                         testids={HEADER_ROW}
                         id={item().id}
                         onHover={() => cursor.to(index)}
-                        onSelect={() => open(index)}
+                        onSelect={() => open(item())}
                       />
                     </li>
                   )}

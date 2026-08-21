@@ -32,6 +32,7 @@
 import type { Shelf } from "@olai/surface"
 
 import type { PaletteItem } from "../palette/items.ts"
+import { atOnce } from "../settled.ts"
 import type { Route } from "../routes.ts"
 import { namingFor } from "./naming.ts"
 import { pinnedAt } from "./pins.ts"
@@ -64,6 +65,9 @@ export const pinItem = (
     // strangers does not say which page it means.
     place: called,
     action: { kind: "pin" },
+    // The shelf this tab already holds — no answer behind it
+    // (`../settled.ts`).
+    taking: atOnce,
     search: "pin unpin shelf sidebar bookmark save this page keep name saved search",
   }
 }

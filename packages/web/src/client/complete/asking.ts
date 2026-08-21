@@ -56,7 +56,7 @@ import type { Accessor } from "solid-js"
 
 import type { TagCompletion, TagsRequest } from "@olai/surface"
 
-import { createSettled } from "../settled.ts"
+import { createSettled, type Taking } from "../settled.ts"
 import { olai } from "../wire.ts"
 
 /** How many rows the widget offers. A row's popup is a shortlist — and the
@@ -93,13 +93,15 @@ export interface Tags {
   /** A refusal from the server, in its own words — `null` when there is none.
    *  Never silently dropped (`../run.ts` forbids a silent handler). */
   readonly failure: Accessor<string | null>
-  /** WHICH asking the rows on screen answer — `null` while they answer one
-   *  the caret has already typed past. Straight through from `../settled.ts`,
-   *  for the reason `../search/nodes.ts` publishes the same fact: the rows
-   *  hold still through a settle and a flight, and the widget that takes one on
-   *  `Enter` has to be able to tell "these are yours" from "these are the
-   *  last prefix's". */
-  readonly answering: Accessor<Asking | null>
+  /** HOW A KEY SPENDS A ROW of these — `../settled.ts`'s `Taking`, straight
+   *  through, and the whole of what this door needs to know about staleness:
+   *  the rows hold still through a settle and a flight, and a widget that takes
+   *  one on `Enter` has to be able to tell "these are yours" from "these are
+   *  the last prefix's". It is the ACT rather than the label, because a label
+   *  a caller must remember to consult is a label a caller forgets — the
+   *  `answering` accessor this replaced had exactly one reader and the two
+   *  doors beside it had none. */
+  readonly taking: Taking
 }
 
 /** BY VALUE, because the trigger is a fresh object per keystroke and most
@@ -125,6 +127,6 @@ export const createTags = (asking: Accessor<Asking | null>): Tags => {
   return {
     rows: () => asked.answer()?.tags ?? [],
     failure: asked.failure,
-    answering: asked.answering,
+    taking: asked.taking,
   }
 }

@@ -34,7 +34,7 @@ import type { Accessor } from "solid-js"
 
 import type { NodeHit, Refusal, SearchHit } from "@olai/surface"
 
-import { createSettled } from "../settled.ts"
+import { createSettled, type Taking } from "../settled.ts"
 import { olai } from "../wire.ts"
 
 /** Below this the answer is noise: two characters match half an outline by
@@ -106,6 +106,10 @@ export interface Search<H extends SearchHit = SearchHit> {
    * eventually wants to draw the difference.
    */
   readonly answering: Accessor<string | null>
+  /** {@link answering} AS AN ACT — `../settled.ts`'s `Taking`, straight
+   *  through. Every door of this reading takes a row on `Enter`, and this is
+   *  what one of those takes goes through. */
+  readonly taking: Taking
 }
 
 /**
@@ -169,5 +173,9 @@ export function createSearch(
     // to, while the rows behind it were empty). It is published into the markup
     // for a scenario to wait on (`../edges/EdgePanel.tsx`).
     answering: asked.answering,
+    // ...and the act built on it, straight through for the same reason: what a
+    // door does with the label is take a row, and the take is the thing that
+    // must not be spelled per door (`../settled.ts`'s `Taking`).
+    taking: asked.taking,
   }
 }

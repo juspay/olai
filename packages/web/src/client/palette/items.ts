@@ -3,9 +3,13 @@
  * and the shape a NODE takes when search answers with one.
  *
  * The OP rows are next door (`./ops.ts`), because what a verb is and which of
- * them apply is the `•••` menu's answer and not a second list; the DOCUMENT
- * rows are next door the other way (`./documents.ts`), because which files the
- * directory serves is the served list's answer and not a second list either.
+ * them apply is the `•••` menu's answer and not a second list. The DOCUMENT
+ * rows used to be next door the other way, matched in this tab off the served
+ * list; a search answers with both kinds now (`@olai/format`'s
+ * `matchingDocuments`), so `./documents.ts` is gone and a document is a hit
+ * like any other — which is why {@link hitItems} below is the one block of
+ * rows this file mints.
+ *
  * Node hits arrive from the server's search procedure (Palette.tsx asks it as
  * you type) rather than from a matcher of this file's own, because the palette
  * and an agent's `search_nodes` must be one reading (`@olai/surface`'s
@@ -31,7 +35,9 @@ import type { Edit, SearchHit } from "@olai/surface"
 import type { Asking } from "./asking.ts"
 import { HOME_ROUTE, type Route } from "../routes.ts"
 import type { NodeProp } from "../search/props.ts"
+import type { Search } from "../search/nodes.ts"
 import { hitRow } from "../search/row.ts"
+import { atOnce, type Taking } from "../settled.ts"
 
 export type PaletteAction =
   | { readonly kind: "route"; readonly route: Route }
@@ -78,8 +84,9 @@ export type PaletteAction =
 
 export interface PaletteItem {
   /** Unique in the list, and — for the rows that are not commands — PREFIXED
-   *  by what the row is about: `node-<id>` for a search hit, `doc-<path>` for
-   *  a served file (`./documents.ts`). That prefix is a contract with a
+   *  `hit-`, over the row's own ADDRESS: `hit-#a1b2c3` for a record and
+   *  `hit-notes/cabinets.md` for a document ({@link hitItem}, over
+   *  `../search/row.ts`). That prefix is a contract with a
    *  package that does not import this one: it is how a scenario tells a hit
    *  from a shell command that happens to share a word, in both doors
    *  (`packages/tests`' palette and header steps). */
@@ -111,12 +118,28 @@ export interface PaletteItem {
    * has used since a `.md`, a `.olai` and a folder stopped being four
    * characters of extension apart.
    *
-   * Only a document row carries one (`./documents.ts`). A command is not a
+   * Only a document row carries one (`../search/row.ts`). A command is not a
    * file, and a node hit is a row INSIDE one — the file it lives in is already
    * said, in words, on its place line.
    */
   readonly of?: BodyKind
   readonly action: PaletteAction
+  /**
+   * WHICH ANSWER THIS ROW CAME FROM, as the act of spending it —
+   * `../settled.ts`'s `Taking`, read by its `spend`, which is where the whole
+   * argument for a row carrying this lives.
+   *
+   * The short of it: the two doors that draw this list draw TWO BLOCKS, the
+   * commands matched here off a list the tab already holds and the hits a
+   * debounce and a round trip away — so "have the rows caught up" is a
+   * question about a ROW and not about the door. A KEY asks it; a POINTER
+   * never does.
+   *
+   * REQUIRED, and `atOnce` is what a row with no answer behind it says. Made
+   * optional it would be silence that means "ungated", which is the one thing
+   * a new row here must not be able to be by saying nothing.
+   */
+  readonly taking: Taking
   /** Lowercase haystack for simple substring filter. */
   readonly search: string
 }
@@ -129,12 +152,16 @@ const ASK_PREFIX = ">"
  *  not start with often enough to matter, which is the same bet `>` makes. */
 export const CAPTURE_PREFIX = "+"
 
+/** The shell's own rows. `atOnce` on every one of them, and it is a fact
+ *  rather than a formality: a shell row IS this table, so there is no answer
+ *  behind it to be inside the settle of ({@link PaletteItem.taking}). */
 export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
   {
     id: "nav-home",
     label: "Go home",
     hint: "open the first outline",
     action: { kind: "route", route: HOME_ROUTE },
+    taking: atOnce,
     search: "go home outline first",
   },
   {
@@ -142,6 +169,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Go to today",
     hint: "journal for this day",
     action: { kind: "route", route: { kind: "today" } },
+    taking: atOnce,
     search: "go to today journal day calendar",
   },
   {
@@ -149,6 +177,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Go to the agenda",
     hint: "what is due",
     action: { kind: "route", route: { kind: "agenda" } },
+    taking: atOnce,
     search: "go to agenda due overdue upcoming owed",
   },
   {
@@ -156,6 +185,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Go to the Trash",
     hint: "what was put away",
     action: { kind: "route", route: { kind: "trash" } },
+    taking: atOnce,
     search: "go to trash archive archived put away restore put back",
   },
   {
@@ -163,6 +193,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Toggle sidebar",
     hint: "⌘\\",
     action: { kind: "toggle-sidebar" },
+    taking: atOnce,
     search: "toggle sidebar panel rail directory",
   },
   {
@@ -170,6 +201,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Toggle agent panel",
     hint: "⌘J",
     action: { kind: "toggle-chat" },
+    taking: atOnce,
     search: "toggle agent panel chat",
   },
   {
@@ -181,6 +213,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Capture to the Inbox",
     hint: "+ a line",
     action: { kind: "prefix", prefix: `${CAPTURE_PREFIX} ` },
+    taking: atOnce,
     search: "capture inbox add quick note new node jot",
   },
   {
@@ -188,6 +221,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Keyboard shortcuts",
     hint: "every key",
     action: { kind: "shortcuts" },
+    taking: atOnce,
     search: "keyboard shortcuts keys help reference bindings",
   },
   {
@@ -195,6 +229,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Reset panel widths",
     hint: "defaults",
     action: { kind: "reset-widths" },
+    taking: atOnce,
     search: "reset panel widths sidebar chat default size",
   },
   {
@@ -202,6 +237,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     label: "Close pane",
     hint: "⌘⇧W",
     action: { kind: "close-pane" },
+    taking: atOnce,
     search: "close pane split view",
   },
 ]
@@ -215,7 +251,30 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
  * `../search/row.ts`'s answer, shared with the three other doors that draw the
  * identical list, so the palette cannot grow a glyph the header box lacks.
  */
-export const hitItem = (hit: SearchHit): PaletteItem => {
+/**
+ * EVERY HIT OF A SEARCH, as the block a door draws — which is the call the two
+ * doors make, and {@link hitItem} below is the row it is made of.
+ *
+ * It exists so that the answer's own take rides onto the rows in ONE place. It
+ * was that `.map` at both doors, which is two chances for one of them to mint
+ * a hit row naming no search — and an ungated `Enter` is exactly the drift
+ * this reading has been fighting since there were two doors onto it.
+ */
+export const hitItems = (search: Search): ReadonlyArray<PaletteItem> => {
+  const taking = search.taking
+  return search.hits().map((hit) => hitItem(hit, taking))
+}
+
+export const hitItem = (
+  hit: SearchHit,
+  /** WHICH ANSWER this row is off, so the row can say whether a KEY may spend
+   *  it ({@link PaletteItem.taking}). Required rather than optional, which is
+   *  the one line that keeps the rule: a hit row cannot be minted without
+   *  naming the search it came out of. {@link hitItems} is how a door passes
+   *  it; this stays exported for the tests, which are about what ONE hit
+   *  becomes. */
+  taking: Taking,
+): PaletteItem => {
   const row = hitRow(hit)
   return {
     id: `hit-${row.id}`,
@@ -224,6 +283,7 @@ export const hitItem = (hit: SearchHit): PaletteItem => {
     place: row.place,
     props: row.props,
     action: { kind: "route", route: row.route },
+    taking,
     // Never filtered locally: the server already decided these match.
     search: "",
   }

@@ -12,6 +12,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import { SIDEBAR_WIDTH_KEY } from "@olai/web/src/client/layout/prefs.ts";
+import { retypedAndTaken } from "../support/atonce.ts";
 import { countsNothing, foundCount } from "../support/counted.ts";
 import {
   APP_HEADER,
@@ -238,15 +239,30 @@ When("I press the chat shortcut", async function (this: OlaiWorld) {
 
 // ── the header's search box ────────────────────────────────────────────
 
+/** The header's box, waited for — one spelling of "how long a scenario gives
+ *  the bar to hydrate", shared by every step that reaches into it. */
+const headerBox = async (world: OlaiWorld) => {
+  const box = world.page.locator(HEADER_SEARCH);
+  await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  return box;
+};
+
 When(
   "I search the header for {string}",
   async function (this: OlaiWorld, text: string) {
-    const box = this.page.locator(HEADER_SEARCH);
-    await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const box = await headerBox(this);
     // Focus is what puts the results up, so this types rather than fills:
     // `fill` sets the value without the box ever holding the caret.
     await box.click();
     await box.type(text);
+  },
+);
+
+/** The window `../support/atonce.ts` opens, at this door. */
+When(
+  "I retype the header search as {string} and press Enter at once",
+  async function (this: OlaiWorld, text: string) {
+    await retypedAndTaken(this, await headerBox(this), text);
   },
 );
 
@@ -255,7 +271,7 @@ When(
  *  already there are still there, so a scenario can say they were not drawn
  *  again (`redraw_steps.ts`). */
 When("I take a letter off the header search", async function (this: OlaiWorld) {
-  const box = this.page.locator(HEADER_SEARCH);
+  const box = await headerBox(this);
   await box.click();
   await box.press("Backspace");
 });
