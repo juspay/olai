@@ -44,7 +44,7 @@
  * kept.
  */
 
-import type { BrokenFile, Face } from "@olai/format"
+import type { BrokenFile } from "@olai/format"
 import type { Head, Manifest } from "@olai/surface"
 import { type Accessor, createMemo } from "solid-js"
 
@@ -55,21 +55,33 @@ export interface Directory {
   /** The set-wide facts: `undefined` before the first frame, `null` for a
    *  directory that has never loaded, a value otherwise. */
   readonly manifest: Accessor<Manifest | undefined>
-  /** Every served file as its FACE, in path order — what each is called, the
-   *  addresses it points at, the tags its content writes (`@olai/format`'s
-   *  `Face`). It rides on each head rather than being derived here, because
-   *  deriving one means reading the file, and the file's content is the thing
-   *  this member exists to keep off the wire.
+  /** Every served file's PATH, in path order — the list every membership
+   *  question in the app is asked of, and the one the sidebar's tree is a
+   *  function of.
    *
-   *  THE PATHS are not a second member beside it: every reader that wants them
-   *  takes them off the faces, and `./served.tsx` mints that list once with an
-   *  `equals` over the membership — which is where it has to be, since what
-   *  makes that list worth anything is that its IDENTITY holds still across a
-   *  frame, and an `equals` lives with the memo it guards. (It used to be that
-   *  a paths member here would be a second walk per frame. It would not any
-   *  more — {@link walkOf} has the path in hand as its loop variable — so what
-   *  the seam saves now is the `map`, not the walk.) */
-  readonly faces: Accessor<ReadonlyArray<Face>>
+   *  IT USED TO BE THE FACES, and the difference is a walk. A `Face` carries
+   *  what a file is called and what it points at as well as where it is
+   *  (`@olai/format`), and it rides on each head rather than being derived
+   *  here, because deriving one means reading the file and the content is what
+   *  this member exists to keep off the wire — all of which is still true and
+   *  is now nobody's business but the wire's, because no reader in this client
+   *  wanted more than the path. Both of them — `./App.tsx`'s `opensAt` and
+   *  `./served.tsx` — took `face.path` off every element and threw the rest
+   *  away, one by a `map` per frame and the other by a scan per click.
+   *
+   *  So the walk hands over the list it already had: the path is
+   *  {@link walkOf}'s loop variable, collected on the iterations that found a
+   *  head, which is exactly the list a face array answered with. What it saves
+   *  is an `n`-element `Face[]` minted per frame and an `n`-element `map` over
+   *  it downstream.
+   *
+   *  THE `equals` IS NOT HERE, and that is not an oversight: this is a fresh
+   *  array per frame, and `./served.tsx` is what holds it still under a
+   *  membership comparison. An `equals` lives with the memo it guards, and the
+   *  thing that memo guards — a fold kept against the very array it hands out
+   *  (`./file/matching.ts`, a `WeakMap`) — is downstream of the context and not
+   *  of this. */
+  readonly paths: Accessor<ReadonlyArray<string>>
   /** The files that did not parse, by path — the sidebar marks them and a pane
    *  opened on one draws its errors instead of a tree. */
   readonly broken: Accessor<ReadonlyMap<string, BrokenFile>>
@@ -108,7 +120,7 @@ export interface HeadEntries {
  *  {@link walkOf}. Not a member of anything: it is what the walk returns, and
  *  the two accessors below are how a reader asks for one half of it. */
 interface Walk {
-  readonly faces: ReadonlyArray<Face>
+  readonly paths: ReadonlyArray<string>
   readonly broken: ReadonlyMap<string, BrokenFile>
 }
 
@@ -116,12 +128,18 @@ interface Walk {
  * ONE WALK OVER THE FILES, answering both questions this file is asked of them
  * — `perf-faces-broken-walk`'s own prescribed form.
  *
- * `faces` and `broken` are two readings of the SAME LEAF: each wants one field
- * of each head, over the same keys, in the same order. Written as two memos
- * they walked the directory twice per frame — and never usefully, because the
- * only thing either depends on is the head set, so they go stale together and
- * the second walk could never learn anything the first had not already read. A
- * thousand files was two thousand reads for a thousand files' worth of answer.
+ * `paths` and `broken` are two readings of the SAME LEAF, over the same keys in
+ * the same order: whether a head is there at all, and what that head says is
+ * wrong with its file. Written as two memos they walked the directory twice per
+ * frame — and never usefully, because the only thing either depends on is the
+ * head set, so they go stale together and the second walk could never learn
+ * anything the first had not already read. A thousand files was two thousand
+ * reads for a thousand files' worth of answer.
+ *
+ * THE FIRST OF THEM used to collect the head's `face` and not the key, and
+ * every reader downstream took `face.path` back off it (`{@link Directory}`'s
+ * `paths` says where those readers are). So the array a frame minted was `n`
+ * faces to hand over `n` strings this loop was already holding.
  *
  * IT IS HANDED THE ORDER rather than taking it, and that is not tidiness. A
  * frame that rewrites one file moves a LEAF and no key, and the collection
@@ -136,7 +154,9 @@ interface Walk {
  * (a face was dropped when `byKey` had nothing to give, and a head that is not
  * there is a head with nothing wrong with it). That absence is real and
  * ordinary: it is the frame between a key set arriving and the entries filling
- * it.
+ * it — and it is why the path is collected HERE, on the iterations that found a
+ * head, rather than by handing `files` out whole. Those are two different
+ * lists, and the one every reader already consumed is this one.
  *
  * `head` IS NOT IN HERE, and that is the line: this walks the SET, and `head`
  * asks one key what revision it is at. A reader watching one file must not be
@@ -144,10 +164,10 @@ interface Walk {
  * reading of the whole directory would do.
  *
  * NO `equals` HERE, and it does not want one. This is the walk, not an answer:
- * `faces` is a fresh array per frame and always was, and its readers compare
- * for themselves where they care (`./served.tsx` holds the paths with a
- * membership compare). `broken` is the one that has to hold still, and it does
- * so in its own memo below, over the map this minted.
+ * `paths` is a fresh array per frame and always was, and its readers compare
+ * for themselves where they care (`./served.tsx` holds it with a membership
+ * compare). `broken` is the one that has to hold still, and it does so in its
+ * own memo below, over the map this minted.
  *
  * WHAT IS STILL WHOLE-SET, so that nobody has to rediscover it: this reads
  * every file on every frame that moves any head, where the frame itself named
@@ -160,15 +180,15 @@ interface Walk {
  * `perf-faces-broken-walk` asked for and does not stand in its way.
  */
 const walkOf = (files: ReadonlyArray<string>, entries: HeadEntries): Walk => {
-  const faces: Face[] = []
+  const paths: string[] = []
   const broken = new Map<string, BrokenFile>()
   for (const file of files) {
     const head = entries.byKey(file)?.()
     if (head === undefined) continue
-    faces.push(head.face)
+    paths.push(file)
     if (head.broken !== null) broken.set(file, head.broken)
   }
-  return { faces, broken }
+  return { paths, broken }
 }
 
 export const createDirectory = (
@@ -184,7 +204,7 @@ export const createDirectory = (
     // A PLAIN READING of the walk rather than a memo of its own: the walk is
     // already the held value, and a second node over it would hold the same
     // array under a second identity that moves at exactly the same times.
-    faces: () => walk().faces,
+    paths: () => walk().paths,
     /**
      * THE UNREADABLE FILES, HELD BY VALUE — the paths AND what each one is
      * wrong about.

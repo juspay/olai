@@ -9,7 +9,7 @@
  * changed", which is what the first half of these cases is about
  * (docs/brainstorming/reactivity-after-the-flip.md §4.2).
  *
- * The second half is `perf-faces-broken-walk`: `faces` and `broken` are two
+ * The second half is `perf-faces-broken-walk`: `paths` and `broken` are two
  * readings of ONE key set, taken from the SAME leaf, and they used to be two
  * memos that each walked it — so a directory of a thousand files was two
  * thousand reads per frame for a thousand files' worth of answer. They are one
@@ -101,7 +101,7 @@ const live = () => {
   return createRoot((dispose) => {
     const directory = createDirectory(entries, () => ({}))
     return {
-      faces: directory.faces,
+      paths: directory.paths,
       broken: directory.broken,
       put: (next: ReadonlyMap<string, Head>) =>
         batch(() => {
@@ -110,6 +110,11 @@ const live = () => {
           // The order signal moves only when MEMBERSHIP did — see the header.
           if (!sameList(now, untrack(keys))) setKeys(now)
         }),
+      /** A KEY WITH NO ENTRY BEHIND IT — the frame between a key set arriving
+       *  and the entries filling it, which `put` cannot express because it
+       *  moves both at once. `byKey` answers `undefined` for such a key,
+       *  exactly as the framework's does before the entry lands. */
+      announce: (file: string) => setKeys((was) => [...was, file]),
       reads: () => reads,
       asks: () => asks,
       stop: dispose,
@@ -119,11 +124,11 @@ const live = () => {
 
 /** The frame every count case starts from: two files, both readings taken —
  *  which is what `./App.tsx` does with a directory once per frame (`opensAt`
- *  and the `ServedProvider` read `faces()`, the sidebar is handed `broken()`). */
+ *  and the `ServedProvider` read `paths()`, the sidebar is handed `broken()`). */
 const twoFiles = () => {
   const directory = live()
   directory.put(new Map([["house.olai", head(1)], ["garden.olai", head(1)]]))
-  directory.faces()
+  directory.paths()
   directory.broken()
   return directory
 }
@@ -180,11 +185,11 @@ test("a file that parses again is a new answer", () => {
  * `perf-faces-broken-walk`, pinned by counting.
  *
  * The two readings above are taken from the same leaf of the same key set:
- * `faces` wants each head's face and `broken` wants each head's `broken`, so
- * written as two memos they walked the whole directory twice for one frame's
- * worth of answer — and they invalidate together, since the one thing either
- * depends on is the head set, so there was never a frame where the second walk
- * learned anything the first had not already read.
+ * `paths` wants to know a head arrived at all and `broken` wants that head's
+ * `broken`, so written as two memos they walked the whole directory twice for
+ * one frame's worth of answer — and they invalidate together, since the one
+ * thing either depends on is the head set, so there was never a frame where the
+ * second walk learned anything the first had not already read.
  *
  * THE CLAIM IS A BOUND, not a total, and the two are worth keeping apart. "The
  * directory is walked once per frame however many readings ask" is what this
@@ -195,7 +200,7 @@ test("a file that parses again is a new answer", () => {
  * after the first ask for AT MOST one read per file, which is exactly the
  * sentence above and survives the walk getting cheaper.
  *
- * A RATIO would not do it, and that was tried: reading `faces()`, counting, and
+ * A RATIO would not do it, and that was tried: reading `paths()`, counting, and
  * reading `broken()` proves nothing, because Solid recomputes a pure memo
  * eagerly at the end of the batch that invalidated it — so on the two-walk
  * shape both walks are spent inside the write, and the two reads afterwards are
@@ -221,7 +226,7 @@ test("a later frame is one walk too, not one per reading", () => {
       ["garden.olai", head(1)],
     ]),
   )
-  directory.faces()
+  directory.paths()
   const now = directory.broken()
   // The frame was taken in — which is what stops the bound below from being
   // satisfied by a directory that answered nothing.
@@ -232,13 +237,13 @@ test("a later frame is one walk too, not one per reading", () => {
   directory.stop()
 })
 
-test("two readers of the faces are still one walk", () => {
+test("two readers of the paths are still one walk", () => {
   // `./App.tsx` asks twice per frame, and the answer is held rather than
   // recomputed — which is the whole of what a memo was buying here.
   const directory = twoFiles()
-  const faces = directory.faces()
+  const paths = directory.paths()
   const once = directory.reads()
-  expect(directory.faces()).toBe(faces)
+  expect(directory.paths()).toBe(paths)
   expect(directory.reads()).toBe(once)
   directory.stop()
 })
@@ -251,7 +256,7 @@ test("a file rewritten does not put the directory in order again", () => {
   const directory = twoFiles()
   const before = directory.asks()
   directory.put(new Map([["house.olai", head(2)], ["garden.olai", head(1)]]))
-  directory.faces()
+  directory.paths()
   directory.broken()
   expect(directory.asks()).toBe(before)
   directory.stop()
@@ -263,7 +268,20 @@ test("...and a file arriving does", () => {
   directory.put(
     new Map([["house.olai", head(1)], ["garden.olai", head(1)], ["shed.olai", head(1)]]),
   )
-  expect(directory.faces()).toHaveLength(3)
+  expect(directory.paths()).toHaveLength(3)
   expect(directory.asks()).toBeGreaterThan(before)
+  directory.stop()
+})
+
+test("a key whose entry has not arrived is in neither reading", () => {
+  // The one thing collecting the path INSIDE the loop is load-bearing for: the
+  // list handed out is the keys whose head arrived, which is what a list of
+  // faces answered with and what every reader of it consumes. Handing out the
+  // ordered key set wholesale would be a different list, and a `<File>` row
+  // would be drawn for a file this tab knows nothing about yet.
+  const directory = twoFiles()
+  directory.announce("shed.olai")
+  expect(directory.paths()).toEqual(["garden.olai", "house.olai"])
+  expect(directory.broken().has("shed.olai")).toBe(false)
   directory.stop()
 })
