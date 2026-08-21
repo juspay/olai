@@ -290,8 +290,8 @@ export default function App() {
       <PinsProvider>
       <FieldsProvider value={fields}>
       <AirProvider value={air}>
-      <OpensProvider opens={(path, at) => opensAt(directory.faces(), path, at)}>
-      <ServedProvider faces={directory.faces()} head={directory.head}>
+      <OpensProvider opens={(path, at) => opensAt(directory.paths(), path, at)}>
+      <ServedProvider paths={directory.paths()} head={directory.head}>
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
           the TAB (`./clock.ts`), and the panel reads it too — the `@` list's
           node half is matched by the format's own grammar, whose relative words
