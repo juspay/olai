@@ -17,6 +17,7 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
+import { foundCount } from "../support/counted.ts";
 import { saysThat } from "../support/said.ts";
 import {
   attr,
@@ -94,35 +95,24 @@ Then(
 );
 
 /**
- * THE WHOLE COUNT LINE, exactly — not a substring of it.
+ * THE WHOLE COUNT LINE, exactly — not a substring of it, which is
+ * `support/counted.ts`'s rule and was this step's before there was anywhere to
+ * keep it. This element holds the count and nothing else
+ * (`client/filter/count.ts` is the only thing that writes it), so a substring
+ * read would cost the two things this feature is made of: `"1 of 10"` is
+ * inside `"1 of 100"`, and — the one that matters — `"1 of 10"` is inside
+ * `"1 of 10 — 2 more matches hidden as done (Prefs)"`, so the scenario that
+ * exists to prove NO clause is said could not see one appear (found by both
+ * reviewers of #248).
  *
- * The suite's one reader (`support/said.ts`) matches a substring, and it is
- * right to: most of the sentences it reads are a phrase inside a paragraph
- * somebody wrote. This element is not one of those. It holds the count line and
- * nothing else (`client/filter/count.ts` is the only thing that writes it), so
- * a substring here buys nothing and costs the two things this feature is made
- * of: `"1 of 10"` is inside `"1 of 100"`, and — the one that matters —
- * `"1 of 10"` is inside `"1 of 10 — 2 more matches hidden as done (Prefs)"`,
- * so the scenario that exists to prove NO clause is said could not see one
- * appear (found by both reviewers of #248).
- *
- * The count settles a frame after the query, so the equality is WAITED for
- * rather than read once; what a failure prints is what the bar actually says.
+ * The reader is shared with the two search doors, which say the same kind of
+ * sentence about the answer they only drew part of: one ritual, three doors,
+ * and the wait that makes it honest kept in one place.
  */
 Then(
   "the filter found {string}",
   async function (this: OlaiWorld, said: string) {
-    const line = this.page.locator(FILTER_COUNT).first();
-    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await this.waitUntil(
-      async () => (await line.innerText().catch(() => "")).trim() === said,
-      `the filter says exactly ${JSON.stringify(said)}`,
-    ).catch(() => undefined);
-    assert.strictEqual(
-      (await line.innerText()).trim(),
-      said,
-      `the filter count reads ${JSON.stringify((await line.innerText()).trim())}`,
-    );
+    await foundCount(this, FILTER_COUNT, said, "filter count");
   },
 );
 
