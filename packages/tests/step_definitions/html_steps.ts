@@ -37,7 +37,9 @@ import {
 import { saysThat } from "../support/said.ts";
 import {
   BODY_REFUSED,
+  DOCUMENT_BODY,
   DOCUMENT_EDIT,
+  HEADINGS,
   HYDRATION_TIMEOUT,
   HYPERTEXT_LINK,
   HYPERTEXT_PREVIEW,
@@ -798,9 +800,18 @@ Then(
   },
 );
 
+/** How near the top of the screen a heading has to be to count as landed on,
+ *  in pixels — the tolerance {@link landedOn} allows, because `scrollIntoView`
+ *  puts the element at the top of the viewport and the sticky header sits over
+ *  the first few pixels of it. A viewport's worth of slack would say nothing; a
+ *  pixel would pin the header's height and the stylesheet's
+ *  `scroll-padding-top`, which are styling and not this claim. */
+const AT_THE_TOP = 160;
+
 /**
  * WHERE THE DOCUMENT PAGE IS SCROLLED TO, as the heading nearest the top of the
- * viewport.
+ * viewport — asked of one SCOPE, so the lone page and one column of a split are
+ * the same question written once.
  *
  * The `.md` landing cannot be read the way the frame's is: there is no inner
  * `location.hash` to ask, because the app scrolled its own page to an element
@@ -808,18 +819,51 @@ Then(
  * what is read is the OUTCOME a reader would see — the heading they are looking
  * at — which is also the assertion that survives the id scheme changing.
  *
- * A tolerance, because `scrollIntoView` lands the element at the top of the
- * viewport and the sticky header sits over the first few pixels of it.
+ * Not `toc_steps.ts`'s "the heading … is at the top of the pane", which reads
+ * the same rectangle for a stricter claim: that a fragment MOVED the page, and
+ * that it landed hard against the top unless the document ran out first. That
+ * one is about a jump; this is about where a reader ended up.
  */
+const landedOn = async (
+  world: OlaiWorld,
+  where: Locator,
+  text: string,
+  whose: string,
+): Promise<void> => {
+  const heading = where.locator(HEADINGS).filter({ hasText: text }).first();
+  await heading.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await world.waitUntil(async () => {
+    const top = await heading.evaluate((node) => node.getBoundingClientRect().top);
+    return Math.abs(top) < AT_THE_TOP;
+  }, `the heading ${JSON.stringify(text)} to be at the top of ${whose}`);
+};
+
 Then(
   "the document is scrolled to the heading {string}",
   async function (this: OlaiWorld, text: string) {
-    const heading = this.documentBody().locator("h1, h2, h3", { hasText: text }).first();
-    await heading.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await this.waitUntil(async () => {
-      const top = await heading.evaluate((node) => node.getBoundingClientRect().top);
-      return Math.abs(top) < 160;
-    }, `the heading ${JSON.stringify(text)} to be at the top of the page`);
+    await landedOn(this, this.documentBody(), text, "the page");
+  },
+);
+
+/**
+ * …and the same claim about ONE PANE of a split, which is the only way to ask
+ * it there: a landing is a fact about a pane, two panes may be showing the same
+ * file, and "the heading Code" has two answers on screen at once.
+ *
+ * Measured against the SCREEN rather than against the column, for the reason
+ * the twin above is: what a reader is owed is the section in front of them, and
+ * where exactly a browser puts an anchor under a sticky header and a pane's own
+ * header is styling this should not pin.
+ */
+Then(
+  "the document in pane {int} is scrolled to the heading {string}",
+  async function (this: OlaiWorld, index: number, text: string) {
+    await landedOn(
+      this,
+      this.pane(index).locator(DOCUMENT_BODY).first(),
+      text,
+      `pane ${index}`,
+    );
   },
 );
 
@@ -860,6 +904,31 @@ Then(
     }, `the section ${JSON.stringify(anchor)} to be inside the window`);
   },
 );
+
+/**
+ * NARROWER — a gesture about the WINDOW, made by a reader who is somewhere in a
+ * page and means to stay there.
+ *
+ * It is here rather than beside the other viewport steps because what it is for
+ * is the frame: a sealed page's own `resize` is how the anchor's position is
+ * re-reported while the box is still settling (`@olai/surface`'s `seal.ts`), so
+ * a window a reader drags is the one gesture that re-fires a landing hours
+ * after it happened.
+ *
+ * NARROWER and not SHORTER, and not wider: the page below the frame has to keep
+ * the room the reader was scrolled into. A narrower column rewraps taller, so
+ * the bottom of the page stays below where they are; a wider one takes it away
+ * and the browser clamps them upwards, which is a move nobody made and would
+ * read as the bug this exists to catch.
+ */
+When("I narrow the window", async function (this: OlaiWorld) {
+  const size = this.viewport();
+  await this.page.setViewportSize({
+    width: Math.round(size.width * 0.7),
+    height: size.height,
+  });
+  await this.waitForFrame();
+});
 
 /** …and the other end of a landing that had nothing to land on: the reader is
  *  at the top, which is what a browser does with a fragment naming no id. A

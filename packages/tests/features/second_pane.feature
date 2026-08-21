@@ -79,6 +79,30 @@ Feature: The second pane
     And pane 1 is focused
     And there should be no page errors
 
+  Scenario: A split restored from its address lands EVERY pane at its section
+    # A LANDING IS A FACT ABOUT A PANE, and this app kept exactly one for the
+    # whole workspace until it did not. The address is a LIST of routes and any
+    # number of them may name a section inside a page — but the first paint
+    # minted the FOCUSED pane's landing and nothing else's, so a two-pane link
+    # whose panes both named a heading opened one of them at its heading and the
+    # other at the top of its file. There was nothing to be done about it from
+    # the pane: it was one slot, and the pane that got it was whichever one had
+    # focus.
+    #
+    # THE SAME FILE IN BOTH, on purpose. Two panes of one document mint the same
+    # heading ids, so this also holds the half that says a landing is performed
+    # in the column it belongs to rather than in the first copy in document
+    # order (`@olai/web`'s `document/faces.tsx`).
+    When I open the address "/s/kitchen-sink.md%23code/kitchen-sink.md%23lists"
+    Then there are 2 panes
+    And pane 0 is showing "/kitchen-sink.md#code"
+    And pane 1 is showing "/kitchen-sink.md#lists"
+    # The focused pane, which is the half that always worked…
+    And the document in pane 0 is scrolled to the heading "Code"
+    # …and the one that did not.
+    And the document in pane 1 is scrolled to the heading "Lists"
+    And there should be no page errors
+
   Scenario: A pane below the minimum width collapses to a rail
     Given I open the outline "house.olai"
     When I alt-click the zoom of "install"

@@ -279,6 +279,68 @@ const anchor = (at: string | undefined): string =>
   at === undefined || at === "" ? "" : `#${encodeURIComponent(at)}`
 
 /**
+ * HOW FAR THE FRAME MAY HAVE MOVED under the reader between one half of a
+ * landing and the next and still count as the reader not having moved, in
+ * pixels.
+ *
+ * It is the whole of the arithmetic that tells a SETTLING CORRECTION from a
+ * RE-LANDING (the effect at the bottom of this file), and it is small on
+ * purpose. A settling correction is measured in nothing at all: the box grows
+ * DOWNWARDS from an edge the reader is looking at, so a frame that only got
+ * taller is a frame whose top is exactly where it was, and the two readings
+ * differ by whatever a scroll position rounds to. A reader who went somewhere
+ * is measured in tens — a wheel notch is around fifty pixels and an arrow key
+ * is forty, so there is no gesture this can swallow.
+ *
+ * WHICH WAY IT FAILS, because it does fail one way. Anything else that moves
+ * the frame while a landing is settling — the app drawing a line above it, a
+ * page that got SHORTER while the reader was at the bottom, so the browser
+ * clamped them upwards — reads as the reader, and the correction is abandoned.
+ * That leaves somebody a little short of the section they asked for. The other
+ * direction hauls a reader out of what they were reading, which is the bug this
+ * file has been paying for twice; between the two there is no contest.
+ */
+const UNMOVED = 2
+
+/**
+ * HOW LONG AFTER A LANDING ACT the frame's own geometry may still be CORRECTING
+ * it, in milliseconds — the other way a landing ends.
+ *
+ * The reader is the first way ({@link UNMOVED}), and it is the one that matters
+ * on the pane somebody is looking at. It cannot answer for the pane they are
+ * NOT: a landing is a fact about one pane, each column is its own scrollport,
+ * and a reader who lands in one pane and goes off to read the next has moved
+ * nothing this frame can see. Without a second ending, a preview left standing
+ * in a pane nobody is watching stays armed for the life of the page — and the
+ * chart it draws from a fetch a minute later would scroll the tab.
+ *
+ * So a correction is a correction OF THE ACT IT FOLLOWS, and it has that long
+ * to arrive. Re-armed by each act, because a correction that lands is the start
+ * of the next one's window.
+ *
+ * TWO SECONDS, and the size is an argument about what settling is rather than a
+ * round number. What this waits for is the frame being given its measured
+ * height and saying where the anchor ended up in it — a `postMessage`, a style
+ * write, a layout and a paint, which is a handful of frames — plus the one
+ * honest late case: a page whose pictures have not arrived, since an `<img>`
+ * has no height until its bytes do and the seal's `load` listener is what
+ * reports then. Two seconds covers a picture off this vault's own route with
+ * room to spare, and is comfortably inside the time it takes a reader to go and
+ * read something else.
+ *
+ * WHAT IT COSTS is the page whose pictures are slower than that: the reader is
+ * left where the pre-picture geometry put them, a screen or so short of the
+ * section. That is the same direction {@link UNMOVED} fails in, and for the
+ * same reason — being left short of a section is a scroll; being hauled out of
+ * what you are reading is somebody else moving your page.
+ *
+ * The precedent is `../scroll.ts`'s `SETTLE_MS`, which bounds the same shape
+ * for the same reason: a restore that keeps asking for a position stops when
+ * the page can hold it, when the reader takes over, OR when its time is up.
+ */
+const CORRECTING = 2_000
+
+/**
  * WHAT THE FRAME WAS POINTED AT — the two facts about the document in there
  * that this component asks about afterwards, beside {@link Custody}, which is
  * the separate question of whose that document IS.
@@ -386,6 +448,35 @@ export function Hypertext(props: { readonly file: string }) {
    * woken by the report itself.
    */
   let pointed: Pointed | undefined
+  /**
+   * WHERE THE LAST LANDING ACT LEFT THE FRAME'S OWN TOP EDGE, or nothing before
+   * one has been performed for the document in there — and whether the reader
+   * has since moved it, which is the same question answered once and for all.
+   *
+   * Together they are what tells a SETTLING CORRECTION from a RE-LANDING, and
+   * the whole argument for reading them that way is at the effect that writes
+   * them. Plain variables for {@link pointed}'s reason and one of their own:
+   * they are facts about this element's geometry rather than about the landing
+   * — the router keeps the WORD (`../router.tsx`'s `landed`), and pixels are
+   * this face's.
+   *
+   * A LATCH rather than a comparison made afresh every time, because the frame
+   * never stops speaking: once the reader has taken the page over there is
+   * nothing left for a report to say, and re-deciding it would be a frame
+   * callback and a forced layout per report, for the life of the preview.
+   */
+  let stood: number | undefined
+  let over = false
+  /** The deadline in flight, if a landing has been performed and its window has
+   *  not run out — {@link CORRECTING}. */
+  let correcting: ReturnType<typeof setTimeout> | undefined
+  /** THE LANDING IS OVER, however it ended. One function, so the two endings
+   *  cannot come to disagree about what ending it means. */
+  const done = () => {
+    over = true
+    clearTimeout(correcting)
+    correcting = undefined
+  }
   // Whose document is in the frame ({@link Custody}, where the whole rule is a
   // table). Before the first pointing there is nothing in there and nothing has
   // been asked for, which is the same answer this gives to every question:
@@ -420,8 +511,8 @@ export function Hypertext(props: { readonly file: string }) {
    *
    * ONE ASSIGNMENT, for {@link stand}'s reason one function up. What goes is
    * the distance the old document's last report stood above the frame, the
-   * refusal it drew, the report it made about its anchor, and the section it
-   * was pointed
+   * refusal it drew, the report it made about its anchor, where its landing
+   * left the reader ({@link stood}), and the section it was pointed
    * at — and the last of those is what makes `pointed` a fact about the
    * document in the frame right now rather than about this pane's history.
    *
@@ -450,6 +541,10 @@ export function Hypertext(props: { readonly file: string }) {
     setRefused(undefined)
     setUnreadable(false)
     setLandedAt(undefined)
+    stood = undefined
+    clearTimeout(correcting)
+    correcting = undefined
+    over = false
     pointed = arriving
     if (arriving === undefined) setMeasured(undefined)
   }
@@ -731,6 +826,23 @@ export function Hypertext(props: { readonly file: string }) {
    * header is accounted for by the rule that already states it, and this file
    * never learns how tall a header is.
    *
+   * TWO SCROLLERS, AND THE SECOND HALF IS THE WINDOW'S — which reads like a bug
+   * in a split, where each pane is an `overflow-y-auto` column
+   * (`../pane/Panes.tsx`), and is not: MEASURED at 1440×900 with a two-pane
+   * address, the column takes the frame to its own top (163px of column scroll)
+   * and the document is 8210px against a 900px window, so `scrollBy` has
+   * somewhere to go and takes it (1298px) — the anchor lands 72px from the top of
+   * the screen. Both scrollers are real at once. It is measured rather than
+   * reasoned because reasoning about it went wrong twice: the shell's own height
+   * rule reads as though the window could not scroll in a split, and a first
+   * attempt to pin this used a page that OVERFLOWED the frame, where the
+   * browser's own scroll inside the iframe does the work and this half could be
+   * deleted with nothing going red. What pins it now is
+   * `html_previews.feature`'s "A previewed section in the pane that is not
+   * focused is on screen", sized like its lone-pane sibling — tall enough to put
+   * the anchor below one screen, short enough to FIT the frame — and checked by
+   * deleting the line below and watching both go red.
+   *
    * IT WAITS FOR THE HEIGHT, and that is why this is an effect over two signals
    * rather than a scroll done when the message arrives. The report lands beside
    * the settled height, and until that height is applied the frame is still the
@@ -753,19 +865,70 @@ export function Hypertext(props: { readonly file: string }) {
    * the height settles so that the LAST run has the geometry the reader
    * actually sees, and a guard that went out the moment the first scroll
    * happened would leave them a screen short of the section.
+   *
+   * SO WHAT ENDS IT IS THE READER, and that is the half the paragraph above
+   * never stated. Everything above says WHEN a correction is allowed
+   * to be about this landing; none of it says when the landing is over, and a
+   * landing that is never over is a trap. The frame goes on speaking for as long
+   * as it is on screen — its own `resize` re-reports the anchor whenever the
+   * window is dragged (`@olai/surface`'s `seal.ts`, deliberately: that event is
+   * the only thing that sees the box change), and a page that draws a chart from
+   * a fetch an hour later moves `measured()` on its own. Each of those re-ran
+   * this effect with a landing that was performed and finished, and scrolled a
+   * reader out of whatever they had gone on to read.
+   *
+   * A LANDING IS SPENT BY THE READER'S OWN MOVEMENT, then, and never by the
+   * frame's geometry. The act records where it left the frame's top edge
+   * ({@link stood}) and the next run asks whether the frame is still there —
+   * once, because the answer is kept ({@link over}) and a landing the reader has
+   * taken over from does not come back.
+   * It is the reading that separates the two cases exactly, because the settling
+   * correction is precisely the case where NOTHING the reader did has happened:
+   * the box grows downwards from an edge they are looking at, so a frame that
+   * merely got taller has a top exactly where the act left it, and the correction
+   * goes through. A frame somewhere else is a page somebody scrolled.
+   *
+   * AND THE OTHER ENDING IS TIME ({@link CORRECTING}), because the reader's own
+   * movement cannot answer for the pane they are NOT looking at: each column is
+   * its own scrollport, so a reader who lands in one pane and goes off to read
+   * the next has moved nothing THIS frame can see. A correction is a correction
+   * of the act it follows, and it has two seconds to arrive.
+   *
+   * NOT A GESTURE LISTENER, which is what `../scroll.ts` uses for the same
+   * question about its own clamped restore, and the difference is worth naming
+   * because that rule looks borrowable and is not: the reader's wheel lands in
+   * the frame's own document, which is another origin, so this window never hears
+   * it. The one thing that IS observable from out here is where the frame ended
+   * up, and that is what this reads. {@link UNMOVED} is how much of it is noise.
    */
   createEffect(() => {
     const top = landedAt()
     // Tracked, not read: the frame's height is what makes the arithmetic below
     // land where the reader will be looking.
     measured()
-    if (top === undefined || frame === undefined) return
+    if (top === undefined || frame === undefined || over) return
     if (pointed?.at === undefined || landing.at() === undefined) return
     const box = frame
     const at = pointed.at
     const painted = requestAnimationFrame(() => {
+      // THE READER HAS THE PAGE, so this landing is over — see the paragraphs
+      // above. Asked in here rather than in the effect body because a frame
+      // callback is the one moment the layout is settled, which is the same
+      // reason the scroll itself is done here; the ANSWER is kept, so the
+      // question is asked once and this effect stops scheduling anything.
+      if (stood !== undefined && Math.abs(box.getBoundingClientRect().top - stood) > UNMOVED) {
+        return done()
+      }
       box.scrollIntoView({ block: "start" })
       if (top !== 0) scrollBy({ top, behavior: "instant" })
+      // WHERE THAT LEFT THEM, which is what the run after this one compares
+      // against. What the act ASKED for is not the same number: a page too
+      // short to scroll that far is clamped, and the clamped position is where
+      // the reader actually is.
+      stood = box.getBoundingClientRect().top
+      // …and how long the next correction has to arrive ({@link CORRECTING}).
+      clearTimeout(correcting)
+      correcting = setTimeout(done, CORRECTING)
       // ARRIVED, which is what spends the landing (`../router.tsx`'s `landed`).
       // The reader has been taken to the section, so the next time this file
       // moves on disk the frame is re-pointed at its own address and nothing
@@ -783,14 +946,15 @@ export function Hypertext(props: { readonly file: string }) {
   onCleanup(() => {
     if (custody.at === "stray") clearTimeout(custody.until)
     if (sizing !== undefined) cancelAnimationFrame(sizing)
+    clearTimeout(correcting)
   })
 
   // WHAT IT WATCHES IS TWO NUMBERS AND A SLUG, and each is compared as
   // itself — which is the whole of why neither is read raw here. `on` has no
   // equality: it re-runs whenever anything its input READ notifies, so an input
   // over a signal that speaks without moving re-runs for nothing. Both of these
-  // are such signals underneath — the head is one entry of a collection, and
-  // `router.landing()` is one object broadcast to every pane on every push — so
+  // are such signals underneath — the head is one entry of a collection, and the
+  // landings are one map replaced whenever any pane navigates — so
   // each is memoized where it is answered ({@link rev} above, `../router.tsx`'s
   // `useLanding`), and what arrives here is a value. Un-memoized, pane B
   // opening a heading reloaded pane A's preview: a question whose answer was
