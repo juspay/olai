@@ -80,6 +80,13 @@ export interface Churn {
   /** Every node id that was ADDED to the pane while the probe was watching —
    *  what the page drew, as against what it is drawing now. */
   readonly drew: ReadonlyArray<string>;
+  /** ...and every id it TOOK AWAY, which is the same question from the other
+   *  side: a row that was on screen, went, and came back was a row the page
+   *  pruned for a beat by an answer that was not about the query it had been
+   *  asked. Two lists rather than one signed one, because a scenario says which
+   *  of the two it means and a reader of the failure should not have to work it
+   *  out from a sign. */
+  readonly took: ReadonlyArray<string>;
 }
 
 /** Where the probe keeps its own state. A name nothing else on `window` could
@@ -112,6 +119,7 @@ export const markScreen = async (world: OlaiWorld): Promise<void> => {
       }
       const moved: unknown[] = [];
       const drew: string[] = [];
+      const took: string[] = [];
       let batch = 0;
       new MutationObserver((records) => {
         batch++;
@@ -142,9 +150,16 @@ export const markScreen = async (world: OlaiWorld): Promise<void> => {
               if (id !== null) drew.push(id);
             }
           }
+          for (const gone of record.removedNodes) {
+            if (!(gone instanceof Element)) continue;
+            for (const row of [gone, ...gone.querySelectorAll("[data-node-id]")]) {
+              const id = row.getAttribute("data-node-id");
+              if (id !== null) took.push(id);
+            }
+          }
         }
       }).observe(main, { subtree: true, childList: true });
-      (window as unknown as Record<string, unknown>)[probe] = { moved, drew };
+      (window as unknown as Record<string, unknown>)[probe] = { moved, drew, took };
     },
     [SIDEBAR, PANE, PROBE] as const,
   );
@@ -155,7 +170,7 @@ export const markScreen = async (world: OlaiWorld): Promise<void> => {
 export const screenChurn = async (world: OlaiWorld): Promise<Churn> =>
   await world.page.evaluate((probe) => {
     const held = (window as unknown as Record<string, unknown>)[probe] as
-      | { moved: unknown[]; drew: string[] }
+      | { moved: unknown[]; drew: string[]; took: string[] }
       | undefined;
     if (held === undefined) {
       throw new Error(
@@ -163,7 +178,7 @@ export const screenChurn = async (world: OlaiWorld): Promise<Churn> =>
           "survived — a step has to mark it before the gesture it is a claim about",
       );
     }
-    return { moved: held.moved, drew: held.drew } as unknown as Churn;
+    return { moved: held.moved, drew: held.drew, took: held.took } as unknown as Churn;
   }, PROBE);
 
 /** The sidebar is the same sidebar: every element that was under it is still
@@ -240,6 +255,19 @@ export const neverDrew = async (world: OlaiWorld, id: string): Promise<void> => 
     !churn.drew.includes(id),
     `the pane drew the node "${id}" and took it away again, so the page was ` +
       "on screen un-narrowed before the query it was asked for was answered",
+  );
+};
+
+/** ...and the same claim from the other side: a row that was on screen never
+ *  left it. What it catches is a page pruned for a beat by an answer that was
+ *  not about the query it had been asked — the previous filter session's, kept
+ *  through a clear and spent on the next query typed. */
+export const neverTookAway = async (world: OlaiWorld, id: string): Promise<void> => {
+  const churn = await screenChurn(world);
+  assert.ok(
+    !churn.took.includes(id),
+    `the pane took the node "${id}" away and put it back, so the page was ` +
+      "narrowed by an answer that was not about the query it had been asked",
   );
 };
 

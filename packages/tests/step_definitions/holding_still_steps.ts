@@ -21,6 +21,7 @@ import {
   markScreen,
   monthHeld,
   neverDrew,
+  neverTookAway,
   sidebarHeld,
 } from "../support/probe.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -55,5 +56,12 @@ Then(
   "the node {string} was never drawn",
   async function (this: OlaiWorld, id: string) {
     await neverDrew(this, id);
+  },
+);
+
+Then(
+  "the node {string} was never taken away",
+  async function (this: OlaiWorld, id: string) {
+    await neverTookAway(this, id);
   },
 );
