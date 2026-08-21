@@ -645,7 +645,20 @@ const TRASH_EMPTY_LINE = '[data-testid="trash-empty"]'
  *  share a word is not an answer to a query, which is what `data-id` tells
  *  apart (the browser tests read the same pair). */
 const PALETTE_INPUT = '[data-testid="palette-input"]'
-const PALETTE_HIT = '[data-testid="palette-item"][data-id^="node-"]'
+/** A row's id is its printed ADDRESS behind `hit-` (`palette/items.ts`), and a
+ *  record's address is a bare fragment — so `hit-#` is what tells a node hit
+ *  from a document row and from a shell item that shares a word, exactly as
+ *  the browser tests grip it. It read `node-` until 2026-08-20, which is a
+ *  prefix nothing has ever carried: the one section using it printed
+ *  "(nothing)" where its hits should have been. */
+const PALETTE_HIT = '[data-testid="palette-item"][data-id^="hit-#"]'
+/** The header box itself — the other door, and the one surface here that was
+ *  spelled as a literal at each of its three call sites while every other one
+ *  in this file is a named const. */
+const HEADER_SEARCH = '[data-testid="header-search"]'
+/** What a shortlist says it drew of what it found — the same line on both
+ *  doors, absent when the answer fit (`web/src/client/search/count.ts`). */
+const SEARCH_COUNT = '[data-testid="search-count"]'
 /** …and the rows of it that are DOCUMENTS, told apart the same way: a served
  *  file's row carries its whole path in `data-id`, so a shot can print WHICH
  *  file it matched rather than the name a folder may repeat. The header's box
@@ -2034,7 +2047,7 @@ const SECTIONS = {
       await shot(page, `the-document-opens${suffix}`)
 
       // THE OTHER DOOR, over the same query and drawing the same row.
-      const box = page.locator('[data-testid="header-search"]')
+      const box = page.locator(HEADER_SEARCH)
       await box.click()
       await box.fill("pal")
       await page.locator(HEADER_DOC).first().waitFor()
@@ -2151,7 +2164,7 @@ const SECTIONS = {
 
       // WHAT THE DOCUMENT IS CALLED, in the door that draws a face's title:
       // the body's first real line, not the fence and not the first YAML key.
-      const box = page.locator('[data-testid="header-search"]')
+      const box = page.locator(HEADER_SEARCH)
       await box.click()
       await box.fill("plan")
       const row = page.locator(headerHit("notes/plan.md"))
@@ -2693,6 +2706,77 @@ const SECTIONS = {
 
     await inTheDark(page)
     await shot(page, "hidden-dark")
+  },
+
+  /**
+   * A SHORTLIST SAYS ITS TOTAL (`a-shortlist-says-its-total`): both doors onto
+   * the one search reading, over a directory big enough for the cap to bite —
+   * and the same doors over an answer that fits, saying nothing.
+   *
+   * The pair is what a still frame can carry here, because the claim is about
+   * a SILENCE as much as a sentence: eight rows with `8 of 44 matches` under
+   * them and eight rows' worth of query with no line at all are the same
+   * picture apart from the one element this PR draws.
+   *
+   * THE VAULT IS WRITTEN rather than taken from `fixtures/good`, for the
+   * frontmatter section's reason: the fixture is a five-node house and the cap
+   * never bites in it, so a shot taken against it would be a shot of the
+   * absence twice. Forty rows that answer one word is the smallest directory
+   * in which the two doors have something to say.
+   */
+  "a-shortlist-says-its-total": async (page) => {
+    pinnedBy(
+      "a_shortlist_says_its_total.feature",
+      "The palette drew eight of what it found, and says which",
+      "The header's box says the same thing about the same answer",
+      "A palette answer that fits says nothing about a total",
+    )
+    rewrite("stock.olai", [
+      `{"id":"stock","ord":"a0","title":"the supplier's catalogue"}`,
+      ...Array.from(
+        { length: 40 },
+        (_unused, index) =>
+          `{"id":"h${index + 1}","parent":"stock","ord":"a${
+            String(index + 1).padStart(2, "0")
+          }","title":"brass handle no. ${index + 1}"}`,
+      ),
+    ])
+
+    // THE PALETTE, over a word forty rows answer to. The line sits under the
+    // list rather than in it, so it is in frame whether or not a reader has
+    // scrolled the eight.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    await page.keyboard.press("ControlOrMeta+k")
+    await page.locator(PALETTE_INPUT).waitFor()
+    await page.locator(PALETTE_INPUT).fill("handle")
+    await page.locator(PALETTE_HIT).first().waitFor()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  hits drawn:         ${await page.locator(PALETTE_HIT).count()}`)
+    console.log(`  and it says:        ${await textOf(page, SEARCH_COUNT)}`)
+    await shot(page, "the-palette-says-its-total")
+
+    // …and the same palette over a query the vault answers eight-or-fewer
+    // times: the rows are there, and there is no line under them.
+    await page.locator(PALETTE_INPUT).fill("cabinets")
+    await page.locator(PALETTE_HIT).first().waitFor()
+    await page.waitForTimeout(SETTLE)
+    console.log(
+      `  an answer that fits: ${await page.locator(PALETTE_HIT).count()} hits, and the line is ${
+        (await page.locator(SEARCH_COUNT).count()) === 0 ? "absent" : "STILL THERE"
+      }`,
+    )
+    await shot(page, "an-answer-that-fits-says-nothing")
+    await page.keyboard.press("Escape")
+
+    // THE OTHER DOOR, over the same word and the same answer — one reading,
+    // one sentence, two places it is drawn.
+    const box = page.locator(HEADER_SEARCH)
+    await box.click()
+    await box.fill("handle")
+    await page.locator(headerHit("#h1")).first().waitFor()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  the header box too: ${await textOf(page, SEARCH_COUNT)}`)
+    await shot(page, "the-header-box-says-it-too")
   },
 } satisfies Record<string, (page: Page) => Promise<void>>
 

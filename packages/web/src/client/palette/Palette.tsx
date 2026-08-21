@@ -96,6 +96,7 @@ import { sayPin, togglePin } from "../pins/pinning.ts"
 import { nameOf, shownIn } from "../address/address.ts"
 import { type Asking } from "./asking.ts"
 import { Question } from "./Question.tsx"
+import { SearchCount } from "../search/Count.tsx"
 import { createCursor } from "../search/cursor.ts"
 import { createSearch } from "../search/nodes.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
@@ -913,53 +914,67 @@ export function Palette(props: {
           </Show>
           <Switch
             fallback={
-              // `overflow-x-hidden` is the doctrine, not a defence: a popover
-              // scrolls down, never sideways. The rows are already built not
-              // to overflow; this makes that a property of the container
-              // rather than of every future row.
-              <ul
-                class="m-0 min-h-0 flex-1 list-none overflow-x-hidden overflow-y-auto p-1 md:max-h-72 md:flex-none"
-                data-testid={TESTID.paletteList}
-              >
-                {/* `<Key>` rather than `<For>`, for the reason the tree uses it
-                    (`../Tree.tsx`): the rows are minted fresh on every read, so
-                    every keystroke during the 200 ms settle rebuilt a list whose
-                    hits had not changed, under a cursor somebody was walking
-                    down. `<Key>` and not `<Index>`, unlike the shortlists, for
-                    the same reason the tree is keyed: these rows MOVE — the
-                    hits arrive under the commands and rank against each other —
-                    and {@link PaletteItem.id} already promises the id is unique
-                    in this list, which is what makes it a key. */}
-                <Key
-                  each={items()}
-                  by="id"
-                  fallback={
-                    <li class="px-3 py-2 font-mono text-xs text-muted">
-                      no matches
-                    </li>
-                  }
+              <>
+                {/* `overflow-x-hidden` is the doctrine, not a defence: a popover
+                    scrolls down, never sideways. The rows are already built not
+                    to overflow; this makes that a property of the container
+                    rather than of every future row. */}
+                <ul
+                  class="m-0 min-h-0 flex-1 list-none overflow-x-hidden overflow-y-auto p-1 md:max-h-72 md:flex-none"
+                  data-testid={TESTID.paletteList}
                 >
-                  {(item, index) => (
-                    <li>
-                      <Result
-                        label={item().label}
-                        of={item().of}
-                        hint={item().hint}
-                        place={item().place}
-                        props={item().props}
-                        active={lit(index())}
-                        testids={PALETTE_ROW}
-                        id={item().id}
-                        onHover={() => {
-                          setChosen(true)
-                          cursor.to(index())
-                        }}
-                        onSelect={() => runItem(item())}
-                      />
-                    </li>
-                  )}
-                </Key>
-              </ul>
+                  {/* `<Key>` rather than `<For>`, for the reason the tree uses it
+                      (`../Tree.tsx`): the rows are minted fresh on every read, so
+                      every keystroke during the 200 ms settle rebuilt a list whose
+                      hits had not changed, under a cursor somebody was walking
+                      down. `<Key>` and not `<Index>`, unlike the shortlists, for
+                      the same reason the tree is keyed: these rows MOVE — the
+                      hits arrive under the commands and rank against each other —
+                      and {@link PaletteItem.id} already promises the id is unique
+                      in this list, which is what makes it a key. */}
+                  <Key
+                    each={items()}
+                    by="id"
+                    fallback={
+                      <li class="px-3 py-2 font-mono text-xs text-muted">
+                        no matches
+                      </li>
+                    }
+                  >
+                    {(item, index) => (
+                      <li>
+                        <Result
+                          label={item().label}
+                          of={item().of}
+                          hint={item().hint}
+                          place={item().place}
+                          props={item().props}
+                          active={lit(index())}
+                          testids={PALETTE_ROW}
+                          id={item().id}
+                          onHover={() => {
+                            setChosen(true)
+                            cursor.to(index())
+                          }}
+                          onSelect={() => runItem(item())}
+                        />
+                      </li>
+                    )}
+                  </Key>
+                </ul>
+                {/* WHAT IS BEHIND THE HITS, and only ever about them: the rows
+                    above the hits are this tab's own (the zoomed node's verbs,
+                    the shelf's row, the shell), so the count is taken off the
+                    ANSWER rather than off the list it is drawn under — which is
+                    also why the sentence names its subject (`../search/count.ts`).
+                    Under the list rather than inside it, so it stays put while
+                    the eight rows scroll, and absent when eight was all there
+                    was. */}
+                <SearchCount
+                  of={nodes}
+                  class="m-0 shrink-0 border-t border-rule px-4 py-2 font-mono text-xs text-muted"
+                />
+              </>
             }
           >
             {/* THE QUESTION FIRST, above both prefixes: it is up because

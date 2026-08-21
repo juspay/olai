@@ -53,7 +53,7 @@
 
 import { expect, test } from "bun:test";
 
-import { granting, read, tracked } from "./support/sweep.ts";
+import { granting, read, tracked, unresolved } from "./support/sweep.ts";
 
 /**
  * What may still spell it, and why each one may.
@@ -99,7 +99,7 @@ const MAY_SPELL_IT: ReadonlyArray<string> = [
   "docs/RCA/",
   "docs/brainstorming/",
   "docs/format.md",
-  "docs/roadmap.olai",
+  "docs/roadmap/",
   "packages/format/src/kinds.test.ts",
 ];
 
@@ -134,6 +134,14 @@ const spelling = (pattern: RegExp): ReadonlyArray<string> =>
 // not a count.
 test("the sweep is actually reading the repository", () => {
   expect(TRACKED.length).toBeGreaterThan(200);
+});
+
+// …and the list this sweep excuses is checked against the disk too. A grant
+// whose path has MOVED is not a loosened fence but a tightened one — it goes on
+// being spelled and stops covering the ledger it names — which is what happened
+// to this list the day `docs/roadmap.olai` became a directory.
+test("every grant still names a record of the past that is there", () => {
+  expect(unresolved(MAY_SPELL_IT)).toEqual([]);
 });
 
 // The expectation is an EQUALITY to a named list rather than "empty", for
