@@ -50,10 +50,29 @@ Plain ACP over stdio (ndjson JSON-RPC). Each fact, with its olai consequence:
 - **Header**: agent icon + name + model (model from `configOptions` currentValue).
 - **Degradations said, never silent**: no steering → the composer notes that mid-turn messages queue for this agent; no lanes for opencode's subagents; anything an agent doesn't offer simply isn't drawn — but where the reader would *expect* behavior (steering), the absence is stated.
 
-## PRs — each self-sufficient, no unused code
+## The two PRs
 
-1. **Generic ACP hardening.** Correct for any agent and valuable alone, pinned by the existing scripted-agent e2e harness: idempotent application of duplicate `tool_call_update`s; stop treating `title` as stable (derive a frame's name once); survive a `session/prompt` that errors; tolerate collapsed replay. Ships and stands on its own.
-2. **The agent dimension.** Roster detection + per-conversation agent + the always-ask picker + header identity and icons + the opencode interpret leg + its permission spelling + the said-degradations. One PR because each piece is dead without the others; PR 1 exists to shrink it. An **opencode-shaped scripted agent** joins the e2e suite (allow-first options, `toolCallId` names, no `_meta`, duplicates, `-32603`) beside the existing one.
+Both must stand on their own: everything a PR adds is used and tested inside that same PR, nothing left "for later".
+
+**PR 1 — fix the chat client's fragile assumptions.** These are bugs today against *any* ACP agent — opencode just happens to trigger them — so this PR doesn't mention opencode at all:
+
+- Receiving the same `tool_call_update` twice must not break anything (opencode sends exact duplicates).
+- Stop using a frame's `title` as the tool's name — the title changes over a call's life; pick the name once when the call is first announced.
+- A `session/prompt` that answers with an error (instead of a normal stop) must not wedge the conversation.
+- A replayed session that opens with `user_message_chunk` and already-collapsed tool frames must render fine.
+
+Tested with the scripted fake agent the e2e suite already uses. Useful even if opencode support never lands.
+
+**PR 2 — choosing an agent.** One PR, because no piece of it works without the others:
+
+- The server detects which agents are installed (PATH probe) and sends the client the list.
+- A new chat always asks which agent; an empty list shows install instructions instead.
+- The header shows the chosen agent's icon and name beside the model.
+- A conversation remembers its agent (stored next to its session id), so reopening it talks to the right one.
+- The opencode interpretation file: tool names from the `toolCallId` prefix, MCP auto-allow matches `<server>_`, no steering (the composer says messages will queue), settings read from method responses.
+- A fake opencode-shaped agent joins the e2e suite, so all of the above is pinned by tests.
+
+Why this order: PR 1 makes the client correct about ACP in general; PR 2 then only adds what is genuinely opencode-specific.
 
 ## Noted, not olai's work
 
