@@ -309,9 +309,9 @@ export function Palette(props: {
     // NOTHING FOR A MODAL NOBODY CAN SEE, and it is the first line for the
     // reason `opRows` above is guarded: everything below reads values that move
     // on their own. `pins()` moves whenever anything pinned is retitled
-    // anywhere, `router.route()` on every navigation, and `props.names` twice
-    // per navigation — so a shut palette rebuilt its whole list, re-parsing the
-    // shelf for `pinnedAt` each time, on every one of them
+    // anywhere, `router.route()` on every navigation, and `props.names` on a
+    // navigation that renamed something — so a shut palette rebuilt its whole
+    // list, re-parsing the shelf for `pinnedAt` each time, on every one of them
     // (docs/brainstorming/reactivity-after-the-flip.md §4.5). Solid re-tracks
     // per run, so while the palette is shut this depends on `paletteOpen()`
     // and nothing else.

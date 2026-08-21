@@ -35,7 +35,10 @@
  * the ids this page points at are CALLED. It is separate because its readers
  * are the leaves: a title that turns out to be an address, and the strip of
  * links a `see` draws. Handing those the whole reading would hand a title
- * resolver a page.
+ * resolver a page. The table itself is derived ONCE, beside the reading
+ * ({@link Reading.names}), so the chrome outside the panes reads the same
+ * lookup the leaves do rather than building a second copy over the same
+ * answer.
  *
  * {@link ReadingsProvider} is the WORKSPACE's, and it exists for the chrome
  * that is about more than the pane it is drawn in — the sidebar entry that
@@ -145,6 +148,14 @@ export interface Reading {
    * write anywhere in the vault.
    */
   readonly at: Accessor<number>
+  /**
+   * What the ids this page points at are CALLED — `./names.ts`'s table, derived
+   * once here so the pane's leaves and the chrome outside it (the palette's pin
+   * row) look up the same Map. A second `createNames` over this reading would
+   * copy the array again on every navigation, which is the defect this field
+   * closes (`docs/roadmap/deferred.olai`'s `names-table-once`).
+   */
+  readonly names: Accessor<Names>
 }
 
 export const createReading = (
@@ -191,7 +202,7 @@ export const createReading = (
    * what it left behind.
    */
   const held = createMemo<PageReading | undefined>((was) => answer() ?? was, undefined)
-  return { page: held, at }
+  return { page: held, at, names: createNames(held) }
 }
 
 const ReadingContext = createContext<Accessor<PageReading | undefined>>()
@@ -204,7 +215,7 @@ export function ReadingProvider(props: {
   return (
     <ReadingContext.Provider value={props.reading.page}>
       <FramesContext.Provider value={props.reading.at}>
-        <NamesProvider reading={props.reading.page}>{props.children}</NamesProvider>
+        <NamesProvider names={props.reading.names}>{props.children}</NamesProvider>
       </FramesContext.Provider>
     </ReadingContext.Provider>
   )
@@ -238,15 +249,16 @@ export const useFrames = (): Accessor<number> => {
 }
 
 /** The narrow door onto one field of a reading — what an id is CALLED. The
- *  table itself, and the rule about when it may move, are `./names.ts`'s. */
+ *  table itself is derived beside the reading ({@link Reading.names}); this
+ *  hands that one lookup to the leaves. The rule about when it may move is
+ *  `./names.ts`'s. */
 const NamesContext = createContext<Accessor<Names>>()
 
 function NamesProvider(props: {
-  readonly reading: Accessor<PageReading | undefined>
+  readonly names: Accessor<Names>
   readonly children: JSX.Element
 }) {
-  const named = createNames(() => props.reading())
-  return <NamesContext.Provider value={named}>{props.children}</NamesContext.Provider>
+  return <NamesContext.Provider value={props.names}>{props.children}</NamesContext.Provider>
 }
 
 /** What this page's ids name, for a leaf drawn inside a pane. A throw outside
@@ -261,10 +273,13 @@ export const useNames = (): Accessor<Names> => {
  *  one — see the header. */
 export interface Readings {
   /** Draw this pane for as long as the component calling it lives. */
-  readonly join: (pane: () => number, reading: Accessor<PageReading | undefined>) => void
+  readonly join: (pane: () => number, reading: Reading) => void
   /** What the pane at `index` is showing, or `undefined` for a pane that has
    *  not mounted or has not been answered yet. */
   readonly at: (index: number) => PageReading | undefined
+  /** What the ids that pane's page points at are called — the same table the
+   *  pane's leaves read, or `undefined` for a pane that has not mounted. */
+  readonly names: (index: number) => Names | undefined
 }
 
 const ReadingsContext = createContext<Readings>()
@@ -295,7 +310,7 @@ export const createReadings = (): Readings => {
   const [joined, setJoined] = createSignal<
     ReadonlyArray<{
       readonly pane: () => number
-      readonly reading: Accessor<PageReading | undefined>
+      readonly reading: Reading
     }>
   >([])
   return {
@@ -304,6 +319,7 @@ export const createReadings = (): Readings => {
       setJoined((were) => [...were, entry])
       onCleanup(() => setJoined((were) => were.filter((one) => one !== entry)))
     },
-    at: (index) => joined().find((one) => one.pane() === index)?.reading(),
+    at: (index) => joined().find((one) => one.pane() === index)?.reading.page(),
+    names: (index) => joined().find((one) => one.pane() === index)?.reading.names(),
   }
 }

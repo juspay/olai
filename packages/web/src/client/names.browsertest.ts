@@ -213,3 +213,33 @@ test("...and a name that actually changed is still a new table across one", () =
   expect(store.table()("herbs")?.title).toBe("the herb bed by the gate")
   store.stop()
 })
+
+// ── and that the two readers share that one copy ───────────────────────
+
+/**
+ * App.tsx used to build a second table over the focused pane's reading (for
+ * the palette's pin row, whose `called` memo reads it ungated), and
+ * NamesProvider built one per pane. A navigation woke both copies. The table
+ * is derived once beside the reading now; both readers look THAT one up.
+ *
+ * TWO LOOKUPS after the blank, so a second memo would have to run if it
+ * existed: Solid's createMemo is lazy until first read. The count is the
+ * claim — `toBe(ran)` would pass if the copy never ran, and `toBeGreaterThan`
+ * would pass if it ran twice.
+ */
+test("a navigation with the pane AND the chrome looking up builds the table once", () => {
+  const store = merged()
+  store.write(reading("kitchen remodel", "the herb bed"))
+  const pane = store.table
+  const chrome = store.table
+  expect(chrome()("herbs")?.title).toBe("the herb bed")
+  expect(chrome()).toBe(pane())
+  const ran = store.copies()
+  store.blank()
+  store.write(reading("the herb bed", "the herb bed"))
+  expect(pane()("herbs")?.title).toBe("the herb bed")
+  expect(chrome()("herbs")?.title).toBe("the herb bed")
+  expect(store.copies()).toBe(ran + 1)
+  expect(chrome()).toBe(pane())
+  store.stop()
+})
