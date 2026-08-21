@@ -68,6 +68,18 @@
  * A `date` with no mark is an OCCURRENCE (docs/format.md's Status): it is on
  * the day, it can never be overdue, and it is not a task somebody has to
  * finish. Which is what a capture is.
+ *
+ * WHOSE CLOCK, said because the honest answer is "not the sender's": the stamp
+ * is `@olai/format`'s `stampOf` read HERE, so it is the local time where the
+ * vault is served, with the offset written out — the value names one instant,
+ * and the day it groups under is the server's. A phone eight zones away
+ * capturing near midnight lands on the server's day rather than its own. That
+ * is a wrinkle rather than a bug and it is left standing deliberately: the
+ * alternative is a fourth field carrying the sender's clock, which is a field
+ * every client can get wrong for a difference nobody has yet complained about.
+ * The one thing that would be wrong is a `Z` instant, which would file
+ * somebody's evening under tomorrow — and `stampOf` is the one place in this
+ * codebase that decision is made.
  */
 
 import {
@@ -86,8 +98,9 @@ import { type Capturing, captureInto } from "./landing.ts"
  *  spell this one. */
 export const CAPTURE_PATH = "/capture"
 
-/** The header the identity is read off. `tailscale serve` injects it; Node
- *  lower-cases what arrives, which is what the lookup below uses. */
+/** The header the identity is read off, spelled the way a client writes it —
+ *  it is in the docs, in every recipe and in the refusal this door answers
+ *  with. What the LOOKUP compares against is {@link IDENTITY_KEY} below. */
 export const IDENTITY_HEADER = "Tailscale-User-Login"
 
 /** The property the identity is recorded as. A key rather than a field,
@@ -113,7 +126,7 @@ export const CAPTURED_BY = "captured-by"
  * half its capture dropped. That is the same trap `@olai/format`'s `writing.ts`
  * declares the bent `after` field for, met at a different door.
  */
-const Captured = Schema.Struct({
+const Posted = Schema.Struct({
   /** The row. Verbatim: a blank one is refused by the ops layer in its own
    *  words, which is the sentence an agent's `add_node` gets. */
   title: Schema.String,
@@ -124,9 +137,9 @@ const Captured = Schema.Struct({
   /** The named facts this capture is born with — `add_node`'s `props`. */
   props: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)),
 })
-type Captured = typeof Captured.Type
+type Posted = typeof Posted.Type
 
-const decode = Schema.decodeUnknownResult(Captured, {
+const decode = Schema.decodeUnknownResult(Posted, {
   errors: "all",
   onExcessProperty: "error",
 })
@@ -154,9 +167,9 @@ const decode = Schema.decodeUnknownResult(Captured, {
  * `desc` is stored as it is given and rendered at view time through the one
  * sanitised pipeline every other note goes through.
  */
-const noteOf = (captured: Captured): string | undefined => {
-  const text = captured.text ?? ""
-  const link = captured.url === undefined || captured.url === "" ? "" : `<${captured.url}>`
+const noteOf = (posted: Posted): string | undefined => {
+  const text = posted.text ?? ""
+  const link = posted.url === undefined || posted.url === "" ? "" : `<${posted.url}>`
   if (link === "") return text === "" ? undefined : text
   return text === "" ? link : `${text}\n\n${link}`
 }
@@ -170,16 +183,16 @@ const noteOf = (captured: Captured): string | undefined => {
  * being told its capture was recorded exactly as sent when it was not. Every
  * other key is the caller's.
  */
-const captureOf = (captured: Captured, login: string, at: Date): Capturing => {
-  const note = noteOf(captured)
+const captureOf = (posted: Posted, login: string, at: Date): Capturing => {
+  const note = noteOf(posted)
   return {
-    title: captured.title,
+    title: posted.title,
     ...(note === undefined ? {} : { desc: note }),
     // Dated so it lands on the day's journal page — see the header. The stamp
     // is `@olai/format`'s, the one place every date value olai writes is
     // minted.
     date: stampOf(at),
-    props: { ...captured.props, [CAPTURED_BY]: login },
+    props: { ...posted.props, [CAPTURED_BY]: login },
   }
 }
 
@@ -237,22 +250,23 @@ export interface Writing {
 
 export interface Options {
   readonly ops: Writing
-  /** What time it is, for the date a capture carries. Overridable so a test is
-   *  deterministic, exactly as the ops layer's own context is. */
-  readonly now?: () => Date
 }
+
+/** The header as it ARRIVES: Node lower-cases what comes off the socket, and
+ *  this is what the lookup compares against. Derived from the spelling above
+ *  rather than written out a second time, and computed once rather than per
+ *  request. */
+const IDENTITY_KEY = IDENTITY_HEADER.toLowerCase()
 
 export const captureRoute = (options: Options) =>
   HttpRouter.use((router) =>
     Effect.gen(function*() {
-      const now = options.now ?? (() => new Date())
-
       yield* router.add(
         "POST",
         CAPTURE_PATH,
         (request: HttpServerRequest.HttpServerRequest) =>
           Effect.gen(function*() {
-            const login = (request.headers[IDENTITY_HEADER.toLowerCase()] ?? "").trim()
+            const login = (request.headers[IDENTITY_KEY] ?? "").trim()
             if (login === "") {
               return HttpServerResponse.text(
                 `${IDENTITY_HEADER} is required: this door is authenticated by the ` +
@@ -266,14 +280,14 @@ export const captureRoute = (options: Options) =>
             if (body._tag === "Failure") {
               return HttpServerResponse.text("the body is not JSON", { status: 400 })
             }
-            const captured = decode(body.success)
-            if (captured._tag === "Failure") {
+            const posted = decode(body.success)
+            if (posted._tag === "Failure") {
               // The schema's own words. It names the field and what was wrong
               // with it, which is more than any sentence written here could,
               // and a client debugging a share sheet is exactly who needs it.
-              return HttpServerResponse.text(String(captured.failure), { status: 400 })
+              return HttpServerResponse.text(String(posted.failure), { status: 400 })
             }
-            if (Object.hasOwn(captured.success.props ?? {}, CAPTURED_BY)) {
+            if (Object.hasOwn(posted.success.props ?? {}, CAPTURED_BY)) {
               return HttpServerResponse.text(
                 `\`${CAPTURED_BY}\` is written from the ${IDENTITY_HEADER} header and ` +
                   "cannot be sent: it is who captured this, and a capture may not say " +
@@ -284,7 +298,7 @@ export const captureRoute = (options: Options) =>
 
             const done = yield* Effect.result(capture(
               options.ops,
-              captureOf(captured.success, login, now()),
+              captureOf(posted.success, login, new Date()),
             ))
             return done._tag === "Failure" ? refused(done.failure) : landed(done.success)
           }),
