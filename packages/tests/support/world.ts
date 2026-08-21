@@ -266,6 +266,7 @@ export const HYPERTEXT_LINK = selector(TESTID.hypertextLink);
  *  only element of that page this app owns. */
 export const HYPERTEXT_PREVIEW = selector(TESTID.hypertextPreview);
 export const HYPERTEXT_SAID = selector(TESTID.hypertextSaid);
+export const BODY_REFUSED = selector(TESTID.bodyRefused);
 /** One document, as a page: `/<file>`. */
 export const DOCUMENT_PAGE = selector(TESTID.documentPage);
 /** The rendered markdown of a document — on its own page, or inline under the

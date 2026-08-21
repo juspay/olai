@@ -130,6 +130,14 @@ const CATALOGUE = {
    * node.
    */
   "unreadable-directory": "set",
+  /**
+   * One FILE could not be read — EACCES, not the directory. `line`, because
+   * it is a hole the rest of the set renders around, the way a file whose
+   * lines would not parse is: the sidebar still lists it, its own page says
+   * so, and nobody else's page moves. The site is the path with a `line` of
+   * 0 — there is no record to point at.
+   */
+  "unreadable-file": "line",
 } as const satisfies Record<string, Reach>
 
 export type ErrorCode = keyof typeof CATALOGUE
@@ -185,11 +193,12 @@ export const isCrossFile = (error: OutlineError): boolean =>
   (error.related ?? []).some((related) => related.file !== error.file)
 
 /** A `line` of 0 means there is no record to point at — the site is the path
- *  itself. One code has that (`unreadable-directory`, which is about a
- *  DIRECTORY), and the rule lives here rather than in whichever renderer
- *  noticed first, which is the same argument {@link errorLine} makes: the
- *  browser's rows and an agent's one-liner must not disagree about whether
- *  `plan.olai:0` is a line number somebody could go and look for.
+ *  itself. Two codes have that (`unreadable-directory`, about a DIRECTORY,
+ *  and `unreadable-file`, about one FILE that will not open), and the rule
+ *  lives here rather than in whichever renderer noticed first, which is the
+ *  same argument {@link errorLine} makes: the browser's rows and an agent's
+ *  one-liner must not disagree about whether `plan.olai:0` is a line number
+ *  somebody could go and look for.
  *
  *  Asked of a {@link Site} rather than of an error: the `line` it reads is the
  *  PLACE's field, and an error is only where the question happens to come up.

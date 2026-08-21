@@ -30,9 +30,10 @@
  */
 
 import { proseIn } from "@olai/format"
-import { Show } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
-import { useDocument } from "../document/documents.tsx"
+import { BodyRefused } from "../document/BodyRefused.tsx"
+import { isServed, useDocument } from "../document/documents.tsx"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
@@ -43,6 +44,10 @@ export function DayNote(props: { readonly file: string }) {
   // asks (../document/documents.tsx): one narrowed subscription per path, and
   // it stops arriving when the reader leaves the day.
   const document = useDocument(() => props.file)
+  const servedBody = createMemo(() => {
+    const entry = document()
+    return isServed(entry) ? entry : undefined
+  })
 
   return (
     <section class="mb-6" data-testid={TESTID.dayNote} data-file={props.file}>
@@ -58,7 +63,7 @@ export function DayNote(props: { readonly file: string }) {
       </h2>
       {/* No placeholder: the body of a document this directory HAS is on its
           way, and the day below it is already drawn. */}
-      <Show when={document()}>
+      <Show when={servedBody()}>
         {(served) => (
           <Markdown
             /* THE PROSE: a daily note is a document, so its `---` block is its
@@ -71,6 +76,9 @@ export function DayNote(props: { readonly file: string }) {
             testid={TESTID.documentBody}
           />
         )}
+      </Show>
+      <Show when={document()?.refused}>
+        <BodyRefused />
       </Show>
     </section>
   )

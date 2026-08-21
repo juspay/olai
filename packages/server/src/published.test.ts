@@ -9,10 +9,17 @@
  * manifest, not in an outline's slice, so nothing carries the corpus.
  */
 
-import type { OutlineSet, Reading } from "@olai/format"
-import { readingOf, recordsOf, setOf } from "@olai/format/testlib"
+import {
+  assemble,
+  type Document,
+  type OutlineError,
+  type OutlineSet,
+  type Reading,
+} from "@olai/format"
+import { outlineOf, readingOf, recordsOf, setOf } from "@olai/format/testlib"
 import type { Snapshot } from "@olai/store"
 import { expect, test } from "bun:test"
+import { Result } from "effect"
 
 import { publishedOf } from "./published.ts"
 
@@ -166,7 +173,11 @@ test("a document's text is in its own entry, keyed by its path", () => {
   )
 
   expect([...documents.entries.keys()]).toEqual(["notes.md"])
-  expect(documents.entries.get("notes.md")).toEqual({ rev: 3, text: "# hello" })
+  expect(documents.entries.get("notes.md")).toEqual({
+    rev: 3,
+    text: "# hello",
+    refused: false,
+  })
   // Not smuggled into the outline's slice either: an outline entry is nodes.
   expect(JSON.stringify([...outlines.entries.values()])).not.toContain("# hello")
 })
@@ -238,10 +249,76 @@ test("a `.html` is a key of the collection with no body in it", () => {
   )
 
   expect([...documents.entries.keys()]).toEqual(["notes.md", "report.html"])
-  expect(documents.entries.get("report.html")).toEqual({ rev: 4, text: null })
+  expect(documents.entries.get("report.html")).toEqual({
+    rev: 4,
+    text: null,
+    refused: false,
+  })
   // The `.md` beside it is untouched by any of this: its text is the set's and
   // travels the same way it always did.
-  expect(documents.entries.get("notes.md")).toEqual({ rev: 4, text: "# hello" })
+  expect(documents.entries.get("notes.md")).toEqual({
+    rev: 4,
+    text: "# hello",
+    refused: false,
+  })
+})
+
+// TWO FAILURE CLASSES, and they must not share a face. `set.broken` holds
+// every decode Result.fail — a frontmatter typo and an EACCES look the same
+// there, only the error code differs. `DocumentEntry.refused` is the READ
+// failure (`unreadable-file`). A parse-broken `.md` keeps master's blank
+// body, and still carries Head.broken so the sidebar ⚠ has somewhere to
+// hang. Folding the two into one sentence is how a typo'd file started
+// saying it could not be read.
+test("a parse-broken document is not refused, and an unreadable one is", () => {
+  const parsed = publishedOf(
+    revision(
+      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]], {
+        "torn.md": "whatever the bytes were",
+      }),
+      {},
+      5,
+    ),
+    NOTHING_HELD,
+  )
+  expect(parsed.documents.entries.get("torn.md")).toEqual({
+    rev: 5,
+    text: "",
+    refused: false,
+  })
+  expect(parsed.heads.entries.get("torn.md")?.broken).not.toBeNull()
+  expect(parsed.documents.entries.get("notes.md")?.refused).toBe(false)
+
+  const unread = publishedOf(
+    revision(
+      assemble(
+        new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>([
+          ["house.olai", Result.succeed(outlineOf(HOUSE, "house.olai"))],
+          [
+            "locked.md",
+            Result.fail([
+              {
+                file: "locked.md",
+                line: 0,
+                code: "unreadable-file",
+                message:
+                  "EACCES — this file is in the directory and will not open.",
+              },
+            ]),
+          ],
+        ]),
+      ),
+      {},
+      6,
+    ),
+    NOTHING_HELD,
+  )
+  expect(unread.documents.entries.get("locked.md")).toEqual({
+    rev: 6,
+    text: "",
+    refused: true,
+  })
+  expect(unread.heads.entries.get("locked.md")?.broken).not.toBeNull()
 })
 
 // ── who publishes a body ───────────────────────────────────────────────
@@ -281,7 +358,11 @@ test("a bodyless entry is upserted only when its key is new", () => {
   // The ENTRY is still there whichever half publishes it: `readAll` is what a
   // fresh subscription reads, and a key missing from it is a file the sidebar
   // stopped showing.
-  expect(second.documents.entries.get("report.html")).toEqual({ rev: 2, text: null })
+  expect(second.documents.entries.get("report.html")).toEqual({
+    rev: 2,
+    text: null,
+    refused: false,
+  })
 
   // A file that LEAVES is a remove like any other — nothing about a body the
   // set does not keep changes what a departure is.

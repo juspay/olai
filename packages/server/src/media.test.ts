@@ -16,6 +16,7 @@
  * of the file's own bytes.
  */
 
+import { BODY_REFUSED } from "@olai/surface"
 import { expect, test } from "bun:test"
 import * as fs from "node:fs"
 import * as path from "node:path"
@@ -178,14 +179,16 @@ test("a request whose host is not a host gets a policy that fetches nothing", as
 // a file that is not there and is now this route's alone to answer for. The
 // preview stopped asking for the body over the wire (`@olai/surface`'s `Head`),
 // so nothing else in this process ever opens a saved page for a person: what a
-// reader gets is the same 404 every other miss gets — which of the ways a file
-// is unavailable is not their business — and what an OPERATOR gets is a line in
-// the log, because a permission bit nobody can see is exactly what the
-// never-silently-ignore rule is about.
+// reader gets is a sealed page that says the file could not be read — not the
+// 404 a miss gets, which is the wrong sentence over a heading that already
+// named the file — and what an OPERATOR gets is a line in the log, because a
+// permission bit nobody can see is exactly what the never-silently-ignore
+// rule is about. The sentence on the page is `bodies.ts`'s sentence: one
+// story, told the same way.
 //
 // Root can read a 0000 file, so the assertion is skipped there rather than
 // inverted (`@olai/chat`'s `memory.test.ts` makes the same call).
-test("a page that cannot be read is a 404, and IS in the log", async () => {
+test("a page that cannot be read says so, and IS in the log", async () => {
   if (typeof process.getuid === "function" && process.getuid() === 0) return
   const root = vault()
   const shut = path.join(root, "notes", "shut.html")
@@ -194,7 +197,10 @@ test("a page that cannot be read is a 404, and IS in the log", async () => {
   try {
     await withServing({ root }, async (url, said) => {
       const answer = await fetch(`${url}/media/notes/shut.html`)
-      expect(answer.status).toBe(404)
+      expect(answer.status).toBe(200)
+      const body = await answer.text()
+      expect(body).toContain(BODY_REFUSED)
+      expect(body.indexOf("olai:page-sealed")).toBeLessThan(body.indexOf("<body"))
       // The pair the test above asserts the other way round. A file the
       // directory really holds and this process cannot open is bounded by the
       // disk rather than by what a stranger asks for, so it is exactly what the

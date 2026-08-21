@@ -25,10 +25,18 @@ import type { Locator } from "playwright";
 // is not a constant is where this vault's files are. `mediaHref` is the other
 // half of the same contract: the address a preview frame is pointed at.
 import { isPicture } from "@olai/format";
-import { MEDIA_PREFIX, mediaHref, mediaTarget, ROUNDING, sealPolicy } from "@olai/surface";
+import {
+  BODY_REFUSED as REFUSED_SAID,
+  MEDIA_PREFIX,
+  mediaHref,
+  mediaTarget,
+  ROUNDING,
+  sealPolicy,
+} from "@olai/surface";
 
 import { saysThat } from "../support/said.ts";
 import {
+  BODY_REFUSED,
   DOCUMENT_EDIT,
   HYDRATION_TIMEOUT,
   HYPERTEXT_LINK,
@@ -85,6 +93,32 @@ const inside = async (world: OlaiWorld) => {
   await preview(world);
   return world.page.frameLocator(HYPERTEXT_PREVIEW);
 };
+
+Then(
+  "the page says the file could not be read",
+  async function (this: OlaiWorld) {
+    await this.page
+      .locator(BODY_REFUSED)
+      .first()
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await saysThat(
+      this,
+      BODY_REFUSED,
+      REFUSED_SAID,
+      "unreadable page",
+      "alarm",
+    );
+  },
+);
+
+Then("there is no preview frame", async function (this: OlaiWorld) {
+  const count = await this.page.locator(HYPERTEXT_PREVIEW).count();
+  assert.strictEqual(
+    count,
+    0,
+    `the unreadable page still draws a preview frame`,
+  );
+});
 
 Then(
   "the preview shows the heading {string}",

@@ -118,4 +118,14 @@ export const codec: Codec<Document, Reading, ReadonlyArray<OutlineError>> = {
     message:
       `${failure.message} — the outline below is the last one that loaded, and it will catch up on its own once the directory can be read again.`,
   }],
+
+  /** A kept file that will not open is a hole, not a banner. The probe
+   *  absorbs it; {@link assemble} keeps the file's place; the wire's
+   *  `DocumentEntry.refused` is what a face draws. */
+  unread: (failure) => Result.fail([{
+    file: failure.path,
+    line: 0,
+    code: "unreadable-file" as const,
+    message: `${failure.message} — this file is in the directory and will not open.`,
+  }]),
 }

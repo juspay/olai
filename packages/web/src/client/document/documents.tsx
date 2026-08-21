@@ -50,6 +50,8 @@
  */
 
 import type { DocumentEntry } from "@olai/surface"
+
+import type { Ready } from "./ready.ts"
 import {
   type Accessor,
   createContext,
@@ -83,8 +85,13 @@ import { olai } from "../wire.ts"
  * spinner for the width of a disk read. So it collapses into the `undefined`
  * every consumer already handles, once, here — and everything above this line
  * takes a `text` that is a string.
+ *
+ * A REFUSAL is the third state and is not folded. `text ?? ""` would draw a
+ * blank preview for a file that had something to say. {@link Ready} is the
+ * union a consumer switches on.
  */
-export type Served = DocumentEntry & { readonly text: string }
+export type { Ready, Refused, Served } from "./ready.ts"
+export { isServed } from "./ready.ts"
 
 export interface Documents {
   /** One document's body, for as long as the calling owner lives — and for as
@@ -96,15 +103,17 @@ export interface Documents {
    *  state, and the one a body being read from disk shares with it ({@link
    *  Served}) — and also for a `doc` naming a file that is no longer there (a
    *  valid set cannot produce that: `doc` is validated against the documents
-   *  found). */
+   *  found). A refusal is {@link Ready}, not `undefined`: folding it into a
+   *  missing body is how a `doc` line went blank. */
   readonly read: (
     file: Accessor<string | undefined>,
-  ) => Accessor<Served | undefined>
+  ) => Accessor<Ready | undefined>
 }
 
-/** Whether an entry is one a page can draw — see {@link Served}. */
-const arrived = (entry: DocumentEntry | undefined): entry is Served =>
-  entry !== undefined && entry.text !== null
+/** Whether an entry is one a page can draw — a body, or a refusal. See
+ *  {@link Ready}. */
+const arrived = (entry: DocumentEntry | undefined): entry is Ready =>
+  entry !== undefined && (entry.refused || entry.text !== null)
 
 export const createDocuments = (): Documents => {
   /** Who wants what: a path is wanted while at least one owner is showing it.
@@ -196,4 +205,4 @@ const reader = (): Documents => {
  *  without a body passes. */
 export const useDocument = (
   file: () => string | undefined,
-): Accessor<Served | undefined> => reader().read(file)
+): Accessor<Ready | undefined> => reader().read(file)

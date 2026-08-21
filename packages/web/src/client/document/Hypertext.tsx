@@ -114,11 +114,13 @@ import {
 
 import { SaidLine } from "../edit/SaidLine.tsx"
 import type { Said } from "../edit/undoing.ts"
+import { Lede } from "../errors/Lede.tsx"
 import { useOpens } from "../opens.tsx"
 import { useGo, useLanding } from "../router.tsx"
 import { fileNamed } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { useHead } from "../served.tsx"
+import { BodyRefused } from "./BodyRefused.tsx"
 import { echo } from "./echo.ts"
 
 /**
@@ -297,6 +299,29 @@ interface Pointed {
   readonly at: string | undefined
 }
 
+/**
+ * THE FACE FOR A REFUSED BODY, drawn in the app's chrome rather than inside
+ * the frame. The frame still fetches the sealed refusal (so it greets, so
+ * it is not a walk-off) and posts the refused sentence's message; this is
+ * what the reader sees instead of a 404 rectangle under the heading.
+ *
+ * A LEDE rather than a {@link SaidLine}: a click-refusal is why nothing
+ * happened just now, and belongs against the frame's top edge. This is why
+ * the PAGE is empty, and it sits where the body would have been, in the
+ * same voice a broken outline's page uses (`../errors/Broken.tsx`).
+ */
+function RefusedBody() {
+  return (
+    <section>
+      <BodyRefused class="m-0 mb-2 italic text-alarm" />
+      <Lede>
+        The file is in the directory and will not open, so there is nothing
+        to show.
+      </Lede>
+    </section>
+  )
+}
+
 export function Hypertext(props: { readonly file: string }) {
   // WHICH REVISION THIS FILE IS AT, which is the whole of what this component
   // asks the wire for — the effect at the bottom is what spends it. A number,
@@ -316,6 +341,10 @@ export function Hypertext(props: { readonly file: string }) {
   // that vanished on its own is one a reader can miss by looking away, and the
   // next thing this frame does is the honest moment for it to go.
   const [refused, setRefused] = createSignal<Said>()
+  // The file is served and will not open — the refused sentence. Cleared by
+  // the next pointing ({@link fresh}), so a revision that makes the file
+  // readable again is a new fetch, not a refusal that stuck.
+  const [unreadable, setUnreadable] = createSignal(false)
   // Where the frame said its anchor ended up, measured from the frame's own
   // top (`seal.ts`'s `LANDED`), or nothing when no landing was asked for or the
   // page had no such id. A SIGNAL rather than a scroll done on arrival, for the
@@ -419,6 +448,7 @@ export function Hypertext(props: { readonly file: string }) {
     if (sizing !== undefined) cancelAnimationFrame(sizing)
     sizing = undefined
     setRefused(undefined)
+    setUnreadable(false)
     setLandedAt(undefined)
     pointed = arriving
     if (arriving === undefined) setMeasured(undefined)
@@ -636,6 +666,10 @@ export function Hypertext(props: { readonly file: string }) {
       // for the same reason.
       const said = heard(event.data)
       if (said === undefined) return
+      if (said.kind === "refused") {
+        setUnreadable(true)
+        return
+      }
       if (said.kind === "hello") {
         // WHOSE greeting this is, decided by what the frame is holding rather
         // than by when it arrived (`Custody`'s table). A document says this
@@ -846,6 +880,10 @@ export function Hypertext(props: { readonly file: string }) {
           />
         )}
       </Show>
+      <Show when={unreadable()}>
+        <RefusedBody />
+      </Show>
+      <Show when={!unreadable()}>
       <iframe
       // The element, and its first address, in one step: assigning `src` here
       // happens before insertion, so there is no `about:blank` load ahead of
@@ -915,6 +953,7 @@ export function Hypertext(props: { readonly file: string }) {
       class="block h-[clamp(6rem,var(--page-height,70dvh),200dvh)] w-full rounded border border-rule bg-white"
       data-testid={TESTID.hypertextPreview}
       />
+      </Show>
     </>
   )
 }

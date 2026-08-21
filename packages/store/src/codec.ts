@@ -126,4 +126,16 @@ export interface Codec<F, S, E> {
    * ref — so "the directory came back" needs nothing written for it here.
    */
   readonly unreadable: (failure: PlatformFailure) => E
+  /**
+   * One FILE could not be read — EACCES on a `.md`, not the directory itself.
+   *
+   * Optional because a codec that has no per-file hole (every unread file
+   * poisons the set) omits it and the probe fails the whole look, which is
+   * {@link unreadable}'s sentence. olai's implements it: a `.md` that will
+   * not open is a hole the rest of the set renders around, and the refusal
+   * travels on that file's entry rather than as a banner over the directory.
+   *
+   * Absent, the probe's existing behaviour is unchanged.
+   */
+  readonly unread?: (failure: PlatformFailure) => Result.Result<F, E>
 }

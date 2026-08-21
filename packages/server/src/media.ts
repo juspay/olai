@@ -36,9 +36,11 @@
  * read whole and answered whole, with no `Accept-Ranges`, no `ETag` and no
  * `304`: a preview is opened by a person and is not a video being scrubbed.
  *
- * Every way a file is not there is one 404. The reader asked for something and
+ * Every way a file is not THERE is one 404. The reader asked for something and
  * there is not one; which of the ways it is missing is not their business, and
- * saying would describe the disk to anybody who can reach the port.
+ * saying would describe the disk to anybody who can reach the port. A file
+ * that is there and will not OPEN is the other sentence: a sealed page that
+ * says so, the same story `./bodies.ts` tells on the wire.
  *
  * The guard is LEXICAL, and deliberately: it stops a URL from naming a file
  * outside the directory. It does not chase a symlink that a person put inside
@@ -47,7 +49,14 @@
  */
 
 import { fileKind } from "@olai/format"
-import { MEDIA_PREFIX, mediaTarget, SEAL, sealPolicy, spellsHost } from "@olai/surface"
+import {
+  MEDIA_PREFIX,
+  mediaTarget,
+  REFUSED_MARKUP,
+  SEAL,
+  sealPolicy,
+  spellsHost,
+} from "@olai/surface"
 import { vanished } from "@olai/store"
 import { Effect, FileSystem, type PlatformError, Stream } from "effect"
 import {
@@ -117,12 +126,28 @@ const served = (target: string): string =>
  *  re-encoding half a kilobyte of ours. */
 const PREFIX = new TextEncoder().encode(SEAL)
 
+/** The refused page's own bytes, encoded once for the same reason: it is a
+ *  constant, and a permission bit should not pay for re-encoding a sentence. */
+const REFUSED = new TextEncoder().encode(REFUSED_MARKUP)
+
+/** The headers a sealed page rides on — the same whether the bytes after the
+ *  seal are the file or the refusal. A refused page is still a document of
+ *  this vault (it greets, it measures), so the policy is the same policy. */
+const sealedHeaders = (host: string) => ({
+  "content-security-policy": sealPolicy(host),
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "no-referrer",
+  "cache-control": "no-store",
+})
+
 /**
  * Whether a failed read is one an OPERATOR is owed a line about: the file is
  * THERE and will not open.
  *
- * The reader is owed nothing either way — every way a file is not available is
- * one 404 (see the header) — so this decides the LOG and only the log. It
+ * The reader of a MISS is owed nothing — every way a file is not there is one
+ * 404 (see the header) — so for a miss this decides the LOG and only the log.
+ * A file that is there and will not open is answered with a sealed page, and
+ * this still decides the log, because the two producers tell one story. It
  * exists because this route is the only process left that ever opens a saved
  * page for a person: the preview asked for the body over the wire as well until
  * the head member replaced it, and the reader that answered logged what the disk
@@ -249,12 +274,7 @@ const page = (
     // the response had already started.
     return HttpServerResponse.stream(Stream.fromIterable([PREFIX, bytes]), {
       contentType: "text/html; charset=utf-8",
-      headers: {
-        "content-security-policy": sealPolicy(host),
-        "x-content-type-options": "nosniff",
-        "referrer-policy": "no-referrer",
-        "cache-control": "no-store",
-      },
+      headers: sealedHeaders(host),
     })
   }).pipe(
     // …AND IT IS SAID OUT LOUD when the file is THERE and will not open. That
@@ -276,8 +296,19 @@ const page = (
         )
         : Effect.void
     ),
-    // A file that cannot be read is answered exactly like one that never was:
-    // which of the ways it is missing is not the reader's business, and saying
-    // would describe the disk to anybody who can reach the port.
+    // A file that cannot be READ is answered with a sealed page that says so,
+    // not with the 404 a miss gets. Which of the ways it is unavailable is
+    // still not the reader's business — the sentence does not name the errno
+    // — but that it is served and will not open is. A miss stays a miss.
+    Effect.catchIf(
+      willNotOpen,
+      () =>
+        Effect.succeed(
+          HttpServerResponse.stream(Stream.fromIterable([PREFIX, REFUSED]), {
+            contentType: "text/html; charset=utf-8",
+            headers: sealedHeaders(host),
+          }),
+        ),
+    ),
     Effect.orElseSucceed(() => missing),
   )

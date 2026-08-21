@@ -35,7 +35,15 @@
  * (`runtime.ts`) and needs no projection.
  */
 
-import { bodiedIn, bodyOf, faceOf, nodesOf, outlinesIn, type Reading } from "@olai/format"
+import {
+  bodiedIn,
+  bodyOf,
+  type BrokenFile,
+  faceOf,
+  nodesOf,
+  outlinesIn,
+  type Reading,
+} from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import type { DocumentEntry, Head, OutlineEntry } from "@olai/surface"
 
@@ -137,9 +145,21 @@ export interface Published {
  * hundred saved pages announces four hundred keys and opens none of them,
  * because the read is the body reader's and its filter is who is holding what.
  */
+/** Whether this file's breakage is a READ that failed, not a parse. The set
+ *  folds every decode Result.fail into `broken`; only `unreadable-file` is
+ *  {@link DocumentEntry.refused}. A parse-broken `.md` keeps the blank body
+ *  it always had, and Head.broken is still what the sidebar ⚠ hangs from. */
+const isUnread = (file: BrokenFile | undefined): boolean =>
+  file?.errors.some((error) => error.code === "unreadable-file") === true
+
 const documentsOf = (
   snapshot: Snapshot<Reading>,
   held: Published | null,
+  /** Why the set holds a PLACE for a file and no content — the same map
+   *  the heads read for {@link Head.broken}. An outline's breakage rides
+   *  {@link OutlineEntry.broken}; a document's READ failure is this
+   *  entry's `refused`. A parse failure is not. */
+  broken: ReadonlyMap<string, BrokenFile>,
 ): Pick<Published, "documents" | "unread"> => {
   // The BODIED half of the directory: this member is what a reader opens as a
   // page, and an outline is published as its records next door.
@@ -147,7 +167,14 @@ const documentsOf = (
   const change = changeOf(
     documents,
     (document) => document.path,
-    (document) => ({ rev: snapshot.rev, text: bodyOf(document) }),
+    (document) => ({
+      rev: snapshot.rev,
+      text: bodyOf(document),
+      // A kept `.md` that will not OPEN is a refusal of THIS file. A
+      // `.html` is never in `broken` from the probe — its body is not
+      // kept — so its refusal arrives later, from `./bodies.ts`.
+      refused: isUnread(broken.get(document.path)),
+    }),
     snapshot,
     held?.documents,
   )
@@ -265,6 +292,6 @@ export const publishedOf = (
       snapshot,
       published?.heads,
     ),
-    ...documentsOf(snapshot, published),
+    ...documentsOf(snapshot, published, broken),
   }
 }

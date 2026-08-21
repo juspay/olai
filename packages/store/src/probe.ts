@@ -268,12 +268,26 @@ export const make = <F, S, E>(
           for (
             const [path, contents] of yield* Effect.forEach(
               opening,
-              (path) => Effect.map(disk.read(path), (contents) => [path, contents] as const),
+              (path) =>
+                Effect.match(disk.read(path), {
+                  onFailure: (failure) => [path, failure] as const,
+                  onSuccess: (text) => [path, text] as const,
+                }),
               { concurrency: 16 },
             )
           ) {
             if (contents === null) {
               fresh.set(path, null)
+              continue
+            }
+            if (typeof contents !== "string") {
+              // The file is THERE and will not open. A codec that can absorb
+              // that as a hole does; one that cannot fails the whole look,
+              // which is the directory-level sentence {@link Codec.unreadable}
+              // already names.
+              const unread = codec.unread?.(contents)
+              if (unread === undefined) return yield* Effect.fail(contents)
+              fresh.set(path, unread)
               continue
             }
             // A file whose bytes are the ones this caller promised is not decoded

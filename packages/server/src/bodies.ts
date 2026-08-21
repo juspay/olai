@@ -55,13 +55,13 @@
  * that the server can hear it, and both ends now keep the same kind of book.
  *
  * ONE failure is quieter than it used to be, and it is a trade rather than an
- * oversight: a `.html` that cannot be READ (not gone — unreadable) reaches the
- * log, and the reader sees the page it already had, with no body under the
- * heading. Before this, the probe read every `.html` on every pass, so one
- * unreadable saved page failed the whole probe and put a banner over the WHOLE
- * directory. The banner is the louder answer and it was also the wrong blast
- * radius; naming this one on its own page needs a way for an entry to say
- * "refused", which the wire has no field for yet.
+ * oversight: a `.html` that cannot be READ (not gone — unreadable) used to
+ * fail the whole probe and put a banner over the WHOLE directory. The banner
+ * is the louder answer and it was also the wrong blast radius. The wire now
+ * has a way for an entry to say "refused" (`@olai/surface`'s
+ * `DocumentEntry.refused`), so this module publishes that state — the log
+ * still gets the line, and the reader of THIS file gets the reason, and
+ * nobody else's page moves.
  */
 
 import type { PlatformFailure } from "@olai/store"
@@ -91,9 +91,13 @@ export interface Options {
   /** One file's text, read now and kept by nobody — `@olai/store`'s `body`,
    *  which is the only reader of the disk this module is allowed. */
   readonly read: (path: string) => Effect.Effect<string | null, PlatformFailure>
-  /** Hand a body to whoever is reading that key. Called on the reading fiber,
-   *  once per read that found something. */
-  readonly publish: (path: string, text: string) => void
+  /** Hand a body — or a refusal — to whoever is reading that key. Called on
+   *  the reading fiber, once per read that found something or that was
+   *  refused. A file that has GONE publishes nothing. */
+  readonly publish: (
+    path: string,
+    body: { readonly text: string } | { readonly refused: true },
+  ) => void
 }
 
 export const make = (
@@ -140,20 +144,30 @@ export const make = (
         // frame to a subscription that has gone — the late callback kolu's
         // watchers clear their timers to prevent.
         if (!holders.has(path)) return
-        const text = yield* Effect.catch(
-          options.read(path),
+        // THREE STATES, and they are not a string that might also be a body.
+        // A file whose bytes are the word "refused" is a body; folding the
+        // failure into that word would publish a refusal for a file that
+        // opened. `null` from the disk is a file that has GONE between the
+        // listing and now, which is not this module's news to break: the
+        // next probe drops the key, the sidebar loses the file, and the
+        // page says there is no such file. A read that failed is the file
+        // THERE and will not open — published as data, so a one-shot reader
+        // is handed a frame rather than held open on a body that will
+        // never come, and a face can say so.
+        const got = yield* Effect.catch(
+          Effect.map(
+            options.read(path),
+            (text): { text: string } | { gone: true } =>
+              text === null ? { gone: true } : { text },
+          ),
           (failure: PlatformFailure) =>
             Effect.as(
               Effect.logWarning(`olai server: ${failure.message}`),
-              // Nothing is published, so the reader keeps the entry it has —
-              // which says the body is not here. See the header.
-              null,
+              { refused: true as const },
             ),
         )
-        // `null` is a file that has GONE between the listing and now, which is
-        // not this module's news to break: the next probe drops the key, the
-        // sidebar loses the file, and the page says there is no such file.
-        if (text !== null) options.publish(path, text)
+        if ("gone" in got) return
+        options.publish(path, got)
       }),
     ).pipe(Effect.forkScoped)
 

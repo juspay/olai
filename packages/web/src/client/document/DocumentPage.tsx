@@ -66,7 +66,7 @@ import { Dynamic } from "solid-js/web"
 import { TESTID } from "../testids.ts"
 import { DocEditor } from "./DocEditor.tsx"
 import { Referrers } from "./Referrers.tsx"
-import { useDocument } from "./documents.tsx"
+import { isServed, useDocument } from "./documents.tsx"
 import { FACES } from "./faces.tsx"
 import { consumeMinted } from "./minted.ts"
 
@@ -130,7 +130,7 @@ function OneDocument(props: { readonly file: string }) {
         {/* The control and the draft it opens read ONE value, so a page cannot
             offer an editor it has nothing to open: `served()` is both the
             condition here and the baseline below. */}
-        <Show when={served() !== undefined && !editing()}>
+        <Show when={isServed(served()) && !editing()}>
           <button
             type="button"
             class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
@@ -147,7 +147,7 @@ function OneDocument(props: { readonly file: string }) {
           reaches this page: the page model answers that with its own screen
           (../page.ts). */}
       <Show
-        when={editing() ? served() : undefined}
+        when={editing() && isServed(served()) ? served() : undefined}
         fallback={
           /* `<Dynamic>` because the component genuinely arrives at RUNTIME —
              which kind of file this is, is a fact about the path (the
@@ -161,7 +161,7 @@ function OneDocument(props: { readonly file: string }) {
         {(body) => (
           <DocEditor
             file={props.file}
-            served={body().text}
+            served={body().text ?? ""}
             onDone={() => setEditing(false)}
           />
         )}

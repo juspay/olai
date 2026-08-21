@@ -253,6 +253,48 @@ export const ROUNDING = 2
  */
 const HELLO = "olai:page-sealed"
 
+/**
+ * THE FIFTH THING A SEALED PAGE MAY SAY: the file is in the directory and
+ * will not open.
+ *
+ * It is a MESSAGE rather than a missing document because the embedder already
+ * knows the file exists — the heading is on screen, the sidebar has it lit —
+ * and an empty 404 frame is the browser saying "there is no such file", which
+ * is the wrong sentence. The route that could not read the bytes seals a
+ * page of ours instead (`REFUSED_MARKUP`), so the frame greets, and then it
+ * says this. `Hypertext.tsx` draws the face in the app's own chrome and
+ * hides the frame: the reader is owed the reason on the page, not inside a
+ * rectangle that looks like a document.
+ *
+ * The string is an identity, like {@link HELLO}. A page that has walked off
+ * can post it too, and the embedder will then draw the refusal over an
+ * empty frame — which is the honest end-state of a file that will not be
+ * shown.
+ */
+const REFUSED = "olai:page-refused"
+
+/**
+ * What both faces say when a body would not open — the `.html` page, and a
+ * `doc` reference's preview line.
+ *
+ * ONE sentence, because the two producers (`bodies.ts`, `media.ts`) tell one
+ * story and the two faces must not invent a second. It does not name the
+ * errno: which of the ways a file is unavailable would describe the disk to
+ * anybody who can reach the port. The fact is that the file is served and
+ * will not open.
+ */
+export const BODY_REFUSED = "This file could not be read."
+
+/**
+ * The bytes a refused page is, after the seal. The seal still greets and
+ * measures, so the frame is a document of this vault rather than a walk-off;
+ * this is the body that says why there is nothing to show, and the message
+ * that lets the embedder draw the face itself.
+ */
+export const REFUSED_MARKUP =
+  `<body><p>${BODY_REFUSED}</p>` +
+  `<script>parent.postMessage(${JSON.stringify(REFUSED)}, "*")</script></body>`
+
 /** The other end of {@link HELLO} is {@link heard}, with the other two: what a
  *  sealed frame may say is ONE vocabulary, and it is classified once. */
 
@@ -725,6 +767,8 @@ export type Said =
   /** The frame is a document this server sealed — {@link HELLO}. It proves less
    *  than it looks like it proves, and the receiver says so at length. */
   | { readonly kind: "hello" }
+  /** The file is served and will not open — {@link REFUSED}. */
+  | { readonly kind: "refused" }
   /** A page of this vault the reader clicked a link at — {@link OPEN}. Still
    *  not a file: a path SHAPED like one, to be looked up. `at` is the place
    *  inside it the link named, when it named one; it is not checked against
@@ -793,6 +837,7 @@ const decoded = (fragment: string): string | undefined => {
 
 export const heard = (said: unknown): Said | undefined => {
   if (said === HELLO) return { kind: "hello" }
+  if (said === REFUSED) return { kind: "refused" }
   if (typeof said !== "string") return undefined
   if (said.startsWith(OPEN)) {
     const address = said.slice(OPEN.length)
