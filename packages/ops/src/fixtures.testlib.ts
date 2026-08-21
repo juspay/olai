@@ -66,26 +66,53 @@ export const planning = (
   request: WriteRequest,
 ): Result.Result<Plan, OpFailure> => plan(readingOf(set), steady(), request)
 
-/** The plan, or a failure quoted well enough to fix the test without a
- *  debugger. */
-export const planned = (set: OutlineSet, request: WriteRequest): Plan => {
-  const outcome = planning(set, request)
+/**
+ * A `Result` this layer produced, unwrapped — and the DIAGNOSTIC, which is the
+ * whole reason the pair has a name.
+ *
+ * "expected `add` to plan, and it refused: …" is the sentence that turns a
+ * failing assertion into a fixed test without a debugger, and a second copy of
+ * it is one copy that gets better and one that does not. The planner asked for
+ * these two first; the READS ask for them now as well — `read_subtree` answers
+ * a `Result` since it began taking a path, which can be refused — so they are
+ * over any `Result` this package produces rather than over a plan.
+ *
+ * `what` is the phrase the sentence is built around ("`add` to plan",
+ * "`read_subtree` to answer"), so the caller names its own verb.
+ */
+export const succeeded = <A>(
+  outcome: Result.Result<A, OpFailure>,
+  what: string,
+): A => {
   if (Result.isFailure(outcome)) {
     throw new Error(
-      `expected \`${request.op}\` to plan, and it refused: ` +
+      `expected ${what}, and it refused: ` +
         `${outcome.failure._tag} — ${outcome.failure.message}`,
     )
   }
   return outcome.success
 }
 
-export const refused = (set: OutlineSet, request: WriteRequest): OpFailure => {
-  const outcome = planning(set, request)
+export const failed = <A>(
+  outcome: Result.Result<A, OpFailure>,
+  what: string,
+): OpFailure => {
   if (Result.isSuccess(outcome)) {
-    throw new Error(`expected \`${request.op}\` to be refused, and it planned`)
+    throw new Error(
+      `expected ${what} to be refused, and it answered: ` +
+        `${JSON.stringify(outcome.success)}`,
+    )
   }
   return outcome.failure
 }
+
+/** The plan, or a failure quoted well enough to fix the test without a
+ *  debugger. */
+export const planned = (set: OutlineSet, request: WriteRequest): Plan =>
+  succeeded(planning(set, request), `\`${request.op}\` to plan`)
+
+export const refused = (set: OutlineSet, request: WriteRequest): OpFailure =>
+  failed(planning(set, request), `\`${request.op}\``)
 
 /** One file of a plan, by name. */
 export const fileOf = (result: Plan, file: string): ReadonlyArray<Node> => {

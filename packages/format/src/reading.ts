@@ -540,9 +540,12 @@ export const DEFAULT_SUBTREE_DEPTH = 3
  * table takes a schema apart by its `.fields` (`@olai/ops`' `Arguments`, and
  * `@olai/server`'s `argsOf`), and the JSON Schema an MCP host reads is an
  * object with properties rather than an `anyOf` it may or may not honour — the
- * same constraint that unrolls `add_node`'s capture. So the shape advertises
- * both, the prose says the rule, and the reader refuses either mistake in its
- * own words: naming neither, or naming both.
+ * same constraint that unrolls `add_node`'s capture. What a `check` on the
+ * struct COULD do is reject the pair at the decode, and that is declined rather
+ * than unavailable: it answers with a complaint about a shape, where what a
+ * caller who named both needs is which of the two reads it meant. So the shape
+ * advertises both, the prose says the rule, and the reader refuses either
+ * mistake in its own words: naming neither, or naming both.
  *
  * `depth` means one thing on both arms — how far to descend, from the node, or
  * from EACH of the file's roots.
@@ -631,6 +634,14 @@ export type NodeAnswer = typeof NodeAnswer.Type
  * walked exactly as an `id` walk walks the node it was handed — `truncated` and
  * all, per root, since one root can bottom out at a leaf while its neighbour is
  * cut at the depth.
+ *
+ * SIBLING ORDER, which is NOT `OutlineSummary`'s order and the difference is
+ * worth knowing rather than hiding. A listing names a file's roots in the order
+ * the FILE writes them, deliberately (`@olai/ops`' `outlines`, and the case
+ * that pins it); this is the tree's own `ord`, which is what a page draws and
+ * what every `children` list below is in. One is about the file and one is
+ * about the tree, and they part company on a root that was reordered without
+ * its line moving.
  *
  * A MIRROR AT THE TOP LEVEL IS NOT A ROOT, which is the walk's own rule read
  * one level up: `read_subtree` does not walk placements, and {@link

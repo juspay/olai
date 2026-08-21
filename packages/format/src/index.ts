@@ -350,6 +350,11 @@ export {
    *  and a reordering would be a diff nobody asked for. */
   nodesOf,
   progressOf,
+  /** One outline's TOP-LEVEL records, in sibling order, placements dropped —
+   *  `siblingsOf` at the top of a file asked as "what does this outline hold"
+   *  rather than "what places are there" (`./derive.ts`). Three readers spelled
+   *  the mirror drop three ways before it had a name. */
+  rootsOf,
   rowsOf,
   rowsUnder,
   siblingsOf,

@@ -19,14 +19,14 @@ import {
   type OutlineSet,
   type Reading,
   type SearchAnswer,
+  type OutlineRoots,
   type Subtree,
   type SubtreeAnswer,
   type SubtreeRequest,
 } from "@olai/format"
 import { describe, expect, test } from "bun:test"
-import { Result } from "effect"
 
-import { readingOf, setOf } from "./fixtures.testlib.ts"
+import { failed, readingOf, setOf, succeeded } from "./fixtures.testlib.ts"
 import {
   dated,
   detail,
@@ -79,35 +79,45 @@ const LEDGER = (): OutlineSet =>
 const at = () => derivedOf(LEDGER())
 
 /**
- * A subtree read that ANSWERED, and one that refused — the pair
- * `./fixtures.testlib.ts` keeps for the planner, for the reason it keeps them:
- * a walk that refuses where the case expected an answer should say what it
- * refused with rather than fail two assertions later on `undefined`.
+ * A subtree read that ANSWERED, and one that refused.
  *
  * The read answers a `Result` now that it takes a path as well as an id: an id
  * the set does not hold is still an ANSWER (`{ missing }`), and a path that is
- * not an outline is a refusal carrying the closest one that is.
+ * not an outline is a refusal carrying the closest one that is. The UNWRAP and
+ * the diagnostic that goes with it are `./fixtures.testlib.ts`'s, which is
+ * where the planner's pair already lived — a walk that refuses where the case
+ * expected an answer says what it refused with rather than failing two
+ * assertions later on `undefined`.
  */
-const walked = (of: Reading, request: SubtreeRequest): SubtreeAnswer => {
-  const answer = subtree(of, request)
-  if (Result.isFailure(answer)) {
-    throw new Error(
-      `expected \`read_subtree\` to answer, and it refused: ` +
-        `${answer.failure._tag} — ${answer.failure.message}`,
-    )
+const walked = (of: Reading, request: SubtreeRequest): SubtreeAnswer =>
+  succeeded(subtree(of, request), "`read_subtree` to answer")
+
+const refusedWalk = (of: Reading, request: SubtreeRequest): OpFailure =>
+  failed(subtree(of, request), "`read_subtree`")
+
+/**
+ * The two ARMS of an answer that is not the `{ missing }` one — a diagnostic
+ * rather than a cast at each assertion.
+ *
+ * Every arm of the union is a real answer this read can give, so reading
+ * `children` or `roots` off the wrong one is `undefined` two assertions later,
+ * naming nothing. These say which arm was expected, once, and hand back the
+ * narrowed value.
+ */
+const nodeOf = (answer: SubtreeAnswer): Subtree => {
+  if (!("children" in answer)) {
+    throw new Error(`expected one node's walk, and got ${JSON.stringify(answer)}`)
   }
-  return answer.success
+  return answer
 }
 
-const refusedWalk = (of: Reading, request: SubtreeRequest): OpFailure => {
-  const answer = subtree(of, request)
-  if (Result.isSuccess(answer)) {
+const outlineOf = (answer: SubtreeAnswer): OutlineRoots => {
+  if (!("roots" in answer)) {
     throw new Error(
-      `expected \`read_subtree\` to refuse, and it answered: ` +
-        `${JSON.stringify(answer.success)}`,
+      `expected the whole-outline answer, and got ${JSON.stringify(answer)}`,
     )
   }
-  return answer.failure
+  return answer
 }
 
 /** The whole READING — what a search is asked of now that it answers with both
@@ -321,7 +331,7 @@ describe("the properties a node carries", () => {
     // test above pins for `see` and `after`.
     expect(detail(at(), "bugs")?.children.find((child) => child.id === "git"))
       .toMatchObject({ custom: { agent: "claude-opus" } })
-    const bugs = walked(reading(), { id: "bugs", depth: 1 }) as Subtree
+    const bugs = nodeOf(walked(reading(), { id: "bugs", depth: 1 }))
     expect(bugs.children.find((child) => child.id === "git"))
       .toMatchObject({ custom: { agent: "claude-opus" } })
     expect(bugs.children.find((child) => child.id === "sticky"))
@@ -630,17 +640,8 @@ describe("a whole outline, walked", () => {
 
   const shelf = () => readingOf(SHELF())
 
-  /** The roots of an answer that took the `file` arm, by id — and a diagnostic
-   *  rather than a cast, because every other arm of the union is a real answer
-   *  this read can give and reading `roots` off one would be `undefined`. */
-  const rootsOf = (answer: SubtreeAnswer): ReadonlyArray<string> => {
-    if (!("roots" in answer)) {
-      throw new Error(
-        `expected the whole-outline answer, and got ${JSON.stringify(answer)}`,
-      )
-    }
-    return answer.roots.map((root) => root.id)
-  }
+  const rootIds = (answer: SubtreeAnswer): ReadonlyArray<string> =>
+    outlineOf(answer).roots.map((root) => root.id)
 
   test("one call answers every top-level node, nested", () => {
     const answer = walked(shelf(), { file: "plan.olai" })
@@ -649,10 +650,10 @@ describe("a whole outline, walked", () => {
     expect(answer).toMatchObject({ file: "plan.olai" })
     // BOTH roots, in the sibling order a reader sees them in — which is the
     // whole claim: two roots used to be two calls.
-    expect(rootsOf(answer)).toEqual(["today", "later"])
+    expect(rootIds(answer)).toEqual(["today", "later"])
     // …and each one walked, not merely named: `list_outlines` already answers
     // the titles.
-    const answered = answer as { readonly roots: ReadonlyArray<Subtree> }
+    const answered = outlineOf(answer)
     expect(answered.roots[0]?.children.map((child) => child.id)).toEqual(["call"])
     expect(answered.roots[0]?.children[0]?.children.map((child) => child.id))
       .toEqual(["hinges"])
@@ -661,19 +662,45 @@ describe("a whole outline, walked", () => {
   })
 
   test("each root says for itself where the walk stopped", () => {
-    const answer = walked(shelf(), { file: "plan.olai", depth: 1 }) as {
-      readonly roots: ReadonlyArray<Subtree>
-    }
+    const answer = outlineOf(walked(shelf(), { file: "plan.olai", depth: 1 }))
     // One root bottoms out at the depth…
     expect(answer.roots[0]?.children[0]).toMatchObject({ id: "call", truncated: true })
     // …while its neighbour bottoms out at a leaf, and says nothing.
     expect(answer.roots[1]).not.toHaveProperty("truncated")
   })
 
+  /**
+   * THE ONE PLACE THE TWO ANSWERS ABOUT ONE OUTLINE DIFFER, pinned so it is a
+   * decision rather than something that happens.
+   *
+   * `list_outlines` names a file's roots in the order the FILE writes them, and
+   * that is deliberate and has a case of its own ("the directory", below). This
+   * walk answers in the TREE's order, `ord`, which is what a page draws and
+   * what every `children` list in the same answer is in — a walk that ordered
+   * its roots one way and their children another would be the odd one.
+   *
+   * `ord` is a fractional index and a write re-emits a file without sorting it,
+   * so a reordered root parts the two. Both declarations say so; this is what
+   * makes them say the same thing as the code.
+   */
+  test("the roots are the tree's order, where the listing is the file's", () => {
+    const set = setOf({
+      // Written out of `ord` order on purpose — the same fixture shape the
+      // listing's own case uses, so the two claims are read against each other.
+      "out.olai": [
+        `{"id":"second","ord":"a1","title":"Second"}`,
+        `{"id":"first","ord":"a0","title":"First"}`,
+      ].join("\n"),
+    })
+    expect(rootIds(walked(readingOf(set), { file: "out.olai" })))
+      .toEqual(["first", "second"])
+    expect(outlines(set, derivedOf(set))[0]?.roots).toEqual(["Second", "First"])
+  })
+
   test("a placement at the top level is not a root", () => {
     // The walk's own rule read one level up: a mirror is a second view of a
     // node that lives elsewhere, and elsewhere is where this read answers it.
-    expect(rootsOf(walked(shelf(), { file: "plan.olai" }))).not.toContain("echo")
+    expect(rootIds(walked(shelf(), { file: "plan.olai" }))).not.toContain("echo")
   })
 
   test("a path that is not an outline is refused with the closest one that is", () => {

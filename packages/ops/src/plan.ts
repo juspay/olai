@@ -43,6 +43,7 @@ import {
   drawingPath,
   DOCUMENT_EXT,
   isMirror,
+  isOutline,
   type Located,
   type LocatedRegular,
   MARKS,
@@ -53,6 +54,7 @@ import {
   nodeNamed,
   type Status,
   NotFoundFailure,
+  type Outline,
   type OutlineError,
   canonicalRepeat,
   nextOccurrence,
@@ -477,7 +479,7 @@ export const noSuchDocument = (
  * ({@link notFound} argues the split): a directory has a handful of outlines
  * and a few thousand nodes.
  */
-export const noSuchOutline = (set: OutlineSet, file: string): OpFailure => {
+const noSuchOutline = (set: OutlineSet, file: string): OpFailure => {
   const outlines = outlinePaths(set)
   const near = didYouMean(file, outlines)
   return new NotFoundFailure({
@@ -487,6 +489,34 @@ export const noSuchOutline = (set: OutlineSet, file: string): OpFailure => {
       : `\`${file}\` is not an outline under the served directory${near}`,
     named: file,
   })
+}
+
+/**
+ * THE OUTLINE AT THIS PATH, or the refusal that says why not — {@link
+ * regularAt}'s counterpart for the other thing an op can name.
+ *
+ * The GUARD and the sentence together, because they are one question asked
+ * twice over: a write placing a node at a file's top level ({@link landsIn})
+ * and a read asking for a whole outline ({@link ./query.ts}'s `subtree`) both
+ * have to decide whether a path names an outline this directory serves, and
+ * both owe the same answer when it does not. Extracting only the sentence left
+ * the test in front of it copied — two lines apart, in two files — so a third
+ * verb naming an outline would have copied both halves again.
+ *
+ * `isOutline` is the FORMAT's kind test, named there rather than spelled as a
+ * `kind` comparison wherever it is wanted (`@olai/format`'s `document.ts`), and
+ * `documentAt` is the point lookup that answers what is at a path at all. This
+ * composes the two; it decides nothing of its own.
+ */
+export const outlineAt = (
+  set: OutlineSet,
+  file: string,
+): Result.Result<Outline, OpFailure> => {
+  const found = documentAt(set, file)
+  if (found === undefined || !isOutline(found)) {
+    return Result.fail(noSuchOutline(set, file))
+  }
+  return Result.succeed(found)
 }
 
 /** The record with this id, or the refusal that says so. A MIRROR is not an
@@ -615,9 +645,8 @@ const landsIn = (
       }),
     )
   }
-  if (documentAt(scope.set, file)?.kind !== "outline") {
-    return Result.fail(noSuchOutline(scope.set, file))
-  }
+  const outline = outlineAt(scope.set, file)
+  if (Result.isFailure(outline)) return Result.fail(outline.failure)
   const may = writable(scope, file)
   if (Result.isFailure(may)) return Result.fail(may.failure)
   return Result.succeed({ file })

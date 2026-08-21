@@ -48,7 +48,6 @@ import {
   type Detail,
   type DocumentBody,
   type DocumentSummary,
-  documentAt,
   errorLine,
   follow,
   type Found,
@@ -95,7 +94,7 @@ import {
   type SearchAnswer,
   type SearchHit,
   type SearchRequest,
-  siblingsOf,
+  rootsOf,
   type Stamps,
   type Subtree,
   type SubtreeAnswer,
@@ -108,7 +107,7 @@ import {
 } from "@olai/format"
 import { Result } from "effect"
 
-import { noSuchDocument, noSuchOutline, notLoaded } from "./plan.ts"
+import { noSuchDocument, notLoaded, outlineAt } from "./plan.ts"
 
 /**
  * Every shape an answer here has is `@olai/format`'s, and none of them is
@@ -297,6 +296,10 @@ export const search = (
     ? []
     : matchingDocuments(bodiedIn(at.set), filter, scope)
   const limit = query.limit ?? DEFAULT_SEARCH_LIMIT
+  // Read ONCE for the answer rather than per hit: it is a fact about the
+  // question, and this same request is what a browser's boxes send on every
+  // settled keystroke.
+  const wantsNotes = query.withDesc === true
   const hits = rankedTogether(at.derived, nodes, documents)
     .slice(0, limit)
     .map((selected): SearchHit => {
@@ -325,10 +328,12 @@ export const search = (
       }
       const { at: located, match } = selected
       const found = foundOf(at.derived, located)
-      // The note this query is entitled to — the record's when it asked, and
-      // nothing at all when it did not. One reading of the request per hit,
-      // beside the spread that applies the format's rule for absence to it.
-      const asked = query.withDesc === true ? located.node.desc : undefined
+      // The note this query is entitled to — the record's when it asked for
+      // one, and nothing at all when it did not. TWO STEPS and not one
+      // condition, because they are two questions: this one is the REQUEST's,
+      // and the spread below is the FORMAT's rule for absence, spelled the way
+      // every other answer in this file spells it.
+      const note = wantsNotes ? located.node.desc : undefined
       // ANNOTATED, never asserted. It was `as Hit` for as long as this function
       // has existed, and an assertion is exactly the thing that stops checking
       // when the declaration moves: a required field added to `SearchHit` and to
@@ -361,7 +366,7 @@ export const search = (
         // it. A single `withDesc !== true || desc === undefined` would braid
         // them, and would be the one place a carried field is omitted by a
         // rule that is not the format's.
-        ...(asked === undefined ? {} : { desc: asked }),
+        ...(note === undefined ? {} : { desc: note }),
       }
     })
 
@@ -874,6 +879,31 @@ const placementsOf = (
  * A RESULT and not a nullable, for the reason {@link document} is one: a pure
  * function says "or else" this way, and the door lifts it ({@link
  * ./tools.ts}'s `asking`).
+ *
+ * EXACTLY ONE OF THE TWO, CHECKED HERE. What the schema cannot do is ADVERTISE
+ * the rule: the union of two structs that would say it type-level is not
+ * available at this seam (the tool table takes a request apart by its
+ * `.fields`), and the JSON Schema an MCP host reads is an object with
+ * properties rather than an `anyOf` it may or may not honour — the same
+ * constraint that unrolls `add_node`'s capture. A decode-level `check` on the
+ * struct could REJECT the pair, and is deliberately not used: what comes back
+ * from one is a decoder's complaint about a shape, where what a caller needs is
+ * which of the two reads it meant. So the request arrives wide and is refused
+ * here, in words. The two refusals are two rather than one because they are
+ * different mistakes made by different callers: NEITHER is usually a caller
+ * that has not noticed the file arm exists, and BOTH is a caller holding two
+ * questions who has to pick. Both are USAGE and not NOT-FOUND — nothing was
+ * looked up, because there was no single question to look up.
+ *
+ * NOT `@olai/format`'s `Address`, and the survey is recorded so it is not
+ * re-run. That grammar is the canonical way this repository names a PLACE — a
+ * document path, a node id, a heading inside a body — and a search hit already
+ * carries one. It is the wrong reuse here because it encapsulates a different
+ * axis: an address is a place written as TEXT, parsed out of a title somebody
+ * typed in `Pins.olai` or out of an address bar, and it carries an arm (a
+ * heading in a body) this read has no answer for. Nothing in this request is
+ * written text — it is two typed fields, and what is decided below is which of
+ * them was given.
  */
 export const subtree = (
   /** BOTH HALVES of the reading, unlike the walk this used to be: the id arm
@@ -898,79 +928,6 @@ export const subtree = (
     }
   }
 
-  const subject = subjectOf(request)
-  if (Result.isFailure(subject)) return Result.fail(subject.failure)
-
-  if (subject.success.kind === "node") {
-    const located = at.derived.byId.get(subject.success.id)
-    if (located === undefined || !isRegular(located)) {
-      return Result.succeed({ missing: subject.success.id })
-    }
-    return Result.succeed(walk(located, depth))
-  }
-
-  const file = subject.success.file
-  // `documentAt` and not a `.includes` over the paths: the point lookup IS the
-  // question, it answers the KIND, and the "is that file there" scans it
-  // replaced are what let a feature work for one kind of file and not the other
-  // (`@olai/format`'s `set.ts`). It is the same call the write that places a
-  // node at a file's top level makes, one door over.
-  if (documentAt(at.set, file)?.kind !== "outline") {
-    return Result.fail(noSuchOutline(at.set, file))
-  }
-  const broken = brokenIn(at.set, file)
-  if (broken !== undefined) return Result.fail(notLoaded(file, broken))
-  return Result.succeed({
-    file,
-    // The roots a READER sees, in the order the page draws them: `siblingsOf`
-    // with no parent is one outline's top level, `ord`-sorted, and the mirrors
-    // drop here for the reason the walk never descends into one — a placement is
-    // a second view of a node that lives elsewhere, and elsewhere is where this
-    // read answers it.
-    roots: siblingsOf(at.derived, file, undefined).filter(isRegular).map((root) =>
-      walk(root, depth)
-    ),
-  })
-}
-
-/**
- * WHICH OF THE TWO READS THIS IS — the wide request narrowed, once, to the one
- * subject the walk can be handed.
- *
- * THE SCHEMA CANNOT SAY IT, which is the whole reason this exists rather than
- * being a type. "Exactly one of two fields" is a union of two structs, and a
- * union is not available at this seam: the tool table takes a request apart by
- * its `.fields`, and the JSON Schema an MCP host reads is an object with
- * properties rather than an `anyOf` it may or may not honour (the same
- * constraint that unrolls `add_node`'s capture). So the ILLEGAL STATE arrives —
- * both named, or neither — and the honest place to make it unrepresentable is
- * at the door, once, in front of everything that would otherwise have to keep
- * asking whether the other field is there.
- *
- * TWO REFUSALS AND NOT ONE, because they are different mistakes made by
- * different callers: neither is usually a caller that has not noticed the file
- * arm exists, and both is a caller holding two questions who has to pick. Each
- * names the two arms and what each one reads.
- *
- * USAGE and not NOT-FOUND: nothing was looked up, because there was no single
- * question to look up.
- *
- * NOT `@olai/format`'s {@link Address}, and the survey is worth recording so it
- * is not re-run. That grammar is the canonical way this repository names a
- * PLACE — a document path, a node id, a heading inside a body — and a search
- * hit already carries one. It is the wrong reuse here because it encapsulates a
- * different axis: an address is a place WRITTEN AS TEXT, parsed out of a title
- * somebody typed in `Pins.olai` or out of an address bar, and it carries an arm
- * (a heading in a body) this read has no answer for. Nothing in this request is
- * written text: it is two typed fields, and what this narrows is WHICH OF THEM
- * WAS GIVEN. Taking the address grammar would put a parse where there is no
- * text and a refusal where there is no arm.
- */
-type Subject =
-  | { readonly kind: "node"; readonly id: string }
-  | { readonly kind: "file"; readonly file: string }
-
-const subjectOf = (request: SubtreeRequest): Result.Result<Subject, OpFailure> => {
   if (request.id !== undefined && request.file !== undefined) {
     return Result.fail(
       new UsageFailure({
@@ -980,8 +937,33 @@ const subjectOf = (request: SubtreeRequest): Result.Result<Subject, OpFailure> =
       }),
     )
   }
-  if (request.id !== undefined) return Result.succeed({ kind: "node", id: request.id })
-  if (request.file !== undefined) return Result.succeed({ kind: "file", file: request.file })
+
+  if (request.id !== undefined) {
+    const located = at.derived.byId.get(request.id)
+    if (located === undefined || !isRegular(located)) {
+      return Result.succeed({ missing: request.id })
+    }
+    return Result.succeed(walk(located, depth))
+  }
+
+  if (request.file !== undefined) {
+    // The GATE and its sentence together, one door over in the planner, because
+    // the write that places a node at a file's top level asks the identical
+    // question and owes the identical answer ({@link outlineAt}).
+    const outline = outlineAt(at.set, request.file)
+    if (Result.isFailure(outline)) return Result.fail(outline.failure)
+    const broken = brokenIn(at.set, request.file)
+    if (broken !== undefined) return Result.fail(notLoaded(request.file, broken))
+    return Result.succeed({
+      file: request.file,
+      // The roots a READER sees: `@olai/format`'s own reading of an outline's
+      // top level, `ord`-sorted, placements dropped for the reason the walk
+      // never descends into one — a mirror is a second view of a node that
+      // lives elsewhere, and elsewhere is where this read answers it.
+      roots: rootsOf(at.derived, request.file).map((root) => walk(root, depth)),
+    })
+  }
+
   return Result.fail(
     new UsageFailure({
       reason: "give `id` (a node and what hangs under it) or `file` " +
@@ -1005,7 +987,12 @@ export const outlines = (
    *
    * `Map.groupBy` holds each group in ENCOUNTER order, which is what `roots`
    * below stands on: a row's titles come out in file order, not the sibling
-   * (`ord`) order they would be in had anything sorted them.
+   * (`ord`) order they would be in had anything sorted them. That is why this
+   * does NOT go through `@olai/format`'s `rootsOf`, which is the same question
+   * asked of the TREE and answers in `ord` — `read_subtree`'s `file` arm is
+   * that one. A listing is about the file; a walk is about the tree; the two
+   * part company on a root reordered without its line moving, and both
+   * declarations say so.
    *
    * The mirrors drop HERE, once for the whole answer, as `countedChildren`
    * drops them in the floor — a placement is neither counted nor a title, and

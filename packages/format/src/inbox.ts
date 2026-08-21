@@ -19,8 +19,8 @@
 
 import { Schema } from "effect"
 
-import { type Derived, siblingsOf } from "./derive.ts"
-import { inboxIn, isMirror } from "./node.ts"
+import { type Derived, rootsOf } from "./derive.ts"
+import { inboxIn } from "./node.ts"
 import { type OutlineSet, outlinePaths } from "./set.ts"
 
 /**
@@ -66,8 +66,6 @@ export const sameInboxHeld: (a: InboxHeld, b: InboxHeld) => boolean =
 export const inboxHeldOf = (set: OutlineSet, derived: Derived): InboxHeld => {
   const file = inboxIn(outlinePaths(set))
   if (file === undefined) return NO_INBOX
-  const count = siblingsOf(derived, file, undefined).filter(
-    (located) => !isMirror(located.node),
-  ).length
+  const count = rootsOf(derived, file).length
   return { count }
 }
