@@ -2,14 +2,10 @@
 Feature: The header shows who you are
   A reverse proxy injects a trusted login header (and optionally an email).
   Default wiring is `tailscale serve`'s Tailscale-User-Login. The header
-  draws who is looking as a closed set: anonymous when the header is
-  absent, the person (gravatar and login) when it is present, a failed
-  door when the ask broke. Direct access is anonymous — a face in the
-  chrome row, top right, not a missing chip. Nothing invents a user.
-
-  The chip is last in the pills, not next to the wordmark. The wordmark
-  is the APP; this is WHO IS LOOKING. The chrome row still answers for
-  git with one pill, which is a different question.
+  draws who is looking as a closed set of icons, last in the chrome row
+  (top right): anonymous when the header is absent, the gravatar when it
+  is present, a failed door when the ask broke. The words are the
+  tooltip. Nothing invents a user.
 
   Scenario: Direct access draws anonymous
     When I open the app

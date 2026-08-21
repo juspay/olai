@@ -1,21 +1,18 @@
 /**
- * Who is looking, in the header: every answer has a face.
+ * Who is looking, in the header: every answer has a face, and the face
+ * is an icon. The words are the tooltip.
  *
  * Four constructors, a closed set. `asking` while the door has not
- * answered; `none` when this request is anonymous (direct access, a
- * local serve); `yes` when a login arrived; `error` when the door
- * failed. Absence is a state, not a missing chip.
- *
- * LAST in the chrome row — top right — wearing the same pill the
- * connection and commit wear, so the bar's items-center has one height
- * to align. A person is a gravatar in that pill; anonymous is the word,
- * not a fake avatar named nobody.
+ * answered; `none` when this request is anonymous; `yes` when a login
+ * arrived (the gravatar is the icon); `error` when the door failed.
+ * LAST in the chrome row — top right — wearing the same icon-button
+ * the agent and prefs wear, so the bar's items-center has one height.
  */
 
 import { Match, Switch } from "solid-js"
 
 import { LAYER } from "../layer.ts"
-import { PILL } from "../readout.ts"
+import { ICON_BUTTON } from "../readout.ts"
 import { TESTID } from "../testids.ts"
 import { Tip } from "../Tip.tsx"
 import { createWho, type Who as Person } from "./asking.ts"
@@ -40,17 +37,19 @@ export function Who() {
     >
       <Switch>
         <Match when={face() === "asking"}>
-          <Pill label="asking who is looking" text="…" />
+          <Icon label="asking who is looking" dim>
+            <UserIcon />
+          </Icon>
         </Match>
         <Match when={face() === "none"}>
-          <Pill label="anonymous" text="anonymous" />
+          <Icon label="anonymous">
+            <UserIcon />
+          </Icon>
         </Match>
         <Match when={face() === "error"}>
-          <Pill
-            label="could not tell who is looking"
-            text="couldn't ask"
-            alarm
-          />
+          <Icon label="could not tell who is looking" alarm>
+            <UserIcon />
+          </Icon>
         </Match>
         <Match when={person()}>
           {(one) => <Chip person={one()} />}
@@ -60,38 +59,60 @@ export function Who() {
   )
 }
 
-function Pill(props: {
+function Icon(props: {
   readonly label: string
-  readonly text: string
+  readonly dim?: boolean
   readonly alarm?: boolean
+  readonly children: unknown
 }) {
   return (
     <Tip text={props.label} layer={LAYER.over}>
       <span
-        class={`${PILL} ${props.alarm === true ? "text-alarm" : "text-muted"}`}
+        class={`${ICON_BUTTON} border border-paper/25 ${
+          props.alarm === true ? "text-alarm" : "text-paper/80"
+        } ${props.dim === true ? "opacity-50" : ""}`}
         aria-label={props.label}
       >
-        {props.text}
+        {props.children}
       </span>
     </Tip>
+  )
+}
+
+/** Outline user, same stroke language as {@link ../Leaf.tsx}. */
+function UserIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      class="size-4"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.7"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <circle cx="12" cy="8" r="3.25" />
+      <path d="M5.5 19.2c1.3-3.2 3.6-4.7 6.5-4.7s5.2 1.5 6.5 4.7" />
+    </svg>
   )
 }
 
 function Chip(props: { readonly person: Person }) {
   return (
     <Tip text={props.person.login} layer={LAYER.over}>
-      <span class={PILL} aria-label={props.person.login}>
+      <span
+        class={`${ICON_BUTTON} border border-paper/25 p-1.5`}
+        aria-label={props.person.login}
+      >
         <img
           src={props.person.gravatar}
           alt=""
           width={20}
           height={20}
           referrerPolicy="no-referrer"
-          class="size-5 shrink-0 rounded-full"
+          class="size-5 rounded-full"
         />
-        <span class="hidden min-w-0 max-w-[12rem] truncate md:inline">
-          {props.person.login}
-        </span>
       </span>
     </Tip>
   )
