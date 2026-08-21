@@ -282,6 +282,40 @@ export interface Derived {
 }
 
 /**
+ * One record filed under the node it hangs beneath — how {@link Derived.children}
+ * is KEYED, in one place, for {@link nameInto}'s reason and with one of its own.
+ *
+ * A record with no `parent` files NOTHING, which is what keeps this index from
+ * holding a key for every root in the directory — the "skips the records with
+ * no key at all" the walk below names, and the reason this is not
+ * `Map.groupBy`.
+ *
+ * THE ORDER IS NOT HERE, and that is deliberate rather than an omission: a
+ * single walk of a corpus-ordered list gets sibling order for free and sorts
+ * once at the end ({@link byOrd}, below), while a patcher MERGING records that
+ * arrive from two directions has to say the tie out loud (`./patch.ts`'s
+ * `bySibling`). Two callers with genuinely different information, so what they
+ * share is the filing and not the sort.
+ *
+ * IT IS A FUNCTION because the patcher files into this index too, over the
+ * records one changed file brought in ({@link ./patch.ts}), and it had reached
+ * for `Map.groupBy` with a filter in front of it — the same answer arrived at
+ * the other way, which is precisely the second spelling the three folds beside
+ * this one exist to stop. What each of the four says is now asked of one
+ * function per index, by the rebuild and by the patch alike.
+ */
+export const parentInto = (
+  children: Map<string, Array<Located>>,
+  located: Located,
+): void => {
+  const parent = located.node.parent
+  if (parent === undefined) return
+  const siblings = children.get(parent)
+  if (siblings === undefined) children.set(parent, [located])
+  else siblings.push(located)
+}
+
+/**
  * A record that names an id, and the fields it names it with — one entry per
  * RECORD, so a node naming the same id twice (`after` it and `see` it) is one
  * dependent with two fields rather than two dependents.
@@ -486,13 +520,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   for (const located of nodes) {
     if (!byId.has(located.node.id)) byId.set(located.node.id, located)
 
-    const parent = located.node.parent
-    if (parent !== undefined) {
-      const siblings = children.get(parent)
-      if (siblings === undefined) children.set(parent, [located])
-      else siblings.push(located)
-    }
-
+    parentInto(children, located)
     nameInto(namedBy, located)
     tagInto(taggedBy, located)
     dateInto(days, located)

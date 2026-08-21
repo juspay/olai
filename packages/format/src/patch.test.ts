@@ -512,6 +512,43 @@ test("an edit does not copy the id map — it layers over it", () => {
   expect(view.byId.get("p")?.node).toMatchObject({ title: "p" })
 })
 
+test("an index the edit says nothing about is the map the last view held", () => {
+  // COPY ON WRITE one level up: at the INDEX rather than at its values. Four of
+  // the reverse indexes are re-filed by one rule (`./patch.ts`'s `refiled`),
+  // and the first thing that rule asks is which of its keys this edit could
+  // have moved — so an edit that moves none of them hands back the map that
+  // stood, and the view being built shares it with the view it patched instead
+  // of cloning a map to answer everything the same way.
+  //
+  // A keystroke in an outline of plain rows is exactly that edit: the record it
+  // rewrites hangs under nothing, names nothing, tags nothing and is scheduled
+  // for nothing, so `children`, `namedBy`, `taggedBy` and `byDay` have no key
+  // in them it touches. `taggedBy` and `byDay` had this and it is a perf
+  // property worth pinning here rather than re-derived from a bench nobody runs
+  // on a lane; `children` and `namedBy` paid a clone for it until the rule was
+  // said once.
+  const before: Corpus = {
+    "a.olai": `{"id":"p","ord":"a","title":"p"}`,
+    "b.olai": `{"id":"q","ord":"a","title":"q","after":["p"]}\n` +
+      `{"id":"r","ord":"b","title":"r #tag","date":"2026-08-20"}\n` +
+      `{"id":"under","ord":"c","title":"under","parent":"r"}`,
+  }
+  const typed = `{"id":"p","ord":"a","title":"p again"}`
+  const view = viewOf(before)
+  // The four hold something to begin with, so sharing them is a claim about
+  // this edit and not about four maps that were empty anyway.
+  expect([view.children.size, view.namedBy.size, view.taggedBy.size, view.byDay.size])
+    .toEqual([1, 1, 1, 1])
+
+  const next = patched(view, editing("a.olai", typed))
+  expect(next).toBeDefined()
+  same(next as Derived, viewOf({ ...before, "a.olai": typed }), () => "a title typed")
+  expect((next as Derived).children).toBe(view.children)
+  expect((next as Derived).namedBy).toBe(view.namedBy)
+  expect((next as Derived).taggedBy).toBe(view.taggedBy)
+  expect((next as Derived).byDay).toBe(view.byDay)
+})
+
 test("a mirror chain that dangled resolves the moment its target arrives", () => {
   // `mirrorsOf` files a chain under the node it ENDS at, and this one ends
   // nowhere — so nothing but the raw index can find these two placements when
