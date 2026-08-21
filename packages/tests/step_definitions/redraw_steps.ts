@@ -33,6 +33,7 @@ import {
   PALETTE_LIST,
   PIN_SHELF,
   PROPS,
+  SEARCH_REFUSAL,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -55,6 +56,11 @@ const REGIONS: Readonly<Record<string, string>> = {
   "@ menu": CHAT_COMPLETION,
   "header search panel": HEADER_SEARCH_RESULTS,
   "filter bar": FILTER_BAR,
+  // The refusal ROW, at whichever of the two search doors is drawing one — the
+  // testid is one because the sentence is one. Narrower than the panels above
+  // on purpose: a door's list is entitled to change while the reader types, and
+  // what must not is the live region beside it.
+  "search refusal": SEARCH_REFUSAL,
 };
 
 const regionOf = (name: string): string => {

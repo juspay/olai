@@ -117,6 +117,21 @@ test("no file here spells the same-file law — it is the format's", () => {
 // ONE file, its own test included: `layer.test.ts` reads the utilities back
 // out of the table rather than quoting any, which is what lets this list be a
 // single name.
+// SaidLine.tsx's claim about `ALARM_BAND` — "spelled here it changes once".
+// The BAND, not the alarm token: this client paints alarm on a dozen shapes
+// (a badge, a bubble, a banner, a dashed chat entry) and each of those is its
+// own thing. What may not recur is the shortlist panels' alarmed band — the
+// rule at 40% with the same hue at 5% behind it — which three panels drew by
+// hand until they were one call, and which a fourth panel would copy from
+// whichever of them it was written beside. The pattern grips the pair rather
+// than either half, because either half alone is a shape somebody else is
+// entitled to.
+test("only SaidLine.tsx spells the alarmed band the shortlist panels wear", () => {
+  expect(filesSpelling(/border-alarm\/40[^"'`]*bg-alarm\/5/)).toEqual([
+    path.join("edit", "SaidLine.tsx"),
+  ])
+})
+
 test("only layer.ts spells a z-index", () => {
   expect(filesSpelling(/(?:^|[\s"'`])z-(?:\[\d+\]|\d+|auto)(?=$|[\s"'`])/m)).toEqual(["layer.ts"])
 })

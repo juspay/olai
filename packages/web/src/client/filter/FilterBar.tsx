@@ -45,12 +45,12 @@
  * page is a link, and Back leaves the filter rather than un-typing it.
  */
 
-import { Index, Show } from "solid-js"
+import { Show } from "solid-js"
 
 import type { Asked } from "./asking.ts"
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { listKey } from "../keys.ts"
-import { refusalLines } from "../refusals.ts"
+import { Refusals } from "../refusals.tsx"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
 import { countSaid } from "./count.ts"
@@ -84,13 +84,6 @@ export function FilterBar(props: {
       failure: props.asked.failure(),
       counts: props.narrowing.counts(),
     })
-
-  /** What the grammar could not read, as the sentences it is announced in.
-   *  A memo over the STRINGS rather than a list of parses, because this box is
-   *  re-parsed on every keystroke and this line is `aria-live="assertive"`:
-   *  drawn by identity, a query that goes on refusing the same token was read
-   *  out loud again for every character typed after it (`../refusals.ts`). */
-  const refused = refusalLines(props.narrowing.refusals)
 
   return (
     <div
@@ -172,22 +165,15 @@ export function FilterBar(props: {
         )}
       </Show>
 
-      {/* The refusal IS a said-thing, and the one mood `SaidLine` calls a
-          refusal: why nothing happened, toned alarm and announced assertively,
-          because a reader who does not notice it believes the directory is
-          empty. The mood — the colour, the `data-tone` a scenario reads, the
-          `role`/`aria-live` pair — is that component's, once, for every
-          surface in this client that has to say one. Only the LAYOUT is
-          here. */}
-      <Index each={refused()}>
-        {(line) => (
-          <SaidLine
-            said={{ tone: "alarm", text: line() }}
-            class="m-0 mt-1 font-mono text-xs"
-            testid={TESTID.filterRefusal}
-          />
-        )}
-      </Index>
+      {/* The refusals, drawn — the sentence, the keying that keeps a screen
+          reader from hearing it twice, and the alarmed row are all
+          `../refusals.tsx`'s, once, for every door onto this grammar. What is
+          left here is where the lines sit and what this bar calls them. */}
+      <Refusals
+        of={props.narrowing.refusals()}
+        class="m-0 mt-1 font-mono text-xs"
+        testid={TESTID.filterRefusal}
+      />
 
       {/* THE CALL refusing, which is not the grammar refusing: its own slot, so
           a wire that fell over cannot be read as a query that found nothing.

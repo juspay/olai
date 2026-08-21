@@ -48,7 +48,6 @@ import {
   createMemo,
   createSelector,
   createSignal,
-  Index,
   Match,
   on,
   onCleanup,
@@ -64,7 +63,7 @@ import { Result as Outcome } from "effect"
 import { releaseArmed, restoreArmed } from "../chat/armed.ts"
 
 import type { Names } from "../names.ts"
-import { SaidLine } from "../edit/SaidLine.tsx"
+import { ALARM_BAND, SaidLine } from "../edit/SaidLine.tsx"
 import { desktop } from "../layout/media.ts"
 import {
   resetPanelWidths,
@@ -74,7 +73,7 @@ import {
 import { LAYER, WITHIN } from "../layer.ts"
 import { topmostWhileOpen } from "../topmost.ts"
 import { only } from "../narrow.ts"
-import { refusalLines } from "../refusals.ts"
+import { Refusals } from "../refusals.tsx"
 import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
@@ -114,6 +113,14 @@ import { isEditingTarget, listKey, matchKey, paneKey } from "../keys.ts"
 import { useRouter } from "../router.tsx"
 import { isLone } from "../workspace.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
+
+/** WHERE an alarm sits in this panel: a full-width band between the box and
+ *  the list, at this door's own gutter. The alarm's SKIN is
+ *  `../edit/SaidLine.tsx`'s (`ALARM_BAND`, shared with the two narrower
+ *  panels); the `px-4` is the palette's, because its rows set it. Three things
+ *  this panel can alarm about — a refused ask, a search that fell over, a
+ *  token the grammar cannot read — and one band. */
+const ALERT_ROW = `${ALARM_BAND} px-4`
 
 /** What this door calls its rows — see `../search/Result.tsx`'s `RowTestids`
  *  for why the three travel as one value. */
@@ -283,11 +290,6 @@ export function Palette(props: {
   // The nodes, from the server — one primitive, its own failure, and no
   // request bookkeeping in this component ({@link ../search/nodes.ts}).
   const nodes = createSearch(asked)
-  /** What the grammar could not read, as the sentences it is announced in —
-   *  compared by value so a query that keeps refusing the same token is not
-   *  read out loud again (`../refusals.ts`). */
-  const refused = refusalLines(nodes.refusals)
-
   /**
    * The zoomed node's verbs — its OWN memo, and guarded on the palette being
    * open, which is what keeps them from being rebuilt for nobody.
@@ -860,13 +862,11 @@ export function Palette(props: {
           />
           <Show when={askError()}>
             {(err) => (
-              <div
-                class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
-                data-testid={TESTID.paletteAskError}
-                role="alert"
-              >
-                {err()}
-              </div>
+              <SaidLine
+                said={{ tone: "alarm", text: err() }}
+                class={ALERT_ROW}
+                testid={TESTID.paletteAskError}
+              />
             )}
           </Show>
           {/* The SEARCH's own refusal, in its own row: it is a different
@@ -874,30 +874,23 @@ export function Palette(props: {
               rather than overwriting one the reader may still be reading. */}
           <Show when={nodes.failure()}>
             {(err) => (
-              <div
-                class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
-                data-testid={TESTID.paletteSearchError}
-                role="alert"
-              >
-                {err()}
-              </div>
+              <SaidLine
+                said={{ tone: "alarm", text: err() }}
+                class={ALERT_ROW}
+                testid={TESTID.paletteSearchError}
+              />
             )}
           </Show>
           {/* …and the QUERY's own, which is a fourth question: the words were
               read and one of them is an operator with a value the grammar does
               not take. Without this a typo in `is:` looks exactly like an empty
-              directory (`../search/nodes.ts`). */}
-          <Index each={refused()}>
-            {(line) => (
-              <div
-                class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
-                data-testid={TESTID.searchRefusal}
-                role="alert"
-              >
-                {line()}
-              </div>
-            )}
-          </Index>
+              directory (`../search/nodes.ts`). Drawn by `../refusals.tsx`,
+              which is where that sentence and the ear it is read to live. */}
+          <Refusals
+            of={nodes.refusals()}
+            class={ALERT_ROW}
+            testid={TESTID.searchRefusal}
+          />
           {/* WHAT A WRITE SAID, in a row of its own for the same reason the
               two above have theirs: it is a third question. The mood — its
               colour, its `data-tone`, whether a screen reader is interrupted —
