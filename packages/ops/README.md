@@ -19,6 +19,7 @@ Every request here names a NODE and a change to it — never a byte range, never
 | file | what it owns |
 |---|---|
 | `plan.ts` | the whole decision, PURE: a snapshot and a request into the files that write would produce |
+| `refusals.ts` | the sentences this layer says NO with that more than one caller owes — an unknown id, a mirror named where a node was wanted, a path that is not a document or not an outline, a file the set could not load. Each is said by a WRITE and a READ both, and two spellings of one "no" is how a caller who mistypes a path once comes to learn two different things about it depending on which verb the typo landed at. NOT a drawer of every refusal in the package: one that exactly one op can make stays beside that op, because the reason it is worded as it is is the reason that op refuses |
 | `ops.ts` | the loop — read, plan, commit, re-plan on a stale base — and nothing else |
 | `sorted.ts` | what a write CHANGED, in one word — the format's own classification, derived from the two readings the write is made of rather than from the op's name |
 | `pending.ts` | what is waiting to be committed, derived from git, the one verb that commits it, and what git is doing for the directory at all — one survey, both answers |

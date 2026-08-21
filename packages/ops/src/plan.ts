@@ -29,7 +29,6 @@ import {
   TRASH_FILE,
   BATCH_AT_MOST,
   type BatchedRequest,
-  bodyKind,
   brokenIn,
   BusyFailure,
   chainOf,
@@ -38,31 +37,25 @@ import {
   isTrashed,
   derive,
   type Derived,
-  didYouMean,
   documentAt,
   drawingPath,
   DOCUMENT_EXT,
   isMirror,
-  isOutline,
   type Located,
   type LocatedRegular,
   MARKS,
   type MirrorNode,
   markdownAt,
-  markdownIn,
   type Node,
   nodeNamed,
   type Status,
   NotFoundFailure,
-  type Outline,
-  type OutlineError,
   canonicalRepeat,
   nextOccurrence,
   nodesOf,
   nothing,
   type OpFailure,
   ordBetween,
-  type OutlineSet,
   outlinePaths,
   OUTLINE_EXT,
   shadowFor,
@@ -87,6 +80,14 @@ import {
 import { Result } from "effect"
 
 import { folding } from "./following.ts"
+import {
+  missingId,
+  notANode,
+  noSuchDocument,
+  notFound,
+  notLoadedBecause,
+  outlineAt,
+} from "./refusals.ts"
 
 /** One outline, as the records it will hold after the write. */
 export interface FilePlan {
@@ -313,58 +314,6 @@ const editable = (
   return Result.isFailure(may) ? Result.fail(may.failure) : target
 }
 
-/**
- * An id nothing in the set declares — ONE refusal, whatever the id was doing.
- *
- * The node an op is about and a target it was asked to point at fail the same
- * way and want the same help, so they are one function rather than two
- * sentences: an agent that mistyped `instal` is in the same position whether it
- * was marking that node or hanging a mirror off it.
- *
- * It teaches the way the VALIDATOR does, with the validator's own rule
- * (`@olai/format`'s `nearestId`): an unknown reference is nearly always a
- * misspelling, so the closest id within a typo's distance is offered and
- * anything further away is not, because a guess that is merely nearest teaches
- * a reader to distrust the offer. Where there is nothing close, the answer names
- * the tool that finds a node without knowing its id.
- *
- * `see` used to LIST every id in the set here. That is the right answer for the
- * OUTLINES of a directory — there are five of them — and the wrong one for the
- * nodes in it: a vault of a few thousand put its whole id space in one refusal,
- * with the one id worth reading somewhere in the middle of it.
- *
- * Exported over the DERIVATIONS rather than over a planning scope because the
- * miss is not only the planner's: `@olai/server` resolves a keystroke into a
- * request and meets the same missing id on the way there, and a person told
- * one sentence by the agent and another by the keyboard would be reading two
- * products.
- */
-export const notFound = (derived: Derived, id: string): OpFailure =>
-  missingId(id, derived.byId.keys())
-
-/**
- * The same sentence over whatever ids are KNOWN — the set's, or the set's plus
- * the ones a capture is about to mint.
- *
- * Split out for exactly one caller ({@link wiring}): a capture's edges may name
- * a sibling in the same call, so an id that is a typo of one of THOSE has to be
- * offered too. A second spelling of this refusal would be a `see` target
- * corrected one way by `set_see` and another by `add_node`.
- */
-const missingId = (id: string, known: Iterable<string>): OpFailure => {
-  // The CLAUSE is the format's too, not just the budget behind it: a refusal
-  // and a load error say "did you mean" in one voice or in two.
-  const near = didYouMean(id, known)
-  return new NotFoundFailure({
-    reason: near === ""
-      ? `\`${id}\` is not a node in the loaded set, and nothing in it is spelled ` +
-        `close enough to be a typo of it — \`search_nodes\` finds a node by title, ` +
-        `id or \`#tag\``
-      : `\`${id}\` is not a node in the loaded set${near}`,
-    named: id,
-  })
-}
-
 /** The same refusal, from inside the planner, where the derivations are one
  *  field of the scope every plan already carries. */
 const unknownId = (scope: Scope, id: string): OpFailure => notFound(scope.derived, id)
@@ -402,121 +351,6 @@ const pathTo = (
     return null
   }
   return walk(from, [])
-}
-
-/**
- * "That id is a placement, not a node — name the node."
- *
- * Exported for the reason {@link notFound} is: a caller ABOVE this layer meets
- * the same id and owes the same sentence. `@olai/server` resolves the nodes a
- * chat message is about the same way an op resolves the node it edits, and a
- * mirror is no more describable than it is editable — two spellings of this
- * would be two answers to one question about one id.
- */
-export const notANode = (id: string, target: string): OpFailure =>
-  new UsageFailure({
-    reason: `\`${id}\` is a mirror — a second placement of \`${target}\`, ` +
-      `not a node of its own. Name \`${target}\` instead.`,
-  })
-
-/**
- * WHAT A PATH THAT IS NOT A DOCUMENT IS TOLD — one sentence, for every verb
- * that can be handed one.
- *
- * {@link notFound}'s counterpart for the other thing an op can name. A
- * `write_document` and a `read_document` refuse the same miss, and each built
- * the same near-miss list out of the same set and then wrote the same sentence
- * before this was one function: a caller who mistypes a path once should not
- * learn two different things about it depending on which verb the typo landed
- * at. The near miss is `didYouMean` — the same function an unknown node id
- * gets, one moment earlier than the validator would give it.
- *
- * WHAT EACH CALLER KEEPS is the clause for a set with no near miss at all,
- * because there the useful thing to say genuinely differs: a read is pointed
- * at the listing, a write at the verb that starts a document. That is the one
- * per-verb part, so it is the one part passed in.
- *
- * HERE rather than on the floor, which is where it was first written. The
- * format declares what a refusal IS ({@link ../../format/src/failure.ts}) and
- * this layer is the only one that raises one — a package that started
- * composing agent-facing prose would be a second voice for the same "no".
- * `markdownIn` and `didYouMean` are down there, and they are the two FACTS
- * this sentence is made of.
- *
- * It takes the SET rather than a scope: {@link ./query.ts} calls it over a bare
- * one, which is what a read has.
- */
-export const noSuchDocument = (
-  set: OutlineSet,
-  file: string,
-  instead: string,
-): OpFailure => {
-  const near = didYouMean(file, markdownIn(set).map((entry) => entry.path))
-  return new NotFoundFailure({
-    reason: near === ""
-      ? `\`${file}\` is not a document under the served directory — ${instead}`
-      : `\`${file}\` is not a document under the served directory${near}`,
-    named: file,
-  })
-}
-
-/**
- * WHAT A PATH THAT IS NOT AN OUTLINE IS TOLD — {@link noSuchDocument}'s twin
- * over the other kind of file, and the same sentence for every verb that can be
- * handed one.
- *
- * TWO CALLERS AND ONE VOICE, which is the whole of why it has a name: a write
- * placing a node at the top level of a file ({@link landsIn}) and a read asking
- * for a whole outline ({@link ./query.ts}'s `subtree`) meet the identical typo,
- * and a caller who mistypes a path once should not learn two different things
- * about it depending on which verb the typo landed at.
- *
- * IT TEACHES BOTH WAYS, and which one it uses is decided by the set rather than
- * by the caller. Close enough to be a typo, and it names the candidate — the
- * `didYouMean` budget every unknown id and every unknown document path is
- * already offered. Nothing close, and it LISTS the outlines, which is the right
- * answer here for exactly the reason it is the wrong one for a node id
- * ({@link notFound} argues the split): a directory has a handful of outlines
- * and a few thousand nodes.
- */
-const noSuchOutline = (set: OutlineSet, file: string): OpFailure => {
-  const outlines = outlinePaths(set)
-  const near = didYouMean(file, outlines)
-  return new NotFoundFailure({
-    reason: near === ""
-      ? `\`${file}\` is not an outline under the served directory: ` +
-        `${outlines.join(", ") || "there are none"}`
-      : `\`${file}\` is not an outline under the served directory${near}`,
-    named: file,
-  })
-}
-
-/**
- * THE OUTLINE AT THIS PATH, or the refusal that says why not — {@link
- * regularAt}'s counterpart for the other thing an op can name.
- *
- * The GUARD and the sentence together, because they are one question asked
- * twice over: a write placing a node at a file's top level ({@link landsIn})
- * and a read asking for a whole outline ({@link ./query.ts}'s `subtree`) both
- * have to decide whether a path names an outline this directory serves, and
- * both owe the same answer when it does not. Extracting only the sentence left
- * the test in front of it copied — two lines apart, in two files — so a third
- * verb naming an outline would have copied both halves again.
- *
- * `isOutline` is the FORMAT's kind test, named there rather than spelled as a
- * `kind` comparison wherever it is wanted (`@olai/format`'s `document.ts`), and
- * `documentAt` is the point lookup that answers what is at a path at all. This
- * composes the two; it decides nothing of its own.
- */
-export const outlineAt = (
-  set: OutlineSet,
-  file: string,
-): Result.Result<Outline, OpFailure> => {
-  const found = documentAt(set, file)
-  if (found === undefined || !isOutline(found)) {
-    return Result.fail(noSuchOutline(set, file))
-  }
-  return Result.succeed(found)
 }
 
 /** The record with this id, or the refusal that says so. A MIRROR is not an
@@ -565,49 +399,6 @@ const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> =>
   }
   return Result.succeed(undefined)
 }
-
-/**
- * WHY the set does not hold what is in this file — one fact about the FILE,
- * independent of who is asking.
- *
- * The two kinds fail differently and a reader is owed which: a body is read or
- * it is not, and an outline is READ perfectly well and then has lines the
- * format cannot take. Three verbs meet that fact — the write gate above, and
- * the two reads that answer a whole file ({@link notLoaded}) — and they differ
- * only in what they cannot do about it, which is each one's own half of the
- * sentence and stays at each one.
- */
-const notLoadedBecause = (file: string): string =>
-  bodyKind(file) !== null
-    ? "could not be read, so what it holds is not loaded"
-    : "has lines that do not parse, so its records are not loaded"
-
-/**
- * WHAT A FILE THE SET COULD NOT LOAD IS TOLD A READER — a refusal constructor
- * like {@link noSuchDocument} and {@link noSuchOutline} beside it, over the one
- * thing that goes wrong with a path the set DOES hold.
- *
- * ONE SENTENCE FOR THE TWO READS THAT ANSWER A WHOLE FILE. `read_document` and
- * `read_subtree`'s `file` arm meet the identical fact with the identical
- * consequence — the file is there, nobody read what is in it, so there is
- * nothing to answer with — and answering either as an empty document or as an
- * outline holding nothing would be handing back a body nobody read. It is not
- * {@link writable}'s refusal with a different clause: that one is about a WRITE
- * dropping what is not loaded, which is a different thing to be told, and the
- * half the three genuinely share is {@link notLoadedBecause}.
- *
- * The validator's own rows travel with it, for the reason a refused write
- * carries them: fix the file, then read it.
- */
-export const notLoaded = (
-  file: string,
-  errors: ReadonlyArray<OutlineError>,
-): OpFailure =>
-  new ValidationFailure({
-    reason: `\`${file}\` ${notLoadedBecause(file)} — there is nothing to answer ` +
-      `with. Fix the file first.`,
-    errors,
-  })
 
 /** Where a new record lands: the outline it is written into, and the node it
  *  hangs off — absent at top level. */

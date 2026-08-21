@@ -107,7 +107,7 @@ import {
 } from "@olai/format"
 import { Result } from "effect"
 
-import { noSuchDocument, notLoaded, outlineAt } from "./plan.ts"
+import { noSuchDocument, notLoaded, outlineAt } from "./refusals.ts"
 
 /**
  * Every shape an answer here has is `@olai/format`'s, and none of them is
