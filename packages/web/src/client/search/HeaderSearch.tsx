@@ -61,7 +61,7 @@ import { SaidLine } from "../edit/SaidLine.tsx"
 import { LAYER } from "../layer.ts"
 import { hitItem } from "../palette/items.ts"
 import { openPalette } from "../palette/open.ts"
-import { refusalLines } from "../refusals.ts"
+import { Refusals } from "../refusals.tsx"
 import type { Route } from "../routes.ts"
 import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
@@ -124,10 +124,6 @@ export function HeaderSearch(props: {
    * `<Index>` below then writes nothing at all.
    */
   const items = createMemo(() => nodes.hits().map(hitItem))
-  /** What the grammar could not read, as the sentences it is announced in —
-   *  compared by value so a query that keeps refusing the same token is not
-   *  read out loud again (`../refusals.ts`). */
-  const refused = refusalLines(nodes.refusals)
   // The panel is up when there is anything to say — rows, a refused call, or a
   // query the grammar could not read. That last one is why a typo in an
   // operator opens the panel at all rather than looking like an empty
@@ -250,16 +246,13 @@ export function HeaderSearch(props: {
               {/* …and the OTHER refusal: an operator the grammar knows the
                   name of and not the value. Its own row rather than the one
                   above, for the reason that one has its own: a refused call
-                  and a refused query are two different pieces of news. */}
-              <Index each={refused()}>
-                {(line) => (
-                  <SaidLine
-                    said={{ tone: "alarm", text: line() }}
-                    class={ALERT_ROW}
-                    testid={TESTID.searchRefusal}
-                  />
-                )}
-              </Index>
+                  and a refused query are two different pieces of news. Drawn
+                  by `../refusals.tsx`, the same rows the other two doors get. */}
+              <Refusals
+                of={nodes.refusals}
+                class={ALERT_ROW}
+                testid={TESTID.searchRefusal}
+              />
               {/* Down, never sideways — the rows are built not to overflow
                   and this is what keeps that a property of the container. */}
               <ul class="m-0 max-h-72 list-none overflow-x-hidden overflow-y-auto p-1">

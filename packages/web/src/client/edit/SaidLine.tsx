@@ -20,9 +20,9 @@
  * palette and the header's box each have to say why a list is empty — an
  * operator the grammar cannot read, a call that fell over — and a reader who
  * does not notice believes the directory is empty. Same mood, same markup, so
- * the same line: the bar came here first, and the two doors that hand-rolled a
- * `role="alert"` row of their own draw this one now (`../refusals.ts` holds the
- * sentence all three say).
+ * the same line — and the three doors do not even reach it themselves: they
+ * hand their refusals to `../refusals.tsx`, which is where that sentence, the
+ * keying that keeps it from being read twice and this row are one thing.
  *
  * WHAT IT DOES NOT OWN IS WHERE THE LINE SITS. That is the one thing the
  * surfaces genuinely differ about — a popover beside the `•••`, a banner

@@ -74,7 +74,7 @@ import {
 import { LAYER, WITHIN } from "../layer.ts"
 import { topmostWhileOpen } from "../topmost.ts"
 import { only } from "../narrow.ts"
-import { refusalLines } from "../refusals.ts"
+import { Refusals } from "../refusals.tsx"
 import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
@@ -291,11 +291,6 @@ export function Palette(props: {
   // The nodes, from the server — one primitive, its own failure, and no
   // request bookkeeping in this component ({@link ../search/nodes.ts}).
   const nodes = createSearch(asked)
-  /** What the grammar could not read, as the sentences it is announced in —
-   *  compared by value so a query that keeps refusing the same token is not
-   *  read out loud again (`../refusals.ts`). */
-  const refused = refusalLines(nodes.refusals)
-
   /**
    * The zoomed node's verbs — its OWN memo, and guarded on the palette being
    * open, which is what keeps them from being rebuilt for nobody.
@@ -890,16 +885,13 @@ export function Palette(props: {
           {/* …and the QUERY's own, which is a fourth question: the words were
               read and one of them is an operator with a value the grammar does
               not take. Without this a typo in `is:` looks exactly like an empty
-              directory (`../search/nodes.ts`). */}
-          <Index each={refused()}>
-            {(line) => (
-              <SaidLine
-                said={{ tone: "alarm", text: line() }}
-                class={ALERT_ROW}
-                testid={TESTID.searchRefusal}
-              />
-            )}
-          </Index>
+              directory (`../search/nodes.ts`). Drawn by `../refusals.tsx`,
+              which is where that sentence and the ear it is read to live. */}
+          <Refusals
+            of={nodes.refusals}
+            class={ALERT_ROW}
+            testid={TESTID.searchRefusal}
+          />
           {/* WHAT A WRITE SAID, in a row of its own for the same reason the
               two above have theirs: it is a third question. The mood — its
               colour, its `data-tone`, whether a screen reader is interrupted —

@@ -669,7 +669,7 @@ const HEADER_SEARCH = '[data-testid="header-search"]'
 const SEARCH_COUNT = '[data-testid="search-count"]'
 /** WHY a door drew nothing: the operator the grammar could not read, in the
  *  grammar's own words. ONE testid at both doors because it is one sentence
- *  about one grammar (`web/src/client/refusals.ts`); the bar's own row is
+ *  about one grammar (`web/src/client/refusals.tsx`); the bar's own row is
  *  {@link FILTER_REFUSAL}, which is a different slot on a different surface. */
 const SEARCH_REFUSAL = '[data-testid="search-refusal"]'
 /** …and the rows of it that are DOCUMENTS, told apart the same way: a served
