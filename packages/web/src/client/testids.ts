@@ -695,11 +695,20 @@ export const TESTID = {
    *  anything has ever been archived: an empty trash is a fact, not a hidden
    *  control. */
   trashLink: "trash-link",
-  /** The way to the INBOX, directly above the Trash at the foot of the
-   *  directory column — the outline a `⌘K` `+` captures into, whichever file
-   *  the directory's is. Drawn only when there IS one: a directory that has
-   *  never captured has no inbox, and minting one is the capture's job. */
+  /** The way to the INBOX, beside Agenda at the top of the directory column —
+   *  the outline a `⌘K` `+` captures into, whichever file the directory's is.
+   *  Drawn only when there IS one: a directory that has never captured has no
+   *  inbox, and minting one is the capture's job. */
   inboxLink: "inbox-link",
+  /** What that entry has to REPORT, wrapped around the link the way the
+   *  agenda's mark wraps its own: `data-count` is how many top-level captures
+   *  the file holds, so a scenario asks the number rather than the colour the
+   *  chip was painted. */
+  inboxHeld: "inbox-held",
+  /** The number ON that entry — the same count chip Agenda wears, so "the
+   *  count is drawn" is a promise a scenario can hold. Absent entirely when
+   *  the inbox is empty: an empty inbox wears no chip, not a zero. */
+  inboxCount: "inbox-count",
   /** The trash, as a page. Every archive the directory holds, read-only. */
   trashPage: "trash-page",
   /** One archive's worth of rows on it; `data-file` is which `_olai/Trash.olai`.

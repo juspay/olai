@@ -254,8 +254,8 @@ test("every declaration names a field its own schema carries, and no other membe
   // `transcript` are read through the batched `deltas` delivery, which replaces
   // each named leaf whole rather than merging, so there is no merge for a key to
   // govern. `documents` is served per key and would honour one, but a document
-  // entry is a revision and a body; `manifest`, `git`, `dated`, `owed` and
-  // `moving` carry no array of objects at all.
+  // entry is a revision and a body; `manifest`, `git`, `dated`, `owed`,
+  // `inbox` and `moving` carry no array of objects at all.
   expect(declaring.map((one) => `${one.name} → ${one.arrayKey}`).sort()).toEqual([
     "cells.chat → name",
     "cells.pending → path",

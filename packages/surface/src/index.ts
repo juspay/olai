@@ -59,6 +59,11 @@
  *     `docs/brainstorming/vault-in-browser.md` is going — the browser is handed
  *     what it draws instead of every record it would have had to walk to work
  *     it out.
+ *   - `inbox` is that same kind of cell, one integer over: how many top-level
+ *     captures the directory's inbox holds. No argument (it is a fact about
+ *     the directory, not about the reader), so it is not a stream the way
+ *     `owed` is. The door that wears the number already knows which file that
+ *     is, from the paths.
  *
  * Who is on the other end is NOT a member here, and it was for one commit. The
  * question is real — a page bound to a replaced server must know — but the
@@ -119,10 +124,10 @@
  * into it — a `fold` consumer may be holding that very object — so there is no
  * merge there for a key to govern. `documents` is served per key and would
  * honour one; a document entry is a revision and a body, and holds no array.
- * `manifest`, `git`, `dated`, `owed` and `moving` carry no array of OBJECTS at
- * all — an empty struct, two strings, a list of day strings, two integers, and
- * a nullable row beside a list of nullable strings — so there is nothing there
- * for identity to be about. `surface.test.ts` reads the declaring set off this
+ * `manifest`, `git`, `dated`, `owed`, `inbox` and `moving` carry no array of
+ * OBJECTS at all — an empty struct, two strings, a list of day strings, two
+ * integers, one integer, and a nullable row beside a list of nullable
+ * strings — so there is nothing there for identity to be about. `surface.test.ts` reads the declaring set off this
  * spec rather than off a list, so the sentence above is checked rather than
  * kept by hand.
  *
@@ -154,12 +159,15 @@ import {
   Located,
   NamedAnswer,
   NamedRequest,
+  InboxHeld,
+  NO_INBOX,
   NO_PINS,
   NOTHING_PENDING,
   OutlineError,
   Pending,
   PushResult,
   sameGit,
+  sameInboxHeld,
   samePending,
   sameShelf,
   Shelf,
@@ -631,6 +639,33 @@ export const surface = defineSurface({
        *  different node should get a fresh answer rather than a field-merged
        *  one. The other three declarations have no such object. */
       arrayKey: "id",
+    },
+    /**
+     * HOW FULL THE INBOX IS — the top-level regular nodes of whichever
+     * outline `inboxIn` names (`@olai/format`'s {@link InboxHeld}).
+     *
+     * A CELL, and for `pins`' reason: the count is a fact about the
+     * directory, not about who is asking or what they are looking at, so
+     * there is no input to give a stream and no question to make a
+     * procedure of. The server recomputes it on every published revision
+     * and sends it when the number moved, which is §2's mechanism sentence
+     * exactly.
+     *
+     * ONE INTEGER and not the file, because which outline the inbox IS is
+     * already answered from the paths the tab holds (`inboxIn` over
+     * `heads`). Duplicating that path here would be two answers to one
+     * question, free to disagree by a frame.
+     *
+     * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`): an agent asking
+     * what the inbox holds asks `list_outlines` and is answered with the
+     * nodes. A badge is a paint instruction for a door somebody is looking
+     * at.
+     */
+    inbox: {
+      schema: InboxHeld,
+      default: NO_INBOX,
+      verbs: ["get"],
+      equals: sameInboxHeld,
     },
   },
   collections: {
@@ -1235,6 +1270,11 @@ export { HomesAnswer, HomesRequest } from "@olai/format"
  *  re-exported by nobody, for the same reason). */
 export { NO_PINS, Shelf } from "@olai/format"
 export type { Pinned } from "@olai/format"
+
+/** HOW FULL THE INBOX IS as the `inbox` cell carries it — the floor's
+ *  shape, re-exported for the shelf's reason. `sameInboxHeld` does NOT
+ *  come through this door: a cell declares its `equals` in the spec. */
+export { InboxHeld, NO_INBOX } from "@olai/format"
 
 /** What the sidebar's two date readings ask and answer on the wire — see
  *  {@link ./dates.ts}. */

@@ -160,6 +160,15 @@ test("the heads collection is the browser's alone", () => {
   expect(resolved().resources.map((r) => r.key)).not.toContain("heads")
 })
 
+test("the inbox count cell is the browser's alone", () => {
+  // A badge is a paint instruction for a door somebody is looking at. An agent
+  // asking what the inbox holds asks `list_outlines` and is answered with the
+  // nodes.
+  expect(BROWSER["inbox"]).toBe("resource")
+  expect(Object.keys(MCP)).not.toContain("inbox")
+  expect(resolved().resources.map((r) => r.key)).not.toContain("inbox")
+})
+
 test("the two date streams are the browser's alone", () => {
   // Not a restatement of the exactness test above — same shape as the `heads`
   // fence beside it, and the same job: exposing one later trips a failure that

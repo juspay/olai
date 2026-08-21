@@ -41,15 +41,16 @@
  *     procedure that also echoed its result would be a second answer to what
  *     the directory says, arriving first and occasionally disagreeing.
  *
- * One member is neither the directory nor a fact about it but a READING of it,
- * and it is the first: the pinned SHELF, which the sidebar draws and used to
- * work out for itself over a copy of every outline in the browser
- * (`docs/brainstorming/vault-in-browser.md` §6's item 5). Its connector is the
- * whole of it — recompute `@olai/format`'s `shelfOf` on every published
- * revision and write the cell, whose `equals` keeps a revision that moved no pin
- * from sending anything. That is §2's mechanism, and the reason the browser
- * needs no token to ask on: the server is the one that knows when the directory
- * moved.
+ * Two members are neither the directory nor a fact about it but a READING of
+ * it, and they are the first: the pinned SHELF and how full the INBOX is,
+ * which the sidebar draws and used to work out for itself over a copy of
+ * every outline in the browser (`docs/brainstorming/vault-in-browser.md`
+ * §6's item 5, and the inbox door's count). Each connector is the whole of
+ * it — recompute `@olai/format`'s `shelfOf` / `inboxHeldOf` on every
+ * published revision and write the cell, whose `equals` keeps a revision
+ * that moved nothing about that reading from sending anything. That is §2's
+ * mechanism, and the reason the browser needs no token to ask on: the
+ * server is the one that knows when the directory moved.
  *
  * And two facts belong to neither: what GIT is doing for the directory, and
  * what is WAITING to be committed to it. Both are the ops layer's — the only
@@ -67,6 +68,9 @@
  */
 
 import {
+  type InboxHeld,
+  inboxHeldOf,
+  NO_INBOX,
   NO_PINS,
   NOTHING_PENDING,
   sameDated,
@@ -572,6 +576,30 @@ export const bind = (
               (snapshot) =>
                 Effect.sync(() =>
                   cell.set(snapshot === null ? NO_PINS : shelfOf(snapshot.value.derived))
+                ),
+            ),
+        },
+        /**
+         * HOW FULL THE INBOX IS, recomputed per published revision — the
+         * shelf's twin, one integer over. The door that wears the number
+         * already knows which file the inbox is (the paths); this is how
+         * many top-level captures that file holds.
+         *
+         * A store that has never published has none rather than an unknown
+         * count: the chip hides at zero, which is what a directory with no
+         * inbox draws and what the column showed while the first frame was
+         * arriving.
+         */
+        inbox: {
+          store: inMemoryStore<InboxHeld>(NO_INBOX),
+          connect: (cell) =>
+            Stream.runForEach(
+              SubscriptionRef.changes(wiring.store.snapshot),
+              (snapshot) =>
+                Effect.sync(() =>
+                  cell.set(
+                    snapshot === null ? NO_INBOX : inboxHeldOf(snapshot.value.derived),
+                  )
                 ),
             ),
         },

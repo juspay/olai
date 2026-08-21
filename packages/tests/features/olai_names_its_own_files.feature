@@ -17,10 +17,12 @@ Feature: The files olai names for itself, and the doors onto them
 
   The INBOX moved under `_olai/` with them (human, 2026-08-20, reversing
   format.md's "deliberately NOT"), and it got the door that goes with being
-  out of the tree: an **Inbox** entry above the Trash, drawn only when the
-  directory actually has an inbox. Only the MINT moved — a directory that
-  already keeps its own `Inbox.olai` goes on capturing into the file it has,
-  and this entry opens whichever file that is.
+  out of the tree. That door then moved UP beside Agenda (human, 2026-08-20,
+  screenshot ruling) — a primary destination, not a foot-door with Trash —
+  and it wears Agenda's own count badge: how many top-level captures the
+  file holds, hidden at zero. Only the MINT moved as to WHICH file — a
+  directory that already keeps its own `Inbox.olai` goes on capturing into
+  the file it has, and this entry opens whichever file that is.
 
   `@scratch:` because these write the directory they are served.
 
@@ -169,4 +171,43 @@ Feature: The files olai names for itself, and the doors onto them
     And the outline list links to "Inbox.olai"
     When I open the Inbox from the sidebar
     Then the address is "/Inbox.olai"
+    And there should be no page errors
+
+  # ── the door sits by Agenda and wears its count ───────────────────────
+
+  Scenario: The Inbox sits beside Agenda, not down with Trash
+    # THE POSITION, as a scenario. The ruling moved the door up with the
+    # primary destinations; a test that only asked "is there an Inbox" would
+    # stay green with it still parked above Trash.
+    When I press the palette shortcut
+    And I capture "buy the walnut stain" from the palette
+    When I close the palette
+    Then the sidebar offers the Inbox
+    And Inbox sits beside Agenda
+    And there should be no page errors
+
+  Scenario: The Inbox wears a count of what it holds, and the count moves as captures land
+    When I press the palette shortcut
+    And I capture "buy the walnut stain" from the palette
+    When I close the palette
+    Then the Inbox wears a count of 1
+    And I mark the page
+    When I press the palette shortcut
+    And I capture "and a tin of oil" from the palette
+    When I close the palette
+    Then the Inbox wears a count of 2
+    When I rewrite "_olai/Inbox.olai" as:
+      """
+      """
+    Then the Inbox wears no count
+    And the sidebar offers the Inbox
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: An empty inbox wears no count
+    # No chip at all rather than a nought: an inbox with nothing in it is a
+    # door, not news — the same ruling Agenda's quiet face already keeps.
+    When I create the outline "Inbox.olai" from the sidebar
+    Then the sidebar offers the Inbox
+    And the Inbox wears no count
     And there should be no page errors

@@ -47,15 +47,11 @@
 
 import type { Owed } from "@olai/surface"
 
+import { CHIP_ALARM, CHIP_QUIET } from "../layout/chip.ts"
+
 /** Which of the three the entry is wearing. `quiet` is today's entry, unchanged
  *  — an agenda with nothing late and nothing on today is a door, not news. */
 export type Face = "overdue" | "today" | "quiet"
-
-/** The chip's SHAPE, which both faces wear: the date badge's pill, sized for a
- *  13px row. Paint is the face's and where it sits is the consumer's — the
- *  boundary the `dot` below keeps too, so a third place that marks the agenda
- *  inherits no layout it has to undo. */
-const CHIP = "rounded-full px-1.5 text-xs leading-5 tabular-nums"
 
 /** The mark one reading calls for: what it is, what it counts, how it is
  *  painted, and what it says. Named for what it IS rather than `Look`, which
@@ -95,12 +91,12 @@ export interface Mark {
 const PAINT: Record<Face, { readonly entry: string; readonly chip: string; readonly dot: string }> = {
   overdue: {
     entry: "bg-alarm/10 font-semibold text-alarm",
-    chip: `${CHIP} bg-alarm font-semibold text-paper`,
+    chip: CHIP_ALARM,
     dot: "bg-alarm",
   },
   today: {
     entry: "",
-    chip: `${CHIP} bg-pill text-muted`,
+    chip: CHIP_QUIET,
     dot: "border border-muted bg-transparent",
   },
   quiet: { entry: "", chip: "", dot: "" },

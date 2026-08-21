@@ -750,10 +750,12 @@ const shelved = async (page: Page) =>
  *  capture landed in, which is the only place the mint's path is visible to a
  *  reader (the browser tests read the same slot). */
 const PALETTE_SAID = '[data-testid="palette-said"]'
-/** The door onto the inbox, at the foot of the column above the Trash. Drawn
- *  only when the directory HAS an inbox, which is a claim a shot of a column
- *  makes by not having one in it. */
+/** The door onto the inbox, beside Agenda. Drawn only when the directory HAS
+ *  an inbox, which is a claim a shot of a column makes by not having one in
+ *  it. */
 const INBOX_LINK = '[data-testid="inbox-link"]'
+const INBOX_COUNT = '[data-testid="inbox-count"]'
+const AGENDA_COUNT = '[data-testid="agenda-count"]'
 
 /** The file tree as a reader sees it: every folder it drew and every file
  *  under them, by the path each stands for.
@@ -912,6 +914,72 @@ const SECTIONS = {
     await page.locator(SHELF).waitFor()
     await page.waitForTimeout(DRAWN)
     await shot(page, "the-filter-came-with-it-pitch-dark")
+  },
+
+  /**
+   * INBOX SITS BY AGENDA AND WEARS ITS COUNT (`inbox-count-placement`): the
+   * door up with the primary destinations, Agenda's own badge on it, a
+   * capture moving the number, the empty-inbox quiet, and the same column
+   * in the dark palette — colour consistency is half the ruling.
+   */
+  "inbox-count-placement": async (page) => {
+    await page.goto(`${BASE}/house.olai`)
+    await page.locator(OUTLINE_TREE).first().waitFor()
+    await page.waitForTimeout(DRAWN)
+
+    await page.keyboard.press("ControlOrMeta+k")
+    await page.locator(PALETTE_INPUT).waitFor()
+    await page.locator(PALETTE_INPUT).fill("+ buy the walnut stain")
+    await page.locator(PALETTE_INPUT).press("Enter")
+    await page.locator(PALETTE_SAID).waitFor()
+    await page.keyboard.press("Escape")
+    await page.locator(INBOX_LINK).waitFor()
+    await page.locator(INBOX_COUNT).waitFor()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  agenda count:         ${
+      (await page.locator(AGENDA_COUNT).first().innerText().catch(() => "")).trim() || "(none)"
+    }`)
+    console.log(`  inbox count:          ${
+      (await page.locator(INBOX_COUNT).first().innerText().catch(() => "")).trim() || "(none)"
+    }`)
+    await shot(page, "inbox-beside-agenda-wearing-1", {
+      clip: { x: 0, y: 0, width: 300, height: COLUMN_FITS },
+    })
+
+    await page.keyboard.press("ControlOrMeta+k")
+    await page.locator(PALETTE_INPUT).waitFor()
+    await page.locator(PALETTE_INPUT).fill("+ and a tin of oil")
+    await page.locator(PALETTE_INPUT).press("Enter")
+    await page.locator(PALETTE_SAID).waitFor()
+    await page.keyboard.press("Escape")
+    await page.waitForFunction(
+      (sel) => document.querySelector(sel)?.textContent?.trim() === "2",
+      INBOX_COUNT,
+    )
+    await page.waitForTimeout(DRAWN)
+    console.log(`  inbox count after 2:  ${
+      (await page.locator(INBOX_COUNT).first().innerText()).trim()
+    }`)
+    await shot(page, "a-second-capture-makes-2", {
+      clip: { x: 0, y: 0, width: 300, height: COLUMN_FITS },
+    })
+
+    await wearTheme(page, "pitch")
+    await shot(page, "inbox-beside-agenda-pitch-dark", {
+      clip: { x: 0, y: 0, width: 300, height: COLUMN_FITS },
+    })
+
+    rewrite("_olai/Inbox.olai", [])
+    await page.waitForFunction(
+      (sel) => document.querySelector(sel) === null,
+      INBOX_COUNT,
+    )
+    await page.waitForTimeout(DRAWN)
+    console.log(`  inbox door still:     ${await page.locator(INBOX_LINK).count()}`)
+    console.log(`  inbox chips:          ${await page.locator(INBOX_COUNT).count()}`)
+    await shot(page, "empty-inbox-wears-no-count", {
+      clip: { x: 0, y: 0, width: 300, height: COLUMN_FITS },
+    })
   },
 
   /**
@@ -2770,10 +2838,11 @@ const SHAPES: Partial<Record<Section, Parameters<Browser["newContext"]>[0]>> = {
   // is about says nothing.
   "move-to-picker": PANEL_FITS,
   // The section whose subject is the WHOLE directory column, from the agenda
-  // at the top to the Inbox and Trash doors at its foot. The column is exactly
+  // and Inbox at the top to the Trash door at its foot. The column is exactly
   // one screen tall and scrolls inside itself, so a shorter window would put
-  // the two rows this section is about below its own fold.
+  // the rows this section is about below its own fold.
   "olai-names-its-own-files": { viewport: { width: WIDE, height: COLUMN_FITS } },
+  "inbox-count-placement": { viewport: { width: WIDE, height: COLUMN_FITS } },
 }
 
 const main = async () => {
