@@ -380,7 +380,7 @@ The seventeen port drops went to zero, and so did the four faces of the disk-as-
 | LOAD | `RUNS=20 BUSY=48` | 20 | 11 | 19 | 0 |
 | STRANGER | `RUNS=20 SUITES=5` | 100 | 17 | 18 | 0 |
 
-Port/lock did not move: it is still zero, the way the 2026-08-16 wait-honesty run left it. The remaining drops are other classes (a scroll-restore that missed 267px, a CSP-picture assertion, 15s waits); they are counted, not fixed, here. This is the BEFORE for restoring overlapping writers onto a shared scratch.
+Port/lock did not move: it is still zero, the way the 2026-08-16 wait-honesty run left it. The remaining drops are other classes (a scroll-restore that missed 267px, a CSP-picture assertion, 15s waits); they are counted, not fixed, here. Taken on `399cf308`, before `#296` restored overlapping writers onto a shared scratch.
 
 ## The scripted agent
 
