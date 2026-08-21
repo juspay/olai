@@ -1621,3 +1621,22 @@ Feature: A `.html` in the vault
     Then pane 1 is showing "/kitchen-sink.md#nowhere-at-all"
     And the preview is pointed where it was
     And there should be no page errors
+
+  # ── an unreadable page says so on the page ────────────────────────────
+  #
+  # Under load-on-read, a `.html` that will not open (permissions) used to
+  # report only to the server log — the reader saw the heading over a 404
+  # frame. The wire now has a refused state, the route answers with a sealed
+  # page that says so, and this face draws the sentence in the app's chrome
+  # rather than inside a rectangle that looks like a document.
+
+  @scratch:good @own-scratch
+  Scenario: An unreadable page says so on the page
+    Given I rewrite "locked.html" as:
+      """
+      <h1>Secret</h1>
+      """
+    And the served file "locked.html" cannot be read
+    When I open the page "locked.html"
+    Then the page says the file could not be read
+    And there is no preview frame

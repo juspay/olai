@@ -24,9 +24,11 @@ interface Fixture {
   /** Every path that was OPENED, in order — the whole point of the module is
    *  which of these are absent. */
   readonly reads: ReadonlyArray<string>
-  /** Every `(path, text)` handed to a reader, in order. Filled by {@link took}
+  /** Every `(path, body)` handed to a reader, in order. Filled by {@link took}
    *  rather than by the publisher, so it and the waiting cannot disagree. */
-  readonly published: ReadonlyArray<readonly [string, string]>
+  readonly published: ReadonlyArray<
+    readonly [string, { readonly text: string } | { readonly refused: true }]
+  >
   /** Wait until `count` bodies have been published, and not by polling: the
    *  publisher offers to a queue and this takes from it, so a test resumes on
    *  the event itself. A body that never comes fails here with what was
@@ -50,10 +52,14 @@ const withBodies = <A>(
   use: (fixture: Fixture) => Effect.Effect<A, unknown>,
 ): Promise<A> => {
   const reads: Array<string> = []
-  const published: Array<readonly [string, string]> = []
+  const published: Array<
+    readonly [string, { readonly text: string } | { readonly refused: true }]
+  > = []
 
   return Effect.gen(function*() {
-    const arrivals = yield* Queue.unbounded<readonly [string, string]>()
+    const arrivals = yield* Queue.unbounded<
+      readonly [string, { readonly text: string } | { readonly refused: true }]
+    >()
     const bodies = yield* Bodies.make({
       read: (path) => {
         reads.push(path)
@@ -102,7 +108,9 @@ test("opening a file reads its body once and hands it over", () =>
       yield* fixture.took(1)
 
       expect(fixture.reads).toEqual(["report.html"])
-      expect(fixture.published).toEqual([["report.html", "<h1>Cabinet quote</h1>"]])
+      expect(fixture.published).toEqual([
+        ["report.html", { text: "<h1>Cabinet quote</h1>" }],
+      ])
     })))
 
 // The live half: a file somebody is showing, rewritten under them, is read
@@ -198,7 +206,7 @@ test("a file released before the read is taken is never opened", () =>
       yield* fixture.took(1)
 
       expect(fixture.reads).toEqual(["other.html"])
-      expect(fixture.published).toEqual([["other.html", "also"]])
+      expect(fixture.published).toEqual([["other.html", { text: "also" }]])
     })))
 
 // A file that went between the listing and the read is not this module's news
@@ -214,19 +222,24 @@ test("a file that has gone publishes nothing", () =>
       yield* fixture.took(1)
 
       expect(fixture.reads).toEqual(["gone.html", "here.html"])
-      expect(fixture.published).toEqual([["here.html", "still here"]])
+      expect(fixture.published).toEqual([["here.html", { text: "still here" }]])
     })))
 
-// The failure this module leaves quiet on screen — and the property that
-// matters most about it: the reading fiber goes on. One unreadable saved page
-// used to fail the whole probe; it must not now cost every other body.
-test("a body that cannot be read publishes nothing and does not stop the reader", () =>
+// The failure this module used to leave quiet on screen — and the property
+// that still matters most about it: the reading fiber goes on. One unreadable
+// saved page used to fail the whole probe; it must not now cost every other
+// body. What changed is that the refusal is PUBLISHED, so a one-shot reader
+// is handed a frame rather than held open, and a face can say so.
+test("a body that cannot be read publishes a refusal and does not stop the reader", () =>
   withBodies({ "locked.html": "unreadable", "fine.html": "readable" }, (fixture) =>
     Effect.gen(function*() {
       yield* fixture.opens("locked.html")
       yield* fixture.opens("fine.html")
-      yield* fixture.took(1)
+      yield* fixture.took(2)
 
       expect(fixture.reads).toEqual(["locked.html", "fine.html"])
-      expect(fixture.published).toEqual([["fine.html", "readable"]])
+      expect(fixture.published).toEqual([
+        ["locked.html", { refused: true }],
+        ["fine.html", { text: "readable" }],
+      ])
     })))

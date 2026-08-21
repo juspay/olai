@@ -24,6 +24,7 @@
  */
 
 import { type BodyKind, proseIn } from "@olai/format"
+import { BODY_REFUSED } from "@olai/surface"
 import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
 
 import { markdownReady } from "../markdown/chunk.ts"
@@ -31,7 +32,7 @@ import { Markdown } from "../markdown/Markdown.tsx"
 import { landingId, outlineOf } from "../markdown/render.ts"
 import { useHere, useLanding } from "../router.tsx"
 import { TESTID } from "../testids.ts"
-import { useDocument } from "./documents.tsx"
+import { isServed, useDocument } from "./documents.tsx"
 import { Hypertext } from "./Hypertext.tsx"
 import { Toc } from "./Toc.tsx"
 
@@ -117,7 +118,10 @@ function Rendered(props: Reading) {
    * file's whole text, block and all, and `../document/DocEditor.tsx` reads
    * the served body directly.
    */
-  const text = () => proseIn(served()?.text ?? "")
+  const text = () => {
+    const entry = served()
+    return proseIn(isServed(entry) ? entry.text : "")
+  }
   // Empty until the markdown chunk lands, for the same reason the body is the
   // file's own text until then: there is nothing to make a contents out of
   // until something has read the headings. The `<Markdown>` under it is what
@@ -200,14 +204,28 @@ function Rendered(props: Reading) {
   // the face that needs it. No placeholder: a "reading…" line under a heading
   // that is already drawn would be a spinner for one frame, and an empty
   // rendering would be a document that says nothing where one says something.
+  // A REFUSAL is here: folding it into the empty rendering is how a page went
+  // blank for a file that had something to say.
   return (
-    <Show when={served() !== undefined}>
-      <Toc file={props.file} headings={headings()} />
-      <Markdown
-        source={text()}
-        from={props.file}
-        testid={TESTID.documentBody}
-      />
-    </Show>
+    <>
+      <Show when={served()?.refused}>
+        <p
+          class="m-0 italic text-alarm"
+          data-testid={TESTID.bodyRefused}
+          data-tone="alarm"
+          role="alert"
+        >
+          {BODY_REFUSED}
+        </p>
+      </Show>
+      <Show when={isServed(served())}>
+        <Toc file={props.file} headings={headings()} />
+        <Markdown
+          source={text()}
+          from={props.file}
+          testid={TESTID.documentBody}
+        />
+      </Show>
+    </>
   )
 }

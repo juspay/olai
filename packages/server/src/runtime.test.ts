@@ -137,7 +137,9 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
         const frames = yield* Stream.runCollect(
           Stream.take(get({ key: "report.html" }) as Stream.Stream<DocumentEntry>, 1),
         )
-        expect([...frames]).toEqual([{ rev: 1, text: "<h1>Cabinet quote</h1>\n" }])
+        expect([...frames]).toEqual([
+          { rev: 1, text: "<h1>Cabinet quote</h1>\n", refused: false },
+        ])
 
         // …and the projection is where it was: a path, and no bytes. This is the
         // assertion the whole change is for.
@@ -241,12 +243,20 @@ test("a file a reader is holding is re-read for them when it moves", () =>
     ({ wired, store, root, reads }) =>
       Effect.gen(function*() {
         const open = yield* opening(wired.bound, "report.html")
-        expect(yield* open.frame).toEqual({ rev: 1, text: "<h1>Before</h1>\n" })
+        expect(yield* open.frame).toEqual({
+          rev: 1,
+          text: "<h1>Before</h1>\n",
+          refused: false,
+        })
 
         fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
         yield* store.refresh
 
-        expect(yield* open.frame).toEqual({ rev: 2, text: "<h1>After</h1>\n" })
+        expect(yield* open.frame).toEqual({
+          rev: 2,
+          text: "<h1>After</h1>\n",
+          refused: false,
+        })
         expect(reads).toEqual(["report.html", "report.html"])
       }),
   ))
@@ -268,7 +278,11 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
     ({ wired, store, root, reads }) =>
       Effect.gen(function*() {
         const open = yield* opening(wired.bound, "report.html")
-        expect(yield* open.frame).toEqual({ rev: 1, text: "<h1>Before</h1>\n" })
+        expect(yield* open.frame).toEqual({
+          rev: 1,
+          text: "<h1>Before</h1>\n",
+          refused: false,
+        })
 
         // The reader goes away — a closed tab, a dropped socket, an agent that
         // took its frame and exited.
@@ -288,7 +302,11 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
         // The barrier: a body asked for by a reader who IS here, which the
         // serial reader cannot answer before anything the revision asked for.
         const again = yield* opening(wired.bound, "report.html")
-        expect(yield* again.frame).toEqual({ rev: 2, text: "<h1>After</h1>\n" })
+        expect(yield* again.frame).toEqual({
+          rev: 2,
+          text: "<h1>After</h1>\n",
+          refused: false,
+        })
         expect(reads).toEqual(["report.html", "report.html"])
       }),
   ))
@@ -314,9 +332,43 @@ test("a reader holding a key across a file's birth is handed the body", () =>
       // TWO frames, in this order: the upsert that says the collection has a new
       // key (which cannot carry a body — nothing has read one), and the body
       // read for the reader holding it.
-      expect(yield* open.frame).toEqual({ rev: 2, text: null })
-      expect(yield* open.frame).toEqual({ rev: 2, text: "<h1>Born</h1>\n" })
+      expect(yield* open.frame).toEqual({ rev: 2, text: null, refused: false })
+      expect(yield* open.frame).toEqual({
+        rev: 2,
+        text: "<h1>Born</h1>\n",
+        refused: false,
+      })
     })))
+
+/**
+ * A `.html` that is THERE and will not open. The subscription used to be held
+ * open on the absent path until a body that would never come — a one-shot
+ * `resources/read` hung. The refusal is a FRAME, so the reader is handed
+ * the third state and leaves.
+ *
+ * Root can read a 0000 file, so the assertion is skipped there rather than
+ * inverted (`@olai/chat`'s `memory.test.ts` makes the same call).
+ */
+test("an unreadable `.html` is refused rather than held open", () => {
+  if (typeof process.getuid === "function" && process.getuid() === 0) return
+  return withRuntime(
+    { "a.olai": OUTLINE, "locked.html": "<h1>Shut</h1>\n" },
+    ({ wired, root }) =>
+      Effect.gen(function*() {
+        fs.chmodSync(path.join(root, "locked.html"), 0o000)
+        try {
+          const open = yield* opening(wired.bound, "locked.html")
+          expect(yield* open.frame).toEqual({
+            rev: 1,
+            text: null,
+            refused: true,
+          })
+        } finally {
+          fs.chmodSync(path.join(root, "locked.html"), 0o600)
+        }
+      }),
+  )
+})
 
 /**
  * THE PINNED SHELF, published: the resolution happens here, and it happens

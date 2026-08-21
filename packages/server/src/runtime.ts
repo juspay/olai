@@ -384,10 +384,15 @@ export const bind = (
      */
     const bodies = yield* Bodies.make({
       read: wiring.store.body,
-      publish: (path, text) => {
+      publish: (path, body) => {
         const entry = held?.documents.entries.get(path)
         if (entry === undefined) return
-        published?.collections.documents.upsert(path, { rev: entry.rev, text })
+        published?.collections.documents.upsert(
+          path,
+          "refused" in body
+            ? { rev: entry.rev, text: null, refused: true }
+            : { rev: entry.rev, text: body.text, refused: false },
+        )
       },
     })
 

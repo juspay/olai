@@ -268,6 +268,28 @@ Feature: Documents
     Then the reference on "install" draws the document
     And the document renders bold text "matte"
 
+  # A `doc` line used to go blank for a file that had something to say: the
+  # fold was `text ?? ""`, and a refusal looked like an empty preview. The
+  # sentence is the same one the unreadable `.html` page draws.
+
+  @scratch:good @own-scratch
+  Scenario: An unreadable document says so on the node's line
+    Given I rewrite "note.md" as:
+      """
+      # Finishes
+
+      Brushed brass.
+      """
+    And I rewrite "house.olai" as:
+      """
+      {"id":"install","ord":"a0","title":"install the cabinets","doc":"note.md"}
+      """
+    And I open the outline "house.olai"
+    Then the node "install" refers to the document "note.md"
+    And the reference on "install" shows "Finishes"
+    When the served file "note.md" cannot be read
+    Then the reference on "install" says the file could not be read
+
   @corpus:good
   Scenario: The reference on a node is the way to the document's page
     Given I open the outline "house.olai"

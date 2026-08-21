@@ -3,7 +3,7 @@ import { expect, test } from "bun:test"
 
 import { mediaHref } from "./media.ts"
 import { ours, type Press } from "./press.ts"
-import { heard, SEAL, sealPolicy } from "./seal.ts"
+import { BODY_REFUSED, heard, REFUSED_MARKUP, SEAL, sealPolicy } from "./seal.ts"
 
 /** The host a served page was asked for on — the only thing the policy is
  *  built out of, and the value a request's `Host` header carries. */
@@ -244,6 +244,27 @@ test("only the greeting is the greeting", () => {
   }
 })
 
+const REFUSED = ((): string => {
+  const found = /parent\.postMessage\("([^"]*)", "\*"\)/.exec(REFUSED_MARKUP)
+  if (found === null) throw new Error(`the refused page sends no message: ${REFUSED_MARKUP}`)
+  return found[1]!
+})()
+
+test("a refused page says so, and only the refusal is the refusal", () => {
+  expect(REFUSED_MARKUP).toContain(BODY_REFUSED)
+  expect(heard(REFUSED)).toEqual({ kind: "refused" })
+  for (
+    const said of [
+      `${REFUSED}:`,
+      "olai:page-refuse",
+      HELLO,
+      `${ARRIVING}640`,
+    ]
+  ) {
+    expect(heard(said)).not.toEqual({ kind: "refused" })
+  }
+})
+
 // TWO READINGS, and the frame's height arrives as one of them. A settled
 // reading is the one taken after the page's pictures have landed, and
 // `Hypertext.tsx` files its accepted widths under that name.
@@ -450,7 +471,7 @@ test("anything else a frame could say is not a page to open", () => {
  * above: the producer is text no compiler reads.
  */
 test("no one of the things a frame can say begins another", () => {
-  const vocabulary = { HELLO, ARRIVING, SETTLED, OPEN }
+  const vocabulary = { HELLO, ARRIVING, SETTLED, OPEN, REFUSED }
   const overlaps: Array<string> = []
   for (const [name, one] of Object.entries(vocabulary)) {
     for (const [other, another] of Object.entries(vocabulary)) {

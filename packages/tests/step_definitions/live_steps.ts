@@ -20,11 +20,13 @@
 
 import * as assert from "node:assert";
 import * as fs from "node:fs";
+import * as path from "node:path";
 import { Then, When } from "@cucumber/cucumber";
 
 import { retargetRelative } from "@olai/format";
 
 import { expectCodeIn, expectSiteIn } from "../support/errors.ts";
+import { askResync } from "../support/scratch.ts";
 import {
   attr,
   BACKSTOP_STEP_TIMEOUT,
@@ -43,6 +45,29 @@ When(
   "I rewrite {string} as:",
   function (this: OlaiWorld, file: string, contents: string) {
     this.writeServed(file, contents);
+  },
+);
+
+/**
+ * Make a served file unreadable under a running server — chmod 000, the one
+ * shape of "there and will not open" a test can produce on any machine that
+ * is not root.
+ *
+ * Root can read a 0000 file, so the step is pending there rather than
+ * inverted (`@olai/server`'s `media.test.ts` makes the same call).
+ */
+When(
+  "the served file {string} cannot be read",
+  async function (this: OlaiWorld, file: string) {
+    if (typeof process.getuid === "function" && process.getuid() === 0) {
+      return "pending";
+    }
+    const target = path.join(this.scratch(), file);
+    fs.chmodSync(target, 0o000);
+    // chmod does not change size; a same-second stamp miss would skip the
+    // read. The harness's resync forgets stamps, which is also how a
+    // restore asks the still-running server to look again.
+    await askResync(this.baseUrl, POLL_TIMEOUT);
   },
 );
 

@@ -273,6 +273,16 @@ export type OutlineEntry = typeof OutlineEntry.Type
  *
  * There is no `file` field: the KEY is the path. A second copy of it here is a
  * second spelling of one fact, and the two could disagree.
+ *
+ * THREE STATES, and they are not two plus a boolean. `text` a string is the
+ * body. `text: null` and {@link DocumentEntry.refused} false is the body not
+ * here — a `.html` the set keeps only the path of, or a key announced before
+ * its bytes have been read. `refused` true is a READ that was attempted and
+ * the file would not open: the key is here, the bytes are not, and that is a
+ * fact about THIS file rather than a reason to fail the whole probe. Exactly
+ * one of a body and a refusal is the news; a reader that folded `refused`
+ * into `text ?? ""` would draw a blank page for a file that had something to
+ * say.
  */
 export const DocumentEntry = Schema.Struct({
   rev: Schema.Int,
@@ -303,8 +313,36 @@ export const DocumentEntry = Schema.Struct({
    * file is here, its body is not yet. A reader folds it the way it folds an
    * entry that has not arrived, and hears the body on a later frame or on its
    * next read.
+   *
+   * A READ THAT WAS REFUSED is the other `null`, and it is not this one. See
+   * {@link DocumentEntry.refused}.
    */
   text: Schema.NullOr(Schema.String),
+  /**
+   * Whether a READ of this body was attempted and the file would not open.
+   *
+   * `false` for every file whose body is here, and for every file whose body
+   * is not here yet — the projection of a `.html` the set keeps only the path
+   * of. `true` is the third state this entry can be in: the file is served, a
+   * reader asked for its bytes, and the disk said no. It is not a parse
+   * failure ({@link Head.broken} / {@link OutlineEntry.broken} — those are
+   * decode failures, and a file that cannot be opened never reaches them) and
+   * it is not an absence (the key is here). The blast radius is this file:
+   * what it replaced was a probe that failed the WHOLE directory over one
+   * unreadable saved page.
+   *
+   * Produced where the read happens (`@olai/server`'s `bodies.ts` for a body
+   * the set does not keep; the probe, for a kept `.md` that will not open)
+   * and answered the same way on the HTTP face (`@olai/server`'s `media.ts`)
+   * so the two tell one story. The sentence both faces draw is
+   * {@link BODY_REFUSED}.
+   *
+   * A one-shot reader (an agent's `resources/read`) is handed this frame
+   * rather than being held open until a body that will never come. That is
+   * the held-open-on-absent path closed for a read that failed, rather than
+   * only for a read that succeeded.
+   */
+  refused: Schema.Boolean,
 })
 export type DocumentEntry = typeof DocumentEntry.Type
 
@@ -1208,8 +1246,10 @@ export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
  *  server that writes it and the browser that reads it, for {@link ./media.ts}'s
  *  reason. See {@link ./seal.ts}. */
 export {
+  BODY_REFUSED,
   heard,
   type Reading,
+  REFUSED_MARKUP,
   type Said,
   SEAL,
   sealPolicy,

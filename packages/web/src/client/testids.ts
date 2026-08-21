@@ -254,6 +254,11 @@ export const TESTID = {
    *  RESOLVED path as `data-doc`, and `data-inline` for the zoomed page that
    *  draws the whole document rather than a line of it. */
   docRef: "doc-ref",
+  /** Why a body is not on screen — the `.html` page, a `doc` line, a day's
+   *  note. One name, because it is one sentence (`BODY_REFUSED`) drawn in
+   *  three places, and a scenario that asks for the sentence should not have
+   *  to know which surface said it. */
+  bodyRefused: "body-refused",
   /** A node held up by an `after` edge, wherever the node is drawn: the glyph
    *  column's waiting hourglass on a row or a day entry, the named row of
    *  blockers on the node's own page. Absent — not empty — on a node with

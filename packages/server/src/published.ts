@@ -140,6 +140,11 @@ export interface Published {
 const documentsOf = (
   snapshot: Snapshot<Reading>,
   held: Published | null,
+  /** Paths the set holds a PLACE for and no content — a `.md` whose lines
+   *  would not decode, or one that would not open. An outline's breakage
+   *  rides {@link OutlineEntry.broken}; a document's is this entry's
+   *  `refused`. */
+  broken: ReadonlySet<string>,
 ): Pick<Published, "documents" | "unread"> => {
   // The BODIED half of the directory: this member is what a reader opens as a
   // page, and an outline is published as its records next door.
@@ -147,7 +152,17 @@ const documentsOf = (
   const change = changeOf(
     documents,
     (document) => document.path,
-    (document) => ({ rev: snapshot.rev, text: bodyOf(document) }),
+    (document) => ({
+      rev: snapshot.rev,
+      text: bodyOf(document),
+      // A document the set could not decode is a PLACE with no content
+      // (`assemble`'s empty body). That is a refusal of THIS file, not a
+      // missing body: the key is here and the bytes are not, which is the
+      // third state DocumentEntry.refused names. A `.html` is never in
+      // `broken` from the probe — its body is not kept — so its refusal
+      // arrives later, from `./bodies.ts`.
+      refused: broken.has(document.path) && document.kind === "document",
+    }),
     snapshot,
     held?.documents,
   )
@@ -265,6 +280,10 @@ export const publishedOf = (
       snapshot,
       published?.heads,
     ),
-    ...documentsOf(snapshot, published),
+    ...documentsOf(
+      snapshot,
+      published,
+      new Set(set.broken.map((file) => file.file)),
+    ),
   }
 }

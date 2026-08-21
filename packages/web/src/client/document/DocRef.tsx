@@ -30,13 +30,14 @@
  */
 
 import { firstLine, proseIn } from "@olai/format"
+import { BODY_REFUSED } from "@olai/surface"
 import { createMemo, Show } from "solid-js"
 
 import { Markdown } from "../markdown/Markdown.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
-import { useDocument } from "./documents.tsx"
+import { isServed, useDocument } from "./documents.tsx"
 import { atFile } from "../routes.ts"
 
 export function DocRef(props: {
@@ -63,8 +64,19 @@ export function DocRef(props: {
   // publishes mints a new entry, so a preview read off the record would
   // re-scan the file on every save to it; read off the TEXT, which is a string
   // and compares by value, it re-scans only when the body actually changed.
-  const text = createMemo(() => document()?.text ?? "")
+  //
+  // A REFUSAL is not folded into `""`. That fold is how this line went blank
+  // for a file that had something to say (`DocumentEntry.refused`). The
+  // sentence is {@link BODY_REFUSED}, the same words the `.html` page draws.
+  const text = createMemo(() => {
+    const entry = document()
+    return isServed(entry) ? entry.text : ""
+  })
   const preview = createMemo(() => firstLine(text()))
+  const servedBody = createMemo(() => {
+    const entry = document()
+    return isServed(entry) ? entry : undefined
+  })
 
   return (
     <div
@@ -87,11 +99,23 @@ export function DocRef(props: {
         {/* The preview is the ELSEWHERE shape only: under the whole document,
             a line of it would be the same words twice. */}
         <Show when={props.inline !== true}>
-          <span class="truncate text-muted">{preview()}</span>
+          <Show
+            when={document()?.refused}
+            fallback={<span class="truncate text-muted">{preview()}</span>}
+          >
+            <span
+              class="truncate text-muted"
+              data-testid={TESTID.bodyRefused}
+              data-tone="alarm"
+              role="alert"
+            >
+              {BODY_REFUSED}
+            </span>
+          </Show>
         </Show>
       </div>
 
-      <Show when={props.inline === true && document()}>
+      <Show when={props.inline === true ? servedBody() : undefined}>
         {(served) => (
           <Markdown
             /* THE PROSE: a document's `---` block is its own record and is not
@@ -104,6 +128,16 @@ export function DocRef(props: {
             testid={TESTID.documentBody}
           />
         )}
+      </Show>
+      <Show when={props.inline === true && document()?.refused}>
+        <p
+          class="mt-2 text-muted"
+          data-testid={TESTID.bodyRefused}
+          data-tone="alarm"
+          role="alert"
+        >
+          {BODY_REFUSED}
+        </p>
       </Show>
     </div>
   )

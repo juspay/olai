@@ -12,8 +12,11 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
+import { BODY_REFUSED as REFUSED_SAID } from "@olai/surface";
+
 import {
   attr,
+  BODY_REFUSED,
   DOC_LINK,
   DOC_REF,
   DOCUMENT_BODY,
@@ -295,6 +298,20 @@ Then(
       oneLine(await reference.innerText()).includes(text),
       `the reference on "${id}" reads ${JSON.stringify(oneLine(await reference.innerText()))}`,
     );
+  },
+);
+
+Then(
+  "the reference on {string} says the file could not be read",
+  async function (this: OlaiWorld, id: string) {
+    const line = this.docRef(id).locator(BODY_REFUSED);
+    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const text = (await line.innerText()).trim();
+    assert.ok(
+      text.includes(REFUSED_SAID),
+      `the reference on "${id}" reads ${JSON.stringify(text)}`,
+    );
+    assert.strictEqual(await line.getAttribute("data-tone"), "alarm");
   },
 );
 

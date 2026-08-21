@@ -154,7 +154,11 @@ const withStore = <A>(
   // into a failure. A test that fails is a failing test whichever channel it
   // came out of, and enumerating them here would be a list to maintain.
   use: (fixture: Fixture) => Effect.Effect<A, unknown>,
-  options: { readonly watch?: boolean; readonly backstop?: Duration.Input } = {},
+  options: {
+    readonly watch?: boolean
+    readonly backstop?: Duration.Input
+    readonly codec?: typeof codec
+  } = {},
 ): Promise<A> => {
   decodes = []
   validations = []
@@ -171,7 +175,7 @@ const withStore = <A>(
   return Effect.gen(function*() {
     const store = yield* Store.make({
       root,
-      codec,
+      codec: options.codec ?? codec,
       watch: options.watch ?? false,
       settle: "20 millis",
       ...(options.backstop === undefined ? {} : { backstop: options.backstop }),
@@ -266,6 +270,41 @@ test("a directory that already holds an unreadable file still boots", () =>
       expect(snapshot?.value.broken).toEqual(["b.txt"])
       expect(yield* errorsOf(store)).toBeNull()
     })))
+
+// A file that is THERE and will not OPEN is a hole, not a banner — when the
+// codec can absorb it. Without `unread`, this would fail the whole probe
+// (`unreadable-directory`). The store fixture has no `unread`, so the
+// directory-level sentence is what a codec that cannot absorb still says;
+// olai's codec is the one that absorbs, and that is `./probe` + ops' codec.
+//
+// Root can read a 0000 file, so the assertion is skipped there.
+test("a file that will not open is a hole when the codec absorbs it", () => {
+  if (typeof process.getuid === "function" && process.getuid() === 0) return
+  const absorbing: typeof codec = {
+    ...codec,
+    unread: (failure) => Result.fail([`${failure.path}: will not open`]),
+  }
+  return withStore(
+    { "a.txt": "alpha", "locked.txt": "secret" },
+    ({ store, root }) =>
+      Effect.gen(function*() {
+        fs.chmodSync(path.join(root, "locked.txt"), 0o000)
+        try {
+          // chmod does not change size; a same-second stamp miss would skip
+          // the read. resync forgets stamps, which is the look the e2e
+          // harness's POST /olai/resync is.
+          yield* store.resync
+          const snapshot = yield* snapshotOf(store)
+          expect(snapshot?.value.broken).toEqual(["locked.txt"])
+          expect(snapshot?.value.text).toEqual({ "a.txt": "alpha" })
+          expect(yield* errorsOf(store)).toBeNull()
+        } finally {
+          fs.chmodSync(path.join(root, "locked.txt"), 0o600)
+        }
+      }),
+    { codec: absorbing },
+  )
+})
 
 test("a root that is not there fails the boot rather than serving nothing", async () => {
   const outcome = await Effect.gen(function*() {
