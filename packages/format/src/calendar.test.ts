@@ -232,6 +232,15 @@ test("text that names no moment is no moment to count from", () => {
   expect(shiftMinutes("2026-08-13T10", -60)).toBeNull()
 })
 
+test("any number may be handed in, and the walk is bounded before it runs", () => {
+  // The delta comes from a query somebody typed, and `shiftDay` walks a month
+  // at a time — so a borrow larger than the four-digit years hold is refused
+  // BEFORE the walk rather than after it. The assertion is that this returns
+  // at all; a suite that hung here would be the finding.
+  expect(shiftMinutes("2026-08-13T10:00:00-04:00", -Number.MAX_SAFE_INTEGER)).toBeNull()
+  expect(shiftMinutes("2026-08-13T10:00:00-04:00", Number.MAX_SAFE_INTEGER)).toBeNull()
+})
+
 test("a count that walks off the calendar has nowhere to land", () => {
   // Nineteen thousand years back is not a day four digits can spell, and
   // `shiftDay` would have answered with a `-17000-12-31` — a value that is

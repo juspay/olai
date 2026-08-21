@@ -483,11 +483,18 @@ export type { Occasion } from "./occasion.ts"
  *  here, and the browser's calendar grid and its `!` date widget are up there —
  *  and a second copy would be two answers to which day a week starts on.
  *
- *  MOST OF THESE THIS PACKAGE DOES NOT CALL: the grammar needs three
- *  (`weekdayOf`, `shiftDay`, `shiftMonth`) and the rest are the client's, which
- *  is what it costs to have the counting live under both readers rather than
- *  beside one of them. `isRealDay` is not `dates.ts`'s `isDay` — that one asks
- *  what a filename says, this one whether a calendar holds the day. */
+ *  MOST OF THESE THIS PACKAGE DOES NOT CALL: the grammar needs four
+ *  (`weekdayOf`, `shiftDay`, `shiftMonth` and `shiftMinutes`) and the rest are
+ *  the client's, which is what it costs to have the counting live under both
+ *  readers rather than beside one of them. `isRealDay` is not `dates.ts`'s
+ *  `isDay` — that one asks what a filename says, this one whether a calendar
+ *  holds the day.
+ *
+ *  AND THE LIST IS WHAT LEAVES, not what the module holds. `shiftMinutes` —
+ *  the moment so many minutes before another one, which is what the grammar's
+ *  durations (`changed:1h`) are a bound at — is deliberately absent: no package
+ *  above asks it, and a symbol on this surface because it exists rather than
+ *  because somebody needs it is surface nobody can take back. */
 export {
   /** How many whole days lie between two of them. The third question the
    *  counting exists for, and the agenda's spine is what asked it: "in 6 days"

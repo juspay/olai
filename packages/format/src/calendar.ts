@@ -349,6 +349,26 @@ const TIME_SHAPE = /^T(\d{2}):(\d{2})(?::(\d{2}))?(.*)$/
 const DAY_MINUTES = 24 * 60
 
 /**
+ * More days than the four-digit years this format spells actually hold, and
+ * what {@link shiftMinutes} refuses a borrow larger than.
+ *
+ * A BOUND ON THE WORK, and it belongs here rather than at whichever caller
+ * happens to hold an untrusted number. {@link shiftDay} walks a MONTH AT A TIME
+ * — right for the one step it was written for, and a loop proportional to the
+ * delta for anything else — so a borrow of a billion days is a hang rather than
+ * an answer. The check below is what makes this function safe on its own terms:
+ * it can be handed any number.
+ *
+ * OVER-APPROXIMATE ON PURPOSE. Whether the day is REALLY spellable is answered
+ * exactly, after the walk, by this module's own parser; this only has to be
+ * large enough that nothing legal is refused by it and small enough that the
+ * walk stays a parse-time one-off. Year 0000 to year 9999 is a little over
+ * 3.65 million days, so no borrow past four million can land inside them from
+ * any day at all.
+ */
+const MOST_DAYS = 4_000_000
+
+/**
  * The moment `delta` minutes away from `at`, in `at`'s own spelling — or
  * `null` for text that names no moment this calendar can count from, or that
  * lands on a day it cannot spell.
@@ -389,6 +409,11 @@ const DAY_MINUTES = 24 * 60
  * day going in, and a day off the front or the back of what four digits can
  * spell coming out — a `-17000-12-31`, which the padding note above calls a
  * value that is neither a date nor an error.
+ *
+ * ANY NUMBER MAY BE HANDED IN, and that guarantee is this function's rather
+ * than its caller's ({@link MOST_DAYS}): the delta comes from a query somebody
+ * typed, and a bound the caller was trusted to sanity-check first is a bound
+ * the second caller will not.
  */
 export const shiftMinutes = (at: string, delta: number): string | null => {
   const day = at.slice(0, "YYYY-MM-DD".length)
@@ -413,6 +438,8 @@ export const shiftMinutes = (at: string, delta: number): string | null => {
   // day rather than none and leaves a negative on the clock.
   const borrowed = Math.floor(counted / DAY_MINUTES)
   const onFace = counted - borrowed * DAY_MINUTES
+  // Before the walk, because the walk is proportional to it ({@link MOST_DAYS}).
+  if (Math.abs(borrowed) > MOST_DAYS) return null
   const landed = shiftDay(day, borrowed)
   if (parseDay(landed) === null) return null
   return `${landed}T${pad(Math.floor(onFace / 60))}:${pad(onFace % 60)}:${

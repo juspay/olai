@@ -330,9 +330,18 @@ type Clause =
    *  these ({@link hasClause}). */
   | { readonly kind: "has"; readonly field: CarriedField }
   /**
-   * An inclusive span of DAYS, as text, and WHICH of a node's days it is asked
-   * of ({@link DAY_READINGS}). `null` on either side is "unbounded that way",
+   * An inclusive span, as ISO text, and WHICH of a node's dates it is asked of
+   * ({@link DAY_READINGS}). `null` on either side is "unbounded that way",
    * which is what `date:..2026-08-10` and `created:2026-08-10..` are.
+   *
+   * A BOUND IS A DAY OR A MOMENT, and its own WIDTH is what says which — ten
+   * characters for a day, a whole clock face and an offset for the moment a
+   * duration names ({@link durationBefore}). There is no tag beside it, and
+   * that is the point rather than an omission: ISO text is a prefix ordering,
+   * so the string already carries its precision, and a tag would be a second
+   * answer to "what kind of bound is this" free to disagree with the string it
+   * sits next to. {@link within} reads each bound at its own width, which is
+   * why the two ends may differ (`created:yesterday..3h`).
    *
    * ONE ARM FOR THE THREE, and the `of` is the whole difference between them:
    * the value was read by one {@link spanOf} before anything knew which
@@ -1044,18 +1053,18 @@ const DURATION_UNITS: ReadonlyMap<string, { readonly minutes: number; readonly n
  * rather than listed here, so {@link DURATION_UNITS} stays the one place a
  * unit is named and `1mo` reaches the refusal by the same road `1q` does.
  *
- * THE DIGITS ARE CAPPED, and that is a bound on the WORK rather than a tidy
- * limit: the count is multiplied into minutes and handed to a calendar that
- * walks a month at a time ({@link shiftDay}), so a number nobody typed on
- * purpose is a loop somebody typed by accident — on a keystroke, in a filter
- * box. Six digits is past every duration a person means (a hundred thousand
- * hours is eleven years) and holds the worst case to a few hundred thousand
- * integer steps, once per token at the parse rather than per node.
+ * THE DIGITS ARE CAPPED because a NUMBER has a shape too, and this is the same
+ * pair {@link datePart} is: a shape check here, and the value check one call
+ * down. Six digits is past every duration a person means — a hundred thousand
+ * hours is eleven years — and a count wider than that is a reader who slipped
+ * on the keyboard rather than one who meant something the calendar could hold.
  *
- * WHAT IS IMPOSSIBLE rather than merely large is the calendar's own answer,
- * one call down: `999999w` is nineteen thousand years, lands on no day four
- * digits can spell, and {@link shiftMinutes} refuses it by saying so. Two
- * checks, shape and bound, exactly as {@link datePart} takes two.
+ * WHAT IS IMPOSSIBLE rather than merely long is {@link shiftMinutes}' answer:
+ * `999999w` is nineteen thousand years, lands on no day four digits can spell,
+ * and is refused there. THE COST of an absurd count is that function's own
+ * problem too and is not smuggled up here as a reason for this cap — it takes
+ * any number and bounds its own work, so this line is about what a duration
+ * IS and not about what it would cost to answer.
  */
 const DURATION_SHAPE = /^(\d{1,6})([a-z]+)$/
 
