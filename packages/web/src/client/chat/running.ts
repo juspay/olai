@@ -1,38 +1,66 @@
 /**
- * Which of the protocol's tool-call statuses mean the call HAS NOT COME BACK.
+ * What the wire says about a TOOL CALL's state, and the one thing most of the
+ * panel wants to know from it: has it come back?
  *
- * One line of vocabulary, in a module of its own, because two faces are built
- * on it and they must not be able to disagree: the rail under a spawn says an
- * agent is out ({@link ./spawn.ts}), and the readout on a frame's own line says
- * how long a call has been going ({@link ./elapsed.ts}). Both are drawn from
- * the same row at the same moment, so a status one of them called running and
- * the other did not would put a duration on a row with no live face, or a live
- * face on a row with no duration — one panel saying two things about one call.
+ * A module rather than a constant inside whichever face asked first, because
+ * three now ask and they must not be able to disagree. The rail under a spawn
+ * says an agent is out ({@link ./spawn.ts}); the readout on a frame's own line
+ * says how long a call has been going ({@link ./elapsed.ts}); and the frame
+ * draws the status as a mark, a colour and a spoken word
+ * ({@link ./ToolFrame.tsx}). The first two are drawn from the same row at the
+ * same moment, so a status one called running and the other did not would put a
+ * duration on a row with no live face, or a live face on a row with no
+ * duration — one panel saying two things about one call.
  *
- * It was a `const RUNNING` inside `spawn.ts` and the second reader is what
- * moved it: the set is not a fact about spawns, it is a fact about ACP, and the
- * module that draws spawns is no more entitled to own it than the one that
- * draws clocks.
+ * IT TAKES THE ROW, not the status, and that is the whole of why it can be
+ * asked safely from anywhere. `status` is a TOOL row's field: every other kind
+ * of row carries none, and a predicate over the bare field would have to answer
+ * `undefined` either "not running" (which is wrong for a call the panel has
+ * only just been told about — see below) or "running" (which puts a stopwatch
+ * on the sentence somebody typed). The precondition is "this is a tool call",
+ * so the precondition is checked here rather than remembered by each caller.
  *
  * THE PROTOCOL'S OWN WORDS and no interpretation of them. `pending` is what the
  * adapter announces EVERY tool call with — it means "announced", not "not
- * started" — so it is a running state here rather than a case to fall through;
- * `spawn.ts` has the long version of that argument. A status this panel has
- * never heard of is not something it will call running, which is the same
+ * started" — so it is a running state rather than a case to fall through, and
+ * it is what a row with nothing said about it yet is taken to be;
+ * {@link ./spawn.ts} has the long version of that argument. A status this panel
+ * has never heard of is not something it will call running, which is the same
  * refusal to invent a fact the header makes for a model id it cannot place.
+ *
+ * WHAT IS NOT HERE is what a status LOOKS like. The mark, the tone and the
+ * spoken word stay in the frame that draws them, and the split is not
+ * squeamishness about markup: those three change when the panel's look changes
+ * — `SAID` was added the day a screen reader needed one — and this changes when
+ * ACP's vocabulary does. Two things keyed by one field, changing for different
+ * reasons, are two modules; merging them would put a drawing decision and a
+ * protocol fact behind one edit.
  */
 
 import type { ChatEntry } from "@olai/surface"
 
-/**
- * Whether a call in this state is one the wire still says is going.
+/** A tool call's status as the panel reads it — what the wire said, or
+ *  `pending` when it has not said yet.
  *
- * Takes the STATUS as the row carries it — `undefined` included, which is how
- * a tool row arrives before anything has said otherwise and how every row that
- * is not a tool call arrives forever. The two are told apart by the caller and
- * not here: `spawn.ts` has already established the row is a spawn when it asks,
- * and `elapsed.ts` refuses an absent status outright, because a `user` message
- * that inherited "pending" would be a paragraph with a stopwatch on it.
+ *  ONE spelling of that default, which used to be two: the frame needed the
+ *  WORD to draw a mark by and the spawn rail needed it to decide whether an
+ *  agent was still out, and both wrote `?? "pending"` for the same reason —
+ *  that the adapter announces every call with it. Two copies of one convention
+ *  is one of them being missed the day the convention moves. */
+export const statusOf = (entry: ChatEntry): NonNullable<ChatEntry["status"]> =>
+  entry.status ?? "pending"
+
+/**
+ * Whether this row is a call the wire still says is going.
+ *
+ * `undefined` for the row is answered `false` too, for `laneOf`'s reason: the
+ * list holds keys and reads their values a frame behind, so "which row" is a
+ * question that can be asked about nothing.
  */
-export const isRunning = (status: ChatEntry["status"]): boolean =>
-  status === "pending" || status === "in_progress"
+export const isRunning = (entry: ChatEntry | undefined): boolean =>
+  entry?.kind === "tool" && RUNNING.has(statusOf(entry))
+
+/** The statuses that mean it has not come back. A call that has completed or
+ *  failed has no live half and is drawn by the mark and the report the frame
+ *  already carries. */
+const RUNNING: ReadonlySet<string> = new Set(["pending", "in_progress"])

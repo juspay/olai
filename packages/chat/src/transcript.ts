@@ -58,16 +58,25 @@ const EMPTY: Change = { upserts: [], removes: [] }
  */
 const contentOf = (
   entry: ChatEntry,
-): Content => {
+): RowContent => {
   const { id: _id, seq: _seq, since: _since, streaming: _streaming, ...content } = entry
   return content
 }
 
-/** A row's CONTENT: everything about it that a caller decides. The four fields
- *  taken off are the ones `#put` derives — which key the row is, where it sits,
- *  when it arrived and whether it is still growing — and taking them off here
- *  is what makes them unsettable from anywhere else. */
-type Content = Omit<ChatEntry, "id" | "seq" | "since" | "streaming">
+/**
+ * A row's CONTENT: everything about it that a caller decides.
+ *
+ * The four fields taken off are the ones {@link Transcript} DERIVES — which key
+ * the row is, where it sits, when it arrived, and whether it is still growing.
+ * Naming them once, here, is what makes them unsettable: every door into this
+ * class takes this rather than a `Partial<ChatEntry>`, so a caller cannot hand
+ * in a `seq` or a `since` for the writer to have to ignore, and a fifth derived
+ * field inherits the rule instead of needing each door to be told about it.
+ *
+ * Exported because two of those doors are public and their argument has to be
+ * nameable from outside.
+ */
+export type RowContent = Omit<ChatEntry, "id" | "seq" | "since" | "streaming">
 
 /** What a tool call is filed under. Spelled ONCE: the row a call writes and
  *  the row it names as the agent that made it are the same kind of key, and
@@ -147,7 +156,7 @@ export class Transcript {
   add(
     kind: ChatEntry["kind"],
     text: string,
-    extra: Partial<ChatEntry> = {},
+    extra: Partial<RowContent> = {},
   ): Change {
     return this.#row(kind, text, extra).change
   }
@@ -166,7 +175,7 @@ export class Transcript {
    * uses, and two minting paths would be two answers to "how is a row
    * written" for the one kind that has both.
    */
-  user(text: string, extra: Partial<ChatEntry> = {}): {
+  user(text: string, extra: Partial<RowContent> = {}): {
     readonly key: string
     readonly change: Change
   } {
@@ -444,7 +453,7 @@ export class Transcript {
    *  and drops the key, {@link user} keeps both. One place knows how a row is
    *  written, so a `user` row a person typed and a `user` row a replay wrote
    *  cannot come out differently. */
-  #row(kind: ChatEntry["kind"], text: string, extra: Partial<ChatEntry>): {
+  #row(kind: ChatEntry["kind"], text: string, extra: Partial<RowContent>): {
     readonly key: string
     readonly change: Change
   } {
@@ -470,7 +479,7 @@ export class Transcript {
    *  frames a long call sends while somebody is watching it. */
   #put(
     key: string,
-    entry: Content,
+    entry: RowContent,
   ): Change {
     const existing = this.#entries.get(key)
     const next: ChatEntry = {

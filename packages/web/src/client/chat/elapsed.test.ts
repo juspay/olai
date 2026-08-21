@@ -82,14 +82,31 @@ describe("when it says nothing", () => {
   })
 
   test("nor has a row that is not a call at all", () => {
-    // `status` is a tool row's field. Defaulting an absent one to `pending` —
-    // which the spawn rail does, having already established it is looking at a
-    // spawn — would put a stopwatch on the sentence somebody typed.
+    // `status` is a TOOL row's field, and the rule reads the KIND rather than
+    // guessing from the field's absence (`./running.ts`) — because an absent
+    // status on a tool row means `pending`, which is a running state. Guessing
+    // would put a stopwatch on the sentence somebody typed.
     expect(elapsedOf(
       row({ kind: "user", status: undefined, text: "done order" }),
       TURNING,
       at("2026-08-21T12:05:00.000Z"),
     )).toBeNull()
+    // ... and it stays null for a row that somehow carries a status it has no
+    // business carrying: the kind is what makes the field mean anything, so the
+    // kind is what is asked.
+    expect(elapsedOf(
+      row({ kind: "agent", text: "let me look" }),
+      TURNING,
+      at("2026-08-21T12:05:00.000Z"),
+    )).toBeNull()
+  })
+
+  test("a call the panel has only just been told about is timed from the start", () => {
+    // An announcement with no status yet is `pending` — announced, not "not
+    // started" — so it counts from the moment it arrived rather than waiting
+    // for a word the adapter may not send for half a minute.
+    expect(elapsedOf(row({ status: undefined }), TURNING, at("2026-08-21T12:00:09.000Z")))
+      .toBe("9s")
   })
 
   test("a row that has not arrived yet has none either", () => {

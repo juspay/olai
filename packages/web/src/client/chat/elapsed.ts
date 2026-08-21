@@ -82,11 +82,11 @@ export const elapsedOf = (
   now: () => number,
 ): string | null => {
   if (!live) return null
-  // The status AS IT CAME, never defaulted to `pending`: `status` is a tool
-  // row's field, so an absent one is a `user` message or a paragraph of the
-  // agent's prose, and defaulting would put a stopwatch on the sentence you
-  // typed.
-  if (!isRunning(entry?.status)) return null
+  // THE ROW, not its status — which is what makes this safe to ask of any row
+  // in the transcript. `status` is a tool row's field, and a predicate over the
+  // bare field would have to guess about the rows that carry none
+  // ({@link ./running.ts}).
+  if (!isRunning(entry)) return null
   const started = Date.parse(entry?.since ?? "")
   // A row from a server that stamps nothing, or a stamp that is not a time:
   // somebody else's string, and a readout of `NaN` is worse than a row with no

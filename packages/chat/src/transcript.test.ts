@@ -239,13 +239,18 @@ describe("when a row arrived", () => {
   })
 
   test("a row cannot be handed one: the writer decides, like `seq`", () => {
-    // `since` is off `contentOf` for the reason `seq` and `streaming` are —
+    // `since` is off `RowContent` for the reason `seq` and `streaming` are —
     // every re-publish goes through a spread of the row as it stands, and a
     // field a caller could set is a field a caller could set WRONG once and
     // then carry forward forever.
+    //
+    // The TYPE is the first line of that: no door here takes a field the writer
+    // derives, so the cast below is what somebody would have to write to get
+    // past it. The derivation is the second line, and this is the test of it —
+    // handed one anyway, the writer's own stamp is what lands.
     const time = clock("2026-08-21T12:00:00.000Z")
     const transcript = new Transcript(time.now)
-    transcript.user("hello", { since: "1999-01-01T00:00:00.000Z" })
+    transcript.user("hello", { since: "1999-01-01T00:00:00.000Z" } as Partial<ChatEntry>)
     expect(rows(transcript)[0]?.since).toBe("2026-08-21T12:00:00.000Z")
   })
 

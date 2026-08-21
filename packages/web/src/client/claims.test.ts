@@ -260,6 +260,26 @@ test("a row's handle is marked in the gesture that owns it and the cell that wea
   ])
 })
 
+// chat/running.ts's claim, and it is the readout-states sweep above read in a
+// different key: what a tool call's status MEANS is one module's, and what it
+// LOOKS like is the frame's. The two are keyed by the same field and change for
+// different reasons — the mark, the tone and the spoken word move when the panel
+// does, the vocabulary moves when ACP does — so the split is deliberate and the
+// sweep is what keeps it from becoming a third opinion. `?? "pending"` was
+// written twice for one convention before this, in the frame and in the spawn
+// rail; a fourth file uttering a status is a face deciding for itself what the
+// wire meant. The e2e suite's own spelling is not here to see: it is a
+// different package.
+test("a tool call's status is spelled where it is meant and where it is drawn", () => {
+  const statuses = /["'`](pending|in_progress)["'`]/
+  expect(filesSpelling(statuses)).toEqual([
+    path.join("chat", "ToolFrame.tsx"),
+    path.join("chat", "elapsed.test.ts"),
+    path.join("chat", "running.ts"),
+    path.join("chat", "spawn.test.ts"),
+  ])
+})
+
 // clock.ts's claim — "the one clock in the client", which for a while was a
 // claim about the DAY and silently untrue about the wall clock. Two readouts
 // here are a reading of it and therefore go stale where they stand — the commit

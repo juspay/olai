@@ -105,11 +105,12 @@ export const doingOf = (
 ): string | null => {
   if (!live || entry?.spawned === undefined) return null
   // `pending` is what a spawn is ANNOUNCED with and what most of them wear for
-  // most of their lives, so it is the default rather than a case to fall
-  // through — and it is a RUNNING state, which is the whole of the note above
-  // and is now {@link ./running.ts}'s to say, because the elapsed readout on
-  // this same row asks the same question.
-  return isRunning(entry.status ?? "pending") ? WORKING : null
+  // most of their lives, so it is a RUNNING state rather than a case to fall
+  // through, and a row nothing has said about yet is taken to be wearing it.
+  // Both of those are {@link ./running.ts}'s to say now — the elapsed readout
+  // on this same row asks the same question, and the frame draws the same
+  // field.
+  return isRunning(entry) ? WORKING : null
 }
 
 /** What a spawn is called when it named no kind of agent. The `Agent` tool's

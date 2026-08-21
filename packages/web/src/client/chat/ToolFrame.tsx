@@ -64,6 +64,7 @@ import { TESTID } from "../testids.ts"
 import { Diff } from "./Diff.tsx"
 import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
 import { OutlineDiff } from "./OutlineDiff.tsx"
+import { statusOf } from "./running.ts"
 import { whoOf } from "./spawn.ts"
 import { Wrote } from "./Wrote.tsx"
 
@@ -91,6 +92,14 @@ const TONE: Record<string, string> = {
  * know is said as it came, which is the same refusal to invent a name the
  * header makes for a model it cannot place.
  *
+ * THE MODULE NEXT DOOR IS NOT THE FOURTH OF THESE. {@link ./running.ts} holds
+ * what a status MEANS — the word an unannounced call is taken to wear, and
+ * which words mean it has not come back — because two faces outside this
+ * component ask that of the same row and must not answer differently. These
+ * three are what a status LOOKS and SOUNDS like, and they move when the panel
+ * does rather than when ACP does; that is why the split is where it is rather
+ * than one table in one place.
+ *
  * THE AGENT'S OWN WORDS, spelled for speech and interpreted no further. The
  * rail under a spawn says *working…* for `pending`, and this deliberately does
  * not: that rail is drawn only while the conversation is live
@@ -114,7 +123,7 @@ export function ToolFrame(props: {
   readonly elapsed: string | null
 }) {
   const open = () => isUnfolded(props.entry.id)
-  const status = () => props.entry.status ?? "pending"
+  const status = () => statusOf(props.entry)
   /**
    * The blocks of change this call reported, each carrying the NAME that
    * identifies it ({@link ./folds.ts}'s `diffKey`).
