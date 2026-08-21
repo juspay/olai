@@ -26,19 +26,39 @@
  *
  * COPY ON WRITE, because revisions must stay atomic ({@link Derived}'s own
  * note: the nodes travel WITH their indexes so nobody can mix two revisions).
- * A patch returns a NEW `Derived`; every map it changes is cloned first and
+ * A patch returns a NEW `Derived`; nothing it is handed is written to, and
  * every array or set inside one it changes is rebuilt, so the view a reader is
  * already holding never moves under them. What is not touched is shared, which
  * is the whole economy of the thing.
  *
- * EXCEPT FOR THE ONE MAP THAT IS THE CORPUS. `byId` has an entry per record in
- * the directory, and cloning it was the largest single cost in a patch —
- * roughly half of one, which is a copy-on-write that costs what the directory
- * holds inside a function whose whole claim is that it costs what the edit
- * touched. It is LAYERED instead ({@link ./overlay.ts}): the entries this edit
- * changed, over the map the last patch left standing. Same answers, same key
- * order, same everything a reader can ask — and the old view goes on being
- * answered by the map it was given, which is the property the clone was for.
+ * AND THE COPY IS A LAYER WHERE THE READERS ALLOW ONE. Every index used to be
+ * CLONED for that — eleven `new Map`s per patch, one entry copied per key in
+ * the directory, which is a copy-on-write that costs what the directory holds
+ * inside a function whose whole claim is that it costs what the edit touched.
+ * Seven of them are LAYERED now ({@link ./overlay.ts}): the entries this edit
+ * changed and the keys it dropped, over the map the last patch left standing.
+ * Same answers, same size, same key order, same everything a reader can ask —
+ * and the old view goes on being answered by the map it was given, which is the
+ * property the clone was for.
+ *
+ * WHICH SEVEN IS DECIDED BY THE INDEX'S READERS AND NOTHING ELSE, and every one
+ * of the eleven says which it is at the call ({@link ./overlay.ts}'s `Read`).
+ * An index asked BY KEY — `byId.get(id)`, `status.get(id)`, the four others
+ * every drawn row spends — pays a layer one small lookup on the way past and
+ * saves the corpus. An index read WHOLE — `namedBy` by the validator,
+ * `taggedBy` by tag completion, `byDay` by the agenda and the calendar,
+ * `byFile` by whoever wants the corpus flat — would pay that lookup once per
+ * entry on every walk, which costs more than the clone it saved, so those four
+ * stay clones. `./patch.bench.ts` prints both halves of that trade.
+ *
+ * AND THE CORPUS IS NOT FLATTENED HERE AT ALL. {@link Derived.nodes} is
+ * {@link Derived.byFile} read the other way — the same records, never a second
+ * copy — and a patch that BUILT it paid one array per record in the directory
+ * for a reading none of its own work asks for. The view this hands back builds
+ * it when somebody asks and not before, which on a keystroke is never: the two
+ * index steps that can want it decline to patch first, and the validator above
+ * spends it once where it used to flatten the set a second time to check this
+ * one against ({@link ./validate.ts}'s `isSet`).
  *
  * WHAT IT ASSUMES ABOUT ITS INPUT, said out loud because it is not checked: the
  * view it is handed is one of an ASSEMBLED set — files in path order, records
@@ -73,7 +93,7 @@ import {
   storedMarker,
 } from "./node.ts"
 import { type Dated, dateInto } from "./occasion.ts"
-import { overlaid } from "./overlay.ts"
+import { type Editable, overlay, type Read } from "./overlay.ts"
 import { byPath } from "./paths.ts"
 
 /**
@@ -119,7 +139,7 @@ export interface SetDelta {
  */
 export const patch = (derived: Derived, delta: SetDelta): Derived => {
   const grouped = regrouped(derived, delta)
-  return patched(derived, delta, grouped) ?? derive(grouped.nodes)
+  return patched(derived, delta, grouped) ?? derive(flattened(grouped.byFile))
 }
 
 /**
@@ -136,7 +156,7 @@ export const patched = (
   delta: SetDelta,
   grouped: Regrouped = regrouped(derived, delta),
 ): Derived | undefined => {
-  const { byFile, nodes, touched } = grouped
+  const { byFile, touched } = grouped
   if (touched.size === 0) return derived
 
   // DUPLICATE IDS, and this is the whole of how they are told apart: `byId`
@@ -146,7 +166,12 @@ export const patched = (
   // corpus with a duplicate in it is a corpus the validator refuses anyway, so
   // the patcher hands those back to `derive` rather than growing a shape for
   // them.
-  if (derived.byId.size !== derived.nodes.length) return undefined
+  //
+  // ASKED OF THE GROUPING rather than of the flat list beside it, which is the
+  // same number and is in hand: reading `derived.nodes` here would be this
+  // patch forcing the PREVIOUS one's flat list into existence for a length,
+  // which is exactly the corpus-sized allocation the view below stopped making.
+  if (derived.byId.size !== countIn(derived.byFile)) return undefined
   // Nothing of the old view is left to patch ONTO — a `git pull` that rewrote
   // the directory, a first load with nothing behind it, a one-file set whose
   // one file changed. Patching is about what stays standing, and when nothing
@@ -172,6 +197,16 @@ export const patched = (
     if (held !== undefined && !touched.has(held.file)) return undefined
   }
 
+  // THE CORPUS READ FLAT, when somebody asks and not before. It is
+  // {@link Derived.nodes}, and it is {@link Derived.byFile} read the other way
+  // — the same records, never a second copy of them — so a patch that BUILT it
+  // paid one array per record in the directory for a reading its own work never
+  // needs. Three things here can want it, and on a keystroke none of them does:
+  // the two index steps that decline to patch and rebuild instead, and a caller
+  // above. So it is a thunk, memoised, spent at most once per patch.
+  let flat: ReadonlyArray<Located> | undefined
+  const nodes = (): ReadonlyArray<Located> => (flat ??= flattened(byFile))
+
   // One step per index, in the order each needs the last: who claims which id,
   // what hangs under what, what names what, what everything resolves to, the
   // ordering graph, and what cannot start yet.
@@ -185,7 +220,9 @@ export const patched = (
   const blocked = blockage(edit, { byId, status, after, edgesTo }, dirty, rewritten)
 
   return {
-    nodes,
+    get nodes() {
+      return nodes()
+    },
     byId,
     children,
     status,
@@ -289,9 +326,13 @@ const refiled = <T, Filed extends T = T>(
     /** The order this index promises its members in: corpus order for three of
      *  the four, and the format's sibling order for `children`. */
     readonly order?: (one: Located, other: Located) => number
+    /** How this index is READ, which is what decides whether it is layered or
+     *  cloned across the edit ({@link ./overlay.ts}). It is a fact about the
+     *  index's own readers, so it is stated by the caller that knows them. */
+    readonly read: Read
   },
 ): Refiled<T> => {
-  const { into, at, order = byCorpus } = filing
+  const { into, at, order = byCorpus, read } = filing
   const arriving = new Map<string, Array<Filed>>()
   for (const one of edit.incoming) into(arriving, one)
   // The DEPARTING side goes through the SAME fold, for its KEYS, and the
@@ -320,7 +361,7 @@ const refiled = <T, Filed extends T = T>(
    *  would be one throwaway per key rather than one per index. */
   const inOrder = (one: T, other: T): number => order(at(one), at(other))
 
-  const map = new Map(before)
+  const map = overlay(before)
   let rekeyed = false
   let headMoved = false
   for (const key of keys) {
@@ -333,7 +374,7 @@ const refiled = <T, Filed extends T = T>(
     if (!headMoved && elsewhere(head(held), head(own))) headMoved = true
     if (filedAt(map, key, own)) rekeyed = true
   }
-  return { map, rekeyed, headMoved }
+  return { map: map.sealed(read), rekeyed, headMoved }
 }
 
 /**
@@ -354,7 +395,7 @@ const refiled = <T, Filed extends T = T>(
  * which is {@link inKeyOrder} next door.
  */
 const filedAt = <V>(
-  map: Map<string, ReadonlyArray<V>>,
+  map: Editable<string, ReadonlyArray<V>>,
   key: string,
   own: ReadonlyArray<V>,
 ): boolean => {
@@ -396,6 +437,12 @@ const NOTHING: ReadonlyArray<never> = []
  *
  * Nothing reads these keys in order and nothing here has a shape to rebuild, so
  * this is the one of the four that spends neither axis.
+ *
+ * It is also the one of the four that is LAYERED rather than cloned, and for
+ * the reason that decides all eleven: what asks this index asks it for a key —
+ * `children.get(id)`, per row a page draws, per parent a rollup counts — and
+ * nothing in the tree walks it whole. Its three neighbours below are each
+ * walked entry by entry somewhere, so each stays a map.
  */
 const containment = (
   edit: Edit,
@@ -404,21 +451,26 @@ const containment = (
     into: parentInto,
     at: (one) => one,
     order: bySibling,
+    read: "by key",
   }).map
 
-/** The delta applied to the grouping, and the flat list that falls out of it —
- *  the one part of the answer that is the same whether this is patched or
- *  rebuilt, so it is computed once and handed to whichever runs. */
+/** The delta applied to the grouping — the one part of the answer that is the
+ *  same whether this is patched or rebuilt, so it is computed once and handed
+ *  to whichever runs.
+ *
+ *  It used to carry the FLAT LIST beside the grouping, built here so that both
+ *  arms had it. Neither arm needs it: the rebuild flattens what it is given
+ *  ({@link flattened}) and the patch hands the reading on unbuilt, so what was
+ *  a corpus-sized allocation on every write is now one the writer never makes. */
 interface Regrouped {
   readonly byFile: ReadonlyMap<string, ReadonlyArray<Located>>
-  readonly nodes: ReadonlyArray<Located>
   /** Every file the delta named, whether it gained records, lost them or went
    *  away — the one question every step below asks about a record's file. */
   readonly touched: ReadonlySet<string>
 }
 
 const regrouped = (derived: Derived, delta: SetDelta): Regrouped => {
-  const byFile = new Map(derived.byFile)
+  const byFile = overlay(derived.byFile)
   const touched = new Set<string>()
   // Whether the KEY SET moved, and therefore whether the map's own order has to
   // be made again: a file that was already there keeps its place when it is
@@ -440,8 +492,41 @@ const regrouped = (derived: Derived, delta: SetDelta): Regrouped => {
     // on disk — and not about the order a frame happened to carry them in.
     if (filedAt(byFile, file, [...entry.nodes].sort(byLine))) reordered = true
   }
-  const ordered = inKeyOrder(byFile, reordered, byPath)
-  return { byFile: ordered, nodes: [...ordered.values()].flat(), touched }
+  // WALKED WHOLE, and this is the index every whole-corpus reading goes
+  // through — {@link flattened} below, tag completion's file walk, the pin
+  // shelf's. It is also the smallest of the eleven per record it accounts for:
+  // one entry per FILE against one per record, so the clone it pays is a
+  // thousandth of the corpus rather than the whole of it. Both halves of that
+  // were MEASURED before this stayed a clone rather than after: the clone and
+  // the flat read together are 0.174ms on the bench vault, and a layer and the
+  // same read through it are 0.241ms — the walk costs more than the copy it
+  // saves, which is {@link ./overlay.ts}'s sealing rule arriving at the one
+  // index where the two are close enough to have to be timed.
+  const ordered = inKeyOrder(byFile.sealed("whole"), reordered, byPath)
+  return { byFile: ordered, touched }
+}
+
+/**
+ * The corpus read FLAT — {@link Derived.nodes} — from the grouping that holds
+ * it.
+ *
+ * Not a second copy of the records and never was ({@link Derived.byFile} says
+ * so from the other side): the same objects, run together in the order every
+ * assembled set is in, which is path order across files and line order within
+ * one. It is a function rather than something a patch keeps because a patch
+ * that keeps it pays one array per record in the directory for a reading its
+ * own work never asks — {@link patched} spends this at most once, and on a
+ * keystroke not at all.
+ */
+const flattened = (
+  byFile: ReadonlyMap<string, ReadonlyArray<Located>>,
+): ReadonlyArray<Located> => [...byFile.values()].flat()
+
+/** How many records the corpus holds, without building the list of them. */
+const countIn = (byFile: ReadonlyMap<string, ReadonlyArray<Located>>): number => {
+  let held = 0
+  for (const own of byFile.values()) held += own.length
+  return held
 }
 
 /** The records of every named file, run together. */
@@ -517,21 +602,26 @@ const namedIn = (
  */
 const ids = (
   edit: Edit,
-  nodes: ReadonlyArray<Located>,
+  nodes: () => ReadonlyArray<Located>,
   claimed: ReadonlySet<string>,
 ): ReadonlyMap<string, Located> => {
   const left = edit.outgoing.some((at) => !claimed.has(at.node.id))
   const moved = edit.incoming.some((at) => elsewhere(edit.before.byId.get(at.node.id), at))
   if (left || moved) {
     const byId = new Map<string, Located>()
-    for (const at of nodes) if (!byId.has(at.node.id)) byId.set(at.node.id, at)
+    for (const at of nodes()) if (!byId.has(at.node.id)) byId.set(at.node.id, at)
     return byId
   }
   // A LAYER over the map that stood, rather than a clone of it: with no key
   // added, moved or dropped, what this edit changed is a value per arriving
   // record, and the other twenty thousand are the map's own answers still
   // ({@link ./overlay.ts}, which is where the trade is argued and measured).
-  return overlaid(edit.before.byId, edit.incoming.map((at) => [at.node.id, at]))
+  // Read BY KEY — `byId.get(id)` is what every production caller asks, and the
+  // one whole-index reader wants its keys, which a layer walks without a
+  // lookup per entry (`./suggest.ts`'s did-you-mean).
+  const byId = overlay(edit.before.byId)
+  for (const at of edit.incoming) byId.set(at.node.id, at)
+  return byId.sealed("by key")
 }
 
 /**
@@ -555,11 +645,16 @@ const ids = (
  */
 const namings = (
   edit: Edit,
-  nodes: ReadonlyArray<Located>,
+  nodes: () => ReadonlyArray<Located>,
 ): ReadonlyMap<string, ReadonlyArray<Naming>> => {
   const { map, headMoved } = refiled(edit, edit.before.namedBy, {
     into: nameInto,
     at: (naming) => naming.at,
+    // WALKED WHOLE, so it is cloned rather than layered: the validator reads
+    // every entry of this map on every write ({@link ./validate.ts}'s
+    // `checkTargets`), and a walk through a layer's generator costs more per
+    // entry than the clone it would save.
+    read: "whole",
   })
   // A key that MOVED — including one that appeared and one that went away,
   // both of which move a head by definition — is a key-order change, and this
@@ -568,7 +663,7 @@ const namings = (
   // is what the edit cost to find that out.
   if (!headMoved) return map
   const namedBy = new Map<string, Array<Filing>>()
-  for (const at of nodes) nameInto(namedBy, at)
+  for (const at of nodes()) nameInto(namedBy, at)
   return namedBy
 }
 
@@ -596,6 +691,9 @@ const taggings = (edit: Edit): ReadonlyMap<string, ReadonlyArray<LocatedRegular>
   refiled(edit, edit.before.taggedBy, {
     into: tagInto,
     at: (one) => one,
+    // WALKED WHOLE by tag completion, which reads every key and every member to
+    // rank them (`./vocabulary.ts`) — {@link namings}' reason, one index over.
+    read: "whole",
   }).map
 
 /**
@@ -628,6 +726,10 @@ const dating = (edit: Edit): ReadonlyMap<string, ReadonlyArray<Dated>> => {
   const { map, rekeyed } = refiled(edit, edit.before.byDay, {
     into: dateInto,
     at: (one) => one.at,
+    // WALKED WHOLE by the agenda's two directions and the calendar's month
+    // (`./dates.ts`, `./agenda.ts`), and by the sort below whenever a day
+    // appeared or emptied — {@link namings}' reason again.
+    read: "whole",
   })
   // Whether the KEYS moved is the only thing that costs the sort. A day that
   // gains or loses a record is not that; a day that appears or empties is.
@@ -687,8 +789,11 @@ const resolutions = (
     for (const mirror of arriving.get(id) ?? []) wake(mirror)
   }
 
-  const status = new Map(edit.before.status)
-  const mirrorsOf = new Map(edit.before.mirrorsOf)
+  // LAYERED, both of them, for the reason every by-key index here is: what asks
+  // `status` asks it per row drawn and per edge judged, and `mirrorsOf` per node
+  // a backlink walk situates — neither is walked whole anywhere in the tree.
+  const status = overlay(edit.before.status)
+  const mirrorsOf = overlay(edit.before.mirrorsOf)
   /** The keys of `mirrorsOf` a dirty mirror left or joined — every one of them
    *  has to be made again, and no other one has moved. */
   const shown = new Set<string>()
@@ -738,7 +843,7 @@ const resolutions = (
     else mirrorsOf.set(id, new Set(members.map((at) => at.node.id)))
   }
 
-  return { status, mirrorsOf, dirty }
+  return { status: status.sealed("by key"), mirrorsOf: mirrorsOf.sealed("by key"), dirty }
 }
 
 /**
@@ -828,8 +933,11 @@ const orderings = (
     return found.sort(byCorpus)
   }
 
-  const after = new Map(edit.before.after)
-  const edgesTo = new Map(edit.before.edgesTo)
+  // LAYERED for {@link resolutions}' reason: both readings of the ordering graph
+  // are asked per node — what is this waiting on, who is waiting on this — and
+  // the validator's acyclicity check walks the RECORDS, not these maps.
+  const after = overlay(edit.before.after)
+  const edgesTo = overlay(edit.before.edgesTo)
   for (const key of keys) {
     const own = byId.get(key)
     const mine = own === undefined || isMirror(own.node) ? undefined : own.node
@@ -850,7 +958,11 @@ const orderings = (
     else edgesTo.set(key, sources)
   }
 
-  return { after, edgesTo, rewritten: keys }
+  return {
+    after: after.sealed("by key"),
+    edgesTo: edgesTo.sealed("by key"),
+    rewritten: keys,
+  }
 }
 
 /**
@@ -876,11 +988,14 @@ const blockage = (
     for (const source of view.edgesTo.get(id) ?? []) keys.add(source)
   }
 
-  const blocked = new Map(edit.before.blocked)
+  // LAYERED, and it is the smallest of the six: nearly nothing is blocked, so
+  // the map is short and what an edit writes to it is shorter. Asked per row a
+  // page draws and per node a page zooms to, never walked.
+  const blocked = overlay(edit.before.blocked)
   for (const key of keys) {
     blocked.delete(key)
     const found = blockageAt(view, key)
     if (found !== undefined) blocked.set(found.at, found.waiting)
   }
-  return blocked
+  return blocked.sealed("by key")
 }

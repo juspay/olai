@@ -26,6 +26,7 @@
 import { Result } from "effect"
 
 import { derive, type Derived, drawnFrom } from "./derive.ts"
+import { type Outline } from "./document.ts"
 import { resolveRelative } from "./documents.ts"
 import {
   chainOf,
@@ -191,11 +192,16 @@ export const reading = (set: OutlineSet, previous?: Previous): Reading => ({
 })
 
 /**
- * THE ONE FLATTENING. Every rule below reads the records as a list, the
- * derivation is built from one, and this is where the set's outlines become
- * it — once per validation, over the same records in the same order, which is
- * the cost `./set.ts` names for serving documents rather than a `nodes`
- * collection beside them.
+ * THE SET FLATTENED, for the rebuild that is handed a list — once per
+ * validation and only when there IS a rebuild, which is the cost `./set.ts`
+ * names for serving documents rather than a `nodes` collection beside them.
+ *
+ * It used to run on every validation, patched or not, and the flat list it made
+ * was then compared with the one the patch had made: two arrays of every record
+ * in the directory, for a question about identity. {@link isSet} asks that
+ * question of the grouping instead, so a patched validation reaches this
+ * function not at all and spends its one flattening where the rules actually
+ * read the records ({@link Derived.nodes}, built when asked).
  *
  * It is here rather than exported because of what would happen if it were:
  * a `nodesOf(set)` on the set's own surface is a node-only list to import, and
@@ -207,23 +213,58 @@ const recordsIn = (set: OutlineSet): ReadonlyArray<Located> =>
   outlinesIn(set).flatMap((outline) => outline.nodes)
 
 const viewOf = (set: OutlineSet, previous: Previous | undefined): Derived => {
-  const nodes = recordsIn(set)
-  if (previous === undefined) return derive(nodes)
-  const view = patch(previous.read.derived, previous.delta)
-  // THE PATCHED VIEW ITSELF, once the two are known to hold the same records in
-  // the same places. It used to hand back `{...view, nodes}` — the SET's own
-  // array swapped in, so a rebuilt reading and a patched one shared one list
-  // with the set. Neither array is the set's any more (the flattening above is
-  // this call's), so that spread would rebuild the view to hold an array equal
-  // to the one it already had, and throw away the one identity worth keeping:
-  // the patched list is stable across revisions that touched nothing.
-  return isSet(view.nodes, nodes) ? view : derive(nodes)
+  // THE PATCHED VIEW ITSELF, once it is known to hold the same records in the
+  // same places as the set does. It used to hand back `{...view, nodes}` — the
+  // SET's own array swapped in, so a rebuilt reading and a patched one shared
+  // one list with the set. Neither array is the set's any more, so that spread
+  // would rebuild the view to hold an array equal to the one it already had,
+  // and throw away the one identity worth keeping: the patched list is stable
+  // across revisions that touched nothing.
+  if (previous !== undefined) {
+    const view = patch(previous.read.derived, previous.delta)
+    if (isSet(view, set)) return view
+  }
+  return derive(recordsIn(set))
 }
 
-const isSet = (
-  view: ReadonlyArray<Located>,
-  nodes: ReadonlyArray<Located>,
-): boolean => view.length === nodes.length && view.every((at, index) => at === nodes[index])
+/**
+ * Whether a view is about THIS set — the check that decides whether a patch is
+ * taken or thrown away for a rebuild.
+ *
+ * ASKED FILE BY FILE, of the view's own grouping, and that is the whole of what
+ * changed here: it used to flatten the set and compare the two flat lists, so a
+ * write that patched paid for the corpus in one array to check a view that had
+ * just paid for it in another — two allocations of every record in the
+ * directory, for a question about identity that neither of them added anything
+ * to. {@link Derived.byFile} is what a patch already holds and what the set
+ * already is, and comparing those spends no allocation at all.
+ *
+ * It is STRICTLY the stronger question, not the cheaper half of the old one:
+ * the flat lists agreeing said the records were the same objects in the same
+ * order, and this says that AND that the view files them under the paths the
+ * set spells, in the order an assembled set is in. A file holding nothing is
+ * absent from `byFile` ({@link Derived.byFile} says so), so the set's empty
+ * outlines are stepped over rather than matched — which is itself a rule the
+ * flat comparison could not see either way.
+ */
+const isSet = (view: Derived, set: OutlineSet): boolean => {
+  const outlines = outlinesIn(set)
+  let which = 0
+  const held = (): Outline | undefined => {
+    while (outlines[which]?.nodes.length === 0) which++
+    return outlines[which]
+  }
+  for (const [file, records] of view.byFile) {
+    const outline = held()
+    which++
+    if (outline === undefined || outline.path !== file) return false
+    if (outline.nodes.length !== records.length) return false
+    for (let at = 0; at < records.length; at++) {
+      if (records[at] !== outline.nodes[at]) return false
+    }
+  }
+  return held() === undefined
+}
 
 // ── ids ────────────────────────────────────────────────────────────────
 

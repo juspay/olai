@@ -489,27 +489,86 @@ test("an edit keeps the files it did not touch, entry by entry", () => {
   expect(next.byId.get("m")).toBe(view.byId.get("m"))
 })
 
-test("an edit does not copy the id map — it layers over it", () => {
-  // The economy of the patch, said about the index that used to break it: `byId`
-  // has an entry per record in the DIRECTORY, and cloning it was the single
-  // largest cost in a patch (`./overlay.ts`, `./patch.bench.ts`). Nothing else
-  // in the tree can tell a layer from a map — that is the whole contract, and
-  // every assertion above holds either way — so this is the one place the
-  // difference is visible, and it is asserted here rather than measured in a
-  // benchmark nobody runs on a lane.
-  const before: Corpus = {
-    "a.olai": `{"id":"p","ord":"a","title":"p"}\n{"id":"q","ord":"b","title":"q"}`,
-    "b.olai": `{"id":"r","ord":"a","title":"r"}\n{"id":"s","ord":"b","title":"s"}`,
-    "deep/c.olai": `{"id":"t","ord":"a","title":"t"}\n{"id":"u","ord":"b","title":"u"}`,
-  }
-  const typed = `{"id":"p","ord":"a","title":"p again"}\n{"id":"q","ord":"b","title":"q"}`
-  const view = viewOf(before)
-  const next = patched(view, editing("a.olai", typed))
+/**
+ * SIX OF EVERYTHING, so that the edit below writes ONE key of each index and
+ * the layer's half rule ({@link ./overlay.ts}) is nowhere near.
+ *
+ * Each group is a parent with one blocked task under it, the gate that task
+ * waits on, and a placement standing for it — which between them give every one
+ * of the seven by-key indexes six keys: `children` the parents, `status` the
+ * marks, `after` the tasks, `edgesTo` the gates, `blocked` the tasks again,
+ * `mirrorsOf` the tasks a placement stands for, and `byId` all of them.
+ */
+const SIX: Corpus = {
+  ...Object.fromEntries(
+    Array.from({ length: 6 }, (_, which) => [
+      `f${which}.olai`,
+      `{"id":"p${which}","ord":"a","title":"p${which}"}\n` +
+        `{"id":"t${which}","ord":"b","parent":"p${which}","title":"t${which}",` +
+        `"todo":true,"after":["g${which}"]}`,
+    ]),
+  ),
+  "gates.olai": Array.from(
+    { length: 6 },
+    (_, which) => `{"id":"g${which}","ord":"${"abcdef"[which]}","title":"g${which}","todo":true}`,
+  ).join("\n"),
+  "mirrors.olai": Array.from(
+    { length: 6 },
+    (_, which) => `{"id":"m${which}","ord":"${"abcdef"[which]}","mirror":"t${which}"}`,
+  ).join("\n"),
+}
+
+test("an edit layers the indexes read by key, and clones the ones read whole", () => {
+  // The economy of the patch, and the rule that decides it: an index a reader
+  // asks BY KEY is a layer over the map the last patch left standing, and an
+  // index a reader walks WHOLE stays a clone, because the layer's per-entry read
+  // would cost more than the copy it saved (`./overlay.ts`, `./patch.bench.ts`).
+  // Nothing else in the tree can tell a layer from a map — that is the whole
+  // contract, and every assertion above holds either way — so this is the one
+  // place the difference is visible, and it is asserted here rather than
+  // measured in a benchmark nobody runs on a lane.
+  const typed = `{"id":"p0","ord":"a","title":"p0"}\n` +
+    `{"id":"t0","ord":"b","parent":"p0","title":"t0 again","todo":true,"after":["g0"]}`
+  const view = viewOf(SIX)
+  const next = patched(view, editing("f0.olai", typed))
   expect(next).toBeDefined()
-  same(next as Derived, viewOf({ ...before, "a.olai": typed }), () => "a title typed")
-  expect((next as Derived).byId instanceof Map).toBe(false)
+  same(next as Derived, viewOf({ ...SIX, "f0.olai": typed }), () => "a title typed")
+
+  // The seven a reader asks by key. `byId` is the one that made the case — an
+  // entry per record in the DIRECTORY, and cloning it was the single largest
+  // cost in a patch — and the other six went with it once the layer could
+  // delete a key. Every one of them holds six keys here and this edit writes
+  // one or two, so a flatten would be the rule firing rather than the trade.
+  for (
+    const index of ["byId", "children", "status", "after", "blocked", "mirrorsOf",
+      "edgesTo"] as const
+  ) {
+    expect([index, (next as Derived)[index] instanceof Map]).toEqual([index, false])
+  }
+  // The four somebody walks: `byFile` for the corpus read flat, `namedBy` for
+  // the validator's report, `taggedBy` for tag completion, `byDay` for the
+  // agenda and the calendar.
+  for (const index of ["byFile", "namedBy", "taggedBy", "byDay"] as const) {
+    expect([index, (next as Derived)[index] instanceof Map]).toEqual([index, true])
+  }
   // And the view a reader was already holding still answers with what it held.
-  expect(view.byId.get("p")?.node).toMatchObject({ title: "p" })
+  expect(view.byId.get("t0")?.node).toMatchObject({ title: "t0" })
+})
+
+test("the flat list is one value however often it is asked for", () => {
+  // {@link Derived.nodes} is {@link Derived.byFile} read the other way, and a
+  // patched view builds it when somebody asks rather than while it is being
+  // made — so what a caller must be able to count on is that asking twice is
+  // asking once. The validator reads it five times per write.
+  const before: Corpus = {
+    "a.olai": `{"id":"p","ord":"a","title":"p"}`,
+    "b.olai": `{"id":"r","ord":"a","title":"r"}`,
+  }
+  const view = viewOf(before)
+  const next = patched(view, editing("a.olai", `{"id":"p","ord":"a","title":"p again"}`))
+  expect(next).toBeDefined()
+  expect((next as Derived).nodes).toBe((next as Derived).nodes)
+  expect((next as Derived).nodes.map((at) => at.node.id)).toEqual(["p", "r"])
 })
 
 test("an index the edit says nothing about is the map the last view held", () => {

@@ -85,7 +85,7 @@ import {
   vaultOf,
 } from "./fixtures.testlib.ts"
 import { isRegular, type Located, type LocatedRegular } from "./node.ts"
-import { overlaid } from "./overlay.ts"
+import { overlay } from "./overlay.ts"
 import { patched, type SetDelta } from "./patch.ts"
 import { byPath } from "./paths.ts"
 
@@ -325,7 +325,7 @@ const walked = (views: ReadonlyArray<Derived>): ReadonlyArray<number> => {
  *
  *   - `cloned` — `new Map(byId)` and then a `set` per arriving record, which is
  *     what a patch paid before this branch;
- *   - `layered` — {@link overlaid}, which is what it pays now.
+ *   - `layered` — {@link overlay}, which is what it pays now.
  *
  * CARRIED FORWARD, both of them, because the layer a patch is handed is the one
  * the patch before it left: the layer grows over a session and the clone never
@@ -341,7 +341,11 @@ const walked = (views: ReadonlyArray<Derived>): ReadonlyArray<number> => {
  * the edits are ONE FILE typed in rather than a walk across the directory, and
  * WHICH EDIT the layer flattened at, if it did.
  */
-const layered: CopyOnWrite = (base, changes) => overlaid(base, changes)
+const layered: CopyOnWrite = (base, changes) => {
+  const held = overlay(base)
+  for (const [id, at] of changes) held.set(id, at)
+  return held.sealed("by key")
+}
 
 /** One stream of edits, run through one strategy from the first view's index —
  *  the times per edit, what it ended holding, and every edit after which the
@@ -417,34 +421,100 @@ const lever = (
   )
 }
 
+/** The seven indexes a patch LAYERS, and the four it still clones — the split
+ *  {@link ./overlay.ts}'s sealing argument makes, named here rather than
+ *  counted from a paragraph, so that an index which changes sides changes this
+ *  line and the pair below with it. */
+const LAYERED = ["byId", "children", "status", "after", "blocked", "mirrorsOf",
+  "edgesTo"] as const
+const CLONED = ["byFile", "namedBy", "taggedBy", "byDay"] as const
+
 /**
- * `byId` cloned, against all TEN other indexes cloned together — the number
- * behind "`byId` is the one that gets a layer", measured as a pair rather than
- * as two figures from two moments, for {@link walked}'s reason.
+ * THE ELEVEN INDEXES, CLONED — what a patch used to pay before a word from
+ * every index's readers decided which of them needed to be, split into the
+ * seven that are layered now and the four that are not.
  *
- * Clones on both sides, because the ten are what the patcher GOES ON doing:
- * nine of them delete keys across a patch, which a layer keeping the base's
- * key set cannot, and the one that does not is walked whole by the validator.
+ * Measured as a pair rather than as two figures from two moments, for
+ * {@link walked}'s reason — and measured ON THEIR OWN, which is what keeps this
+ * a ceiling rather than a sum: an arm that allocates eleven maps and drops them
+ * leaves garbage a patch's own clones did not, and four of the eleven were
+ * already skipped outright by an edit that named no key of them. What the pair
+ * is for is the SHAPE of the residue, and the before/after inside a timed
+ * window is the `patch+clone` arm above and the leg run against the branch
+ * point.
  *
- * `taggedBy` joined the list when it joined the view, and `byDay` with the day
- * index; both are named here rather than left out because the arm is "what a
- * patch still pays", and an index missing from it is a clone the pair silently
- * does not count.
+ * Both lists are spelled out rather than derived from the view's keys, because
+ * the arm is "what a patch pays", and an index missing from them is a clone the
+ * pair silently does not count.
  */
-const beside = (): readonly [byId: number, others: number] => {
-  const others = (["children", "status", "after", "blocked", "byFile", "mirrorsOf", "edgesTo",
-    "namedBy", "taggedBy", "byDay"] as const).map((key) =>
-      first[key] as ReadonlyMap<string, unknown>
-    )
+const beside = (): readonly [layered: number, cloned: number] => {
+  const mapsIn = (keys: ReadonlyArray<keyof Derived>) =>
+    keys.map((key) => first[key] as ReadonlyMap<string, unknown>)
+  const wasLayered = mapsIn(LAYERED)
+  const stayCloned = mapsIn(CLONED)
   const arms = [
     () => {
-      new Map(first.byId)
+      for (const map of wasLayered) new Map(map)
     },
     () => {
-      for (const map of others) new Map(map)
+      for (const map of stayCloned) new Map(map)
     },
   ] as const
   return alternating(arms)
+}
+
+/**
+ * THE CORPUS READ FLAT, which a patch used to build and now hands on unbuilt —
+ * one array per record in the directory, allocated on every write however small
+ * the edit ({@link ./patch.ts}'s `flattened`, and the roadmap's
+ * `perf-patch-residue`, which named this line).
+ *
+ * It is timed against the walk that ANSWERS the same question without the
+ * array, because "it is lazy now" is only a saving if somebody actually
+ * declines to ask: the duplicate-id gate at the top of a patch wanted a LENGTH,
+ * and a length is a walk of the grouping.
+ */
+const flatly = (): readonly [built: number, counted: number] => {
+  const byFile = first.byFile
+  return alternating([
+    () => {
+      const flat = [...byFile.values()].flat()
+      if (flat.length !== records) throw new Error("the flat list is not the corpus")
+    },
+    () => {
+      let held = 0
+      for (const own of byFile.values()) held += own.length
+      if (held !== records) throw new Error("the count is not the corpus")
+    },
+  ] as const)
+}
+
+/**
+ * WHAT A WHOLE-INDEX WALK COSTS THROUGH A LAYER — the measurement behind the
+ * sealing rule, which is that an index read BY KEY gets a layer and an index
+ * read WHOLE stays a map.
+ *
+ * `namedBy` is the one to time it on: the validator reads every entry of it on
+ * every write ({@link ./validate.ts}'s `checkTargets`), so if a layer were free
+ * to walk this index would be layered too. Both arms answer the same list of
+ * pairs, checked before either is timed, and the layer is built the way a patch
+ * builds one — a handful of keys re-filed over the map that stood.
+ */
+const wholly = (): readonly [asMap: number, asLayer: number] => {
+  const base = first.namedBy
+  const keys = [...base.keys()].slice(0, 20)
+  const held = overlay(base)
+  for (const key of keys) held.set(key, base.get(key) as NonNullable<ReturnType<typeof base.get>>)
+  const layer = held.sealed("by key")
+  if (layer instanceof Map) throw new Error("the layer flattened — this measures one map twice")
+  const sweep = (map: ReadonlyMap<string, unknown>) => () => {
+    let seen = 0
+    for (const [, namings] of map) seen += (namings as ReadonlyArray<unknown>).length
+    return seen
+  }
+  const [one, other] = [sweep(base)(), sweep(layer)()]
+  if (one !== other) throw new Error("the map and the layer walk to different answers")
+  return alternating([sweep(base), sweep(layer)] as const)
 }
 
 // ── what the tag index's WIDTH costs ───────────────────────────────────
@@ -656,11 +726,21 @@ console.log(
 console.log(`\nthe id map handed forward, per edit:`)
 lever("a different file each time", edits)
 lever("the same file every time", typing)
-const [byIdClone, othersClone] = beside()
+const [wasLayered, stayCloned] = beside()
 console.log(
-  `\none clone of each index: ${byIdClone.toFixed(3)}ms for byId,` +
-    ` ${othersClone.toFixed(3)}ms for all ten others together` +
-    ` — which is the work a patch still does`,
+  `\nthe eleven indexes, cloned on their own: ${wasLayered.toFixed(3)}ms for the ${LAYERED.length}` +
+    ` a patch layers now, ${stayCloned.toFixed(3)}ms for the ${CLONED.length} it still clones` +
+    ` — the residue this took off, against what is left`,
+)
+const [flatBuilt, flatCounted] = flatly()
+console.log(
+  `the corpus read flat: ${flatBuilt.toFixed(3)}ms to build the list a patch used to hand on,` +
+    ` ${flatCounted.toFixed(3)}ms to walk the grouping for the length it wanted it for`,
+)
+const [wholeMap, wholeLayer] = wholly()
+console.log(
+  `namedBy walked whole: ${wholeMap.toFixed(3)}ms as a map, ${wholeLayer.toFixed(3)}ms` +
+    ` through a layer — which is why the four read whole are not layered`,
 )
 const [narrowFold, wideFold] = folds()
 console.log(
