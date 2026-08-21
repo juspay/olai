@@ -65,6 +65,7 @@ import type { Route } from "../routes.ts"
 import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
+import { SearchCount } from "./Count.tsx"
 import { createCursor } from "./cursor.ts"
 import { createSearch } from "./nodes.ts"
 import { Result, type RowTestids } from "./Result.tsx"
@@ -282,6 +283,14 @@ export function HeaderSearch(props: {
                   )}
                 </Index>
               </ul>
+              {/* WHAT IS BEHIND THE ROWS — under the list rather than inside
+                  it, so a reader who has scrolled the eight rows still has it
+                  in front of them, and absent entirely when the eight are all
+                  there was (`./count.ts`). */}
+              <SearchCount
+                of={nodes}
+                class="m-0 border-t border-rule/40 px-3 py-1.5 font-mono text-xs text-muted"
+              />
             </div>
           </Portal>
         )}

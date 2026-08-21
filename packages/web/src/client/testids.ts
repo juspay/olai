@@ -951,6 +951,12 @@ export const TESTID = {
    *  palette and the header box. One name for both, because it is one sentence
    *  about one grammar; where it is drawn is each door's own business. */
   searchRefusal: "search-refusal",
+  /** "8 of 90 matches" — what a shortlist drew of what it found, on the same
+   *  two doors, and ABSENT when it drew the lot. One name for both for the
+   *  refusal's reason above: one sentence about one answer
+   *  (`client/search/count.ts`). A scenario reads it inside the door it means,
+   *  since only one of the two is ever up. */
+  searchCount: "search-count",
   // ── the header's search box, the other door to the same reading ──────
   headerSearch: "header-search",
   /** The phone's door: opens the palette, which is the same modal. */
