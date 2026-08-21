@@ -174,6 +174,24 @@ Feature: Documents
     Then the document does not draw the text "agent: claude-opus"
     And the document draws no rule
     And the contents lines are "Palette, What the block above has to do"
+    # THE RECORD, as the same run a node's own page draws — under the path,
+    # above the body. Hiding the block from the render (#302) left this page
+    # drawing the facts nowhere; the run is where they live now. A list value
+    # is drawn joined, the way a node's is.
+    And the document shows the property "agent" holding "claude-opus"
+    And the document shows the property "date" holding "2026-09-01"
+    And the document shows the property "owners" holding "alice, bob"
+    And the document shows the property "tags" holding "#swatches"
+    And there should be no page errors
+
+  # The other half of the same ruling: a file that wrote no block looks the
+  # way it did before there were properties. An empty run is not drawn, which
+  # is the node's own rule over the same map — inventing a "no properties"
+  # line would be a second spelling of absence.
+  @corpus:good
+  Scenario: A document with no frontmatter shows no properties
+    When I open the document "finishes.md"
+    Then the document shows no properties
     And there should be no page errors
 
   # The other half of the same block: what the document is CALLED. The title is

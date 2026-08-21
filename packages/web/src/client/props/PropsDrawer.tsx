@@ -27,6 +27,12 @@
  * node, the facts are what the page is for, and the id in particular is what
  * every tool call and every `((` reference takes.
  *
+ * On a DOCUMENT's own page: the custom half only, off `Face.props`. A `.md`
+ * has no system facts with nowhere else to show — the path is already the
+ * heading — so inventing an id line would be this drawer inventing a record
+ * the file does not have. Empty is not drawn, which is the row's own rule
+ * over the same map.
+ *
  * ## Read-only above, writable below
  *
  * The system lines carry `data-system`, and they are drawn exactly like the
@@ -36,7 +42,7 @@
  * and `Remove` for the custom keys and nothing for these (./drawer.ts).
  */
 
-import { customOf, type RegularNode } from "@olai/format"
+import { type Custom, customOf, type RegularNode } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, Show } from "solid-js"
 
@@ -46,13 +52,23 @@ import { TESTID } from "../testids.ts"
 export function PropsDrawer(props: {
   /** The regular node being shown — for a mirror, the node it stands for,
    *  since a placement carries no properties of its own. */
-  readonly node: RegularNode
+  readonly node?: RegularNode
   /** Draw the node's own facts as well: what a page about one node does, and
-   *  what a row in a tree does not. */
+   *  what a row in a tree does not. Ignored when there is no node. */
   readonly always?: boolean
+  /**
+   * The open map, when this is not a node's drawer — a document's frontmatter,
+   * which is the same namespace a record's `custom` is. `customEntries` already
+   * takes the map rather than a carrier for this reason.
+   */
+  readonly custom?: Custom
 }) {
   const entries = createMemo(() =>
-    props.always === true ? drawerEntries(props.node) : customEntries(customOf(props.node))
+    props.node !== undefined
+      ? props.always === true
+        ? drawerEntries(props.node)
+        : customEntries(customOf(props.node))
+      : customEntries(props.custom ?? {})
   )
 
   return (

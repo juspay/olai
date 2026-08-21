@@ -35,6 +35,15 @@
  * first line is about to render itself. The path is what the sidebar, the URL
  * and a `doc` field all call this page, so it is what the page calls itself.
  *
+ * THE RECORD rides under that heading, as the same dim `key value` run a
+ * node's own page draws (`../props/PropsDrawer.tsx`). A page about a document
+ * is where its frontmatter is read — search rows already carried it, the
+ * editor is the YAML, and hiding the block from the render (#302) left this
+ * page drawing it nowhere. Empty is the honest none: a file that wrote no
+ * block looks the way it did before there were properties. The run is off
+ * while the editor is open, because the editor is the block, and two
+ * spellings of one record on one screen is what the drawer exists not to be.
+ *
  * A CONTENTS rides above the body (./Toc.tsx), and it is derived from the same
  * rendering: `outlineOf` reads the heading tree out of the memo `<Markdown>` is
  * about to draw from, on the same key, so surveying a document costs no second
@@ -59,10 +68,11 @@
  * writing" means.
  */
 
-import { bodyKind } from "@olai/format"
+import { bodyKind, type Custom } from "@olai/format"
 import { createSignal, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
+import { PropsDrawer } from "../props/PropsDrawer.tsx"
 import { TESTID } from "../testids.ts"
 import { DocEditor } from "./DocEditor.tsx"
 import { Referrers } from "./Referrers.tsx"
@@ -91,15 +101,21 @@ import { consumeMinted } from "./minted.ts"
  * not have to know. Same spelling as ./Toc.tsx one level down, for the same
  * reason and against the same defect.
  */
-export function DocumentPage(props: { readonly file: string }) {
+export function DocumentPage(props: {
+  readonly file: string
+  /** The named facts the file writes about itself — the page reading's
+   *  `props`, which is the face's, so this page draws them without fetching
+   *  the body. Empty when the file wrote none. */
+  readonly custom: Custom
+}) {
   return (
     <Show when={props.file} keyed>
-      {(file) => <OneDocument file={file} />}
+      {(file) => <OneDocument file={file} custom={props.custom} />}
     </Show>
   )
 }
 
-function OneDocument(props: { readonly file: string }) {
+function OneDocument(props: { readonly file: string; readonly custom: Custom }) {
   // WHICH FACE, off the file's own name — the format's registry answers what
   // kind of body this is, and ./faces.tsx answers what that kind looks like,
   // whether it can be written, and what this page must have before it draws
@@ -125,20 +141,31 @@ function OneDocument(props: { readonly file: string }) {
 
   return (
     <section data-testid={TESTID.documentPage} data-file={props.file}>
-      <header class="mb-8 flex items-baseline justify-between gap-2">
-        <h1 class="m-0 font-mono text-sm tracking-tight text-muted">{props.file}</h1>
-        {/* The control and the draft it opens read ONE value, so a page cannot
-            offer an editor it has nothing to open: `served()` is both the
-            condition here and the baseline below. */}
-        <Show when={isServed(served()) && !editing()}>
-          <button
-            type="button"
-            class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
-            data-testid={TESTID.documentEdit}
-            onClick={() => setEditing(true)}
-          >
-            Edit
-          </button>
+      <header class="mb-8">
+        <div class="flex items-baseline justify-between gap-2">
+          <h1 class="m-0 font-mono text-sm tracking-tight text-muted">{props.file}</h1>
+          {/* The control and the draft it opens read ONE value, so a page cannot
+              offer an editor it has nothing to open: `served()` is both the
+              condition here and the baseline below. */}
+          <Show when={isServed(served()) && !editing()}>
+            <button
+              type="button"
+              class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
+              data-testid={TESTID.documentEdit}
+              onClick={() => setEditing(true)}
+            >
+              Edit
+            </button>
+          </Show>
+        </div>
+        {/* THE RECORD, as the same run a node's own page draws — under the
+            path, above the body. Hidden while editing, because the editor IS
+            the YAML (and the prose), and two spellings of one block on one
+            screen is the thing the drawer must not be. Honest absence when
+            the file wrote none: the run draws nothing, like a row with no
+            custom keys. */}
+        <Show when={!editing()}>
+          <PropsDrawer custom={props.custom} />
         </Show>
       </header>
       {/* The face is drawn the moment the route resolves — the heading and the

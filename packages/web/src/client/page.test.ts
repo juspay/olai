@@ -65,7 +65,7 @@ const OUTLINE: Shown = { kind: "outline", file: "house.olai", rows: [ROW] }
 
 test("the open outline is the one the page is of", () => {
   expect(fileOf(OUTLINE)).toBe("house.olai")
-  expect(fileOf({ kind: "document", file: "notes/finishes.md", referrers: [] }))
+  expect(fileOf({ kind: "document", file: "notes/finishes.md", referrers: [], props: {} }))
     .toBe("notes/finishes.md")
 })
 
@@ -133,7 +133,7 @@ test("the trash draws its groups, and keeps the FILES beside them", () => {
 })
 
 test("a page a query has nothing to say about draws none of it", () => {
-  expect(drawnBy({ kind: "document", file: "notes/finishes.md", referrers: [] }))
+  expect(drawnBy({ kind: "document", file: "notes/finishes.md", referrers: [], props: {} }))
     .toEqual({ kind: "none" })
   expect(drawnBy({ kind: "nothing", sought: "outline", requested: null }))
     .toEqual({ kind: "none" })

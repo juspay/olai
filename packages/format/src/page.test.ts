@@ -63,7 +63,7 @@ const TODAY = "2026-08-10"
  *  links and tags are no business of these claims, so the fixtures say only
  *  what a path is; the referrers case below writes its own with links in. */
 const facesOf = (paths: ReadonlyArray<string>): ReadonlyArray<Face> =>
-  paths.map((path) => ({ path, title: path, links: [], tags: [] } as unknown as Face))
+  paths.map((path) => ({ path, title: path, links: [], tags: [], props: {} }) as unknown as Face)
 
 const FILES = ["garden.olai", "house.olai"]
 /** Two of these are about the day arm: one NAMED for a date, which IS that
@@ -312,17 +312,42 @@ test("the trash is `rowsOf` per archive plus `nodesOf`, exactly", () => {
 
 test("a document page is `referrersTo`, exactly", () => {
   const faces: ReadonlyArray<Face> = [
-    { path: "notes/finishes.md", title: "finishes", links: [], tags: [] },
+    { path: "notes/finishes.md", title: "finishes", links: [], tags: [], props: {} },
     {
       path: "house.olai",
       title: "house.olai",
       links: [addressOf("notes/finishes.md", null)!],
       tags: [],
+      props: {},
     },
   ] as unknown as ReadonlyArray<Face>
   const shows = pageOf(SET, faces, READABLE, at("notes/finishes.md")).shows
   expect(shows.kind === "document" ? shows.referrers : undefined)
     .toEqual(referrersTo(addressOf("notes/finishes.md", null)!, faces, SET))
+})
+
+test("a document page carries the frontmatter its face already has", () => {
+  // The page ABOUT a document is where its record is read, the same way a
+  // node's own page draws the node's custom map. Empty is the honest none —
+  // a file that wrote no block, or a `.html` that never could — and not an
+  // omitted field: the face's `props` is total.
+  const empty = readAt(at("notes/finishes.md"))
+  expect(empty.kind === "document" ? empty.props : undefined).toEqual({})
+
+  const faces: ReadonlyArray<Face> = [
+    {
+      path: "notes/finishes.md",
+      title: "Finishes",
+      links: [],
+      tags: [],
+      props: { agent: "claude-opus", owners: ["alice", "bob"] },
+    },
+  ] as unknown as ReadonlyArray<Face>
+  const shown = pageOf(SET, faces, READABLE, at("notes/finishes.md")).shows
+  expect(shown.kind === "document" ? shown.props : undefined).toEqual({
+    agent: "claude-opus",
+    owners: ["alice", "bob"],
+  })
 })
 
 // ── ...and it survives the wire whole ──────────────────────────────────

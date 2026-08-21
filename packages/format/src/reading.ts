@@ -74,6 +74,7 @@
 import { Schema } from "effect"
 
 import { Way } from "./backlinks.ts"
+import { Custom } from "./custom.ts"
 import { Progress } from "./derive.ts"
 import { RegularNode, Site, STAMPED, Status } from "./node.ts"
 
@@ -216,14 +217,19 @@ export type OutlineAnswer = typeof OutlineAnswer.Type
 
 /**
  * One DOCUMENT of the served directory, as a listing says it — its path, the
- * line it opens with, and how much text is under that.
+ * line it opens with, how much text is under that, and the named facts the
+ * file writes about itself.
  *
  * The outline listing's twin ({@link OutlineSummary}), and deliberately the
  * same shape of answer: enough to choose a file, nothing that would make
  * listing a directory cost what reading it does. What differs is what a `.md`
  * HAS. An outline is records, so its summary counts them and names its roots;
  * a document is one text with no structure below the file, so what can be said
- * about it is the line it opens with and its size.
+ * about it is the line it opens with, its size, and — when it has any — the
+ * properties its frontmatter writes. Those last are already on the face the
+ * decode built; reporting them costs no second read, and a listing that
+ * omitted them while a search hit carried them would be two answers to one
+ * map.
  *
  * `title` is a DERIVATION and not a field — `firstLine` (`./documents.ts`),
  * the same rule the web draws under a `doc`-carrying row — because a document
@@ -259,6 +265,17 @@ export const DocumentSummary = Schema.Struct({
    *  became replacement characters before this counted them — the number stays
    *  true to the text you will be handed, which is the one this field is for. */
   bytes: Schema.Int,
+  /**
+   * The named facts the file writes about itself — a `.md`'s YAML frontmatter,
+   * the same open map a search hit carries as `props` and a node's `custom`.
+   *
+   * OMITTED when the document wrote none, and for a file that could not be
+   * read: an empty map is nothing ({@link ./write.ts}'s `nothing`), and a
+   * listing of twenty files should not grow twenty `{}`s to say so. Present,
+   * the keys are in the file's canonical order, the same order a hit and the
+   * page's own run draw.
+   */
+  props: Schema.optionalKey(Custom),
   /** Present, and the whole of what can be said about it, when the file could
    *  not be read: its text is not loaded, so it has neither a line to be named
    *  by nor a size that was measured. */

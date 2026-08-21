@@ -186,9 +186,10 @@ export type Face = typeof Face.Type
  * showing one (`@olai/surface`), so a browser that had only the collection
  * would know a document's PATH and nothing else about it — which is exactly the
  * position every feature was in before this arc, one layer out. The face is the
- * cheap half: a title, the addresses it points at, the tags it writes. It rides
- * on the entries that already travel per file, and it is what lets a palette row
- * carry a name and a document's page say who points at it without fetching a
+ * cheap half: a title, the addresses it points at, the tags it writes, the
+ * properties its frontmatter holds. It rides on the entries that already
+ * travel per file, and it is what lets a palette row carry a name, a
+ * document's page draw its record and say who points at it, without fetching a
  * word of prose.
  *
  * A PROJECTION and not a second type: every arm below IS one of these plus its
