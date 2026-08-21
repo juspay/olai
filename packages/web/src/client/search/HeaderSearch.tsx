@@ -57,6 +57,7 @@ import { createEffect, createMemo, createSignal, Index, onCleanup, Show } from "
 import { Portal } from "solid-js/web"
 
 import { type Anchor, anchoredTo, styleOf } from "../anchor.ts"
+import { SaidLine } from "../edit/SaidLine.tsx"
 import { LAYER } from "../layer.ts"
 import { hitItem } from "../palette/items.ts"
 import { openPalette } from "../palette/open.ts"
@@ -69,6 +70,12 @@ import { SearchCount } from "./Count.tsx"
 import { createCursor } from "./cursor.ts"
 import { createSearch } from "./nodes.ts"
 import { Result, type RowTestids } from "./Result.tsx"
+
+/** WHERE an alarm sits in this panel — a full-width band above the rows, ruled
+ *  off from them. The caller's half of `../edit/SaidLine.tsx`: the layout is
+ *  this door's, narrower than the palette's because the panel is, and the mood
+ *  is that component's. */
+const ALERT_ROW = "m-0 border-b border-alarm/40 bg-alarm/5 px-3 py-2 font-mono text-xs"
 
 /** What this door calls its rows (`./Result.tsx`'s `RowTestids`). */
 const HEADER_ROW: RowTestids = {
@@ -233,13 +240,11 @@ export function HeaderSearch(props: {
             >
               <Show when={nodes.failure()}>
                 {(err) => (
-                  <div
-                    class="border-b border-alarm/40 bg-alarm/5 px-3 py-2 font-mono text-xs text-alarm"
-                    data-testid={TESTID.headerSearchError}
-                    role="alert"
-                  >
-                    {err()}
-                  </div>
+                  <SaidLine
+                    said={{ tone: "alarm", text: err() }}
+                    class={ALERT_ROW}
+                    testid={TESTID.headerSearchError}
+                  />
                 )}
               </Show>
               {/* …and the OTHER refusal: an operator the grammar knows the
@@ -248,13 +253,11 @@ export function HeaderSearch(props: {
                   and a refused query are two different pieces of news. */}
               <Index each={refused()}>
                 {(line) => (
-                  <div
-                    class="border-b border-alarm/40 bg-alarm/5 px-3 py-2 font-mono text-xs text-alarm"
-                    data-testid={TESTID.searchRefusal}
-                    role="alert"
-                  >
-                    {line()}
-                  </div>
+                  <SaidLine
+                    said={{ tone: "alarm", text: line() }}
+                    class={ALERT_ROW}
+                    testid={TESTID.searchRefusal}
+                  />
                 )}
               </Index>
               {/* Down, never sideways — the rows are built not to overflow

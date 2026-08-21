@@ -115,6 +115,14 @@ import { useRouter } from "../router.tsx"
 import { isLone } from "../workspace.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
 
+/** WHERE an alarm sits in this panel — a full-width band between the box and
+ *  the list, ruled off from what is under it. The caller's half of
+ *  `../edit/SaidLine.tsx`: the layout is this door's and the mood is that
+ *  component's, so the three things this panel can alarm about — a refused
+ *  ask, a search that fell over, a token the grammar cannot read — sit in one
+ *  band rather than three spellings of one. */
+const ALERT_ROW = "m-0 border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs"
+
 /** What this door calls its rows — see `../search/Result.tsx`'s `RowTestids`
  *  for why the three travel as one value. */
 const PALETTE_ROW: RowTestids = {
@@ -860,13 +868,11 @@ export function Palette(props: {
           />
           <Show when={askError()}>
             {(err) => (
-              <div
-                class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
-                data-testid={TESTID.paletteAskError}
-                role="alert"
-              >
-                {err()}
-              </div>
+              <SaidLine
+                said={{ tone: "alarm", text: err() }}
+                class={ALERT_ROW}
+                testid={TESTID.paletteAskError}
+              />
             )}
           </Show>
           {/* The SEARCH's own refusal, in its own row: it is a different
@@ -874,13 +880,11 @@ export function Palette(props: {
               rather than overwriting one the reader may still be reading. */}
           <Show when={nodes.failure()}>
             {(err) => (
-              <div
-                class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
-                data-testid={TESTID.paletteSearchError}
-                role="alert"
-              >
-                {err()}
-              </div>
+              <SaidLine
+                said={{ tone: "alarm", text: err() }}
+                class={ALERT_ROW}
+                testid={TESTID.paletteSearchError}
+              />
             )}
           </Show>
           {/* …and the QUERY's own, which is a fourth question: the words were
@@ -889,13 +893,11 @@ export function Palette(props: {
               directory (`../search/nodes.ts`). */}
           <Index each={refused()}>
             {(line) => (
-              <div
-                class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
-                data-testid={TESTID.searchRefusal}
-                role="alert"
-              >
-                {line()}
-              </div>
+              <SaidLine
+                said={{ tone: "alarm", text: line() }}
+                class={ALERT_ROW}
+                testid={TESTID.searchRefusal}
+              />
             )}
           </Index>
           {/* WHAT A WRITE SAID, in a row of its own for the same reason the

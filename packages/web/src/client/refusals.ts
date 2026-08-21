@@ -2,15 +2,14 @@
  * WHAT A REFUSED QUERY SAYS, as the lines a surface announces.
  *
  * Three of them draw the same list — the filter bar over the page
- * (`./filter/FilterBar.tsx`, through `./edit/SaidLine.tsx`), the ⌘K palette and
- * the header's box (both over `./search/nodes.ts`, each drawing a
- * `role="alert"` row of its own) — because a reader who does not notice a
- * refused operator believes the directory is empty. The SENTENCE was spelled at
- * all three, which is the shape this repo already calls a drift waiting to
- * happen. (What is around it still is: the bar's line goes through the
- * component that owns the tone and the two doors hand-roll a row. One list, one
- * sentence, three markups — the last of those is not this module's to collapse
- * and is named in the PR that made it two.)
+ * (`./filter/FilterBar.tsx`) and the ⌘K palette and the header's box (both over
+ * `./search/nodes.ts`) — because a reader who does not notice a refused
+ * operator believes the directory is empty. The SENTENCE was spelled at all
+ * three, which is the shape this repo already calls a drift waiting to happen.
+ * (The MARKUP was three-fold too, for one release: the bar's line went through
+ * the component that owns the tone and the two doors hand-rolled a
+ * `role="alert"` row each. They draw `./edit/SaidLine.tsx` now — one list, one
+ * sentence, one markup — and only WHERE the line sits is still each door's.)
  *
  * STRINGS, and that is the reactivity half rather than a tidy-up. Every parse
  * of the box mints fresh `Refusal` objects — per keystroke for the filter bar

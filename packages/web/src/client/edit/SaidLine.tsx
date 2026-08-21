@@ -1,27 +1,36 @@
 /**
- * What a write SAID, drawn — the one place the two moods are read.
+ * What this client SAID, drawn — the one place the two moods are read.
  *
- * Five surfaces in this client say something about a write, and by the time
- * the palette became the fifth they had each spelled the same four lines: the
- * alarm/muted colour pair, the `data-tone` fact, and the `role` / `aria-live`
- * pair that decides whether a screen reader is interrupted. Five copies of one
- * decision is five chances for the next surface to alarm about a nudge — and
- * the rule those lines encode is not a look, it is what {@link Said}'s two
- * moods MEAN:
+ * A dozen surfaces here say something to the reader, and each of them had
+ * spelled the same four lines by hand: the alarm/muted colour pair, the
+ * `data-tone` fact, and the `role` / `aria-live` pair that decides whether a
+ * screen reader is interrupted. A copy per surface is a chance per surface for
+ * the next one to alarm about a nudge — and the rule those lines encode is not
+ * a look, it is what {@link Said}'s two moods MEAN:
  *
  *   - a REFUSAL is why nothing happened. It is toned alarm and announced
- *     assertively, because a reader who does not notice it believes a write
- *     landed that did not (HACKING.md's error rule).
- *   - a REMARK rides back on a write that DID land. It is toned quietly and
+ *     assertively, because a reader who does not notice it believes something
+ *     happened that did not (HACKING.md's error rule).
+ *   - a REMARK rides back on something that DID happen. It is toned quietly and
  *     announced politely, because interrupting what a screen reader is already
  *     saying to deliver advice is worse than the advice is worth.
  *
- * WHAT IT DOES NOT OWN IS WHERE THE LINE SITS. That is the one thing the five
- * genuinely differ about — a popover beside the `•••`, a banner pinned under
- * the header, a row inside the palette, a line under a picker, a line under a
- * trash row — so the container's classes are the caller's and this adds the
- * mood to them. Unifying the layout too would be the complecting the split
- * avoids: one component with a `where` enum is five layouts behind one flag.
+ * WHAT HAPPENED is not only a WRITE, and that is the second reading of the
+ * same two moods. A question can be refused as well: the filter bar, the ⌘K
+ * palette and the header's box each have to say why a list is empty — an
+ * operator the grammar cannot read, a call that fell over — and a reader who
+ * does not notice believes the directory is empty. Same mood, same markup, so
+ * the same line: the bar came here first, and the two doors that hand-rolled a
+ * `role="alert"` row of their own draw this one now (`../refusals.ts` holds the
+ * sentence all three say).
+ *
+ * WHAT IT DOES NOT OWN IS WHERE THE LINE SITS. That is the one thing the
+ * surfaces genuinely differ about — a popover beside the `•••`, a banner
+ * pinned under the header, a ruled band across the palette, a line under a
+ * picker, a line under a trash row — so the container's classes are the
+ * caller's and this adds the mood to them. Unifying the layout too would be
+ * the complecting the split avoids: one component with a `where` enum is a
+ * dozen layouts behind one flag.
  *
  * `data-tone` is a FACT IN THE MARKUP rather than a colour, and that is why
  * the suite can ask which mood a line is in (`support/said.ts`) without asking

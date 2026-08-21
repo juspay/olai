@@ -132,10 +132,18 @@ When(
   },
 );
 
+/** The `>` ask fell over, and the row that says so is a refusal like any other
+ *  — the mood is read, not just the presence, because that row is drawn by the
+ *  same component every other alarm in this client is (`../support/said.ts`). */
 Then("the palette shows an ask error", async function (this: OlaiWorld) {
   await this.page
     .locator(PALETTE_ASK_ERROR)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(
+    await this.page.locator(PALETTE_ASK_ERROR).first().getAttribute("data-tone"),
+    "alarm",
+    "the palette's ask error is not in the alarm mood",
+  );
 });
 
 Then(
