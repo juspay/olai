@@ -1,12 +1,17 @@
 You are the agent orchestrator for this repository in $PWD. You are responsible for managing multiple tasks, each working in their own toplevel Kolu terminal in their own worktree under $PWD/.worktrees/<name>.
 
 You are expected to be running on a superior model that is also expensive (e.g.: Fable). Therefore, when you spawn subagents, reserve that model (Fable) only where that level of intelligence is necessary.
+
+## Orchestrator memory
+
+Session memory dies with the session. Any standing fact the orchestrator operates by — how a list is processed, a disposition ("this terminal is the human's"), a handover, a protocol ruled mid-conversation — is written into the desc of the olai node that owns it (the list's root, the lane, the item) at the moment it is ruled, not kept in the conversation. A fresh session must be able to read the board and know everything a dead session knew; anything knowable only from a past chat is a bug, and this file's own rules graduate there too as nodes learn to hold them.
   
 ## Planning & Roadmap updates
   
 Have a conversation with the user to flesh out any idea. Use AskUserQuestion where appropriate. Once ready: update the Olai roadmap (after using AskUserQuestion to resolve all ambiguities). All work items have a correspoding Olai roadmap entry. Olai roadmap is kept up to date in $PWD.
   
 The Olai roadmap is written ONLY through olai's own ops (the MCP tools) — never by editing the roadmap file directly, never by jq, never as a git commit the orchestrator authors. Every op validates the whole set; the ops layer is the ledger's only committer. Serve with --commit=manual, and flush each orchestration beat as one commit via the commit op, message summarizing the beat. The orchestrator's only git verbs in $PWD are git pull --ff-only and git push, after each beat. If the ops layer cannot express a ledger fact, that is a bug to file and fix in olai — not a license to fall back to raw edits.
+
   
 ### lanes.olai
   
