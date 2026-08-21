@@ -68,36 +68,19 @@ import { useElapsed } from "./elapsing.tsx"
 import { whoOf } from "./spawn.ts"
 import { Wrote } from "./Wrote.tsx"
 
-/** What each status looks like in one character. Words would wrap the line the
- *  frame exists to keep to one. */
-const MARK: Record<ToolStatus, string> = {
-  pending: "·",
-  in_progress: "…",
-  completed: "✓",
-  failed: "✗",
-}
-
-const TONE: Record<ToolStatus, string> = {
-  pending: "text-muted",
-  in_progress: "text-doing",
-  completed: "text-done",
-  failed: "text-alarm",
-}
-
 /**
- * ... and what each status is CALLED, for the reader who gets no glyph and no
- * colour. Beside the other two rather than in a module of its own, because the
- * three are one table read three ways and a status that gained a mark without
- * a word would be the gap this closes reopening. A status this table does not
- * know is said as it came, which is the same refusal to invent a name the
- * header makes for a model it cannot place.
+ * What a status LOOKS and SOUNDS like, one row per word.
  *
- * THE MODULE NEXT DOOR IS NOT THE FOURTH OF THESE. {@link ./running.ts} holds
+ * Three columns of one table rather than three tables keyed by the same field:
+ * a status that gained a mark without a word is a type error here, not a gap
+ * three lists can drift into. The same shape {@link ./Entry.tsx}'s `FACE`
+ * takes for a delivery — one fate, one row, read three ways.
+ *
+ * THE MODULE NEXT DOOR IS NOT THE FOURTH COLUMN. {@link ./running.ts} holds
  * what a status MEANS — which words mean the call has not come back — because
  * two faces outside this component ask that of the same row and must not
- * answer differently. These three are what a status LOOKS and SOUNDS like, and
- * they move when the panel does rather than when ACP does; that is why the
- * split is where it is rather than one table in one place.
+ * answer differently. These three are the panel's look, and they move when
+ * the panel does rather than when ACP does.
  *
  * THE AGENT'S OWN WORDS, spelled for speech and interpreted no further. The
  * rail under a spawn says *working…* for `pending`, and this deliberately does
@@ -106,12 +89,15 @@ const TONE: Record<ToolStatus, string> = {
  * agent leaves its last announced call `pending` forever, and a name that
  * announced it as "running" would be saying out loud the one thing nobody can
  * still promise.
+ *
+ * The mark is one character because words would wrap the line the frame exists
+ * to keep to one.
  */
-const SAID: Record<ToolStatus, string> = {
-  pending: "pending",
-  in_progress: "in progress",
-  completed: "completed",
-  failed: "failed",
+const LOOK: Record<ToolStatus, { mark: string; tone: string; said: string }> = {
+  pending: { mark: "·", tone: "text-muted", said: "pending" },
+  in_progress: { mark: "…", tone: "text-doing", said: "in progress" },
+  completed: { mark: "✓", tone: "text-done", said: "completed" },
+  failed: { mark: "✗", tone: "text-alarm", said: "failed" },
 }
 
 export function ToolFrame(props: { readonly entry: ToolEntry }) {
@@ -121,6 +107,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
   const elapsed = useElapsed()
   const open = () => isUnfolded(props.entry.id)
   const status = () => props.entry.status
+  const look = () => LOOK[status()]
   /**
    * The blocks of change this call reported, each carrying the NAME that
    * identifies it ({@link ./folds.ts}'s `diffKey`).
@@ -182,10 +169,10 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
             this row grew a second label: "read every note Explore" announces a
             spawn and a kind and never says whether it finished, which for a
             dead agent's row is the one thing worth hearing. */}
-        <span class={TONE[status()] ?? "text-muted"} aria-hidden="true">
-          {MARK[status()] ?? "·"}
+        <span class={look().tone} aria-hidden="true">
+          {look().mark}
         </span>
-        <span class="sr-only">{SAID[status()] ?? status()}</span>
+        <span class="sr-only">{look().said}</span>
         <span class="min-w-0 flex-1 truncate">{props.entry.text}</span>
         {/* WHO WAS SENT, on the line, from the moment the spawn is announced —
             which is a good while before the agent has done anything to draw a
