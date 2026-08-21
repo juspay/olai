@@ -82,7 +82,7 @@ import {
   boxOf,
   CAPTURE_PREFIX,
   filterItems,
-  hitItem,
+  hitItems,
   type PaletteItem,
   SHELL_ITEMS,
 } from "./items.ts"
@@ -351,7 +351,7 @@ export function Palette(props: {
     // those are matched in this tab and are never behind anything.
     return [
       ...filterItems(query(), commands),
-      ...nodes.hits().map((hit) => hitItem(hit, nodes.taking)),
+      ...hitItems(nodes),
     ]
   })
 

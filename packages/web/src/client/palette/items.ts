@@ -7,8 +7,9 @@
  * rows used to be next door the other way, matched in this tab off the served
  * list; a search answers with both kinds now (`@olai/format`'s
  * `matchingDocuments`), so `./documents.ts` is gone and a document is a hit
- * like any other — which is why {@link hitItem} below is the one row-minting
- * function here.
+ * like any other — which is why {@link hitItems} below is the one block of
+ * rows this file mints.
+ *
  * Node hits arrive from the server's search procedure (Palette.tsx asks it as
  * you type) rather than from a matcher of this file's own, because the palette
  * and an agent's `search_nodes` must be one reading (`@olai/surface`'s
@@ -34,6 +35,7 @@ import type { Edit, SearchHit } from "@olai/surface"
 import type { Asking } from "./asking.ts"
 import { HOME_ROUTE, type Route } from "../routes.ts"
 import type { NodeProp } from "../search/props.ts"
+import type { Search } from "../search/nodes.ts"
 import { hitRow } from "../search/row.ts"
 import type { Taking } from "../settled.ts"
 
@@ -235,13 +237,26 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
  * `../search/row.ts`'s answer, shared with the three other doors that draw the
  * identical list, so the palette cannot grow a glyph the header box lacks.
  */
+/**
+ * EVERY HIT OF A SEARCH, as the block a door draws — which is the call the two
+ * doors make, and {@link hitItem} below is the row it is made of.
+ *
+ * It exists so that the answer's own take rides onto the rows in ONE place. It
+ * was that `.map` at both doors, which is two chances for one of them to mint
+ * a hit row naming no search — and an ungated `Enter` is exactly the drift
+ * this reading has been fighting since there were two doors onto it.
+ */
+export const hitItems = (search: Search): ReadonlyArray<PaletteItem> =>
+  search.hits().map((hit) => hitItem(hit, search.taking))
+
 export const hitItem = (
   hit: SearchHit,
   /** WHICH ANSWER this row is off, so the row can say whether a KEY may spend
    *  it ({@link PaletteItem.taking}). Required rather than optional, which is
    *  the one line that keeps the rule: a hit row cannot be minted without
-   *  naming the search it came out of, so a third door onto this reading
-   *  cannot quietly draw ungated rows. */
+   *  naming the search it came out of. {@link hitItems} is how a door passes
+   *  it; this stays exported for the tests, which are about what ONE hit
+   *  becomes. */
   taking: Taking,
 ): PaletteItem => {
   const row = hitRow(hit)

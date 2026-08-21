@@ -136,18 +136,23 @@ export const atOnce: Taking = (spend) => spend()
 /**
  * SPEND THE ROW A KEY IS ON — through the answer that row came from.
  *
- * The reader for lists whose rows come from more than one place, which is the
- * shape a whole-list gate gets wrong: the ⌘K palette draws its own commands
- * above the server's hits and the chat composer draws the served paths above
- * them, and both blocks are minted in this tab per keystroke. Gating the DOOR
- * would swallow `Enter` on a command for a settle and a round trip somebody
- * else's search is inside of — which is the palette's oldest gesture and the
- * one a reader makes fastest.
+ * THE OTHER OF THE TWO SHAPES a door comes in, and the rule is which value the
+ * take is read off. A door whose rows are the search's own asks the search
+ * ({@link Settled.taking} — `search/Shortlist.tsx`, `complete/completing.tsx`).
+ * A door whose ROWS carry a take reads it off the row under the cursor, here.
  *
- * So freshness is a fact about a ROW: minted with it, carried on it, and read
- * here. Nothing under the cursor spends nothing, which is not the same as a
- * refusal and is why it is not one — a key over an empty list has nothing to
- * claim.
+ * Rows carry one when a list is built from more than one place, which is the
+ * shape a whole-door gate gets wrong: the ⌘K palette draws its own commands
+ * above the server's hits and the chat composer draws the served paths above
+ * them, and both of those blocks are minted in this tab per keystroke. Gating
+ * the DOOR would swallow `Enter` on a command for a settle and a round trip
+ * somebody else's search is inside of — which is the palette's oldest gesture
+ * and the one a reader makes fastest. They carry one for a second reason too,
+ * and the header's box is it: two doors drawing ONE row type must not gate
+ * differently, however single-minded either one's list happens to be today.
+ *
+ * Nothing under the cursor spends nothing, which is not the same as a refusal
+ * and is why it is not one — a key over an empty list has nothing to claim.
  */
 export const taken = <R extends { readonly taking?: Taking }>(
   row: R | undefined,

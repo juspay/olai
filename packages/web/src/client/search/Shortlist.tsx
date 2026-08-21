@@ -257,14 +257,14 @@ export function Shortlist(props: {
               event.preventDefault()
               cursor.step(-1)
               return
-            case "take":
+            case "take": {
               // THROUGH THE ANSWER THE ROWS CAME FROM (`../settled.ts`'s
               // `Taking`), which is where the rule lives now rather than in a
               // predicate of this file's: rows hold still through the settle
               // and the round trip after it, which is the only honest thing to
-              // DRAW and the wrong thing to write from. This list is ONE
-              // answer's, so it asks the search itself; a door whose list is
-              // two blocks carries the taker on its rows instead.
+              // DRAW and the wrong thing to write from. These rows are the
+              // search's own, so this asks the search; a door whose ROWS carry
+              // a taker reads it off the row instead (`taken`).
               //
               // NOT inside {@link take}, and that is the whole of where it
               // belongs: a PRESS is a hand on the row it can SEE, and taking
@@ -275,13 +275,14 @@ export function Shortlist(props: {
               //
               // A key that spends nothing is still a key this panel CLAIMED:
               // a list is on screen under the reader's hands, and an `Enter`
-              // falling past it would do something else entirely. Rows behind
-              // the query claim it, an empty list does not, and the rows catch
-              // up a moment later so the same press means what it says.
-              if (found.taking(() => take(cursor.at())) ?? hits().length > 0) {
-                event.preventDefault()
-              }
+              // falling past it would do something else entirely. So rows
+              // behind the query claim it and an empty list does not — and the
+              // rows catch up a moment later, when the same press means what
+              // it says.
+              const claimed = found.taking(() => take(cursor.at())) ?? hits().length > 0
+              if (claimed) event.preventDefault()
               return
+            }
             case null:
               return
           }

@@ -59,7 +59,7 @@ import { Portal } from "solid-js/web"
 import { type Anchor, anchoredTo, styleOf } from "../anchor.ts"
 import { ALARM_BAND, SaidLine } from "../edit/SaidLine.tsx"
 import { LAYER } from "../layer.ts"
-import { hitItem, type PaletteItem } from "../palette/items.ts"
+import { hitItems, type PaletteItem } from "../palette/items.ts"
 import { openPalette } from "../palette/open.ts"
 import { Refusals } from "../refusals.tsx"
 import type { Route } from "../routes.ts"
@@ -123,7 +123,7 @@ export function HeaderSearch(props: {
    * happened to: an unchanged answer returns the SAME array here, and the
    * `<Index>` below then writes nothing at all.
    */
-  const items = createMemo(() => nodes.hits().map((hit) => hitItem(hit, nodes.taking)))
+  const items = createMemo(() => hitItems(nodes))
   // The panel is up when there is anything to say — rows, a refused call, or a
   // query the grammar could not read. That last one is why a typo in an
   // operator opens the panel at all rather than looking like an empty
@@ -156,7 +156,7 @@ export function HeaderSearch(props: {
   const open = (item: PaletteItem) => {
     const action = item.action
     // Every row this box draws is a route by construction — every hit is
-    // somewhere to go (`../palette/items.ts`'s `hitItem`); the guard is what
+    // somewhere to go (`../palette/items.ts`'s `hitItems`); the guard is what
     // keeps that true rather than assumed.
     if (action.kind !== "route") return
     props.go(action.route)
@@ -204,10 +204,12 @@ export function HeaderSearch(props: {
             // (every list key here is preventDefaulted above); the rows catch
             // up and the same press means what it says.
             //
-            // `taken` rather than this door asking its search, so this box and
-            // the ⌘K palette — which draws command rows the same list has to
-            // leave takeable — read one rule. A POINTER never comes through
-            // here: `onSelect` opens the row it pressed.
+            // OFF THE ROW rather than off this door's search, even though
+            // every row here IS that search's: this box and the ⌘K palette
+            // draw ONE row type (`../palette/items.ts`), and two doors over
+            // one row gating differently is the drift this file's header is
+            // about. A POINTER never comes through here: `onSelect` opens the
+            // row it pressed.
             if (action === "take") taken(items()[cursor.at()], open)
             if (action === "dismiss") {
               setQuery("")

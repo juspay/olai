@@ -346,13 +346,14 @@ export const createCompletion = (field: {
    * it already is and for the same reason: nothing DRAWS this, its one reader
    * is a keydown, and a memo would be a graph node recomputing on every
    * keystroke and every caret move for a value wanted once per `Enter`.
+   *
+   * ...and it takes the trigger rather than reading it, which is where it
+   * PARTS from those two: they are drawn, so they need an answer for a row
+   * editor with nothing armed, and this is only ever asked with a trigger
+   * already in hand (the key handler has returned by then). Handed in, "no
+   * trigger" is not a case this has to invent an answer for.
    */
-  const taking = (): Taking => {
-    const found = trigger()
-    // Nothing armed spends nothing — and the key handler below has already
-    // returned by then, so this is the arm that cannot be reached rather than
-    // a second rule.
-    if (found === null) return () => undefined
+  const taking = (found: Trigger): Taking => {
     switch (found.kind) {
       case "date":
         return atOnce
@@ -417,7 +418,7 @@ export const createCompletion = (field: {
           // CLAIMED all the same: a list is on screen under the caret, and an
           // `Enter` falling through to the row's own handler would end the
           // line the reader is still typing a tag into.
-          taking()(choice.choose)
+          taking(found)(choice.choose)
           return true
         }
         case null:
