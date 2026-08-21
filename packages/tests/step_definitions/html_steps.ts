@@ -858,16 +858,20 @@ Then("there is no preview on this page", async function (this: OlaiWorld) {
   );
 });
 
-/** WHERE IN ITS PAGE the frame is, as the frame's own `location.hash` — the
- *  half of "a link with a fragment is left to the frame" that a heading cannot
- *  say. Read inside the frame, because a fragment is not part of `baseURI` and
- *  nothing out here can see it. */
+/** WHERE IN ITS PAGE the frame is, as the frame's own `location.hash`. Read
+ *  INSIDE the frame, because a fragment is not part of `baseURI` and nothing
+ *  out here can see it — which is the fragile half, so it is written once and
+ *  both steps below ask it. */
+const hash = async (world: OlaiWorld): Promise<string> =>
+  (await inside(world)).locator("body").evaluate(() => location.hash);
+
+/** The frame is at the section its address named — the half of "a link with a
+ *  fragment is left to the frame" that a heading cannot say. */
 Then(
   "the preview is at the anchor {string}",
   async function (this: OlaiWorld, anchor: string) {
-    const frame = await inside(this);
     await this.waitUntil(
-      async () => (await frame.locator("body").evaluate(() => location.hash)) === anchor,
+      async () => (await hash(this)) === anchor,
       `the preview to be at ${anchor}`,
     );
   },
@@ -881,14 +885,13 @@ Then(
  *  snapshot: a re-pointing that WOULD carry the slug arrives a moment after the
  *  revision does. */
 Then("the preview is at no anchor", async function (this: OlaiWorld) {
-  const frame = await inside(this);
   await this.waitUntil(
-    async () => (await frame.locator("body").evaluate(() => location.hash)) === "",
+    async () => (await hash(this)) === "",
     "the preview to be at no anchor",
   );
   await this.page.waitForTimeout(POLL_TIMEOUT / 10);
   assert.strictEqual(
-    await frame.locator("body").evaluate(() => location.hash),
+    await hash(this),
     "",
     "the frame was re-pointed at the section a second time, which is a landing " +
       "spent twice",

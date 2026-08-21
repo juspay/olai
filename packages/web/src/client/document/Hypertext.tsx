@@ -365,43 +365,50 @@ export function Hypertext(props: { readonly file: string }) {
     custody = next
   }
 
-  /** Point the frame somewhere, and remember that its `load` is ours. The
-   *  heights and the pending question belonged to the document that is
-   *  leaving. */
-  const point = (url: string) => {
+  /** Point the frame somewhere, and remember that its `load` is ours — and
+   *  WHAT is arriving ({@link Pointed}), or nothing for a pointing at something
+   *  that is not this file at all. The heights and the pending question
+   *  belonged to the document that is leaving. */
+  const point = (url: string, arriving?: Pointed) => {
     if (frame === undefined) return
-    fresh()
+    fresh(arriving)
     stand({ at: "asked", spoke: false })
     frame.src = url
   }
 
   /**
-   * What belonged to the DOCUMENT that is leaving: the ladder of height reports
-   * it was climbing, the refusal it drew, the report it made about its anchor,
-   * and the section it was pointed at — which is what makes {@link pointed} a
-   * fact about the document in the frame right now rather than about this
-   * pane's history.
+   * OUT WITH THE DOCUMENT THAT IS LEAVING, and in with what this component
+   * knows about the one arriving — which is a {@link Pointed} when we asked for
+   * it, and NOTHING when what is in the frame is not this file: a page that
+   * walked off, or the empty frame a page that would not stop leaving is
+   * finally given.
    *
-   * THE HEIGHT IS NOT ON THIS LIST, and that is the change of mind. It used to
-   * be, and it is the second half of the same yank the spent landing above
-   * closes: a revision moves, the frame is re-pointed to fetch the new bytes,
-   * and dropping the applied height put the box back to the `70dvh` guess for
-   * as long as the round trip takes. The page around it lost a thousand pixels,
-   * and whoever was reading the end of it was clamped to the top by an edit
-   * they did not make — measured at 1076px to 0.
+   * ONE ASSIGNMENT, for {@link stand}'s reason one function up. What goes is
+   * the ladder of height reports the old document was climbing, the refusal it
+   * drew, the report it made about its anchor, and the section it was pointed
+   * at — and the last of those is what makes `pointed` a fact about the
+   * document in the frame right now rather than about this pane's history.
+   *
+   * THE HEIGHT IS THE ONE THAT DEPENDS ON THE ARGUMENT, and that is the change
+   * of mind. It used to go unconditionally, and that is the second half of the
+   * same yank the spent landing above closes: a revision moves, the frame is
+   * re-pointed to fetch the new bytes, and dropping the applied height put the
+   * box back to the `70dvh` guess for as long as the round trip takes. The page
+   * around it lost a thousand pixels, and whoever was reading the end of it was
+   * clamped to the top by an edit they did not make — measured at 1076px to 0.
    *
    * A height is this FILE's rather than one fetch of it: one revision stale, it
    * is the best estimate of the next one there is, and the report that follows
-   * replaces it a moment later. What it may NOT outlive is the file itself
-   * being gone from the frame, so the two places that mean that clear it by
-   * hand ({@link bring}'s give-up, and an arrival nobody asked for in
-   * {@link loaded}).
+   * replaces it a moment later. What it may not outlive is the file itself
+   * being gone from the frame — which is exactly what an absent `arriving`
+   * says, so no caller has to remember a second line.
    */
-  const fresh = () => {
+  const fresh = (arriving?: Pointed) => {
     heights.fresh()
     setRefused(undefined)
     setLandedAt(undefined)
-    pointed = undefined
+    pointed = arriving
+    if (arriving === undefined) setMeasured(undefined)
   }
 
   /** The file itself, at its own address on the media route — a fresh URL every
@@ -435,8 +442,7 @@ export function Hypertext(props: { readonly file: string }) {
     // landing spent by a frame that turned out to have no such id would be an
     // act nobody performed.
     const at = landing.owed()
-    point(`${mediaHref(props.file)}?${VISIT}=${visits}${anchor(at)}`)
-    pointed = { rev: rev(), at }
+    point(`${mediaHref(props.file)}?${VISIT}=${visits}${anchor(at)}`, { rev: rev(), at })
   }
 
   /**
@@ -525,15 +531,14 @@ export function Hypertext(props: { readonly file: string }) {
     go(route)
   }
 
-  /** Put the file back, or — once the budget is out — nothing at all. */
+  /** Put the file back, or — once the budget is out — nothing at all, which is
+   *  a pointing with no {@link Pointed} to it: nothing of ours is in there, so
+   *  the box goes back to the guess rather than standing at the size of a page
+   *  that has left ({@link fresh}). */
   const bring = () => {
     walkOffs += 1
-    if (walkOffs <= WALK_OFFS) return show()
-    // Nothing at all, and nothing has no height of its own: the box goes back
-    // to the guess rather than standing at the size of a page that is no
-    // longer in it ({@link fresh}).
-    point("about:blank")
-    setMeasured(undefined)
+    if (walkOffs > WALK_OFFS) point("about:blank")
+    else show()
   }
 
   const loaded = () => {
@@ -542,12 +547,11 @@ export function Hypertext(props: { readonly file: string }) {
     // for the NEXT document's.
     if (custody.at === "asked") return stand({ at: "showing", spoke: custody.spoke })
     // Nobody asked for this document: the page walked the frame off, or the
-    // reader followed a link out of it. Either way it is a new page, so what
-    // the old one left goes — including its HEIGHT, which is the one case where
-    // it must ({@link fresh}): what is in the frame is not this file any more,
-    // so its size is not this file's to keep.
+    // reader followed a link out of it. Either way it is a new page and it is
+    // not ours, which is what an argumentless {@link fresh} says — so what the
+    // old one left goes, and its HEIGHT with it, this being the one case where
+    // that must happen.
     fresh()
-    setMeasured(undefined)
     // A file of this vault, reached by a link inside the preview — it greeted
     // while it parsed. That is the feature, not the walk-off: it is sealed
     // exactly as the file that linked to it is, so it stays and it keeps its

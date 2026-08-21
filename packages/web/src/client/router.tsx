@@ -222,9 +222,12 @@ export const createRouter = (): Router => {
     landed: (index, file, at) => {
       const land = landing()
       if (land === undefined || land.spent) return
-      // The landing THIS act was about, or nothing: a navigation between the
+      // THE LANDING THIS ACT WAS ABOUT, or nothing: a navigation between the
       // scheduling and the performing has minted a new one, and that one is
-      // owed its own arrival.
+      // owed its own arrival. Named by a performer that already knows whose
+      // landing it read — which looks like the check {@link useLanding} has
+      // already made and is not: that one asked whose it is NOW, and the gap
+      // between the two is exactly what this refuses.
       if (land.index !== index || land.file !== file || land.at !== at) return
       setLanding({ ...land, spent: true })
     },
