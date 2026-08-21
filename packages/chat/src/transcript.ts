@@ -2,10 +2,20 @@
  * The conversation, as rows.
  *
  * {@link ./agent.ts} says what the agent DID; this says what the panel shows.
- * Keeping the two apart is what lets the transcript have rules of its own — an
- * agent's chunks accumulate into one entry, a tool call is updated in place by
- * its id, a replay replaces everything rather than appending to it — without
- * any of them leaking into the protocol layer.
+ * Keeping the two apart is what lets the transcript have rules of its own —
+ * chunks accumulate into one entry, a tool call is updated in place by its id,
+ * a replay replaces everything rather than appending to it — without any of
+ * them leaking into the protocol layer.
+ *
+ * THREE of those rules are about an agent repeating itself, and they are here
+ * rather than in the protocol layer because they are about what a READER can
+ * follow rather than about what the wire may carry. A message's chunks
+ * accumulate whoever said them, because a replay is where a PERSON's words
+ * arrive in pieces ({@link Transcript.userSaid}). A call's NAME is picked at the
+ * first frame that carries a title and no later one moves it
+ * ({@link Transcript.tool}), because a title is a display string an agent may
+ * rewrite mid-call. And a frame that says nothing the row does not already say
+ * changes nothing at all — no upsert, and no mark taken back off.
  *
  * It is a keyed, ordered set rather than a list, because that is what the wire
  * member is: a collection served with batched deltas, so an entry that changes
@@ -41,6 +51,8 @@
  * point of adopting one on boot), and a second copy would be a second thing to
  * be wrong.
  */
+
+import { isDeepStrictEqual } from "node:util"
 
 import { isRunningStatus } from "@olai/surface"
 
@@ -116,40 +128,6 @@ const both = (first: Change, second: Change): Change => ({
   upserts: [...first.upserts, ...second.upserts],
   removes: [...first.removes, ...second.removes],
 })
-
-/**
- * Whether two of a row's values SAY THE SAME THING.
- *
- * Structural, and generic over the JSON-shaped values a row is made of —
- * strings, the arrays of blocks a call reports, the small objects an olai write
- * and a spawn arrive as. Generic rather than field by field because a
- * comparator that named the fields would be a second list of them: the day a
- * row grows a tenth, the list that decides what a report SAYS and the list that
- * decides whether two reports say the same would drift apart in silence, and
- * what that looks like is a frame that changed something being read as one that
- * changed nothing.
- *
- * Reference equality first, which is the common answer and free: a field the
- * merge in {@link Transcript.tool} took from the row it is updating IS the row's
- * own value, so only what a frame actually carried is ever walked.
- */
-const same = (one: unknown, other: unknown): boolean => {
-  if (one === other) return true
-  if (Array.isArray(one)) {
-    return Array.isArray(other) && one.length === other.length &&
-      one.every((item, at) => same(item, other[at]))
-  }
-  if (
-    typeof one !== "object" || one === null ||
-    typeof other !== "object" || other === null || Array.isArray(other)
-  ) {
-    return false
-  }
-  const fields = Object.keys(one)
-  const theirs = other as { readonly [field: string]: unknown }
-  return fields.length === Object.keys(other).length &&
-    fields.every((field) => same((one as { readonly [field: string]: unknown })[field], theirs[field]))
-}
 
 export class Transcript {
   #entries = new Map<string, ChatEntry>()
@@ -560,7 +538,15 @@ export class Transcript {
     // turn walked away from it would otherwise start looking like work in
     // progress again on the strength of a frame that said what the row already
     // said.
-    if (current !== undefined && same(contentOf(current), content)) return closed
+    //
+    // The comparison is the runtime's own, over the WHOLE content rather than
+    // field by field: a comparator that named the fields would be a second list
+    // of them, and the day a row grows a tenth the list deciding what a report
+    // SAYS and the list deciding whether two reports say the same would drift
+    // apart in silence. It is also cheap where it matters — a field this merge
+    // took from the row it is updating IS the row's own value, so a frame that
+    // carried nothing new is answered by reference at each of them.
+    if (current !== undefined && isDeepStrictEqual(contentOf(current), content)) return closed
     // ANYTHING HERE KNOWING. The mark means "as far as this end can tell, that
     // one never came back", and a report about it is this end being told
     // otherwise — so it comes off, and `#put` below re-derives the field from
