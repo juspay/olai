@@ -57,17 +57,24 @@ import { createEffect, createMemo, createSignal, Index, onCleanup, Show } from "
 import { Portal } from "solid-js/web"
 
 import { type Anchor, anchoredTo, styleOf } from "../anchor.ts"
+import { ALARM_BAND, SaidLine } from "../edit/SaidLine.tsx"
 import { LAYER } from "../layer.ts"
 import { hitItem } from "../palette/items.ts"
 import { openPalette } from "../palette/open.ts"
-import { refusalLines } from "../refusals.ts"
+import { Refusals } from "../refusals.tsx"
 import type { Route } from "../routes.ts"
 import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
+import { SearchCount } from "./Count.tsx"
 import { createCursor } from "./cursor.ts"
 import { createSearch } from "./nodes.ts"
 import { Result, type RowTestids } from "./Result.tsx"
+
+/** WHERE an alarm sits in this panel: a full-width band above the rows, at
+ *  this door's own gutter — narrower than the palette's because the panel is.
+ *  The alarm's SKIN is `../edit/SaidLine.tsx`'s (`ALARM_BAND`). */
+const ALERT_ROW = `${ALARM_BAND} px-3`
 
 /** What this door calls its rows (`./Result.tsx`'s `RowTestids`). */
 const HEADER_ROW: RowTestids = {
@@ -116,10 +123,6 @@ export function HeaderSearch(props: {
    * `<Index>` below then writes nothing at all.
    */
   const items = createMemo(() => nodes.hits().map(hitItem))
-  /** What the grammar could not read, as the sentences it is announced in —
-   *  compared by value so a query that keeps refusing the same token is not
-   *  read out loud again (`../refusals.ts`). */
-  const refused = refusalLines(nodes.refusals)
   // The panel is up when there is anything to say — rows, a refused call, or a
   // query the grammar could not read. That last one is why a typo in an
   // operator opens the panel at all rather than looking like an empty
@@ -232,30 +235,23 @@ export function HeaderSearch(props: {
             >
               <Show when={nodes.failure()}>
                 {(err) => (
-                  <div
-                    class="border-b border-alarm/40 bg-alarm/5 px-3 py-2 font-mono text-xs text-alarm"
-                    data-testid={TESTID.headerSearchError}
-                    role="alert"
-                  >
-                    {err()}
-                  </div>
+                  <SaidLine
+                    said={{ tone: "alarm", text: err() }}
+                    class={ALERT_ROW}
+                    testid={TESTID.headerSearchError}
+                  />
                 )}
               </Show>
               {/* …and the OTHER refusal: an operator the grammar knows the
                   name of and not the value. Its own row rather than the one
                   above, for the reason that one has its own: a refused call
-                  and a refused query are two different pieces of news. */}
-              <Index each={refused()}>
-                {(line) => (
-                  <div
-                    class="border-b border-alarm/40 bg-alarm/5 px-3 py-2 font-mono text-xs text-alarm"
-                    data-testid={TESTID.searchRefusal}
-                    role="alert"
-                  >
-                    {line()}
-                  </div>
-                )}
-              </Index>
+                  and a refused query are two different pieces of news. Drawn
+                  by `../refusals.tsx`, the same rows the other two doors get. */}
+              <Refusals
+                of={nodes.refusals()}
+                class={ALERT_ROW}
+                testid={TESTID.searchRefusal}
+              />
               {/* Down, never sideways — the rows are built not to overflow
                   and this is what keeps that a property of the container. */}
               <ul class="m-0 max-h-72 list-none overflow-x-hidden overflow-y-auto p-1">
@@ -282,6 +278,14 @@ export function HeaderSearch(props: {
                   )}
                 </Index>
               </ul>
+              {/* WHAT IS BEHIND THE ROWS — under the list rather than inside
+                  it, so a reader who has scrolled the eight rows still has it
+                  in front of them, and absent entirely when the eight are all
+                  there was (`./count.ts`). */}
+              <SearchCount
+                of={nodes}
+                class="m-0 border-t border-rule/40 px-3 py-1.5 font-mono text-xs text-muted"
+              />
             </div>
           </Portal>
         )}

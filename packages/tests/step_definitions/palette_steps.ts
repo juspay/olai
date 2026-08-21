@@ -24,7 +24,8 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
-import { saysThat } from "../support/said.ts";
+import { countsNothing, foundCount } from "../support/counted.ts";
+import { inTheMood, saysThat } from "../support/said.ts";
 import {
   attr,
   HYDRATION_TIMEOUT,
@@ -37,6 +38,7 @@ import {
   PALETTE_ITEM,
   PALETTE_SAID,
   PALETTE_SCRIM,
+  SEARCH_COUNT,
   POLL_TIMEOUT,
   SHORTCUTS,
 } from "../support/world.ts";
@@ -130,10 +132,17 @@ When(
   },
 );
 
+/** The `>` ask fell over, and the row that says so is a refusal like any other
+ *  — the MOOD is read, not just the presence, because that row is drawn by the
+ *  same component every other alarm in this client is. Through
+ *  `../support/said.ts`, which is where this suite asks a line what mood it is
+ *  in; the text is not asserted here because what the agent failed with is the
+ *  agent's to word. */
 Then("the palette shows an ask error", async function (this: OlaiWorld) {
   await this.page
     .locator(PALETTE_ASK_ERROR)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await inTheMood(this, PALETTE_ASK_ERROR, "alarm", "the palette's ask error");
 });
 
 Then(
@@ -231,6 +240,27 @@ Then(
       .locator(`${PALETTE_ITEM}${attr("data-id", `hit-${file}`)}`)
       .count();
     assert.strictEqual(rows, 0, `the palette lists ${JSON.stringify(file)}`);
+  },
+);
+
+// ── how much of the answer it drew ─────────────────────────────────────
+//
+// The ritual is `support/counted.ts`', shared with the header box's steps: one
+// line, one function in the client, one question here. What is the palette's
+// own is the door it is read INSIDE — the modal, so that a scenario says which
+// of the two doors it means even though both draw the line under one name.
+
+Then(
+  "the palette found {string}",
+  async function (this: OlaiWorld, said: string) {
+    await foundCount(this, `${PALETTE} ${SEARCH_COUNT}`, said, "palette count");
+  },
+);
+
+Then(
+  "the palette says nothing about a total",
+  async function (this: OlaiWorld) {
+    await countsNothing(this, `${PALETTE} ${SEARCH_COUNT}`, "palette");
   },
 );
 

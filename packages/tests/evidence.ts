@@ -279,6 +279,14 @@ const oneLine = (said: string): string => said.replace(/\s+/g, " ").trim()
 const textOf = async (page: Page, locator: string) =>
   oneLine(await page.locator(locator).first().innerText())
 
+/** WHICH MOOD a said-line claims to be in, off the markup rather than off its
+ *  colour — `data-tone` is the fact `web/src/client/edit/SaidLine.tsx` puts
+ *  there precisely so a reader (a person, a scenario) can ask without asking
+ *  about a class name. Printed beside the sentence in the section below,
+ *  because that section's whole subject is which component drew the row. */
+const toneOf = async (page: Page, locator: string) =>
+  (await page.locator(locator).first().getAttribute("data-tone")) ?? "(none)"
+
 /** The `•••` menu's archive verb, and the confirm it raises — ONE spelling,
  *  because the confirm answers with the same words on the same panel, and a
  *  section that photographs the question in between still presses this. */
@@ -645,7 +653,25 @@ const TRASH_EMPTY_LINE = '[data-testid="trash-empty"]'
  *  share a word is not an answer to a query, which is what `data-id` tells
  *  apart (the browser tests read the same pair). */
 const PALETTE_INPUT = '[data-testid="palette-input"]'
-const PALETTE_HIT = '[data-testid="palette-item"][data-id^="node-"]'
+/** A row's id is its printed ADDRESS behind `hit-` (`palette/items.ts`), and a
+ *  record's address is a bare fragment — so `hit-#` is what tells a node hit
+ *  from a document row and from a shell item that shares a word, exactly as
+ *  the browser tests grip it. It read `node-` until 2026-08-20, which is a
+ *  prefix nothing has ever carried: the one section using it printed
+ *  "(nothing)" where its hits should have been. */
+const PALETTE_HIT = '[data-testid="palette-item"][data-id^="hit-#"]'
+/** The header box itself — the other door, and the one surface here that was
+ *  spelled as a literal at each of its three call sites while every other one
+ *  in this file is a named const. */
+const HEADER_SEARCH = '[data-testid="header-search"]'
+/** What a shortlist says it drew of what it found — the same line on both
+ *  doors, absent when the answer fit (`web/src/client/search/count.ts`). */
+const SEARCH_COUNT = '[data-testid="search-count"]'
+/** WHY a door drew nothing: the operator the grammar could not read, in the
+ *  grammar's own words. ONE testid at both doors because it is one sentence
+ *  about one grammar (`web/src/client/refusals.tsx`); the bar's own row is
+ *  {@link FILTER_REFUSAL}, which is a different slot on a different surface. */
+const SEARCH_REFUSAL = '[data-testid="search-refusal"]'
 /** …and the rows of it that are DOCUMENTS, told apart the same way: a served
  *  file's row carries its whole path in `data-id`, so a shot can print WHICH
  *  file it matched rather than the name a folder may repeat. The header's box
@@ -2034,7 +2060,7 @@ const SECTIONS = {
       await shot(page, `the-document-opens${suffix}`)
 
       // THE OTHER DOOR, over the same query and drawing the same row.
-      const box = page.locator('[data-testid="header-search"]')
+      const box = page.locator(HEADER_SEARCH)
       await box.click()
       await box.fill("pal")
       await page.locator(HEADER_DOC).first().waitFor()
@@ -2151,7 +2177,7 @@ const SECTIONS = {
 
       // WHAT THE DOCUMENT IS CALLED, in the door that draws a face's title:
       // the body's first real line, not the fence and not the first YAML key.
-      const box = page.locator('[data-testid="header-search"]')
+      const box = page.locator(HEADER_SEARCH)
       await box.click()
       await box.fill("plan")
       const row = page.locator(headerHit("notes/plan.md"))
@@ -2693,6 +2719,156 @@ const SECTIONS = {
 
     await inTheDark(page)
     await shot(page, "hidden-dark")
+  },
+
+  /**
+   * A SHORTLIST SAYS ITS TOTAL (`a-shortlist-says-its-total`): both doors onto
+   * the one search reading, over a directory big enough for the cap to bite —
+   * and the same doors over an answer that fits, saying nothing.
+   *
+   * The pair is what a still frame can carry here, because the claim is about
+   * a SILENCE as much as a sentence: eight rows with `8 of 44 matches` under
+   * them and eight rows' worth of query with no line at all are the same
+   * picture apart from the one element this PR draws.
+   *
+   * THE VAULT IS WRITTEN rather than taken from `fixtures/good`, for the
+   * frontmatter section's reason: the fixture is a five-node house and the cap
+   * never bites in it, so a shot taken against it would be a shot of the
+   * absence twice. Forty rows that answer one word is the smallest directory
+   * in which the two doors have something to say.
+   */
+  "a-shortlist-says-its-total": async (page) => {
+    pinnedBy(
+      "a_shortlist_says_its_total.feature",
+      "The palette drew eight of what it found, and says which",
+      "The header's box says the same thing about the same answer",
+      "A palette answer that fits says nothing about a total",
+    )
+    rewrite("stock.olai", [
+      `{"id":"stock","ord":"a0","title":"the supplier's catalogue"}`,
+      ...Array.from(
+        { length: 40 },
+        (_unused, index) =>
+          `{"id":"h${index + 1}","parent":"stock","ord":"a${
+            String(index + 1).padStart(2, "0")
+          }","title":"brass handle no. ${index + 1}"}`,
+      ),
+    ])
+
+    // THE PALETTE, over a word forty rows answer to. The line sits under the
+    // list rather than in it, so it is in frame whether or not a reader has
+    // scrolled the eight.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    await page.keyboard.press("ControlOrMeta+k")
+    await page.locator(PALETTE_INPUT).waitFor()
+    await page.locator(PALETTE_INPUT).fill("handle")
+    await page.locator(PALETTE_HIT).first().waitFor()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  hits drawn:         ${await page.locator(PALETTE_HIT).count()}`)
+    console.log(`  and it says:        ${await textOf(page, SEARCH_COUNT)}`)
+    await shot(page, "the-palette-says-its-total")
+
+    // …and the same palette over a query the vault answers eight-or-fewer
+    // times: the rows are there, and there is no line under them.
+    await page.locator(PALETTE_INPUT).fill("cabinets")
+    await page.locator(PALETTE_HIT).first().waitFor()
+    await page.waitForTimeout(SETTLE)
+    console.log(
+      `  an answer that fits: ${await page.locator(PALETTE_HIT).count()} hits, and the line is ${
+        (await page.locator(SEARCH_COUNT).count()) === 0 ? "absent" : "STILL THERE"
+      }`,
+    )
+    await shot(page, "an-answer-that-fits-says-nothing")
+    await page.keyboard.press("Escape")
+
+    // THE OTHER DOOR, over the same word and the same answer — one reading,
+    // one sentence, two places it is drawn.
+    const box = page.locator(HEADER_SEARCH)
+    await box.click()
+    await box.fill("handle")
+    await page.locator(headerHit("#h1")).first().waitFor()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  the header box too: ${await textOf(page, SEARCH_COUNT)}`)
+    await shot(page, "the-header-box-says-it-too")
+  },
+
+  /**
+   * ONE MARKUP FOR THE REFUSAL ROW (`one-alert-row`): the same refused
+   * operator at all three doors onto the one query language, drawn by one
+   * component.
+   *
+   * The sentence has been one since #287 and the MARKUP was three — the bar's
+   * line through `edit/SaidLine.tsx`, and a hand-rolled `role="alert"` band at
+   * each of the two search doors. What a still frame shows that a `✔` cannot
+   * is that they now READ as one thing: the same alarm ink, the same rule under
+   * the row, the same band across whatever the door's own padding is. The
+   * differences that survive are the ones that should — a bar's line is a line
+   * under a box, a palette's is a band the width of the modal, the header's is
+   * the same band narrower, because WHERE it sits was never the thing being
+   * unified.
+   *
+   * The transcript carries the half a picture cannot: `data-tone` beside each
+   * sentence. Before this PR the bar answered `alarm` and the two doors
+   * answered `(none)` — same colour on screen, no fact in the markup.
+   *
+   * Both halves of the palette table, because every ink here is a theme token
+   * and an alarm that reads as alarm on chalk and as decoration on pitch is the
+   * failure this row exists against.
+   */
+  "one-alert-row": async (page) => {
+    pinnedBy(
+      "an_answer_leaves_the_rows_standing.feature",
+      "The palette's refusal is not read out a second time for the next keystroke",
+      "The header box's refusal is not read out a second time for the next keystroke",
+    )
+    const pass = async (dark: boolean) => {
+      const suffix = dark ? "-dark" : "-light"
+      /** One door read out and photographed — the sentence, the mood beside it,
+       *  and the frame. Three doors saying the same thing is exactly the claim,
+       *  so it is said once here rather than copied per door. */
+      const reads = async (who: string, row: string, name: string) => {
+        console.log(`  ${who.padEnd(18)}${await textOf(page, row)}`)
+        console.log(`  ${"...in the mood:".padEnd(18)}${await toneOf(page, row)}`)
+        await shot(page, `${name}${suffix}`)
+      }
+
+      // THE BAR, which parses in this tab: the row is up before any wire is
+      // touched, and it is the one that already went through the component.
+      await opened(page, "/house.olai", OUTLINE_TREE)
+      await narrow(page, "is:open")
+      await reads("the bar refuses:", FILTER_REFUSAL, "the-filter-bar")
+
+      // THE PALETTE, which had to ASK for the same refusal and hand-rolled
+      // three bands of its own to draw it and its two neighbours. `DRAWN` and
+      // not `SETTLE`: nothing was written, and the row above is already up.
+      await page.keyboard.press("ControlOrMeta+k")
+      await page.locator(PALETTE_INPUT).waitFor()
+      await page.locator(PALETTE_INPUT).fill("is:open")
+      await page.locator(SEARCH_REFUSAL).first().waitFor()
+      await page.waitForTimeout(DRAWN)
+      await reads("the palette:", SEARCH_REFUSAL, "the-palette")
+      await page.keyboard.press("Escape")
+
+      // THE HEADER BOX, the third door and the second that hand-rolled one.
+      const box = page.locator(HEADER_SEARCH)
+      await box.click()
+      await box.fill("is:open")
+      await page.locator(SEARCH_REFUSAL).first().waitFor()
+      await page.waitForTimeout(DRAWN)
+      await reads("the header box:", SEARCH_REFUSAL, "the-header-box")
+      await page.keyboard.press("Escape")
+    }
+
+    await pass(false)
+    // The theme is WRITTEN and the next pass's own `goto` is what picks it up
+    // — one navigation rather than `inTheDark`'s three. That helper reloads
+    // and then waits on the tree, and the address still carries `is:open`,
+    // which selects nothing: it would come back to an empty tree and wait out
+    // its timeout. Written where the page keeps it (`client/theme/state.ts`),
+    // so the boot script paints the first dark frame rather than a light one
+    // flashing first.
+    await page.evaluate(() => localStorage.setItem("olai.theme", "aurora"))
+    await pass(true)
   },
 } satisfies Record<string, (page: Page) => Promise<void>>
 

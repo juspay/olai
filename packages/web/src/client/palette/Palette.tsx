@@ -48,7 +48,6 @@ import {
   createMemo,
   createSelector,
   createSignal,
-  Index,
   Match,
   on,
   onCleanup,
@@ -64,7 +63,7 @@ import { Result as Outcome } from "effect"
 import { releaseArmed, restoreArmed } from "../chat/armed.ts"
 
 import type { Names } from "../names.ts"
-import { SaidLine } from "../edit/SaidLine.tsx"
+import { ALARM_BAND, SaidLine } from "../edit/SaidLine.tsx"
 import { desktop } from "../layout/media.ts"
 import {
   resetPanelWidths,
@@ -74,7 +73,7 @@ import {
 import { LAYER, WITHIN } from "../layer.ts"
 import { topmostWhileOpen } from "../topmost.ts"
 import { only } from "../narrow.ts"
-import { refusalLines } from "../refusals.ts"
+import { Refusals } from "../refusals.tsx"
 import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
@@ -96,6 +95,7 @@ import { sayPin, togglePin } from "../pins/pinning.ts"
 import { nameOf, shownIn } from "../address/address.ts"
 import { type Asking } from "./asking.ts"
 import { Question } from "./Question.tsx"
+import { SearchCount } from "../search/Count.tsx"
 import { createCursor } from "../search/cursor.ts"
 import { createSearch } from "../search/nodes.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
@@ -113,6 +113,14 @@ import { isEditingTarget, listKey, matchKey, paneKey } from "../keys.ts"
 import { useRouter } from "../router.tsx"
 import { isLone } from "../workspace.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
+
+/** WHERE an alarm sits in this panel: a full-width band between the box and
+ *  the list, at this door's own gutter. The alarm's SKIN is
+ *  `../edit/SaidLine.tsx`'s (`ALARM_BAND`, shared with the two narrower
+ *  panels); the `px-4` is the palette's, because its rows set it. Three things
+ *  this panel can alarm about — a refused ask, a search that fell over, a
+ *  token the grammar cannot read — and one band. */
+const ALERT_ROW = `${ALARM_BAND} px-4`
 
 /** What this door calls its rows — see `../search/Result.tsx`'s `RowTestids`
  *  for why the three travel as one value. */
@@ -282,11 +290,6 @@ export function Palette(props: {
   // The nodes, from the server — one primitive, its own failure, and no
   // request bookkeeping in this component ({@link ../search/nodes.ts}).
   const nodes = createSearch(asked)
-  /** What the grammar could not read, as the sentences it is announced in —
-   *  compared by value so a query that keeps refusing the same token is not
-   *  read out loud again (`../refusals.ts`). */
-  const refused = refusalLines(nodes.refusals)
-
   /**
    * The zoomed node's verbs — its OWN memo, and guarded on the palette being
    * open, which is what keeps them from being rebuilt for nobody.
@@ -859,13 +862,11 @@ export function Palette(props: {
           />
           <Show when={askError()}>
             {(err) => (
-              <div
-                class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
-                data-testid={TESTID.paletteAskError}
-                role="alert"
-              >
-                {err()}
-              </div>
+              <SaidLine
+                said={{ tone: "alarm", text: err() }}
+                class={ALERT_ROW}
+                testid={TESTID.paletteAskError}
+              />
             )}
           </Show>
           {/* The SEARCH's own refusal, in its own row: it is a different
@@ -873,30 +874,23 @@ export function Palette(props: {
               rather than overwriting one the reader may still be reading. */}
           <Show when={nodes.failure()}>
             {(err) => (
-              <div
-                class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
-                data-testid={TESTID.paletteSearchError}
-                role="alert"
-              >
-                {err()}
-              </div>
+              <SaidLine
+                said={{ tone: "alarm", text: err() }}
+                class={ALERT_ROW}
+                testid={TESTID.paletteSearchError}
+              />
             )}
           </Show>
           {/* …and the QUERY's own, which is a fourth question: the words were
               read and one of them is an operator with a value the grammar does
               not take. Without this a typo in `is:` looks exactly like an empty
-              directory (`../search/nodes.ts`). */}
-          <Index each={refused()}>
-            {(line) => (
-              <div
-                class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
-                data-testid={TESTID.searchRefusal}
-                role="alert"
-              >
-                {line()}
-              </div>
-            )}
-          </Index>
+              directory (`../search/nodes.ts`). Drawn by `../refusals.tsx`,
+              which is where that sentence and the ear it is read to live. */}
+          <Refusals
+            of={nodes.refusals()}
+            class={ALERT_ROW}
+            testid={TESTID.searchRefusal}
+          />
           {/* WHAT A WRITE SAID, in a row of its own for the same reason the
               two above have theirs: it is a third question. The mood — its
               colour, its `data-tone`, whether a screen reader is interrupted —
@@ -913,53 +907,67 @@ export function Palette(props: {
           </Show>
           <Switch
             fallback={
-              // `overflow-x-hidden` is the doctrine, not a defence: a popover
-              // scrolls down, never sideways. The rows are already built not
-              // to overflow; this makes that a property of the container
-              // rather than of every future row.
-              <ul
-                class="m-0 min-h-0 flex-1 list-none overflow-x-hidden overflow-y-auto p-1 md:max-h-72 md:flex-none"
-                data-testid={TESTID.paletteList}
-              >
-                {/* `<Key>` rather than `<For>`, for the reason the tree uses it
-                    (`../Tree.tsx`): the rows are minted fresh on every read, so
-                    every keystroke during the 200 ms settle rebuilt a list whose
-                    hits had not changed, under a cursor somebody was walking
-                    down. `<Key>` and not `<Index>`, unlike the shortlists, for
-                    the same reason the tree is keyed: these rows MOVE — the
-                    hits arrive under the commands and rank against each other —
-                    and {@link PaletteItem.id} already promises the id is unique
-                    in this list, which is what makes it a key. */}
-                <Key
-                  each={items()}
-                  by="id"
-                  fallback={
-                    <li class="px-3 py-2 font-mono text-xs text-muted">
-                      no matches
-                    </li>
-                  }
+              <>
+                {/* `overflow-x-hidden` is the doctrine, not a defence: a popover
+                    scrolls down, never sideways. The rows are already built not
+                    to overflow; this makes that a property of the container
+                    rather than of every future row. */}
+                <ul
+                  class="m-0 min-h-0 flex-1 list-none overflow-x-hidden overflow-y-auto p-1 md:max-h-72 md:flex-none"
+                  data-testid={TESTID.paletteList}
                 >
-                  {(item, index) => (
-                    <li>
-                      <Result
-                        label={item().label}
-                        of={item().of}
-                        hint={item().hint}
-                        place={item().place}
-                        props={item().props}
-                        active={lit(index())}
-                        testids={PALETTE_ROW}
-                        id={item().id}
-                        onHover={() => {
-                          setChosen(true)
-                          cursor.to(index())
-                        }}
-                        onSelect={() => runItem(item())}
-                      />
-                    </li>
-                  )}
-                </Key>
-              </ul>
+                  {/* `<Key>` rather than `<For>`, for the reason the tree uses it
+                      (`../Tree.tsx`): the rows are minted fresh on every read, so
+                      every keystroke during the 200 ms settle rebuilt a list whose
+                      hits had not changed, under a cursor somebody was walking
+                      down. `<Key>` and not `<Index>`, unlike the shortlists, for
+                      the same reason the tree is keyed: these rows MOVE — the
+                      hits arrive under the commands and rank against each other —
+                      and {@link PaletteItem.id} already promises the id is unique
+                      in this list, which is what makes it a key. */}
+                  <Key
+                    each={items()}
+                    by="id"
+                    fallback={
+                      <li class="px-3 py-2 font-mono text-xs text-muted">
+                        no matches
+                      </li>
+                    }
+                  >
+                    {(item, index) => (
+                      <li>
+                        <Result
+                          label={item().label}
+                          of={item().of}
+                          hint={item().hint}
+                          place={item().place}
+                          props={item().props}
+                          active={lit(index())}
+                          testids={PALETTE_ROW}
+                          id={item().id}
+                          onHover={() => {
+                            setChosen(true)
+                            cursor.to(index())
+                          }}
+                          onSelect={() => runItem(item())}
+                        />
+                      </li>
+                    )}
+                  </Key>
+                </ul>
+                {/* WHAT IS BEHIND THE HITS, and only ever about them: the rows
+                    above the hits are this tab's own (the zoomed node's verbs,
+                    the shelf's row, the shell), so the count is taken off the
+                    ANSWER rather than off the list it is drawn under — which is
+                    also why the sentence names its subject (`../search/count.ts`).
+                    Under the list rather than inside it, so it stays put while
+                    the eight rows scroll, and absent when eight was all there
+                    was. */}
+                <SearchCount
+                  of={nodes}
+                  class="m-0 shrink-0 border-t border-rule px-4 py-2 font-mono text-xs text-muted"
+                />
+              </>
             }
           >
             {/* THE QUESTION FIRST, above both prefixes: it is up because

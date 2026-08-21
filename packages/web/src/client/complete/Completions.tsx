@@ -42,6 +42,7 @@ import { Popper } from "@kobalte/core/popper"
 import { createSignal, Index, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
+import { ALARM_BAND, SaidLine } from "../edit/SaidLine.tsx"
 import { LAYER } from "../layer.ts"
 import { overlayRoot } from "../overlay.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
@@ -109,16 +110,18 @@ export function Completions(props: { readonly listing: Listing }) {
         aria-label="completions"
       >
         {/* The search's own refusal, in its own words and in its own slot —
-            never dropped, and never overwriting a list somebody is reading. */}
+            never dropped, and never overwriting a list somebody is reading.
+            The band is the one the other two shortlist panels wear and the
+            mood is `../edit/SaidLine.tsx`'s, once: this row spelled both by
+            hand, down to the pad, and so carried no `data-tone` for a
+            scenario to read the mood off. */}
         <Show when={props.listing.failure()}>
           {(failure) => (
-            <p
-              class="m-0 border-b border-alarm/40 bg-alarm/5 px-3 py-2 font-mono text-xs text-alarm"
-              data-testid={TESTID.completionsError}
-              role="alert"
-            >
-              {failure()}
-            </p>
+            <SaidLine
+              said={{ tone: "alarm", text: failure() }}
+              class={`${ALARM_BAND} px-3`}
+              testid={TESTID.completionsError}
+            />
           )}
         </Show>
         {/* `<Index>`, not `<For>`: the rows are POSITIONAL and there are at

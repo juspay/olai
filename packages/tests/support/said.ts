@@ -37,16 +37,34 @@ export const saysThat = async (
     }`,
   );
   if (tone === undefined) return;
-  assert.strictEqual(
-    await line.getAttribute("data-tone"),
-    tone,
-    `the ${what} says ${JSON.stringify(text)} in the wrong tone`,
-  );
+  await inTheMood(world, locator, tone, what);
+};
+
+/** WHICH MOOD a line is in, on its own — for the rows whose text a step has
+ *  already asked about some other way, or does not know in advance.
+ *
+ *  ITS OWN FUNCTION rather than a `getAttribute` at each such step, which is
+ *  this file's whole reason: a mood asked two ways is a mood one of the two
+ *  eventually stops asking properly. Through `expectAttribute` (the suite's
+ *  own retrying read) rather than a bare read, because a line that has just
+ *  appeared is a line whose attributes are one render away. */
+export const inTheMood = async (
+  world: OlaiWorld,
+  locator: string,
+  tone: "alarm" | "aside",
+  what: string,
+): Promise<void> => {
+  await world.expectAttribute(locator, "data-tone", tone, what);
 };
 
 /** The other half: nothing is being said at all. Its own function because
  *  "gone" is not a selector — it is the absence of every locator a surface can
- *  say something through, waited for across the render that removes them. */
+ *  say something through, waited for across the render that removes them.
+ *
+ *  WAITED FOR is the half to choose by, and it is the difference between this
+ *  and `./counted.ts`'s `countsNothing`: this one is for a line that is on its
+ *  way out, and that one for a line that must not be there NOW — where waiting
+ *  would pass on a surface that said something and took it back a beat later. */
 export const saysNothing = async (
   world: OlaiWorld,
   locators: ReadonlyArray<string>,

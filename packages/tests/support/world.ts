@@ -473,6 +473,10 @@ export const PANE_TAB = selector(TESTID.paneTab);
  *  palette and the header box. One name, because it is one sentence about one
  *  grammar; where each door draws it is that door’s own business. */
 export const SEARCH_REFUSAL = selector(TESTID.searchRefusal);
+/** …and the same count line on the same two doors: "8 of 20 matches", or no
+ *  element at all when the door drew everything it found. Scoped by the step
+ *  to the door it means, since one name serves both. */
+export const SEARCH_COUNT = selector(TESTID.searchCount);
 /** The date picker, in place under the row it was opened on — from the pill
  *  above, or from the `•••` menu's `Set date…`. Its box is a native
  *  `<input type="date">`, so what it holds is the ten characters the record

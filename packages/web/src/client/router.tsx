@@ -67,8 +67,33 @@ export interface Router {
    * `at` is a FACT about where the reader is on that pane; landing is an
    * ACT, and it happens once, on arrival. Cleared on `popstate`. A first
    * paint counts as an arrival.
+   *
+   * Once, and {@link Router.landed} is where that word is kept — here,
+   * beside the minting, rather than in each surface that performs one.
    */
   readonly landing: () => Landing | undefined
+  /**
+   * SPEND this pane's landing: the act named by `{index, file, at}` has
+   * been performed, and must not be performed again.
+   *
+   * It is the router's rather than the performer's because the rule is
+   * about the VALUE and every surface that reads one is bound by it. Kept
+   * privately per surface it was one variable per face — the markdown face
+   * had one, the preview pane had none, and the pane with none re-landed
+   * its reader every time the file moved on disk.
+   *
+   * NAMING WHAT IS BEING SPENT — the pane, the page and the place — so a
+   * landing minted since is not spent by an act that was about the last
+   * one: an act is scheduled a frame ahead (both performers scroll on the
+   * next animation frame), and a navigation can arrive in between.
+   *
+   * STILL READABLE AFTERWARDS, which is the whole reason this is a mark
+   * rather than a clear. The `.html` preview builds the frame's own URL
+   * out of the slug, so a landing that vanished when it was spent would
+   * change that address and re-point the frame at the file for no reason
+   * anyone asked for — the very re-load this exists to stop.
+   */
+  readonly landed: (index: number, file: string, at: string) => void
   /** Navigate the focused pane (push). */
   readonly go: (route: Route) => void
   /** Navigate a named pane (push). */
@@ -88,7 +113,18 @@ export interface Router {
 
 export interface Landing {
   readonly index: number
+  /** WHICH PAGE the slug is a place inside. A pane is one address at a time
+   *  and this is the file that address names, so a face still drawn from the
+   *  page being LEFT — every navigation has a frame of both on screen — can
+   *  tell that the arrival it is being told about is not its own. Without it
+   *  a `.html` preview re-pointed its frame on its way out, at a section of
+   *  the page replacing it, which cost a fetch and a history entry: Back off
+   *  such a page took two presses. */
+  readonly file: string
   readonly at: string
+  /** Whether the act has been performed. A spent landing is a slug that is
+   *  still there to be read and no longer anything to do. */
+  readonly spent: boolean
 }
 
 /** What this app keeps on a history entry, which is a NAME for it and nothing
@@ -117,17 +153,17 @@ const nameHere = (): string => {
 const here = (): string =>
   location.pathname + location.search + location.hash
 
-/** Where inside a page an arrival LANDS — a heading's own slug, and nothing
- *  for an address that names a whole place. It is read off the address, which
- *  is the only thing that says it: a `#` after a body is a heading, and after
- *  an outline it is a node (`@olai/format`'s `address.ts`), so the grammar has
- *  already decided which of the two this is. */
-const landingIn = (route: Route): string | undefined =>
-  route.kind === "at" && route.address?.kind === "heading" ? route.address.slug : undefined
-
+/** Where inside a page an arrival LANDS — the page's own file and a heading's
+ *  own slug, and nothing for an address that names a whole place. It is read
+ *  off the address, which is the only thing that says it: a `#` after a body
+ *  is a heading, and after an outline it is a node (`@olai/format`'s
+ *  `address.ts`), so the grammar has already decided which of the two this is
+ *  — and a heading address carries the document it is a heading OF, so there
+ *  is nothing to look the file up in. */
 const landingOf = (index: number, route: Route): Landing | undefined => {
-  const at = landingIn(route)
-  return at === undefined ? undefined : { index, at }
+  const address = route.kind === "at" ? route.address : undefined
+  if (address?.kind !== "heading") return undefined
+  return { index, file: address.path, at: address.slug, spent: false }
 }
 
 export const createRouter = (): Router => {
@@ -183,6 +219,18 @@ export const createRouter = (): Router => {
     workspace,
     route: () => focusedRoute(workspace()),
     landing,
+    landed: (index, file, at) => {
+      const land = landing()
+      if (land === undefined || land.spent) return
+      // THE LANDING THIS ACT WAS ABOUT, or nothing: a navigation between the
+      // scheduling and the performing has minted a new one, and that one is
+      // owed its own arrival. Named by a performer that already knows whose
+      // landing it read — which looks like the check {@link useLanding} has
+      // already made and is not: that one asked whose it is NOW, and the gap
+      // between the two is exactly what this refuses.
+      if (land.index !== index || land.file !== file || land.at !== at) return
+      setLanding({ ...land, spent: true })
+    },
     go: (next) => goIn(workspace().focus, next),
     goIn,
     replace: (next) => replaceIn(workspace().focus, next),
@@ -258,29 +306,69 @@ export const useHere = (): (() => number) => {
 }
 
 /**
- * WHERE INSIDE THIS PANE'S PAGE the navigation was asked to land, or nothing —
+ * WHERE INSIDE THIS PANE'S PAGE the navigation was asked to land — read two
+ * ways, because the two questions a surface asks about a landing have
+ * different answers once it has been performed.
+ *
+ * {@link Landfall.at} is the FACT: the slug this pane's address named, spent
+ * or not. {@link Landfall.owed} is the ACT still to be done, and goes to
+ * nothing the moment it is. A surface that scrolls somebody reads `owed`; a
+ * surface that builds an address out of the slug reads `at` — which is the
+ * split this exists for, and the `.html` preview needs both.
+ */
+export interface Landfall {
+  /** The slug this pane's address named, or nothing. Unchanged by spending. */
+  readonly at: Accessor<string | undefined>
+  /** The same slug WHILE IT IS STILL AN ACT: what this pane owes its reader,
+   *  or nothing once the arrival has happened. */
+  readonly owed: Accessor<string | undefined>
+  /** Done: the reader has been taken to `at`. Named rather than implied,
+   *  because an act is performed a frame after it is decided on and the
+   *  landing it was about is the one it may spend ({@link Router.landed}). */
+  readonly landed: (at: string) => void
+}
+
+/**
  * {@link Router.landing} read for the pane the reader of it is drawn in.
  *
- * A MEMO, and that is the whole of what it adds over reading `landing()` and
+ * MEMOS, and that is the whole of what this adds over reading `landing()` and
  * comparing the index by hand. `landing` is ONE signal broadcast to every pane
- * and it is set on every push, with a fresh `{index, at}` each time — so a pane
- * that read it directly was notified by a navigation next door, every time, and
- * anything driven off that read ran again for an answer that had not moved. A
- * memo over a string is where that stops: the answer is a slug or nothing, and
- * `===` is the right comparison for both.
+ * and it is set on every push, with a fresh object each time — so a pane that
+ * read it directly was notified by a navigation next door, every time, and
+ * anything driven off that read ran again for an answer that had not moved.
+ * Memos over a string are where that stops: each answer is a slug or nothing,
+ * and `===` is the right comparison for both. Spending is the same story from
+ * the other side — it replaces the object, so `at` must not be read off it
+ * raw either, or the address a preview is pointed at would change the instant
+ * its landing was performed.
  *
- * `useHere`'s rule for WHICH pane, so a preview, a document's scroll and
- * anything else that lands somewhere cannot disagree about whose landing this
- * is (the disagreement two panes previewing two files would show as one being
- * yanked by the other's click — `reactivity-after-the-flip` §3.3).
+ * WHOSE LANDING THIS IS is asked in two halves, because a face is one FILE
+ * drawn in one PANE and either alone lets somebody else's arrival through.
+ * `useHere`'s rule answers the pane, so a preview, a document's scroll and
+ * anything else that lands somewhere cannot disagree about it (the
+ * disagreement two panes previewing two files would show as one being yanked
+ * by the other's click — `reactivity-after-the-flip` §3.3). The `file` this
+ * face draws answers the other, and the case it excludes is the pane's own
+ * PREVIOUS page: a navigation has both on screen for a frame, and the one on
+ * its way out was being told about the arrival of the one replacing it.
  */
-export const useLanding = (): Accessor<string | undefined> => {
+export const useLanding = (file: () => string): Landfall => {
   const router = useRouter()
   const here = useHere()
-  return createMemo(() => {
+  const mine = createMemo(() => {
     const land = router.landing()
-    return land !== undefined && land.index === here() ? land.at : undefined
+    return land !== undefined && land.index === here() && land.file === file()
+      ? land
+      : undefined
   })
+  return {
+    at: createMemo(() => mine()?.at),
+    owed: createMemo(() => {
+      const land = mine()
+      return land === undefined || land.spent ? undefined : land.at
+    }),
+    landed: (at) => router.landed(here(), file(), at),
+  }
 }
 
 /** Navigate the pane this component is in, or the focused pane when it is

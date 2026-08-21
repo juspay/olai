@@ -76,12 +76,15 @@ export const diffsOf = (
  *
  * String work rather than `node:path`: both sides are already absolute and
  * already normalised by whoever produced them, and the only question being
- * asked is whether one is under the other. The trailing-slash trim is the same
- * one the chat package does for a stored session's `cwd` — an agent keeps the
- * spelling it was handed.
+ * asked is whether one is under the other. Trailing slashes are counted off
+ * rather than `replace(/\/+$/, "")` — the same linear spelling the chat
+ * package uses for a stored session's `cwd`. An agent keeps the spelling it
+ * was handed, and that spelling is protocol input (`js/polynomial-redos`).
  */
 export const relativeTo = (cwd: string, path: string): string => {
-  const root = cwd.replace(/\/+$/, "")
+  let end = cwd.length
+  while (end > 0 && cwd.charAt(end - 1) === "/") end -= 1
+  const root = cwd.slice(0, end)
   if (root === "" || !path.startsWith(`${root}/`)) return path
   return path.slice(root.length + 1)
 }

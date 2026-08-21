@@ -97,6 +97,20 @@ Then(
   },
 );
 
+/** Any of the file's own words, wherever in it they are — what a step needs
+ *  when the claim is "the write reached the frame" and the write was a line
+ *  rather than a heading. */
+Then(
+  "the preview shows the text {string}",
+  async function (this: OlaiWorld, text: string) {
+    const frame = await inside(this);
+    await frame
+      .locator("body", { hasText: text })
+      .first()
+      .waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+  },
+);
+
 Then(
   "the preview says {string}",
   async function (this: OlaiWorld, text: string) {
@@ -844,20 +858,45 @@ Then("there is no preview on this page", async function (this: OlaiWorld) {
   );
 });
 
-/** WHERE IN ITS PAGE the frame is, as the frame's own `location.hash` — the
- *  half of "a link with a fragment is left to the frame" that a heading cannot
- *  say. Read inside the frame, because a fragment is not part of `baseURI` and
- *  nothing out here can see it. */
+/** WHERE IN ITS PAGE the frame is, as the frame's own `location.hash`. Read
+ *  INSIDE the frame, because a fragment is not part of `baseURI` and nothing
+ *  out here can see it — which is the fragile half, so it is written once and
+ *  both steps below ask it. */
+const hash = async (world: OlaiWorld): Promise<string> =>
+  (await inside(world)).locator("body").evaluate(() => location.hash);
+
+/** The frame is at the section its address named — the half of "a link with a
+ *  fragment is left to the frame" that a heading cannot say. */
 Then(
   "the preview is at the anchor {string}",
   async function (this: OlaiWorld, anchor: string) {
-    const frame = await inside(this);
     await this.waitUntil(
-      async () => (await frame.locator("body").evaluate(() => location.hash)) === anchor,
+      async () => (await hash(this)) === anchor,
       `the preview to be at ${anchor}`,
     );
   },
 );
+
+/** …and the other end of it: the frame's address carries NO fragment, which is
+ *  what a spent landing looks like from out here. A landing is an act that
+ *  happens once, so the pointing after it is the file at its own address and
+ *  nothing more — no fragment for the browser to scroll to, and therefore no
+ *  report for this window to follow. Read as a settled state rather than as a
+ *  snapshot: a re-pointing that WOULD carry the slug arrives a moment after the
+ *  revision does. */
+Then("the preview is at no anchor", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await hash(this)) === "",
+    "the preview to be at no anchor",
+  );
+  await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+  assert.strictEqual(
+    await hash(this),
+    "",
+    "the frame was re-pointed at the section a second time, which is a landing " +
+      "spent twice",
+  );
+});
 
 /** A modified click on something in the preview — the press a reader makes when
  *  they want the BROWSER's behaviour rather than this app's, which is the one
