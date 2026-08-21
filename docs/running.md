@@ -119,7 +119,7 @@ curl -X POST http://olai.your-tailnet.ts.net/capture \
  "why":"waiting to be committed: writes accumulate under --commit=manual (the default) until the Commit button asks for one"}
 ```
 
-**Four fields, and no target.** `title` is the row (required). `text` becomes the note. `url` goes under it as a link — a markdown autolink, so a scheme markdown would not have linked for itself still lands as a link. `props` are named facts the capture is born with, exactly `add_node`'s ([format.md](format.md#properties)). There is no way to say *where* — a capture lands at the top level of the inbox, and where it belongs is a decision you make in the app afterwards, which is what an inbox is for.
+**Four fields, and no target.** `title` is the row (required). `text` becomes the note. `url` goes under it as a link — a markdown autolink, so a scheme markdown would not have linked for itself still lands as a link; the characters a URI may not carry (`<`, `>`, a space) are percent-encoded on the way in, and everything else survives byte for byte, so an address you already encoded is not encoded twice. `props` are named facts the capture is born with, exactly `add_node`'s ([format.md](format.md#properties)). There is no way to say *where* — a capture lands at the top level of the inbox, and where it belongs is a decision you make in the app afterwards, which is what an inbox is for.
 
 **It lands in the inbox the directory has**, wherever you keep one, and mints `_olai/Inbox.olai` when there is none — the same convention `⌘K` `+` follows, resolved on the server against the same reading the write is judged on ([editing.md](editing.md#quick-capture)). It is the same write as everything else: the same validation, the same all-or-none rename, the same `--commit` mode. A refused capture leaves nothing behind, not even the inbox it would have minted.
 
@@ -145,24 +145,31 @@ None of these is a thing olai ships; each is a few lines somebody writes once.
 
 **Mail.app, via Raycast or a script (macOS).** The point of the mail case is that there is no mail infrastructure in it: AppleScript asks Mail for the selected message, and what olai keeps is the *pointer*. The message stays in Mail; the vault holds the link, your comment, and enough of the sender and subject to find it again.
 
-```applescript
-tell application "Mail"
-  set m to item 1 of (get selection)
-  set mid to message id of m
-  set subj to subject of m
-  set who to sender of m
-end tell
-```
+One script, because the AppleScript values have to reach the shell — `osascript` prints them, tab-separated, and `read` takes them apart:
 
 ```sh
-curl -X POST "$OLAI/capture" \
-  -H "Tailscale-User-Login: $USER_LOGIN" -H 'content-type: application/json' \
-  -d "$(jq -n --arg t "$subj" --arg c "$comment" --arg u "message://%3C$mid%3E" \
+#!/usr/bin/env bash
+set -euo pipefail
+OLAI=${OLAI:-http://olai.your-tailnet.ts.net}
+comment=${1:-}   # whatever you want to say about it; Raycast passes an argument
+
+IFS=$'\t' read -r mid subj who < <(osascript <<'APPLESCRIPT'
+tell application "Mail"
+  set m to item 1 of (get selection)
+  return (message id of m) & tab & (subject of m) & tab & (sender of m)
+end tell
+APPLESCRIPT
+)
+
+curl -fsS -X POST "$OLAI/capture" \
+  -H "Tailscale-User-Login: $(whoami)@example.com" \
+  -H 'content-type: application/json' \
+  -d "$(jq -n --arg t "$subj" --arg c "$comment" --arg u "message://<$mid>" \
            --arg f "$who" --arg m "$mid" \
            '{title:$t, text:$c, url:$u, props:{from:$f, "message-id":$m}}')"
 ```
 
-The `message://<Message-Id>` link **is** the attachment. Clicking it in olai opens Mail at that message: the router hands any address that is not one of this app's to the browser, and the browser hands an unknown scheme to the OS.
+The `message://<Message-Id>` link **is** the attachment. Write it exactly like that — a `Message-Id` is conventionally in angle brackets, and the endpoint percent-encodes the characters a URI may not carry before it puts the address in the note. Clicking it in olai opens Mail at that message: the router hands any address that is not one of this app's to the browser, and the browser hands an unknown scheme to the OS.
 
 Sending the `Message-Id` as a property is what makes de-duplication one query — `prop:message-id=<abc@mail>` before you POST, and you know whether you have captured this thread already ([search.md](search.md)).
 

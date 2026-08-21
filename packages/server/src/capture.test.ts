@@ -171,6 +171,80 @@ test(
   BOUND_MS,
 )
 
+/**
+ * THE ADDRESS SURVIVES BEING PUT IN A LINK — the review finding, as the case
+ * that produced it.
+ *
+ * A `Message-Id` is conventionally written in angle brackets, and the Mail
+ * recipe's own prose says `message://<Message-Id>`. Those are the characters a
+ * markdown autolink is DELIMITED by, so the pointer used to close the link at
+ * its first `<` — and what reached the page was not a broken link but a wrong
+ * one: the remains parsed as a GFM email autolink and drew
+ * `mailto:abc@mail.example`, a live link composing a new message to an address
+ * nobody has.
+ */
+test(
+  "an address a URI may not carry is encoded, and one already encoded is not",
+  inServed(async (url, root) => {
+    for (
+      const [sent, held] of [
+        // The spelling the docs use, and the bug.
+        ["message://<abc@mail.example>", "message://%3Cabc@mail.example%3E"],
+        // …and the spelling a careful client already writes, NOT encoded a
+        // second time: `%` is deliberately left alone.
+        ["message://%3Cabc@mail.example%3E", "message://%3Cabc@mail.example%3E"],
+        // A space is illegal in a URI too, and truncated the link before.
+        ["https://example.com/a b", "https://example.com/a%20b"],
+        // Everything legal survives byte for byte, so a client can compare what
+        // it sent with what came back.
+        ["https://example.com/a?x=1&y=2#z", "https://example.com/a?x=1&y=2#z"],
+      ] as const
+    ) {
+      expect((await capturing(url, { title: sent, url: sent })).status).toBe(201)
+      const written = recordsOf(setOf(outlinesIn(root)))
+        .map((one) => one.node)
+        .find((one) => !("mirror" in one) && one.title === sent)
+      const desc = written === undefined || "mirror" in written ? undefined : written.desc
+      expect([sent, desc]).toEqual([sent, `<${held}>`])
+    }
+  }),
+  BOUND_MS,
+)
+
+/**
+ * CONCURRENT FIRST CAPTURES all land — the second review finding, as the case
+ * that produced it.
+ *
+ * `captureInto` picks `create` for a directory with no inbox, and the ops layer
+ * re-plans the request it was handed rather than re-making that choice. So
+ * before the door resolved a second time, three simultaneous captures into a
+ * fresh directory answered 201, 400, 400 — and the two refusals told a `curl`
+ * client to use `add_node`, a tool it has no way to reach.
+ *
+ * SIX rather than two, because one loser proves less than a handful: the arm
+ * this exercises is the one taken by every request that read the set before the
+ * winner published.
+ */
+test(
+  "several captures at once into a directory with no inbox all land",
+  inServed(async (url, root) => {
+    const many = [1, 2, 3, 4, 5, 6]
+    const answered = await Promise.all(
+      many.map((n) => capturing(url, { title: `race ${n}` })),
+    )
+    expect(answered.map((one) => one.status)).toEqual(many.map(() => 201))
+    // …in ONE inbox, which is the other half: the file is minted once and every
+    // later capture is an `add` into it.
+    expect(Object.keys(outlinesIn(root)).sort()).toEqual(["_olai/Inbox.olai", "a.olai"])
+    expect(
+      recordsOf(setOf(outlinesIn(root)))
+        .map((one) => one.node)
+        .filter((one) => !("mirror" in one) && one.title.startsWith("race ")),
+    ).toHaveLength(many.length)
+  }),
+  BOUND_MS,
+)
+
 // ── the refusals ───────────────────────────────────────────────────────
 
 /**
@@ -249,6 +323,18 @@ test(
     const said = await refusal(answered)
     expect(said.kind).toBe("usage")
     expect(said.error).toContain(CAPTURED_BY)
+    expect(Object.keys(outlinesIn(root))).toEqual(["a.olai"])
+
+    // …and a key that is only the same key AFTER the planner trims it is the
+    // same refusal, which is the review finding: an exact comparison answered
+    // `201` here and then dropped the client's value on the merge, which is
+    // "recorded exactly as sent" for a capture that was not.
+    const padded = await capturing(url, {
+      title: "x",
+      props: { [`${CAPTURED_BY} `]: "someone@else" },
+    })
+    expect(padded.status).toBe(400)
+    expect((await refusal(padded)).error).toContain(CAPTURED_BY)
     expect(Object.keys(outlinesIn(root))).toEqual(["a.olai"])
   }),
   BOUND_MS,

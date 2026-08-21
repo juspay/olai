@@ -88,6 +88,7 @@ import {
   type FailureKind,
   kindOf,
   type OpFailure,
+  type Reading,
   stampOf,
   UsageFailure,
   type Writer,
@@ -177,17 +178,55 @@ const decode = Schema.decodeUnknownResult(Posted, {
  * names no scheme at all: `@olai/web`'s `markdown/render.test.ts` renders the
  * exact spelling written here and asserts the anchor survives the sanitiser
  * (whose allowlist is `markdown/sanitise.ts`, the file that DOES name the
- * scheme). Nothing here escapes anything — a `desc` is stored as it is given
- * and rendered at view time through the one sanitised pipeline every other note
- * goes through.
+ * scheme).
+ *
+ * …and the address is made SAFE TO PUT IN ONE first ({@link linkable}), which
+ * is the half this door cannot skip: an autolink is delimited by `<` and `>`,
+ * and a `Message-Id` is conventionally written inside exactly those.
  */
 const noteOf = (posted: Posted): string | undefined => {
   const said = [
     posted.text,
-    posted.url === undefined || posted.url === "" ? undefined : `<${posted.url}>`,
+    posted.url === undefined || posted.url === "" ? undefined : `<${linkable(posted.url)}>`,
   ].filter((part): part is string => part !== undefined && part !== "")
   return said.length === 0 ? undefined : said.join("\n\n")
 }
+
+/**
+ * An address a caller sent, as a URI a markdown autolink can hold.
+ *
+ * THE BUG THIS EXISTS FOR, found in review and reproduced against the real
+ * renderer: `message://<abc@mail.example>` — the spelling the Mail recipe's own
+ * prose uses, since a `Message-Id` is written in angle brackets — closes the
+ * autolink at the first `<`. What reached the page was not a broken link but a
+ * WORSE one: the remains parsed as a GFM email autolink, so a reader was handed
+ * `mailto:abc@mail.example`, a live link composing a new message to an address
+ * nobody has. A pointer that silently becomes a different pointer is the one
+ * failure this feature cannot have.
+ *
+ * WHAT IT ENCODES is exactly the characters a URI may not carry at all —
+ * `<`, `>`, space, and the C0 controls (RFC 3986) — and nothing else. That
+ * narrowness is the whole design:
+ *
+ *   - it is a CORRECTION rather than a rewrite. Those characters are illegal in
+ *     a URI, so a caller that sent one meant the encoded form; every character
+ *     that is legal survives byte for byte, which is what lets a client compare
+ *     what it sent with what came back.
+ *   - `%` is deliberately NOT encoded, so an address a careful client already
+ *     percent-encoded (the `curl` recipe in docs/running.md) is not
+ *     double-encoded into a different address.
+ *
+ * It is not validation and does not pretend to be: this door takes the address
+ * a client gives it, and what a scheme MEANS is the reader's business (a
+ * `message:` opens Mail, an `https:` opens a page, and one the sanitiser does
+ * not admit is drawn as text). What it guarantees is narrower and is the whole
+ * of what the note needs — that the address survives being written into one.
+ */
+const linkable = (url: string): string =>
+  url.replace(
+    /[<>\u0020\u0000-\u001F\u007F]/g,
+    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}`,
+  )
 
 /**
  * The capture, as the ops layer takes one — or the refusal that it is not one.
@@ -204,13 +243,20 @@ const noteOf = (posted: Posted): string | undefined => {
  * was read and nothing was written. That is also what puts it on the same
  * answer, in the same shape and with the same word, as every refusal the ops
  * layer makes — rather than in a sentence of this door's own.
+ *
+ * THE KEYS ARE COMPARED TRIMMED, and that is not tidiness: the write planner
+ * TRIMS a property key before it writes it (`@olai/ops`' `plan.ts`), so
+ * `"captured-by "` is the same key by the time it reaches the file. An exact
+ * comparison here answered `201` to that and then dropped the client's value
+ * on the merge below — which is the "recorded exactly as sent when it was not"
+ * outcome this whole function exists to have refused. Found in review.
  */
 const captureOf = (
   posted: Posted,
   login: string,
   at: Date,
 ): Result.Result<Capturing, OpFailure> => {
-  if (posted.props !== undefined && Object.hasOwn(posted.props, CAPTURED_BY)) {
+  if (Object.keys(posted.props ?? {}).some((key) => key.trim() === CAPTURED_BY)) {
     return Result.fail(
       new UsageFailure({
         reason: `\`${CAPTURED_BY}\` is written from the ${IDENTITY_HEADER} header and ` +
@@ -373,14 +419,77 @@ export const captureRoute = (
     HttpRouter.add("GET", CAPTURE_PATH, WRONG_METHOD),
   )
 
-/** Read the set, resolve where a capture lands against THAT reading, write it
- *  under the writer this door was composed as. The three lines the door is for,
- *  and the only place this file touches the ops layer. */
+/**
+ * Read the set, resolve where a capture lands against THAT reading, write it
+ * under the writer this door was composed as — and resolve AGAIN if the answer
+ * stopped being true while the write was on its way.
+ *
+ * ## Why the second attempt exists
+ *
+ * {@link captureInto} picks between two ops that are not interchangeable — a
+ * `create` for a directory with no inbox, an `add` for one that has it — and it
+ * picks against a reading. The ops layer re-plans the REQUEST it was handed
+ * when the store moves under it, which is right for every op that names a node;
+ * it cannot re-make a CHOICE it did not make. So two captures into a vault that
+ * has never captured both resolve `create`, one lands, and the other is refused
+ * naming a file that now exists (found in review, and reproduced: three
+ * simultaneous captures into a fresh directory answered 201, 400, 400).
+ *
+ * That refusal is not an answer to the CALLER. It is this door's own resolution
+ * having gone stale between the read and the plan, which is exactly what the
+ * gate's own `StaleWrite` is one layer down — and that one is retried in
+ * silence rather than reported. So this does the same thing at the layer that
+ * made the choice: read again, resolve again, once.
+ *
+ * ONCE, and not a loop. The second reading either holds the inbox — in which
+ * case the answer is an `add` and no third attempt can be needed — or the
+ * directory really has no inbox and the `create` is the honest request. There
+ * is no state this can spin on, so a bounded retry is a fact about the problem
+ * rather than a number somebody picked.
+ *
+ * ## What it does NOT close
+ *
+ * The palette's `⌘K` `+` and the sidebar's pin resolve the same shape through
+ * `./edit.ts` and have the same race between two tabs. Closing it there means
+ * either a `capture` verb in the ops layer's closed table or a write gate that
+ * re-resolves rather than re-plans, and both are a decision about what an agent
+ * may do — the human's to rule, and named in this PR's report rather than
+ * invented here. What is fixed is the door that made it reachable: this one is
+ * built for scripts, and a script fanning out its first few captures is the
+ * case that actually happens.
+ */
 const capture = (
   options: Options,
   what: Capturing,
 ): Effect.Effect<Applied, OpFailure> =>
-  Effect.flatMap(
-    options.ops.read,
-    (at) => options.ops.run(captureInto(at, what), options.writer),
-  )
+  Effect.flatMap(options.ops.read, (at) =>
+    Effect.catchIf(
+      options.ops.run(captureInto(at, what), options.writer),
+      (failure) => resolvedStale(at, failure),
+      () =>
+        Effect.flatMap(options.ops.read, (now) =>
+          options.ops.run(captureInto(now, what), options.writer)),
+    ))
+
+/**
+ * Whether a refusal is THIS DOOR'S CHOICE having gone stale rather than
+ * anything about the capture.
+ *
+ * Narrow on purpose, and narrow in the one way that matters: it fires only
+ * where the resolution picked `create`, which is the only arm a concurrent
+ * capture can invalidate. An `add` into an inbox that exists cannot be
+ * overtaken — nothing in this app deletes an outline — so a refusal on that arm
+ * is a real answer and is passed straight back.
+ *
+ * It does not read the refusal's WORDS. A sentence is the ops layer's to write
+ * and to reword, and a door keyed on one would go quiet the day it improved.
+ * What is read is the shape of the request this door sent, which is this file's
+ * own.
+ */
+const resolvedStale = (at: Reading, failure: OpFailure): boolean =>
+  failure._tag === "UsageFailure" && captureInto(at, EMPTY).op === "create"
+
+/** A capture with nothing in it, for asking {@link captureInto} WHICH ARM it
+ *  would take without composing a second capture to ask with. The fields play
+ *  no part in that answer — only the set does. */
+const EMPTY: Capturing = { title: "" }
