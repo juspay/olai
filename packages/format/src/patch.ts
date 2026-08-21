@@ -62,8 +62,8 @@ import {
   type Naming,
   byDayKey,
   nodeNamed,
+  parentInto,
   tagInto,
-  writtenTags,
 } from "./derive.ts"
 import {
   isMirror,
@@ -71,7 +71,6 @@ import {
   type LocatedRegular,
   type Status,
   storedMarker,
-  targetsOf,
 } from "./node.ts"
 import { type Dated, dateInto } from "./occasion.ts"
 import { overlaid } from "./overlay.ts"
@@ -235,13 +234,16 @@ interface Edit {
  * had been written out five times before the sixth arrived, which is the count
  * the house rule said would force this (`docs/roadmap/`).
  *
- * WHAT THE FOUR STILL SAY FOR THEMSELVES is what ARRIVED and what LEFT. The
- * fold that files a record into an index is `derive`'s ({@link nameInto},
- * {@link tagInto}, {@link dateInto}) and it stays at the call site, so the
- * patcher goes on running the same fold the rebuild does rather than a second
- * reading of it; which keys the departing records held is the same rule asked
- * backwards, and it is spelled in the same one function per index. What is
- * factored out here is the RE-FILING, which is the part that was identical.
+ * WHAT EACH INDEX STILL SAYS FOR ITSELF IS ITS FOLD, and it says it ONCE.
+ * `derive` owns what a record files into an index — {@link parentInto},
+ * {@link nameInto}, {@link tagInto}, {@link dateInto} — and this asks that one
+ * function of BOTH SIDES of the edit: over what arrived to get the members, and
+ * over what left to get the keys they held. So the patcher runs the rebuild's
+ * own rule rather than a second reading of it, in the direction where a second
+ * reading is easiest to write and hardest to see ({@link ./occasion.ts}'s
+ * `dateInto` makes that argument for the index that first needed it). A caller
+ * hands over one fold, not a pair of them free to disagree about which keys
+ * this edit could have moved.
  *
  * THE ENTRY IS PROJECTED BACK OUT to a {@link Located} rather than required to
  * be one: three of the four hold a record and one holds a naming beside the
@@ -272,15 +274,15 @@ interface Refiled<T> {
   readonly headMoved: boolean
 }
 
-const refiled = <T>(
+const refiled = <T, Filed extends T = T>(
   edit: Edit,
   before: ReadonlyMap<string, ReadonlyArray<T>>,
   filing: {
-    /** What the ARRIVING records filed, through the index's own fold. */
-    readonly arriving: ReadonlyMap<string, ReadonlyArray<T>>
-    /** The keys the DEPARTING records held. Every other key of this index is
-     *  one no record the delta named could have moved. */
-    readonly departing: Iterable<string>
+    /** What a record puts in this index — `derive`'s own fold, run here over
+     *  both sides of the edit. `Filed` is what it files, which is the entry
+     *  while it is still being built ({@link Filing} against {@link Naming})
+     *  where an index has two spellings of one shape. */
+    readonly into: (filed: Map<string, Array<Filed>>, at: Located) => void
     /** Where an entry IS — the file its survival is judged by, and the place it
      *  is ordered on. */
     readonly at: (one: T) => Located
@@ -289,9 +291,18 @@ const refiled = <T>(
     readonly order?: (one: Located, other: Located) => number
   },
 ): Refiled<T> => {
-  const { arriving, departing, at, order = byCorpus } = filing
+  const { into, at, order = byCorpus } = filing
+  const arriving = new Map<string, Array<Filed>>()
+  for (const one of edit.incoming) into(arriving, one)
+  // The DEPARTING side is run through the same fold for its KEYS, and the
+  // entries it files are thrown away: what a record puts in an index is one
+  // rule, and a second spelling of it here to collect keys from would be
+  // exactly the drift the folds are factored out to stop.
+  const departing = new Map<string, Array<Filed>>()
+  for (const one of edit.outgoing) into(departing, one)
+
   const keys = new Set<string>(arriving.keys())
-  for (const key of departing) keys.add(key)
+  for (const key of departing.keys()) keys.add(key)
   if (keys.size === 0) return { map: before, rekeyed: false, headMoved: false }
 
   /** Where a key's members START, which is where the key itself sits in a map
@@ -334,22 +345,12 @@ const refiled = <T>(
  */
 const containment = (
   edit: Edit,
-): ReadonlyMap<string, ReadonlyArray<Located>> => {
-  const arriving = Map.groupBy(
-    edit.incoming.filter((at) => at.node.parent !== undefined),
-    (at) => at.node.parent as string,
-  )
-  const departing = new Set<string>()
-  for (const at of edit.outgoing) {
-    if (at.node.parent !== undefined) departing.add(at.node.parent)
-  }
-  return refiled(edit, edit.before.children, {
-    arriving,
-    departing,
+): ReadonlyMap<string, ReadonlyArray<Located>> =>
+  refiled(edit, edit.before.children, {
+    into: parentInto,
     at: (one) => one,
     order: bySibling,
   }).map
-}
 
 /** The delta applied to the grouping, and the flat list that falls out of it —
  *  the one part of the answer that is the same whether this is patched or
@@ -505,14 +506,8 @@ const namings = (
   edit: Edit,
   nodes: ReadonlyArray<Located>,
 ): ReadonlyMap<string, ReadonlyArray<Naming>> => {
-  const arriving = new Map<string, Array<Filing>>()
-  for (const at of edit.incoming) nameInto(arriving, at)
-  const departing = new Set<string>()
-  for (const at of edit.outgoing) for (const [, target] of targetsOf(at.node)) departing.add(target)
-
-  const { map, headMoved } = refiled<Naming>(edit, edit.before.namedBy, {
-    arriving,
-    departing,
+  const { map, headMoved } = refiled<Naming, Filing>(edit, edit.before.namedBy, {
+    into: nameInto,
     at: (naming) => naming.at,
   })
   // A key that MOVED — including one that appeared and one that went away,
@@ -540,24 +535,17 @@ const namings = (
  * write, or one the departing records wrote — because a record in a file the
  * delta never named cannot have changed its prose.
  */
-const taggings = (edit: Edit): ReadonlyMap<string, ReadonlyArray<LocatedRegular>> => {
-  const arriving = new Map<string, Array<LocatedRegular>>()
-  for (const at of edit.incoming) tagInto(arriving, at)
-  const departing = new Set<string>()
-  for (const at of edit.outgoing) for (const tag of writtenTags(at.node)) departing.add(tag)
-
+const taggings = (edit: Edit): ReadonlyMap<string, ReadonlyArray<LocatedRegular>> =>
   // NOTHING WROTE A TAG, and {@link refiled} is where that is answered: with no
   // key on either side the map that stood IS the answer and no clone is paid at
   // all. It fires on a file whose records tag nothing — rarer since this index
   // gained `#`, which is the sigil people actually write, and the reason the
   // clone's cost is a number this branch had to measure rather than assume
   // ({@link ./patch.bench.ts}).
-  return refiled(edit, edit.before.taggedBy, {
-    arriving,
-    departing,
+  refiled(edit, edit.before.taggedBy, {
+    into: tagInto,
     at: (one) => one,
   }).map
-}
 
 /**
  * What lands on what day — {@link Derived.byDay} carried across the edit.
@@ -574,25 +562,20 @@ const taggings = (edit: Edit): ReadonlyMap<string, ReadonlyArray<LocatedRegular>
  * land on, or one the departing records were on — because a record in a file the
  * delta never named cannot have changed its dates.
  *
- * BOTH SIDES GO THROUGH {@link dateInto}, including the departing one whose
- * entries are thrown away: what a record puts on a day is one rule (a mirror
- * files nothing, what was put away files nothing, two fields and not three), and
- * a second spelling of it here to collect keys from would be exactly the drift
- * the fold is factored out to stop.
+ * BOTH SIDES GO THROUGH {@link dateInto} — {@link refiled} runs it over what
+ * arrived and over what left — and this is the index whose fold made that the
+ * rule for all four: what a record puts on a day is ONE rule (a mirror files
+ * nothing, what was put away files nothing, two fields and not three), and a
+ * second spelling of it to collect keys from would be exactly the drift the
+ * fold is factored out to stop.
  */
 const dating = (edit: Edit): ReadonlyMap<string, ReadonlyArray<Dated>> => {
-  const arriving = new Map<string, Array<Dated>>()
-  for (const at of edit.incoming) dateInto(arriving, at)
-  const departing = new Map<string, Array<Dated>>()
-  for (const at of edit.outgoing) dateInto(departing, at)
-
   // NOTHING ON EITHER SIDE CARRIED A DATE, and {@link refiled} answers that the
   // same way it does next door: the map that stood IS the answer and no clone
   // is paid at all — a keystroke in an outline nobody scheduled anything in,
   // which is most outlines.
   const { map, rekeyed } = refiled(edit, edit.before.byDay, {
-    arriving,
-    departing: departing.keys(),
+    into: dateInto,
     at: (one) => one.at,
   })
   // Whether the KEYS moved is the only thing that costs the sort. A day that
