@@ -1000,10 +1000,10 @@ export const TESTID = {
   searchRow: "search-row",
   /** The link a row is: Enter or a click goes to that node's page. */
   searchRowLink: "search-row-link",
-  /** The third line of a row the query selected ON A PROPERTY — the matched key
-   *  first, in the reading ink. Absent otherwise, which is most rows.
+  /** One `key value` pair on the third line of a row the query selected ON A
+   *  PROPERTY — the matched key first, in the reading ink, and nothing at all
+   *  on the rows a `prop:` clause did not select, which is most of them.
    *  `data-key` names the key, `data-matched` says it is the reason. */
-  searchRowProps: "search-row-props",
   searchRowProp: "search-row-prop",
   /** The block under the groups — the other half of the directory. */
   searchDocuments: "search-documents",
