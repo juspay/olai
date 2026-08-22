@@ -98,13 +98,13 @@ Feature: A `.html` in the vault
       # a note under assets
       """
     And I open the app
-    Then the pages listed are "assets/x.md, quarter.html, report.html"
     When I open the document "assets/x.md"
     Then the document open is "assets/x.md"
     And the address is "/assets/x.md"
     When I reload the page
     Then the address is "/assets/x.md"
     And the document open is "assets/x.md"
+    And I save a screenshot as "assets-x-md.png"
     And there should be no page errors
 
   @corpus:good

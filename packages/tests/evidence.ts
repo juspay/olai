@@ -868,12 +868,17 @@ const SECTIONS = {
 
     const browser = page.context().browser()
     if (browser === null) throw new Error("the page has no browser")
+    // extraHTTPHeaders does not ride the websocket upgrade; a reverse
+    // proxy does. Same door the e2e identity scenarios use.
+    const { listenHeaderProxy } = await import("./support/headerProxy.ts")
+    const proxy = await listenHeaderProxy(BASE, () => ({
+      "Tailscale-User-Login": "ada@example.com",
+    }))
     const signed = await browser.newContext({
-      extraHTTPHeaders: { "Tailscale-User-Login": "ada@example.com" },
       viewport: { width: WIDE, height: 720 },
     })
     const tab = await signed.newPage()
-    await tab.goto(`${BASE}/house.olai`)
+    await tab.goto(`${proxy.url}/house.olai`)
     await tab.locator('[data-testid="identity"][data-who="yes"]').waitFor()
     const picture = tab.locator('[data-testid="identity"] img')
     await picture.waitFor()
@@ -887,6 +892,7 @@ const SECTIONS = {
     await picture.waitFor()
     await headerShot(tab, "signed-in-pitch")
     await signed.close()
+    await proxy.close()
   },
 
   /**

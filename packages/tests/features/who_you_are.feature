@@ -58,3 +58,4 @@ Feature: The header shows who you are
     When I open the app
     Then the header shows the identity "ada@example.com"
     And nothing fetched "/olai/who"
+    And I save a screenshot as "identity-chip.png"
