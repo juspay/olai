@@ -633,7 +633,8 @@ export const bind = (
          * HOW FULL THE INBOX IS, recomputed per published revision — the
          * shelf's twin, one integer over. The door that wears the number
          * already knows which file the inbox is (the paths); this is how
-         * many of those captures still await processing.
+         * many of those captures still await processing (a finished
+         * branch does not).
          *
          * A store that has never published has none rather than an unknown
          * count: the chip hides at zero, which is what a directory with no
