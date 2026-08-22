@@ -224,8 +224,8 @@ export const ROOT = "#root";
  *  already reads this module and a second copy of the three words is a second
  *  place for the tag pattern and the field to disagree. */
 export type GitMode = "repo" | "none" | "broken";
-/** The app header: wordmark + connection + git + agent + preferences. Always on
- *  screen. */
+/** The app header: wordmark + chrome (search, connection, git, agent,
+ *  preferences, who is looking). Always on screen. */
 export const APP_HEADER = selector(TESTID.appHeader);
 /** The `olai` wordmark in that bar. A TAG rather than a test id: it is the
  *  app's name and the bar's one heading, and markup that exists only to be read
@@ -742,6 +742,8 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   TESTID.commitPill,
   TESTID.chatToggle,
   TESTID.prefsTrigger,
+  // Who is looking, last — an icon about the request, not about git.
+  TESTID.identity,
 ];
 
 /** The attribute that readout carried. Kept as a selector so the fence catches

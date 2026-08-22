@@ -11,6 +11,7 @@
 
 import * as assert from "node:assert";
 import { Given, Then } from "@cucumber/cucumber";
+import type { Locator } from "playwright";
 
 import { gravatarOf } from "@olai/identity";
 import { WHO_PATH } from "@olai/surface";
@@ -38,6 +39,16 @@ Given("asking who you are will fail", async function (this: OlaiWorld) {
   );
 });
 
+/** The chip is an icon; the words live on `aria-label` (and the hover
+ *  tip, which is a portal). A labelled pill would put them in the slot. */
+async function iconOnly(slot: Locator) {
+  assert.equal(
+    (await slot.innerText()).trim(),
+    "",
+    "who is looking put words on the chip; they belong in the tooltip",
+  );
+}
+
 Then(
   "the header identity could not be asked",
   async function (this: OlaiWorld) {
@@ -52,6 +63,12 @@ Then(
     assert.equal(
       await slot.locator("[aria-label]").getAttribute("aria-label"),
       "could not tell who is looking",
+    );
+    await iconOnly(slot);
+    assert.equal(
+      await slot.locator("svg").count(),
+      1,
+      "a failed door drew no icon",
     );
     assert.equal(
       await slot.locator("img").count(),
@@ -76,6 +93,12 @@ Then("the header shows anonymous", async function (this: OlaiWorld) {
     "anonymous",
     "anonymous must be a spoken face, not an empty slot",
   );
+  await iconOnly(slot);
+  assert.equal(
+    await slot.locator("svg").count(),
+    1,
+    "anonymous drew no icon",
+  );
   assert.equal(
     await slot.locator("img").count(),
     0,
@@ -90,6 +113,12 @@ Then(
     await slot.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
     await this.expectAttribute(IDENTITY, "data-who", "yes", "the identity chip");
     await this.expectAttribute(IDENTITY, "data-login", login, "the identity chip");
+    assert.equal(
+      await slot.locator("[aria-label]").getAttribute("aria-label"),
+      login,
+      "the login is the tooltip, not a label on the chip",
+    );
+    await iconOnly(slot);
     const img = slot.locator("img");
     await img.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
