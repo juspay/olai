@@ -1440,6 +1440,14 @@ export class OlaiWorld extends World {
    *  same reason as `gitMode`: a restart has to reproduce the first boot, and
    *  this decides what every browser's preferences panel is allowed to do. */
   gitPin: { commit?: string; push?: string } = {};
+  /** The avatar URL template this scenario's server was started with
+   *  (`@avatar-template`), or `undefined` for the ordinary server, which has
+   *  none and pictures people from the rungs below it. Carried for the same
+   *  reason as `gitPin`: a restart has to reproduce the first boot, and a
+   *  server that came back without its template would picture the open page's
+   *  person differently — a different server rather than the same one
+   *  restarted. */
+  avatarTemplate?: string;
   /** The URL that corpus's server answers on; also the context's `baseURL`. */
   baseUrl!: string;
 

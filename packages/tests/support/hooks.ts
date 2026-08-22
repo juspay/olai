@@ -717,6 +717,11 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       // back unpinned would hand the open page its preferences back, which is a
       // different server rather than the same one restarted.
       ...(Object.keys(world.gitPin).length === 0 ? {} : { pin: world.gitPin }),
+      // ... and the same avatar template, on the same sentence: a restart that
+      // came back without it would draw the open page's person off a lower rung.
+      ...(world.avatarTemplate === undefined
+        ? {}
+        : { avatar: world.avatarTemplate }),
     },
   );
   if (started.baseUrl !== world.baseUrl) {
@@ -1008,9 +1013,14 @@ Before(
       (tag) => tag.name === NO_AGENT_TAG,
     );
     this.hasKolu = scenario.pickle.tags.some((tag) => tag.name === KOLU_TAG);
-    const templated = scenario.pickle.tags.some(
+    // On the world rather than in a local, because a restart mid-scenario has
+    // to reproduce this boot (`startOwnServer`).
+    this.avatarTemplate = scenario.pickle.tags.some(
       (tag) => tag.name === AVATAR_TAG,
-    );
+    )
+      ? AVATAR_TEMPLATE
+      : undefined;
+    const templated = this.avatarTemplate !== undefined;
     this.gitMode = scenario.pickle.tags.flatMap((tag) => {
       const asked = GIT_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1] as GitMode];
@@ -1070,7 +1080,9 @@ Before(
         stored: this.storedSessions,
         agent: this.hasAgent,
         kolu: this.hasKolu,
-        ...(templated ? { avatar: AVATAR_TEMPLATE } : {}),
+        ...(this.avatarTemplate === undefined
+          ? {}
+          : { avatar: this.avatarTemplate }),
         ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
         ...(pinned ? { pin: this.gitPin } : {}),
       };

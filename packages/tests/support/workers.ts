@@ -130,8 +130,20 @@ export const isolateEnv = (
   const state = path.join(stateRoot, "state");
   fs.mkdirSync(cache, { recursive: true });
   fs.mkdirSync(state, { recursive: true });
+  // The identity family is taken off the HOST's copy, before the spawn's own
+  // extras go on: a developer whose shell exports the documented avatar
+  // template (`OLAI_IDENTITY_AVATAR_TEMPLATE='https://github.com/{login}.png'`)
+  // would otherwise hand it to EVERY spawned server, and the scenario that
+  // says a login with nothing behind it draws the silhouette would draw a
+  // GitHub avatar instead. What a server under test trusts, and pictures
+  // people with, is the scenario's (`@avatar-template`, and the headers a
+  // step injects) — never the laptop's.
+  const host: NodeJS.ProcessEnv = { ...process.env };
+  for (const key of Object.keys(host)) {
+    if (key.startsWith("OLAI_IDENTITY_")) delete host[key];
+  }
   const env: NodeJS.ProcessEnv = {
-    ...process.env,
+    ...host,
     ...extras,
     XDG_CACHE_HOME: cache,
     XDG_STATE_HOME: state,
