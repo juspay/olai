@@ -68,9 +68,13 @@
          https, plus this vault and a blob: the chat's own thumbnails
          already are. It is still a policy, not a hole: http:, data: and
          every other scheme are refused, and the src itself can only ever be
-         what GET /olai/who answered (who/policy.test.ts). Sealed /media
-         pages carry a stricter policy on the RESPONSE and do not inherit
-         this. img-src alone, so the inline theme script below is untouched. -->
+         what GET /olai/who answered (who/policy.test.ts). What a DOCUMENT
+         may draw is a different rule in a different place and did not move
+         with this one: markdown/render.ts refuses a remote <img> outright,
+         so no note can tell a third party what someone is reading whatever
+         this line says. Sealed /media pages carry a stricter policy on the
+         RESPONSE and do not inherit this. img-src alone, so the inline
+         theme script below is untouched. -->
     <meta
       http-equiv="Content-Security-Policy"
       content="img-src 'self' blob: https:"

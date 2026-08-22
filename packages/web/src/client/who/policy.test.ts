@@ -17,6 +17,11 @@
  * inline theme script in this same file would be the first casualty.
  * Sealed `/media` pages carry a stricter policy on the RESPONSE and do not
  * inherit this.
+ *
+ * What a DOCUMENT may draw is not this line's business and did not move:
+ * `markdown/render.ts` refuses a remote `<img>` outright — a note cannot
+ * tell a third party what someone is reading whatever `img-src` says — and
+ * its own tests hold that.
  */
 
 import { expect, test } from "bun:test"
