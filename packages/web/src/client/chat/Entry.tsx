@@ -46,6 +46,8 @@
  * gap now, because the list is what has rows to put gaps between.
  */
 
+import { SAYING_MS } from "@olai/surface"
+
 import type { ChatEntry, Delivery } from "@olai/surface"
 import { createScheduled, throttle } from "@solid-primitives/scheduled"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
@@ -65,8 +67,16 @@ import type { Chat } from "./state.ts"
 import { ToolFrame } from "./ToolFrame.tsx"
 
 /** How often a growing answer may be re-rendered. Fast enough that it reads as
- *  live, slow enough that the cost is the clock's rather than the agent's. */
-const FRAME_MS = 120
+ *  live, slow enough that the cost is the clock's rather than the agent's.
+ *
+ *  THE WIRE'S OWN NUMBER, not one of this component's. The server publishes a
+ *  growing row's pieces on exactly this clock (`@olai/surface`'s `SAYING_MS`),
+ *  so a second number here would be either a re-render per frame with a
+ *  throttle that never bites, or a throttle a beat out of step with the frames
+ *  it is throttling — a cadence decided twice for one thing that happens once.
+ *  What this still buys where they agree is the burst: frames that arrive
+ *  together after a stall re-render once. */
+const FRAME_MS = SAYING_MS
 
 /**
  * WHAT A FATE LOOKS LIKE — the whole of it, per fate, in one row.
@@ -125,7 +135,13 @@ export function Entry(props: {
   readonly entry: ChatEntry
   readonly chat: Chat
 }) {
-  const due = createScheduled((run) => throttle(run, FRAME_MS))
+  /** ONLY FOR A ROW THAT CAN STREAM — off the same `kind` the asker below is
+   *  read off, and for its reason: `kind` never changes for an entry, and a
+   *  scheduler per row would leave every user message and every tool frame of
+   *  a long transcript holding a timer over text that cannot move. */
+  const due = props.entry.kind === "agent"
+    ? createScheduled((run) => throttle(run, FRAME_MS))
+    : undefined
   /** What the SET says about the ids this message names — a question now,
    *  asked once per message ({@link ./declared.ts}).
    *
@@ -144,7 +160,10 @@ export function Entry(props: {
   const shown = createMemo((previous: string = "") => {
     const text = props.entry.text
     if (props.entry.kind !== "agent" || props.entry.streaming !== true) return text
-    return due() ? text : previous
+    // `due` is present for exactly the kind this line has already narrowed to,
+    // which the type cannot see: the two are read off one `kind` that never
+    // changes for an entry.
+    return due === undefined || due() ? text : previous
   })
   /** The matching arm, or nothing. One idiom for every kind: Solid's `<Match>`
    *  then hands the narrowed row to the child, so a kind-specific field is

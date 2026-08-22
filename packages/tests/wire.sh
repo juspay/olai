@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 # Measure one session against a WORKTREE's own server — see wire.ts for which
-# three sessions there are and what each is asking.
+# four sessions there are and what each is asking.
 #
 #   ROOT=/path/to/a/worktree LABEL=before bash wire.sh
 #   SESSION=pages ROOT=… LABEL=…    # the reading session, not the preview one
 #   SESSION=filter ROOT=… LABEL=…   # the narrowed-page session (calls, not bytes)
+#   AGENT=$PWD/agent/fake-acp-agent.ts SESSION=chat ROOT=… LABEL=…
+#                             # one chat turn: bytes AND frames. The only
+#                             # session that needs an agent — serve.sh wires
+#                             # AGENT through as the server OLAI_ACP_AGENT,
+#                             # and without it the panel has nobody to send to.
+#   DELAY=125 …               # put that many ms in front of the server, each
+#                             # way, so a round trip costs twice it (delay.ts).
+#                             # The stop-and-wait half of
+#                             # transcript-stream-quadratic is invisible without
+#                             # it: on loopback a round trip is free.
 #   PORT=7802 …               # pin a port (optional; the default asks the OS)
 #
 # Expects to be run from packages/tests, inside `nix develop .#e2e`, with the
