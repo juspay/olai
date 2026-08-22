@@ -22,10 +22,11 @@
     "ts-pattern": "^5.9.0",
     "ws": "^8.21.0"
   },
-  "//overrides": "One effect instance, always. A transitive bump must not be able to smuggle in a second copy: Effect's error narrowing is `_tag`-structural precisely because two module instances would otherwise stop recognising each other's classes — and `instanceof`, Context keys and Schema identity do not even have that fallback. The @effect/platform-* packages carry tagged errors and Context tags of their own, so they are pinned beside it. Versions come from the pinned kolu and are checked by scripts/check-kolu-deps.sh; re-pinning kolu means re-running `just check` and moving whatever it names.",
+  "//overrides": "One effect instance, always. A transitive bump must not be able to smuggle in a second copy: Effect's error narrowing is `_tag`-structural precisely because two module instances would otherwise stop recognising each other's classes — and `instanceof`, Context keys and Schema identity do not even have that fallback. The @effect/platform-* packages carry tagged errors and Context tags of their own, so they are pinned beside it. Versions come from the pinned kolu and are checked by scripts/check-kolu-deps.sh; re-pinning kolu means re-running `just check` and moving whatever it names. @types/node is the same discipline for a different reason: bun-types and @types/ws declare `@types/node: *` and would otherwise nest 26.x, whose net.d.ts merges over 22's EventEmitter Server so a call to `.on` does not typecheck.",
   "overrides": {
     "@effect/platform-browser": "4.0.0-rc.110",
     "@effect/platform-node": "4.0.0-rc.110",
+    "@types/node": "^22.0.0",
     "effect": "4.0.0-rc.110"
   },
   "//devDependencies": "@types/ws is the other half of the `ws` entry above: the hydrated sources are raw TypeScript, so `tsc --noEmit` checks them, and it resolves their types from the same root node_modules their imports resolve from.",

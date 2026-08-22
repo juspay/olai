@@ -140,11 +140,13 @@ const rewrittenHead = (
   target: URL,
   injected: Record<string, string>,
 ): string => {
+  const taken = namesOf(injected);
   const lines = [requestLine];
   for (const line of headerLines) {
     const colon = line.indexOf(":");
     const name = colon < 0 ? line : line.slice(0, colon);
     const key = name.toLowerCase();
+    if (taken.has(key)) continue;
     if (key === "host") lines.push(`Host: ${target.host}`);
     else if (key === "origin") lines.push(`Origin: ${target.origin}`);
     else lines.push(line);
@@ -195,12 +197,20 @@ const hopFree = (
   return out;
 };
 
+const namesOf = (injected: Record<string, string>): Set<string> =>
+  new Set(Object.keys(injected).map((name) => name.toLowerCase()));
+
 const towards = (
   incoming: http.IncomingHttpHeaders,
   target: URL,
   injected: Record<string, string>,
 ): http.OutgoingHttpHeaders => {
-  const out: http.OutgoingHttpHeaders = { ...incoming, ...injected };
+  const taken = namesOf(injected);
+  const out: http.OutgoingHttpHeaders = {};
+  for (const [name, value] of Object.entries(incoming)) {
+    if (!taken.has(name.toLowerCase())) out[name] = value;
+  }
+  for (const [name, value] of Object.entries(injected)) out[name] = value;
   out.host = target.host;
   if (incoming.origin !== undefined) out.origin = target.origin;
   return out;

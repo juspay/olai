@@ -1487,7 +1487,10 @@ export class OlaiWorld extends World {
    *  person differently — a different server rather than the same one
    *  restarted. */
   avatarTemplate?: string;
-  /** The URL that corpus's server answers on; also the context's `baseURL`. */
+  /** The URL this tab talks to: the corpus's server, until `proxyInjects`
+   *  sits the reverse proxy in front, after which it is the proxy. Restart
+   *  and port reads in hooks.ts want the server's own URL, so a scenario
+   *  that combined a Tailscale Given with a restart would fail here. */
   baseUrl!: string;
 
   /** The directory being served, for a `@scratch:` scenario — a private copy
