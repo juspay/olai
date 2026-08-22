@@ -301,7 +301,7 @@ export const DETAIL: Readonly<Record<Face, string>> = {
  * reads as its own sentence.
  */
 export const explain = (face: Face, pending: Pending, git: GitState): string =>
-  alsoPaused(alsoUnpushed(sentence(face, pending, git), pending, git), git.paused)
+  alsoPaused(alsoUnpushed(sentence(face, pending, git), pending, git), git)
 
 const sentence = (face: Face, pending: Pending, git: GitState): string => {
   switch (face) {
@@ -376,6 +376,19 @@ export const PUSH_REFUSED = "the last push was refused"
 export const AUTO_PAUSED = "auto-commit paused"
 
 /**
+ * WHAT THE LOOP IS DOING, as one word — and the one place that reading is made.
+ *
+ * Three states, and they are the DIRECTORY's: `off` where the policy is not the
+ * quiet window, `paused` where git stopped it, `armed` otherwise. Three
+ * surfaces ask — the pill wears it as `data-auto`, the panel makes a promise
+ * off it, and a phone's banner speaks it — and asked separately they would be
+ * three readings of one cell, free to disagree about a directory that has none
+ * of the ambiguity between them.
+ */
+export const loopIn = (git: GitState): "off" | "armed" | "paused" =>
+  git.policy.commit !== "auto" ? "off" : git.paused !== null ? "paused" : "armed"
+
+/**
  * The one gesture that starts the loop again, spelled once for both sentences
  * below: the header and the panel drifting on how to restart it is the one
  * sentence a reader cannot work out for themselves.
@@ -413,6 +426,13 @@ const autoSays = (paused: string): string =>
  *  printed twice inside one `aria-label`. */
 const AUTO_SAYS_AGAIN = `auto-commit is paused. ${RESUME_GESTURE}`
 
+/** Whether the words that stopped the loop are already on the sentence. There
+ *  are exactly two things that can have printed them — the refused push's
+ *  clause and the fault face's — and the stop is set from one of those two, so
+ *  this is a comparison rather than a search through the prose. */
+const quoted = (git: GitState): boolean =>
+  git.paused === git.pushSaid || git.paused === git.said
+
 /** ... and the PANEL's line, which does not repeat git — see {@link autoSays}. */
 export const AUTO_STOPPED =
   `auto-commit is paused, and what git said is below. ${RESUME_GESTURE}`
@@ -432,10 +452,10 @@ export const AUTO_ARMED =
  * hint — five lines of it — twice into one label, which is a label nobody reads
  * either copy of.
  */
-const alsoPaused = (said: string, paused: string | null): string =>
-  paused === null
+const alsoPaused = (said: string, git: GitState): string =>
+  git.paused === null
     ? said
-    : `${said} · ${said.includes(paused) ? AUTO_SAYS_AGAIN : autoSays(paused)}`
+    : `${said} · ${quoted(git) ? AUTO_SAYS_AGAIN : autoSays(git.paused)}`
 
 /** How much is waiting, in words — the same tally the pill draws as a number,
  *  so the sentence and the label cannot disagree. */

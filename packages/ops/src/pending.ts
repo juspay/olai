@@ -429,7 +429,7 @@ export interface Committing {
    * write on a mid-rebase repository is not waiting for a window or a button,
    * and telling it so would send an agent after a tool that will refuse.
    */
-  readonly waiting: (writer: Writer) => Effect.Effect<string>
+  readonly whyWaiting: (writer: Writer) => Effect.Effect<string>
   /**
    * Told that one write landed AND IS WAITING. The only thing in here that is
    * remembered, and the only thing that is allowed to be wrong.
@@ -1025,7 +1025,7 @@ export const make = (options: Options): Committing => {
    * on a mid-rebase repository is not waiting for a window, and telling an
    * agent it is sends it to call a tool that will refuse.
    */
-  const waiting = (writer: Writer): Effect.Effect<string> =>
+  const whyWaiting = (writer: Writer): Effect.Effect<string> =>
     Effect.gen(function*() {
       // `off` asks git nothing at all — that is what the opt-out is for.
       if (mode() === "off") return whyOf("off", OFF, null, writer)
@@ -1143,7 +1143,7 @@ export const make = (options: Options): Committing => {
     pending: Effect.map(status, (both) => both.pending),
     commit,
     push,
-    waiting,
+    whyWaiting,
     wrote,
     observe,
     loop,

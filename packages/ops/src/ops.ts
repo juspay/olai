@@ -436,7 +436,7 @@ export const make = (options: Options): Ops => {
          *  is looking rather than in the server's log. Under either waiting
          *  mode that sentence is "waiting", which is the feature working and
          *  must never render as the git-error state. */
-        const why = yield* commits.waiting(writer)
+        const why = yield* commits.whyWaiting(writer)
         // What the write CHANGED, classified the way a pending row is — off
         // the two readings this write is made of, which are both still in
         // hand. A reader that DRAWS a write rather than logging one needs a

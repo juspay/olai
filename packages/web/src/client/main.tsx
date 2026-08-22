@@ -15,7 +15,6 @@ import { followLayout } from "./layout/prefs.ts"
 import { followDensity } from "./settings/density.ts"
 import { followDoneHidden } from "./settings/done.ts"
 import { followOutlinesHidden } from "./settings/hiddenOutlines.ts"
-import { followPolicy } from "./settings/followPolicy.ts"
 import { followStoredFont } from "./theme/fontState.ts"
 import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
@@ -55,14 +54,6 @@ followOutlinesHidden()
 followFolds()
 followFolders()
 trackDesktop()
-
-// ... and the two things on that panel that are NOT this browser's at all: the
-// git policy this directory runs under, and whether the operator pinned it
-// (`--commit` / `--push`, which draw the rows read-only). Both ride the git
-// cell, so this is a subscription rather than a stored value — started here
-// beside the followers above because it belongs to the DOCUMENT and outlives
-// every component that reads it (`./settings/followPolicy.ts`).
-followPolicy()
 
 const root = document.getElementById("root")
 if (root === null) throw new Error("no #root element")

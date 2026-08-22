@@ -71,6 +71,7 @@ import {
   faceOf,
   isInert,
   isNews,
+  loopIn,
   markOf,
   newsSays,
   PUSH_REFUSED,
@@ -86,19 +87,11 @@ import { Tip } from "../Tip.tsx"
 
 export function Commit() {
   const commit = createCommit()
-  /** WHAT THE QUIET-WINDOW LOOP IS DOING, as one word for the chrome to wear.
-   *
-   *  Three states and they are the directory's, off the git cell: `off` where
-   *  the policy is not `auto`, `paused` where git stopped it, `armed`
-   *  otherwise. It used to be a union this file constructed from a loop it
-   *  owned, and the loop is the server's now — so what is left is a reading,
-   *  and every tab makes the same one. */
-  const auto = () =>
-    commit.git().policy.commit !== "auto"
-      ? "off"
-      : commit.git().paused !== null
-      ? "paused"
-      : "armed"
+  /** What the quiet-window loop is doing, as one word for the chrome to wear
+   *  (`./said.ts`). It used to be a union this file constructed from a loop it
+   *  owned; the loop is the server's now, so this is a reading and every tab
+   *  makes the same one. */
+  const auto = () => loopIn(commit.git())
   /** Why the loop stopped, or `null` — the fact the words and the chip both
    *  ask about. */
   const paused = () => commit.git().paused

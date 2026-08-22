@@ -49,6 +49,7 @@ import {
   AUTO_STOPPED,
   because,
   commitRefused,
+  loopIn,
   scopeOf,
   verbatim,
   waitingIn,
@@ -118,10 +119,7 @@ export function Panel(props: {
    * the gate — is the repository ready, has git refused — is already on screen
    * as its own line right above this one.
    */
-  const willRecord = () =>
-    props.commit.git().policy.commit === "auto" &&
-    props.commit.git().paused === null &&
-    ready()
+  const willRecord = () => loopIn(props.commit.git()) === "armed" && ready()
 
   return (
     <section

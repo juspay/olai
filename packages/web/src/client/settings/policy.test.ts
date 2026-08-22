@@ -13,7 +13,8 @@
  * browser value any more: committing and pushing are facts about the directory,
  * so the row draws the server's policy and the pin decides only whether a
  * reader may change it. Those two files are gone with the storage they were
- * about.
+ * about — and so is the signal these readings used to be asked through, which
+ * is why every one of them takes the cell as an argument.
  */
 
 import { DEFAULT_POLICY, GIT_OFF, type GitState } from "@olai/format"
@@ -24,40 +25,27 @@ import {
   commitOn,
   commitSetBy,
   commitsOff,
-  paused,
-  policy,
+  policyIn,
   pushFrozen,
   pushOn,
   pushSetBy,
-  setGitSaid,
 } from "./policy.ts"
 
 /** What the server said, with the one field a case is about over a healthy
- *  repository — and put back afterwards, because this signal belongs to the
- *  document and every test here shares it. */
-const said = (over: Partial<GitState>): GitState => ({
+ *  repository. */
+const said = (over: Partial<GitState> = {}): GitState => ({
   ...GIT_OFF,
   status: "repo",
   ...over,
 })
 
-const about = (over: Partial<GitState>, check: () => void): void => {
-  try {
-    setGitSaid(said(over))
-    check()
-  } finally {
-    setGitSaid(GIT_OFF)
-  }
-}
-
 test("a page that has heard nothing draws the defaults, live", () => {
-  setGitSaid(GIT_OFF)
-  expect(policy()).toEqual(DEFAULT_POLICY)
-  expect(commitOn()).toBe(false)
-  expect(pushOn()).toBe(false)
-  expect(commitFrozen()).toBe(false)
-  expect(pushFrozen()).toBe(false)
-  expect(paused()).toBeNull()
+  expect(policyIn(GIT_OFF)).toEqual(DEFAULT_POLICY)
+  expect(commitOn(GIT_OFF)).toBe(false)
+  expect(pushOn(GIT_OFF)).toBe(false)
+  expect(commitFrozen(GIT_OFF)).toBe(false)
+  expect(pushFrozen(GIT_OFF)).toBe(false)
+  expect(GIT_OFF.paused).toBeNull()
 })
 
 /**
@@ -68,34 +56,33 @@ test("a page that has heard nothing draws the defaults, live", () => {
  * happen.
  */
 test("the Git commit row is on for the window and off for both waits", () => {
-  about({ policy: { commit: "auto", push: "off" } }, () => expect(commitOn()).toBe(true))
-  about({ policy: { commit: "manual", push: "off" } }, () => expect(commitOn()).toBe(false))
-  about({ policy: { commit: "off", push: "off" } }, () => expect(commitOn()).toBe(false))
+  expect(commitOn(said({ policy: { commit: "auto", push: "off" } }))).toBe(true)
+  expect(commitOn(said({ policy: { commit: "manual", push: "off" } }))).toBe(false)
+  expect(commitOn(said({ policy: { commit: "off", push: "off" } }))).toBe(false)
 })
 
 test("the Git push row is on for auto and off for off", () => {
-  about({ policy: { commit: "manual", push: "auto" } }, () => expect(pushOn()).toBe(true))
-  about({ policy: { commit: "manual", push: "off" } }, () => expect(pushOn()).toBe(false))
+  expect(pushOn(said({ policy: { commit: "manual", push: "auto" } }))).toBe(true)
+  expect(pushOn(said({ policy: { commit: "manual", push: "off" } }))).toBe(false)
 })
 
 /** WHETHER A ROW IS FROZEN and WHAT IT SAYS are read off the one pin, so they
  *  cannot come apart — a row drawn frozen whose line named a flag nobody gave
  *  is the failure this pairing exists to make unspellable. */
 test("a row is frozen exactly when it has something to say about who set it", () => {
-  about({}, () => {
-    expect(commitFrozen()).toBe(false)
-    expect(commitSetBy()).toBeNull()
-    expect(pushFrozen()).toBe(false)
-    expect(pushSetBy()).toBeNull()
-  })
-  about({ pinned: { commit: "auto", push: null } }, () => {
-    expect(commitFrozen()).toBe(true)
-    expect(commitSetBy()).not.toBeNull()
-    // ... and the other row is untouched by it, so an operator who ruled on
-    // committing has not silently ruled on pushing.
-    expect(pushFrozen()).toBe(false)
-    expect(pushSetBy()).toBeNull()
-  })
+  const live = said()
+  expect(commitFrozen(live)).toBe(false)
+  expect(commitSetBy(live)).toBeNull()
+  expect(pushFrozen(live)).toBe(false)
+  expect(pushSetBy(live)).toBeNull()
+
+  const pinned = said({ pinned: { commit: "auto", push: null } })
+  expect(commitFrozen(pinned)).toBe(true)
+  expect(commitSetBy(pinned)).not.toBeNull()
+  // ... and the other row is untouched by it, so an operator who ruled on
+  // committing has not silently ruled on pushing.
+  expect(pushFrozen(pinned)).toBe(false)
+  expect(pushSetBy(pinned)).toBeNull()
 })
 
 /**
@@ -105,19 +92,17 @@ test("a row is frozen exactly when it has something to say about who set it", ()
  * while the flag is the thing they hand whoever runs the instance.
  */
 test("the line names the flag that set the row, and says a browser cannot", () => {
-  about({ pinned: { commit: "auto", push: "off" } }, () => {
-    expect(commitSetBy()).toContain("--commit=auto")
-    expect(pushSetBy()).toContain("--push=off")
-    for (const line of [commitSetBy(), pushSetBy()]) {
-      expect(line).toContain("cannot be changed")
-    }
-  })
+  const both = said({ pinned: { commit: "auto", push: "off" } })
+  expect(commitSetBy(both)).toContain("--commit=auto")
+  expect(pushSetBy(both)).toContain("--push=off")
+  for (const line of [commitSetBy(both), pushSetBy(both)]) {
+    expect(line).toContain("cannot be changed")
+  }
   // `--no-commit` reaches here as the flag it IS — one flag, two spellings, and
   // nothing on the wire remembers which one was typed.
-  about({ pinned: { commit: "off", push: "auto" } }, () => {
-    expect(commitSetBy()).toContain("--commit=off")
-    expect(pushSetBy()).toContain("--push=auto")
-  })
+  const off = said({ pinned: { commit: "off", push: "auto" } })
+  expect(commitSetBy(off)).toContain("--commit=off")
+  expect(pushSetBy(off)).toContain("--push=auto")
 })
 
 /**
@@ -131,27 +116,7 @@ test("the line names the flag that set the row, and says a browser cannot", () =
  * open.
  */
 test("--commit=off is told apart from the other way the row reads Off", () => {
-  about({ policy: { commit: "off", push: "off" } }, () => expect(commitsOff()).toBe(true))
-  about(
-    { policy: { commit: "manual", push: "off" } },
-    () => expect(commitsOff()).toBe(false),
-  )
-  about({ policy: { commit: "auto", push: "off" } }, () => expect(commitsOff()).toBe(false))
-})
-
-/**
- * WHY THE LOOP STOPPED reaches the panel, which is what puts Resume on the row.
- *
- * It is the directory's fact now, not this tab's, which is the whole of why the
- * button is drawn on every deployment rather than only on a pinned one: there
- * is no toggle anywhere that clears it, and a reload does not.
- */
-test("a stopped loop is readable here, whether or not the row is frozen", () => {
-  const words = "! [rejected] main -> main (fetch first)"
-  about({ paused: words }, () => expect(paused()).toBe(words))
-  about({ paused: words, pinned: { commit: "auto", push: null } }, () => {
-    expect(paused()).toBe(words)
-    expect(commitFrozen()).toBe(true)
-  })
-  about({}, () => expect(paused()).toBeNull())
+  expect(commitsOff(said({ policy: { commit: "off", push: "off" } }))).toBe(true)
+  expect(commitsOff(said({ policy: { commit: "manual", push: "off" } }))).toBe(false)
+  expect(commitsOff(said({ policy: { commit: "auto", push: "off" } }))).toBe(false)
 })

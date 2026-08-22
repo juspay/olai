@@ -62,6 +62,8 @@ import { Show } from "solid-js"
 
 import { type Anchor, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
+import type { GitState } from "@olai/format"
+
 import { createCommit } from "../commit/state.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
@@ -71,7 +73,6 @@ import {
   commitOn,
   commitSetBy,
   commitsOff,
-  paused,
   pushFrozen,
   pushOn,
   pushSetBy,
@@ -144,13 +145,15 @@ export function Panel(props: {
    *  not a descendant of the control that opened it. */
   readonly inside: (el: HTMLElement | undefined) => void
 }) {
-  /** The two git verbs this panel has: setting the directory's policy, and
-   *  starting a stopped loop again. The same door the commit pill's own panel
-   *  uses — one factory, so the two cannot ask the server different things —
-   *  and it holds nothing but whether ITS OWN requests are in flight, so a
-   *  second instance is a second set of accessors over the same two
-   *  subscriptions rather than a second opinion about the directory. */
+  /** The two git rows' door — what the server says about git, and the two verbs
+   *  that move it. The same factory the commit pill's own panel uses, so the
+   *  two cannot ask the server different things, and it holds nothing but
+   *  whether ITS OWN requests are in flight: a second instance is a second set
+   *  of accessors over the same two subscriptions rather than a second opinion
+   *  about the directory. `./policy.ts`'s readings are pure functions of what
+   *  it hands back, which is why this panel needs no subscription of its own. */
   const commit = createCommit()
+  const git = () => commit.git()
   return (
     <section
       ref={props.inside}
@@ -223,8 +226,8 @@ export function Panel(props: {
       <Row
         label="Git commit"
         pref="git-commit"
-        hint={commitHint()}
-        setBy={commitSetBy()}
+        hint={commitHint(git())}
+        setBy={commitSetBy(git())}
         under={
           /* THE ONE GESTURE THAT STARTS THE LOOP AGAIN. A refused commit or
              push stops the quiet window and nothing clears that on olai's own
@@ -240,7 +243,7 @@ export function Panel(props: {
 
              Drawn ONLY while the loop is actually stopped: a button offering to
              resume a loop that is running is a control with nothing to do. */
-          <Show when={paused() !== null}>
+          <Show when={git().paused !== null}>
             <button
               type="button"
               // `mt-2` here rather than on a wrapper in `./Row.tsx`: the slot is
@@ -257,28 +260,28 @@ export function Panel(props: {
       >
         <Segmented
           choices={COMMIT_CHOICES}
-          value={commitOn() ? "on" : "off"}
+          value={commitOn(git()) ? "on" : "off"}
           // `manual` rather than `off` for the row's Off, because that is what
           // the row means: a write waits for the Commit button. `off` is
           // `--commit=off`, which is olai never touching git here at all — a
           // pinned-only state, and one a browser must not be able to arrive at
           // by pressing the same control that says "wait for me instead".
           onPick={(value) => commit.setPolicy({ commit: value === "on" ? "auto" : "manual" })}
-          frozen={commitFrozen()}
+          frozen={commitFrozen(git())}
         />
       </Row>
 
       <Row
         label="Git push"
         pref="git-push"
-        hint={pushHint()}
-        setBy={pushSetBy()}
+        hint={pushHint(git())}
+        setBy={pushSetBy(git())}
       >
         <Segmented
           choices={PUSH_CHOICES}
-          value={pushOn() ? "on" : "off"}
+          value={pushOn(git()) ? "on" : "off"}
           onPick={(value) => commit.setPolicy({ push: value === "on" ? "auto" : "off" })}
-          frozen={pushFrozen()}
+          frozen={pushFrozen(git())}
         />
       </Row>
 
@@ -298,7 +301,7 @@ export function Panel(props: {
         exception: committing and pushing are facts about this DIRECTORY, so
         they are the server's — the same in every browser, and remembered there
         rather than here.
-        <Show when={commitFrozen() || pushFrozen()}>
+        <Show when={commitFrozen(git()) || pushFrozen(git())}>
           {" "}
           This one was also started with a git policy on the command line, so
           those rows are read-only.
@@ -362,17 +365,17 @@ const hiddenHint = (): string =>
  *  change in the repository rather than only the ones typed here. The last is
  *  the one nobody would guess — an agent writing over MCP restarts the same
  *  window and lands in the same commit. */
-const commitHint = (): string => {
+const commitHint = (git: GitState): string => {
   // `--commit=off` FIRST, because it is not a third setting of this row — it is
   // the row having nothing to be about. Sending a reader to the Commit button
   // there points them at a pill that is inert and a directory olai never writes
   // a commit in; the two arms below both assume there is a history to record
-  // into (`./pinned.ts`'s `commitsOff`).
-  if (commitsOff()) {
+  // into (`./policy.ts`'s `commitsOff`).
+  if (commitsOff(git)) {
     return "olai never touches git in this directory, so nothing is waiting " +
       "and there is nothing here to record."
   }
-  return commitOn()
+  return commitOn(git)
     ? `The server records what is waiting when writes stop arriving for ${QUIET_SECONDS} ` +
       "seconds, so a burst of work is one commit — including writes an agent " +
       "made, and with no browser open. A commit or a push git refuses pauses " +
@@ -380,8 +383,8 @@ const commitHint = (): string => {
     : "A write waits. Record it with the Commit button, in the pill."
 }
 
-const pushHint = (): string =>
-  pushOn()
+const pushHint = (git: GitState): string =>
+  pushOn(git)
     ? "Every commit olai makes here is pushed after it is recorded — the " +
       "button's, an agent's, and the server's own."
     : "A commit waits. Push it from the panel."
