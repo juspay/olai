@@ -65,10 +65,11 @@ export function NewFile(props: {
   }
 
   const send = async (): Promise<void> => {
-    // An empty box is not a refusal to draw — nobody has asked for anything
-    // yet.
-    if (path().trim() === "") return
+    // THREE THINGS the box does with what is in it, and which of them is
+    // `./completing.ts`'s answer rather than a reading of its own: an empty box
+    // is not a refusal to draw — nobody has asked for anything yet.
     const meant = meantAt(props.making.of, path())
+    if ("nothing" in meant) return
     // ONE LINE draws both sentences, and that is the point of drawing the box's
     // own one here rather than beside it: which layer refused a path is not a
     // difference the person who typed it should have to see.
@@ -76,7 +77,7 @@ export function NewFile(props: {
       setSaid(meant.refused)
       return
     }
-    const refused = await props.create(meant.at)
+    const refused = await props.create(meant.file)
     if (refused === null) close()
     else setSaid(refused)
   }

@@ -57,28 +57,42 @@ import { type FileKind, FILE_KINDS, fileKind } from "@olai/format"
 
 import { oneNamed } from "./kinds.ts"
 
-/** What a typed name means at a door: the path to ask for, or the sentence to
- *  draw instead. A sum rather than a path plus an optional complaint, so a
- *  caller cannot send the one it was told not to. */
+/**
+ * What a typed name means at a door — the THREE things it can mean, as a sum
+ * rather than a path with an optional complaint beside it, so a caller cannot
+ * send the one it was told not to.
+ *
+ * `file` is the wire's word for this, and the word the box's own `create` is
+ * handed ({@link ../NewFile.tsx}), rather than a fourth name for one thing.
+ */
 export type Meant =
+  /** Nobody has asked for anything: an empty box, or one holding only spaces. */
+  | { readonly nothing: true }
   /** The completed path, exactly as the ops layer will be asked for it. */
-  | { readonly at: string }
+  | { readonly file: string }
   /** The box's own words — nothing was asked for. */
   | { readonly refused: string }
 
 /**
- * The file `typed` names at a door that makes `of` — trimmed, completed, and
+ * What `typed` means at a door that makes `of` — trimmed, completed, and
  * refused only for naming a file of a kind this door cannot make.
  *
- * TRIMMED HERE rather than by the caller, so the path that is asked for and the
- * name a refusal quotes are the same string: `Foo ` and `Foo` are one file, and
- * a box that sent the first would have made a name nobody can type again.
+ * TOTAL OVER ANY TEXT A BOX HOLDS, which is what the empty arm is for. The box
+ * used to ask that question itself, in a `trim()` of its own beside this one:
+ * two readings of "what is in the box", agreeing by convention. Nothing about
+ * an empty box is the GESTURE's to know — a person who has typed nothing has
+ * named no file, which is a fact about the name — so the reading is one.
+ *
+ * TRIMMED HERE for the same reason: the path that is asked for and the name a
+ * refusal quotes are then the same string, and `Foo ` and `Foo` are one file
+ * rather than a name nobody can type again.
  */
 export const meantAt = (of: FileKind, typed: string): Meant => {
   const name = typed.trim()
+  if (name === "") return { nothing: true }
   const carried = fileKind(name)
-  if (carried === of) return { at: name }
-  if (carried === null) return { at: `${name}${FILE_KINDS[of].ext}` }
+  if (carried === of) return { file: name }
+  if (carried === null) return { file: `${name}${FILE_KINDS[of].ext}` }
   // HOW MANY CHARACTERS COME OFF is the registry's answer, not a `lastIndexOf`
   // — the same rule `stemOf` is, minus its basename step, which would offer
   // `plan` for a `notes/plan.md` and quietly move the file to the root.

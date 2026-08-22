@@ -8,21 +8,21 @@ import { meantAt } from "./completing.ts"
 // and got the wire's paragraph about relative `.olai` paths back. A door knows
 // which kind it makes, so the name it was handed is the only half missing.
 test("a bare name takes the door's own suffix", () => {
-  expect(meantAt("outline", "Foo")).toEqual({ at: "Foo.olai" })
-  expect(meantAt("document", "Foo")).toEqual({ at: "Foo.md" })
+  expect(meantAt("outline", "Foo")).toEqual({ file: "Foo.olai" })
+  expect(meantAt("document", "Foo")).toEqual({ file: "Foo.md" })
 })
 
 // The FOLDERS are part of the name and not of the suffix: what is typed is a
 // path, and only its last few characters were ever in question.
 test("a path with folders in it keeps them and takes the suffix", () => {
-  expect(meantAt("outline", "notes/plan")).toEqual({ at: "notes/plan.olai" })
-  expect(meantAt("document", "notes/idea")).toEqual({ at: "notes/idea.md" })
+  expect(meantAt("outline", "notes/plan")).toEqual({ file: "notes/plan.olai" })
+  expect(meantAt("document", "notes/idea")).toEqual({ file: "notes/idea.md" })
 })
 
 test("a name already carrying the door's suffix is taken exactly as it is", () => {
-  expect(meantAt("outline", "Foo.olai")).toEqual({ at: "Foo.olai" })
-  expect(meantAt("outline", "plans/next.olai")).toEqual({ at: "plans/next.olai" })
-  expect(meantAt("document", "notes/wiring.md")).toEqual({ at: "notes/wiring.md" })
+  expect(meantAt("outline", "Foo.olai")).toEqual({ file: "Foo.olai" })
+  expect(meantAt("outline", "plans/next.olai")).toEqual({ file: "plans/next.olai" })
+  expect(meantAt("document", "notes/wiring.md")).toEqual({ file: "notes/wiring.md" })
 })
 
 // A SUFFIX IS ONE THE REGISTRY CLAIMS, and nothing else is a suffix at all:
@@ -30,9 +30,9 @@ test("a name already carrying the door's suffix is taken exactly as it is", () =
 // spelling a name (`plan v1.2`, `2026-08-12`). Refusing those, or cutting them
 // off, would be this box holding an opinion about a filename it cannot have.
 test("a dot the registry does not claim is part of the name", () => {
-  expect(meantAt("outline", "plan v1.2")).toEqual({ at: "plan v1.2.olai" })
-  expect(meantAt("outline", "Foo.txt")).toEqual({ at: "Foo.txt.olai" })
-  expect(meantAt("document", "archive.tar.gz")).toEqual({ at: "archive.tar.gz.md" })
+  expect(meantAt("outline", "plan v1.2")).toEqual({ file: "plan v1.2.olai" })
+  expect(meantAt("outline", "Foo.txt")).toEqual({ file: "Foo.txt.olai" })
+  expect(meantAt("document", "archive.tar.gz")).toEqual({ file: "archive.tar.gz.md" })
 })
 
 // The one refusal the box makes for itself — WHICH DOOR you are at, which is a
@@ -69,10 +69,10 @@ test("a name that is only a suffix is refused without advice to type nothing", (
   })
 })
 
-// The box trims before it asks, and the completion is what the ops layer is
-// handed — so a trailing space cannot make `Foo ` and `Foo` two different files.
+// The trim is the RULE's, not the box's — one reading of what is in the box,
+// so a trailing space cannot make `Foo ` and `Foo` two different files.
 test("what was typed is trimmed before any of this", () => {
-  expect(meantAt("outline", "  Foo  ")).toEqual({ at: "Foo.olai" })
+  expect(meantAt("outline", "  Foo  ")).toEqual({ file: "Foo.olai" })
   expect(meantAt("outline", " notes.md ")).toEqual({
     refused: "`notes.md` is a document, not an outline — type `notes` to make `notes.olai`.",
   })
@@ -82,6 +82,14 @@ test("what was typed is trimmed before any of this", () => {
 // the set already holds, is `create_outline`'s sentence to say — completed
 // first, so what the refusal names is the file that was actually asked for.
 test("a path the ops layer will refuse is completed and passed on all the same", () => {
-  expect(meantAt("outline", "../escape")).toEqual({ at: "../escape.olai" })
-  expect(meantAt("outline", "/etc/passwd")).toEqual({ at: "/etc/passwd.olai" })
+  expect(meantAt("outline", "../escape")).toEqual({ file: "../escape.olai" })
+  expect(meantAt("outline", "/etc/passwd")).toEqual({ file: "/etc/passwd.olai" })
+})
+
+// TOTAL OVER ANY TEXT A BOX HOLDS. An empty box is not a refusal and not a
+// file: it is a person who has not typed anything, which the box used to decide
+// for itself in a second `trim()` beside this one.
+test("an empty box, or one holding only spaces, has asked for nothing", () => {
+  expect(meantAt("outline", "")).toEqual({ nothing: true })
+  expect(meantAt("document", "   ")).toEqual({ nothing: true })
 })
