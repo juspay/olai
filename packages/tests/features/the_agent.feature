@@ -67,6 +67,20 @@ Feature: Talking to the agent
     And the tool call's detail is folded away
 
   @scratch:chat
+  Scenario: A report that arrives twice is one report
+    # Nothing in ACP forbids an agent repeating itself and more than one does
+    # it, byte for byte. A repeat is not a second report: the transcript is
+    # keyed by the agent's own call id, so what a repeat can produce is exactly
+    # what the first frame already produced — one row, one result, one turn that
+    # ends. The frames go down the real pipe in the real order here, which is
+    # what the rule's own unit tests cannot say.
+    When I ask the agent "twice"
+    Then the chat shows 1 tool call
+    And the chat shows a completed tool call
+    And the agent's answer mentions "said the same thing twice"
+    And the agent is idle
+
+  @scratch:chat
   Scenario: An agent the agent spawned is drawn as one, not as the agent itself
     # A subagent's tool calls come back on the SAME feed as the main agent's,
     # with nothing in the protocol to tell them apart — so the panel drew a
@@ -389,6 +403,27 @@ Feature: Talking to the agent
     And the chat input reads "/re"
 
   @agent-stored @scratch:chat
+  Scenario: A conversation comes back with what was said and what was done
+    # WHAT A HISTORY IS, as against a turn. A `session/load` replays a
+    # conversation that ended before this process started, so a person's own
+    # words arrive as however many chunks the agent kept them in, and the tool
+    # calls arrive ALREADY COLLAPSED — one report each, with no announcement in
+    # front of them, because there is nothing left to announce. Neither shape
+    # occurs in a live turn, which is why the panel could get both wrong with
+    # every other scenario here passing.
+    #
+    # The whole sentence in one bubble is the claim, and it is what the chunks
+    # take away: a message drawn as one bubble per chunk is somebody's own words
+    # taken apart, in the place a reader looks to remember what they asked.
+    Then the chat shows my message "what did we decide?"
+    # ... and the call the conversation made, named and finished. A row named
+    # after its own call id is a panel that cannot name a history, and a
+    # collapsed report is the one frame that has to name a row without an
+    # announcement in front of it.
+    And the chat shows a completed tool call
+    And the chat shows a tool call named "read the notes"
+
+  @agent-stored @scratch:chat
   Scenario: A first boot has nothing to remember, so it takes the newest
     # `session/list` for this directory answers with two, and nothing has ever
     # written down which of them is the panel's — so the most recently updated
@@ -441,6 +476,110 @@ Feature: Talking to the agent
     And I open the app
     And the agent panel is open
     Then the conversation is titled "the last conversation"
+
+  @agent-stored @scratch:chat
+  Scenario: A message sent while a conversation is opening does not open a second one
+    # THE WINDOW THE REFUSAL FIX OPENED. A conversation is not entered until the
+    # agent has agreed to it — which is what stops a refused load leaving the
+    # server pointing at one — so between a `session/load` going out and its
+    # answer coming back the server is in NO conversation. Anything that booted
+    # in that window found nothing open and started opening one, against a load
+    # already on the wire.
+    #
+    # It is not a race anybody has to arrange: the composer is never disabled, a
+    # prompt typed while the panel is starting is accepted on purpose, and a
+    # load is the one open that takes real time — the agent replays a whole
+    # conversation before it answers, which is why it has a deadline of its own.
+    #
+    # WHAT IT COSTS is the message. The second open goes out behind the first —
+    # it asks for the conversation list, which the agent is not going to answer
+    # while it is busy with the load — so it sits there until its own boot
+    # deadline and the prompt behind it dies with it, in a panel that by then is
+    # perfectly healthy and in a conversation. Against an agent that answers
+    # both at once it costs more than that: two conversations opened, and the
+    # panel in whichever finished last.
+    Given the chat eventually shows "we decided to order the cabinets"
+    When the next conversation load will hang
+    And I open the session picker
+    And I pick the conversation "an older conversation"
+    And I ask the agent "hello"
+    And the agent is released
+    # THE CLAIM: the message waited for the conversation and landed IN it.
+    # Waiting is the right answer to a send in this window rather than a
+    # refusal — there is nothing to tell somebody, because the conversation
+    # their message belongs in is the one being opened.
+    Then the agent's answer mentions "you said: hello"
+    # ... and it is the conversation that was asked for, not one a second open
+    # chose out of a note still naming the one being left.
+    And the conversation is titled "an older conversation"
+
+  @scratch:chat
+  Scenario: An agent that will not open a conversation is not an agent that has gone
+    # The panel's THIRD body, and the distinction it exists for. `session/new`
+    # is a request like any other, so an agent can answer it with an error and
+    # go on running — and reading that as the agent having died left the header
+    # saying `not running` about a process that had just spoken, over an empty
+    # transcript with a live composer under it inviting a message that had
+    # nowhere to go.
+    When the agent refuses to new a conversation
+    And I start a new conversation
+    Then the panel says the conversation could not be opened
+    # The reason is the agent's own, because "the conversation could not be
+    # opened" is the sentence every one of these shares and the one that never
+    # helped anybody.
+    And the refusal is in the agent's own words, "will not start a conversation"
+    # THE CLAIM: the agent is still there. The header goes on naming the model
+    # rather than reporting a death, and the box is gone because there is
+    # nothing to send to — not because sending is switched off.
+    And the panel header names the model "Fake One"
+    And there is nothing to type into
+    # ... and the one thing that can change it does, once the agent relents.
+    When the agent will new a conversation again
+    And I try to open it again
+    Then the panel shows no such refusal
+    And the agent is idle
+    When I ask the agent "hello"
+    Then the agent's answer mentions "you said: hello"
+
+  @agent-stored @scratch:chat
+  Scenario: A boot whose conversation is refused says so, and can still be got out of
+    # THE OTHER PLACE a conversation is opened, and the one no click can reach:
+    # a server starting. Boot adopts a stored conversation and asks for it, and
+    # an agent that says no there used to leave the panel reporting a dead
+    # process.
+    When I open the session picker
+    And I pick the conversation "an older conversation"
+    Then the conversation is titled "an older conversation"
+    When the agent refuses to load a conversation
+    And the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then the panel says the conversation could not be opened
+    And the refusal is in the agent's own words, "no such conversation"
+    And there is nothing to type into
+    # THE MODULE IS NOT IN IT, and trying again is what proves that: entering a
+    # conversation is what this server records being IN one, and a boot that
+    # recorded it BEFORE asking left every later verb — this retry included —
+    # believing there was a conversation already. A retry answered by doing
+    # nothing at all is what that looked like.
+    When the agent will load a conversation again
+    # ...and it dawdles, so the retry is IN FLIGHT while the next thing happens.
+    And the next conversation load will hang
+    And I try to open it again
+    # A SECOND PRESS FINDS NOTHING WAITING. Reading the attempt and taking it
+    # are one step, so whichever press gets there first leaves with it — and
+    # for a refused `+ new` two presses that both left with it would be a
+    # second fresh conversation wiping the first. The refusal is drawn in this
+    # body because the click was made in it: there is no transcript here to put
+    # it in, and a control that can be refused silently is the one thing
+    # nothing in this panel may be.
+    And I try to open it again
+    Then the chat says the click was refused, with "no conversation is waiting to be opened"
+    When the agent is released
+    Then the panel shows no such refusal
+    And the conversation is titled "an older conversation"
+    And the agent is idle
 
   @no-agent @scratch:chat
   Scenario: With no agent, the panel says so rather than disappearing
@@ -899,6 +1038,34 @@ Feature: Talking to the agent
     # because there is nothing undelivered about them.
     And the chat shows my message "crash"
     And no message is marked undelivered
+
+  @scratch:chat
+  Scenario: A turn the agent REFUSED ends the turn, not the conversation
+    # `session/prompt` is a request like any other, so a JSON-RPC error is an
+    # answer it can have — a mode the agent cannot prompt from, a session it has
+    # lost track of, a model it could not reach. Nothing died and nothing is
+    # unreachable: ONE turn failed, and the conversation under it is exactly as
+    # usable as it was.
+    #
+    # It used to be read as the agent having gone. The panel then said `not
+    # running` about a process that was running, in a conversation it was still
+    # in, for the rest of the session — and the only thing that took the word
+    # back was another turn succeeding.
+    When I ask the agent "error"
+    Then the chat eventually shows "this turn cannot be run in the mode"
+    # THE CLAIM: still there. Idle rather than gone, and the box still takes
+    # what somebody types into it.
+    And the agent is idle
+    And the chat input takes typing
+    # The turn ended honestly on the way: the message did not land, because an
+    # error response is JSON-RPC saying the request took no effect, so the row
+    # keeps the words and offers to send them again.
+    And the chat shows my message "error" as "refused"
+    # ... and the next prompt goes to the same live agent.
+    When I ask the agent "hello"
+    Then the agent's answer mentions "you said: hello"
+    And the agent is idle
+    And the chat says nothing went wrong
 
   @scratch:chat
   Scenario: Cancelling under a message in flight does not start the turn back up

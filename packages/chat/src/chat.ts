@@ -135,6 +135,11 @@ export interface Chat {
   readonly cancel: Effect.Effect<void, OpFailure>
   readonly newSession: Effect.Effect<void, OpFailure>
   readonly loadSession: (id: string) => Effect.Effect<void, OpFailure>
+  /** Try the refused OPEN again — the one `ChatState.unopened` is about. It
+   *  takes no argument because the attempt is kept here, beside the reason:
+   *  a boot picks its own conversation, so a caller naming one would be asking
+   *  for something nobody asked for. Refuses when nothing is waiting. */
+  readonly reopen: Effect.Effect<void, OpFailure>
   readonly sessions: Effect.Effect<ReadonlyArray<SessionInfo>, OpFailure>
   /** Answer the question `id`, or — with `null` — decline it. Both refuse if
    *  that question has stopped waiting, which is a thing two open tabs can
@@ -349,8 +354,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           return
         case "userSaid":
           // A replay only: live, we put the user's own message in ourselves
-          // when the turn was accepted.
-          publish(transcript.add("user", event.text))
+          // when the turn was accepted — whole, because we have the whole of it
+          // before anything is on the wire. A replay does not arrive whole, so
+          // the chunks accumulate the way the agent's own prose does.
+          publish(transcript.userSaid(event.text))
           return
         case "tool":
           publish(
@@ -395,10 +402,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           move({ usage: event.usage })
           return
         case "session":
+          // A conversation is open, so nothing is waiting to be opened again.
+          // HERE rather than in the two verbs that can open one, because this
+          // is the event both of them end in — and because a BOOT opens one
+          // without either of them being called at all.
+          opened()
           move({
             status: state.status === "thinking" ? "thinking" : "idle",
             session: { id: event.id, title: event.title, updatedAt: null },
             trouble: null,
+            unopened: null,
           })
           return
         case "sessionTitled":
@@ -449,7 +462,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         case "gone":
           publish(transcript.settle())
           publish(transcript.add("notice", event.why))
-          move({ status: "gone", trouble: event.why })
+          // Through the same door the two open verbs use, so a refusal that was
+          // about a LIVE agent does not outlive the process it was about.
+          wentAway(event.why)
           return
         case "trouble":
           publish(transcript.add("notice", event.message))
@@ -595,11 +610,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * The message did not land, said on the row it was typed into — in the ONE
      * of two ways this end can honestly say it.
      *
-     * A REFUSAL is a certainty: something answered no while the message had
-     * taken no effect — a method the agent does not have, a session it does not
-     * know, a process that was not there, a turn its own sender had stopped.
-     * The row keeps the prompt ({@link ./transcript.ts}) and offers *send
-     * again*, because nothing happened and asking again is honest.
+     * A REFUSAL is a certainty: nothing took the message, and this end can say
+     * so — the agent answered no (a method it does not have, a session it does
+     * not know, a turn its own sender had stopped), or there was nothing to ask
+     * at all (no process, no session open). The row keeps the prompt
+     * ({@link ./transcript.ts}) and offers *send again*, because nothing
+     * happened and asking again is honest.
+     *
+     * The ROW's two faces are two where {@link ./agent.ts}'s `Gone` is three,
+     * and the fold is deliberate: those two arms differ in whether the agent is
+     * still there, which is a fact about the CONVERSATION and not about these
+     * words. A message that did not go did not go.
      *
      * SILENCE is not. The steer went out, the deadline passed, and an agent
      * that took the message and then went quiet is indistinguishable from one
@@ -630,10 +651,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *  because both delivery lanes reach it: a refusal keeps the prompt beside
      *  the row and hands a person the button that sends it again; a silence
      *  keeps nothing, which is what makes the button unofferable rather than
-     *  merely undrawn ({@link ./transcript.ts}). */
+     *  merely undrawn ({@link ./transcript.ts}).
+     *
+     *  SILENCE is the arm that is named, and the other is everything else. The
+     *  question this answers is "may I honestly offer these words again", and
+     *  exactly one of `Gone`'s three values says no to it — so naming the two
+     *  that say yes would be this line having an opinion about which ways a
+     *  message can fail to go, which is the thing it does not have to have. */
     const markUndelivered = (key: string, prompt: string, gone: AcpAgent.Gone): void => {
       publish(
-        gone === "refused" ? transcript.refused(key, prompt) : transcript.unanswered(key),
+        gone === "unanswered" ? transcript.unanswered(key) : transcript.refused(key, prompt),
       )
     }
 
@@ -692,9 +719,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               publish(transcript.add("notice", outcome.failure.message))
               // A turn that produced NOTHING is a delivery that failed, and it
               // is said on the row like any other ({@link markUndelivered}) —
-              // a refusal where the agent was never reached at all (no
-              // process, no session), a silence where the pipe died with the
-              // prompt on it.
+              // a refusal where the agent said no or was never reached at all,
+              // a silence where the pipe died with the prompt on it.
               //
               // An agent that SAID something first is the case this must not
               // touch, and the reason this file used to mark nothing here: it
@@ -703,7 +729,21 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               // What has changed is that "did it arrive" is now answerable —
               // by the turn's own silence, and by `Gone` where it is not.
               if (heard === quietSince) markUndelivered(key, prompt, outcome.failure.gone)
-              if (current) move({ status: "gone", trouble: outcome.failure.message })
+              // WHETHER THERE IS STILL AN AGENT, which is a different question
+              // from whether the turn ran and is answered by the same value: a
+              // turn the agent REFUSED is a turn that ended — the process is
+              // there, it just spoke, the conversation is open, and the next
+              // prompt goes to it. Everything else is this end unable to reach
+              // one, and the panel says so.
+              //
+              // Both readings used to be `refused`, so a turn an agent answered
+              // an error to left a live agent's panel saying `not running` — in
+              // a conversation it was still in — until some later turn happened
+              // to succeed.
+              const alive = outcome.failure.gone === "refused"
+              if (current) {
+                move({ status: alive ? "idle" : "gone", trouble: outcome.failure.message })
+              }
               return
             }
             // Cancelling means stop, and it means only that now: everything
@@ -835,11 +875,77 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         yield* deliver(id, prompt)
       })
 
-    /** Move to another conversation. The `done` frame of a cancelled turn
-     *  follows on its own — the agent decides how a turn ended, and a cancel
-     *  that raced the end of one must not claim otherwise. */
+    /**
+     * An OPEN that the agent refused, and what it would take to try it again.
+     *
+     * The other half of a `ChatState.unopened`, kept HERE for the reason a
+     * refused message's prompt is kept beside its row ({@link ./transcript.ts}):
+     * a face offering a retry with nothing behind it draws a button that
+     * refuses, and an attempt with no face is a failure nobody can see. Neither
+     * is constructible while the two are written and dropped together —
+     * {@link refusedOpen} writes both, and {@link opened} drops both.
+     *
+     * The EFFECT rather than a description of it, because "which conversation"
+     * is not always a thing anybody named: a boot adopts its own, and a
+     * description would be this file re-deciding that on a retry.
+     */
+    let unopened: { readonly again: Effect.Effect<void, AcpAgent.AgentGone> } | null = null
+
+    /** The agent said no to opening a conversation. The panel says so, with
+     *  the agent's own words and the offer to try again — and stays IDLE,
+     *  because the agent answered and is therefore running ({@link
+     *  ../../surface/src/chat.ts}'s `Unopened`). */
+    const refusedOpen = (
+      failure: AcpAgent.AgentGone,
+      what: string | null,
+      again: Effect.Effect<void, AcpAgent.AgentGone>,
+    ): void => {
+      unopened = { again }
+      // `trouble` is left alone deliberately: it is drawn inside the transcript
+      // and cleared by the next turn, and there is neither a transcript to draw
+      // it in nor a next turn to clear it. The face is what says this.
+      move({ status: "idle", unopened: { why: failure.message, what } })
+    }
+
+    /** ... and a conversation is open, so neither half of that is true any
+     *  more. Called wherever one is entered, which is the only thing that can
+     *  make it untrue. */
+    const opened = (): void => {
+      unopened = null
+    }
+
+    /**
+     * THE AGENT IS NOT THERE — it never started, it died, the handshake failed.
+     *
+     * The other answer to "the open did not happen", and the one that takes a
+     * refusal with it: `unopened` says *the agent is running and would not open
+     * a conversation*, and the first half of that stops being true here. A
+     * refusal left standing over a dead process is the panel's body saying the
+     * agent answered while its own header says the agent is gone — the same
+     * shape of lie this PR exists to end, one state later.
+     *
+     * Three callers and one rule: the two verbs that open a conversation, and
+     * the process exiting on its own.
+     */
+    const wentAway = (why: string): void => {
+      opened()
+      move({ status: "gone", trouble: why, unopened: null })
+    }
+
+    /**
+     * Move to another conversation. The `done` frame of a cancelled turn
+     * follows on its own — the agent decides how a turn ended, and a cancel
+     * that raced the end of one must not claim otherwise.
+     *
+     * `what` is taken TWICE — run, and kept for a retry where it was refused —
+     * which is what makes "try again" mean the thing that was asked for rather
+     * than the thing this file would pick.
+     */
     const changeSession = (
       what: Effect.Effect<void, AcpAgent.AgentGone>,
+      /** WHICH conversation, for the sentence a refusal draws. `null` for a
+       *  fresh one, which is nobody's by name. */
+      named: string | null = null,
     ): Effect.Effect<void, OpFailure> =>
       switching.withPermit(
         Effect.gen(function*() {
@@ -854,7 +960,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           move({ status: "booting" })
           const outcome = yield* Effect.result(what)
           if (outcome._tag === "Failure") {
-            move({ status: "gone", trouble: outcome.failure.message })
+            // THE AGENT SAID NO, as against there being no agent to say it —
+            // `refused` and only `refused` ({@link ./agent.ts}'s `Gone`). It is
+            // running, it just will not open this; the panel says that rather
+            // than reporting a dead process, and holds what it would take to
+            // ask again.
+            if (outcome.failure.gone === "refused") {
+              refusedOpen(outcome.failure, named, what)
+            } else {
+              wentAway(outcome.failure.message)
+            }
             return yield* asFailure(outcome.failure)
           }
           move({ status: "idle" })
@@ -882,7 +997,46 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // done says so where it was asked.
       cancel,
       newSession: changeSession(agent.newSession),
-      loadSession: (id: string) => changeSession(agent.loadSession(id)),
+      // NAMED by the id the browser pressed, which is the only thing this end
+      // has before the load answers — a title would be the picker's word for a
+      // conversation, and the picker is exactly what this refusal takes off the
+      // screen. The agent's own reason sits beside it either way.
+      loadSession: (id: string) => changeSession(agent.loadSession(id), id),
+      /**
+       * The refused OPEN, tried again — whichever it was.
+       *
+       * The prompt-retry's shape one level up ({@link resend}), and its rule:
+       * IT TAKES. Reading the attempt and emptying the slot are one step, so
+       * whichever press gets there first leaves with it and the other finds
+       * nothing waiting and is told so. Two presses that both read a non-null
+       * attempt would both open — and for a refused `newSession` that is a
+       * second fresh conversation wiping the first, which is the one outcome a
+       * retry must not be able to produce.
+       *
+       * SYNCHRONOUS, inside the suspend, which is what makes the take atomic:
+       * `changeSession`'s permit cannot be borrowed for it (a semaphore is not
+       * reentrant, and `changeSession` takes that permit itself), and it would
+       * be the wrong permit anyway — the window is between reading the slot and
+       * queueing on it, which is over before either press awaits anything.
+       *
+       * WHAT IS NOT TAKEN IS THE FACE. The cell keeps its reason until
+       * `changeSession` rewrites it, so a retry that fails again leaves the
+       * panel exactly as it was — still saying why, still offering the button —
+       * and one that lands clears both halves at the door a conversation is
+       * entered by ({@link opened}).
+       */
+      reopen: Effect.suspend(() => {
+        const waiting = unopened
+        if (waiting === null) {
+          return Effect.fail(
+            new UsageFailure({
+              reason: "no conversation is waiting to be opened — one is open, or none was refused",
+            }),
+          )
+        }
+        unopened = null
+        return changeSession(waiting.again, state.unopened?.what ?? null)
+      }),
       sessions: Effect.catch(
         Effect.map(agent.sessions, (stored) =>
           stored.map((entry): SessionInfo => ({
@@ -920,7 +1074,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               // this, and the next prompt retries the boot exactly as a crash
               // does. Nothing has stopped.
               yield* Effect.logWarning(outcome.failure.message)
-              move({ status: "gone", trouble: outcome.failure.message })
+              // The same distinction the session verbs make, at the other place
+              // a conversation is opened: an agent that ANSWERED the open with
+              // a no is running, and a boot that never reached one is not.
+              // What a boot was trying to open is nobody's by name — it adopts
+              // its own — so the face names no conversation, and trying again
+              // is the boot itself, which is idempotent and re-opens.
+              if (outcome.failure.gone === "refused") {
+                refusedOpen(outcome.failure, null, agent.boot)
+              } else {
+                wentAway(outcome.failure.message)
+              }
               return
             }
             move({ status: "idle" })

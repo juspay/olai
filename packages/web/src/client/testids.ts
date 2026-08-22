@@ -1020,6 +1020,16 @@ export const TESTID = {
   /** Drawn in the transcript's place when no ACP agent is configured. The
    *  panel is NOT hidden in that state — this is what it says instead. */
   chatNoAgent: "chat-no-agent",
+  /** Drawn in the transcript's place when the agent is RUNNING and would not
+   *  open a conversation. The panel's third body, and the one that is about a
+   *  live agent: `chatNoAgent` is a capability that is switched off, this is
+   *  one that said no. */
+  chatUnopened: "chat-unopened",
+  /** The agent's own words for that refusal — its own id because it is the
+   *  half the face exists for, the way `chatMissingWhy` is. */
+  chatUnopenedWhy: "chat-unopened-why",
+  /** ...and the one thing that can change it: try opening it again. */
+  chatReopen: "chat-reopen",
   /** The agent's finished prose, rendered as markdown. Its own name rather
    *  than a node note's: they are two different things on the page. */
   chatSaid: "chat-said",

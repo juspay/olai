@@ -82,7 +82,6 @@ import type {
   SetSessionConfigOptionResponse,
   ToolCallContent,
   ToolCallLocation,
-  ToolCallStatus,
 } from "@agentclientprotocol/sdk"
 import {
   diffsOf,
@@ -139,38 +138,58 @@ export interface ToolServer {
 }
 
 /**
- * HOW a verb failed, in the only distinction anything downstream can act on:
- * did the request get an ANSWER?
+ * HOW a verb failed — three ways, because a caller has TWO questions and two
+ * values could only ever answer one of them.
  *
- *   - `refused` — something said no, and said it about a request that did not
- *     take effect: the agent answered a JSON-RPC error (a method it does not
- *     have, a session it does not know), or this file refused before anything
- *     reached the wire at all (no process, no session, a spawn that failed, a
- *     notification the pipe would not take). Whatever was asked for did NOT
- *     happen, so offering to ask again is honest.
+ *   - `refused` — THE AGENT SAID NO. It answered the request with a JSON-RPC
+ *     error: a method it does not have, a session it does not know, a mode it
+ *     cannot work from. Whatever was asked for did not happen (that is
+ *     JSON-RPC's own bet about its own error responses), so asking again is
+ *     honest — and the agent is demonstrably THERE, because it just spoke.
+ *   - `unreachable` — NOTHING WAS ASKED OF ANYTHING. This file refused before
+ *     the request reached the wire: no process, a spawn that failed, no session
+ *     open, a notification the pipe would not take. Also did not happen, also
+ *     honest to ask again — and nothing here can say the agent is there.
  *   - `unanswered` — the request went out and NOTHING came back: the deadline
  *     passed, or the connection died with it in flight. Whether the agent acted
  *     on it cannot be known from this end — one that took a message and then
  *     went quiet is indistinguishable from one that never took it — so the
  *     honest thing to do with this is SAY so, and never quietly ask again.
  *
- * The WIRE decides which, not the caller: an error RESPONSE arrives as the
- * SDK's own {@link RequestError}, and every other rejection — a closed
- * connection, an interrupted deadline — is silence wearing an `Error`. That
- * reading is {@link goneOf}, and it lives here rather than in
- * {@link ./interpret.ts} because it is the protocol SDK's vocabulary rather
- * than one adapter's extension.
- */
-export type Gone = "refused" | "unanswered"
-
-/** The agent is not there — it never started, it died, or the handshake failed.
- *  Every verb can fail this way and the next one retries the boot, which is why
- *  a crash and a cold start are the same recovery path.
+ * THE TWO QUESTIONS, read off the one value, which is why it is one value:
  *
- *  `why` is the sentence a person reads; {@link Gone} is the half a caller can
- *  ACT on — whether what they asked for can honestly be offered again. One
- *  message in the panel is drawn entirely out of it ({@link ./chat.ts}'s
- *  `undeliverable`). */
+ *   - *can I honestly offer this again?* — anything but `unanswered`. That is
+ *     the row's `delivery` ({@link ../../surface/src/chat.ts}), which stays two
+ *     valued because it is only ever asked this one;
+ *   - *is the agent still there?* — `refused`, and only `refused`. It used to
+ *     be unaskable: the two local arms above shared a word with the agent's own
+ *     no, so a turn the agent refused was indistinguishable from a turn there
+ *     was no agent to refuse it, and the panel said `not running` about a
+ *     process that had just spoken to it.
+ *
+ * Splitting the first two rather than adding a second field is what keeps the
+ * illegal combination unspellable: "the agent answered, and it is not there" is
+ * not a value.
+ *
+ * The WIRE decides which of the first and last, not the caller: an error
+ * RESPONSE arrives as the SDK's own {@link RequestError}, and every other
+ * rejection — a closed connection, an interrupted deadline — is silence wearing
+ * an `Error`. That reading is {@link goneOf}, and it lives here rather than in
+ * {@link ./interpret.ts} because it is the protocol SDK's vocabulary rather
+ * than one adapter's extension. `unreachable` is never read off a rejection: it
+ * is what this file mints when there was nothing to reject.
+ */
+export type Gone = "refused" | "unreachable" | "unanswered"
+
+/** A VERB of this module's did not do what it was asked. Every one of them can
+ *  fail this way, and where the agent is not there the next verb retries the
+ *  boot — which is why a crash and a cold start are the same recovery path.
+ *
+ *  `why` is the sentence a person reads; {@link Gone} is what a caller can ACT
+ *  on — whether what they asked for can honestly be offered again, and whether
+ *  there is still an agent on the other end. Two faces in the panel are drawn
+ *  entirely out of it ({@link ./chat.ts}'s `undeliverable` and the state a
+ *  failed turn leaves behind). */
 export class AgentGone extends Data.TaggedError("AgentGone")<{
   readonly gone: Gone
   readonly why: string
@@ -232,7 +251,9 @@ export interface Agent {
   readonly boot: Effect.Effect<void, AgentGone>
   /** One turn. Answers with the agent's stop reason (`end_turn`, `cancelled`,
    *  …) — the turn's END is a return value rather than an event, because the
-   *  caller that asked is the one waiting. */
+   *  caller that asked is the one waiting. A turn the agent REFUSED fails with
+   *  `refused`, which is that word's whole point: the agent answered, so the
+   *  TURN ended rather than the conversation ({@link Gone}). */
   readonly prompt: (text: string) => Effect.Effect<string, AgentGone>
   /**
    * Put a message INTO the turn already running — see {@link Steered} for the
@@ -494,7 +515,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             _tag: "tool",
             id: update.toolCallId,
             title: update.title ?? undefined,
-            status: (update.status ?? undefined) as ToolCallStatus | undefined,
+            // NO CAST. The protocol's four words and the panel's are the same
+            // four, and this is the one seam that says so: a fifth status on
+            // either side stops compiling HERE, where a person can decide what
+            // the panel should do with it, rather than riding a cast onto a row
+            // whose look-up table has no entry for it.
+            status: update.status ?? undefined,
             detail: detailOf(update.rawInput, update.rawOutput),
             progress: progressOf(update.content),
             // The two vocabularies for what a call CHANGED, and a call is at
@@ -723,7 +749,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const notStarted = (why: string): AgentGone =>
       new AgentGone({
         // Nothing was asked of anything: there is no process to ask.
-        gone: "refused",
+        gone: "unreachable",
         why: `could not start the agent \`${options.command}\`: ${why}`,
       })
 
@@ -1073,7 +1099,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       Effect.gen(function*() {
         // Before the flag below, because a detection is not a replay.
         const mcpServers = [...(yield* servers)]
-        yield* entered(id, title)
         // Everything between these two is history. The flag is set before the
         // call because a load replays THEN answers.
         replaying = true
@@ -1097,6 +1122,19 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               emit({ _tag: "replayEnded" })
             }),
         )) as LoadSessionResponse | undefined
+        // AFTER THE ANSWER, and that ordering is the whole of one bug. Entering
+        // a conversation is what this module records being IN one — it sets the
+        // session every later verb acts on, and it writes the note the next boot
+        // reads. Done before the request, a load the agent REFUSED left both
+        // pointing at a conversation the agent had just said no to: every
+        // prompt after it failed, and the next boot went back and asked for the
+        // same one again.
+        //
+        // Nothing is lost by waiting. The replay's own frames need no session —
+        // they are rows, and `replayStarted` has already emptied the transcript
+        // for them — so what the panel is short of in between is the title,
+        // which it gets a moment later along with everything else.
+        yield* entered(id, title)
         yield* restore(at, id, loaded?.configOptions, wanted)
         yield* askForBypass(at, id)
       })
@@ -1217,21 +1255,40 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         }),
       )
 
-    const boot = booting.withPermit(
-      Effect.gen(function*() {
-        if (stopped) return yield* new AgentGone({ gone: "refused", why: "the server is shutting down" })
-        if (live !== null && session !== null) return
-        const started = live ?? (yield* start())
-        live = started
-        // `onError` hands the fiber's CAUSE, not the failure — `String` on one
-        // of those is `Cause([Fail(…)])` with the reason buried in it, which
-        // is a notice a person reads. `reasonOf` squashes it back down.
-        yield* Effect.onError(openSession(started), (cause) =>
-          Effect.sync(() => {
-            trouble(`the agent could not open a session: ${reasonOf(cause)}`)
-          }))
-      }),
-    )
+    /**
+     * The boot itself, WITHOUT the permit — so that a caller which has to hold
+     * that permit across more than a boot can ({@link opening}).
+     *
+     * Split from {@link boot} rather than duplicated, because the thing being
+     * serialized is not "booting" but OPENING A CONVERSATION, and there are two
+     * ways in.
+     */
+    const bringUp = Effect.gen(function*() {
+      if (stopped) return yield* new AgentGone({ gone: "unreachable", why: "the server is shutting down" })
+      if (live !== null && session !== null) return
+      const started = live ?? (yield* start())
+      live = started
+      // `onError` hands the fiber's CAUSE, not the failure — `String` on one
+      // of those is `Cause([Fail(…)])` with the reason buried in it, which
+      // is a notice a person reads. `reasonOf` squashes it back down.
+      yield* Effect.onError(openSession(started), (cause) =>
+        Effect.sync(() => {
+          trouble(`the agent could not open a session: ${reasonOf(cause)}`)
+        }))
+    })
+
+    const boot = booting.withPermit(bringUp)
+
+    /** The process that came up, or the refusal that there is none. The tail
+     *  both doors below share. */
+    const onLive = <A>(
+      use: (at: Live) => Effect.Effect<A, AgentGone>,
+    ): Effect.Effect<A, AgentGone> => {
+      const at = live
+      return at === null
+        ? Effect.fail(new AgentGone({ gone: "unreachable", why: "the agent is not running" }))
+        : use(at)
+    }
 
     /** Every verb: boot if necessary, then act on the process that came up. */
     const withLive = <A>(
@@ -1239,10 +1296,38 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     ): Effect.Effect<A, AgentGone> =>
       Effect.gen(function*() {
         yield* boot
-        const at = live
-        if (at === null) return yield* new AgentGone({ gone: "refused", why: "the agent is not running" })
-        return yield* use(at)
+        return yield* onLive(use)
       })
+
+    /**
+     * ... and the two verbs that OPEN a conversation, which hold the boot's own
+     * permit for the whole of it.
+     *
+     * ONE OPEN AT A TIME, and this is what makes that structural. `boot`
+     * short-circuits on the module being in a conversation, and a conversation
+     * is not entered until the agent has agreed to it ({@link load}) — so
+     * between a `session/load` going out and its answer coming back, the module
+     * is in none, and any verb that booted in that window would start a SECOND
+     * open against a live one. The composer is never disabled and a prompt
+     * typed while the panel is `booting` is accepted, so that window is a
+     * person's ordinary next keystroke rather than a race somebody has to
+     * arrange: it ended with two conversations opened and the panel in whichever
+     * finished last, which is not the one they asked for.
+     *
+     * A concurrent verb WAITS here rather than being refused. There is nothing
+     * to tell it — the conversation it should act in is the one being opened —
+     * and the initial boot has always behaved this way; what was missing is
+     * that a picker-driven open released the permit before doing its work.
+     */
+    const opening = <A>(
+      use: (at: Live) => Effect.Effect<A, AgentGone>,
+    ): Effect.Effect<A, AgentGone> =>
+      booting.withPermit(
+        Effect.gen(function*() {
+          yield* bringUp
+          return yield* onLive(use)
+        }),
+      )
 
     /** ... and the ones that also need a conversation to act IN. */
     const withSession = <A>(
@@ -1251,7 +1336,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       withLive((at) => {
         const id = session
         return id === null
-          ? Effect.fail(new AgentGone({ gone: "refused", why: "the agent has no session open" }))
+          ? Effect.fail(new AgentGone({ gone: "unreachable", why: "the agent has no session open" }))
           : use(at, id)
       })
 
@@ -1281,6 +1366,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               ),
             )
           }
+          // A TURN THE AGENT REFUSES fails like any other request and needs
+          // nothing said about it here: `refused` means the agent answered, so
+          // the caller already has what it needs to end the turn without
+          // burying the conversation with it ({@link Gone}).
           const answered = yield* ask(
             at.connection,
             methods.agent.session.prompt,
@@ -1362,7 +1451,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       prompt,
       steer,
       cancel,
-      newSession: withLive((at) =>
+      newSession: opening((at) =>
         Effect.gen(function*() {
           session = null
           // BEFORE the break, so the question is settled on the row it is
@@ -1373,11 +1462,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         })
       ),
       loadSession: (id: string) =>
-        withLive((at) =>
+        opening((at) =>
           Effect.gen(function*() {
             if (!at.canLoad) {
               return yield* new AgentGone({
-                gone: "refused",
+                gone: "unreachable",
                 why: `\`${id}\` cannot be opened: this agent does not keep conversations`,
               })
             }
@@ -1491,6 +1580,12 @@ const ask = (
  * retry — a protocol violation, and the only shape in here that could produce a
  * duplicate.
  *
+ * IT ANSWERS TWO OF THE THREE {@link Gone} VALUES and never the third, which is
+ * the whole reason there are three: `unreachable` is what this file mints where
+ * there was nothing to reject at all, so a value read off a REJECTION cannot be
+ * it. That is what makes `refused` mean exactly one thing here — the agent
+ * spoke — and what a caller deciding whether there is still an agent reads.
+ *
  * The SDK also mints a `RequestError` ITSELF for a response frame it cannot
  * parse (`invalidRequest`), which is the agent having said SOMETHING
  * unreadable rather than having said no. Read as a refusal, like the rest. It
@@ -1521,7 +1616,7 @@ const notify = (
     // `cancel` in {@link ./chat.ts} — but that path does not come through
     // here.)
     catch: (cause) =>
-      new AgentGone({ gone: "refused", why: `\`${method}\` failed: ${reasonOf(cause)}` }),
+      new AgentGone({ gone: "unreachable", why: `\`${method}\` failed: ${reasonOf(cause)}` }),
   })
 
 // ── reading the payloads ───────────────────────────────────────────────

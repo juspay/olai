@@ -163,6 +163,11 @@ export interface Chat {
   readonly cancel: () => void
   readonly newSession: () => void
   readonly loadSession: (id: string) => void
+  /** Try the OPEN the agent refused again. It takes no argument, and that is
+   *  the same rule { Chat.resend} follows: the SERVER holds which one was
+   *  asked for, because a boot picks its own conversation and a browser naming
+   *  one would be asking for something nobody asked for. */
+  readonly reopen: () => void
   /** Asked of the server every time the picker opens: the agent's list is the
    *  only one that is right. Answers {@link Sessions} — the list, or WHY there
    *  is none — because the two are different answers and used to be the same
@@ -299,6 +304,7 @@ export const createChat = (): Chat => {
     cancel: () => verb(olai.procedures.chat.cancel()),
     newSession: () => verb(olai.procedures.chat.newSession()),
     loadSession: (id) => verb(olai.procedures.chat.loadSession({ id })),
+    reopen: () => verb(olai.procedures.chat.reopen()),
     answer: (id, answers, done) =>
       verb(olai.procedures.chat.answer({ id, answers }), done),
     decline: (id, done) => verb(olai.procedures.chat.decline({ id }), done),

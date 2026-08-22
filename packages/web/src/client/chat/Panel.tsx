@@ -14,8 +14,10 @@
  * here (`last.ts`), never the collection.
  *
  * Both layouts render the same `Face` — the header, whatever this conversation
- * is short of, and the conversation itself — so the two shells own their chrome
- * and their geometry and nothing else. Inside it, `Body` is the conversation,
+ * is short of, and then one of three bodies ({@link ./face.ts}): the
+ * conversation, the explanation that there is no agent, or the explanation that
+ * a live agent would not open one. So the two shells own their chrome and their
+ * geometry and nothing else. Inside it, `Body` is the conversation,
  * the box and the drop target around them: a file let go of anywhere on the
  * conversation is attached to it, and the chips land in the composer inside.
  * The body only — the header is session controls, and a file cannot go there.
@@ -28,7 +30,7 @@
  * away by it.
  */
 
-import { createSignal, Show } from "solid-js"
+import { createSignal, Match, Show, Switch } from "solid-js"
 
 import { ChatHandle } from "../layout/Handle.tsx"
 import { desktop } from "../layout/media.ts"
@@ -46,6 +48,7 @@ import { ICON_BUTTON } from "../readout.ts"
 import { Composer } from "./Composer.tsx"
 import { DropTarget } from "./DropTarget.tsx"
 import { Header } from "./Header.tsx"
+import { faceOf } from "./face.ts"
 import { createHolding } from "./holding.ts"
 import { createLastAgent } from "./last.ts"
 import { Minimized } from "./Minimized.tsx"
@@ -53,6 +56,7 @@ import { Missing } from "./Missing.tsx"
 import { NoAgent } from "./NoAgent.tsx"
 import { type Chat, createChat, createChatState } from "./state.ts"
 import { Transcript } from "./Transcript.tsx"
+import { Unopened } from "./Unopened.tsx"
 
 export function Panel() {
   return (
@@ -130,7 +134,12 @@ export function Toggle() {
 
 /**
  * Everything inside either shell: the header, whatever this conversation is
- * short of, and then the conversation or the explanation of why there is none.
+ * short of, and then the conversation or one of the two explanations of why
+ * there is none — no agent to ask, or an agent that answered and said no.
+ *
+ * The HEADER is drawn in all three, which is the point of it being out here: a
+ * conversation that could not be opened is not a dead agent, and the line
+ * naming the model goes on being true while the body says what happened.
  *
  * The two layouts differ in their chrome and their geometry and never in THIS,
  * and the argument is the one {@link Body} already makes one level down: three
@@ -140,14 +149,30 @@ export function Toggle() {
  * would notice mostly run on a desktop viewport.
  */
 function Face(props: { readonly chat: Chat }) {
-  const off = () => props.chat.state().status === "off"
+  // WHICH of the three, decided in one place and asserted without a browser
+  // ({@link ./face.ts}) — the precedence has been re-decided once already, and
+  // what it decides is which of three things a person is looking at.
+  const face = () => faceOf(props.chat.state())
+  // The REASON comes off the same answer that chose the arm, rather than being
+  // fetched again from the cell: two reads of one fact are two answers free to
+  // disagree, and the one that can be `null` is exactly the one a second read
+  // would have to assert away.
+  const refused = () => {
+    const chosen = face()
+    return chosen.kind === "unopened" ? chosen.unopened : undefined
+  }
   return (
     <>
       <Header chat={props.chat} />
       <Missing chat={props.chat} />
-      <Show when={!off()} fallback={<NoAgent />}>
-        <Body chat={props.chat} />
-      </Show>
+      <Switch fallback={<Body chat={props.chat} />}>
+        <Match when={face().kind === "no-agent"}>
+          <NoAgent />
+        </Match>
+        <Match when={refused()}>
+          {(unopened) => <Unopened chat={props.chat} unopened={unopened()} />}
+        </Match>
+      </Switch>
     </>
   )
 }

@@ -89,11 +89,13 @@ describe("an agent that will not start", () => {
     // refusal that talked about a destroyed stream would pass neither line.
     expect(why).toContain("ENOENT")
     expect(why).not.toContain("stream was destroyed")
-    // ... and it is a REFUSAL rather than a silence, which is the half a
-    // caller acts on: nothing was asked of anything, because there was nothing
-    // to ask. A message that failed this way certainly did not go, so the row
-    // it was typed into may honestly offer to send it again.
-    expect(outcome._tag === "Failure" ? outcome.failure.gone : null).toBe("refused")
+    // ... and it is UNREACHABLE, which is the half a caller acts on and says
+    // both of the things there are to say: nothing was asked of anything —
+    // because there was nothing to ask — so the message certainly did not go
+    // and the row may honestly offer to send it again; and there is no agent,
+    // so the panel says that rather than `ready`. It is deliberately not
+    // `refused`, which is reserved for the agent itself answering no.
+    expect(outcome._tag === "Failure" ? outcome.failure.gone : null).toBe("unreachable")
 
     await Effect.runPromise(agent.stop)
   })
@@ -123,5 +125,24 @@ describe("what a failure says about whether the message went", () => {
     // An unrecognised rejection offers a person nothing, rather than offering
     // a retry that could duplicate a message the agent already has.
     expect(goneOf("something nobody has seen before")).toBe("unanswered")
+  })
+
+  test("nothing read off a rejection is ever `unreachable`", () => {
+    // The claim that makes `refused` mean ONE thing, which is what the panel's
+    // second face is drawn out of: `unreachable` is minted where there was
+    // nothing to reject at all — no process, no session, a pipe that would not
+    // take a write — so a value read off a REJECTION cannot be it, and a
+    // caller asking "is there still an agent" can read `refused` as "yes, it
+    // just spoke" rather than having to know where in the module it stands.
+    for (
+      const cause of [
+        new RequestError(-32603, "internal error"),
+        new Error("ACP connection closed"),
+        "something nobody has seen before",
+        null,
+      ]
+    ) {
+      expect(goneOf(cause)).not.toBe("unreachable")
+    }
   })
 })

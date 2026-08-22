@@ -47,6 +47,11 @@
  *                is what a turn that gave up on a call leaves behind: a row the
  *                wire still calls `in_progress`, forever, in a conversation
  *                somebody can go on talking to
+ *   twice        report one tool call with the SAME frame sent twice, byte for
+ *                byte — the announcement and the completion each repeated
+ *   error        answer `session/prompt` with a JSON-RPC error instead of a
+ *                stop reason, and STAY ALIVE — one turn that failed, in a
+ *                conversation that is still there
  *   subagent     spawn TWO agents and interleave their tool calls with each
  *                other's, each frame stamped with the `Agent` call it came out
  *                of — the whole of what the adapter says about who did what
@@ -106,6 +111,19 @@
  * stop. It waits for a file (`.agent-release` in the directory it was started
  * in) rather than for a clock, so the scenario says when — a dot-file, which
  * the store's walk prunes, so waiting for one is not itself an edit.
+ *
+ * A LOAD THAT DAWDLES is `.agent-hold-load`, released by the same
+ * `.agent-release` a held turn waits on: `session/load` sits on the wire until
+ * a scenario says when, which is the only stretch in which a client is between
+ * conversations and a second open can be started against the first.
+ *
+ * REFUSING TO OPEN A CONVERSATION is a dot-file per verb
+ * (`.agent-refuse-new`, `.agent-refuse-load`), for the same reason stored
+ * sessions are an environment variable: it is a property of the machine rather
+ * than of anything the client says, and one of the two paths that opens a
+ * conversation is a SERVER STARTING, which no prompt can reach. The agent stays
+ * up, answers `session/list`, and says no to the one verb — which is a live
+ * agent with no conversation, and not a dead one.
  *
  * STORED SESSIONS are an environment variable, because which boot path runs is
  * a property of the machine the agent woke up on rather than of anything the
@@ -275,6 +293,38 @@ const STORED_TITLES: Record<string, string> = {
  *  mechanism. */
 const forgotten = (sessionId: string): boolean =>
   existsSync(`${cwd}/.agent-forgot-${sessionId}`)
+
+/**
+ * Whether this agent REFUSES to open a conversation — `new`, `load`, or both.
+ *
+ * An answer rather than a silence, which is the whole of what the client has to
+ * tell apart: the process is up, the handshake is done, `session/list` answers,
+ * and the one thing it will not do is put somebody in a conversation. A client
+ * that read that as a dead agent would say `not running` about a process that
+ * had just spoken to it.
+ *
+ * A DOT-FILE per verb, the way {@link forgotten} and the release are — the
+ * store's walk prunes those, so arming one is not an edit — and read at the
+ * moment of the request rather than at boot, because the two paths a client
+ * opens a conversation through are a person pressing something and a SERVER
+ * STARTING, and a scenario has to be able to reach the second one by arming a
+ * file and restarting.
+ */
+const refusesToOpen = (verb: "new" | "load"): boolean =>
+  existsSync(`${cwd}/.agent-refuse-${verb}`)
+
+/**
+ * Whether `session/load` DAWDLES — armed by `.agent-hold-load`, released by
+ * the same `.agent-release` a held turn waits on.
+ *
+ * A load is the one open that takes real time: the agent re-opens a
+ * conversation and replays every message in it before it answers, which is why
+ * the client gives it its own two-minute deadline. `hold` is how a scenario
+ * gets to look at the client DURING one — the stretch where a person's next
+ * keystroke lands on a panel that is between conversations, and the only
+ * stretch in which a second open can be started against the first.
+ */
+const holdsLoad = (): boolean => existsSync(`${cwd}/.agent-hold-load`)
 
 /** The client's own two, NEWEST LAST — so a client that takes the first entry
  *  instead of the most recently updated one adopts the wrong conversation. */
@@ -798,6 +848,21 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // honestly be marked for. `crash` speaks first and must NOT be markable.
   if (verb === "vanish") process.exit(1)
 
+  // A TURN THAT ANSWERS WITH AN ERROR INSTEAD OF A STOP REASON — and stays
+  // alive to take the next one. `session/prompt` is a request like any other,
+  // so a JSON-RPC error is an answer it can have: an agent whose mode is in a
+  // state it cannot prompt from, a session it has lost track of, a model it
+  // could not reach. Nothing died and nothing is unreachable; ONE TURN failed,
+  // and the conversation under it is exactly as usable as it was.
+  //
+  // BEFORE the usage frames, like `vanish` and for its reason: this turn
+  // produced not one frame, so what a client may honestly say about the message
+  // that started it is the whole of what the error told it.
+  if (verb === "error") {
+    refuse(id, -32603, "this turn cannot be run in the mode this session is in")
+    return
+  }
+
   // The window the agent believes in, moving under the conversation.
   //
   // `window`, NOT `context`: that verb is taken, by the scenarios that prove an
@@ -983,6 +1048,39 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       },
     })
     say("started something and gave up on it.")
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // THE SAME REPORT, TWICE, BYTE FOR BYTE. Nothing in ACP forbids a repeat and
+  // more than one agent sends them, so a client that made anything of the
+  // second one is a client that is wrong about the wire rather than about that
+  // agent. The frame sent again is the very object the first one was built
+  // from: a copy edited by so much as a word would be testing something else.
+  if (verb === "twice") {
+    const toolCallId = `call-${++nextMcpId}`
+    const announced = {
+      sessionUpdate: "tool_call",
+      toolCallId,
+      title: "a call reported twice",
+      status: "in_progress",
+      rawInput: { said: "once" },
+      locations: [{ path: `${cwd}/notes.md`, line: 3 }],
+    }
+    const reported = {
+      sessionUpdate: "tool_call_update",
+      toolCallId,
+      status: "completed",
+      rawOutput: { said: "twice" },
+      content: [
+        { type: "content", content: { type: "text", text: "the same words twice" } },
+      ],
+    }
+    notify("session/update", { sessionId, update: announced })
+    notify("session/update", { sessionId, update: announced })
+    notify("session/update", { sessionId, update: reported })
+    notify("session/update", { sessionId, update: reported })
+    say("said the same thing twice.")
     respond(id, { stopReason: "end_turn" })
     return
   }
@@ -1702,14 +1800,41 @@ const openSession = (params: Record<string, unknown>): void => {
   }
 }
 
-/** Replay a stored conversation, the way a real `session/load` does: every
- *  message as an ordinary `session/update`, and only then the answer. */
+/**
+ * Replay a stored conversation, the way a real `session/load` does: every
+ * message as an ordinary `session/update`, and only then the answer.
+ *
+ * IT OPENS WITH WHAT THE PERSON SAID, and the tool call in the middle of it is
+ * ALREADY COLLAPSED — one `tool_call_update` carrying the whole finished call,
+ * with no announcement in front of it, because there is nothing left to
+ * announce: the call ran in a turn that ended before this process was started.
+ * That is what a history is, and it is the shape a client meets nowhere else —
+ * every live turn announces before it reports.
+ */
 const replay = (): void => {
   notify("session/update", {
     sessionId,
     update: {
       sessionUpdate: "user_message_chunk",
-      content: { type: "text", text: "what did we decide?" },
+      content: { type: "text", text: "what did " },
+    },
+  })
+  notify("session/update", {
+    sessionId,
+    update: {
+      sessionUpdate: "user_message_chunk",
+      content: { type: "text", text: "we decide?" },
+    },
+  })
+  notify("session/update", {
+    sessionId,
+    update: {
+      sessionUpdate: "tool_call_update",
+      toolCallId: "replayed-1",
+      title: "read the notes",
+      status: "completed",
+      rawInput: { file_path: `${cwd}/notes.md` },
+      rawOutput: { read: true },
     },
   })
   notify("session/update", {
@@ -1842,6 +1967,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/new":
+      if (refusesToOpen("new")) {
+        refuse(id, -32603, "this agent will not start a conversation in this directory")
+        return
+      }
       openSession(params)
       sessionId = "fake-session-1"
       // A fresh conversation is on whatever the picker says it is picking, and
@@ -1864,6 +1993,18 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/load":
+      // BEFORE ANY OF IT — no `openSession`, no replay, no move of `sessionId`.
+      // An agent that refuses a load has not opened anything, so a client left
+      // pointing at the conversation it asked for is a client the agent never
+      // agreed with.
+      if (refusesToOpen("load")) {
+        refuse(id, -32603, `no such conversation: ${String(params["sessionId"])}`)
+        return
+      }
+      // ...and BEFORE any of it too, for the same reason: a load that is still
+      // on the wire has opened nothing, and what a scenario looks at in that
+      // window is a client that is between conversations.
+      if (holdsLoad()) await released()
       openSession(params)
       sessionId = String(params["sessionId"] ?? sessionId)
       replay()

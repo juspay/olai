@@ -23,6 +23,7 @@ import { NEAR } from "@olai/web/src/client/chat/near.ts";
 import { selector, TESTID, type TestId } from "@olai/web/src/client/testids.ts";
 
 import { retypedAndTaken } from "../support/atonce.ts";
+import { saysThat } from "../support/said.ts";
 
 import {
   attr,
@@ -66,6 +67,7 @@ import {
   CHAT_OUTLINE_DIFF,
   CHAT_PANEL,
   CHAT_REFUSAL,
+  CHAT_REOPEN,
   CHAT_RESEND,
   CHAT_SAID,
   CHAT_SEND,
@@ -86,6 +88,8 @@ import {
   CHAT_TOOL_PROGRESS,
   CHAT_TRANSCRIPT,
   CHAT_TROUBLE,
+  CHAT_UNOPENED,
+  CHAT_UNOPENED_WHY,
   CHAT_USAGE,
   CHAT_WAITING,
   CHAT_WORKING,
@@ -238,6 +242,32 @@ When(
   "the conversation {string} is gone from the agent",
   function (this: OlaiWorld, id: string) {
     fs.writeFileSync(path.join(this.scratch(), `.agent-forgot-${id}`), "");
+  },
+);
+
+/** Make the agent REFUSE to open a conversation — one verb or the other, and
+ *  it stays alive and answering either way. Read at the moment of the request,
+ *  so a scenario can arm it and then press something, or arm it and restart the
+ *  server to reach the boot's own open. The same dot-file idiom as the rest. */
+When(
+  "the agent refuses to {word} a conversation",
+  function (this: OlaiWorld, verb: string) {
+    fs.writeFileSync(path.join(this.scratch(), `.agent-refuse-${verb}`), "");
+  },
+);
+
+/** Make the next `session/load` sit on the wire until `the agent is released`.
+ *  That stretch is the one in which the panel is between conversations, which
+ *  is the only window a second open can be started in. */
+When("the next conversation load will hang", function (this: OlaiWorld) {
+  fs.writeFileSync(path.join(this.scratch(), ".agent-hold-load"), "");
+});
+
+/** ...and it stops refusing, so `try again` has something to succeed at. */
+When(
+  "the agent will {word} a conversation again",
+  function (this: OlaiWorld, verb: string) {
+    fs.rmSync(path.join(this.scratch(), `.agent-refuse-${verb}`), { force: true });
   },
 );
 
@@ -855,6 +885,34 @@ Then("the chat shows a completed tool call", async function (this: OlaiWorld) {
     HYDRATION_TIMEOUT,
   );
 });
+
+/** How many calls the conversation drew, which is the one thing a claim about
+ *  a REPEATED report turns on: a frame that arrives twice must produce the row
+ *  the first one produced and no second one. */
+Then(
+  "the chat shows {int} tool call(s)",
+  async function (this: OlaiWorld, many: number) {
+    const calls = this.page.locator(CHAT_TOOL);
+    await this.waitUntil(
+      async () => (await calls.count()) === many,
+      `the chat to show ${many} tool call(s)`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+/** ...and what one of them is CALLED, which the panel picks once and never
+ *  moves: a title is a display string an agent may rewrite mid-call, and a row
+ *  that renamed itself under a reader would be the panel changing its mind
+ *  about what happened. Read off the frame's own line, where a person reads it,
+ *  and through `../support/said.ts` — which exists so that "this line does not
+ *  say that" reads the same wherever this suite asks it. */
+Then(
+  "the chat shows a tool call named {string}",
+  async function (this: OlaiWorld, named: string) {
+    await saysThat(this, `${CHAT_TOOL} ${CHAT_TOOL_FOLD}`, named, "call's line");
+  },
+);
 
 Then("the chat shows a running tool call", async function (this: OlaiWorld) {
   await this.expectAttribute(
@@ -2051,6 +2109,50 @@ Then(
       `the no-agent message does not name \`${variable}\`, so it says a feature is ` +
         `missing without saying what would bring it back. It reads: ${said}`,
     );
+  },
+);
+
+// ── a conversation the agent would not open ────────────────────────────
+//
+// The panel's third body, and the one that is about a LIVE agent: it answered,
+// and what it answered was no. The claims are what tells that apart from a dead
+// one — the header still names the model, the reason is the agent's own words,
+// and there is something to press.
+
+Then("the panel says the conversation could not be opened", async function (this: OlaiWorld) {
+  await this.page
+    .locator(CHAT_UNOPENED)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
+Then("the panel shows no such refusal", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_UNOPENED).count()) === 0,
+    "the refused-conversation face to go",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then(
+  "the refusal is in the agent's own words, {string}",
+  async function (this: OlaiWorld, said: string) {
+    await saysThat(this, CHAT_UNOPENED_WHY, said, "refusal");
+  },
+);
+
+When("I try to open it again", async function (this: OlaiWorld) {
+  const again = this.page.locator(CHAT_REOPEN);
+  await again.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await again.click();
+});
+
+/** What a CLICK was told, wherever the panel says it. The refused-conversation
+ *  body draws the same line the transcript does — there is no transcript in it
+ *  to put one in, and the button it sits under is the only control there is. */
+Then(
+  "the chat says the click was refused, with {string}",
+  async function (this: OlaiWorld, said: string) {
+    await saysThat(this, CHAT_REFUSAL, said, "refused click");
   },
 );
 

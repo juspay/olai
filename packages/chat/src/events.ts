@@ -20,6 +20,7 @@ import type {
   FileDiff,
   MissingServer,
   Spawned,
+  ToolStatus,
   Usage,
   Wrote,
 } from "@olai/surface"
@@ -40,8 +41,15 @@ export interface Stored {
 export type AgentEvent =
   /** The agent's prose, one chunk as it arrived. */
   | { readonly _tag: "said"; readonly text: string }
-  /** A user message. Only a REPLAY carries these: live, we already know what
-   *  was sent, because we sent it. */
+  /** What a PERSON said, ONE CHUNK as it arrived — the same unit `said`
+   *  carries, because it is the same unit the wire carries. Only a REPLAY
+   *  brings these: live, we already know what was sent, because we sent it,
+   *  and we have the whole of it before any of it is on the wire.
+   *
+   *  Saying "a chunk" is not pedantry here; it is the line that was missing.
+   *  This used to read "a user message", and the consumer wrote a ROW per
+   *  event on the strength of it — so a replayed message came back as one
+   *  bubble per piece the agent had kept it in. */
   | { readonly _tag: "userSaid"; readonly text: string }
   /**
    * A tool call, as we last heard of it — announced or moved.
@@ -59,7 +67,12 @@ export type AgentEvent =
     readonly _tag: "tool"
     readonly id: string
     readonly title: string | undefined
-    readonly status: "pending" | "in_progress" | "completed" | "failed" | undefined
+    /** WHAT THE CALL IS DOING, in the surface's own four words rather than a
+     *  fifth spelling of them. It used to be spelled out here, which made three
+     *  lists of one vocabulary — the SDK's `ToolCallStatus`, this, and the
+     *  wire's — and the seam in {@link ./agent.ts} is where a fifth ACP status
+     *  now has to be met rather than cast past. `undefined` is "unchanged". */
+    readonly status: ToolStatus | undefined
     readonly detail: string | undefined
     /** What the call has to SAY while it runs, out of the protocol's content
      *  blocks. Its own field rather than more `detail` because the two answer

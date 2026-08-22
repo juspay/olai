@@ -925,6 +925,10 @@ export const bind = (
           cancel: () => withChat((open) => open.cancel),
           newSession: () => withChat((open) => open.newSession),
           loadSession: ({ input }) => withChat((open) => open.loadSession(input.id)),
+          // No input, for the reason the member says: which open was refused is
+          // the chat's own record, and a browser naming one would be picking a
+          // conversation nobody asked for.
+          reopen: () => withChat((open) => open.reopen),
           sessions: () => withChat((open) => open.sessions),
           answer: ({ input }) => withChat((open) => open.answer(input.id, input.answers)),
           decline: ({ input }) => withChat((open) => open.answer(input.id, null)),
