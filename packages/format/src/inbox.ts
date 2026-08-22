@@ -1,5 +1,17 @@
 /**
- * HOW FULL THE INBOX IS — the number the directory's Inbox door wears.
+ * THE INBOX CONVENTION, read both ways: what a capture BECOMES, and how full
+ * the file is afterwards.
+ *
+ * Which outline the inbox IS is `./node.ts`'s ({@link inboxIn}) — a statement
+ * about what a served file is by its name, beside `TRASH`. This module is the
+ * two things a reader of that convention asks next, and they are here together
+ * because they are one fact read from two sides: a directory with no inbox is
+ * a `create` for the capture and a `0` for the door, and the two must never
+ * disagree about which file they meant.
+ *
+ * ## What a capture becomes ({@link captureInto})
+ *
+ * ## How full the inbox is ({@link inboxHeldOf}) — the number the door wears.
  *
  * The count is the top-level regular nodes of whichever outline `inboxIn`
  * names, which is the same number `list_outlines` reports as that file's
@@ -20,8 +32,10 @@
 import { Schema } from "effect"
 
 import { type Derived, rootsOf } from "./derive.ts"
-import { inboxIn } from "./node.ts"
+import { INBOX, inboxIn, mintedInto } from "./node.ts"
 import { type OutlineSet, outlinePaths } from "./set.ts"
+import type { Reading } from "./validate.ts"
+import type { Capture, WriteRequest } from "./writing.ts"
 
 /**
  * How many captures the inbox holds, as the wire carries it.
@@ -68,4 +82,68 @@ export const inboxHeldOf = (set: OutlineSet, derived: Derived): InboxHeld => {
   if (file === undefined) return NO_INBOX
   const count = rootsOf(derived, file).length
   return { count }
+}
+
+/**
+ * A capture as one of OLAI'S OWN DOORS composes it: {@link Capture} without the
+ * one field that exists only to be refused.
+ *
+ * `after` is declared on a capture so that an agent writing the edge list under
+ * the name `set_after` gives it is turned away BY NAME rather than having its
+ * dependency silently dropped ({@link ./writing.ts}) — and at the TOP of an
+ * `add` that same word means the sibling anchor, which is a string. So the two
+ * spellings genuinely collide, and a door of ours spreading a whole capture
+ * into an `add` is where the collision shows up. It is not a problem to solve:
+ * nothing composing a capture writes the bent word, so the type says so.
+ */
+export type Capturing = Omit<Capture, "after">
+
+/**
+ * THE ONE OP A CAPTURE IS — an `add` into the inbox the directory has, or the
+ * `create` that mints one holding exactly this capture.
+ *
+ * THREE DOORS capture into this directory and none of them names a file: the
+ * palette's `⌘K` `+` sends a line, `POST /capture` sends one from a share
+ * sheet or a script on the tailnet, and an agent reads the outlines and calls
+ * `add_node` or `create_outline` itself (which is why `list_outlines` says the
+ * convention in words — the one door that is handed the rule rather than the
+ * function). The first two resolve through THIS, and that is the whole reason
+ * it is here rather than in whichever face happened to need it first: it is a
+ * statement about the DIRECTORY, the same kind of thing {@link inboxIn} above
+ * it is, and a second spelling of "is there an inbox yet, and what do I do
+ * about it" is two answers about one directory.
+ *
+ * It came down from `@olai/server` the day it got its second caller, which is
+ * the move `./message.ts` records for itself in the same words.
+ *
+ * THE TWO ARMS ARE NOT INTERCHANGEABLE, which is why the choice is made here
+ * and not by a caller off a file list it happens to hold: `create` is refused
+ * for a file that exists and `add` is refused for one that does not. Either
+ * way it is ONE request, so one plan, one validation and one atomic rename —
+ * a capture that is refused leaves nothing behind, not a half-filled inbox and
+ * not an empty file.
+ *
+ * WHERE ONE IS MINTED is `_olai/Inbox.olai` and not the root ({@link
+ * mintedInto}, human 2026-08-20, reversing the ruling of the day before): the
+ * shelf's argument read one convention over — a file olai made because
+ * somebody pressed something is not one of the reader's own. The READING is
+ * untouched, so a directory that already keeps an `Inbox.olai` at its root, or
+ * a `notes/inbox.olai`, goes on capturing into the file it has and nothing
+ * migrates.
+ *
+ * NOTHING IS VALIDATED HERE. A blank title, a date that is not a date, a
+ * property spelled like a field this format already has — each is refused by
+ * the write planner in its own words, which is the same sentence an agent's
+ * `add_node` gets. A second rule here would be a door refusing something in
+ * words no tool uses.
+ *
+ * PURE, over a {@link Reading}, for the reason every derivation in this
+ * package is: it is a question about the set, answerable with a value and
+ * testable without a server.
+ */
+export const captureInto = (at: Reading, capture: Capturing): WriteRequest => {
+  const inbox = inboxIn(outlinePaths(at.set))
+  return inbox === undefined
+    ? { op: "create", file: mintedInto(INBOX), seed: capture }
+    : { op: "add", file: inbox, ...capture }
 }

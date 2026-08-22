@@ -53,6 +53,7 @@ import { Effect, Layer, type Scope } from "effect"
 import { BROWSER_FACE } from "./faces.ts"
 import { whoRoute } from "./identity.ts"
 import { MANIFEST } from "./manifest.ts"
+import { captureRoute } from "./capture.ts"
 import { mcpRoute } from "./mcp/route.ts"
 import { mediaLayer } from "./media.ts"
 import { report } from "./report.ts"
@@ -81,6 +82,9 @@ export interface ListenOptions {
   /** `POST /olai/resync` — look at the disk now, ignoring mtime+size stamps.
    *  See {@link ./resync.ts}. */
   readonly resync: Parameters<typeof resyncRoute>[0]
+  /** `POST /capture` — a line into the directory's inbox, from a share sheet
+   *  or a script on the tailnet. See {@link ./capture.ts}. */
+  readonly capture: Parameters<typeof captureRoute>[0]
 }
 
 /** Binds, and registers its own teardown on the enclosing scope — so a caller
@@ -147,13 +151,15 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     // assets, a 404 on an asset miss and the SPA fallback that makes
     // `/<file>` a real URL, is the shell half of the call.
     manifest: MANIFEST,
-    // olai's own four routes: the one that answers with bytes from the SERVED
+    // olai's own FIVE routes: the one that answers with bytes from the SERVED
     // directory rather than from the bundle, the one an agent speaks to, the
-    // one that forces a re-read of the disk (`POST /olai/resync`), and the
-    // one that says who this request is (`GET /olai/who`). MERGED rather
-    // than ordered — `HttpRouter` ranks by specificity, so each of those
-    // beats the shell's catch-all whichever went in first.
+    // one a share sheet POSTs a captured line at, the one that forces a
+    // re-read of the disk (`POST /olai/resync`), and the one that says who
+    // this request is (`GET /olai/who`). MERGED rather than ordered —
+    // `HttpRouter` ranks by specificity, so each of those beats the shell's
+    // catch-all whichever went in first.
     routes: Layer.mergeAll(
+      captureRoute(options.capture),
       mcpRoute(options.mcp),
       mediaLayer(options.root),
       resyncRoute(options.resync),

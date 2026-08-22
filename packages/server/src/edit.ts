@@ -54,11 +54,10 @@
  */
 
 import {
+  captureInto,
   customOf as customOfNode,
   dailyNotePathFor,
   type Derived,
-  INBOX,
-  inboxIn,
   isTrashed,
   TRASH_FILE,
   isDay,
@@ -87,6 +86,27 @@ import { Result } from "effect"
 
 type Resolved = Result.Result<Request, OpFailure>
 
+/**
+ * WHICH VERBS may have their answer chosen AGAIN when the set moved under it.
+ *
+ * The two whose request is a CHOICE between ops that are not interchangeable:
+ * a capture and a pin are a `create` for a directory with no inbox (or no
+ * shelf) and an `add` for one that has it, and which of those is right stops
+ * being true the moment another writer mints the file. Two tabs, or a script
+ * fanning out its first few captures, are the cases that reach it.
+ *
+ * Everything else here either names a node the CALLER named or reads a fact
+ * whose staleness is a real answer — a `toggle` refused with "already done"
+ * because somebody else got there first must STAY refused, or the retry would
+ * resolve an `undo` and quietly take back their mark, which is the trap the
+ * toggle arm below already argues against.
+ *
+ * Read by `./resolving.ts`, which owns the retry itself. What a verb MEANS is
+ * this file's, and whether its answer can go stale is part of that.
+ */
+export const reresolves = (edit: Edit): boolean =>
+  edit.verb === "capture" || edit.verb === "pin"
+
 /** The ops request one keystroke asks for. Total over {@link Edit}: a verb
  *  added to the surface and not answered here is a compile error, which is the
  *  reason the union is declared beside the procedures rather than inferred
@@ -95,8 +115,26 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
   switch (edit.verb) {
     case "add":
       return addRequest(at, edit)
+    // A CAPTURED LINE, and the one arm here that resolves NOTHING of its own
+    // any more. It names no `Landing` — the write whose whole promise is that
+    // the reader does not move has no anchor, only a FILE to find — and which
+    // file that is is `@olai/format`'s (`inbox.ts`'s `captureInto`), because
+    // `POST /capture` captures into the same inbox from a share sheet and a
+    // second copy of "is there an inbox yet, and what do I do about it" is two
+    // answers about one directory.
+    //
+    // The title travels VERBATIM, blank and all: a capture of nothing is
+    // refused by the ops layer in its own words ("a node needs a title"),
+    // which is the same sentence an agent's `add_node` gets.
+    //
+    // It carries NO DATE where the HTTP door's capture does, and that is a
+    // difference between two GESTURES rather than a deviation between two
+    // faces: both send an `add` and the gate judges them identically. A `⌘K`
+    // capture is made by somebody standing in the app with the Inbox door in
+    // front of them; one that arrived from a phone while nobody was looking
+    // has a day page as the only place it will be noticed.
     case "capture":
-      return captureRequest(at, edit)
+      return Result.succeed(captureInto(at, { title: edit.title }))
     case "pin":
       return pinRequest(at, edit)
     case "move":
@@ -345,62 +383,15 @@ const mirrorRequest = (
   return Result.succeed({ op: "mirror", ...landing.success, target: edit.target })
 }
 
-// ── the inbox ──────────────────────────────────────────────────────────
-
-/**
- * A captured line, as ONE op — an `add` into the inbox the directory has, or
- * the `create` that mints it holding exactly this line.
- *
- * It names no {@link Landing}, and that is the difference between it and the
- * two above rather than an omission: they place a row where a reader is
- * standing, and this one is the write whose whole promise is that the reader
- * does not move. There is no anchor to resolve — only a FILE to find.
- *
- * The choice is made HERE, against the reading the write is judged on, for the
- * reason every placement in this file is: a browser choosing between them
- * would be choosing off a file list some frames old, and the two answers are
- * not interchangeable — `create` is refused for a file that exists, and `add`
- * is refused for one that does not. Either way it is one plan, one validation
- * and one atomic write, so a capture that is refused leaves nothing behind —
- * not a half-filled inbox, and not an empty file.
- *
- * WHICH file the inbox is, though, is `@olai/format`'s ({@link inboxIn}) and
- * not this resolver's: it is a statement about what a served file IS by its
- * name, the same kind of thing `TRASH` is, and an agent capturing by hand
- * has to be able to read the same sentence rather than guess at the browser's.
- *
- * WHERE ONE IS MINTED is `_olai/Inbox.olai` and not the root (`mintedInto`,
- * human 2026-08-20, reversing the ruling of the day before): the shelf's
- * argument read one convention over — a file olai made because somebody
- * pressed something is not one of the reader's own. The READING is untouched,
- * so a directory that already keeps an `Inbox.olai` at its root, or a
- * `notes/inbox.olai`, goes on capturing into the file it has and nothing
- * migrates.
- *
- * The title travels VERBATIM, blank and all: a capture of nothing is refused
- * by the ops layer in its own words ("a node needs a title"), which is the
- * same sentence an agent's `add_node` gets, rather than by a second rule here.
- */
-const captureRequest = (
-  at: Reading,
-  edit: Extract<Edit, { verb: "capture" }>,
-): Resolved => {
-  const inbox = inboxIn(outlinePaths(at.set))
-  return Result.succeed(
-    inbox === undefined
-      ? { op: "create", file: mintedInto(INBOX), seed: { title: edit.title } }
-      : { op: "add", file: inbox, title: edit.title },
-  )
-}
-
 /**
  * A PIN, resolved against the set: which file the shelf is, and whether there
  * is one yet.
  *
- * {@link captureRequest} one convention over, and deliberately the same two
- * lines: an existing shelf takes an `add`, a directory with none takes a
- * `create` seeded with this very address. The reasoning is that arm's read
- * again — where the file is is a fact about the SET, so it is read here rather
+ * The capture arm one convention over, and deliberately the same two lines: an
+ * existing shelf takes an `add`, a directory with none takes a `create` seeded
+ * with this very address. The difference is where each LIVES — a capture has
+ * two doors, so its resolution went down to `@olai/format` (`inbox.ts`), and
+ * the shelf has one, so this one is still here. The reasoning is the same — where the file is is a fact about the SET, so it is read here rather
  * than in a tab holding a file list some frames old, and one op is what keeps a
  * refused pin from leaving an empty `Pins.olai` behind.
  *

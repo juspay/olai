@@ -208,6 +208,15 @@ export const serve = (options: ServeOptions) =>
         port,
         bound: wired.bound,
         mcp: { transport, token },
+        // The quick-capture door, and the fourth face composed HERE: a share
+        // sheet is not the browser and is not an agent, so it writes as
+        // `capture` and the trailer says which door a line came in by. The
+        // writer travels beside the ops layer, exactly as `bind` above takes
+        // it — a route that named its own would be a route that could name
+        // somebody else's. Handed the ops layer directly rather than a runtime
+        // member, because nothing about this door is on the surface: no tab
+        // draws it and no agent calls it.
+        capture: { ops, writer: "capture", identity: options.identity },
         resync: store.resync,
       }),
       () => runtime.stopped,
