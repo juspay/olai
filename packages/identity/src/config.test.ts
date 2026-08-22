@@ -15,7 +15,6 @@ import {
   DEFAULT_IDENTITY_CONFIG,
   EMAIL_ENV,
   identityConfig,
-  identityHeaders,
   LOGIN_ENV,
   NAME_ENV,
   PICTURE_ENV,
@@ -66,7 +65,7 @@ test("unset is tailscale serve: its four headers, and no template", () => {
 test("OLAI_IDENTITY_LOGIN_HEADER is the name, and the email follows it", () => {
   nothingSet()
   process.env[LOGIN_ENV] = "Remote-User"
-  expect(identityHeaders()).toEqual({
+  expect(identityConfig().headers).toEqual({
     login: "Remote-User",
     email: "Remote-User",
     name: DEFAULT_NAME_HEADER,
@@ -78,23 +77,23 @@ test("an email header is a second name; empty is no email claim", () => {
   nothingSet()
   process.env[LOGIN_ENV] = "Remote-User"
   process.env[EMAIL_ENV] = "Remote-Email"
-  expect(identityHeaders().email).toBe("Remote-Email")
+  expect(identityConfig().headers.email).toBe("Remote-Email")
   process.env[EMAIL_ENV] = ""
-  expect(identityHeaders().email).toBeNull()
+  expect(identityConfig().headers.email).toBeNull()
   process.env[EMAIL_ENV] = "  "
-  expect(identityHeaders().email).toBeNull()
+  expect(identityConfig().headers.email).toBeNull()
 })
 
 test("the name and picture headers are configurable the same way", () => {
   nothingSet()
   process.env[NAME_ENV] = "X-Auth-Request-Preferred-Username"
   process.env[PICTURE_ENV] = "X-Pomerium-Claim-Picture"
-  expect(identityHeaders().name).toBe("X-Auth-Request-Preferred-Username")
-  expect(identityHeaders().picture).toBe("X-Pomerium-Claim-Picture")
+  expect(identityConfig().headers.name).toBe("X-Auth-Request-Preferred-Username")
+  expect(identityConfig().headers.picture).toBe("X-Pomerium-Claim-Picture")
   process.env[NAME_ENV] = ""
   process.env[PICTURE_ENV] = "  "
-  expect(identityHeaders().name).toBeNull()
-  expect(identityHeaders().picture).toBeNull()
+  expect(identityConfig().headers.name).toBeNull()
+  expect(identityConfig().headers.picture).toBeNull()
 })
 
 test("OLAI_IDENTITY_AVATAR_TEMPLATE is the ladder's second rung", () => {

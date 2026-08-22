@@ -76,7 +76,7 @@ const named = (variable: string, fallback: string | null): string | null => {
  * `null`, and the email claim falls back to whatever the login header is
  * called.
  */
-export const identityHeaders = (): IdentityHeaders => {
+const headerNames = (): IdentityHeaders => {
   const login = process.env[LOGIN_ENV]?.trim() || DEFAULT_LOGIN_HEADER
   return {
     login,
@@ -86,8 +86,8 @@ export const identityHeaders = (): IdentityHeaders => {
   }
 }
 
-/** What this process was started with. */
+/** What this process was started with — the ONE way to ask. */
 export const identityConfig = (): IdentityConfig => ({
-  headers: identityHeaders(),
+  headers: headerNames(),
   avatarTemplate: named(AVATAR_ENV, null),
 })
