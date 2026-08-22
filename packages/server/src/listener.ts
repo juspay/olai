@@ -46,10 +46,12 @@
  */
 
 import { serveSurfaceApp, type SurfaceAppListenFailed } from "@kolu/surface-app/serve"
+import type { IdentityHeaders } from "@olai/identity"
 import { codeOf, type Emit, emitter } from "@olai/log"
 import { Effect, Layer, type Scope } from "effect"
 
 import { BROWSER_FACE } from "./faces.ts"
+import { whoRoute } from "./identity.ts"
 import { MANIFEST } from "./manifest.ts"
 import { captureRoute } from "./capture.ts"
 import { mcpRoute } from "./mcp/route.ts"
@@ -71,6 +73,8 @@ export interface ListenOptions {
   readonly port: number
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
+  /** Which request headers name the signed-in person. */
+  readonly identity: IdentityHeaders
   /** The internal MCP server, mounted beside the static routes — see
    *  {@link ./mcp/route.ts} for why it rides this listener rather than a
    *  transport of its own. */
@@ -147,18 +151,19 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     // assets, a 404 on an asset miss and the SPA fallback that makes
     // `/<file>` a real URL, is the shell half of the call.
     manifest: MANIFEST,
-    // olai's own four routes: the one that answers with bytes from the SERVED
+    // olai's own FIVE routes: the one that answers with bytes from the SERVED
     // directory rather than from the bundle, the one an agent speaks to, the
-    // one a share sheet POSTs a captured line at, and the one that forces a
-    // re-read of the disk (`POST /olai/resync`). MERGED rather than ordered —
-    // `HttpRouter` ranks by specificity, so `POST /mcp`, `GET /media/*`,
-    // `POST /capture` and `POST /olai/resync` all beat the shell's catch-all
-    // whichever went in first.
+    // one a share sheet POSTs a captured line at, the one that forces a
+    // re-read of the disk (`POST /olai/resync`), and the one that says who
+    // this request is (`GET /olai/who`). MERGED rather than ordered —
+    // `HttpRouter` ranks by specificity, so each of those beats the shell's
+    // catch-all whichever went in first.
     routes: Layer.mergeAll(
       captureRoute(options.capture),
       mcpRoute(options.mcp),
       mediaLayer(options.root),
       resyncRoute(options.resync),
+      whoRoute(options.identity),
     ),
     host: options.host,
     port,

@@ -69,7 +69,12 @@
  * question is real — a page bound to a replaced server must know — but the
  * framework reserves `system/identity` for it and answers it out of every
  * surface, process id included, so an app that declares its own is declaring a
- * second answer to a question already answered (juspay/kolu#2133).
+ * second answer to a question already answered (juspay/kolu#2133). Who is
+ * LOOKING is a different question and is not a member either: it is per HTTP
+ * request (`@olai/identity`'s `identityOf`, served at `GET /olai/who`), because a cell
+ * would be one value for the process and this value is one value for the
+ * request. The websocket cannot see it today (kolu's `serveSurfaceApp`
+ * owns the upgrade).
  *
  * One more is GIT, and it is a cell with two verbs beside it rather than a
  * member: a `pending` cell — what is waiting to be committed, and what is
@@ -192,7 +197,8 @@ import { editProcedures } from "./edit.ts"
 import { opsProcedures } from "./ops.ts"
 import { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
 import { MovingAnswer, MovingRequest, PageReading, PageRequest } from "./page.ts"
-import { MatchingAnswer, MatchingRequest, SearchAnswer, SearchRequest } from "./search.ts"
+import { NarrowingAnswer, NarrowingRequest } from "./narrowing.ts"
+import { SearchAnswer, SearchRequest } from "./search.ts"
 
 /**
  * One outline file's slice of the set, as published at set revision `rev`.
@@ -854,7 +860,7 @@ export const surface = defineSurface({
    * that belong to the disk.
    *
    * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`), for the reason
-   * `search.matching` is: an agent asking what is late asks `search_nodes`
+   * {@link narrowing} is: an agent asking what is late asks `search_nodes`
    * with a date clause and is answered with the NODES. A month of dots is a
    * paint instruction for a grid, and two integers about today are a badge —
    * neither is an answer anything without a screen can act on.
@@ -928,6 +934,27 @@ export const surface = defineSurface({
       arrayKey: "key",
     },
     /**
+     * WHICH OF THAT PAGE'S NODES THE QUERY SELECTS — the filter box's answer,
+     * beside the page it narrows. See {@link ./narrowing.ts}, which argues the
+     * shape, why it is a stream, and why it is a stream of its own.
+     *
+     * One subscription per narrowed pane, keyed by the address AND the words:
+     * the server matches over the records that page draws and re-sends only
+     * when a revision moved which of them match. What this replaced was
+     * `search.matching`, a whole-vault walk asked once per page frame.
+     *
+     * NO `arrayKey`: what travels is `{id, matched?}` rows with no identity of
+     * their own beyond the id, and they merge BY POSITION, which is what the
+     * declaration's absence means rather than a fallback around it. The whole
+     * answer is rebuilt into a `Map` by its one reader, and an identical frame
+     * is silent either way ({@link page}'s own paragraph on the arrays that
+     * carry no key).
+     */
+    narrowing: {
+      inputSchema: NarrowingRequest,
+      outputSchema: NarrowingAnswer,
+    },
+    /**
      * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING — the move-to picker's
      * preview of the planner's verdict, for the destinations its search just
      * offered ({@link ./page.ts}'s closing paragraph).
@@ -936,7 +963,7 @@ export const surface = defineSurface({
      * one is: the panel stands open while anybody writes, and what it judges
      * has to be where the row has actually got to.
      *
-     * THE BROWSER'S ALONE, like `search.matching` next door and for the same
+     * THE BROWSER'S ALONE, like {@link narrowing} next door and for the same
      * reason: what comes back is a dim and a sentence for a list of rows on a
      * screen. An agent moving a node asks `move_node` and is refused by the
      * planner, in the planner's own words.
@@ -1073,37 +1100,17 @@ export const surface = defineSurface({
      *  with `SurfaceMemberNotExposed`. Until juspay/kolu#2170 that could not be
      *  said, which is why these verbs were not here. */
     ops: opsProcedures,
-    /** THE TWO DOORS onto the one matcher, and neither of them holds a matcher
-     *  of its own: the palette's search — the same reading `search_nodes`
-     *  answers an agent with — and the page filter's membership question, both
-     *  reached as questions rather than re-implemented over the nodes the
-     *  browser already holds. See {@link ./search.ts} for why that restraint is
-     *  the point. */
+    /** THE DOOR onto the one matcher for a caller that wants a LIST — the
+     *  palette's search, the same reading `search_nodes` answers an agent with,
+     *  reached as a question rather than re-implemented over nodes the browser
+     *  no longer holds. See {@link ./search.ts} for why that restraint is the
+     *  point. The other caller of that matcher is a PAGE, and it is not here:
+     *  narrowing one is a reading of a page rather than a call, and it rides
+     *  the revision pulse as a stream ({@link ./narrowing.ts}). */
     search: {
       nodes: {
         input: SearchRequest,
         output: SearchAnswer,
-        error: OpFailure,
-      },
-      /**
-       * The PAGE FILTER's door onto the same matcher — which nodes the query
-       * selects, all of them, ids and why.
-       *
-       * A SECOND MEMBER rather than a flag on the first, because the two
-       * answers are two shapes and neither is the other cut short
-       * ({@link ./search.ts}). What a palette wants is a ranked shortlist of
-       * situated hits; what a filtered page wants is the whole membership, since
-       * it prunes itself by the ids and counts itself against them — "3 of 41"
-       * is not sayable off an answer that stopped at twelve.
-       *
-       * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`): an agent asking which
-       * nodes match asks {@link nodes}, which answers with the nodes. This one
-       * hands back a set of ids to look up, which is only useful to somebody
-       * already looking at the rows.
-       */
-      matching: {
-        input: MatchingRequest,
-        output: MatchingAnswer,
         error: OpFailure,
       },
     },
@@ -1240,9 +1247,11 @@ export const surface = defineSurface({
 })
 
 export {
+  AgentEntry,
   Ask,
   AskAnswer,
   AskChoice,
+  AskEntry,
   AskField,
   AskOutcome,
   Attached,
@@ -1256,14 +1265,20 @@ export {
   Delivery,
   FileDiff,
   isOpFailure,
+  isRunningStatus,
   kindOf,
   MissingServer,
   NodeContext,
+  NoticeEntry,
   OpFailure,
+  RefusalEntry,
   SessionInfo,
   Spawned,
+  ToolEntry,
+  ToolStatus,
   Usage,
   UsageFailure,
+  UserEntry,
   Wrote,
   YES_NO,
 } from "./chat.ts"
@@ -1284,6 +1299,10 @@ export { ours, type Press } from "./press.ts"
  *  inside this package, where its one caller is, because an export of it is a
  *  way to ask the traversal guard a question and ignore the allowlist. */
 export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
+
+/** Who is looking, as the HTTP door both ends spell — see {@link ./who.ts}.
+ *  Not a member: the value is per request. */
+export { WHO_PATH, Who } from "./who.ts"
 
 /** What a served `.html` is answered with, how tall it says it is, and which
  *  page of this vault it says a reader clicked — the other contract between the
@@ -1333,13 +1352,14 @@ export { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
  *  {@link ./page.ts}. */
 export { MovingAnswer, MovingRequest, PageReading, PageRequest } from "./page.ts"
 
+/** What a PAGE'S FILTER asks and answers — see {@link ./narrowing.ts}. */
+export { NarrowingAnswer, NarrowingRequest } from "./narrowing.ts"
+
 /** What a search asks and answers on the wire — see {@link ./search.ts}. */
 export {
   DocumentHit,
   isNodeHit,
   MatchedNode,
-  MatchingAnswer,
-  MatchingRequest,
   NodeHit,
   Refusal,
   SearchAnswer,

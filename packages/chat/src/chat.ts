@@ -329,7 +329,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const asking = (): number => {
       let waiting = 0
       for (const entry of transcript.entries().values()) {
-        if (entry.kind === "ask" && entry.ask?.outcome === null) waiting++
+        if (entry.kind === "ask" && entry.ask.outcome === null) waiting++
       }
       return waiting
     }
@@ -664,6 +664,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       Effect.gen(function*() {
         const ticket: Turn = { fiber: null, stopped: false }
         turn = ticket
+        // The rows go first, and the order is the point. A dead agent's rows
+        // are deliberately left where they are, so this turn is starting over a
+        // transcript that may hold calls the last one abandoned — and the panel
+        // is about to be told a turn is in flight. Said in the other order,
+        // there is a frame in which every one of those calls is drawn as work
+        // in progress again ({@link ./transcript.ts}'s `begins`).
+        publish(transcript.begins())
         move({ status: "thinking", trouble: null })
         // How much the agent had said before this turn was asked for. What it
         // answers, on a turn that FAILED, is whether the prompt demonstrably

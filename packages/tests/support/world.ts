@@ -224,8 +224,8 @@ export const ROOT = "#root";
  *  already reads this module and a second copy of the three words is a second
  *  place for the tag pattern and the field to disagree. */
 export type GitMode = "repo" | "none" | "broken";
-/** The app header: wordmark + connection + git + agent + preferences. Always on
- *  screen. */
+/** The app header: wordmark + chrome (search, connection, git, agent,
+ *  preferences, who is looking). Always on screen. */
 export const APP_HEADER = selector(TESTID.appHeader);
 /** The `olai` wordmark in that bar. A TAG rather than a test id: it is the
  *  app's name and the bar's one heading, and markup that exists only to be read
@@ -624,13 +624,12 @@ export const CALENDAR = selector(TESTID.calendar);
 export const CALENDAR_DAY = selector(TESTID.calendarDay);
 export const CALENDAR_PREV = selector(TESTID.calendarPrev);
 export const CALENDAR_NEXT = selector(TESTID.calendarNext);
-/** The button a BARE day is — no node, no note — which mints that day's note.
- *  Inside the `calendarDay` cell, so `data-date` rides one level up. */
-export const CALENDAR_MINT = selector(TESTID.calendarMint);
-/** What minting had to say when it was refused, under the grid. */
-export const CALENDAR_SAID = selector(TESTID.calendarSaid);
 /** One day, as a page: `/d/<date>` and `/today`. */
 export const DAY_PAGE = selector(TESTID.dayPage);
+/** The day page's + day note — shown on any day without a note. */
+export const DAY_MINT = selector(TESTID.dayMint);
+/** Why minting one did not happen, beside the button. */
+export const DAY_MINT_SAID = selector(TESTID.dayMintSaid);
 export const DAY_GROUP = selector(TESTID.dayGroup);
 export const DAY_EMPTY = selector(TESTID.dayEmpty);
 /** The agenda: the same dates read forward. `data-date` is the day it was
@@ -742,6 +741,8 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   TESTID.commitPill,
   TESTID.chatToggle,
   TESTID.prefsTrigger,
+  // Who is looking, last — an icon about the request, not about git.
+  TESTID.identity,
 ];
 
 /** The attribute that readout carried. Kept as a selector so the fence catches
@@ -869,6 +870,7 @@ export const CHAT_TOOL_FOLD = selector(TESTID.chatToolFold);
 export const CHAT_TOOL_DETAIL = selector(TESTID.chatToolDetail);
 export const CHAT_TOOL_PROGRESS = selector(TESTID.chatToolProgress);
 export const CHAT_TOOL_LOCATIONS = selector(TESTID.chatToolLocations);
+export const CHAT_TOOL_ELAPSED = selector(TESTID.chatToolElapsed);
 export const CHAT_LANE = selector(TESTID.chatLane);
 export const CHAT_LANE_LABEL = selector(TESTID.chatLaneLabel);
 export const CHAT_SPAWN = selector(TESTID.chatSpawn);
@@ -2075,8 +2077,8 @@ export class OlaiWorld extends World {
     );
   }
 
-  /** The link a day cell is when it has something to show — and the empty
-   *  locator it is when it has not, which is the assertion an inert day is. */
+  /** The link a day cell always is — every day goes to `/d/<date>`, empty
+   *  or not. */
   dayLink(date: string): Locator {
     return this.calendarDay(date).locator("a");
   }

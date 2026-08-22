@@ -483,11 +483,18 @@ export type { Occasion } from "./occasion.ts"
  *  here, and the browser's calendar grid and its `!` date widget are up there —
  *  and a second copy would be two answers to which day a week starts on.
  *
- *  MOST OF THESE THIS PACKAGE DOES NOT CALL: the grammar needs three
- *  (`weekdayOf`, `shiftDay`, `shiftMonth`) and the rest are the client's, which
- *  is what it costs to have the counting live under both readers rather than
- *  beside one of them. `isRealDay` is not `dates.ts`'s `isDay` — that one asks
- *  what a filename says, this one whether a calendar holds the day. */
+ *  MOST OF THESE THIS PACKAGE DOES NOT CALL: the grammar needs four
+ *  (`weekdayOf`, `shiftDay`, `shiftMonth` and `shiftMinutes`) and the rest are
+ *  the client's, which is what it costs to have the counting live under both
+ *  readers rather than beside one of them. `isRealDay` is not `dates.ts`'s
+ *  `isDay` — that one asks what a filename says, this one whether a calendar
+ *  holds the day.
+ *
+ *  AND THE LIST IS WHAT LEAVES, not what the module holds. `shiftMinutes` —
+ *  the moment so many minutes before another one, which is what the grammar's
+ *  durations (`changed:1h`) are a bound at — is deliberately absent: no package
+ *  above asks it, and a symbol on this surface because it exists rather than
+ *  because somebody needs it is surface nobody can take back. */
 export {
   /** How many whole days lie between two of them. The third question the
    *  counting exists for, and the agenda's spine is what asked it: "in 6 days"
@@ -684,8 +691,6 @@ export {
   DocumentHit,
   isNodeHit,
   MatchedNode,
-  MatchingAnswer,
-  MatchingRequest,
   NodeHit,
   SearchAnswer,
   SearchHit,
@@ -806,6 +811,31 @@ export {
   Shown,
   TrashGroup,
 } from "./page.ts"
+
+/**
+ * WHICH OF THAT PAGE'S NODES A QUERY SELECTS (./narrowing.ts) — the reading
+ * beside the one above, and what a filter box is answered with.
+ *
+ * Public for the same reason and on the same terms: it crosses. It is a
+ * READING rather than a search of the directory — bounded by the page, re-read
+ * on the same revision pulse, sent only when it changed by value — which is
+ * what stopped a filtered page re-searching the vault once per frame
+ * (docs/brainstorming/filter-rides-the-page.md).
+ */
+export {
+  /** The reading over a page ALREADY COMPUTED — for a caller holding a
+   *  {@link Shown} rather than a request, which is what the browser's own
+   *  filter suites hold when they ask what a true answer does to a page. The
+   *  archive question it asks of that page (`showsPutAway`) stays inside: it is
+   *  a step of this reading and never a question anybody else has. */
+  narrowedIn,
+  NarrowingAnswer,
+  NarrowingRequest,
+  /** WHAT A QUERY SELECTS ON ONE PAGE, over one revision of one set. */
+  narrowingOf,
+  sameNarrowing,
+  sameNarrowingRequest,
+} from "./narrowing.ts"
 
 /**
  * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING (./moving.ts) — the move-to

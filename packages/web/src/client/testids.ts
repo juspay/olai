@@ -14,6 +14,11 @@ export const TESTID = {
    *  of the app (including the error report) gets it. On a phone it is the
    *  wordmark, the burger and search; the pills live elsewhere. */
   appHeader: "app-header",
+  /** Who is looking, last in the chrome row (top right). Always drawn:
+   *  `data-who` is `asking` / `none` / `yes` / `error` — a closed set.
+   *  `none` is anonymous, not a missing chip. The gravatar `<img>` is
+   *  inside it only when `yes`. */
+  identity: "identity",
   /** The row of controls inside it that are about the APP. On desktop: the
    *  connection, the Commit pill, the agent toggle, the preferences trigger.
    *  On a phone: search alone. Its own name because the CONTENTS of that row
@@ -425,7 +430,7 @@ export const TESTID = {
   /** The path box itself — a relative `.md` path, committed with Enter. */
   newDocumentPath: "new-document-path",
   /** Why creating one did not happen — a refusal, verbatim, drawn by the same
-   *  `Refused` line `documentSaid` and `calendarSaid` are. */
+   *  `Refused` line `documentSaid` and `dayMintSaid` are. */
   newDocumentSaid: "new-document-said",
   /** The sidebar's way to a brand-new OUTLINE — `create_outline`'s own door,
    *  beside the document's above (`parity-create-outline`). */
@@ -629,15 +634,15 @@ export const TESTID = {
   calendarDay: "calendar-day",
   calendarPrev: "calendar-prev",
   calendarNext: "calendar-next",
-  /** The button a BARE day is — no node, no note — which mints that day's
-   *  note. Inside the `calendarDay` cell, so `data-date` rides one level up. */
-  calendarMint: "calendar-mint",
-  /** What minting had to say when it was refused — the ops layer's words,
-   *  under the grid. */
-  calendarSaid: "calendar-said",
   /** One day, as a page. `data-date` is the day it turned out to be, which
    *  `/today` does not spell. */
   dayPage: "day-page",
+  /** The day page's way to a note that does not exist yet — shown on any day
+   *  without a note, entries or not. The calendar cell never writes. */
+  dayMint: "day-mint",
+  /** Why minting one did not happen — the ops layer's words, beside the
+   *  button. */
+  dayMintSaid: "day-mint-said",
   /** The nodes of one outline dated that day; `data-file` is which. The same
    *  name on the agenda, which draws the same group under the same heading
    *  rule — one widget, so a scenario asks for it one way. */
@@ -1054,6 +1059,17 @@ export const TESTID = {
   chatToolProgress: "chat-tool-progress",
   /** Where it is working: the follow-along file locations, on the line. */
   chatToolLocations: "chat-tool-locations",
+  /** HOW LONG it has been running, on the same line — drawn only once a call
+   *  the wire still calls running has outlasted the panel's quiet threshold,
+   *  and only while the CONVERSATION is live, so a dead agent's sticky
+   *  `pending` never keeps a clock counting.
+   *
+   *  It names the DURATION and not the readout around it: the separator that
+   *  sets it off from the locations and the words a screen reader hears are
+   *  outside, so what a scenario reads back is the number the rule decided.
+   *  That number ticks, which is why a scenario asserts that a duration is
+   *  drawn and that it GROWS, rather than which one it is. */
+  chatToolElapsed: "chat-tool-elapsed",
   /** A row a SUBAGENT is responsible for, in the lane it is drawn in.
    *  `data-lane` is the transcript key of the `Agent` frame it belongs to —
    *  the same key the row itself carries as `data-entry-id` — so a scenario

@@ -10,7 +10,7 @@
  *
  * ONE component rather than a paragraph copied per surface. The three
  * document-writing affordances each have exactly one place to put a sentence
- * (under the editor, under the path box, under the month), and they had four
+ * (under the editor, under the path box, beside + day note), and they had four
  * copies of one `<p>` between them that had already drifted in padding. What
  * differs per site is the testid and the text, so that is what it takes.
  *

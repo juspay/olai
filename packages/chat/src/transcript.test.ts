@@ -16,6 +16,17 @@ import { type Change, Transcript } from "./transcript.ts"
 const rows = (transcript: Transcript): ReadonlyArray<ChatEntry> =>
   [...transcript.entries().values()].sort((a, b) => a.seq - b.seq)
 
+/** A row of this kind, or `undefined` — so a test that reads a kind-specific
+ *  field names the kind rather than pretending every row carries it. */
+const asKind = <K extends ChatEntry["kind"]>(
+  entry: ChatEntry | undefined,
+  kind: K,
+): Extract<ChatEntry, { kind: K }> | undefined =>
+  entry?.kind === kind ? (entry as Extract<ChatEntry, { kind: K }>) : undefined
+
+const parentOf = (entry: ChatEntry | undefined): string | undefined =>
+  entry?.kind === "tool" || entry?.kind === "ask" ? entry.parent : undefined
+
 /** What one change touched, so a test can say a re-publish happened rather
  *  than inferring it from the state afterwards. */
 const touched = (change: Change): ReadonlyArray<string> =>
@@ -42,7 +53,7 @@ describe("prose", () => {
     const settled = transcript.settle()
 
     expect(touched(settled)).toEqual(["agent:1"])
-    expect(rows(transcript)[0]?.streaming).toBeUndefined()
+    expect(asKind(rows(transcript)[0], "agent")?.streaming).toBeUndefined()
   })
 
   test("settling twice says nothing the second time", () => {
@@ -67,7 +78,7 @@ describe("prose", () => {
 
     // The tool frame AND the paragraph it closed, in one frame.
     expect(touched(change)).toEqual(["agent:1", "tool:call-1"])
-    expect(rows(transcript)[0]?.streaming).toBeUndefined()
+    expect(asKind(rows(transcript)[0], "agent")?.streaming).toBeUndefined()
 
     // And the next thing said is a new paragraph, not an append to the old.
     transcript.say("found it")
@@ -82,7 +93,7 @@ describe("prose", () => {
     const transcript = new Transcript()
     transcript.say("thinking")
     transcript.add("notice", "cancelled")
-    expect(rows(transcript)[0]?.streaming).toBeUndefined()
+    expect(asKind(rows(transcript)[0], "agent")?.streaming).toBeUndefined()
   })
 })
 
@@ -136,7 +147,7 @@ describe("tool calls", () => {
   test("the main agent's own calls are in nobody's lane", () => {
     const transcript = new Transcript()
     transcript.tool("call-1", { title: "Grep" })
-    expect(rows(transcript)[0]?.parent).toBeUndefined()
+    expect(parentOf(rows(transcript)[0])).toBeUndefined()
   })
 
   test("a completion that forgets the agent does not take the row out of its lane", () => {
@@ -188,7 +199,7 @@ describe("tool calls", () => {
     // kind lands on the next frame.
     const transcript = new Transcript()
     transcript.tool("toolu_01AGENT", { title: "Task", spawned: {} })
-    expect(rows(transcript)[0]?.spawned).toEqual({})
+    expect(asKind(rows(transcript)[0], "tool")?.spawned).toEqual({})
 
     transcript.tool("toolu_01AGENT", {
       title: "explore the outline",
@@ -203,7 +214,161 @@ describe("tool calls", () => {
   test("an ordinary call never becomes a spawn", () => {
     const transcript = new Transcript()
     transcript.tool("call-1", { title: "Grep", status: "completed" })
-    expect(rows(transcript)[0]?.spawned).toBeUndefined()
+    expect(asKind(rows(transcript)[0], "tool")?.spawned).toBeUndefined()
+  })
+})
+
+describe("what a turn leaves behind", () => {
+  test("a call still running when the turn ends is marked, status untouched", () => {
+    // The agent that would have reported has finished, so nothing will ever
+    // report on this call again. What the STATUS says is left exactly as it
+    // came — `pending` is the agent's own word and the row is the record of
+    // what it said — and what is added is olai's own observation.
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep", status: "in_progress" })
+    transcript.settle()
+
+    expect(rows(transcript)[0]).toMatchObject({ status: "in_progress", stranded: true })
+  })
+
+  test("a call that came back is left alone", () => {
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep", status: "completed" })
+    transcript.tool("call-2", { title: "Read", status: "failed" })
+    transcript.settle()
+
+    expect(rows(transcript).map((entry) => asKind(entry, "tool")?.stranded))
+      .toEqual([undefined, undefined])
+  })
+
+  test("nor is anything that is not a call", () => {
+    // `status` is a tool row's field, so every other kind of row is a row this
+    // has nothing to say about — and a mark on one would be a claim about a
+    // sentence somebody typed.
+    const transcript = new Transcript()
+    transcript.user("done order")
+    transcript.say("looking")
+    transcript.settle()
+
+    expect(rows(transcript).map((entry) => asKind(entry, "tool")?.stranded))
+      .toEqual([undefined, undefined])
+  })
+
+  test("A LATER TURN DOES NOT UNDO IT — which is the whole point", () => {
+    // The bug this exists for. A dead agent's rows are deliberately not
+    // cleared, so sending again puts a live turn over a transcript full of
+    // calls that will never report. A panel asking "is a turn in flight" would
+    // light every one of them back up at once; the mark is on the ROW, so it
+    // survives the next turn and every turn after it.
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep", status: "in_progress" })
+    transcript.settle()
+    transcript.user("try again")
+    transcript.begins()
+    transcript.tool("call-2", { title: "Read", status: "in_progress" })
+
+    expect(rows(transcript)[0]).toMatchObject({ text: "Grep", stranded: true })
+    expect(asKind(rows(transcript)[2], "tool")?.stranded).toBeUndefined()
+  })
+
+  test("a turn STARTING says it too, so no path has to have remembered", () => {
+    // `settle` normally says this already, at the honest moment. `begins` is
+    // the other end of the same turn, and it is what makes "nothing from a
+    // previous turn is unstranded under this one" a property rather than a
+    // path: a turn that ended some way nobody thought of is still a turn the
+    // next one starts after.
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep", status: "pending" })
+    transcript.begins()
+
+    expect(asKind(rows(transcript)[0], "tool")?.stranded).toBe(true)
+  })
+
+  test("a call that reports again is running again", () => {
+    // The one thing that could make the mark untrue: it means "as far as
+    // anything here knows, that one never came back", and a frame about it is
+    // anything here knowing.
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep", status: "in_progress" })
+    transcript.settle()
+    expect(asKind(rows(transcript)[0], "tool")?.stranded).toBe(true)
+
+    transcript.tool("call-1", { status: "in_progress", progress: "halfway" })
+    expect(asKind(rows(transcript)[0], "tool")?.stranded).toBeUndefined()
+  })
+
+  test("marking is said once, not once per turn", () => {
+    // This runs at both ends of every turn. A frame per idle call per turn
+    // would be a conversation republishing its whole history to say nothing.
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep", status: "in_progress" })
+    expect(touched(transcript.settle())).toEqual(["tool:call-1"])
+    expect(touched(transcript.begins())).toEqual([])
+    expect(touched(transcript.settle())).toEqual([])
+  })
+})
+
+describe("when a row arrived", () => {
+  /** A clock that says what it is told to, so a stamp is a value rather than
+   *  something asserted by comparing it with itself. */
+  const clock = (from: string) => {
+    let at = Date.parse(from)
+    return { now: () => at, pass: (ms: number) => { at += ms } }
+  }
+
+  test("a row is stamped with the instant it first appeared", () => {
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("call-1", { title: "Grep", status: "pending" })
+    expect(rows(transcript)[0]?.since).toBe("2026-08-21T12:00:00.000Z")
+  })
+
+  test("... and keeps it, however many times the call reports again", () => {
+    // The rule this stamp exists for. A long call reports itself several times
+    // while it runs — content, locations, a status — and every one of those
+    // comes through the same writer, so a re-stamp would reset the duration on
+    // exactly the frames somebody is watching it grow.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("call-1", { title: "Grep", status: "pending" })
+    time.pass(30_000)
+    transcript.tool("call-1", { status: "in_progress", progress: "halfway" })
+    time.pass(30_000)
+    transcript.tool("call-1", { status: "completed" })
+
+    expect(rows(transcript)[0]?.since).toBe("2026-08-21T12:00:00.000Z")
+  })
+
+  test("a row cannot be handed one: the writer decides, like `seq`", () => {
+    // `since` is off `RowContent` for the reason `seq` and `streaming` are —
+    // every re-publish goes through a spread of the row as it stands, and a
+    // field a caller could set is a field a caller could set WRONG once and
+    // then carry forward forever.
+    //
+    // The TYPE is the first line of that: no door here takes a field the writer
+    // derives, so the cast below is what somebody would have to write to get
+    // past it. The derivation is the second line, and this is the test of it —
+    // handed one anyway, the writer's own stamp is what lands.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.user("hello", { since: "1999-01-01T00:00:00.000Z" } as never)
+    expect(rows(transcript)[0]?.since).toBe("2026-08-21T12:00:00.000Z")
+  })
+
+  test("the row a person typed is stamped too — one rule, not a tool's", () => {
+    // It is minted beside `seq`, by the one writer, for every kind of row. A
+    // stamp that existed only for the rows the elapsed readout happens to draw
+    // would be the row minter knowing about a face.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.say("thinking")
+    time.pass(1_000)
+    transcript.add("notice", "the agent stopped")
+
+    expect(rows(transcript).map((entry) => entry.since)).toEqual([
+      "2026-08-21T12:00:00.000Z",
+      "2026-08-21T12:00:01.000Z",
+    ])
   })
 })
 
@@ -231,7 +396,7 @@ describe("questions", () => {
     expect(touched(settled)).toEqual(["ask:1"])
     expect(rows(transcript)).toHaveLength(1)
     expect(rows(transcript)[0]).toMatchObject({ kind: "ask", text: "Shall I?" })
-    expect(rows(transcript)[0]?.ask).toEqual({
+    expect(asKind(rows(transcript)[0], "ask")?.ask).toEqual({
       fields,
       outcome: { how: "answered", answers: [{ key: "question_0", values: ["yes"] }] },
     })
@@ -243,7 +408,7 @@ describe("questions", () => {
     const change = transcript.ask("ask:1", "Shall I?", fields, undefined)
 
     expect(touched(change)).toEqual(["agent:1", "ask:1"])
-    expect(rows(transcript)[0]?.streaming).toBeUndefined()
+    expect(asKind(rows(transcript)[0], "agent")?.streaming).toBeUndefined()
   })
 
   test("a subagent's question lands in that subagent's lane", () => {
@@ -266,7 +431,7 @@ describe("questions", () => {
   test("the main agent's own questions are in nobody's lane", () => {
     const transcript = new Transcript()
     transcript.ask("ask:1", "Shall I?", fields, undefined)
-    expect(rows(transcript)[0]?.parent).toBeUndefined()
+    expect(parentOf(rows(transcript)[0])).toBeUndefined()
   })
 
   test("answering a subagent's question leaves it in that subagent's lane", () => {
@@ -296,7 +461,7 @@ describe("questions", () => {
     transcript.ask("ask:1", "Allow `Bash`?", fields, "toolu_01AGENT")
     transcript.tool("call-2", { title: "Bash", parent: "toolu_01AGENT" })
 
-    expect(rows(transcript).slice(1).map((entry) => entry.parent)).toEqual([
+    expect(rows(transcript).slice(1).map(parentOf)).toEqual([
       "tool:toolu_01AGENT",
       "tool:toolu_01AGENT",
       "tool:toolu_01AGENT",
@@ -358,7 +523,7 @@ describe("a message the agent would not take", () => {
     // ABSENT rather than a third value: an ordinary message says nothing about
     // this, and a row left carrying the field would go on being drawn as one
     // that had failed once.
-    expect(rows(transcript)[0]?.delivery).toBeUndefined()
+    expect(asKind(rows(transcript)[0], "user")?.delivery).toBeUndefined()
     expect(rows(transcript)[0]?.text).toBe("done order")
     // ... and nothing is left to retry it with, so a second click is refused
     // rather than sending the message twice.
@@ -423,7 +588,7 @@ describe("a message nothing ever answered about", () => {
     // now be holding.
     transcript.unanswered(row.key)
 
-    expect(rows(transcript)[0]?.delivery).toBe("unanswered")
+    expect(asKind(rows(transcript)[0], "user")?.delivery).toBe("unanswered")
     expect(transcript.undelivered(row.key)).toBeNull()
   })
 })
@@ -444,7 +609,7 @@ describe("refusals and replacement", () => {
 
     const entry = rows(transcript)[0]
     expect(entry?.kind).toBe("refusal")
-    expect(entry?.refusal).toBe(failure)
+    expect(asKind(entry, "refusal")?.refusal).toBe(failure)
   })
 
   test("clearing reports every key it dropped, so a subscriber empties", () => {

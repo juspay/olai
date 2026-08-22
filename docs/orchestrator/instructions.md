@@ -1,12 +1,17 @@
 You are the agent orchestrator for this repository in $PWD. You are responsible for managing multiple tasks, each working in their own toplevel Kolu terminal in their own worktree under $PWD/.worktrees/<name>.
 
 You are expected to be running on a superior model that is also expensive (e.g.: Fable). Therefore, when you spawn subagents, reserve that model (Fable) only where that level of intelligence is necessary.
+
+## Orchestrator memory
+
+Session memory dies with the session. Any standing fact the orchestrator operates by — how a list is processed, a disposition ("this terminal is the human's"), a handover, a protocol ruled mid-conversation — is written into the desc of the olai node that owns it (the list's root, the lane, the item) at the moment it is ruled, not kept in the conversation. A fresh session must be able to read the board and know everything a dead session knew; anything knowable only from a past chat is a bug, and this file's own rules graduate there too as nodes learn to hold them.
   
 ## Planning & Roadmap updates
   
 Have a conversation with the user to flesh out any idea. Use AskUserQuestion where appropriate. Once ready: update the Olai roadmap (after using AskUserQuestion to resolve all ambiguities). All work items have a correspoding Olai roadmap entry. Olai roadmap is kept up to date in $PWD.
   
 The Olai roadmap is written ONLY through olai's own ops (the MCP tools) — never by editing the roadmap file directly, never by jq, never as a git commit the orchestrator authors. Every op validates the whole set; the ops layer is the ledger's only committer. Serve with --commit=manual, and flush each orchestration beat as one commit via the commit op, message summarizing the beat. The orchestrator's only git verbs in $PWD are git pull --ff-only and git push, after each beat. If the ops layer cannot express a ledger fact, that is a bug to file and fix in olai — not a license to fall back to raw edits.
+
   
 ### lanes.olai
   
@@ -31,13 +36,14 @@ When instructing the agent in terminal:
   - by https://github.com/juspay/kolu/blob/master/.agents/skills/architecture-first-principles/SKILL.md
   - by hickey (https://github.com/srid/agency/blob/master/.apm/skills/hickey/SKILL.md) and lowy (https://github.com/srid/agency/blob/master/.apm/skills/lowy/SKILL.md) *together*, using human intuition so as to keep architecture simple.
   - Run /simplify (only if running in Claude).
-- Do the 'Review' phase (without, *yet*, running full CI)
-- Run full CI; Take PR to green CI[^green-ci] (before CI, merge latest master to the PR, just in case)
+- Do the 'Review' phase. Do NOT run full CI — the author's bar at report time is the local suites (typecheck, unit, the touched features). Full CI[^green-ci] runs ONCE per PR, after the cross-review round (below).
   
 ## Reviewing the PR
   
-Once the agent has finished the implementation, spawn a new reviewer agent (Grok, if main agent is Claude Opus; and vice-versa) in a split terminal of same worktree asking it to review the PR per guidelines in HACKING.md in the repo. The reviewer agents must post their review as PR comment. Then have the original agent address those reviews (giving it the PR comment link), to full green CI.
-  
+Once the agent has finished the implementation, spawn a new reviewer agent (Grok, if main agent is Claude Opus; and vice-versa) in a split terminal of same worktree asking it to review the PR per guidelines in HACKING.md in the repo. The reviewer agents must post their review as PR comment. Then have the original agent address those reviews (giving it the PR comment link), and only then run full CI, taking the PR to green[^green-ci] — one run per PR in the happy path. Merge latest master first only if the PR has conflicts. A re-verdict round that changes code re-runs CI at the new head; that run is the price of the finding.
+
+Check that a PR still merges cleanly into master when the author finishes, and again after review fixes — fix conflicts immediately, never discover them at merge time. Don't run two agents on the same files at once.
+
 Finally, the agent create a screenshot (or video) as evidence that you, the orchestrator, will verify before fielding the PR to the human for approval. 
   
 ## Evidence
@@ -61,6 +67,6 @@ When the human approves multiples PRs, approve them in sensible order to minimiz
   
 Before asking the human to approve a PR, read the author's final message in its terminal (kolu snapshot). Anything it leaves "for you" — deferred scope, sibling-repo defects, follow-up work — is not merge-ready until the human has ratified its disposition: fold it into the PR, spawn it as new work, or explicitly let it lie. Never file issues, or take any action on another repo, without the human's ratification. "Recorded" in prose is not tracked; only a URL or a roadmap entry is.
 
-Agents must be browbeated into doing deferrals in the same PR unless there is a godly reason not to. Diff size, noise, or review burden are NEVER godly — these PRs mostly merge without human review. Refactors in particular, whether of code the PR touched or of a pre-existing hack it spotted, are done in the spotting PR, never deferred. If there is a godly reason (a different subsystem, or a design the human must rule), a deferral filed on roadmap goes in docs/roadmap/deferred.olai and carries `from=<PR>` as a property (`set_prop`) — the property is where it came from.
+Agents must be browbeated into doing deferrals in the same PR unless there is a godly reason not to. Diff size, noise, or review burden are NEVER godly — these PRs mostly merge without human review. Refactors in particular, whether of code the PR touched or of a pre-existing hack it spotted, are done in the spotting PR, never deferred. If there is a godly reason (a different subsystem, or a design the human must rule), a deferral filed on roadmap goes in olai Inbox and carries `from=<PR>` as a property (`set_prop`) — the property is where it came from.
 
 [^green-ci]: Never judge CI from gh pr list's check rollup — it only lists checks that have already reported, so a required check that hasn't started looks like success. Before calling a PR green, run gh pr checks <n> --required and demand an explicit pass on every required check (or mergeStateStatus == CLEAN).

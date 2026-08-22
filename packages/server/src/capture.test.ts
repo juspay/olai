@@ -17,7 +17,9 @@ import { expect, test } from "bun:test"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
-import { CAPTURE_PATH, CAPTURED_BY, IDENTITY_HEADER } from "./capture.ts"
+import { DEFAULT_LOGIN_HEADER as IDENTITY_HEADER } from "@olai/identity"
+
+import { CAPTURE_PATH, CAPTURED_BY } from "./capture.ts"
 import { served, withServing } from "./serve.testlib.ts"
 
 const BOUND_MS = 10_000
@@ -366,6 +368,51 @@ test(
       expect([said, answered.status]).toEqual([said, 201])
     }
   }),
+  BOUND_MS,
+)
+
+/**
+ * THE DOOR READS THE HEADER THE OPERATOR CONFIGURED, not a name of its own.
+ *
+ * `@olai/identity` makes the login header a setting
+ * (`OLAI_IDENTITY_LOGIN_HEADER`), and `GET /olai/who` already honours it. A
+ * capture door with a constant of its own would be a second answer to "who is
+ * this request" — the parse that package exists to have stopped keeping — and
+ * would refuse in the name of a header the operator had configured away.
+ *
+ * So this serve trusts `X-Forwarded-User`, and the assertion is both halves:
+ * the configured name is accepted AND attributed, and Tailscale's default name
+ * — which this serve was told not to trust — is refused in the CONFIGURED
+ * name's words.
+ */
+test(
+  "the login header is the operator's, and the refusal names the one in force",
+  async () => {
+    const root = served()
+    await withServing(
+      { root, identity: { login: "X-Forwarded-User", email: null } },
+      async (url) => {
+        const landed = await fetch(`${url}${CAPTURE_PATH}`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "X-Forwarded-User": LOGIN },
+          body: JSON.stringify({ title: "through the configured header" }),
+        })
+        expect(landed.status).toBe(201)
+        expect(customOf(captured(root))[CAPTURED_BY]).toBe(LOGIN)
+
+        // The DEFAULT name is not trusted by this serve, so it is nobody.
+        const ignored = await fetch(`${url}${CAPTURE_PATH}`, {
+          method: "POST",
+          headers: { "content-type": "application/json", [IDENTITY_HEADER]: LOGIN },
+          body: JSON.stringify({ title: "through a header nobody configured" }),
+        })
+        expect(ignored.status).toBe(401)
+        // …and it says so in the name actually in force, rather than sending the
+        // operator after the header they turned off.
+        expect((await refusal(ignored)).error).toContain("X-Forwarded-User")
+      },
+    )
+  },
   BOUND_MS,
 )
 

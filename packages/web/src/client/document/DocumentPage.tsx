@@ -62,8 +62,8 @@
  * save a press — the note editor's argument, landing on the other side at this
  * size. Edit turns the body into its source and hands the rest to
  * {@link DocEditor}, which owns the draft, the conflict story and the two
- * chords. A document that was MINTED a moment ago (the sidebar's path box, a
- * bare calendar day) opens editing — that is `./minted.ts`'s one-shot — since
+ * chords. A document that was MINTED a moment ago (the sidebar's path box, the
+ * day page's + day note) opens editing — that is `./minted.ts`'s one-shot — since
  * an empty page with the affordance one more click away is not what "start
  * writing" means.
  */

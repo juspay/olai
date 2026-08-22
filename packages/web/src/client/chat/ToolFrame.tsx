@@ -35,6 +35,15 @@
  * under it belongs to the list, which is the thing that has rows to put a rail
  * beside.
  *
+ * A CALL THAT IS STILL RUNNING says HOW LONG on that line too, once it has been
+ * running long enough to be worth saying ({@link ./elapsed.ts}). The status
+ * mark is the only other thing here that is about time and it cannot answer
+ * this: `·` is what a call announced a quarter of a second ago wears and `·` is
+ * what one that has been grepping for four minutes wears, and those are not the
+ * same row to somebody watching. Like the spawn's rail, the number is the
+ * LIST's answer rather than this row's — a status is sticky, so whether
+ * anything is running at all is a fact about the conversation.
+ *
  * The row is UPDATED rather than replaced. The transcript keys these by the
  * agent's own call id, so `pending` becoming `completed` is the same row
  * changing.
@@ -47,7 +56,7 @@
  */
 
 import { fileKind } from "@olai/format"
-import type { ChatEntry } from "@olai/surface"
+import type { ToolEntry, ToolStatus } from "@olai/surface"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, Show } from "solid-js"
 
@@ -55,32 +64,23 @@ import { TESTID } from "../testids.ts"
 import { Diff } from "./Diff.tsx"
 import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
 import { OutlineDiff } from "./OutlineDiff.tsx"
+import { useElapsed } from "./elapsing.tsx"
 import { whoOf } from "./spawn.ts"
 import { Wrote } from "./Wrote.tsx"
 
-/** What each status looks like in one character. Words would wrap the line the
- *  frame exists to keep to one. */
-const MARK: Record<string, string> = {
-  pending: "·",
-  in_progress: "…",
-  completed: "✓",
-  failed: "✗",
-}
-
-const TONE: Record<string, string> = {
-  pending: "text-muted",
-  in_progress: "text-doing",
-  completed: "text-done",
-  failed: "text-alarm",
-}
-
 /**
- * ... and what each status is CALLED, for the reader who gets no glyph and no
- * colour. Beside the other two rather than in a module of its own, because the
- * three are one table read three ways and a status that gained a mark without
- * a word would be the gap this closes reopening. A status this table does not
- * know is said as it came, which is the same refusal to invent a name the
- * header makes for a model it cannot place.
+ * What a status LOOKS and SOUNDS like, one row per word.
+ *
+ * Three columns of one table rather than three tables keyed by the same field:
+ * a status that gained a mark without a word is a type error here, not a gap
+ * three lists can drift into. The same shape {@link ./Entry.tsx}'s `FACE`
+ * takes for a delivery — one fate, one row, read three ways.
+ *
+ * THE MODULE NEXT DOOR IS NOT THE FOURTH COLUMN. {@link ./running.ts} holds
+ * what a status MEANS — which words mean the call has not come back — because
+ * two faces outside this component ask that of the same row and must not
+ * answer differently. These three are the panel's look, and they move when
+ * the panel does rather than when ACP does.
  *
  * THE AGENT'S OWN WORDS, spelled for speech and interpreted no further. The
  * rail under a spawn says *working…* for `pending`, and this deliberately does
@@ -89,17 +89,25 @@ const TONE: Record<string, string> = {
  * agent leaves its last announced call `pending` forever, and a name that
  * announced it as "running" would be saying out loud the one thing nobody can
  * still promise.
+ *
+ * The mark is one character because words would wrap the line the frame exists
+ * to keep to one.
  */
-const SAID: Record<string, string> = {
-  pending: "pending",
-  in_progress: "in progress",
-  completed: "completed",
-  failed: "failed",
+const LOOK: Record<ToolStatus, { mark: string; tone: string; said: string }> = {
+  pending: { mark: "·", tone: "text-muted", said: "pending" },
+  in_progress: { mark: "…", tone: "text-doing", said: "in progress" },
+  completed: { mark: "✓", tone: "text-done", said: "completed" },
+  failed: { mark: "✗", tone: "text-alarm", said: "failed" },
 }
 
-export function ToolFrame(props: { readonly entry: ChatEntry }) {
+export function ToolFrame(props: { readonly entry: ToolEntry }) {
+  /** How long this call has been running, or `null` when there is nothing to
+   *  say. Reached for rather than handed down ({@link ./elapsing.tsx}), the
+   *  same way this frame reaches for its own fold. */
+  const elapsed = useElapsed()
   const open = () => isUnfolded(props.entry.id)
-  const status = () => props.entry.status ?? "pending"
+  const status = () => props.entry.status
+  const look = () => LOOK[status()]
   /**
    * The blocks of change this call reported, each carrying the NAME that
    * identifies it ({@link ./folds.ts}'s `diffKey`).
@@ -161,10 +169,10 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
             this row grew a second label: "read every note Explore" announces a
             spawn and a kind and never says whether it finished, which for a
             dead agent's row is the one thing worth hearing. */}
-        <span class={TONE[status()] ?? "text-muted"} aria-hidden="true">
-          {MARK[status()] ?? "·"}
+        <span class={look().tone} aria-hidden="true">
+          {look().mark}
         </span>
-        <span class="sr-only">{SAID[status()] ?? status()}</span>
+        <span class="sr-only">{look().said}</span>
         <span class="min-w-0 flex-1 truncate">{props.entry.text}</span>
         {/* WHO WAS SENT, on the line, from the moment the spawn is announced —
             which is a good while before the agent has done anything to draw a
@@ -205,6 +213,48 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
               title={locations().join("\n")}
             >
               {locations().join(" ")}
+            </span>
+          )}
+        </Show>
+        {/* HOW LONG IT HAS BEEN GOING, for a call the wire still calls running
+            in a conversation that is still live ({@link ./elapsed.ts}). The
+            mark at the head of this line has said `·` for a quarter of a second
+            and `·` for four minutes since there was a panel; this is the line
+            saying which.
+
+            At the END of the row, past the locations, because it is the one
+            thing here that is about the call rather than about what the call is
+            doing — and `shrink-0`, so a long path truncates and the number
+            never does. The `·` is a separator and belongs to the reader's eye
+            rather than to the name: the words either side of it are two
+            readouts, and without it a duration lands against a file path as
+            though it were part of one.
+
+            The answer is REACHED FOR rather than handed down: the two things
+            it needs — whether a turn is in flight, and the panel's one clock —
+            are the list's, and threading them through `Entry`'s six-armed
+            switch would make that signature a function of what this one leaf
+            draws ({@link ./elapsing.tsx}). The `<Show>` here is what computes
+            it, so a row that is not a tool call computes nothing at all.
+
+            NO `aria-live`, deliberately, and this is the one place in the panel
+            where that needs saying: the rail under a spawn announces itself
+            because it appears once and says one word, and a number that changes
+            every second in a live region would be a screen reader counting out
+            loud for as long as the build takes. It is in the button's
+            accessible NAME instead, where a reader meets it when they ask about
+            the row — which is the moment "how long has this been going" is
+            actually a question. */}
+        <Show when={elapsed(props.entry)}>
+          {(said) => (
+            <span class="shrink-0 text-doing">
+              <span aria-hidden="true">·&#32;</span>
+              <span class="sr-only">running for&#32;</span>
+              {/* The DURATION alone under the name, with the separator and the
+                  spoken words outside it: what a scenario reads back is then
+                  the number this rule decided rather than the sentence built
+                  around it. */}
+              <span data-testid={TESTID.chatToolElapsed}>{said()}</span>
             </span>
           )}
         </Show>

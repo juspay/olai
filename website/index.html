@@ -492,8 +492,9 @@
     <code>write_document</code> uses, and a file that changed on disk while
     you were typing refuses the save in plain words instead of being silently
     overwritten, in either direction. New documents come from the sidebar's
-    path box, or from a bare calendar day — pressing one creates that day's
-    note where your vault already keeps them. A document that opens with a
+    path box, or from the day page's <em>+ day note</em> — which creates that day's
+    note where your vault already keeps them. Clicking a calendar day never
+    writes: every day opens that day's page. A document that opens with a
     <code>---</code> block writes its own <strong>properties</strong> there:
     the block is kept off the rendered page, out of the document's name and out
     of its table of contents, and its keys answer <code>prop:</code> exactly as
@@ -916,6 +917,18 @@ The corner unit is the **risky one** — see
         <code>-changed:last-month</code> is what has gone quiet. They are not
         the same question as <code>date:</code>: one node can be scheduled for
         the 10th, captured on the 1st and last written this morning.
+        <strong>And the stamps carry seconds, so the values reach further down
+        than a day does.</strong> <code>changed:1h</code> is what you touched in
+        the last hour, <code>created:30m</code> what arrived in the last half
+        hour — a number and one of four letters, <code>m</code> minutes,
+        <code>h</code> hours, <code>d</code> days, <code>w</code> weeks.
+        Written bare it means <em>within the last</em>; at the end of a range
+        it is that moment itself, so <code>created:..1h</code> is older than an
+        hour and <code>changed:2h..30m</code> is a window, and the ends mix
+        with the words (<code>created:yesterday..3h</code>). A rolling window
+        is not a calendar one, and you can have either:
+        <code>created:1d</code> is the last twenty-four hours where
+        <code>created:today</code> is since midnight.
         <strong>And nothing invents a past for the ones that have
         none</strong> — no span reaches an unstamped node, however wide,
         because a ledger does not make up a past it did not see. What finds
@@ -1342,6 +1355,19 @@ The corner unit is the **risky one** — see
     trimmed to a few rows and expands where it stands. An outline never gets a
     text diff — one line per node means a text diff of one is a single enormous
     line with everything on it changing at once.</p>
+    <p>A call that is still going says <strong>how long it has been going</strong>,
+    on that same line and ticking — <em>47s</em>, <em>1m 12s</em> — once it has
+    been running long enough to be worth saying, so the reads that land
+    instantly never flash a number. The status dot cannot answer that: it looks
+    the same a quarter of a second in and four minutes in, and the question you
+    actually have is which. Nothing about it knows what tool is running — a
+    shell command, a watcher, a build and a search all get it because the wire
+    says the call has not come back — and it stops the moment that call&rsquo;s turn
+    does, so a call an agent died in the middle of, or simply gave up on, does
+    not leave a clock counting under work nothing is doing. Not even later: ask
+    again afterwards and the panel is busy again, but the calls the old turn
+    walked away from stay quiet, because what olai marks is the call rather than
+    the conversation.</p>
     <p>An agent can send agents of its own, and their work is drawn as theirs.
     A call a subagent made sits <strong>indented behind a rail</strong>, under
     the call that spawned it; the ordinary column stays the main agent’s. Where

@@ -42,6 +42,11 @@
  *   lose         refuse every `session/list` from here on
  *   flood        say more than fits, so scrolling is a thing that can be tested
  *   hold         start a tool call and STOP there, until released
+ *   abandon      announce a tool call, never report on it, and END THE TURN
+ *                anyway — alive and idle afterwards, which `crash` is not. It
+ *                is what a turn that gave up on a call leaves behind: a row the
+ *                wire still calls `in_progress`, forever, in a conversation
+ *                somebody can go on talking to
  *   subagent     spawn TWO agents and interleave their tool calls with each
  *                other's, each frame stamped with the `Agent` call it came out
  *                of — the whole of what the adapter says about who did what
@@ -955,6 +960,29 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     for (let line = 0; line < 40; line++) {
       say(`line ${line} — ${"the quick brown fox jumps over the lazy dog. ".repeat(3)}\n\n`)
     }
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // A CALL THE TURN GIVES UP ON. The turn ends normally and this process stays
+  // alive, which is the whole difference from `crash`: the panel goes idle with
+  // a row on it that the wire still calls `in_progress` and never will again,
+  // and then somebody sends something else. A face that asked the CONVERSATION
+  // whether anything was running would light that row back up at that moment —
+  // which is the one this verb exists to catch.
+  if (verb === "abandon") {
+    const toolCallId = `call-${++nextMcpId}`
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId,
+        title: "a call nobody ever reported on",
+        status: "in_progress",
+        rawInput: { abandoned: true },
+      },
+    })
+    say("started something and gave up on it.")
     respond(id, { stopReason: "end_turn" })
     return
   }

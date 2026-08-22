@@ -13,8 +13,11 @@ import { Given, Then, When } from "@cucumber/cucumber";
 import { isoDayOf } from "@olai/web/src/client/clock.ts";
 import type { Page } from "playwright";
 
+import { saysThat } from "../support/said.ts";
 import {
-  CALENDAR_MINT,
+  DAY_MINT,
+  DAY_MINT_SAID,
+  DAY_PAGE,
   DOCUMENT_BODY,
   DOCUMENT_CANCEL,
   DOCUMENT_DRIFTED,
@@ -24,6 +27,7 @@ import {
   DOCUMENT_PAGE,
   DOCUMENT_SAID,
   DOCUMENT_SAVE,
+  expectAbsent,
   HYDRATION_TIMEOUT,
   oneLine,
   POLL_TIMEOUT,
@@ -155,32 +159,43 @@ Then(
 //
 // The sidebar half of them is `./new_file_steps.ts`, shared with the outline's
 // own door: one control (`file/NewFile.tsx`) drawn twice, so one pair of steps
-// over the kind. What stays here is the door that is only a DOCUMENT's — a
-// bare calendar day, which mints that day's note.
+// over the kind. What stays here is the door that is only a DOCUMENT's — the
+// day page's + day note, which mints that day's note. The calendar cell never
+// writes: clicking a day navigates, and this button is the mint.
 
-When(
-  "I press the bare day {string}",
-  async function (this: OlaiWorld, date: string) {
-    await this.showSidebar();
-    const mint = this.calendarDay(date).locator(CALENDAR_MINT);
-    await mint.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await this.press(mint);
-  },
-);
-
-/**
- * TODAY's cell — the one bare day a page that is not a day page is certain to
- * be showing, because the month a calendar anchors to with no day open is
- * today's (`Calendar.tsx`), and nothing in the journal fixture is dated this
- * century. Asked of the clock the same way the client asks it, so the two
- * cannot disagree about which day it is at a local midnight.
- */
-When("I press today's bare day", async function (this: OlaiWorld) {
-  await this.showSidebar();
-  const mint = this.calendarDay(isoDayOf(new Date())).locator(CALENDAR_MINT);
+When("I press + day note", async function (this: OlaiWorld) {
+  const mint = this.page.locator(DAY_MINT);
   await mint.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.press(mint);
 });
+
+Then("the + day note button is shown", async function (this: OlaiWorld) {
+  await this.page
+    .locator(DAY_MINT)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
+Then("the + day note button is gone", async function (this: OlaiWorld) {
+  await expectAbsent(
+    this,
+    DAY_PAGE,
+    DAY_MINT,
+    "a day that already has a note is still offering to mint one",
+  );
+});
+
+Then(
+  "the day-note mint is refused saying {string}",
+  async function (this: OlaiWorld, said: string) {
+    await saysThat(
+      this,
+      DAY_MINT_SAID,
+      said,
+      "refusal beside + day note",
+      "alarm",
+    );
+  },
+);
 
 /** Where the vault's own convention puts today's note: the newest existing
  *  daily note's directory with its date segments re-spelled, which for this

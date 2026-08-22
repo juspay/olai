@@ -178,6 +178,15 @@ test("only layer.ts spells a z-index", () => {
 // being true. The install surface's e2e used to ask `navigator.serviceWorker`
 // after the bundle had run; that claim now lives here, on the files that
 // would actually register one, not on the shell HTML.
+// running.ts used to re-default a tool row's status (`entry.status ??
+// "pending"`) because the wire type could not say the field was required on
+// a call and absent on every other kind. The union carries that; a second
+// spelling of the default coming back is a consumer re-establishing a fact
+// the type already has.
+test("statusOf is gone: the type carries a tool row's status", () => {
+  expect(filesSpelling(/\bstatusOf\b/)).toEqual([])
+})
+
 test("no client file registers a service worker", () => {
   expect(filesSpelling(/serviceWorker/)).toEqual([])
 })
@@ -258,6 +267,40 @@ test("a row's handle is marked in the gesture that owns it and the cell that wea
     path.join("drag", "Handle.tsx"),
     path.join("drag", "dragging.ts"),
   ])
+})
+
+// What a tool call's status LOOKS like is the frame's; what it MEANS is
+// `@olai/surface`'s (`isRunningStatus`), because the SERVER asks it too.
+// `?? "pending"` used to be written twice in this client for one convention
+// the writer already applied; the union made the field required on a tool row
+// and the default left. What remains here is the LOOK, and the fixtures that
+// mint a tool row — they must name a status now, which is the type doing its
+// job rather than a third opinion about the wire. A production file other than
+// the frame uttering a status is a face deciding for itself what ACP meant.
+test("a tool call's status is spelled where it is meant and where it is drawn", () => {
+  const statuses = /["'`](pending|in_progress)["'`]/
+  expect(filesSpelling(statuses)).toEqual([
+    path.join("chat", "ToolFrame.tsx"),
+    path.join("chat", "elapsed.test.ts"),
+    path.join("chat", "lanes.test.ts"),
+    path.join("chat", "rows.testlib.ts"),
+    path.join("chat", "spawn.test.ts"),
+  ])
+})
+
+// clock.ts's claim — "the one clock in the client", which for a while was a
+// claim about the DAY and silently untrue about the wall clock. Two readouts
+// here are a reading of it and therefore go stale where they stand — the commit
+// pill's "12m ago" and the chat panel's "47s" — and each arrived with its own
+// `setInterval`, signal and `onCleanup`. What the two had in common was never
+// the number but the LIFETIME, and a disposal written out per feature is one a
+// feature will eventually forget: the timer that outlives the component it drew
+// for is invisible until a panel that has been opened and closed forty times is
+// ticking forty times. So the repeating timer is `createTicking`, once, and a
+// third readout has to reach for it. `clock.ts` itself is the definition, and
+// the pattern is the CALL — which is why its own name is the only one here.
+test("only clock.ts starts a repeating timer", () => {
+  expect(filesSpelling(/setInterval\s*\(/)).toEqual(["clock.ts"])
 })
 
 // pointer.ts's claim — one file suppresses the text selection under a gesture.

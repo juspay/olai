@@ -123,6 +123,7 @@ import {
   UsageFailure,
   type Writer,
 } from "@olai/format"
+import { identityOf, type IdentityHeaders } from "@olai/identity"
 import type { Applied, Ops } from "@olai/ops"
 import { Effect, Layer, Option, Result, Schema } from "effect"
 import {
@@ -138,10 +139,14 @@ import { runResolved } from "./resolving.ts"
  *  spell this one. */
 export const CAPTURE_PATH = "/capture"
 
-/** The header the identity is read off, spelled the way a client writes it —
- *  it is in the docs, in every recipe and in the refusal this door answers
- *  with. `Headers.get` lower-cases it on the way in, so there is one spelling. */
-export const IDENTITY_HEADER = "Tailscale-User-Login"
+/** WHICH header carries the login is NOT this file's — it is the operator's,
+ *  through `@olai/identity` (`OLAI_IDENTITY_LOGIN_HEADER`, defaulting to
+ *  `Tailscale-User-Login`), and the value reaches this door on {@link Options}
+ *  as the same `IdentityHeaders` `GET /olai/who` is handed. A constant here
+ *  would be a second answer to "who is this request", which is the parse that
+ *  package exists to have stopped keeping — and it would refuse in the name of
+ *  a header the operator had configured away. So the refusals below are built
+ *  per serve, from the name actually in force. */
 
 /** The property the identity is recorded as. A key rather than a field,
  *  because the format gives it no meaning and olai reads nothing in it — it is
@@ -286,12 +291,13 @@ const linkable = (url: string): string =>
 const captureOf = (
   posted: Posted,
   login: string,
+  names: IdentityHeaders,
   at: Date,
 ): Result.Result<Capturing, OpFailure> => {
   if (Object.keys(posted.props ?? {}).some((key) => key.trim() === CAPTURED_BY)) {
     return Result.fail(
       new UsageFailure({
-        reason: `\`${CAPTURED_BY}\` is written from the ${IDENTITY_HEADER} header and ` +
+        reason: `\`${CAPTURED_BY}\` is written from the ${names.login} header and ` +
           "cannot be sent: it is who captured this, and a capture may not say that " +
           "about itself",
       }),
@@ -378,26 +384,22 @@ export interface Options {
    * anything because nothing about the request can influence it.
    */
   readonly writer: Writer
+  /** WHICH headers say who a request is — the operator's, and the SAME value
+   *  `GET /olai/who` is handed (`./identity.ts`), so the chip in the header and
+   *  a capture cannot disagree about who is looking. */
+  readonly identity: IdentityHeaders
 }
 
 /**
- * The three refusals whose text depends on NOTHING, built once.
+ * The refusal whose text depends on NOTHING, built once.
  *
  * A response value is safe to share — `./media.ts` already keeps a single
- * `missing` for every 404 it answers, and its `PREFIX` note is the same
- * argument about bytes — and these three are the ones a port scanner and a
- * mistyped `curl` reach, so they are exactly the ones not to re-encode per
- * request. Named rather than inline as well: the 401's sentence is what
- * docs/running.md promises and what `./capture.test.ts` asserts, and a
- * constant is something both can point at.
+ * `missing` for every 404 it answers — and this is the one a port scanner and a
+ * mistyped `curl` reach with no configuration in it. Its two siblings name the
+ * LOGIN HEADER, which is the operator's, so they are built per serve inside
+ * {@link captureRoute} rather than here: once at boot either way, and never per
+ * request.
  */
-const NO_IDENTITY = refusing(
-  401,
-  `${IDENTITY_HEADER} is required: this door is authenticated by the tailnet in ` +
-    "front of it, and a request that carries no identity has nothing to attribute " +
-    "the capture to",
-  "usage",
-)
 const NOT_JSON = refusing(400, "the body is not JSON", "usage")
 
 /**
@@ -467,14 +469,6 @@ const NOT_FOR_A_PAGE = refusing(
     "put on it",
   "usage",
 )
-/** What a method this door does not answer is told, rather than falling through
- *  to the shell's `GET /*` and being handed the app: a person reaching for
- *  `curl` and forgetting `-X POST` deserves a sentence and not a page of HTML. */
-const WRONG_METHOD = refusing(
-  405,
-  `POST a capture here, with a ${IDENTITY_HEADER} header — see docs/running.md`,
-  "usage",
-)
 
 /**
  * The route, as two `HttpRouter` layers merged — the shape `./mcp/route.ts`
@@ -484,8 +478,26 @@ const WRONG_METHOD = refusing(
  */
 export const captureRoute = (
   options: Options,
-): Layer.Layer<never, never, HttpRouter.HttpRouter> =>
-  Layer.merge(
+): Layer.Layer<never, never, HttpRouter.HttpRouter> => {
+  // Named for the header THIS serve trusts, so an operator who configured one
+  // is not told to send the one they configured away.
+  const noIdentity = refusing(
+    401,
+    `${options.identity.login} is required: this door is authenticated by the ` +
+      "tailnet in front of it, and a request that carries no identity has nothing " +
+      "to attribute the capture to",
+    "usage",
+  )
+  // What a method this door does not answer is told, rather than falling
+  // through to the shell's `GET /*` and being handed the app: a person
+  // reaching for `curl` and forgetting `-X POST` deserves a sentence and not
+  // a page of HTML.
+  const wrongMethod = refusing(
+    405,
+    `POST a capture here, with a ${options.identity.login} header — see docs/running.md`,
+    "usage",
+  )
+  return Layer.merge(
     HttpRouter.add(
       "POST",
       CAPTURE_PATH,
@@ -499,14 +511,14 @@ export const captureRoute = (
           if (crossSite(request)) return NOT_FOR_A_PAGE
           if (!readable(request)) return WRONG_MEDIA
 
-          // `Headers.get` rather than an index: it lower-cases the name itself,
-          // so the spelling a client writes is the spelling this file reads and
-          // there is no second constant to keep in step with the first.
-          const login = Option.getOrElse(
-            Headers.get(request.headers, IDENTITY_HEADER),
-            () => "",
-          ).trim()
-          if (login === "") return NO_IDENTITY
+          // ONE reading of who this request is, shared with `GET /olai/who`
+          // (`./identity.ts`, whose header names this door as its second
+          // caller). It already does what this used to do by hand — trim, treat
+          // present-and-blank as absent, take the first value of a doubled
+          // injection — so a capture and the header chip can never disagree
+          // about who is looking.
+          const who = identityOf(request.headers, options.identity)
+          if (who === null) return noIdentity
 
           const body = yield* Effect.result(request.json)
           if (Result.isFailure(body)) return NOT_JSON
@@ -517,15 +529,16 @@ export const captureRoute = (
           // client debugging a share sheet is exactly who needs it.
           if (Result.isFailure(posted)) return refusing(400, String(posted.failure), "usage")
 
-          const what = captureOf(posted.success, login, new Date())
+          const what = captureOf(posted.success, who.login, options.identity, new Date())
           if (Result.isFailure(what)) return refused(what.failure)
 
           const done = yield* Effect.result(capture(options, what.success))
           return Result.isFailure(done) ? refused(done.failure) : landed(done.success)
         }),
     ),
-    HttpRouter.add("GET", CAPTURE_PATH, WRONG_METHOD),
+    HttpRouter.add("GET", CAPTURE_PATH, wrongMethod),
   )
+}
 
 /** Read the set, resolve where a capture lands against THAT reading, write it
  *  under the writer this door was composed as — and let `./resolving.ts` choose

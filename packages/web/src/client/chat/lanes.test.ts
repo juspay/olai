@@ -19,15 +19,22 @@ import { laneOf } from "./lanes.ts"
 const row = (id: string, parent?: string): ChatEntry => ({
   id,
   seq: 0,
+  since: "2026-08-21T12:00:00.000Z",
   kind: "tool",
   text: id,
+  status: "pending",
   ...(parent === undefined ? {} : { parent }),
 })
 
 /** ... and the same row as a QUESTION the agent stopped to ask. */
 const asked = (id: string, parent?: string): ChatEntry => ({
-  ...row(id, parent),
+  id,
+  seq: 0,
+  since: "2026-08-21T12:00:00.000Z",
   kind: "ask",
+  text: id,
+  ask: { fields: [], outcome: null },
+  ...(parent === undefined ? {} : { parent }),
 })
 
 /** Nothing above it at all — the top of the transcript. */

@@ -12,14 +12,15 @@
  * gone because the header is always there.
  *
  * On a phone the burger joins the left edge next to the wordmark, and that is
- * the WHOLE of the bar besides the magnifier. WhatsApp's rule: identity and
- * search in the header; connection and git as banners under it, and only when
+ * the WHOLE of the bar besides the magnifier and who is looking, last in the
+ * chrome row — top right, the same pill the desktop cluster wears. WhatsApp's
+ * rule: identity and search in the header; connection and git as banners under it, and only when
  * there is news (the same Indicator and Commit, news-only faces); the agent as the thumb strip it already was;
  * preferences in the directory drawer. A healthy phone does not advertise
  * health — `live` and `✓ committed` stay off screen. A dead wire is the freeze
  * overlay, which was already the stronger form of that banner. Desktop keeps
  * the pills, because a bar of chips cannot be trusted if the healthy ones
- * disappear.
+ * disappear. Direct access draws anonymous, not a missing chip.
  *
  * The bar is a fixed `--height-header` and the right-hand group is `flex-nowrap`: wrapping
  * inside a fixed height centred the second row off the top of the viewport on a
@@ -106,6 +107,7 @@ import { connectionReadout } from "./wire.ts"
 import { Preferences } from "./settings/Preferences.tsx"
 import { TESTID } from "./testids.ts"
 import { TARGET_BOX } from "./touch.ts"
+import { Who } from "./who/Who.tsx"
 
 export function AppHeader(props: {
   /** When a sidebar exists: whether its sheet is open, and the way to toggle
@@ -171,10 +173,11 @@ export function AppHeader(props: {
           Every state that readout drew is a face of this pill now — including
           the fault, with git's own words on its tip.
 
-          The preferences trigger is LAST, and it is one control rather than
-          two: the theme pill that used to be here is a row inside the panel it
-          opens (`settings/`). A door beside a door into the same room is the
-          same redundancy `one-git-indicator` closed. */}
+          The preferences trigger is one control rather than two: the theme
+          pill that used to be here is a row inside the panel it opens
+          (`settings/`). A door beside a door into the same room is the
+          same redundancy `one-git-indicator` closed. Who is looking is
+          LAST — top right. */}
       <div
         // `gap-1` below 40rem rather than `gap-1.5`: the pills at 390pt spend a
         // gap between each pair, and 6px of white space is a word on the label
@@ -203,6 +206,11 @@ export function AppHeader(props: {
         <Show when={!desktop() && props.menu === undefined}>
           <Preferences />
         </Show>
+        {/* LAST: who is looking, top right. Every answer has a face —
+            anonymous, the person, a failed door — wearing the same pill
+            the rest of this cluster wears, so items-center has one
+            height. */}
+        <Who />
       </div>
     </header>
     {/* Phone: the same two controls, news-only faces, in flow under the bar.

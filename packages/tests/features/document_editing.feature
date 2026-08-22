@@ -18,10 +18,11 @@ Feature: Documents become writable
   a person presses after reading the refusal.
 
   Creation has two doors. The sidebar's path box mints any `.md` by name, and
-  a BARE calendar day — no node, no note — mints that day's note where the
-  vault already keeps them, the convention read off the newest existing daily
-  note's own path. Both land in the new document's editor, because an empty
-  page is not what "start writing" means.
+  the day page's **+ day note** mints that day's note where the vault already
+  keeps them, the convention read off the newest existing daily note's own
+  path. Both land in the new document's editor, because an empty page is not
+  what "start writing" means. Clicking a calendar day never writes: every
+  cell navigates to `/d/<date>`, empty or not.
 
   Every scenario is a scratch: the whole feature is about writes. They share
   one copy per worker (`@share-scratch`); the corpus is restored between
@@ -147,13 +148,19 @@ Feature: Documents become writable
 
   # TODAY's cell, because a document page anchors the month to today rather
   # than to a day it is not of — and nothing in this vault is dated this
-  # century, so today is bare. Which is the ordinary way anybody reaches this:
-  # reading a note, wanting to write down what happened today.
+  # century, so today is empty. Clicking it navigates; + day note is the mint.
+  # Which is the ordinary way anybody reaches this: reading a note, wanting to
+  # write down what happened today.
   @scratch:journal
-  Scenario: A bare day pressed while reading a document still lands in its editor
+  Scenario: Today's cell from a document opens today, and + day note mints it
     Given I open the document "notes/ferry.md"
     And I mark the page
-    When I press today's bare day
+    When I click today
+    Then today is the one being read
+    And the day is empty
+    And the document editor is gone
+    And the page has not reloaded
+    When I press + day note
     Then the document open is today's note under "Daily"
     And the document editor is open
     And the page has not reloaded
@@ -182,13 +189,28 @@ Feature: Documents become writable
     And the document editor holds no text containing "belong to finishes.md alone"
 
   @scratch:journal
-  Scenario: A bare calendar day mints that day's note where the vault keeps them
-    # The vault's convention is Daily/YYYY/MM/, and nobody configured that:
-    # it is read off the newest existing daily note's own path. 2019-11-20 has
-    # no node and no note, so its cell is the creation affordance.
+  Scenario: Clicking an empty calendar day opens that day and writes nothing
+    # 2019-11-20 has no node and no note. A click here used to mint; now it
+    # navigates, and the page says so. The file is not created.
     Given I open the day "2019-11-05"
     And I mark the page
-    When I press the bare day "2019-11-20"
+    When I click the day "2019-11-20"
+    Then the address is "/d/2019-11-20"
+    And the day open is "2019-11-20"
+    And the day is empty
+    And the + day note button is shown
+    And the document editor is gone
+    And the page has not reloaded
+
+  @scratch:journal
+  Scenario: + day note mints that day's note where the vault keeps them
+    # The vault's convention is Daily/YYYY/MM/, and nobody configured that:
+    # it is read off the newest existing daily note's own path. The button is
+    # the creation affordance; the calendar cell never writes.
+    Given I open the day "2019-11-20"
+    And I mark the page
+    Then the + day note button is shown
+    When I press + day note
     Then the document open is "Daily/2019/11/2019-11-20.md"
     And the document editor is open
     And the page has not reloaded
@@ -199,3 +221,24 @@ Feature: Documents become writable
     And I save the document
     Then the document renders bold text "latch"
     And there should be no page errors
+
+  # Minting records an empty inverse — nothing takes a minted file back — so
+  # ⌘Z after this door still speaks, and does not try to unmint the file.
+  @scratch:journal
+  Scenario: + day note leaves undo intact
+    Given I open the day "2019-11-20"
+    When I press + day note
+    Then the document editor is open
+    When I cancel the document editor
+    And I press "ControlOrMeta+z"
+    Then the undo says "nothing to undo"
+
+  # A `/d/<anything>` is a day page without a note, so the button is the same
+  # door; a date that isn't a day is the server's to refuse, verbatim. The
+  # calendar never produces one — its cells are days.
+  @scratch:journal
+  Scenario: + day note on a date that is not a day is refused in the ops layer's words
+    Given I open the day "hello"
+    Then the + day note button is shown
+    When I press + day note
+    Then the day-note mint is refused saying "not a day"

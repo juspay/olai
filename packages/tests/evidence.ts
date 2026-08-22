@@ -845,6 +845,140 @@ const retitle = (file: string, id: string, title: string): void =>
 
 const SECTIONS = {
   /**
+   * WHO YOU ARE (`who-you-are`): the header's identity icon under a
+   * simulated Tailscale-User-Login, and the anonymous icon when the
+   * header is absent. Reef (the default) and pitch, because the chip
+   * sits on ink and the two invert it.
+   */
+  "who-you-are": async (page) => {
+    const headerShot = async (target: Page, name: string) => {
+      const header = target.locator('[data-testid="app-header"]')
+      await header.waitFor()
+      const box = await header.boundingBox()
+      if (box === null) throw new Error("the app header has no box")
+      await shot(target, name, { clip: box })
+    }
+
+    const none = page.locator('[data-testid="identity"][data-who="none"]')
+    await none.waitFor({ state: "attached" })
+    await headerShot(page, "absent-reef")
+    await wearTheme(page, "pitch")
+    await none.waitFor({ state: "attached" })
+    await headerShot(page, "absent-pitch")
+
+    const browser = page.context().browser()
+    if (browser === null) throw new Error("the page has no browser")
+    const signed = await browser.newContext({
+      extraHTTPHeaders: { "Tailscale-User-Login": "ada@example.com" },
+      viewport: { width: WIDE, height: 720 },
+    })
+    const tab = await signed.newPage()
+    await tab.goto(`${BASE}/house.olai`)
+    await tab.locator('[data-testid="identity"][data-who="yes"]').waitFor()
+    const picture = tab.locator('[data-testid="identity"] img')
+    await picture.waitFor()
+    await tab.waitForFunction(() => {
+      const img = document.querySelector('[data-testid="identity"] img')
+      return img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0
+    })
+    await headerShot(tab, "signed-in-reef")
+    await wearTheme(tab, "pitch")
+    await tab.locator('[data-testid="identity"][data-who="yes"]').waitFor()
+    await picture.waitFor()
+    await headerShot(tab, "signed-in-pitch")
+    await signed.close()
+  },
+
+  /**
+   * DURATIONS (`duration-values`): `created:1h` answered by the header's box,
+   * and the refusal that teaches the four units when a reader reaches for a
+   * fifth.
+   *
+   * THE CLOCK IS REAL HERE, which is the whole reason this is a section rather
+   * than a unit test. Every boundary the suite pins is pinned against a fixed
+   * `now` handed in; what nothing below the browser can show is that the clock
+   * a DOOR counts from is the one a capture is stamped with — so the node this
+   * section finds is one it captured a moment earlier, through the palette,
+   * with a `created` the server minted while the section was running.
+   *
+   * THE OLDER NODE IS WRITTEN, for the same reason the pins above are: a
+   * stamp is an ordinary field, so a record carrying one from last month is a
+   * line in a file rather than a gesture nobody can make. The pair is the
+   * evidence — the same box, the same query, one row present and one absent,
+   * and the only difference between them is when olai wrote them.
+   *
+   * `has:created` is photographed BESIDE it, because a query that finds one row
+   * proves less than a query that finds both: it is what says the older node is
+   * there to be missed rather than missing.
+   */
+  durations: async (page) => {
+    // Two stamped records the app did not write, one of them last month and
+    // one of them years back — the rows `created:1h` must NOT return.
+    rewrite("stamps.olai", [
+      `{"id":"lastmonth","ord":"a0","title":"the older job, captured last month","created":"${
+        shiftDay(isoDayOf(new Date()), -32)
+      }T09:12:44-04:00"}`,
+      `{"id":"antique","ord":"a1","title":"the ancient job, captured in 2019","created":"2019-03-04T14:30:00-04:00"}`,
+    ])
+    await opened(page, "/stamps.olai", OUTLINE_TREE)
+    console.log(`  the file holds:       ${(await titles(page)).join(" · ")}`)
+
+    // THE CAPTURE, which is where the real clock enters: the ops layer stamps
+    // `created` with the same `now` a `done` is stamped with, and it is that
+    // stamp the query below counts back from.
+    await page.keyboard.press("ControlOrMeta+k")
+    await page.locator(PALETTE_INPUT).waitFor()
+    await page.locator(PALETTE_INPUT).fill("+ sand the walnut edge")
+    await page.locator(PALETTE_INPUT).press("Enter")
+    await page.locator(PALETTE_SAID).waitFor()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  captured just now:    ${
+      (await page.locator(PALETTE_SAID).innerText()).replace(/\s+/g, " ").trim()
+    }`)
+    await page.keyboard.press("Escape")
+    await page.waitForTimeout(DRAWN)
+
+    /** One query put to the header's box, with what it answered — the door the
+     *  human was refused at when they typed `created:1h`, which is why the
+     *  evidence is taken here rather than at the filter bar. */
+    const asks = async (query: string, name: string) => {
+      const box = page.locator(HEADER_SEARCH)
+      await box.click()
+      await box.fill(query)
+      await page.waitForTimeout(SETTLE)
+      const rows = await page.locator('[data-testid="header-search-item"]').allInnerTexts()
+      console.log(`  ${query.padEnd(22)}${
+        rows.length === 0
+          ? "(no rows)"
+          : rows.map((one) => one.replace(/\s+/g, " ").trim()).join(" · ")
+      }`)
+      const refused = await page.locator(SEARCH_REFUSAL).first().textContent().catch(() =>
+        null
+      )
+      if (refused !== null) console.log(`  ${"...and refuses:".padEnd(22)}${refused.trim()}`)
+      await shot(page, name)
+      await page.keyboard.press("Escape")
+      await page.waitForTimeout(DRAWN)
+    }
+
+    // WITHIN THE LAST HOUR — the bare form, which is sugar for `created:1h..`.
+    // The captured row is there; neither written one is.
+    await asks("created:1h", "within-the-last-hour")
+    // ...and the same three nodes under a question about the STAMP rather than
+    // about the hour, which is what says the other two were there to be missed.
+    await asks("has:created", "the-same-file-unbounded")
+    // OLDER THAN AN HOUR, the point reading of the same moment: the two the
+    // query above left out, and not the one it found.
+    await asks("created:..1h", "older-than-an-hour")
+
+    // THE REFUSAL, and it is the sentence this feature owes a reader most: the
+    // month unit is a RULING rather than a gap, so the box has to say which
+    // four units there are and that months and years are deliberately not
+    // among them.
+    await asks("created:1mo", "the-refusal-teaches-the-units")
+  },
+
+  /**
    * PIN TO SIDEBAR (`pin-to-sidebar`): the shelf holding one of each of the
    * three things worth a door — a NODE, a DOCUMENT, and a page WITH the query
    * it was narrowed by — and the two promises a still frame cannot make on its

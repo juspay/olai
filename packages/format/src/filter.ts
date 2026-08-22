@@ -1,5 +1,5 @@
 /**
- * What a query MEANS — the one matcher, five callers.
+ * What a query MEANS — the one matcher, and the two SHAPES its callers want.
  *
  * A query is words and operators; this file says which nodes they select, and
  * which rows survive when a tree is narrowed to them. It is here, at the bottom
@@ -8,27 +8,32 @@
  * second one written to the same paragraph is the thing this package exists to
  * make impossible.
  *
- * FIVE CALLERS, and naming them is the argument:
+ * TWO SHAPES, and the split is what the file is arranged around:
  *
- *   - `@olai/ops`' `Query.search`, which is what an agent's `search_nodes` and
- *     the wire's `search.nodes` answer with. It calls {@link matching} as its
- *     gate and {@link ranked} to order them, and what is left of its own is
- *     the situating, the cap it applies and the total;
- *   - the ⌘K palette and the header's search box, which are callers of that
- *     procedure and so get every operator here for free;
- *   - the browser's FILTER over the tree on screen, which cannot be a caller of
- *     that procedure — it runs on every keystroke over rows the browser already
- *     holds, it wants every match rather than twelve, and it wants them as a set
- *     of ids to test rows against rather than as a ranked list of situated hits;
- *   - the chat composer's `@` list (`@olai/web`'s `chat/nodes.ts`), which is
- *     the filter's shape with a shortlist on the end: one token, matched here,
- *     ordered by {@link ranked}, eight rows taken off the top.
+ *   - a SHORTLIST somebody reads — ranked, capped, every hit situated. {@link
+ *     matching} over the whole set, ordered by {@link ranked}, and the caller
+ *     is `@olai/ops`' `Query.search`, which is what an agent's `search_nodes`
+ *     and the wire's `search.nodes` answer with (the ⌘K palette, the header's
+ *     box and the chat composer's `@` list are doors onto that one procedure,
+ *     so they get every operator here for free). What is left to the ops layer
+ *     is the situating, the cap and the uncapped total;
+ *   - a MEMBERSHIP over rows already on a screen — uncapped, unranked, ids to
+ *     test rows against. That is a page's FILTER, and what it is asked of is
+ *     the records THAT PAGE draws rather than the corpus (`./narrowing.ts`,
+ *     over {@link selecting} with the page's own candidates in place of the
+ *     set's). A capped, ranked, situated answer would be the wrong answer with
+ *     more bytes in it.
  *
- * The last two are why the matcher is down here rather than in the ops layer.
- * The alternative was a client-side predicate written to the same description,
- * which is exactly the drift docs/search.md was written to forbid — `is:done`
- * meaning one thing to an agent and another to the box a person types in. The
- * ranking followed it down for the same reason, one door later: see
+ * BOTH ARE ANSWERED ON THE SERVER, which is newer than this file is. The
+ * matcher came DOWN here when the filter ran in a browser on every keystroke
+ * over rows the tab already held — a client-side predicate written to the same
+ * description is exactly the drift docs/search.md was written to forbid, with
+ * `is:done` meaning one thing to an agent and another to the box a person types
+ * in. The browser holds no vault to grep since `vault-in-browser`, and the
+ * filter stopped being a call at all with `filter-ask-carries-revision`
+ * (docs/brainstorming/filter-rides-the-page.md): what moved was WHO CALLS this,
+ * never what it says, and the rule the move was made for is the reason it stays.
+ * The ranking followed it down for the same reason, one door later: see
  * {@link ranked}.
  *
  * The design, with the alternatives that lost, is
@@ -50,7 +55,7 @@ import {
 import type { Hypertext, Markdown } from "./document.ts"
 import { type Custom, customOf } from "./custom.ts"
 import { proseIn } from "./frontmatter.ts"
-import { shiftDay, shiftMonth, weekdayOf } from "./calendar.ts"
+import { shiftDay, shiftMinutes, shiftMonth, weekdayOf } from "./calendar.ts"
 import type { DayGroup } from "./dates.ts"
 import { datesOf, dayOf, monthOf } from "./occasion.ts"
 import { basenameOf } from "./paths.ts"
@@ -216,10 +221,15 @@ const isIsValue = (value: string): value is IsValue =>
  * the work was finished (./dates.ts) — and the other two read the record's own
  * STAMPS, the instants the ops layer puts on a node when it is captured and
  * re-puts whenever it is written afterwards (./node.ts). Three sources, and
- * ONE grammar over them: a day, a month, a year, the twelve relative words and
- * a range of any of those mean under `created:` exactly what they mean under
- * `date:`, because {@link spanOf} reads the value before anything knows which
- * operator asked.
+ * ONE grammar over them: a day, a month, a year, the twelve relative words, a
+ * duration back from now, and a range of any of those mean under `created:`
+ * exactly what they mean under `date:`, because {@link meaningOf} reads the value
+ * before anything knows which operator asked. What DIFFERS between the three
+ * is only the precision the record answers at, and that is the record's rather
+ * than the grammar's: the stamps carry seconds, so a duration reaches them
+ * exactly; a `date:` field carrying a bare day is compared at the width of a
+ * day, so `date:1h` is effectively a question about done-instants
+ * ({@link within} argues it, docs/search.md states it).
  *
  * WHICH IS THE ARGUMENT FOR THE LIST rather than for three operators written
  * out. A reader who has learnt `date:last-week` has learnt the other two, and
@@ -325,12 +335,21 @@ type Clause =
    *  these ({@link hasClause}). */
   | { readonly kind: "has"; readonly field: CarriedField }
   /**
-   * An inclusive span of DAYS, as text, and WHICH of a node's days it is asked
-   * of ({@link DAY_READINGS}). `null` on either side is "unbounded that way",
+   * An inclusive span, as ISO text, and WHICH of a node's dates it is asked of
+   * ({@link DAY_READINGS}). `null` on either side is "unbounded that way",
    * which is what `date:..2026-08-10` and `created:2026-08-10..` are.
    *
+   * A BOUND IS A DAY OR A MOMENT, and its own WIDTH is what says which — ten
+   * characters for a day, a whole clock face and an offset for the moment a
+   * duration names ({@link durationBefore}). There is no tag beside it, and
+   * that is the point rather than an omission: ISO text is a prefix ordering,
+   * so the string already carries its precision, and a tag would be a second
+   * answer to "what kind of bound is this" free to disagree with the string it
+   * sits next to. {@link within} reads each bound at its own width, which is
+   * why the two ends may differ (`created:yesterday..3h`).
+   *
    * ONE ARM FOR THE THREE, and the `of` is the whole difference between them:
-   * the value was read by one {@link spanOf} before anything knew which
+   * the value was read by one {@link meaningOf} before anything knew which
    * operator asked, so what is left to carry is where to look. Three arms would
    * have been three copies of two nullable bounds, and the reading below
    * ({@link within}) would have had to be written once per copy.
@@ -649,6 +668,16 @@ const NOTHING_QUOTED =
  * PURE, AND THE CLOCK IS AN ARGUMENT. `now` is what the relative words count
  * from (`date:yesterday`, `date:last-week`) — the day the reader is standing
  * on, or an instant on it ({@link relativeSpan} cuts one down to the other).
+ * A DURATION COUNTS FROM THE SAME ARGUMENT and reads the whole of it
+ * ({@link durationBefore}): `created:1h` is an hour before the moment `now`
+ * names, so a clock handing over an instant is answered to the second and one
+ * handing over a bare day is answered from midnight on it, which is what those
+ * ten characters say. Every door that MATCHES hands over the instant a `done`
+ * is stamped with (`@olai/ops`); the one door that parses without matching —
+ * the tab's own read of its filter box, for the words to light and the
+ * refusals to draw — hands over its day, and the bounds it mints are not what
+ * anything is selected by (`@olai/web`'s `pane/PageView.tsx` says so at the
+ * call).
  * It is a parameter rather than something read in here for two reasons that
  * are really one: a function that read a clock could not be tested against a
  * boundary, and the day is a fact about WHO IS ASKING — the tab's own local
@@ -892,15 +921,21 @@ const teaching = (name: Operator, value: string): string => {
       return `has: takes one of ${HAS_FIELDS.join(", ")}`
     // ONE SENTENCE FOR THE THREE, named by whichever was typed. They share a
     // value grammar exactly ({@link DAY_READINGS}), so a reader refused at
-    // `created:soon` is taught the same twelve words a reader refused at
-    // `date:soon` is — and a value added to that grammar teaches itself at all
-    // three doors rather than at whichever copy somebody remembered.
+    // `created:soon` is taught the same values a reader refused at `date:soon`
+    // is — and a value added to that grammar teaches itself at all three doors
+    // rather than at whichever copy somebody remembered. Which is what the
+    // durations spent: `1mo` and `1y` refuse in one sentence at three
+    // operators, and the sentence says which four units there are and that
+    // months and years are deliberately not among them.
     case "date":
     case "created":
     case "changed":
       return `${name}: takes a day, month or year (2026-08-10, 2026-08, 2026), ` +
         `a relative word (${RELATIVE_TEACHING}), ` +
-        "or a range of either (2026-08-01..2026-08-14, ..2026-08-10, last-week..)"
+        `${DURATION_TEACHING}, ` +
+        "or a range of any of them (2026-08-01..2026-08-14, ..2026-08-10, " +
+        "last-week.., 2h..30m). A bare duration is the range it opens: 1h is 1h.., " +
+        "within the last hour"
     case "prop":
       // The one operator whose values are not a list this file holds — any key
       // is a key — so what it teaches is the SHAPE, and the two shapes are the
@@ -982,8 +1017,119 @@ const RELATIVE_TEACHING = `${[...RELATIVE_DAYS.keys()].join(", ")}, or ${
   [...RELATIVE_STEPS.keys()].map((step) => `${step}-`).join(" / ")
 } with ${RELATIVE_UNITS.join(", ")}`
 
-/** An inclusive span of days, both ends spelled out. What every `date:` value
- *  — absolute or relative — is read into before it becomes a clause. */
+// ── the durations ──────────────────────────────────────────────────────
+
+/**
+ * THE FOUR UNITS A DURATION COUNTS IN, and how many minutes each is worth.
+ *
+ * `<n><unit>` is a MOMENT rather than a day — the moment that many units before
+ * the question was asked — and it is the value kind the day words could not
+ * spell: the stamps carry seconds and `today` bottoms out at midnight, so
+ * "what did I touch in the last hour" had no spelling until this one
+ * (roadmap `duration-values`, ruled 2026-08-21).
+ *
+ * FOUR AND NOT SIX. There is no month unit and no year unit, and that is a
+ * RULING rather than an omission: `m` is the letter both `minutes` and
+ * `months` want, every system that took both had to give one of them away, and
+ * minutes win here because month and year recency is already sayable in words
+ * (`last-month..`, `2026`) while minutes were sayable in nothing at all. So
+ * `1mo` and `1y` are refused, and the refusal says so in as many words
+ * ({@link DURATION_TEACHING}).
+ *
+ * A MAP for {@link RELATIVE_DAYS}' reason, which is the same reason one letter
+ * later: `1constructor` is a token somebody can type, and an object would have
+ * answered it with a function where a number of minutes was expected.
+ *
+ * The NAMES ride along beside the numbers because the refusal has to spell
+ * them: a reader refused at `1mo` is being told `m` means minutes, and a list
+ * of four bare letters would leave them to guess the very thing the ruling
+ * decided.
+ */
+const DURATION_UNITS: ReadonlyMap<string, { readonly minutes: number; readonly named: string }> =
+  new Map([
+    ["m", { minutes: 1, named: "minute" }],
+    ["h", { minutes: 60, named: "hour" }],
+    ["d", { minutes: 60 * 24, named: "day" }],
+    ["w", { minutes: 60 * 24 * 7, named: "week" }],
+  ])
+
+/**
+ * The SHAPE of a duration — digits then letters, with the letters looked up
+ * rather than listed here, so {@link DURATION_UNITS} stays the one place a
+ * unit is named and `1mo` reaches the refusal by the same road `1q` does.
+ *
+ * THE DIGITS ARE CAPPED because a NUMBER has a shape too, and this is the same
+ * pair {@link datePart} is: a shape check here, and the value check one call
+ * down. Six digits is past every duration a person means — a hundred thousand
+ * hours is eleven years — and a count wider than that is a reader who slipped
+ * on the keyboard rather than one who meant something the calendar could hold.
+ *
+ * WHAT IS IMPOSSIBLE rather than merely long is {@link shiftMinutes}' answer:
+ * `999999w` is nineteen thousand years, lands on no day four digits can spell,
+ * and is refused there. THE COST of an absurd count is that function's own
+ * problem too and is not smuggled up here as a reason for this cap — it takes
+ * any number and bounds its own work, so this line is about what a duration
+ * IS and not about what it would cost to answer.
+ */
+const DURATION_SHAPE = /^(\d{1,6})([a-z]+)$/
+
+/**
+ * The vocabulary as a refusal says it — the four letters, what each one MEANS,
+ * and the two units that are deliberately not here.
+ *
+ * IN FULL and GENERATIVE, which is {@link RELATIVE_TEACHING}'s rule inherited:
+ * built from the table above, so a unit added there teaches itself. The
+ * parenthetical about months and years is the one part written by hand, and it
+ * is written because a reader who typed `1mo` has met a ruling rather than a
+ * gap and is owed the difference — "no month or year units" is what stops them
+ * trying `1M`, `1mon` and `1month` in turn.
+ *
+ * EXPORTED, alone among the vocabulary here, and the asymmetry is the point:
+ * `./searching.ts` describes this grammar to an AGENT, and it was spelling the
+ * four units out again in prose. Two lists of what `m` means is exactly what
+ * {@link DURATION_UNITS} claims not to have — so the door interpolates this
+ * sentence and a fifth unit teaches itself at the refusal AND at the tool
+ * description, rather than at whichever of the two somebody remembered. The
+ * relative words have no such export because their door never re-listed them.
+ */
+export const DURATION_TEACHING = `a duration back from now (${
+  [...DURATION_UNITS].map(([unit, { named }]) => `1${unit} = 1 ${named}`).join(", ")
+}; no month or year units)`
+
+/**
+ * A duration, as the moment it names — or `null` for a value that is not one.
+ *
+ * THE ONE PLACE A DURATION IS READ, and it has exactly one caller —
+ * {@link meaningOf}, which is the one reading of a day operator's value. What
+ * comes out of that reading says WHICH FORM it was, so the rule about what a
+ * bare one means ({@link daysClause}) reads the form rather than testing for it
+ * a second time. `created:1h` and `created:..1h` cannot come to disagree about
+ * what an hour is, because neither of them asks.
+ *
+ * ANCHORED AT ASK TIME, off the same `now` the relative words count from and
+ * with no re-ask timer behind it: a page showing `created:1h` drifts within the
+ * hour exactly as one showing `created:today` drifts across midnight — the
+ * query is asked again on every revision, and answered against the clock as it
+ * is then. That is the contract `today` already had, extended rather than
+ * restated (docs/search.md).
+ *
+ * WHAT COMES BACK IS A MOMENT AND NOT A DAY, which is the whole of what this
+ * value kind adds and the reason {@link within} compares at the width of the
+ * bound rather than at the width of a day.
+ */
+const durationBefore = (value: string, now: string): string | null => {
+  const shape = DURATION_SHAPE.exec(value)
+  if (shape === null) return null
+  const [, count, unit] = shape as unknown as [string, string, string]
+  const size = DURATION_UNITS.get(unit)
+  if (size === undefined) return null
+  return shiftMinutes(now, -Number(count) * size.minutes)
+}
+
+/** An inclusive span, both ends spelled out — a STRETCH of time, which is what
+ *  a day, a month, a year and a relative word each name. What a value means is
+ *  this or a single moment ({@link Meaning}); a duration is the second, and
+ *  {@link edgesOf} is where one is offered as the other. */
 interface Span {
   readonly from: string
   readonly to: string
@@ -1025,7 +1171,7 @@ interface Span {
  * that says nothing is not a day to count from, and inventing one would be
  * this grammar answering a date question out of thin air.
  *
- * EXPORTED for {@link spanOf} next door and for the test that pins these
+ * EXPORTED for {@link meaningOf} next door and for the test that pins these
  * boundaries against a fixed day — which is the half of this feature a test can
  * hold still, and the reason the clock is an argument at all.
  */
@@ -1100,27 +1246,74 @@ const twoDigitsIn = (digits: string, low: number, high: number): boolean => {
 }
 
 /**
- * One end of a `date:`, as the span of days it stands for — or `null` for a
- * value this operator does not take.
+ * WHAT A DAY OPERATOR'S VALUE MEANS — a span of days, or the single MOMENT a
+ * duration counts back to.
  *
- * The ONE reading of a `date:` value, whichever form it is written in: a
- * relative word first ({@link relativeSpan}), then the absolute prefix. Which
- * is what makes a relative word compose with a range for free rather than by a
- * second rule — `date:last-week..` is the low end of last week's span with
- * nothing above it, exactly as `date:2026-08..` is the low end of August's.
+ * A UNION rather than a span with a flag, and it is the distinction the whole
+ * value kind turns on: every other form names a stretch of time with two ends,
+ * and a duration names one instant. Both are usable as a range END (a moment
+ * is its own low and its own high, {@link edgesOf}), and they part company at
+ * exactly one place — what a BARE value means, which is {@link daysClause}'s to
+ * say.
+ *
+ * THE FLAG WAS THE OTHER SHAPE and it is the worse one, for the reason a
+ * `Clause` is a union rather than a record of optional fields: `{ from, to,
+ * moment: true }` can be built with two DIFFERENT ends — a value insisting it
+ * is one instant while carrying a stretch — and nothing would catch it. This
+ * cannot be spelled. The flag would also be a second answer to a question the
+ * edges already answer, which is the thing every table in this file is
+ * arranged to avoid.
+ *
+ * SO THE FORM IS CARRIED rather than re-derived. The bare-form rule was, for
+ * one commit, `daysClause` asking "is this a duration?" for itself before
+ * falling through to a reading that asked the same question again — which is
+ * two places knowing how a duration is recognised, and the shape that would
+ * have been copied for the next value form with a bare reading of its own. The
+ * reading answers WHICH FORM it read, once, and the rule reads it.
  */
-const spanOf = (value: string, now: string): Span | null => {
-  const relative = relativeSpan(value, now)
-  if (relative !== null) return relative
-  return datePart(value) === null
-    ? null
-    : { from: lowOf(value), to: highOf(value) }
-}
+type Meaning =
+  | { readonly kind: "span"; readonly span: Span }
+  | { readonly kind: "moment"; readonly at: string }
 
 /**
- * A DAY OPERATOR's value — a day, a month, a year, a relative word, or a span
- * of them — with the operator's own name carried through as WHICH days it will
- * be asked of.
+ * One end of a `date:`, read — or `null` for a value this operator does not
+ * take.
+ *
+ * The ONE reading of a `date:` value, whichever form it is written in: a
+ * relative word first ({@link relativeSpan}), then a duration
+ * ({@link durationBefore}), then the absolute prefix. Which is what makes each
+ * of them compose with a range for free rather than by a rule per form —
+ * `date:last-week..` is the low end of last week's span with nothing above it,
+ * exactly as `date:2026-08..` is the low end of August's, and `changed:..30m`
+ * is the moment half an hour ago with nothing below it.
+ *
+ * THE THREE ARMS CANNOT COLLIDE — a day word is letters, a duration is digits
+ * then letters, an absolute value is digits and dashes — so the order here is
+ * the order the forms are cheapest to rule out rather than a precedence
+ * anybody has to know.
+ */
+const meaningOf = (value: string, now: string): Meaning | null => {
+  const relative = relativeSpan(value, now)
+  if (relative !== null) return { kind: "span", span: relative }
+  const moment = durationBefore(value, now)
+  if (moment !== null) return { kind: "moment", at: moment }
+  return datePart(value) === null
+    ? null
+    : { kind: "span", span: { from: lowOf(value), to: highOf(value) } }
+}
+
+/** The low and the high edge of what a value means. A span offers its two
+ *  ends; a MOMENT offers itself as both, which is the whole of why a duration
+ *  sits at either end of a range without a rule of its own. */
+const edgesOf = (meaning: Meaning): Span =>
+  meaning.kind === "moment"
+    ? { from: meaning.at, to: meaning.at }
+    : meaning.span
+
+/**
+ * A DAY OPERATOR's value — a day, a month, a year, a relative word, a duration
+ * back from now, or a span of any of them — with the operator's own name
+ * carried through as WHICH of a record's days it will be asked of.
  *
  * ONE PARSE FOR THE THREE ({@link DAY_READINGS}), and `of` is the only thing
  * that distinguishes what comes out. That is the decomplecting the pair of
@@ -1128,38 +1321,71 @@ const spanOf = (value: string, now: string): Span | null => {
  * parsing written for it, because a span of days and the days a record offers
  * are two questions and this one had already been answered.
  *
- * Bounds are DAY STRINGS and comparison is text, as everywhere else in this
- * package: dates are validated ISO and stored verbatim, so a day is a
- * ten-character prefix and a range is two string comparisons. Nothing is parsed
- * into an instant — a date-only value put through one comes back a datetime,
- * and ./dates.ts already says why this is not the place to risk it. The
- * arithmetic a relative word needs is ./calendar.ts's, over integers, and it
- * happens ONCE per query rather than per node: what a clause holds afterwards
- * is the same two strings an absolute value produced.
+ * Bounds are ISO TEXT and comparison is text, as everywhere else in this
+ * package: dates are validated ISO and stored verbatim, so a range is two
+ * string comparisons. Nothing is parsed into an instant — a date-only value put
+ * through one comes back a datetime, and ./dates.ts already says why this is
+ * not the place to risk it. The arithmetic a relative word or a duration needs
+ * is ./calendar.ts's, over integers, and it happens ONCE per query rather than
+ * per node: what a clause holds afterwards is two strings, whatever form
+ * minted them.
+ *
+ * WHAT A BOUND CAN NOW BE is a day or a MOMENT, and the difference is only how
+ * wide it is — ten characters for `2026-08-10`, a whole clock face and an
+ * offset for the moment a duration names. Each bound is compared at its own
+ * width ({@link within}), so a clause may hold one of each and
+ * `created:yesterday..3h` is one question rather than two.
  *
  * A month's upper bound is `-31` whether or not that month has one: as an
  * upper bound in a string comparison no real day of the month exceeds it, and
  * inventing a calendar here would be arithmetic to answer a question the
  * comparison already answers.
  *
- * A range takes each end's own span and keeps the OUTER edge of it — the low
- * of the left, the high of the right — so `date:last-week..today` runs from
- * last Monday to tonight, and an end left empty is unbounded that way.
+ * A range takes each end's own edges and keeps the OUTER one — the low of the
+ * left, the high of the right — so `date:last-week..today` runs from last
+ * Monday to tonight, and an end left empty is unbounded that way. It never
+ * asks which FORM an end was written in ({@link edgesOf}), which is why the
+ * durations cost this arm nothing.
  */
 const daysClause = (of: DayReading, value: string, now: string): Clause | null => {
   const at = value.indexOf(RANGE)
   if (at === -1) {
-    const span = spanOf(value, now)
-    return span === null ? null : { kind: "days", of, from: span.from, to: span.to }
+    const meaning = meaningOf(value, now)
+    if (meaning === null) return null
+    // THE ONE FORM WHOSE BARE READING IS NOT ITS EDGES, and the only place the
+    // two arms of {@link Meaning} are told apart. A duration read on its own is
+    // sugar for the range it opens — `created:1h` IS `created:1h..`, "within
+    // the last hour" — because that is what somebody's fingers mean by it, and
+    // what every system with this value kind means by it (Workflowy's
+    // `last-changed:1h`, Gmail's `newer_than:`). The point reading is still
+    // there and still spellable, one character away: `created:..1h` is the
+    // other side of the same moment, older than an hour.
+    const edges = edgesOf(meaning)
+    return {
+      kind: "days",
+      of,
+      from: edges.from,
+      // ...and the high end is the only thing the sugar changes: a duration
+      // opens upward, every other form closes at its own end.
+      to: meaning.kind === "moment" ? null : edges.to,
+    }
   }
   const left = value.slice(0, at)
   const right = value.slice(at + RANGE.length)
   if (left === "" && right === "") return null
-  const low = left === "" ? null : spanOf(left, now)
+  const low = left === "" ? null : meaningOf(left, now)
   if (left !== "" && low === null) return null
-  const high = right === "" ? null : spanOf(right, now)
+  const high = right === "" ? null : meaningOf(right, now)
   if (right !== "" && high === null) return null
-  return { kind: "days", of, from: low?.from ?? null, to: high?.to ?? null }
+  // A range takes the OUTER edge of each end and never asks which form wrote
+  // it — which is what {@link edgesOf} buys, and why a duration needed no line
+  // of range parsing written for it.
+  return {
+    kind: "days",
+    of,
+    from: low === null ? null : edgesOf(low).from,
+    to: high === null ? null : edgesOf(high).to,
+  }
 }
 
 const lowOf = (value: string): string =>
@@ -1667,8 +1893,18 @@ const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean =>
 }
 
 /**
- * DOES ANY DAY THIS RECORD OFFERS UNDER `clause.of` FALL INSIDE THE SPAN — the
- * one place a record is read as days, and the only question anything asks of it.
+ * DOES ANY DATE THIS RECORD OFFERS UNDER `clause.of` FALL INSIDE THE SPAN —
+ * the one place a record is read as dates, and the only question anything asks
+ * of it.
+ *
+ * DATES rather than days since durations arrived, and the widening is the
+ * whole of what this function gave up: it used to cut every value to the ten
+ * characters of a day before comparing, which is a decision about PRECISION
+ * taken by the reader of a value rather than by the bound it is being tested
+ * against. The values are handed over whole now and {@link within} reads as
+ * much of each as its bound is wide, so a `date:` holding a bare day and one
+ * holding a done-instant are the same comparison at two natural precisions
+ * rather than one comparison with the seconds thrown away.
  *
  * A PREDICATE RATHER THAN A LIST OF DAYS, which is what it was for one commit
  * and never needed to be. Nothing wants the days: the clause wants a yes or a
@@ -1712,11 +1948,15 @@ const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean =>
  * disagreed with the day page about what a date means would be a third answer
  * to a question that already has one.
  *
- * The two STAMPS are the record's own fields, cut to the day they fall on by
- * the same `dayOf` — one day or none, never two, since a record carries at
- * most one of each. They are compared as TEXT like every other date in this
- * package: a stamp is an instant with an offset on it, and the ten characters
- * in front of the `T` are the day the person writing it was having.
+ * The two STAMPS are the record's own fields, handed over WHOLE — one moment
+ * or none, never two, since a record carries at most one of each. They are
+ * compared as TEXT like every other date in this package, and how much of the
+ * text is read is the BOUND's to say ({@link within}): a day bound reads the
+ * ten characters in front of the `T`, which are the day the person writing it
+ * was having, and a duration's bound reads the clock face as well. Cutting to
+ * the day here — which is what this did while a bound could only be a day —
+ * would have thrown away the precision the stamps were always carrying, which
+ * is the precision durations were added to reach.
  *
  * ABSENCE OFFERS NO DAY, and that is the whole of the honesty rule the two
  * stamp operators are held to. A node written before the stamps existed
@@ -1736,7 +1976,7 @@ const dayWithin = (node: RegularNode, clause: DaysClause): boolean => {
       const dates = datesOf(node)
       return unbounded(clause)
         ? dates.length > 0
-        : dates.some(({ date }) => within(dayOf(date), clause))
+        : dates.some(({ date }) => within(date, clause))
     }
     case "created":
       return stampWithin(node.created, clause)
@@ -1759,7 +1999,7 @@ const dayWithin = (node: RegularNode, clause: DaysClause): boolean => {
  */
 const stampWithin = (stamp: string | undefined, clause: DaysClause): boolean =>
   stamp !== undefined && !nothing(stamp) &&
-  (unbounded(clause) || within(dayOf(stamp), clause))
+  (unbounded(clause) || within(stamp, clause))
 
 /** Neither end can exclude a day — the `has:` form, and what makes the cheap
  *  arms above correct rather than a shortcut. */
@@ -1822,51 +2062,196 @@ const propKeyOf = (
 const carries = (node: RegularNode, field: CarriedField): boolean =>
   !nothing(node[field])
 
-/** Is this day inside the span? `null` on an end is no bound that way. Over
- *  the CLAUSE, which is {@link propKeyOf}'s shape next door: it took the two
- *  bounds loose for one commit, while `has:` was answered at the gate with no
- *  clause behind it to pass — and {@link hasClause} mints one now. */
-const within = (day: string, clause: DaysClause): boolean =>
-  (clause.from === null || day >= clause.from) &&
-  (clause.to === null || day <= clause.to)
+/**
+ * Is this date inside the span? `null` on an end is no bound that way. Over the
+ * CLAUSE, which is {@link propKeyOf}'s shape next door: it took the two bounds
+ * loose for one commit, while `has:` was answered at the gate with no clause
+ * behind it to pass — and {@link hasClause} mints one now.
+ *
+ * EACH BOUND COMPARES AT ITS OWN WIDTH, and that one rule is the whole of what
+ * durations cost the matcher. A bound minted from a day, a month, a year or a
+ * relative word is ten characters, so what it decides is the day the value
+ * falls on — which is the `dayOf` this function was handed for its first year,
+ * generalised rather than special-cased. A bound minted from a duration is a
+ * MOMENT, so the same comparison reaches the clock face.
+ *
+ * AND IT CUTS NOTHING, which is what makes that generalisation free. ISO text
+ * is a PREFIX ORDERING — every field is fixed-width and ordered most
+ * significant first — so for a bound `n` characters wide and the value's own
+ * first `n` characters `P`:
+ *
+ *   - `P >= bound` is exactly `date >= bound`. If `P` differs from `bound` the
+ *     two strings already differ inside those `n` characters and the rest
+ *     cannot speak; if `P` equals `bound` then `date` is `bound` with more
+ *     after it, which is greater or equal either way.
+ *   - `P <= bound` is `date <= bound` OR `date` STARTS WITH `bound` — the one
+ *     case the shorter string loses, where the value is on the bound's own
+ *     moment and carries seconds past it.
+ *
+ * So the slice this took for one commit — per bound, per node, per clause,
+ * over a directory, on every keystroke of a filter box — was buying a
+ * comparison the comparison already made. `startsWith` allocates nothing
+ * either, so this is cheaper than the single `dayOf` cut that stood here
+ * before durations existed. ./filter.bench.ts's `dated` arm is the number and
+ * exists because this line had none: it was added with the durations, and it
+ * is what a reader should re-run rather than believe.
+ *
+ * WHICH IS WHY DAY-GRANULAR VALUES COMPARE AT THEIR OWN PRECISION rather than
+ * being special-cased into one: a `date:` field holding the bare day
+ * `2026-08-13` sorts BEFORE every moment on the 13th, because a shorter string
+ * is the lesser one and that is exactly what "the start of the day" means. So
+ * `date:1h` selects done-instants inside the hour and no bare-day plans on the
+ * day it is — the fact the ruling asked to be stated rather than engineered
+ * away (docs/search.md).
+ *
+ * COMPARED AS TEXT, which for two moments is a WALL-CLOCK comparison and not an
+ * absolute one: a stamp carries the offset the machine writing it was standing
+ * at, and so does the bound, and this reads the faces rather than the instants
+ * behind them. Where the two offsets agree — one person, one machine, which is
+ * the directory this format serves — the readings are the same. Where they do
+ * not, a duration is off by the difference: the hour after a zone puts its
+ * clocks back, and a stamp written under another offset entirely. The price of
+ * the alternative is a zone database in the floor of this package
+ * (./calendar.ts's header), and the day-width comparison this generalises has
+ * always been the same trade.
+ *
+ * The SEPARATOR is the other edge of that: a datetime somebody hand-wrote with
+ * a space where this format's own writer puts a `T` is legal on disk
+ * (./parse.ts) and sorts before every `T` on its day, so it reads as the start
+ * of that day. Which is the same answer a bare day gets, and the honest one for
+ * a value that named no instant this package minted.
+ *
+ * AND THE SALVAGE ABOVE HAS A LIMIT, which the algebra does not state because
+ * the algebra is about STRINGS and this is about what the strings mean. "Extra
+ * precision is a suffix" holds for text APPENDED past the bound's own last
+ * character — a stamp's seconds under a day bound, an offset under a bound
+ * without one. Two shapes `isIsoInstant` allows put it somewhere else, and a
+ * value of either sitting EXACTLY on a bound falls outside it:
+ *
+ *   - a FRACTION, which lands before the offset rather than after everything
+ *     (`…T10:00:00.000-04:00` does not start with `…T10:00:00-04:00`, so it is
+ *     outside an upper bound at its own instant);
+ *   - SECONDS OMITTED, which makes the value SHORTER than the bound at the
+ *     same instant (`…T10:00-04:00` sorts before `…T10:00:00-04:00`, so it is
+ *     outside a lower bound at its own instant).
+ *
+ * NEITHER IS WRITTEN BY THIS PACKAGE. `./stamp.ts` mints `T`, seconds and a
+ * numeric offset and no fraction, so every stamp, every `done`, and every bound
+ * ./calendar.ts hands back is the shape the salvage covers; both cases need a
+ * value typed into a file by hand AND landing on the bound's exact instant.
+ * Named rather than fixed, because fixing it means normalising every value
+ * before comparing it — a parse per node per clause, to answer a question about
+ * values this format does not produce. Found by grok reviewing #328, where the
+ * paragraph above claimed more than it delivered.
+ */
+const within = (date: string, clause: DaysClause): boolean =>
+  (clause.from === null || date >= clause.from) &&
+  (clause.to === null ||
+    date <= clause.to ||
+    // The value is ON the bound's own moment and carries more after it — the
+    // one case where being the longer string must not put it outside.
+    date.startsWith(clause.to))
 
 /**
- * Every node the query selects, in the set's own file-then-line order.
+ * Every node in the SET that the query selects, in the set's own
+ * file-then-line order — the door for a caller searching the DIRECTORY.
+ *
+ * TWO LINES over {@link selecting}, and they are the two this door adds: the
+ * candidates are the whole set narrowed by a {@link Scope}, and what was put
+ * away is decided from the question — the query named the archive ({@link
+ * Filter} `speaksOfTrash`), or the caller said its scope already holds it
+ * ({@link Scope.trashed}). One boolean per call, read before the walk.
  *
  * MIRRORS ARE NOT HERE, for the reason nothing in the query layer answers with
  * one: a mirror is a second PLACEMENT of a node, so a hit for it would be the
  * same node twice, once at a place no write lands. What a filtered TREE does
  * with a placement is a different question, and {@link keeping} answers it.
  *
- * WHAT WAS PUT AWAY is decided here rather than per record, because it is a
- * fact about the QUESTION and not about any node: the query named the archive
- * ({@link Filter} `speaksOfTrash`), or the caller said its scope already
- * holds it ({@link Scope.trashed}). One boolean per call, read before the
- * walk.
+ * A PAGE narrowing itself is the other caller and does not come through here:
+ * it holds the records it draws and hands them to {@link selecting} directly
+ * (`./narrowing.ts`).
  */
 export const matching = (
   derived: Derived,
   filter: Filter,
   scope: Scope = {},
-): ReadonlyArray<Matched> => {
+): ReadonlyArray<Matched> => [
+  ...selecting(
+    derived,
+    filter,
+    inScopeOf(derived, scope),
+    scope.trashed === true || (filter.kind === "asking" && filter.speaksOfTrash),
+  ),
+]
+
+/** The set's own regular records, in file-then-line order, narrowed to a scope
+ *  — {@link matching}'s candidates, and the whole of what it holds over
+ *  {@link selecting}. Mirrors are skipped for the reason nothing in the query
+ *  layer answers with one: a mirror is a second PLACEMENT of a node, so a hit
+ *  for it would be the same node twice, once at a place no write lands. */
+function* inScopeOf(derived: Derived, scope: Scope): Generator<LocatedRegular> {
   const inScope = scoping(derived, scope)
-  const putAway = scope.trashed === true ||
-    (filter.kind === "asking" && filter.speaksOfTrash)
-  const out: Array<Matched> = []
   for (const located of derived.nodes) {
     if (isMirror(located.node)) continue
     const at = located as LocatedRegular
-    // Leftover Archive.olai is orphaned from every query, including
-    // `is:trashed`: it is not trash, and it is not live work either. The
-    // file's own page still draws unfiltered (the filter box is inactive
-    // then); a query over the directory does not re-enter it.
+    if (!inScope(at)) continue
+    yield at
+  }
+}
+
+/**
+ * THE SELECTION ITSELF, over candidates the CALLER holds — the half of
+ * {@link matching} that is about what a query means rather than about where to
+ * look for it.
+ *
+ * It exists because there are two kinds of caller and only one of them is
+ * searching the DIRECTORY. {@link matching} is that one: it is handed the whole
+ * set and a corner of it to ask about. The other is a PAGE narrowing itself,
+ * which already holds the records it draws — mirrors resolved, ancestry walked,
+ * every arm of the reading decided — and for which a walk of the corpus is a
+ * walk of everything the answer will be thrown away for
+ * (docs/brainstorming/filter-rides-the-page.md). That caller hands its own rows
+ * in (`./narrowing.ts`), and what it gets is this same `matchOf` behind this
+ * same grammar, so the two cannot mean different things by `is:done`.
+ *
+ * WHAT WAS PUT AWAY is the caller's answer rather than a rule here, for the
+ * reason {@link Scope.trashed} gives: whether the archive is in this corner of
+ * the set at all is a fact about the QUESTION — the query named it, or the
+ * caller's own scope already holds it. One boolean per call, read before the
+ * walk.
+ *
+ * A LEFTOVER `Archive.olai` is orphaned from every query, including
+ * `is:trashed`: it is not trash, and it is not live work either. The file's own
+ * page still draws unfiltered; a query does not re-enter it.
+ *
+ * DUPLICATES ARE THE CALLER'S, not this walk's: `derived.nodes` names each
+ * record once, and a page that draws one node twice is a caller with an answer
+ * about that (`./narrowing.ts` dedupes because a placement is not a node).
+ *
+ * A GENERATOR, so a caller that wants a shape of its own builds ONE list rather
+ * than materialising this one and mapping it. {@link matching} spreads it,
+ * which is the array it always returned; `./narrowing.ts` pushes as it goes.
+ *
+ * WHAT THE LAYER COSTS was measured rather than assumed, because this walk is
+ * the one that is genuinely whole-vault: `filter.bench.ts` over 20,000 nodes
+ * reads 7.3–8.3ms a keystroke here, against 7.6–15.3ms for the same bench on
+ * the commit before this file grew its two generators. The spread is the
+ * machine's and not the change's — which is the honest finding, and the same
+ * one `patch.bench.ts` states about its own numbers: the layer is not
+ * measurable against run-to-run variance, so it is not a cost this pays.
+ */
+export function* selecting(
+  derived: Derived,
+  filter: Filter,
+  candidates: Iterable<LocatedRegular>,
+  putAway: boolean,
+): Generator<Matched> {
+  for (const at of candidates) {
     if (isLeftoverArchive(at.file)) continue
     if (!putAway && isTrashed(at.file)) continue
-    if (!inScope(at)) continue
     const match = matchOf(derived, at, filter)
-    if (match !== null) out.push({ at, match })
+    if (match !== null) yield { at, match }
   }
-  return out
 }
 
 /** A done node is demoted by about a field's worth: enough to lose a tie, not

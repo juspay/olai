@@ -234,6 +234,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   dated: "resource",
   owed: "resource",
   page: "resource",
+  narrowing: "resource",
   moving: "resource",
   heads: "resource",
   pins: "resource",
@@ -255,7 +256,6 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "chat.decline": "tool",
   "edit.apply": "tool",
   "search.nodes": "tool",
-  "search.matching": "tool",
   "nodes.named": "tool",
   "nodes.homes": "tool",
   "vocabulary.tags": "tool",
@@ -279,17 +279,20 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
  * plus `search.nodes`, `git.commit` and `git.push` — the three members BOTH
  * doors call, because none of them has an agent-specific version.
  *
- * `search.matching`, `nodes.named` and `nodes.homes` are the three members of
- * shared groups that are NOT here, and each is a fact about what an agent would
- * do with them rather than a restriction. The first answers with a set of ids
- * and why, which is only useful to a caller already looking at the rows those
- * ids name: an agent asking which nodes match asks `search_nodes` and is
- * answered with the nodes. The second answers a dozen ids with the node each one
+ * `nodes.named` and `nodes.homes` are the two members of shared groups that are
+ * NOT here, and each is a fact about what an agent would do with them rather
+ * than a restriction. The first answers a dozen ids with the node each one
  * names, for a panel deciding which of an agent's own backticks are pressable:
  * an agent asking whether an id is real asks `read_node` and is told everything
- * about it. The third answers a file per id and a list of paths, for a browser
+ * about it. The second answers a file per id and a list of paths, for a browser
  * reconciling a memory of what it had collapsed: an agent that wants to know
  * where a node lives reads it, and is told beside everything else about it.
+ *
+ * The `narrowing` stream is absent for that kind of reason and is a RESOURCE
+ * rather than a procedure, so it never reached this map at all: it answers with
+ * a set of ids and why, which is only useful to a caller already looking at the
+ * rows those ids name. An agent asking which nodes match asks `search_nodes`
+ * and is answered with the nodes.
  *
  * `vocabulary.tags` is absent for the same kind of reason and is a whole GROUP
  * rather than one member of one: it answers a POPUP — as many rows as the

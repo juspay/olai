@@ -47,7 +47,7 @@ import { Schema } from "effect"
 
 import { AtDocument, AtNode, NodeId } from "./address.ts"
 import { Face } from "./document.ts"
-import { DOCUMENT_FIELDS, Refusal, SEARCH_FIELDS } from "./filter.ts"
+import { DOCUMENT_FIELDS, DURATION_TEACHING, Refusal, SEARCH_FIELDS } from "./filter.ts"
 import { RegularNode } from "./node.ts"
 import { Found } from "./reading.ts"
 
@@ -234,7 +234,13 @@ export const SearchRequest = Schema.Struct({
       "- `has:desc` / `has:date` / `has:created` / `has:changed` / `has:see` / `has:after` / `has:doc` / `has:repeat` — a field the record carries. `has:repeat` is what COMES BACK: a repeat rule needs a date to repeat from, so it selects inside `has:date`, and `has:date -has:repeat` is everything dated once. `has:created -has:changed` is a node nothing has been written to since it was captured.\n" +
       "- `date:2026-08-10`, `date:2026-08`, `date:2026`, `date:2026-08-01..2026-08-14`, `date:..2026-08-10`, `date:2026-08-10..` — the two dates a journal reads: what the node is scheduled for, and when it was finished.\n" +
       "- `date:today`, `date:yesterday`, `date:tomorrow`, and `this-` / `last-` / `next-` with `week`, `month` or `year` (`date:last-week`) — the same operator, counted from the day the query is asked on, in the server's own time zone. A week runs MONDAY to Sunday. They go at either end of a range like any other value: `date:last-week..`, `date:..today`, `date:last-month..yesterday`.\n" +
-      "- `created:…` / `changed:…` — the STAMPS, and they take every value `date:` takes above, absolute or relative, with or without a range. `created` is when olai captured the node; `changed` is when olai last wrote to it. Neither is the same question as `date:`: one node can be scheduled for the 10th, captured on the 1st and last written today. Use them to find recent work (`changed:today`), what arrived in a stretch (`created:last-week`), or what has gone untouched (`-changed:last-month`).\n" +
+      // THE UNITS ARE THE GRAMMAR'S OWN SENTENCE, interpolated rather than
+      // re-listed: `@olai/format`'s `DURATION_TEACHING` is what the refusal
+      // says, built off the one table that names a unit, so this door and that
+      // refusal cannot come to describe different units.
+      `- \`changed:1h\`, \`created:30m\`, \`changed:2d\`, \`created:1w\` — ${DURATION_TEACHING}, counted from the moment the query is asked. \`1mo\` and \`1y\` are REFUSED (month and year recency is already \`last-month..\` or \`2026\`), and values are case-folded, so \`1M\` is one minute. A bare duration is WITHIN THE LAST N — \`created:1h\` is \`created:1h..\`. At a range's END it is the moment itself: \`created:..1h\` is older than an hour, \`changed:2h..30m\` is a window (older bound first), and the ends mix with everything else (\`created:yesterday..3h\`). There are no comparison operators and no \`ago()\`; inequalities are spelled as ranges.\n` +
+      "- A duration is ROLLING where a day word is CALENDAR, and both are worth having: `created:1d` is the last twenty-four hours, `created:today` is since midnight; `changed:1w` is the last seven days, `changed:this-week` starts on Monday. Durations reach the stamps exactly, since those carry seconds. Under `date:` they compare against whatever precision the node wrote: a bare `date:` day sorts before every moment on that day, so `date:1h` effectively selects work FINISHED inside the hour rather than the day's plans.\n" +
+      "- `created:…` / `changed:…` — the STAMPS, and they take every value `date:` takes above, absolute, relative or a duration, with or without a range. `created` is when olai captured the node; `changed` is when olai last wrote to it. Neither is the same question as `date:`: one node can be scheduled for the 10th, captured on the 1st and last written today. Use them to find recent work (`changed:today`, `changed:1h`), what arrived in a stretch (`created:last-week`), or what has gone untouched (`-changed:last-month`, `-changed:1d`).\n" +
       "- ABSENCE IS NOT A PAST. The stamps arrived after the format did, so a node written before them carries NEITHER, and nothing invents one: such a node is found by NO `created:` span however wide (`created:2000..` does not reach it), and IS found by the negation `-created:2000..` — the same reading that makes `-has:date` answer with the undated. If you need to know when an unstamped node was really written, that is `git log`, not this.\n" +
       "- `prop:pr` / `prop:agent=claude-opus` — a CUSTOM property the node carries, by key or by key and value. Reads the `custom` map only: a field is not a property, so `prop:done` and `prop:date=…` match nothing. A list value matches on any member.\n" +
       "- `-` before any word or operator negates it: `#home -is:done`.\n" +
@@ -284,15 +290,15 @@ export const SearchRequest = Schema.Struct({
    *
    * They were put here for the browser's filter, "so a door that could not ask
    * for that narrowing would be answering a smaller question than the other
-   * one". The filter is a door on the wire since `search-server-side` and does
-   * NOT use them, and could not: a page draws MIRRORS, and a mirror shows a
-   * node that lives in another outline, so a page filtered under `file` would
-   * lose every row a curated list is made of ({@link MatchingRequest}, and
-   * `@olai/ops`' `Query.matches` at length). What is left is what `search_nodes`
-   * documents them as — an agent asking exactly the question a person gets by
-   * filtering one page — which is why they stay on THIS request and are not
-   * spread onto the other: a field nobody sends is a field nobody can be held
-   * to.
+   * one". The filter is a reading on the wire since `search-server-side` and
+   * does NOT use them, and could not: a page draws MIRRORS, and a mirror shows
+   * a node that lives in another outline, so a page filtered under `file` would
+   * lose every row a curated list is made of. What that door narrows by instead
+   * is the page's OWN records, which is a set only the side holding the reading
+   * has (`./narrowing.ts`). What is left here is what `search_nodes` documents
+   * them as — an agent asking exactly the question a person gets by filtering
+   * one page — which is why they stay on THIS request: a field nobody sends is
+   * a field nobody can be held to.
    */
   file: Schema.optionalKey(
     Schema.String.annotate({
@@ -330,75 +336,30 @@ export type SearchRequest = typeof SearchRequest.Type
 // ── the other question a search answers ────────────────────────────────
 
 /**
- * WHAT A PAGE'S FILTER ASKS: not "the best twelve", but "which of them, and
- * why" — every node the query selects, uncapped and unranked.
+ * One node A QUERY SELECTED, and why — the id, and the field that carried the
+ * words. `matched` is ABSENT for a query that named none (`is:done` on its
+ * own), which is {@link NodeHit}'s own rule for absence: nothing carried it,
+ * and saying "title" would be inventing a reason.
  *
- * A SECOND SHAPE beside {@link SearchRequest} rather than a flag on it, because
- * the two doors want two different things out of one matcher and neither is the
- * other cut short. A SEARCH is a shortlist somebody reads: it is ranked, it is
- * capped, and every hit carries what a row of results draws — the title, the
- * `file:line`, the ancestors, the properties. A FILTER is a membership test
- * over rows already on a screen: what it needs is the SET of ids, whole,
- * because the page prunes itself by it and counts itself against it ("3 of 41"
- * is a lie if the answer was capped at twelve), and what it needs about each is
- * one fact — which field carried the words, so a row found only behind its ¶
- * can say so. A capped, ranked, situated answer would be the wrong answer with
- * more bytes in it.
+ * THE OTHER SHAPE a search answers in, beside {@link NodeHit}, and the
+ * difference between them is the door. A SEARCH is a shortlist somebody reads:
+ * ranked, capped, and every hit carrying what a row of results draws — the
+ * title, the `file:line`, the ancestors, the properties. A page's FILTER is a
+ * membership test over rows already on a screen: what it needs is the SET of
+ * ids, whole, because the page prunes itself by it and counts itself against it
+ * ("3 of 41" is a lie if the answer was capped at twelve), and what it needs
+ * about each is one fact — which field carried the words, so a row found only
+ * behind its ¶ can say so. A capped, ranked, situated answer would be the wrong
+ * answer with more bytes in it.
  *
- * It is the browser's door and only the browser's: an agent asking "which nodes
- * match" is asking `search_nodes`, which answers with the nodes rather than
- * with a set of ids to look up. Said here because the two live in one file and
- * the difference between them is not the wire's to guess.
+ * WHAT ASKS FOR THESE is `./narrowing.ts`, which is where the reading they
+ * belong to is declared — and it is the reason there is no request shape beside
+ * this one here. A filter narrows ONE PAGE, so what it asks about is a page and
+ * a query rather than a corner of the directory, its answer is bounded by that
+ * page, and it rides the same revision pulse the page does.
  */
-export const MatchingRequest = Schema.Struct({
-  /** The same grammar, the same words — {@link SearchRequest.text}, and
-   *  deliberately not a second spelling of that sentence: what a query MEANS is
-   *  one paragraph, and this door reads it with the same `parseFilter`. */
-  text: Schema.String,
-  /**
-   * Whether what was put AWAY is in this corner of the set at all — the
-   * matcher's own {@link Scope.trashed} put on the wire, because the caller is
-   * the only one who knows.
-   *
-   * WHAT IT MEANS IS ARGUED WHERE THE MATCHER TAKES IT (`./filter.ts`'s
-   * `Scope`) and is deliberately not re-stated here: this package is a monument
-   * to a vocabulary that was spelled twice and drifted. The short of it, for a
-   * reader of the wire: absent is the grammar's own rule (the trash is reached
-   * by `is:trashed` and not otherwise), and `true` is a PAGE saying its own
-   * rows are already put-away ones — never a widening of a search of the
-   * directory, since the page that sends it is the page that draws it.
-   */
-  trashed: Schema.optionalKey(Schema.Boolean),
-})
-export type MatchingRequest = typeof MatchingRequest.Type
-
-/** One node the query selected, and why — the id, and the field that carried
- *  the words. `matched` is ABSENT for a query that named none (`is:done` on its
- *  own), which is {@link NodeHit}'s own rule for absence: nothing carried it,
- *  and saying "title" would be inventing a reason. */
 export const MatchedNode = Schema.Struct({
   id: NodeId,
   matched: Schema.optionalKey(Schema.Literals(SEARCH_FIELDS)),
 })
 export type MatchedNode = typeof MatchedNode.Type
-
-/**
- * Every node the query selects, in the set's own file-then-line order.
- *
- * NO `total`, because the list IS the total — nothing was capped. No hits and
- * no situating: the caller is looking at these rows already, and an ancestor
- * walk per selected node is exactly the cost {@link ranked} was moved below a
- * cap to avoid.
- *
- * NO `refusals` either, and that one is a decision rather than an omission. A
- * refusal is what the GRAMMAR made of the words, and the door that asks this
- * reads the same grammar itself (`parseFilter`, one function, both sides) —
- * so it draws the refusal the moment somebody types it rather than a round trip
- * later, and never asks a question it has already been told is unreadable. The
- * three doors that DO carry refusals on the wire ({@link SearchAnswer}) are the
- * ones that do not parse for themselves.
- */
-export const MatchingAnswer = Schema.Struct({
-  matches: Schema.Array(MatchedNode),
-})
-export type MatchingAnswer = typeof MatchingAnswer.Type

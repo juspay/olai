@@ -2,7 +2,7 @@
  * The hand-off from a creation affordance to the editor it lands in.
  *
  * A document a person just minted — from the sidebar's path box, or by
- * pressing a bare calendar day — is a document they are about to write, so the
+ * pressing + day note — is a document they are about to write, so the
  * page it navigates to should open EDITING rather than rendering an empty
  * body with the affordance one more click away. The route cannot carry that
  * (an address says which page, never what mood it is in — a link someone
@@ -51,11 +51,11 @@ export const consumeMinted = (file: string): boolean => {
  * The note above has to be set before the navigation, or the page mounts,
  * finds nothing minted, and opens reading — an editor hand-off that fails
  * silently, which is the worst kind. Two doors send this today (the sidebar's
- * path box and a bare calendar day) and the roadmap plainly anticipates more,
- * so the sequence lives beside the one-shot rather than as a comment repeated
- * at each call site.
+ * path box and the day page's + day note) and the roadmap plainly anticipates
+ * more, so the sequence lives beside the one-shot rather than as a comment
+ * repeated at each call site.
  *
- * WHICH document was minted is the SERVER's answer, always — a bare day
+ * WHICH document was minted is the SERVER's answer, always — a day note
  * carries a date and the path comes back on the reply — so the navigation
  * reads `id` off what landed rather than off what was asked for, and a caller
  * that only knows a date needs to know nothing else.

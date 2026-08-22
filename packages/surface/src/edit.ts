@@ -866,7 +866,7 @@ export const Edit = Schema.Union([
     file: Schema.String,
   }),
   /**
-   * A bare calendar day, pressed — mint that day's note. The verb carries the
+   * The day page's + day note, pressed — mint that day's note. The verb carries the
    * DATE and not a path, and that asymmetry is the whole design: where the
    * vault keeps its daily notes is a fact about the set (the newest existing
    * note's own path is the convention, `@olai/format`'s `dailyNotePathFor`),
