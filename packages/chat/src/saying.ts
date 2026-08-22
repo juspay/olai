@@ -158,6 +158,15 @@ export const cadence = (options: {
     waiting = null
   }
 
+  /** A piece, onto the wire: filed under its own key and remembered as live,
+   *  so a later subscriber is seeded with it and the row that supersedes it
+   *  knows what to take off. */
+  const sent = (piece: Saying): readonly [string, Saying] => {
+    const key = sayingKey(piece)
+    live.set(key, piece)
+    return [key, piece]
+  }
+
   /** Hold a piece, opening a window if one is not already open. The DEADLINE
    *  belongs to the first piece of a run rather than to the newest, which is
    *  what bounds the wait: a row that never stops growing would otherwise
@@ -174,16 +183,11 @@ export const cadence = (options: {
     }
   }
 
-  /** A piece, onto the wire: filed under its own key and remembered as live,
-   *  so a later subscriber is seeded with it and the row that supersedes it
-   *  knows what to take off. */
-  const sent = (piece: Saying): readonly [string, Saying] => {
-    const key = sayingKey(piece)
-    live.set(key, piece)
-    return [key, piece]
-  }
-
   const publish = (change: Change): void => {
+    // Whether this change speaks for a ROW at all — asked once, in the rows'
+    // own words ({@link ./transcript.ts}'s `movesRows`), because both the
+    // supersession below and the frame at the end turn on it.
+    const moved = movesRows(change)
     // The pieces this call sends AHEAD of their window: one per row displaced
     // by a piece of another row. Ordinarily empty — one row grows at a time —
     // and collected rather than dropped, because a displaced piece is text
@@ -214,19 +218,19 @@ export const cadence = (options: {
     // the length of the ANSWER SO FAR paid per token — which is the shape this
     // whole module exists to take off the wire, reintroduced beside it.
     const removes: Array<string> = []
-    if (movesRows(change)) {
+    if (moved) {
       const rows = new Set<string>([
         ...change.upserts.map(([key]) => key),
         ...change.removes,
       ])
       if (waiting !== null && rows.has(waiting.piece.of)) drop()
-    // Everything that WAS on the wire for one of those rows comes off it —
-    // including a piece this very call put there a few lines up, which then
-    // rides out as an upsert and a remove of one key in one frame. That is
-    // correct rather than merely harmless: the consumer writes the upserts and
-    // then the removes, and the framework's own tick coalescer resolves an
-    // upsert-then-remove inside a tick to a bare remove. Filtering it out here
-    // would be this module doing a second time what both ends already do.
+      // Everything that WAS on the wire for one of those rows comes off it —
+      // including a piece this very call put there a few lines up, which then
+      // rides out as an upsert and a remove of one key in one frame. That is
+      // correct rather than merely harmless: the consumer writes the upserts
+      // and then the removes, and the framework's own tick coalescer resolves
+      // an upsert-then-remove inside a tick to a bare remove. Filtering it out
+      // here would be this module doing a second time what both ends already do.
       for (const [key, piece] of live) {
         if (!rows.has(piece.of)) continue
         live.delete(key)
@@ -234,11 +238,10 @@ export const cadence = (options: {
       }
     }
 
-    const rows = movesRows(change)
     const pieces = upserts.length > 0 || removes.length > 0
-    if (!rows && !pieces) return
+    if (!moved && !pieces) return
     options.onFrame({
-      rows: rows ? change : NOTHING,
+      rows: moved ? change : NOTHING,
       pieces: pieces ? { upserts, removes } : NOTHING,
     })
   }
