@@ -11,10 +11,11 @@ Feature: The journal, and the month in the sidebar
   clock the same question the browser does.
 
   Four marks, and they are four because a reader has to tell them apart at a
-  glance: a day with something on it is a link with a dot, an empty day is
-  quiet — still a link, because every day has a page — today wears a ring, and
-  the day being read is filled. Creating a note is the day page's, not the
-  cell's (document_editing.feature).
+  glance: a day with something on it is a link with a dot, a day with a note
+  wears a corner fold, today wears a ring, and the day being read is filled.
+  Every cell is a link — a day with neither of the first two is quiet, not
+  inert, and the click never writes. Creating a note is the day page's, not
+  the cell's (document_editing.feature).
 
   @corpus:journal
   Scenario: A day with something on it is marked, and an empty one is quiet
@@ -25,7 +26,7 @@ Feature: The journal, and the month in the sidebar
     Then the month shown is "2019-11"
     And the day "2019-11-05" has something on it
     And the day "2019-11-06" has something on it
-    And the day "2019-11-07" is inert
+    And the day "2019-11-07" is unmarked
     And the day "2019-11-07" is a link
     And there should be no page errors
 
@@ -144,7 +145,7 @@ Feature: The journal, and the month in the sidebar
     # that morning). `filed` carries `todo: 2019-11-21` and nothing else, so
     # the 21st has nothing on it: no marks, and a page that says so.
     When I open the day "2019-11-21"
-    Then the day "2019-11-21" is inert
+    Then the day "2019-11-21" is unmarked
     And the day is empty
     And there should be no page errors
 
@@ -204,7 +205,7 @@ Feature: The journal, and the month in the sidebar
     When I page the calendar back
     Then the month shown is "2019-10"
     And the day "2019-10-28" has something on it
-    And the day "2019-10-27" is inert
+    And the day "2019-10-27" is unmarked
     # Paging is a way of LOOKING and has nowhere to go: the address bar still
     # names the day being read.
     And the address is "/d/2019-11-05"
@@ -215,7 +216,7 @@ Feature: The journal, and the month in the sidebar
   Scenario: A dated node written to disk lights its day, with no reload
     Given I open the day "2019-11-05"
     And I mark the page
-    Then the day "2019-11-20" is inert
+    Then the day "2019-11-20" is unmarked
     When I rewrite "work.olai" as:
       """
       {"id":"deck","ord":"a0","title":"the deck #home"}

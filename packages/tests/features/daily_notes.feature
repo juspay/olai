@@ -148,10 +148,10 @@ Feature: Daily notes
     And the day "2019-11-08" is a link
     # Neither: quiet marks, still a link — every day has a page. Creating
     # the note is that page's (document_editing.feature).
-    And the day "2019-11-07" is inert
+    And the day "2019-11-07" is unmarked
     And the day "2019-11-07" is a link
     # And a document that merely NAMES a date leaves its day unmarked too.
-    And the day "2019-11-09" is inert
+    And the day "2019-11-09" is unmarked
 
   # The mid-migration vault, which is the one case the design named for listing
   # both: a folder convention changed and the older note stayed where it was.

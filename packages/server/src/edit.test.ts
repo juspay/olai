@@ -1156,7 +1156,7 @@ test("a new document names its path outright", () => {
     .toEqual({ op: "create-doc", file: "ideas.md" })
 })
 
-test("a bare day resolves to the vault's own convention, read off this set", () => {
+test("a docDay resolves to the vault's own convention, read off this set", () => {
   expect(asked({ verb: "docDay", date: "2026-09-01" }, vault()))
     .toEqual({ op: "create-doc", file: "Daily/2026/09/2026-09-01.md" })
   // A vault with no daily note yet starts the convention at the root.
