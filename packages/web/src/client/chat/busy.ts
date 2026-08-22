@@ -1,22 +1,52 @@
 /**
- * WHAT THE PANEL IS BUSY DOING, as the one sentence a person reads for it — or
- * `null` when it is not busy at all.
+ * WHAT THE PANEL IS BUSY DOING — the decision, in one place, for the two faces
+ * that say it.
  *
- * Its own module for {@link ./face.ts}'s reason, which is the reason half this
- * directory is split this way: this is a small PRECEDENCE over a state that
+ * It is one fact and it was being worked out twice. The header has said *is
+ * something happening* in its own chrome for a while (`working…` beside the
+ * model, `waiting on you` when the turn has stopped on a form), and the strip
+ * under the transcript now says it where a person who has just pressed enter is
+ * actually looking ({@link ./Busy.tsx}). Two sites deriving one precedence from
+ * one cell is two answers free to disagree — and the one that disagrees is the
+ * one nobody is looking at, which is the worst way round.
+ *
+ * So the RULE is here and the WORDING is each face's. The header's slot is two
+ * words wide beside a model name and a context readout; the strip has a line to
+ * itself under somebody's own message and can name who. Converging those would
+ * move pixels rather than unify a spelling — the distinction {@link ./live.ts}
+ * already draws for the dot they share.
+ *
+ * A module for {@link ./face.ts}'s reason, which is the reason half this
+ * directory is split this way: this is a small precedence over a state that
  * arrives on a wire, and what it decides is which of three things somebody is
  * told is happening. Reaching it through a browser is not how anybody should
  * have to check that the panel does not say *working* over a form it is waiting
  * on them to fill in.
- *
- * The strip that draws it is {@link ./Busy.tsx}, and why the panel needs one at
- * all is argued there.
  */
 
 import { agentIn, type ChatState } from "@olai/surface"
 
 /**
- * The three things it can be.
+ * The three things the panel can be busy with — and `null`, which is most
+ * panels most of the time.
+ *
+ * WHO is carried where the panel knows and is `null` where it does not, which
+ * is the beat before the first agent is bound and the whole of a boot that
+ * stopped to ask. A face that has room names them; the header, which already
+ * names the agent one slot to the left, does not.
+ */
+export type Busy =
+  /** An agent is starting: a subprocess, a handshake, and a conversation
+   *  replayed before there is anything to type into. */
+  | { readonly kind: "starting"; readonly agent: string | null }
+  /** A turn is in flight and it is the agent's move. */
+  | { readonly kind: "working"; readonly agent: string | null }
+  /** ... and it is not: the turn has stopped on a question only a person can
+   *  answer, and nothing times out. */
+  | { readonly kind: "waiting" }
+
+/**
+ * Which of the three, or none.
  *
  * A QUESTION OUTRANKS THE TURN it is asked inside, and that is the only
  * ordering here worth stating: `asking` is only ever true while a turn is in
@@ -24,18 +54,13 @@ import { agentIn, type ChatState } from "@olai/surface"
  * wait for themselves. `booting` and `thinking` are exclusive values of one
  * field and need no rule.
  *
- * WHO is named where the panel knows — a machine with two agents installed is
- * one where *the agent* is a question — and left out where it does not, which
- * is the beat before the first agent is bound and the whole of a boot that
- * stopped to ask.
+ * `gone` and `off` are deliberately not busy: the header says *not running* or
+ * *not configured*, and a live cue over either would be the panel claiming work
+ * is happening in a process it can see is not there.
  */
-export const busyWith = (state: ChatState): string | null => {
-  if (state.status === "booting") {
-    const who = agentIn(state)
-    return who === null ? "starting…" : `starting ${who.name}…`
-  }
+export const busyIn = (state: ChatState): Busy | null => {
+  const who = () => agentIn(state)?.name ?? null
+  if (state.status === "booting") return { kind: "starting", agent: who() }
   if (state.status !== "thinking") return null
-  if (state.asking > 0) return "waiting on your answer"
-  const who = agentIn(state)
-  return who === null ? "working…" : `${who.name} is working…`
+  return state.asking > 0 ? { kind: "waiting" } : { kind: "working", agent: who() }
 }

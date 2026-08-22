@@ -27,27 +27,43 @@
  * subprocess, and it is the window a message sent into it goes quiet in
  * (`send-during-boot-doubles`), so it is the half most worth drawing.
  *
- * WHAT IT SAYS is read off the same state the header reads, so the two can
- * never disagree: a turn stopped on a question is not the agent's move, and
- * saying "working" over a form somebody has to fill in is the panel telling
- * them to wait for themselves. That case has its own words here as it does up
- * there.
- *
- * WHO is named where the panel knows — a machine with two agents installed is
- * one where "the agent" is a question — and left out where it does not, which
- * is the beat before the first agent is bound.
+ * WHAT IT SAYS is not decided here. The DECISION — which of three things the
+ * panel is busy with, and the one ordering that matters (a turn stopped on a
+ * question is not the agent's move) — is {@link ./busy.ts}'s, because the header
+ * asks the same question and two sites deriving one precedence from one cell
+ * are two answers free to disagree. What is here is this face's WORDING of it,
+ * which has a line to itself and so can name who.
  */
 
 import { Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import { busyWith } from "./busy.ts"
+import { type Busy as Doing, busyIn } from "./busy.ts"
 import { LIVE_DOT } from "./live.ts"
 import type { Chat } from "./state.ts"
 
+/**
+ * This face's WORDING of {@link ./busy.ts}'s decision.
+ *
+ * It has a line to itself under somebody's own message, so it names who — a
+ * machine with two agents installed is one where *the agent* is a question, and
+ * the answer is already on the cell. The header's copy of the same fact is two
+ * words wide beside a model name and says the terse version.
+ */
+const saying = (doing: Doing): string => {
+  if (doing.kind === "waiting") return "waiting on your answer"
+  if (doing.kind === "starting") {
+    return doing.agent === null ? "starting…" : `starting ${doing.agent}…`
+  }
+  return doing.agent === null ? "working…" : `${doing.agent} is working…`
+}
+
 /** The strip. Drawn between the transcript and the box (`./Panel.tsx`). */
 export function Busy(props: { readonly chat: Chat }) {
-  const doing = () => busyWith(props.chat.state())
+  const doing = () => {
+    const busy = busyIn(props.chat.state())
+    return busy === null ? null : saying(busy)
+  }
   return (
     <Show when={doing()}>
       {(what) => (

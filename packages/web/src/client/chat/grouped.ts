@@ -23,6 +23,23 @@
 
 import type { AgentChoice, SessionInfo } from "@olai/surface"
 
+/**
+ * What a person calls that agent, out of the roster this server sent.
+ *
+ * THE ROSTER and not `@olai/surface`'s own table, because the roster is what
+ * this server actually has and the id arrived on a wire as a plain string. An
+ * id with no row is a stale tab — the roster it was drawn from has moved, or the
+ * browser was open across a restart — and the id itself is the honest thing to
+ * draw for one: it is what would be sent back, and no name here is a name for it.
+ *
+ * Here rather than inline at each reader because two of them ask now: the
+ * heading over a group, and the line naming an agent that could not be asked.
+ */
+export const nameOf = (
+  roster: ReadonlyArray<AgentChoice>,
+  agent: string,
+): string => roster.find((row) => row.id === agent)?.name ?? agent
+
 /** One agent's conversations, under the agent. */
 export interface Grouped {
   readonly agent: AgentChoice

@@ -63,7 +63,7 @@ import { createMemo, createSignal, For, Match, onCleanup, Show, Switch } from "s
 
 import { dismissOn } from "../dismiss.ts"
 import { AgentMark } from "./AgentMark.tsx"
-import { type Grouped, groupedByAgent } from "./grouped.ts"
+import { type Grouped, groupedByAgent, nameOf } from "./grouped.ts"
 import { Refusal } from "./Refusal.tsx"
 import { WITHIN } from "../layer.ts"
 import { QUIET_PILL } from "../pill.ts"
@@ -167,11 +167,9 @@ export function Sessions(props: { readonly chat: Chat }) {
     return answer._tag === "listed" ? answer.unreachable : []
   }
 
-  /** What a person reads for that agent — its own name where the roster has
-   *  one, and the id where it does not, which is a stale tab rather than a
-   *  state anybody reaches. */
-  const nameOf = (id: string): string =>
-    props.chat.state().roster.find((agent) => agent.id === id)?.name ?? id
+  /** What a person reads for that agent ({@link ./grouped.ts}) — the same
+   *  lookup the headings go through. */
+  const named = (agent: string): string => nameOf(props.chat.state().roster, agent)
 
   return (
     <>
@@ -308,7 +306,7 @@ export function Sessions(props: { readonly chat: Chat }) {
                       data-testid={TESTID.chatSessionsRefused}
                       data-agent={agent.agent}
                     >
-                      {nameOf(agent.agent)} could not be asked — {agent.why}
+                      {named(agent.agent)} could not be asked — {agent.why}
                     </li>
                   )}
                 </For>

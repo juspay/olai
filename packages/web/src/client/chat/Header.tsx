@@ -25,6 +25,19 @@
  * question. They are two facts and they take two slots: what it runs on, and
  * whether it is running.
  *
+ * WHETHER it is running is not decided here. That is {@link ./busy.ts}'s, and
+ * the strip under the transcript ({@link ./Busy.tsx}) draws the same answer in
+ * its own words — this slot is two words wide beside a model name and a context
+ * readout, and it already names the agent one place to the left, so it says the
+ * terse version. Two sites working the same precedence out of one cell is two
+ * answers free to disagree, and the one that disagrees would be the one nobody
+ * is looking at.
+ *
+ * STARTING is the one it leaves to the other face, and not by omission: this
+ * header has said *starting…* in the fallback below since before there was a
+ * strip, in the same slot, so drawing it twice would be the same word beside
+ * itself.
+ *
  * Closing the panel is not here. On desktop the app header's agent pill is
  * the permanent toggle (./Panel.tsx); a × beside it would be a second way to
  * close one thing. On a phone that toggle is gone, and the sheet's scrim is
@@ -40,11 +53,12 @@
 
 import { Show } from "solid-js"
 
-import { agentIn } from "@olai/surface"
+import { agentIn, type ChatState } from "@olai/surface"
 
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import { AgentMark } from "./AgentMark.tsx"
+import { busyIn } from "./busy.ts"
 import { LIVE_DOT } from "./live.ts"
 import { Sessions } from "./Sessions.tsx"
 import type { Chat } from "./state.ts"
@@ -87,7 +101,12 @@ export function Header(props: {
               </span>
             )}
           </Show>
-          <Show when={state().model} fallback={<span>{statusWord(state().status)}</span>}>
+          <Show
+            when={state().model}
+            fallback={
+              <Show when={statusWord(state())}>{(word) => <span>{word()}</span>}</Show>
+            }
+          >
             {(model) => <span data-testid={TESTID.chatModel}>{model()}</span>}
           </Show>
           {/* The other half of the model's own sentence: what a turn runs on,
@@ -108,26 +127,31 @@ export function Header(props: {
               A turn stopped on a question is still a turn in flight, so this is
               the same slot with the true word in it: "working…" while it is the
               agent's move, "waiting on you" while it is yours. */}
-          <Show when={state().status === "thinking"}>
-            <span
-              class="flex items-center gap-1 text-doing"
-              data-testid={TESTID.chatWorking}
-              aria-live="polite"
-            >
-              <span class={LIVE_DOT} aria-hidden="true" />
-              {state().asking > 0 ? "waiting on you" : "working…"}
-            </span>
+          <Show when={turnIn(state())}>
+            {(doing) => (
+              <span
+                class="flex items-center gap-1 text-doing"
+                data-testid={TESTID.chatWorking}
+                aria-live="polite"
+              >
+                <span class={LIVE_DOT} aria-hidden="true" />
+                {doing() === "waiting" ? "waiting on you" : "working…"}
+              </span>
+            )}
           </Show>
         </div>
       </div>
 
       {/* Both verbs need an agent to act on. With none they would refuse, so
           they are not offered — the panel's body says why.
-          The CHATS list is one agent's own — the conversation this panel is in
-          belongs to somebody, and `session/list` is asked of them — so it is
-          drawn only once there is somebody to ask. `+ new` is offered either
-          way: raising the question is exactly what it does, and it is the way
-          out of a panel with no conversation in it. */}
+          The CHATS list spans every installed agent now ({@link ./Sessions.tsx}),
+          so it is no longer gated on having somebody to ask — it is gated on
+          there being a conversation to LEAVE. While the panel is asking which
+          agent, the question in its body is the way in, and a second door
+          beside it offering the same answer in different words would be two
+          answers to one question. `+ new` is offered either way: raising that
+          question is exactly what it does, and it is the way out of a panel
+          with no conversation in it. */}
       <Show when={state().status !== "off"}>
         <Show when={agentIn(state())}>
           <Sessions chat={props.chat} />
@@ -145,16 +169,28 @@ export function Header(props: {
   )
 }
 
-/** What to say before the agent has named a model — the cell's own five states,
- *  `off` included: the panel draws without an agent, and the header is where a
- *  reader looks first for why it is not doing anything. */
-const statusWord = (status: string): string =>
-  status === "off"
+/** A turn in flight, and which kind — or `undefined`, which is what `<Show>`
+ *  takes. A BOOT is not one: it has the word below, in the slot beside this
+ *  one, and saying it twice would be the same word beside itself. */
+const turnIn = (state: ChatState): "working" | "waiting" | undefined => {
+  const busy = busyIn(state)
+  return busy === null || busy.kind === "starting" ? undefined : busy.kind
+}
+
+/** What to say before the agent has named a model — the cell's own states, `off`
+ *  included: the panel draws without an agent, and the header is where a reader
+ *  looks first for why it is not doing anything.
+ *
+ *  NOTHING while a turn is in flight, because the live cue beside this one is
+ *  already saying it: with no model named, "working…" used to be drawn here and
+ *  there, twice on one line. */
+const statusWord = (state: ChatState): string | undefined =>
+  turnIn(state) !== undefined
+    ? undefined
+    : state.status === "off"
     ? "not configured"
-    : status === "booting"
+    : state.status === "booting"
     ? "starting…"
-    : status === "gone"
+    : state.status === "gone"
     ? "not running"
-    : status === "thinking"
-    ? "working…"
     : "ready"

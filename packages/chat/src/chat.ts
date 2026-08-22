@@ -319,12 +319,14 @@ const ARRIVED: ReadonlySet<AgentEvent["_tag"]> = new Set([...SHOWN, "usage"])
 /**
  * What a turn that produced nothing is told to a person.
  *
- * EXPORTED and pure, so the sentence somebody will actually meet is asserted
- * over a value rather than reached by talking a subprocess into failing to
- * authenticate. It is the whole of what this end knows: the agent was asked,
- * it answered that the turn was over, and nothing came back — which is what an
- * agent that cannot reach a model looks like from the other side of a pipe,
- * and there is no frame anywhere that says so out loud.
+ * A function rather than a template at the one place it is used, because what
+ * it is is the whole of what this end KNOWS: the agent was asked, it answered
+ * that the turn was over, and nothing came back — which is what an agent that
+ * cannot reach a model looks like from the other side of a pipe, and there is
+ * no frame anywhere that says so out loud. The sentence a person meets is
+ * asserted where they would meet it (`features/choosing_an_agent.feature`,
+ * against a scripted agent that answers exactly the way opencode does with no
+ * key).
  *
  * It names WHO was silent because a panel with two agents installed is a panel
  * where "the agent" is a question, and it says where to look rather than what
@@ -335,7 +337,7 @@ const ARRIVED: ReadonlySet<AgentEvent["_tag"]> = new Set([...SHOWN, "usage"])
  * what a spawned agent inherits, and a systemd user unit's is not a login
  * shell's ({@link ../../../docs/running.md}).
  */
-export const silence = (agent: string): string =>
+const silence = (agent: string): string =>
   `${agent} ended the turn without saying anything. That is what an agent that ` +
   `cannot reach a model looks like from here — check that it is signed in and ` +
   `that its provider key is set in the environment olai itself runs in, then ` +

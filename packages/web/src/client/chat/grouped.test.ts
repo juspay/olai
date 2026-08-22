@@ -11,7 +11,7 @@
 import type { AgentChoice, SessionInfo } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
-import { groupedByAgent } from "./grouped.ts"
+import { groupedByAgent, nameOf } from "./grouped.ts"
 
 const CLAUDE: AgentChoice = { id: "claude", name: "Claude Code" }
 const OPENCODE: AgentChoice = { id: "opencode", name: "opencode" }
@@ -78,5 +78,19 @@ describe("grouping the chats list", () => {
     // The count is what the drawing turns on, so this is the assertion behind
     // "one installed agent is not a heading over the whole list".
     expect(groupedByAgent([said("claude", "a", null)], [CLAUDE])).toHaveLength(1)
+  })
+})
+
+describe("what a person calls an agent", () => {
+  test("its own name, out of the roster this server sent", () => {
+    expect(nameOf(ROSTER, "opencode")).toBe("opencode")
+    expect(nameOf(ROSTER, "claude")).toBe("Claude Code")
+  })
+
+  test("and the ID for one this machine does not have", () => {
+    // A stale tab. The id is what would be sent back, and no name here is a
+    // name for it — inventing one would be this list claiming to know an agent
+    // it cannot reach.
+    expect(nameOf(ROSTER, "gemini")).toBe("gemini")
   })
 })
