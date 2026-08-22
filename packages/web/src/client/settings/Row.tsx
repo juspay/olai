@@ -48,7 +48,6 @@ export function Row(props: {
   readonly under?: JSX.Element
   readonly children: JSX.Element
 }) {
-  const setBy = (): string | null => props.setBy ?? null
   /** So the CONTROLS carry the reason, not only the page. A frozen segment is
    *  `aria-disabled` and keeps its focus (`./Segmented.tsx` says why), and a
    *  reader who tabs onto one has to be told why it will not move — which is
@@ -62,7 +61,7 @@ export function Row(props: {
       data-pref={props.pref}
       // The state as an attribute, so a scenario asserts that this row is
       // frozen rather than inferring it from a colour or a sentence.
-      data-pinned={setBy() === null ? undefined : "true"}
+      data-pinned={props.setBy ? "true" : undefined}
     >
       {/* Wraps rather than clips: the theme row's control is a strip of chips, and
           a panel narrow enough to be a phone's has to put them under the label
@@ -76,7 +75,7 @@ export function Row(props: {
           // The controls carry the reason too — see {@link saidId}. Absent on
           // every row this browser owns, because a `describedby` pointing at
           // nothing is a promise the page does not keep.
-          aria-describedby={setBy() === null ? undefined : saidId()}
+          aria-describedby={props.setBy ? saidId() : undefined}
         >
           {props.children}
         </div>
@@ -89,7 +88,7 @@ export function Row(props: {
           inert; a glyph would be a second claim to keep true, and the only
           lock in this font's reach is an emoji, which is the one thing the
           chrome here has none of. */}
-      <Show when={setBy()}>
+      <Show when={props.setBy}>
         {(said) => (
           <p
             id={saidId()}

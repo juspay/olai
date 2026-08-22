@@ -345,4 +345,3 @@ const pushHint = (): string =>
   autoPush()
     ? "A commit from this browser is pushed after it is recorded."
     : "A commit from here waits. Push it from the panel."
-

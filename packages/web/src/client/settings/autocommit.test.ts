@@ -1,8 +1,8 @@
+import { NO_PIN } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { parseBool } from "../preference.ts"
-
-import { NO_PIN } from "@olai/format"
+import { remembering } from "../preference.testlib.ts"
 
 import { AUTOCOMMIT_KEY, autoCommit, setAutoCommit } from "./autocommit.ts"
 import { setPinned } from "./pinned.ts"
@@ -24,23 +24,14 @@ test("only the word this app writes is a pick", () => {
 })
 
 test("a pick is remembered under olai.git.autocommit", () => {
-  const store = new Map<string, string>()
-  const g = globalThis as Record<string, unknown>
-  g.localStorage = {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => void store.set(key, value),
-    removeItem: (key: string) => void store.delete(key),
-  }
-  try {
+  remembering((store) => {
     setAutoCommit(true)
     expect(autoCommit()).toBe(true)
     expect(store.get(AUTOCOMMIT_KEY)).toBe("true")
     setAutoCommit(false)
     expect(autoCommit()).toBe(false)
     expect(store.get(AUTOCOMMIT_KEY)).toBe("false")
-  } finally {
-    delete g.localStorage
-  }
+  })
 })
 
 /**
@@ -52,31 +43,29 @@ test("a pick is remembered under olai.git.autocommit", () => {
  * than at each reader, because the loop, the panel's promise line and the row
  * itself all ask this one question — a pin honoured in the drawing but not in
  * the loop would be a frozen control lying about what the browser is doing.
+ *
+ * `setPinned(NO_PIN)` on the way out of each: the pin is a module-level value
+ * (it belongs to the connection, and every surface that draws it reads the one
+ * copy), so a case that left one set would pin the next one too.
  */
 test("a pinned --commit overrules this browser, both ways", () => {
-  const store = new Map<string, string>()
-  const g = globalThis as Record<string, unknown>
-  g.localStorage = {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => void store.set(key, value),
-    removeItem: (key: string) => void store.delete(key),
-  }
-  try {
-    setAutoCommit(false)
-    setPinned({ commit: "auto", push: null })
-    expect(autoCommit()).toBe(true)
+  remembering(() => {
+    try {
+      setAutoCommit(false)
+      setPinned({ commit: "auto", push: null })
+      expect(autoCommit()).toBe(true)
 
-    setAutoCommit(true)
-    setPinned({ commit: "manual", push: null })
-    expect(autoCommit()).toBe(false)
-    // `--commit=off` is a directory olai never commits in, so a browser
-    // recording on its own is not a thing that could happen there either.
-    setPinned({ commit: "off", push: null })
-    expect(autoCommit()).toBe(false)
-  } finally {
-    setPinned(NO_PIN)
-    delete g.localStorage
-  }
+      setAutoCommit(true)
+      setPinned({ commit: "manual", push: null })
+      expect(autoCommit()).toBe(false)
+      // `--commit=off` is a directory olai never commits in, so a browser
+      // recording on its own is not a thing that could happen there either.
+      setPinned({ commit: "off", push: null })
+      expect(autoCommit()).toBe(false)
+    } finally {
+      setPinned(NO_PIN)
+    }
+  })
 })
 
 /**
@@ -88,23 +77,17 @@ test("a pinned --commit overrules this browser, both ways", () => {
  * stored: it belongs to the running server and is forgotten with the tab.
  */
 test("a pin is worn, not written — the browser's own pick comes back", () => {
-  const store = new Map<string, string>()
-  const g = globalThis as Record<string, unknown>
-  g.localStorage = {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => void store.set(key, value),
-    removeItem: (key: string) => void store.delete(key),
-  }
-  try {
-    setAutoCommit(true)
-    setPinned({ commit: "manual", push: null })
-    expect(autoCommit()).toBe(false)
-    expect(store.get(AUTOCOMMIT_KEY)).toBe("true")
+  remembering((store) => {
+    try {
+      setAutoCommit(true)
+      setPinned({ commit: "manual", push: null })
+      expect(autoCommit()).toBe(false)
+      expect(store.get(AUTOCOMMIT_KEY)).toBe("true")
 
-    setPinned(NO_PIN)
-    expect(autoCommit()).toBe(true)
-  } finally {
-    setPinned(NO_PIN)
-    delete g.localStorage
-  }
+      setPinned(NO_PIN)
+      expect(autoCommit()).toBe(true)
+    } finally {
+      setPinned(NO_PIN)
+    }
+  })
 })
