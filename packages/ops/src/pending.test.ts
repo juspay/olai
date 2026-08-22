@@ -100,7 +100,7 @@ const withRepo = <A>(
     const ops = Ops.make({
       store,
       root: served,
-      commits: options.commits ?? "manual",
+      commits: { commit: options.commits ?? "manual", push: null },
       context: { mint: () => "minted", now: () => "2026-08-10T09:00:00-04:00" },
     })
     return yield* use({

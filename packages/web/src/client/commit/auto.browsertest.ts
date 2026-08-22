@@ -16,7 +16,7 @@
  */
 
 import type { Pending, PushResult } from "@olai/format"
-import { NOTHING_PENDING } from "@olai/format"
+import { NO_PIN, NOTHING_PENDING } from "@olai/format"
 import { GIT_OFF, type GitState } from "@olai/surface"
 import { expect, test } from "bun:test"
 import { type Accessor, createRoot, createSignal } from "solid-js"
@@ -29,7 +29,7 @@ import type { Attempt, Commit, PushAttempt } from "./state.ts"
  *  because the point of {@link Stub.sweep} is a frame carrying a NEW object
  *  that says exactly what the last one did — which is what the server's
  *  thirty-second sweep puts on the wire (`server/runtime.ts`). */
-const ready = (): GitState => ({ status: "repo", said: null })
+const ready = (): GitState => ({ status: "repo", said: null, pinned: NO_PIN })
 
 /** One outline waiting, with `n` node changes in it — a flurry that grows. */
 const waiting = (n: number): Pending => ({
@@ -117,7 +117,7 @@ const stub = (autoPush = false): Stub => {
     commit,
     edit: (n) => setPending(waiting(n)),
     sweep: () => setGit(ready()),
-    fault: (said) => setGit({ status: "error", said }),
+    fault: (said) => setGit({ status: "error", said, pinned: NO_PIN }),
     count: () =>
       setPending((was) => ({
         ...was,
@@ -309,7 +309,7 @@ test("a tab that is not the one recording keeps its hands off", async () => {
 // git that failed are three states the loop must not fire into. The pill wears
 // each of them; the loop simply waits.
 test("nothing is recorded into a repository that cannot take it", async () => {
-  for (const git of [GIT_OFF, { status: "error", said: "no user.email" } as GitState]) {
+  for (const git of [GIT_OFF, { status: "error", said: "no user.email", pinned: NO_PIN } as GitState]) {
     const it = stub()
     await loop(ON, it, async (auto) => {
       it.edit(1)

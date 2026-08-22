@@ -15,7 +15,7 @@
  * the news appears.
  */
 
-import { NOTHING_PENDING, type Pending, type RepoState } from "@olai/format"
+import { NO_PIN, NOTHING_PENDING, type Pending, type RepoState } from "@olai/format"
 import { GIT_OFF, type GitState } from "@olai/surface"
 import { expect, test } from "bun:test"
 
@@ -48,7 +48,7 @@ const surveyed = (repo: RepoState, over: Partial<Pending> = {}): Pending => ({
 })
 
 const READY: RepoState = { _tag: "Ready", branch: "main" }
-const gitSaid = (said: string): GitState => ({ status: "error", said })
+const gitSaid = (said: string): GitState => ({ status: "error", said, pinned: NO_PIN })
 
 // ── which face ─────────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ test("a page that has not been told anything claims nothing about the directory"
 
 test("the opt-out and the directory that is no work tree are told apart", () => {
   expect(faceOf(surveyed({ _tag: "Off" }), true, GIT_OFF)).toBe("off")
-  expect(faceOf(surveyed({ _tag: "NoRepo" }), true, { status: "none", said: null }))
+  expect(faceOf(surveyed({ _tag: "NoRepo" }), true, { status: "none", said: null, pinned: NO_PIN }))
     .toBe("no-repo")
 })
 
@@ -233,12 +233,12 @@ test("a git failure hands over git's own words", () => {
   const said = "fatal: detected dubious ownership in repository at '/srv/notes'"
   expect(explain("error", surveyed(READY), gitSaid(said))).toContain(said)
   // And from the survey's own side, when the cell has nothing to quote.
-  expect(explain("error", surveyed({ _tag: "Unusable", said }), { status: "error", said: null }))
+  expect(explain("error", surveyed({ _tag: "Unusable", said }), { status: "error", said: null, pinned: NO_PIN }))
     .toContain(said)
 })
 
 test("a fault that arrived with nothing to say still reads as a sentence", () => {
-  expect(explain("error", surveyed(READY), { status: "error", said: "" }))
+  expect(explain("error", surveyed(READY), { status: "error", said: "", pinned: NO_PIN }))
     .toBe(DETAIL.error)
 })
 

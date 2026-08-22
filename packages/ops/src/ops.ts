@@ -27,6 +27,7 @@ import {
   type CommitResult,
   type DatedAnswer,
   type DatedRequest,
+  type GitPin,
   type HomesAnswer,
   type HomesRequest,
   type MovingAnswer,
@@ -55,12 +56,7 @@ import {
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
-import {
-  type CommitMode,
-  type GitState,
-  make as makeCommits,
-  type Status,
-} from "./pending.ts"
+import { type GitState, make as makeCommits, type Status } from "./pending.ts"
 import { type Context, plan } from "./plan.ts"
 import * as Query from "./query.ts"
 import { sortOfWrite } from "./sorted.ts"
@@ -71,17 +67,25 @@ export interface Options {
   /** Absolute path of the served directory — where git runs. */
   readonly root: string
   /**
-   * How writes reach git. `manual` is the point of the whole thing: a write
-   * lands on disk and WAITS, and something asks for a commit — the button, or
-   * the agent's `commit` tool. `auto` is for a headless server with no browser
-   * to press anything, and commits each write on its own the way olai used to.
-   * `off` is `--no-commit`, for a directory whose history is somebody else's
-   * job (a sync folder that happens to be a checkout).
+   * How writes reach git — as the operator PINNED it, which is the flags they
+   * gave and a `null` for each one they did not (`@olai/format`'s `GitPin`).
+   *
+   * `commitModeOf` of it is what this server does: `manual` is the point of the
+   * whole thing (a write lands on disk and WAITS, and something asks for a
+   * commit — the button, or the agent's `commit` tool), `auto` is for a
+   * headless server with no browser to press anything, and `off` is
+   * `--no-commit`, for a directory whose history is somebody else's job.
+   *
+   * The pin travels FURTHER than that: a flag that was given freezes the two
+   * git rows in every browser's preferences, read-only and naming the flag
+   * (`vault-level-settings`). That is why what arrives here is the pin rather
+   * than the mode — "nobody said" is a thing a browser has to be told, and it
+   * cannot be recovered from a mode with the default already filled in.
    *
    * Required, with no default here: `main.ts` already carries one for the flag,
    * and a second would be a second answer to what happens when nobody says.
    */
-  readonly commits: CommitMode
+  readonly commits: GitPin
   /** Overridable so tests are deterministic: the id a new node gets and the
    *  instant a mark is stamped with are the only two things about an op that
    *  are not a function of the snapshot. */
@@ -331,7 +335,7 @@ export const make = (options: Options): Ops => {
   const commits = makeCommits({
     store: options.store,
     root: options.root,
-    mode: options.commits,
+    pin: options.commits,
     ...(options.onRecorded === undefined ? {} : { onRecorded: options.onRecorded }),
   })
 

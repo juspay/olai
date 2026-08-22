@@ -63,7 +63,7 @@ const withRoute = <A>(
       watch: false,
       settle: "10 millis",
     })
-    const ops = makeOps({ store, root, commits: "off" })
+    const ops = makeOps({ store, root, commits: { commit: "off", push: null } })
     const wired = yield* bind({
       store,
       chat: null,

@@ -24,8 +24,9 @@
  */
 
 import { adapterFrom, AGENT_ENV, whyNoAgent } from "@olai/chat"
+import type { GitPin } from "@olai/format"
 import type { IdentityHeaders } from "@olai/identity"
-import { type CommitMode, make as makeOps, TOOLS } from "@olai/ops"
+import { make as makeOps, TOOLS } from "@olai/ops"
 import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
 import * as fs from "node:fs"
@@ -53,9 +54,12 @@ export interface ServeOptions {
   /** Which request headers name the signed-in person — see
    *  `@olai/identity`. */
   readonly identity: IdentityHeaders
-  /** How writes reach git — `--commit=off | manual | auto`, `manual` by
-   *  default. See `@olai/ops`'s `Options`. */
-  readonly commits: CommitMode
+  /** The git policy this serve runs under, as the operator PINNED it —
+   *  `--commit=off | manual | auto` and `--push=off | auto`, each `null` when
+   *  the flag was not given (`@olai/format`'s `GitPin`). What the server does
+   *  is that with the defaults filled in; what every browser draws is the pin
+   *  itself. See `@olai/ops`'s `Options`. */
+  readonly git: GitPin
 }
 
 /**
@@ -117,7 +121,7 @@ export const serve = (options: ServeOptions) =>
     const ops = makeOps({
       store,
       root,
-      commits: options.commits,
+      commits: options.git,
       onRecorded: () => {
         Effect.runSync(SubscriptionRef.update(recorded, (count) => count + 1))
       },

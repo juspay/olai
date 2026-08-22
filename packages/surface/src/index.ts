@@ -158,6 +158,7 @@ import {
   CommitResult,
   Face,
   GIT_OFF,
+  GitPin,
   GitState,
   HomesAnswer,
   HomesRequest,
@@ -497,6 +498,15 @@ export const LOADED: Manifest = {}
  *   - `error` — git tried and could not, and `said` is its own words. The one
  *     face that warns, and the words ride its tip and its `aria-label`.
  *
+ * It carries a FIFTH fact that is not one of those four and is not about the
+ * repository at all: `pinned`, which is the `--commit` / `--push` flags this
+ * server was started with, `null` for each one nobody gave. It rides this cell
+ * rather than a cell of its own because the preferences panel that draws it is
+ * drawing the same server's answer about the same directory, and `off` above is
+ * already exactly that answer wearing the repository's clothes. What a browser
+ * does with it — freeze the two git preference rows, read-only, naming the flag
+ * — is `web/src/client/settings/`.
+ *
  * A CELL, and read-only on the wire, for the reason the manifest is: one value
  * the server owns, about the directory rather than about any file in it. It
  * moves twice at most in an ordinary serve — once when the directory is probed,
@@ -507,7 +517,7 @@ export const LOADED: Manifest = {}
  * the ops layer both stand on, so there is no second spelling to drift. Its
  * before-first-frame default `GIT_OFF` travels with it.
  */
-export { GIT_OFF, GitState }
+export { GIT_OFF, GitPin, GitState }
 
 /** When two answers are the same answer, so the cell can stay quiet. There is
  *  exactly one thing this value can say, so there is exactly one thing that can

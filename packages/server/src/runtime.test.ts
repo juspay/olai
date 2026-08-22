@@ -75,7 +75,7 @@ const withRuntime = <A>(
         return opened.body(path)
       },
     }
-    const ops = makeOps({ store, root, commits: "off" })
+    const ops = makeOps({ store, root, commits: { commit: "off", push: null } })
     const wired = yield* bind({
       store,
       chat: null,
