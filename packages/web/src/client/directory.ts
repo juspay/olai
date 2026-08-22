@@ -473,7 +473,19 @@ export const createDirectory = (
     // reason the cell is handed in here rather than read by the shell: they are
     // two members on two channels, either can arrive first, and only a reader
     // holding both can say which of them to believe. Both orders, in the order
-    // they are decided:
+    // they are decided.
+    //
+    // A FUNCTION OF THE TWO CURRENT VALUES and of no history, which is what
+    // makes it safe to be a rule about arrival ORDER at all: there is no
+    // "which came first" kept anywhere, so re-seeding, a link flap and a frame
+    // arriving twice all land on the same answer as reading the two now.
+    //
+    // The cell is read CONDITIONALLY — a tab holding files never asks it — so
+    // this memo does not subscribe to the manifest in that arm. That is not a
+    // staleness hole and it is worth saying why: the answer in that arm does
+    // not depend on the cell, and the only way out of it is a frame from the
+    // fold, which IS tracked. A word settles under the default `equals`, so a
+    // frame that moved neither member wakes nothing downstream.
     standing: createMemo((): Standing => {
       const holding = held()
       // A TAB HOLDING FILES IS HOLDING A DIRECTORY. Heads come out of a
@@ -487,11 +499,12 @@ export const createDirectory = (
       // been: no head is coming for a directory that never loaded, so this
       // waits for no frame.
       if (said === null) return "never"
-      // What is left is the two silences, and they are one word: the cell
-      // before its first frame, and the fold holding no accumulator (the
-      // header's fourth state). An empty vault whose cell has spoken is the
-      // only `loaded` with no path in it, and it is a real answer.
-      return said === undefined || holding === undefined ? "reading" : "loaded"
+      // …and BOTH HAVING SPOKEN with no path between them is the empty vault,
+      // which is a real answer and the only `loaded` with no file in it. What
+      // is left is the two silences, and they are one word: the cell before its
+      // first frame, and the fold holding no accumulator (the header's fourth
+      // state).
+      return said !== undefined && holding !== undefined ? "loaded" : "reading"
     }),
     paths: createMemo(() => held()?.paths ?? NO_PATHS),
     // SEEDED with the empty map, which the `equals` requires: a comparator is
