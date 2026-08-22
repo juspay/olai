@@ -27,9 +27,16 @@ export interface Making {
   readonly label: string
   /** What the empty box suggests — a path, because a file's name IS its
    *  address in this app (the sidebar, the URL and every reading of the set
-   *  call it by it), so the honest question asks for exactly that. */
+   *  call it by it), so the honest question asks for exactly that.
+   *
+   *  It shows the path WITHOUT the suffix, which is the shorter of the two
+   *  spellings the box takes (`./completing.ts`): a suggestion is what a
+   *  person copies, and suggesting the longer one taught the door's own rule
+   *  backwards. */
   readonly placeholder: string
-  /** What the box is called to a screen reader. */
+  /** What the box is called to a screen reader — including the half a
+   *  placeholder cannot say out loud, since a screen reader reads this label
+   *  and not the grey example inside the box. */
   readonly aria: string
   readonly testids: {
     readonly open: TestId
@@ -41,8 +48,9 @@ export interface Making {
 export const MAKING_OUTLINE: Making = {
   of: "outline",
   label: "+ New outline",
-  placeholder: "notes/plan.olai",
-  aria: "path of the new outline, relative to the served directory",
+  placeholder: "notes/plan",
+  aria:
+    "path of the new outline, relative to the served directory — the .olai suffix is added if you leave it off",
   testids: {
     open: TESTID.newOutline,
     path: TESTID.newOutlinePath,
@@ -53,8 +61,9 @@ export const MAKING_OUTLINE: Making = {
 export const MAKING_DOCUMENT: Making = {
   of: "document",
   label: "+ New document",
-  placeholder: "notes/idea.md",
-  aria: "path of the new document, relative to the served directory",
+  placeholder: "notes/idea",
+  aria:
+    "path of the new document, relative to the served directory — the .md suffix is added if you leave it off",
   testids: {
     open: TESTID.newDocument,
     path: TESTID.newDocumentPath,
