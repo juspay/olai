@@ -38,6 +38,7 @@ import {
   COMMIT_PANEL,
   COMMIT_PILL,
   COMMIT_PUSH,
+  COMMIT_PUSH_REFUSED,
   COMMIT_SCOPE,
   COMMIT_TICK,
   COMMIT_UNPUSHED,
@@ -324,7 +325,30 @@ Then(
 );
 
 /**
- * The flurry landing — the one step in this suite that waits out the client's
+ * WHETHER THE LAST PUSH WAS REFUSED — the fact `push-failure-invisible` was
+ * filed about, as an attribute rather than a sentence.
+ *
+ * Its own attribute beside the eight faces for the reason the pause has one: a
+ * repository whose commits all land and whose push will not go is healthy on
+ * one question and broken on the other, and one word could not say both. What
+ * the reader SEES of it — the ⚠ instead of the ✓, git's own words on the label
+ * — is asserted by the alarming/reads/explains steps above.
+ */
+Then(
+  "the commit pill says the push was refused",
+  async function (this: OlaiWorld) {
+    await this.expectAttribute(
+      COMMIT_PILL,
+      "data-push-refused",
+      "true",
+      "the commit pill",
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+/**
+ * The flurry landing — the one step in this suite that waits out the SERVER's
  * quiet window.
  *
  * Its own budget (`QUIET_WINDOW_TIMEOUT`) and its own step envelope, for the
@@ -406,8 +430,21 @@ Then("the panel says auto-commit is paused", async function (this: OlaiWorld) {
   await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const said = oneLine(await line.innerText());
   assert.ok(
-    said.includes("off and on again"),
+    said.includes("Resume"),
     `the paused line says "${said}", which never says how to resume it`,
+  );
+});
+
+/** ... and git's own account of the push it refused, in the panel, verbatim.
+ *  It comes off the CELL, so it is readable by whoever opens the panel rather
+ *  than only by the tab that happened to make the request. */
+Then("the panel says a push was refused", async function (this: OlaiWorld) {
+  const line = this.page.locator(COMMIT_PUSH_REFUSED);
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const said = oneLine(await line.innerText());
+  assert.ok(
+    said.includes("reject"),
+    `the refused-push line says "${said}", which is not git's own refusal`,
   );
 });
 

@@ -16,8 +16,6 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 import type { Page } from "playwright";
 
-import { AUTOCOMMIT_KEY } from "@olai/web/src/client/settings/autocommit.ts";
-import { AUTOPUSH_KEY } from "@olai/web/src/client/settings/autopush.ts";
 import {
   DENSITY_KEY,
   type Density,
@@ -556,36 +554,36 @@ Then(
   },
 );
 
+/**
+ * NOTHING ABOUT GIT IS STORED IN THIS BROWSER, and that is the fence for the
+ * whole move.
+ *
+ * The two git rows used to write `olai.git.autocommit` and `olai.git.autopush`
+ * here, which is what made a quiet window a claim about a reader: two tabs of
+ * two browsers could each believe something different about one directory, and
+ * a directory nobody had a tab open on recorded nothing. The rows set the
+ * SERVER's policy now and it is remembered outside the vault, so a key of
+ * either name in this browser is the old shape coming back.
+ */
 Then(
-  "this browser has stored that auto-commit is {string}",
-  async function (this: OlaiWorld, state: string) {
-    const stored = await this.stored(AUTOCOMMIT_KEY);
-    assert.equal(
-      stored,
-      asGit(state) === "on" ? "true" : "false",
-      `this browser keeps "${stored}" under ${AUTOCOMMIT_KEY}`,
-    );
-  },
-);
-
-Then(
-  "this browser has stored that auto-push is {string}",
-  async function (this: OlaiWorld, state: string) {
-    const stored = await this.stored(AUTOPUSH_KEY);
-    assert.equal(
-      stored,
-      asGit(state) === "on" ? "true" : "false",
-      `this browser keeps "${stored}" under ${AUTOPUSH_KEY}`,
-    );
+  "this browser has stored nothing about git",
+  async function (this: OlaiWorld) {
+    for (const key of ["olai.git.autocommit", "olai.git.autopush"]) {
+      assert.equal(
+        await this.stored(key),
+        null,
+        `this browser keeps something under ${key}, so a git preference is stored here`,
+      );
+    }
   },
 );
 
 // ── a git policy the SERVER pinned ─────────────────────────────────────
 //
-// The one thing on this panel that can stop being this browser's
-// (`vault-level-settings`). Started with `--commit` or `--push`, the instance
-// has stated a policy for everybody looking at the directory, so the row is
-// drawn in that state, read-only, naming the flag. Never hidden: a policy a
+// Both git rows are the server's now: they set its policy for this directory
+// and draw its answer. What a PIN adds (`vault-level-settings`) is that a flag
+// on the command line freezes one read-only, so a reader cannot change it at
+// all — drawn in that state and naming the flag. Never hidden: a policy a
 // reader cannot see is one they cannot ask anybody about.
 
 /** Which of the two rows a scenario names, in the words the panel uses. */
@@ -671,7 +669,7 @@ Then(
   },
 );
 
-// ── Resume, which a pinned row is the only reason for ──────────────────
+// ── Resume, which is the one gesture that starts a stopped loop again ──
 
 Then(
   "the preferences offer to resume auto-commit",
@@ -702,41 +700,14 @@ When("I resume auto-commit", async function (this: OlaiWorld) {
   await this.press(resume);
 });
 
-/** THE FENCE FOR A PIN THAT WROTE. A pinned row is worn over what this browser
- *  chose, never onto it — so a server restarted without the flag hands each
- *  reader their own pick back rather than leaving everybody on the team's. */
-Then(
-  "this browser has never been asked about auto-commit",
-  async function (this: OlaiWorld) {
-    const stored = await this.stored(AUTOCOMMIT_KEY);
-    assert.equal(
-      stored,
-      null,
-      `this browser keeps "${stored}" under ${AUTOCOMMIT_KEY}, so the pin wrote`,
-    );
-  },
-);
-
-Then(
-  "this browser has never been asked about auto-push",
-  async function (this: OlaiWorld) {
-    const stored = await this.stored(AUTOPUSH_KEY);
-    assert.equal(
-      stored,
-      null,
-      `this browser keeps "${stored}" under ${AUTOPUSH_KEY}, so the pin wrote`,
-    );
-  },
-);
-
 Then(
   "the preferences panel says two rows are the server's",
   async function (this: OlaiWorld) {
     await showPreferences(this.page);
     const said = await this.page.locator(PREFS_SCOPE).innerText();
     assert.ok(
-      said.includes("this server was started with a git policy"),
-      `the panel says "${said}", which does not name the pinned rows as the exception`,
+      said.includes("started with a git policy"),
+      `the panel says "${said}", which does not name the pinned rows as read-only`,
     );
   },
 );

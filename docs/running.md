@@ -181,9 +181,13 @@ On Linux the unit is `Restart=always` / `RestartSec=1s` / `SuccessExitStatus=130
 
 ## The git policy
 
-Whether what is waiting records itself, and whether a commit is pushed, are preferences of one BROWSER ([git.md](git.md)) — stored there, sent nowhere, and exactly right for one person on one machine. **In a team deployment they are exactly wrong.** Whether a branch is pushed is not a thing one colleague's laptop gets to decide for everybody else, and "whichever browser happened to have the toggle on" is not a policy.
+Whether what is waiting records itself, and whether a commit is pushed, are facts about the DIRECTORY ([git.md](git.md)) — the server's, the same in every browser, and remembered across restarts.
 
-So an instance may state one, and it is a property of the RUNNING SERVER rather than of the directory. There is deliberately no settings file in the vault: a file there would travel with `git pull`, so a personal clone of a team's outlines would inherit the team's auto-push, which is exactly the accident this prevents.
+They used to be preferences of one BROWSER, stored there and sent nowhere, which is exactly right for one person on one machine and exactly wrong for everything else: whether a branch is pushed is not a thing one colleague's laptop gets to decide for everybody else, "whichever browser happened to have the toggle on" is not a policy, and a directory nobody had a tab open on recorded nothing at all.
+
+So the two preference rows set this server's policy, through a procedure, and every tab draws that one answer. It is remembered under the XDG state directory — `$XDG_STATE_HOME/olai/git/<digest of the served path>.json` — keyed by the directory and owner-only. There is deliberately no settings file IN THE VAULT: a file there would travel with `git pull`, so a personal clone of a team's outlines would inherit the team's auto-push, which is exactly the accident this prevents. (Nothing else olai keeps for itself goes in the vault either — the one-brain lock is under `$XDG_RUNTIME_DIR`, for the same reason.)
+
+**And an operator may take the rows away entirely**, which is what the flags are for: given, a flag pins that row read-only for everybody.
 
 ```
 olai web ~/outlines --commit=auto --push=off
@@ -193,22 +197,22 @@ olai web ~/outlines --commit=auto --push=off
 services.olai = {
   enable = true;
   dataDir = "${config.home.homeDirectory}/outlines";
-  commit = "auto";   # off | manual | auto — omit and each browser keeps its own
-  push = "off";      # off | auto          — omit and each browser keeps its own
+  commit = "auto";   # off | manual | auto — omit and the rows stay live
+  push = "off";      # off | auto          — omit and the rows stay live
 };
 ```
 
-**Giving a flag is what pins it.** With neither given — the default, and every single-user deployment — nothing about this is visible: the server commits manually and the two git rows in every browser's preferences are live, as they always were. Given, the server tells every browser which flag it was started with, and that row is drawn in the pinned state, **read-only, naming the flag**: *Set by the server: `--commit=auto`.* Never hidden, and never overridable from a browser — a policy a reader cannot see is one they cannot ask anybody about.
+**Giving a flag is what pins it.** With neither given — the default, and every single-user deployment — nothing about this is visible: the server commits manually and the two git rows are live in every browser, each of them setting this same server's policy. Given, the server tells every browser which flag it was started with, and that row is drawn in the pinned state, **read-only, naming the flag**: *Set by the server: `--commit=auto`.* Never hidden, and never overridable from a browser — a policy a reader cannot see is one they cannot ask anybody about, and the procedure behind the row refuses a pinned half rather than quietly doing nothing.
 
-The two are independent, so pinning committing does not silently pin pushing. `--commit=manual` typed out loud is not the same as saying nothing, even though this server behaves identically either way: the first freezes the row for everybody, the second leaves it to each reader. Nothing a browser had stored is overwritten, so a server restarted without the flag hands each reader their own pick straight back.
+The two are independent, so pinning committing does not silently pin pushing. `--commit=manual` typed out loud is not the same as saying nothing, even though this server behaves identically either way: the first freezes the row for everybody, the second leaves it to whoever is looking. A flag wins over whatever was remembered for its half and leaves the other half exactly where a reader put it — so a server restarted without the flag hands the remembered choice back.
 
-`--commit` is the same flag [git.md](git.md#modes) describes, with the same three modes; `--no-commit` is `--commit=off` and pins in the same way. It governs the server as well as the browsers: `--commit=auto` really does commit every write olai makes, with or without a browser in front of it.
+`--commit` is the same flag [git.md](git.md#modes) describes, with the same three modes; `--no-commit` is `--commit=off` and pins in the same way. `--commit=auto` is the quiet window: everything waiting records itself once writes stop arriving for fifteen seconds, with or without a browser in front of it. It is no longer one commit per write — that mode is retired, and the per-write commit with it.
 
-**`--push` governs the BROWSERS and nothing else.** It is Auto-push — whether a commit somebody's browser made is followed by a push — stated for everybody instead of set per browser. It does **not** push the commits `--commit=auto` makes on its own: a headless serve pushes nothing, and `--commit=auto --push=auto` with no tab open records without sharing. That is deliberate rather than an oversight — `--commit=auto` is one commit per write, so pushing them would put a network round trip inside every write — but it means an instance that must also share what it records still needs somebody's browser open, or a cron. `--push` has two values and deliberately not three: a branch that is not pushed on its own is pushed by the Push button, so there is no third thing to be.
+**`--push` governs the SERVER**, which it did not use to. It is Auto-push — whether a settled commit is pushed to the branch's upstream — and it follows **every** commit olai makes here, whichever door made it: the Commit button, an agent's `commit` tool, and the window's own. So `olai web ~/outlines --commit=auto --push=auto` with no tab open anywhere really does record and share; before, it recorded and shared nothing, and the unpushed count grew with no way to find out why. One round trip per commit, which is affordable exactly because the window makes a burst of writes one commit. `--push` has two values and deliberately not three: a branch that is not pushed on its own is pushed by the Push button, so there is no third thing to be.
 
-**A refused commit or push still pauses the loop** under a pin, because that is runtime state rather than policy: git said no, and nothing starts the loop again on olai's own initiative. Where the row is the browser's, turning Auto-commit off and on again is the gesture. A pinned row has no toggle to flip, so it carries a **Resume** button instead, drawn only while the loop is actually stopped.
+**A refused commit or push pauses the loop**, and that is runtime state rather than policy: git said no, and nothing starts the loop again on olai's own initiative. The one gesture that does is **Resume**, under the Git commit row, drawn only while the loop is actually stopped — on every deployment, pinned or not.
 
-That pause lives in the TAB, in memory, exactly as it did before there was anything to pin. Reloading the page — or opening a second tab and letting it win the lock — starts the loop again without anybody pressing Resume; if git still refuses, the next attempt pauses it again and says so. Nothing is persisted, and that is on purpose: a stop remembered across reloads is a different feature, and it would need a way to say "no, really, carry on" that survives them too.
+That pause is a fact about the DIRECTORY, held by the server. A reload does not clear it, a second tab does not clear it, and turning the row off and on again does not clear it; pressing Resume clears it for every reader at once. It used to live in the tab that made the attempt, which meant a reload was a silent retry, a second tab knew nothing about the stop, and a headless serve had no loop to stop.
 
 Theme, typeface, size, note density, finished work and hidden outlines are untouched by any of this. They are personal view choices, per browser, and there is nothing about them for a server to have an opinion on.
 
@@ -245,7 +249,7 @@ curl -X POST http://olai.your-tailnet.ts.net/capture \
 ```
 
 ```json
-{"id":"a1b2c3","title":"look into the new cabinets","file":"_olai/Inbox.olai","committed":false,
+{"id":"a1b2c3","title":"look into the new cabinets","file":"_olai/Inbox.olai",
  "why":"waiting to be committed: writes accumulate under --commit=manual (the default) until the Commit button asks for one"}
 ```
 

@@ -146,19 +146,19 @@ Feature: Committing on purpose
     And the remote has "olai: the herb bed needs splitting"
     And there should be no page errors
 
-  Scenario: A commit from this browser is pushed when Auto-push is on
-    # The pref is this browser's, so it governs the Commit button here and
-    # nowhere else. Agent `commit` ops and `--commit=auto` are server-side and
-    # are not this. The existing scenario above is today's behaviour: commit,
-    # then Push. This one is the composition — the same op, without pressing
-    # Push — and it earns the browser because the pill's unpushed count is a
-    # live cell: it goes to 0 when the server has republished, which is what
-    # says the push landed rather than sitting in flight.
+  Scenario: A commit is pushed when the directory's push policy is Auto-push
+    # The row sets the SERVER's policy, so it governs every commit olai makes
+    # here — the button's, an agent's, and the quiet window's. The existing
+    # scenario above is the manual pair: commit, then Push. This one is the
+    # composition, without pressing Push, and it earns the browser because the
+    # pill's unpushed count is a live cell: it goes to 0 when the server has
+    # republished, which is what says the push landed rather than sitting in
+    # flight.
     Given the served repository has a remote
     When I open the preferences
     And I set Git push to "on"
     Then the Git push row explains that a commit "is pushed"
-    And this browser has stored that auto-push is "on"
+    And this browser has stored nothing about git
     When I press Escape on the preferences
     Then the preferences are shut
     When I rewrite "notes.md" as:
@@ -203,19 +203,26 @@ Feature: Committing on purpose
     And there should be no page errors
 
   Scenario: A flurry of edits records itself as one commit, and is pushed
-    # The whole of Auto-commit, end to end, with Auto-push beside it: the
+    # The whole of the quiet window, end to end, with the push beside it: the
     # human's goal in his own words — "with both enabled, all changes sync to
     # Git automatically". THREE writes go in inside the window and ONE commit
     # comes out, which is the claim the debounce exists to make and the one no
     # amount of chrome can show. The last two are documents nobody edited
     # through olai's ops, so what is being swept is the whole repository.
+    #
+    # The loop is the SERVER's now, so what this scenario drives is a policy
+    # rather than a preference: the same two rows, setting the same directory's
+    # answer for every reader of it. `headless.test.ts` in @olai/server is the
+    # other half — the same window, with no browser anywhere.
     Given the served repository has a remote
     When I open the preferences
     And I set Git commit to "on"
     And I set Git push to "on"
     Then the Git commit row explains that a write "records itself"
-    And this browser has stored that auto-commit is "on"
-    And this browser has stored that auto-push is "on"
+    # NOTHING IS STORED HERE. The rows set the server's policy for this
+    # directory, so a key of either name in this browser is the shape this
+    # feature retired — a quiet window that only ran while a tab was open.
+    And this browser has stored nothing about git
     When I press Escape on the preferences
     Then the preferences are shut
     And the commit pill says auto-commit is "armed"
@@ -256,7 +263,7 @@ Feature: Committing on purpose
     And the commit pill says 0 unpushed
     And there should be no page errors
 
-  Scenario: Auto-commit alone records, and the commits wait to be pushed
+  Scenario: The window alone records, and the commits wait to be pushed
     # The other half of the pair. Without Auto-push the commit is still made on
     # its own and the pill carries the honest count of what is recorded here and
     # nowhere else — which is the fact the header exists to surface.
@@ -283,6 +290,11 @@ Feature: Committing on purpose
     # words are on the pill and in the panel with the one gesture that resumes
     # it. The second flurry is the fence: the window is given its full run and
     # what it would have recorded is still on disk, uncommitted.
+    #
+    # AND THE CHIP SAYS THE PUSH FAILED, which is `push-failure-invisible`: the
+    # screenshot that started this was `✓ committed · 13 unpushed` with the
+    # reason nowhere, because it lived in one tab's memory. The refusal is the
+    # directory's now, so the tick comes off and git's words are on the label.
     Given the served repository has a remote
     And somebody else has pushed to the remote
     When I open the preferences
@@ -298,8 +310,12 @@ Feature: Committing on purpose
     And the commit pill says auto-commit is "paused"
     # Git's own words, on the sentence a reader with no pointer gets.
     And the commit pill explains "rejected"
+    And the commit pill says the push was refused
+    And the commit pill reads "the last push was refused"
+    And the commit pill is alarming
     When I open the commit panel
     Then the panel says auto-commit is paused
+    And the panel says a push was refused
     When I press the commit pill
     And I rewrite "later.md" as:
       """
@@ -310,4 +326,31 @@ Feature: Committing on purpose
     Then olai has recorded 1 commit here
     And "later.md" is still waiting in the repository
     And the commit pill says auto-commit is "paused"
+    And there should be no page errors
+
+  Scenario: A reload does not clear a stop, and Resume in any tab does
+    # THE WHOLE OF THE MOVE, as one scenario. The pause used to live in this
+    # tab's memory, so reloading the page started the loop again with nothing
+    # pressed — a retry dressed as a fresh start, and a second tab knew nothing
+    # about the stop at all. It is a fact about the directory now: it survives
+    # the reload, and the one gesture that clears it is a server procedure.
+    Given the served repository has a remote
+    And somebody else has pushed to the remote
+    When I open the preferences
+    And I set Git commit to "on"
+    And I set Git push to "on"
+    And I press Escape on the preferences
+    And I rewrite "notes.md" as:
+      """
+      the herb bed needs splitting again
+      """
+    Then the flurry records itself
+    And the commit pill says auto-commit is "paused"
+    When I reload the page
+    Then the commit pill says auto-commit is "paused"
+    And the commit pill says the push was refused
+    When I open the preferences
+    Then the preferences offer to resume auto-commit
+    When I resume auto-commit
+    Then the commit pill says auto-commit is "armed"
     And there should be no page errors
