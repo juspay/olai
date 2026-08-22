@@ -50,7 +50,7 @@ Feature: A `.html` in the vault
     # which is the whole of the new rule read from the console.
     And the only complaints are the browser refusing what the file may not do
 
-  @scratch:good
+  @scratch:good @own-scratch
   Scenario: A page named index.html at the top of the vault is still that vault's page
     # THE BUNDLE'S OWN PATH, as a scenario. A file's address is its path since
     # addresses went prefix-free (#256), so a reader whose folder holds an
@@ -68,6 +68,11 @@ Feature: A `.html` in the vault
     # folder, where the immutable prefix has to 404 rather than reach the
     # shell — pinned at the HTTP layer in `packages/server/src/serve.test.ts`,
     # since a page that does not exist is not a thing a browser can be shown.
+    #
+    # `@own-scratch` because it LISTS THE WHOLE VAULT, which is this feature's
+    # own rule for a private copy: the assertion is that the new file joined the
+    # two the fixture holds, and on the shared copy that count is a claim about
+    # whatever the last scenario left behind rather than about this write.
     When I rewrite "index.html" as:
       """
       <h1>The reader's own index</h1>

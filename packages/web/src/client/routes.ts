@@ -62,10 +62,13 @@
  * WHAT CAN COLLIDE IS THE BUNDLE, and it is named here because a prefix-free
  * URL space is what makes it possible: the server hands the SPA shell to
  * anything it does not serve itself, and what it serves at the root is the
- * bundle's own — `/index.html` and `/assets/…` (`@kolu/surface-app`).
+ * bundle's own — `/index.html` and `/assets/…`, beside `/sw.js` and
+ * `/manifest.webmanifest` (`@kolu/surface-app`). Only the first two can shadow
+ * a PAGE: the other two carry no suffix the registry claims, so no address this
+ * parser can spell lands on them.
  *
- * ONE of those two is a collision, and which one was MEASURED rather than
- * reasoned about (`packages/server/src/serve.test.ts`, the two tests at the
+ * And ONE of that first pair is a collision, and which one was MEASURED rather
+ * than reasoned about (`packages/server/src/serve.test.ts`, the two tests at the
  * foot of the install surface). A served directory holding an `index.html` at
  * its top level is reachable: the bundle answers that path with the shell, and
  * the shell is byte for byte what the SPA fallback would have answered with, so
