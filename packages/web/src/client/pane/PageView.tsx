@@ -20,10 +20,13 @@ import { DayPage } from "../day/DayPage.tsx"
 import { DocumentPage } from "../document/DocumentPage.tsx"
 import { Broken } from "../errors/Broken.tsx"
 import { createAsked } from "../filter/asking.ts"
+import type { Found } from "../filter/count.ts"
+import { createElsewhere } from "../filter/elsewhere.ts"
 import { FilterBar } from "../filter/FilterBar.tsx"
 import { NarrowedProvider } from "../filter/narrowed.tsx"
 import { createNarrowing } from "../filter/narrowing.ts"
 import { tagPressed } from "../filter/tag.ts"
+import { createTyped } from "../filter/typed.ts"
 import { desktop } from "../layout/media.ts"
 import { chatOpen } from "../layout/prefs.ts"
 import { only } from "../narrow.ts"
@@ -34,7 +37,16 @@ import { drawnBy, requestFor } from "../page.ts"
 import { createReading, ReadingProvider, useReadings } from "../reading.tsx"
 import { OutlinePage } from "../OutlinePage.tsx"
 import { useFollow, useHere, useRouter } from "../router.tsx"
-import { filterOf, hrefOf, narrowable, narrowedTo, samePage } from "../routes.ts"
+import {
+  everywhereFor,
+  filterOf,
+  hrefOf,
+  narrowable,
+  narrowedTo,
+  samePage,
+} from "../routes.ts"
+import { everywhereLine } from "../search/said.ts"
+import { SearchPage } from "../search/SearchPage.tsx"
 import { panesOf } from "../workspace.ts"
 import { visibleIn } from "../settings/done.ts"
 import { TESTID } from "../testids.ts"
@@ -68,9 +80,29 @@ export function PageView() {
   // is the same one (`../page.ts`'s `requestFor`). A memo comparing by
   // reference would re-open the stream for it, blank the pane and unmount the
   // body the reader was being scrolled into.
-  const request = createMemo(() => requestFor(opened(), today()), undefined, {
-    equals: samePageRequest,
+  /**
+   * THE WORDS THIS PAGE IS, for the ONE page that is a query.
+   *
+   * `/search?q=…` has no page underneath its `?q=` — the rows ARE the answer
+   * to the words (`@olai/format`'s `everywhere.ts`) — so the words ride on the
+   * request. Which means the request moves per keystroke unless something
+   * holds it, and what holds it is the same settle the filter box has always
+   * had (`../filter/typed.ts`): a query somebody is TYPING waits, and one that
+   * arrived with an address does not.
+   *
+   * `null` on every other page, which is what makes this cost nothing there:
+   * the settle has no input, and `requestFor` reads the words on one arm.
+   */
+  const searching = createTyped({
+    words: () => (route().kind === "search" ? filterOf(route()) : null),
+    arrived: opened,
   })
+
+  const request = createMemo(
+    () => requestFor(opened(), today(), searching() ?? ""),
+    undefined,
+    { equals: samePageRequest },
+  )
   /**
    * THE BOX, READ ONCE — and both things made of it built off that one value:
    * what the page says about the query (`filter/narrowing.ts`) and the question
@@ -182,6 +214,21 @@ export function PageView() {
     return drawn !== null && answered !== null && samePageRequest(drawn, answered)
   })
 
+  /**
+   * HOW MANY MORE OF THIS QUERY THE DIRECTORY HOLDS — the widen line's number,
+   * and the one thing on this bar that is not about the page
+   * (`../filter/elsewhere.ts`).
+   *
+   * Off on the everywhere page, because there is nowhere wider to go, and off
+   * on a page that takes no filter, because there is no box.
+   */
+  const elsewhere = createElsewhere({
+    query,
+    text: () => filterOf(route()),
+    widenable: () => narrowable(route()) && route().kind !== "search",
+    onPage: () => (together() ? asked.matched() : undefined),
+  })
+
   const narrowing = createNarrowing({
     query,
     text: () => filterOf(route()),
@@ -190,6 +237,34 @@ export function PageView() {
     matched: () => (together() ? asked.matched() : undefined),
     answering: () => (together() ? asked.answering() : null),
   })
+
+  /**
+   * WHAT THE BAR SAYS ABOUT THIS ANSWER — which is a different sentence at each
+   * of the two scopes, decided here because this is where both readings are in
+   * hand (`../filter/count.ts`'s `Found`).
+   */
+  const found = createMemo((): Found => {
+    const everywhere = only(narrowing.drawn(), "search")
+    if (everywhere === undefined) {
+      return { kind: "page", counts: narrowing.counts(), elsewhere: elsewhere.more() }
+    }
+    return {
+      kind: "everywhere",
+      said: everywhereLine({
+        matches: everywhere.matches,
+        drawn: everywhere.drawn,
+        files: everywhere.groups.length,
+        documents: everywhere.documents.length,
+      }),
+    }
+  })
+
+  /** THE SAME QUERY, EVERYWHERE — the widen line and `Enter` in the box, one
+   *  gesture and one call site. Absent on the page that IS everywhere, which
+   *  is what takes both away there. */
+  const widen = (): void => {
+    router.replaceIn(here(), everywhereFor(filterOf(route())))
+  }
 
   const rows = () => only(narrowing.drawn(), "tree")?.rows ?? []
   const day = () => only(narrowing.drawn(), "day")
@@ -233,7 +308,14 @@ export function PageView() {
             on every click (docs/brainstorming/reactivity-after-the-flip.md
             §3.1's 1.4). */}
         <Show when={narrowable(route())}>
-          <FilterBar narrowing={narrowing} asked={asked} onType={narrow} />
+          <FilterBar
+            narrowing={narrowing}
+            asked={asked}
+            found={found()}
+            onType={narrow}
+            onWiden={route().kind === "search" ? undefined : widen}
+            focused={here() === router.workspace().focus}
+          />
         </Show>
         {/* NOTHING YET, AND ONLY EVER ONCE PER PANE: navigation asks the server
             (the design's §5a ruling — round-tripping is acceptable and nothing
@@ -287,6 +369,15 @@ export function PageView() {
                       <AgendaPage agenda={stretches()} today={open().date} />
                     )}
                   </Show>
+                )}
+              </Match>
+              <Match when={only(open(), "search")}>
+                {(open) => (
+                  <SearchPage
+                    groups={only(narrowing.drawn(), "search")?.groups ?? open().groups}
+                    documents={only(narrowing.drawn(), "search")?.documents ??
+                      open().documents}
+                  />
                 )}
               </Match>
               <Match when={only(open(), "trash")}>

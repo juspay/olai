@@ -187,6 +187,12 @@ export const narrowedIn = (
       // carried by no field, and naming one would be inventing the reason a row
       // is in front of somebody.
       ...(match.field === null ? {} : { matched: match.field }),
+      // …and the same rule for the OTHER half of "why is this here", which is a
+      // separate field because both halves can be true at once. Empty for every
+      // query that named no property — and never naming a NEGATED one, since a
+      // node found by `-prop:agent` was not found ON `agent` (`./filter.ts`'s
+      // `Match.props` is what decides that, once).
+      ...(match.props.length === 0 ? {} : { matchedProps: match.props }),
     })
   }
   return out

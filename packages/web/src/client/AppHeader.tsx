@@ -27,12 +27,17 @@
  * 390pt phone in every connection state longer than `live`. That squeeze is why
  * the pills left the phone bar rather than learning a fifth give-way rule.
  *
- * On DESKTOP the SEARCH BOX is the one control here that may shrink to nothing
- * before any pill loses a character — an input narrowed to a slot is still an
- * input, which is what its `min-w-0` and its cap are for. The last commit's AGE
- * (`commit/Commit.tsx`'s `· 3m ago`) is `sm` and up only. On a phone the same
- * search door is a 44px magnifier that opens the ⌘K palette
- * (`search/HeaderSearch.tsx` argues both halves).
+ * THERE IS NO SEARCH BOX HERE ANY MORE, and its absence is a ruling rather
+ * than a give-way. It used to sit first in this cluster, shrinking to nothing
+ * before any pill lost a character — and it was a SECOND search door at a
+ * second scope with a second answer shape, two inches above the one on the
+ * page. One box survives, and it is the page's
+ * (docs/brainstorming/one-search-box.md, the human's ruling of 2026-08-21).
+ * What is left in the bar is the phone's magnifier, which puts the caret in
+ * that box (`search/Magnifier.tsx`) — kept because a phone has no chord and
+ * this bar has no room for an input, and absent on desktop where the box is
+ * already on screen. The last commit's AGE (`commit/Commit.tsx`'s `· 3m ago`)
+ * is `sm` and up only.
  *
  * The wordmark and the burger never give way at all: they are the app's
  * identity and the way back to the directory. The theme pill, which NAMED the
@@ -102,7 +107,7 @@ import { Indicator } from "./connection/Indicator.tsx"
 import { LAYER } from "./layer.ts"
 import { desktop } from "./layout/media.ts"
 import type { Route } from "./routes.ts"
-import { HeaderSearch } from "./search/HeaderSearch.tsx"
+import { Magnifier } from "./search/Magnifier.tsx"
 import { connectionReadout } from "./wire.ts"
 import { Preferences } from "./settings/Preferences.tsx"
 import { TESTID } from "./testids.ts"
@@ -186,13 +191,13 @@ export function AppHeader(props: {
         class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1 sm:gap-2"
         data-testid={TESTID.appChrome}
       >
-        {/* FIRST in the cluster, and the one control here that may shrink to
-            nothing: it takes what is left after the pills have their floors,
-            so nothing a reader came for gives way to it. On a phone it is the
-            magnifier instead, which opens the palette — see
-            `search/HeaderSearch.tsx` for both arguments. */}
+        {/* THE SEARCH DOOR, and on a phone it is the only one: the magnifier puts
+            the caret in the page's own filter box, which is the ONE search box
+            in this app since the header's own was deleted
+            (`search/Magnifier.tsx`, docs/brainstorming/one-search-box.md).
+            Nothing here on desktop, where that box is already on screen. */}
         <Show when={props.go}>
-          {(go) => <HeaderSearch go={go()} />}
+          {(go) => <Magnifier go={go()} />}
         </Show>
         <Show when={desktop()}>
           <Indicator readout={connectionReadout()} />

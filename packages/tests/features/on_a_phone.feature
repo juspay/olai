@@ -67,6 +67,27 @@ Feature: On a phone
     Then the burger is on screen
     And the phone header is identity and search
 
+  @corpus:good @phone
+  Scenario: The magnifier puts the caret in the one search box
+    # A phone has no chord and this bar has no room for an input, so the
+    # magnifier is the whole of what search is up here — and what it means is
+    # the box on the page, which is the only search box in this app since the
+    # header's own was deleted (docs/brainstorming/one-search-box.md).
+    Given I open the outline "garden.olai"
+    When I press the search door
+    Then the filter box has the caret
+    When I filter the page by "old"
+    Then the filter found "1 of 11"
+
+  @corpus:good @phone
+  Scenario: …and on a page with no box, it opens the everywhere page
+    # A document is prose and carries no `?q=`, so there is no box to focus. A
+    # door that did nothing there would be a door that works on some pages.
+    Given I open the document "finishes.md"
+    When I press the search door
+    Then the search page is open
+    And the address is exactly "/search"
+
   @scratch:good @phone
   Scenario: Connecting freezes a phone too
     # `connecting` is the state of every first paint. A real dial races past it

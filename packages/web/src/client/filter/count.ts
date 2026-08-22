@@ -95,6 +95,30 @@ export const countLine = ({ shown, held, hiddenAsDone }: Counts): string => {
 }
 
 /**
+ * WHAT SCOPE THE READER IS STANDING IN, and the numbers that go with it — the
+ * one thing the bar says differently on the everywhere page.
+ *
+ * A SUM rather than a flag beside three numbers, for {@link Counts}' own
+ * reason: `/search`'s sentence is not "3 of 41" with a different denominator,
+ * it is a different sentence about a different subject — a page holds 41 rows
+ * and your query emptied it, where the directory simply holds no answer. Two
+ * shapes that cannot be mixed, so neither can be said about the other's page.
+ */
+export type Found =
+  /** A page, narrowed — and how many more the same query matches ELSEWHERE in
+   *  the directory, which is the truth the bar was missing and the door that
+   *  widens (docs/brainstorming/one-search-box.md). */
+  | {
+    readonly kind: "page"
+    readonly counts: Counts
+    /** `null` while nothing has answered that question yet. */
+    readonly elsewhere: number | null
+  }
+  /** The everywhere page, whose own reading counts itself
+   *  (`../search/said.ts`). */
+  | { readonly kind: "everywhere"; readonly said: string }
+
+/**
  * WHAT THE ONE LINE SAYS, over the states a filtered page can be in —
  * `null` for the state where the honest thing is to say nothing.
  *
@@ -114,9 +138,11 @@ export const countSaid = (said: {
   readonly answering: string | null
   /** The last call's refusal, in the server's own words. */
   readonly failure: string | null
-  readonly counts: Counts
+  readonly found: Found
 }): string | null => {
-  if (said.answering !== null) return countLine(said.counts)
+  if (said.answering !== null) {
+    return said.found.kind === "page" ? countLine(said.found.counts) : said.found.said
+  }
   // THE WAIT WORD IS A PROMISE, so it may only be said while something is
   // actually on its way. A failed call is "no answer is coming until something
   // changes", and it has its own line under this one; `filtering…` over it
@@ -126,3 +152,28 @@ export const countSaid = (said: {
   // included.
   return said.failure === null ? ANSWERING : null
 }
+
+/**
+ * THE DOOR THAT WIDENS, as the sentence it is drawn as — `null` when there is
+ * nothing behind this page to widen TO.
+ *
+ * It is the truth the bar was missing: `3 of 41` is honest about the page and
+ * silent about the directory, and a reader who has typed `#next` into one
+ * outline has no way of knowing the tag is on four more nodes somewhere else.
+ * So the number goes beside the count and the words after it are the way
+ * through (docs/brainstorming/one-search-box.md).
+ *
+ * NOTHING FOR A ZERO, which is this file's own rule about a part that is zero
+ * read once more — and it costs nothing here: the page in front of the reader
+ * IS the whole answer, so the door leads nowhere new. `Enter` still widens,
+ * because a key that works only sometimes is worse than a line that appears
+ * only sometimes.
+ *
+ * NOTHING WHILE IT IS UNKNOWN either (`null` elsewhere): the count is a second
+ * question with a round trip of its own, and a bar that said "0 more" while
+ * waiting would be answering it before it had been answered.
+ */
+export const widenSaid = (elsewhere: number | null): string | null =>
+  elsewhere === null || elsewhere <= 0
+    ? null
+    : `· ${elsewhere} more in other files — search everywhere`

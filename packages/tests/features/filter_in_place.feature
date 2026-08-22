@@ -143,14 +143,13 @@ Feature: Filtering the outline in place
     Then the outline has 0 rows
     And the filter found "no matches of 10 — 2 matches hidden as done (Prefs)"
 
-  Scenario: The header's box refuses the same operator, in the same words
-    # One grammar, four doors. The filter parses for itself; the header box,
-    # the ⌘K palette and an agent ask the server — and a door that answered
-    # `is:open` with an empty list and no reason would be the one place a
-    # typo looks exactly like an empty directory.
-    Given I open the outline "house.olai"
-    When I search the header for "is:open"
-    Then the search refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, trashed"
+  Scenario: The everywhere page refuses the same operator, in the same words
+    # One grammar, one box, two scopes. The parse is the browser's at both, so
+    # the sentence arrives with the keystroke rather than with an answer — and
+    # a door that answered `is:open` with an empty page and no reason would be
+    # the one place a typo looks exactly like an empty directory.
+    Given I search everywhere for "is:open"
+    Then the filter refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, trashed"
 
   Scenario: Pressing a `#tag` filters the page by it
     # The gesture the tags have been decorative for since title-markdown. It is

@@ -1,19 +1,25 @@
 @corpus:good
 Feature: An answer leaves the rows it did not change standing
   The other half of `a_frame_leaves_it_standing.feature`, and the half a reader
-  meets while TYPING: every search door mints its rows fresh from the answer, so
-  a list drawn by reference was torn down and built again on each one — the ⌘K
-  palette's hits, the header box's, the `@` rows in the chat composer, and the
-  refusal lines under all three query doors.
+  meets while TYPING: every list in this app mints its rows fresh from the
+  answer, so a list drawn by reference was torn down and built again on each one
+  — the ⌘K palette's rows, the `@` rows in the chat composer, and the refusal
+  line under the one search box.
 
-  The first three are about a hand: the row a pointer is resting on, and the row
-  a cursor is walking down, replaced under it. The rest are about an ear — a
+  The first two are about a hand: the row a pointer is resting on, and the row a
+  cursor is walking down, replaced under it. The rest are about an ear — a
   refusal is `role="alert"` and `aria-live="assertive"`, so a line rebuilt for
   the next keystroke is a sentence read out loud a second time to somebody who
   has not changed their mind (docs/brainstorming/reactivity-after-the-flip.md
-  §3.2, findings 2.6 to 2.9). One scenario per door, because the three now draw
-  ONE component (`client/SaidLine.tsx`) and the ear is the thing that
-  swap could have cost.
+  §3.2, findings 2.6 to 2.9).
+
+  THE TWO SHORTLIST DOORS ARE GONE from this file with the doors themselves:
+  the palette's node hits and the header's box were one reading drawn twice, and
+  there is one search box now — the page's own
+  (docs/brainstorming/one-search-box.md). What each of them was asserting about
+  a HAND is asserted here about the palette's command rows and the composer's;
+  what each was asserting about an EAR is asserted about the filter bar's own
+  refusal, which is the line every one of those doors was drawing.
 
   `@corpus:` rather than `@scratch:`: nothing here writes the directory. What
   moves is an answer.
@@ -21,30 +27,21 @@ Feature: An answer leaves the rows it did not change standing
   Background:
     Given I open the app
 
-  Scenario: A letter taken back leaves the palette's rows standing
+  Scenario: A letter typed leaves the palette's rows standing
+    # The palette's rows are matched in this tab off a list it already holds, so
+    # a keystroke that changes which of them match must move exactly those rows
+    # and leave the rest where the reader's cursor found them.
     Given I open the outline "house.olai"
     And I mark the page
     When I press the palette shortcut
-    And I type "cabinets" into the palette
-    Then the palette lists the node "order the new cabinets"
+    And I type "toggle" into the palette
+    Then the palette offers "Toggle sidebar"
     And I mark every element of the "palette list"
     # One letter off WIDENS the answer: everything that was listed is still
-    # listed, with one more beside it.
-    When I type "cabinet" into the palette
-    Then the palette lists the document "finishes.md"
+    # listed, with the handoff row beside it.
+    When I type "toggl" into the palette
+    Then the palette offers "Toggle agent panel"
     And the "palette list" kept every element it had
-    And the page has not reloaded
-    And there should be no page errors
-
-  Scenario: A letter taken back leaves the header box's rows standing
-    Given I open the outline "house.olai"
-    And I mark the page
-    When I search the header for "cabinets"
-    Then the header search lists the node "order the new cabinets"
-    And I mark every element of the "header search panel"
-    When I take a letter off the header search
-    Then the header search lists the document "finishes.md"
-    And the "header search panel" kept every element it had
     And the page has not reloaded
     And there should be no page errors
 
@@ -80,45 +77,21 @@ Feature: An answer leaves the rows it did not change standing
     And the page has not reloaded
     And there should be no page errors
 
-  # The same ear, at the two doors that had to ASK for the refusal. The bar
-  # parses in this tab; these get their refusal back on an answer, and every
-  # answer mints fresh `Refusal` objects — so what holds the line still is the
-  # memo over the SENTENCES (`client/refusals.tsx`), which the swap onto one
-  # markup had to leave standing. The row is marked rather than the whole panel
-  # because a door's list is entitled to change while somebody types: what may
-  # not is the live region beside it.
-  #
-  # A SECOND bad operator is what the next keystrokes add, and it is the wait
-  # as much as the claim: a refused query selects nothing at every door
-  # (`@olai/format`'s `filter.ts`), so a second refusal arriving is the only
-  # sign the answer landed at all — and the line already up must not move for
-  # it.
-  Scenario: The palette's refusal is not read out a second time for the next keystroke
-    Given I open the outline "house.olai"
+  # The same ear, on the everywhere page — which is the same box over a
+  # different scope, and the one place a second refused token is worth the wait
+  # it takes: a refused query selects nothing at every door (`@olai/format`'s
+  # `filter.ts`), so a second refusal arriving is the only sign anything landed
+  # at all, and the line already up must not move for it. The ROW is marked
+  # rather than the whole bar, because a count is entitled to change while
+  # somebody types: what may not is the live region beside it.
+  Scenario: The refusal on the everywhere page is not read out a second time either
+    Given I search everywhere for "is:nope"
     And I mark the page
-    When I press the palette shortcut
-    And I type "is:nope" into the palette
-    Then the search refuses "is:nope" and says "done, doing, todo, marked, blocked, mirrored, trashed"
+    Then the filter refuses "is:nope" and says "done, doing, todo, marked, blocked, mirrored, trashed"
     And I mark every element of the "search refusal"
-    When I type "is:nope date:tomorrowish" into the palette
+    When I filter the page by "is:nope date:tomorrowish"
     Then the search refuses 2 tokens
-    And the search refuses "is:nope" and says "done, doing, todo, marked, blocked, mirrored, trashed"
-    And the "search refusal" kept every element it had
-    And nothing in the "search refusal" was announced again
-    And the page has not reloaded
-    And there should be no page errors
-
-  Scenario: The header box's refusal is not read out a second time for the next keystroke
-    Given I open the outline "house.olai"
-    And I mark the page
-    When I search the header for "is:nope"
-    Then the search refuses "is:nope" and says "done, doing, todo, marked, blocked, mirrored, trashed"
-    And I mark every element of the "search refusal"
-    # Typed onto the end of what is already in the box, which is what a person
-    # who has not changed their mind about `is:nope` does next.
-    When I search the header for " date:tomorrowish"
-    Then the search refuses 2 tokens
-    And the search refuses "is:nope" and says "done, doing, todo, marked, blocked, mirrored, trashed"
+    And the filter refuses "is:nope" and says "done, doing, todo, marked, blocked, mirrored, trashed"
     And the "search refusal" kept every element it had
     And nothing in the "search refusal" was announced again
     And the page has not reloaded

@@ -1,17 +1,15 @@
 import { expect, test } from "bun:test"
 
-import { DocumentPath, NodeId } from "@olai/format"
-import type { NodeHit } from "@olai/surface"
+import { addressOf } from "@olai/format"
 
-import { atFile, atNode } from "../routes.ts"
-import { atOnce } from "../settled.ts"
-import { filterItems, hitItem, modeOf, SHELL_ITEMS } from "./items.ts"
+import { atFile, everywhereFor, type Route } from "../routes.ts"
+import { filterItems, modeOf, searchItem, SHELL_ITEMS } from "./items.ts"
 
-/** A hit on a record, with the address every hit carries. */
-const node = (fields: Omit<NodeHit, "at">): NodeHit => ({
-  at: { kind: "node", id: NodeId.make(fields.id) },
-  ...fields,
-})
+/** Where the reader is standing, for the two answers {@link searchItem} has.
+ *  An outline takes a `?q=`; a document is prose and takes none
+ *  (`../routes.ts`'s `narrowable`). */
+const OUTLINE: Route = atFile("house.olai")
+const DOCUMENT: Route = { kind: "at", address: addressOf("notes/finishes.md", null)! }
 
 test("empty query returns every shell item", () => {
   expect(filterItems("").length).toBe(SHELL_ITEMS.length)
@@ -25,68 +23,37 @@ test("filter matches label and search haystack", () => {
   expect(filterItems("agent").map((i) => i.id)).toEqual(["panel-chat"])
 })
 
-/** A hit on a DOCUMENT is the same row with a different half of it filled in:
- *  its own face's title, the path it is at, and the glyph the sidebar draws
- *  that kind of file with. There is no place line invented for it — a document
- *  hangs under nothing, so the path IS where it is. */
-test("a document hit becomes a row that opens the document", () => {
-  const item = hitItem({
-    at: { kind: "document", path: DocumentPath.make("notes/cabinets.md") },
-    title: "Cabinets",
-    matched: "body",
-  }, atOnce)
-  expect(item.label).toBe("Cabinets")
-  expect(item.place).toBe("notes/cabinets.md")
-  expect(item.of).toBe("document")
-  expect(item.from).toBeUndefined()
-  expect(item.action).toEqual({
-    kind: "route",
-    route: atFile("notes/cabinets.md"),
-  })
+/** The node hits are gone from this palette and this is what replaced them: a
+ *  row that hands the query to the ONE search box rather than previewing eight
+ *  of what is behind it (docs/brainstorming/one-search-box.md). */
+test("a typed query offers to search the page in front of the reader", () => {
+  const row = searchItem("hinges", OUTLINE)
+  expect(row?.label).toBe("Search this page for “hinges”")
+  expect(row?.action).toEqual({ kind: "search", query: "hinges", here: "page" })
 })
 
-test("a search hit becomes a row that jumps to the node", () => {
-  const item = hitItem(node({
-    id: "hinges",
-    title: "pick the hinges",
-    file: "house.olai",
-    line: 6,
-    path: ["kitchen remodel #home", "install the cabinets"],
-    matched: "title",
-  }), atOnce)
-  expect(item.label).toBe("pick the hinges")
-  expect(item.from).toBe("house.olai")
-  // The place is a LINE OF ITS OWN, never an inline hint: an ancestor title
-  // is somebody's prose, and beside the title it starved it to one word per
-  // line and scrolled the palette sideways.
-  expect(item.hint).toBeUndefined()
-  expect(item.action).toEqual({ kind: "route", route: atNode("hinges") })
+test("…and on a page with no box of its own, to search everywhere", () => {
+  // A document is prose, so it carries no `?q=` and draws no bar. A door that
+  // did nothing there would be a door that works on some pages.
+  const row = searchItem("hinges", DOCUMENT)
+  expect(row?.label).toBe("Search everywhere for “hinges”")
+  expect(row?.action).toEqual({ kind: "search", query: "hinges", here: "everywhere" })
+  // …and where that goes is the ordinary `?q=` on the everywhere page, so the
+  // words are the address and are never retyped.
+  expect(everywhereFor("hinges")).toEqual({ kind: "search", filter: "hinges" })
 })
 
-test("the place reads NEAREST ancestor first, so a truncation keeps what situates the node", () => {
-  // `path` is outermost-first; a line ellipsized from the end would lose the
-  // immediate parent — the one crumb that answers "which `pick the hinges`?".
-  const item = hitItem(node({
-    id: "hinges",
-    title: "pick the hinges",
-    file: "house.olai",
-    line: 6,
-    path: ["kitchen remodel #home", "install the cabinets"],
-    matched: "title",
-  }), atOnce)
-  expect(item.place).toBe("install the cabinets · kitchen remodel #home")
+test("nothing typed is no row at all", () => {
+  expect(searchItem("", OUTLINE)).toBeNull()
+  expect(searchItem("   ", OUTLINE)).toBeNull()
 })
 
-test("a node at the top level is placed by its file", () => {
-  const top = hitItem(node({
-    id: "buy",
-    title: "Buy groceries",
-    file: "errands.olai",
-    line: 1,
-    path: [],
-    matched: "title",
-  }), atOnce)
-  expect(top.place).toBe("errands.olai")
+test("the row is offered even when the query matched a command", () => {
+  // A reader who typed `today` may have meant the command or may have meant
+  // the word; a door that appeared only when nothing else matched would be a
+  // door you cannot learn.
+  expect(filterItems("today").length).toBe(1)
+  expect(searchItem("today", OUTLINE)).not.toBeNull()
 })
 
 test("a `>` line is a message to the agent", () => {

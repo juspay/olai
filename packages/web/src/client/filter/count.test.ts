@@ -11,7 +11,7 @@
 
 import { expect, test } from "bun:test"
 
-import { ANSWERING, countLine, countSaid } from "./count.ts"
+import { ANSWERING, countLine, countSaid, type Found, widenSaid } from "./count.ts"
 
 test("the plain page is the two numbers and nothing else", () => {
   expect(countLine({ shown: 8, held: 57, hiddenAsDone: 0 }))
@@ -56,9 +56,12 @@ test("nothing drawn and something hidden drops the word `more`", () => {
 // can ask; the bar draws whatever it says.
 
 const COUNTS = { shown: 8, held: 57, hiddenAsDone: 0 }
+/** What the bar is looking at on an ordinary narrowed page — the numbers, and
+ *  nothing known yet about the rest of the directory. */
+const ON_A_PAGE: Found = { kind: "page", counts: COUNTS, elsewhere: null }
 
 test("rows that answer what is typed are described by the numbers", () => {
-  expect(countSaid({ answering: "walnut", failure: null, counts: COUNTS }))
+  expect(countSaid({ answering: "walnut", failure: null, found: ON_A_PAGE }))
     .toBe("8 of 57")
 })
 
@@ -67,7 +70,7 @@ test("rows that answer what is typed are described by the numbers", () => {
 // was typed, and "8 of 57" over rows that answer the query before it is the
 // arithmetic-from-two-moments this file exists to refuse.
 test("rows that answer an older query say so instead of counting", () => {
-  expect(countSaid({ answering: null, failure: null, counts: COUNTS }))
+  expect(countSaid({ answering: null, failure: null, found: ON_A_PAGE }))
     .toBe(ANSWERING)
 })
 
@@ -76,13 +79,65 @@ test("rows that answer an older query say so instead of counting", () => {
 // way: the failure line beside this one is the news, and `filtering…` left up
 // over it would be the page waiting for something nobody is fetching.
 test("a failed call says nothing here, because the line below is the news", () => {
-  expect(countSaid({ answering: null, failure: "the wire is gone", counts: COUNTS }))
+  expect(countSaid({ answering: null, failure: "the wire is gone", found: ON_A_PAGE }))
     .toBe(null)
 })
 
 // A failure BESIDE an answer keeps the answer: the rows are still the rows the
 // server sent for these words, and the call that failed was the next one.
 test("a failure after an answer does not take the answer's numbers away", () => {
-  expect(countSaid({ answering: "walnut", failure: "the wire is gone", counts: COUNTS }))
+  expect(countSaid({ answering: "walnut", failure: "the wire is gone", found: ON_A_PAGE }))
     .toBe("8 of 57")
+})
+
+// ── the door that widens ──────────────────────────────────────────────
+//
+// The count is honest about the PAGE and silent about the directory, which is
+// the whole complaint this work answers: a reader who typed `#next` into one
+// outline had no way of knowing the tag is on four more nodes somewhere else.
+// The line below says the difference, and the words after it are the way
+// through (docs/brainstorming/one-search-box.md).
+
+test("the widen line says how many more, and is the door to them", () => {
+  expect(widenSaid(12)).toBe("· 12 more in other files — search everywhere")
+  expect(widenSaid(1)).toBe("· 1 more in other files — search everywhere")
+})
+
+// The zero rule this file already keeps, read once more — and here it costs
+// nothing: the page in front of the reader IS the whole answer, so the door
+// leads nowhere new. A number the reader has to take in before they can ignore
+// it is worse than no number.
+test("nothing elsewhere says nothing at all", () => {
+  expect(widenSaid(0)).toBe(null)
+})
+
+// …and neither does a number nobody has answered yet: the count is a second
+// question with a round trip of its own, and "0 more" while waiting would be
+// answering it before it had been answered.
+test("an unknown count says nothing rather than guessing at zero", () => {
+  expect(widenSaid(null)).toBe(null)
+})
+
+// ── the everywhere page's own sentence ────────────────────────────────
+//
+// A different sentence about a different subject, and that is the point rather
+// than an inconsistency: "3 of 41" is arithmetic about a page somebody was
+// already reading, and there is no such denominator here.
+
+test("the everywhere page counts itself instead of counting a page", () => {
+  expect(countSaid({
+    answering: "#next",
+    failure: null,
+    found: { kind: "everywhere", said: "5 matches in 3 files" },
+  })).toBe("5 matches in 3 files")
+})
+
+// The three states a round trip added are the bar's, not the scope's: a page
+// waiting to be told is a page waiting to be told wherever it is standing.
+test("the everywhere page waits in the same words every page waits in", () => {
+  expect(countSaid({
+    answering: null,
+    failure: null,
+    found: { kind: "everywhere", said: "5 matches in 3 files" },
+  })).toBe(ANSWERING)
 })

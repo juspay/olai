@@ -930,8 +930,16 @@ export const TESTID = {
    *  same fact. */
   filterBar: "filter-bar",
   filterInput: "filter-input",
-  /** "3 of 41", plus what the done-preference is holding back. */
+  /** "3 of 41", plus what the done-preference is holding back — and on the
+   *  everywhere page, "12 matches in 3 files", which is what this bar has to
+   *  say when there is no page underneath for a denominator to be about
+   *  (`client/search/said.ts`). */
   filterCount: "filter-count",
+  /** THE DOOR THAT WIDENS — "· 12 more in other files — search everywhere",
+   *  beside the count and pressable. Absent when nothing matched elsewhere,
+   *  while the number is still unknown, and on the everywhere page itself,
+   *  which IS everywhere (`client/filter/count.ts`'s `widenSaid`). */
+  filterWiden: "filter-widen",
   filterClear: "filter-clear",
   /** A known operator with an unknown value, in the grammar's own words —
    *  never a query that quietly found nothing. */
@@ -962,32 +970,41 @@ export const TESTID = {
   paneTabs: "pane-tabs",
   /** One tab of that strip. `data-pane` is which, `aria-current` the focused. */
   paneTab: "pane-tab",
-  /** The SAME refusal, on the two doors that ask the server for it — the ⌘K
-   *  palette and the header box. One name for both, because it is one sentence
-   *  about one grammar; where it is drawn is each door's own business. */
-  searchRefusal: "search-refusal",
-  /** "8 of 90 matches" — what a shortlist drew of what it found, on the same
-   *  two doors, and ABSENT when it drew the lot. One name for both for the
-   *  refusal's reason above: one sentence about one answer
-   *  (`client/search/count.ts`). A scenario reads it inside the door it means,
-   *  since only one of the two is ever up. */
-  searchCount: "search-count",
-  // ── the header's search box, the other door to the same reading ──────
-  headerSearch: "header-search",
-  /** The phone's door: opens the palette, which is the same modal. */
+  // ── the everywhere page: /search?q=… ─────────────────────────────────
+  /** THE PHONE'S SEARCH DOOR, and the only one left in the bar: it puts the
+   *  caret in the page's own filter box, or goes to `/search` on a page that
+   *  has none (`client/search/Magnifier.tsx`). The name is the one the
+   *  header's box left behind — one control, one testid, and a scenario that
+   *  presses "the search door on a phone" goes on meaning what it meant. */
   headerSearchOpen: "header-search-open",
-  headerSearchResults: "header-search-results",
-  headerSearchItem: "header-search-item",
-  headerSearchItemPlace: "header-search-item-place",
-  /** One `key value` pair on a header result row's third line. */
-  headerSearchItemProp: "header-search-item-prop",
-  headerSearchError: "header-search-error",
+  /** `/search?q=…` — the whole directory as a page. */
+  searchPage: "search-page",
+  /** What it says with nothing typed: a page rather than a hole. Never over a
+   *  query — "no matches" is the bar's sentence. */
+  searchWaiting: "search-waiting",
+  /** One outline that holds a match. `data-file` is which. */
+  searchGroup: "search-group",
+  /** …and the heading of one, as a link to that outline. */
+  searchGroupFile: "search-group-file",
+  /** One row of one group. `data-node-id` is the record it draws and
+   *  `data-match` whether the query selected it or kept it as the ancestry
+   *  that leads to one (`client/filter/why.ts`, the same attribute every
+   *  filtered page publishes). */
+  searchRow: "search-row",
+  /** The link a row is: Enter or a click goes to that node's page. */
+  searchRowLink: "search-row-link",
+  /** The third line of a row the query selected ON A PROPERTY — the matched key
+   *  first, in the reading ink. Absent otherwise, which is most rows.
+   *  `data-key` names the key, `data-matched` says it is the reason. */
+  searchRowProps: "search-row-props",
+  searchRowProp: "search-row-prop",
+  /** The block under the groups — the other half of the directory. */
+  searchDocuments: "search-documents",
+  /** One document the query found. `data-file` is its path. */
+  searchDocument: "search-document",
+  searchDocumentLink: "search-document-link",
   /** Refusal from a `>` ask that the palette surfaces instead of swallowing. */
   paletteAskError: "palette-ask-error",
-  /** Refusal from the NODE SEARCH — a different question from the ask, so a
-   *  different row: two async sources sharing one slot would show a reader
-   *  the wrong sentence about the wrong thing. */
-  paletteSearchError: "palette-search-error",
   chatTitle: "chat-title",
   chatModel: "chat-model",
   /** How full the context is (`22k/1M`), beside the model. Absent until the

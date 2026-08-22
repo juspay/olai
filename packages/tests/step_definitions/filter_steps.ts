@@ -17,7 +17,7 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
-import { foundCount } from "../support/counted.ts";
+import { countsNothing, foundCount } from "../support/counted.ts";
 import { saysThat } from "../support/said.ts";
 import {
   attr,
@@ -27,6 +27,7 @@ import {
   FILTER_COUNT,
   FILTER_INPUT,
   FILTER_REFUSAL,
+  FILTER_WIDEN,
   HIT,
   NODE,
   NODE_TITLE,
@@ -34,7 +35,6 @@ import {
   OUTLINE_TREE,
   POLL_TIMEOUT,
   addressOf,
-  SEARCH_REFUSAL,
   TAG,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -105,14 +105,40 @@ Then(
  * exists to prove NO clause is said could not see one appear (found by both
  * reviewers of #248).
  *
- * The reader is shared with the two search doors, which say the same kind of
- * sentence about the answer they only drew part of: one ritual, three doors,
- * and the wait that makes it honest kept in one place.
+ * ONE BOX, TWO SCOPES, and this reads the line at either: "3 of 41" over a
+ * narrowed page, and "12 matches in 3 files" over `/search?q=…`, where there is
+ * no page underneath for a denominator to be about (`client/search/said.ts`).
  */
 Then(
   "the filter found {string}",
   async function (this: OlaiWorld, said: string) {
     await foundCount(this, FILTER_COUNT, said, "filter count");
+  },
+);
+
+/**
+ * THE DOOR THAT WIDENS — the second half of the bar's line, and the truth the
+ * count could not tell on its own: `3 of 41` is honest about the page and
+ * silent about the directory (docs/brainstorming/one-search-box.md).
+ *
+ * Read exactly, for the count's reason: it is an element that holds one
+ * sentence, and a substring read of "· 1 more…" is inside "· 12 more…".
+ */
+Then(
+  "the filter offers {string}",
+  async function (this: OlaiWorld, said: string) {
+    await foundCount(this, FILTER_WIDEN, said, "widen line");
+  },
+);
+
+/** …and the other half, which is this app's zero rule read once more: a page
+ *  that IS the whole answer offers nothing, because the door would lead
+ *  nowhere new. `Enter` still widens — a key that works only sometimes is worse
+ *  than a line that appears only sometimes. */
+Then(
+  "the filter offers nothing more elsewhere",
+  async function (this: OlaiWorld) {
+    await countsNothing(this, FILTER_WIDEN, "widen line");
   },
 );
 
@@ -319,26 +345,15 @@ Then(
   },
 );
 
-/** The SAME refusal, on a door that had to ask the server for it. One step for
- *  both of those doors, because it is one sentence about one grammar. */
-Then(
-  "the search refuses {string} and says {string}",
-  async function (this: OlaiWorld, token: string, teaching: string) {
-    await refuses(this, SEARCH_REFUSAL, "search refusal", token, teaching);
-  },
-);
-
-/** HOW MANY tokens a door is refusing — the whole list rather than its first
- *  line. What it is for is the settle: a door's refusal comes back on an
- *  ANSWER, so a scenario that types a second query has nothing to wait for
- *  when the query it typed selects nothing either (a refused query always
- *  does, `@olai/format`'s `filter.ts`). A second refused token joining the
- *  first is the one thing about that answer a reader can see. */
+/** HOW MANY tokens the box is refusing — the whole list rather than its first
+ *  line. A refusal is the BROWSER's own parse now at the only door there is,
+ *  so it arrives with the keystroke; what this asks about is a second refused
+ *  token joining the first. */
 Then(
   "the search refuses {int} tokens",
   async function (this: OlaiWorld, many: number) {
     await this.waitUntil(
-      async () => (await this.page.locator(SEARCH_REFUSAL).count()) === many,
+      async () => (await this.page.locator(FILTER_REFUSAL).count()) === many,
       `the search refuses ${many} tokens`,
     );
   },

@@ -361,5 +361,23 @@ export type SearchRequest = typeof SearchRequest.Type
 export const MatchedNode = Schema.Struct({
   id: NodeId,
   matched: Schema.optionalKey(Schema.Literals(SEARCH_FIELDS)),
+  /**
+   * The custom keys a `prop:` clause selected this node on, in the node's own
+   * spelling — {@link NodeHit.matchedProps} over the other shape, and ABSENT
+   * for every query that named no property.
+   *
+   * IT IS HERE FOR THE SAME REASON IT IS THERE, and it arrived when the last
+   * shortlist door was deleted: a row that answered `prop:agent=claude-opus`
+   * with a bare title made the reader open each hit to find the fact they had
+   * just searched by. That row is a row of `/search?q=…` now
+   * (`./everywhere.ts`), which is narrowable like any other page — so what it
+   * knows about WHY a row is drawn is exactly what this answer carries.
+   *
+   * A SIBLING of `matched` rather than a fifth value of it, on that field's own
+   * argument: the two can both be true at once, `matched`'s four values are a
+   * closed list of places a WORD is looked for, and a property key is an open
+   * namespace somebody invented.
+   */
+  matchedProps: Schema.optionalKey(Schema.Array(Schema.String)),
 })
 export type MatchedNode = typeof MatchedNode.Type

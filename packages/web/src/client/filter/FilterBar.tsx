@@ -1,22 +1,34 @@
 /**
- * The box that narrows the page, and what it has to say about the result.
+ * THE ONE SEARCH BOX — what narrows the page in front of you, and the door that
+ * widens the same query to the whole directory.
  *
- * IT IS NOT THE HEADER'S SEARCH BOX, and the difference is the question each
- * one answers: the header takes you TO a node anywhere in the directory, this
- * one narrows what is already in front of you. One box answering both would
- * have to guess which was meant by every keystroke. What they DO share is the
- * grammar AND, since `search-server-side`, the matcher's own answer: the header
- * box, the ⌘K palette and this bar are all callers of the server's one reading,
- * so the operators work in all three and mean one thing.
+ * IT IS THE ONLY BOX NOW. It used to be one of five doors, and the header's own
+ * search box sat two inches above it answering a different question at a
+ * different scope with a different answer shape — two entry points, two scopes,
+ * one grammar, and nothing in the app that would list a tag written in three
+ * files. The human's ruling of 2026-08-21 kept this one and deleted that one:
+ * this box already owned the address (`?q=`), the honest count, the
+ * ancestry-kept rows, the refusal line and the pin, and what it was missing was
+ * a way OUT of the page (docs/brainstorming/one-search-box.md).
  *
- * Everything it draws is a fact somebody could otherwise only guess at:
+ * So it says one more thing than it used to, and it is the truth it could not
+ * tell before: **how many more the same query matches elsewhere in the
+ * directory**, drawn as the door that goes there. `Enter` is that door as a
+ * key — the one search box in this app with no list under it, so `Enter` was
+ * free and now means *and now everywhere*. The words are never retyped: they
+ * are the `?q=` either way (`../routes.ts`'s `everywhereFor`).
+ *
+ * Everything else it draws is a fact somebody could otherwise only guess at:
  *
  *   - the COUNT, "3 of 41", so a query that narrowed to nothing is
  *     distinguishable from one that narrowed to everything — and what the
  *     done-preference is HOLDING BACK, because `is:done` under a reader who
  *     hides finished work draws nothing and the reason must not be a mystery
  *     (`./narrowing.ts` argues the order, `./count.ts` the wording, and the
- *     three numbers are counted inside one set so the sentence adds up);
+ *     three numbers are counted inside one set so the sentence adds up). On the
+ *     everywhere page it is a different sentence about a different subject —
+ *     `12 matches in 3 files` (`../search/said.ts`) — because there is no page
+ *     underneath for a denominator to be about;
  *   - WHETHER THE ROWS ANSWER WHAT IS TYPED, which is the round trip's own
  *     line: a filter settles and then flies, so for a beat the page is one
  *     query behind, and the count of the query before is a number about a
@@ -45,15 +57,16 @@
  * page is a link, and Back leaves the filter rather than un-typing it.
  */
 
-import { Show } from "solid-js"
+import { createEffect, on, Show } from "solid-js"
 
 import type { Asked } from "./asking.ts"
+import { filterFocusAsked } from "./caret.ts"
 import { SaidLine } from "../SaidLine.tsx"
 import { listKey } from "../keys.ts"
 import { Refusals } from "../refusals.tsx"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
-import { countSaid } from "./count.ts"
+import { countSaid, type Found, widenSaid } from "./count.ts"
 import type { Narrowing } from "./narrowing.ts"
 
 /** What the box says when it is empty — the whole grammar in one line, because
@@ -64,6 +77,12 @@ import type { Narrowing } from "./narrowing.ts"
 const PLACEHOLDER =
   `filter — words, "a phrase", a OR b, #tag, is:done, has:desc, date:last-week, changed:today, -not`
 
+/** …and what it says on the ONE page whose query is the page: there is nothing
+ *  in front of the reader to narrow, so "filter" would be the wrong word for
+ *  the same grammar. */
+const EVERYWHERE_PLACEHOLDER =
+  `search everywhere — words, "a phrase", a OR b, #tag, is:done, date:last-week, -not`
+
 export function FilterBar(props: {
   /** What the PAGE found — the count, the words, the rows behind it. */
   readonly narrowing: Narrowing
@@ -73,8 +92,24 @@ export function FilterBar(props: {
    *  value carried through a module that does not read it is a field two files
    *  have to keep in step for nothing (`./asking.ts`). */
   readonly asked: Pick<Asked, "failure">
+  /** WHICH SCOPE the reader is standing in, and the numbers that go with it —
+   *  a narrowed page, or the everywhere page counting itself
+   *  (`./count.ts`'s `Found`). */
+  readonly found: Found
   readonly onType: (text: string) => void
+  /**
+   * WIDEN THIS QUERY — absent on the page that IS everywhere, which is what
+   * takes both the line and the key away there rather than a condition written
+   * twice inside this component.
+   */
+  readonly onWiden?: () => void
+  /** Whether this pane is the FOCUSED one — which is the whole of how a
+   *  broadcast ask for the caret picks a box in a split workspace
+   *  (`./caret.ts`). */
+  readonly focused: boolean
 }) {
+  let box: HTMLInputElement | undefined
+
   /** What the one line under the box says, or nothing — the three states a
    *  filtered page can be in, decided in `./count.ts` rather than in a binding
    *  here. */
@@ -82,8 +117,29 @@ export function FilterBar(props: {
     countSaid({
       answering: props.narrowing.answering(),
       failure: props.asked.failure(),
-      counts: props.narrowing.counts(),
+      found: props.found,
     })
+
+  /** …and the second half of that line, which is a DOOR rather than a number:
+   *  how many more the directory holds, and the way to them. Absent on the
+   *  everywhere page, absent while the count is unknown, absent when there is
+   *  nothing more (`./count.ts`'s `widenSaid`). */
+  const widen = () =>
+    props.onWiden === undefined || props.narrowing.answering() === null
+      ? null
+      : widenSaid(props.found.kind === "page" ? props.found.elsewhere : null)
+
+  // THE CARET, ASKED FOR FROM OUTSIDE — the phone's magnifier and the ⌘K
+  // handoff row (`./caret.ts`). `defer`, because the ask is an event and a bar
+  // that grabbed the caret the moment it mounted would steal it from whatever
+  // the reader was doing on every navigation. The text is SELECTED, because
+  // somebody who asked to search a page holding an old query means to replace
+  // it and not to append to it.
+  createEffect(on(filterFocusAsked, () => {
+    if (!props.focused) return
+    box?.focus()
+    box?.select()
+  }, { defer: true }))
 
   return (
     <div
@@ -107,26 +163,46 @@ export function FilterBar(props: {
         {/* `text`, not `search`: a `type="search"` input draws the browser's
             own clear cross, and this bar already has one of its own — two
             crosses side by side, one of which no scenario can press
-            portably. The header's box keeps `search` precisely because it has
-            no cross of its own to collide with. */}
+            portably. */}
         <input
+          ref={box}
           type="text"
           class="min-w-0 flex-1 rounded-full border-0 bg-desk/70 px-4 py-2 font-mono text-xs text-ink outline-none placeholder:text-muted ring-1 ring-rule/40 focus:ring-2 focus:ring-accent/40"
           data-testid={TESTID.filterInput}
-          placeholder={PLACEHOLDER}
-          aria-label="filter this page"
+          placeholder={props.onWiden === undefined ? EVERYWHERE_PLACEHOLDER : PLACEHOLDER}
+          aria-label={props.onWiden === undefined
+            ? "search the directory"
+            : "filter this page"}
           value={props.narrowing.text()}
           onInput={(event) => props.onType(event.currentTarget.value)}
-          // WHICH key empties it is the registry's (`../keys.ts`'s list layer,
-          // the same one the header box asks); what `dismiss` MEANS here is
-          // this bar's — the box empties and the page gets the caret back.
-          // The other three answers belong to a shortlist, and this bar has
-          // none, so they are left to the input.
+          // WHICH key does what is the registry's (`../keys.ts`'s list layer,
+          // the same one every other box in this client asks); what each answer
+          // MEANS is this bar's.
+          //
+          // `dismiss` empties the box and gives the page the caret back.
+          //
+          // `take` WIDENS, and this is the one box in the app where that key
+          // was going spare: every other door onto this grammar has a list
+          // under it, so `Enter` there means "the row under the cursor". Here
+          // there is no list — the rows ARE the page — so the key means the
+          // gesture the line under the box draws: the same query, everywhere.
+          // Claimed only where there is somewhere wider to go, so on `/search`
+          // it falls through and does what Enter in a text input does.
+          //
+          // The other two answers belong to a shortlist, and this bar has none.
           onKeyDown={(event) => {
-            if (listKey(event) !== "dismiss") return
+            const action = listKey(event)
+            if (action === "dismiss") {
+              event.preventDefault()
+              props.onType("")
+              event.currentTarget.blur()
+              return
+            }
+            if (action !== "take") return
+            const widening = props.onWiden
+            if (widening === undefined || !props.narrowing.active()) return
             event.preventDefault()
-            props.onType("")
-            event.currentTarget.blur()
+            widening()
           }}
         />
         <Show when={props.narrowing.active()}>
@@ -146,12 +222,13 @@ export function FilterBar(props: {
           yet, or NOTHING when the last call failed and the line under this one
           is already the news — one element, and `./count.ts` decides which of
           the three it is, so the decision is somewhere a test can ask about
-          it. */}
+          it. The DOOR sits beside it rather than inside it: they are two
+          different kinds of thing (a readout, and a way somewhere), and a
+          reader pressing the number would be pressing a fact. */}
       <Show when={props.narrowing.active() && said()}>
         {(line) => (
           <p
-            class="m-0 mt-1 font-mono text-xs text-muted"
-            data-testid={TESTID.filterCount}
+            class="m-0 mt-1 flex flex-wrap items-baseline gap-x-1 font-mono text-xs text-muted"
             // A READOUT rather than something said about a write, which is why
             // it is not a `SaidLine` (`../SaidLine.tsx` owns the two MOODS a
             // write has, and a count has neither). Announced politely for the
@@ -160,7 +237,19 @@ export function FilterBar(props: {
             // worth.
             aria-live="polite"
           >
-            {line()}
+            <span data-testid={TESTID.filterCount}>{line()}</span>
+            <Show when={widen()}>
+              {(door) => (
+                <button
+                  type="button"
+                  class="cursor-pointer border-0 bg-transparent p-0 font-mono text-xs text-accent underline decoration-dotted underline-offset-2 hover:text-ink"
+                  data-testid={TESTID.filterWiden}
+                  onClick={() => props.onWiden?.()}
+                >
+                  {door()}
+                </button>
+              )}
+            </Show>
           </p>
         )}
       </Show>

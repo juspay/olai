@@ -1,24 +1,30 @@
 /**
- * The palette SHELL's catalogue: navigation, panel toggles, ask-the-agent —
- * and the shape a NODE takes when search answers with one.
+ * The palette SHELL's catalogue: navigation, panel toggles, ask-the-agent, and
+ * the row that hands a query to the one search box.
  *
  * The OP rows are next door (`./ops.ts`), because what a verb is and which of
- * them apply is the `•••` menu's answer and not a second list. The DOCUMENT
- * rows used to be next door the other way, matched in this tab off the served
- * list; a search answers with both kinds now (`@olai/format`'s
- * `matchingDocuments`), so `./documents.ts` is gone and a document is a hit
- * like any other — which is why {@link hitItems} below is the one block of
- * rows this file mints.
+ * them apply is the `•••` menu's answer and not a second list.
  *
- * Node hits arrive from the server's search procedure (Palette.tsx asks it as
- * you type) rather than from a matcher of this file's own, because the palette
- * and an agent's `search_nodes` must be one reading (`@olai/surface`'s
- * search.ts has the argument). That used to be a restraint — the browser held
- * every node and could have grepped them, and deliberately did not. Since
- * `search-server-side` it is not even that: the matcher left this bundle with
- * the vault (`docs/brainstorming/vault-in-browser.md`), so there is nothing
- * here to grep. The conclusion is the one it always was; only its premise got
- * smaller.
+ * ## What this file no longer mints, and why
+ *
+ * NODE HITS. This palette used to answer a query with eight rows from the
+ * server — a shortlist, per keystroke, in a modal that closes — and so did the
+ * box in the header beside it. Two entry points, two scopes, two answer shapes,
+ * one grammar, and nothing in the app that would list a tag written in three
+ * files. The human ruled one box on 2026-08-21: the page's own filter, which
+ * owns the address, the count, the ancestry-kept rows and the pin, and which
+ * now widens to a real `/search?q=…` page
+ * (docs/brainstorming/one-search-box.md).
+ *
+ * So what a typed query produces here is {@link searchItem} — a door to that
+ * box rather than a preview of what is behind it. It is minted from the words,
+ * costs no round trip, and can never be a row of an answer the reader has
+ * already typed past.
+ *
+ * DOCUMENT ROWS went the same way and had gone once before: they were a third
+ * list matched in this tab, then hits like any other, and now they are rows of
+ * the everywhere page, which is where a list of files somebody can read
+ * belongs.
  *
  * TWO PREFIXES take the box away from the list, and they are the same idea
  * twice: `>` sends the rest to the agent, `+` captures the rest as a node.
@@ -29,15 +35,10 @@
  * per prefix.
  */
 
-import type { BodyKind } from "@olai/format"
-import type { Edit, SearchHit } from "@olai/surface"
-
 import type { Asking } from "./asking.ts"
-import { HOME_ROUTE, type Route } from "../routes.ts"
-import type { NodeProp } from "../search/props.ts"
-import type { Search } from "../search/nodes.ts"
-import { hitRow } from "../search/row.ts"
+import { HOME_ROUTE, narrowable, type Route } from "../routes.ts"
 import { atOnce, type Taking } from "../settled.ts"
+import type { Edit } from "@olai/surface"
 
 export type PaletteAction =
   | { readonly kind: "route"; readonly route: Route }
@@ -81,69 +82,58 @@ export type PaletteAction =
    * you and leaves the caret after it.
    */
   | { readonly kind: "prefix"; readonly prefix: string }
+  /**
+   * HAND THIS QUERY TO THE ONE SEARCH BOX — the row that replaced the node
+   * hits ({@link searchItem}).
+   *
+   * It carries the WORDS and where they are going rather than a `Route`,
+   * because the two destinations are two different gestures: `page` puts the
+   * query in this pane's `?q=` and the caret in its box, which is a narrowing
+   * of the page the reader is standing on; `everywhere` is a navigation to
+   * `/search?q=…`. A single route would have flattened the first into the
+   * second and lost the caret with it.
+   */
+  | {
+    readonly kind: "search"
+    readonly query: string
+    readonly here: "page" | "everywhere"
+  }
 
 export interface PaletteItem {
-  /** Unique in the list, and — for the rows that are not commands — PREFIXED
-   *  `hit-`, over the row's own ADDRESS: `hit-#a1b2c3` for a record and
-   *  `hit-notes/cabinets.md` for a document ({@link hitItem}, over
-   *  `../search/row.ts`). That prefix is a contract with a
-   *  package that does not import this one: it is how a scenario tells a hit
-   *  from a shell command that happens to share a word, in both doors
-   *  (`packages/tests`' palette and header steps). */
+  /** Unique in the list — a stable word per row, because `<Key by="id">` is
+   *  what keeps a list somebody is walking from being rebuilt under their
+   *  cursor, and because a scenario names a row by it. */
   readonly id: string
   readonly label: string
   /** A short word about the row, drawn INLINE at the right: a chord, a
-   *  reminder. Only a command has one — it is a few characters by
-   *  construction, which is why it may sit beside the label without ever
-   *  starving it. */
+   *  reminder. It is a few characters by construction, which is why it may sit
+   *  beside the label without ever starving it. */
   readonly hint?: string
   /**
-   * WHERE this row's node lives, drawn on a SECOND line under the title.
+   * WHERE this row is ABOUT, drawn on a SECOND line under the label — which
+   * page a pin row means, which node a verb row is aimed at.
    *
-   * A place is somebody's prose — an ancestor title can be a whole sentence —
-   * so it cannot share a line with the title: side by side, the two fight for
-   * one row's width, the title loses (it is the flexible one) and wraps to a
-   * word per line, while the mono place refuses to shrink and pushes the
-   * palette into a sideways scroll. A popover never scrolls sideways, so the
-   * place gets a line of its own and both are ellipsized.
+   * A place is somebody's prose — a page title can be a whole sentence — so it
+   * cannot share a line with the label: side by side, the two fight for one
+   * row's width, the label loses (it is the flexible one) and wraps to a word
+   * per line, while the mono place refuses to shrink and pushes the palette
+   * into a sideways scroll. A popover never scrolls sideways, so the place gets
+   * a line of its own and both are ellipsized.
    */
   readonly place?: string
-  /** The node's properties, on a THIRD line — matched ones first
-   *  (`../search/props.ts`). Only a node row has any; a shell command has
-   *  nothing to say about itself that its label does not already say. */
-  readonly props?: ReadonlyArray<NodeProp>
-  /**
-   * WHICH KIND of served file this row opens, drawn as that kind's own glyph
-   * in front of the label (`../file/icons.tsx`) — the face the sidebar's tree
-   * has used since a `.md`, a `.olai` and a folder stopped being four
-   * characters of extension apart.
-   *
-   * Only a document row carries one (`../search/row.ts`). A command is not a
-   * file, and a node hit is a row INSIDE one — the file it lives in is already
-   * said, in words, on its place line.
-   */
-  readonly of?: BodyKind
-  /**
-   * The file a NODE hit is written in — so `../search/Result.tsx` can run
-   * the same `renderTitle` a tree row does. Absent on commands and document
-   * hits, which stay text.
-   */
-  readonly from?: string
   readonly action: PaletteAction
   /**
    * WHICH ANSWER THIS ROW CAME FROM, as the act of spending it —
-   * `../settled.ts`'s `Taking`, read by its `spend`, which is where the whole
-   * argument for a row carrying this lives.
+   * `../settled.ts`'s `Taking`, read by its `spend`.
    *
-   * The short of it: the two doors that draw this list draw TWO BLOCKS, the
-   * commands matched here off a list the tab already holds and the hits a
-   * debounce and a round trip away — so "have the rows caught up" is a
-   * question about a ROW and not about the door. A KEY asks it; a POINTER
-   * never does.
-   *
-   * REQUIRED, and `atOnce` is what a row with no answer behind it says. Made
-   * optional it would be silence that means "ungated", which is the one thing
-   * a new row here must not be able to be by saying nothing.
+   * EVERY ROW HERE IS {@link atOnce} NOW, and the field stays because that is
+   * the interesting part. This list used to be TWO BLOCKS — commands matched in
+   * this tab, and hits a debounce and a round trip away — so "have the rows
+   * caught up" was a question about a ROW rather than about the door. The hits
+   * are gone (the header above says why) and every row is once again minted
+   * from something the tab already holds. What the field keeps is the RULE: a
+   * row must say what is behind it, and a row minted from an answer that says
+   * nothing would be silently ungated.
    */
   readonly taking: Taking
   /** Lowercase haystack for simple substring filter. */
@@ -249,49 +239,50 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
 ]
 
 /**
- * One search hit as a palette row: choosing it opens whatever it names.
+ * THE HANDOFF — the row that takes what is typed to the one search box.
  *
- * WHATEVER, and that is the change: a hit is a record or a document
- * (`@olai/format`'s `SearchHit`), and the row is the same row either way —
- * label, place, and a route to take. What each of those IS per kind is
- * `../search/row.ts`'s answer, shared with the three other doors that draw the
- * identical list, so the palette cannot grow a glyph the header box lacks.
- */
-/**
- * EVERY HIT OF A SEARCH, as the block a door draws — which is the call the two
- * doors make, and {@link hitItem} below is the row it is made of.
+ * The palette used to answer a query with NODE HITS: eight rows, from the
+ * server, per keystroke, in a modal that closes. That half is gone (the human's
+ * ruling of 2026-08-21, docs/brainstorming/one-search-box.md) and this row is
+ * what replaced it — not as a preview of a search, but as the way to the box
+ * that IS the search. The palette keeps what it is good at: the shell commands,
+ * the zoomed node's verbs, the shelf's row, `>` and `+`.
  *
- * It exists so that the answer's own take rides onto the rows in ONE place. It
- * was that `.map` at both doors, which is two chances for one of them to mint
- * a hit row naming no search — and an ungated `Enter` is exactly the drift
- * this reading has been fighting since there were two doors onto it.
+ * TWO SENTENCES, and which one is drawn is a question about the PAGE rather
+ * than about the query. A page that takes a `?q=` gets its own box filled and
+ * focused, which is the page-first half of the ruling — you search what is in
+ * front of you, and the bar then offers to widen. A page that takes none (a
+ * document, which is prose) has no box, so the row goes straight to `/search`,
+ * where there always is one.
+ *
+ * NOTHING IS ASKED OF THE SERVER FOR IT. The row is minted from what is typed,
+ * so it is on screen with the keystroke and can never be a row of an answer the
+ * reader has moved past — which is why it takes {@link atOnce} rather than a
+ * search's `Taking`. The one search request happens once the query is in the
+ * address, where a filter's own settle governs it.
+ *
+ * IT IS ALWAYS THERE while there is anything typed, including over a query that
+ * matched commands: a reader who typed `today` may have meant the command or
+ * may have meant the word, and a door that appeared only when nothing else
+ * matched would be a door you cannot learn.
  */
-export const hitItems = (search: Search): ReadonlyArray<PaletteItem> => {
-  const taking = search.taking
-  return search.hits().map((hit) => hitItem(hit, taking))
-}
-
-export const hitItem = (
-  hit: SearchHit,
-  /** WHICH ANSWER this row is off, so the row can say whether a KEY may spend
-   *  it ({@link PaletteItem.taking}). Required rather than optional, which is
-   *  the one line that keeps the rule: a hit row cannot be minted without
-   *  naming the search it came out of. {@link hitItems} is how a door passes
-   *  it; this stays exported for the tests, which are about what ONE hit
-   *  becomes. */
-  taking: Taking,
-): PaletteItem => {
-  const row = hitRow(hit)
+export const searchItem = (
+  query: string,
+  /** Where the reader is standing — the FOCUSED pane's route, which is what
+   *  decides whether there is a box to hand this to (`../routes.ts`'s
+   *  `narrowable`). */
+  here: Route,
+): PaletteItem | null => {
+  const words = query.trim()
+  if (words === "") return null
+  const onPage = narrowable(here)
   return {
-    id: `hit-${row.id}`,
-    label: row.label,
-    ...(row.of === undefined ? {} : { of: row.of }),
-    ...(row.from === undefined ? {} : { from: row.from }),
-    place: row.place,
-    props: row.props,
-    action: { kind: "route", route: row.route },
-    taking,
-    // Never filtered locally: the server already decided these match.
+    id: "search-handoff",
+    label: onPage ? `Search this page for “${words}”` : `Search everywhere for “${words}”`,
+    hint: onPage ? "the filter box" : "/search",
+    action: { kind: "search", query: words, here: onPage ? "page" : "everywhere" },
+    taking: atOnce,
+    // Never filtered against itself: this row IS the query.
     search: "",
   }
 }

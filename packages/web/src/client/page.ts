@@ -24,6 +24,8 @@
 import type {
   Agenda,
   DayGroup,
+  EverywhereGroup,
+  FoundDocument,
   PageRequest,
   Row,
   Shown,
@@ -51,6 +53,20 @@ export const requestFor = (
    *  address — and the only reason `/today` can be an address rather than a
    *  redirect that would put yesterday in someone's history. */
   today: string,
+  /**
+   * THE WORDS, ONCE A PAIR OF HANDS HAS STOPPED MOVING — read by the one page
+   * whose question IS a query (`/search?q=…`) and by nothing else.
+   *
+   * It is an argument rather than `filterOf(route)` read here for the reason
+   * `today` is one: it is not a fact about the address. Every other page's
+   * request arrives with its link, and this one has to WAIT — a page whose
+   * rows are the answer to the words re-asks the whole directory for each
+   * keystroke otherwise, which is the walk-per-frame `filter-rides-the-page`
+   * removed, arriving from the other side. Who settles it is the pane
+   * (`./filter/typed.ts`), and a caller that is not drawing a pane passes
+   * nothing, because no other caller asks about this page.
+   */
+  words = "",
 ): PageRequest => {
   switch (route.kind) {
     case "at": {
@@ -79,6 +95,8 @@ export const requestFor = (
       return { kind: "agenda", today }
     case "trash":
       return { kind: "trash" }
+    case "search":
+      return { kind: "search", text: words }
   }
 }
 
@@ -167,6 +185,25 @@ export type Drawn =
     readonly files: ReadonlyArray<string>
     readonly groups: ReadonlyArray<TrashGroup>
   }
+  /**
+   * THE WHOLE DIRECTORY, ANSWERED — `/search?q=…`, which is a tree per FILE
+   * and the documents beside them (`@olai/format`'s `everywhere.ts`).
+   *
+   * The trash's shape and not a fifth one, near enough — a file heading and a
+   * tree under it — and the two numbers ride with it because the bar says a
+   * different sentence here: not "3 of 41", which is about a page somebody was
+   * already reading, but "12 matches in 3 files", which is about the directory
+   * (`./search/said.ts`).
+   */
+  | {
+    readonly kind: "search"
+    readonly groups: ReadonlyArray<EverywhereGroup>
+    readonly documents: ReadonlyArray<FoundDocument>
+    /** Matched in the whole directory, uncapped. */
+    readonly matches: number
+    /** …and how many of those the groups draw. */
+    readonly drawn: number
+  }
   | { readonly kind: "none" }
 
 /** Nothing to narrow, as one value: `none` carries nothing, so a fresh object
@@ -201,6 +238,15 @@ export const drawnBy = (shows: Shown | undefined): Drawn => {
   if (shows.kind === "agenda") return { kind: "agenda", agenda: shows.agenda }
   if (shows.kind === "trash") {
     return { kind: "trash", files: shows.files, groups: shows.groups }
+  }
+  if (shows.kind === "search") {
+    return {
+      kind: "search",
+      groups: shows.groups,
+      documents: shows.documents,
+      matches: shows.matches,
+      drawn: shows.drawn,
+    }
   }
   return NOTHING_DRAWN
 }

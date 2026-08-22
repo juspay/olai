@@ -87,6 +87,13 @@
  * outline), and what such an address opens is the trash view, because an
  * archive is not a place you edit (`page.ts` decides that, not this parser).
  *
+ * `/search` is the fourth and the one that is nothing without its query: it is
+ * the whole directory asked one question, so `/search?q=%23next` is a page and
+ * `/search` is that page with the box still empty. The query is still the
+ * ordinary `?q=` — one narrowing, one key, one thing a pin keeps — and what is
+ * different is only that there is no page underneath it for the narrowing to
+ * take rows off (docs/brainstorming/one-search-box.md).
+ *
  * They are READ FIRST, which is the whole of the precedence rule: a computed
  * page is a word this app claimed, and an address is everything else.
  *
@@ -162,6 +169,24 @@ export type Route =
    *  archives exist is the set's answer, and an address that named one would
    *  mean something different the day a subdirectory gets its own. */
   | { readonly kind: "trash"; readonly filter?: string }
+  /**
+   * THE WHOLE DIRECTORY, ASKED — `/search?q=…`.
+   *
+   * It spells no file for the reason the three above spell none: it is a
+   * question asked of the set rather than a place in it. What makes it the odd
+   * one is the QUERY — every other page here is a page with or without a
+   * `?q=`, and this one is nothing at all without one. That is not a second
+   * kind of thing in the URL space: `?q=` is still the narrowing, still the one
+   * thing that rides in a query, still what {@link narrowedTo} writes and what
+   * a pin keeps. The difference is only that on this page there is no page
+   * underneath it to narrow.
+   *
+   * So `/search` with nothing typed is a real address and a real page — the
+   * box, empty, waiting. Which is what makes the phone's magnifier able to send
+   * a reader somewhere when the page they are on has no box of its own
+   * (docs/brainstorming/one-search-box.md).
+   */
+  | { readonly kind: "search"; readonly filter?: string }
 
 /** The front page: the address that names no place at all, and what every
  *  string this cannot read comes back as. */
@@ -188,12 +213,16 @@ const HOME = "/"
  * this table, it has exactly one consumer, and a file per twenty lines is
  * decomposition by size rather than by what changes together.
  */
-type Named = Extract<Route, { readonly kind: "today" | "agenda" | "trash" }>["kind"]
+type Named = Extract<
+  Route,
+  { readonly kind: "today" | "agenda" | "trash" | "search" }
+>["kind"]
 
 const NAMED = {
   today: "/today",
   agenda: "/agenda",
   trash: "/trash",
+  search: "/search",
 } as const satisfies { readonly [K in Named]: `/${string}` }
 
 /** The same table read backwards — spelling to page — built once rather than
@@ -250,6 +279,19 @@ const addressNamed = (route: Route): Address | null =>
 /** The front page: the address that names no place. One value, since it is
  *  only ever read. */
 export const HOME_ROUTE: Route = { kind: "at", address: null }
+
+/** The whole directory, asked — with nothing typed yet. One value for the same
+ *  reason, and the door the phone's magnifier and the ⌘K handoff reach for when
+ *  the page in front of somebody has no box of its own. */
+export const EVERYWHERE_ROUTE: Route = { kind: "search" }
+
+/** …and the same page carrying a query — what the widen line, Enter in the
+ *  filter box and the palette's handoff row all go to. Through
+ *  {@link narrowedTo} rather than spelled here, so a blank query is ABSENT
+ *  rather than empty and the two spellings of `/search` cannot both be in one
+ *  history. */
+export const everywhereFor = (filter: string): Route =>
+  narrowedTo(EVERYWHERE_ROUTE, filter)
 
 /**
  * WHERE AN ADDRESS OPENS.

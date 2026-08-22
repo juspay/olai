@@ -463,6 +463,10 @@ export const FILTER_CLEAR = selector(TESTID.filterClear);
  *  scenario asserts on the WORDS: a query that quietly found nothing is what
  *  this line exists to make impossible. */
 export const FILTER_REFUSAL = selector(TESTID.filterRefusal);
+/** THE DOOR THAT WIDENS — "· 12 more in other files — search everywhere",
+ *  beside the count and pressable. Absent when nothing matched elsewhere and on
+ *  the everywhere page itself (`client/filter/count.ts`'s `widenSaid`). */
+export const FILTER_WIDEN = selector(TESTID.filterWiden);
 export const PANE = selector(TESTID.pane);
 export const PANE_RAIL = selector(TESTID.paneRail);
 export const PANE_HEADER = selector(TESTID.paneHeader);
@@ -470,14 +474,14 @@ export const PANE_CLOSE = selector(TESTID.paneClose);
 export const PANE_RESIZE = selector(TESTID.paneResize);
 export const PANE_TABS = selector(TESTID.paneTabs);
 export const PANE_TAB = selector(TESTID.paneTab);
-/** The same refusal on the two doors that ask the SERVER for it — the ⌘K
- *  palette and the header box. One name, because it is one sentence about one
- *  grammar; where each door draws it is that door’s own business. */
-export const SEARCH_REFUSAL = selector(TESTID.searchRefusal);
-/** …and the same count line on the same two doors: "8 of 20 matches", or no
- *  element at all when the door drew everything it found. Scoped by the step
- *  to the door it means, since one name serves both. */
-export const SEARCH_COUNT = selector(TESTID.searchCount);
+/** `/search?q=…` — the whole directory as a page, and the rows it draws.
+ *  `SEARCH_GROUP` carries `data-file`; `SEARCH_ROW` carries `data-node-id` and
+ *  the same `data-match` every filtered page publishes. */
+export const SEARCH_PAGE = selector(TESTID.searchPage);
+export const SEARCH_WAITING = selector(TESTID.searchWaiting);
+export const SEARCH_GROUP = selector(TESTID.searchGroup);
+export const SEARCH_ROW = selector(TESTID.searchRow);
+export const SEARCH_DOCUMENT = selector(TESTID.searchDocument);
 /** The date picker, in place under the row it was opened on — from the pill
  *  above, or from the `•••` menu's `Set date…`. Its box is a native
  *  `<input type="date">`, so what it holds is the ten characters the record
@@ -729,13 +733,12 @@ export const APP_CHROME = selector(TESTID.appChrome);
  *  again: a preference with a door of its own, beside the door to the
  *  preferences. */
 export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
-  // The search box, and beside it the magnifier a phone gets instead (the bar
-  // has no room for a box at 390pt, and a phone has no ⌘K). Added here as the
-  // deliberate edit this list exists to demand: the row gained a DOOR, not a
-  // second answer about git — the Commit pill is still the only control in it
-  // that reports on the repository, which is the whole of what the fence
-  // below guards.
-  TESTID.headerSearch,
+  // The phone's magnifier, and it is the whole of what search is in this bar
+  // now: the BOX that used to sit beside it is deleted, because the page's own
+  // filter box is the one search door in this app
+  // (docs/brainstorming/one-search-box.md). Recorded here as the deliberate
+  // edit this list exists to demand — a control left, and nothing arrived to
+  // answer about git.
   TESTID.headerSearchOpen,
   TESTID.connection,
   TESTID.commitPill,
@@ -841,12 +844,11 @@ export const PALETTE_CONFIRM = selector(TESTID.paletteConfirm);
 export const PALETTE_SAID = selector(TESTID.paletteSaid);
 export const PALETTE_SCRIM = selector(TESTID.paletteScrim);
 export const SHORTCUTS = selector(TESTID.shortcuts);
-/** The header box's panel of results, and the shelf of pins in the sidebar —
- *  here rather than spelled at a step file, which is where the rest of the
- *  suite's selectors live. */
-export const HEADER_SEARCH = selector(TESTID.headerSearch);
+/** The bar's one search control — a phone's magnifier, which puts the caret in
+ *  the page's own filter box (`client/search/Magnifier.tsx`). And the shelf of
+ *  pins in the sidebar, here rather than spelled at a step file, which is where
+ *  the rest of the suite's selectors live. */
 export const HEADER_SEARCH_OPEN = selector(TESTID.headerSearchOpen);
-export const HEADER_SEARCH_RESULTS = selector(TESTID.headerSearchResults);
 export const PIN_SHELF = selector(TESTID.pinShelf);
 
 export const CHAT_TITLE = selector(TESTID.chatTitle);

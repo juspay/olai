@@ -203,6 +203,11 @@ export const nameOf = (
       return "Agenda"
     case "trash":
       return "Trash"
+    // NOT the query, which is what a pin for this page is asked to name: the
+    // shelf draws the door and the filter beside it, exactly as it does for
+    // `/agenda?q=is%3Atodo` (`../pins/naming.ts`).
+    case "search":
+      return "Search"
   }
 }
 

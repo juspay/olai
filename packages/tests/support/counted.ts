@@ -2,19 +2,21 @@
  * WHAT A COUNT LINE SAYS, read EXACTLY — and the other half, that there is no
  * line at all.
  *
- * Three doors ask this and it is one question in three places (`./said.ts`
- * exists for the same reason, one surface over): the filter bar says "3 of 41"
- * about the page it narrowed (`client/filter/count.ts`), and the ⌘K palette and
- * the header's box say "8 of 20 matches" about the answer they only drew part
- * of (`client/search/count.ts`). Every one of them is an element that holds a
- * count and nothing else, waited for rather than read once, and printed back
- * verbatim when it does not match — a ritual each step file spelled for itself
- * until the third one wanted it.
+ * The ONE box asks this at both of its scopes (`./said.ts` exists for the same
+ * reason, one surface over): "3 of 41" about the page it narrowed, and "12
+ * matches in 3 files" about the whole directory on `/search?q=…`
+ * (`client/filter/count.ts`, `client/search/said.ts`). Beside it sits the DOOR
+ * that widens — "· 12 more in other files — search everywhere" — which is the
+ * same kind of element and the same two questions: what does it say, and is it
+ * there at all.
  *
- * WHAT A DOOR STILL OWNS is WHICH element, which is why both of these take a
- * locator. The two search doors draw their line under one testid, so a step
- * there passes the door and the line together (`${PALETTE} ${SEARCH_COUNT}`)
- * rather than gripping whichever door happens to be up.
+ * It was written for THREE doors, two of which are deleted: the ⌘K palette and
+ * the header box each drew "8 of 20 matches" about a shortlist they only drew
+ * part of, and a page that draws its answer needs no apology for the part it
+ * left out (docs/brainstorming/one-search-box.md).
+ *
+ * WHAT A CALLER STILL OWNS is WHICH element, which is why both of these take a
+ * locator.
  */
 
 import * as assert from "node:assert";

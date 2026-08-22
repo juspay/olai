@@ -22,74 +22,34 @@ Feature: A stale Enter is claimed and spends nothing
   below, because the way it breaks is a later change moving the gate inside the
   take — which no key scenario here would notice.
 
-  The five doors that take a row this way are the ⌘K palette, the header's
-  search box, the chat composer's `@` list, the shortlist every node-picking
-  panel is built from, and the row editor's own three widgets. Three of them
-  are here; the other two say it where their own feature already lives —
-  `edge_editing.feature` for the shortlist, `input_widgets.feature` for the
-  `((` list in a row's title.
+  THE THREE DOORS that take a row this way are the chat composer's `@` list,
+  the shortlist every node-picking panel is built from, and the row editor's
+  own three widgets. One of them is here; the other two say it where their own
+  feature already lives — `edge_editing.feature` for the shortlist,
+  `input_widgets.feature` for the `((` list in a row's title.
+
+  IT WAS FIVE, and the two that went are the two search doors: the ⌘K palette's
+  node hits and the header's box, deleted with the ruling that left this app one
+  search box (docs/brainstorming/one-search-box.md). Every row the palette draws
+  now is matched in this tab off a list it already holds, so there is no answer
+  behind one to be inside the settle of — which the scenario below asserts
+  rather than assumes, because "no row here is ever behind" is exactly the kind
+  of claim a later change makes untrue quietly.
 
   `@corpus:` rather than `@scratch:`: nothing here writes the directory. Two of
   the doors NAVIGATE and the third writes into a message box, so what a wrong
   row spends is an address and a sentence.
 
-  Scenario: The palette opens nothing for a row the query has moved past
-    Given I open the outline "house.olai"
-    When I press the palette shortcut
-    And I type "compost" into the palette
-    Then the palette lists the node "the compost heap"
-    When I retype the palette as "mint" and press Enter at once
-    # Nothing was opened, and the modal is still up over the page it was
-    # opened from.
-    Then the address is "/house.olai"
-    And the command palette is open
-    # Waited out whole: by the time the rows answer the new query, anything
-    # that key wrongly sent has landed and the address would say so.
-    And the palette lists the node "split the mint"
-    And the address is "/house.olai"
-    # ...and the key is not lost to the reader, only to the wrong row: pressed
-    # again over rows that are theirs, it opens the one they were looking at.
-    When I press "Enter"
-    Then the address is "/#mint"
-    And there should be no page errors
-
-  Scenario: A pointer opens the row it pressed, inside the same window
-    # The other hand, and the half a key scenario cannot pin. The gate lives on
-    # the KEY at every door and never inside the take itself, so a press in the
-    # window the scenario above opens takes the row it landed on — which is the
-    # row somebody could see. Moving the gate one level down would keep every
-    # other scenario in this file green.
-    Given I open the outline "house.olai"
-    When I press the palette shortcut
-    And I type "compost" into the palette
-    Then the palette lists the node "the compost heap"
-    When I retype the palette as "mint" and press the node row "compost" at once
-    Then the address is "/#compost"
-    And there should be no page errors
-
-  Scenario: The palette's own rows are not gated by a search behind them
-    # The half a whole-door gate would get wrong, and the reason the freshness
-    # is a fact about a ROW. This list is TWO blocks: the commands are matched
-    # in this tab off a list it already holds, and the hits are a debounce and
-    # a round trip away. A command row is never behind anything, so `Enter` on
-    # one inside the settle runs it — which is the palette's oldest gesture and
-    # the one a reader makes fastest.
+  Scenario: The palette's rows are not gated by anything, because nothing is behind them
+    # The reason the freshness is a fact about a ROW rather than about a door,
+    # kept now that this list has one kind of row again: every row the palette
+    # draws is matched in this tab off a list it already holds, so `Enter` on
+    # one inside the settle of some OTHER box runs it — which is the palette's
+    # oldest gesture and the one a reader makes fastest.
     Given I open the outline "house.olai"
     When I press the palette shortcut
     And I retype the palette as "agenda" and press Enter at once
     Then the address is "/agenda"
-    And there should be no page errors
-
-  Scenario: The header box opens nothing for a row the query has moved past
-    Given I open the outline "house.olai"
-    When I search the header for "compost"
-    Then the header search lists the node "the compost heap"
-    When I retype the header search as "mint" and press Enter at once
-    Then the address is "/house.olai"
-    And the header search lists the node "split the mint"
-    And the address is "/house.olai"
-    When I press "Enter"
-    Then the address is "/#mint"
     And there should be no page errors
 
   Scenario: The @ list writes nothing for a row the word has moved past

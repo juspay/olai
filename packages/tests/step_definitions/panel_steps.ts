@@ -12,22 +12,17 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import { SIDEBAR_WIDTH_KEY } from "@olai/web/src/client/layout/prefs.ts";
-import { retypedAndTaken } from "../support/atonce.ts";
-import { countsNothing, foundCount } from "../support/counted.ts";
 import {
   APP_HEADER,
-  attr,
   CHAT_PANEL,
   CHAT_PILL,
   CHAT_SHEET,
   CHAT_SHEET_HANDLE,
   CHAT_STRIP,
   CHAT_TOGGLE,
-  HEADER_SEARCH_RESULTS,
   HYDRATION_TIMEOUT,
   OUTLINE_TREE,
   POLL_TIMEOUT,
-  SEARCH_COUNT,
   SIDEBAR,
   SIDEBAR_BODY,
   SIDEBAR_COLLAPSE,
@@ -237,176 +232,14 @@ When("I press the chat shortcut", async function (this: OlaiWorld) {
   await this.waitForFrame();
 });
 
-// ── the header's search box ────────────────────────────────────────────
-
-/** The header's box, waited for — one spelling of "how long a scenario gives
- *  the bar to hydrate", shared by every step that reaches into it. */
-const headerBox = async (world: OlaiWorld) => {
-  const box = world.page.locator(HEADER_SEARCH);
-  await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  return box;
-};
-
-When(
-  "I search the header for {string}",
-  async function (this: OlaiWorld, text: string) {
-    const box = await headerBox(this);
-    // Focus is what puts the results up, so this types rather than fills:
-    // `fill` sets the value without the box ever holding the caret.
-    await box.click();
-    await box.type(text);
-  },
-);
-
-/** The window `../support/atonce.ts` opens, at this door. */
-When(
-  "I retype the header search as {string} and press Enter at once",
-  async function (this: OlaiWorld, text: string) {
-    await retypedAndTaken(this, await headerBox(this), text);
-  },
-);
-
-/** One letter back — the gesture of somebody who typed one too many. It WIDENS
- *  the answer, which is what makes it worth its own step: the rows that were
- *  already there are still there, so a scenario can say they were not drawn
- *  again (`redraw_steps.ts`). */
-When("I take a letter off the header search", async function (this: OlaiWorld) {
-  const box = await headerBox(this);
-  await box.click();
-  await box.press("Backspace");
-});
-
-Then(
-  "the header search lists the node {string}",
-  async function (this: OlaiWorld, title: string) {
-    await this.page
-      .locator(HEADER_SEARCH_ITEM)
-      .filter({ hasText: title })
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  },
-);
-
-/** One DOCUMENT row of the header's results, by path.
- *
- *  By `data-id`, for `palette_steps.ts`'s reason: the label is the file's NAME
- *  and the id is its whole path. One reading, two doors — the step below and
- *  the palette's are the same assertion about the same block of rows. Named
- *  because two steps ask for it and a locator spelled twice is a locator that
- *  can come to name two different rows. */
-const documentRow = (world: OlaiWorld, file: string) =>
-  world.page.locator(`${HEADER_SEARCH_ITEM}${attr("data-id", `hit-${file}`)}`);
-
-Then(
-  "the header search lists the document {string}",
-  async function (this: OlaiWorld, file: string) {
-    await documentRow(this, file)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  },
-);
-
-// ── how much of the answer it drew ─────────────────────────────────────
+// ── the header's search box: deleted ───────────────────────────────────
 //
-// The palette's steps are the same two, over the same helper
-// (`support/counted.ts`) and the same line in the client: one reading, two
-// doors, one sentence. What is this door's own is the panel it is read inside.
-
-Then(
-  "the header search found {string}",
-  async function (this: OlaiWorld, said: string) {
-    await foundCount(
-      this,
-      `${HEADER_SEARCH_RESULTS} ${SEARCH_COUNT}`,
-      said,
-      "header search count",
-    );
-  },
-);
-
-Then(
-  "the header search says nothing about a total",
-  async function (this: OlaiWorld) {
-    await countsNothing(
-      this,
-      `${HEADER_SEARCH_RESULTS} ${SEARCH_COUNT}`,
-      "header search",
-    );
-  },
-);
-
-/** One `key value` pair on a result row — the third line PR #192 left off and
- *  this one draws. Scoped to the row, so "the hit for THIS node says it". */
-const searchRowProp = (
-  world: OlaiWorld,
-  title: string,
-  key: string,
-) =>
-  world.page
-    .locator(HEADER_SEARCH_ITEM)
-    .filter({ hasText: title })
-    .first()
-    .locator(`${HEADER_SEARCH_ITEM_PROP}${attr("data-key", key)}`);
-
-/**
- * WHAT A DOCUMENT ROW CALLS IT — the face's title, drawn as the row's first
- * line, asked by PATH so the assertion cannot be satisfied by the thing it is
- * about.
- *
- * By `data-id` for the reason the listing step above gives, and then the row's
- * own first line: a document whose title came off the wrong line would be
- * found by this step and named wrong by it, which is exactly the failure a
- * `---` block at the top used to produce.
- */
-Then(
-  "the header search result for the document {string} is called {string}",
-  async function (this: OlaiWorld, file: string, title: string) {
-    const row = documentRow(this, file);
-    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.equal((await row.innerText()).split("\n")[0]?.trim(), title);
-  },
-);
-
-Then(
-  "the header search result {string} shows the property {string} holding {string}",
-  async function (this: OlaiWorld, title: string, key: string, value: string) {
-    const prop = searchRowProp(this, title, key);
-    await prop.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.equal((await prop.innerText()).trim(), `${key} ${value}`);
-  },
-);
-
-Then(
-  "the header search result {string} marks {string} as why it matched",
-  async function (this: OlaiWorld, title: string, key: string) {
-    const prop = searchRowProp(this, title, key);
-    await prop.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.equal(
-      await prop.getAttribute("data-matched"),
-      "true",
-      `"${key}" is drawn on the row for "${title}" but not as the reason it is there`,
-    );
-    // …and it LEADS, because a line that has to be ellipsized shows its front.
-    const first = this.page
-      .locator(HEADER_SEARCH_ITEM)
-      .filter({ hasText: title })
-      .first()
-      .locator(HEADER_SEARCH_ITEM_PROP)
-      .first();
-    assert.equal(await first.getAttribute("data-key"), key);
-  },
-);
-
-When(
-  "I press the header search result {string}",
-  async function (this: OlaiWorld, title: string) {
-    await this.page
-      .locator(HEADER_SEARCH_ITEM)
-      .filter({ hasText: title })
-      .first()
-      .click();
-    await this.waitForFrame();
-  },
-);
+// It used to be here — a second search door in the bar, at a second scope, with
+// a second answer shape. There is one box now, the page's own, and its steps
+// are `filter_steps.ts`'; the everywhere page it widens to is
+// `search_steps.ts`' (docs/brainstorming/one-search-box.md). What is left of
+// this bar's search is the PHONE's magnifier, which puts the caret in that box
+// — `phone_steps.ts` presses it.
 
 // ── mobile drawer + sheet geometry ─────────────────────────────────────
 

@@ -39,43 +39,23 @@ Feature: Documents
   # body — searching what is INSIDE a document is a different question with an
   # item of its own, and the grammar in this box still selects nodes.
   @corpus:good
-  Scenario: The ⌘K palette opens a document by name
-    Given I open the outline "house.olai"
-    And I mark the page
-    When I press the palette shortcut
-    And I type "palette" into the palette
-    Then the palette lists the document "notes/palette.md"
-    When I pick the palette item "palette.md"
+  Scenario: The everywhere page opens a document by name
+    Given I search everywhere for "palette"
+    Then the search page lists the document "notes/palette.md"
+    When I press the search document "notes/palette.md"
     Then the document open is "notes/palette.md"
     And the address is "/notes/palette.md"
     # A route, not a reload: the same page the sidebar's row opens.
     And the page has not reloaded
     And there should be no page errors
 
-  # One reading, two doors — the rule the node hits already keep. A box that
-  # found a document while the chord beside it did not would be the same drift
-  # inside one client.
-  @corpus:good
-  Scenario: The header's box finds the same document, drawn the same way
-    Given I open the outline "house.olai"
-    When I search the header for "palette"
-    Then the header search lists the document "notes/palette.md"
-    When I press the header search result "palette.md"
-    Then the document open is "notes/palette.md"
-    And the address is "/notes/palette.md"
-    And there should be no page errors
-
   # A folder is a way in, and an outline is not a document: the rows are the
   # files whose address opens a BODY, which is the registry's answer rather
   # than a list of suffixes written out here.
   @corpus:good
-  Scenario: The palette's document rows are the bodied files, matched by path
-    Given I open the outline "house.olai"
-    When I press the palette shortcut
-    And I type "notes/" into the palette
-    Then the palette lists the document "notes/palette.md"
-    When I type "garden" into the palette
-    Then the palette lists no document "garden.olai"
+  Scenario: The document rows are the bodied files, matched by path
+    Given I search everywhere for "notes/"
+    Then the search page lists the document "notes/palette.md"
 
   @corpus:good
   Scenario: A document is a page of its own, at its own address
@@ -216,12 +196,9 @@ Feature: Documents
   # the row says which key was the reason exactly as a node's row does.
   @corpus:good
   Scenario: A document is found by a property its frontmatter writes
-    Given I open the outline "house.olai"
-    When I search the header for "prop:agent=claude-opus"
-    Then the header search lists the document "notes/palette.md"
-    And the header search result for the document "notes/palette.md" is called "Palette"
-    And the header search result "Palette" shows the property "agent" holding "claude-opus"
-    And the header search result "Palette" marks "agent" as why it matched
+    Given I search everywhere for "prop:agent=claude-opus"
+    Then the search page lists the document "notes/palette.md"
+    And the search document "notes/palette.md" is called "Palette"
     And there should be no page errors
 
   # A property is a property and NOT a record. The block carries a `date:` and a
@@ -229,14 +206,12 @@ Feature: Documents
   # both are still findable by the name they actually have.
   @corpus:good
   Scenario: A frontmatter key is not a tag and not a day
-    Given I open the outline "house.olai"
-    When I press the palette shortcut
-    And I type "#swatches" into the palette
-    Then the palette lists no document "notes/palette.md"
-    When I type "date:2026-09-01" into the palette
-    Then the palette lists no document "notes/palette.md"
-    When I type "prop:date=2026-09-01" into the palette
-    Then the palette lists the document "notes/palette.md"
+    Given I search everywhere for "#swatches"
+    Then the search page lists no document "notes/palette.md"
+    When I search everywhere for "date:2026-09-01"
+    Then the search page lists no document "notes/palette.md"
+    When I search everywhere for "prop:date=2026-09-01"
+    Then the search page lists the document "notes/palette.md"
 
   # A note is a tree row, not a page: it is drawn under a title the page owns,
   # three of them on screen at once. `catch-up`'s note has two headings, so a
@@ -443,19 +418,8 @@ Feature: Documents
   # word inside a document was invisible to every door in this app.
   @corpus:good
   Scenario: A word in a document's prose is something a search finds
-    Given I open the outline "house.olai"
-    When I press the palette shortcut
-    And I type "cabinetmaker" into the palette
-    Then the palette lists the document "finishes.md"
-    And there should be no page errors
-
-  # …and the same word through the other door, over the same reading: two doors
-  # that found different things would be the drift the one index exists against.
-  @corpus:good
-  Scenario: The header's box finds a body too
-    Given I open the outline "house.olai"
-    When I search the header for "cabinetmaker"
-    Then the header search lists the document "finishes.md"
-    When I press the header search result "Finishes"
+    Given I search everywhere for "cabinetmaker"
+    Then the search page lists the document "finishes.md"
+    When I press the search document "finishes.md"
     Then the document open is "finishes.md"
     And there should be no page errors

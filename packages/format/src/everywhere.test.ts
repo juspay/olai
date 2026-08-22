@@ -27,6 +27,7 @@ import { derive, rowsOf } from "./derive.ts"
 import type { Document } from "./document.ts"
 import { EVERYWHERE_LIMIT, everywhereOf } from "./everywhere.ts"
 import { keeping, matching, parseFilter } from "./filter.ts"
+import { fileKind } from "./kinds.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
 
 const HOUSE = [
@@ -66,7 +67,9 @@ const documentsOf = (
 ): ReadonlyArray<Document> =>
   paths.map((path) =>
     ({
-      kind: path.endsWith(".olai") ? "outline" : "document",
+      // The REGISTRY decides which kind a path is, never a suffix spelled here
+      // (`./kinds.ts` is the one place that reading lives).
+      kind: fileKind(path) === "outline" ? "outline" : "document",
       path,
       title: path,
       links: [],
@@ -160,9 +163,9 @@ test("documents are hits here, found by their prose as well as by their name", (
     [...FILES, "notes/cabinets.md", "notes/other.md"],
     { "notes/other.md": "a line about the herb bed" },
   )
-  expect(found("cabinets", documents).documents.map((one) => one.at.path))
+  expect(found("cabinets", documents).documents.map((one) => String(one.at.path)))
     .toEqual(["notes/cabinets.md"])
-  expect(found("herb bed", documents).documents.map((one) => one.at.path))
+  expect(found("herb bed", documents).documents.map((one) => String(one.at.path)))
     .toEqual(["notes/other.md"])
   // WHY it is here rides with it, on the format's own rule for absence: a field
   // carried the words, and a query naming none says nothing.

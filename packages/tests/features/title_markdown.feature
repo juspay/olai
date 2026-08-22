@@ -112,18 +112,18 @@ Feature: Inline markdown in titles
     And there should be no page errors
 
   Scenario: A search row lights a phrase across rendered pieces
-    # The palette draws the same renderTitle a tree row does (links: false,
-    # because the row is a button). Do not locate by visible label: CODE's
-    # rendered text contains the bold title. data-id is hit-#demo / hit-#bold.
+    # The EVERYWHERE page draws the same renderTitle a tree row does, out of the
+    # same narrowing: a row of `/search?q=…` lights its needles through
+    # `client/filter/why.ts` like any other filtered row
+    # (docs/brainstorming/one-search-box.md). Located by node id rather than by
+    # visible label: CODE's rendered text contains the bold title.
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"run `just check` before pushing","desc":"check before"}
       {"id":"bold","parent":"kitchen","ord":"a1","title":"check **before** pushing","desc":"check before"}
       """
-    When I press the palette shortcut
-    And I type "\"check before\"" into the palette
-    Then the palette item for node "demo" lights "check  before"
-    And the palette item for node "demo" is a button with no nested link
-    And the palette item for node "bold" lights "check  before"
+    When I search everywhere for "\"check before\""
+    Then the search row for node "demo" lights "check  before"
+    And the search row for node "bold" lights "check  before"
     And there should be no page errors

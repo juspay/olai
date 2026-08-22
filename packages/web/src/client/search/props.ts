@@ -83,10 +83,18 @@ export const nodeProps = (hit: NodeHit): ReadonlyArray<NodeProp> =>
 export const documentProps = (hit: DocumentHit): ReadonlyArray<NodeProp> =>
   rowProps(hit.props ?? {}, hit.matchedProps)
 
-/** The rule, over the MAP — which is what lets there be one of it. Both kinds
- *  of hit carry an open map under a field name of their own, and neither name
- *  is a fact this ordering depends on. */
-const rowProps = (
+/**
+ * The rule, over the MAP — which is what lets there be one of it. Both kinds of
+ * hit carry an open map under a field name of their own, and neither name is a
+ * fact this ordering depends on.
+ *
+ * EXPORTED for the third caller, which holds neither kind of hit: a row of
+ * `/search?q=…` is a tree ROW, so its map is the record's own `custom` and the
+ * keys the query matched come off the page's narrowing rather than off a hit
+ * (`../filter/why.ts`'s `propsOf`). Same ordering, same reason — a reader who
+ * searched by a property must see it first wherever the row is drawn.
+ */
+export const rowProps = (
   custom: Custom,
   named: ReadonlyArray<string> | undefined,
 ): ReadonlyArray<NodeProp> => {

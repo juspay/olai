@@ -56,7 +56,7 @@ import {
   Switch,
 } from "solid-js"
 
-import { needlesFrom, type Zoomed } from "@olai/format"
+import type { Zoomed } from "@olai/format"
 import type { Edit, OpFailure } from "@olai/surface"
 import { Result as Outcome } from "effect"
 
@@ -73,8 +73,7 @@ import {
 import { LAYER, WITHIN } from "../layer.ts"
 import { topmostWhileOpen } from "../topmost.ts"
 import { only } from "../narrow.ts"
-import { Refusals } from "../refusals.tsx"
-import type { Route } from "../routes.ts"
+import { everywhereFor, narrowedTo, type Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
 import { run } from "../run.ts"
@@ -82,8 +81,8 @@ import {
   boxOf,
   CAPTURE_PREFIX,
   filterItems,
-  hitItems,
   type PaletteItem,
+  searchItem,
   SHELL_ITEMS,
 } from "./items.ts"
 import { opItems } from "./ops.ts"
@@ -95,9 +94,8 @@ import { sayPin, togglePin } from "../pins/pinning.ts"
 import { nameOf, shownIn } from "../address/address.ts"
 import { type Asking } from "./asking.ts"
 import { Question } from "./Question.tsx"
-import { SearchCount } from "../search/Count.tsx"
+import { focusFilter } from "../filter/caret.ts"
 import { createCursor } from "../search/cursor.ts"
-import { createSearch } from "../search/nodes.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
 import { spend } from "../settled.ts"
 import {
@@ -166,7 +164,6 @@ export function Palette(props: {
   const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
   const today = useToday()
-  const needles = createMemo(() => needlesFrom(query(), today()))
   // WHICH row Enter takes, and the arrows that walk it — the one cursor every
   // shortlist in this client shares (`../search/cursor.ts`).
   const cursor = createCursor(() => items().length)
@@ -267,21 +264,6 @@ export function Palette(props: {
   }
 
   /**
-   * WHAT THIS BOX IS ASKING — the query, or `null` while it is asking nothing:
-   * the palette is shut, or the line carries a prefix. Neither `>` nor `+` is a
-   * lookup, and asking for one would spend a round trip per keystroke on a
-   * sentence nobody is looking things up with.
-   *
-   * ONE accessor, because two lists are answered from it — the nodes over the
-   * wire and the documents in this tab — and "when is this box asking" is a
-   * different question from "what does that list do with the answer". Spelled
-   * per consumer, the two would be free to gate differently: a prefix that took
-   * the node search away and left the file rows standing is a list answering a
-   * line nobody is searching with.
-   */
-  const asked = () => (paletteOpen() && listing() ? query() : null)
-
-  /**
    * WHAT THE FOCUSED PAGE IS CALLED — asked once, here, because two things
    * want the same answer: the shelf's row draws it on its second line, and the
    * box that asks for a pin's name wears it as the placeholder
@@ -292,9 +274,6 @@ export function Palette(props: {
     nameOf(router.route(), shownIn(props.names, router.route()))
   )
 
-  // The nodes, from the server — one primitive, its own failure, and no
-  // request bookkeeping in this component ({@link ../search/nodes.ts}).
-  const nodes = createSearch(asked)
   /**
    * The zoomed node's verbs — its OWN memo, and guarded on the palette being
    * open, which is what keeps them from being rebuilt for nobody.
@@ -335,27 +314,21 @@ export function Palette(props: {
       pinItem(router.route(), pins(), called()),
       ...SHELL_ITEMS,
     ]
-    // THEN THE HITS, which is the order they can be ANSWERED in: the commands
-    // are matched in this tab off a list it already holds, and a hit is a
-    // debounce and a round trip away. A block that arrives late must not push
-    // the rows a reader is already walking down the list under their cursor,
-    // so the local block sits above it and the list only ever grows at the
-    // bottom.
+    // THEN THE HANDOFF, last, because it is the way OUT of this list rather
+    // than a row of it: a reader whose word matched a command wants the
+    // command, and a reader whose word matched nothing wants the box. It is
+    // there whenever anything is typed, including over a query that DID match
+    // commands — a door that appeared only when nothing else did would be a
+    // door you cannot learn (`./items.ts`'s `searchItem`).
     //
-    // THE FILES ARE IN THAT SECOND BLOCK NOW. They were a third, matched here
-    // over the served paths by a matcher of this palette's own — which was the
-    // right shape while a search could not see a document at all, and is a
-    // second index the day one can (`@olai/format`'s `matchingDocuments`). One
-    // reading answers both kinds, so a row is drawn from the same hit whichever
-    // it is, and typing a word that is in a document's PROSE finds it here
-    // exactly as it does in the header's box.
-    // THE HITS CARRY THE SEARCH THEY CAME OUT OF (`../settled.ts`'s `Taking`),
-    // which is what lets `Enter` be refused for a row of a query the reader
-    // has typed past WITHOUT being refused for the command rows above it —
-    // those are matched in this tab and are never behind anything.
+    // WHAT USED TO BE HERE was the node hits: eight rows, from the server, per
+    // keystroke. That block is gone with the header's box (the human's ruling
+    // of 2026-08-21) and this row is what stands in its place — a door to the
+    // one search box rather than a preview of what is behind it.
+    const handoff = searchItem(query(), router.route())
     return [
       ...filterItems(query(), commands),
-      ...hitItems(nodes),
+      ...(handoff === null ? [] : [handoff]),
     ]
   })
 
@@ -463,6 +436,24 @@ export function Palette(props: {
         if (line === undefined) close()
         else setSaid(line)
       })
+      return
+    }
+    // THE HANDOFF — this palette's whole answer to a typed query since the node
+    // hits went (`./items.ts`'s `searchItem`). Two destinations because they
+    // are two gestures: a page that takes a `?q=` is NARROWED and its own box
+    // gets the caret, which is the page-first half of the ruling; a page that
+    // takes none has no box, so the reader lands on the one page that is
+    // nothing but a box. Either way the words are the address and are never
+    // retyped.
+    if (action.kind === "search") {
+      if (action.here === "page") {
+        router.replace(narrowedTo(router.route(), action.query))
+        // AFTER the modal is down, because a caret asked for while a dialog
+        // still holds the focus trap is a caret the dialog takes back — and
+        // `close()` itself defers the focus it restores.
+        queueMicrotask(focusFilter)
+      } else props.go(everywhereFor(action.query))
+      close()
       return
     }
     if (action.kind === "route") props.go(action.route)
@@ -890,28 +881,13 @@ export function Palette(props: {
               />
             )}
           </Show>
-          {/* The SEARCH's own refusal, in its own row: it is a different
-              question from the `>` ask, so it gets a different answer slot
-              rather than overwriting one the reader may still be reading. */}
-          <Show when={nodes.failure()}>
-            {(err) => (
-              <SaidLine
-                said={{ tone: "alarm", text: err() }}
-                class={ALERT_ROW}
-                testid={TESTID.paletteSearchError}
-              />
-            )}
-          </Show>
-          {/* …and the QUERY's own, which is a fourth question: the words were
-              read and one of them is an operator with a value the grammar does
-              not take. Without this a typo in `is:` looks exactly like an empty
-              directory (`../search/nodes.ts`). Drawn by `../refusals.tsx`,
-              which is where that sentence and the ear it is read to live. */}
-          <Refusals
-            of={nodes.refusals()}
-            class={ALERT_ROW}
-            testid={TESTID.searchRefusal}
-          />
+          {/* THE GRAMMAR IS NOT READ HERE ANY MORE, and its two refusal rows
+              went with the hits they were about. This box lists COMMANDS and
+              hands a query to the one search box (`./items.ts`); what a query
+              MEANS — a refused operator, a call that fell over — is answered
+              where the query is asked, in the filter bar over the page the
+              handoff lands on (`../filter/FilterBar.tsx`). One door, one place
+              a reader is told why a word was no good. */}
           {/* WHAT A WRITE SAID, in a row of its own for the same reason the
               two above have theirs: it is a third question. The mood — its
               colour, its `data-tone`, whether a screen reader is interrupted —
@@ -959,12 +935,8 @@ export function Palette(props: {
                       <li>
                         <Result
                           label={item().label}
-                          of={item().of}
-                          from={item().from}
-                          needles={needles()}
                           hint={item().hint}
                           place={item().place}
-                          props={item().props}
                           active={lit(index())}
                           testids={PALETTE_ROW}
                           id={item().id}
@@ -978,18 +950,6 @@ export function Palette(props: {
                     )}
                   </Key>
                 </ul>
-                {/* WHAT IS BEHIND THE HITS, and only ever about them: the rows
-                    above the hits are this tab's own (the zoomed node's verbs,
-                    the shelf's row, the shell), so the count is taken off the
-                    ANSWER rather than off the list it is drawn under — which is
-                    also why the sentence names its subject (`../search/count.ts`).
-                    Under the list rather than inside it, so it stays put while
-                    the eight rows scroll, and absent when eight was all there
-                    was. */}
-                <SearchCount
-                  of={nodes}
-                  class="m-0 shrink-0 border-t border-rule px-4 py-2 font-mono text-xs text-muted"
-                />
               </>
             }
           >

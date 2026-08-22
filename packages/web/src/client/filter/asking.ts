@@ -94,27 +94,27 @@
  * page beside it does — nothing.
  */
 
-import { debounce } from "@solid-primitives/scheduled"
-import { type Accessor, createEffect, createMemo, createSignal } from "solid-js"
+import { type Accessor, createMemo } from "solid-js"
 
 import type { Filter, NarrowingAnswer, NarrowingRequest, PageRequest } from "@olai/format"
 import { sameNarrowingRequest } from "@olai/format"
 import type { MatchedNode } from "@olai/surface"
 
-import { SETTLE_MS } from "../settled.ts"
 import { olai } from "../wire.ts"
 import type { Matches } from "./matches.ts"
+import { createTyped } from "./typed.ts"
 
-// The settle is imported rather than restated (`../settled.ts` argues it: one
-// fact about one pair of hands). There is no MIN_LENGTH twin to it here: a
+// THE SETTLE is `./typed.ts`, which is one rule about one pair of hands and is
+// now asked by two readings — this one, and the everywhere page whose own
+// request carries the words. There is no MIN_LENGTH twin to it here: a
 // shortlist of eight over one letter is noise, where narrowing a page to what
 // holds an `a` is a question with an answer the reader can see the size of.
 //
-// THIS DOOR IS NOT A CALLER of that primitive, and that file says why from its
+// THIS DOOR IS NOT A CALLER of `../settled.ts`, and that file says why from its
 // side: a shortlist is a question somebody opened and closed, where a filter is
-// a standing view of a page. What it takes from the primitive is the number and
-// nothing else — the latest-answer rule, the failure slot and the clear are a
-// subscription's lifecycle here rather than a resource's.
+// a standing view of a page. What it takes from that primitive is the NUMBER
+// and nothing else — the latest-answer rule, the failure slot and the clear are
+// a subscription's lifecycle here rather than a resource's.
 
 /**
  * WHAT THIS DOOR IS DOING — the four states, as a sum.
@@ -271,10 +271,6 @@ export const createAsked = (source: {
    */
   readonly opened: Accessor<unknown>
 }): Asked => {
-  /** What has actually been asked for: the query, once it stopped moving. */
-  const [asked, setAsked] = createSignal<string | null>(null)
-  const settle = debounce(setAsked, SETTLE_MS)
-
   /** What goes on the wire, or `null` for a box that is not asking anything.
    *
    *  TRIMMED, and that is the one normalisation this file does: the box keeps
@@ -289,32 +285,10 @@ export const createAsked = (source: {
 
   /**
    * WHEN TO ASK: at once for a query nobody typed, after the settle for one
-   * somebody is typing.
-   *
-   * The ARRIVAL is tracked as well as the words, and what it is for is that
-   * distinction. Every arrival — a pin, Back, a link with a `?q=` on it, the
-   * first paint of a filtered address — brings a query that is already final,
-   * and a debounce over it is a page drawn WHOLE for 200ms in front of somebody
-   * who asked for it narrowed. A keystroke changes the words and leaves the page
-   * where it was, which is the one case the settle exists for.
+   * somebody is typing — `./typed.ts`, which is where that one rule lives now
+   * that the everywhere page asks the same thing about the same keystrokes.
    */
-  createEffect<unknown>((was) => {
-    const wanted = question()
-    const here = source.opened()
-    if (wanted === null) {
-      // Clearing takes effect AT ONCE rather than after the settle: a page
-      // narrowed by a query the reader has already backspaced away from is a
-      // page that is lying for as long as it stands.
-      settle.clear()
-      setAsked(null)
-    } else if (here !== was) {
-      settle.clear()
-      setAsked(wanted)
-    } else {
-      settle(wanted)
-    }
-    return here
-  }, undefined)
+  const asked = createTyped({ words: question, arrived: source.opened })
 
   /**
    * THE SUBSCRIPTION'S INPUT — the page and the settled words, as one value.

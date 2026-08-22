@@ -80,27 +80,28 @@ Feature: Toggleable & resizable panels
     Then the sidebar rail is showing
 
   @corpus:good
-  Scenario: The header's search box is the other door to the same reading
-    # One reading, two doors: the box asks the same server procedure the
-    # palette does and draws the same rows, so a result pressed here behaves
-    # exactly as one pressed there.
-    Given I open the outline "house.olai"
-    When I search the header for "hinges"
-    Then the header search lists the node "pick the hinges"
-    When I press the header search result "pick the hinges"
-    Then the address is "/#hinges"
-    And the zoomed node is "hinges"
-
-  @corpus:good
-  Scenario: Palette search finds a node and jumps to it
-    # The query goes to the server's search procedure — the same reading an
-    # agent's search_nodes gets, so the palette and an agent cannot answer
-    # differently for the same words.
+  Scenario: ⌘K hands a query to the one search box
+    # The palette's node hits are gone with the header's box: there is one
+    # search box in this app, and what the palette does with a query is take
+    # the reader to it (docs/brainstorming/one-search-box.md). The words go
+    # into the page's own `?q=` and the caret follows them.
     Given I open the outline "house.olai"
     When I press the palette shortcut
     And I type "hinges" into the palette
-    Then the palette lists the node "pick the hinges"
-    When I pick the palette item "pick the hinges"
+    Then the palette offers "Search this page for “hinges”"
+    And the palette does not offer "pick the hinges"
+    When I pick the palette item "Search this page for “hinges”"
+    Then the command palette is closed
+    And the filter box holds "hinges"
+    And the address is exactly "/house.olai?q=hinges"
+    And the node "hinges" is a match
+
+  @corpus:good
+  Scenario: …and a row of the everywhere page jumps to the node
+    # What the shortlist could never be: an address, with the answer on it.
+    Given I search everywhere for "hinges"
+    Then the search page lists the node "pick the hinges"
+    When I press the search row "pick the hinges"
     Then the address is "/#hinges"
     And the zoomed node is "hinges"
 

@@ -18,7 +18,11 @@
  * nothing here has to be called during a component's setup.
  */
 
+import type { Custom } from "@olai/format"
+
 import { ROW_DIM } from "../blocked.ts"
+import type { NodeProp } from "../search/props.ts"
+import { rowProps } from "../search/props.ts"
 import { NO_NEEDLES } from "./lit.ts"
 import type { Narrowed } from "./narrowed.tsx"
 
@@ -126,3 +130,37 @@ export const behindTheMark = (
   id: string,
 ): ReadonlyArray<string> =>
   narrowed.selected()?.get(id)?.matched === "desc" ? narrowed.needles() : NO_NEEDLES
+
+/**
+ * The properties this row should DRAW, matched ones first — or nothing at all
+ * for a row the query did not select on a property.
+ *
+ * ONE MORE ANSWER TO "why is this row here", and it arrived when the last
+ * shortlist door was deleted. A hit row in the ⌘K palette drew a node's
+ * `custom` map with the key a `prop:` clause matched leading it, because a row
+ * that answered `prop:agent=claude-opus` with a bare title made the reader open
+ * each hit to find the fact they had just searched by (`../search/props.ts`
+ * argues it). Those doors are gone; the row that answers a property query now
+ * is a row of `/search?q=…`, and this is where it asks.
+ *
+ * WHICH KEYS MATCHED IS THE SERVER'S (`MatchedNode.matchedProps`), never
+ * re-derived here from the query text — the same rule that file keeps, and for
+ * its reason: folding and negation would both have to be re-decided, and a node
+ * selected by `-prop:agent` was not selected ON `agent`.
+ *
+ * NOTHING FOR A CONTEXT ROW and nothing for an unmatched one: an ancestor is
+ * kept because something under it matched, so its own properties are not the
+ * answer to anything the reader asked.
+ */
+export const propsOf = (
+  narrowed: Narrowed,
+  id: string,
+  custom: Custom,
+): ReadonlyArray<NodeProp> => {
+  const why = narrowed.selected()?.get(id)
+  return why?.matchedProps === undefined ? NO_PROPS : rowProps(custom, why.matchedProps)
+}
+
+/** A row with nothing to say about itself — ONE value, for `NO_NEEDLES`'
+ *  reason: every row of every filtered page asks this on every frame. */
+const NO_PROPS: ReadonlyArray<NodeProp> = []

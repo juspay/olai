@@ -159,12 +159,13 @@ Feature: Properties on a node, from the web
     When I open the note of "handles"
     Then the node "handles" shows the property "agent" holding "claude-opus"
 
-    # The board's own query, asked by a person this time. The row draws both
-    # properties — a hit carries the whole map — and marks the one the query
-    # named, which leads so a narrow panel ellipsizes the others instead.
-    When I search the header for "prop:agent=claude-opus"
-    Then the header search lists the node "choose the handles"
-    And the header search result "choose the handles" shows the property "agent" holding "claude-opus"
-    And the header search result "choose the handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/192"
-    And the header search result "choose the handles" marks "agent" as why it matched
+    # The board's own query, asked by a person this time — on the page that
+    # answers one now that the shortlist doors are gone. The row draws both
+    # properties (the record carries the whole map) and marks the one the query
+    # named, which LEADS so a line that has to be ellipsized still shows it.
+    When I search everywhere for "prop:agent=claude-opus"
+    Then the search page lists the node "choose the handles"
+    And the search row "choose the handles" shows the property "agent" holding "claude-opus"
+    And the search row "choose the handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/192"
+    And the search row "choose the handles" marks "agent" as why it matched
     And there should be no page errors

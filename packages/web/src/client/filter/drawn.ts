@@ -71,6 +71,14 @@ export const narrowed = (drawn: Drawn, matched: Selected): Drawn => {
       return { kind: "agenda", agenda: keepingOwed(drawn.agenda, matched) }
     case "trash":
       return { ...drawn, groups: keepingArchives(drawn.groups, matched) }
+    // NOTHING LEFT TO TAKE AWAY. `/search` IS the query — its rows are what the
+    // matcher already kept, ancestry and all (`@olai/format`'s `everywhere.ts`)
+    // — so a prune here would be the same answer applied to itself. The
+    // narrowing beside it is not wasted: it is what LIGHTS the rows and dims the
+    // ancestry, which is a question about why a row is drawn rather than about
+    // whether it is.
+    case "search":
+      return drawn
     case "none":
       return drawn
   }
@@ -96,6 +104,8 @@ export const placesIn = (drawn: Drawn): number => {
     case "agenda":
       return owedIn(drawn.agenda)
     case "trash":
+      return drawn.groups.reduce((total, group) => total + rowsIn(group.rows), 0)
+    case "search":
       return drawn.groups.reduce((total, group) => total + rowsIn(group.rows), 0)
     case "none":
       return 0
@@ -124,6 +134,11 @@ export const matchesIn = (drawn: Drawn, matched: Selected): number => {
     case "agenda":
       return owedIn(keepingOwed(drawn.agenda, matched))
     case "trash":
+      return drawn.groups.reduce(
+        (total, group) => total + matchedIn(group.rows, matched),
+        0,
+      )
+    case "search":
       return drawn.groups.reduce(
         (total, group) => total + matchedIn(group.rows, matched),
         0,

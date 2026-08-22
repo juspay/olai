@@ -21,6 +21,7 @@ import {
   CHAT_TOGGLE,
   COMMIT_PILL,
   CONNECTION,
+  FILTER_INPUT,
   HEADER_SEARCH_OPEN,
   NODE_GUTTER,
   NODE_TITLE,
@@ -389,3 +390,32 @@ Then(
     assert.strictEqual(reported.bottom, "0px");
   },
 );
+
+/**
+ * THE BAR'S ONE SEARCH CONTROL, pressed — the magnifier, which since the
+ * header's box was deleted means *put the caret in the page's own filter box*
+ * (docs/brainstorming/one-search-box.md, `client/search/Magnifier.tsx`).
+ *
+ * Its testid is the one the box left behind, so a scenario that presses "the
+ * search door on a phone" goes on meaning what it meant.
+ */
+When("I press the search door", async function (this: OlaiWorld) {
+  const door = this.page.locator(HEADER_SEARCH_OPEN);
+  await door.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await door.click();
+  await this.waitForFrame();
+});
+
+/** …and where it landed. The caret is the assertion rather than a screenshot:
+ *  a magnifier that navigated somewhere with a box in it would pass a step that
+ *  only read the address. */
+Then("the filter box has the caret", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () =>
+      await this.page
+        .locator(FILTER_INPUT)
+        .first()
+        .evaluate((box) => box === document.activeElement),
+    "the caret to be in the filter box",
+  );
+});
