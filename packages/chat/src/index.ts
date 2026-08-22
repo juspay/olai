@@ -18,7 +18,7 @@
  *   - {@link cadence} is the other half of that change — what a row that is
  *     still GROWING costs the wire. A caller publishes changes through it
  *     instead of straight onto the collection, and what comes back is frames
- *     on a clock ({@link ./saying.ts}). Exported for the same reason `Change`
+ *     on a clock ({@link ./cadence.ts}). Exported for the same reason `Change`
  *     is: the composition root is what owns a socket, so the cadence has to be
  *     nameable there.
  *
@@ -30,4 +30,4 @@ export { type Adapter, AGENT_ENV, whyNoAgent } from "./adapter.ts"
 export { type Installed, roster } from "./agents/roster.ts"
 export { type Chat, make, type Options, type ToolServer } from "./chat.ts"
 export type { Change } from "./transcript.ts"
-export { type Cadence, cadence, type Frame, type Pieces } from "./saying.ts"
+export { type Cadence, cadence, type Frame, type Pieces } from "./cadence.ts"

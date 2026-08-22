@@ -508,15 +508,30 @@ const chat = async (
   // it. Ask first.
   if (!(await panel.isVisible())) await page.locator('[data-testid="chat-toggle"]').click()
   await panel.waitFor({ state: "visible", timeout: 30_000 })
-  // The agent has finished handshaking. A prompt sent into a booting panel is
-  // a prompt the composer refuses, and the answer this measures never arrives.
+  // THE AGENT HAS FINISHED HANDSHAKING, or there is not one — and the second
+  // is said HERE, in the words of the thing that is wrong, rather than left to
+  // a timeout on an attribute minutes later. `off` is the panel with no agent
+  // configured, which is what this session looks like when `AGENT=` was not
+  // passed: `support/serve.sh` wires that through as the server's
+  // `OLAI_ACP_AGENT`, and without it there is nobody to send a prompt to.
   await page.waitForFunction(
-    () =>
-      document.querySelector('[data-testid="chat-panel"]')?.getAttribute("data-status") ===
-        "idle",
+    () => {
+      const status = document
+        .querySelector('[data-testid="chat-panel"]')
+        ?.getAttribute("data-status")
+      return status === "idle" || status === "off" || status === "gone"
+    },
     undefined,
     { timeout: 60_000 },
   )
+  const status = await panel.getAttribute("data-status")
+  if (status !== "idle") {
+    throw new Error(
+      `the chat session needs an agent and this panel has none (data-status=${status}). ` +
+        "Pass AGENT=<path to an ACP agent> — e.g. " +
+        "AGENT=$PWD/agent/fake-acp-agent.ts SESSION=chat bash wire.sh",
+    )
+  }
   await mark("the app opens and the panel is opened")
 
   /**

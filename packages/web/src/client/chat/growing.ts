@@ -20,6 +20,18 @@
  * a pair of subscriptions can actually promise: they are snapshotted a moment
  * apart, and the frames that follow interleave.
  *
+ * A FRAME MAY ARRIVE BEFORE ITS PARTNER, and the join is what makes that
+ * survivable rather than something to engineer around. The two members are two
+ * subscriptions, so the row's whole upsert at the end of a paragraph and the
+ * removal of its pieces reach this tab as two frames: in the order the server
+ * writes them the row is already complete when the pieces go, and in the other
+ * order there is one frame in which the row is the shorter prefix and its
+ * pieces are gone — a paragraph that flashes back a few characters and
+ * immediately returns. It converges either way, which is the property; what it
+ * is NOT is a reason to hold the removal back a beat. A delayed remove buys one
+ * frame of cosmetics and costs the thing that makes any of this safe: that the
+ * row is the last word about itself, at the instant it is published.
+ *
  * ONE ROW AT A TIME, because that is what a conversation is: the transcript has
  * one open entry, so at most one row has pieces on the wire, and the fold holds
  * one tail rather than a map of them. What that buys is at the READER's end —

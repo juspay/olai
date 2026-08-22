@@ -2,7 +2,7 @@
  * The cadence, over values — no server, no socket, and a clock that is turned
  * by hand.
  *
- * What is under test is the whole of what {@link ./saying.ts} decides: which
+ * What is under test is the whole of what {@link ./cadence.ts} decides: which
  * pieces are merged with which, what a window costs in frames, and what a row
  * does to the pieces of itself. Every one of those is a claim about frames, so
  * every test here reads the frames.
@@ -11,7 +11,7 @@
 import { sayingKey } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
-import { type After, cadence, type Frame } from "./saying.ts"
+import { type After, cadence, type Frame } from "./cadence.ts"
 import type { Change } from "./transcript.ts"
 
 /** A clock somebody turns. `run()` fires the open window; `open` says whether

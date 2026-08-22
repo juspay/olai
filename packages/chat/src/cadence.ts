@@ -41,6 +41,17 @@
  * a paragraph briefly getting SHORTER, and a reader is watching that
  * paragraph.
  *
+ * THAT ORDERING IS BORROWED, NOT PROVED, and it is worth saying so plainly:
+ * one frame writes both members synchronously, and what carries "rows first"
+ * from there to a reader is the socket's own ordering — two buses, two
+ * subscriptions, delivered in the order they were written. Nothing here
+ * enforces it and nothing here could. So it is an optimisation of what a reader
+ * SEES, and the thing that makes the reader CORRECT is the join being
+ * idempotent (`@olai/surface`'s `Saying`), which holds in either order. If the
+ * transport ever stops promising that much, this ordering silently stops
+ * helping and nothing breaks — which is the right way round for a promise
+ * nobody can check.
+ *
  * It holds no reference to a transcript, an agent or a socket: a change goes
  * in, frames come out, and the clock is a parameter. That is what lets its
  * whole subject — what is coalesced with what, and what supersedes what — be

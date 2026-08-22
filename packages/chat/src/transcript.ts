@@ -87,7 +87,7 @@ export interface Change {
    *
    * INTENT, not delivery. What is here is the fact — this text belongs at that
    * offset of that row — and nothing about keys, frames or clocks. Who turns it
-   * into wire is {@link ./saying.ts}, which is also the one thing that knows a
+   * into wire is {@link ./cadence.ts}, which is also the one thing that knows a
    * row's true text is HERE all along: every whole upsert this class publishes
    * carries the row complete, appends and all, so a row always supersedes its
    * own pieces and nothing has to be reassembled to be right.
@@ -117,7 +117,7 @@ export const says = (change: Change): boolean =>
  * The other half of {@link says}, and here for its reason: two of a `Change`'s
  * three fields are the ones that name rows, and a caller spelling that
  * partition itself is a caller the next field misroutes. It is what
- * {@link ./saying.ts} asks to decide whether a row has superseded the pieces of
+ * {@link ./cadence.ts} asks to decide whether a row has superseded the pieces of
  * itself — a question about rows, so it is asked in the rows' own words.
  */
 export const movesRows = (change: Change): boolean =>
