@@ -64,9 +64,14 @@ const asking = (
     running: where.running ?? (() => null),
     aside: where.aside ?? ((row) => {
       // The whole round trip, so a test can say whether the process was still
-      // up when the next question came.
+      // up when the next question came. `keep: true` is the ordinary probe —
+      // the caller only says otherwise for the agent it turns out to be
+      // talking to.
       running.push(row.id)
-      return Effect.ensuring(answer(row), Effect.sync(() => running.pop()))
+      return Effect.map(
+        Effect.ensuring(answer(row), Effect.sync(() => running.pop())),
+        (stored) => ({ stored, keep: true }),
+      )
     }),
     now: where.now ?? time.now,
   }
@@ -182,6 +187,31 @@ describe("what an answer is worth", () => {
   })
 })
 
+describe("an answer the caller says not to keep", () => {
+  test("is used and NOT remembered", async () => {
+    // The one way `running` goes stale: the row became the agent this panel is
+    // talking to while the question queued. The caller notices and says so,
+    // and caching that answer would be caching the list this panel is busy
+    // changing — the very thing the bound agent is never cached for.
+    const { where, asked } = asking({
+      answers: { claude: [stored("cc", null)] },
+      roster: [CLAUDE],
+      aside: (row) =>
+        Effect.map(
+          Effect.suspend(() => {
+            asked.push(row.id)
+            return Effect.succeed([stored("cc", null)])
+          }),
+          (stored) => ({ stored, keep: false }),
+        ),
+    })
+    const listings = await Effect.runPromise(make(where))
+    expect((await listOf(listings)).sessions.map((row) => row.id)).toEqual(["cc"])
+    await listOf(listings)
+    expect(asked.filter((id) => id === "claude")).toHaveLength(2)
+  })
+})
+
 describe("an agent that could not be asked", () => {
   test("is NAMED, in its own words", async () => {
     // `no stored conversations` is a claim about somebody's disk. Standing in
@@ -251,7 +281,7 @@ describe("what a click on `chats` costs", () => {
           // A beat with the probe UP, so a second start would overlap it.
           yield* Effect.sleep("5 millis")
           live--
-          return []
+          return { stored: [], keep: true }
         }),
     })
     await listOf(await Effect.runPromise(make(where)))

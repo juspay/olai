@@ -78,10 +78,26 @@ export interface Where {
   /** Start that row, put the question, and stop it again — the whole round
    *  trip, because starting and stopping belong to each other and a caller
    *  that could forget the second half would leave a subprocess nothing will
-   *  ever talk to. */
-  readonly aside: (row: Installed) => Effect.Effect<ReadonlyArray<Stored>, AgentGone>
+   *  ever talk to.
+   *
+   *  It answers whether what came back is WORTH KEEPING, because the caller is
+   *  the only thing that can know: {@link Where.running} is asked before this
+   *  one is queued for, and the one way its answer goes stale is that the row
+   *  became the bound agent while we waited. An answer from the agent this
+   *  panel is talking to must not be cached — it is the list this panel is
+   *  changing — so the caller says so rather than this module guessing from a
+   *  slot it cannot see. */
+  readonly aside: (row: Installed) => Effect.Effect<Asked, AgentGone>
   /** The clock, passed in for {@link KEEP_FOR_MS}'s sake. */
   readonly now: () => number
+}
+
+/** What one round trip came back with, and whether to remember it. */
+export interface Asked {
+  readonly stored: ReadonlyArray<Stored>
+  /** `false` for an answer that came from the agent this panel is TALKING to
+   *  — see {@link Where.aside}. */
+  readonly keep: boolean
 }
 
 /**
@@ -190,10 +206,12 @@ export const make = (where: Where): Effect.Effect<Listings> =>
           if (now !== null) return kept(now)
           const asked = yield* Effect.result(where.aside(row))
           if (asked._tag === "Failure") return couldNotAsk(row, asked.failure)
-          const answer = found(row, asked.success)
-          // ONLY A SUCCESS IS KEPT: a refusal held for fifteen seconds is an
-          // agent that stays broken on screen after it has been mended.
-          keep(row.id, answer.sessions)
+          const answer = found(row, asked.success.stored)
+          // ONLY A SUCCESS IS KEPT — a refusal held for fifteen seconds is an
+          // agent that stays broken on screen after it has been mended — and
+          // only an answer the caller says is worth keeping, which is any
+          // answer that did not come from the agent this panel is talking to.
+          if (asked.success.keep) keep(row.id, answer.sessions)
           return answer
         }))
       })

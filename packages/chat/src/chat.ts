@@ -501,11 +501,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * their message belongs in is the one being opened.
      */
     const opening = yield* Semaphore.make(1)
-    /** Everything the agent has said FOR ITSELF, counted — the wide reading.
-     *  See {@link receive} and {@link ARRIVED}. */
+    /** Everything the agent has said FOR ITSELF, counted — everything
+     *  {@link EVIDENCE} calls `arrived` or `shown`. Read by {@link cancel}. */
     let heard = 0
-    /** ... and the narrow one: everything a person can SEE it say. See
-     *  {@link SHOWN}. */
+    /** ... and the narrow one: everything a person can SEE it say — what
+     *  {@link EVIDENCE} calls `shown`. Read by {@link begin}. */
     let shown = 0
 
     const publish = (change: Change) => {
@@ -865,25 +865,45 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         const at = talking
         return at !== null && at.row.id === row.id ? at.agent.sessions : null
       },
+      // UNDER {@link binding}, the permit that says one agent is bound at a
+      // time — because this is the other place a subprocess is started, and a
+      // swap is the window in which nobody can say which agent is bound. While
+      // {@link using} stops the old module and spawns the new one, `talking` is
+      // `null`, so `running` above answers "not the bound one" for EVERY row —
+      // the incoming one included — and a listing that took that answer would
+      // start a second copy of the very agent being bound.
       aside: (row) =>
-        Effect.gen(function*() {
-          // THE SAME RULE {@link using} KEEPS, because it is the same hazard
-          // and this is the other place a subprocess is started: an agent
-          // spawned after `stop` has run is one nothing will ever kill, and
-          // `stop` does not know about a probe. A question about stored
-          // conversations is not worth a stray process, so it is refused.
+        binding.withPermit(Effect.gen(function*() {
+          // THE SAME RULE {@link using} KEEPS, because it is the same hazard:
+          // an agent spawned after `stop` has run is one nothing will ever
+          // kill, and `stop` does not know about a probe. A question about
+          // stored conversations is not worth a stray process, so it is
+          // refused.
           if (closing) {
             return yield* new AcpAgent.AgentGone({
               gone: "unreachable",
               why: "the server is shutting down",
             })
           }
+          // READ AGAIN, now that no swap can be in flight. `running` was asked
+          // before the permit — it has to be, because the whole point of that
+          // lane is to cost no permit at all — and the answer can have gone
+          // stale in exactly one way: this row became the bound agent while we
+          // queued. Asking the live one is then both cheaper and truer than
+          // starting a second of it.
+          const at = talking
+          if (at !== null && at.row.id === row.id) {
+            // NOT WORTH KEEPING: the agent this panel is talking to is the one
+            // whose list this panel is changing.
+            return { stored: yield* at.agent.sessions, keep: false }
+          }
           const probe = yield* spawn(row, () => {})
           // STOPPED whichever way the question went, INTERRUPTION included. A
           // probe left running is the same stray process one line up, arrived
           // at from the other direction.
-          return yield* Effect.ensuring(probe.sessions, probe.stop)
-        }),
+          const stored = yield* Effect.ensuring(probe.sessions, probe.stop)
+          return { stored, keep: true }
+        })),
       now: () => Date.now(),
     })
 
@@ -1179,7 +1199,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         if (!alongside) publish(transcript.begins())
         move({ status: "thinking", trouble: null })
         // How much the agent had SHOWN before this turn was asked for — the
-        // narrow count ({@link SHOWN}), and it answers one question in both
+        // narrow count ({@link EVIDENCE}), and it answers one question in both
         // directions the turn can end. On a turn that FAILED: whether the
         // prompt demonstrably arrived, since an agent that streamed so much as
         // a thought was working on it. On a turn that SUCCEEDED: whether
@@ -1405,7 +1425,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * one outcome an undelivered row must not be able to produce.
      */
     const resend = (id: string): Effect.Effect<void, OpFailure> =>
-      Effect.gen(function*() {
+      // BEHIND WHATEVER IS OPENING A CONVERSATION, for {@link send}'s reason
+      // and in its smaller shape. Pressing *send again* inside a boot window
+      // takes the words off the row before `replayStarted` empties the
+      // transcript and delivers them after — so the row that carried them is
+      // gone and what is left is an answer with no question above it. It is
+      // the same invariant: everything that means something INSIDE a
+      // conversation waits for the conversation.
+      opening.withPermit(Effect.gen(function*() {
         const prompt = yield* sending.withPermit(Effect.sync(() => {
           const waiting = transcript.undelivered(id)
           if (waiting !== null) publish(transcript.sent(id))
@@ -1417,7 +1444,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           })
         }
         yield* deliver(id, prompt)
-      })
+      }))
 
     /**
      * An OPEN that the agent refused, and what it would take to try it again.
