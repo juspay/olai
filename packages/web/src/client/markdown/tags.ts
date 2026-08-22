@@ -134,7 +134,7 @@ const tagsIn = (element: Element, outer: boolean): boolean =>
  * Source `position` already survives the pipeline for ordinary phrasing. It is
  * a check, not the map: inline-code offsets include the backticks, and
  * `toInline` clones a pretty-print `\n` with no position at all. Mapping by
- * concatenation does not need the field. `bracketSpacedLinks` (in ./render.ts)
+ * concatenation does not need the field. `bracketSpacedLinks` (in ./pipeline.ts)
  * rewrites `[label](dest with spaces)` to a different length before parse, so
  * a future source-offset map would have to run the same rewrite; this walk
  * never asks.

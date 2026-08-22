@@ -39,7 +39,6 @@
  * path entirely.
  */
 
-import { bracketSpacedLinks } from "@olai/format"
 import type { Root } from "hast"
 
 import { pipelineNow } from "./chunk.ts"
@@ -154,11 +153,25 @@ export const renderToTree = (
   shape: "block" | "inline",
 ): Root => {
   const key = keyFor(shape, from, source)
-  const tree = pipelineNow().treeOf(bracketSpacedLinks(source))
+  const tree = pipelineNow().treeOf(source)
   if (shape === "inline") toInline(tree)
   rewrite(tree, { from, ids: idsFor(key) })
   return tree
 }
+
+/**
+ * The text markdown reads in a source — the same reading {@link renderToTree}
+ * renders, stopped one step earlier.
+ *
+ * ./title.ts is the caller and the loss check is the whole use: how much text
+ * a title ACCOUNTS FOR is a question only the parser can answer, and a second
+ * opinion about markdown — a regex over the source, say — is exactly what it
+ * must not be. Both sides read the same string by construction, since the one
+ * transform between what a person wrote and what is parsed lives behind the
+ * pipeline's own door (./pipeline.ts).
+ */
+export const sourceText = (source: string): string =>
+  pipelineNow().sourceTextOf(source)
 
 /**
  * The id a rendered block ACTUALLY carries for a heading somebody named — the
@@ -197,7 +210,7 @@ const render = (
   shape: "block" | "inline",
 ): Rendered => {
   const pipeline = pipelineNow()
-  const tree = pipeline.treeOf(bracketSpacedLinks(source))
+  const tree = pipeline.treeOf(source)
   if (shape === "inline") toInline(tree)
   const headings = rewrite(tree, { from, ids: idsFor(key) })
   return { html: pipeline.htmlOf(tree), headings }
