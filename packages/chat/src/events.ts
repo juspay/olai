@@ -20,6 +20,7 @@ import type {
   FileDiff,
   MissingServer,
   Spawned,
+  ToolStatus,
   Usage,
   Wrote,
 } from "@olai/surface"
@@ -66,7 +67,12 @@ export type AgentEvent =
     readonly _tag: "tool"
     readonly id: string
     readonly title: string | undefined
-    readonly status: "pending" | "in_progress" | "completed" | "failed" | undefined
+    /** WHAT THE CALL IS DOING, in the surface's own four words rather than a
+     *  fifth spelling of them. It used to be spelled out here, which made three
+     *  lists of one vocabulary — the SDK's `ToolCallStatus`, this, and the
+     *  wire's — and the seam in {@link ./agent.ts} is where a fifth ACP status
+     *  now has to be met rather than cast past. `undefined` is "unchanged". */
+    readonly status: ToolStatus | undefined
     readonly detail: string | undefined
     /** What the call has to SAY while it runs, out of the protocol's content
      *  blocks. Its own field rather than more `detail` because the two answer

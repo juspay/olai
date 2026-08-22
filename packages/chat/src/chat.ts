@@ -334,7 +334,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const asking = (): number => {
       let waiting = 0
       for (const entry of transcript.entries().values()) {
-        if (entry.kind === "ask" && entry.ask?.outcome === null) waiting++
+        if (entry.kind === "ask" && entry.ask.outcome === null) waiting++
       }
       return waiting
     }

@@ -143,9 +143,18 @@ export function Entry(props: {
    *  the final text must never be the one the throttle happened to skip. */
   const shown = createMemo((previous: string = "") => {
     const text = props.entry.text
-    if (props.entry.streaming !== true) return text
+    if (props.entry.kind !== "agent" || props.entry.streaming !== true) return text
     return due() ? text : previous
   })
+  /** The matching arm, or nothing. One idiom for every kind: Solid's `<Match>`
+   *  then hands the narrowed row to the child, so a kind-specific field is
+   *  read off a value the discriminant already picked. */
+  const ofKind = <K extends ChatEntry["kind"]>(
+    kind: K,
+  ): Extract<ChatEntry, { kind: K }> | undefined =>
+    props.entry.kind === kind
+      ? (props.entry as Extract<ChatEntry, { kind: K }>)
+      : undefined
   // ONLY for the agent's own prose, which is the only row that has rendered
   // markdown in it — asked once, off the same `kind` the asker above was, so
   // this is not a `said === undefined` bail inside an effect every row of a
@@ -187,34 +196,35 @@ export function Entry(props: {
       data-testid={TESTID.chatEntry}
       data-kind={props.entry.kind}
       data-entry-id={props.entry.id}
-      data-streaming={props.entry.streaming === true}
+      data-streaming={props.entry.kind === "agent" && props.entry.streaming === true}
     >
       <Switch>
-        <Match when={props.entry.kind === "user"}>
-          {/* What you said sits apart from what the agent said: on the right,
+        <Match when={ofKind("user")}>
+          {(user) => (
+          /* What you said sits apart from what the agent said: on the right,
               in an accent-tinted bubble. A faint `bg-rule/60` box on a
               full-width line was the only cue before, and it read as another
               agent paragraph. The chips and pictures ride with the words,
-              because they went with the message. */}
+              because they went with the message. */
           <div class="ml-auto flex w-fit max-w-[85%] flex-col items-end">
             {/* What the message was ABOUT, above what it said — the order the
                 composer had them in, and the order they were meant in: the node
                 is the subject and the words are what was asked about it. Still
                 pressable here, which is the other half of this feature: the row
                 a question was asked from is one press away from the answer. */}
-            <ContextChips nodes={props.entry.context ?? []} />
+            <ContextChips nodes={user().context ?? []} />
             {/* The pictures first, then the words — which is the order they were
                 put in, and it keeps a message whose whole content is a
                 screenshot from being an empty grey box with a chip under it. */}
-            <Attachments names={props.entry.attachments ?? []} />
-            <Show when={props.entry.text !== ""}>
+            <Attachments names={user().attachments ?? []} />
+            <Show when={user().text !== ""}>
               <p
                 class={`whitespace-pre-wrap rounded px-2 py-1.5 text-sm text-ink ${
-                  bubbleOf(props.entry.delivery)
+                  bubbleOf(user().delivery)
                 }`}
                 data-testid={TESTID.chatMine}
               >
-                {props.entry.text}
+                {user().text}
               </p>
             </Show>
             {/* IT DID NOT LAND — and the words are still here, which is the
@@ -230,7 +240,7 @@ export function Entry(props: {
                 button at all, because a retry there would hand somebody a
                 duplicate they had no way to predict. Nothing retries on its
                 own either way. */}
-            <Show when={props.entry.delivery} keyed>
+            <Show when={user().delivery} keyed>
               {(fate) => (
                 <div
                   class="mt-1 flex items-center gap-2"
@@ -251,7 +261,7 @@ export function Entry(props: {
                       type="button"
                       class="rounded border border-rule px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted hover:text-ink"
                       data-testid={TESTID.chatResend}
-                      onClick={() => props.chat.resend(props.entry.id)}
+                      onClick={() => props.chat.resend(user().id)}
                     >
                       send again
                     </button>
@@ -260,18 +270,20 @@ export function Entry(props: {
               )}
             </Show>
           </div>
+          )}
         </Match>
 
-        <Match when={props.entry.kind === "agent"}>
-          {/* A wrapper with no styling of its own, purely so the rendered
+        <Match when={ofKind("agent")}>
+          {(agent) => (
+          /* A wrapper with no styling of its own, purely so the rendered
               answer is an element this component can reach into: `Markdown`
               owns its own div (it is the one place `innerHTML` is written) and
-              what is inside it belongs to no component at all. */}
+              what is inside it belongs to no component at all. */
           <div ref={said}>
             <Markdown
               source={shown()}
               from={AGENT_WROTE_IT}
-              live={props.entry.streaming === true}
+              live={agent().streaming === true}
               // `olai-md-compact`: an answer is drawn in a 26rem drawer beside
               // the page, not as a page — so it takes the tighter spacing scale
               // and the heading ceiling, the same ones a note takes
@@ -288,27 +300,25 @@ export function Entry(props: {
                 `::after` is reaching into it, which is exactly what was
                 wanted. */}
           </div>
+          )}
         </Match>
 
-        <Match when={props.entry.kind === "tool"}>
-          <ToolFrame entry={props.entry} />
+        <Match when={ofKind("tool")}>
+          {(tool) => <ToolFrame entry={tool()} />}
         </Match>
 
-        <Match when={props.entry.kind === "ask"}>
-          <AskForm entry={props.entry} chat={props.chat} />
+        <Match when={ofKind("ask")}>
+          {(ask) => <AskForm entry={ask()} chat={props.chat} />}
         </Match>
 
-        <Match when={props.entry.kind === "refusal"}>
-          <Show
-            when={props.entry.refusal}
-            fallback={<p class="text-sm text-alarm">{props.entry.text}</p>}
-          >
-            {(failure) => <Refusal failure={failure()} />}
-          </Show>
+        <Match when={ofKind("refusal")}>
+          {(row) => <Refusal failure={row().refusal} />}
         </Match>
 
-        <Match when={props.entry.kind === "notice"}>
-          <p class="font-mono text-[0.6875rem] text-muted">{props.entry.text}</p>
+        <Match when={ofKind("notice")}>
+          {(notice) => (
+            <p class="font-mono text-[0.6875rem] text-muted">{notice().text}</p>
+          )}
         </Match>
       </Switch>
     </div>

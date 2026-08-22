@@ -82,7 +82,6 @@ import type {
   SetSessionConfigOptionResponse,
   ToolCallContent,
   ToolCallLocation,
-  ToolCallStatus,
 } from "@agentclientprotocol/sdk"
 import {
   diffsOf,
@@ -516,7 +515,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             _tag: "tool",
             id: update.toolCallId,
             title: update.title ?? undefined,
-            status: (update.status ?? undefined) as ToolCallStatus | undefined,
+            // NO CAST. The protocol's four words and the panel's are the same
+            // four, and this is the one seam that says so: a fifth status on
+            // either side stops compiling HERE, where a person can decide what
+            // the panel should do with it, rather than riding a cast onto a row
+            // whose look-up table has no entry for it.
+            status: update.status ?? undefined,
             detail: detailOf(update.rawInput, update.rawOutput),
             progress: progressOf(update.content),
             // The two vocabularies for what a call CHANGED, and a call is at

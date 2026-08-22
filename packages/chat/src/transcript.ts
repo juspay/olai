@@ -60,9 +60,12 @@ import type {
   AskField,
   AskOutcome,
   ChatEntry,
+  Delivery,
   FileDiff,
   OpFailure,
   Spawned,
+  ToolEntry,
+  ToolStatus,
   Wrote,
 } from "@olai/surface"
 
@@ -83,18 +86,28 @@ const EMPTY: Change = { upserts: [], removes: [] }
  * needed it — and the two lists had already drifted apart by a field, which is
  * exactly how the header's claim would have quietly stopped being true.
  */
-const contentOf = (
-  entry: ChatEntry,
-): RowContent => {
-  const {
-    id: _id,
-    seq: _seq,
-    since: _since,
-    streaming: _streaming,
-    stranded: _stranded,
-    ...content
-  } = entry
-  return content
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
+
+const contentOf = <E extends ChatEntry>(entry: E): DistributiveOmit<
+  E,
+  "id" | "seq" | "since" | "streaming" | "stranded"
+> => {
+  switch (entry.kind) {
+    case "agent": {
+      const { id: _id, seq: _seq, since: _since, streaming: _streaming, ...content } =
+        entry
+      return content as DistributiveOmit<E, "id" | "seq" | "since" | "streaming" | "stranded">
+    }
+    case "tool": {
+      const { id: _id, seq: _seq, since: _since, stranded: _stranded, ...content } =
+        entry
+      return content as DistributiveOmit<E, "id" | "seq" | "since" | "streaming" | "stranded">
+    }
+    default: {
+      const { id: _id, seq: _seq, since: _since, ...content } = entry
+      return content as DistributiveOmit<E, "id" | "seq" | "since" | "streaming" | "stranded">
+    }
+  }
 }
 
 /**
@@ -111,10 +124,40 @@ const contentOf = (
  * Exported because two of those doors are public and their argument has to be
  * nameable from outside.
  */
-export type RowContent = Omit<
+export type RowContent = DistributiveOmit<
   ChatEntry,
   "id" | "seq" | "since" | "streaming" | "stranded"
 >
+
+/** A patch onto one kind's content. Correlated with the `kind` argument so
+ *  `{ refusal }` is legal for a refusal row and a type error for a user row —
+ *  a union of partials would accept either at every door. */
+type RowPatch<K extends ChatEntry["kind"]> = Partial<Extract<RowContent, { kind: K }>>
+
+/** The writer's derived fields, applied onto already-kind-correct content.
+ *
+ *  A function rather than a spread in `#put`, so `streaming` cannot land on a
+ *  tool row and `stranded` cannot land on a user row — the two flags are
+ *  arguments the matching arm accepts, not keys sprinkled onto every kind. */
+const minted = (
+  entry: RowContent,
+  derived: { readonly id: string; readonly seq: number; readonly since: string },
+  streaming: boolean,
+  stranded: boolean,
+): ChatEntry => {
+  switch (entry.kind) {
+    case "agent":
+      return streaming
+        ? { ...entry, ...derived, streaming: true as const }
+        : { ...entry, ...derived }
+    case "tool":
+      return stranded
+        ? { ...entry, ...derived, stranded: true as const }
+        : { ...entry, ...derived }
+    default:
+      return { ...entry, ...derived }
+  }
+}
 
 /** What a tool call is filed under. Spelled ONCE: the row a call writes and
  *  the row it names as the agent that made it are the same kind of key, and
@@ -178,7 +221,7 @@ export class Transcript {
    */
   /**
    * The calls a TURN left behind, by key — the ONE place "its turn ended and it
-   * never came back" is recorded, with {@link ChatEntry.stranded} derived from
+   * never came back" is recorded, with {@link ToolEntry.stranded} derived from
    * it on every write exactly as `streaming` is derived from {@link #open}.
    *
    * Set beside the rows rather than written onto them for that flag's own
@@ -238,10 +281,10 @@ export class Transcript {
   }
 
   /** A row that stands on its own. */
-  add(
-    kind: ChatEntry["kind"],
+  add<K extends ChatEntry["kind"]>(
+    kind: K,
     text: string,
-    extra: Partial<RowContent> = {},
+    extra: RowPatch<K> = {},
   ): Change {
     return this.#row(kind, text, extra).change
   }
@@ -265,7 +308,7 @@ export class Transcript {
    * one arrives as however many chunks the agent kept it in
    * ({@link userSaid}). One writes a row; the other grows one.
    */
-  user(text: string, extra: Partial<RowContent> = {}): {
+  user(text: string, extra: RowPatch<"user"> = {}): {
     readonly key: string
     readonly change: Change
   } {
@@ -329,14 +372,20 @@ export class Transcript {
   /** The `delivery` field, said or unsaid, without minting a row for a key
    *  that has gone. Private because the field never moves without the prompt
    *  map beside it — which is the whole reason both live here. */
-  #mark(key: string, delivery: ChatEntry["delivery"] | null): Change {
+  #mark(key: string, delivery: Delivery | null): Change {
     const current = this.#entries.get(key)
-    if (current === undefined) return EMPTY
+    // Only a user row carries a delivery. A mark on any other kind was always
+    // a type lie the flat struct could not catch; the union makes it a no-op
+    // rather than a field written onto a call.
+    if (current === undefined || current.kind !== "user") return EMPTY
     // `delivery` comes off along with the derived fields, for the same reason
     // `contentOf` takes those: this line is what DECIDES it, and a spread of
     // the old entry would carry the previous answer past the decision.
     const { delivery: _delivery, ...content } = contentOf(current)
-    return this.#put(key, delivery === null ? content : { ...content, delivery })
+    return this.#put(
+      key,
+      delivery === null ? content : { ...content, delivery },
+    )
   }
 
   /** One chunk of the agent's prose. Appends to the entry already open, or
@@ -463,7 +512,7 @@ export class Transcript {
     id: string,
     move: {
       readonly title?: string | undefined
-      readonly status?: ChatEntry["status"] | undefined
+      readonly status?: ToolStatus | undefined
       readonly detail?: string | undefined
       readonly progress?: string | undefined
       readonly diffs?: ReadonlyArray<FileDiff> | undefined
@@ -475,18 +524,19 @@ export class Transcript {
   ): Change {
     const key = toolKey(id)
     const current = this.#entries.get(key)
-    const detail = move.detail ?? current?.detail
+    const held = current?.kind === "tool" ? current : undefined
+    const detail = move.detail ?? held?.detail
     // The protocol's own rule, and the reason neither of these accumulates: a
     // report carries the call's content and locations AS THEY STAND, so
     // appending would print the first half of a long output twice.
-    const progress = move.progress ?? current?.progress
+    const progress = move.progress ?? held?.progress
     // The same rule for what the call CHANGED, and it is what keeps a diff on
     // screen: the announcement carries the blocks, the completion that follows
     // carries only a status, and a row that read that as "no diffs now" would
     // drop the change at the moment the call finished.
-    const diffs = move.diffs ?? current?.diffs
-    const wrote = move.wrote ?? current?.wrote
-    const locations = move.locations ?? current?.locations
+    const diffs = move.diffs ?? held?.diffs
+    const wrote = move.wrote ?? held?.wrote
+    const locations = move.locations ?? held?.locations
     // WHICH agent made this call, stored as THIS COLLECTION'S OWN KEY rather
     // than as the id it arrived as. A row is what a reader of this field wants
     // — the panel draws a subagent's call in a lane and names the lane after
@@ -499,7 +549,7 @@ export class Transcript {
     // most of what follows, but a completion carrying only a status and a
     // parent-less `_meta` is a shape it has — and a row that read that as "no
     // agent now" would step out of its lane at the moment the call finished.
-    const parent = move.parent === undefined ? current?.parent : toolKey(move.parent)
+    const parent = move.parent === undefined ? held?.parent : toolKey(move.parent)
     // ... and what this call STARTED, which is the one field here that is
     // sticky a level DOWN as well as at the top. The fact arrives split across
     // frames because the ARGUMENTS DO: the adapter announces the call as the
@@ -515,8 +565,8 @@ export class Transcript {
     // later inherits that instead of needing a line of its own here to stop
     // being taken back off the row.
     const spawned = move.spawned === undefined
-      ? current?.spawned
-      : { ...current?.spawned, ...move.spawned }
+      ? held?.spawned
+      : { ...held?.spawned, ...move.spawned }
     // THE NAME, PICKED ONCE — at the first frame that carries a title, which
     // for a live call is its announcement and for a replayed one is the
     // collapsed frame that is all there ever was of it. Whether the question
@@ -534,11 +584,15 @@ export class Transcript {
     // renamed by the next frame that carried a different one.
     const named = this.#named.has(key)
     if (move.title !== undefined) this.#named.add(key)
-    const text = (named ? undefined : move.title) ?? current?.text ?? id
-    const content: RowContent = {
+    const text = (named ? undefined : move.title) ?? held?.text ?? id
+    // THE TOOL ARM, named — so the comparison below is between two values of
+    // one kind rather than two of a six-armed union, and a field that belongs
+    // to somebody else's row is a type error here rather than a key silently
+    // dropped at the far end.
+    const content: Extract<RowContent, { kind: "tool" }> = {
       kind: "tool",
       text,
-      status: move.status ?? current?.status ?? "pending",
+      status: move.status ?? held?.status ?? "pending",
       ...(detail === undefined ? {} : { detail }),
       ...(progress === undefined ? {} : { progress }),
       ...(diffs === undefined ? {} : { diffs }),
@@ -561,7 +615,7 @@ export class Transcript {
     // apart in silence. It is also cheap where it matters — a field this merge
     // took from the row it is updating IS the row's own value, so a frame that
     // carried nothing new is answered by reference at each of them.
-    if (current !== undefined && isDeepStrictEqual(contentOf(current), content)) return closed
+    if (held !== undefined && isDeepStrictEqual(contentOf(held), content)) return closed
     // ANYTHING HERE KNOWING. The mark means "as far as this end can tell, that
     // one never came back", and a report about it is this end being told
     // otherwise — so it comes off, and `#put` below re-derives the field from
@@ -633,7 +687,7 @@ export class Transcript {
     // A session replaced under a pending question empties the transcript before
     // the withdrawal reaches us; there is nothing left to settle, and minting a
     // row here would put a dead question into a fresh conversation.
-    if (current?.ask === undefined) return EMPTY
+    if (current === undefined || current.kind !== "ask") return EMPTY
     // THE ROW AS IT STANDS, with the outcome written into it — rather than
     // three of its fields named again here. This used to be the second, and
     // the day an ask row gained a field it did not name (`parent`, whose whole
@@ -677,14 +731,17 @@ export class Transcript {
    *  flag that says more is coming. Two minting paths, then — and they are two
    *  because a row that is complete and a row that is still arriving are two
    *  things, not because anybody wrote the second one twice. */
-  #row(kind: ChatEntry["kind"], text: string, extra: Partial<RowContent>): {
+  #row<K extends ChatEntry["kind"]>(kind: K, text: string, extra: RowPatch<K>): {
     readonly key: string
     readonly change: Change
   } {
     const key = this.#next(kind)
     return {
       key,
-      change: both(this.#close(), this.#put(key, { kind, text, ...extra })),
+      change: both(
+        this.#close(),
+        this.#put(key, { kind, text, ...extra } as Extract<RowContent, { kind: K }>),
+      ),
     }
   }
 
@@ -711,14 +768,17 @@ export class Transcript {
     entry: RowContent,
   ): Change {
     const existing = this.#entries.get(key)
-    const next: ChatEntry = {
-      ...entry,
+    const derived = {
       id: key,
       seq: existing?.seq ?? this.#seq++,
       since: existing?.since ?? new Date(this.#now()).toISOString(),
-      ...(key === this.#open ? { streaming: true as const } : {}),
-      ...(this.#stranded.has(key) ? { stranded: true as const } : {}),
     }
+    const next = minted(
+      entry,
+      derived,
+      entry.kind === "agent" && key === this.#open,
+      entry.kind === "tool" && this.#stranded.has(key),
+    )
     this.#entries.set(key, next)
     return { upserts: [[key, next]], removes: [] }
   }

@@ -11,7 +11,7 @@
  *
  * SUBAGENT LANES are the one thing this file decides about a row rather than
  * delegating. A row a spawned agent produced carries the `Agent` frame it
- * belongs to ({@link ../../../../surface/src/chat.ts}'s `ChatEntry.parent`) —
+ * belongs to ({@link ../../../../surface/src/chat.ts}'s `ToolEntry.parent`) —
  * a tool call it made, or a question it stopped to ask — and it is drawn
  * indented behind a rail under that frame. Whether the lane has to NAME itself
  * is {@link ./lanes.ts}'s rule; this file is where the only reader of it
