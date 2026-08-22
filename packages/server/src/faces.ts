@@ -263,6 +263,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "vocabulary.tags": "tool",
   "git.commit": "tool",
   "git.push": "tool",
+  "who.get": "tool",
 }
 
 /**
@@ -300,6 +301,10 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
  * rather than one member of one: it answers a POPUP — as many rows as the
  * widget that asked has room for, ranked by how much this set uses each word —
  * and an agent writing `#home` writes the word.
+ *
+ * `who.get` is absent because who is looking is a fact about THIS TAB, stamped
+ * on the websocket upgrade: an agent arrives on HTTP `/mcp` and has no login
+ * header on that face. The chip is a paint instruction for a person.
  *
  * What a commit is RECORDED AS does differ, and it is not a member's business:
  * this face is served under the writer the composition root bound

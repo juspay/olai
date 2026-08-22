@@ -4,7 +4,15 @@ import { Schema, SchemaAST } from "effect"
 
 import { NO_PIN } from "@olai/format"
 
-import { DocumentEntry, type GitState, LOADED, Manifest, surface, WHO_PATH } from "./index.ts"
+import {
+  ASSET_PREFIX,
+  DocumentEntry,
+  type GitState,
+  LOADED,
+  Manifest,
+  surface,
+  WHO_PATH,
+} from "./index.ts"
 
 const tags = [...surface.group.requests.keys()].sort()
 
@@ -17,13 +25,15 @@ test("the surface claims our members alongside the framework's own", () => {
   expect(tags).toContain("surface/outlines/get")
   expect(tags).toContain("surface/errors/get")
   expect(tags).toContain("surface/manifest/get")
-  // Reserved, and the reason this repo declares no identity member of its own:
-  // the framework answers "which process is this" out of every surface, and the
-  // stale-tab handshake on both ends reads THAT id. Who is LOOKING is a
-  // different question and lives on the HTTP request (`GET /olai/who`).
+  // Reserved, and the reason this repo declares no process-identity member of
+  // its own: the framework answers "which process is this" out of every
+  // surface, and the stale-tab handshake on both ends reads THAT id. Who is
+  // LOOKING is a different question — per connection, so a procedure, not a
+  // cell — and `GET /olai/who` stays for the doors that have no websocket.
   expect(tags).toContain("surface/system/identity")
-  expect(tags).not.toContain("surface/who/of")
+  expect(tags).toContain("surface/who/get")
   expect(WHO_PATH).toBe("/olai/who")
+  expect(ASSET_PREFIX).toBe("/_olai/assets/")
   // surface mints these itself for liveness and identity — seeing them is how
   // we know the group came from the framework and not from our spec alone.
   expect(tags).toContain("surface/system/live")

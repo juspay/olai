@@ -4,9 +4,9 @@
  *
  * The Givens write the proxy's headers onto THIS scenario's context before
  * the first navigation — Playwright sends them on every HTTP request,
- * which is how `tailscale serve` injects them and how the chip's
- * `GET /olai/who` sees them. A failed door is stubbed the same way, so a
- * fetch error is not the honest absence.
+ * which is how `tailscale serve` injects them and how the websocket
+ * upgrade carries them. The chip reads `who.get` off that upgrade; a
+ * failed ask is a throw, not an intercepted GET.
  *
  * WHICH picture a person wears is the server's answer and not this
  * suite's: `@olai/identity`'s ladder resolves it, and what the steps here
@@ -21,7 +21,6 @@ import { Given, Then } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
 import { DEFAULT_IDENTITY_HEADERS, gravatarOf } from "@olai/identity";
-import { WHO_PATH } from "@olai/surface";
 import { selector, TESTID } from "@olai/web/src/client/testids.ts";
 
 import { POLL_TIMEOUT } from "../support/world.ts";
@@ -73,13 +72,23 @@ Given(
   },
 );
 
-Given("asking who you are will fail", async function (this: OlaiWorld) {
-  // 500, not abort: Chromium logs net::ERR_FAILED on abort as a page
-  // error, which is a different claim than "the door answered badly".
-  await this.page.route(`**${WHO_PATH}`, (route) =>
-    route.fulfill({ status: 500, body: "nope" }),
-  );
-});
+Then(
+  "nothing fetched {string}",
+  function (this: OlaiWorld, path: string) {
+    const hits = this.requests.filter((url) => {
+      try {
+        return new URL(url).pathname === path;
+      } catch {
+        return url.includes(path);
+      }
+    });
+    assert.equal(
+      hits.length,
+      0,
+      `the page fetched ${path}, which a connected tab must not: ${hits.join(", ")}`,
+    );
+  },
+);
 
 /** The chip is an icon; the words live on `aria-label` (and the hover
  *  tip, which is a portal). A labelled pill would put them in the slot. */

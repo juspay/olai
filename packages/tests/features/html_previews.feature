@@ -64,10 +64,10 @@ Feature: A `.html` in the vault
     # reaches the client's parser and the reader's own page opens.
     #
     # `web/src/client/routes.ts` used to say this address could not be reached.
-    # It can. The half that genuinely cannot is a file under an `assets/`
-    # folder, where the immutable prefix has to 404 rather than reach the
-    # shell — pinned at the HTTP layer in `packages/server/src/serve.test.ts`,
-    # since a page that does not exist is not a thing a browser can be shown.
+    # It can. A file under an `assets/` folder used to 404 from the hashed
+    # prefix; that prefix moved to `/_olai/assets/`, so `/assets/x.md` opens
+    # as a page now — pinned at the HTTP layer in
+    # `packages/server/src/serve.test.ts`.
     #
     # `@own-scratch` because it LISTS THE WHOLE VAULT, which is this feature's
     # own rule for a private copy: the assertion is that the new file joined the
@@ -86,6 +86,25 @@ Feature: A `.html` in the vault
     When I reload the page
     Then the address is "/index.html"
     And the preview shows the heading "The reader's own index"
+    And there should be no page errors
+
+  @scratch:good @own-scratch
+  Scenario: A note under assets/ is still that vault's page
+    # THE COLLISION, gone. `/assets/` used to be the hashed prefix, so a
+    # vault file under it 404'd from the immutable-asset route. The prefix
+    # moved to `/_olai/assets/`; a RELOAD here is what asks the server.
+    When I rewrite "assets/x.md" as:
+      """
+      # a note under assets
+      """
+    And I open the app
+    Then the pages listed are "assets/x.md, quarter.html, report.html"
+    When I open the document "assets/x.md"
+    Then the document open is "assets/x.md"
+    And the address is "/assets/x.md"
+    When I reload the page
+    Then the address is "/assets/x.md"
+    And the document open is "assets/x.md"
     And there should be no page errors
 
   @corpus:good

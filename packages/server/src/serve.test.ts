@@ -416,19 +416,25 @@ test("a vault's own index.html has a page — the bundle answers it with the she
   })
 })
 
-test("a vault file under assets/ has no page — the hashed prefix must 404 rather than reach the shell", async () => {
+test("a miss under /_olai/assets/ still 404s rather than reaching the shell", async () => {
   await withShadowed(async (url) => {
-    const answer = await fetch(`${url}/assets/x.md`)
-    // THE COLLISION, pinned rather than described. `/assets/` is the immutable
-    // content-hashed prefix, and a miss under it has to 404: the shell served
-    // under a `.js` URL is the wrong MIME pinned `immutable` for a year
-    // (kolu#1319). So a file the reader keeps in a folder called `assets` is
-    // an address this app can spell and cannot open.
-    //
-    // This is the assertion the follow-up flips. Moving the bundle to
-    // `/_olai/assets/` needs `buildSurfaceClient` to take the prefix its own
-    // server already takes — kolu#2197 — so it lands when the pin carries it.
+    const answer = await fetch(`${url}/_olai/assets/missing.js`)
     expect(answer.status).toBe(404)
     expect(answer.headers.get("content-type") ?? "").not.toMatch(/^text\/html/)
+  })
+})
+
+test("a vault file under assets/ opens as a page — the hashed prefix moved", async () => {
+  await withShadowed(async (url) => {
+    const shell = await fetch(`${url}/`)
+    const answer = await fetch(`${url}/assets/x.md`)
+    // THE COLLISION, gone. `/assets/` is no longer the immutable prefix, so a
+    // miss there reaches the SPA shell the same way `/index.html` always did,
+    // and the address reaches the client's parser. The hashed dir sits at
+    // `/_olai/assets/` now (`@olai/surface`'s ASSET_PREFIX).
+    expect(answer.status).toBe(200)
+    expect(answer.headers.get("content-type") ?? "").toMatch(/^text\/html/)
+    expect(await answer.text()).toBe(await shell.text())
+    expect(answer.headers.get("cache-control")).toBe("no-store")
   })
 })
