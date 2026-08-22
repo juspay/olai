@@ -163,6 +163,26 @@ That is `SESSION=preview`, the first of THREE. `SESSION=pages` walks an ordinary
 
 `ROOT=` is the knob it exists for: the driver imports nothing of olai, so pointing it at a second worktree measures THAT branch's server through the same session, and the two numbers are comparable. That is how `preview-body-not-shipped`'s were taken — a previewed page's body used to cross the socket as well as the route, so the same session read 3.9 MB on the socket before and about 50 kB after (which is the note, and only the note).
 
+## Photographing a window the wire is allowed to open
+
+```bash
+just build-client
+nix develop .#e2e -c bash
+cd packages/tests
+SHOTS=/tmp/shots bash skew.sh
+ROOT=/path/to/another/worktree LABEL=before SHOTS=/tmp/shots bash skew.sh
+```
+
+`skew.ts` / `skew.sh` are the fourth driver, and not part of the suite either. The other three drive a wire behaving exactly as it does for everybody — `evidence.ts` photographs a LOOK, `wire.ts` counts a COST, `reads.ts` prints what a tool surface ANSWERS. This one is about a wire behaving in one of the two ways it is ALLOWED to and normally does not: the `manifest` cell and the `heads` collection are two members on two channels, and the server declines to promise an order between them ([`@olai/server`'s `runtime.ts`](../server/src/runtime.ts), where a revision is published — "a reader tolerates the skew either way"). A reader that tolerates only one of the two is wrong in a window nobody can photograph by waiting for it, because the order that exposes it is the one the server happens not to produce.
+
+So one frame is HELD, and nothing else is touched: the server is a real `olai web` over a real directory that really does not parse, so the manifest cell really does say `null`; the SECOND frame of `surface/manifest/get` — the `{}` that says the set finally loaded — is held for `HOLD_MS` by a Playwright `routeWebSocket`, and the heads of that same revision pass through untouched. Every frame the driver holds or passes is announced on stdout with a clock beside it, so the transcript says what was interfered with rather than asking anybody to take it on trust. Three shots: the boot over a set that never validated, THE WINDOW (`WINDOW_MS` after the files are repaired on disk, that revision's heads already here and the cell's `{}` still held), and the same page once the frame is let through, which is the control.
+
+`ROOT=` is the knob it exists for, exactly as `wire.ts` has one: the driver imports no olai package, so pointing it at a second worktree photographs THAT branch's client through the same frames, and the two runs are of the same window. That is how `manifest-fold-skew`'s before and after were taken — one run drawing the error report over a directory the tab was holding, one drawing the directory, at the same instant of the same held frame.
+
+The vault is the driver's own, both states of it, for `reads.ts`'s reason one section up: the exhibit is the TRANSITION between a refused set and a repaired one, and a corpus shared with the suite would drift away from it the moment a scenario needed a row. The refused state is a MEANING error and not a syntax one, which is load-bearing — a file that will not PARSE keeps its key and carries its errors (`Head.broken`), so that set still validates and its heads still travel; a row hanging off a parent nothing declares is what leaves the store with no snapshot at all. It is seeded by `bash skew.sh`'s own `--seed` pass, before the server starts, because an empty directory is a valid set and would boot to a directory rather than to the `null` the window opens out of.
+
+What the BEHAVIOUR is held by is not here: [`directory.browsertest.ts`](../web/src/client/directory.browsertest.ts) orders the two arrivals deterministically and [`runtime.test.ts`](../server/src/runtime.test.ts) pins the fact the browser's rule rests on. This is the picture, and a picture is all it is.
+
 ## Making it flake on purpose
 
 ```bash
