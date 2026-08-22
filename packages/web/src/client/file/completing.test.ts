@@ -48,12 +48,14 @@ test("a name carrying another kind's suffix is refused in the box's own words", 
   })
 })
 
-// The third kind has no door of its own — olai shows a `.html` and never writes
-// one — so it can only ever be met this way round, and it is still named for
-// what it is rather than lumped in as "wrong".
-test("hypertext is named as hypertext at either door", () => {
+// The third kind has no door of its own — olai shows a `.html` and never
+// writes one — so it can only ever be met this way round, and it is still named
+// rather than lumped in as "wrong". A PAGE, which is the word the client's
+// vocabulary seam already chose for a reader (`./kinds.ts`, and `Nothing.tsx`
+// spends the same one).
+test("the third kind is named too, in the word a reader is given for it", () => {
   expect(meantAt("outline", "report.html")).toEqual({
-    refused: "`report.html` is hypertext, not an outline — type `report` to make `report.olai`.",
+    refused: "`report.html` is a page, not an outline — type `report` to make `report.olai`.",
   })
 })
 

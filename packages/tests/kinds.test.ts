@@ -107,10 +107,12 @@ const TABLES: ReadonlyArray<{ file: string; over: "FileKind" | "BodyKind" }> = [
   // The glyph before the name, in the tree and on the collapsed rail. Its union
   // is the directory's — every file kind, plus the folders they sit under.
   { file: "packages/web/src/client/file/icons.tsx", over: "FileKind" },
-  // What a scenario grips a row of this kind by.
+  // What a scenario grips a row of this kind by, and what a READER is told a
+  // kind is — the client's vocabulary seam, spent by the empty page that says
+  // the directory holds nothing by that name and by the refusal under the
+  // sidebar's path box. Two tables, one file, one entry: this list is about
+  // where a table LIVES, and the assertion below is per kind per table.
   { file: "packages/web/src/client/file/kinds.ts", over: "FileKind" },
-  // What a reader is told when the directory does not hold what was asked for.
-  { file: "packages/web/src/client/Nothing.tsx", over: "FileKind" },
   // What the body of one is drawn as, and whether its page can write it.
   { file: "packages/web/src/client/document/faces.tsx", over: "BodyKind" },
 ];

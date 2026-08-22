@@ -46,11 +46,16 @@
  * rule would have made of it — a file nobody asked for. What the sentence says
  * is the thing only this side knows: which kind that name names, which kind
  * this door makes, and what to type to get one.
+ *
+ * The two kinds are NAMED by the client's one vocabulary seam (`./kinds.ts`'s
+ * `NAMED`), which is why a `.html` is "a page" in that sentence rather than
+ * "hypertext": what a reader calls a kind is a decision this repository makes
+ * once, and `../Nothing.tsx` was already making it.
  */
 
 import { type FileKind, FILE_KINDS, fileKind } from "@olai/format"
 
-import { KIND_NAMED } from "./kinds.ts"
+import { oneNamed } from "./kinds.ts"
 
 /** What a typed name means at a door: the path to ask for, or the sentence to
  *  draw instead. A sum rather than a path plus an optional complaint, so a
@@ -78,7 +83,7 @@ export const meantAt = (of: FileKind, typed: string): Meant => {
   // — the same rule `stemOf` is, minus its basename step, which would offer
   // `plan` for a `notes/plan.md` and quietly move the file to the root.
   const bare = name.slice(0, -FILE_KINDS[carried].ext.length)
-  const said = `\`${name}\` is ${KIND_NAMED[carried]}, not ${KIND_NAMED[of]}`
+  const said = `\`${name}\` is ${oneNamed(carried)}, not ${oneNamed(of)}`
   // A name that is nothing BUT a suffix leaves nothing to suggest typing, and
   // an empty pair of backticks is advice about nothing.
   return {

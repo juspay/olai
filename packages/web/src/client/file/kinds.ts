@@ -1,6 +1,7 @@
 /**
- * What the DIRECTORY COLUMN does with each kind of served file: where a row of
- * it goes when it is clicked, and what a scenario calls that row.
+ * What THIS CLIENT knows about a kind of served file that the format cannot
+ * say: what a scenario calls a row of one, and what a reader calls one out
+ * loud.
  *
  * The format's registry (`@olai/format`'s `kinds.ts`) says which kinds exist
  * and what each is called on disk; it cannot say where one goes, because a
@@ -16,9 +17,10 @@
  * a second place holding the answer, and the whole point of the collapse is
  * that there is one.
  *
- * What is left is what could never be derived: what a test GRIPS a row by. That
- * is a name, and a name is a decision — so it is a `Record` over the registry's
- * union, and a kind added there is a compile error here.
+ * What is left is what could never be derived: what a test GRIPS a row by, and
+ * what a PERSON calls the thing. Both are names, and a name is a decision — so
+ * each is a `Record` over the registry's union, and a kind added there is a
+ * compile error here.
  */
 
 import type { FileKind } from "@olai/format"
@@ -36,24 +38,45 @@ export const ROW_TESTID: Record<FileKind, string> = {
 }
 
 /**
- * What ONE FILE of this kind is called in a sentence a person reads — with its
- * article, because the sentence that spends it puts two of these side by side
- * ("`notes.md` is a document, not an outline") and an article added by the
- * caller would be the caller holding a fact about a word it was handed.
+ * WHAT A READER CALLS EACH KIND, in a sentence — the vocabulary seam, and the
+ * whole of it.
  *
- * Here for {@link ROW_TESTID}'s reason exactly: a name is a decision, the
- * registry cannot make it (what a kind is CALLED to a reader is this client's
- * vocabulary — the sidebar's doors say these words), and a `Record` over the
- * union means a fourth kind is a compile error here rather than a sentence
- * about `undefined`.
+ * The registry names kinds for the code that branches on them; this is the same
+ * set of things said the way somebody looking at their own directory would say
+ * them, which is why `hypertext` is a "page" here and nowhere else in the
+ * source. A fourth kind owes a WORD here — chosen for a reader rather than
+ * inherited from the registry — and the compile error is what asks for it.
  *
- * HYPERTEXT CARRIES NO ARTICLE, and that is the word rather than an omission:
- * "a hypertext" is not English, and this kind is the one with no door of its
- * own — olai shows a `.html` and never writes one — so it is only ever met as
- * the left-hand half of that sentence.
+ * IT MOVED HERE from `../Nothing.tsx`, which is where it was written and whose
+ * docstring already promised this: "if a second surface ever has to say a kind
+ * out loud, it reads this rather than minting a second noun". The second
+ * surface arrived — `./completing.ts`'s refusal names two kinds in one breath
+ * — and a rule module importing a COMPONENT to borrow three words would have
+ * been the reason the promise got broken instead of kept. So the table sits
+ * beside the client's other per-kind name ({@link ROW_TESTID}) and both
+ * surfaces read it.
+ *
+ * THE ARTICLE IS A FIELD rather than a letter somebody looks at, because "a" or
+ * "an" is a fact about a WORD and not a rule about its spelling (an hour, a
+ * unicorn) — and because only one of the two moods wants it: "No outline named
+ * that" takes the bare noun, "is a document, not an outline" takes both.
  */
-export const KIND_NAMED: Record<FileKind, string> = {
-  outline: "an outline",
-  document: "a document",
-  hypertext: "hypertext",
+export interface Named {
+  /** The noun on its own — what a sentence that already has an article, or
+   *  wants none, spends. */
+  readonly noun: string
+  /** The indefinite article that noun takes. */
+  readonly article: string
 }
+
+export const NAMED: Record<FileKind, Named> = {
+  outline: { noun: "outline", article: "an" },
+  document: { noun: "document", article: "a" },
+  hypertext: { noun: "page", article: "a" },
+}
+
+/** ONE of them — "an outline", "a page". Beside the table rather than at the
+ *  two call sites that want it, so how the two fields go together is written
+ *  down once. */
+export const oneNamed = (kind: FileKind): string =>
+  `${NAMED[kind].article} ${NAMED[kind].noun}`
