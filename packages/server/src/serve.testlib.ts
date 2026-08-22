@@ -28,7 +28,7 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { DEFAULT_IDENTITY_HEADERS, type IdentityHeaders } from "@olai/identity"
+import { DEFAULT_IDENTITY_CONFIG, type IdentityConfig } from "@olai/identity"
 import { serve } from "./serve.ts"
 
 // child.testlib strips OLAI_PORT_FILE from CLI children. This is the
@@ -86,10 +86,10 @@ export const withServe = async <A>(
      *  page out of. Pass a real (or assembled) dist when the test is about
      *  what the static layer actually answers. */
     readonly clientDist?: string
-    /** Which identity headers this serve trusts. Unset is the Tailscale
-     *  default — tests that are not about identity should not have to
-     *  name it. */
-    readonly identity?: IdentityHeaders
+    /** What this serve trusts for who is looking — the header names and the
+     *  avatar template. Unset is the Tailscale default with no template:
+     *  tests that are not about identity should not have to name it. */
+    readonly identity?: IdentityConfig
   },
   body: (said: ReadonlyArray<Logged>) => Promise<A>,
 ): Promise<A> => {
@@ -103,7 +103,7 @@ export const withServe = async <A>(
       // never going to serve a page out of.
       clientDist: options.clientDist ?? served(),
       allowedOrigins: [],
-      identity: options.identity ?? DEFAULT_IDENTITY_HEADERS,
+      identity: options.identity ?? DEFAULT_IDENTITY_CONFIG,
       pin: { commit: options.commits ?? "off", push: null },
     })
     return yield* Effect.promise(() => body(said))
@@ -136,7 +136,7 @@ export const withServing = <A>(
     readonly root: string
     readonly commits?: "off" | "manual" | "auto"
     readonly clientDist?: string
-    readonly identity?: IdentityHeaders
+    readonly identity?: IdentityConfig
   },
   body: (url: string, said: ReadonlyArray<Logged>) => Promise<A>,
 ): Promise<A> =>
