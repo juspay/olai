@@ -53,10 +53,11 @@
          installed window's title bar. ONE of them, holding the DEFAULT theme's
          paper — the palette a page that has picked nothing reads in — because
          that is the only one this shell can know before the bundle runs. A
-         page that did pick repaints this from the table (theme/state.ts). The
-         value is `--color-paper` of the default palette, which cannot be read
-         from here (the sheet is a build artifact and this shell is what loads
-         it) and is pinned by theme/css.test.ts instead. -->
+         page that did pick (and the default, once the bundle is up) repaints
+         this AND the tab mark from the table (theme/state.ts). The value is
+         `--color-paper` of the default palette, which cannot be read from
+         here (the sheet is a build artifact and this shell is what loads it)
+         and is pinned by theme/css.test.ts instead. -->
     <meta name="theme-color" content="#D7F0E8" />
     <!-- The header chip draws a person's picture, and it is a remote <img>.
          WHOSE host that is belongs to whoever deployed this olai: the IdP
@@ -87,9 +88,13 @@
     <!-- The install surface. The manifest is the SERVER's
          (packages/server/src/listener.ts, through kolu's manifest layer); the
          icons are files copied to the dist root by the build. `rel="icon"` is
-         the tab, `apple-touch-icon` is iOS's Add to Home Screen, which reads
-         no manifest — so the same mark has to be named twice. There is no
-         service worker and no offline shell: this app is live or nothing. -->
+         the tab's FIRST PAINT — the install mark, in the leaf palette, which
+         is the file an installer keeps. Once the bundle is up, chrome.ts
+         replaces this href with the same drawing in the palette in force
+         (`theme/mark.ts`). `apple-touch-icon` is iOS's Add to Home Screen,
+         which reads no manifest — so the install mark has to be named twice.
+         There is no service worker and no offline shell: this app is live
+         or nothing. -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

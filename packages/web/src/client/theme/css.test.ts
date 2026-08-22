@@ -82,7 +82,9 @@ describe("the shell's boot script", () => {
   test("ships the default palette's paper as the browser chrome", async () => {
     // The one colour the shell can know before the bundle runs: a page that
     // has picked nothing is in the default, and inventing a second value here
-    // would flash a different chrome on the first paint of every load.
+    // would flash a different chrome on the first paint of every load. The
+    // tab mark starts as the install file (`public/icon.svg`) and is caught
+    // up from the table once the bundle runs — that half is mark.test.ts.
     expect(await shell()).toContain(
       `<meta name="theme-color" content="${DEFAULT_PALETTE.colors.paper}" />`,
     )

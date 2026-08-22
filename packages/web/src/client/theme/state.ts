@@ -41,9 +41,9 @@ export const currentTheme: Accessor<string> = named
 
 /**
  * Put the page in a palette: the attribute the sheet keys off, the signal the
- * picker reads, and the chrome around the page. Three things that have to stay
- * in step, so they are written down once — a fourth thing a theme touches is
- * added here or nowhere.
+ * picker reads, and the chrome around the page (the status-bar colour, and
+ * the tab's own mark). Three things that have to stay in step, so they are
+ * written down once — a fourth thing a theme touches is added here or nowhere.
  *
  * `undefined` is the page NOBODY HAS PICKED ON, which is not the same fact as a
  * page naming the default: it carries no attribute at all, because the
@@ -94,7 +94,8 @@ export const pickTheme = (palette: Palette): void => {
  * name neither can paint.
  *
  * The chrome is repainted either way, because the shell could only ship the
- * DEFAULT's paper in a tag it wrote before anybody's pick was known.
+ * DEFAULT's paper in a tag it wrote, and the install mark as a file, before
+ * anybody's pick was known.
  */
 export const followStoredTheme = (): void => {
   const stored = attribute()

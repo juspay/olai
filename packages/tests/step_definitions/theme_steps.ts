@@ -12,9 +12,10 @@
  * which is the scenario saying what it wants.
  *
  * No step asserts on a COLOUR it wrote down. The paper is compared against
- * itself (before a pick, after a pick), against the browser chrome and against
- * what the manifest says — never against a hex written in a test, which would
- * make this the place a design decision has to be changed.
+ * itself (before a pick, after a pick), against the browser chrome (the
+ * status-bar colour and the tab's own mark) and against what the manifest
+ * says — never against a hex written in a test, which would make this the
+ * place a design decision has to be changed.
  */
 
 import * as assert from "node:assert";
@@ -41,6 +42,29 @@ const PROBE = "__olaiThemeLanded";
  *  of the generator, so a renamed namespace is a rename here too rather than a
  *  step that quietly reads an empty string. */
 const PAPER = customProperty("paper");
+
+/**
+ * What the browser chrome is painted in, as a page-side JavaScript function.
+ *
+ * A STRING, not a TypeScript function this file would serialise: Playwright
+ * runs `toString()` of a callback in the page, and a `: string` or an `as`
+ * cast is a syntax error there. The mark is a blob the page minted; fetching
+ * it is how we read the paper it was drawn in, without this step writing a
+ * hex.
+ */
+const CHROME_OF = `async (property) => {
+  const paper = getComputedStyle(document.documentElement)
+    .getPropertyValue(property).trim().toLowerCase();
+  const chrome = document.querySelector('meta[name="theme-color"]')
+    ?.getAttribute("content")?.toLowerCase() ?? null;
+  const href = document.querySelector("link[rel=icon]")?.href;
+  let mark = null;
+  if (href) {
+    try { mark = (await (await fetch(href)).text()).toLowerCase(); }
+    catch { mark = null; }
+  }
+  return { chrome, paper, mark };
+}`;
 
 // ── picking ────────────────────────────────────────────────────────────
 
@@ -222,30 +246,37 @@ Then("the paper colour has changed", async function (this: OlaiWorld) {
 });
 
 Then("the browser chrome matches the paper", async function (this: OlaiWorld) {
-  // Both facts read in the SAME page function, and polled by the browser: the
-  // meta is repainted from the palette a frame after a chip is pressed, so
-  // this is a wait — and a wait made of two round trips per attempt would be
-  // reading two values taken at different instants.
-  const both = `({
-    chrome: document.querySelector('meta[name="theme-color"]')?.getAttribute('content') ?? null,
-    paper: getComputedStyle(document.documentElement).getPropertyValue(${JSON.stringify(PAPER)}).trim(),
-  })`;
+  // Three facts read in the SAME page function, and polled by the browser: the
+  // meta and the tab mark are repainted from the palette a frame after a chip
+  // is pressed, so this is a wait — and a wait made of three round trips per
+  // attempt would be reading values taken at different instants.
+  const property = JSON.stringify(PAPER);
   try {
     await this.page.waitForFunction(
-      `(both => both.chrome !== null && both.chrome.toLowerCase() === both.paper.toLowerCase())(${both})`,
+      `(async () => {
+        const seen = await (${CHROME_OF})(${property});
+        return seen.chrome === seen.paper && seen.mark !== null && seen.mark.includes('fill="' + seen.paper + '"');
+      })()`,
       null,
       { timeout: POLL_TIMEOUT },
     );
   } catch (cause) {
     // The timeout says "it never matched"; say WHAT it said instead.
-    const seen = (await this.page.evaluate(both)) as {
+    const seen = (await this.page.evaluate(
+      `(${CHROME_OF})(${property})`,
+    )) as {
       chrome: string | null;
       paper: string;
+      mark: string | null;
     };
     assert.equal(
-      seen.chrome?.toLowerCase() ?? null,
-      seen.paper.toLowerCase(),
+      seen.chrome,
+      seen.paper,
       "the browser chrome is not the colour the page is painted in",
+    );
+    assert.ok(
+      seen.mark !== null && seen.mark.includes(`fill="${seen.paper}"`),
+      "the tab mark is not painted in the paper the page is in",
     );
     throw cause;
   }
