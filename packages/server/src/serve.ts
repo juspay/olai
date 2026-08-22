@@ -25,7 +25,7 @@
 
 import { AGENT_ENV, roster, whyNoAgent } from "@olai/chat"
 import type { GitPin } from "@olai/format"
-import type { IdentityHeaders } from "@olai/identity"
+import type { IdentityConfig } from "@olai/identity"
 import { make as makeOps, TOOLS } from "@olai/ops"
 import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
@@ -51,9 +51,10 @@ export interface ServeOptions {
   readonly clientDist: string
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
-  /** Which request headers name the signed-in person — see
-   *  `@olai/identity`. */
-  readonly identity: IdentityHeaders
+  /** What this server trusts for who is looking, and how it pictures them
+   *  — the header names plus the avatar template (`@olai/identity`).
+   *  Read from the environment at the composition root, once. */
+  readonly identity: IdentityConfig
   /** The git policy this serve runs under, as the operator PINNED it —
    *  `--commit=off | manual | auto` and `--push=off | auto`, each `null` when
    *  the flag was not given (`@olai/format`'s `GitPin`). What the server does
@@ -227,7 +228,7 @@ export const serve = (options: ServeOptions) =>
         // somebody else's. Handed the ops layer directly rather than a runtime
         // member, because nothing about this door is on the surface: no tab
         // draws it and no agent calls it.
-        capture: { ops, writer: "capture", identity: options.identity },
+        capture: { ops, writer: "capture", identity: options.identity.headers },
         resync: store.resync,
       }),
       () => runtime.stopped,

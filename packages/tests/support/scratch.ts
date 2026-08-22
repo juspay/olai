@@ -116,14 +116,25 @@ export const requestOf = (
       ? []
       : [{ corpus: asked[2]!, scratch: asked[1] === "scratch" }];
   });
-  if (named.length > 1) {
+  // TWO CORPORA is the mistake; the SAME corpus twice is not. A feature that
+  // serves one corpus read-only (`@corpus:good`) can hold a scenario that
+  // needs its own server over that same fixture (`@scratch:good`, because it
+  // writes, or because it is started differently) — cucumber hands the
+  // feature's tags to every pickle in it, so the scenario cannot take the
+  // feature's tag off and is asking for one corpus in two words. A scratch
+  // among them wins, on the rule `@pin:` already follows: the more specific
+  // tag is the scenario's.
+  const corpora = new Set(named.map((ask) => ask.corpus));
+  if (corpora.size > 1) {
     throw new Error(
       `a scenario may serve one corpus; this one asks for ${
-        named.map((ask) => ask.corpus).join(", ")
+        [...corpora].join(", ")
       }`,
     );
   }
-  const asked = named[0] ?? { corpus: DEFAULT_CORPUS, scratch: false };
+  const asked = named.length === 0
+    ? { corpus: DEFAULT_CORPUS, scratch: false }
+    : { corpus: named[0]!.corpus, scratch: named.some((ask) => ask.scratch) };
   const share = names.includes(SHARE_TAG);
   const own = names.includes(OWN_TAG);
 

@@ -46,7 +46,7 @@
  */
 
 import { serveSurfaceApp, type SurfaceAppListenFailed } from "@kolu/surface-app/serve"
-import type { IdentityHeaders } from "@olai/identity"
+import type { IdentityConfig } from "@olai/identity"
 import { codeOf, type Emit, emitter } from "@olai/log"
 import { Effect, Layer, type Scope } from "effect"
 
@@ -73,8 +73,9 @@ export interface ListenOptions {
   readonly port: number
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
-  /** Which request headers name the signed-in person. */
-  readonly identity: IdentityHeaders
+  /** What this server trusts for who is looking: the header names, and the
+   *  avatar template the picture ladder may use. */
+  readonly identity: IdentityConfig
   /** The internal MCP server, mounted beside the static routes — see
    *  {@link ./mcp/route.ts} for why it rides this listener rather than a
    *  transport of its own. */

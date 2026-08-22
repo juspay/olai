@@ -7,42 +7,49 @@
  * headers through.
  *
  * The PERSON is `@olai/identity`. This file is the door: it maps that
- * value onto `@olai/surface`'s `Who` (login + gravatar URL) and serves
- * it. A second reading of the headers here would be the parse the
- * package exists to have stopped keeping.
+ * value onto `@olai/surface`'s `Who` and serves it. A second reading of
+ * the headers here would be the parse the package exists to have stopped
+ * keeping — and so would a second picture rule: WHICH picture is
+ * `pictureOf`'s ladder, resolved HERE rather than in the browser, because
+ * header names and the avatar template are the operator's config and a
+ * page has no business knowing either.
  *
- * The gravatar is a remote `<img>`. The app page admits that origin in the
- * shell (`packages/web/src/client/index.html`'s content policy); sealed
- * `/media` pages keep their own, stricter, policy and do not.
+ * A picture is a remote `<img>` on the app page, and its origin is the
+ * operator's: an IdP's avatar host, a template's host, or gravatar. The
+ * shell's image policy admits `https:` for exactly that reason
+ * (`packages/web/src/client/index.html`, and `who/policy.test.ts` says
+ * why); sealed `/media` pages keep their own, stricter, policy and do not.
  */
 
 import {
-  GENERIC_GRAVATAR,
-  gravatarOf,
   identityOf,
+  pictureOf,
   type Identity,
-  type IdentityHeaders,
+  type IdentityConfig,
 } from "@olai/identity"
 import { WHO_PATH, type Who } from "@olai/surface"
 import { Effect } from "effect"
 import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 
-/** The chip's value of one identity — the login, and the picture from the
- *  email claim (or {@link GENERIC_GRAVATAR}). */
-export const shown = (who: Identity): Who => ({
+/** The chip's value of one identity — the login, what to call them, and
+ *  the picture the ladder resolved (or none, which is the silhouette). */
+export const shown = (who: Identity, template: string | null): Who => ({
   login: who.login,
-  gravatar: who.email === null ? GENERIC_GRAVATAR : gravatarOf(who.email),
+  name: who.name,
+  picture: pictureOf(who, template),
 })
 
-export const whoRoute = (names: IdentityHeaders) =>
+export const whoRoute = (identity: IdentityConfig) =>
   HttpRouter.add(
     "GET",
     WHO_PATH,
     (request: HttpServerRequest.HttpServerRequest) => {
-      const who = identityOf(request.headers, names)
+      const who = identityOf(request.headers, identity.headers)
       if (who === null) {
         return Effect.succeed(HttpServerResponse.empty({ status: 204 }))
       }
-      return Effect.orDie(HttpServerResponse.json(shown(who)))
+      return Effect.orDie(
+        HttpServerResponse.json(shown(who, identity.avatarTemplate)),
+      )
     },
   )

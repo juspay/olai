@@ -1187,6 +1187,23 @@ export class OlaiWorld extends World {
   context!: BrowserContext;
   page!: Page;
 
+  /**
+   * What the reverse proxy in front of this tab injects, as it accumulates.
+   *
+   * Playwright's `setExtraHTTPHeaders` REPLACES the whole set, so a scenario
+   * that said who it is and then said what it is called would have dropped
+   * the login on the second step. Kept here, per scenario, and written back
+   * whole each time — which is also what a proxy does.
+   */
+  private proxied: Record<string, string> = {};
+
+  /** Inject one more header on every request this tab makes from here on.
+   *  Before the first navigation, which is when a proxy would have. */
+  async proxyInjects(name: string, value: string): Promise<void> {
+    this.proxied = { ...this.proxied, [name]: value };
+    await this.context.setExtraHTTPHeaders(this.proxied);
+  }
+
   /** Uncaught page errors and `console.error` output, collected for the whole
    *  scenario by the `Before` hook. A feature asserts on this explicitly — a
    *  silent client-side exception behind a green UI assertion is exactly the
@@ -1445,6 +1462,14 @@ export class OlaiWorld extends World {
    *  same reason as `gitMode`: a restart has to reproduce the first boot, and
    *  this decides what every browser's preferences panel is allowed to do. */
   gitPin: { commit?: string; push?: string } = {};
+  /** The avatar URL template this scenario's server was started with
+   *  (`@avatar-template`), or `undefined` for the ordinary server, which has
+   *  none and pictures people from the rungs below it. Carried for the same
+   *  reason as `gitPin`: a restart has to reproduce the first boot, and a
+   *  server that came back without its template would picture the open page's
+   *  person differently — a different server rather than the same one
+   *  restarted. */
+  avatarTemplate?: string;
   /** The URL that corpus's server answers on; also the context's `baseURL`. */
   baseUrl!: string;
 

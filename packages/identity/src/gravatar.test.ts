@@ -1,10 +1,12 @@
 /**
- * The picture of a person: the hash, and the generic silhouette.
+ * The picture of a person from their email claim: the hash, and Gravatar's
+ * own fallback for an address nobody registered. WHICH rung of the ladder
+ * asks for it is {@link ./picture.test.ts}.
  */
 
 import { expect, test } from "bun:test"
 
-import { GENERIC_GRAVATAR, GRAVATAR_ORIGIN, gravatarOf } from "./gravatar.ts"
+import { GRAVATAR_ORIGIN, gravatarOf } from "./gravatar.ts"
 
 const ADA = "ada@example.com"
 /** MD5 of `ada@example.com`, the classic Gravatar contract. */
@@ -15,8 +17,6 @@ test("the gravatar is the MD5 of the trimmed, lowercased email", () => {
   expect(gravatarOf("  Ada@Example.COM  ")).toBe(gravatarOf(ADA))
 })
 
-test("no email claim draws the generic silhouette, not a hash of the login", () => {
-  expect(GENERIC_GRAVATAR.endsWith("?d=mp")).toBe(true)
-  expect(GENERIC_GRAVATAR).toBe(gravatarOf(""))
-  expect(GENERIC_GRAVATAR).not.toBe(gravatarOf(ADA))
+test("an address with no gravatar draws Gravatar's own silhouette", () => {
+  expect(gravatarOf(ADA).endsWith("?d=mp")).toBe(true)
 })
