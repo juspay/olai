@@ -494,3 +494,22 @@ test("the empty answers are one value each, not a fresh one per read", () => {
   expect(directory.broken()).toBe(directory.broken())
   directory.stop()
 })
+
+test("a tab holding files is holding a directory, whatever the manifest still says", () => {
+  // THE SKEW, in the one order this client drew wrong. The manifest and the
+  // heads are two members on two channels and the server promises no order
+  // between them (`@olai/server`'s `runtime.ts`: "a reader tolerates the skew
+  // either way"). A tab that connected before the first revision has been told
+  // `null`, and that revision's heads can reach it before the cell's next
+  // frame does — so answering `null` here draws the error report over a
+  // directory this tab is already holding.
+  const directory = live()
+  directory.never()
+  directory.snapshot([
+    ["house.olai", directory.wrote(1)],
+    ["garden.olai", directory.wrote(1)],
+  ])
+  expect(directory.paths()).toEqual(["garden.olai", "house.olai"])
+  expect(directory.manifest()).not.toBeNull()
+  directory.stop()
+})
